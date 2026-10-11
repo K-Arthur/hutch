@@ -41,3 +41,13 @@ viewport variants failed after 30 seconds at the same wait for the “Workspace 
 128.38 s). At integration-base commit `63b2712`, the desktop variant failed at that same locator (1 failed, 3 deselected
 in 35.11 s). This confirms the reproduced desktop failure is inherited; the full integrated browser suite remains
 unverified. The comparison used an existing runtime worktree with unrelated documentation changes, which were preserved.
+
+After the adaptive-persona rollback-gate commit `ec50a5b`, the full offline suite was rerun with its pytest temporary
+directory under `/var/tmp`. It reported **2,122 passed and 6 failed in 456.76 s**; the complete output is
+`offline-suite-rollback-2026-10-11.log` (trailing spaces removed from captured tracebacks to keep the committed log
+clean). Four isolated-worker tests failed because their sandbox helper still writes to
+the full `/tmp` tmpfs (`ENOSPC`); `/tmp` was not cleaned. One OpenCode Go model-catalogue test failed with “model list
+unavailable” both in the suite and alone. The DOCX identical-bytes assertion failed only in the suite and passed alone.
+These cases do not touch rollback-gate code. The six relevant persona browser journeys passed together (**6 passed in
+22.75 s**) using `TMPDIR=/var/tmp`, including the new rollback UI journey. Rollback captures and validation are in
+`persona-rollback-ui-2026-10-11/`; the complete browser suite remains unverified.

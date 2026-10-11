@@ -1,6 +1,6 @@
 {
   "test": "tests/e2e/test_design_system.py::test_adaptive_persona_rollback_is_visible_read_only_and_preserves_local_draft",
-  "captured_at": "2026-10-11T18:20:26.652424+00:00",
+  "captured_at": "2026-10-11T18:34:14.612349+00:00",
   "browser": "Chromium 153.0.8010.12",
   "settings_viewports": [
     {

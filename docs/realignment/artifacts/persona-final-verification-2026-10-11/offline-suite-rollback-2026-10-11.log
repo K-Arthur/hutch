@@ -1,0 +1,271 @@
+........................................................................ [  3%]
+........................................................................ [  6%]
+........................................................................ [ 10%]
+........................................................................ [ 13%]
+.....................................F.............................F.... [ 16%]
+........................................................................ [ 20%]
+........................................................................ [ 23%]
+........................................................................ [ 27%]
+........................................................................ [ 30%]
+........................................................................ [ 33%]
+........................................................................ [ 37%]
+.................F...................................................... [ 40%]
+........................................................................ [ 43%]
+........................................................................ [ 47%]
+FFF..................................................................... [ 50%]
+........................................................................ [ 54%]
+........................................................................ [ 57%]
+........................................................................ [ 60%]
+........................................................................ [ 64%]
+........................................................................ [ 67%]
+........................................................................ [ 71%]
+........................................................................ [ 74%]
+........................................................................ [ 77%]
+........................................................................ [ 81%]
+........................................................................ [ 84%]
+........................................................................ [ 87%]
+........................................................................ [ 91%]
+........................................................................ [ 94%]
+........................................................................ [ 98%]
+........................................                                 [100%]
+=================================== FAILURES ===================================
+_____ test_strict_offline_delegation_runs_as_child_after_explicit_approval _____
+
+store = <hutch.store.Store object at 0x7fa4b903f890>
+config = hutchConfig(state_dir=PosixPath('/var/tmp/pytest-of-kevina/pytest-21/test_strict_offline_delegation0/state'), adaptive...e, default_max_steps=24, default_timeout_seconds=900, default_daily_token_cap=200000, default_approval_ttl_seconds=600)
+
+    def test_strict_offline_delegation_runs_as_child_after_explicit_approval(store, config):
+        """Exercise approval, child process, private context and result return with a local HTTP fixture."""
+        import threading
+        import time
+
+        from hutch import sandbox
+        from hutch.approvals import resolve_approval
+        from hutch.models import ApprovalMode
+        from tests.fakes import FakeOllama, agent_script
+
+        if not sandbox.status().ok or not sandbox.offline_egress_status(refresh=True).ok:
+            pytest.skip("host lacks a verified resource-limited offline worker")
+
+        fake = FakeOllama({"fake:1b": {"params": "1B", "size": 200_000_000}})
+        fake.script = agent_script([
+            {"content": "", "tool_calls": [{"name": "delegate_task", "arguments": {
+                "task": "Return a short independent summary of the supplied task."}}]},
+            {"content": "Child result: the requested summary is verified."},
+            {"content": "Parent result includes the verified child summary."},
+        ])
+        bot = store.create_bot(Bot(
+            name="offline-delegation-e2e", model="ollama/fake:1b", base_url=fake.url,
+            inference_mode=InferenceMode.offline, sandbox="strict", tools=["delegate_task"],
+            approval_mode=ApprovalMode.auto, selfcheck=False, num_ctx=4096,
+            limits=Limits(max_steps=8, timeout_seconds=60, max_cost_usd=1.0),
+        ))
+        root = Run(bot_id=bot.id, prompt="Coordinate the task.",
+                   conversation_context=[{"role": "user", "content": "PRIVATE ROOT HISTORY"}])
+        root = store.submit_run(root, Task(bot_id=bot.id, prompt=root.prompt))
+        engine = Engine(config, store, max_concurrent=2, executor="process", light=True,
+                        owner_id="delegation-process-e2e")
+        stop_dispatch = threading.Event()
+
+        def dispatch_children():
+            while not stop_dispatch.is_set():
+                engine.dispatch_pending()
+                stop_dispatch.wait(0.02)
+
+        dispatcher = threading.Thread(target=dispatch_children, name="delegation-test-dispatcher")
+        dispatcher.start()
+        try:
+            deadline = time.monotonic() + 45
+            pending = []
+            while time.monotonic() < deadline:
+                pending = store.pending_approvals(bot_id=bot.id)
+                if pending:
+                    break
+                current = store.get_run(root.id)
+                if current is None or current.terminal:
+                    events = [event.data for event in store.tail_events(root.id, limit=40)]
+>                   raise AssertionError((current.status if current else None, current.error if current else None,
+                                          current.exit_reason if current else None, events, fake.of("/api/chat")))
+E                                         AssertionError: (<RunStatus.failed: 'failed'>, 'could not start the isolated worker: [Errno 28] No space left on device', 'offline_unavailable', [{'error': 'could not start the isolated worker: [Errno 28] No space left on device', 'reason': 'offline_unavailable', 'status': 'failed'}], [])
+
+tests/test_delegation.py:578: AssertionError
+_________________ test_identical_specs_produce_identical_bytes _________________
+
+    def test_identical_specs_produce_identical_bytes():
+        spec = _full_spec()
+>       assert generate("docx", spec).data == generate("docx", spec).data
+E       AssertionError: assert b'PK\x03\x04\...0\x00\x00\x00' == b'PK\x03\x04\...0\x00\x00\x00'
+E
+E         At index 15282 diff: b']' != b'`'
+E         Use -v to get more diff
+
+tests/test_docgen_docx.py:128: AssertionError
+________ test_connection_models_known_from_bots_appear_with_their_state ________
+
+env = <starlette.testclient.TestClient object at 0x7fa4aa2a7460>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fa4aa5c79a0>
+
+    def test_connection_models_known_from_bots_appear_with_their_state(env, monkeypatch):
+        ConnectionBook(env.config.state_dir).add("opencode-go")
+        bot = mkbot(env, model="ollama/fake:8b")
+        mkbot(env, name="user-of-plan", model="opencode-go/glm-5.3")
+        ch = {c.spec: c for c in model_choices(env.config, env.store, bot)}
+        plan = ch["opencode-go/glm-5.3"]
+        assert plan.state == "setup" and "key" in plan.note and "OPENCODE_API_KEY" in plan.fix
+        monkeypatch.setenv("OPENCODE_API_KEY", "k")
+        ConnectionBook(env.config.state_dir).acknowledge(env.store, "opencode-go")
+        reset_cache()
+        plan = {c.spec: c for c in model_choices(env.config, env.store, bot)}["opencode-go/glm-5.3"]
+>       assert plan.state == "ready" and "flat-rate" in plan.note
+E       AssertionError: assert ('ready' == 'ready'
+E
+E           ready and 'flat-rate' in 'model list unavailable; retry from Connections')
+E        +  where 'model list unavailable; retry from Connections' = Choice(spec='opencode-go/glm-5.3', label='glm-5.3', group='OpenCode Go (flat subscription)', state='ready', note='mode...t_case_usd=None, detail=['connection opencode-go: subscription', 'sends this chat to OpenCode Go (flat subscription)']).note
+
+tests/test_model_switcher.py:155: AssertionError
+_____ test_loopback_http_provider_uses_broker_from_network_isolated_worker _____
+OSError: [Errno 28] No space left on device
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/var/tmp/pytest-of-kevina/pytest-21/test_loopback_http_provider_us0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fa4bde0ee40>
+
+    def test_loopback_http_provider_uses_broker_from_network_isolated_worker(tmp_path, monkeypatch):
+        import os
+        import subprocess
+        import sys
+
+        from tests.fakes import FakeOllama
+
+        if not sandbox.status().ok:
+            pytest.skip("host lacks the resource-limited bubblewrap worker prerequisites")
+        fake = FakeOllama()
+        state_dir = tmp_path / "state"
+        state_dir.mkdir()
+        brokers = OfflineBrokerSet([fake.url])
+        brokers.start()
+        monkeypatch.setenv("HUTCH_OFFLINE_BROKER_DIR", brokers.directory)
+        worker_code = (
+            "from hutch.providers.ollama import OllamaProvider; "
+            f"health=OllamaProvider({fake.url!r}).health(); "
+            "assert health.ok and health.version == '0.0-fake', health; print(health.version)"
+        )
+        env = dict(os.environ, HUTCH_STATE_DIR=str(state_dir), HUTCH_LEASE_SECONDS="30")
+>       argv = sandbox.offline_worker_argv([sys.executable, "-c", worker_code], env, str(state_dir), 30,
+                                          brokers.directory)
+
+tests/test_offline_mode.py:172:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src/hutch/sandbox.py:228: in offline_worker_argv
+    safe_connections.write_text('{"connections": {}}\n', encoding="utf-8")
+../../../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/pathlib/_local.py:555: in write_text
+    return PathBase.write_text(self, data, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = PosixPath('/tmp/hutch-o-_1zegyim/state-redaction/connections.json')
+data = '{"connections": {}}\n', encoding = 'utf-8', errors = None
+newline = None
+
+    def write_text(self, data, encoding=None, errors=None, newline=None):
+        """
+        Open the file in text mode, write to it, and close the file.
+        """
+        if not isinstance(data, str):
+            raise TypeError('data must be str, not %s' %
+                            data.__class__.__name__)
+>       with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       OSError: [Errno 28] No space left on device
+
+../../../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/pathlib/_abc.py:651: OSError
+__________ test_offline_worker_cannot_read_saved_provider_credentials __________
+OSError: [Errno 28] No space left on device
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/var/tmp/pytest-of-kevina/pytest-21/test_offline_worker_cannot_rea0')
+
+    def test_offline_worker_cannot_read_saved_provider_credentials(tmp_path):
+        import os
+        import subprocess
+        import sys
+
+        if not sandbox.status().ok:
+            pytest.skip("host lacks the resource-limited bubblewrap worker prerequisites")
+        state_dir = tmp_path / "state"
+        (state_dir / "keys").mkdir(parents=True)
+        (state_dir / "connections.json").write_text(
+            '{"connections": {"private": {"api_key_env": "PRIVATE_KEY"}}}\n')
+        (state_dir / "keys" / "private.key").write_text("fixture-provider-secret")
+        brokers = OfflineBrokerSet([])
+        code = (
+            "import json,os,pathlib; "
+            "root=pathlib.Path(os.environ['HUTCH_STATE_DIR']); "
+            "assert json.loads((root/'connections.json').read_text()) == {'connections': {}}; "
+            "assert list((root/'keys').iterdir()) == []; "
+            "assert not (root/'keys'/'private.key').exists(); print('credential files hidden')"
+        )
+        env = dict(os.environ, HUTCH_STATE_DIR=str(state_dir), HUTCH_LEASE_SECONDS="30")
+>       argv = sandbox.offline_worker_argv([sys.executable, "-c", code], env, str(state_dir), 30,
+                                          brokers.directory)
+
+tests/test_offline_mode.py:205:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src/hutch/sandbox.py:228: in offline_worker_argv
+    safe_connections.write_text('{"connections": {}}\n', encoding="utf-8")
+../../../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/pathlib/_local.py:555: in write_text
+    return PathBase.write_text(self, data, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = PosixPath('/tmp/hutch-o-v5u5xwd6/state-redaction/connections.json')
+data = '{"connections": {}}\n', encoding = 'utf-8', errors = None
+newline = None
+
+    def write_text(self, data, encoding=None, errors=None, newline=None):
+        """
+        Open the file in text mode, write to it, and close the file.
+        """
+        if not isinstance(data, str):
+            raise TypeError('data must be str, not %s' %
+                            data.__class__.__name__)
+>       with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       OSError: [Errno 28] No space left on device
+
+../../../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/pathlib/_abc.py:651: OSError
+_______ test_process_engine_runs_fake_local_model_inside_offline_worker ________
+
+store = <hutch.store.Store object at 0x7fa4a9f132f0>
+config = hutchConfig(state_dir=PosixPath('/var/tmp/pytest-of-kevina/pytest-21/test_process_engine_runs_fake_0/state'), adaptive...e, default_max_steps=24, default_timeout_seconds=900, default_daily_token_cap=200000, default_approval_ttl_seconds=600)
+
+    def test_process_engine_runs_fake_local_model_inside_offline_worker(store, config):
+        import time
+
+        from tests.fakes import FakeOllama
+
+        if not sandbox.status().ok or not sandbox.offline_egress_status(refresh=True).ok:
+            pytest.skip("host lacks a verified resource-limited offline worker")
+        fake = FakeOllama({"fake:1b": {"params": "1B", "size": 200_000_000}})
+        bot = store.create_bot(Bot(name="offline-process", model="ollama/fake:1b", base_url=fake.url,
+                                   inference_mode=InferenceMode.offline, tools=[], approval_mode="auto",
+                                   selfcheck=False))
+        engine = Engine(config, store, executor="process", light=True)
+        run = engine.submit(bot, "answer from the local fixture")
+        try:
+>           assert engine.dispatch_pending() == 1
+E           assert 0 == 1
+E            +  where 0 = dispatch_pending()
+E            +    where dispatch_pending = <hutch.engine.Engine object at 0x7fa4b949ab10>.dispatch_pending
+
+tests/test_offline_mode.py:229: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_delegation.py::test_strict_offline_delegation_runs_as_child_after_explicit_approval
+FAILED tests/test_docgen_docx.py::test_identical_specs_produce_identical_bytes
+FAILED tests/test_model_switcher.py::test_connection_models_known_from_bots_appear_with_their_state
+FAILED tests/test_offline_mode.py::test_loopback_http_provider_uses_broker_from_network_isolated_worker
+FAILED tests/test_offline_mode.py::test_offline_worker_cannot_read_saved_provider_credentials
+FAILED tests/test_offline_mode.py::test_process_engine_runs_fake_local_model_inside_offline_worker
+6 failed, 2122 passed in 456.76s (0:07:36)
