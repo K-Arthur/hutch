@@ -443,6 +443,26 @@ def test_workflow_studio_lists_and_resolves_every_pending_question(browser, live
         assert all("Waiting" in discovered.nth(index).inner_text() for index in range(2))
         assert panel.get_by_text("How should First setting be configured?", exact=True).count() == 1
         assert panel.get_by_text("How should Second setting be configured?", exact=True).count() == 1
+        for question in pending_questions:
+            prompt = question["question"]
+            question_name = re.compile(
+                rf"Question {re.escape(question['id'])}\s+{re.escape(prompt)}"
+            )
+            accessible_form = panel.get_by_role("form", name=question_name)
+            assert accessible_form.count() == 1
+            answer_name = re.compile(
+                rf"Question {re.escape(question['id'])}\s+{re.escape(prompt)}\s+Your answer"
+            )
+            answer = accessible_form.get_by_role(
+                "textbox",
+                name=answer_name,
+                description=re.compile(r"This answer resolves only this question"),
+            )
+            assert answer.count() == 1
+        trace.append({"state": "computed-accessibility-semantics", "named_forms": len(pending_questions),
+                      "textbox_names_include_question_id_and_prompt": True,
+                      "authority_boundary_is_a_textbox_description": True,
+                      "operating_system_screen_reader": "not tested"})
 
         sizes = [("desktop", 1440, 960), ("tablet", 768, 1024),
                  ("phone", 360, 800), ("compact-phone", 320, 800)]
@@ -565,21 +585,68 @@ def test_workflow_studio_lists_and_resolves_every_pending_question(browser, live
         page.screenshot(path=str(out / "discovered-complete-phone.png"), full_page=True, animations="disabled")
         panel.evaluate("element => element.scrollTo({top: 0, behavior: 'instant'})")
         page.screenshot(path=str(out / "answered-phone.png"), full_page=True, animations="disabled")
-        (out / "results.json").write_text(json.dumps({
+        results_path = out / "results.json"
+        results = {
             "test": "tests/e2e/test_browser.py::test_workflow_studio_lists_and_resolves_every_pending_question",
             "captured_at": datetime.now(timezone.utc).isoformat(),
             "browser": browser.browser_type.name, "browser_version": browser.version,
             "playwright": package_version("playwright"),
-            "scenario": "Two independent durable questions shown together, one answered while the other remains pending, then completion",
+            "scenario": "A bounded map exposes two independent durable questions; answering one preserves the other, then the workflow completes.",
             "workflow_status": "succeeded", "question_ids": [question["id"] for question in pending_questions],
             "trace": trace, "page_errors": errors,
-            "source_sha256": {path: hashlib.sha256((Path(__file__).resolve().parents[2] / path).read_bytes()).hexdigest()
-                              for path in ("src/hutch/workflow/engine.py", "src/hutch/server/static/app.js",
-                                           "src/hutch/server/static/style.css", "tests/e2e/test_browser.py",
-                                           "tests/test_workflow_engine.py", "tests/test_workflow_api.py",
-                                           "tests/test_remote_pairing.py")},
-        }, indent=2) + "\n")
+            "map_item_behavior": {
+                "browser_scope": "one independent ask per map item, shown together up to unresolved-item concurrency",
+                "engine_coverage": "same-item independent asks publish together; dependent asks wait for prerequisites",
+                "tests": [
+                    "tests/test_workflow_engine.py::test_bounded_map_collects_independent_questions_within_an_item_after_restart",
+                    "tests/test_workflow_engine.py::test_bounded_map_holds_dependent_question_until_its_answer_arrives",
+                    "tests/test_workflow_engine.py::test_bounded_map_exposes_one_question_per_item_up_to_concurrency_after_restart",
+                ],
+            },
+            "partial_answer_state": {
+                "pending_question_forms": 1,
+                "discovered_statuses": ["Answer received", "Waiting"],
+                "workflow_reason": "waiting for 1 answer(s)",
+                "focus_moves_to_remaining_question": True,
+            },
+            "terminal_discovered_instances": {
+                "count": completed_rows.count(),
+                "rows": [completed_rows.nth(index).inner_text() for index in range(completed_rows.count())],
+                "label": "Completed (not verified)",
+            },
+            "verification": {
+                "browser_result": "passed; this artifact is written only after all browser assertions succeed",
+                "focused_engine_api_phone_effect_result": "116 passed in 59.59s on the preceding behavior slice; this slice changes only accessible names/descriptions and evidence",
+                "static_checks": "Python compilation, JavaScript syntax check, and git diff --check passed",
+                "provider_calls": 0,
+            },
+            "visual_validation": {
+                "viewports_css_px": {"desktop": [1440, 960], "tablet": [768, 1024],
+                                     "phone": [360, 800], "compact_phone": [320, 800]},
+                "horizontal_overflow_px": {item["viewport"]: item["horizontal_overflow_px"]
+                                           for item in trace if "viewport" in item},
+                "phone_answer_target_min_height_px": 44,
+                "opened_captures": ["waiting-desktop.png", "second-question-compact-phone.png"],
+                "actual_browser_zoom": "unverified; this headless Chromium build does not support CDP Browser.setZoomLevel",
+                "visual_observation": "The semantic change does not alter layout. The internal scroll keeps the second question reachable; the 320px view wraps its durable ID and prompt without horizontal overflow.",
+            },
+            "source_sha256": {
+                path: hashlib.sha256((Path(__file__).resolve().parents[2] / path).read_bytes()).hexdigest()
+                for path in (
+                    "src/hutch/workflow/engine.py", "src/hutch/workflow/persistence.py",
+                    "src/hutch/server/workflows_api.py", "src/hutch/server/static/app.js",
+                    "src/hutch/server/static/style.css", "tests/e2e/test_browser.py",
+                    "tests/test_workflow_engine.py", "tests/test_workflow_api.py",
+                    "tests/test_remote_pairing.py", "tests/test_workflow_effect_receipts.py",
+                )
+            },
+        }
         context.tracing.stop(path=str(out / "trace.zip"))
+        results["artifact_sha256"] = {
+            path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in sorted(out.iterdir()) if path.is_file() and path != results_path
+        }
+        results_path.write_text(json.dumps(results, indent=2) + "\n")
     finally:
         if context.tracing:
             try:

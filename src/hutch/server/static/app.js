@@ -478,11 +478,11 @@ async function refreshWorkflowPanel(botName, conversationId, generation, force =
       `<li><span class="workflow-step-copy"><b title="${esc(item.title || item.site_id)}">${esc(item.title || item.site_id)}</b><span>${esc(item.kind || "step")}</span></span><span class="workflow-step-status">Planned</span></li>`
     ).join("")}</ol>` : `<p class="hint">This saved method has no compiled step outline.</p>`;
     const pendingQuestionLabel = `${pendingQuestions.length} pending question${pendingQuestions.length === 1 ? "" : "s"}`;
-    const questionMarkup = pendingQuestions.map(question => `<form class="workflow-question" data-workflow-question-form data-question-id="${esc(question.id)}">
-      <p><b>Question ${esc(question.id)}</b></p><p>${esc(question.question)}</p>
-      <label for="workflow-answer-${esc(question.id)}">Your answer</label>
-      <textarea id="workflow-answer-${esc(question.id)}" name="answer" rows="2" maxlength="4000" required></textarea>
-      <p class="hint">This answer resolves only this question. It does not approve a separate action.</p>
+    const questionMarkup = pendingQuestions.map(question => `<form class="workflow-question" data-workflow-question-form data-question-id="${esc(question.id)}" aria-labelledby="workflow-question-title-${esc(question.id)} workflow-question-prompt-${esc(question.id)}">
+      <p><b id="workflow-question-title-${esc(question.id)}">Question ${esc(question.id)}</b></p><p id="workflow-question-prompt-${esc(question.id)}">${esc(question.question)}</p>
+      <label id="workflow-answer-label-${esc(question.id)}" for="workflow-answer-${esc(question.id)}">Your answer</label>
+      <textarea id="workflow-answer-${esc(question.id)}" name="answer" rows="2" maxlength="4000" required aria-labelledby="workflow-question-title-${esc(question.id)} workflow-question-prompt-${esc(question.id)} workflow-answer-label-${esc(question.id)}" aria-describedby="workflow-answer-help-${esc(question.id)}"></textarea>
+      <p class="hint" id="workflow-answer-help-${esc(question.id)}">This answer resolves only this question. It does not approve a separate action.</p>
       <button class="btn primary small" type="submit">Send answer</button><p class="workflow-question-error" role="status" aria-live="polite"></p>
     </form>`).join("");
     const savedList = definitions.length ? `<details data-workflow-disclosure="saved" ${oldDetails.has("saved") ? (oldDetails.get("saved") ? "open" : "") : ""}>
