@@ -358,6 +358,11 @@ fails a new run with `persona_unavailable`. Unrelated assistant data remains rea
 errors do not take down the assistant roster. Conversation-scoped state also carries its own version and
 revision.
 
+Run purpose is recorded separately from tool authority. Review-only Bot drafts retain their restricted
+proposal instructions and one-response rule. A tool-free conversational purpose has its own prompt and rejects
+unexpected provider tool calls without running them; the task path and normal capability policy remain separate.
+The engine does not route turns into this conversation purpose yet.
+
 At run start the engine resolves the layers once and writes a versioned, write-once plan into the
 run; a retried start reuses the recorded plan, and unreadable or newer state fails the run with a
 `persona_unavailable` reason instead of silently restyling it. The built-in runtime renders the plan

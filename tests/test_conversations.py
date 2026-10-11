@@ -691,7 +691,7 @@ def test_bot_purpose_draft_uses_only_selected_source_and_has_no_tools(conversati
                          json=request_body, headers=headers)
     assert drafted.status_code == 201, drafted.text
     run = client.app.state.store.get_run(drafted.json()["id"])
-    assert run.origin == "manual:bot_draft" and run.tool_access == "none"
+    assert run.origin == "manual:bot_draft" and run.execution_purpose == "bot_draft" and run.tool_access == "none"
     assert len(run.conversation_context) == 1
     selected = run.conversation_context[0]["content"]
     assert "Prepare a weekly project report." in selected
@@ -701,10 +701,12 @@ def test_bot_purpose_draft_uses_only_selected_source_and_has_no_tools(conversati
         {"question": "Who reads the report?", "answer": "Leadership."}]
     assert "Do not use this unrelated private later request." not in selected
     from hutch.engine import Engine
-    snapshot = Engine.capability_snapshot(client.app.state.store.get_bot(coordinator["id"]), run.tool_access)
+    snapshot = Engine.capability_snapshot(client.app.state.store.get_bot(coordinator["id"]), run.tool_access,
+                                          run.execution_purpose)
     assert snapshot["tools"] == []
     assert snapshot["memory_enabled"] is False and snapshot["browser_handoff"] is False
     assert snapshot["shell_network"] is False and snapshot["tool_access"] == "none"
+    assert snapshot["execution_purpose"] == "bot_draft"
     replay = client.post(f"/api/v1/conversations/{conversation['id']}/bot-purpose-drafts",
                          json=request_body, headers=headers)
     assert replay.status_code == 200 and replay.json()["id"] == run.id and replay.json()["replayed"] is True

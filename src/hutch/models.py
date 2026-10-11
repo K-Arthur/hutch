@@ -509,7 +509,8 @@ class Run(BaseModel):
     skill_snapshot: list[dict] = Field(default_factory=list)   # effective skills recorded when this run started
     persona_turn: Optional[PersonaStyle] = None   # one-turn response style chosen with this message; never becomes durable
     persona_plan: Optional[PersonaPlan] = None    # resolved style snapshot, written once when the run starts
-    tool_access: Literal["bot", "none"] = "bot"  # per-run capability ceiling; "none" is reserved for review-only drafts
+    execution_purpose: Literal["task", "bot_draft", "conversation"] = "task"
+    tool_access: Literal["bot", "none"] = "bot"  # per-run capability ceiling, independent of execution purpose
     conversation_id: str = ""          # canonical conversation this run belongs to, if submitted through /api/v1
     conversation_context: list[dict[str, str]] = Field(default_factory=list, exclude=True)
     owner: str = ""                   # pid of the process executing this run (kept for compatibility; see lease_owner)
@@ -521,6 +522,23 @@ class Run(BaseModel):
     pgid: int = 0                     # process group of the worker, so a supervisor that did not spawn it can still end it
     verified: Optional[bool] = None   # did the task's expectation hold? None = no expectation was declared
     reason: str = ""                  # why a waiting/recovering run is in that state (shown with the label)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _infer_legacy_execution_purpose(cls, value: Any) -> Any:
+        """Keep previously stored review-only Bot drafts in their original execution mode."""
+        if not isinstance(value, dict) or "execution_purpose" in value:
+            return value
+        value = dict(value)
+        if value.get("origin") == "manual:bot_draft" and value.get("tool_access") == "none":
+            value["execution_purpose"] = "bot_draft"
+        return value
+
+    @model_validator(mode="after")
+    def _tool_free_purposes_have_no_tools(self) -> "Run":
+        if self.execution_purpose in {"bot_draft", "conversation"} and self.tool_access != "none":
+            raise ValueError(f"{self.execution_purpose} runs must have tool_access='none'")
+        return self
 
     @field_validator("parent_run_id")
     @classmethod

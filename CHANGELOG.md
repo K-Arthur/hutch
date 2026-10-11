@@ -21,6 +21,10 @@
   diagnostic reasons. Low-risk eligibility preserves preset discretion, while humor guidance still requires a
   clearly playful request. This plan currently informs prompt guidance; routing and answer-scoped rewrite behavior
   are still in progress, and live provider adherence remains unverified.
+- Separate run purpose (`task`, `bot_draft`, or `conversation`) from tool authority. Existing stored review-only
+  drafts keep their Bot-draft guidance and one-response limit; a tool-free conversation has a short conversation
+  instruction, no tool schemas, and refuses provider tool calls without execution. Automatic routing into that
+  purpose is not enabled yet.
 - Extend assistant settings with the independent v2 selectors and bounded customization beside standing
   directions. Conversation controls save scoped preferences with conflict recovery; next-reply controls stay
   local until one send. Browser regressions cover persistence, reset, concurrent edits, focus, keyboard,

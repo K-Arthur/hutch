@@ -208,7 +208,7 @@ class Engine:
                         return False
                 target = bot.model_copy(update={"model": run.model_override}) if run.model_override else bot
             if run.tool_access == "none" and target.runtime.value != "builtin":
-                self._fail_unavailable_runtime(run, "tool-free review runs require the built-in runtime")
+                self._fail_unavailable_runtime(run, "tool-free execution purposes require the built-in runtime")
                 return False
             get_runtime(target)
         except ValueError as exc:
@@ -524,7 +524,7 @@ class Engine:
         return run_dir, workspace, workdir_error
 
     @staticmethod
-    def capability_snapshot(bot: Bot, tool_access: str = "bot") -> dict[str, object]:
+    def capability_snapshot(bot: Bot, tool_access: str = "bot", execution_purpose: str = "task") -> dict[str, object]:
         """The credential-free permission/routing policy active when a run starts."""
         from .tools import expand_tools
 
@@ -563,6 +563,7 @@ class Engine:
         }
         if tool_access == "none":
             snapshot["tool_access"] = "none"
+            snapshot["execution_purpose"] = execution_purpose
             snapshot["memory_enabled"] = False
             snapshot["shell_network"] = False
             snapshot["browser_handoff"] = False
@@ -573,7 +574,7 @@ class Engine:
         """Apply run-level restrictions before constructing any action or conversation tool."""
         if run.tool_access == "none":
             if bot.runtime.value != "builtin":
-                raise ValueError("tool-free review runs require the built-in runtime")
+                raise ValueError("tool-free execution purposes require the built-in runtime")
             return {}
         return build_tools(bot.tools, ctx)
 
@@ -739,7 +740,7 @@ class Engine:
                     "Review the Bot settings and submit the task again.")
                 return
         if run.tool_access == "none" and bot.runtime.value != "builtin":
-            self._fail_unavailable_runtime(run, "tool-free review runs require the built-in runtime")
+            self._fail_unavailable_runtime(run, "tool-free execution purposes require the built-in runtime")
             return
         try:
             runtime = get_runtime(bot)
@@ -816,9 +817,11 @@ class Engine:
             run = self.store.transition_run(
                 run.id, RunStatus.running, fence=run.fence, event={"origin": run.origin},
                 fields={"started_at": iso(utcnow()), "workspace": str(workspace), "owner": str(os.getpid()),
-                        "skill_snapshot": skill_snapshot},
+                        "skill_snapshot": skill_snapshot, "tool_access": run.tool_access,
+                        "execution_purpose": run.execution_purpose},
                 persona_plan=persona_plan.model_dump(mode="json"),
-                capability_snapshot=self.capability_snapshot(bot, run.tool_access) if run.parent_run_id is None else None)
+                capability_snapshot=self.capability_snapshot(bot, run.tool_access, run.execution_purpose)
+                if run.parent_run_id is None else None)
         except (IllegalTransition, LeaseLost, KeyError):
             self._finish_unstarted(run)
             return
@@ -848,6 +851,7 @@ class Engine:
         emit(Event(run_id=run.id, type=EventType.log,
                    data={"runtime": runtime.kind, "model": bot.model,
                          "tool_access": run.tool_access,
+                         "execution_purpose": run.execution_purpose,
                          "inference_mode": bot.inference_mode.value,
                          "browser_handoff": "local_desktop" if bot.local_browser_handoff else "headless",
                          "tools": sorted(tools), "limits": bot.limits.model_dump(),

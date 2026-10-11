@@ -84,6 +84,9 @@ DRAFT_ONLY_GUIDANCE = ("\n\nThis is a review-only Bot-drafting request. You have
                        "assumptions. Do not claim that a Bot was created, do not invent permissions or access, and list "
                        "material unanswered questions instead of guessing. Never request or include passwords, passcodes, "
                        "or one-time codes.")
+CONVERSATION_ONLY_GUIDANCE = ("\n\nThis is a tool-free conversational turn. Answer the current message directly from the supplied "
+                              "conversation. No tools are available on this turn; do not claim to inspect or change "
+                              "external state, and do not imply that an action was taken.")
 
 DEFAULT_LOCAL_TURN_TOKENS = 2048     # SR-5: a small model rambling for 30k tokens is a failure, not an answer
 DEFAULT_HOSTED_TURN_TOKENS = 16000   # hosted models think inside max_tokens; a low cap truncates mid-thought
@@ -601,8 +604,10 @@ class BuiltinRuntime:
         guard = SpendGuard(ctx.store, bot, run, prices, self._connections(ctx))
         requested = "disabled" if run.tool_access == "none" else (getattr(bot, "tool_protocol", "auto") or "auto")
         base_system = self._system_prompt(ctx) + ctx.store.action_context(run.id)
-        if run.tool_access == "none":
+        if run.execution_purpose == "bot_draft":
             base_system += DRAFT_ONLY_GUIDANCE
+        elif run.execution_purpose == "conversation":
+            base_system += CONVERSATION_ONLY_GUIDANCE
         # Provisional native specs keep today's context pre-check and prompt estimate; the
         # real plan is finalized once a model has actually come online.
         provisional_profile = self._resolve_tool_profile(ctx, ladder, ladder.primary)
@@ -683,7 +688,7 @@ class BuiltinRuntime:
                     f"the hutch-action contract was compiled for {planned_rung_spec} and the run moved to "
                     f"{session.rung.spec}; Hutch will not translate an in-flight tool contract. Start a new run "
                     "on the new model, or use native mode.")
-            if run.tool_access == "none" and run.steps >= 1:
+            if run.execution_purpose == "bot_draft" and run.steps >= 1:
                 raise RunAborted("steps_exceeded", "review-only Bot drafting is limited to one model response")
             if run.steps >= bot.limits.max_steps:
                 raise RunAborted("steps_exceeded", f"hit max_steps={bot.limits.max_steps}")
@@ -838,13 +843,20 @@ class BuiltinRuntime:
             if result.tool_calls:
                 protocol_problems = _normalize_call_ids(run, result.tool_calls)
             if run.tool_access == "none" and result.tool_calls:
-                self._log(ctx, run, "tool_access", "review-only draft run refused a provider tool call; no tool was executed")
-                raise RunAborted("tool_access", "This tool-free review-only run cannot execute tool calls. No action was taken.")
+                label = ("tool-free review-only Bot-draft" if run.execution_purpose == "bot_draft"
+                         else "tool-free conversation" if run.execution_purpose == "conversation"
+                         else "tool-free run")
+                self._log(ctx, run, "tool_access", f"{label} refused a provider tool call; no tool was executed")
+                raise RunAborted("tool_access", f"This {label} cannot execute tool calls. No action was taken.")
             # ---- context overflow is a quality failure (LM-9): the model lost the start of its prompt
             if result.prompt_truncated:
                 self._log(ctx, run, "context", "the runtime truncated the prompt: " + "; ".join(result.notes))
                 if run.tool_access == "none":
-                    raise RunAborted("context", "the Bot draft did not fit in one model request; shorten the selected context")
+                    if run.execution_purpose == "bot_draft":
+                        message = "the Bot draft did not fit in one model request; shorten the selected context"
+                    else:
+                        message = "the tool-free conversation reply did not fit in one model request; shorten the context"
+                    raise RunAborted("context", message)
                 esc = ladder.next_escalation()
                 nxt = (self._switch(ctx, run, ladder, guard, esc, "context overflow", "escalation", messages, specs,
                                     est_prompt)

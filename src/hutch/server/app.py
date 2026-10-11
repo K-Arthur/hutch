@@ -3001,7 +3001,8 @@ def create_app() -> FastAPI:
                   "one JSON object without markdown. For a question return "
                   '{"kind":"question","question":"...","options":["...","..."]}. For a finished proposal return '
                   '{"kind":"draft","instructions":"...","assumptions":["..."]}.')
-        run = Run(bot_id=bot.id, prompt=prompt, origin="manual:bot_draft", tool_access="none")
+        run = Run(bot_id=bot.id, prompt=prompt, origin="manual:bot_draft", execution_purpose="bot_draft",
+                  tool_access="none")
         task = Task(bot_id=bot.id, kind="on_demand", prompt=prompt)
         request_body = body.model_dump(mode="json")
         digest = request_digest({"conversation_id": conversation_id, "bot_purpose_draft": request_body})

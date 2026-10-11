@@ -205,6 +205,7 @@ def test_tool_free_bot_draft_run_cannot_call_tools_even_when_the_bot_has_them(st
     from hutch.engine import Engine
 
     ctx, run, _, _ = build(store, config, tmp_path, tools=("files", "browser", "memory"))
+    run.execution_purpose = "bot_draft"
     run.tool_access = "none"
     tools = Engine.tools_for_run(run, ctx.bot, ctx)
     assert tools == {}
@@ -218,6 +219,52 @@ def test_tool_free_bot_draft_run_cannot_call_tools_even_when_the_bot_has_them(st
     assert "only propose the Bot's standing instructions" in request["messages"][0]["content"]
     assert not (ctx.workspace / "out.md").exists()
     assert store.list_model_capability_observations() == []
+
+
+def test_tool_free_conversation_uses_its_own_purpose_and_prompt(store, config, tmp_path, ollama):
+    from hutch.engine import Engine
+
+    ctx, run, _, _ = build(store, config, tmp_path, tools=("files", "browser", "memory"))
+    run.execution_purpose = "conversation"
+    run.tool_access = "none"
+    tools = Engine.tools_for_run(run, ctx.bot, ctx)
+    ollama.script = agent_script([{"content": "A quick database pun."}])
+
+    assert run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools) == "A quick database pun."
+    request = ollama.of("/api/chat")[0]["body"]
+    system = request["messages"][0]["content"]
+    assert request.get("tools", []) == []
+    assert "tool-free conversational turn" in system
+    assert "review-only Bot-drafting request" not in system
+    assert "only propose the Bot's standing instructions" not in system
+
+
+def test_tool_free_conversation_rejects_provider_tool_calls_without_execution(store, config, tmp_path, ollama):
+    from hutch.engine import Engine
+
+    ctx, run, _, _ = build(store, config, tmp_path, tools=("files", "browser", "memory"))
+    run.execution_purpose = "conversation"
+    run.tool_access = "none"
+    tools = Engine.tools_for_run(run, ctx.bot, ctx)
+    ollama.script = agent_script([{"tool_calls": [WRITE]}])
+
+    with pytest.raises(RunAborted, match="tool-free conversation"):
+        run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools)
+
+    assert ollama.of("/api/chat")[0]["body"].get("tools", []) == []
+    assert not (ctx.workspace / "out.md").exists()
+
+
+def test_stored_bot_drafts_without_execution_purpose_keep_their_legacy_mode():
+    old = {"bot_id": "bot", "prompt": "draft", "origin": "manual:bot_draft", "tool_access": "none"}
+    loaded = Run.model_validate(old)
+    assert loaded.execution_purpose == "bot_draft"
+
+    ordinary = Run.model_validate({"bot_id": "bot", "prompt": "hello", "origin": "manual:api"})
+    assert ordinary.execution_purpose == "task"
+
+    with pytest.raises(ValueError, match="tool_access='none'"):
+        Run(bot_id="bot", prompt="hello", execution_purpose="conversation", tool_access="bot")
 
 
 def test_structured_choice_is_conversation_only_and_pauses_the_model_loop(store, config, tmp_path, ollama):
