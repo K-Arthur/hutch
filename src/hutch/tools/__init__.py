@@ -90,8 +90,12 @@ def build_tools(names: list[str], ctx: ToolContext, *, memory_enabled: bool | No
     if resolved_skills is not None and getattr(resolved_skills, "catalog", None):
         tools["use_skill"] = UseSkillTool(resolved_skills)
     # A clarification is an ordinary conversation primitive, not a Bot-granted
-    # action capability. It is never offered to scheduled or CLI-only runs.
-    if ctx is not None and getattr(getattr(ctx, "run", None), "conversation_id", ""):
+    # action capability. It is never offered to scheduled or CLI-only runs, and a
+    # delegated child cannot ask the owner directly: it shares the parent's
+    # conversation while the parent blocks waiting for its result, so an answer
+    # could not reach it. A child that needs input reports it in its result text.
+    if (ctx is not None and getattr(getattr(ctx, "run", None), "conversation_id", "")
+            and not getattr(getattr(ctx, "run", None), "parent_run_id", None)):
         tools["ask_user_choice"] = AskUserChoiceTool()
     if ctx is not None and getattr(getattr(ctx.bot, "inference_mode", None), "value", "") != "offline":
         grant_reader = getattr(ctx.store, "google_calendar_grant", None)
