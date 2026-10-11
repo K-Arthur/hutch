@@ -41,7 +41,7 @@ steps (`agent`), bounded fan-out (`map`/`expand`), branches (`branch`), bounded 
 questions (`ask`) and artifact publication (`publish`).
 
 Because a plan is data it can be validated, diffed, saved, exported, replayed and reviewed.
-Hutch never executes generated code: there is no script sandbox to escape.
+Hutch never executes generated code: there is no script sandbox to escape. Deterministic transforms include bounded CSV parsing, grouping and totals; `bar_chart_svg` turns up to 20 finite, nonnegative category values into a self-contained SVG with a title and text description. It rejects invalid or oversized inputs instead of silently omitting categories. Publish it with `image/svg+xml` and verify the saved bytes with an artifact check; this work uses no model request.
 
 ## Modes: off, suggest, auto
 

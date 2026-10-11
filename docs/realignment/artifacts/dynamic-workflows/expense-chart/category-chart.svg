@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="186" viewBox="0 0 720 186" role="img" aria-labelledby="chart-title chart-description">
+<title id="chart-title">Purchases by category</title>
+<desc id="chart-description">software: 3; hardware: 2; services: 1</desc>
+<rect width="720" height="186" fill="#fff"/>
+<text x="16" y="32" fill="#17211f" font-family="sans-serif" font-size="18" font-weight="700">Purchases by category</text>
+<text x="16" y="81" textLength="56" lengthAdjust="spacingAndGlyphs" fill="#263632" font-family="sans-serif" font-size="13">software</text>
+<rect x="260" y="68" width="380" height="19" rx="4" fill="#287d68"/>
+<text x="650" y="82" fill="#17211f" font-family="sans-serif" font-size="13">3</text>
+<text x="16" y="115" textLength="56" lengthAdjust="spacingAndGlyphs" fill="#263632" font-family="sans-serif" font-size="13">hardware</text>
+<rect x="260" y="102" width="253" height="19" rx="4" fill="#287d68"/>
+<text x="523" y="116" fill="#17211f" font-family="sans-serif" font-size="13">2</text>
+<text x="16" y="149" textLength="56" lengthAdjust="spacingAndGlyphs" fill="#263632" font-family="sans-serif" font-size="13">services</text>
+<rect x="260" y="136" width="127" height="19" rx="4" fill="#287d68"/>
+<text x="397" y="150" fill="#17211f" font-family="sans-serif" font-size="13">1</text>
+</svg>

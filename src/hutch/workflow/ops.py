@@ -12,8 +12,10 @@ interpreter records as that node's failure. Nothing is coerced, dropped or defau
 from __future__ import annotations
 
 import csv
+import html
 import io
 import json
+import math
 from typing import Any
 
 from .expr import EvalError, compare_values, typed_eq
@@ -42,6 +44,7 @@ TRANSFORM_OPS: dict[str, set[str]] = {
     "total": {"items", "of"},
     "to_number": {"value"},
     "group_count": {"items", "by"},
+    "bar_chart_svg": {"values", "title"},
     "join_text": {"items", "separator", "of"},
     "merge": {"values"},
     "to_markdown_table": {"items", "fields"},
@@ -402,6 +405,73 @@ def _op_group_count(args: dict[str, Any]) -> dict[str, int]:
         key = str(value)
         counts[key] = counts.get(key, 0) + 1
     return dict(sorted(counts.items(), key=lambda pair: (-pair[1], pair[0])))
+
+
+def _op_bar_chart_svg(args: dict[str, Any]) -> str:
+    """Render a small, deterministic, self-contained horizontal bar chart.
+
+    The operation accepts the mapping produced by ``group_count``. It rejects oversized
+    or malformed input rather than silently omitting categories from an analysis artifact.
+    Labels and titles are XML-escaped and the image has a text equivalent for assistive
+    technology and artifact inspection.
+    """
+    values = _require(args, "values", (dict,))
+    if len(values) > 20:
+        raise ValueError("bar_chart_svg supports at most 20 categories")
+    title = args.get("title", "Counts by category")
+    if not isinstance(title, str) or not title.strip() or len(title) > 160:
+        raise ValueError("bar_chart_svg title must be a non-empty string of at most 160 characters")
+
+    entries: list[tuple[str, float]] = []
+    for label, value in values.items():
+        if not isinstance(label, str) or not label or len(label) > 80:
+            raise ValueError("bar_chart_svg category labels must be non-empty strings of at most 80 characters")
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"bar_chart_svg value for {label!r} must be a finite nonnegative number")
+        try:
+            number = float(value)
+        except (OverflowError, ValueError):
+            raise ValueError(f"bar_chart_svg value for {label!r} must be a finite nonnegative number") from None
+        if not math.isfinite(number) or number < 0:
+            raise ValueError(f"bar_chart_svg value for {label!r} must be a finite nonnegative number")
+        entries.append((label, number))
+    entries.sort(key=lambda pair: (-pair[1], pair[0]))
+
+    safe_title = html.escape(title.strip(), quote=True)
+    width, row_height, top = 720, 34, 68
+    height = max(112, top + row_height * len(entries) + 16)
+    maximum = max((value for _, value in entries), default=0.0)
+    description = "; ".join(f"{label}: {value:g}" for label, value in entries)
+    if not description:
+        description = "No categories are available."
+    lines = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+        f'viewBox="0 0 720 {height}" role="img" aria-labelledby="chart-title chart-description">',
+        f'<title id="chart-title">{safe_title}</title>',
+        f'<desc id="chart-description">{html.escape(description, quote=True)}</desc>',
+        f'<rect width="{width}" height="{height}" fill="#fff"/>',
+        f'<text x="16" y="32" fill="#17211f" font-family="sans-serif" font-size="18" font-weight="700">{safe_title}</text>',
+    ]
+    if not entries:
+        lines.append('<text x="16" y="76" fill="#53625d" font-family="sans-serif" font-size="14">No categories are available.</text>')
+    for index, (label, value) in enumerate(entries):
+        y = top + index * row_height
+        bar_width = round(380 * (value / maximum)) if maximum else 0
+        label_text = html.escape(label, quote=True)
+        label_width = min(228, max(24, len(label) * 7))
+        value_text = f"{value:g}"
+        lines.extend([
+            f'<text x="16" y="{y + 13}" textLength="{label_width}" lengthAdjust="spacingAndGlyphs" '
+            f'fill="#263632" font-family="sans-serif" font-size="13">{label_text}</text>',
+            f'<rect x="260" y="{y}" width="{bar_width}" height="19" rx="4" fill="#287d68"/>',
+            f'<text x="{min(650, 270 + bar_width)}" y="{y + 14}" fill="#17211f" '
+            f'font-family="sans-serif" font-size="13">{value_text}</text>',
+        ])
+    lines.append("</svg>")
+    result = "\n".join(lines)
+    if len(result) > MAX_TEXT:
+        raise ValueError("the SVG chart is too large to publish")
+    return result
 
 
 def _op_join_text(args: dict[str, Any]) -> str:

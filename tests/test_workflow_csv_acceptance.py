@@ -81,6 +81,9 @@ def csv_plan() -> dict:
                  {"kind": "transform", "id": "no_category", "op": "constant",
                   "args": {"value": "the export has no 'category' column"}},
              ]},
+            {"kind": "transform", "id": "category_chart", "op": "bar_chart_svg",
+             "args": {"values": {"ref": "shape.result.by_category"},
+                      "title": "Expenses by category"}},
             {"kind": "transform", "id": "problems", "op": "join_text",
              "args": {"items": {"ref": "table.bad_rows"}, "separator": "\n", "of": "line"}},
             {"kind": "transform", "id": "report", "op": "join_text",
@@ -98,11 +101,14 @@ def csv_plan() -> dict:
              ]}},
             {"kind": "publish", "id": "deliver", "artifacts": [
                 {"name": "expense-report", "ref": "report", "media_type": "text/markdown",
-                 "primary": True}]},
+                 "primary": True},
+                {"name": "expense-category-chart", "ref": "category_chart",
+                 "media_type": "image/svg+xml"}]},
             {"kind": "verify", "id": "check", "checks": [
                 {"kind": "schema", "ref": "table.kept", "schema": {"type": "integer", "minimum": 300}},
                 {"kind": "schema", "ref": "table.bad", "schema": {"type": "integer", "minimum": 1}},
                 {"kind": "artifact", "ref": "deliver.artifacts[0]", "min_bytes": 100},
+                {"kind": "artifact", "ref": "deliver.artifacts[1]", "min_bytes": 300},
                 {"kind": "human", "prompt": "Does this expense summary look right for the sample data?",
                  "timeout_seconds": 600},
             ], "on_fail": {"action": "stop"}},
@@ -155,16 +161,25 @@ def test_messy_csv_becomes_a_verified_report_without_any_model_call(store, confi
     assert f"Rows kept: {kept} of {kept + bad}" in report_text
     assert f"Rows rejected: {bad}" in report_text
     assert "Total amount:" in report_text and "By category:" in report_text
+    chart_text = str(nodes["category_chart"]["result"])
+    assert 'role="img"' in chart_text and "Expenses by category" in chart_text
+    assert "hardware" in chart_text and "travel" in chart_text
 
     # The verification recorded independent evidence, including the person's answer.
     check = nodes["check"]["result"]
     assert check["verified"] is True
     kinds = {item["kind"] for item in check["checks"]}
     assert kinds == {"schema", "artifact", "human"}
+    artifact_checks = [item for item in check["checks"] if item["kind"] == "artifact"]
+    assert len(artifact_checks) == 2 and all(item["ok"] for item in artifact_checks)
+    human_review = nodes["check-human-5"]
+    assert human_review["kind"] == "ask" and human_review["status"] == "succeeded"
+    assert human_review["result"]["answer"] == "yes"
 
     published = view["workflow"]["result"]["artifacts"]
-    assert published and published[0]["name"] == "expense-report"
+    assert [item["name"] for item in published] == ["expense-report", "expense-category-chart"]
     assert published[0]["bytes"] > 100
+    assert published[1]["media_type"] == "image/svg+xml" and published[1]["bytes"] > 300
 
     # The artifact is reachable and hash-verified through the canonical artifact API.
     records = store.artifact_records(submission.attempt_run_id)

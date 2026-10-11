@@ -682,6 +682,109 @@ def test_paired_phone_keeps_multiple_approvals_independently_pending(
                                        "src/hutch/server/workflows_api.py", "tests/e2e/test_browser.py")},
     }, indent=2) + "\n")
 
+def test_workflow_publishes_a_verified_chart_that_renders_in_a_browser(browser, live):
+    import base64
+    from hutch.workflow.submit import status as workflow_status, submit_workflow
+
+    base, app = live
+    store, engine = app.state.store, app.state.engine
+    bot = store.create_bot(Bot(name="workflow-chart-browser", model="mock/demo", tools=[]))
+    plan = {
+        "name": "category-chart-preview",
+        "inputs": {"rows": {"type": "array", "max_items": 8}},
+        "envelope": {"tools": [], "models": []},
+        "budget": {"max_nodes": 4, "max_model_calls": 0, "max_wall_seconds": 60},
+        "nodes": [
+            {"kind": "transform", "id": "counts", "op": "group_count",
+             "args": {"items": {"ref": "input.rows"}, "by": "category"}},
+            {"kind": "transform", "id": "chart", "op": "bar_chart_svg",
+             "args": {"values": {"ref": "counts"}, "title": "Purchases by category"}},
+            {"kind": "publish", "id": "deliver", "artifacts": [
+                {"name": "category-chart", "ref": "chart", "media_type": "image/svg+xml",
+                 "primary": True}]},
+            {"kind": "verify", "id": "verify", "checks": [
+                {"kind": "artifact", "ref": "deliver.artifacts[0]", "min_bytes": 300}]},
+        ],
+        "outputs": ["chart", "deliver"],
+    }
+    submission = submit_workflow(store, bot=bot, plan=plan, inputs={"rows": [
+        {"category": "hardware"}, {"category": "hardware"}, {"category": "services"},
+        {"category": "software"}, {"category": "software"}, {"category": "software"},
+    ]}, definition_name="category-chart-preview")
+    deadline = time.monotonic() + 20
+    view = None
+    while time.monotonic() < deadline:
+        engine.tick()
+        view = workflow_status(store, submission.workflow_run_id)
+        if view["workflow"]["status"] in {"succeeded", "failed", "stopped", "outcome_unknown"}:
+            break
+        time.sleep(0.05)
+    assert view and view["workflow"]["status"] == "succeeded", view
+    nodes = {node["site_id"]: node for node in view["nodes"]}
+    assert nodes["verify"]["result"]["verified"] is True
+    artifact = view["workflow"]["result"]["artifacts"][0]
+    assert artifact["media_type"] == "image/svg+xml"
+
+    artifacts = (Path(__file__).resolve().parents[2]
+                 / "docs/realignment/artifacts/dynamic-workflows/expense-chart")
+    artifacts.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 960, "height": 420})
+    page = context.new_page()
+    errors, external = [], []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external.append(request.url)
+            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost", None} else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        downloaded = page.request.get(
+            f"{base}/api/v1/tasks/runs/{submission.attempt_run_id}/artifacts/"
+            f"{Path(artifact['artifact']).name}")
+        assert downloaded.status == 200
+        assert downloaded.headers.get("x-hutch-artifact-verified") == "sha256"
+        assert downloaded.headers.get("etag", "").strip('"') == artifact["sha256"]
+        svg = downloaded.body().decode("utf-8")
+        assert 'role="img"' in svg and "hardware: 2" in svg and "software: 3" in svg
+        (artifacts / "category-chart.svg").write_text(svg)
+        data_uri = "data:image/svg+xml;base64," + base64.b64encode(svg.encode()).decode("ascii")
+        page.set_content(f'''<!doctype html><html lang="en"><meta charset="utf-8">
+          <style>body{{margin:0;padding:24px;background:#eef2f0;font-family:system-ui,sans-serif}}
+          main{{width:min(100%,760px);margin:auto;padding:20px;background:#fff;border:1px solid #cbd5d0;
+          border-radius:12px}}img{{display:block;max-width:100%;height:auto}}</style>
+          <main><img id="verified-chart" alt="Purchases by category chart" src="{data_uri}"></main>
+          </html>''')
+        page.locator("#verified-chart").evaluate("element => element.decode()")
+        box = page.locator("#verified-chart").bounding_box()
+        assert box and box["width"] == 720 and box["height"] > 100
+        overflow_px = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow_px <= 1
+        page.screenshot(path=str(artifacts / "category-chart-preview.png"), full_page=True,
+                        animations="disabled")
+        assert not errors and not external, {"page_errors": errors, "external_requests": external}
+    finally:
+        context.tracing.stop(path=str(artifacts / "category-chart-trace.zip"))
+        context.close()
+
+    source_paths = ("src/hutch/workflow/ops.py", "src/hutch/workflow/engine.py",
+                    "tests/test_workflow_ops.py", "tests/test_workflow_csv_acceptance.py",
+                    "tests/e2e/test_browser.py")
+    artifact_paths = ("category-chart.svg", "category-chart-preview.png", "category-chart-trace.zip")
+    (artifacts / "results.json").write_text(json.dumps({
+        "test": "tests/e2e/test_browser.py::test_workflow_publishes_a_verified_chart_that_renders_in_a_browser",
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "browser": browser.browser_type.name, "browser_version": browser.version,
+        "playwright": package_version("playwright"), "workflow_id": submission.workflow_run_id,
+        "artifact_sha256": artifact["sha256"], "artifact_bytes": artifact["bytes"],
+        "verification": nodes["verify"]["result"],
+        "rendered_svg_css_px": [box["width"], box["height"]],
+        "horizontal_overflow_px": overflow_px,
+        "page_errors": errors, "external_requests": external,
+        "artifact_file_sha256": {name: hashlib.sha256((artifacts / name).read_bytes()).hexdigest()
+                                  for name in artifact_paths},
+        "source_sha256": {name: hashlib.sha256((Path(__file__).resolve().parents[2] / name).read_bytes()).hexdigest()
+                          for name in source_paths},
+    }, indent=2) + "\n")
+
+
 def test_workflow_studio_lists_and_resolves_every_pending_question(browser, live):
     import hashlib
     from datetime import datetime, timezone

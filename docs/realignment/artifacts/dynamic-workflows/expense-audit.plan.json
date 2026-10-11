@@ -98,6 +98,17 @@
     },
     {
       "kind": "transform",
+      "id": "category_chart",
+      "op": "bar_chart_svg",
+      "args": {
+        "values": {
+          "ref": "shape.result.by_category"
+        },
+        "title": "Expenses by category"
+      }
+    },
+    {
+      "kind": "transform",
       "id": "problems",
       "op": "join_text",
       "args": {
@@ -116,7 +127,7 @@
         "separator": "\n",
         "items": [
           {
-            "template": "Expense audit \u2014 {{period}}",
+            "template": "Expense audit — {{period}}",
             "values": {
               "period": {
                 "ref": "input.period"
@@ -178,6 +189,11 @@
           "ref": "report",
           "media_type": "text/markdown",
           "primary": true
+        },
+        {
+          "name": "expense-category-chart",
+          "ref": "category_chart",
+          "media_type": "image/svg+xml"
         }
       ]
     },
@@ -205,6 +221,11 @@
           "kind": "artifact",
           "ref": "deliver.artifacts[0]",
           "min_bytes": 100
+        },
+        {
+          "kind": "artifact",
+          "ref": "deliver.artifacts[1]",
+          "min_bytes": 300
         },
         {
           "kind": "human",
