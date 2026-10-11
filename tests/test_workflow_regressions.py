@@ -12,7 +12,7 @@ import time
 import pytest
 
 from hutch.engine import Engine
-from hutch.models import ACTIVE_STATUSES
+from hutch.models import ACTIVE_STATUSES, Run, RunStatus, Task
 from hutch.workflow import persistence as wstore
 from hutch.workflow import submit as wfsubmit
 from hutch.workflow.compile import PlanInvalid, compile_plan
@@ -375,6 +375,49 @@ def test_a_second_workflow_of_the_same_bot_waits_its_turn(store, config):
     second = wfsubmit.submit_workflow(store, bot=bot, plan=deterministic_plan(), definition_name="two")
     assert store.claim_run(second.attempt_run_id, "test-owner-2", 30, max_live=2) is None
     store.request_cancel_tree(first.attempt_run_id)
+
+
+def test_workflow_step_shares_the_only_global_run_slot_with_its_attempt(store):
+    """A one-slot host must admit the step that is required to finish its workflow."""
+    bot = make_bot(store, name="one-slot-workflow-step", model="mock/demo", tools=["files"])
+    submission = wfsubmit.submit_workflow(
+        store, bot=bot, plan=deterministic_plan(), definition_name="one-slot-workflow-step")
+    attempt = store.claim_run(submission.attempt_run_id, "one-slot-workflow-owner", 60, max_live=1)
+    assert attempt is not None
+    attempt = store.transition_run(attempt.id, RunStatus.running, fence=attempt.fence)
+    workflow = wstore.workflow_run(store, submission.workflow_run_id)
+    assert workflow is not None
+    assert wstore.claim_workflow_attempt(
+        store, workflow["id"], attempt.id, owner_fence=attempt.fence,
+        revision_id=workflow["revision_id"])
+    wstore.open_node(store, workflow["id"], owner_run_id=attempt.id,
+                     owner_fence=attempt.fence, revision_id=workflow["revision_id"],
+                     site_id="answer", instance_key="once", kind="agent",
+                     input_value={"instruction": "Answer."}, input_hash="sha256:one-slot")
+
+    step = Run(bot_id=bot.id, prompt="workflow step")
+    step.workflow_step = {
+        "workflow_run_id": workflow["id"], "revision_id": workflow["revision_id"],
+        "parent_fence": attempt.fence, "site_id": "answer", "instance_key": "once",
+        "role": "worker", "tools": [], "model": "mock/demo",
+    }
+    task = Task(bot_id=bot.id, kind="step", prompt=step.prompt)
+    step, created = wstore.submit_step_run(
+        store, workflow_run_id=workflow["id"], site_id="answer", instance_key="once",
+        run=step, task=task, parent_run_id=attempt.id, parent_fence=attempt.fence,
+        idem_key="one-slot-step", request_hash="one-slot-step")
+    assert created is True
+
+    claimed_step = store.claim_run(step.id, "one-slot-step-owner", 60, max_live=1)
+    assert claimed_step is not None, "the parent workflow already owns this child's global capacity"
+    assert claimed_step.parent_run_id == attempt.id
+
+    chat = Run(bot_id=bot.id, prompt="interactive chat")
+    store.submit_run(chat, Task(bot_id=bot.id, kind="on_demand", prompt=chat.prompt))
+    assert store.claim_run(chat.id, "queued-chat-owner", 60, max_live=1) is None
+    assert store.claim_run(chat.id, "fair-chat-owner", 60, max_live=2) is not None
+    store.request_cancel_tree(attempt.id)
+    store.request_cancel_tree(chat.id)
 
 
 def test_a_crash_between_opening_a_node_and_admitting_its_step_recovers(store, config, ollama):

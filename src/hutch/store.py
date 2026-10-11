@@ -5037,10 +5037,15 @@ class Store:
         # yet one of the active execution statuses. A workflow step shares its attempt's slot.
         cap = ""
         if max_live:
+            shared_workflow_parent = (
+                "runs.kind = 'step' AND runs.parent_run_id IS NOT NULL AND "
+                "c.id = runs.parent_run_id AND EXISTS (SELECT 1 FROM runs p "
+                "WHERE p.id = runs.parent_run_id AND p.kind = 'workflow' AND " + parent_occupying + ")"
+            )
             cap = (" AND (SELECT COUNT(*) FROM runs c WHERE " + occupying +
                    " AND NOT (c.kind = 'step' AND c.parent_run_id IS NOT NULL AND EXISTS ("
                    "SELECT 1 FROM runs p WHERE p.id = c.parent_run_id AND p.kind = 'workflow' AND "
-                   + parent_occupying + "))) < ?")
+                   + parent_occupying + ")) AND NOT (" + shared_workflow_parent + ")) < ?")
         sql = (
             "UPDATE runs SET lease_owner = ?, lease_expires_at = ?, heartbeat_at = ?, fence = fence + 1 "
             "WHERE id = ? AND status = 'pending' AND cancel_requested = 0 "
@@ -5054,7 +5059,10 @@ class Store:
             + cap)
         args: list[Any] = [owner, expires, stamp, run_id, stamp, *_LIVE_VALUES, stamp]
         if max_live:
-            args += [*_LIVE_VALUES, stamp, *_LIVE_VALUES, stamp, max_live]
+            # A step shares both the parent workflow's slot and its capacity reservation.
+            # Exclude that parent for this candidate's capacity check, while retaining it
+            # in every unrelated candidate's count.
+            args += [*_LIVE_VALUES, stamp, *_LIVE_VALUES, stamp, *_LIVE_VALUES, stamp, max_live]
         with self._tx() as db:
             if self._execution_hold(db):
                 return None

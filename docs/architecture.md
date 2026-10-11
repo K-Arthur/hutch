@@ -458,7 +458,10 @@ admission cannot widen an old step.
 Capacity: an orchestration attempt and its steps form a **workflow lane** (`runs.kind` is
 `workflow`/`step`). The claim statement admits a Bot's workflow beside its interactive work
 and keeps one workflow per Bot; step runs share their attempt's global slot and are bounded
-by the workflow's declared logical concurrency ceiling. The current interpreter advances
+by the workflow's declared logical concurrency ceiling. When claiming a step, the global-capacity
+check discounts that candidate's occupying workflow parent, so `max_live=1` can admit the child
+needed to advance the workflow. The parent still counts for unrelated work, which must wait for
+an available slot. The current interpreter advances
 ordinary nodes and map items sequentially, so that ceiling is not evidence of concurrent
 branch dispatch. Inference admission remains the model-concurrency limiter, so a waiting
 workflow node never holds an inference seat. Each provider request
