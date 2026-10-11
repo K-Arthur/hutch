@@ -187,12 +187,24 @@ def test_a_clean_svg_passes_unchanged():
     svg('<image href="data:text/html;base64,PHNjcmlwdD4="/>'),
     svg('<image href="data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="/>'),
     svg('<handler xmlns="http://www.w3.org/2000/svg">alert(1)</handler>'),
+    # CSS can also fetch: url(...)/@import must not become an external beacon
+    svg('<style>rect{fill:url(https://evil.example/x.svg#f)}</style><rect/>'),
+    svg('<style>@import "https://evil.example/sheet.css";</style><rect/>'),
+    svg('<rect style="fill:url(//evil.example/y.svg#f)"/>'),
+    svg('<rect style="background:url(http://evil.example/z)"/>'),
 ])
 def test_svg_bypass_attempts_are_rejected(attempt):
     with pytest.raises(MediaValidationError):
         sanitize_svg(attempt)
     with pytest.raises(MediaValidationError):
         validate_media(attempt)
+
+
+def test_css_that_never_fetches_is_still_allowed():
+    keep = svg('<style>.a{fill:red;stroke:#123}</style>'
+               '<defs><linearGradient id="g"><stop offset="0"/></linearGradient></defs>'
+               '<rect class="a" style="fill:url(#g)"/>')
+    sanitize_svg(keep)  # must not raise: internal fragment and plain CSS are fine
 
 
 def test_svg_rejects_doctype_and_entity_expansion():

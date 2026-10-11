@@ -20,6 +20,7 @@ import hashlib
 import copy
 import json
 import os
+import re
 import time
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
@@ -93,6 +94,28 @@ DEFAULT_WANT_CTX = 16384
 MAX_MALFORMED_STREAK = 4             # without an escalation target, give up after this many bad turns
 MAX_CONTRACT_REPAIRS = 4            # bounded correction attempts for hutch-action contract violations
 RATE_LIMIT_PAUSE_MAX = 30.0
+
+#: The envelope protocol's own framing. Tool results travel inside
+#: ``<tool_result …>…</tool_result>``; untrusted content must not be able to
+#: spell that closing tag (or the out-of-band contract marker) and forge a
+#: second envelope.
+_TOOL_RESULT_TAG = re.compile(r"</?tool_result", re.IGNORECASE)
+_TOOL_RESULT_CLOSE_ESCAPED = "&lt;/tool_result"
+_CONTRACT_MARKER = "[tool-contract]"
+
+
+def _neutralize_structural_markers(content: str) -> str:
+    """Escape the envelope's framing delimiters inside untrusted tool content.
+
+    Only the delimiter spelling is neutralized; every byte of the payload stays
+    visible to the model (mission section 7: preserve quotations rather than
+    delete suspicious text). The result contains no literal
+    ``<tool_result``/``</tool_result`` and no unescaped ``[tool-contract]``
+    marker, so a returned page or document cannot close its own envelope,
+    open a second one, or impersonate a contract note.
+    """
+    content = _TOOL_RESULT_TAG.sub(lambda m: m.group(0).replace("<", "&lt;"), content)
+    return content.replace(_CONTRACT_MARKER, "&#91;tool-contract&#93;")
 
 
 _CONN_PROVIDERS: dict[tuple, Provider] = {}
@@ -733,7 +756,8 @@ class BuiltinRuntime:
             it accepts image input. What actually reached the model is recorded either way.
             """
             if envelope_mode:
-                bounded = content if len(content) <= 60_000 else content[:60_000] + "\n… [result clipped for the model]"
+                safe = _neutralize_structural_markers(content)
+                bounded = safe if len(safe) <= 60_000 else safe[:60_000] + "\n… [result clipped for the model]"
                 messages.append({"role": "user",
                                  "content": f'<tool_result tool="{call_name}">\n{bounded}\n</tool_result>'})
             else:
