@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from ..models import Bot
 from ..workflow import persistence as wstore
 from ..workflow import qualify
+from ..workflow import routing
 from ..workflow import submit as wfsubmit
 from ..workflow.compile import CEILINGS, PlanInvalid, compile_plan
 
@@ -157,11 +158,15 @@ class SubmitPlanRequest(BaseModel):
     source: Literal["operator", "model"] = "operator"
     planning_model: str = Field(default="", max_length=200)
     note: str = Field(default="", max_length=500)
+    #: Marks this submission as an *automatic* start, which must fit the Bot's
+    #: preauthorized workflow scope. A person's explicit start leaves it false.
+    auto: bool = False
 
 
 class RunSavedRequest(BaseModel):
     bot: str = Field(min_length=1, max_length=120)
     inputs: dict[str, Any] = Field(default_factory=dict)
+    auto: bool = False
 
 
 class AnswerRequest(BaseModel):
@@ -173,6 +178,18 @@ class QualificationRequest(BaseModel):
     role: Literal["worker", "verifier"]
     reason: str = Field(min_length=1, max_length=500)
     scope: dict[str, Any] = Field(default_factory=dict)
+
+
+class WorkflowPolicyRequest(BaseModel):
+    """The operator's workflow policy for one Bot. Saving a policy starts nothing."""
+
+    bot: str = Field(min_length=1, max_length=120)
+    mode: Literal["off", "suggest", "auto"]
+    definitions: list[str] = Field(default_factory=list, max_length=50)
+    max_nodes: Optional[int] = Field(default=None, ge=1, le=2_000)
+    max_model_calls: Optional[int] = Field(default=None, ge=0, le=500)
+    max_wall_seconds: Optional[int] = Field(default=None, ge=5, le=86_400)
+    max_fanout: Optional[int] = Field(default=None, ge=1, le=100)
 
 
 def _digest(payload: Any) -> str:
@@ -315,6 +332,12 @@ def register_workflow_api(app: Any, store: Any, engine: Any) -> None:
             raise HTTPException(422, str(exc)) from None
         return verdict.as_dict()
 
+    @app.get("/api/v1/workflows/policy")
+    def get_workflow_policy(bot: str) -> dict[str, Any]:
+        resolved = _bot_or_404(store, bot)
+        return {"bot": resolved.name, "mode": getattr(resolved, "workflow_mode", "off"),
+                "limits": routing.auto_scope(resolved)}
+
     @app.get("/api/v1/workflows/{ref}", response_model=WorkflowPlanResource)
     def get_workflow(ref: str) -> WorkflowPlanResource:
         entry = wstore.definition(store, ref)
@@ -375,7 +398,7 @@ def register_workflow_api(app: Any, store: Any, engine: Any) -> None:
                 store, bot=bot, plan=payload.plan, inputs=payload.inputs,
                 definition_name=payload.definition_name, save_definition=payload.save_definition,
                 origin="api", source=payload.source, planning_model=payload.planning_model,
-                note=payload.note, idem_key=key, request_hash=digest)
+                note=payload.note, idem_key=key, request_hash=digest, auto=payload.auto)
         except wfsubmit.PlanInputError as exc:
             raise HTTPException(422, {"code": "plan_inputs", "message": str(exc)}) from None
         except wfsubmit.PlanNotSubmittable as exc:
@@ -394,7 +417,8 @@ def register_workflow_api(app: Any, store: Any, engine: Any) -> None:
         bot = _bot_or_404(store, payload.bot)
         try:
             submission = wfsubmit.submit_saved(store, bot=bot, definition=ref, inputs=payload.inputs,
-                                               origin="api", idem_key=key, request_hash=digest)
+                                               origin="api", idem_key=key, request_hash=digest,
+                                               auto=payload.auto)
         except KeyError:
             raise HTTPException(404, "no such workflow") from None
         except wfsubmit.PlanInputError as exc:
@@ -408,17 +432,6 @@ def register_workflow_api(app: Any, store: Any, engine: Any) -> None:
             workflow_run_id=submission.workflow_run_id, attempt_run_id=submission.attempt_run_id,
             revision_id=submission.revision_id, definition_id=submission.definition_id,
             plan_hash=submission.plan_hash, roles=submission.verdicts)
-
-    @app.get("/api/v1/workflows/runs", response_model=WorkflowRunPage)
-    def list_workflow_runs(bot: str = "", limit: int = 50, offset: int = 0) -> WorkflowRunPage:
-        bot_id = ""
-        if bot:
-            bot_id = _bot_or_404(store, bot).id
-        try:
-            rows = wstore.list_workflow_runs(store, bot_id=bot_id, limit=limit, offset=offset)
-        except ValueError as exc:
-            raise HTTPException(422, str(exc)) from None
-        return WorkflowRunPage(items=[_run_resource(row) for row in rows], limit=limit, offset=offset)
 
     @app.get("/api/v1/workflows/runs/{wf_id}", response_model=WorkflowRunDetail)
     def get_workflow_run(wf_id: str) -> WorkflowRunDetail:
@@ -464,6 +477,25 @@ def register_workflow_api(app: Any, store: Any, engine: Any) -> None:
         row = wstore.question(store, question_id)
         assert row is not None
         return _question_resource(row)
+
+    @app.post("/api/v1/workflows/policy")
+    def set_workflow_policy(payload: WorkflowPolicyRequest, request: Request) -> dict[str, Any]:
+        """Set how Hutch may use workflows for one Bot. Nothing is started or scheduled."""
+        _idempotency(request, payload.model_dump())
+        bot = _bot_or_404(store, payload.bot)
+        limits: dict[str, Any] = {}
+        if payload.mode == "auto":
+            if payload.definitions:
+                limits["definitions"] = list(payload.definitions)
+            for key in ("max_nodes", "max_model_calls", "max_wall_seconds", "max_fanout"):
+                value = getattr(payload, key)
+                if value is not None:
+                    limits[key] = int(value)
+        bot.workflow_mode = payload.mode
+        bot.workflow_limits = limits
+        store.upsert_bot(bot, preserve_schedules=True)
+        return {"bot": bot.name, "mode": bot.workflow_mode, "limits": bot.workflow_limits,
+                "note": "saved; saving a policy starts nothing and grants no schedule"}
 
     @app.post("/api/v1/workflows/qualifications", status_code=201)
     def acknowledge_qualification(payload: QualificationRequest, request: Request) -> dict[str, Any]:

@@ -85,6 +85,43 @@ def test_auto_respects_definitions_activation_and_caps(store):
     assert not refused and "not activated" in why
 
 
+def test_auto_scope_is_enforced_on_submission(store, config):
+    """A submission that declares itself automatic must fit the preauthorized scope."""
+    import pytest
+
+    from hutch.models import Bot
+    from hutch.workflow import submit as wfsubmit
+    from tests.test_workflow_engine import deterministic_plan, make_bot
+
+    bot = make_bot(store, name="auto-bot", model="ollama/qwen3:4b", tools=["files"])
+    plan = deterministic_plan()
+    plan["budget"] = {"max_nodes": 30, "max_model_calls": 0, "max_fanout": 5}
+    # Off by default: an automatic start is refused.
+    with pytest.raises(wfsubmit.PlanNotSubmittable) as info:
+        wfsubmit.submit_workflow(store, bot=bot, plan=plan, definition_name="auto-plan", auto=True)
+    assert "automatic start was refused" in str(info.value)
+    # A person's explicit start of the same plan is fine.
+    wfsubmit.submit_workflow(store, bot=bot, plan=plan, definition_name="auto-plan")
+    # With an auto scope that names the definition and fits the budget, auto is allowed
+    # once the definition itself is activated (activation is a separate, explicit act).
+    from hutch.workflow import persistence as wstore
+
+    entry = wstore.definition(store, "auto-plan")
+    assert entry is not None
+    wstore.set_active(store, str(entry["id"]), True)
+    bot.workflow_mode = "auto"
+    bot.workflow_limits = {"definitions": ["auto-plan"], "max_nodes": 50, "max_model_calls": 5}
+    store.upsert_bot(bot, preserve_schedules=True)
+    allowed = wfsubmit.submit_saved(store, bot=bot, definition="auto-plan", auto=True)
+    assert allowed.workflow_run_id.startswith("wrun_")
+    # A tighter cap refuses it again.
+    bot.workflow_limits = {"definitions": ["auto-plan"], "max_nodes": 5}
+    store.upsert_bot(bot, preserve_schedules=True)
+    with pytest.raises(wfsubmit.PlanNotSubmittable) as info:
+        wfsubmit.submit_saved(store, bot=bot, definition="auto-plan", auto=True)
+    assert "max_nodes" in str(info.value)
+
+
 def test_blocked_role_explanation_names_the_options():
     lines = routing.explain_block(None, [{"role": "author", "allowed": False,
                                           "reasons": ["no probed evidence"],

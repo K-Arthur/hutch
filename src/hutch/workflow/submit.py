@@ -159,7 +159,8 @@ def submit_workflow(store: Any, *, bot: Bot, plan: dict[str, Any] | Plan,
                     origin: str = "operator", conversation_id: str = "",
                     source: str = "operator", planning_model: str = "",
                     created_by: str = "", note: str = "",
-                    idem_key: str = "", request_hash: str = "") -> Submission:
+                    idem_key: str = "", request_hash: str = "",
+                    auto: bool = False) -> Submission:
     """Validate, gate and admit one workflow instance."""
     compiled = compile_plan(plan)
     resolved_inputs = validate_inputs(compiled.plan, inputs)
@@ -168,6 +169,15 @@ def submit_workflow(store: Any, *, bot: Bot, plan: dict[str, Any] | Plan,
         if replay is not None:
             return _replayed(store, replay)
     verdicts = check_authority(compiled, bot, store=store)
+    if auto:
+        from . import routing
+
+        definition_row = wstore.definition(store, definition_name) if definition_name else None
+        allowed, why = routing.check_auto(
+            bot=bot, definition=definition_row,
+            budget=compiled.plan.budget.model_dump(mode="json"), plan_name=compiled.plan.name)
+        if not allowed:
+            raise PlanNotSubmittable(f"an automatic start was refused: {why}")
     if source == "model":
         if not planning_model:
             raise PlanNotSubmittable("a model-authored plan must name the planning model")
@@ -207,7 +217,7 @@ def submit_workflow(store: Any, *, bot: Bot, plan: dict[str, Any] | Plan,
 
 def submit_saved(store: Any, *, bot: Bot, definition: str, inputs: Optional[dict[str, Any]] = None,
                  origin: str = "operator", conversation_id: str = "",
-                 idem_key: str = "", request_hash: str = "") -> Submission:
+                 idem_key: str = "", request_hash: str = "", auto: bool = False) -> Submission:
     """Run a saved definition's latest revision without a planning call of any kind."""
     entry = wstore.definition(store, definition)
     if entry is None:
@@ -221,6 +231,14 @@ def submit_saved(store: Any, *, bot: Bot, definition: str, inputs: Optional[dict
         replay = store.idempotency_replay("api:v1:workflow-runs", idem_key, request_hash)
         if replay is not None:
             return _replayed(store, replay)
+    if auto:
+        from . import routing
+
+        allowed, why = routing.check_auto(
+            bot=bot, definition=entry, budget=compiled.plan.budget.model_dump(mode="json"),
+            plan_name=str(entry["name"]))
+        if not allowed:
+            raise PlanNotSubmittable(f"an automatic start was refused: {why}")
     verdicts = check_authority(compiled, bot, store=store)
     attempt = Run(bot_id=bot.id, prompt=f"workflow: {compiled.plan.name}"[:4_000], kind="workflow",
                   origin=origin, conversation_id=conversation_id)

@@ -203,6 +203,28 @@ def test_qualification_routes_are_scoped_and_revocable(client):
     assert bad.status_code == 422
 
 
+def test_workflow_policy_route_saves_mode_and_scope(client):
+    bot = make_bot(client, name="policy-bot")
+    before = client.get("/api/v1/workflows/policy", params={"bot": "policy-bot"}).json()
+    assert before["mode"] == "off" and before["limits"] == {}
+
+    saved = client.post("/api/v1/workflows/policy", headers=KEY,
+                        json={"bot": "policy-bot", "mode": "auto", "definitions": ["expense-audit"],
+                              "max_nodes": 40, "max_model_calls": 0})
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["mode"] == "auto"
+    assert saved.json()["limits"]["definitions"] == ["expense-audit"]
+    after = client.get("/api/v1/workflows/policy", params={"bot": "policy-bot"}).json()
+    assert after["mode"] == "auto" and after["limits"]["max_nodes"] == 40
+
+    # Switching back to off clears the auto scope rather than leaving it armed.
+    client.post("/api/v1/workflows/policy", headers=KEY,
+                json={"bot": "policy-bot", "mode": "off", "definitions": ["expense-audit"]})
+    assert client.get("/api/v1/workflows/policy", params={"bot": "policy-bot"}).json()["limits"] == {}
+    assert client.post("/api/v1/workflows/policy", headers=KEY,
+                       json={"bot": "policy-bot", "mode": "sometimes"}).status_code == 422
+
+
 def test_oversized_plans_are_refused(client):
     bot = make_bot(client)
     big = plan()

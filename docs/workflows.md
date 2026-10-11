@@ -39,6 +39,12 @@ model calls, wall clock and fan-out. Anything outside that scope is refused with
 Consequential actions inside a run still use their own approval boundaries - permission to
 choose a method is never permission to spend, access or mutate.
 
+**Status:** the policy, the recommendation rules and the auto-scope check are implemented and
+tested, and the *enforcement* runs on any submission that declares itself automatic. The
+conversation-side wiring - a chat turn that offers a suggestion or starts an auto workflow -
+is **not implemented in this revision**; today a person starts a workflow explicitly with
+`hutch workflow run` or the API. Nothing can start one by accident.
+
 ## Running a saved workflow
 
 ```bash

@@ -1952,6 +1952,39 @@ def workflow_qualify(bot_ref: str = typer.Argument(...),
     console.print(f"recorded: {verdict.summary()}")
 
 
+@workflow_app.command("mode")
+def workflow_mode(bot_ref: str = typer.Argument(...),
+                  mode: str = typer.Option("off", "--mode", help="off | suggest | auto"),
+                  definition: list[str] = typer.Option([], "--allow-definition",
+                                                       help="saved workflow auto may start (repeatable)"),
+                  max_nodes: Optional[int] = typer.Option(None, "--max-nodes"),
+                  max_model_calls: Optional[int] = typer.Option(None, "--max-model-calls"),
+                  max_wall_seconds: Optional[int] = typer.Option(None, "--max-wall-seconds"),
+                  max_fanout: Optional[int] = typer.Option(None, "--max-fanout")) -> None:
+    """Set how Hutch may use workflows for one Bot. Saving a policy starts nothing."""
+    from .workflow import routing
+
+    if mode not in routing.MODES:
+        err.print(f"[red]--mode must be one of {', '.join(routing.MODES)}[/red]")
+        raise typer.Exit(code=2)
+    store = _store()
+    bot = _require_bot(store, bot_ref)
+    limits: dict = {}
+    if mode == "auto":
+        if definition:
+            limits["definitions"] = list(definition)
+        for key, value in (("max_nodes", max_nodes), ("max_model_calls", max_model_calls),
+                           ("max_wall_seconds", max_wall_seconds), ("max_fanout", max_fanout)):
+            if value is not None:
+                limits[key] = int(value)
+    bot.workflow_mode = mode
+    bot.workflow_limits = limits
+    store.upsert_bot(bot, preserve_schedules=True)
+    console.print(f"{bot.name}: workflow mode [bold]{mode}[/bold]"
+                  + (f" · scope {limits}" if limits else "")
+                  + " [dim](saving a policy starts nothing)[/dim]")
+
+
 # ------------------------------------------------------------------ models
 
 models_app = typer.Typer(no_args_is_help=True, help="Local models: what fits this machine, presets, swap cost.")

@@ -145,6 +145,7 @@ download/read-back.
 | Submission gates (inputs, envelope-vs-Bot, local-only, role) | implemented, verified | `tests/test_workflow_engine.py`, `tests/test_workflow_api.py` |
 | Typed API + CLI | implemented, verified | `tests/test_workflow_api.py` (12); CLI exercised by the acceptance capture |
 | Routing policy Off/Suggest/Auto | implemented, verified (rules) | `tests/test_workflow_routing.py` (8) |
+| Chat wiring for suggest/auto (a turn that offers or starts one) | **not implemented** | nothing calls `routing.recommend` from a chat turn; submissions that declare themselves automatic are still scope-checked |
 | Model-facing authoring gate | implemented, verified (mechanism) | `tests/test_workflow_routing.py::test_authoring_tool_is_refused_without_probed_evidence` |
 | Acceptance: messy CSV → verified report | implemented, **verified end to end with the real CLI**, zero model calls | `tests/test_workflow_csv_acceptance.py` (2) + `artifacts/dynamic-workflows/validation.json` |
 | Model-authored plan on a live local route | **not verified** | no local model server on this host; the gate and refusal paths are tested, a passing probe was never recorded for a real checkpoint |
