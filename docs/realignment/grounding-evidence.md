@@ -132,7 +132,8 @@ receipts strip. The chosen panel keeps the existing dark token set and Archivo d
   (Agent Skills, toolcalling and documents merges at `55f551b`); the grounding branch merged that
   head as `4e217ba` (2 real conflicts — CHANGELOG and the tool registry — resolved by union;
   regenerated artifacts taken from the grounding side). Final full offline suite on the combined
-  tree: **2021 passed, 5 skipped, 1 failed** — only
+  tree after the continuation increments (Jetstream live lane, scene-change sampling, hard wall
+  budget): **2032 passed, 6 skipped, 1 failed** — only
   `test_code_handoff.py::test_interactive_process_keeps_terminal_and_owns_a_separate_group`, a
   load-sensitive TTY race that passes 3/3 in isolation and also failed on the pre-grounding
   merged tree. `test_docgen_docx.py::test_identical_specs_produce_identical_bytes` exposed a real

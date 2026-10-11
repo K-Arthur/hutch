@@ -43,9 +43,10 @@ Bluesky's public search host is blocked from this network and says so; SearXNG a
 operator instance. The Evidence panel (approved route: run panel +
 chat entry) shows effective as-of, claimed/what-evidence-shows, outcomes and gaps, independence
 clusters with exact times, hash-verified frames, and answer revisions; inspected in a real browser
-at 1440/900/360 with zero console errors and no overflow. Offline tests: 72 grounding tests plus
+at 1440/900/360 with zero console errors and no overflow. Offline tests: 83 grounding tests plus
 2 browser regressions. Final full offline suite on the combined tree (including the later main
-merge): 2021 passed, 5 skipped, 1 failed — the known load-sensitive TTY race in
+merge and all three continuation increments — live Jetstream, scene-change sampling, hard wall
+budget): 2032 passed, 6 skipped, 1 failed — the known load-sensitive TTY race in
 `test_code_handoff.py`, which passes 3/3 in isolation and also failed on the pre-grounding merged
 tree. A genuine DOCX determinism defect found during integration (python-docx ZIP timestamps)
 is repaired and verified byte-identical across a 2.2 s boundary. Evidence:
