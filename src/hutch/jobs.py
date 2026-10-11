@@ -11,7 +11,10 @@ The storage layer is SQLite, but the *state machine* lives here:
   possible external effect becomes ``unknown`` and blocks the job for review —
   it is never replayed automatically.
 * Handler steps run on a small worker pool with their own internal bounds; only
-  the supervisor loop applies results and writes the database.
+  the supervisor loop applies results and writes the database. Handlers must be
+  idempotent and effect-free: a handler that dies mid-run leaves no result, is
+  sealed as interrupted by the next supervisor, and is retried only under its
+  step policy (its inputs are reused, not recreated).
 
 Definition revisions are recorded at admission. If the code's definition
 changes while a job is in flight, the job blocks instead of being reinterpreted
@@ -154,7 +157,8 @@ class JobRunner:
         for step in steps:
             by_key.setdefault(step["step_key"], []).append(step)
 
-        # 1. reconcile run-backed steps whose run is terminal
+        # 1. reconcile run-backed steps whose run is terminal, and orphaned handler steps
+        inflight = {(entry[0]["id"], entry[1].key, entry[2]) for entry in self._inflight.values()}
         for step in steps:
             if step["status"] == "running" and step["run_id"]:
                 run = self.store.get_run(step["run_id"])
@@ -166,6 +170,16 @@ class JobRunner:
                 if run.status in TERMINAL:
                     self._reconcile_run_step(job, spec, step, run)
                     return
+            if (step["status"] == "running" and not step["run_id"]
+                    and (job["id"], step["step_key"], step["attempt"]) not in inflight):
+                # A handler that was running when its process died (or lost the supervisor
+                # role) leaves no result. Handlers are required to be idempotent and
+                # effect-free, so the attempt is sealed as interrupted and the step's own
+                # retry policy decides whether it runs again.
+                self.store.finish_job_step(job["id"], step["step_key"], step["attempt"], status="failed",
+                                           output={"interrupted": True},
+                                           error="the handler was interrupted before it finished; its inputs are reused")
+                return
         if any(step["status"] == "running" for step in steps):
             if job["status"] == "queued":
                 self.store.update_job_status(job["id"], "running")

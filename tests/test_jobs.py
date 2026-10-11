@@ -37,6 +37,9 @@ def _register_test_definition():
     job_mod.register_job(JobSpec(kind="test_run_step", revision=1, steps=(
         StepSpec("work", "run", retries=1),
     )))
+    job_mod.register_job(JobSpec(kind="test_orphan", revision=1, steps=(
+        StepSpec("test-a", "handler", retries=1),
+    )))
 
     def handler_a(job_input, prior, context):
         _counter("a")
@@ -135,6 +138,22 @@ def test_restart_resumes_at_the_first_incomplete_step(store, config):
     assert HANDLER_CALLS.get("a", 0) == 0, "a completed checkpoint is never re-executed"
     steps = {step["step_key"]: step for step in store.job_steps(job["id"])}
     assert steps["test-b"]["output"]["from_b"] == "kept"
+
+
+def test_orphaned_handler_step_is_sealed_and_retried_under_policy(store, config):
+    """A handler that was running when its process died leaves a claimed attempt behind."""
+    bot = _bot(store)
+    job, _ = store.create_job(bot_id=bot.id, kind="test_orphan", occurrence_key="orphan", input={})
+    store.start_job_step(job["id"], "test-a", 1, input_hash="h")     # claimed; the process then died
+    engine = Engine(config, store, light=True)
+    result = _advance(engine, store, job["id"])
+    engine.jobs.shutdown()
+
+    assert result["status"] == "succeeded"
+    attempts = store.job_steps(job["id"])
+    assert [a["attempt"] for a in attempts] == [1, 2]
+    assert attempts[0]["status"] == "failed" and attempts[0]["output"]["interrupted"] is True
+    assert attempts[1]["status"] == "succeeded"
 
 
 def test_changed_definition_revision_blocks_instead_of_reinterpreting(store, config):
