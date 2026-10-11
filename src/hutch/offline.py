@@ -307,7 +307,12 @@ class OfflineBrokerSet:
     """Run-scoped broker sockets for every local fallback/escalation endpoint."""
 
     def __init__(self, endpoints: Iterable[str]):
-        self._temp = tempfile.TemporaryDirectory(prefix="hutch-o-", dir="/tmp")
+        # Honor TMPDIR: on hosts whose /tmp is a small full tmpfs, broker socket
+        # directories there fail with ENOSPC and block local-model runs that
+        # have nothing to do with the /tmp pressure. The directory is still
+        # owner-private (0700) before any socket exists in it.
+        temp_root = os.environ.get("TMPDIR") or "/tmp"
+        self._temp = tempfile.TemporaryDirectory(prefix="hutch-o-", dir=temp_root)
         os.chmod(self._temp.name, 0o700)
         self.brokers = []
         self.directory = self._temp.name
