@@ -33,7 +33,8 @@ from ..models import Event, EventType, Run, RunStatus
 from ..providers import ChatRequest, Provider, ProviderError, ToolCall
 from ..providers.base import ModelMeta
 from ..providers.pricing import PriceBook
-from ..store import UsageBudgetRefusal
+from ..store import UsageBudgetRefusal, UsagePauseRequired
+from ..money import format_usd, parse_usd, quantize
 from ..safety import Decision, Verdict
 from ..tools import Tool, ToolContext
 from .base import RunAborted
@@ -377,6 +378,47 @@ class BuiltinRuntime:
             endpoint = endpoint or os.environ.get("HUTCH_BASE_URL", "")
         return (rung.provider, rung.provider, "per_token", rung.provider, endpoint, "builtin")
 
+    @staticmethod
+    def _route_hash(route) -> str:
+        """Stable identity of a billing/destination route, shared by capability evidence and budget releases."""
+        if not route:
+            return ""
+        return hashlib.sha256(json.dumps(route, sort_keys=True, separators=(",", ":"),
+                                         default=str).encode()).hexdigest()
+
+    def _ask_budget_pause(self, ctx: ToolContext, run: Run, ladder: Ladder, rung: Rung,
+                          pause: UsagePauseRequired, route_hash: str, expected_route) -> bool:
+        """Ask a human to approve one call past a pause threshold; bind the answer to scope+route+cycle.
+
+        Denial is fail-closed and sticks for the run (the caller aborts with ``cost_cap``). An approval
+        lifts only the pause band for that exact scope+route+cycle+policy revision: it can never raise a
+        ceiling, and a route change invalidates it before any release row is written.
+        """
+        if expected_route is not None and self._route_hash(expected_route) != route_hash:
+            return False
+        decision = Decision(Verdict.ask, f"approve spend past {format_usd(pause.pause_usd)} ({pause.scope_kind})", "",
+                            rule="ask:budget-pause", risk="medium")
+        try:
+            ctx.gate.decide(
+                "budget_pause",
+                f"{pause.scope_kind} '{pause.scope_id}' is {format_usd(pause.observed_usd)} of its "
+                f"{format_usd(pause.pause_usd)} pause threshold before this call to {rung.spec}",
+                {"scope_kind": pause.scope_kind, "scope_id": pause.scope_id, "pause_usd": pause.pause_usd,
+                 "ceiling_usd": pause.ceiling_usd, "observed_usd": pause.observed_usd,
+                 "planned_usd": pause.planned_usd, "model": rung.spec, "route_hash": route_hash,
+                 "cycle": pause.cycle_key, "policy_revision": pause.policy_revision,
+                 "scope": f"one call to {rung.spec} within this budget cycle",
+                 "what_is_sent": "nothing new: this approves one already-planned provider call"},
+                decision, outward=False, ask_in_auto=True)
+        except DeniedError:
+            return False
+        last = getattr(ctx.gate, "last_authorization", None) or {}
+        ctx.store.record_budget_pause_release(
+            scope_kind=pause.scope_kind, scope_id=pause.scope_id, route_hash=route_hash,
+            cycle_key=pause.cycle_key, policy_revision=pause.policy_revision,
+            quote_usd=pause.planned_usd, approval_id=str(last.get("approval_id", "")))
+        return True
+
     def _ask_first_hosted(self, ctx: ToolContext, ladder: Ladder, rung: Rung, why: str, est_prompt: int) -> tuple | None:
         """Every new hosted billing/destination authority requires per-run outward approval."""
         if rung.local:
@@ -504,6 +546,14 @@ class BuiltinRuntime:
                     capped = ProviderError("other", refusal, provider=rung.provider)
                     capped.cost_cap = True  # type: ignore[attr-defined]
                     raise capped
+                blocked = ctx.store.budget_admission_block(
+                    run_id=run.id,
+                    quote=guard.worst_case(rung, est_prompt, self._turn_cap(ctx.bot, rung)),
+                    account_id=guard.account_policy(rung)[0])
+                if blocked:
+                    capped = ProviderError("other", blocked, provider=rung.provider)
+                    capped.cost_cap = True  # type: ignore[attr-defined]
+                    raise capped
                 if rung is not ladder.primary:
                     self._ask_first_hosted(ctx, ladder, rung, "the primary model is unavailable", est_prompt)
                 session = self._bring_online(ctx, run, ladder, rung, messages, specs)
@@ -566,25 +616,48 @@ class BuiltinRuntime:
             session.provider = self._provider_for(ctx, ladder, session.rung, expected_route=expected_route, book=book)
             guard.connections = book  # the reservation follows this reviewed account's current policy
             self._refresh_local_admission(ctx, run, session)
-            try:
-                reservation = guard.reserve(session.rung, est_prompt, self._turn_cap(ctx.bot, session.rung))
-            except UsageBudgetRefusal as exc:
-                reason = str(exc)
-                code = "token_cap" if "token" in reason or "allowance" in reason else "cost_cap"
-                raise RunAborted(code, reason) from exc
+            route_hash = self._route_hash(expected_route)
+            pause_retried = False
+            while True:
+                try:
+                    reservation = guard.reserve(session.rung, est_prompt, self._turn_cap(ctx.bot, session.rung),
+                                                route_hash=route_hash)
+                    break
+                except UsagePauseRequired as pause:
+                    if pause_retried:
+                        raise RunAborted("cost_cap", str(pause)) from pause
+                    pause_retried = True
+                    if not self._ask_budget_pause(ctx, run, ladder, session.rung, pause, route_hash, expected_route):
+                        raise RunAborted(
+                            "cost_cap",
+                            f"the ${pause.pause_usd:.2f} spend pause on {pause.scope_kind} "
+                            f"'{pause.scope_id}' was not approved; no provider call was sent") from pause
+                except UsageBudgetRefusal as exc:
+                    reason = str(exc)
+                    code = "token_cap" if "token" in reason or "allowance" in reason else "cost_cap"
+                    raise RunAborted(code, reason) from exc
+            for warning in reservation.warnings:
+                self._log(ctx, run, "budget",
+                          f"spend on {warning.scope_kind} '{warning.scope_id}' crossed "
+                          f"{format_usd(warning.threshold_usd)} ({format_usd(warning.observed_usd)} spent or reserved)",
+                          scope=warning.scope_kind, threshold_usd=warning.threshold_usd,
+                          observed_usd=warning.observed_usd)
             if stop() or ctx.gate.cancelled():
-                ctx.store.release_usage_reservation(reservation, "run stopped before provider call started", expected_fence=run.fence)
+                ctx.store.release_usage_reservation(reservation.id, "run stopped before provider call started",
+                                                    expected_fence=run.fence)
                 raise RunAborted("stopped", "user requested stop")
             t_call = time.perf_counter()
             try:
                 result = session.provider.chat(req)
             except ProviderError as exc:
-                ctx.store.mark_usage_uncertain(reservation, f"provider outcome is uncertain ({exc.kind})", expected_fence=run.fence)
+                ctx.store.mark_usage_uncertain(reservation.id, f"provider outcome is uncertain ({exc.kind})",
+                                               expected_fence=run.fence)
                 raise
             except Exception as exc:
-                ctx.store.mark_usage_uncertain(reservation, f"provider call ended with {type(exc).__name__}", expected_fence=run.fence)
+                ctx.store.mark_usage_uncertain(reservation.id, f"provider call ended with {type(exc).__name__}",
+                                               expected_fence=run.fence)
                 raise
-            return result, reservation, t_call, queue_ms
+            return result, reservation.id, t_call, queue_ms
 
     def execute(self, run: Run, ctx: ToolContext, tools: dict[str, Tool], stop: Callable[[], bool]) -> str:
         bot = ctx.bot
@@ -755,12 +828,22 @@ class BuiltinRuntime:
             rate_limited_once = False
             timer.model(time.perf_counter() - t_call)
 
-            # ---- exact accounting (SR-2)
+            # ---- exact accounting (SR-2): provider-reported charge when available, else the quote
             run.steps += 1
             run.tokens += result.prompt_tokens + result.completion_tokens
             run.context_used, run.context_limit = result.prompt_tokens, session.num_ctx or run.context_limit
-            cost = prices.cost(session.rung.provider, session.rung.model, result.prompt_tokens,
-                               result.completion_tokens, result.cached_tokens, result.cache_write_tokens)
+            estimated = prices.cost(session.rung.provider, session.rung.model, result.prompt_tokens,
+                                    result.completion_tokens, result.cached_tokens, result.cache_write_tokens)
+            reported = result.reported_cost_usd
+            if reported is not None:
+                cost = float(quantize(parse_usd(reported)))
+                cost_source = "provider"
+            elif estimated is not None:
+                cost = estimated
+                cost_source = "estimated"
+            else:
+                cost = 0.0
+                cost_source = "unknown"
             for note in result.notes:
                 self._log(ctx, run, "stream_retry" if "without streaming" in note else "note", note)
             if result.content and result.tool_calls:
@@ -773,7 +856,8 @@ class BuiltinRuntime:
                 extra["tok_s"] = round(result.tokens_per_sec, 1)
             finish_step(run, ctx, timer, model=session.rung.spec, prompt_tokens=result.prompt_tokens,
                         completion_tokens=result.completion_tokens, cached_tokens=result.cached_tokens,
-                        cost_usd=cost or 0.0, account_id=account_id, reservation_id=reservation_id,
+                        cost_usd=cost, account_id=account_id, reservation_id=reservation_id,
+                        cost_source=cost_source, reported_cost_usd=reported,
                         prefix=prefix_hash, window=session.num_ctx or 0,
                         finish=result.finish_reason, streamed=result.streamed, **extra)
             # ---- envelope modes (constrained/prompt): the reply is a contract action, never free text
@@ -935,8 +1019,7 @@ class BuiltinRuntime:
                     append_tool_result(canonical_name, tc.id, msg)
                     continue
                 if run.fence and run.status is RunStatus.running:
-                    route_revision = hashlib.sha256(json.dumps(route, sort_keys=True, separators=(",", ":"),
-                                                          default=str).encode()).hexdigest()
+                    route_revision = self._route_hash(route)
                     ctx.store.record_model_capability_observation(
                         run, provider=str(route[0]), account_id=str(route[1]), model=session.rung.model,
                         route_revision=route_revision, capability="function_tool_calls", source_tool=canonical_name)
