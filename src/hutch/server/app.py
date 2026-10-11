@@ -4181,6 +4181,125 @@ def create_app() -> FastAPI:
         is_workspace_file = workspace_file.get("artifact") == artifact_ref
         return verified_artifact_response(run, event, "workspace_file" if is_workspace_file else "tool_output", filename)
 
+    # ---------------------------------------------------------------- grounding
+
+    def _grounding_json(data: dict[str, Any], *keys: str) -> dict[str, Any]:
+        out = dict(data)
+        for key in keys:
+            value = out.get(key)
+            if isinstance(value, str) and value:
+                try:
+                    out[key] = json.loads(value)
+                except ValueError:
+                    pass
+        return out
+
+    def _investigation_bundle_response(investigation_id: str) -> dict[str, Any]:
+        bundle = store.investigation_bundle(investigation_id)
+        if bundle is None:
+            raise HTTPException(404, "no such investigation")
+        media: list[dict[str, Any]] = []
+        for row in bundle["media"]:
+            item = _grounding_json(row, "probe_json", "metadata_json", "c2pa_json", "transformations_json")
+            frames = []
+            for frame in row.get("frames", []):
+                frames.append({
+                    "id": frame["id"], "at_ms": int(frame["at_ms"]), "sha256": frame["sha256"],
+                    "note": frame["note"], "available": bool(frame.get("path")),
+                    "url": (f"/api/v1/investigations/{investigation_id}/media/{row['id']}"
+                            f"/frames/{frame['id']}"),
+                })
+            item["frames"] = frames
+            media.append(item)
+        return {
+            "investigation": _grounding_json(bundle["investigation"], "budget_json", "coverage_json"),
+            "attempts": [_grounding_json(row, "disabled_engines_json") for row in bundle["attempts"]],
+            "sources": [_grounding_json(row, "published_json", "updated_json", "engagement_json")
+                        for row in bundle["sources"]],
+            "claims": [_grounding_json(row, "occurrence_json") for row in bundle["claims"]],
+            "evidence": bundle["evidence"],
+            "media": media,
+            "observations": [_grounding_json(row, "transmitted_json") for row in bundle["observations"]],
+            "answers": [_grounding_json(row, "body_json", "citations_json", "coverage_json")
+                        for row in bundle["answers"]],
+        }
+
+    @app.get("/api/v1/tasks/runs/{run_id}/investigation")
+    def run_investigation(run_id: str) -> dict:
+        """The evidence frame behind one run's grounded answer (empty for runs that never searched)."""
+        run = run_or_404(run_id)
+        investigation = store.investigation_for_run(run.id)
+        if investigation is None:
+            return {"investigation": None, "attempts": [], "sources": [], "claims": [],
+                    "evidence": [], "media": [], "observations": [], "answers": []}
+        return _investigation_bundle_response(investigation["id"])
+
+    @app.get("/api/v1/investigations/{investigation_id}")
+    def get_investigation_bundle(investigation_id: str) -> dict:
+        if not re.fullmatch(r"inv_[0-9a-f]{1,32}", investigation_id):
+            raise HTTPException(404, "no such investigation")
+        return _investigation_bundle_response(investigation_id)
+
+    @app.get("/api/v1/investigations/{investigation_id}/media/{media_id}/frames/{frame_id}")
+    def grounding_media_frame(investigation_id: str, media_id: str, frame_id: str) -> Response:
+        """Serve one stored inspection frame as a static image derivative.
+
+        Only image frames are servable (never decoded active content), the stored SHA-256
+        is re-verified before sending, and the file must live under Hutch's own state
+        directory tree for this exact run.
+        """
+        if not re.fullmatch(r"inv_[0-9a-f]{1,32}", investigation_id) or \
+                not re.fullmatch(r"media_[0-9a-f]{1,32}", media_id) or \
+                not re.fullmatch(r"frame_[0-9a-f]{1,32}", frame_id):
+            raise HTTPException(404, "no such frame")
+        media = store.get_media(media_id)
+        if media is None or media["investigation_id"] != investigation_id:
+            raise HTTPException(404, "no such frame")
+        frame = store.get_media_frame(media_id, frame_id)
+        if frame is None or not frame["path"]:
+            raise HTTPException(404, "no such frame")
+        mime = str(media.get("mime") or "")
+        if not mime.startswith("image/") or mime not in ("image/jpeg", "image/png", "image/webp", "image/gif"):
+            raise HTTPException(404, "no such frame")
+        path = Path(frame["path"])
+        try:
+            root = config.state_dir.resolve()
+            resolved = path.resolve()
+            if not resolved.is_relative_to(root) or not resolved.is_file():
+                raise HTTPException(404, "no such frame")
+        except OSError:
+            raise HTTPException(404, "no such frame") from None
+        body = resolved.read_bytes()
+        if hashlib.sha256(body).hexdigest() != frame["sha256"]:
+            raise HTTPException(409, "the stored frame no longer matches its recorded hash")
+        return Response(content=body, media_type=mime, headers={
+            "Cache-Control": "private, max-age=300",
+            "Content-Disposition": "inline",
+            "X-Content-Type-Options": "nosniff",
+        })
+
+    @app.get("/api/v1/grounding/config")
+    def grounding_config() -> dict:
+        """Which live lanes exist here, without secrets or live probes."""
+        from ..grounding import acquire as grounding_acquire
+        from ..grounding import media as grounding_media
+        from ..grounding.streams import jetstream_readiness
+        cfg = grounding_acquire.GroundingConfig.load(config.state_dir)
+        jetstream_state, jetstream_detail = jetstream_readiness()
+        return {
+            "lanes": {lane: list(names) for lane, names in grounding_acquire._LANE_ADAPTERS.items()},
+            "feeds": list(cfg.feeds),
+            "searxng": {"configured": bool(cfg.searxng_base), "base": cfg.searxng_base},
+            "bluesky": {"base": cfg.bluesky_base,
+                        "note": "public AppView; blocked networks report 'blocked', never zero results"},
+            "streams": {"wikimedia": {"verified_on": "2026-10-11"},
+                        "jetstream": {"state": jetstream_state, "detail": jetstream_detail}},
+            "media": {"reverse_image": grounding_media.reverse_image_search_status(),
+                      "ffmpeg": bool(__import__("shutil").which("ffmpeg")),
+                      "ffprobe": bool(__import__("shutil").which("ffprobe"))},
+            "budget_defaults": {"max_total_sources": 40, "wall_seconds": 90.0, "per_adapter_timeout": 25.0},
+        }
+
 
     # ---------------------------------------------------------------- documents
 

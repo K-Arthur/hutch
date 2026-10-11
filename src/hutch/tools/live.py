@@ -20,7 +20,7 @@ from ..grounding import media as media_mod
 from ..grounding import acquire as acquire_mod
 from ..grounding.clock import SYSTEM_CLOCK
 from ..grounding.dedup import DedupItem, filter_sensitivity_summary, noise_signals, origin_clusters
-from ..grounding.report import ClaimDraft, EvidenceLinkDraft, assess_claims, render_brief
+from ..grounding.report import CitationIndex, ClaimDraft, EvidenceLinkDraft, assess_claims, render_brief
 from ..grounding.temporal import EvidenceCutoff, TimestampRole
 from .base import Tool, ToolContext, ToolResult, _schema, clip
 
@@ -122,11 +122,29 @@ class LiveSearchTool(Tool):
         sensitivity = filter_sensitivity_summary(dedup_items)
         noise = noise_signals(dedup_items)
         signals_total = sum(len(v) for v in noise.values())
+        # derived labels are stored once so the API/UI and the brief cannot disagree
+        stored_by_key: dict[str, dict[str, Any]] = {row["item_key"]: row for row in stored}
+        annotations: dict[str, dict[str, str]] = {}
+        for cluster in clusters:
+            independence = "independent" if cluster.kind == "origin" else "same_origin"
+            for member in cluster.members:
+                row = stored_by_key.get(member.key)
+                if row is not None:
+                    annotations[row["id"]] = {"cluster": cluster.cluster_id, "independence": independence}
+        if annotations:
+            ctx.store.annotate_sources(inv_id, annotations)
+        citation_index = CitationIndex.build(result.sources)
+        citations_by_source: dict[str, str] = {}
+        for key, handle in citation_index.handles.items():
+            row = stored_by_key.get(key)
+            if row is not None:
+                citations_by_source[row["id"]] = handle
         coverage = {
             "adapters": {o.adapter: o.state for o in result.outcomes},
             "missing": result.missing_ledger(),
             "sample": sensitivity,
             "noise_signal_count": signals_total,
+            "citations": citations_by_source,
             "deadline_hit": result.deadline_hit,
             "truncated": result.truncated,
             "note": ("observed sample, not the public: denominators are shown; filters are reversible and their "
@@ -138,9 +156,11 @@ class LiveSearchTool(Tool):
                                                     for row in result.missing_ledger()][:6])
         brief = render_brief(question, result, cutoff=cutoff, clock=clock, claims=claims, links=links,
                              assessments=assessments)
-        ctx.store.add_answer(inv_id, body_json={"kind": "evidence_brief", "text": brief},
-                             effective_as_of=cutoff.effective.isoformat(), evidence_cutoff=cutoff.describe(),
-                             coverage_json=coverage)
+        ctx.store.add_answer(inv_id, body_json={
+            "kind": "evidence_brief", "text": brief,
+            "assessments": {cid: a.to_json() for cid, a in assessments.items()},
+            "citations": citations_by_source}, effective_as_of=cutoff.effective.isoformat(),
+            evidence_cutoff=cutoff.describe(), coverage_json=coverage)
         summary = (f"acquired {len(result.sources)} sources "
                    f"({', '.join(o.adapter + ':' + o.state for o in result.outcomes)})")
         return ToolResult(ok=True, output=clip(brief), data={
@@ -211,6 +231,9 @@ class InspectMediaTool(Tool):
                                       text=str(observation.get("text", ""))[:4000], media_id=row_id,
                                       transmitted_json={"attachments": len(attachments)} if observation.get("kind") == "scope_statement" else {},
                                       uncertain=False)
+        for limitation in bundle.limitations:
+            ctx.store.add_observation(investigation["id"], kind="limitation",
+                                      text=str(limitation)[:4000], media_id=row_id)
         lines = [f"MEDIA EVIDENCE — inspected locally; no authenticity or truth verdict is produced",
                  f"kind={bundle.kind} mime={bundle.mime} bytes={bundle.bytes} sha256={bundle.sha256[:16]}…",
                  f"origin: {bundle.origin[:180]}"]

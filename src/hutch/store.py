@@ -7923,3 +7923,32 @@ class Store:
             row = self._db.execute("SELECT * FROM inv_stream_cursors WHERE stream_key = ?",
                                    (stream_key[:200],)).fetchone()
         return dict(row) if row else None
+
+    def get_media(self, media_id: str) -> Optional[dict[str, Any]]:
+        with self._lock:
+            row = self._db.execute("SELECT * FROM inv_media WHERE id = ?", (media_id,)).fetchone()
+        return dict(row) if row else None
+
+    def get_media_frame(self, media_id: str, frame_id: str) -> Optional[dict[str, Any]]:
+        with self._lock:
+            row = self._db.execute("SELECT * FROM inv_media_frames WHERE id = ? AND media_id = ?",
+                                   (frame_id, media_id)).fetchone()
+        return dict(row) if row else None
+
+    def annotate_sources(self, investigation_id: str, annotations: dict[str, dict[str, str]]) -> int:
+        """Record derived origin-cluster and independence labels on source rows.
+
+        These are computed once at acquisition time (never re-derived per view), so the UI
+        and the answer brief cannot disagree about which copies count as one origin.
+        """
+        updated = 0
+        with self._lock:
+            for source_id, values in annotations.items():
+                cursor = self._db.execute(
+                    "UPDATE inv_sources SET origin_cluster = ?, independence = ? "
+                    "WHERE id = ? AND investigation_id = ?",
+                    (str(values.get("cluster", ""))[:64], str(values.get("independence", "unknown"))[:32],
+                     source_id, investigation_id))
+                updated += cursor.rowcount
+            self._db.commit()
+        return updated

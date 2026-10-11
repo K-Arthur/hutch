@@ -1196,7 +1196,7 @@ const routes = [
   [/^#\/approvals$/, renderApprovals, "chat"],
   [/^#\/connections$/, renderConnections, "connections"],
   [/^#\/bot\/([\w-]+)$/, m => renderBotDetail(decodeURIComponent(m[1])), "chat"],
-  [/^#\/run\/([\w-]+)$/, m => renderRunDetail(m[1]), "runs"],
+  [/^#\/run\/([\w-]+)(?:\?(.*))?$/, m => renderRunDetail(m[1], new URLSearchParams(m ? m[2] || "" : "")), "runs"],
 ];
 
 async function openConversation(id) {
@@ -3690,6 +3690,7 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHan
           ${steps.join("")}
         </details>` : ""}
         ${message && message.data?.content ? `<div class="answer">${esc(message.data.content)}</div>${replyAction}${prepareTaskAction}${prepareCodeTaskAction}` : ""}
+        ${groundingEntryHtml(events, runId)}
         ${relatedTasks}
         ${relatedCodeTasks}
         ${choiceCards.join("")}
@@ -5155,6 +5156,181 @@ async function renderBots() {
 const RUNS_PAGE_SIZE = 25;
 let runsState = { all: [], status: "all", q: "", shown: RUNS_PAGE_SIZE };
 
+/* ------------------------------------------------------------------ grounded evidence panel
+   Route: a compact entry under a grounded answer links here (run detail), where the full
+   panel lives. Everything shown is stored evidence: what was asked, what each source is
+   (with independence), which checks ran or failed, inspected media frames with exact
+   timecodes, and every answer revision. Findings stay scoped; no universal truth badge. */
+
+const GROUNDING_TOOLS = ["live_search", "inspect_media"];
+
+function groundingSummary(events) {
+  let checks = 0, media = 0;
+  for (const e of events || []) {
+    if (e.type !== "tool_result" || !GROUNDING_TOOLS.includes(e.data?.tool)) continue;
+    checks += 1;
+    if (e.data.tool === "inspect_media") media += 1;
+  }
+  return { checks, media };
+}
+
+const EVIDENCE_LABELS = {
+  supported_in_context: ["Supported in this context", "ok"],
+  contradicted_or_out_of_context: ["Contradicted / out of context", "bad"],
+  materially_altered: ["Materially altered (with evidence)", "bad"],
+  mixed_or_disputed: ["Mixed or disputed", "warn"],
+  insufficient_evidence: ["Insufficient evidence", "plain"],
+  unknown: ["Check did not run", "plain"],
+};
+
+const EVIDENCE_STATES = { ok: "ok", partial: "warn", zero_results: "plain", unavailable: "warn",
+  blocked: "warn", disabled: "plain", rate_limited: "warn", timeout: "bad", error: "bad" };
+
+function exactTime(ts) {
+  if (!ts) return "time unknown in the source";
+  if (!ts.instant) return ts.raw ? `${ts.raw} (unparsed)` : "time unknown";
+  const label = ts.role === "occurrence" ? "event" : ts.role === "publication" ? "published"
+    : ts.role === "index" ? "source seen" : ts.role === "retrieval" ? "fetched" : (ts.role || "time");
+  const stamp = ts.instant.replace("T", " ").replace("+00:00", " UTC");
+  return `${label} ${stamp}${ts.precision && ts.precision !== "second" ? ` (± ${ts.precision})` : ""}${ts.uncertain ? " · uncertain" : ""}`;
+}
+
+function groundingEntryHtml(events, runId) {
+  const summary = groundingSummary(events);
+  if (!summary.checks) return "";
+  return `<a class="grounding-entry" href="#/run/${esc(runId)}?focus=evidence" data-grounding-entry>
+    ${icon("search")}<span>Evidence</span>
+    <span class="grounding-entry-meta">${summary.checks} live check${summary.checks === 1 ? "" : "s"}${summary.media ? ` · ${summary.media} media` : ""}</span></a>`;
+}
+
+function evidencePanelHtml(bundle) {
+  const inv = bundle.investigation || {};
+  const coverage = inv.coverage_json || {};
+  const attempts = bundle.attempts || [];
+  const sources = bundle.sources || [];
+  const media = bundle.media || [];
+  const observations = bundle.observations || [];
+  const answers = bundle.answers || [];
+  const latest = answers[answers.length - 1];
+  const assessments = (latest && latest.body_json && latest.body_json.assessments) || {};
+  const claims = bundle.claims || [];
+  const citationOf = {};
+  for (const [sid, handle] of Object.entries(coverage.citations || {})) citationOf[sid] = handle;
+  const sample = coverage.sample || {};
+  const claimBlocks = claims.map(claim => {
+    const a = assessments[claim.id];
+    const [labelText, tone] = EVIDENCE_LABELS[a?.label] || ["Not assessed", "plain"];
+    const links = (bundle.evidence || []).filter(ev => ev.claim_id === claim.id);
+    return `<div class="evidence-claim">
+      <p class="evidence-claim-text">${esc(claim.text)}</p>
+      <div class="evidence-claim-meta">
+        <span class="ev-chip ${tone}">${esc(labelText)}</span>
+        <span class="hint">${esc(claim.kind)}</span>
+        ${links.length
+          ? `<span class="hint">${links.map(l => `${esc(citationOf[l.source_id] || "S?")} ${esc(l.relation)}`).join(" · ")}</span>`
+          : `<span class="hint">no evidence bound</span>`}
+      </div>
+      ${(a?.reasons || []).slice(0, 3).map(r => `<p class="evidence-reason">${esc(r)}</p>`).join("")}
+    </div>`;
+  }).join("");
+  const outcomeRow = o => `<li class="evidence-outcome">
+      <span class="ev-chip ${EVIDENCE_STATES[o.state] || "plain"}">${esc(o.state)}</span>
+      <span class="evidence-outcome-name">${esc(o.adapter)}</span>
+      <span class="hint">${Number.isFinite(o.retained) && Number.isFinite(o.returned) ? `${o.retained}/${o.returned} kept` : "no results kept"}${o.dropped_out_of_range ? ` · ${o.dropped_out_of_range} outside the frame` : ""}${o.dropped_undated ? ` · ${o.dropped_undated} undated` : ""}${(o.disabled_engines_json || []).length ? ` · engines disabled: ${esc((o.disabled_engines_json || []).join(", "))}` : ""}${o.freshness ? ` · ${esc(o.freshness)}` : ""}${Number.isFinite(o.latency_ms) && (o.latency_ms || 0) > 0 ? ` · ${Math.round(o.latency_ms)}ms` : ""}</span>
+      ${o.detail ? `<span class="evidence-outcome-detail">${esc(o.detail)}</span>` : ""}
+    </li>`;
+  const sourceRows = sources.map(s => {
+    const pub = s.published_json || null;
+    const independence = s.independence === "independent" ? "independent origin"
+      : s.independence === "same_origin" ? "same origin: copy, repost, or syndication"
+      : "origin not established";
+    return `<li class="evidence-source">
+      <div class="evidence-source-head">
+        <span class="ev-handle">${esc(citationOf[s.id] || "S?")}</span>
+        <a class="evidence-source-title" href="${esc(s.canonical_url || s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title || s.canonical_url || s.url)}</a>
+      </div>
+      <div class="evidence-source-meta">
+        <span class="hint">${esc(s.adapter)}/${esc(s.lane)} · ${esc(s.origin || "origin unknown")}</span>
+        <span class="hint" title="${esc((pub && pub.raw) || "no source time")}">${esc(exactTime(pub))}</span>
+        <span class="hint">fetched ${esc((s.retrieved_at || "").replace("T", " ").slice(0, 19))} · ${esc(s.freshness)}${s.revision > 1 ? ` · revision ${s.revision}` : ""}</span>
+        <span class="ev-chip ${s.independence === "independent" ? "ok" : "plain"}">${esc(independence)}</span>
+        ${s.access_state && s.access_state !== "ok" ? `<span class="ev-chip warn">${esc(s.access_state)}</span>` : ""}
+      </div>
+      ${s.excerpt ? `<p class="evidence-source-excerpt">${esc(s.excerpt.slice(0, 280))}</p>` : ""}
+      ${s.note ? `<p class="hint">${esc(s.note)}</p>` : ""}
+    </li>`;
+  }).join("");
+  const mediaBlocks = media.map(m => {
+    const frames = (m.frames || []).filter(f => f.available);
+    const c2pa = m.c2pa_json || {};
+    const transmitted = observations.filter(o => o.media_id === m.id && o.kind === "model_input").pop();
+    const notes = observations.filter(o => o.media_id === m.id
+      && ["limitation", "scope_statement", "sampling_plan", "claim_under_check"].includes(o.kind));
+    const c2paTone = c2pa.state === "absent" ? "plain" : c2pa.state === "present_unverified" ? "warn" : "ok";
+    return `<div class="evidence-media-item">
+      <div class="evidence-source-head"><span class="ev-handle">${icon("layers")}</span>
+        <span class="evidence-source-title">${esc(m.kind)} · ${esc(m.mime)} · ${esc((m.sha256 || "").slice(0, 12))}…</span></div>
+      <div class="evidence-source-meta">
+        <span class="hint">${esc((m.origin || "").slice(0, 120))}</span>
+        <span class="ev-chip ${c2paTone}">C2PA: ${esc(c2pa.state || "absent")}</span>
+        ${transmitted ? `<span class="hint">${esc(transmitted.text)}</span>` : ""}
+      </div>
+      ${frames.length
+        ? `<div class="evidence-frames">${frames.map(f => `<figure class="evidence-frame">
+            <img src="${esc(f.url)}" alt="${esc(`Frame inspected at ${(f.at_ms / 1000).toFixed(2)} seconds of the ${m.kind}`)}" loading="lazy" />
+            <figcaption>${esc((f.at_ms / 1000).toFixed(2))}s</figcaption></figure>`).join("")}</div>`
+        : `<p class="hint">No inspected frames are available for this item.</p>`}
+      ${notes.map(o => `<p class="evidence-reason">${esc(o.text)}</p>`).join("")}
+    </div>`;
+  }).join("");
+  const revisionRows = answers.slice().reverse().map((a, i) => `<li class="evidence-revision">
+      <span class="hint">${esc((a.created_at || "").replace("T", " ").slice(0, 19))}</span>
+      <span class="hint">effective ${esc((a.effective_as_of || "").replace("T", " ").slice(0, 19))}</span>
+      <span class="ev-chip ${i === 0 ? "ok" : "plain"}">${i === 0 ? "current" : "earlier"}</span>
+      <details class="evidence-revision-body"><summary>What Hutch recorded</summary><pre>${esc(((a.body_json || {}).text || "").slice(0, 1600))}</pre></details>
+    </li>`).join("");
+  const missing = coverage.missing || [];
+  const asyncState = inv.as_of_instant
+    ? `as of ${exactTime({ instant: inv.as_of_instant, role: "verification", precision: "second" })}`
+    : `as of the request instant ${(inv.reference_instant || "").replace("T", " ").replace("+00:00", " UTC")}`;
+  return `<section class="evidence-panel panel" aria-labelledby="evidence-title" data-evidence-panel>
+    <div class="evidence-head">
+      <h2 id="evidence-title">${icon("search")} Evidence</h2>
+      <p class="hint">Effective ${esc(asyncState)} · zone ${esc(inv.user_timezone || "UTC")}${inv.horizon_hours ? ` · horizon ${inv.horizon_hours}h` : ""}${coverage.deadline_hit ? " · the deadline stopped remaining sources" : ""}${coverage.truncated ? " · source budget reached" : ""}</p>
+    </div>
+    <div class="evidence-split">
+      <div class="evidence-split-cell"><h3>What was asked</h3><p>${esc(inv.question || "")}</p></div>
+      <div class="evidence-split-cell"><h3>What the evidence shows</h3>
+        ${claimBlocks || `<p class="hint">No claims were bound in this check.</p>`}
+        <p class="evidence-disclaimer">Findings describe the evidence gathered in this window. They are not a universal verdict, and “insufficient evidence” is a valid result.</p>
+      </div>
+    </div>
+    <div class="evidence-sample"><span class="hint">Observed sample: ${sample.raw_items || 0} retrieved · ${sample.unique_items || 0} unique · ${sample.distinct_origins || 0} origin cluster(s). Copies and reposts count once, and popularity is never corroboration.</span></div>
+    ${attempts.length ? `<details class="evidence-block"><summary>Acquisition outcomes (${attempts.length})</summary><ul class="evidence-list">${attempts.map(outcomeRow).join("")}</ul></details>` : ""}
+    ${missing.length ? `<details class="evidence-block"><summary>Coverage gaps (${missing.length})</summary><ul class="evidence-list">${missing.map(outcomeRow).join("")}</ul></details>` : ""}
+    ${sources.length ? `<details class="evidence-block" open><summary>Sources (${sources.length})</summary><ul class="evidence-list">${sourceRows}</ul></details>` : ""}
+    ${media.length ? `<details class="evidence-block"><summary>Media checks (${media.length})</summary>${mediaBlocks}</details>` : ""}
+    ${answers.length ? `<details class="evidence-block"><summary>Answer revisions (${answers.length})</summary><ul class="evidence-list">${revisionRows}</ul></details>` : ""}
+  </section>`;
+}
+
+async function renderEvidencePanel(runId, events, params) {
+  const host = document.querySelector(`[data-evidence-host="${runId}"]`);
+  if (!host || !groundingSummary(events).checks) return;
+  try {
+    const bundle = await api(`/v1/tasks/runs/${encodeURIComponent(runId)}/investigation`);
+    if (!bundle || !bundle.investigation) return;
+    host.innerHTML = evidencePanelHtml(bundle);
+    if (params && params.get("focus") === "evidence") {
+      host.scrollIntoView({ block: "start", behavior: "auto" });
+      const first = host.querySelector("details.evidence-block");
+      if (first) first.open = true;
+    }
+  } catch (err) {
+    host.innerHTML = `<p class="hint" role="status">Evidence could not be loaded: ${esc(String((err && err.message) || err))}</p>`;
+  }
+}
+
 async function renderRuns(query = "") {
   const params = new URLSearchParams(query);
   runsState = {
@@ -6311,9 +6487,10 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
 
 /* ------------------------------------------------------------- run detail */
 
-async function renderRunDetail(runId) {
+async function renderRunDetail(runId, params = new URLSearchParams()) {
   const generation = studioGeneration;
-  const stillCurrent = () => generation === studioGeneration && location.hash === `#/run/${runId}`;
+  const stillCurrent = () => generation === studioGeneration
+    && (location.hash === `#/run/${runId}` || location.hash.startsWith(`#/run/${runId}?`));
   feedMode = "run";
   const r = await api(`/runs/${runId}`, { signal: routeOwner.abort?.signal });
   if (!stillCurrent()) return;
@@ -6378,12 +6555,14 @@ async function renderRunDetail(runId) {
           </div>
         </details>
       </div>
+      <div class="evidence-host" data-evidence-host="${esc(runId)}"></div>
     </div></div>`;
   // append the transcript block below the stats
   const stream = $("#chat-stream");
   const block = await runBlockHtml(runId);
   if (!stillCurrent() || !stream.isConnected) return;
   stream.insertAdjacentHTML("beforeend", block);
+  void renderEvidencePanel(runId, r.events || [], params);
   const verifyButton = $(`[data-verify-run-history]`, stream);
   const savedIntegrity = runIntegrityStates.get(runId);
   if (savedIntegrity) {

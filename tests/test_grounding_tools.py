@@ -95,6 +95,11 @@ def test_live_search_tool_persists_a_grounded_brief(store, config, tmp_path, mon
     assert len(bundle["sources"]) == 1 and len(bundle["claims"]) == 1
     assert bundle["evidence"][0]["relation"] == "reports_allegation"
     assert bundle["answers"], "the evidence brief must be stored as an answer revision"
+    answer_body = json.loads(bundle["answers"][-1]["body_json"])
+    assert answer_body["assessments"] and answer_body["citations"]
+    # the same item retrieved by both query formulations is one origin, never two witnesses
+    assert bundle["sources"][0]["independence"] == "same_origin"
+    assert bundle["sources"][0]["origin_cluster"]
     coverage = json.loads(bundle["investigation"]["coverage_json"])
     assert coverage["adapters"]["feeds"] == "ok"
     assert "missing" in coverage
