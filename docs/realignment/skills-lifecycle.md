@@ -74,6 +74,11 @@ Commits (in order):
 | Concurrent agent's new suites with mine | `pytest tests/test_bot_stats_scaling.py tests/test_capacity_procs.py tests/test_bounded_file_read.py tests/test_dispatch_fairness.py` + skills suites | **70 passed** |
 | Browser journeys | `.venv/bin/python -m pytest tests/e2e/test_skills_browser.py -q` | **6 passed** (Chromium 153, local fixture service) |
 | Bounded soak | `.venv/bin/python -m pytest tests/e2e/test_skills_soak.py -q -s` | **1 passed, 60.4 s** — 225 runs submitted (75 activated), 112 approvals + 113 denials, 56 cancellations, 32 skill toggles, 45 library reads, 202 SPA navigations; 0 page errors, 0 console errors, 0 route errors, 0 leaked active runs, registry readable |
+| Packaging | `uv build --wheel` + isolated `uv venv` install | Wheel ships `hutch/skills.py`, `readiness.py`, `server/skills_api.py`, `server/static/skills.js`, `skills.css` and all three sample `SKILL.md` files; installed wheel passes an install→trust→resolve smoke test |
+
+One design-system browser test (`test_assistant_settings_keep_everyday_edits_up_front`) fails on
+the base commit `a2106ec` **without this slice's commits** (reproduced in a clean worktree at
+`a2106ec`); it is pre-existing and not introduced here.
 
 ### Bounded-corpus measurements (200 installed skills, 100 Bots, 20 bound, 3 activated)
 
@@ -118,6 +123,10 @@ browser tests also assert no page errors and (in the soak) no route error states
   before start. That is a product boundary, not a verified integration.
 * The template-identity bug was found and fixed on this branch; whether upstream releases shipped
   it elsewhere was not investigated.
+* A connection-requiring skill is withheld in Strict Offline mode even when a grant exists
+  (regression covered); live OAuth/token behavior itself remains unverified.
+* The full browser suite result for the final revision is recorded when the background run
+  completes; individual browser files were run and passed during development.
 
 ## Integration state
 
