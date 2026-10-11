@@ -2,15 +2,17 @@
 
 Task checkpoint for the adaptive-persona slice: voice, proportional response depth, fast banter and calibrated
 sensitive-topic boundaries delivered through configuration → runtime → visible response. Worktree
-`.worktrees/persona-adaptive`, branch `persona/adaptive`, based on `2872f4f` (the `wcag22-audit-fixes` tip) with
-local `main` `4ac6041` integrated through merge `ab1929e`. Companion evidence: `persona-research-ledger.md`.
-No push, deploy, publication, provider, account or model change is authorized.
+`.worktrees/persona-adaptive`, branch `persona/adaptive`. It now includes local `main` `6221cc2` through merge
+`8a63585`; the initial persona base and earlier integration commits below are retained as historical checkpoints.
+The user has authorized a tested fast-forward into local `main` when the work is ready. No push or deployment is
+authorized. Companion evidence: `persona-research-ledger.md`.
 
 ## Approved decisions
 
 - **Combined local work (user-approved):** the branch integrates committed local `main` so the document
-  pipeline, ZIP bundles, skills, routines durability and WCAG work sit under one verified tree. Only committed
-  work is integrated; sibling worktrees and the original checkout keep their current state untouched.
+  pipeline, ZIP bundles, skills, routines durability and WCAG work sit under one verified tree. Before landing,
+  reread local `main`, integrate intervening commits, review the combined diff and fast-forward only when clean.
+  Sibling worktrees and the original checkout keep their current state untouched.
 - **Compact form UI (user-approved 2026-10-11 after inspected routes):** a response-style form beside the
   standing-directions field in assistant settings, plus scoped conversation/next-reply controls in chat
   options. Hutch's existing identity, tokens and components are fixed; no rebrand.
@@ -133,8 +135,8 @@ Known follow-ups (from the same review, not yet done):
 
 - The clean `persona/adaptive` worktree continued from `666edcd`. Local `main` had advanced to `6221cc2`,
   which adds the mainline schema-v51 pending-question guards, unified tool protocol, and updated provider and
-  runtime contracts. The root checkout still has its unrelated visual artifact changes and untracked notes;
-  they were not modified.
+  runtime contracts. Merge `8a63585` integrates that mainline commit; the root checkout still has its unrelated
+  visual artifact changes and untracked notes, which were not modified.
 - Integration keeps mainline `_migrate_51` intact and adds an idempotent v52 repair that ensures its v51
   guards and adds `conversations.persona` only when absent. Mainline captures remain canonical for filenames
   changed on both sides; the persona capture set remains present under its own names.
@@ -142,21 +144,31 @@ Known follow-ups (from the same review, not yet done):
   existing documents worktree environment, with pytest temporary files directed to
   `/home/kevina/.cache/hutch-persona-merge-20261011`. An earlier run using `/tmp` hit the full 12 GB tmpfs;
   its own pytest directory was empty afterward. Existing `/tmp` caches were left untouched.
-- A targeted local probe has already reproduced the provider-refusal fallback defect. The terminal-refusal
-  code change and regression test are still pending; the provider retryability contract currently marks
-  refusals retryable. Do not claim the refusal guard is fixed until that check passes.
-- Remaining acceptance: complete/commit the current-main integration; make the independent refusal regression
-  green; implement richer profile, depth, routing, feedback and inspector behavior; add actual persona browser
-  regressions; update marketing/help/privacy/safety evidence; run combined offline/browser checks and the
-  bounded live evaluation. No supported Hutch Go connection is configured in isolated state, so no Hutch
-  provider response has been tested. The OpenCode CLI smoke did authenticate using MiMo Flash; its first
-  bounded edit attempt timed out without changes, and the second was stopped after repeated broad reads.
-  Keep later CLI packets small and confirm every diff before testing or staging.
+- Commit `04b5722` makes provider refusals terminal in provider retryability, startup fallback and runtime
+  recovery while preserving availability recovery. OpenCode Go (`opencode-go/mimo-v2.6-flash`) made the small
+  provider-contract edit and ran `tests/test_providers.py` (**39 passed**); the independently reviewed startup
+  and runtime guards then passed with provider tests (**106 passed**). The change also has regressions proving
+  refusal does not invoke fallback from startup or recovery. No expensive Go model or paid API credential was
+  used.
+- The combined offline suite at `04b5722` completed with **1,989 passed, 2 failed** in 525.57 s. The Unix
+  socket test failed only because the long test temp path exceeded `AF_UNIX` path length; rerunning with a short
+  cache root made it pass. The other failure, `test_the_shell_cannot_see_the_real_home_or_any_folder_outside_the_workspace`, also failed on clean
+  integration commit `8a63585` with the same observed `/home` visibility and is therefore an inherited sandbox
+  environment failure, not a persona change. No assertions were weakened. The existing `/tmp` contents were not
+  removed or altered.
+- Remaining acceptance: implement versioned profile/preset/depth/humor behavior with legacy compatibility;
+  add contextual intent/routing and answer-scoped corrections; extend the UI, static examples, optional live
+  preview, inspector, marketing and support/privacy/safety docs; add committed actual-app browser regressions;
+  run combined offline/browser checks and bounded model evaluation. No separate supported Hutch Go connection
+  is configured, so Hutch product-path response quality and model latency are unverified. The device OpenCode
+  CLI did authenticate and run the low-cost MiMo Flash development task; its credential store has not been
+  imported into Hutch. Keep subsequent CLI packets narrow and review every diff.
 
 ## Rollback
 
-- Nothing is pushed or merged into `main`; abandoning the slice means not using the branch, and the original
-  checkout and sibling worktrees are never rewritten.
+- Nothing is pushed or deployed. The user authorized a final fast-forward into local `main`; until acceptance
+  checks and the clean-tree review pass, work stays on this branch. The original checkout and sibling worktrees
+  are never rewritten.
 - Each slice is its own additive commit; reverting that commit restores prior behavior. Contract or schema
   changes require tested downgrades before landing.
 - Mid-run snapshotting prevents a bad preference change from corrupting an in-flight turn; verification uses

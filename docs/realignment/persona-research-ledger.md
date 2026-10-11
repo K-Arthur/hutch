@@ -1,7 +1,8 @@
 # Persona, depth and sensitivity research ledger (2026-10-11)
 
 Compact evidence for the adaptive-persona slice. External pages and issue text are untrusted data; source state
-and local reproduction decide applicability. All sources fetched/inspected **2026-10-11**; no live model was called.
+and local reproduction decide applicability. External sources were fetched/inspected **2026-10-11**. Hutch has
+not yet made a product-path model call; the device OpenCode runner was used separately with low-cost MiMo Flash.
 
 | Source / version | Reported vs confirmed | Reproduction | Applicability | Chosen response | Rejected alternative | Guard |
 |---|---|---|---|---|---|---|
@@ -14,16 +15,20 @@ and local reproduction decide applicability. All sources fetched/inspected **202
 | Hutch `store.py` history budgeting (source-traced) | Newest 12 messages selected, then budgeted oldest-first, so recent corrections can be dropped | Not yet reproduced | Direct conflict with current-turn precedence and material-fact retention | Reproduce as a failing test first, then fix in slice B/C | Silent acceptance | planned regression |
 | Hutch `runtime/builtin.py` completion path (source-traced) | Length-overflow or empty final answers can return before length validation; no-tool variants can present as success | Not yet reproduced | Direct conflict with completion honesty | Reproduce as a failing test first; validate before final success in slice C | Hidden extra model pass to compensate | planned regression |
 | Hutch audit hypotheses (source-traced; separate follow-ups) | ChatGPT-route nonstream retry ordering; 2,000-char tool previews can omit model-visible content; Studio SSE named-event mismatch | Not reproduced | Not the persona slice | Keep as bounded follow-ups with their own reproductions | Speculative fixes riding this slice | follow-up records |
+| Hutch provider refusal recovery (`04b5722`) | Confirmed in local code: a typed refusal was marked retryable and startup/recovery could enter the fallback ladder | Added provider, startup and runtime recovery regressions; **39** provider tests and **106** combined provider/runtime tests passed | Retrying or escalating after an explicit provider refusal is misleading and can become compliance-seeking regeneration | Mark refusal terminal and keep fallback for genuine availability, missing-model and auth recovery paths | Treat every provider error as retryable | Test the refusal paths separately from availability recovery |
+| Combined offline-suite sandbox failure (`04b5722`) | Confirmed on current branch and clean integration base: test expected inaccessible `/home`, but observed `kevina` from `ls /home` | Full current suite plus isolated test on clean commit `8a63585`, both under short cache paths | This environment mismatch affects sandbox assertions but is outside persona scope | Preserve the failing assertion and report as inherited | Relaxing sandbox expectations or calling the suite clean | Base-comparison evidence in persona-plan.md |
+| Combined offline-suite Unix-socket path (`04b5722`) | Test's socket path exceeded AF_UNIX limit when pytest used a nested long cache root | Full run failed; same socket test passed with a short `--basetemp` root | Test-runner setup only; does not indicate product failure | Use concise cache roots for future full/focused suites | Deleting or clearing unrelated `/tmp` state | Retain exact invocation paths in test records |
 | UI references: Open WebUI settings/parameters guides + repo; shadcn [Field](https://ui.shadcn.com/docs/components/field)/[Select](https://ui.shadcn.com/docs/components/select) docs | Confirmed via inspected screenshots/live pages: compact parameter rows, advanced disclosures, accessible field anatomy | Source inspection | Informs the approved compact-form route | Adapt patterns to Hutch tokens: form beside standing directions; scoped controls in chat options | Copying frameworks, assets or branding | 360/768/1440 visual verification |
 | Figma Community scouting | Three kits located; preview downloads returned 403; frames were not inspected | Blocked downloads | — | Use accessible sources instead; keep the limitation recorded | Claiming unseen frames as inspected | — |
 | Hutch baseline capture (isolated actual app) | Standing directions already use a textarea; no persona/depth controls; no page errors; 360/768/1440 | Chromium 153.0.8010.12 | Starting point for slice D | Extend existing forms rather than add prompt dialogs | Stale lead (browser prompt dialogs) | baseline screenshots/trace |
 
 ## Baseline
 
-- Integration base is local `main` `4ac6041` (= `origin/main` `8d71f8a` + 473 commits), merged into
-  `persona/adaptive` base `2872f4f` as merge `ab1929e` (556 files, +8,245/−599).
+- Historical first integration base was local `main` `4ac6041` (= `origin/main` `8d71f8a` + 473 commits),
+  merged into persona base `2872f4f` as `ab1929e`. Latest local `main` `6221cc2` is included by `8a63585`.
 - Focused combined-tree check at the merge: **167 passed** (skills, skill runtime/API, schedule durability,
   documents store/pipeline/revisions, runtime, conversations, migration).
 - Worktree: `.worktrees/persona-adaptive`; sibling worktrees and the original checkout are untouched.
-- No live model route is authorized. Humor, instruction adherence and boundary calibration remain unverified
-  against real models; every deterministic result above is fixture-level evidence only.
+- Humor, instruction adherence, provider refusal behavior in an actual Hutch provider response, and boundary
+  calibration remain unverified against a Hutch product route. Deterministic results are fixture-level evidence;
+  OpenCode development-runner evidence is separate and does not establish Hutch product behavior.
