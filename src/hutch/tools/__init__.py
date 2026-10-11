@@ -17,6 +17,13 @@ from .outlook_calendar import OutlookCalendarEventsTool
 from .outlook_calendar_write import OutlookCalendarCreateEventTool
 from .outlook_mail import OutlookMailSearchTool
 from .google_mail import GoogleMailSearchTool
+from .synthesis import (
+    IngestSourceTool,
+    RegisterManifestTool,
+    RegisterScriptTool,
+    RenderAudioOverviewTool,
+)
+from .workspace_actions import PlanWorkspaceActionTool, RunWorkspacePlanTool
 
 #: name -> factory (browser is imported lazily so the dependency stays optional)
 _CATALOG: dict[str, type[Tool]] = {
@@ -33,6 +40,12 @@ _CATALOG: dict[str, type[Tool]] = {
     "delegate_task": DelegateTaskTool,
     "live_search": LiveSearchTool,
     "inspect_media": InspectMediaTool,
+    "ingest_source": IngestSourceTool,
+    "register_manifest": RegisterManifestTool,
+    "register_script": RegisterScriptTool,
+    "render_audio_overview": RenderAudioOverviewTool,
+    "plan_workspace_action": PlanWorkspaceActionTool,
+    "run_workspace_plan": RunWorkspacePlanTool,
 }
 
 #: bot-level tool groups that expand to concrete tool names
@@ -42,6 +55,8 @@ GROUPS: dict[str, list[str]] = {
     "memory": ["remember", "recall"],
     "browser": ["browser"],
     "grounding": ["live_search", "inspect_media"],
+    "synthesis": ["ingest_source", "register_manifest", "register_script", "render_audio_overview"],
+    "workspace": ["plan_workspace_action", "run_workspace_plan"],
 }
 
 ALL_TOOL_NAMES = sorted(_CATALOG) + ["browser"]
@@ -76,7 +91,8 @@ def build_tools(names: list[str], ctx: ToolContext, *, memory_enabled: bool | No
         # Google Calendar read is an external account request too.
         expanded = [name for name in expanded if name not in {
             "web_fetch", "browser", "live_search", "google_calendar_events", "google_calendar_create_event",
-            "outlook_calendar_events", "outlook_calendar_create_event", "outlook_mail_search"}]
+            "outlook_calendar_events", "outlook_calendar_create_event", "outlook_mail_search",
+            "render_audio_overview", "run_workspace_plan"}]
     for name in expanded:
         if name == "delegate_task" and (ctx is None or ctx.delegation_submit is None):
             continue
