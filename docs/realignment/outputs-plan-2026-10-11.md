@@ -45,7 +45,48 @@ widget direction.
 | Contained Python workspace | `workspace/`, `tools/python_exec.py`, routes (workspace lane) | merged; 85 lane tests + real sandbox integration test green |
 | Interactive widget renderers | `static/widgets.js`, `static/widgets.css`, `app.js` hook, tests (widgets lane) | merged; static tests green; visual verification pending |
 | Integration | `tools/__init__.py`, `server/app.py`, `tests/test_outputs_integration.py` | done on this branch |
+| Visual verification | `docs/realignment/capture_outputs_widgets.py`, `capture_widget_cards.py`, `artifacts/outputs-widgets/` | done (see below) |
 | Evidence + docs + packaging | docs, capture scripts, CHANGELOG | pending |
+
+## Visual verification (2026-10-11, real app, real outputs)
+
+Method: `capture_outputs_widgets.py` seeds one run whose events come from the REAL tools
+(contained `run_python` with `emit_block`, `render_diagram`, `create_media` animation),
+serves it on loopback, and drives real Chromium (Playwright 1.64 / Chromium 1243) at
+1440/900/390 CSS pixels. `capture_widget_cards.py` then screenshots each card and drives
+one interaction per kind. Captures and `capture-results.json`/`card-results.json` are in
+`docs/realignment/artifacts/outputs-widgets/`.
+
+Observed (inspected as pixels):
+
+* 9 cards across all kinds (code_receipt ×2, chart, table, timeline, comparison, media ×2,
+  flowchart); zero console errors, zero page errors, zero horizontal overflow at all three
+  widths.
+* Chart: gridlines, two series (accent green + blue), hover crosshair tooltip
+  ("Value: 11 · grid draw: 122.4 · solar: 253.5"), legend toggles, reset-zoom, notes, and a
+  "Data table — exact values" disclosure with the same numbers.
+* Table: sortable headers, right-aligned numbers, truncation note ("Showing first 8 of 24
+  rows"), provenance note.
+* Timeline: state filter + text filter ("1 of 5 events shown — filters are local to this
+  browser, nothing is sent anywhere"), corrected chip with "corrected from event e2", ISO
+  timestamp with precision + local time.
+* Comparison: criterion rows, sortable item columns, unit chip, `unsupported` as a labeled
+  pill, "no guess is filled in" note.
+* Flowchart: layered SVG with edge labels and a retry cycle, node selection (detail panel
+  shows label/group/node id), zoom controls, assumptions note; keyboard focus lands on a
+  node.
+* Code receipt: status row (execution #, generation, duration, stdout chars), Copy /
+  Download, "exactly what executed — hash-bound, not editable", the exact source.
+* Media: deterministic diagram SVG with hash caption; animation card with the SVG mount.
+* Phone width: single column, no overflow; cards stack below the tool line.
+
+Defect found and fixed during this pass: the media caption duplicated the generator label
+("rendered by deterministic · deterministic"); the backend name is now shown only when it
+differs from `generated_by` (`src/hutch/server/static/widgets.js`).
+
+Not yet verified visually: video/audio media kinds (no provider backend configured; the
+deterministic lane produces SVG animations), the isolated rich-view path (not implemented),
+and a physical phone (viewport emulation only).
 
 ## Frozen interfaces (this session)
 

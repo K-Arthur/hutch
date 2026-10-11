@@ -756,7 +756,9 @@
     const dims = Number(p.width) > 0 && Number(p.height) > 0 ? `width="${Number(p.width)}" height="${Number(p.height)}"` : "";
     const aspect = Number(p.width) > 0 && Number(p.height) > 0 ? ` style="aspect-ratio:${Number(p.width)}/${Number(p.height)}"` : "";
     const metaBits = [
-      p.backend ? `rendered by ${esc(String(p.backend))}` : "",
+      // "rendered by deterministic · deterministic" is noise: the backend name and
+      // the generator label are shown once each, and only when they differ.
+      p.backend && String(p.backend) !== String(p.generated_by || "") ? `rendered by ${esc(String(p.backend))}` : "",
       p.generated_by ? esc(String(p.generated_by)) : "",
       Number(p.duration_seconds) > 0 ? `${Number(p.duration_seconds).toFixed(1)} s` : "",
       shortDigest(p.sha256) ? `SHA-256 ${esc(shortDigest(p.sha256))}` : "",
