@@ -9437,6 +9437,71 @@ function startPhoneApp() {
   void phoneRefresh();
   phonePoll = setInterval(() => { if (!document.hidden) void phoneRefresh({ quiet: true }); }, 12_000);
   
+document.addEventListener("visibilitychange", () => { if (!document.hidden) void phoneRefresh({ quiet: true }); });
+  window.addEventListener("online", () => { phoneModel.offline = false; void phoneRefresh(); });
+  window.addEventListener("offline", () => { phoneModel.offline = true; phoneRender(); });
+  void api("/v1/snapshot?limit=1").then(snapshot => {
+    if (!phoneRoot) return;
+    const source = new EventSource(`/api/v1/changes/stream?cursor=${encodeURIComponent(snapshot.change_cursor)}`);
+    phoneChangeStream = source;
+    source.addEventListener("changes", () => { if (phoneChangeStream === source) void phoneRefresh({ quiet: true }); });
+    source.addEventListener("snapshot_required", () => { source.close(); if (phoneChangeStream === source) phoneChangeStream = null; void phoneRefresh(); });
+    source.addEventListener("auth_expired", () => { source.close(); lockExpiredPhone(); });
+    source.onerror = () => { if (phoneRoot) { phoneModel.offline = true; phoneRender(); } };
+  }).catch(() => {});
+}
+
+let shellBadgeTimer = null, shellRosterTimer = null, shellHealthTimer = null;
+
+function armShellTimers() {
+  clearInterval(shellBadgeTimer);
+  clearInterval(shellRosterTimer);
+  clearInterval(shellHealthTimer);
+  shellBadgeTimer = setInterval(() => { if (!document.hidden) void refreshBadge(); }, 6000);
+  shellRosterTimer = setInterval(() => { if (!document.hidden) void refreshRoster(); }, 20000);
+  shellHealthTimer = setInterval(() => { if (!document.hidden) void pollHealth(); }, HEARTBEAT_MS);
+}
+
+function startOwnerApp() {
+  $("#topbar-new-bot")?.addEventListener("click", promptNewBot);
+  route();
+  void loadStatusInfo();
+  void refreshRoster();
+  void startResourceStream();
+  void pollHealth();
+  armShellTimers();
+}
+
+async function bootstrapHutchApp() {
+  try {
+    const response = await fetch("/api/v1/session", { credentials: "same-origin", cache: "no-store" });
+    if (response.status === 401) { window.location.replace("/login"); return; }
+    if (!response.ok) throw new Error(`session check failed (${response.status})`);
+    hutchSession = await response.json();
+    hutchCsrfToken = hutchSession.csrf_token || "";
+    if (hutchSession.principal === "paired") startPhoneApp();
+    else startOwnerApp();
+  } catch (error) {
+    document.body.replaceChildren();
+    const panel = document.createElement("main");
+    panel.className = "phone-locked";
+    panel.textContent = `Could not verify the Hutch session: ${error.message}. Reload when the Hutch host is available.`;
+    document.body.append(panel);
+  }
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (hutchSession?.principal === "paired") return;
+  if (!document.hidden) {
+    refreshChangedResources(["bots", "runs", "approvals", "conversations"]);
+    void startResourceStream();
+    if (needsYouDialog.open) scheduleApprovalsPoll();
+  } else {
+    clearTimeout(approvalsTimer);
+    approvalsTimer = null;
+  }
+});
+
 /* ------------------------------------------- documents (generated, committed) */
 
 const DOCUMENT_FORMAT_LABELS = {
@@ -9467,11 +9532,14 @@ function validDocumentRef(ref) {
 
 function documentListRowRef(row) {
   if (!row || typeof row !== "object") return null;
+  const v = typeof row.version === "object" && row.version ? row.version : null;
   return validDocumentRef({
-    id: row.id, version: row.current_version ?? row.cur_version,
-    name: row.cur_filename || row.title, title: row.title,
-    format: row.format, bytes: row.cur_bytes,
-    validation_state: row.cur_validation, preview_mode: row.cur_preview,
+    id: row.id, version: v ? v.version : row.current_version,
+    name: (v && v.filename) || row.title, title: row.title,
+    format: row.format, bytes: v ? v.size_bytes : null,
+    validation_state: v ? v.validation_state : "passed",
+    preview_mode: v ? v.preview_mode : "download_only",
+    created_at: row.created_at || (v && v.created_at) || "",
   });
 }
 
@@ -9625,71 +9693,6 @@ document.addEventListener("click", event => {
   const versions = event.target.closest("[data-doc-versions]");
   if (versions) {
     openDocumentVersions(versions.dataset.docVersions, versions.dataset.docName, versions);
-  }
-});
-
-document.addEventListener("visibilitychange", () => { if (!document.hidden) void phoneRefresh({ quiet: true }); });
-  window.addEventListener("online", () => { phoneModel.offline = false; void phoneRefresh(); });
-  window.addEventListener("offline", () => { phoneModel.offline = true; phoneRender(); });
-  void api("/v1/snapshot?limit=1").then(snapshot => {
-    if (!phoneRoot) return;
-    const source = new EventSource(`/api/v1/changes/stream?cursor=${encodeURIComponent(snapshot.change_cursor)}`);
-    phoneChangeStream = source;
-    source.addEventListener("changes", () => { if (phoneChangeStream === source) void phoneRefresh({ quiet: true }); });
-    source.addEventListener("snapshot_required", () => { source.close(); if (phoneChangeStream === source) phoneChangeStream = null; void phoneRefresh(); });
-    source.addEventListener("auth_expired", () => { source.close(); lockExpiredPhone(); });
-    source.onerror = () => { if (phoneRoot) { phoneModel.offline = true; phoneRender(); } };
-  }).catch(() => {});
-}
-
-let shellBadgeTimer = null, shellRosterTimer = null, shellHealthTimer = null;
-
-function armShellTimers() {
-  clearInterval(shellBadgeTimer);
-  clearInterval(shellRosterTimer);
-  clearInterval(shellHealthTimer);
-  shellBadgeTimer = setInterval(() => { if (!document.hidden) void refreshBadge(); }, 6000);
-  shellRosterTimer = setInterval(() => { if (!document.hidden) void refreshRoster(); }, 20000);
-  shellHealthTimer = setInterval(() => { if (!document.hidden) void pollHealth(); }, HEARTBEAT_MS);
-}
-
-function startOwnerApp() {
-  $("#topbar-new-bot")?.addEventListener("click", promptNewBot);
-  route();
-  void loadStatusInfo();
-  void refreshRoster();
-  void startResourceStream();
-  void pollHealth();
-  armShellTimers();
-}
-
-async function bootstrapHutchApp() {
-  try {
-    const response = await fetch("/api/v1/session", { credentials: "same-origin", cache: "no-store" });
-    if (response.status === 401) { window.location.replace("/login"); return; }
-    if (!response.ok) throw new Error(`session check failed (${response.status})`);
-    hutchSession = await response.json();
-    hutchCsrfToken = hutchSession.csrf_token || "";
-    if (hutchSession.principal === "paired") startPhoneApp();
-    else startOwnerApp();
-  } catch (error) {
-    document.body.replaceChildren();
-    const panel = document.createElement("main");
-    panel.className = "phone-locked";
-    panel.textContent = `Could not verify the Hutch session: ${error.message}. Reload when the Hutch host is available.`;
-    document.body.append(panel);
-  }
-}
-
-document.addEventListener("visibilitychange", () => {
-  if (hutchSession?.principal === "paired") return;
-  if (!document.hidden) {
-    refreshChangedResources(["bots", "runs", "approvals", "conversations"]);
-    void startResourceStream();
-    if (needsYouDialog.open) scheduleApprovalsPoll();
-  } else {
-    clearTimeout(approvalsTimer);
-    approvalsTimer = null;
   }
 });
 
