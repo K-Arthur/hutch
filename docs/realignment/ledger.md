@@ -4092,10 +4092,14 @@ onto the concurrent head at each milestone (`a2106ec`, `777324a`, `2fff076`; one
 CHANGELOG conflict at `777324a`, resolved by keeping both entry sets), because
 the shared checkout was being actively edited. Local commits `60ca912`…`47befee`
 (sixteen commits; the pre-rebase states are anchored by tags
-`skills-lifecycle-prerebase`, `-prerebase2`, `-prerebase3`). Integration was
-completed on 2026-10-10 18:33 PDT by fast-forwarding `main` to this slice's
-HEAD (`7b79078`); the other session's 75 modified and 10 untracked files had
-zero overlap with this slice's files and were left untouched.
+`skills-lifecycle-prerebase`, `-prerebase2`, `-prerebase3`). Integration note:
+the 2026-10-10 18:33 fast-forward advanced the shared checkout's branch
+(`wcag22-audit-fixes`), not `main`. The slice was merged into `main` on
+2026-10-11 as merge commit `09ad91b` (first parent `6fc6f38`, second parent
+`2872f4f`), verified by 74 skills tests, 307 document/tool-calling/runtime/API
+tests, the full offline suite (1950 passed, 1 skipped) and 7 browser journeys,
+then fast-forwarded in the clean `documents` worktree. No session's
+uncommitted work was altered.
 
 What landed: the complete Agent Skills lifecycle (discover/import -> validate ->
 review/trust by content hash -> install -> assign -> activate -> inspect ->
