@@ -1515,42 +1515,91 @@ def doctor(deep: bool = typer.Option(False, "--deep", help="also run each local 
 
 # --------------------------------------------------------------- user service
 
+def _service_state_lines(status) -> None:
+    """Print one truth per line: process state and readiness are different facts."""
+    if status.installed:
+        console.print(f"unit:     {status.unit_path}" if status.unit_path else "unit:     installed")
+        console.print(f"systemd:  {status.state}" + (f" (main PID {status.main_pid})" if status.main_pid else ""))
+    if status.port:
+        console.print(f"dashboard: http://127.0.0.1:{status.port}/")
+    if status.ready is not None:
+        if status.ready:
+            instance = status.instance or {}
+            console.print("ready:    Hutch answered for this state directory"
+                          + (f" (instance {instance.get('id', '?')}, PID {instance.get('pid', '?')})" if instance else ""))
+        else:
+            console.print(f"ready:    NO — {status.detail or 'not confirmed'}")
+    if status.linger in ("enabled", "disabled"):
+        console.print(f"linger:   {status.linger} "
+                      + ("(starts at login and keeps running after logout)"
+                         if status.linger == "enabled"
+                         else "(user services stop at logout; `loginctl enable-linger $USER` is a separate opt-in)"))
+
+
 @service_app.command("install")
 def service_install(port: int = typer.Option(8787, min=1, max=65535,
-                                              help="loopback dashboard port for the user service")) -> None:
+                                              help="loopback dashboard port for the user service"),
+                    ready_timeout: float = typer.Option(15.0, min=0.0, max=120.0,
+                                                        help="seconds to wait for the readiness handshake")) -> None:
     """Install and start the loopback-only dashboard on this Linux user account."""
     from .service import ServiceError, install_user_service
 
     try:
-        installed = install_user_service(get_config().state_dir, port=port)
+        installed = install_user_service(get_config().state_dir, port=port, ready_timeout=ready_timeout)
     except ServiceError as exc:
         err.print(str(exc), style="red", markup=False)
         raise typer.Exit(code=2) from None
     console.print(f"Installed and started {installed.path}.")
-    console.print(f"Dashboard: http://127.0.0.1:{port}/")
+    console.print(f"Dashboard: http://127.0.0.1:{port}/ (readiness handshake passed)")
     console.print("Remote phone access stays off. Hutch state and workspaces were not moved.")
+    console.print("Logging out still stops user services unless you explicitly enable lingering.")
 
 
 @service_app.command("status")
-def service_status() -> None:
-    """Show whether the user-level Hutch dashboard service is installed and active."""
+def service_status(probe: bool = typer.Option(True, "--probe/--no-probe",
+                                              help="verify HTTP readiness and instance identity")) -> None:
+    """Show whether the user-level Hutch dashboard service is installed, active, and really ready."""
     from .service import ServiceError, user_service_status
 
     try:
-        status = user_service_status()
+        status = user_service_status(state_dir=get_config().state_dir, probe=probe)
     except ServiceError as exc:
         err.print(str(exc), style="red", markup=False)
         raise typer.Exit(code=2) from None
+    _service_state_lines(status)
+    if status.active and status.ready:
+        return
     if status.active:
-        console.print("systemd reports hutch.service active" +
-                      (f"; dashboard: http://127.0.0.1:{status.port}/" if status.port else "."))
-    elif status.installed:
-        console.print(f"hutch.service is installed but {status.state}.")
+        console.print("hutch.service is active but not confirmed ready for this state directory.")
         console.print("Inspect logs with: journalctl --user -u hutch.service")
         raise typer.Exit(code=1)
-    else:
-        console.print("hutch.service is not installed. Start Hutch with `hutch serve` or run `hutch service install`.")
+    if status.installed:
+        console.print("Inspect logs with: journalctl --user -u hutch.service")
         raise typer.Exit(code=1)
+    console.print("hutch.service is not installed. Start Hutch with `hutch serve` or run `hutch service install`.")
+    raise typer.Exit(code=1)
+
+
+@service_app.command("restart")
+def service_restart(ready_timeout: float = typer.Option(15.0, min=0.0, max=120.0,
+                                                        help="seconds to wait for the readiness handshake")) -> None:
+    """Restart the installed user service and confirm the expected instance is ready again."""
+    from .service import ServiceError, restart_user_service, user_service_status, wait_for_ready
+
+    try:
+        restart_user_service()
+        status = user_service_status(state_dir=get_config().state_dir, probe=True)
+    except ServiceError as exc:
+        err.print(str(exc), style="red", markup=False)
+        raise typer.Exit(code=2) from None
+    _service_state_lines(status)
+    if status.ready:
+        console.print("Restarted; the same state directory is serving again.")
+        return
+    err.print("hutch.service restarted but readiness was not confirmed; "
+              "inspect `hutch service status` and journalctl --user -u hutch.service",
+              style="red", markup=False)
+    raise typer.Exit(code=1)
 
 
 @service_app.command("uninstall")

@@ -361,6 +361,7 @@ def test_paired_route_inventory_is_total_and_sensitive_aliases_stay_owner_only(t
         ("GET", "/api/stats"),
         ("GET", "/api/overview"),
         ("GET", "/api/runs"),
+        ("GET", "/api/v1/runtime"),
         ("GET", "/api/v1/conversations"),
         ("GET", "/api/v1/events/stream"),
         ("GET", "/api/v1/tasks/runs/{run_id}/artifacts"),

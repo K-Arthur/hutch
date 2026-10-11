@@ -4841,6 +4841,15 @@ class Store:
             return db.execute("UPDATE supervisor_leases SET owner = '', expires_at = NULL "
                               "WHERE name = 'scheduler' AND owner = ?", (owner,)).rowcount == 1
 
+    def supervisor_state(self) -> dict:
+        """Read-only view of the elected scheduler/recovery owner (never mutates the lease)."""
+        with self._lock:
+            row = self._db.execute(
+                "SELECT owner, expires_at, fence FROM supervisor_leases WHERE name = 'scheduler'").fetchone()
+        if row is None:
+            return {"owner": "", "expires_at": None, "fence": 0}
+        return {"owner": row["owner"] or "", "expires_at": row["expires_at"], "fence": row["fence"]}
+
     def legacy_live_runs(self) -> list[Run]:
         """Live runs from before leases existed (no lease at all): only the old process-liveness check can judge them."""
         marks = ",".join("?" for _ in _LIVE_VALUES)

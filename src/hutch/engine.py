@@ -1136,6 +1136,17 @@ class Engine:
         run = Run(bot_id=bot.id, prompt=prompt, origin="manual:schedule", schedule_id=schedule.id)
         return self.store.submit_run(run, Task(bot_id=bot.id, kind="on_demand", prompt=prompt))
 
+    def supervisor_snapshot(self) -> dict:
+        """Cheap, process-local view of who owns scheduling/recovery in this state directory."""
+        lease = self.store.supervisor_state()
+        return {
+            "role": "supervisor" if self._is_supervisor else "follower",
+            "owner": self.owner_id,
+            "holder": lease.get("owner", ""),
+            "fence": lease.get("fence", 0),
+            "expires_at": lease.get("expires_at"),
+        }
+
     def tick(self) -> list[Run]:
         """One beat: recover, expire approvals, claim schedules, drain work and bound change replay."""
         self.recover_orphans()

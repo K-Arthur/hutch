@@ -40,6 +40,7 @@ from .. import __version__
 from ..approvals import resolve_approval, resolve_approval_ex
 from ..action_receipts import ActionConflict
 from ..fact_memory import FactConflict
+from ..instance import instance_info
 from ..google_oauth_config import (GOOGLE_OAUTH_CLIENT_ID_KEY, GOOGLE_OAUTH_CLIENT_ID_PATTERN,
                                    google_oauth_client_settings, resolve_google_oauth_client_id,
                                    valid_google_oauth_client_id)
@@ -2032,7 +2033,79 @@ def create_app() -> FastAPI:
     def health() -> dict:
         report = store.restoration_status()
         return {"status": "ok", "version": __version__, "schema": store.schema_version,
-                "execution_held": bool(report and report['execution_held'])}
+                "execution_held": bool(report and report['execution_held']),
+                "instance": instance_info(config.state_dir),
+                "scheduler": engine.supervisor_snapshot()}
+
+    # -------------------------------------------------- runtime & background
+    # Local-owner only: this route is deliberately absent from
+    # REMOTE_ROUTE_CAPABILITIES, so paired phones receive 403 from
+    # authorize_remote_route. It reports where the engine runs, whether the
+    # managed service is really ready, and what is waiting — never secrets or
+    # file contents.
+
+    _runtime_service_cache: dict[str, Any] = {"at": 0.0, "value": None}
+
+    def runtime_service_snapshot() -> dict:
+        """Service/linger snapshot, cached ~5s because each check shells out to systemd."""
+        import time as _time
+
+        now = _time.monotonic()
+        cached = _runtime_service_cache["value"]
+        if cached is not None and now - float(_runtime_service_cache["at"]) < 5.0:
+            return cached
+        from ..service import ServiceError, linger_state, user_service_status
+
+        snapshot: dict[str, Any]
+        try:
+            status = user_service_status(state_dir=config.state_dir, probe=True)
+            snapshot = {
+                "supported": True, "installed": status.installed, "state": status.state,
+                "active": status.active, "ready": status.ready, "detail": status.detail,
+                "port": status.port, "linger": status.linger,
+                "unit_path": str(status.unit_path) if status.unit_path else "",
+                "main_pid": status.main_pid,
+            }
+        except ServiceError as exc:
+            snapshot = {"supported": True, "installed": False, "state": "unavailable", "active": False,
+                        "ready": None, "detail": str(exc), "port": None, "linger": linger_state(),
+                        "unit_path": "", "main_pid": None}
+        except Exception:  # a status read must never take down the dashboard
+            snapshot = {"supported": True, "installed": False, "state": "unknown", "active": False,
+                        "ready": None, "detail": "service status could not be read", "port": None,
+                        "linger": "unknown", "unit_path": "", "main_pid": None}
+        _runtime_service_cache["at"] = now
+        _runtime_service_cache["value"] = snapshot
+        return snapshot
+
+    @app.get("/api/v1/runtime")
+    def runtime() -> dict:
+        """Where execution lives, what is due, and what needs a person. Local owners only."""
+        active = store.active_runs()
+        pending = store.pending_approvals()
+        return {
+            "engine": {
+                "state_dir": str(config.state_dir),
+                "instance_id": instance_info(config.state_dir)["id"],
+                "pid": os.getpid(),
+                "started_at": instance_info(config.state_dir)["started_at"],
+                "version": __version__,
+                "schema": store.schema_version,
+            },
+            "scheduler": engine.supervisor_snapshot(),
+            "service": runtime_service_snapshot(),
+            "exposure": {
+                "mode": "remote" if os.environ.get("HUTCH_REMOTE_ENABLED") else "loopback",
+                "bind": os.environ.get("HUTCH_RUNTIME_BIND", "127.0.0.1"),
+            },
+            "queue": {
+                "queued_tasks": len(store.pending_tasks()),
+                "active_runs": len(active),
+                "pending_approvals": len(pending),
+                "unresolved_actions": store.count_unresolved_actions(),
+                "execution_held": bool((report := store.restoration_status()) and report["execution_held"]),
+            },
+        }
 
     @app.get('/api/v1/state/restore', response_model=RestorePageResource)
     def restoration_status(limit: int = 100, offset: int = 0) -> dict:
