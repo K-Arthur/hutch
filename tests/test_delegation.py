@@ -987,6 +987,49 @@ def _tool_context(store, config, bot, run):
                        config=config, workspace=config.run_dir(bot.name, run.id) / "workspace")
 
 
+def test_delegation_invocation_keys_are_app_owned_and_position_distinct():
+    from hutch.tools.delegation import delegation_invocation_key
+
+    same = "inspect one bounded area"
+    assert delegation_invocation_key(3, 0, same) != delegation_invocation_key(3, 1, same)
+    assert delegation_invocation_key(3, 0, same) == delegation_invocation_key(3, 0, same)
+    assert delegation_invocation_key(3, 0, same) != delegation_invocation_key(4, 0, same)
+    assert delegation_invocation_key(3, None, same) != delegation_invocation_key(3, 5, same)
+
+
+def test_delegate_task_uses_the_application_owned_call_index(store, config, tmp_path):
+    from hutch.safety import PolicyEngine
+    from hutch.tools.base import ToolContext, ToolResult
+    from hutch.tools.delegation import DelegateTaskTool
+
+    bot = store.create_bot(Bot(name="call-index-parent", model="ollama/qwen3:8b",
+                               base_url="http://127.0.0.1:11434", inference_mode=InferenceMode.offline,
+                               tools=["delegate_task"], limits=Limits(max_steps=8, timeout_seconds=60)))
+    run = store.create_run(Run(bot_id=bot.id, prompt="coordinate"))
+
+    class AllowingGate:
+        last_authorization = None
+
+        def decide(self, *args, **kwargs):
+            return None
+
+    submitted: list[str] = []
+    ctx = ToolContext(bot=bot, run=run, store=store, policy=PolicyEngine(), gate=AllowingGate(),
+                      config=config, workspace=tmp_path / "ws")
+    ctx.delegation_submit = lambda task, idem_key, request_hash: (
+        submitted.append(idem_key), ToolResult(ok=True, output="child accepted", data={}))[1]
+    tool = DelegateTaskTool()
+
+    ctx.tool_call_index = 0
+    assert tool.run({"task": "inspect one bounded area"}, ctx).ok
+    ctx.tool_call_index = 1
+    assert tool.run({"task": "inspect one bounded area"}, ctx).ok
+    assert len(submitted) == 2 and len(set(submitted)) == 2, submitted
+    ctx.tool_call_index = 0
+    assert tool.run({"task": "inspect one bounded area"}, ctx).ok
+    assert submitted[2] == submitted[0], "an exact retry of the same call position must reuse its identity"
+
+
 def test_delegated_child_tools_exclude_structured_questions(store, config):
     """A synchronous child cannot prompt the owner: its conversation belongs to the parent."""
     from hutch.tools import build_tools

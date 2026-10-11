@@ -108,6 +108,11 @@ model steps, ten minutes, and the remaining parent deadline. A lineage reserves 
 is set; provider-call token and cost estimates are still subject to the provider's actual billing. The bot's daily token limit and
 configured shared-account reservations apply to child model calls as well.
 
+Each delegated invocation carries an application-owned identity: the model step plus the call's position in that response, bound
+to the submitted task digest. An exact retry of the same step reuses its original child; two identical tasks deliberately issued
+in one response remain distinct children rather than silently collapsing into one. A provider call ID is never treated as the
+invocation identity.
+
 Stopping a parent persists cancellation for its existing descendants before cleanup begins. A child also watches its parent
 ownership; if the parent stops or is recovered, it requests cancellation. Each owned process remains visibly Cancelling until
 cleanup is verified. A timeout or lost result remains explicit and is not replayed automatically.

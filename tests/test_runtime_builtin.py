@@ -25,8 +25,23 @@ from hutch.runtime.builtin import BuiltinRuntime, reset_connection_cache
 from hutch.runtime.ladder import reset_provider_cache
 from hutch.safety import PolicyEngine
 from hutch.tools import build_tools
-from hutch.tools.base import ToolContext
+from hutch.tools.base import Tool, ToolContext, ToolResult
 from tests.fakes import FakeAnthropic, FakeOllama, FakeOpenAI, agent_script
+
+
+class _RecordingProbe(Tool):
+    """Test-only tool that records the application-owned call position it was invoked with."""
+
+    name = "probe"
+    description = "Record the position of this call inside its model response."
+    parameters = {"type": "object", "properties": {}, "additionalProperties": False}
+
+    def __init__(self, seen: list):
+        self.seen = seen
+
+    def run(self, args, ctx):
+        self.seen.append(ctx.tool_call_index)
+        return ToolResult(ok=True, output="probe ran")
 
 BIG_BOX = Hardware(gpus=[Gpu("X", "nvidia", 24.0, False, 24.0)], ram_total_gb=64, ram_available_gb=48)
 WRITE = {"name": "write_file", "arguments": {"path": "out.md", "content": "hello"}}
@@ -118,6 +133,19 @@ def run_it(rt, run, ctx, tools, stop=lambda: False):
 
 def kinds(emitted, kind):
     return [e.data for e in emitted if e.type is EventType.log and e.data.get("kind") == kind]
+
+
+def test_identical_calls_in_one_response_get_distinct_invocation_indices(store, config, tmp_path, ollama, monkeypatch):
+    monkeypatch.setenv("OLLAMA_HOST", ollama.url)
+    ctx, run, _, tools = build(store, config, tmp_path)
+    seen: list = []
+    tools["probe"] = _RecordingProbe(seen)
+    ollama.script = agent_script([
+        {"tool_calls": [{"name": "probe", "arguments": {}}, {"name": "probe", "arguments": {}}]},
+        {"content": "done"},
+    ])
+    run_it(runtime(), run, ctx, tools)
+    assert seen == [0, 1]
 
 
 def test_valid_tool_response_records_passive_model_route_capability(store, config, tmp_path, ollama, monkeypatch):
