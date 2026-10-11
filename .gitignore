@@ -39,3 +39,7 @@ node_modules/
 
 # superdesign working files
 .superdesign/
+
+# Local Impeccable skill installations
+/.agents/skills/impeccable/
+/.opencode/skills/impeccable/
