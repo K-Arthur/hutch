@@ -1,0 +1,456 @@
+/* Typed output-block widgets (widgets.js). This file is the widgets lane's own
+   stylesheet: it consumes the shared tokens from style.css/ui.css and adds no
+   new colors, radii, or z-values. Amber never appears here except through the
+   shared .tag.warn state chip (icon + word always included in the markup). */
+
+.widget-blocks {
+  display: grid;
+  gap: var(--s-3);
+  margin-block: var(--s-2);
+  max-width: 72ch;                    /* The Measure Rule */
+}
+
+.widget-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  box-shadow: var(--sh-1);
+  padding: var(--s-3);
+  min-width: 0;
+}
+
+.widget-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  margin-bottom: var(--s-2);
+}
+.widget-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: var(--weight-semibold) var(--fs-sm)/var(--leading-label) var(--font-ui);
+  color: var(--text);
+}
+.widget-kind svg { color: var(--brand); }
+.widget-meta {
+  color: var(--text-3);
+  font-size: var(--fs-2xs);
+}
+.widget-meta.mono, .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+.widget-body { min-width: 0; }
+.widget-body > :first-child { margin-top: 0; }
+.widget-body > :last-child { margin-bottom: 0; }
+
+.widget-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  color: var(--text);
+  font-size: var(--fs-base);
+  line-height: var(--leading-reading);
+}
+
+.widget-note {
+  margin: var(--s-2) 0 0;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+.widget-empty { color: var(--text-3); font-size: var(--fs-sm); margin: var(--s-2) 0 0; }
+
+/* The #14541 rule: a failed render shows the fallback text AND the diagnostic. */
+.widget-fallback {
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-panel);
+  background: var(--sunken);
+  padding: var(--s-3);
+}
+.widget-fallback-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0 0 var(--s-2);
+  color: var(--text);
+  font-size: var(--fs-sm);
+}
+.widget-fallback-head svg { flex: none; translate: 0 2px; color: var(--text-2); }
+.widget-fallback-error {
+  margin: 0 0 var(--s-2);
+  font-family: var(--mono);
+  font-size: var(--fs-2xs);
+  color: var(--text-2);
+  overflow-wrap: break-word;
+}
+.widget-fallback-text {
+  margin: 0 0 var(--s-2);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  white-space: pre-wrap;
+}
+
+/* ── tables (table / chart data table / comparison) ─────────────────── */
+
+.widget-scroll-table { max-height: 420px; overflow: auto; }
+.widget-scroll-table table { font-size: var(--fs-sm); }
+.widget-scroll-table th, .widget-scroll-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 6px var(--s-2);
+  text-align: left;
+  vertical-align: top;
+}
+.widget-scroll-table thead th {
+  position: sticky; top: 0;
+  background: var(--panel);
+  z-index: 1;
+  border-bottom: 1px solid var(--line-strong);
+}
+/* Sticky first column keeps row identity visible while wide tables scroll. */
+.widget-scroll-table th:first-child, .widget-scroll-table td:first-child {
+  position: sticky; left: 0;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  max-width: 14rem;
+}
+.widget-scroll-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.widget-scroll-table tbody tr:hover { background: var(--raised); }
+.widget-scroll-table tbody tr:hover th:first-child,
+.widget-scroll-table tbody tr:hover td:first-child { background: var(--raised); }
+
+.widget-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  color: var(--text);
+  font: var(--weight-semibold) var(--fs-2xs)/var(--leading-label) var(--font-ui);
+  cursor: pointer;
+}
+.widget-sort:hover { color: var(--brand-hi); }
+.widget-sort svg { color: var(--text-3); }
+th[aria-sort="ascending"] .widget-sort,
+th[aria-sort="descending"] .widget-sort { color: var(--brand-hi); }
+th[aria-sort="ascending"] .widget-sort svg,
+th[aria-sort="descending"] .widget-sort svg { color: var(--brand-hi); }
+.widget-dtype {
+  color: var(--text-3);
+  font: var(--weight-regular) var(--fs-2xs)/1 var(--mono);
+  border: 1px solid var(--line);
+  border-radius: var(--r-chip);
+  padding: 1px 6px;
+}
+
+/* ── chart ──────────────────────────────────────────────────────────── */
+
+.widget-chart-mount { min-height: 240px; }   /* reserved before hydration: no layout shift */
+.widget-chart-mount .uplot { max-width: 100%; }
+.widget-chart-mount .u-legend { font-size: var(--fs-2xs); color: var(--text-2); }
+.widget-chart-mount .u-legend .u-value { font-family: var(--mono); color: var(--text-2); }
+.widget-chart-mount .u-legend tr.u-off { opacity: 0.4; }
+.widget-chart-mount .u-legend tr.u-off .u-marker { opacity: 0.4; }
+.widget-chart-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+}
+.widget-datatable { margin-top: var(--s-2); }
+.widget-datatable > summary {
+  cursor: pointer;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--weight-medium);
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+}
+.widget-datatable > summary:hover { color: var(--text); }
+.widget-datatable .table-wrap { margin-top: var(--s-2); }
+
+/* ── timeline ───────────────────────────────────────────────────────── */
+
+.widget-tl-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--s-2) var(--s-3);
+  margin-bottom: var(--s-2);
+}
+.widget-field {
+  display: grid;
+  gap: 3px;
+  font: var(--weight-medium) var(--fs-2xs)/var(--leading-label) var(--font-ui);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.widget-field select, .widget-field input {
+  min-height: 32px;
+  padding: 4px 8px;
+  background: var(--raised);
+  color: var(--text);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-ctl);
+  font-size: var(--fs-sm);
+}
+.widget-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  min-height: 32px;
+  cursor: pointer;
+}
+.widget-tl-list, .widget-tl-list ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--s-2);
+}
+.widget-tl-group { margin-top: var(--s-2); }
+.widget-tl-group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 var(--s-2);
+  font: var(--weight-semibold) var(--fs-sm)/var(--leading-heading) var(--font-ui);
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.widget-tl-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--s-2) var(--s-3);
+  align-items: start;
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--line);
+}
+.widget-tl-item:last-child { border-bottom: 0; }
+.widget-tl-copy { display: grid; gap: 2px; min-width: 0; }
+.widget-tl-copy strong { font-weight: var(--weight-medium); overflow-wrap: break-word; }
+.widget-tl-when { color: var(--text-2); font-size: var(--fs-2xs); overflow-wrap: break-word; }
+.widget-tl-local { color: var(--text-3); }
+.widget-tl-src { color: var(--text-3); font-size: var(--fs-2xs); }
+
+/* ── comparison ─────────────────────────────────────────────────────── */
+
+.widget-cmp-crit-head, .widget-cmp-crit { color: var(--text-2); }
+.widget-cmp-crit .widget-dtype { margin-left: 4px; }
+.widget-cmp-cell { min-width: 8rem; }
+.widget-cmp-cell .tag { white-space: normal; }
+.widget-cmp-cell .widget-cite {
+  display: block;
+  color: var(--text-3);
+  font-size: var(--fs-2xs);
+  margin-top: 2px;
+}
+.widget-missing { color: var(--text-3); font-style: italic; }
+.widget-ranking { display: flex; gap: 6px; align-items: baseline; }
+.widget-ranking svg { flex: none; translate: 0 2px; color: var(--brand); }
+
+/* ── flowchart ──────────────────────────────────────────────────────── */
+
+.widget-flow-frame {
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  background: var(--sunken);
+  overflow: hidden;
+}
+.widget-flow-svg {
+  display: block;
+  touch-action: none;                 /* pointer events drive pan on touch */
+  cursor: grab;
+  max-height: 420px;
+}
+.widget-flow-svg:active { cursor: grabbing; }
+.widget-flow-group > rect {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-dasharray: 4 4;
+}
+.widget-flow-group > text {
+  fill: var(--text-3);
+  font: var(--weight-medium) 10px var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.widget-flow-edge {
+  fill: none;
+  stroke: var(--text-3);
+  stroke-width: 1.4;
+  opacity: 0.85;
+}
+.widget-flow-arrowhead { fill: var(--text-3); }
+.widget-flow-edge-label {
+  fill: var(--text-2);
+  stroke: var(--sunken);
+  stroke-width: 3;
+  paint-order: stroke;
+  font: 10px var(--font-ui);
+  text-anchor: middle;
+}
+.widget-flow-node { cursor: pointer; }
+.widget-flow-node-box {
+  fill: var(--panel);
+  stroke: var(--line-strong);
+  stroke-width: 1.2;
+}
+.widget-flow-node:hover .widget-flow-node-box { stroke: var(--brand-line); }
+.widget-flow-node.selected .widget-flow-node-box {
+  fill: var(--focus-wash);
+  stroke: var(--focus);
+  stroke-width: 1.8;
+}
+.widget-flow-node-label {
+  fill: var(--text);
+  font: var(--weight-medium) 12px var(--font-ui);
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+}
+.widget-flow-node:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.widget-flow-node:focus-visible .widget-flow-node-box { stroke: var(--focus); }
+.widget-flow-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+}
+.widget-flow-detail {
+  margin-top: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  background: var(--raised);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+.widget-flow-detail strong { color: var(--text); }
+
+/* ── media ──────────────────────────────────────────────────────────── */
+
+.widget-media { margin: 0; }
+.widget-media img, .widget-media video {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  background: var(--sunken);
+}
+.widget-media figcaption { margin-top: var(--s-1); }
+.widget-media audio { width: 100%; }
+.widget-svg-mount { min-height: 160px; }     /* reserved before the sanitized SVG arrives */
+.widget-svg-mount svg { max-width: 100%; height: auto; }
+.widget-svg-placeholder { color: var(--text-3); font-size: var(--fs-sm); }
+
+/* ── code_receipt ───────────────────────────────────────────────────── */
+
+.widget-receipt-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0 0 var(--s-2);
+}
+.widget-code-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-2);
+}
+.widget-code-view {
+  margin: 0;
+  padding: var(--s-3);
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  overflow: auto;
+  max-height: 420px;
+  font: var(--fs-sm)/var(--leading-body) var(--mono);
+  tab-size: 4;
+}
+.widget-code-result { margin: var(--s-2) 0 0; font-size: var(--fs-sm); }
+.widget-code-result code { font-family: var(--mono); color: var(--text); overflow-wrap: break-word; }
+.widget-code-tail { margin: var(--s-2) 0 0; font-size: var(--fs-sm); }
+.widget-code-tail summary { cursor: pointer; color: var(--text-2); min-height: 24px; }
+.widget-code-tail pre {
+  margin: var(--s-2) 0 0;
+  padding: var(--s-2) var(--s-3);
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  overflow: auto;
+  font: var(--fs-2xs)/var(--leading-body) var(--mono);
+}
+.widget-code-files ul { margin: var(--s-1) 0 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.widget-code-files li { display: flex; flex-wrap: wrap; gap: var(--s-2); justify-content: space-between; font-size: var(--fs-sm); }
+
+/* ── status / artifact_ref ──────────────────────────────────────────── */
+
+.widget-status { display: grid; gap: var(--s-2); justify-items: start; }
+.widget-status-stage { color: var(--text-2); font-size: var(--fs-sm); }
+.widget-ref-card {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  background: var(--raised);
+}
+.widget-ref-card > svg { flex: none; color: var(--brand); }
+.widget-ref-copy { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.widget-ref-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── a11y / motion / touch ──────────────────────────────────────────── */
+
+.widget-card :is(button, [tabindex="0"], select, input, summary):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  clip: rect(0 0 0 0); clip-path: inset(50%);
+  overflow: hidden; white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .widget-card, .widget-flow-svg, .widget-flow-node-box, .widget-sort { transition: none !important; }
+}
+:root.reduce-effects .widget-card,
+:root.reduce-effects .widget-flow-svg,
+:root.reduce-effects .widget-flow-node-box,
+:root.reduce-effects .widget-sort { transition: none !important; }
+
+/* 44px+ touch targets on coarse pointers (DESIGN.md layout rules). */
+@media (pointer: coarse) {
+  .widget-card button, .widget-datatable > summary, .widget-sort,
+  .widget-field select, .widget-field input, .widget-check {
+    min-height: 44px;
+  }
+  .widget-card button, .widget-sort { min-width: 44px; }
+}
+
+/* 360px: cards keep their content; tables scroll in their wrapper, the
+   flowchart pans/zooms by touch, charts shrink to container width. */
+@media (max-width: 480px) {
+  .widget-card { padding: var(--s-2); }
+  .widget-tl-item { grid-template-columns: 1fr; }
+  .widget-tl-item .tag { justify-self: start; }
+  .widget-ref-card { flex-wrap: wrap; }
+  .widget-scroll-table th:first-child, .widget-scroll-table td:first-child { max-width: 8rem; }
+}
