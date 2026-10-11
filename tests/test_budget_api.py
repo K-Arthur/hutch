@@ -70,6 +70,88 @@ def test_estimate_carries_quote_provenance_and_scope_budget(client):
     assert "No price on file" in un["summary"]
 
 
+def test_preflight_estimates_the_selected_task_route_and_respects_model_override(client):
+    bot = client.store.create_bot(Bot(name="task-route-preflight", model="ollama/fake:8b",
+                                      task_routes={"code_analysis": "ollama/tiny:1b"}))
+    url = f"/api/bots/{bot.id}/estimate"
+    routed = client.get(url, params={"task_role": "code_analysis"}).json()
+    assert routed["spec"] == "ollama/tiny:1b" and routed["price_source"] == "local"
+    overridden = client.get(url, params={"task_role": "code_analysis", "model": "ollama/other:3b"}).json()
+    assert overridden["spec"] == "ollama/other:3b" and overridden["price_source"] == "local"
+
+
+def test_composer_preflight_estimates_current_draft_and_bounded_context_without_url_prompt(client):
+    from hutch.models import iso, utcnow
+
+    bot = client.store.create_bot(Bot(name="draft-preflight", model="ollama/fake:8b"))
+    conversation, _ = client.store.create_conversation(bot.id, "Draft context", idem_key="draft-context",
+                                                       request_hash="draft-context")
+    with client.store._tx() as db:
+        client.store._insert_conversation_message(
+            db, message_id="draft-history", conversation_id=conversation["id"], seq=1, run_id="history-run",
+            role="user", content="Earlier constraint: preserve the public API.", created_at=iso(utcnow()))
+        client.store._insert_conversation_message(
+            db, message_id="draft-reply", conversation_id=conversation["id"], seq=2, run_id="reply-run",
+            role="assistant", content="Keep the compatibility layer intact.", created_at=iso(utcnow()))
+
+    preview_context = client.store.preview_conversation_context(
+        conversation["id"], reply_to_message_id="draft-reply")
+    assert preview_context[0]["content"] == "Earlier constraint: preserve the public API."
+    assert "Keep the compatibility layer intact." in preview_context[-1]["content"]
+    assert "untrusted conversation content" in preview_context[-1]["content"]
+
+    baseline = client.get(f"/api/bots/{bot.id}/estimate", params={"conversation_id": conversation["id"]}).json()
+    preview = client.post(f"/api/bots/{bot.id}/estimate", json={
+        "conversation_id": conversation["id"],
+        "prompt": "Review the complete repository diff and preserve every public compatibility guarantee. " * 20,
+        "reply_to_message_id": "draft-reply",
+    })
+    assert preview.status_code == 200, preview.text
+    assert preview.json()["message_tokens"] > baseline["message_tokens"]
+    assert preview.json()["spec"] == "ollama/fake:8b"
+    assert client.post(f"/api/bots/{bot.id}/estimate", json={
+        "conversation_id": conversation["id"], "prompt": "test", "reply_to_message_id": "foreign-message",
+    }).status_code == 422
+
+
+def test_composer_preflight_cannot_read_another_bots_conversation(client):
+    first = client.store.create_bot(Bot(name="preflight-owner-a", model="ollama/fake:8b"))
+    second = client.store.create_bot(Bot(name="preflight-owner-b", model="ollama/fake:8b"))
+    conversation, _ = client.store.create_conversation(first.id, "Private", idem_key="private-preflight",
+                                                       request_hash="private-preflight")
+    response = client.post(f"/api/bots/{second.id}/estimate", json={
+        "conversation_id": conversation["id"], "prompt": "do not leak context",
+    })
+    assert response.status_code == 404
+
+
+def test_composer_preflight_counts_selected_skill_instructions_and_tool_schema(client):
+    from tests.test_skills_api import install_builtin
+
+    install_builtin(client, name="workspace-summary")
+    install_builtin(client, name="repo-review")
+    plain_bot = client.store.create_bot(Bot(name="plain-preflight", model="ollama/fake:8b"))
+    plain_conversation, _ = client.store.create_conversation(plain_bot.id, "Plain preflight", idem_key="plain-preflight",
+                                                            request_hash="plain-preflight")
+    bot = client.store.create_bot(Bot(name="skill-preflight", model="ollama/fake:8b",
+                                      skills=["workspace-summary"]))
+    conversation, _ = client.store.create_conversation(bot.id, "Skill preflight", idem_key="skill-preflight",
+                                                       request_hash="skill-preflight")
+    plain = client.post(f"/api/bots/{plain_bot.id}/estimate", json={
+        "conversation_id": plain_conversation["id"], "prompt": "Summarize this folder."}).json()
+    url = f"/api/bots/{bot.id}/estimate"
+    selected = client.post(url, json={"conversation_id": conversation["id"],
+                                      "prompt": "Summarize this folder.",
+                                      "skills": ["workspace-summary"], "rehearse": True})
+    assert selected.status_code == 200, selected.text
+    selected = selected.json()
+    assert selected["message_tokens"] > plain["message_tokens"]
+    assert selected["tool_tokens"] > plain["tool_tokens"]
+    invalid = client.post(url, json={"conversation_id": conversation["id"], "prompt": "test",
+                                    "skills": ["repo-review"]})
+    assert invalid.status_code == 422 and "not assigned" in invalid.json()["detail"]
+
+
 def test_run_detail_exposes_compaction_manifests(client):
     bot = client.store.create_bot(Bot(name="compaction-bot", model="mock/demo"))
     run = client.store.create_run(Run(bot_id=bot.id, prompt="compact me"))

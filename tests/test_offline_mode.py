@@ -88,6 +88,8 @@ def test_offline_bot_requires_hutch_runtime_loopback_routes_and_contained_shell(
         validate_offline_bot(bot.model_copy(update={"shell_network": True}))
     with pytest.raises(ValueError, match="not a local inference route"):
         validate_offline_bot(bot.model_copy(update={"fallbacks": ["anthropic/claude-sonnet"]}))
+    with pytest.raises(ValueError, match="not a local inference route"):
+        validate_offline_bot(bot.model_copy(update={"task_routes": {"code_analysis": "anthropic/claude-sonnet"}}))
 
 
 def test_offline_worker_filters_host_network_tools_from_model_specs():

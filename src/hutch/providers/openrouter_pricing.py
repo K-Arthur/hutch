@@ -8,16 +8,19 @@ Contracts verified 2026-10-11 against the official API reference
   ``context_length``, ``max_prompt_tokens``, ``max_completion_tokens``, ``provider_name``,
   ``supported_parameters``, ``status`` and ``pricing`` as decimal **strings in USD per token**
   (``prompt``, ``completion``, ``request``, ``input_cache_read``, ``input_cache_write``, ...).
-* Public reads need no key; per-endpoint latency/throughput stats are simply null when unauthenticated.
-* Conditional ``overrides`` (long-context/time-based rates) are not applied to a conservative worst
-  case: Hutch uses the base rates and labels the quote basis as such. Top-level pricing reflects the
-  default conditions.
-* Prices change without notice, so a quote is only trusted within ``DEFAULT_TTL_SECONDS``; a stale one
-  is still usable as a *labeled* fallback (:class:`QuotePolicy`), never silently refreshed as "live".
+* The reference shows a bearer header and a management-key 403 example, but an unauthenticated public
+  GET of both ``/models`` and one ``/models/{author}/{slug}/endpoints`` returned HTTP 200 on this date.
+  Hutch reads only public metadata and never sends the user's inference key to another host.
+* ``pricing.overrides`` was present in current live metadata for long-context rates, but its conditional
+  schema is not fully documented. Hutch accepts only known price dimensions and prompt-token bounds;
+  strict reservation uses the highest declared rate, while unknown conditions/dimensions make an endpoint
+  ineligible.
+* Prices change without notice, so a quote is only trusted within ``DEFAULT_TTL_SECONDS``. Stale and
+  reviewed-file rates are fallbacks only when a strict currency ceiling does not require fresh metadata.
 
 The service never invents a number. A missing, null, negative, or non-finite required rate makes the
-endpoint ineligible; if no endpoint survives, the model has no quote and admission falls back to the
-reviewed price file or refuses under a strict policy.
+endpoint ineligible; if no endpoint survives, strict admission refuses and non-strict paths may use a
+labeled stale quote or reviewed local price file.
 """
 
 from __future__ import annotations
@@ -97,8 +100,12 @@ class EndpointQuote:
     identity: str = ""
     overrides: tuple[PriceOverride, ...] = ()
 
-    def effective_rates(self, prompt_tokens: int) -> tuple[Decimal, Decimal, Decimal, Optional[Decimal], Optional[Decimal]]:
-        applicable = [override for override in self.overrides if override.applies(max(0, int(prompt_tokens)))]
+    def effective_rates(self, prompt_tokens: int, *,
+                        conservative_tiers: bool = False) -> tuple[Decimal, Decimal, Decimal, Optional[Decimal], Optional[Decimal]]:
+        # Estimates are useful for display, but strict admission must allow for token-count error around a
+        # published tier boundary. In that case the highest rate from every declared tier is the safe bound.
+        applicable = (list(self.overrides) if conservative_tiers else
+                      [override for override in self.overrides if override.applies(max(0, int(prompt_tokens)))])
         input_rates = [self.input_per_million, *(item.input_per_million for item in applicable)]
         output_rates = [self.output_per_million, *(item.output_per_million for item in applicable)]
         request_fees = [self.request_fee_usd, *(item.request_fee_usd for item in applicable)]
@@ -112,8 +119,15 @@ class EndpointQuote:
                 max(read_rates) if read_rates else None, max(write_rates) if write_rates else None)
 
     def call_cost(self, prompt_tokens: int, completion_tokens: int, *,
-                  cached_tokens: int = 0, cache_write_tokens: int = 0) -> Decimal:
-        input_rate, output_rate, request_fee, cache_read, cache_write = self.effective_rates(prompt_tokens)
+                  cached_tokens: int = 0, cache_write_tokens: int = 0,
+                  conservative_tiers: bool = False) -> Decimal:
+        input_rate, output_rate, request_fee, cache_read, cache_write = self.effective_rates(
+            prompt_tokens, conservative_tiers=conservative_tiers)
+        if conservative_tiers:
+            # A miss can write cached input at a premium. Reserve the entire possible prompt at the highest
+            # published input/cache rate; actual settlement still uses provider-reported token dimensions.
+            input_rate = max(rate for rate in (input_rate, cache_read, cache_write) if rate is not None)
+            cached_tokens = cache_write_tokens = 0
         return call_cost(prompt_tokens=prompt_tokens, completion_tokens=completion_tokens,
                          input_per_million=input_rate, output_per_million=output_rate,
                          cache_read_per_million=cache_read, cache_write_per_million=cache_write,
@@ -133,12 +147,14 @@ class ModelQuote:
 
     def worst_case(self, prompt_tokens: int, completion_tokens: int, *,
                    cached_tokens: int = 0, cache_write_tokens: int = 0,
+                   conservative_tiers: bool = False,
                    eligible: Optional[Callable[[EndpointQuote], bool]] = None) -> Optional[Decimal]:
         """Max full-call cost across eligible endpoints, rounded up. Mixing rates from different
         endpoints is not a routable price, so the maximum of each endpoint's whole cost is used."""
         predicate = eligible or (lambda endpoint: endpoint.status == 0)
         costs = [endpoint.call_cost(prompt_tokens, completion_tokens, cached_tokens=cached_tokens,
-                                    cache_write_tokens=cache_write_tokens)
+                                    cache_write_tokens=cache_write_tokens,
+                                    conservative_tiers=conservative_tiers)
                  for endpoint in self.endpoints if predicate(endpoint)]
         if not costs:
             return None
@@ -210,6 +226,10 @@ def _parse_override(row: Any, *, input_per_million: Decimal, output_per_million:
                     cache_write: Optional[Decimal]) -> PriceOverride:
     if not isinstance(row, dict):
         raise ValueError("pricing override is not an object")
+    supported = {"min_prompt_tokens", "max_prompt_tokens", "prompt", "completion", "request",
+                 "input_cache_read", "input_cache_write", "input_cache_write_1h"}
+    if set(row) - supported:
+        raise ValueError("pricing override contains unsupported conditions or price dimensions")
     min_prompt = row.get("min_prompt_tokens", 0)
     max_prompt = row.get("max_prompt_tokens", 0)
     if (isinstance(min_prompt, bool) or not isinstance(min_prompt, int) or min_prompt < 0

@@ -212,6 +212,7 @@ def test_openrouter_model_catalog_is_fetched_only_on_request_and_searches_with_i
         assert result.content == "ok"
         assert sent["headers"]["authorization"] == "Bearer router-secret"
         assert sent["body"]["model"] == "anthropic/claude-sonnet-4"
+        assert sent["body"]["usage"] == {"include": True}
         assert sent["body"]["max_completion_tokens"] == 23 and "max_tokens" not in sent["body"]
         assert "must-not-be-sent-to-openrouter" not in str(sent)
     finally:
@@ -286,6 +287,37 @@ def test_models_endpoint_returns_the_list_and_404s_for_unknown_bots(env):
     assert r.status_code == 200 and r.json()["default"] == "ollama/fake:8b"
     assert any(m["spec"] == "ollama/other:3b" for m in r.json()["models"])
     assert env.get("/api/bots/nobody/models").status_code == 404
+
+
+def test_explicit_task_role_routes_round_trip_and_use_the_selected_model(env):
+    bot = mkbot(env, model="mock/demo")
+    patched = env.patch("/api/bots/chatty", json={"task_routes": {"code_analysis": "ollama/tiny:1b"}})
+    assert patched.status_code == 200, patched.text
+    assert patched.json()["task_routes"] == {"code_analysis": "ollama/tiny:1b"}
+
+    conversation = env.post("/api/v1/conversations", json={"bot": bot.id, "title": "Route review"},
+                            headers={"Idempotency-Key": "task-route-conversation"}).json()
+    sent = env.post(f"/api/v1/conversations/{conversation['id']}/messages",
+                    json={"prompt": "Inspect the code carefully", "task_role": "code_analysis"},
+                    headers={"Idempotency-Key": "task-route-message"})
+    assert sent.status_code == 201, sent.text
+    run = env.store.get_run(sent.json()["id"])
+    assert run.task_role == "code_analysis"
+    assert run.model_override == "ollama/tiny:1b"
+    result = wait_done(env, run.id)
+    assert result.model_used == "ollama/tiny:1b"
+    assert env.store.get_bot(bot.id).model == "mock/demo"
+
+
+def test_task_role_route_refuses_unavailable_route_instead_of_falling_back(env):
+    bot = mkbot(env, model="ollama/fake:8b", task_routes={"verification": "anthropic/claude-opus-5-5"})
+    conversation = env.post("/api/v1/conversations", json={"bot": bot.id, "title": "Verify"},
+                            headers={"Idempotency-Key": "unavailable-role-conversation"}).json()
+    response = env.post(f"/api/v1/conversations/{conversation['id']}/messages",
+                        json={"prompt": "Verify this result", "task_role": "verification"},
+                        headers={"Idempotency-Key": "unavailable-role-message"})
+    assert response.status_code == 409 and "ANTHROPIC_API_KEY" in response.json()["detail"]
+    assert env.store.active_run_for_bot(bot.id) is None
 
 
 # ------------------------------------------------------------------------ the override

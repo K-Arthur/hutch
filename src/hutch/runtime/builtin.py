@@ -103,6 +103,24 @@ MAX_CONTRACT_REPAIRS = 4            # bounded correction attempts for hutch-acti
 RATE_LIMIT_PAUSE_MAX = 30.0
 
 
+def _billing_request_hash(req: ChatRequest, route_hash: str) -> str:
+    """Bind a budget-pause approval to the exact outbound request shape without storing its contents."""
+    material = {
+        "route": route_hash,
+        "model": req.model,
+        "messages": req.messages,
+        "tools": req.tools,
+        "num_ctx": req.num_ctx,
+        "max_tokens": req.max_tokens,
+        "temperature": req.temperature,
+        "think": req.think,
+        "effort": req.effort,
+        "structured_output": req.structured_output,
+    }
+    serialized = json.dumps(material, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
 _CONN_PROVIDERS: dict[tuple, Provider] = {}
 
 
@@ -416,6 +434,7 @@ class BuiltinRuntime:
                 {"scope_kind": pause.scope_kind, "scope_id": pause.scope_id, "pause_usd": pause.pause_usd,
                  "ceiling_usd": pause.ceiling_usd, "observed_usd": pause.observed_usd,
                  "planned_usd": pause.planned_usd, "model": rung.spec, "route_hash": route_hash,
+                 "request_hash": pause.request_hash,
                  "cycle": pause.cycle_key, "policy_revision": pause.policy_revision,
                  "scope": f"one call to {rung.spec} within this budget cycle",
                  "what_is_sent": "nothing new: this approves one already-planned provider call"},
@@ -426,7 +445,8 @@ class BuiltinRuntime:
         ctx.store.record_budget_pause_release(
             scope_kind=pause.scope_kind, scope_id=pause.scope_id, route_hash=route_hash,
             cycle_key=pause.cycle_key, policy_revision=pause.policy_revision,
-            quote_usd=pause.planned_usd, approval_id=str(last.get("approval_id", "")))
+            quote_usd=pause.planned_usd, request_hash=pause.request_hash,
+            approval_id=str(last.get("approval_id", "")))
         return True
 
     def _ask_first_hosted(self, ctx: ToolContext, ladder: Ladder, rung: Rung, why: str, est_prompt: int) -> tuple | None:
@@ -631,11 +651,12 @@ class BuiltinRuntime:
             guard.connections = book  # the reservation follows this reviewed account's current policy
             self._refresh_local_admission(ctx, run, session)
             route_hash = self._route_hash(expected_route)
+            request_hash = _billing_request_hash(req, route_hash)
             pause_retried = False
             while True:
                 try:
                     reservation = guard.reserve(session.rung, est_prompt, self._turn_cap(ctx.bot, session.rung),
-                                                route_hash=route_hash)
+                                                route_hash=route_hash, request_hash=request_hash)
                     break
                 except UsagePauseRequired as pause:
                     if pause_retried:
@@ -699,7 +720,7 @@ class BuiltinRuntime:
             captured[0] = text
             return text
 
-        compaction_on = (ctx.bot.compaction or "auto") != "off"
+        compaction_on = (ctx.bot.compaction or "ask") != "off"
         if compaction_on and ctx.store.compaction_count(run.id) >= MAX_COMPACTIONS_PER_RUN:
             compaction_on = False
             self._log(ctx, run, "compaction",
@@ -765,9 +786,9 @@ class BuiltinRuntime:
                          reservations: list[str], stop=None) -> Optional[str]:
         """One reserved, settled summarizer call on the route already in use; None when it cannot fit.
 
-        Compaction never creates new provider authority and never asks a human: only rungs already
-        authorized for this run are usable (the current session route is). If the bounded input cannot
-        fit the destination's own window, the caller blocks with the history preserved instead.
+        Compaction never creates new provider authority: only the current session route is usable. Hosted
+        summaries are reviewed by default before a reservation is written; ``auto`` is an explicit Bot opt-in.
+        If the quote changes beyond the approved amount while a person is deciding, the summary is refused.
         """
         rung = session.rung
         window = destination.window_tokens
@@ -779,23 +800,91 @@ class BuiltinRuntime:
                       f"cannot summarize for {rung.spec}: the summary input (~{est:,} tokens) does not fit its "
                       f"{window:,}-token window", ok=False)
             return None
-        route = self._route_hash(self._route_identity(ctx, ladder, rung))
-        try:
-            reservation = guard.reserve(rung, est, COMPACT_MAX_TOKENS, route_hash=route)
-        except UsageBudgetRefusal as exc:
-            self._log(ctx, run, "compaction", f"cannot summarize within budget: {exc}", ok=False)
-            return None
-        except UsagePauseRequired as exc:
-            self._log(ctx, run, "compaction",
-                      f"compaction would cross a spend pause and never asks on its own: {exc}", ok=False)
-            return None
-        reservations.append(reservation.id)
+        route_identity = self._route_identity(ctx, ladder, rung)
+        route = self._route_hash(route_identity)
         req = ChatRequest(model=rung.model,
                           messages=[{"role": "system", "content": _SUMMARY_SYSTEM},
                                     {"role": "user", "content": body}],
                           tools=[], num_ctx=session.num_ctx, max_tokens=COMPACT_MAX_TOKENS, think=False,
                           stream=False, allow_stream_retry=False, temperature=0.2,
                           session_id=run.conversation_id or run.id)
+        request_hash = _billing_request_hash(req, route)
+        reviewed_quote = guard.worst_case(rung, est, COMPACT_MAX_TOKENS)
+        mode = getattr(ctx.bot, "compaction", "ask") or "ask"
+        if not rung.local and mode == "ask":
+            decision = Decision(Verdict.ask, "review one paid context summary", "",
+                                rule="ask:paid-context-compaction", risk="medium")
+            try:
+                ctx.gate.decide(
+                    "context_compaction",
+                    f"Summarize {len(units)} earlier conversation units for {rung.spec}",
+                    {"model": rung.spec, "provider": rung.provider,
+                     "connection": route_identity[0], "account": route_identity[1],
+                     "destination": route_identity[4], "route_hash": route,
+                     "request_hash": request_hash, "scope": "one summary request",
+                     "input_tokens_estimate": est, "max_output_tokens": COMPACT_MAX_TOKENS,
+                     "estimated_cost_usd": reviewed_quote.usd, "currency": reviewed_quote.currency,
+                     "billing_unit": reviewed_quote.billing_unit, "quote_source": reviewed_quote.source,
+                     "quote_fetched_at": reviewed_quote.verified_on, "quote_expires_at": reviewed_quote.expires_at,
+                     "quote_stale": reviewed_quote.stale,
+                     "quote_snapshot_sha256": reviewed_quote.snapshot_digest,
+                     "eligible_endpoints": list(reviewed_quote.endpoint_identities),
+                     "covered_units": len(units),
+                     "content_scope": "older user, assistant and tool messages; source transcript remains intact",
+                     "what_is_sent": "the covered conversation text goes to the currently selected model provider",
+                     "original_history_preserved": True},
+                    decision, outward=True, ask_in_auto=True)
+            except DeniedError as exc:
+                self._log(ctx, run, "compaction", f"paid history summary was not approved: {exc}", ok=False)
+                return None
+            if self._route_identity(ctx, ladder, rung) != route_identity:
+                self._log(ctx, run, "compaction",
+                          "the model route changed during summary review; no paid summary was sent", ok=False)
+                return None
+            current_quote = guard.worst_case(rung, est, COMPACT_MAX_TOKENS)
+            quote_changed = (current_quote.source != reviewed_quote.source
+                             or (current_quote.usd is None) != (reviewed_quote.usd is None)
+                             or (current_quote.usd is not None and reviewed_quote.usd is not None
+                                 and current_quote.usd > reviewed_quote.usd + 1e-12)
+                             or (current_quote.stale and not reviewed_quote.stale)
+                             or (current_quote.source == "openrouter"
+                                 and set(current_quote.endpoint_identities) != set(reviewed_quote.endpoint_identities)))
+            if quote_changed:
+                self._log(ctx, run, "compaction",
+                          "the price or eligible endpoint set changed after review; no paid summary was sent. "
+                          "Retry to review the updated estimate.", ok=False)
+                return None
+            reviewed_quote = current_quote
+
+        pause_retried = False
+        while True:
+            try:
+                reservation = guard.reserve(rung, est, COMPACT_MAX_TOKENS, route_hash=route,
+                                            request_hash=request_hash, quote_override=reviewed_quote)
+                break
+            except UsagePauseRequired as exc:
+                if pause_retried or not self._ask_budget_pause(ctx, run, ladder, rung, exc, route, route_identity):
+                    self._log(ctx, run, "compaction",
+                              f"compaction would cross a spend pause and was not approved: {exc}", ok=False)
+                    return None
+                pause_retried = True
+                if self._route_identity(ctx, ladder, rung) != route_identity:
+                    self._log(ctx, run, "compaction",
+                              "the model route changed during spend review; no paid summary was sent", ok=False)
+                    return None
+                current_quote = guard.worst_case(rung, est, COMPACT_MAX_TOKENS)
+                if (current_quote.usd is None) != (reviewed_quote.usd is None) or (
+                        current_quote.usd is not None and reviewed_quote.usd is not None
+                        and current_quote.usd > reviewed_quote.usd + 1e-12):
+                    self._log(ctx, run, "compaction",
+                              "the quote rose after approval; no summary was sent. Retry to review the updated estimate.",
+                              ok=False)
+                    return None
+                reviewed_quote = current_quote
+            except UsageBudgetRefusal as exc:
+                self._log(ctx, run, "compaction", f"cannot summarize within budget: {exc}", ok=False)
+                return None
+        reservations.append(reservation.id)
         timer = StepTimer()
         started = time.perf_counter()
         try:

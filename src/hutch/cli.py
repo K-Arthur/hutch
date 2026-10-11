@@ -922,8 +922,11 @@ def bot_update(
     escalate_to: list[str] = typer.Option(
         [], "--escalate-to", help="one-rung-up models for repeated quality failures; repeat in order"),
     clear_escalation: bool = typer.Option(False, "--clear-escalation", help="remove the quality escalation ladder"),
-    compaction: Optional[Literal["auto", "off"]] = typer.Option(
-        None, "--compaction", help="auto (bounded summaries may fit history) | off (block instead)"),
+    task_route: list[str] = typer.Option(
+        [], "--task-route", help="set a manual task role route as ROLE=provider/model; repeat for more roles"),
+    clear_task_routes: bool = typer.Option(False, "--clear-task-routes", help="remove all manual task-role routes"),
+    compaction: Optional[Literal["ask", "auto", "off"]] = typer.Option(
+        None, "--compaction", help="ask (review hosted summaries first) | auto (explicitly allow) | off (block)"),
 ) -> None:
     """Update bot settings."""
     store = _store()
@@ -1027,6 +1030,28 @@ def bot_update(
                 raise typer.Exit(code=1) from None
         base = bot.escalation.model_dump() if bot.escalation else {}
         bot.escalation = Escalation(**{**base, "to": cleaned})
+    if clear_task_routes:
+        bot.task_routes = {}
+    if task_route:
+        from .models import TASK_ROLE_VALUES
+        from .providers.registry import validate_spec
+        task_routes = dict(bot.task_routes)
+        for value in task_route:
+            role, sep, spec = value.partition("=")
+            role, spec = role.strip(), spec.strip()
+            if not sep or role not in TASK_ROLE_VALUES:
+                err.print(f"[red]invalid task route '{value}'; use ROLE=provider/model with role in {', '.join(TASK_ROLE_VALUES)}[/red]")
+                raise typer.Exit(code=1)
+            if not spec:
+                task_routes.pop(role, None)
+                continue
+            try:
+                validate_spec(spec)
+            except ValueError as exc:
+                err.print(f"[red]invalid {role} task route '{spec}': {exc}[/red]")
+                raise typer.Exit(code=1) from None
+            task_routes[role] = spec
+        bot.task_routes = task_routes
     if compaction is not None:
         bot.compaction = compaction
     if clear_cron:

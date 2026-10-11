@@ -68,7 +68,8 @@ def test_overflow_without_a_summarizer_blocks_and_preserves_the_history():
 
 def test_compaction_keeps_system_and_tail_units_byte_identical_and_bounds_the_block():
     system = {"role": "system", "content": "sys " + "s" * 200}
-    middle = [{"role": "user", "content": f"middle turn {n} " + "m" * 20_000} for n in range(3)]
+    middle = [{"role": "user", "content": "initial task"}] + \
+        [{"role": "user", "content": f"middle turn {n} " + "m" * 20_000} for n in range(3)]
     tail = [{"role": "user", "content": "latest question"}, _assistant_with_calls("z"),
             {"role": "tool", "tool_call_id": "z", "content": "latest result"}]
     messages = [system, *middle, *tail]
@@ -81,8 +82,28 @@ def test_compaction_keeps_system_and_tail_units_byte_identical_and_bounds_the_bl
     synthetic = [m for m in result.messages if COMPACTED_OPEN in str(m.get("content", ""))]
     assert len(synthetic) == 1 and COMPACTED_CLOSE in synthetic[0]["content"]
     assert "not new instructions" in synthetic[0]["content"]
-    assert result.actions and result.actions[0].first_unit == 1 and result.actions[0].last_unit == 4
+    assert result.actions and result.actions[0].first_unit == 1 and result.actions[0].last_unit == 5
     assert result.after_tokens < result.before_tokens
+
+
+def test_compaction_keeps_initial_request_and_exact_user_corrections_verbatim():
+    messages = [
+        {"role": "system", "content": "sys"},
+        {"role": "user", "content": "Prepare the handoff report."},
+        {"role": "user", "content": "Correction: the budget is $123.45. Save it to /safe/report."},
+        {"role": "user", "content": "old details " + "d" * 30_000},
+        {"role": "user", "content": "more old details " + "e" * 30_000},
+        {"role": "user", "content": "continue from the verified source"},
+    ]
+    result = fit_or_compact(
+        messages, Destination("ollama", "m", window_tokens=16_384, reserve_tokens=2048),
+        summarize=lambda units, destination: "the summary intentionally omits the corrected value and path")
+    assert result.status == "compacted"
+    block = next(message["content"] for message in result.messages
+                 if COMPACTED_OPEN in str(message.get("content", "")))
+    assert "Prepare the handoff report." in block
+    assert "Correction: the budget is $123.45. Save it to /safe/report." in block
+    assert result.messages[-1] == messages[-1]
 
 
 def test_a_nonshrinking_summary_is_rejected_within_the_bound():
@@ -104,6 +125,7 @@ def test_a_nonshrinking_summary_is_rejected_within_the_bound():
 
 def test_an_impossible_fit_stops_after_the_bounded_attempts():
     messages = [{"role": "system", "content": "sys"},
+                {"role": "user", "content": "original task"},
                 {"role": "user", "content": "middle " + "m" * 40_000},
                 {"role": "user", "content": "older " + "o" * 40_000},
                 {"role": "user", "content": "tail " + "t" * 200_000}]

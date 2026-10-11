@@ -720,3 +720,18 @@ def test_cost_v53_database_receives_main_v51_guards(config):
         assert upgraded._db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='budget_policies'").fetchone()
     finally:
         upgraded.close()
+
+
+def test_legacy_compaction_auto_default_migrates_to_review_required():
+    from hutch.store import _migrate_56_compaction_requires_opt_in
+
+    db = sqlite3.connect(":memory:")
+    try:
+        db.execute("CREATE TABLE bots (id TEXT PRIMARY KEY, doc TEXT NOT NULL)")
+        db.execute("INSERT INTO bots VALUES ('old-default', '{\"compaction\":\"auto\"}')")
+        db.execute("INSERT INTO bots VALUES ('explicit-off', '{\"compaction\":\"off\"}')")
+        _migrate_56_compaction_requires_opt_in(db)
+        assert db.execute("SELECT json_extract(doc, '$.compaction') FROM bots WHERE id = 'old-default'").fetchone()[0] == "ask"
+        assert db.execute("SELECT json_extract(doc, '$.compaction') FROM bots WHERE id = 'explicit-off'").fetchone()[0] == "off"
+    finally:
+        db.close()

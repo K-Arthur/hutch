@@ -177,6 +177,8 @@ def offline_endpoints_for_bot(bot, *, model_override: str = "") -> list[str]:
     if bot.escalation:
         routes.extend((spec, bot.base_url if parse_spec(spec)[0] == primary_provider else None)
                       for spec in bot.escalation.to)
+    routes.extend((spec, bot.base_url if parse_spec(spec)[0] == primary_provider else None)
+                  for spec in getattr(bot, "task_routes", {}).values())
     if model_override:
         routes.append((model_override, bot.base_url if parse_spec(model_override)[0] == primary_provider else None))
     endpoints = []

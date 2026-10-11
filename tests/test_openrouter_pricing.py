@@ -55,6 +55,10 @@ def test_cache_and_request_fees_are_included_and_rounded_up():
     cost = quote.worst_case(1000, 200, cached_tokens=200, cache_write_tokens=100,
                             eligible=lambda endpoint: True)
     assert cost == Decimal("0.007535")
+    # Admission does not assume an optimistic cache hit; a cache miss may write the full input at a premium.
+    reserved = quote.worst_case(1000, 200, conservative_tiers=True,
+                                eligible=lambda endpoint: True)
+    assert reserved == Decimal("0.008750")
 
 
 def test_invalid_or_missing_prices_make_an_endpoint_ineligible():
@@ -165,14 +169,20 @@ def test_conditional_long_context_override_is_included_in_the_endpoint_quote():
     }]
     quote = parse_endpoints_payload(payload(row), "acme/model-1", fetched_at=NOW)
     assert quote.worst_case(1000, 100, eligible=lambda endpoint: True) == Decimal("0.0045")
+    assert quote.worst_case(1000, 100, conservative_tiers=True,
+                            eligible=lambda endpoint: True) == Decimal("0.01425")
     # Above the tier threshold, admission uses the conditional input/output/cache prices and 1h write rate.
     assert quote.worst_case(250000, 10000, cached_tokens=1000, cache_write_tokens=1000,
-                            eligible=lambda endpoint: True) == Decimal("1.7256")
+                            conservative_tiers=True, eligible=lambda endpoint: True) == Decimal("3.225")
 
 
 def test_unknown_or_malformed_override_shape_makes_endpoint_ineligible():
     row = endpoint("0.000003", "0.000015")
     row["pricing"]["overrides"] = {"prompt": "0.000006"}
+    with pytest.raises(ValueError, match="no endpoint"):
+        parse_endpoints_payload(payload(row), "acme/model-1", fetched_at=NOW)
+
+    row["pricing"]["overrides"] = [{"service_tier": "priority", "prompt": "0.000006"}]
     with pytest.raises(ValueError, match="no endpoint"):
         parse_endpoints_payload(payload(row), "acme/model-1", fetched_at=NOW)
 

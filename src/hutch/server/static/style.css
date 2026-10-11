@@ -996,6 +996,10 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
 .cmenu-row:hover { color: var(--text); background: var(--raised); }
 .cmenu-row input { accent-color: var(--brand-deep); width: 14px; height: 14px; margin: 3px 0 0; flex: none; }
 .cmenu-sub { display: block; margin-top: 2px; font-size: var(--fs-2xs); color: var(--text-3); }
+.cmenu-role-field { display: grid; gap: 5px; padding: 7px 10px; font-size: var(--fs-sm); color: var(--text-2); }
+.cmenu-role-field select { width: 100%; min-height: 36px; padding: 6px 9px; border: 1px solid var(--line-strong);
+  border-radius: var(--r-ctl); background: var(--panel); color: var(--text); font: inherit; }
+.cmenu-role-field select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .cmenu-facts { display: flex; flex-direction: column; gap: 5px; padding: 6px 10px 2px; font: 400 var(--fs-2xs)/1.5 var(--mono); color: var(--text-3); }
 
 .cmenu-files {
@@ -1056,6 +1060,7 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
 }
 .composer-strip b { color: var(--text); font-weight: 650; }
 .composer-strip[hidden] { display: none; }
+.task-role-strip { overflow-wrap: anywhere; font: 500 var(--fs-2xs)/1.5 var(--mono); color: var(--text-2); }
 
 /* budget meter */
 .budget-meter { display: inline-flex; align-items: center; gap: var(--s-2); font: 400 var(--fs-2xs)/1 var(--mono); color: var(--text-3); }
@@ -1580,6 +1585,9 @@ button.inline-link:hover { color: var(--text); }
 
 .detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: var(--s-4); align-items: start; }
 .form-grid { display: grid; gap: var(--s-4); }
+.task-routing-settings { display: grid; gap: var(--s-3); padding-top: var(--s-4); border-top: 1px solid var(--line); }
+.task-routing-settings > .hint { margin: 0; max-width: 74ch; line-height: 1.5; }
+.task-routing-settings .form-grid { gap: var(--s-3); }
 .tool-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s-3); }
 .tool-option { display: flex; align-items: flex-start; gap: var(--s-3); min-height: 70px; padding: var(--s-3) var(--s-2);
   border-bottom: 1px solid var(--line); color: var(--text); cursor: pointer; }

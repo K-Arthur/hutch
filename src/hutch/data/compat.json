@@ -99,21 +99,22 @@
       "vision": "Not exposed by the current Hutch chat UI/runtime path.",
       "context_limits": "No context-window override is sent. The provider/model may use different defaults or limits.",
       "cancellation": "Stop closes the response connection. The endpoint may continue work; unknown charges remain reserved until reconciliation.",
-      "usage_reporting": "Reported usage is recorded. Endpoint-specific omissions are not treated as zero.",
+      "usage_reporting": "Reported usage is recorded. OpenRouter requests include usage.include=true so its billed usage.cost can be retained; endpoint-specific omissions are not treated as zero.",
       "quota_reporting": "Only operator-declared connection allowances are enforced; provider quotas and reset times are not queried.",
       "retention": "The configured endpoint controls processing and retention. Review its terms before sending data.",
       "hutch_request_mapping": {
-        "sent": ["model", "messages", "tools", "stream", "stream_options.include_usage", "temperature when set", "max_tokens for generic connections; max_completion_tokens for OpenAI and OpenRouter"],
+        "sent": ["model", "messages", "tools", "stream", "stream_options.include_usage", "usage.include=true for OpenRouter billed usage", "temperature when set", "max_tokens for generic connections; max_completion_tokens for OpenAI and OpenRouter"],
         "omitted": ["num_ctx", "think", "effort", "reasoning_effort", "response_format"]
       },
-      "verification": "Scripted HTTP contract tests exercise the common Chat Completions shape and OpenRouter catalog query. No live OpenRouter account or model request was used; each real model still needs capability verification.",
-      "verified_on": "2026-10-08",
+      "verification": "Scripted HTTP contract tests exercise the common Chat Completions shape and OpenRouter catalog query. Public unauthenticated OpenRouter model and endpoint metadata GETs were checked on 2026-10-11; no live account or model generation was used. Each real model still needs capability verification.",
+      "verified_on": "2026-10-11",
       "policy_evidence": [
         {"title": "LM Studio OpenAI-compatible tool use", "url": "https://lmstudio.ai/docs/developer/openai-compat/tools", "observed_on": "2026-10-08"},
         {"title": "llama.cpp server API", "url": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md", "observed_on": "2026-10-08"},
         {"title": "vLLM OpenAI-compatible server", "url": "https://docs.vllm.ai/en/stable/serving/online_serving/openai_compatible_server/", "observed_on": "2026-10-08"},
-        {"title": "OpenRouter model catalog", "url": "https://openrouter.ai/docs/api/api-reference/models/get-models", "observed_on": "2026-10-10"},
-        {"title": "OpenRouter chat completions", "url": "https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request", "observed_on": "2026-10-10"}
+        {"title": "OpenRouter model catalog", "url": "https://openrouter.ai/docs/api/api-reference/models/list-all-models-and-their-properties", "observed_on": "2026-10-11"},
+        {"title": "OpenRouter endpoint catalog", "url": "https://openrouter.ai/docs/api/api-reference/endpoints/list-all-endpoints-for-a-model", "observed_on": "2026-10-11"},
+        {"title": "OpenRouter billed usage", "url": "https://openrouter.ai/support/", "observed_on": "2026-10-11"}
       ]
     },
     {

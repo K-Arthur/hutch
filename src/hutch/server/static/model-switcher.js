@@ -27,7 +27,7 @@
     set(k, v) { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch { /* private mode */ } },
   };
 
-  function mount(slot, bot, conversationId) {
+  function mount(slot, bot, conversationId, onSelectionChange) {
     if (!slot) return null;
     const key = `hutch.model.${bot.id}.${conversationId || "none"}`;
     let data = { default: bot.model, models: [{ spec: bot.model, label: shortName(bot.model), group: "This bot",
@@ -37,6 +37,7 @@
     const find = spec => data.models.find(m => m.spec === spec);
     const active = () => (selected && (find(selected) || /\//.test(selected))) ? selected : data.default;
     const usable = m => m && m.state === "ready";
+    const announceSelection = () => onSelectionChange?.(selected && selected !== data.default ? selected : "");
 
     slot.innerHTML = `
       <div class="ms-wrap">
@@ -66,6 +67,7 @@
       selected = spec === data.default ? "" : spec;
       store.set(key, selected);
       paintButton();
+      announceSelection();
       closeMenu(true);
       if (selected) toast(`${shortName(spec)} is selected for the next message in this conversation. Bot default stays ${shortName(data.default)}.`);
     }
@@ -75,6 +77,7 @@
       selected = "";
       store.set(key, "");
       paintButton();
+      announceSelection();
       return true;
     }
 
@@ -99,6 +102,7 @@
         selected = "";
         store.set(key, "");
         paintButton();
+        announceSelection();
         await refresh();
         closeMenu(true);
         toast(`Saved ${shortName(saved.model)} as ${bot.name}'s default. Future and scheduled runs will use it.`);
@@ -151,6 +155,7 @@
         const fresh = await api(`/bots/${encodeURIComponent(bot.name)}/models${suffix}`);
         data = fresh;
         paintButton();
+        announceSelection();
         if (!menu.hidden) {                              // re-render without dropping the keyboard user's place
           const had = menu.contains(document.activeElement) ? document.activeElement : null;
           const spec = had && had.dataset.spec, more = had && had.hasAttribute("data-more"),

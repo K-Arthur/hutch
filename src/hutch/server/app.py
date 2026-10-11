@@ -54,7 +54,7 @@ from ..lifecycle import LABELS
 from ..models import (
     ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, BotCreationSource, CatchUpPolicy, CommandRule, Event, EventType,
     Escalation, InferenceMode, Limits, MemoryItem, OverlapPolicy, RiskTier, Run, RunStatus, RuntimeKind, Schedule, Task,
-    TriggerKind, bot_slug_display_name, iso, utcnow,
+    TaskRole, TriggerKind, bot_slug_display_name, iso, utcnow,
 )
 from ..store import (ActiveRunConflict, AuthChallengeLimitExceeded, BotConflict, IdempotencyConflict,
                      RevisionConflict, Store)
@@ -384,7 +384,8 @@ class BotPatch(BaseModel):
     schedule_prompt: Optional[str] = Field(default=None, max_length=4000)
     fallbacks: Optional[list[str]] = Field(default=None, max_length=8)
     escalation: Optional[Escalation] = None
-    compaction: Optional[Literal["auto", "off"]] = None
+    task_routes: Optional[dict[TaskRole, str]] = Field(default=None, max_length=7)
+    compaction: Optional[Literal["ask", "auto", "off"]] = None
 
     @field_validator("roster_section")
     @classmethod
@@ -666,10 +667,23 @@ class ConversationMessageRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=20_000)
     rehearse: bool = False
     model: Optional[str] = None
+    task_role: Optional[TaskRole] = None
     skills: list[str] = Field(default_factory=list, max_length=MAX_SKILLS_PER_BOT)
     reply_to_message_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
     workspace_task_result_id: Optional[str] = Field(default=None, min_length=1, max_length=100)
     workspace_task_result_message_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
+
+
+class EstimatePreviewRequest(BaseModel):
+    prompt: str = Field(default="", max_length=20_000)
+    model: Optional[str] = Field(default=None, max_length=256)
+    task_role: Optional[TaskRole] = None
+    skills: list[str] = Field(default_factory=list, max_length=MAX_SKILLS_PER_BOT)
+    rehearse: bool = False
+    conversation_id: str = Field(default="", max_length=128)
+    reply_to_message_id: Optional[str] = Field(default=None, max_length=128)
+    workspace_task_result_id: Optional[str] = Field(default=None, max_length=100)
+    workspace_task_result_message_id: Optional[str] = Field(default=None, max_length=128)
 
 
 class BotPurposeClarificationTurn(BaseModel):
@@ -2834,7 +2848,7 @@ def create_app() -> FastAPI:
         if bot is None:
             raise HTTPException(404, "conversation bot no longer exists")
         require_remote_start(bot, request)
-        if is_paired_phone(request) and (body.model or body.rehearse):
+        if is_paired_phone(request) and (body.model or body.task_role or body.rehearse):
             raise HTTPException(403, "phone starts use the Bot's locally configured model and policy")
         if is_paired_phone(request) and body.skills:
             raise HTTPException(403, "skill activation is a local owner action")
@@ -2844,7 +2858,8 @@ def create_app() -> FastAPI:
         store.assert_execution_ready()
         from ..modelchoices import ModelNotUsable, validate_override
         try:
-            model = validate_override(config, store, bot, body.model or "")
+            selected_route = bot.task_routes.get(body.task_role, "") if body.task_role else ""
+            model = validate_override(config, store, bot, body.model or selected_route)
         except ModelNotUsable as exc:
             raise HTTPException(exc.status, f"{exc} - {exc.fix}" if exc.fix else str(exc)) from None
         key = idempotency_key(request)
@@ -2864,7 +2879,8 @@ def create_app() -> FastAPI:
             from ..skills import SkillRegistry
             activation = SkillRegistry(config.state_dir).validate_activation(bot, list(body.skills))
         run = Run(bot_id=bot.id, prompt=body.prompt, origin=origin, rehearsal=body.rehearse,
-                  model_override="" if model == bot.model else model, skill_activation=activation)
+                  model_override="" if model == bot.model else model, task_role=body.task_role,
+                  skill_activation=activation)
         task = Task(bot_id=bot.id, kind="on_demand", prompt=body.prompt)
         try:
             run_id, created = store.submit_conversation_message(
@@ -3718,6 +3734,21 @@ def create_app() -> FastAPI:
                 except ValueError as exc:
                     raise HTTPException(422, f"invalid escalation model '{spec}': {exc}") from None
             bot.escalation = body.escalation
+        if body.task_routes is not None:
+            if bot.runtime is not RuntimeKind.builtin:
+                raise HTTPException(422, "task-role routes are available only for the built-in chat runtime")
+            from ..providers.registry import validate_spec
+            task_routes: dict[TaskRole, str] = {}
+            for role, raw_spec in body.task_routes.items():
+                spec = str(raw_spec).strip()
+                if not spec:
+                    continue
+                try:
+                    validate_spec(spec)
+                except ValueError as exc:
+                    raise HTTPException(422, f"invalid {role} task route '{spec}': {exc}") from None
+                task_routes[role] = spec
+            bot.task_routes = task_routes
         if body.compaction is not None:
             bot.compaction = body.compaction
         if body.tool_limits is not None: bot.tool_limits = _checked_tool_limits(body.tool_limits)
@@ -3949,14 +3980,49 @@ def create_app() -> FastAPI:
                             model="" if model == bot.model else model)
         return run_view(store.get_run(run.id))
 
-    @app.get("/api/bots/{ref}/estimate")
-    def bot_estimate(ref: str, model: Optional[str] = None, prompt: str = "", conversation_id: str = "") -> dict:
-        """One run's priced usage before it starts; an explicitly opened review may refresh live quotes."""
+    def build_bot_estimate(ref: str, *, model: Optional[str] = None, prompt: str = "", conversation_id: str = "",
+                           task_role: Optional[TaskRole] = None, reply_to_message_id: Optional[str] = None,
+                           workspace_task_result_id: Optional[str] = None,
+                           workspace_task_result_message_id: Optional[str] = None,
+                           skills: Optional[list[str]] = None, rehearse: bool = False) -> dict:
+        """Estimate a draft against its bounded context and selected route without sending a model call."""
         from dataclasses import asdict
         from ..estimate import estimate_run
+        from ..skills import SkillError
         bot = bot_or_404(ref)
-        e = estimate_run(config, store, bot, prompt, model, conversation_id=conversation_id, fetch_quotes=True)
+        if conversation_id:
+            conversation = store.get_conversation(conversation_id)
+            if conversation is None or conversation.get("bot_id") != bot.id:
+                raise HTTPException(404, "conversation not found for this Bot")
+        model = model or (bot.task_routes.get(task_role, "") if task_role else "") or None
+        try:
+            e = estimate_run(config, store, bot, prompt, model, conversation_id=conversation_id, fetch_quotes=True,
+                             reply_to_message_id=reply_to_message_id,
+                             workspace_task_result_id=workspace_task_result_id,
+                             workspace_task_result_message_id=workspace_task_result_message_id,
+                             skills=skills, rehearse=rehearse)
+        except KeyError:
+            raise HTTPException(404, "conversation not found for this Bot") from None
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        except SkillError as exc:
+            raise HTTPException(exc.status, str(exc)) from None
         return {**asdict(e), "effective_ceiling_usd": e.effective_ceiling_usd, "summary": e.summary}
+
+    @app.get("/api/bots/{ref}/estimate")
+    def bot_estimate(ref: str, model: Optional[str] = None, prompt: str = "", conversation_id: str = "",
+                     task_role: Optional[TaskRole] = None) -> dict:
+        """One run's priced usage before it starts; an explicitly opened review may refresh live quotes."""
+        return build_bot_estimate(ref, model=model, prompt=prompt, conversation_id=conversation_id, task_role=task_role)
+
+    @app.post("/api/bots/{ref}/estimate")
+    def bot_estimate_preview(ref: str, body: EstimatePreviewRequest) -> dict:
+        """Estimate the current composer draft and its exact bounded conversation context; no prompt in the URL."""
+        return build_bot_estimate(ref, model=body.model, prompt=body.prompt, conversation_id=body.conversation_id,
+                                  task_role=body.task_role, reply_to_message_id=body.reply_to_message_id,
+                                  workspace_task_result_id=body.workspace_task_result_id,
+                                  workspace_task_result_message_id=body.workspace_task_result_message_id,
+                                  skills=body.skills, rehearse=body.rehearse)
 
     @app.get("/api/v1/budgets")
     def get_budget(scope_kind: Literal["run", "conversation", "bot", "account"], scope_id: str) -> dict:

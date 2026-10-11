@@ -44,9 +44,14 @@ class RunEstimate:
     message_tokens: int = 0
     tool_tokens: int = 0
     next_call_usd: Optional[float] = None     # worst-case price basis for ONE call (what admission holds)
-    price_source: str = ""                    # local | flat | openrouter | price_file | unknown
+    price_source: str = ""                    # local | flat | openrouter | openrouter_unavailable | price_file | unknown
     price_verified_on: str = ""               # price row date, or the live quote fetch time (UTC ISO)
     price_stale: bool = False
+    price_snapshot_sha256: str = ""
+    price_expires_at: str = ""
+    price_endpoint_identities: tuple[str, ...] = ()
+    currency: str = "USD"
+    billing_unit: str = "USD/call-estimate"
     window_tokens: int = 0                    # 0 = the destination has not reported a window
     window_note: str = ""
     budget_scope: str = ""                    # conversation | bot | "" when no policy applies
@@ -71,6 +76,9 @@ class RunEstimate:
         if self.kind == "flat":
             return "Flat-rate plan: no per-token cost; every call still counts against your declared allowance."
         if self.kind == "unpriced":
+            if self.price_source.startswith("openrouter_"):
+                return (f"A fresh eligible OpenRouter quote is unavailable for {self.spec}; this capped request is blocked. "
+                        "Retry when endpoint pricing and limits can be refreshed.")
             return (f"No price on file for {self.spec}, so a currency estimate cannot be computed, and a hosted model with no "
                     "price cannot run while a currency limit is set. Add one on the Models page.")
         if self.run_cap_usd and self.run_cap_usd < (self.worst_case_usd or 0):
@@ -88,15 +96,32 @@ class RunEstimate:
 class RunEstimator:
     """Computes the prompt size once; ``for_model`` prices it for any model spec."""
 
-    def __init__(self, config: Any, store: Any, bot: Bot, prompt: str = ""):
+    def __init__(self, config: Any, store: Any, bot: Bot, prompt: str = "",
+                 conversation_context: Optional[list[dict[str, str]]] = None,
+                 conversation_id: str = "", skills: Optional[list[str]] = None, rehearse: bool = False):
         self.config, self.store, self.bot = config, store, bot
-        from .runtime.builtin import COORDINATOR_GUIDANCE, SYSTEM_TEMPLATE
+        from .runtime.builtin import COORDINATOR_GUIDANCE, REHEARSAL_NOTE, SYSTEM_TEMPLATE
         coordination = COORDINATOR_GUIDANCE if store.workspace_coordinator_id() == bot.id else ""
         system = SYSTEM_TEMPLATE.format(name=bot.name, description=bot.description or "(none given)",
                                         instructions=bot.instructions or "(none given)", workspace="/workspace",
-                                        rehearsal="", coordination=coordination, date="2026-01-01")
+                                        rehearsal=REHEARSAL_NOTE if rehearse else "",
+                                        coordination=coordination, date="2026-01-01")
+        from .readiness import available_connection_services
+        from .skills import SkillRegistry, activated_block, catalog_block
+        resolved_skills = SkillRegistry(config.state_dir).effective_for_bot(
+            bot, activation=list(skills or []), runtime=bot.runtime.value,
+            connections=available_connection_services(store, bot))
+        skill_blocks = [block for block in (catalog_block(resolved_skills), activated_block(resolved_skills)) if block]
+        if skill_blocks:
+            system = system + "\n\n" + "\n\n".join(skill_blocks)
         specs = [t.spec() for t in build_tools(bot.tools, None, memory_enabled=bot.memory_enabled).values()]
-        msg, tool = prompt_tokens([{"role": "system", "content": system},
+        if resolved_skills.catalog:
+            from .tools.skill import UseSkillTool
+            specs.append(UseSkillTool(resolved_skills).spec())
+        if conversation_id:
+            from .tools.choice import AskUserChoiceTool
+            specs.append(AskUserChoiceTool().spec())
+        msg, tool = prompt_tokens([{"role": "system", "content": system}, *(conversation_context or []),
                                    {"role": "user", "content": prompt or "(your task)"}], specs)
         self.message_tokens, self.tool_tokens = msg, tool
         self.prompt_tokens = msg + tool
@@ -114,8 +139,22 @@ class RunEstimator:
         turn = lim.max_turn_tokens or (DEFAULT_LOCAL_TURN_TOKENS if local else DEFAULT_HOSTED_TURN_TOKENS)
         from .runtime.ladder import make_rung, resolve_quote
         rung = make_rung(spec, "primary")
-        quote = resolve_quote(rung, self.prices, self.book, self.prompt_tokens, turn, fetch=fetch_quotes)
-        file_cost = self.prices.estimate_run_ceiling(provider, model, self.prompt_tokens, turn, lim.max_steps)
+        scope_kind, scope_id = "", ""
+        if conversation_id and self.store.get_budget_policy("conversation", conversation_id) is not None:
+            scope_kind, scope_id = "conversation", conversation_id
+        elif self.store.get_budget_policy("bot", self.bot.id) is not None:
+            scope_kind, scope_id = "bot", self.bot.id
+        policy = self.store.get_budget_policy(scope_kind, scope_id) if scope_kind else None
+        conn = self.book.get(provider)
+        account_cap = self.book.account_policy(conn.account_id)[0] if conn is not None else 0.0
+        strict_quote = (lim.max_cost_usd > 0 or lim.daily_cost_cap_usd > 0 or account_cap > 0
+                        or bool(policy and policy.ceiling_usd is not None))
+        quote = resolve_quote(rung, self.prices, self.book, self.prompt_tokens, turn, fetch=fetch_quotes,
+                              require_fresh_openrouter=strict_quote)
+        strict_quote_unavailable = (strict_quote and provider == "openrouter" and quote.usd is None
+                                    and quote.source.startswith("openrouter_"))
+        file_cost = (None if strict_quote_unavailable else
+                     self.prices.estimate_run_ceiling(provider, model, self.prompt_tokens, turn, lim.max_steps))
         if local:
             kind = "local"
         elif provider in self.prices.flat_providers:
@@ -124,7 +163,9 @@ class RunEstimator:
             kind = "priced"
         else:
             kind = "unpriced"
-        if quote.source == "openrouter" and quote.usd is not None:
+        if strict_quote_unavailable:
+            worst = None
+        elif quote.source == "openrouter" and quote.usd is not None:
             worst = quote.usd * lim.max_steps
         else:
             worst = file_cost if file_cost is not None else (quote.usd * lim.max_steps if quote.usd is not None else None)
@@ -146,12 +187,6 @@ class RunEstimator:
         elif local:
             window_note = "computed from the model and this machine when the run starts"
         measured_tokens, held_tokens, measured_cost, held_cost = self.store.bot_budget_today(self.bot.id)
-        scope_kind, scope_id = "", ""
-        if conversation_id and self.store.get_budget_policy("conversation", conversation_id) is not None:
-            scope_kind, scope_id = "conversation", conversation_id
-        elif self.store.get_budget_policy("bot", self.bot.id) is not None:
-            scope_kind, scope_id = "bot", self.bot.id
-        policy = self.store.get_budget_policy(scope_kind, scope_id) if scope_kind else None
         scope_measured = scope_held = 0.0
         if scope_kind:
             scope_measured, scope_held = self.store.scope_spend(scope_kind=scope_kind, scope_id=scope_id)
@@ -163,6 +198,9 @@ class RunEstimator:
                            message_tokens=self.message_tokens, tool_tokens=self.tool_tokens,
                            next_call_usd=quote.usd, price_source=quote.source,
                            price_verified_on=quote.verified_on, price_stale=quote.stale,
+                           price_snapshot_sha256=quote.snapshot_digest, price_expires_at=quote.expires_at,
+                           price_endpoint_identities=quote.endpoint_identities,
+                           currency=quote.currency, billing_unit=quote.billing_unit,
                            window_tokens=window, window_note=window_note,
                            budget_scope=scope_kind, budget_scope_id=scope_id,
                            warn_usd=(policy.warn_usd if policy else None),
@@ -178,6 +216,20 @@ def quote_base_url(book: ConnectionBook, provider: str) -> str:
 
 
 def estimate_run(config: Any, store: Any, bot: Bot, prompt: str = "", model: Optional[str] = None,
-                 conversation_id: str = "", fetch_quotes: bool = False) -> RunEstimate:
-    return RunEstimator(config, store, bot, prompt).for_model(model, conversation_id=conversation_id,
-                                                             fetch_quotes=fetch_quotes)
+                 conversation_id: str = "", fetch_quotes: bool = False,
+                 conversation_context: Optional[list[dict[str, str]]] = None,
+                 reply_to_message_id: Optional[str] = None,
+                 workspace_task_result_id: Optional[str] = None,
+                 workspace_task_result_message_id: Optional[str] = None,
+                 skills: Optional[list[str]] = None, rehearse: bool = False) -> RunEstimate:
+    if conversation_context is None and conversation_id:
+        conversation_context = store.preview_conversation_context(
+            conversation_id, reply_to_message_id=reply_to_message_id,
+            workspace_task_result_id=workspace_task_result_id,
+            workspace_task_result_message_id=workspace_task_result_message_id)
+    if skills:
+        from .skills import SkillRegistry
+        SkillRegistry(config.state_dir).validate_activation(bot, skills)
+    return RunEstimator(config, store, bot, prompt, conversation_context,
+                        conversation_id=conversation_id, skills=skills, rehearse=rehearse).for_model(
+                            model, conversation_id=conversation_id, fetch_quotes=fetch_quotes)

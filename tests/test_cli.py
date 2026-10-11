@@ -164,17 +164,23 @@ def test_bot_routing_and_compaction_flags_round_trip(state_env):
                                   "--fallback", "ollama/fake:8b",
                                   "--fallback", "anthropic/claude-haiku-4-5",
                                   "--escalate-to", "anthropic/claude-opus-5-5",
+                                  "--task-route", "banter=ollama/tiny:1b",
+                                  "--task-route", "code_analysis=ollama/other:3b",
                                   "--compaction", "off"])
     assert updated.exit_code == 0, updated.output
     shown = runner.invoke(app, ["bot", "show", "router"])
     assert '"ollama/fake:8b"' in shown.output and '"anthropic/claude-haiku-4-5"' in shown.output
     assert '"to"' in shown.output and '"anthropic/claude-opus-5-5"' in shown.output
     assert '"compaction": "off"' in shown.output
-    cleared = runner.invoke(app, ["bot", "update", "router", "--clear-fallbacks", "--clear-escalation"])
+    assert '"banter": "ollama/tiny:1b"' in shown.output
+    assert '"code_analysis": "ollama/other:3b"' in shown.output
+    cleared = runner.invoke(app, ["bot", "update", "router", "--clear-fallbacks", "--clear-escalation",
+                                  "--clear-task-routes"])
     assert cleared.exit_code == 0, cleared.output
     cleared_shown = runner.invoke(app, ["bot", "show", "router"])
     assert '"ollama/fake:8b"' not in cleared_shown.output
     assert '"anthropic/claude-opus-5-5"' not in cleared_shown.output
+    assert '"task_routes": {}' in cleared_shown.output
     invalid = runner.invoke(app, ["bot", "update", "router", "--fallback", "not a spec"])
     assert invalid.exit_code != 0
 
