@@ -27,6 +27,7 @@ import time
 import weakref
 import contextlib
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -1336,6 +1337,47 @@ def _migrate_50(db: sqlite3.Connection) -> None:
     db.execute("CREATE INDEX idx_document_versions_run ON document_versions(run_id)")
 
 
+def _migrate_51(db: sqlite3.Connection) -> None:
+    """SR-2: independent warn / pause / ceiling USD bands per budget scope, plus quote provenance.
+
+    Threshold columns use NULL = unset and 0.0 = a real threshold of zero, deliberately unlike ``Limits``
+    (where 0 means "no configured limit"): a deliberate no-paid-spend limit must be representable.
+    Scope rows are configuration with soft references to runs/bots/conversations/accounts, like documents.
+    """
+    db.execute("CREATE INDEX IF NOT EXISTS idx_usage_run ON usage(run_id, ts)")
+    db.execute("""CREATE TABLE budget_policies (
+        scope_kind TEXT NOT NULL CHECK(scope_kind IN ('run','conversation','bot','account')),
+        scope_id   TEXT NOT NULL,
+        currency   TEXT NOT NULL DEFAULT 'USD' CHECK(length(currency) = 3),
+        warn_usd    REAL,
+        pause_usd   REAL,
+        ceiling_usd REAL,
+        reset TEXT NOT NULL DEFAULT 'local_day'
+            CHECK(reset IN ('run_lifetime','conversation_lifetime','local_day','rolling_24h','lifetime')),
+        unknown_price TEXT NOT NULL DEFAULT 'refuse' CHECK(unknown_price IN ('refuse','mark')),
+        warn_cycle TEXT NOT NULL DEFAULT '',
+        revision INTEGER NOT NULL DEFAULT 1 CHECK(revision > 0),
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (scope_kind, scope_id),
+        CHECK((warn_usd IS NULL OR warn_usd >= 0) AND (pause_usd IS NULL OR pause_usd >= 0)
+              AND (ceiling_usd IS NULL OR ceiling_usd >= 0)),
+        CHECK(warn_usd IS NULL OR pause_usd IS NULL OR warn_usd <= pause_usd),
+        CHECK(pause_usd IS NULL OR ceiling_usd IS NULL OR pause_usd <= ceiling_usd),
+        CHECK((scope_kind = 'run'          AND reset = 'run_lifetime')
+           OR (scope_kind = 'conversation' AND reset IN ('conversation_lifetime','local_day'))
+           OR (scope_kind IN ('bot','account') AND reset IN ('local_day','rolling_24h','lifetime'))))""")
+    db.execute("""CREATE TABLE budget_pause_releases (
+        scope_kind TEXT NOT NULL, scope_id TEXT NOT NULL, route_hash TEXT NOT NULL,
+        cycle_key TEXT NOT NULL, policy_revision INTEGER NOT NULL, quote_usd REAL NOT NULL,
+        approval_id TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL,
+        PRIMARY KEY (scope_kind, scope_id, route_hash, cycle_key, policy_revision))""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_budget_pause_releases_scope "
+               "ON budget_pause_releases(scope_kind, scope_id, cycle_key)")
+    db.execute("ALTER TABLE usage_reservations ADD COLUMN cost_unknown INTEGER NOT NULL DEFAULT 0")
+    db.execute("ALTER TABLE usage_reservations ADD COLUMN quote_source TEXT NOT NULL DEFAULT ''")
+    db.execute("ALTER TABLE usage_reservations ADD COLUMN quote_verified_on TEXT NOT NULL DEFAULT ''")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -1343,7 +1385,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
-               _migrate_48, _migrate_49, _migrate_50]
+               _migrate_48, _migrate_49, _migrate_50, _migrate_51]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -1391,6 +1433,61 @@ class BotConflict(RuntimeError):
 
 class UsageBudgetRefusal(ValueError):
     """The requested model call cannot be reserved under a configured token or currency cap."""
+
+
+class UsageQuoteUnavailable(UsageBudgetRefusal):
+    """A currency threshold applies and no price basis could be established; admission fails closed."""
+
+
+@dataclass(frozen=True)
+class CallQuote:
+    """The price basis of one provider call, as computed before admission.
+
+    ``usd=None`` means "no basis" and is never silently treated as free: the applicable budget policy's
+    ``unknown_price`` decides whether that refuses admission or is recorded as unknown.
+    """
+
+    usd: Optional[float]
+    source: str = "unknown"          # local | flat | price_file | openrouter | openrouter_cached | caller
+    verified_on: str = ""            # price row date or quote fetch time (UTC ISO)
+    stale: bool = False
+    endpoints_considered: int = 0
+
+
+@dataclass(frozen=True)
+class BudgetWarning:
+    scope_kind: str
+    scope_id: str
+    threshold_usd: float
+    observed_usd: float
+    cycle_key: str
+
+
+@dataclass(frozen=True)
+class Reservation:
+    id: str
+    warnings: tuple[BudgetWarning, ...] = ()
+
+
+class UsagePauseRequired(ValueError):
+    """A configured pause threshold was crossed: a human must approve before this call is admitted.
+
+    Raised without writing anything. The release (if approved) is recorded per scope, route, budget
+    cycle and policy revision; it lifts only the pause band and never a ceiling.
+    """
+
+    def __init__(self, message: str, *, scope_kind: str, scope_id: str, cycle_key: str,
+                 policy_revision: int, route_hash: str, pause_usd: float,
+                 ceiling_usd: Optional[float], observed_usd: float):
+        super().__init__(message)
+        self.scope_kind = scope_kind
+        self.scope_id = scope_id
+        self.cycle_key = cycle_key
+        self.policy_revision = policy_revision
+        self.route_hash = route_hash
+        self.pause_usd = pause_usd
+        self.ceiling_usd = ceiling_usd
+        self.observed_usd = observed_usd
 
 
 EVENT_FLUSH_SECONDS = 0.02
@@ -6901,13 +6998,17 @@ class Store:
 
     # -------------------------------------------------------------- usage
 
-    def reserve_usage(self, *, run_id: str, bot_id: str, provider: str, account_id: str, model: str,
-                      reserved_tokens: int, reserved_cost_usd: float, daily_token_cap: int = 0,
-                      max_run_cost_usd: float = 0.0, daily_bot_cost_cap_usd: float = 0.0,
-                      daily_account_cost_cap_usd: float = 0.0,
-                      account_quotas: list[tuple[int, float]] | None = None,
-                      expected_fence: Optional[int] = None) -> str:
+    def admit_and_reserve(self, *, run_id: str, bot_id: str, provider: str, account_id: str, model: str,
+                          reserved_tokens: int, quote: CallQuote, daily_token_cap: int = 0,
+                          max_run_cost_usd: float = 0.0, daily_bot_cost_cap_usd: float = 0.0,
+                          daily_account_cost_cap_usd: float = 0.0,
+                          account_quotas: list[tuple[int, float]] | None = None,
+                          expected_fence: Optional[int] = None, route_hash: str = "") -> Reservation:
         """Atomically reserve estimated tokens and worst-case cost before a provider call.
+
+        Runs the legacy run/tree/bot/account/token checks and the configured warn / pause / ceiling budget
+        bands in one ``BEGIN IMMEDIATE`` transaction, so concurrent workers cannot multiply a scope's limit.
+        Returns the reservation id plus threshold warnings recorded exactly once per budget cycle.
 
         Reservations in `reserved` or `uncertain` state continue to consume caps. Only exact usage settlement or an
         operator's explicit reconciliation releases the reservation.
@@ -6917,9 +7018,11 @@ class Store:
         reserved_tokens = int(reserved_tokens)
         if reserved_tokens < 0:
             raise ValueError("reserved tokens must be non-negative")
-        reserved_cost_usd = float(reserved_cost_usd)
-        if not isfinite(reserved_cost_usd) or reserved_cost_usd < 0:
-            raise ValueError("reserved cost must be finite and non-negative")
+        reserved_cost_usd = float(quote.usd) if quote.usd is not None else 0.0
+        if quote.usd is not None and (not isfinite(reserved_cost_usd) or reserved_cost_usd < 0):
+            raise ValueError("quoted cost must be finite and non-negative when present")
+        if not isinstance(route_hash, str) or len(route_hash) > 128:
+            raise ValueError("route hash must be a short string")
         caps = (max_run_cost_usd, daily_bot_cost_cap_usd, daily_account_cost_cap_usd)
         if any(not isfinite(float(cap)) or float(cap) < 0 for cap in caps):
             raise ValueError("currency caps must be finite and non-negative")
@@ -7059,12 +7162,330 @@ class Store:
                         f"the next call could pass billing account '{account_id}'s {quota_tokens:,}-token allowance; "
                         f"{used + reserved:,} tokens are used or reserved in its rolling window")
 
+            conversation_id = str(run_doc_row["conversation_id"] or "")
+            policies = self._load_budget_policies(db, run_id=run_id, bot_id=bot_id, account_id=account_id,
+                                                  conversation_id=conversation_id)
+            warnings: list[BudgetWarning] = []
+            cost_unknown = 0
+            if policies:
+                cost_unknown = self._enforce_budget_bands(
+                    db, policies=policies, quote=quote, planned_cost=reserved_cost_usd,
+                    run_totals=(spent, held), bot_totals=(bot_spent, bot_held),
+                    account_totals=(account_spent, account_held),
+                    run_id=run_id, conversation_id=conversation_id, route_hash=route_hash,
+                    warnings=warnings, now=now)
             db.execute("INSERT INTO usage_reservations (id, run_id, bot_id, provider, account_id, model, "
-                       "reserved_tokens, reserved_cost_usd, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'reserved', ?)",
+                       "reserved_tokens, reserved_cost_usd, status, created_at, cost_unknown, quote_source, "
+                       "quote_verified_on) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'reserved', ?, ?, ?, ?)",
                        (reservation_id, run_id, bot_id, provider, account_id, model, reserved_tokens,
-                        reserved_cost_usd, now_text))
+                        reserved_cost_usd, now_text, cost_unknown, str(quote.source)[:64],
+                        str(quote.verified_on)[:64]))
         self.bus.notify("usage")
-        return reservation_id
+        return Reservation(reservation_id, tuple(warnings))
+
+    def reserve_usage(self, *, run_id: str, bot_id: str, provider: str, account_id: str, model: str,
+                      reserved_tokens: int, reserved_cost_usd: float, daily_token_cap: int = 0,
+                      max_run_cost_usd: float = 0.0, daily_bot_cost_cap_usd: float = 0.0,
+                      daily_account_cost_cap_usd: float = 0.0,
+                      account_quotas: list[tuple[int, float]] | None = None,
+                      expected_fence: Optional[int] = None) -> str:
+        """Back-compatible entry point for callers that computed their own worst case (source='caller')."""
+        return self.admit_and_reserve(
+            run_id=run_id, bot_id=bot_id, provider=provider, account_id=account_id, model=model,
+            reserved_tokens=reserved_tokens, quote=CallQuote(usd=float(reserved_cost_usd), source="caller"),
+            daily_token_cap=daily_token_cap, max_run_cost_usd=max_run_cost_usd,
+            daily_bot_cost_cap_usd=daily_bot_cost_cap_usd, daily_account_cost_cap_usd=daily_account_cost_cap_usd,
+            account_quotas=account_quotas, expected_fence=expected_fence).id
+
+    # ----------------------------------------------------- budget policies (SR-2)
+
+    @staticmethod
+    def _policy_from_row(row: sqlite3.Row) -> "BudgetPolicy":
+        from .models import BudgetPolicy
+        return BudgetPolicy(scope_kind=row["scope_kind"], scope_id=row["scope_id"], currency=row["currency"],
+                            warn_usd=row["warn_usd"], pause_usd=row["pause_usd"], ceiling_usd=row["ceiling_usd"],
+                            reset=row["reset"], unknown_price=row["unknown_price"],
+                            revision=int(row["revision"]), updated_at=row["updated_at"])
+
+    def _load_budget_policies(self, db: sqlite3.Connection, *, run_id: str, bot_id: str, account_id: str,
+                              conversation_id: str) -> dict:
+        """The (at most four) policies that apply to one call, loaded inside the admission transaction."""
+        rows = db.execute(
+            "SELECT * FROM budget_policies WHERE (scope_kind = 'run' AND scope_id = ?) "
+            "OR (scope_kind = 'conversation' AND scope_id = ? AND ? <> '') "
+            "OR (scope_kind = 'bot' AND scope_id = ?) "
+            "OR (scope_kind = 'account' AND scope_id = ? AND ? <> '')",
+            (run_id, conversation_id, conversation_id, bot_id, account_id, account_id)).fetchall()
+        return {row["scope_kind"]: self._policy_from_row(row) for row in rows}
+
+    def budget_policies_for(self, *, run_id: str, account_id: str = "") -> dict:
+        """Read-only lookup of applicable policies for a run (for displays and preflight checks)."""
+        row = self._db.execute("SELECT bot_id, conversation_id FROM runs WHERE id = ?", (run_id,)).fetchone()
+        if row is None:
+            return {}
+        return self._load_budget_policies(self._db, run_id=run_id, bot_id=str(row["bot_id"]),
+                                          account_id=account_id,
+                                          conversation_id=str(row["conversation_id"] or ""))
+
+    @staticmethod
+    def _budget_cycle_key(policy: "BudgetPolicy", now: datetime, run_id: str) -> str:
+        """Cycle identity for warn-once and pause releases.
+
+        ``rolling_24h`` re-arms per local calendar day rather than continuously: a rolling re-arm would
+        either warn on every reservation or need a per-threshold timestamp row, and a per-day re-arm is
+        the honest, cheap approximation. Cycle keys are stored, so changing this later is a migration.
+        """
+        if policy.reset == "run_lifetime":
+            return f"run:{run_id}"
+        if policy.reset == "conversation_lifetime":
+            return "conv"
+        if policy.reset == "lifetime":
+            return "lifetime"
+        day_start, _ = local_day_bounds(now)
+        return f"day:{day_start}"
+
+    def _conversation_totals(self, db: sqlite3.Connection, conversation_id: str) -> tuple[float, float]:
+        """(measured, held) USD across every run of one conversation, children included.
+
+        The same per-run ``max(ledger, legacy doc)`` convention as the run cap prevents double counting
+        pre-v10 spend; holds are deliberately never windowed (ADR-0011).
+        """
+        if not conversation_id:
+            return 0.0, 0.0
+        rows = db.execute(
+            "SELECT r.doc, COALESCE(u.cost, 0.0) AS ledger_cost FROM runs r "
+            "LEFT JOIN (SELECT run_id, SUM(cost_usd) AS cost FROM usage GROUP BY run_id) u ON u.run_id = r.id "
+            "WHERE r.conversation_id = ?", (conversation_id,)).fetchall()
+        measured = 0.0
+        for row in rows:
+            legacy = float(json.loads(row["doc"]).get("cost_usd", 0) or 0)
+            measured += max(float(row["ledger_cost"] or 0.0), legacy)
+        held = float(db.execute(
+            "SELECT COALESCE(SUM(x.reserved_cost_usd), 0.0) FROM usage_reservations x "
+            "JOIN runs r ON r.id = x.run_id WHERE r.conversation_id = ? AND x.status IN ('reserved','uncertain')",
+            (conversation_id,)).fetchone()[0] or 0.0)
+        return measured, held
+
+    def _enforce_budget_bands(self, db: sqlite3.Connection, *, policies: dict, quote: CallQuote,
+                              planned_cost: float, run_totals: tuple[float, float],
+                              bot_totals: tuple[float, float], account_totals: tuple[float, float],
+                              run_id: str, conversation_id: str, route_hash: str,
+                              warnings: list, now: datetime, dry_run: bool = False) -> int:
+        """warn / pause / ceiling evaluation inside the admission transaction. Returns the cost_unknown flag.
+
+        A threshold is crossed when the projected total (observed + this call) **exceeds** it; exact
+        equality is admissible. Ceiling and pause bands only stop a call that would add metered cost
+        (``planned_cost > 0``): a genuinely zero-cost call is not paid work, so a ceiling of zero means
+        "no paid spend", not "no calls at all". An unpriced call under any ceiling is refused earlier
+        through the unknown-price policy, never treated as zero.
+        """
+        labels = {"run": "this run", "conversation": "this conversation", "bot": "this bot",
+                  "account": "this billing account"}
+        observations = {"run": run_totals, "conversation": (0.0, 0.0), "bot": bot_totals,
+                        "account": account_totals}
+        if "conversation" in policies:
+            observations["conversation"] = self._conversation_totals(db, conversation_id)
+        cost_unknown = 0
+        if quote.usd is None:
+            # An unpriced call can never satisfy a ceiling: the number would be invented. Soft bands may
+            # mark it (the reservation records cost_unknown) only when no ceiling applies anywhere.
+            ceilings = [p for p in policies.values() if p.ceiling_usd is not None]
+            refusing = [p for p in policies.values() if p.unknown_price == "refuse"]
+            if ceilings or refusing:
+                scope = (ceilings or refusing)[0]
+                raise UsageQuoteUnavailable(
+                    f"{labels.get(scope.scope_kind, scope.scope_kind)} has a USD budget, but this call has no "
+                    "price basis; add a price row or use a route with a known price to keep the limit meaningful")
+            cost_unknown = 1
+        for kind in ("run", "conversation", "bot", "account"):
+            policy = policies.get(kind)
+            if policy is None:
+                continue
+            spent, held = observations[kind]
+            observed = spent + held
+            projected = observed + planned_cost
+            if policy.ceiling_usd is not None and planned_cost > 0 and projected > policy.ceiling_usd + 1e-9:
+                raise UsageBudgetRefusal(
+                    f"the next call could pass the ${policy.ceiling_usd:.2f} ceiling on {labels[kind]}; "
+                    f"${observed:.4f} is spent or reserved")
+            if policy.pause_usd is not None and planned_cost > 0 and projected > policy.pause_usd + 1e-9:
+                cycle = self._budget_cycle_key(policy, now, run_id)
+                released = db.execute(
+                    "SELECT 1 FROM budget_pause_releases WHERE scope_kind = ? AND scope_id = ? "
+                    "AND route_hash = ? AND cycle_key = ? AND policy_revision = ?",
+                    (kind, policy.scope_id, route_hash, cycle, policy.revision)).fetchone()
+                if released is None:
+                    raise UsagePauseRequired(
+                        f"the next call could pass the ${policy.pause_usd:.2f} pause threshold on {labels[kind]}; "
+                        f"${observed:.4f} is spent or reserved - approve to continue",
+                        scope_kind=kind, scope_id=policy.scope_id, cycle_key=cycle,
+                        policy_revision=policy.revision, route_hash=route_hash,
+                        pause_usd=policy.pause_usd, ceiling_usd=policy.ceiling_usd, observed_usd=observed)
+            if policy.warn_usd is not None and projected > policy.warn_usd + 1e-9:
+                cycle = self._budget_cycle_key(policy, now, run_id)
+                key = f"{policy.warn_usd:.6f}|{cycle}"
+                current = str(db.execute("SELECT warn_cycle FROM budget_policies "
+                                         "WHERE scope_kind = ? AND scope_id = ?",
+                                         (kind, policy.scope_id)).fetchone()[0] or "")
+                if current != key:
+                    if not dry_run:
+                        db.execute("UPDATE budget_policies SET warn_cycle = ? WHERE scope_kind = ? AND scope_id = ?",
+                                   (key, kind, policy.scope_id))
+                    warnings.append(BudgetWarning(kind, policy.scope_id, policy.warn_usd, observed, cycle))
+        return cost_unknown
+
+    def budget_admission_block(self, *, run_id: str, quote: CallQuote, account_id: str = "") -> Optional[str]:
+        """Read-only preflight: a refusal message when this call would cross a ceiling or unpriced ceiling.
+
+        Used before bringing a model online so a doomed call does not start hardware or queue for a slot.
+        Pause thresholds are not returned here: they require a human answer, which the runtime asks at the
+        admission point itself.
+        """
+        policies = self.budget_policies_for(run_id=run_id, account_id=account_id)
+        if not policies:
+            return None
+        row = self._db.execute(f"SELECT bot_id, {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
+        if row is None:
+            return None
+        bot_id = str(row["bot_id"])
+        conversation_id = str(row["conversation_id"] or "")
+        now = utcnow()
+        try:
+            with self._tx() as db:
+                run_measured = float(db.execute("SELECT COALESCE(SUM(cost_usd), 0) FROM usage WHERE run_id = ?",
+                                                (run_id,)).fetchone()[0] or 0.0)
+                legacy = float(json.loads(row["doc"]).get("cost_usd", 0) or 0)
+                run_held = float(db.execute("SELECT COALESCE(SUM(reserved_cost_usd), 0) FROM usage_reservations "
+                                            "WHERE run_id = ? AND status IN ('reserved','uncertain')",
+                                            (run_id,)).fetchone()[0] or 0.0)
+                bot_measured = float(db.execute("SELECT COALESCE(SUM(cost_usd), 0) FROM usage WHERE bot_id = ?",
+                                                (bot_id,)).fetchone()[0] or 0.0)
+                bot_held = float(db.execute("SELECT COALESCE(SUM(reserved_cost_usd), 0) FROM usage_reservations "
+                                            "WHERE bot_id = ? AND status IN ('reserved','uncertain')",
+                                            (bot_id,)).fetchone()[0] or 0.0)
+                account_measured = account_held = 0.0
+                if account_id:
+                    account_measured = float(db.execute(
+                        "SELECT COALESCE(SUM(cost_usd), 0) FROM usage WHERE account_id = ?",
+                        (account_id,)).fetchone()[0] or 0.0)
+                    account_held = float(db.execute(
+                        "SELECT COALESCE(SUM(reserved_cost_usd), 0) FROM usage_reservations "
+                        "WHERE account_id = ? AND status IN ('reserved','uncertain')",
+                        (account_id,)).fetchone()[0] or 0.0)
+                self._enforce_budget_bands(db, policies=policies, quote=quote,
+                                           planned_cost=float(quote.usd or 0.0),
+                                           run_totals=(max(run_measured, legacy), run_held),
+                                           bot_totals=(bot_measured, bot_held),
+                                           account_totals=(account_measured, account_held),
+                                           run_id=run_id, conversation_id=conversation_id,
+                                           route_hash="", warnings=[], now=now, dry_run=True)
+        except UsagePauseRequired:
+            return None
+        except UsageBudgetRefusal as exc:
+            return str(exc)
+        return None
+
+    def set_budget_policy(self, *, scope_kind: str, scope_id: str, warn_usd: Optional[float] = None,
+                          pause_usd: Optional[float] = None, ceiling_usd: Optional[float] = None,
+                          reset: str = "local_day", unknown_price: str = "refuse") -> "BudgetPolicy":
+        """Create or replace one scope's warn/pause/ceiling bands. Revision bumps; warnings re-arm."""
+        from .models import BudgetPolicy
+        scope_id = str(scope_id or "").strip()
+        policy = BudgetPolicy(scope_kind=scope_kind, scope_id=scope_id, warn_usd=warn_usd, pause_usd=pause_usd,
+                              ceiling_usd=ceiling_usd, reset=reset, unknown_price=unknown_price)
+        with self._tx() as db:
+            exists = {"run": "SELECT 1 FROM runs WHERE id = ?", "conversation": "SELECT 1 FROM conversations WHERE id = ?",
+                      "bot": "SELECT 1 FROM bots WHERE id = ?"}.get(scope_kind)
+            if exists is not None and db.execute(exists, (scope_id,)).fetchone() is None:
+                raise ValueError(f"no {scope_kind} '{scope_id}' exists; create it before setting a budget")
+            db.execute(
+                "INSERT INTO budget_policies (scope_kind, scope_id, currency, warn_usd, pause_usd, ceiling_usd, "
+                "reset, unknown_price, warn_cycle, revision, updated_at) VALUES (?, ?, 'USD', ?, ?, ?, ?, ?, '', 1, ?) "
+                "ON CONFLICT(scope_kind, scope_id) DO UPDATE SET "
+                "warn_usd = excluded.warn_usd, pause_usd = excluded.pause_usd, ceiling_usd = excluded.ceiling_usd, "
+                "reset = excluded.reset, unknown_price = excluded.unknown_price, "
+                "revision = budget_policies.revision + 1, warn_cycle = '', updated_at = excluded.updated_at",
+                (policy.scope_kind, policy.scope_id, policy.warn_usd, policy.pause_usd, policy.ceiling_usd,
+                 policy.reset, policy.unknown_price, iso(utcnow())))
+            row = db.execute("SELECT * FROM budget_policies WHERE scope_kind = ? AND scope_id = ?",
+                             (scope_kind, scope_id)).fetchone()
+        self.bus.notify("usage", "budget")
+        return self._policy_from_row(row)
+
+    def get_budget_policy(self, scope_kind: str, scope_id: str) -> Optional["BudgetPolicy"]:
+        row = self._db.execute("SELECT * FROM budget_policies WHERE scope_kind = ? AND scope_id = ?",
+                               (scope_kind, scope_id)).fetchone()
+        return self._policy_from_row(row) if row is not None else None
+
+    def list_budget_policies(self, *, scope_kind: Optional[str] = None) -> list:
+        query = "SELECT * FROM budget_policies"
+        args: tuple = ()
+        if scope_kind:
+            query += " WHERE scope_kind = ?"
+            args = (scope_kind,)
+        query += " ORDER BY scope_kind, scope_id"
+        return [self._policy_from_row(row) for row in self._db.execute(query, args).fetchall()]
+
+    def delete_budget_policy(self, scope_kind: str, scope_id: str) -> bool:
+        with self._tx() as db:
+            result = db.execute("DELETE FROM budget_policies WHERE scope_kind = ? AND scope_id = ?",
+                                (scope_kind, scope_id))
+            removed = bool(result.rowcount)
+        if removed:
+            self.bus.notify("usage", "budget")
+        return removed
+
+    def record_budget_pause_release(self, *, scope_kind: str, scope_id: str, route_hash: str, cycle_key: str,
+                                    policy_revision: int, quote_usd: float, approval_id: str = "") -> None:
+        """Record that a human approved continuing this scope+route+cycle at this policy revision."""
+        if float(quote_usd) < 0:
+            raise ValueError("a pause release cannot carry a negative quote")
+        with self._tx() as db:
+            db.execute("INSERT OR REPLACE INTO budget_pause_releases (scope_kind, scope_id, route_hash, cycle_key, "
+                       "policy_revision, quote_usd, approval_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                       (scope_kind, scope_id, route_hash, cycle_key, int(policy_revision), float(quote_usd),
+                        str(approval_id)[:128], iso(utcnow())))
+            # releases are evidence, not permanent grants: prune long-expired cycles in the same transaction
+            cutoff = iso(utcnow() - timedelta(days=35))
+            db.execute("DELETE FROM budget_pause_releases WHERE created_at < ?", (cutoff,))
+
+    def scope_spend(self, *, scope_kind: str, scope_id: str, account_id: str = "") -> tuple[float, float]:
+        """(measured, held) USD for display. Enforcement recomputes inside the admission transaction.
+
+        Run and conversation scopes are lifetime figures; bot and account scopes are the current local day,
+        matching the daily legacy caps. Holds are never windowed (ADR-0011).
+        """
+        if scope_kind == "run":
+            measured = float(self._db.execute("SELECT COALESCE(SUM(cost_usd), 0) FROM usage WHERE run_id = ?",
+                                              (scope_id,)).fetchone()[0] or 0.0)
+            row = self._db.execute("SELECT doc FROM runs WHERE id = ?", (scope_id,)).fetchone()
+            if row is not None:
+                measured = max(measured, float(json.loads(row["doc"]).get("cost_usd", 0) or 0))
+            held = float(self._db.execute("SELECT COALESCE(SUM(reserved_cost_usd), 0) FROM usage_reservations "
+                                          "WHERE run_id = ? AND status IN ('reserved','uncertain')",
+                                          (scope_id,)).fetchone()[0] or 0.0)
+            return measured, held
+        if scope_kind == "conversation":
+            return self._conversation_totals(self._db, scope_id)
+        day_start, day_end = local_day_bounds(utcnow())
+        if scope_kind == "bot":
+            return (float(self._db.execute(
+                        "SELECT COALESCE(SUM(cost_usd), 0) FROM usage WHERE bot_id = ? AND ts >= ? AND ts < ?",
+                        (scope_id, day_start, day_end)).fetchone()[0] or 0.0),
+                    float(self._db.execute(
+                        "SELECT COALESCE(SUM(reserved_cost_usd), 0) FROM usage_reservations "
+                        "WHERE bot_id = ? AND status IN ('reserved','uncertain')",
+                        (scope_id,)).fetchone()[0] or 0.0))
+        if scope_kind == "account":
+            account = account_id or scope_id
+            return (float(self._db.execute(
+                        "SELECT COALESCE(SUM(cost_usd), 0) FROM usage WHERE account_id = ? AND ts >= ? AND ts < ?",
+                        (account, day_start, day_end)).fetchone()[0] or 0.0),
+                    float(self._db.execute(
+                        "SELECT COALESCE(SUM(reserved_cost_usd), 0) FROM usage_reservations "
+                        "WHERE account_id = ? AND status IN ('reserved','uncertain')",
+                        (account,)).fetchone()[0] or 0.0))
+        raise ValueError(f"unknown budget scope '{scope_kind}'")
 
     def _usage_authority(self, db: sqlite3.Connection, run_id: str, bot_id: Optional[str],
                          expected_fence: Optional[int], *, required: bool = True) -> None:
@@ -7112,7 +7533,8 @@ class Store:
         with self._lock:
             rows = self._db.execute(
                 "SELECT id, run_id, bot_id, provider, account_id, model, reserved_tokens, reserved_cost_usd, "
-                "status, created_at, reason FROM usage_reservations WHERE status IN ('reserved', 'uncertain') "
+                "status, created_at, reason, cost_unknown, quote_source, quote_verified_on "
+                "FROM usage_reservations WHERE status IN ('reserved', 'uncertain') "
                 "ORDER BY created_at LIMIT ?", (max(1, min(limit, 500)),)).fetchall()
         return [dict(row) for row in rows]
 

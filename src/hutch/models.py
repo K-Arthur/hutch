@@ -197,6 +197,59 @@ class Limits(BaseModel):
     model_config = {"frozen": True}
 
 
+class BudgetPolicy(BaseModel):
+    """SR-2: independent warn / pause / ceiling USD bands for one budget scope.
+
+    Unlike ``Limits`` (where ``0`` means "no configured limit"), every threshold here is explicit:
+    ``None`` is unset and ``0.0`` is a real threshold of zero, so a deliberate "no paid spend" limit is
+    distinguishable from an unlimited one. ``warn_usd`` only warns, ``pause_usd`` asks a human before
+    admission continues, and ``ceiling_usd`` refuses new admission; they are independent controls that
+    may be combined. Currency is USD: Hutch's ledger has one currency and no FX conversion source.
+    """
+
+    scope_kind: Literal["run", "conversation", "bot", "account"]
+    scope_id: str = Field(min_length=1, max_length=128)
+    currency: str = "USD"
+    warn_usd: Optional[float] = None
+    pause_usd: Optional[float] = None
+    ceiling_usd: Optional[float] = None
+    reset: Literal["run_lifetime", "conversation_lifetime", "local_day", "rolling_24h", "lifetime"] = "local_day"
+    #: what admission does when this scope applies and no price basis can be established
+    unknown_price: Literal["refuse", "mark"] = "refuse"
+    revision: int = 1
+    updated_at: str = Field(default_factory=lambda: iso(utcnow()))
+
+    @field_validator("warn_usd", "pause_usd", "ceiling_usd")
+    @classmethod
+    def finite_bands(cls, value: Optional[float]) -> Optional[float]:
+        if value is None:
+            return None
+        if not math.isfinite(value) or value < 0:
+            raise ValueError("budget thresholds must be finite and non-negative")
+        return value
+
+    @model_validator(mode="after")
+    def ordered_bands(self) -> "BudgetPolicy":
+        if self.currency != "USD":
+            raise ValueError("budget policies are USD; Hutch has no exchange-rate source")
+        bands = [(self.warn_usd, "warn"), (self.pause_usd, "pause"), (self.ceiling_usd, "ceiling")]
+        present = [(value, label) for value, label in bands if value is not None]
+        for (low, low_label), (high, high_label) in zip(present, present[1:]):
+            if low > high:
+                raise ValueError(f"{low_label} threshold must not exceed {high_label}")
+        allowed_resets = {
+            "run": {"run_lifetime"},
+            "conversation": {"conversation_lifetime", "local_day"},
+            "bot": {"local_day", "rolling_24h", "lifetime"},
+            "account": {"local_day", "rolling_24h", "lifetime"},
+        }[self.scope_kind]
+        if self.reset not in allowed_resets:
+            raise ValueError(f"{self.scope_kind} policies do not support reset '{self.reset}'")
+        return self
+
+    model_config = {"frozen": True}
+
+
 class BackgroundProviderConsent(BaseModel):
     """Explicit authorization for one provider account and one Bot routing configuration."""
 

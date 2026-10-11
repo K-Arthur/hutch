@@ -198,12 +198,18 @@ def _remove_later_conversation_schema(db):
     db.execute("DROP INDEX IF EXISTS idx_documents_conversation")
     db.execute("DROP INDEX IF EXISTS idx_documents_bot")
     db.execute("DROP INDEX IF EXISTS idx_document_versions_run")
+    db.execute("DROP INDEX IF EXISTS idx_usage_run")
     for table in ("document_versions", "documents",
+                  "budget_pause_releases", "budget_policies",
                   "workspace_task_continuations", "workspace_task_fact_shares", "workspace_task_checkpoints",
                   "workspace_tasks", "workspace_specialists", "workspace_settings",
                   "conversation_questions", "google_calendar_grants", "memory_fact_shares", "code_handoffs",
                   "task_templates"):
         db.execute(f"DROP TABLE IF EXISTS {table}")
+    reservation_columns = {row[1] for row in db.execute("PRAGMA table_info(usage_reservations)")}
+    for column in ("cost_unknown", "quote_source", "quote_verified_on"):
+        if column in reservation_columns:
+            db.execute(f"ALTER TABLE usage_reservations DROP COLUMN {column}")
     columns = {row[1] for row in db.execute("PRAGMA table_info(messages)")}
     for column in ("workspace_task_result_id", "workspace_task_result_message_id",
                    "workspace_task_result_display_name", "workspace_task_result_content",
