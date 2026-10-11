@@ -158,10 +158,15 @@ def submit_workflow(store: Any, *, bot: Bot, plan: dict[str, Any] | Plan,
                     save_definition: bool = True, activate_definition: bool = False,
                     origin: str = "operator", conversation_id: str = "",
                     source: str = "operator", planning_model: str = "",
-                    created_by: str = "", note: str = "") -> Submission:
+                    created_by: str = "", note: str = "",
+                    idem_key: str = "", request_hash: str = "") -> Submission:
     """Validate, gate and admit one workflow instance."""
     compiled = compile_plan(plan)
     resolved_inputs = validate_inputs(compiled.plan, inputs)
+    if idem_key:
+        replay = store.idempotency_replay("api:v1:workflow-runs", idem_key, request_hash)
+        if replay is not None:
+            return _replayed(store, replay)
     verdicts = check_authority(compiled, bot, store=store)
     if source == "model":
         if not planning_model:
@@ -184,21 +189,25 @@ def submit_workflow(store: Any, *, bot: Bot, plan: dict[str, Any] | Plan,
     attempt = Run(bot_id=bot.id, prompt=f"workflow: {compiled.plan.name}"[:4_000], kind="workflow",
                   origin=origin, conversation_id=conversation_id)
     task = Task(bot_id=bot.id, kind="workflow", prompt=attempt.prompt)
-    workflow = wstore.submit_workflow_run(
+    workflow, created = wstore.submit_workflow_run(
         store, plan=compiled.plan.model_dump(by_alias=True, exclude_none=True, mode="json"),
         definition_id=definition_id, revision_id=revision_id, plan_hash=compiled.plan_hash,
         bot_id=bot.id, inputs=resolved_inputs,
         budget={**compiled.plan.budget.model_dump(mode="json"),
                 "max_steps_per_node": min(CEILINGS["max_agent_steps"], 12),
                 "max_step_seconds": 600},
-        origin=origin, conversation_id=conversation_id, run=attempt, task=task)
+        origin=origin, conversation_id=conversation_id, run=attempt, task=task,
+        idem_key=idem_key, request_hash=request_hash)
+    if not created:
+        return _from_record(workflow)
     return Submission(workflow_run_id=str(workflow["id"]), attempt_run_id=attempt.id,
                       revision_id=revision_id, definition_id=definition_id,
                       plan_hash=compiled.plan_hash, verdicts=verdicts)
 
 
 def submit_saved(store: Any, *, bot: Bot, definition: str, inputs: Optional[dict[str, Any]] = None,
-                 origin: str = "operator", conversation_id: str = "") -> Submission:
+                 origin: str = "operator", conversation_id: str = "",
+                 idem_key: str = "", request_hash: str = "") -> Submission:
     """Run a saved definition's latest revision without a planning call of any kind."""
     entry = wstore.definition(store, definition)
     if entry is None:
@@ -208,20 +217,42 @@ def submit_saved(store: Any, *, bot: Bot, definition: str, inputs: Optional[dict
         raise KeyError(definition)
     compiled = compile_plan(revision["plan"])
     resolved_inputs = validate_inputs(compiled.plan, inputs)
+    if idem_key:
+        replay = store.idempotency_replay("api:v1:workflow-runs", idem_key, request_hash)
+        if replay is not None:
+            return _replayed(store, replay)
     verdicts = check_authority(compiled, bot, store=store)
     attempt = Run(bot_id=bot.id, prompt=f"workflow: {compiled.plan.name}"[:4_000], kind="workflow",
                   origin=origin, conversation_id=conversation_id)
     task = Task(bot_id=bot.id, kind="workflow", prompt=attempt.prompt)
-    workflow = wstore.submit_workflow_run(
+    workflow, created = wstore.submit_workflow_run(
         store, plan=revision["plan"], definition_id=str(entry["id"]), revision_id=str(revision["id"]),
         plan_hash=str(revision["plan_hash"]), bot_id=bot.id, inputs=resolved_inputs,
         budget={**compiled.plan.budget.model_dump(mode="json"),
                 "max_steps_per_node": min(CEILINGS["max_agent_steps"], 12),
                 "max_step_seconds": 600},
-        origin=origin, conversation_id=conversation_id, run=attempt, task=task)
+        origin=origin, conversation_id=conversation_id, run=attempt, task=task,
+        idem_key=idem_key, request_hash=request_hash)
+    if not created:
+        return _from_record(workflow)
     return Submission(workflow_run_id=str(workflow["id"]), attempt_run_id=attempt.id,
                       revision_id=str(revision["id"]), definition_id=str(entry["id"]),
                       plan_hash=str(revision["plan_hash"]), verdicts=verdicts)
+
+
+def _from_record(workflow: dict[str, Any]) -> Submission:
+    return Submission(workflow_run_id=str(workflow["id"]),
+                      attempt_run_id=str(workflow.get("attempt_run_id") or ""),
+                      revision_id=str(workflow["revision_id"]),
+                      definition_id=workflow.get("definition_id"),
+                      plan_hash=str(workflow["plan_hash"]), verdicts=[])
+
+
+def _replayed(store: Any, replay: dict[str, Any]) -> Submission:
+    row = wstore.workflow_run(store, str(replay["workflow_run_id"]))
+    if row is None:
+        raise RuntimeError("an idempotent workflow response points to missing state")
+    return _from_record(row)
 
 
 def stop_workflow(store: Any, wf_id: str) -> dict[str, Any]:

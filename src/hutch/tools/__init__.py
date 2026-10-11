@@ -11,6 +11,7 @@ from .delegation import DelegateTaskTool
 from .choice import AskUserChoiceTool
 from .documents import CreateDocumentTool, InspectDocumentTool, ReviseDocumentTool
 from .skill import UseSkillTool
+from .workflow_draft import DraftWorkflowTool
 from .google_calendar import GoogleCalendarCreateEventTool, GoogleCalendarEventsTool
 from .outlook_calendar import OutlookCalendarEventsTool
 from .outlook_calendar_write import OutlookCalendarCreateEventTool
@@ -30,6 +31,7 @@ _CATALOG: dict[str, type[Tool]] = {
     "revise_document": ReviseDocumentTool,
     "inspect_document": InspectDocumentTool,
     "delegate_task": DelegateTaskTool,
+    "draft_workflow": DraftWorkflowTool,
 }
 
 #: bot-level tool groups that expand to concrete tool names

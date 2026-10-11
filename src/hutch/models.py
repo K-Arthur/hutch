@@ -309,6 +309,11 @@ class Bot(BaseModel):
     remote_start_enabled: bool = False   # local-owner opt-in for passkey-paired phone starts; never grants new tools
     paused: bool = False
     pinned: bool = False              # workspace roster preference; does not affect execution
+    # --- dynamic workflows (schema v52): how Hutch may use a workflow for this Bot.
+    # ``off`` never proposes or starts one; ``suggest`` may describe a candidate route;
+    # ``auto`` may start within ``workflow_limits`` without a fresh confirmation.
+    workflow_mode: Literal["off", "suggest", "auto"] = "off"
+    workflow_limits: dict = Field(default_factory=dict)  # auto scope: definitions + budget caps
     sidebar_hidden: bool = False       # removes an idle Bot from the main roster; never pauses work
     roster_section: Optional[str] = Field(default=None, max_length=40)
     template: Optional[str] = None    # which starter template it came from

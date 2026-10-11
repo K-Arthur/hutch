@@ -49,33 +49,43 @@ class Scope:
         return Scope(merged)
 
     def get_path(self, path: str) -> Any:
-        """Resolve a dotted/indexed path against this scope; ``MISSING`` when absent."""
+        """Resolve a dotted/indexed path against this scope; ``MISSING`` when absent.
+
+        A path may start with a *site id that contains dots* (``shape.then.packed``), so the
+        longest prefix that is an actual scope key wins. That is what lets a node inside a
+        bounded construct reference a sibling by its full site id.
+        """
         if not path or len(path) > 400:
             raise EvalError("empty or oversized reference")
-        segments = _split_path(path)
-        if not segments:
-            raise EvalError(f"invalid reference {path!r}")
-        head_kind, head = segments[0]
-        if head_kind != "attr":
-            raise EvalError(f"a reference must start with a name: {path!r}")
-        if head not in self.values:
+        parts = path.split(".")
+        value: Any = MISSING
+        rest = ""
+        for cut in range(len(parts), 0, -1):
+            candidate = ".".join(parts[:cut])
+            if candidate in self.values:
+                value = self.values[candidate]
+                rest = path[len(candidate):]
+                break
+        if value is MISSING:
             return MISSING
-        value: Any = self.values[head]
-        for kind, part in segments[1:]:
-            if kind == "attr":
-                if isinstance(value, dict):
-                    if part not in value:
+        rest = rest[1:] if rest.startswith(".") else rest
+        if rest:
+            segments = _split_path(rest)
+            for kind, part in segments:
+                if kind == "attr":
+                    if isinstance(value, dict):
+                        if part not in value:
+                            return MISSING
+                        value = value[part]
+                    else:
                         return MISSING
-                    value = value[part]
                 else:
-                    return MISSING
-            else:
-                if isinstance(value, (list, tuple)) and -len(value) <= part < len(value):
-                    value = value[part]
-                else:
-                    return MISSING
-            if _depth_guard(value) is None:
-                raise EvalError("resolved value is too large or too deeply nested")
+                    if isinstance(value, (list, tuple)) and -len(value) <= part < len(value):
+                        value = value[part]
+                    else:
+                        return MISSING
+                if _depth_guard(value) is None:
+                    raise EvalError("resolved value is too large or too deeply nested")
         return value
 
 

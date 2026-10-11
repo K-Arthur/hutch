@@ -39,6 +39,7 @@ TRANSFORM_OPS = {
     "parse_json": {"text"},
     "to_json": {"value"},
     "parse_csv": {"text", "delimiter", "max_rows"},
+    "parse_table": {"text", "delimiter", "max_rows"},
     "select": {"items", "fields"},
     "filter": {"items", "where"},
     "sort": {"items", "by", "descending"},
@@ -48,6 +49,8 @@ TRANSFORM_OPS = {
     "slice": {"items", "start", "end"},
     "count": {"items"},
     "sum": {"items", "of"},
+    "total": {"items", "of"},
+    "to_number": {"value"},
     "group_count": {"items", "by"},
     "join_text": {"items", "separator", "of"},
     "merge": {"values"},
@@ -207,13 +210,15 @@ class _Compiler:
                 self.error("ENVELOPE_MODELS", "envelope.models", "model bindings must be strings")
 
     def _walk(self, body: list[Node], *, scope: set[str], depth: int, parent: Optional[str],
-              body_name: str, path: str, instance_template: tuple[str, ...]) -> None:
+              body_name: str, path: str, instance_template: tuple[str, ...],
+              id_prefix: Optional[str] = None) -> None:
         if depth > CEILINGS["max_nesting_depth"]:
             self.error("NESTING_TOO_DEEP", path, "bounded constructs nest too deeply")
             return
         local_scope = set(scope)
+        base = id_prefix if id_prefix is not None else parent
         for index, node in enumerate(body):
-            site = node.id if parent is None else f"{parent}.{node.id}"
+            site = node.id if base is None else f"{base}.{node.id}"
             node_path = f"{path}[{index}]"
             if site in self._seen_ids:
                 self.error("NODE_ID_DUPLICATE", node_path, f"duplicate site id {site!r}")
@@ -243,10 +248,12 @@ class _Compiler:
             elif node.kind == "branch":
                 self._walk(node.then, scope=local_scope, depth=depth + 1, parent=site,
                            body_name="then", path=f"{node_path}.then",
-                           instance_template=instance_template + (f"{site}.then",))
+                           instance_template=instance_template + (f"{site}.then",),
+                           id_prefix=f"{site}.then")
                 self._walk(node.else_, scope=local_scope, depth=depth + 1, parent=site,
                            body_name="else", path=f"{node_path}.else",
-                           instance_template=instance_template + (f"{site}.else",))
+                           instance_template=instance_template + (f"{site}.else",),
+                           id_prefix=f"{site}.else")
             elif node.kind == "repeat":
                 self._walk(node.body, scope=local_scope, depth=depth + 1, parent=site,
                            body_name="body", path=f"{node_path}.body",
@@ -374,8 +381,9 @@ class _Compiler:
                         self.error("REF_LOCAL", f"{path}.{value_path}",
                                    f"{head!r} is only available inside a bounded construct")
                 elif head in scope:
-                    deps.add(head)
-                    if self._traverses_container(head, ref):
+                    dep = self._longest_site(ref, scope) or head
+                    deps.add(dep)
+                    if self._traverses_container(head, ref, scope):
                         self.error("REF_CONTAINER_PATH", f"{path}.{value_path}",
                                    f"a reference may not reach inside the bounded construct "
                                    f"{head!r}; its own result is the join of its items")
@@ -384,8 +392,28 @@ class _Compiler:
                                f"reference to unknown or not-yet-run node {head!r}")
         return deps
 
-    def _traverses_container(self, head: str, ref: str) -> bool:
-        """True when a reference path names a child site of a bounded construct."""
+    @staticmethod
+    def _longest_site(ref: str, scope: set[str]) -> Optional[str]:
+        """The longest dotted prefix of ``ref`` that names an in-scope site (or None)."""
+        parts = ref.split(".")
+        for cut in range(len(parts) - 1, 0, -1):
+            candidate = ".".join(parts[:cut])
+            if candidate in scope:
+                return candidate
+        return None
+
+    def _traverses_container(self, head: str, ref: str, scope: set[str]) -> bool:
+        """True when a reference path reaches *into* a bounded construct from outside it.
+
+        Only the container's own aggregate is addressable from outside (``map.keys``,
+        ``branch.result``, ``repeat.result``). Inside a body, a sibling is addressed by its
+        full site id and that is fine - the check therefore first asks whether a longer
+        prefix of the path is itself an in-scope site.
+        """
+        parts = ref.split(".")
+        for cut in range(len(parts), 1, -1):
+            if ".".join(parts[:cut]) in scope:
+                return False
         compiled = self.by_site.get(head)
         if compiled is None or compiled.kind not in ("map", "expand", "branch", "repeat"):
             return False
@@ -393,6 +421,8 @@ class _Compiler:
         if not remainder:
             return False
         first = remainder.split(".", 1)[0].split("[", 1)[0]
+        if first in ("then", "else", "body"):
+            return True
         return any(child.node.id == first for child in self.nodes if child.body_of == head)
 
     def _check_needs(self, node: Node, scope: set[str], path: str) -> set[str]:

@@ -5361,6 +5361,11 @@ class Store:
         from .workflow import persistence
         persistence.set_step_kind(self, run_id, kind)
 
+    def idempotency_replay(self, scope: str, key: str, request_hash: str) -> Optional[dict[str, Any]]:
+        """Read-only replay lookup for a versioned command (raises on a reused key)."""
+        with self._lock:
+            return self._idempotency_replay(self._db, scope, key, request_hash)
+
     def list_runs(self, bot_id: Optional[str] = None, limit: int = 50) -> list[Run]:
         q = f"SELECT {_RUN_COLS} FROM runs"
         args: tuple = ()

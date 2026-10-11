@@ -40,6 +40,7 @@ CEILINGS = {
     "max_inputs": 32,
     "max_artifacts": 32,
     "max_instruction_chars": MAX_INSTRUCTION,
+    "max_input_chars": 200_000,
     "max_agent_steps": 40,
     "max_question_wait_seconds": 604_800,
     "max_command_seconds": 1_800,
@@ -217,7 +218,7 @@ class InputSpec(_Strict):
     required: bool = True
     default: Any = None
     description: str = Field(default="", max_length=400)
-    max_length: Optional[int] = Field(default=None, ge=1, le=MAX_STRING)
+    max_length: Optional[int] = Field(default=None, ge=1, le=CEILINGS["max_input_chars"])
     max_items: Optional[int] = Field(default=None, ge=0, le=CEILINGS["max_fanout"])
 
 

@@ -22,9 +22,9 @@ MAX_ROWS = 20_000
 MAX_DEPTH = 16
 
 _OPS = {
-    "constant", "parse_json", "to_json", "parse_csv", "select", "filter", "sort", "dedupe",
-    "first", "last", "slice", "count", "sum", "group_count", "join_text", "merge",
-    "to_markdown_table", "pluck",
+    "constant", "parse_json", "to_json", "parse_csv", "parse_table", "select", "filter", "sort",
+    "dedupe", "first", "last", "slice", "count", "sum", "total", "to_number", "group_count",
+    "join_text", "merge", "to_markdown_table", "pluck",
 }
 
 #: Comparison operators a ``filter`` predicate may use.
@@ -187,6 +187,50 @@ def _op_parse_csv(args: dict[str, Any]) -> list[dict[str, str]]:
     return rows
 
 
+def _op_parse_table(args: dict[str, Any]) -> dict[str, Any]:
+    """Parse a CSV that may be messy: keep good rows, report bad ones with line numbers.
+
+    This is the "choose validation from what the data actually shows" primitive. Nothing is
+    silently dropped: a ragged row, a duplicate column or an empty header is reported in
+    ``bad_rows`` (bounded), and the caller decides what that means.
+    """
+    text = _text(_require(args, "text", (str,)))
+    if len(text) > MAX_TEXT:
+        raise ValueError("the CSV text is too large")
+    delimiter = args.get("delimiter", ",")
+    if not isinstance(delimiter, str) or len(delimiter) != 1:
+        raise ValueError("delimiter must be a single character")
+    limit = min(int(args.get("max_rows", 5_000) or 5_000), MAX_ROWS)
+    reader = csv.reader(io.StringIO(text), delimiter=delimiter)
+    columns: list[str] = []
+    rows: list[dict[str, str]] = []
+    bad: list[dict[str, Any]] = []
+    blank = 0
+    for index, row in enumerate(reader):
+        line = index + 1
+        if index == 0:
+            columns = [cell.strip() for cell in row]
+            if not columns or any(not name for name in columns):
+                raise ValueError("the CSV header is empty or has an empty column name")
+            if len(set(columns)) != len(columns):
+                raise ValueError("the CSV header has duplicate column names")
+            continue
+        if not row or all(not cell.strip() for cell in row):
+            blank += 1
+            continue
+        if len(rows) >= limit:
+            bad.append({"line": line, "reason": f"beyond the {limit}-row limit", "raw": ",".join(row)[:200]})
+            continue
+        if len(row) != len(columns):
+            bad.append({"line": line,
+                        "reason": f"{len(row)} fields but the header has {len(columns)}",
+                        "raw": ",".join(row)[:200]})
+            continue
+        rows.append({name: value for name, value in zip(columns, row)})
+    return {"columns": columns, "rows": rows, "bad_rows": bad, "kept": len(rows),
+            "bad": len(bad), "blank_lines": blank, "clean": not bad}
+
+
 def _op_select(args: dict[str, Any]) -> list[dict[str, Any]]:
     items = _items(args)
     fields = _require(args, "fields", (list,))
@@ -312,6 +356,34 @@ def _op_sum(args: dict[str, Any]) -> float:
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise ValueError("sum needs numbers")
         total += float(value)
+    return total
+
+
+def _op_to_number(args: dict[str, Any]) -> float:
+    """One strict numeric conversion: a number, or a decimal string that is nothing else."""
+    if "value" not in args:
+        raise ValueError("missing argument 'value'")
+    value = args["value"]
+    if isinstance(value, bool):
+        raise ValueError("a boolean is not a number here")
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        text = value.strip().replace(",", "")
+        if text and text.replace(".", "", 1).lstrip("+-").isdigit():
+            return float(text)
+        raise ValueError(f"{value!r} is not a decimal number")
+    raise ValueError(f"cannot read a number from {type(value).__name__}")
+
+
+def _op_total(args: dict[str, Any]) -> float:
+    """Sum a column that may hold decimal strings (CSV values are text), failing on junk."""
+    items = _items(args)
+    of = args.get("of", "")
+    total = 0.0
+    for item in items:
+        value = _pluck(item, of) if of else item
+        total += _op_to_number({"value": value})
     return total
 
 

@@ -235,8 +235,13 @@ def latest_revision(store: Any, definition_id: str) -> Optional[dict[str, Any]]:
 def submit_workflow_run(store: Any, *, plan: dict[str, Any], definition_id: Optional[str],
                         revision_id: Optional[str], plan_hash: str, bot_id: str, inputs: dict[str, Any],
                         budget: dict[str, Any], origin: str, conversation_id: str,
-                        run: Run, task: Task) -> dict[str, Any]:
-    """Admit one workflow instance and its first orchestration attempt, atomically."""
+                        run: Run, task: Task, idem_key: str = "",
+                        request_hash: str = "") -> tuple[dict[str, Any], bool]:
+    """Admit one workflow instance and its first orchestration attempt, atomically.
+
+    Returns ``(workflow, created)``; a replayed idempotency key returns the original
+    instance instead of starting a second one.
+    """
     if run.parent_run_id is not None:
         raise ValueError("a workflow attempt is admitted as a root run")
     wf_id = new_id("wrun")
@@ -244,8 +249,17 @@ def submit_workflow_run(store: Any, *, plan: dict[str, Any], definition_id: Opti
     run.kind = "workflow"
     run.workflow_run_id = wf_id
     run.task_id = task.id
+    scope = "api:v1:workflow-runs"
     with store._tx() as db:
         store._assert_execution_ready(db)
+        if idem_key:
+            replay = store._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                row = db.execute("SELECT * FROM workflow_runs WHERE id = ?",
+                                 (str(replay["workflow_run_id"]),)).fetchone()
+                if row is None:
+                    raise RuntimeError("idempotent workflow response points to missing state")
+                return _row_to_workflow(row), False
         db.execute("""INSERT INTO workflow_runs (id, definition_id, revision_id, plan_hash, bot_id,
                         conversation_id, origin, inputs_json, budget_json, ledger_json, status, reason,
                         attempt_run_id, created_at, updated_at)
@@ -259,8 +273,13 @@ def submit_workflow_run(store: Any, *, plan: dict[str, Any], definition_id: Opti
                    "conversation_context, kind) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'workflow')",
                    (run.id, run.bot_id, task.id, store._run_json(run), run.status.value, run.created_at,
                     run.conversation_id, json.dumps(run.conversation_context, ensure_ascii=False)))
+        if idem_key:
+            db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) "
+                       "VALUES (?, ?, ?, ?, ?)",
+                       (scope, idem_key, request_hash,
+                        _json({"workflow_run_id": wf_id, "attempt_run_id": run.id}), iso(utcnow())))
     store.bus.notify("work", "runs", f"run:{run.id}")
-    return workflow_run(store, wf_id)
+    return workflow_run(store, wf_id) or {}, True
 
 
 def workflow_run(store: Any, wf_id: str) -> Optional[dict[str, Any]]:
