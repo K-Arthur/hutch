@@ -1,0 +1,15 @@
+{
+  "v": 1,
+  "id": "blk_1a2b3c4d5e6f7a8b",
+  "kind": "text",
+  "revision": 1,
+  "availability": "ready",
+  "text_fallback": "The quick analysis found 42 answers and 3 caveats; details below.",
+  "provenance": {
+    "run_id": "run_0f1e2d3c4b5a6978",
+    "tool": "shell"
+  },
+  "payload": {
+    "content": "The analysis produced 42 answers. Three caveats apply: sampling bias, a two-second warmup, and one unresolved outlier."
+  }
+}

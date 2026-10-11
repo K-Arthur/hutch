@@ -1583,6 +1583,57 @@ def _migrate_53(db: sqlite3.Connection) -> None:
     db.execute("CREATE INDEX idx_inv_stream_inv ON inv_stream_cursors(investigation_id)")
 
 
+def _migrate_54(db: sqlite3.Connection) -> None:
+    """Typed output-blocks foundation (schema v54): uploads, media jobs, workspace sessions.
+
+    ``uploads`` registers files a person handed to a conversation. ``media_jobs``
+    tracks generative media work per run with a UNIQUE ``idempotency_key`` so a
+    repeated submit can never double-spend. ``workspace_sessions`` records one
+    execution environment generation per conversation, so "which environment did
+    this code run in" is durable state, not folklore. Like ``documents`` (v50),
+    nothing here cascades: rows are soft references decided by explicit product
+    rules, and every enumerated column carries a cheap CHECK constraint.
+    """
+    db.execute("""CREATE TABLE IF NOT EXISTS uploads (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL,
+        filename TEXT NOT NULL,
+        mime TEXT NOT NULL,
+        byte_size INTEGER NOT NULL CHECK(byte_size >= 0),
+        sha256 TEXT NOT NULL,
+        state TEXT NOT NULL DEFAULT 'ready' CHECK(state IN ('ready','quarantined','expired','deleted')),
+        created_at TEXT NOT NULL
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_uploads_conversation ON uploads(conversation_id, created_at)")
+    db.execute("""CREATE TABLE IF NOT EXISTS media_jobs (
+        id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL,
+        conversation_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        backend TEXT NOT NULL,
+        status TEXT NOT NULL CHECK(status IN ('queued','running','succeeded','failed','cancelled')),
+        idempotency_key TEXT NOT NULL UNIQUE,
+        upstream_job_id TEXT,
+        requested TEXT NOT NULL,
+        result TEXT,
+        error TEXT,
+        cost_note TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_media_jobs_run ON media_jobs(run_id, created_at)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_media_jobs_conversation ON media_jobs(conversation_id, created_at)")
+    db.execute("""CREATE TABLE IF NOT EXISTS workspace_sessions (
+        conversation_id TEXT PRIMARY KEY,
+        generation INTEGER NOT NULL CHECK(generation >= 1),
+        status TEXT NOT NULL CHECK(status IN ('active','expired','terminated')),
+        env_fingerprint TEXT,
+        workspace_dir TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )""")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -1590,7 +1641,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
-               _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53]
+               _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53, _migrate_54]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -8395,3 +8446,218 @@ class Store:
                 updated += cursor.rowcount
             self._db.commit()
         return updated
+
+    # --------------------------------------------- typed outputs (schema v54)
+    #
+    # Storage half of the typed output-blocks feature (src/hutch/outputblocks.py
+    # owns the block contract; documents/storage.py is the role model for the
+    # byte-level half that later lanes add). Other lanes consume these methods
+    # instead of touching store.py.
+
+    def add_upload(self, conversation_id: str, filename: str, mime: str, byte_size: int, sha256: str, *,
+                   upload_id: Optional[str] = None, state: str = "ready",
+                   created_at: Optional[str] = None) -> dict[str, Any]:
+        """Register one file handed to a conversation. Returns the stored row."""
+        if state not in _UPLOAD_STATES:
+            raise ValueError(f"unknown upload state {state!r}; known: {sorted(_UPLOAD_STATES)}")
+        if not sha256 or len(sha256) != 64:
+            raise ValueError("upload sha256 must be the 64-hex digest of the stored bytes")
+        upload_id = upload_id or f"upl_{secrets.token_hex(8)}"
+        created_at = created_at or iso(utcnow())
+        with self._tx() as db:
+            db.execute(
+                "INSERT INTO uploads (id, conversation_id, filename, mime, byte_size, sha256, state, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (upload_id, conversation_id, filename, mime, int(byte_size), sha256, state, created_at))
+        return self.get_upload(upload_id)  # type: ignore[return-value]
+
+    def uploads_for_conversation(self, conversation_id: str, *, limit: int = 50) -> list[dict[str, Any]]:
+        """Uploads for one conversation, newest first (bounded page)."""
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT * FROM uploads WHERE conversation_id = ? "
+                "ORDER BY created_at DESC, id LIMIT ?",
+                (conversation_id, max(1, min(int(limit), 200)))).fetchall()
+        return [dict(row) for row in rows]
+
+    def get_upload(self, upload_id: str) -> Optional[dict[str, Any]]:
+        with self._lock:
+            row = self._db.execute("SELECT * FROM uploads WHERE id = ?", (upload_id,)).fetchone()
+        return dict(row) if row else None
+
+    def mark_upload_state(self, upload_id: str, state: str) -> dict[str, Any]:
+        """Move an upload to another enumerated state (quarantine, expiry, deletion)."""
+        if state not in _UPLOAD_STATES:
+            raise ValueError(f"unknown upload state {state!r}; known: {sorted(_UPLOAD_STATES)}")
+        with self._tx() as db:
+            cursor = db.execute("UPDATE uploads SET state = ? WHERE id = ?", (state, upload_id))
+            if cursor.rowcount != 1:
+                raise KeyError(f"no such upload: {upload_id}")
+        return self.get_upload(upload_id)  # type: ignore[return-value]
+
+    def create_media_job(self, *, run_id: str, conversation_id: str, kind: str, backend: str,
+                         idempotency_key: str, requested: dict[str, Any],
+                         job_id: Optional[str] = None, created_at: Optional[str] = None) -> dict[str, Any]:
+        """Open a media job in ``queued`` state. Raises ``IdempotencyConflict`` when the
+        idempotency_key was already used - a resubmitted request never double-spends."""
+        if not idempotency_key:
+            raise ValueError("a media job requires a non-empty idempotency_key")
+        if not isinstance(requested, dict):
+            raise ValueError("requested must be a JSON object")
+        job_id = job_id or f"mj_{secrets.token_hex(8)}"
+        created_at = created_at or iso(utcnow())
+        try:
+            with self._tx() as db:
+                db.execute(
+                    "INSERT INTO media_jobs (id, run_id, conversation_id, kind, backend, status, "
+                    "idempotency_key, requested, created_at, updated_at) "
+                    "VALUES (?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?)",
+                    (job_id, run_id, conversation_id, kind, backend, idempotency_key,
+                     _canonical(requested), created_at, created_at))
+        except sqlite3.IntegrityError as exc:
+            if "idempotency_key" in str(exc):
+                raise IdempotencyConflict(
+                    f"media job idempotency_key {idempotency_key!r} was already used") from exc
+            raise
+        return self.get_media_job(job_id)  # type: ignore[return-value]
+
+    def record_upstream_job(self, job_id: str, upstream_job_id: str, *,
+                            updated_at: Optional[str] = None) -> dict[str, Any]:
+        """Attach the upstream provider's job id while the job is still in flight."""
+        updated_at = updated_at or iso(utcnow())
+        with self._tx() as db:
+            row = db.execute("SELECT status FROM media_jobs WHERE id = ?", (job_id,)).fetchone()
+            if row is None:
+                raise KeyError(f"no such media job: {job_id}")
+            if row["status"] in _MEDIA_JOB_TERMINAL:
+                raise ValueError("a finished media job cannot gain an upstream job id")
+            db.execute("UPDATE media_jobs SET upstream_job_id = ?, updated_at = ? WHERE id = ?",
+                       (upstream_job_id, updated_at, job_id))
+        return self.get_media_job(job_id)  # type: ignore[return-value]
+
+    def transition_media_job(self, job_id: str, to_status: str, *,
+                             result: Optional[dict[str, Any]] = None,
+                             error: Optional[str] = None, cost_note: Optional[str] = None,
+                             updated_at: Optional[str] = None) -> dict[str, Any]:
+        """Move a media job along its guarded path
+        (queued → running → succeeded | failed | cancelled; finished is terminal)."""
+        if to_status not in _MEDIA_JOB_TRANSITIONS:
+            raise ValueError(f"unknown media job status {to_status!r}; known: {sorted(_MEDIA_JOB_TRANSITIONS)}")
+        updated_at = updated_at or iso(utcnow())
+        with self._tx() as db:
+            row = db.execute("SELECT status FROM media_jobs WHERE id = ?", (job_id,)).fetchone()
+            if row is None:
+                raise KeyError(f"no such media job: {job_id}")
+            current = row["status"]
+            if to_status not in _MEDIA_JOB_TRANSITIONS[current]:
+                raise ValueError(f"illegal media job transition {current} -> {to_status}")
+            assignments, args = "status = ?, updated_at = ?", [to_status, updated_at]
+            if result is not None:
+                assignments += ", result = ?"
+                args.append(_canonical(result))
+            if error is not None:
+                assignments += ", error = ?"
+                args.append(error)
+            if cost_note is not None:
+                assignments += ", cost_note = ?"
+                args.append(cost_note)
+            args.append(job_id)
+            db.execute(f"UPDATE media_jobs SET {assignments} WHERE id = ?", args)
+        return self.get_media_job(job_id)  # type: ignore[return-value]
+
+    @staticmethod
+    def _media_job_row(row: sqlite3.Row) -> dict[str, Any]:
+        job = dict(row)
+        for column in ("requested", "result"):
+            raw = job.get(column)
+            if isinstance(raw, str) and raw:
+                try:
+                    job[column] = json.loads(raw)
+                except ValueError:
+                    pass  # a corrupted payload surfaces as the stored string, not a crash
+        return job
+
+    def get_media_job(self, job_id: str) -> Optional[dict[str, Any]]:
+        with self._lock:
+            row = self._db.execute("SELECT * FROM media_jobs WHERE id = ?", (job_id,)).fetchone()
+        return self._media_job_row(row) if row else None
+
+    def media_jobs_for_run(self, run_id: str, *, limit: int = 100) -> list[dict[str, Any]]:
+        """Media jobs belonging to one run, oldest first (bounded page)."""
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT * FROM media_jobs WHERE run_id = ? ORDER BY created_at, id LIMIT ?",
+                (run_id, max(1, min(int(limit), 200)))).fetchall()
+        return [self._media_job_row(row) for row in rows]
+
+    def upsert_workspace_session(self, conversation_id: str, generation: int, workspace_dir: str, *,
+                                 status: str = "active", env_fingerprint: Optional[str] = None,
+                                 created_at: Optional[str] = None,
+                                 updated_at: Optional[str] = None) -> dict[str, Any]:
+        """Point a conversation at one execution-environment generation (the row is the session)."""
+        if status not in _WORKSPACE_SESSION_TRANSITIONS:
+            raise ValueError(f"unknown workspace session status {status!r}; "
+                             f"known: {sorted(_WORKSPACE_SESSION_TRANSITIONS)}")
+        if int(generation) < 1:
+            raise ValueError("workspace session generation must be >= 1")
+        created_at = created_at or iso(utcnow())
+        updated_at = updated_at or created_at
+        with self._tx() as db:
+            db.execute(
+                "INSERT INTO workspace_sessions (conversation_id, generation, status, env_fingerprint, "
+                "workspace_dir, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(conversation_id) DO UPDATE SET generation = excluded.generation, "
+                "status = excluded.status, env_fingerprint = excluded.env_fingerprint, "
+                "workspace_dir = excluded.workspace_dir, updated_at = excluded.updated_at",
+                (conversation_id, int(generation), status, env_fingerprint, workspace_dir,
+                 created_at, updated_at))
+        return self.get_workspace_session(conversation_id)  # type: ignore[return-value]
+
+    def get_workspace_session(self, conversation_id: str) -> Optional[dict[str, Any]]:
+        with self._lock:
+            row = self._db.execute(
+                "SELECT * FROM workspace_sessions WHERE conversation_id = ?",
+                (conversation_id,)).fetchone()
+        return dict(row) if row else None
+
+    def transition_workspace_session(self, conversation_id: str, to_status: str, *,
+                                     expected_generation: int,
+                                     updated_at: Optional[str] = None) -> dict[str, Any]:
+        """Change a session's status only if the caller saw the current generation;
+        a stale caller gets ``RevisionConflict`` instead of clobbering the row."""
+        if to_status not in _WORKSPACE_SESSION_TRANSITIONS:
+            raise ValueError(f"unknown workspace session status {to_status!r}; "
+                             f"known: {sorted(_WORKSPACE_SESSION_TRANSITIONS)}")
+        updated_at = updated_at or iso(utcnow())
+        with self._tx() as db:
+            row = db.execute("SELECT generation, status FROM workspace_sessions WHERE conversation_id = ?",
+                             (conversation_id,)).fetchone()
+            if row is None:
+                raise KeyError(f"no workspace session for conversation: {conversation_id}")
+            if int(row["generation"]) != int(expected_generation):
+                raise RevisionConflict(
+                    f"workspace session was concurrently advanced "
+                    f"(generation {row['generation']}, not {expected_generation})")
+            if to_status not in _WORKSPACE_SESSION_TRANSITIONS[row["status"]]:
+                raise ValueError(f"illegal workspace session transition "
+                                 f"{row['status']} -> {to_status}")
+            db.execute("UPDATE workspace_sessions SET status = ?, updated_at = ? WHERE conversation_id = ?",
+                       (to_status, updated_at, conversation_id))
+        return self.get_workspace_session(conversation_id)  # type: ignore[return-value]
+
+
+#: enumerated states and guarded transitions for the schema-v54 typed-outputs tables
+_UPLOAD_STATES = frozenset({"ready", "quarantined", "expired", "deleted"})
+_MEDIA_JOB_TERMINAL = frozenset({"succeeded", "failed", "cancelled"})
+_MEDIA_JOB_TRANSITIONS = {
+    "queued": frozenset({"running", "failed", "cancelled"}),
+    "running": frozenset({"succeeded", "failed", "cancelled"}),
+    "succeeded": frozenset(),
+    "failed": frozenset(),
+    "cancelled": frozenset(),
+}
+_WORKSPACE_SESSION_TRANSITIONS = {
+    "active": frozenset({"expired", "terminated"}),
+    "expired": frozenset({"active", "terminated"}),
+    "terminated": frozenset(),
+}

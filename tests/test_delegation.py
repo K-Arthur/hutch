@@ -199,7 +199,11 @@ def _remove_later_conversation_schema(db):
     db.execute("DROP INDEX IF EXISTS idx_documents_bot")
     db.execute("DROP INDEX IF EXISTS idx_document_versions_run")
     db.execute("DROP INDEX IF EXISTS idx_usage_run")
-    for table in ("document_versions", "documents",
+    db.execute("DROP INDEX IF EXISTS idx_uploads_conversation")
+    db.execute("DROP INDEX IF EXISTS idx_media_jobs_run")
+    db.execute("DROP INDEX IF EXISTS idx_media_jobs_conversation")
+    for table in ("uploads", "media_jobs", "workspace_sessions",
+                  "document_versions", "documents",
                   "budget_pause_releases", "budget_policies",
                   "inv_stream_cursors", "inv_answers", "inv_observations", "inv_media_frames", "inv_media",
                   "inv_evidence", "inv_claims", "inv_sources", "inv_query_attempts", "investigations",

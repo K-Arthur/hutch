@@ -1,0 +1,59 @@
+{
+  "v": 1,
+  "id": "blk_7a8b9c0d1e2f3a4b",
+  "kind": "comparison",
+  "revision": 1,
+  "availability": "ready",
+  "text_fallback": "Local shell beats the cloud notebook on cost; the notebook cannot work offline.",
+  "provenance": {
+    "run_id": "run_0f1e2d3c4b5a6978",
+    "tool": "shell"
+  },
+  "payload": {
+    "items": [
+      {
+        "id": "local",
+        "label": "Local shell"
+      },
+      {
+        "id": "cloud",
+        "label": "Cloud notebook"
+      }
+    ],
+    "criteria": [
+      {
+        "id": "cost",
+        "label": "Monthly cost",
+        "unit": "USD"
+      },
+      {
+        "id": "offline",
+        "label": "Works offline"
+      }
+    ],
+    "cells": [
+      {
+        "item": "local",
+        "criterion": "cost",
+        "value": "0",
+        "citations": "hutch pricing doc"
+      },
+      {
+        "item": "cloud",
+        "criterion": "cost",
+        "value": "120"
+      },
+      {
+        "item": "local",
+        "criterion": "offline",
+        "value": "yes"
+      },
+      {
+        "item": "cloud",
+        "criterion": "offline",
+        "state": "unsupported"
+      }
+    ],
+    "ranking_note": "The local shell wins on both criteria for this user."
+  }
+}

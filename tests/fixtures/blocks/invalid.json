@@ -1,0 +1,14 @@
+{
+  "v": 1,
+  "id": "blk_NOT-VALID",
+  "kind": "chart",
+  "revision": 0,
+  "availability": "weird",
+  "provenance": {
+    "run_id": "run_x",
+    "tool": "shell"
+  },
+  "payload": {
+    "kind": "bar"
+  }
+}

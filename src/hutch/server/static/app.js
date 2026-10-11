@@ -2463,6 +2463,8 @@ async function renderChatStudio(preferredBot = null) {
                   <button class="cmenu-files" id="prompt-template-library-open" type="button">${icon("fileText")} Browse saved requests</button>
                   <button class="cmenu-files" id="prompt-template-import" type="button" aria-controls="task-template-file">Import task-template file</button>
                   <input class="visually-hidden" id="task-template-file" type="file" accept=".json,application/json">
+                  <button class="cmenu-files" id="workspace-upload-open" type="button">${icon("fileText")} Attach a data file</button>
+                  <input class="visually-hidden" id="workspace-upload-file" type="file" multiple accept=".csv,.tsv,.txt,.md,.json,.png,.jpeg,.jpg,.webp">
                   <button class="cmenu-files" id="conversation-files-open" type="button">${icon("folder")} Browse files in this chat</button>
                   <button class="cmenu-files" id="conversation-export-open" type="button">Export conversation as JSON</button>
                   <div class="cmenu-sep"></div>
@@ -4270,6 +4272,7 @@ function toolLineHtml(item, anchorEvent, runId, includeFileAttachments = true) {
         ${res ? toolOutputHtml(res.d.output) : '<div class="tool-line-section"><span class="tool-line-label">Output</span>pending…</div>'}
       </div>
       ${res?.d.artifact ? `<div class="tool-artifact-actions" id="tla-${esc(String(idx))}" ${open ? "" : "hidden"}>${artifactDownloadHtml(runId, res.d)}${sourceCardHtml(res.d, runId)}</div>` : ""}
+      ${hutchWidgetsFeedItemHtml(res ? res.d : null, { runId })}
     </div>
     ${includeFileAttachments ? createdFilesHtml(runId, [{ result: res }]) : ""}
   </div>`;
@@ -9981,6 +9984,167 @@ document.addEventListener("click", event => {
   if (versions) {
     openDocumentVersions(versions.dataset.docVersions, versions.dataset.docName, versions);
   }
+});
+
+/* ------------------------------------------- typed output blocks (widgets lane)
+   A tool can attach validated output blocks to its result event:
+   data.blocks (canonical dicts) + data.block_errors (labeled rejections), per
+   docs/research/outputs-block-contract-2026-10-10.md. This hook is the ONLY
+   touchpoint between the feed renderer and widgets.js: toolLineHtml calls it
+   with the result data and it returns the widget-card HTML, or "" when
+   widgets.js is unavailable or the result carries no blocks. widgets.js owns
+   all interactivity through its own document-level delegation and re-reads its
+   UI state from localStorage keyed by block id, so the wholesale feed
+   re-render stays safe. A rejected or unrenderable block always shows its
+   text_fallback and the error — the diagnostic is never erased. */
+function hutchWidgetsFeedItemHtml(data, helpers) {
+  const widgets = window.HutchWidgets;
+  if (!widgets || typeof widgets.blocksHtml !== "function") return "";
+  try {
+    return widgets.blocksHtml(data ? data.blocks : null, data ? data.block_errors : null,
+      { runId: helpers ? helpers.runId : "" }) || "";
+  } catch (err) {
+    console.error("widget block render failed", err);
+    return "";
+  }
+}
+
+/* ------------------------------------------- upload intake (uploads lane)
+   The composer's "Attach a data file" menu item puts files into this
+   conversation's workspace via POST /api/v1/conversations/{id}/uploads and
+   shows them as chips above the composer. Chips are client-side view state
+   (localStorage per conversation, the app's convention): removing a chip only
+   drops it from this composer — the file stays in the workspace and in the
+   Files browser until deleted there. The file is referenced by name in the
+   message; nothing about the outgoing message is rewritten. */
+
+function hutchUploadsKey(conversationId) {
+  return "hutch-uploads:" + (conversationId || "");
+}
+
+function hutchUploadsGet(conversationId) {
+  try {
+    const raw = localStorage.getItem(hutchUploadsKey(conversationId));
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    return [];
+  }
+}
+
+function hutchUploadsPut(conversationId, uploads) {
+  try {
+    localStorage.setItem(hutchUploadsKey(conversationId), JSON.stringify(uploads));
+  } catch (err) { /* storage full or unavailable: chips are view state, so dropping them is honest */ }
+}
+
+function hutchUploadsHumanSize(bytes) {
+  const n = Number(bytes) || 0;
+  if (n < 1024) return n + " B";
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+  return (n / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+function hutchUploadsRow(uploads, statusHtml) {
+  if (!uploads.length && !statusHtml) return "";
+  const chips = uploads.map(up => `
+    <span class="upload-chip" role="listitem">
+      <span class="upload-chip-name">${esc(up.filename)}</span>
+      <span class="upload-chip-size">${esc(hutchUploadsHumanSize(up.bytes))}</span>
+      <button type="button" class="upload-chip-remove" data-upload-remove="${esc(up.id)}"
+        aria-label="Remove ${esc(up.filename)} from this message draft">${icon("x")}</button>
+    </span>`).join("");
+  return `<div class="composer-attachments">
+    <div class="composer-attachments-chips" role="list" aria-label="Files attached to this chat's workspace">${chips}</div>
+    <p class="composer-attachments-hint">Files land in this chat's workspace; mention them by name in your message. <span class="composer-attachments-status" role="status" aria-live="polite">${statusHtml || ""}</span></p>
+  </div>`;
+}
+
+function hutchUploadsSync() {
+  const box = document.getElementById("composer-box");
+  if (!box || !currentConversationId) return;
+  const existing = box.querySelector(".composer-attachments");
+  if (existing) existing.remove();
+  const status = box.querySelector(".composer-attachments-status");
+  box.insertAdjacentHTML("afterbegin",
+    hutchUploadsRow(hutchUploadsGet(currentConversationId), status ? status.innerHTML : ""));
+}
+
+async function hutchUploadsSend(conversationId, file) {
+  if (file.size > 25000000) {
+    return { error: `${file.name} is over the 25 MB upload limit` };
+  }
+  const body = new FormData();
+  body.append("file", file, file.name);
+  const headers = {};
+  if (hutchCsrfToken) headers["X-Hutch-CSRF"] = hutchCsrfToken;
+  if (hutchSession?.principal === "paired") headers["X-Hutch-Request"] = "1";
+  let res;
+  try {
+    res = await fetch(`/api/v1/conversations/${encodeURIComponent(conversationId)}/uploads`, {
+      method: "POST", credentials: "same-origin", headers, body,
+    });
+  } catch (error) {
+    return { error: `Upload of ${file.name} failed: no response from the server` };
+  }
+  if (!res.ok) {
+    let detail = "";
+    try { detail = (await res.json())?.detail || ""; } catch (err) { /* non-JSON error body */ }
+    return { error: `Upload of ${file.name} refused: ${detail || res.status}` };
+  }
+  return { upload: await res.json() };
+}
+
+const __hutchOrigRenderChatStudio = renderChatStudio;
+renderChatStudio = async function (...args) {
+  const result = await __hutchOrigRenderChatStudio.apply(this, args);
+  try { hutchUploadsSync(); } catch (err) { console.error("attachment chips render failed", err); }
+  return result;
+};
+
+document.addEventListener("click", event => {
+  const open = event.target.closest("#workspace-upload-open");
+  if (open) {
+    const input = document.getElementById("workspace-upload-file");
+    if (input) input.click();
+    return;
+  }
+  const remove = event.target.closest("[data-upload-remove]");
+  if (remove && currentConversationId) {
+    hutchUploadsPut(currentConversationId,
+      hutchUploadsGet(currentConversationId).filter(up => up.id !== remove.dataset.uploadRemove));
+    hutchUploadsSync();
+  }
+});
+
+document.addEventListener("change", async event => {
+  const input = event.target.closest("#workspace-upload-file");
+  if (!input || !input.files || !input.files.length) return;
+  if (!currentConversationId) {
+    announce("No conversation is open, so nothing was uploaded.");
+    input.value = "";
+    return;
+  }
+  const conversationId = currentConversationId;
+  const uploads = hutchUploadsGet(conversationId);
+  let status = "";
+  for (const file of input.files) {
+    announce(`Uploading ${file.name}…`);
+    const outcome = await hutchUploadsSend(conversationId, file);
+    if (outcome.error) {
+      status = outcome.error;
+      announce(outcome.error);
+    } else {
+      uploads.push({ id: outcome.upload.id, filename: outcome.upload.filename, bytes: outcome.upload.bytes });
+      status = `Uploaded ${outcome.upload.filename}`;
+      announce(`Uploaded ${outcome.upload.filename} to this chat's workspace`);
+    }
+  }
+  hutchUploadsPut(conversationId, uploads);
+  hutchUploadsSync();
+  const statusEl = document.querySelector("#composer-box .composer-attachments-status");
+  if (statusEl) statusEl.textContent = status;
+  input.value = "";
 });
 
 void bootstrapHutchApp();

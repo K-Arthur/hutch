@@ -1,0 +1,53 @@
+{
+  "cards": [
+    {
+      "index": 0,
+      "kind": "code_receipt",
+      "height": 604.28125
+    },
+    {
+      "index": 1,
+      "kind": "chart",
+      "height": 461.21875
+    },
+    {
+      "index": 2,
+      "kind": "table",
+      "height": 425.265625
+    },
+    {
+      "index": 3,
+      "kind": "timeline",
+      "height": 653.203125
+    },
+    {
+      "index": 4,
+      "kind": "comparison",
+      "height": 247.046875
+    },
+    {
+      "index": 5,
+      "kind": "code_receipt",
+      "height": 298.40625
+    },
+    {
+      "index": 6,
+      "kind": "media",
+      "height": 136.234375
+    },
+    {
+      "index": 7,
+      "kind": "flowchart",
+      "height": 276.0625
+    },
+    {
+      "index": 8,
+      "kind": "media",
+      "height": 471.765625
+    }
+  ],
+  "console_errors": [],
+  "page_errors": [],
+  "flowchart_detail": "Collect authorized inputs group: ingest\n\nNo further detail recorded for this step.\n\nnode id collect",
+  "flowchart_focus": "collect"
+}

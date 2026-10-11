@@ -1,0 +1,17 @@
+{
+  "v": 1,
+  "id": "blk_0d1e2f3a4b5c6d7e",
+  "kind": "status",
+  "revision": 1,
+  "availability": "ready",
+  "text_fallback": "Rendering: chart 2 of 3 is in progress.",
+  "provenance": {
+    "run_id": "run_0f1e2d3c4b5a6978",
+    "tool": "shell"
+  },
+  "payload": {
+    "stage": "render",
+    "detail": "Chart 2 of 3 is rendering.",
+    "state": "running"
+  }
+}

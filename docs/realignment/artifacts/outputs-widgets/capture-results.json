@@ -1,0 +1,102 @@
+{
+  "viewports": {
+    "desktop": {
+      "width": 1440,
+      "height": 1000,
+      "scroll_width": 1440,
+      "client_width": 1440,
+      "block_kinds": [
+        "code_receipt",
+        "chart",
+        "table",
+        "timeline",
+        "comparison",
+        "code_receipt",
+        "media",
+        "flowchart",
+        "media"
+      ],
+      "debug": {
+        "cards": 9,
+        "display": "block",
+        "visibility": "visible",
+        "rect": {
+          "x": 520,
+          "y": 649.875,
+          "width": 658.9375,
+          "height": 604.28125,
+          "top": 649.875,
+          "right": 1178.9375,
+          "bottom": 1254.15625,
+          "left": 520
+        }
+      }
+    },
+    "tablet": {
+      "width": 900,
+      "height": 1024,
+      "scroll_width": 900,
+      "client_width": 900,
+      "block_kinds": [
+        "code_receipt",
+        "chart",
+        "table",
+        "timeline",
+        "comparison",
+        "code_receipt",
+        "media",
+        "flowchart",
+        "media"
+      ],
+      "debug": {
+        "cards": 9,
+        "display": "block",
+        "visibility": "visible",
+        "rect": {
+          "x": 102,
+          "y": 665.875,
+          "width": 658.9375,
+          "height": 604.28125,
+          "top": 665.875,
+          "right": 760.9375,
+          "bottom": 1270.15625,
+          "left": 102
+        }
+      }
+    },
+    "phone": {
+      "width": 390,
+      "height": 844,
+      "scroll_width": 390,
+      "client_width": 390,
+      "block_kinds": [
+        "code_receipt",
+        "chart",
+        "table",
+        "timeline",
+        "comparison",
+        "code_receipt",
+        "media",
+        "flowchart",
+        "media"
+      ],
+      "debug": {
+        "cards": 9,
+        "display": "block",
+        "visibility": "visible",
+        "rect": {
+          "x": 32,
+          "y": 685.859375,
+          "width": 346,
+          "height": 686.65625,
+          "top": 685.859375,
+          "right": 378,
+          "bottom": 1372.515625,
+          "left": 32
+        }
+      }
+    }
+  },
+  "console_errors": [],
+  "page_errors": []
+}
