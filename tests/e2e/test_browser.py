@@ -426,11 +426,28 @@ def test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports(bro
             actions_locator = panel.locator(".workflow-panel-actions")
             title_locator.wait_for(state="visible")
             actions_locator.wait_for(state="visible")
-            title_box = title_locator.bounding_box()
-            actions_box = actions_locator.bounding_box()
+            # Chat events can trigger a workflow refresh while the page is
+            # resizing. Measure both elements in one browser turn so an atomic
+            # panel replacement cannot split the geometry sample.
+            def panel_header_bounds():
+                return page.evaluate("""() => {
+                  const title = document.querySelector('#workflow-panel h2');
+                  const actions = document.querySelector('#workflow-panel .workflow-panel-actions');
+                  const visible = element => element && element.isConnected &&
+                    element.getClientRects().length && getComputedStyle(element).visibility !== 'hidden';
+                  if (!visible(title) || !visible(actions)) return null;
+                  const bounds = element => {
+                    const rect = element.getBoundingClientRect();
+                    return {x: rect.x, y: rect.y, width: rect.width, height: rect.height};
+                  };
+                  return {title: bounds(title), actions: bounds(actions)};
+                }""")
+
+            header_bounds = wait_for(panel_header_bounds, timeout=5)
+            title_box, actions_box = header_bounds["title"], header_bounds["actions"]
             assert card_box and card_box["x"] >= 0 and card_box["x"] + card_box["width"] <= width + 1
             assert title_box and actions_box
-            if width <= 520:
+            if width <= 820:
                 assert title_box["width"] >= card_box["width"] * 0.7
                 assert title_box["y"] + title_box["height"] <= actions_box["y"] + 1
             trace.append({"viewport": label, "size": [width, height], "state": "waiting",
@@ -471,8 +488,14 @@ def test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports(bro
             assert overflow <= 1, f"{label} paused view has horizontal overflow: {overflow}px"
             action = panel.locator(".workflow-panel-actions")
             action.wait_for(state="visible")
-            resume_target = panel.get_by_role("button", name="Resume workflow").bounding_box()
-            assert resume_target and resume_target["height"] >= (44 if width <= 520 else 24)
+            resume_target = wait_for(lambda: page.evaluate("""() => {
+              const element = document.querySelector('#workflow-panel [data-workflow-action="resume"]');
+              if (!element || !element.isConnected || !element.getClientRects().length ||
+                  getComputedStyle(element).visibility === 'hidden') return null;
+              const rect = element.getBoundingClientRect();
+              return {x: rect.x, y: rect.y, width: rect.width, height: rect.height};
+            }"""), timeout=5)
+            assert resume_target and resume_target["height"] >= (44 if width <= 820 else 24)
             page.screenshot(path=str(artifacts / f"{label}-paused.png"), full_page=True, animations="disabled")
             trace.append({"viewport": label, "size": [width, height], "state": "paused",
                           "horizontal_overflow_px": overflow,

@@ -758,6 +758,13 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
   .code-handoff-command { align-items: stretch; flex-direction: column; }
   .code-handoff-command .btn { align-self: flex-start; }
 }
+@media (min-width: 521px) and (max-width: 820px) {
+  .workflow-panel { max-height: min(58dvh, 30rem); }
+  .workflow-panel-head { flex-direction: column; }
+  .workflow-panel-head > div:first-child { width: 100%; }
+  .workflow-panel-actions { width: 100%; justify-content: flex-start; }
+  .workflow-panel-actions .btn { min-height: 44px; }
+}
 .workspace-task-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; }
 .workspace-task-brief { margin: var(--s-3) 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .workspace-task-assumptions { margin: 0 0 var(--s-2); color: var(--text-2); white-space: pre-wrap; overflow-wrap: anywhere; }

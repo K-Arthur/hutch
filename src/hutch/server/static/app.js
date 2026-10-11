@@ -498,14 +498,13 @@ async function refreshWorkflowPanel(botName, conversationId, generation, force =
         void answerWorkflowQuestion(form, botName, conversationId, generation);
       }));
       if (oldFocus) {
+        const actionOrder = oldFocus.action === "pause" ? ["resume", "pause", "refresh"]
+          : oldFocus.action === "resume" ? ["pause", "resume", "refresh"] : [oldFocus.action];
         const target = oldFocus.summary && oldFocus.disclosure
           ? panel.querySelector(`details[data-workflow-disclosure="${CSS.escape(oldFocus.disclosure)}"] > summary`)
-          : $$('[data-workflow-action]', panel).find(element => {
-            const action = oldFocus.action === "pause" ? "resume"
-              : oldFocus.action === "resume" ? "refresh" : oldFocus.action;
-            return element.dataset.workflowAction === action &&
-              (action === "refresh" || element.dataset.workflowId === oldFocus.id);
-          });
+          : actionOrder.map(action => $$('[data-workflow-action]', panel).find(element =>
+            element.dataset.workflowAction === action &&
+            (action === "refresh" || element.dataset.workflowId === oldFocus.id))).find(Boolean);
         target?.focus({ preventScroll: true });
       }
     }

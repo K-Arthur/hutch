@@ -114,6 +114,8 @@ Once the attempt is parked and the owned child/process tree is verified quiet, t
 remain answerable while paused, but no downstream node starts until the owner resumes the workflow.
 Resume wakes the supervisor; it starts a fresh attempt from durable state rather than restarting
 the old process. Stop remains available throughout and clears pause intent as it cancels owned work.
+Live card refreshes keep keyboard focus on the available pause/resume action, and the Studio header
+stacks its title and controls at tablet widths so long workflow names remain readable.
 
 The local-owner API uses `POST /api/v1/workflows/runs/{id}/pause` and
 `POST /api/v1/workflows/runs/{id}/resume`. Both require an `Idempotency-Key`,
