@@ -38,7 +38,8 @@ def _version_rows(data: bytes, filename: str = "report.pdf", version: int = 1,
 
 
 def test_schema_v50_tables_exist(store: Store):
-    assert SCHEMA_VERSION == 50
+    # The schema keeps advancing; this test owns the v50 tables, not the current number.
+    assert SCHEMA_VERSION >= 50
     names = {row["name"] for row in store._db.execute(
         "SELECT name FROM sqlite_master WHERE type='table'")}
     assert {"documents", "document_versions"} <= names
