@@ -42,6 +42,32 @@ SCOPES = (CALENDAR_LIST_SCOPE, CALENDAR_EVENTS_SCOPE)
 CALLBACK_PATH = "/api/v1/connections/google-calendar/callback"
 STATE_TTL_SECONDS = 600
 ACCOUNT_RE = re.compile(r"^gcal_[0-9a-f]{24}$")
+#: documented maximum for a relative reminder override (four weeks, in minutes)
+REMINDER_MINUTES_MAX = 40_320
+REMINDER_METHODS = ("popup", "email")
+
+
+def _validated_reminder_overrides(reminders: dict[str, int]) -> list[dict[str, Any]]:
+    """Relative overrides only: {method: minutes before start}. Absolute times are refused."""
+    if not isinstance(reminders, dict) or not reminders:
+        raise GoogleCalendarError("provide at least one reminder override")
+    overrides = []
+    for method, minutes in reminders.items():
+        if method not in REMINDER_METHODS:
+            raise GoogleCalendarError(f"unsupported reminder method {method!r}")
+        if not isinstance(minutes, int) or isinstance(minutes, bool) or not 0 <= minutes <= REMINDER_MINUTES_MAX:
+            raise GoogleCalendarError(
+                f"reminder offsets are minutes before the event start (0-{REMINDER_MINUTES_MAX}); "
+                "absolute times are not a Calendar reminder")
+        overrides.append({"method": method, "minutes": minutes})
+    return overrides
+
+
+def _reminder_key(overrides: Any) -> tuple:
+    if isinstance(overrides, dict):
+        return tuple(sorted((str(k), int(v)) for k, v in overrides.items()))
+    return tuple(sorted((str(o.get("method")), int(o.get("minutes", -1))) for o in overrides or []))
+
 _ACCESS_LOCK = threading.Lock()
 _ACCESS_CACHE: dict[tuple[str, str], tuple[float, str]] = {}
 _SECRET_PROBE_LOCK = threading.Lock()
@@ -466,7 +492,8 @@ class GoogleCalendarBook:
             return token
 
     def _api_request(self, method: str, url: str, account_id: str, *, params: dict[str, Any] | None = None,
-                     json_body: dict[str, Any] | None = None, purpose="Calendar data") -> dict[str, Any]:
+                     json_body: dict[str, Any] | None = None, extra_headers: dict[str, str] | None = None,
+                     purpose="Calendar data") -> dict[str, Any]:
         parts = urlsplit(url)
         if parts.scheme != "https" or parts.hostname != self.api_host or parts.username or parts.password:
             raise GoogleCalendarError(f"Refusing a {self.feature_name} API destination outside Google's verified API host")
@@ -475,7 +502,8 @@ class GoogleCalendarBook:
                 try:
                     return client.request(method, url, params=params, json=json_body,
                                           headers={"Authorization": f"Bearer {token}",
-                                                   "Accept": "application/json"})
+                                                   "Accept": "application/json",
+                                                   **(extra_headers or {})})
                 except httpx.HTTPError:
                     if method != "GET":
                         raise GoogleCalendarOutcomeUnknown(
@@ -612,6 +640,7 @@ class GoogleCalendarBook:
 
     def create_event(self, account_id: str, calendar_id: str, *, summary: str, start: str, end: str,
                      description: str = "", location: str = "",
+                     reminders: dict[str, int] | None = None,
                      before_write: Callable[[], str | None] | None = None) -> dict[str, str]:
         """Create a guest-free event on one account-owned calendar using an opted-in write scope.
 
@@ -629,6 +658,7 @@ class GoogleCalendarBook:
         start_dt, end_dt = self._time(start_value, "start"), self._time(end_value, "end")
         if not self.account_can_create_events(account):
             raise GoogleCalendarError("This Google account does not have event-creation permission; reconnect with that explicit option")
+        reminder_overrides = _validated_reminder_overrides(reminders) if reminders is not None else None
 
         calendars = self.list_calendars(account_id)
         selected = next((item for item in calendars if item["id"] == calendar_id), None)
@@ -644,6 +674,8 @@ class GoogleCalendarBook:
             event["description"] = clean_description
         if clean_location:
             event["location"] = clean_location
+        if reminder_overrides is not None:
+            event["reminders"] = {"useDefault": False, "overrides": reminder_overrides}
         if before_write is not None:
             refusal = before_write()
             if refusal:
@@ -661,8 +693,11 @@ class GoogleCalendarBook:
                 "Google may have created the event but returned no verifiable ID; check the calendar before retrying")
         verify_url = f"{self.api_base}/calendars/{quote(calendar_id, safe='')}/events/{quote(event_id, safe='')}"
         try:
+            fields = "id,status,summary,start(dateTime),end(dateTime),description,location"
+            if reminder_overrides is not None:
+                fields += ",reminders"
             verified = self._api_request("GET", verify_url, account_id,
-                                         params={"fields": "id,status,summary,start(dateTime),end(dateTime),description,location"},
+                                         params={"fields": fields},
                                          purpose="created event verification")
             verified_start = verified.get("start") if isinstance(verified.get("start"), dict) else {}
             verified_end = verified.get("end") if isinstance(verified.get("end"), dict) else {}
@@ -670,9 +705,13 @@ class GoogleCalendarBook:
             actual_end = self._time(verified_end.get("dateTime"), "verified end")
             actual_description = verified.get("description", "")
             actual_location = verified.get("location", "")
+            reminders_match = (reminder_overrides is None or
+                               _reminder_key(((verified.get("reminders") or {}).get("overrides")) or [])
+                               == _reminder_key(reminder_overrides))
             if (verified.get("id") != event_id or verified.get("status") != "confirmed" or
                     verified.get("summary") != clean_summary or actual_start != start_dt or actual_end != end_dt or
-                    actual_description != clean_description or actual_location != clean_location):
+                    actual_description != clean_description or actual_location != clean_location or
+                    not reminders_match):
                 raise GoogleCalendarOutcomeUnknown(
                     "Google accepted the event request but the created event details could not be verified exactly; check the calendar before retrying")
         except GoogleCalendarOutcomeUnknown:
@@ -681,6 +720,79 @@ class GoogleCalendarBook:
             raise GoogleCalendarOutcomeUnknown(
                 "Google may have created the event, but Hutch could not verify it; check the calendar before retrying") from None
         return {"id": event_id, "summary": clean_summary, "start": start_value, "end": end_value}
+
+    def update_event_reminders(self, account_id: str, calendar_id: str, event_id: str, *,
+                               overrides: dict[str, int] | None,
+                               before_write: Callable[[], str | None] | None = None) -> dict[str, Any]:
+        """Set (or reset) relative reminders on one existing event, with read-back verification.
+
+        ``overrides`` maps method -> minutes before the event start; ``None`` resets the event
+        to the calendar's default reminders. The update is conditional on the event's current
+        etag (If-Match), so a human edit between review and write is refused instead of
+        silently overwritten. The caller must obtain one-time human approval and persist the
+        effect intent before calling this method; unknown outcomes are raised separately and
+        must not be retried without checking the event.
+        """
+        account = self._account(account_id)
+        if not isinstance(calendar_id, str) or not 1 <= len(calendar_id) <= 256 or any(ord(c) < 32 for c in calendar_id):
+            raise GoogleCalendarError("Choose a valid calendar from the connected account")
+        if not isinstance(event_id, str) or not 1 <= len(event_id) <= 1024 or any(ord(c) < 32 for c in event_id):
+            raise GoogleCalendarError("Choose a valid event id")
+        if not self.account_can_create_events(account):
+            raise GoogleCalendarError("This Google account does not have event-write permission; reconnect with that explicit option")
+        if overrides is None:
+            body: dict[str, Any] = {"reminders": {"useDefault": True, "overrides": []}}
+            expected: dict[str, Any] = {"useDefault": True, "overrides": []}
+        else:
+            clean_overrides = _validated_reminder_overrides(overrides)
+            body = {"reminders": {"useDefault": False, "overrides": clean_overrides}}
+            expected = {"useDefault": False, "overrides": clean_overrides}
+        calendars = self.list_calendars(account_id)
+        selected = next((item for item in calendars if item["id"] == calendar_id), None)
+        if selected is None:
+            raise GoogleCalendarError("The selected calendar is no longer available; review this Bot's Connections grant")
+        if selected.get("access_role") != "owner":
+            raise GoogleCalendarError("Google's event-write scope only covers calendars you own; this Bot can keep read-only access here")
+        clean_calendar = quote(calendar_id, safe="")
+        base = f"{self.api_base}/calendars/{clean_calendar}/events/{quote(event_id, safe='')}"
+        current = self._api_request("GET", base, account_id,
+                                    params={"fields": "id,status,etag,summary"},
+                                    purpose="event reminder review")
+        if current.get("status") == "cancelled":
+            raise GoogleCalendarError("That event is cancelled; there is nothing to remind about")
+        etag = str(current.get("etag") or "")
+        if before_write is not None:
+            refusal = before_write()
+            if refusal:
+                raise GoogleCalendarError(f"{refusal}; the update was not sent")
+        try:
+            self._api_request("PATCH", base, account_id, json_body=body,
+                              extra_headers={"If-Match": etag} if etag else None,
+                              purpose="event reminder update")
+        except GoogleCalendarError as exc:
+            if "HTTP 412" in str(exc):
+                raise GoogleCalendarError(
+                    "the event changed since it was reviewed (its etag no longer matches); "
+                    "re-read the event and review the change before trying again") from None
+            raise
+        try:
+            verified = self._api_request("GET", base, account_id,
+                                         params={"fields": "id,status,reminders"},
+                                         purpose="updated event verification")
+            reminders = verified.get("reminders") or {}
+            matches = ((expected["useDefault"] is True and reminders.get("useDefault") is True
+                        and not (reminders.get("overrides") or []))
+                       or (expected["useDefault"] is False and reminders.get("useDefault") is False
+                           and _reminder_key(reminders.get("overrides") or []) == _reminder_key(expected["overrides"])))
+            if verified.get("id") != event_id or verified.get("status") == "cancelled" or not matches:
+                raise GoogleCalendarOutcomeUnknown(
+                    "Google accepted the reminder change but it could not be verified exactly; check the event before retrying")
+        except GoogleCalendarOutcomeUnknown:
+            raise
+        except GoogleCalendarError:
+            raise GoogleCalendarOutcomeUnknown(
+                "Google may have updated the reminders, but Hutch could not verify them; check the event before retrying") from None
+        return {"event_id": event_id, "reminders": expected}
 
     def disconnect(self, account_id: str) -> dict[str, Any]:
         if not self.account_pattern.fullmatch(account_id):

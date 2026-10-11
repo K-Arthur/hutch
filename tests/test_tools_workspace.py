@@ -91,7 +91,7 @@ def test_run_workspace_plan_executes_with_the_approved_hash(tmp_path, store, con
 
     calls: list[str] = []
 
-    def _executors(client):
+    def _executors(client, *, calendar_book=None):
         def run(step, plan):
             calls.append(step.id)
             return ExecutorResult(ok=True, remote_id=f"remote-{step.id}")
@@ -120,3 +120,88 @@ def test_run_workspace_plan_executes_with_the_approved_hash(tmp_path, store, con
          "separately_approved": ["tell"]}, ctx)
     assert with_share.ok
     assert with_share.data["status"] == "completed"
+
+
+def test_event_plan_requires_the_bot_calendar_grant_then_executes(tmp_path, store, config, monkeypatch):
+    account = "gcal_" + "b" * 24
+    ctx = _ctx(tmp_path, store, config)
+    steps = [{"kind": "event_create", "id": "meet", "title": "Create the meeting",
+              "target": {"service": "calendar", "account": account,
+                         "display": "Calendar 'primary' 2026-10-12 09:00"},
+              "inputs": {"summary": "Design review", "start": "2026-10-12T09:00:00",
+                         "end": "2026-10-12T10:00:00", "timezone": "America/Los_Angeles",
+                         "reminders": {"popup": 10}}}]
+    planned = PlanWorkspaceActionTool().run({"intent": "book a review", "steps": steps}, ctx)
+    assert planned.ok, planned.output
+
+    class _Client:
+        def accounts(self):
+            from hutch.gsuite.client import WorkspaceAccount
+            return [WorkspaceAccount(account_id="gws_" + "a" * 24, label="T", scopes=())]
+
+    monkeypatch.setattr("hutch.tools.workspace_actions._client", lambda ctx: _Client())
+    missing = RunWorkspacePlanTool().run(
+        {"plan_id": planned.data["plan_id"], "approved_hash": planned.data["approval_scope_hash"]}, ctx)
+    assert not missing.ok and "Calendar connection grant" in missing.output
+
+    store.set_google_calendar_grant(ctx.bot.id, account, "primary", "Personal",
+                                    allow_event_creation=True)
+    created: list[dict] = []
+
+    class _Book:
+        def __init__(self, state_dir, client_id):
+            pass
+
+        def accounts(self):
+            return [{"id": account, "label": "Personal", "status": "connected"}]
+
+        def create_event(self, account_id, calendar_id, *, summary, start, end,
+                         description="", reminders=None, before_write=None):
+            created.append({"account_id": account_id, "calendar_id": calendar_id,
+                            "summary": summary, "start": start, "reminders": reminders})
+            return {"id": "event-9", "summary": summary, "start": start, "end": end}
+
+    monkeypatch.setattr("hutch.tools.workspace_actions.GoogleCalendarBook", _Book)
+    monkeypatch.setattr(ctx.gate, "decide", lambda *a, **k: None)
+    executed = RunWorkspacePlanTool().run(
+        {"plan_id": planned.data["plan_id"], "approved_hash": planned.data["approval_scope_hash"]}, ctx)
+    assert executed.ok, executed.output
+    assert executed.data["status"] == "completed"
+    assert created and created[0]["calendar_id"] == "primary"
+    assert created[0]["reminders"] == {"popup": 10}
+    assert executed.data["report"]["steps"][0]["remote_id"] == "event-9"
+
+
+def test_reminder_step_never_clears_reminders_by_accident(tmp_path, store, config, monkeypatch):
+    account = "gcal_" + "b" * 24
+    ctx = _ctx(tmp_path, store, config)
+    steps = [{"kind": "cloud_edit", "id": "remind", "title": "Set the reminder",
+              "target": {"service": "calendar", "account": account, "resource_id": "event-9",
+                         "display": "event-9 reminders"},
+              "inputs": {"event_id": "event-9", "calendar_id": "primary"}}]  # no reminders key
+    planned = PlanWorkspaceActionTool().run({"intent": "set a reminder", "steps": steps}, ctx)
+    assert planned.ok
+
+    class _Client:
+        def accounts(self):
+            from hutch.gsuite.client import WorkspaceAccount
+            return [WorkspaceAccount(account_id="gws_" + "a" * 24, label="T", scopes=())]
+
+    class _Book:
+        def __init__(self, *a, **k):
+            pass
+
+        def accounts(self):
+            return [{"id": account, "status": "connected"}]
+
+        def update_event_reminders(self, *a, **k):
+            raise AssertionError("must not run without explicit reminders or reset_default")
+
+    monkeypatch.setattr("hutch.tools.workspace_actions._client", lambda ctx: _Client())
+    monkeypatch.setattr("hutch.tools.workspace_actions.GoogleCalendarBook", _Book)
+    monkeypatch.setattr(ctx.gate, "decide", lambda *a, **k: None)
+    store.set_google_calendar_grant(ctx.bot.id, account, "primary", "Personal")
+    executed = RunWorkspacePlanTool().run(
+        {"plan_id": planned.data["plan_id"], "approved_hash": planned.data["approval_scope_hash"]}, ctx)
+    assert executed.ok and executed.data["status"] == "failed"
+    assert "reset_default" in executed.output

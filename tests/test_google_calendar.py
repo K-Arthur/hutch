@@ -623,3 +623,199 @@ def test_calendar_tool_rechecks_current_grant_and_returns_only_untrusted_read_da
     denied = tool.run({"time_min": "x", "time_max": "y"},
                       SimpleNamespace(bot=bot, store=store, config=SimpleNamespace(state_dir="state")))
     assert not denied.ok and "access was removed" in denied.output
+
+
+# --- relative reminder overrides and existing-event updates (synthesis lane) ---
+
+def _writable_book(tmp_path, handler, account_id):
+    secrets = MemorySecrets()
+    secrets.values[account_id] = "refresh-token"
+    book = GoogleCalendarBook(tmp_path, "client.apps.googleusercontent.com", secrets_store=secrets,
+                              transport=httpx.MockTransport(handler), clock=lambda: 1000)
+    seed_account(book, account_id)
+    account = book._read_accounts()["accounts"][account_id]
+    account["scopes"].append("https://www.googleapis.com/auth/calendar.events.owned")
+    account["event_creation_opted_in"] = True
+    book._write_accounts({"version": 1, "accounts": {account_id: account}})
+    return book
+
+
+def _base_handler(requests, *, verify_json):
+    def handler(request):
+        requests.append(request)
+        if request.url.host == "oauth2.googleapis.com":
+            return httpx.Response(200, json={"access_token": "access-token", "token_type": "Bearer",
+                                             "expires_in": 3600})
+        if request.method == "GET" and request.url.path.endswith("/users/me/calendarList"):
+            return httpx.Response(200, json={"items": [{"id": "primary", "summary": "Personal",
+                                                          "accessRole": "owner"}]})
+        if request.method == "PATCH":
+            requests[-1] = request
+            return httpx.Response(200, json={"id": "event-123", "status": "confirmed"})
+        if request.method == "GET":
+            return httpx.Response(200, json=verify_json(request))
+        return httpx.Response(200, json={"id": "event-123", "status": "confirmed"})
+
+    return handler
+
+
+def test_event_creation_with_relative_reminders_is_posted_and_verified(tmp_path):
+    account_id = "gcal_0123456789abcdef01234567"
+    requests = []
+
+    def verify(request):
+        assert request.url.params["fields"] == ("id,status,summary,start(dateTime),end(dateTime),"
+                                                "description,location,reminders")
+        return {"id": "event-123", "status": "confirmed", "summary": "Planning review",
+                "start": {"dateTime": "2026-10-12T10:00:00-07:00"},
+                "end": {"dateTime": "2026-10-12T10:30:00-07:00"}, "description": "", "location": "",
+                "reminders": {"useDefault": False, "overrides": [{"method": "popup", "minutes": 10}]}}
+
+    handler = _base_handler(requests, verify_json=verify)
+    book = _writable_book(tmp_path, handler, account_id)
+    original_post = handler
+
+    def wrapped(request):
+        if request.method == "POST":
+            body = json.loads(request.content)
+            assert body["reminders"] == {"useDefault": False,
+                                        "overrides": [{"method": "popup", "minutes": 10}]}
+            return httpx.Response(200, json={"id": "event-123", "status": "confirmed",
+                                             "summary": body["summary"], "start": body["start"],
+                                             "end": body["end"]})
+        return original_post(request)
+
+    book._transport = httpx.MockTransport(wrapped)
+    event = book.create_event(account_id, "primary", summary="Planning review",
+                              start="2026-10-12T10:00:00-07:00", end="2026-10-12T10:30:00-07:00",
+                              reminders={"popup": 10})
+    assert event["id"] == "event-123"
+
+
+def test_reminders_are_refused_before_any_provider_call(tmp_path):
+    account_id = "gcal_0123456789abcdef01234567"
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        return httpx.Response(500)
+
+    book = _writable_book(tmp_path, handler, account_id)
+    book._transport = httpx.MockTransport(handler)
+    for bad in ({"popup": 90_000}, {"popup": -1}, {"sms": 5}, {"popup": True}, {}):
+        with pytest.raises(GoogleCalendarError):
+            book.create_event(account_id, "primary", summary="x",
+                              start="2026-10-12T10:00:00-07:00", end="2026-10-12T10:30:00-07:00",
+                              reminders=bad)
+    with pytest.raises(GoogleCalendarError):
+        book.update_event_reminders(account_id, "primary", "event-123", overrides={"popup": 90_000})
+    assert calls == [], "invalid reminder input must not reach Google"
+
+
+def test_update_event_reminders_uses_if_match_and_verifies_readback(tmp_path):
+    account_id = "gcal_0123456789abcdef01234567"
+    seen = {"patch": None}
+
+    def handler(request):
+        if request.url.host == "oauth2.googleapis.com":
+            return httpx.Response(200, json={"access_token": "access-token", "token_type": "Bearer",
+                                             "expires_in": 3600})
+        if request.url.path.endswith("/users/me/calendarList"):
+            return httpx.Response(200, json={"items": [{"id": "primary", "summary": "Personal",
+                                                          "accessRole": "owner"}]})
+        if request.method == "GET" and request.url.params.get("fields") == "id,status,etag,summary":
+            return httpx.Response(200, json={"id": "event-123", "status": "confirmed",
+                                             "etag": "etag-1", "summary": "Planning review"})
+        if request.method == "PATCH":
+            seen["patch"] = request
+            return httpx.Response(200, json={"id": "event-123", "status": "confirmed"})
+        assert request.url.params["fields"] == "id,status,reminders"
+        return httpx.Response(200, json={"id": "event-123", "status": "confirmed",
+                                         "reminders": {"useDefault": False,
+                                                       "overrides": [{"method": "popup", "minutes": 15}]}})
+
+    book = _writable_book(tmp_path, handler, account_id)
+    book._transport = httpx.MockTransport(handler)
+    result = book.update_event_reminders(account_id, "primary", "event-123",
+                                         overrides={"popup": 15})
+    assert seen["patch"].headers.get("If-Match") == "etag-1"
+    body = json.loads(seen["patch"].content)
+    assert body == {"reminders": {"useDefault": False,
+                                  "overrides": [{"method": "popup", "minutes": 15}]}}
+    assert result == {"event_id": "event-123",
+                      "reminders": {"useDefault": False,
+                                    "overrides": [{"method": "popup", "minutes": 15}]}}
+
+
+def test_update_event_reminders_can_reset_to_default(tmp_path):
+    account_id = "gcal_0123456789abcdef01234567"
+    patches = []
+
+    def handler(request):
+        if request.url.host == "oauth2.googleapis.com":
+            return httpx.Response(200, json={"access_token": "access-token", "token_type": "Bearer",
+                                             "expires_in": 3600})
+        if request.url.path.endswith("/users/me/calendarList"):
+            return httpx.Response(200, json={"items": [{"id": "primary", "summary": "Personal",
+                                                          "accessRole": "owner"}]})
+        if request.method == "PATCH":
+            patches.append(json.loads(request.content))
+            return httpx.Response(200, json={"id": "event-123"})
+        if request.url.params.get("fields") == "id,status,etag,summary":
+            return httpx.Response(200, json={"id": "event-123", "status": "confirmed",
+                                             "etag": "e1", "summary": "x"})
+        return httpx.Response(200, json={"id": "event-123", "status": "confirmed",
+                                         "reminders": {"useDefault": True, "overrides": []}})
+
+    book = _writable_book(tmp_path, handler, account_id)
+    book._transport = httpx.MockTransport(handler)
+    result = book.update_event_reminders(account_id, "primary", "event-123", overrides=None)
+    assert patches == [{"reminders": {"useDefault": True, "overrides": []}}]
+    assert result["reminders"] == {"useDefault": True, "overrides": []}
+
+
+def test_update_event_reminders_mismatch_is_uncertain_not_success(tmp_path):
+    account_id = "gcal_0123456789abcdef01234567"
+
+    def handler(request):
+        if request.url.host == "oauth2.googleapis.com":
+            return httpx.Response(200, json={"access_token": "access-token", "token_type": "Bearer",
+                                             "expires_in": 3600})
+        if request.url.path.endswith("/users/me/calendarList"):
+            return httpx.Response(200, json={"items": [{"id": "primary", "summary": "Personal",
+                                                          "accessRole": "owner"}]})
+        if request.method == "PATCH":
+            return httpx.Response(200, json={"id": "event-123"})
+        if request.url.params.get("fields") == "id,status,etag,summary":
+            return httpx.Response(200, json={"id": "event-123", "status": "confirmed",
+                                             "etag": "e1", "summary": "x"})
+        return httpx.Response(200, json={"id": "event-123", "status": "confirmed",
+                                         "reminders": {"useDefault": False,
+                                                       "overrides": [{"method": "popup", "minutes": 30}]}})
+
+    book = _writable_book(tmp_path, handler, account_id)
+    book._transport = httpx.MockTransport(handler)
+    with pytest.raises(GoogleCalendarOutcomeUnknown):
+        book.update_event_reminders(account_id, "primary", "event-123", overrides={"popup": 15})
+
+
+def test_update_event_reminders_conflict_is_a_clean_refusal(tmp_path):
+    account_id = "gcal_0123456789abcdef01234567"
+
+    def handler(request):
+        if request.url.host == "oauth2.googleapis.com":
+            return httpx.Response(200, json={"access_token": "access-token", "token_type": "Bearer",
+                                             "expires_in": 3600})
+        if request.url.path.endswith("/users/me/calendarList"):
+            return httpx.Response(200, json={"items": [{"id": "primary", "summary": "Personal",
+                                                          "accessRole": "owner"}]})
+        if request.method == "PATCH":
+            return httpx.Response(412, json={"error": {"message": "conditionNotMet"}})
+        return httpx.Response(200, json={"id": "event-123", "status": "confirmed",
+                                         "etag": "stale", "summary": "x"})
+
+    book = _writable_book(tmp_path, handler, account_id)
+    book._transport = httpx.MockTransport(handler)
+    with pytest.raises(GoogleCalendarError) as exc:
+        book.update_event_reminders(account_id, "primary", "event-123", overrides={"popup": 15})
+    assert "changed since it was reviewed" in str(exc.value)

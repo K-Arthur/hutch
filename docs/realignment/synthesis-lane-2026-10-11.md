@@ -71,7 +71,8 @@ Workspace actions (Docs brief, Sheets table, Drive placement, Calendar/reminder 
 | S5a | Workspace request contracts (Docs tabs/revisions, Sheets RAW+append, Drive ids/uploads, Calendar events, reminder routing) | **implemented, local tests green** (17 tests, no I/O) |
 | S5b | Workspace OAuth transport + executors + action plan/effect orchestration | **implemented, local tests green** (10 plan-engine + 8 fake-Google transport tests; live Google unexecuted — no account) |
 | S5c | Tool layer: ingest_source, register_manifest, register_script, render_audio_overview, plan_workspace_action, run_workspace_plan | **implemented, local tests green** (8 tool tests; registered in groups `synthesis`/`workspace`, hidden in Strict Offline for the network tools) |
-| S5d | Calendar executor + connections API/UI for the Workspace OAuth callback + artifact download routes | planned (design gate first for UI) |
+| S5d | Calendar: relative reminders on create, conditional (`If-Match`) reminder updates, plan-step executors with grant checks | **implemented, local tests green** (6 client tests + 2 tool tests; live Google unexecuted) |
+| S5e | Connections API for the Workspace OAuth callback + hash-verified artifact download routes | in progress |
 | S6 | UI integration (source selector, coverage, format controls, action drawer) | planned (design gate first) |
 | S7 | Integrated acceptance, visual/audio evidence, independent verification | planned |
 
@@ -104,13 +105,15 @@ Workspace actions (Docs brief, Sheets table, Drive placement, Calendar/reminder 
 
 ## Next slice notes (2026-10-12)
 
-* **Calendar executor (S5d)** needs a reviewed extension of `google_calendar.py`, not a
-  duplicate: the existing write path is deliberately guest-free create-only with strict
-  read-back. The mission's reminder scenarios need (a) relative reminder overrides on
-  create and on an existing event, and (b) event updates with the same verification
-  discipline and outcome-unknown semantics. Add them as new methods with tests against that
-  module's injected-transport harness, then bind `event_create`/`routine_config` plan steps
-  through `gsuite/executors.py`.
+* **Calendar (S5d, done 2026-10-12):** `create_event(reminders=...)` posts relative overrides
+  and verifies them in the read-back; `update_event_reminders` reviews the event, updates
+  conditionally with `If-Match` on the current etag (a human edit between review and write
+  is refused with "the event changed since it was reviewed"), and verifies the result;
+  mismatch or unverifiable outcomes raise outcome-unknown and are never retried blind.
+  Plan steps (`event_create`, `cloud_edit` for reminders) execute through the Bot's
+  Google Calendar grant; a reminder step with no `reminders` and no `reset_default` fails
+  instead of silently clearing reminders. `routine_config` steps remain unbound (Hutch
+  routine creation is a separate reviewed integration).
 * **Connections API/UI** for the Workspace OAuth callback (`/api/v1/connections/google-workspace/…`)
   and **artifact download routes** for rendered audio/transcripts (hash-verified, conversation-
   scoped) are the remaining server work before the acceptance journey can run in the app.

@@ -17,6 +17,7 @@ from typing import Any, Callable, Optional
 
 from ..actions.execute import Executor, ExecutorResult
 from ..actions.plan import ActionPlan, PlanStep
+from ..google_calendar import GoogleCalendarBook, GoogleCalendarError, GoogleCalendarOutcomeUnknown
 from .client import GoogleWorkspaceClient, GoogleWorkspaceError, GoogleWorkspaceOutcomeUnknown
 from . import requests as ws
 
@@ -44,8 +45,9 @@ def _columns(spec: list[dict[str, Any]]) -> list[ws.ColumnSpec]:
 
 
 def workspace_executors(client: GoogleWorkspaceClient, *,
-                        read_local_file: Optional[Callable[[str], bytes]] = None) -> dict[Any, Executor]:
-    """Executor map for docs/sheets/drive plan steps.
+                        read_local_file: Optional[Callable[[str], bytes]] = None,
+                        calendar_book: Optional[GoogleCalendarBook] = None) -> dict[Any, Executor]:
+    """Executor map for docs/sheets/drive (and, with a book, calendar) plan steps.
 
     ``read_local_file`` reads the bytes for a Drive upload step; it defaults to reading the
     validated path in the step inputs directly (the caller supplies a path it already owns).
@@ -155,10 +157,63 @@ def workspace_executors(client: GoogleWorkspaceClient, *,
             return _fail(str(exc))
         return ExecutorResult(ok=True, remote_id=document_id, result={"replies": result.get("replies", [])})
 
-    return {
+    def create_calendar_event(step: PlanStep, plan: ActionPlan) -> ExecutorResult:
+        inputs = step.inputs
+        account = step.target.account
+        if not account:
+            return _fail("the calendar step has no connected account")
+        calendar_id = str(inputs.get("calendar_id") or step.target.resource_id or "primary")
+        try:
+            spec = ws.calendar_timed_event(
+                summary=str(inputs.get("summary") or step.title),
+                start=str(inputs.get("start") or ""), end=str(inputs.get("end") or ""),
+                timezone=str(inputs.get("timezone") or ""),
+                description=str(inputs.get("description") or ""),
+                reminders={str(k): int(v) for k, v in (inputs.get("reminders") or {}).items()} or None)
+        except ws.WorkspaceRequestError as exc:
+            return _fail(str(exc))
+        try:
+            created = calendar_book.create_event(
+                account, calendar_id, summary=spec["summary"],
+                start=spec["start"]["dateTime"], end=spec["end"]["dateTime"],
+                description=str(spec.get("description") or ""),
+                reminders=({m: int(v) for m, v in (inputs.get("reminders") or {}).items()}
+                           if inputs.get("reminders") else None))
+        except GoogleCalendarOutcomeUnknown as exc:
+            return _fail(str(exc), uncertain=True)
+        except GoogleCalendarError as exc:
+            return _fail(str(exc))
+        return ExecutorResult(ok=True, remote_id=created["id"], result=created)
+
+    def update_calendar_reminders(step: PlanStep, plan: ActionPlan) -> ExecutorResult:
+        inputs = step.inputs
+        account = step.target.account
+        event_id = str(inputs.get("event_id") or step.target.resource_id or "")
+        calendar_id = str(inputs.get("calendar_id") or "primary")
+        if not account or not event_id:
+            return _fail("the reminder step needs a connected account and an event id")
+        overrides = inputs.get("reminders")
+        if not overrides and not inputs.get("reset_default"):
+            return _fail("the reminder step needs explicit reminders {method: minutes} or reset_default: true"
+                         " (a missing key never clears reminders by accident)")
+        try:
+            result = calendar_book.update_event_reminders(
+                account, calendar_id, event_id,
+                overrides=({str(k): int(v) for k, v in overrides.items()} if overrides else None))
+        except GoogleCalendarOutcomeUnknown as exc:
+            return _fail(str(exc), uncertain=True)
+        except GoogleCalendarError as exc:
+            return _fail(str(exc))
+        return ExecutorResult(ok=True, remote_id=event_id, result=result)
+
+    mapping: dict[Any, Executor] = {
         ("cloud_create", "docs"): create_docs,
         ("cloud_create", "sheets"): create_sheets,
         ("cloud_create", "drive"): upload_drive,
         ("cloud_edit", "sheets"): append_rows,
         ("cloud_edit", "docs"): update_docs,
     }
+    if calendar_book is not None:
+        mapping[("event_create", "calendar")] = create_calendar_event
+        mapping[("cloud_edit", "calendar")] = update_calendar_reminders
+    return mapping

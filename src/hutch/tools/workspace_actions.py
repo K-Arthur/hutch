@@ -13,6 +13,7 @@ from typing import Any
 
 from ..actions.execute import ApprovalMismatch, execute_plan, plan_outcome_report
 from ..actions.plan import ActionPlan, build_plan, plan_review
+from ..google_calendar import GoogleCalendarBook
 from ..google_oauth_config import resolve_google_oauth_client_id
 from ..gsuite.client import GoogleWorkspaceClient, GoogleWorkspaceError
 from ..gsuite.executors import workspace_executors
@@ -129,10 +130,37 @@ class RunWorkspacePlanTool(Tool):
                 "Connections (Docs + Sheets + drive.file scopes) and retry; nothing was sent."))
         account_ids = {a.account_id for a in accounts}
         unbound = [s.target.display or s.id for s in plan.steps
-                   if s.target.account and s.target.account not in account_ids]
+                   if s.target.account and s.target.account not in account_ids
+                   and s.target.service in ("docs", "sheets", "drive")]
         if unbound:
             return ToolResult(ok=False, output=(
                 "error: these steps name an account that is not connected: " + ", ".join(unbound[:5])))
+        calendar_book = None
+        calendar_steps = [s for s in plan.steps
+                          if s.target.service == "calendar" and s.kind in ("event_create", "cloud_edit")]
+        if calendar_steps:
+            grant_reader = getattr(ctx.store, "google_calendar_grant", None)
+            grant = grant_reader(ctx.bot.id) if callable(grant_reader) else None
+            if not grant:
+                return ToolResult(ok=False, output=(
+                    "error: this Bot has no Google Calendar connection grant; connect a calendar "
+                    "account and grant it before approving a calendar step. Nothing was sent."))
+            for step in calendar_steps:
+                if step.target.account and step.target.account != grant.get("account_id"):
+                    return ToolResult(ok=False, output=(
+                        "error: calendar steps must use this Bot's granted calendar account "
+                        f"({grant.get('account_id')}), not {step.target.account}"))
+                if step.kind == "event_create" and not grant.get("allow_event_creation"):
+                    return ToolResult(ok=False, output=(
+                        "error: this Bot's Calendar grant does not include event creation; "
+                        "reconnect it with that explicit option before planning an event"))
+            oauth_client_id, _source = resolve_google_oauth_client_id(ctx.store)
+            calendar_book = GoogleCalendarBook(ctx.config.state_dir, oauth_client_id)
+            connected = {str(a.get("id")) for a in calendar_book.accounts()}
+            for step in calendar_steps:
+                if step.target.account and step.target.account not in connected:
+                    return ToolResult(ok=False, output=(
+                        f"error: calendar account {step.target.account} is not connected on this machine"))
         review = plan_review(plan)
         try:
             ctx.gate.decide(
@@ -143,7 +171,7 @@ class RunWorkspacePlanTool(Tool):
                 outward=True)
         except Exception as exc:  # noqa: BLE001 - denial and expiry both stop the call
             return ToolResult(ok=False, output=f"error: {exc}")
-        executors = workspace_executors(client)
+        executors = workspace_executors(client, calendar_book=calendar_book)
         try:
             executed = execute_plan(
                 plan, store=ctx.store, executors=executors, approved_hash=approved_hash,
