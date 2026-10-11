@@ -135,6 +135,8 @@ class FakeOllama(_Server):
             m.setdefault("head_dim", 128)
             m.setdefault("size", 5_000_000_000)
             m.setdefault("template", "{{ .Prompt }}")
+            m.setdefault("digest", "sha256:" + name.replace(":", "-").replace("/", "-"))
+            m.setdefault("tokenizer", {"tokenizer.ggml.model": "gpt2", "tokenizer.ggml.tokens": 32000})
         self.loaded: list[str] = []
         self.max_loaded = max_loaded
         self.load_delay = load_delay
@@ -168,7 +170,7 @@ class FakeOllama(_Server):
             return self.send_json(h, {"version": self.version})
         if path == "/api/tags":
             return self.send_json(h, {"models": [
-                {"name": n, "model": n, "size": m["size"], "digest": "sha256:fake",
+                {"name": n, "model": n, "size": m["size"], "digest": m["digest"],
                  "details": {"parameter_size": m["params"], "quantization_level": m["quant"], "family": "llama"}}
                 for n, m in self.models.items()]})
         if path == "/api/ps":
@@ -185,7 +187,7 @@ class FakeOllama(_Server):
                 "model_info": {"general.architecture": "llama", "llama.context_length": m["ctx"],
                                "llama.block_count": m["layers"], "llama.attention.head_count": 32,
                                "llama.attention.head_count_kv": m["kv_heads"], "llama.embedding_length": 4096,
-                               "llama.attention.key_length": m["head_dim"]}})
+                               "llama.attention.key_length": m["head_dim"], **m["tokenizer"]}})
         if path == "/api/generate":
             name = body.get("model")
             if name not in self.models:

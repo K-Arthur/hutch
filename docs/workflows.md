@@ -94,7 +94,15 @@ actions, and saving never grants a schedule or wider permissions.
 ## Roles and qualification
 
 A model is not "workflow-capable" in general. Each role is qualified separately, per exact
-route revision, with its own evidence:
+route revision and execution profile, with its own evidence. The profile distinguishes the
+serving backend/version, checkpoint digest where available, quantization, chat template,
+tokenizer, protocol/parser, effective context, decoding settings and reported modalities.
+It contains no credential or resource-readiness state. For Ollama, `/api/tags` and `/api/show`
+provide the installed digest and model metadata; missing identity fields are reported as
+incomplete instead of guessed. These fields now participate in compiler identity, so changing
+one cannot silently reuse a plan compiled for another execution setup. Qualification records
+are not yet bound to the full profile; until held-out probes and that binding land, no live
+checkpoint should be described as author- or selector-qualified.
 
 | Role | Qualification |
 |---|---|
@@ -115,9 +123,12 @@ hutch workflow qualify research-bot --role worker --reason "local extraction onl
 hutch workflow qualify research-bot --revoke --role worker
 ```
 
-Qualifications are keyed to the exact route identity (connection, endpoint, protocol,
-template, quantization, backend). Change any of those and the old record simply stops
-matching - nothing is silently re-validated.
+Current role records are keyed to the exact route identity (connection, endpoint and protocol).
+The model execution profile is now captured separately and its fingerprint changes with
+backend version, checkpoint digest, template, tokenizer, quantization, effective context,
+decoding, parser or reported modalities. Binding stored role evidence to that fingerprint and
+running bounded held-out probes are still required before the profile can grant author or
+selector authority. No acknowledgement creates either qualification.
 
 ## Verification
 

@@ -124,6 +124,8 @@ class ChatResult:
 class ModelMeta:
     """What a runtime reports about an installed model (LM-5)."""
     name: str
+    backend: str = ""                    # runtime implementation, not a credential/account
+    backend_version: str = ""             # exact serving runtime build when reported
     params_b: Optional[float] = None       # billions of parameters
     quant: str = ""
     family: str = ""
@@ -134,6 +136,7 @@ class ModelMeta:
     head_dim: Optional[int] = None
     capabilities: list[str] = field(default_factory=list)
     template_hash: str = ""                # chat-template fingerprint (LM-11 profile key)
+    tokenizer_hash: str = ""               # tokenizer metadata fingerprint when reported
     license: str = ""
     digest: str = ""
 

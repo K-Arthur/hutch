@@ -473,9 +473,13 @@ was not applied. Workflow questions also carry revision/attempt identity, so old
 cannot change a stopped or replaced instance.
 
 Roles are gated by evidence, not by a model name: `workflow/qualify.py` resolves the same
-route identity the runtime records observations under (`route_identity.route_tuple`), so a
-changed connection, endpoint, protocol, template, quantization or backend invalidates a
-qualification automatically. Authoring and selection require probed evidence; worker and
+route identity the runtime records observations under (`route_identity.route_tuple`). Runtime
+tool profiles additionally fingerprint backend/version, checkpoint digest where available,
+quantization, template/tokenizer hashes, protocol/parser, effective context, decoding settings
+and reported modalities; this exact profile now participates in compiler identity. Stored role
+qualifications are not yet bound to that execution-profile fingerprint, so the role gate still
+needs the qualification-probe slice before it can claim exact build-scoped evidence. Authoring
+and selection require probed evidence; worker and
 verifier roles use documented/advertised/observed evidence with recorded caveats; a
 negative state blocks the capability. The model-facing `draft_workflow` tool validates and
 explains but cannot start anything, and a guessed direct call is refused with its options.

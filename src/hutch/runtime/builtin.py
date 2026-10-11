@@ -483,7 +483,9 @@ class BuiltinRuntime:
         return None
 
     def _resolve_tool_profile(self, ctx: ToolContext, ladder: Ladder, rung: Rung,
-                              revision: str = "") -> ModelCapabilityProfile:
+                              *, metadata: Optional[ModelMeta] = None,
+                              effective_context: Optional[int] = None,
+                              decoding: Optional[dict[str, Any]] = None) -> ModelCapabilityProfile:
         """Resolve the exact route's tool-calling profile; passive observations are inputs, not authority."""
         book = self._connections(ctx)
         conn = book.get(rung.provider)
@@ -509,8 +511,12 @@ class BuiltinRuntime:
             observations = list(ctx.store.list_model_capability_observations(limit=20))
         except Exception:
             observations = []
+        route = self._route_identity(ctx, ladder, rung, book=book)
+        route_revision = hashlib.sha256(json.dumps(route, sort_keys=True, separators=(",", ":"),
+                                               default=str).encode()).hexdigest()
         return resolve_profile(provider=rung.provider, endpoint=endpoint, model=rung.model,
-                               revision=revision, observations=observations)
+                               revision=route_revision, observations=observations, metadata=metadata,
+                               effective_context=effective_context, decoding=decoding)
 
     # ---------------------------------------------------------------- startup
 
@@ -658,7 +664,10 @@ class BuiltinRuntime:
         # Finalize for the model that actually came online: an unavailable primary must not
         # leave a contract compiled for a different route, and the catalog snapshot is logged
         # before the first turn.
-        profile = self._resolve_tool_profile(ctx, ladder, session.rung, revision=_session_revision(session))
+        profile = self._resolve_tool_profile(
+            ctx, ladder, session.rung, metadata=session.meta, effective_context=session.num_ctx,
+            decoding={"temperature": None, "max_tokens": self._turn_cap(bot, session.rung),
+                      "think": bot.think if bot.think is not None else False, "stream": session.stream})
         try:
             plan = compile_plan(tools=tools, profile=profile, strategy=requested)
         except ToolProtocolUnavailable as exc:
@@ -1049,15 +1058,6 @@ def _plain_schema(value: Any) -> Any:
         return item
 
     return thaw(value)
-
-
-def _session_revision(session: Session) -> str:
-    """A build/template fingerprint when the runtime reports one (Ollama digest + template)."""
-    meta = session.meta
-    if meta is None:
-        return ""
-    parts = [getattr(meta, "digest", "") or "", getattr(meta, "template_hash", "") or ""]
-    return ":".join(p for p in parts if p)
 
 
 def _normalize_call_ids(run: Run, calls: list) -> dict[str, str]:
