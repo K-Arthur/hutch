@@ -1390,6 +1390,25 @@ def _migrate_52(db: sqlite3.Connection) -> None:
     db.execute("ALTER TABLE usage ADD COLUMN reported_cost_usd REAL")
 
 
+def _migrate_53(db: sqlite3.Connection) -> None:
+    """LM-3: durable compaction manifests - what this run's model actually saw when history was summarized.
+
+    Canonical history (`messages`, `runs.conversation_context`) is never rewritten by compaction; this
+    table is the audit trail of the derived view: covered unit ranges, content digests, token counts,
+    summarizer route, its reservation id, and the bounded summary text.
+    """
+    db.execute("""CREATE TABLE run_compactions (
+        id TEXT PRIMARY KEY, run_id TEXT NOT NULL, seq INTEGER NOT NULL, created_at TEXT NOT NULL,
+        reason TEXT NOT NULL DEFAULT '', destination TEXT NOT NULL DEFAULT '',
+        before_tokens INTEGER NOT NULL, after_tokens INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL, dropped_units INTEGER NOT NULL DEFAULT 0, kept_units INTEGER NOT NULL DEFAULT 0,
+        input_digest TEXT NOT NULL DEFAULT '', summary_digest TEXT NOT NULL DEFAULT '',
+        summarizer_route TEXT NOT NULL DEFAULT '', reservation_id TEXT,
+        actions TEXT NOT NULL DEFAULT '[]', summary_text TEXT NOT NULL DEFAULT '',
+        UNIQUE(run_id, seq))""")
+    db.execute("CREATE INDEX idx_run_compactions_run ON run_compactions(run_id, seq)")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -1397,7 +1416,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
-               _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52]
+               _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -7500,6 +7519,42 @@ class Store:
                         "WHERE account_id = ? AND status IN ('reserved','uncertain')",
                         (account,)).fetchone()[0] or 0.0))
         raise ValueError(f"unknown budget scope '{scope_kind}'")
+
+    # ------------------------------------------------------ compaction manifests (LM-3)
+
+    def record_compaction(self, *, run_id: str, reason: str, destination: str, before_tokens: int,
+                          after_tokens: int, attempts: int, status: str, dropped_units: int, kept_units: int,
+                          input_digest: str, summary_digest: str, summarizer_route: str = "",
+                          reservation_id: Optional[str] = None, actions: Optional[list] = None,
+                          summary_text: str = "") -> str:
+        """Record one bounded compaction attempt (success or failure) for this run's model view."""
+        from .models import new_id
+        with self._tx() as db:
+            seq = int(db.execute("SELECT COALESCE(MAX(seq), 0) + 1 FROM run_compactions WHERE run_id = ?",
+                                 (run_id,)).fetchone()[0])
+            compaction_id = new_id("cmp")
+            db.execute("INSERT INTO run_compactions (id, run_id, seq, created_at, reason, destination, "
+                       "before_tokens, after_tokens, attempts, status, dropped_units, kept_units, input_digest, "
+                       "summary_digest, summarizer_route, reservation_id, actions, summary_text) "
+                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                       (compaction_id, run_id, seq, iso(utcnow()), str(reason)[:200], str(destination)[:200],
+                        int(before_tokens), int(after_tokens), int(attempts), str(status)[:40],
+                        int(dropped_units), int(kept_units), str(input_digest)[:128], str(summary_digest)[:128],
+                        str(summarizer_route)[:160], reservation_id,
+                        json.dumps(actions or [], ensure_ascii=False)[:20_000], str(summary_text)[:20_000]))
+        self.bus.notify("runs", f"run:{run_id}")
+        return compaction_id
+
+    def compaction_count(self, run_id: str) -> int:
+        with self._lock:
+            return int(self._db.execute("SELECT COUNT(*) FROM run_compactions WHERE run_id = ?",
+                                        (run_id,)).fetchone()[0])
+
+    def run_compactions(self, run_id: str) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._db.execute("SELECT * FROM run_compactions WHERE run_id = ? ORDER BY seq",
+                                    (run_id,)).fetchall()
+        return [dict(row) for row in rows]
 
     def _usage_authority(self, db: sqlite3.Connection, run_id: str, bot_id: Optional[str],
                          expected_fence: Optional[int], *, required: bool = True) -> None:

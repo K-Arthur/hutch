@@ -376,6 +376,7 @@ class Bot(BaseModel):
     think: Optional[bool] = None      # None = off for small local models, model default for hosted (SR-5)
     selfcheck: bool = True            # prove the context window works before the first run (LM-2)
     num_ctx: Optional[int] = None     # manual context override; None = computed from hardware and preset
+    compaction: Literal["auto", "off"] = "auto"   # auto = bounded summaries may fit history; off = block instead (LM-3)
     tool_limits: dict[str, int] = Field(default_factory=dict)   # per-tool output limits in chars (PF-2)
     sandbox: str = Field(default_factory=lambda: _default_sandbox())   # strict | off: OS containment of the shell (ADR-0006)
     shell_network: bool = False       # may commands in the sandbox use the network? (default: no)

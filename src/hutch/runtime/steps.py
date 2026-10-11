@@ -275,6 +275,7 @@ def finish_step(run: Run, ctx: ToolContext, timer: StepTimer, *, model: str = ""
                 prompt_tokens: int = 0, completion_tokens: int = 0, cached_tokens: int = 0,
                 cost_usd: float = 0.0, account_id: str = "", reservation_id: Optional[str] = None,
                 cost_source: str = "", reported_cost_usd: Optional[float] = None,
+                usage_kind: str = "step",
                 **extra: Any) -> None:
     """Fold a step into the run's totals and append its ``step`` event."""
     total_ms = (time.perf_counter() - timer.t0) * 1000.0
@@ -294,7 +295,7 @@ def finish_step(run: Run, ctx: ToolContext, timer: StepTimer, *, model: str = ""
     elif prompt_tokens or completion_tokens:
         provider, _, name = (model or run.model_used or "unknown/unknown").partition("/")
         ctx.store.add_usage(run.id, run.bot_id, provider, name or provider, prompt_tokens, completion_tokens,
-                            cached_tokens, cost_usd, account_id=account_id, reservation_id=reservation_id,
+                            cached_tokens, cost_usd, kind=usage_kind, account_id=account_id, reservation_id=reservation_id,
                             expected_fence=run.fence, cost_source=cost_source,
                             reported_cost_usd=reported_cost_usd)
     ctx.emit(Event(run_id=run.id, type=EventType.step, data={
