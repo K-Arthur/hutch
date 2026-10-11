@@ -39,6 +39,11 @@ class hutchConfig:
     def downloads_dir(self) -> Path:
         return self.state_dir / "downloads"
 
+    @property
+    def documents_dir(self) -> Path:
+        """Durable generated-document store (immutable, content-addressed versions)."""
+        return self.state_dir / "documents"
+
     def bot_dir(self, bot_name: str) -> Path:
         return self.bots_dir / bot_name
 

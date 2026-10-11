@@ -1291,6 +1291,50 @@ def _migrate_49(db: sqlite3.Connection) -> None:
     db.execute("CREATE INDEX IF NOT EXISTS idx_runs_bot_status ON runs(bot_id, status)")
 
 
+def _migrate_50(db: sqlite3.Connection) -> None:
+    """Durable generated documents: stable identities plus immutable, hash-recorded versions.
+
+    ``bot_id``/``conversation_id``/``run_id`` are soft references (like ``runs.task_id``):
+    documents stay downloadable after the producing bot or chat is archived, and deletion
+    coupling is decided by explicit product rules, not foreign keys.
+    """
+    db.execute("""CREATE TABLE documents (
+        id TEXT PRIMARY KEY,
+        bot_id TEXT NOT NULL,
+        conversation_id TEXT,
+        title TEXT NOT NULL,
+        format TEXT NOT NULL CHECK(format IN
+            ('pdf','docx','xlsx','pptx','md','txt','csv','json','yaml','zip')),
+        current_version INTEGER NOT NULL CHECK(current_version >= 1),
+        created_at TEXT NOT NULL
+    )""")
+    db.execute("CREATE INDEX idx_documents_conversation ON documents(conversation_id, created_at)")
+    db.execute("CREATE INDEX idx_documents_bot ON documents(bot_id, created_at)")
+    db.execute("""CREATE TABLE document_versions (
+        document_id TEXT NOT NULL REFERENCES documents(id),
+        version INTEGER NOT NULL CHECK(version >= 1),
+        filename TEXT NOT NULL,
+        storage_name TEXT NOT NULL,
+        mime TEXT NOT NULL,
+        bytes INTEGER NOT NULL CHECK(bytes >= 0),
+        sha256 TEXT NOT NULL,
+        storage_path TEXT NOT NULL,
+        source TEXT NOT NULL CHECK(source IN ('generated','revised')),
+        run_id TEXT,
+        event_seq INTEGER,
+        generator TEXT NOT NULL DEFAULT '',
+        validation_state TEXT NOT NULL
+            CHECK(validation_state IN ('passed','passed_with_warnings','failed')),
+        validation_findings TEXT NOT NULL DEFAULT '[]',
+        preview_mode TEXT NOT NULL CHECK(preview_mode IN ('pages','structure','download_only')),
+        preview_data TEXT NOT NULL DEFAULT '{}',
+        page_count INTEGER,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (document_id, version)
+    )""")
+    db.execute("CREATE INDEX idx_document_versions_run ON document_versions(run_id)")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -1298,7 +1342,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
-               _migrate_48, _migrate_49]
+               _migrate_48, _migrate_49, _migrate_50]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -5902,6 +5946,116 @@ class Store:
             rows = self._db.execute(query, args).fetchall()
         return [(self._event(row), row["artifact_kind"],
                  {"share_id": row["share_id"], "shared_from": row["shared_from"]}) for row in rows]
+
+    # ------------------------------------------------------------- documents
+
+    @staticmethod
+    def _document_version_row(row: sqlite3.Row) -> dict[str, Any]:
+        data = dict(row)
+        try:
+            data["validation_findings"] = json.loads(data.get("validation_findings") or "[]")
+        except (TypeError, ValueError):
+            data["validation_findings"] = []
+        try:
+            data["preview_data"] = json.loads(data.get("preview_data") or "{}")
+        except (TypeError, ValueError):
+            data["preview_data"] = {}
+        return data
+
+    def create_document(self, *, document_id: str, bot_id: str, conversation_id: Optional[str],
+                        title: str, fmt: str, version: dict[str, Any]) -> None:
+        """Record a new document together with its first immutable version (one transaction)."""
+        with self._tx() as db:
+            db.execute(
+                "INSERT INTO documents (id, bot_id, conversation_id, title, format, current_version, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (document_id, bot_id, conversation_id, title, fmt, int(version["version"]),
+                 version.get("created_at") or iso(utcnow())))
+            db.execute(
+                "INSERT INTO document_versions (document_id, version, filename, storage_name, mime, bytes, sha256, "
+                "storage_path, source, run_id, event_seq, generator, validation_state, validation_findings, "
+                "preview_mode, preview_data, page_count, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (document_id, int(version["version"]), version["filename"], version["storage_name"],
+                 version["mime"], int(version["bytes"]), version["sha256"], version["storage_path"],
+                 version["source"], version.get("run_id"), version.get("event_seq"),
+                 version.get("generator", ""), version["validation_state"],
+                 _canonical(version.get("findings") or []), version["preview_mode"],
+                 _canonical(version.get("preview_data") or {}), version.get("page_count"),
+                 version.get("created_at") or iso(utcnow())))
+
+    def add_document_version(self, document_id: str, expected_version: int,
+                             version: dict[str, Any]) -> None:
+        """Append the next immutable version; refuses unless the caller saw the current one."""
+        with self._tx() as db:
+            row = db.execute("SELECT current_version FROM documents WHERE id = ?",
+                             (document_id,)).fetchone()
+            if row is None:
+                raise KeyError("no such document")
+            if row["current_version"] != expected_version:
+                raise ValueError("document was revised concurrently "
+                                 f"(current v{row['current_version']}, not v{expected_version})")
+            db.execute(
+                "INSERT INTO document_versions (document_id, version, filename, storage_name, mime, bytes, sha256, "
+                "storage_path, source, run_id, event_seq, generator, validation_state, validation_findings, "
+                "preview_mode, preview_data, page_count, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (document_id, int(version["version"]), version["filename"], version["storage_name"],
+                 version["mime"], int(version["bytes"]), version["sha256"], version["storage_path"],
+                 version["source"], version.get("run_id"), version.get("event_seq"),
+                 version.get("generator", ""), version["validation_state"],
+                 _canonical(version.get("findings") or []), version["preview_mode"],
+                 _canonical(version.get("preview_data") or {}), version.get("page_count"),
+                 version.get("created_at") or iso(utcnow())))
+            db.execute("UPDATE documents SET current_version = ? WHERE id = ?",
+                       (int(version["version"]), document_id))
+
+    def get_document(self, document_id: str) -> Optional[dict[str, Any]]:
+        with self._lock:
+            row = self._db.execute("SELECT * FROM documents WHERE id = ?", (document_id,)).fetchone()
+        return dict(row) if row else None
+
+    def get_document_version(self, document_id: str, version: int) -> Optional[dict[str, Any]]:
+        with self._lock:
+            row = self._db.execute(
+                "SELECT * FROM document_versions WHERE document_id = ? AND version = ?",
+                (document_id, version)).fetchone()
+        return self._document_version_row(row) if row else None
+
+    def list_document_versions(self, document_id: str, *, limit: int = 50) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT * FROM document_versions WHERE document_id = ? ORDER BY version DESC LIMIT ?",
+                (document_id, max(1, min(limit, 200)))).fetchall()
+        return [self._document_version_row(row) for row in rows]
+
+    def list_documents(self, *, conversation_id: Optional[str] = None, bot_id: Optional[str] = None,
+                       limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
+        """Documents with their current version joined, newest first (bounded page)."""
+        clauses, args = [], []
+        if conversation_id is not None:
+            clauses.append("d.conversation_id = ?")
+            args.append(conversation_id)
+        if bot_id is not None:
+            clauses.append("d.bot_id = ?")
+            args.append(bot_id)
+        where = f"WHERE {' AND '.join(clauses)} " if clauses else ""
+        args.extend([max(1, min(limit, 200)), max(0, int(offset))])
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT d.*, v.version AS cur_version, v.filename AS cur_filename, v.mime AS cur_mime, "
+                "v.bytes AS cur_bytes, v.sha256 AS cur_sha256, v.validation_state AS cur_validation, "
+                "v.preview_mode AS cur_preview, v.page_count AS cur_pages, v.created_at AS cur_created_at "
+                f"FROM documents d JOIN document_versions v ON v.document_id = d.id AND v.version = d.current_version "
+                f"{where}ORDER BY d.created_at DESC, d.id LIMIT ? OFFSET ?", args).fetchall()
+        return [dict(row) for row in rows]
+
+    def count_run_documents(self, run_id: str) -> int:
+        with self._lock:
+            row = self._db.execute(
+                "SELECT COUNT(DISTINCT document_id) AS n FROM document_versions WHERE run_id = ?",
+                (run_id,)).fetchone()
+        return int(row["n"] or 0)
 
     def last_seq(self, run_id: str) -> int:
         self.flush_events()
