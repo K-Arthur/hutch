@@ -324,6 +324,9 @@ class _Compiler:
             if node.policy == "all_required" and node.require is not None:
                 self.warn("JOIN_REQUIRE_IGNORED", f"{path}.require",
                           "all_required ignores require")
+            if node.policy == "first_success":
+                self.error("JOIN_FIRST_SUCCESS_UNSUPPORTED", f"{path}.policy",
+                           "first_success needs concurrent execution with cancellation and draining; this interpreter is sequential")
             if node.require is not None and node.require > len(node.of):
                 self.error("JOIN_REQUIRE", f"{path}.require",
                            "require exceeds the number of joined nodes")
@@ -488,6 +491,10 @@ class _Compiler:
         """
         joined: set[str] = set()
         for index, target in enumerate(node.of):
+            if target in joined:
+                self.error("JOIN_DUPLICATE_TARGET", f"{path}.of[{index}]",
+                           f"join target {target!r} appears more than once")
+                continue
             if target not in scope:
                 self.error("JOIN_TARGET", f"{path}.of[{index}]",
                            f"joins an unknown or not-yet-run node {target!r}")

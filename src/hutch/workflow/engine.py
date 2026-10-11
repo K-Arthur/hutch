@@ -75,6 +75,9 @@ class _Wait(Exception):
     """Raised to unwind the walk until something settles."""
 
 
+_JOIN_SKIPPED = object()
+
+
 @dataclass
 class Advance:
     kind: str                      # "wait" | "done" | "failed"
@@ -120,6 +123,15 @@ class Interpreter:
         self.ledger: dict[str, Any] = {}
         self.events: list[str] = []
         self.verified: Optional[bool] = None
+        self.join_targets = {
+            target for candidate in compiled.nodes if candidate.kind == "join"
+            for target in candidate.node.of
+        }
+        self.all_settled_targets = {
+            target for candidate in compiled.nodes
+            if candidate.kind == "join" and candidate.node.policy == "all_settled"
+            for target in candidate.node.of
+        }
         self.opened_steps: set[tuple[str, str]] = set()
         self._suffix_stack: list[str] = []
 
@@ -168,7 +180,8 @@ class Interpreter:
             raise
         except Exception as exc:  # noqa: BLE001 - an interpreter bug must fail the run honestly
             return Advance("failed", detail=f"{type(exc).__name__}: {exc}")
-        result = {"outputs": {site: self.scope.get(site) for site in self.compiled.plan.outputs},
+        result = {"outputs": {site: self.scope.get(site) for site in self.compiled.plan.outputs
+                              if self.scope.get(site) is not _JOIN_SKIPPED},
                   "value": value}
         return Advance("done", result=_bounded(result), verified=self.verified)
 
@@ -177,10 +190,28 @@ class Interpreter:
     def _walk(self, nodes: list[CompiledNode], scope: dict[str, Any]) -> Any:
         value: Any = None
         for cnode in nodes:
+            blocked = [dep for dep in cnode.deps if scope.get(dep) is _JOIN_SKIPPED]
+            if blocked and cnode.kind != "join":
+                if cnode.site_id in self.all_settled_targets:
+                    scope[cnode.site_id] = _JOIN_SKIPPED
+                    continue
+                raise WorkflowFailed(cnode.site_id,
+                                     f"input depends on failed or skipped node(s): {sorted(blocked)}")
             if cnode.node.when is not None and not evaluate(cnode.node.when, Scope(scope)):
                 self._mark_skipped(cnode, self._instance_key, "condition was false")
+                if cnode.site_id in self.join_targets:
+                    scope[cnode.site_id] = _JOIN_SKIPPED
                 continue
-            value = self._visit(cnode, scope)
+            try:
+                value = self._visit(cnode, scope)
+            except WorkflowFailed:
+                if cnode.site_id not in self.all_settled_targets:
+                    raise
+                # An all_settled join explicitly owns failures from these earlier sites.
+                # The durable failed node remains the source of its reason; this private
+                # sentinel only keeps the failed value out of later reference resolution.
+                scope[cnode.site_id] = _JOIN_SKIPPED
+                continue
             scope[cnode.site_id] = value
         return value
 
@@ -270,33 +301,37 @@ class Interpreter:
         items: dict[str, Any] = {}
         missing: list[str] = []
         failed: list[str] = []
+        skipped: list[str] = []
         pending = False
         for target in node.of:
             record = self._site_state(target)
             if record == "settled":
                 if target not in scope:
                     raise WorkflowFailed(node.id, f"join target {target!r} has no value in this scope")
-                items[target] = scope.get(target)
+                if scope.get(target) is _JOIN_SKIPPED:
+                    skipped.append(target)
+                else:
+                    items[target] = scope.get(target)
             elif record == "pending":
                 pending = True
+            elif record == "failed":
+                failed.append(target)
             else:
                 missing.append(target)
-                if record == "failed":
-                    failed.append(target)
         if pending:
             raise _Wait()
-        if node.policy == "all_required" and (missing or failed):
-            raise WorkflowFailed(node.id, f"required inputs are missing: {sorted(set(missing + failed))}")
+        if node.policy == "all_required" and (missing or failed or skipped):
+            raise WorkflowFailed(node.id,
+                                 f"required inputs are missing: {sorted(set(missing + failed + skipped))}")
         if node.policy == "first_success":
-            for target in node.of:
-                if target in items:
-                    return {"complete": True, "policy": node.policy, "chosen": target,
-                            "items": {target: items[target]}, "missing": missing}
-            raise WorkflowFailed(node.id, f"no joined input succeeded: {missing}")
+            raise WorkflowFailed(node.id,
+                                 "first_success requires concurrent execution with cancellation and draining")
         required = node.require if node.require is not None else len(node.of)
-        complete = len(items) >= required and not failed
+        complete = len(items) == len(node.of) and not (missing or failed or skipped)
         return {"complete": complete, "policy": node.policy, "items": items,
-                "missing": missing, "failed": failed, "settled": len(items), "required": required}
+                "accepted": len(items) >= required,
+                "missing": missing, "failed": failed, "skipped": skipped,
+                "settled": len(items), "required": required}
 
     def _publish(self, node: Node, scope: dict[str, Any]) -> Any:
         published = []
@@ -458,7 +493,7 @@ class Interpreter:
             if record is not None and record["status"] == "succeeded":
                 result = record.get("result") if isinstance(record.get("result"), dict) else {}
                 if result.get("ok") is True:
-                    self.verified = result.get("verified") is True
+                    self._apply_verification_result(result.get("verified") is True)
                     return result
                 if result.get("ok") is not False:
                     raise WorkflowFailed(cnode.site_id, "the saved verification result is malformed")
@@ -480,19 +515,20 @@ class Interpreter:
             if not failed and not advisory_failed:
                 # "Verified" means: independent evidence passed and nothing failed - an
                 # advisory reviewer's objection counts as a failure here too.
-                self.verified = bool(passed)
+                verified = bool(passed)
                 result = {"ok": True, "checks": checks, "advisory": advisory,
-                          "verified": self.verified, "rounds": rounds}
+                          "verified": verified, "rounds": rounds}
+                self._apply_verification_result(verified)
                 self._settle(cnode, instance, "succeeded", result, "")
                 return result
             # Failure: apply the declared policy.
             policy = node.on_fail
             detail = "; ".join(f"{c['kind']}: {c['detail']}" for c in failed + advisory_failed)
             if policy.action == "continue":
-                self.verified = False
                 result = {"ok": False, "checks": checks, "advisory": advisory,
                           "verified": False, "rounds": rounds,
                           "note": "the plan chose to continue with an unverified result"}
+                self._apply_verification_result(False)
                 self._settle(cnode, instance, "succeeded", result, "")
                 return result
             if policy.action == "repair" and rounds < min(policy.rounds, int(self.budget.get("max_repairs") or 0)):
@@ -512,8 +548,18 @@ class Interpreter:
                 self._adopt_replacement(cnode, scope, target, replacement, next_round)
                 rounds = next_round
                 continue
-            self._settle(cnode, instance, "failed", {}, detail)
+            self._apply_verification_result(False)
+            result = {"ok": False, "checks": checks, "advisory": advisory,
+                      "verified": False, "rounds": rounds}
+            self._settle(cnode, instance, "failed", result, detail)
             raise WorkflowFailed(cnode.site_id, f"verification failed: {detail}")
+
+    def _apply_verification_result(self, verified: bool) -> None:
+        """Keep the workflow-level summary false after any final failed criterion."""
+        if verified:
+            self.verified = True if self.verified is None else self.verified
+        else:
+            self.verified = False
 
     def _run_checks(self, cnode: CompiledNode, scope: dict[str, Any],
                     instance: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -523,22 +569,27 @@ class Interpreter:
             try:
                 value = resolve_value({"ref": check.ref}, Scope(scope)) if check.ref else None
             except EvalError as exc:
-                independent.append({"kind": check.kind, "ok": False, "detail": str(exc)})
+                independent.append({"kind": check.kind, "ok": False, "detail": str(exc),
+                                    **({"ref": check.ref} if check.ref else {})})
                 continue
             if check.kind == "schema":
                 from ..toolcalling.validate import validate_value
 
                 problems = validate_value(check.schema_, value)
-                independent.append({"kind": "schema", "ok": not problems,
-                                    "detail": "; ".join(problems[:4]) if problems else "schema matched"})
+                outcome = {"kind": "schema", "ok": not problems,
+                           "detail": "; ".join(problems[:4]) if problems else "schema matched"}
             elif check.kind == "artifact":
-                independent.append(self._check_artifact(check, value, scope))
+                outcome = self._check_artifact(check, value, scope)
             elif check.kind == "command":
-                independent.append(self._check_command(cnode, check, instance, index))
+                outcome = self._check_command(cnode, check, instance, index)
             elif check.kind == "human":
-                independent.append(self._check_human(cnode, check, instance, index))
+                outcome = self._check_human(cnode, check, instance, index)
             elif check.kind == "agent_review":
                 advisory.append(self._check_review(cnode, check, scope, instance, index, value))
+                continue
+            if check.ref:
+                outcome["ref"] = check.ref
+            independent.append(outcome)
         return independent, advisory
 
     def _check_artifact(self, check: Any, value: Any, scope: dict[str, Any]) -> dict[str, Any]:
@@ -699,6 +750,8 @@ class Interpreter:
         out: dict[str, Any] = {}
         for site_id, value in scope.items():
             if site_id in ("input", "item", "index", "iteration"):
+                continue
+            if value is _JOIN_SKIPPED:
                 continue
             out[site_id] = _bounded(value, 4_000)
         return out

@@ -509,7 +509,6 @@ def test_repeat_join_when_and_skip_are_exercised(store, config):
                   "args": {"value": {"ref": "item"}, "path": "value"},
                   "when": {"ref": "item.broken", "op": "eq", "value": False}}]},
             {"kind": "join", "id": "joined", "of": ["seed", "grow"], "policy": "all_required"},
-            {"kind": "join", "id": "first", "of": ["seed", "grow"], "policy": "first_success"},
         ],
     }
     submission = wfsubmit.submit_workflow(
@@ -523,7 +522,6 @@ def test_repeat_join_when_and_skip_are_exercised(store, config):
     nodes = {node["site_id"]: node for node in view["nodes"]}
     assert nodes["grow"]["result"]["iterations"] == 2          # until held after the second pass
     assert nodes["joined"]["result"]["complete"] is True
-    assert nodes["first"]["result"]["chosen"] == "seed"
     assert nodes["each"]["result"]["complete"] is False        # one item was skipped
     assert nodes["each"]["result"]["skipped"] == ["b"]  # item keys, as declared
 

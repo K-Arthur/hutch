@@ -216,6 +216,29 @@ def test_repair_target_is_validated_and_single_check_targets_remain_compatible()
     assert "REPAIR_TARGET" in codes(info.value)
 
 
+def test_first_success_join_requires_a_cancellation_capable_scheduler():
+    raw = {"name": "first-success", "nodes": [
+        {"kind": "transform", "id": "left", "op": "constant", "args": {"value": 1}},
+        {"kind": "transform", "id": "right", "op": "constant", "args": {"value": 2}},
+        {"kind": "join", "id": "joined", "of": ["left", "right"],
+         "policy": "first_success"},
+    ]}
+    with pytest.raises(wf_compile.PlanInvalid) as info:
+        compile_ok(raw)
+    assert "JOIN_FIRST_SUCCESS_UNSUPPORTED" in codes(info.value)
+
+
+def test_join_rejects_duplicate_targets():
+    raw = {"name": "duplicate-join", "nodes": [
+        {"kind": "transform", "id": "value", "op": "constant", "args": {"value": 1}},
+        {"kind": "join", "id": "joined", "of": ["value", "value"],
+         "policy": "all_settled"},
+    ]}
+    with pytest.raises(wf_compile.PlanInvalid) as info:
+        compile_ok(raw)
+    assert "JOIN_DUPLICATE_TARGET" in codes(info.value)
+
+
 def test_uncertifiable_output_schema_is_refused():
     raw = minimal()
     raw["nodes"][1]["output_schema"] = {"if": {"type": "object"}, "then": {"required": ["x"]}}

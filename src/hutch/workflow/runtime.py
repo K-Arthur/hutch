@@ -68,7 +68,8 @@ def run_attempt(engine: Any, ctx: Any, run: Run, tools: dict[str, Any], stop: An
             raise RunAborted("stopped", "the workflow attempt was stopped")
         if time.monotonic() > deadline:
             _settle(store, wf_id, run, revision_id=revision_id,
-                    status="failed", reason="the workflow exceeded its wall-clock budget")
+                    status="failed", reason="the workflow exceeded its wall-clock budget",
+                    output_sites=compiled.plan.outputs)
             raise RunAborted("error", "the workflow exceeded its wall-clock budget")
         fresh = wstore.workflow_run(store, wf_id)
         if fresh is None:
@@ -82,7 +83,8 @@ def run_attempt(engine: Any, ctx: Any, run: Run, tools: dict[str, Any], stop: An
         except RunAborted as exc:
             if exc.reason == "outcome_unknown":
                 _settle(store, wf_id, run, revision_id=revision_id,
-                        status="outcome_unknown", reason=exc.detail or str(exc))
+                        status="outcome_unknown", reason=exc.detail or str(exc),
+                        output_sites=compiled.plan.outputs)
             raise
         if advance.kind == "wait":
             pending = [q for q in wstore.questions(store, wf_id, status="pending")]
@@ -94,13 +96,13 @@ def run_attempt(engine: Any, ctx: Any, run: Run, tools: dict[str, Any], stop: An
             raise RunAborted("workflow_wait", reason)
         if advance.kind == "failed":
             _settle(store, wf_id, run, revision_id=revision_id,
-                    status="failed", reason=advance.detail)
+                    status="failed", reason=advance.detail, output_sites=compiled.plan.outputs)
             ctx.emit(Event(run_id=run.id, type=EventType.error, data={"error": advance.detail}))
             raise RunAborted("error", f"the workflow failed: {advance.detail}")
 
         digest = _digest(compiled, interp, advance)
         _settle(store, wf_id, run, revision_id=revision_id,
-                status="succeeded", reason="")
+                status="succeeded", reason="", output_sites=compiled.plan.outputs)
         return digest["text"]
 
 
@@ -130,13 +132,92 @@ def _artifact_list(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
-def _settle(store: Any, wf_id: str, run: Run, *, revision_id: str,
-            status: str, reason: str) -> None:
+def _verified_output_refs(nodes: list[dict[str, Any]]) -> set[str]:
+    """Reconstruct final, independent evidence from durable verifier records."""
+    refs: set[str] = set()
+    failed_refs: set[str] = set()
+    independent = {"schema", "artifact", "command", "human"}
+    for node in nodes:
+        if node.get("kind") != "verify":
+            continue
+        result = node.get("result")
+        if not isinstance(result, dict) or not isinstance(result.get("checks"), list):
+            continue
+        checked = {str(check["ref"]) for check in result["checks"]
+                   if isinstance(check, dict) and check.get("kind") in independent and check.get("ref")}
+        # A failed round that opened a repair is intermediate evidence, not the final
+        # decision. The later recheck record for the same ref decides the output class.
+        if result.get("repair"):
+            continue
+        if result.get("ok") is True and result.get("verified") is True:
+            refs.update(str(check["ref"]) for check in result["checks"]
+                        if isinstance(check, dict) and check.get("kind") in independent
+                        and check.get("ok") is True and check.get("ref")
+                        and str(check["ref"]) not in failed_refs)
+        else:
+            failed_refs.update(checked)
+            refs.difference_update(checked)
+    return refs
+
+
+def _contains_partial_result(value: Any) -> bool:
+    if isinstance(value, dict):
+        if value.get("complete") is False or value.get("accepted") is False or bool(value.get("skipped")):
+            return True
+        return any(_contains_partial_result(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_contains_partial_result(item) for item in value)
+    return False
+
+
+def workflow_result_projection(store: Any, wf_id: str, *, status: str,
+                                output_sites: list[str] | tuple[str, ...] = ()) -> dict[str, Any]:
+    """Persist terminal node counts separately from declared output outcomes.
+
+    Output values remain in their durable node records; this compact projection groups
+    those record identities without duplicating potentially large result payloads.
+    """
     nodes = wstore.nodes(store, wf_id)
     counts: dict[str, int] = {}
     for node in nodes:
         counts[node["status"]] = counts.get(node["status"], 0) + 1
-    result = {"counts": counts, "artifacts": _artifact_list(nodes)}
+    outcomes: dict[str, list[str]] = {
+        "verified": [], "partial": [], "skipped": [], "failed": [], "uncertain": [],
+    }
+    by_site = {str(node["site_id"]): node for node in nodes
+               if str(node.get("instance_key") or "") == "once"}
+    verified_refs = _verified_output_refs(nodes)
+    for site in dict.fromkeys(str(site) for site in output_sites):
+        record = by_site.get(site)
+        if record is None:
+            category = "skipped" if status == "stopped" else "failed"
+        else:
+            node_status = str(record.get("status") or "")
+            child = store.get_run(str(record.get("run_id") or "")) if record.get("run_id") else None
+            if (node_status in ("running", "waiting", "pending")
+                    and ((child is not None and child.status.value == "outcome_unknown")
+                         or status in ("outcome_unknown", "stopped"))):
+                category = "uncertain"
+            elif node_status == "succeeded":
+                category = "verified" if site in verified_refs else "partial"
+                if _contains_partial_result(record.get("result")):
+                    category = "partial"
+            elif node_status == "skipped":
+                category = "skipped"
+            elif node_status == "cancelled":
+                category = "skipped" if status == "stopped" else "failed"
+            elif node_status == "failed":
+                category = "failed"
+            else:
+                category = "uncertain" if status == "outcome_unknown" else "failed"
+        outcomes[category].append(site)
+    return {"counts": counts, "artifacts": _artifact_list(nodes),
+            "output_outcomes": outcomes}
+
+
+def _settle(store: Any, wf_id: str, run: Run, *, revision_id: str,
+            status: str, reason: str, output_sites: list[str] | tuple[str, ...] = ()) -> None:
+    result = workflow_result_projection(store, wf_id, status=status, output_sites=output_sites)
     wstore.update_workflow_run(
         store, wf_id, attempt_run_id=run.id, owner_fence=run.fence,
         revision_id=revision_id,
@@ -163,6 +244,10 @@ def _digest(compiled: Any, interp: Interpreter, advance: Advance) -> dict[str, A
     elif advance.verified is False:
         lines.append("Verification: NOT established (the plan continued with an unverified result).")
     outputs = advance.result.get("outputs") or {}
+    projection = workflow_result_projection(interp.store, interp.wf_id, status="succeeded",
+                                            output_sites=compiled.plan.outputs)
+    lines.append("Output outcomes: " + ", ".join(
+        f"{name} {len(sites)}" for name, sites in projection["output_outcomes"].items()))
     for site, value in outputs.items():
         text = value if isinstance(value, str) else str(value)
         lines.append(f"Output {site}: {text[:600]}")

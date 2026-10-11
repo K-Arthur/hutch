@@ -458,8 +458,10 @@ admission cannot widen an old step.
 Capacity: an orchestration attempt and its steps form a **workflow lane** (`runs.kind` is
 `workflow`/`step`). The claim statement admits a Bot's workflow beside its interactive work
 and keeps one workflow per Bot; step runs share their attempt's global slot and are bounded
-by the workflow's own logical concurrency. Inference admission remains the model-concurrency
-limiter, so a waiting workflow node never holds an inference seat. Each provider request
+by the workflow's declared logical concurrency ceiling. The current interpreter advances
+ordinary nodes and map items sequentially, so that ceiling is not evidence of concurrent
+branch dispatch. Inference admission remains the model-concurrency limiter, so a waiting
+workflow node never holds an inference seat. Each provider request
 reserves against the root workflow's request and token budgets in the same transaction as
 the ordinary account reservation. A durable request-start marker distinguishes a released
 pre-send hold from a possibly billed request; retries, child steps and continuations all use
@@ -478,6 +480,13 @@ revision, site, instance and action slot. Completed receipts replay their bounde
 without dispatch; uncertain receipts refuse a retry until an operator records that the effect
 was not applied. Workflow questions also carry revision/attempt identity, so old answers
 cannot change a stopped or replaced instance.
+
+Terminal workflow results store node-state counts separately from `output_outcomes`. The
+latter groups declared outputs by the evidence and completion available (`verified`,
+`partial`, `skipped`, `failed` or `uncertain`); each group points to its durable node record,
+which remains the source of the value. `all_settled` joins can continue past their explicitly
+named failed or skipped targets and return an incomplete aggregate. `first_success` is rejected
+until execution can race branches and cancel and drain discarded work safely.
 
 Roles are gated by evidence, not by a model name: `workflow/qualify.py` resolves the same
 route identity the runtime records observations under (`route_identity.route_tuple`). Runtime

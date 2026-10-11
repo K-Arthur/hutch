@@ -187,6 +187,27 @@ to the current value fails with a no-progress reason; repair rounds and model re
 the original root budget. This execution path is covered with a scripted local route, but repair
 quality from a live model has not been verified.
 
+## Joins and output status
+
+`all_required` fails when a named result failed or was skipped. `all_settled` waits until
+its named earlier nodes settle, keeps successful values in `items`, and lists failed,
+skipped and missing targets separately. `complete` means every target produced a value;
+`accepted` reports whether the optional `require` threshold was met. A failed node is
+allowed to pass through only when an `all_settled` join names it; unrelated failures still
+fail the workflow. This interpreter currently visits ordinary nodes sequentially.
+
+`first_success` is rejected during compilation. It promises the first acceptable completion
+and requires canceling and draining work that lost the race; selecting the first successful
+node after sequential execution would make a weaker promise. That policy remains unsupported
+until the scheduler can provide those guarantees.
+
+The terminal workflow result keeps node-state `counts` separate from `output_outcomes`.
+Declared top-level outputs are grouped as `verified`, `partial`, `skipped`, `failed`, or
+`uncertain`. A direct independent check of the output can establish `verified`; checking only
+a nested field does not certify the whole output. Incomplete maps and joins remain `partial`
+even when a schema check passes. Outcome groups identify durable node records; their values
+remain in those records, so large artifacts are not duplicated into the summary.
+
 ## Bounds, waiting and stopping
 
 * Budgets are root-level: node instances, provider requests, tokens, wall clock, fan-out and

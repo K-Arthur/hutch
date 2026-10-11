@@ -856,16 +856,15 @@ def finalize_stopped_workflows(store: Any, *, limit: int = 50) -> int:
             if not _workflow_branch_ready(store._db, wf_id, attempt_id):
                 continue
         outcome = run.status.value if run.status.value in ("stopped", "failed", "outcome_unknown") else "stopped"
-        nodes_now = nodes(store, wf_id)
-        counts: dict[str, int] = {}
-        for item in nodes_now:
-            counts[item["status"]] = counts.get(item["status"], 0) + 1
-        artifacts: list[dict[str, Any]] = []
-        for item in nodes_now:
-            if item["status"] == "succeeded" and isinstance(item.get("result"), dict):
-                artifacts.extend(ref for ref in (item["result"].get("artifacts") or [])
-                                 if isinstance(ref, dict))
-        result = {"counts": counts, "artifacts": artifacts}
+        current = workflow_run(store, wf_id) or {}
+        saved_revision = revision(store, str(current.get("revision_id") or ""))
+        output_sites = (saved_revision or {}).get("plan", {}).get("outputs", [])
+        # The stop finalizer shares the same output categories as ordinary terminal
+        # outcomes; node counts still describe execution state independently.
+        from .runtime import workflow_result_projection
+
+        result = workflow_result_projection(store, wf_id, status=outcome,
+                                            output_sites=output_sites)
         if update_workflow_run(store, wf_id, status=outcome,
                                reason=(run.error or run.exit_reason or "stopped")[:500],
                                result=result, finished=True):

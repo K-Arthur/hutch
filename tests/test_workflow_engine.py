@@ -109,6 +109,171 @@ def test_deterministic_workflow_runs_publishes_and_verifies(store, config):
     assert any(kind == "tool_output" for _event, kind in records)
 
 
+def test_output_projection_separates_verified_and_partial_from_node_counts(store, config):
+    bot = make_bot(store)
+    engine = Engine(config, store)
+    plan = deterministic_plan(outputs=["count", "report"])
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=plan)
+
+    drive(engine, store, submission.attempt_run_id)
+
+    view = wfsubmit.status(store, submission.workflow_run_id)
+    assert view["workflow"]["status"] == "succeeded"
+    result = view["workflow"]["result"]
+    assert result["output_outcomes"] == {
+        "verified": ["count"], "partial": ["report"], "skipped": [],
+        "failed": [], "uncertain": [],
+    }
+    assert result["counts"]["succeeded"] == 4
+
+
+def test_later_failed_verification_revokes_an_earlier_output_claim(store, config):
+    bot = make_bot(store)
+    engine = Engine(config, store)
+    plan = {
+        "name": "verification-revocation",
+        "budget": {"max_nodes": 8, "max_model_calls": 0},
+        "nodes": [
+            {"kind": "transform", "id": "value", "op": "constant", "args": {"value": 3}},
+            {"kind": "verify", "id": "first", "checks": [
+                {"kind": "schema", "ref": "value", "schema": {"type": "integer", "minimum": 1}}]},
+            {"kind": "verify", "id": "second", "checks": [
+                {"kind": "schema", "ref": "value", "schema": {"type": "integer", "minimum": 4}}]},
+        ],
+        "outputs": ["value"],
+    }
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=plan)
+
+    drive(engine, store, submission.attempt_run_id)
+
+    view = wfsubmit.status(store, submission.workflow_run_id)
+    assert view["workflow"]["status"] == "failed"
+    assert view["workflow"]["result"]["output_outcomes"] == {
+        "verified": [], "partial": ["value"], "skipped": [], "failed": [], "uncertain": [],
+    }
+
+
+def test_a_later_pass_does_not_erase_a_continued_failed_criterion(store, config):
+    bot = make_bot(store)
+    engine = Engine(config, store)
+    plan = {
+        "name": "continued-failed-criterion",
+        "budget": {"max_nodes": 8, "max_model_calls": 0},
+        "nodes": [
+            {"kind": "transform", "id": "value", "op": "constant", "args": {"value": 3}},
+            {"kind": "verify", "id": "first", "checks": [
+                {"kind": "schema", "ref": "value", "schema": {"type": "integer", "minimum": 4}}],
+             "on_fail": {"action": "continue"}},
+            {"kind": "verify", "id": "second", "checks": [
+                {"kind": "schema", "ref": "value", "schema": {"type": "integer", "minimum": 1}}]},
+        ],
+        "outputs": ["value"],
+    }
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=plan)
+
+    drive(engine, store, submission.attempt_run_id)
+
+    view = wfsubmit.status(store, submission.workflow_run_id)
+    assert view["workflow"]["status"] == "succeeded"
+    result = view["workflow"]["result"]
+    assert result["output_outcomes"] == {
+        "verified": [], "partial": ["value"], "skipped": [], "failed": [], "uncertain": [],
+    }
+
+
+def test_uncertain_child_is_projected_as_uncertain_output(store, monkeypatch):
+    from types import SimpleNamespace
+    from hutch.workflow.runtime import workflow_result_projection
+
+    bot = make_bot(store)
+    plan = {"name": "uncertain-output", "nodes": [
+        {"kind": "transform", "id": "value", "op": "constant", "args": {"value": 5}},
+    ], "outputs": ["value"]}
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=plan)
+    owner, workflow = claim_workflow_owner(store, submission.workflow_run_id,
+                                           submission.attempt_run_id)
+    wstore.open_node(store, submission.workflow_run_id, owner_run_id=owner.id,
+                     owner_fence=owner.fence, revision_id=workflow["revision_id"],
+                     site_id="value", instance_key="once", kind="step",
+                     input_value={}, input_hash="0" * 64)
+    with store._tx() as db:
+        db.execute("UPDATE workflow_nodes SET run_id='unknown-child' WHERE workflow_run_id=?",
+                   (submission.workflow_run_id,))
+    monkeypatch.setattr(store, "get_run", lambda _run_id: SimpleNamespace(
+        status=SimpleNamespace(value="outcome_unknown")))
+
+    result = workflow_result_projection(store, submission.workflow_run_id,
+                                        status="outcome_unknown", output_sites=["value"])
+
+    assert result["output_outcomes"] == {
+        "verified": [], "partial": [], "skipped": [], "failed": [], "uncertain": ["value"],
+    }
+
+
+def test_all_settled_join_preserves_failed_and_skipped_targets(store, config):
+    bot = make_bot(store)
+    engine = Engine(config, store)
+    plan = {
+        "name": "partial-join",
+        "inputs": {"run_skip": {"type": "boolean"}},
+        "budget": {"max_nodes": 10, "max_model_calls": 0},
+        "nodes": [
+            {"kind": "transform", "id": "not_list", "op": "constant", "args": {"value": "no"}},
+            {"kind": "transform", "id": "broken", "op": "sum", "args": {"items": {"ref": "not_list"}}},
+            {"kind": "transform", "id": "skipped", "op": "constant", "when": {
+                "ref": "input.run_skip", "op": "eq", "value": True}, "args": {"value": 2}},
+            {"kind": "transform", "id": "good", "op": "constant", "args": {"value": 7}},
+            {"kind": "join", "id": "joined", "of": ["broken", "skipped", "good"],
+             "policy": "all_settled"},
+        ],
+        "outputs": ["broken", "skipped", "joined"],
+    }
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=plan, inputs={"run_skip": False})
+
+    drive(engine, store, submission.attempt_run_id)
+
+    view = wfsubmit.status(store, submission.workflow_run_id)
+    assert view["workflow"]["status"] == "succeeded", view["workflow"]["reason"]
+    nodes = {node["site_id"]: node for node in view["nodes"]}
+    assert nodes["broken"]["status"] == "failed"
+    assert nodes["skipped"]["status"] == "skipped"
+    assert nodes["joined"]["result"] == {
+        "complete": False, "accepted": False, "policy": "all_settled",
+        "items": {"good": 7}, "missing": [], "failed": ["broken"],
+        "skipped": ["skipped"], "settled": 1, "required": 3,
+    }
+    result = view["workflow"]["result"]["output_outcomes"]
+    assert result == {
+        "verified": [], "partial": ["joined"], "skipped": ["skipped"],
+        "failed": ["broken"], "uncertain": [],
+    }
+
+
+def test_all_required_join_rejects_a_skipped_target_explicitly(store, config):
+    bot = make_bot(store)
+    engine = Engine(config, store)
+    plan = {
+        "name": "required-skipped-join",
+        "inputs": {"include": {"type": "boolean"}},
+        "budget": {"max_nodes": 5, "max_model_calls": 0},
+        "nodes": [
+            {"kind": "transform", "id": "optional", "op": "constant",
+             "when": {"ref": "input.include", "op": "eq", "value": True},
+             "args": {"value": "present"}},
+            {"kind": "join", "id": "joined", "of": ["optional"], "policy": "all_required"},
+        ],
+        "outputs": ["optional"],
+    }
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=plan, inputs={"include": False})
+
+    drive(engine, store, submission.attempt_run_id)
+
+    view = wfsubmit.status(store, submission.workflow_run_id)
+    assert view["workflow"]["status"] == "failed"
+    assert "required inputs are missing: ['optional']" in view["workflow"]["reason"]
+    assert view["workflow"]["result"]["output_outcomes"]["skipped"] == ["optional"]
+
+
 def test_reused_results_are_not_re_executed_on_continuation(store, config):
     """A crashed attempt continues: settled nodes are read back, never run again."""
     bot = make_bot(store)
