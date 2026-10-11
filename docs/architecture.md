@@ -402,3 +402,9 @@ Worker approval admission commits the request and run wait together, draining pr
 events through the same ownership check. Failed admission rolls back both without losing
 the buffer. Expired execution cannot receive a new approval or standing grant; decisions still
 resolve once through compare-and-swap, and full-request rewrites are refused.
+
+The computer resource boundary lives in `computer/resources.py` (fresh authority and whole-clean-workspace grant),
+`computer/budgets.py` (independent sampled limits), `native/virtual.py` (owned capture/app process lifecycle) and
+`computer/frames.py` (cross-instance serialization). Readiness distinguishes implemented isolated KWin prerequisites from
+host portal/library discovery: clipboard/AT-SPI actions and other compositor adapters remain absent. The run-state API
+binds preview pixels to their recorded surface and that surface's owner; another surface's control event cannot relabel it.

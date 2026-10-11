@@ -17,6 +17,7 @@ import shutil
 import signal
 import subprocess
 import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import Mapping, Optional
@@ -48,6 +49,10 @@ class ManagedDesktop:
         self.root: Optional[Path] = None
         self.env: dict[str, str] = {}
         self._procs: list[subprocess.Popen] = []
+        self._capture_lock = threading.Lock()
+        self._captures: set[subprocess.Popen] = set()
+        self._stopping = False
+        self._apps: list[subprocess.Popen] = []
 
     # ------------------------------------------------------------ lifecycle
 
@@ -93,6 +98,12 @@ class ManagedDesktop:
         return self
 
     def __exit__(self, *_exc) -> None:
+        with self._capture_lock:
+            self._stopping = True
+            for proc in self._captures:
+                if proc.poll() is None:
+                    try: os.killpg(proc.pid, signal.SIGKILL)
+                    except OSError: pass
         for proc in reversed(self._procs):
             if proc.poll() is None:
                 try:
@@ -144,6 +155,11 @@ class ManagedDesktop:
     def launch(self, argv: list[str], name: str = "app", cwd: Optional[str] = None) -> subprocess.Popen:
         """Start a contained application with only the workspace and this desktop's private sockets."""
         from ...sandbox import Policy, desktop_argv, status
+        if self._stopping:
+            raise DesktopUnavailable("the private desktop is stopping")
+        self._apps = [proc for proc in self._apps if proc.poll() is None]
+        if len(self._apps) >= 4:
+            raise DesktopUnavailable("the private desktop already has its maximum of four application launchers")
         if not cwd:
             raise DesktopUnavailable("a workspace is required for native applications")
         readiness = status()
@@ -153,23 +169,54 @@ class ManagedDesktop:
         # The resource-limit launcher talks to the host user service manager. Its child clears the environment and
         # binds only the PRIVATE bus; the app cannot request host systemd activation through this socket.
         launcher_env = {key: os.environ[key] for key in ("XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS") if key in os.environ}
-        return self._spawn(command, name, extra_env=launcher_env, cwd=cwd)
+        proc = self._spawn(command, name, extra_env=launcher_env, cwd=cwd)
+        self._apps.append(proc)
+        # Emergency stop may race the host launcher. Fence its new process too.
+        with self._capture_lock:
+            if self._stopping:
+                try: os.killpg(proc.pid, signal.SIGKILL)
+                except OSError: pass
+                raise DesktopUnavailable("the private desktop stopped during launch")
+        return proc
 
     def capture_png(self, timeout: float = 15.0) -> bytes:
         """A full-output screenshot of THIS compositor only (KWin ScreenShot2 via spectacle's authorization)."""
         assert self.root is not None
         out = self.root / f"capture-{time.monotonic_ns()}.png"
-        done = subprocess.run(["spectacle", "-b", "-f", "-n", "-o", str(out)], env=self.env, capture_output=True,
-                              timeout=timeout)
-        if done.returncode != 0 or not out.exists() or out.stat().st_size == 0:
-            raise DesktopUnavailable(f"capture failed (exit {done.returncode}): {done.stderr.decode()[:200]}")
-        data = out.read_bytes()
-        out.unlink(missing_ok=True)
-        return data
+        from ..frames import MAX_FRAME_BYTES
+        proc = None
+        try:
+            with self._capture_lock:
+                if self._stopping:
+                    raise DesktopUnavailable("the private desktop is stopping")
+                proc = subprocess.Popen(["spectacle", "-b", "-f", "-n", "-o", str(out)], env=self.env,
+                                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                self._captures.add(proc)
+            try:
+                code = proc.wait(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                os.killpg(proc.pid, signal.SIGKILL)
+                proc.wait(timeout=3)
+                raise DesktopUnavailable("private capture exceeded its deadline") from None
+            if code != 0:
+                raise DesktopUnavailable(f"private capture failed (exit {code})")
+            handle = os.open(out, os.O_RDONLY | os.O_NOFOLLOW)
+            with os.fdopen(handle, "rb") as stream:
+                if not 0 < os.fstat(stream.fileno()).st_size <= MAX_FRAME_BYTES:
+                    raise DesktopUnavailable("private capture exceeds the 900 KB frame bound or is empty")
+                return stream.read(MAX_FRAME_BYTES + 1)
+        finally:
+            if proc is not None:
+                with self._capture_lock:
+                    self._captures.discard(proc)
+            out.unlink(missing_ok=True)
 
     def kill_all(self) -> None:
         """End the compositor, bus and every application at once (emergency stop of the whole environment)."""
-        for proc in reversed(self._procs):
+        with self._capture_lock:
+            self._stopping = True
+            captures = tuple(self._captures)
+        for proc in [*reversed(self._procs), *captures]:
             if proc.poll() is None:
                 try:
                     os.killpg(proc.pid, signal.SIGKILL)

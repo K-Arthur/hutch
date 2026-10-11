@@ -25,6 +25,28 @@ pytest.importorskip("playwright.sync_api")
 DOCUMENT = b"record,title\n42,Reviewed local report\n"
 
 
+def test_whole_form_file_limit_refuses_before_hashing_or_transmitting(store, config, tmp_path, app):
+    server, base = app
+    ctx = make_ctx(store, config, tmp_path, Bot(name="form-budget", tools=["browser"], local_dev_origins=[base]))
+    tool = BrowserTool()
+    try:
+        assert tool.run({"action": "goto", "url": base}, ctx).ok
+        page = tool._tabs[tool._active_tab]
+        page.set_content('<form method=post action="/upload"><input id=a type=file><input id=b type=file><button id=send>Send</button></form>')
+        page.evaluate("""() => {
+          for (const id of ['a', 'b']) {
+            const data = new DataTransfer(); data.items.add(new File(['test'], id + '.txt'));
+            document.getElementById(id).files = data.files;
+          }
+          File.prototype.arrayBuffer = () => { throw new Error('hashing must not begin'); };
+        }""")
+        result = tool.run({"action": "click", "selector": "#send"}, ctx)
+        assert not result.ok and "one-file" in result.output
+        assert server.receipts == [] and store.pending_approvals() == []
+    finally:
+        tool._teardown()
+
+
 class App(BaseHTTPRequestHandler):
     def send(self, body, content_type="text/html; charset=utf-8", status=200, headers=()):
         self.send_response(status)

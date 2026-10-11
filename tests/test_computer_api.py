@@ -59,6 +59,17 @@ def test_state_describes_control_environment_and_the_latest_frame(seeded):
     assert body["human_needed_seq"] == 0
 
 
+def test_latest_pixels_keep_their_surface_and_matching_owner(seeded):
+    client, store, run, _, _, _ = seeded
+    store.append_event(Event(run_id=run.id, type=EventType.log, data={
+        "kind": "computer_control", "surface": "browser", "owner": "human", "generation": 99,
+        "reason": "other surface"}))
+    store.flush_events()
+    body = client.get(f"/api/v1/tasks/runs/{run.id}/computer").json()
+    assert body["surface"] == "desktop" and body["control"]["owner"] == "agent"
+    assert body["frame"]["page"]["kind"] == "desktop_screen"
+
+
 def test_a_run_that_never_used_a_surface_reports_inactive(config):
     app = create_app()
     store = app.state.store

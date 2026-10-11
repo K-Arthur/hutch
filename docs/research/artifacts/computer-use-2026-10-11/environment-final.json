@@ -1,0 +1,12 @@
+{
+  "python": "3.13.15",
+  "kernel": "7.2.7-1-cachyos",
+  "cpu_count": 8,
+  "hatchling_available": false,
+  "model_probe": {
+    "available": false,
+    "reason": "ConnectError",
+    "endpoint": "loopback Ollama 11434 only"
+  },
+  "memory_total_kib": 23888084
+}

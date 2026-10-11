@@ -195,6 +195,10 @@ _CLICK_SNAPSHOT_JS = r"""async function() {
       !['submit','reset','button','image'].includes(fieldType);
   }).slice(0, 129) : [];
   if (fields.length > 128) return {error: "form fields exceed the safe review limit"};
+  const allFiles = fields.filter(field => String(field.type || '').toLowerCase() === 'file')
+    .flatMap(field => Array.from(field.files || []));
+  if (allFiles.length > 1 || allFiles.reduce((sum, file) => sum + file.size, 0) > 4000000)
+    return {error: 'form file selections exceed the one-file / 4 MB review limit'};
   const described = await Promise.all(fields.map(async field => {
     const fieldType = String(field.type || '').toLowerCase();
     const label = field.labels ? Array.from(field.labels).map(item => item.innerText || '').join(' ') : '';
@@ -422,6 +426,9 @@ class BrowserTool(Tool):
         self._upload_grants: dict[tuple, float] = {}
         self._transfer_bytes = 0
         self._transfer_count = 0
+        self._ctx = None
+        self._budget = None
+        self._budget_reason = ""
 
     # ------------------------------------------------------- emergency stop
 
@@ -631,6 +638,8 @@ class BrowserTool(Tool):
             raise BrowserUnavailable()
         profile_dir = ctx.config.browser_profile_dir(ctx.bot.id)
         profile_dir.mkdir(parents=True, exist_ok=True)
+        from ..computer.budgets import profile_usage
+        profile_usage(profile_dir)
         self._acquire_leases(ctx, profile_dir)
         try:
             local_origins = self._local_origins(ctx)
@@ -658,7 +667,7 @@ class BrowserTool(Tool):
                 # Chromium implicitly bypasses proxies for localhost/link-local destinations. Remove that exception so
                 # the proxy remains the network boundary even if the early Playwright route policy changes.
                 proxy={"server": self._proxy.url, "bypass": "<-loopback>"},
-                args=["--force-webrtc-ip-handling-policy=disable_non_proxied_udp"],
+                args=["--force-webrtc-ip-handling-policy=disable_non_proxied_udp", "--disk-cache-size=4194304", "--media-cache-size=4194304"],
                 service_workers="block",
             )
             # The route check gives an early refusal; the loopback proxy independently resolves, validates and pins connections.
@@ -693,6 +702,12 @@ class BrowserTool(Tool):
         if getattr(ctx.bot, "remote_computer_access", "off") == "control":
             from ..computer.human import HumanSession
             self._human = HumanSession(ctx, "browser", self._lease, self._human_capture, self._human_dispatch)
+        from ..computer.budgets import BrowserBudget
+        from ..computer.resources import authority
+        def budget_stop(reason):
+            self._budget_reason = reason
+            self._emergency_stop()
+        self._budget = BrowserBudget(profile_dir, self._driver_procs, lambda: authority(ctx, "browser"), budget_stop)
         return self._browser
 
     def _human_identity(self):
@@ -729,6 +744,9 @@ class BrowserTool(Tool):
                 page.keyboard.press("+".join(parts))
 
     def _teardown(self):
+        if self._budget is not None:
+            self._budget.close()
+            self._budget = None
         errors = []
         if getattr(self, "_human", None) is not None:
             self._human.close()
@@ -967,6 +985,14 @@ class BrowserTool(Tool):
     def _fence(self, *, fresh: bool = False) -> Optional[ToolResult]:
         """Re-check, immediately before dispatching input, that this action still holds control. None = go ahead."""
         lease = self._lease
+        if self._ctx is not None:
+            from ..computer.resources import authority
+            try:
+                authority(self._ctx, "browser")
+            except ValueError as exc:
+                if lease is not None:
+                    lease.pause(str(exc))
+                return ToolResult(False, f"error: {exc}", {"outcome": "not_dispatched"})
         ticket = getattr(lease, "action_ticket", None) if lease is not None else None
         if lease is None or ticket is None:
             return None
@@ -1410,7 +1436,10 @@ class BrowserTool(Tool):
 
     def _run_locked(self, action: str, args: dict[str, Any], ctx: ToolContext, decision) -> ToolResult:
         if self._stopped:
-            return ToolResult(False, "error: this run was stopped and its browser was closed; no further browser action runs")
+            return ToolResult(False, "error: " + (self._budget_reason or "this run was stopped and its browser was closed") + "; no further browser action runs")
+        from ..computer.resources import authority
+        authority(ctx, "browser")
+        self._ctx = ctx
         browser = self._ensure(ctx)
         if self._owner_thread is not None and self._owner_thread != threading.get_ident():
             return ToolResult(False, ("error: this browser session belongs to another thread and cannot be driven from "

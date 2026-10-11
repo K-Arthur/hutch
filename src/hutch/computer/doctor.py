@@ -143,7 +143,7 @@ def _compositor(h: _Host) -> Capability:
     if not found:
         return Capability("compositor", "Compositor", UNKNOWN,
                           "The compositor could not be identified from the session bus or environment.",
-                          "Hutch will not guess; capture and input use the desktop portals regardless.",
+                          "Hutch will not guess. Existing-desktop portal control is not implemented; isolated sessions require KWin.",
                           evidence="no org.kde.KWin / org.gnome.Mutter / SWAYSOCK / HYPRLAND_INSTANCE_SIGNATURE")
     return Capability("compositor", "Compositor", READY, f"{found}.", evidence="session bus names / environment")
 
@@ -176,9 +176,9 @@ def _screencast(h: _Host) -> Capability:
     mask = int(sources) if sources.isdigit() else 0
     kinds = [name for bit, name in ((1, "monitor"), (2, "window"), (4, "virtual")) if mask & bit]
     return Capability("screencast", "Screen capture (ScreenCast portal)", NEEDS_CONSENT,
-                      f"Interface v{version}; source types: {', '.join(kinds) or 'unknown'}. Capture works only after "
-                      "a person approves a share in the desktop's dialog; Hutch has not asked.",
-                      "Approve the share dialog when a session starts; Hutch never bypasses it.",
+                      f"Host interface v{version}; source types: {', '.join(kinds) or 'unknown'}. A portal client needs "
+                      "an OS share grant. Hutch's existing-desktop portal adapter is not implemented.",
+                      "Use the reviewed isolated KWin mode; this discovery does not test capture.",
                       evidence=f"ScreenCast version={version} AvailableSourceTypes={sources}")
 
 
@@ -186,8 +186,8 @@ def _remotedesktop(h: _Host) -> Capability:
     version = h.portal_property("RemoteDesktop", "version")
     if version is None:
         return Capability("remotedesktop", "Input injection (RemoteDesktop portal)", UNAVAILABLE,
-                          "The RemoteDesktop portal interface is not available, so Hutch cannot deliver input to a "
-                          "native Wayland desktop.", "Install a portal backend that implements RemoteDesktop.",
+                          "The host RemoteDesktop interface is absent. Hutch uses private KWin EIS for its isolated mode.",
+                          "Existing-desktop portal control is not implemented.",
                           evidence="busctl get-property RemoteDesktop version failed")
     devices = h.portal_property("RemoteDesktop", "AvailableDeviceTypes") or "?"
     mask = int(devices) if devices.isdigit() else 0
@@ -196,7 +196,7 @@ def _remotedesktop(h: _Host) -> Capability:
     return Capability("remotedesktop", "Input injection (RemoteDesktop portal)", NEEDS_CONSENT,
                       f"Interface v{version} ({eis}); devices: {', '.join(kinds) or 'unknown'}. Input is seat-wide: "
                       "approving it is not scoped to one window. Capture and input are separate grants.",
-                      "Approve the control dialog when a session starts; Hutch never bypasses it.",
+                      "Host discovery only: Hutch has no existing-desktop portal input adapter.",
                       evidence=f"RemoteDesktop version={version} AvailableDeviceTypes={devices}")
 
 
@@ -225,10 +225,10 @@ def _libei(h: _Host) -> Capability:
     if h.library("libei.so"):
         extra = f" A compositor EIS socket is present ({sockets[0]})." if sockets else ""
         return Capability("libei", "libei (emulated input)", READY,
-                          "libei is installed; it is usable through the RemoteDesktop portal's ConnectToEIS." + extra,
+                          "libei is installed. Hutch obtains EIS from its private KWin session; input still needs a delivered-action test." + extra,
                           evidence="ldconfig libei.so")
     return Capability("libei", "libei (emulated input)", UNAVAILABLE, "libei is not installed.",
-                      "Install libei; Hutch's native input path goes through the portal's EIS channel.",
+                      "Install libei for the isolated KWin EIS input adapter.",
                       evidence="ldconfig libei.so absent")
 
 
@@ -236,8 +236,9 @@ def _accessibility(h: _Host) -> Capability:
     bus = "org.a11y.Bus" in h.bus_names()
     bindings = h.has_module("gi")
     if bus and bindings:
-        return Capability("accessibility", "Accessibility tree (AT-SPI)", READY,
-                          "The accessibility bus is running and Python GObject bindings are importable.",
+        return Capability("accessibility", "Accessibility tree (AT-SPI)", DEGRADED,
+                          "The host accessibility bus and bindings are present. Hutch has no native AT-SPI action adapter, "
+                          "and does not mount the host accessibility bus into its isolated apps.",
                           evidence="org.a11y.Bus + import gi")
     if bus:
         return Capability("accessibility", "Accessibility tree (AT-SPI)", DEGRADED,
@@ -253,11 +254,11 @@ def _accessibility(h: _Host) -> Capability:
 def _clipboard(h: _Host) -> Capability:
     tools = [t for t in ("wl-copy", "wl-paste", "xclip", "xsel") if h.which(t)]
     if tools:
-        return Capability("clipboard", "Clipboard", READY,
-                          f"Command-line clipboard tools found: {', '.join(tools)}. Clipboard access is its own grant; "
-                          "viewing or pointer control does not imply it.", evidence="PATH lookup")
+        return Capability("clipboard", "Clipboard", UNAVAILABLE,
+                          f"Host tools found: {', '.join(tools)}. Hutch does not expose clipboard read/write or mount "
+                          "the personal clipboard into its private session.", evidence="PATH lookup; adapter absent")
     return Capability("clipboard", "Clipboard", UNAVAILABLE, "No clipboard command-line tool found.",
-                      "Install wl-clipboard (Wayland) or xclip (X11) if clipboard transfer is needed.",
+                      "Clipboard transfer is unsupported; use reviewed workspace files.",
                       evidence="PATH lookup")
 
 
@@ -265,8 +266,8 @@ def _input_tools(h: _Host) -> Capability:
     tools = [t for t in ("wtype", "ydotool", "xdotool", "dotool") if h.which(t)]
     if not tools:
         return Capability("input_tools", "Third-party input tools", UNKNOWN,
-                          "None installed. Hutch does not need them: native input is delivered through the portal/EIS "
-                          "path after consent, never through a privileged input daemon.",
+                          "None installed. Hutch uses the private KWin EIS channel after session review, "
+                          "never a privileged input daemon.",
                           evidence="PATH lookup")
     return Capability("input_tools", "Third-party input tools", UNKNOWN,
                       f"Found: {', '.join(tools)}. Hutch does not use these; some (ydotool) need an elevated input "
@@ -275,16 +276,18 @@ def _input_tools(h: _Host) -> Capability:
 
 
 def _isolated_compositor(h: _Host) -> Capability:
-    found = [t for t in ("kwin_wayland", "weston", "cage", "sway") if h.which(t)]
-    if found:
-        return Capability("isolated_compositor", "Isolated test compositor", READY,
-                          f"Available for disposable native sessions: {', '.join(found)} (kwin_wayland supports a "
-                          "virtual output). Use one so automation never touches the personal desktop.",
-                          evidence="PATH lookup")
+    required = ("kwin_wayland", "dbus-daemon", "busctl", "spectacle", "bwrap", "systemd-run", "prlimit")
+    missing = [tool for tool in required if not h.which(tool)]
+    if not missing and h.library("libei.so"):
+        return Capability("isolated_compositor", "Isolated KWin prerequisites", NEEDS_CONSENT,
+                          "KWin virtual/capture/containment tools and libei are present. Package presence is not a "
+                          "capture or input test; a reviewed run checks its private display and EIS separately.",
+                          "Enable computer applications and review a new session. A PyGObject interpreter, usable user "
+                          "namespaces and the user service manager are also required.", evidence="PATH lookup + libei")
     return Capability("isolated_compositor", "Isolated test compositor", UNAVAILABLE,
-                      "No nested/virtual Wayland compositor found for disposable native sessions.",
-                      "Install kwin_wayland, weston, cage or sway to run automation away from the personal desktop.",
-                      evidence="PATH lookup")
+                      "Supported isolated KWin prerequisites are missing: " + ", ".join(missing or ["libei"]),
+                      "Use the supported KWin setup. Installed weston, cage or sway cannot use Hutch's KWin adapter.",
+                      evidence="PATH lookup + libei")
 
 
 def _browser_engine(h: _Host, deep: bool) -> Capability:
@@ -362,13 +365,12 @@ def summary(results: list[Capability]) -> dict[str, Any]:
     def state(cap: str) -> str:
         return by_id[cap].state if cap in by_id else UNKNOWN
 
-    native_ready = all(state(c) in (READY, NEEDS_CONSENT) for c in ("session", "portal", "screencast", "remotedesktop",
-                                                                     "pipewire"))
     return {
         "browser": state("browser_engine"),
-        "native_desktop": "needs_consent" if native_ready else "unavailable",
-        "note": ("Native capture and input require a person to approve desktop dialogs; this probe cannot grant or "
-                 "pre-approve them, and a ready/needs_consent state is not a proof that input will be delivered."),
+        "native_desktop": state("isolated_compositor") if state("isolated_compositor") == NEEDS_CONSENT else UNAVAILABLE,
+        "existing_desktop": UNAVAILABLE,
+        "note": ("Hutch implements isolated KWin sessions. Portal discovery describes host interfaces, not an implemented "
+                 "existing-desktop adapter. Session review, capture and delivered input are separate checks."),
     }
 
 

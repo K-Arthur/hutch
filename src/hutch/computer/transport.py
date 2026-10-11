@@ -78,16 +78,23 @@ class WorkerBridge:
         self._slots = threading.BoundedSemaphore(4)
         self._clients = set()
         self._lock = threading.Lock()
+        self.inode = None
         try:
             if len(list(self.path.iterdir())) >= 64:
                 raise OSError("human channel directory is full; reconcile old stopped workers")
             self.socket.bind(self.address)  # never replace another worker's socket
-            os.chmod(self.name, 0o600, dir_fd=self.fd, follow_symlinks=False)
             self.inode = os.stat(self.name, dir_fd=self.fd, follow_symlinks=False).st_ino
+            os.chmod(self.name, 0o600, dir_fd=self.fd, follow_symlinks=False)
             self.socket.listen(4)
             self.socket.settimeout(0.25)
         except Exception:
             self.socket.close()
+            if self.inode is not None:
+                try:
+                    if os.stat(self.name, dir_fd=self.fd, follow_symlinks=False).st_ino == self.inode:
+                        os.unlink(self.name, dir_fd=self.fd)
+                except FileNotFoundError:
+                    pass
             os.close(self.fd)
             raise
         self.thread = threading.Thread(target=self._serve, name="hutch-human-ipc", daemon=True)
@@ -105,6 +112,10 @@ class WorkerBridge:
                 connection.close()
                 continue
             with self._lock:
+                if self._closed.is_set():
+                    connection.close()
+                    self._slots.release()
+                    return
                 self._clients.add(connection)
             threading.Thread(target=self._handle, args=(connection,), name="hutch-human-rpc", daemon=True).start()
 
@@ -187,7 +198,12 @@ class HumanProxy:
             if fd is not None: os.close(fd)
 
     def public(self):
-        return self._rpc("public")
+        from .human import HumanError
+        try:
+            return self._rpc("public")
+        except HumanError:
+            return {"surface": self.surface, "controller_present": False, "step_control": False,
+                    "control": {"owner": "recovery_required", "reason": "worker channel unavailable; no input was sent"}}
 
     def takeover(self, viewer, authorized=None, auth_session=""):
         return self._rpc("takeover", viewer=viewer, auth_session=auth_session)
@@ -206,8 +222,8 @@ def discover(config, run_id, fence):
     for surface in ("browser", "desktop"):
         proxy = HumanProxy(config, run_id, fence, surface)
         try:
-            proxy.public()
-            result.append(proxy)
+            if proxy.public().get("step_control"):
+                result.append(proxy)
         except HumanError:
             pass  # absent/stale/closed channels confer no control
     return result

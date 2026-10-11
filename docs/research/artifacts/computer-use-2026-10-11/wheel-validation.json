@@ -1,0 +1,164 @@
+{
+  "python": "3.13.15",
+  "package_origin": "/home/kevina/.cache/hutch-supervised-validation/wheel-install/lib/python3.13/site-packages/hutch",
+  "assets": {
+    "server/static/index.html": {
+      "bytes": 9720,
+      "sha256": "b5d77b8f42bd23151d7dc2cf6b798737d7294e85695ca24d57ae29091347f377"
+    },
+    "server/static/computer.js": {
+      "bytes": 21124,
+      "sha256": "a777c0f18232d39bc334c14990d30f9271209dd17516322b4aae28e3776e0908"
+    },
+    "server/static/computer.css": {
+      "bytes": 4756,
+      "sha256": "fad1429bf7e7ea76ecd2071e1726bc4c3105ad96744694eec90817fe3eebc6dd"
+    },
+    "computer/native/eis_worker.py": {
+      "bytes": 15955,
+      "sha256": "dc9c0f8bb2c484038a4ffc3bb9995e90373412fa318a3ac887482378cf15934a"
+    },
+    "computer/native/virtual.py": {
+      "bytes": 10645,
+      "sha256": "8f6c6ed10eea1493197333c4c746ce85a5e53963e336f22c0250156319c5744b"
+    },
+    "computer/transport.py": {
+      "bytes": 9527,
+      "sha256": "2500103fd75bca3ef35fe61b2d9cf4ce796b18e3c504bf5eb027a20f855f6eca"
+    }
+  },
+  "dependencies": {
+    "hutch": "0.1.0",
+    "playwright": "1.63.0",
+    "fastapi": "0.143.0",
+    "openai": "3.28.0",
+    "pydantic": "2.14.0",
+    "anthropic": "1.13.0"
+  },
+  "http_assets_and_readiness": "passed",
+  "installed_cli_doctor": {
+    "capabilities": [
+      {
+        "id": "session",
+        "title": "Display session",
+        "state": "ready",
+        "detail": "Native Wayland session (wayland-0) on KDE. XWayland is also available (:0); X11-only tools see only X11 windows, never native Wayland ones.",
+        "fix": "",
+        "evidence": "XDG_SESSION_TYPE=wayland WAYLAND_DISPLAY=wayland-0 socket=True"
+      },
+      {
+        "id": "compositor",
+        "title": "Compositor",
+        "state": "ready",
+        "detail": "KWin (KDE Plasma).",
+        "fix": "",
+        "evidence": "session bus names / environment"
+      },
+      {
+        "id": "portal",
+        "title": "Desktop portal service",
+        "state": "ready",
+        "detail": "Running with backend(s): gtk, kde, kwallet, plasmanotify.",
+        "fix": "",
+        "evidence": "org.freedesktop.portal.Desktop + impl.portal.desktop.*"
+      },
+      {
+        "id": "screencast",
+        "title": "Screen capture (ScreenCast portal)",
+        "state": "needs_consent",
+        "detail": "Host interface v5; source types: monitor, window, virtual. A portal client needs an OS share grant. Hutch's existing-desktop portal adapter is not implemented.",
+        "fix": "Use the reviewed isolated KWin mode; this discovery does not test capture.",
+        "evidence": "ScreenCast version=5 AvailableSourceTypes=7"
+      },
+      {
+        "id": "remotedesktop",
+        "title": "Input injection (RemoteDesktop portal)",
+        "state": "needs_consent",
+        "detail": "Interface v2 (ConnectToEIS available); devices: keyboard, pointer, touchscreen. Input is seat-wide: approving it is not scoped to one window. Capture and input are separate grants.",
+        "fix": "Host discovery only: Hutch has no existing-desktop portal input adapter.",
+        "evidence": "RemoteDesktop version=2 AvailableDeviceTypes=7"
+      },
+      {
+        "id": "pipewire",
+        "title": "PipeWire",
+        "state": "ready",
+        "detail": "Daemon socket present and libpipewire installed.",
+        "fix": "",
+        "evidence": "/run/user/1000/pipewire-0 + libpipewire-0.3"
+      },
+      {
+        "id": "libei",
+        "title": "libei (emulated input)",
+        "state": "ready",
+        "detail": "libei is installed. Hutch obtains EIS from its private KWin session; input still needs a delivered-action test.",
+        "fix": "",
+        "evidence": "ldconfig libei.so"
+      },
+      {
+        "id": "accessibility",
+        "title": "Accessibility tree (AT-SPI)",
+        "state": "degraded",
+        "detail": "The accessibility bus is running, but this Python environment has no GObject bindings (gi).",
+        "fix": "Install python-gobject (and gir1.2-atspi / at-spi2-core typelibs) for Hutch's interpreter, or run the accessibility adapter out of process.",
+        "evidence": "org.a11y.Bus; import gi failed"
+      },
+      {
+        "id": "clipboard",
+        "title": "Clipboard",
+        "state": "unavailable",
+        "detail": "Host tools found: wl-copy, wl-paste. Hutch does not expose clipboard read/write or mount the personal clipboard into its private session.",
+        "fix": "",
+        "evidence": "PATH lookup; adapter absent"
+      },
+      {
+        "id": "input_tools",
+        "title": "Third-party input tools",
+        "state": "unknown",
+        "detail": "None installed. Hutch uses the private KWin EIS channel after session review, never a privileged input daemon.",
+        "fix": "",
+        "evidence": "PATH lookup"
+      },
+      {
+        "id": "isolated_compositor",
+        "title": "Isolated KWin prerequisites",
+        "state": "needs_consent",
+        "detail": "KWin virtual/capture/containment tools and libei are present. Package presence is not a capture or input test; a reviewed run checks its private display and EIS separately.",
+        "fix": "Enable computer applications and review a new session. A PyGObject interpreter, usable user namespaces and the user service manager are also required.",
+        "evidence": "PATH lookup + libei"
+      },
+      {
+        "id": "browser_engine",
+        "title": "Browser engine",
+        "state": "ready",
+        "detail": "Headless launch in a throwaway profile worked in 0.6s.",
+        "fix": "",
+        "evidence": "/home/kevina/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome"
+      },
+      {
+        "id": "human_takeover",
+        "title": "Human step control",
+        "state": "degraded",
+        "detail": "Bounded human frames and step input are available for owned Chromium and private KWin sessions. Per-assistant computer access defaults off; paired viewing needs Monitor, input needs Review and an explicit controller lease. Physical phones and live remote networks remain unverified.",
+        "fix": "Enable Computer access in assistant settings, then start a new supported run. Use the existing private HTTPS/passkey deployment; this feature opens no listener.",
+        "evidence": "local Chromium/KWin input tests; viewport emulation"
+      }
+    ],
+    "summary": {
+      "browser": "ready",
+      "native_desktop": "needs_consent",
+      "existing_desktop": "unavailable",
+      "note": "Hutch implements isolated KWin sessions. Portal discovery describes host interfaces, not an implemented existing-desktop adapter. Session review, capture and delivered input are separate checks."
+    }
+  },
+  "installed_real_browser": {
+    "status": "passed",
+    "frame": {
+      "frame_id": "f000001",
+      "sha256": "cb4cd1ccb0ba2f1645bff7cf4f1c6306cb55a80dc1b5c10f88a2c6f2680c8f21",
+      "bytes": 7021,
+      "media_type": "image/png",
+      "width": 1280,
+      "height": 720
+    }
+  }
+}

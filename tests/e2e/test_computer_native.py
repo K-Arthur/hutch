@@ -83,6 +83,22 @@ def _wait_for(predicate, seconds=8.0, step=0.2):
     return predicate()
 
 
+def test_native_idle_authority_revocation_stops_private_processes(native, store):
+    native.ctx.bot.tools = ["computer"]
+    native.ctx.bot = store.create_bot(native.ctx.bot)
+    native.ctx.store = store
+    result = native.tool.run({"action": "observe"}, native.ctx)
+    assert result.ok, result.output
+    processes = list(native.tool._desktop._procs)
+    changed = store.get_bot(native.ctx.bot.id)
+    changed.tools = []
+    store.upsert_bot(changed)
+    assert _wait_for(lambda: native.tool._stopped, seconds=4)
+    assert _wait_for(lambda: all(proc.poll() is not None for proc in processes), seconds=3)
+    refused = native.tool.run({"action": "type", "frame_id": _frame(result), "text": "revoked"}, native.ctx)
+    assert not refused.ok
+
+
 def test_edit_save_through_a_native_file_dialog_reopen_and_verify(native):
     tool, ctx, workspace = native.tool, native.ctx, native.workspace
 
@@ -169,7 +185,7 @@ def test_launch_is_limited_to_allowed_apps_and_workspace_files(native):
     tool, ctx = native.tool, native.ctx
     assert not tool.run({"action": "launch", "app": "konsole"}, ctx).ok
     outside = tool.run({"action": "launch", "app": "kwrite", "path": "/etc/passwd"}, ctx)
-    assert not outside.ok and "outside this run's workspace" in outside.output
+    assert not outside.ok and "workspace" in outside.output
 
 
 def test_emergency_stop_ends_the_whole_desktop_and_nothing_more_runs(native):

@@ -342,3 +342,7 @@ Browser account profiles follow immutable bot IDs, so renaming an assistant reta
 name cannot borrow it. Legacy name-scoped profiles are left for manual backup/relogin. Browser uploads and downloads use
 separate reviewed, bounded workspace actions; viewing and human step control do not grant a host file chooser. See
 [profiles and governed files](computer-use.md#profiles-iframe-scope-and-governed-files).
+
+Changing computer authority settings during a session fences further GUI input and stops idle sessions via a two-second
+watchdog; start a new authorized run after review. Native review grants the whole clean workspace, subject to known secret
+path/link/depth/entry/byte checks; do not add credentials concurrently. See the [resource contract](computer-use.md#resource-grants-revocation-and-budgets).

@@ -166,3 +166,55 @@ After adding the actual Next/upload form stage, cookie-account-change refusal, a
 deadline, the combined profile/real-browser/isolation/transfer/proxy checks passed **46 in 54.27 s**. The refreshed receipt
 screenshot was opened and inspected again. Source: `browser.py`, `browser_files.py`, `browser_proxy.py`, `config.py`;
 regressions: `test_computer_transfers.py`, `test_computer_isolation.py`, `test_browser_profiles.py`, `test_browser_proxy.py`.
+
+## Additional firsthand failures and coverage (read 2026-10-11)
+
+| Source | Report / status | Applicable response and regression |
+| --- | --- | --- |
+| [Browser Use #1845](https://github.com/browser-use/browser-use/issues/1845) | 0.2.4, macOS, cookie storage not saved; closed with no linked release on the inspected page | Real persistent-cookie reopen across rename, recycled-name isolation and concurrent separate profiles; `test_browser_profiles.py`, `test_computer_isolation.py`. This is not proof of upstream cross-account leakage. |
+| [Input Leap #1690](https://github.com/input-leap/input-leap/issues/1690) | Debian/Ubuntu 22.04 X11, self-built `004a54f`: modifiers stuck after long use; closed via #1972, later comment reports switching while a modifier is held. Repository archived July 2026 | Fixed chords, explicit owned-key release and killable private input worker; no held/drag public control. `test_computer_control.py`, `test_computer_desktop.py`, actual native Stop. Upstream fix is not installed here. |
+| [Browser Use #1704](https://github.com/browser-use/browser-use/issues/1704), [Desktop #408](https://github.com/browser-use/desktop/issues/408) | 0.1.48 API pause reportedly invokes terminal interaction; closed without a verified release. Desktop pause/resume request remains open, no installed-version conclusion | Independent control state, owner-thread queues and separate pause/handback/Stop; `test_computer_human.py`, `test_computer_phone.py`, inference-generation fence. |
+| [Browser Use #5815](https://github.com/browser-use/browser-use/issues/5815) | Open report against 0.13.10 / `843819c`, dated September 2026: page-driven redirects/popups/iframes bypass a navigation-only domain check, potentially exposing authenticated content to model context. This source report was not reproduced in Browser Use | Hutch's pinned proxy checks actual network hops; sensitive observations/hosted consent and independent hard denies remain enforced. `test_browser_egress.py`, `test_browser_proxy.py`, `test_computer_privacy_authority.py`, transfer approval/cookie-change cases. This does not claim universal prevention of model prompt injection. |
+
+Together with the initial ledger, this covers stale/wrong targets, no-op/no-progress outcomes, profile lifecycle, missing
+Wayland input, wrong-window identity, screenshot/RSS growth, held keys, interrupted sessions/takeover, malicious content
+and accidental transmission. Cross-profile leakage is a reproduced **Hutch baseline root cause** (class-owned browser), not
+an invented finding about the cookie-saving report. Prompt/DOM/image text remains untrusted; the policy and destination
+guards, rather than a model's refusal, carry the authority guarantee. Full custom-widget/secret classification is unsupported.
+
+## Resource, readiness and installed-package milestone
+
+New source: `computer/resources.py`, `computer/budgets.py`; changed boundaries in `tools/computer.py`, `tools/browser.py`,
+`native/virtual.py`, `computer/frames.py`, `computer/transport.py` and `server/app.py`. Native review grants the whole clean
+workspace with path/link/depth/count/byte checks. Fresh saved authority is checked after approvals and independently at
+idle. The two-second soft watchdog covers retained-state and sampled RSS bounds; it is not hard Chromium/compositor
+memory containment. The [kernel /proc documentation](https://docs.kernel.org/filesystems/proc.html) explicitly distinguishes
+sampled RSS from precise mapping accounting; shared-page sums are not physical-memory totals. Native apps keep existing
+hard scope limits, and four launchers maximum. Capture has a deadline, bounded reads and guaranteed temporary-file removal;
+Stop and capture registration are synchronized. Frame quotas/IDs serialize across store instances. Failed IPC setup removes
+only its own socket and closes its descriptors. Preview owner state stays bound to the pixels' actual surface.
+
+Readiness now reports isolated KWin prerequisites separately from host portal discovery. Weston/Cage/Sway presence cannot
+claim an implemented adapter; host clipboard tools and AT-SPI bindings cannot claim Hutch actions. Native delivery still
+needs a real test after session review. The [Windows SendInput contract](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput)
+limits delivery by integrity level and warns that its error result does not identify UIPI as the cause. The
+[Apple ScreenCaptureKit presentation](https://developer.apple.com/videos/play/wwdc2022/10156/) describes filtered display/app/window
+streams, not a Hutch input executor. Neither platform has a verified Hutch native adapter or hardware test; no parity claim.
+
+Attempts: resource/native checks first had **34 pass / 1 fail in 89.34 s** because policy-first outside-path refusal changed
+the error wording; the assertion still requires denial. The next batch had **68 pass in 129.87 s with one thread warning**:
+the resource watchdog raced a closing Store. Authority now fails closed with a bounded public error, and the clean recheck
+with thread warnings treated as errors passed **49 in 131.52 s**. A separate resource/native-idle/offline/external-runtime
+batch had **61 pass / 1 fail in 10.32 s**: a direct offline-broker fixture exceeded Linux's Unix socket pathname bound
+under the long private TMPDIR. Production broker paths are already short; the repository suite uses a short private base.
+The first complete unit run had **1835 pass / 3 fail in 429.83 s**, all fixtures lacking saved browser capability setup.
+Corrected fixtures explicitly grant it; the denial check remains. Focused browser/API/resources/mixed/native idle checks
+then passed **36 in 22.14 s**. Counts overlap; the first full run is not called green.
+
+Offline wheel build and installation used cached dependencies only. `scripts/verify_computer_wheel.py` was executed by the
+isolated install's Python with `-I`, outside the source checkout: packaged HTTP assets/readiness, installed CLI deep doctor,
+native worker/driver asset hashes and a real throwaway Chromium observation passed. `wheel-validation.json` records actual
+install dependencies (including newer cached FastAPI/OpenAI/Pydantic than the source test environment); no dependency range
+changed. The local Ollama 11434 probe returned ConnectError (`environment-final.json`); actual local model inference remains
+blocked, with no weight download or hosted fallback. Native reopened pixels and 360/landscape control captures were opened
+and inspected again: saved content, masked field, visible focus and reachable Stop are present.

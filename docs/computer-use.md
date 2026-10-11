@@ -56,7 +56,33 @@ The compositor, capture and input worker remain trusted host processes; this is 
 compositor. Allow only installed applications you intend to use. Do not put credentials in the granted workspace.
 
 Keyboard input is sent as evdev keycodes and typed for a **US layout** (printable ASCII); other characters are refused
-rather than guessed. The result of typing is confirmed by observation, not assumed.
+rather than guessed. The driver reports dispatched input and visual change; confirm the intended effect in application state or a saved artifact.
+
+## Resource grants, revocation and budgets
+
+The session review grants the **whole clean workspace**, including newly created ordinary documents. Before native
+observation or input, Hutch checks known policy-denied credential paths, links/devices, 10,000 entries, 16 directory levels
+and a 128 MiB file total. A denied resource prevents GUI observation/input; choose a clean workspace. This is a path policy,
+not a content classifier. The trusted local owner must not add private material concurrently. The OS namespace does not
+turn an approved application's scripts or displayed text into trusted instructions.
+
+Browser and native checks reread the saved Bot's tools, apps, local origins, observation consent, remote access, risk,
+approval/command rules, inference mode and paused state. A changed grant requires a new run. Revalidation also happens
+after review. Independent two-second watchdogs stop idle sessions on revocation, unavailable authority state, oversized
+retained state or sampled process-tree RSS above 1.5 GiB. Browser profiles and native session directories have a sampled
+128 MiB / 10,000-entry bound; Chromium caches are requested at 4 MiB. Profiles are retained for review, never silently erased.
+These are **soft sampled limits**, with possible overshoot; summed RSS includes shared mappings. Native app launchers also
+have the existing hard scope/prlimit controls and at most four simultaneous launchers per private session. The trusted
+compositor is not hard memory-isolated. Scheduler/run capacity and browser driver-slot bounds still apply; raising capacity
+raises aggregate resource use. Disk-backed temporary storage avoids consuming an already-full tmpfs.
+
+Native capture has a 15-second deadline and keeps only an accepted bounded PNG; failed/oversized capture files are removed.
+Stop fences capture registration and kills owned capture processes too. Shared browser/native frame stores serialize their
+quota and frame IDs across instances. Upload review allows one selected file across the whole form, before allocating its
+hash buffer. Managed downloads retain at most eight files / 16 MB per browser run, within the shared artifact limit.
+Clipboard, drag/held input and authenticated PTY transfer are unsupported. Strict Offline excludes browser/computer tools;
+its governed file/shell loop uses the configured loopback model broker in a network-isolated worker. OpenCode/Pi Bot
+executors still refuse before process creation until equivalent authority can be enforced.
 
 ## Observation and images
 
@@ -221,6 +247,9 @@ reviewed actions below; screen viewing or human step input grants no host file p
 | browser tab blocked "internal name" | the origin is not in `local_dev_origins`, or is Hutch's own dashboard |
 | another viewer controls the surface | ask that viewer to pause; after disconnect wait for lease expiry, then explicitly take control |
 | stale frame / changed generation / lost acknowledgement | refresh and inspect; never blindly retry a submit |
+| session stops after settings change | revocation won; review settings and start a new authorized run |
+| workspace contains a policy-denied resource | move ordinary work to a clean workspace; do not weaken the credential deny |
+| retained state / RSS budget exceeded | stop, inspect the private profile/session and reduce capacity; no automatic profile deletion |
 | no Take control button | enable step control locally, start a new built-in run, check device Review permission and active channel |
 
 ## Upgrade and rollback
@@ -230,7 +259,7 @@ human pixels and input queues are not durable. On process restart, old tokens ca
 verify cleanup before rollback. Keep revoked device sessions and generation fences revoked; restoring a database requires
 the existing restore review. Do not downgrade into the former shared browser or uncontained native-app paths.
 
-## Measured on the reference host
+## Prior measurements on the reference host
 
 Host: Linux 7.2, KDE Plasma 6 Wayland, 8 cores, Playwright 1.63.0 / Chrome for Testing 153. Disposable KWin 6.7.5 session.
 No model in the loop (so these are driver costs, not task times).
@@ -246,8 +275,30 @@ No model in the loop (so these are driver costs, not task times).
 | Frame store | capped at 64 frames (0.65 MB browser, 2.2 MB desktop) |
 | Leftover processes after the soak | none |
 
-`benchmarks/computer_use_soak.py` reproduces these; the 100-cycle result is in
+These are the earlier slice's baseline, **not measurements of the final resource-watchdog code**. The earlier 100-cycle result is in
 `research/artifacts/computer-use/soak-100-cycles.json`.
+
+## Contributor and installed-package checks
+
+Use the existing development environment and installed Chromium; native tests need the prerequisites above. Use a private,
+disk-backed `TMPDIR` on this host. Direct offline-broker fixtures need a short pytest base path (Linux Unix socket pathname
+limits); the normal run broker already creates a short private directory.
+
+```sh
+PYTHONPATH=src python -m pytest -q --ignore=tests/e2e --basetemp=/short/private/test-path
+PYTHONPATH=src python -m pytest -q tests/e2e/test_computer_*.py tests/e2e/test_browser*.py
+PYTHONPATH=src python benchmarks/computer_use_soak.py --cycles 100 --json /private/soak.json
+uv build --offline --wheel --out-dir /private/dist
+# Install that wheel with browser/anthropic extras into a separate environment; no editable source import.
+/private/install/bin/python -I scripts/verify_computer_wheel.py --source-root "$PWD" --evidence /private/wheel.json
+```
+
+The wheel check serves packaged assets/readiness, invokes the installed CLI, checks native worker/driver source hashes,
+and observes a real throwaway Chromium page. It does not claim real model inference, native delivery on another platform,
+or a deployed phone connection. The soak measures deterministic driver tasks, errors/navigation and control-lease handoff;
+HTTP/phone latency is a separate scenario. Capture includes encoding/driver transport, whose CPU costs are not separately
+instrumented. Fresh results and unexecuted checks belong in the dated evidence ledger, rather than being inferred from a
+successful installation.
 
 ## Tests
 

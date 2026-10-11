@@ -4116,6 +4116,7 @@ def create_app() -> FastAPI:
         events = store.tail_events(run_id, 400)                   # newest 400, oldest first
         control = None
         surface = None
+        controls = {}
         frame = None
         observation = None
         history: list[dict] = []
@@ -4125,7 +4126,9 @@ def create_app() -> FastAPI:
             if ev.type is EventType.log and data.get("kind") == "computer_control":
                 control = {k: data.get(k) for k in ("owner", "generation", "reason", "fresh_observation_required")}
                 control["since"] = ev.ts
-                surface = data.get("surface") or surface
+                controls[data.get("surface")] = control
+                if frame is None:
+                    surface = data.get("surface") or surface
                 history.append({"owner": data.get("owner"), "reason": str(data.get("reason") or "")[:160],
                                 "at": ev.ts, "generation": data.get("generation")})
             elif ev.type is EventType.tool_result and data.get("frames"):
@@ -4133,7 +4136,7 @@ def create_app() -> FastAPI:
                 if frames:
                     frame = {**frames[-1], "seq": ev.seq, "recorded_at": ev.ts}
                     observation = data.get("observation") if isinstance(data.get("observation"), dict) else observation
-                    if surface is None and isinstance(observation, dict):
+                    if isinstance(observation, dict):
                         kind = (observation.get("surface") or {}).get("kind", "")
                         surface = "desktop" if kind.startswith("desktop") else "browser"
             elif ev.type is EventType.human_needed:
@@ -4141,10 +4144,14 @@ def create_app() -> FastAPI:
         waiting = run.status.value == "waiting_human"
         active = frame is not None or control is not None or bool(human_sessions)
         env = (observation or {}).get("environment") if isinstance(observation, dict) else None
-        active_channel = next((s for s in human_sessions if s["surface"] == surface), human_sessions[0] if human_sessions else None)
+        control = controls.get(surface)
+        active_channel = next((s for s in human_sessions if s["surface"] == surface),
+                              human_sessions[0] if surface is None and human_sessions else None)
         if active_channel:
             control = active_channel["control"]
             surface = active_channel["surface"]
+        principal = getattr(request.state, "hutch_principal", None) or {}
+        can_review = principal.get("kind") != "paired" or "review" in principal.get("capabilities", [])
         return {
             "active": active,
             "run_status": run.status.value,
@@ -4157,8 +4164,9 @@ def create_app() -> FastAPI:
             "history": history[-6:],
             "human_needed_seq": human_seq if waiting else 0,
             "human_sessions": human_sessions,
-            "remote_control": bool(human_sessions) and getattr(store.get_bot(run.bot_id), "remote_computer_access", "off") == "control",
-            "remote_control_note": ("Step control is enabled for this private session. Touches send input only after Take control. Hidden tabs or lost supervision pause control." if human_sessions else "Remote clicking and typing are not available for this session. Enable computer step control in the assistant settings before starting its run."),
+            "remote_control": can_review and bool(human_sessions) and getattr(store.get_bot(run.bot_id), "remote_computer_access", "off") == "control",
+            "remote_control_note": ("This device is paired for viewing. Review permission is required to take step control." if not can_review else
+                "Step control is enabled for this private session. Touches send input only after Take control. Hidden tabs or lost supervision pause control." if human_sessions else "Remote clicking and typing are not available for this session. Enable computer step control in the assistant settings before starting its run."),
             "now": iso(utcnow()),
         }
 

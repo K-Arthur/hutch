@@ -9,6 +9,11 @@ the opaque ``frame_id`` and fetch bytes through an authorized, verified read.
 from __future__ import annotations
 
 import hashlib
+import contextlib
+try:
+    import fcntl
+except ImportError:  # package import stays usable; this storage boundary is Linux/POSIX only
+    fcntl = None
 import os
 import re
 import stat
@@ -104,6 +109,20 @@ class FrameStore:
 
     # ------------------------------------------------------------ internals
 
+    @contextlib.contextmanager
+    def _serialized(self):
+        if fcntl is None:
+            raise FrameError("frame storage requires POSIX directory leases on this platform")
+        with self._lock:
+            self._ensure_dir()
+            fd = os.open(self._dir, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            try:
+                # Browser/native stores are separate objects; their quota and frame IDs share one run directory.
+                fcntl.flock(fd, fcntl.LOCK_EX)
+                yield
+            finally:
+                os.close(fd)
+
     def _ensure_dir(self) -> None:
         self._dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         if self._dir.is_symlink() or not self._dir.is_dir():
@@ -135,8 +154,7 @@ class FrameStore:
         if width <= 0 or height <= 0 or max(width, height) > MAX_FRAME_EDGE:
             raise FrameError(f"the frame is {width}x{height}; the long edge limit is {MAX_FRAME_EDGE}px")
         digest = hashlib.sha256(data).hexdigest()
-        with self._lock:
-            self._ensure_dir()
+        with self._serialized():
             entries = self._entries()
             seq = (entries[-1][0] + 1) if entries else 1
             name = f"f{seq:06d}.{MEDIA_TYPES[media_type]}"

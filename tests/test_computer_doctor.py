@@ -87,10 +87,19 @@ def test_missing_portal_service_and_backend():
     assert probe(bus=only_frontend)["portal"].state == DEGRADED
 
 
-def test_accessibility_ready_only_with_bus_and_bindings():
-    assert probe(modules=("gi",))["accessibility"].state == READY
+def test_accessibility_discovery_does_not_claim_an_adapter():
+    assert probe(modules=("gi",))["accessibility"].state == DEGRADED
     no_bus = "NAME PID\norg.freedesktop.portal.Desktop 1 x u :1.2\n"
     assert probe(bus=no_bus, modules=("gi",))["accessibility"].state == UNAVAILABLE
+
+
+def test_other_compositors_and_clipboard_tools_do_not_imply_supported_control():
+    got = probe(tools=("weston", "cage", "sway", "wl-copy"))
+    assert got["isolated_compositor"].state == UNAVAILABLE
+    assert got["clipboard"].state == UNAVAILABLE
+    assert summary(list(got.values()))["existing_desktop"] == UNAVAILABLE
+    supported = probe(tools=("kwin_wayland", "dbus-daemon", "busctl", "spectacle", "bwrap", "systemd-run", "prlimit"))
+    assert supported["isolated_compositor"].state == NEEDS_CONSENT
 
 
 def test_probing_runs_only_read_only_commands():

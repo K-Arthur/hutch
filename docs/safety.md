@@ -439,3 +439,10 @@ The full contract is in [computer-use.md](computer-use.md). The safety-relevant 
   include Hutch's own dashboard.
 * **Limits.** Human step control is opt-in and locally verified through HTTP/viewport emulation; physical phones and live networks are unverified; the existing personal desktop
   is not offered as a target; frames are not redacted (do not point the tool at accounts or secrets).
+
+Computer resource grants are revalidated from saved settings after reviews and before native capture/input or browser
+dispatch. Independent two-second watchdogs stop idle revoked sessions. Native pickers share only the whole reviewed clean
+workspace: known credential paths, links/devices and oversized trees refuse observation/input; this is not a classifier
+for secret content. Browser/native profile/session storage and process-tree RSS have sampled soft limits, with possible
+overshoot; native application scopes retain their hard resource limits. Stop includes owned capture processes, and frame
+IDs/quotas are serialized across browser/native stores. See [the full resource contract](computer-use.md#resource-grants-revocation-and-budgets).

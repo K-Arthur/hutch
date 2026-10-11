@@ -69,6 +69,7 @@ class ComputerTool(Tool):
         self._stopped = False
         self._owner_thread: Optional[int] = None
         self._lease: Optional[ControlLease] = None
+        self._budget = None
 
     # ------------------------------------------------------------- recording
 
@@ -115,10 +116,17 @@ class ComputerTool(Tool):
         if self._owner_thread is not None and self._owner_thread != threading.get_ident():
             return ToolResult(False, "error: this desktop session belongs to another thread; nothing was done",
                               {"thread_affinity": True})
+        from ..computer.resources import authority, workspace_grant
+        authority(ctx, "desktop")
+        workspace_grant(ctx)
         session = self._ensure(ctx)
         if self._owner_thread is None:
             self._owner_thread = threading.get_ident()
-        session.before_dispatch = ctx.begin_effect
+        def before_dispatch():
+            authority(ctx, "desktop")
+            workspace_grant(ctx)
+            return ctx.begin_effect()
+        session.before_dispatch = before_dispatch
 
         if action == "launch":
             return self._launch(args, ctx, session)
@@ -150,15 +158,19 @@ class ComputerTool(Tool):
         apps = list(getattr(ctx.bot, "computer_apps", []) or [])
         if not apps:
             raise DeniedError("this Bot has no applications allowed for the computer tool; add one in its settings")
+        from ..computer.resources import authority, workspace_grant
+        grant = workspace_grant(ctx)
         # One approval for the whole session, describing what actually bounds it (and what does not).
         ctx.gate.decide(
             "computer", f"operate an isolated desktop session (applications: {', '.join(apps)})",
             {"environment": "isolated", "applications": apps,
              "boundary": "separate display/input/bus; apps: workspace-only files, private home, no network, bounded resources",
              "reads": "page text and frames reach the selected model only under its observation policy",
-             "profile_bot_id": ctx.bot.id},
+             "profile_bot_id": ctx.bot.id, "resource_grant": grant},
             Decision(Verdict.ask, "start an isolated desktop session", rule="ask:computer-session", risk="medium"),
             ask_in_auto=True)
+        authority(ctx, "desktop")
+        workspace_grant(ctx)
         self._approved = True
 
         from ..computer.native.eis import EisInput
@@ -191,21 +203,48 @@ class ComputerTool(Tool):
         self._lease = ControlLease(f"{run_id}:desktop", on_change=announce)
         ctx.computer_leases = getattr(ctx, "computer_leases", []) + [self._lease]
         self._session = DesktopSession(
-            session_id=f"{run_id}:desktop", capture=desktop.capture_png, input_backend=eis,
+            session_id=f"{run_id}:desktop", capture=lambda: checked_capture(), input_backend=eis,
             frames=FrameStore(ctx.config.run_dir(ctx.bot.name, run_id)), lease=self._lease,
             environment={"mode": "isolated",
                          "boundary": "apps: workspace-only files, private home, no network, bounded resources; trusted private compositor/bus",
                          "applications": apps, "keyboard_layout": "us (assumed)"})
+        def checked_capture():
+            authority(ctx, "desktop")
+            workspace_grant(ctx)
+            return desktop.capture_png()
         ctx.on_finish.append(lambda: self._shutdown(ctx))
         ctx.cancel_hooks.append(self._emergency_stop)
+        if getattr(desktop, "root", None) is not None:
+            from ..computer.budgets import BrowserBudget
+            from .. import procguard
+            roots = [identity for proc in getattr(desktop, "_procs", [])
+                     if (identity := procguard.identity(proc.pid)) is not None]
+            def check_grant():
+                authority(ctx, "desktop")
+                workspace_grant(ctx)
+            def budget_stop(reason):
+                if self._lease is not None:
+                    self._lease.request_stop(reason)
+                self._emergency_stop()
+            # The compositor/bus roots are stable; contained app trees are sampled separately by this callback.
+            def check_native():
+                check_grant()
+                from ..computer.budgets import browser_rss, MAX_BROWSER_RSS_BYTES
+                identities = [identity for proc in getattr(desktop, "_procs", [])
+                              if (identity := procguard.identity(proc.pid)) is not None]
+                if browser_rss(identities) > MAX_BROWSER_RSS_BYTES:
+                    raise ValueError("desktop process tree exceeds its sampled 1.5 GiB RSS budget")
+            self._budget = BrowserBudget(desktop.root, roots, check_native, budget_stop, surface="desktop")
         if getattr(ctx.bot, "remote_computer_access", "off") == "control":
             from ..computer.human import HumanSession, HumanError
             def capture():
-                return desktop.capture_png(), {"session": self._lease.session_id, "width": desktop.width, "height": desktop.height}
+                return checked_capture(), {"session": self._lease.session_id, "width": desktop.width, "height": desktop.height}
             def dispatch(command, identity, check):
                 if identity != {"session": self._lease.session_id, "width": desktop.width, "height": desktop.height} or not desktop.alive():
                     raise HumanError("the desktop identity changed; capture again")
                 check()
+                authority(ctx, "desktop")
+                workspace_grant(ctx)
                 if command["action"] == "click":
                     eis.click(command["x"], command["y"])
                 elif command["action"] == "type":
@@ -227,6 +266,10 @@ class ComputerTool(Tool):
         argv = [binary]
         path = str(args.get("path") or "").strip()
         if path:
+            from ..safety import PolicyEngine
+            decision = (getattr(ctx, "policy", None) or PolicyEngine()).check_path(path, ctx.workspace, write=False)
+            if decision.verdict is Verdict.deny:
+                return ToolResult(False, f"error: {decision.reason}; nothing was started")
             workspace = ctx.workspace.resolve()
             candidate = (workspace / path) if not os.path.isabs(path) else Path(path)
             resolved = Path(os.path.abspath(candidate))
@@ -242,6 +285,9 @@ class ComputerTool(Tool):
                         Decision(Verdict.ask, f"launch {app}", f"computer:launch:{app}", rule="ask:computer-launch",
                                  risk="medium"))
         self._lease.check(ticket)
+        from ..computer.resources import authority, workspace_grant
+        authority(ctx, "desktop")
+        workspace_grant(ctx)
         if (refusal := ctx.begin_effect()):
             return ToolResult(False, f"error: {refusal}")
         before = session.observe()                       # what the screen shows before the application exists
@@ -276,6 +322,8 @@ class ComputerTool(Tool):
     def _emergency_stop(self) -> None:
         """Run-cancel hook on the supervisor thread: fence, end input, end the whole desktop. Model-independent."""
         self._stopped = True
+        if self._budget is not None:
+            self._budget.closed.set()
         if self._session is not None:
             try:
                 self._session.stop()
@@ -288,6 +336,9 @@ class ComputerTool(Tool):
                 pass
 
     def _shutdown(self, ctx: Optional[ToolContext] = None) -> None:
+        if self._budget is not None:
+            self._budget.close()
+            self._budget = None
         if getattr(self, "_human", None) is not None:
             self._human.close()
         session, self._session = self._session, None

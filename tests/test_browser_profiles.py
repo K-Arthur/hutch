@@ -177,7 +177,8 @@ def test_sensitive_browser_entry_is_redacted_and_pauses_for_the_person(store, co
     from tests.test_tools import make_ctx
 
     secret = "credential-value-never-save-this"
-    ctx = make_ctx(store, config, tmp_path, approval_mode=ApprovalMode.auto)
+    ctx = make_ctx(store, config, tmp_path, Bot(name="sensitive-browser", tools=["browser"],
+                                             approval_mode=ApprovalMode.auto, local_browser_handoff=True))
     ctx.headless = False
     ctx.bot.local_browser_handoff = True
     waits = []
@@ -255,7 +256,7 @@ def test_browser_typing_approval_binds_text_destination_and_profile(
     from hutch.approvals import resolve_approval_ex
     from hutch.models import ApprovalMode
     from tests.test_tools import make_ctx
-    ctx = make_ctx(store, config, tmp_path, approval_mode=ApprovalMode.auto)
+    ctx = make_ctx(store, config, tmp_path, Bot(name="typing-browser", tools=["browser"], approval_mode=ApprovalMode.auto))
     store.allow_sticky(ctx.bot.id, "browser:*")
     args = {"action": "type", "selector": "#recipient", "text": "reviewed recipient"}
     fills = []
