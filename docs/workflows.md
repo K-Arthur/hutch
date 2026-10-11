@@ -6,7 +6,10 @@ result against real evidence, and publish what it produced. It is *not* a routin
 decides **when** saved work is invoked), not a skill (a skill teaches a method to a model),
 and not an MCP server (which exposes operations). The workflow engine owns execution state.
 
-Workflows are optional and off by default. Nothing here starts on its own.
+Workflows are optional. New assistants start in **Suggest**; schema v57 preserves the former
+Off behavior for existing assistants whose saved record did not contain a mode. Suggest may
+point out a workflow-shaped route but does not start it. Auto requires an activated saved
+definition, explicit workflow and budget limits, and separate action approval where required.
 
 ## What a workflow is
 
@@ -31,7 +34,7 @@ Hutch never executes generated code: there is no script sandbox to escape.
 
 | Mode | What Hutch may do |
 |---|---|
-| `off` (default) | nothing; you can still run a saved workflow yourself |
+| `off` | Hutch does not recommend or automatically start a workflow; you can still run a saved workflow yourself |
 | `suggest` | describe a candidate route and its bounds in the conversation; starting it stays your action |
 | `auto` | start a workflow without a fresh confirmation, but only inside the scope you preauthorized in Bot settings |
 
@@ -52,11 +55,19 @@ local inference still sends one request at a time.
 Consequential actions inside a run still use their own approval boundaries - permission to
 choose a method is never permission to spend, access or mutate.
 
-**Status:** the policy, the recommendation rules and the auto-scope check are implemented and
-tested, and the *enforcement* runs on any submission that declares itself automatic. The
-conversation-side wiring - a chat turn that offers a suggestion or starts an auto workflow -
-is **not implemented in this revision**; today a person starts a workflow explicitly with
-`hutch workflow run` or the API. Nothing can start one by accident.
+Auto scope names only existing activated definitions and has explicit limits for nodes, actual
+model requests, tokens, wall time and fan-out. Role checks and the current Bot's tools,
+integrations and data boundaries are checked again at admission. A conversation-level override
+is an additional, narrower choice; setting Auto for one chat cannot create or widen the Bot-level
+scope. The local-owner-only API is
+`GET/POST /api/v1/workflows/conversations/{conversation_id}/policy`; mutations carry an
+`Idempotency-Key` and `expected_revision`. `inherit` uses the Bot setting, and stale revisions
+are rejected. Paired phones do not receive planning, policy, probe, amendment or launch controls.
+
+**Status:** the policy, recommendation rules, revisioned per-conversation override, and explicit
+Bot Auto scope checks are implemented and tested. A chat turn that offers a suggested plan or
+starts a scoped Auto workflow is still **not implemented**; today a person starts one explicitly
+with `hutch workflow run` or the API. Changing a conversation policy starts nothing.
 
 ## Running a saved workflow
 

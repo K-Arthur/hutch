@@ -52,7 +52,7 @@ def test_missing_inputs_clarify_instead_of_inventing_steps():
 
 
 def test_auto_is_refused_unless_the_operator_opted_in(store):
-    bot_off = bot(store)
+    bot_off = bot(store, workflow_mode="off")
     allowed, why = routing.check_auto(bot=bot_off, definition={"active": True},
                                       budget={"max_nodes": 5}, plan_name="p")
     assert not allowed and "off" in why

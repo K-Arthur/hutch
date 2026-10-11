@@ -2,8 +2,8 @@
 
 Three modes, all explicit and reviewable:
 
-``off``      the default. Hutch never proposes or starts a workflow for this Bot.
-``suggest``  Hutch may *describe* a candidate route in the conversation (a plan draft with
+``off``      Hutch never proposes or starts a workflow for this Bot.
+``suggest``  (new assistant default) Hutch may *describe* a candidate route in the conversation (a plan draft with
              its bounds and the simpler alternatives), but starting one is the person's
              action.
 ``auto``     Hutch may start a workflow without a fresh confirmation, but only inside the

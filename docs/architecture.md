@@ -418,7 +418,7 @@ events through the same ownership check. Failed admission rolls back both withou
 the buffer. Expired execution cannot receive a new approval or standing grant; decisions still
 resolve once through compare-and-swap, and full-request rewrites are refused.
 
-## Dynamic workflows (schema v56)
+## Dynamic workflows (schema v57)
 
 A workflow is a **saved, validated plan**, not generated code. The plan schema, the bounded
 evaluator and the compiler live in `src/hutch/workflow/`; `plan` is strict data, `expr`
@@ -488,6 +488,14 @@ verification. Authoring and selection require evidence for the exact active prof
 setting blocks admission. Worker and verifier roles use their scoped evidence and recorded
 caveats; negative evidence blocks. The model-facing `draft_workflow` tool validates and explains
 but cannot start anything, and a guessed direct call is refused with its options.
+
+Schema v57 changes only new-assistant defaults: new Bots are Suggest, while migration pins
+older Bot documents that omitted the setting to Off. Per-conversation workflow policy is a
+separate revisioned record (`conversation_workflow_policies`); a missing override inherits the
+Bot mode. Updates are idempotent and compare the expected revision before commit. Auto requires
+an activated saved definition and explicit limits for nodes, model requests, tokens, wall time
+and fan-out. The conversation override cannot widen that Bot-level scope. Policy changes start
+no workflow and the policy route remains owner-local.
 
 Routing (`workflow/routing.py`) is explainable and abstains by default: `off` never proposes
 or starts, `suggest` may describe a candidate route, and `auto` starts only inside the

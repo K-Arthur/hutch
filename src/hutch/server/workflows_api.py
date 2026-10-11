@@ -76,6 +76,7 @@ class WorkflowRunResource(BaseModel):
     revision_id: str
     plan_hash: str
     bot_id: str
+    conversation_id: str = ""
     status: str
     reason: str = ""
     origin: str = "operator"
@@ -213,6 +214,11 @@ class WorkflowPolicyRequest(BaseModel):
     max_fanout: Optional[int] = Field(default=None, ge=1, le=100)
 
 
+class ConversationWorkflowPolicyRequest(BaseModel):
+    mode: Literal["inherit", "off", "suggest", "auto"]
+    expected_revision: int = Field(default=0, ge=0)
+
+
 def _structure(plan: dict[str, Any]) -> list[dict[str, Any]]:
     return plan_structure(plan)
 
@@ -261,7 +267,8 @@ def _question_resource(row: dict[str, Any]) -> WorkflowQuestionResource:
 def _run_resource(row: dict[str, Any]) -> WorkflowRunResource:
     return WorkflowRunResource(
         id=str(row["id"]), definition_id=row.get("definition_id"), revision_id=str(row["revision_id"]),
-        plan_hash=str(row["plan_hash"]), bot_id=str(row["bot_id"]), status=str(row["status"]),
+        plan_hash=str(row["plan_hash"]), bot_id=str(row["bot_id"]),
+        conversation_id=str(row.get("conversation_id") or ""), status=str(row["status"]),
         reason=str(row.get("reason") or ""), origin=str(row.get("origin") or "operator"),
         attempt_run_id=str(row.get("attempt_run_id") or ""),
         stop_requested=bool(row.get("stop_requested")), inputs=row.get("inputs") or {},
@@ -391,8 +398,82 @@ def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key:
     @app.get("/api/v1/workflows/policy")
     def get_workflow_policy(bot: str) -> dict[str, Any]:
         resolved = _bot_or_404(store, bot)
-        return {"bot": resolved.name, "mode": getattr(resolved, "workflow_mode", "off"),
+        return {"bot": resolved.name, "mode": getattr(resolved, "workflow_mode", "suggest"),
                 "limits": routing.auto_scope(resolved)}
+
+    @app.get("/api/v1/workflows/conversations/{conversation_id}/policy")
+    def get_conversation_workflow_policy(conversation_id: str) -> dict[str, Any]:
+        try:
+            conversation = store.get_conversation(conversation_id)
+            if conversation is None:
+                raise KeyError(conversation_id)
+            saved = store.get_conversation_workflow_policy(conversation_id)
+        except KeyError:
+            raise HTTPException(404, "no such conversation") from None
+        bot = _bot_or_404(store, str(conversation["bot_id"]))
+        override = str(saved["mode"]) if saved else "inherit"
+        effective = getattr(bot, "workflow_mode", "suggest") if override == "inherit" else override
+        scope = routing.auto_scope(bot)
+        auto_ready = (getattr(bot, "workflow_mode", "suggest") == "auto"
+                      and isinstance(scope.get("definitions"), list) and bool(scope["definitions"])
+                      and all(isinstance(scope.get(key), int) and not isinstance(scope.get(key), bool)
+                              for key in routing.AUTO_CAPS))
+        return {"conversation_id": conversation_id, "bot": bot.name,
+                "mode": effective, "override": override,
+                "revision": int(saved["revision"]) if saved else 0,
+                "updated_at": saved.get("updated_at") if saved else None,
+                "bot_mode": getattr(bot, "workflow_mode", "suggest"),
+                "limits": scope, "auto_available": auto_ready}
+
+    @app.post("/api/v1/workflows/conversations/{conversation_id}/policy")
+    def set_conversation_workflow_policy(conversation_id: str,
+                                         payload: ConversationWorkflowPolicyRequest,
+                                         request: Request) -> dict[str, Any]:
+        key, digest = _idempotency(request, {"conversation_id": conversation_id,
+                                             **payload.model_dump()})
+        try:
+            conversation = store.get_conversation(conversation_id)
+            if conversation is None:
+                raise KeyError(conversation_id)
+        except KeyError:
+            raise HTTPException(404, "no such conversation") from None
+        bot = _bot_or_404(store, str(conversation["bot_id"]))
+        if payload.mode == "auto":
+            scope = routing.auto_scope(bot)
+            if getattr(bot, "workflow_mode", "suggest") != "auto":
+                raise HTTPException(409, {"code": "auto_scope_not_reviewed",
+                                          "message": "configure a reviewed Bot-level Auto scope before enabling Auto in this conversation"})
+            if (not isinstance(scope.get("definitions"), list) or not scope["definitions"]
+                    or any(not isinstance(scope.get(key), int) or isinstance(scope.get(key), bool)
+                           for key in routing.AUTO_CAPS)):
+                raise HTTPException(409, {"code": "auto_scope_incomplete",
+                                          "message": "Auto requires saved workflow names and explicit limits for nodes, model requests, tokens, time, and fan-out"})
+        try:
+            saved, _created = store.set_conversation_workflow_policy(
+                conversation_id, payload.mode, expected_revision=payload.expected_revision,
+                idem_key=key, request_hash=digest)
+        except Exception as exc:
+            from ..store import IdempotencyConflict, RevisionConflict
+            if isinstance(exc, IdempotencyConflict):
+                raise HTTPException(409, str(exc)) from None
+            if isinstance(exc, RevisionConflict):
+                raise HTTPException(409, {"code": "workflow_policy_revision_conflict",
+                                          "message": str(exc)}) from None
+            if isinstance(exc, KeyError):
+                raise HTTPException(404, "no such conversation") from None
+            raise
+        override = str(saved["mode"])
+        effective = getattr(bot, "workflow_mode", "suggest") if override == "inherit" else override
+        scope = routing.auto_scope(bot)
+        auto_ready = (getattr(bot, "workflow_mode", "suggest") == "auto"
+                      and isinstance(scope.get("definitions"), list) and bool(scope["definitions"])
+                      and all(isinstance(scope.get(key), int) and not isinstance(scope.get(key), bool)
+                              for key in routing.AUTO_CAPS))
+        return {"conversation_id": conversation_id, "bot": bot.name,
+                "mode": effective, "override": override,
+                "revision": int(saved["revision"]), "updated_at": saved["updated_at"],
+                "bot_mode": getattr(bot, "workflow_mode", "suggest"),
+                "limits": scope, "auto_available": auto_ready}
 
     @app.get("/api/v1/workflows/{ref}", response_model=WorkflowPlanResource)
     def get_workflow(ref: str) -> WorkflowPlanResource:
@@ -544,12 +625,18 @@ def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key:
         bot = _bot_or_404(store, payload.bot)
         limits: dict[str, Any] = {}
         if payload.mode == "auto":
-            if payload.definitions:
-                limits["definitions"] = list(payload.definitions)
+            if not payload.definitions:
+                raise HTTPException(422, "Auto requires at least one reviewed saved workflow")
+            for name in payload.definitions:
+                definition = wstore.definition(store, name)
+                if definition is None or not definition.get("active"):
+                    raise HTTPException(422, f"Auto workflow {name!r} must exist and be activated before it is scoped")
+            limits["definitions"] = list(payload.definitions)
             for key in ("max_nodes", "max_model_calls", "max_tokens", "max_wall_seconds", "max_fanout"):
                 value = getattr(payload, key)
-                if value is not None:
-                    limits[key] = int(value)
+                if value is None:
+                    raise HTTPException(422, f"Auto requires an explicit {key} limit")
+                limits[key] = int(value)
         bot.workflow_mode = payload.mode
         bot.workflow_limits = limits
         store.upsert_bot(bot, preserve_schedules=True)

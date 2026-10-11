@@ -236,11 +236,16 @@ def test_qualification_routes_are_scoped_and_revocable(client):
 def test_workflow_policy_route_saves_mode_and_scope(client):
     bot = make_bot(client, name="policy-bot")
     before = client.get("/api/v1/workflows/policy", params={"bot": "policy-bot"}).json()
-    assert before["mode"] == "off" and before["limits"] == {}
+    assert before["mode"] == "suggest" and before["limits"] == {}
+
+    definition = client.post("/api/v1/workflows", headers={"Idempotency-Key": "save-auto-definition"},
+                             json={"name": "expense-audit", "plan": plan(), "activate": True})
+    assert definition.status_code == 201, definition.text
 
     saved = client.post("/api/v1/workflows/policy", headers=KEY,
                         json={"bot": "policy-bot", "mode": "auto", "definitions": ["expense-audit"],
-                              "max_nodes": 40, "max_model_calls": 0, "max_tokens": 32000})
+                              "max_nodes": 40, "max_model_calls": 12, "max_tokens": 32000,
+                              "max_wall_seconds": 900, "max_fanout": 8})
     assert saved.status_code == 200, saved.text
     assert saved.json()["mode"] == "auto"
     assert saved.json()["limits"]["definitions"] == ["expense-audit"]
@@ -248,12 +253,60 @@ def test_workflow_policy_route_saves_mode_and_scope(client):
     assert after["mode"] == "auto" and after["limits"]["max_nodes"] == 40
     assert after["limits"]["max_tokens"] == 32000
 
+    conversation = client.post("/api/v1/conversations", headers={"Idempotency-Key": "create-auto-chat"},
+                               json={"bot": bot["name"], "title": "Auto scope"})
+    assert conversation.status_code == 201
+    url = f"/api/v1/workflows/conversations/{conversation.json()['id']}/policy"
+    view = client.get(url).json()
+    assert view["mode"] == "auto" and view["auto_available"] is True
+    scoped = client.post(url, headers={"Idempotency-Key": "enable-chat-auto"},
+                         json={"mode": "auto", "expected_revision": 0})
+    assert scoped.status_code == 200 and scoped.json()["mode"] == "auto"
+
     # Switching back to off clears the auto scope rather than leaving it armed.
     client.post("/api/v1/workflows/policy", headers=KEY,
                 json={"bot": "policy-bot", "mode": "off", "definitions": ["expense-audit"]})
     assert client.get("/api/v1/workflows/policy", params={"bot": "policy-bot"}).json()["limits"] == {}
     assert client.post("/api/v1/workflows/policy", headers=KEY,
                        json={"bot": "policy-bot", "mode": "sometimes"}).status_code == 422
+
+
+def test_conversation_workflow_policy_is_revisioned_and_defaults_to_suggest(client):
+    bot = make_bot(client, name="conversation-policy-bot")
+    created = client.post("/api/v1/conversations", headers={"Idempotency-Key": "create-policy-chat"},
+                          json={"bot": bot["name"], "title": "A policy chat"})
+    assert created.status_code == 201, created.text
+    conversation_id = created.json()["id"]
+    url = f"/api/v1/workflows/conversations/{conversation_id}/policy"
+
+    initial = client.get(url)
+    assert initial.status_code == 200, initial.text
+    assert initial.json()["mode"] == "suggest"
+    assert initial.json()["override"] == "inherit"
+    assert initial.json()["revision"] == 0
+    assert initial.json()["auto_available"] is False
+
+    saved = client.post(url, headers={"Idempotency-Key": "policy-off"},
+                        json={"mode": "off", "expected_revision": 0})
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["mode"] == "off" and saved.json()["revision"] == 1
+    replay = client.post(url, headers={"Idempotency-Key": "policy-off"},
+                         json={"mode": "off", "expected_revision": 0})
+    assert replay.status_code == 200 and replay.json()["revision"] == 1
+    stale = client.post(url, headers={"Idempotency-Key": "policy-stale"},
+                        json={"mode": "suggest", "expected_revision": 0})
+    assert stale.status_code == 409
+    inherited = client.post(url, headers={"Idempotency-Key": "policy-inherit"},
+                            json={"mode": "inherit", "expected_revision": 1})
+    assert inherited.status_code == 200
+    assert inherited.json()["mode"] == "suggest" and inherited.json()["revision"] == 2
+    replay_after_change = client.post(url, headers={"Idempotency-Key": "policy-off"},
+                                      json={"mode": "off", "expected_revision": 0})
+    assert replay_after_change.status_code == 200
+    assert replay_after_change.json()["mode"] == "off" and replay_after_change.json()["revision"] == 1
+    blocked_auto = client.post(url, headers={"Idempotency-Key": "policy-auto-unscoped"},
+                              json={"mode": "auto", "expected_revision": 2})
+    assert blocked_auto.status_code == 409
 
 
 def test_oversized_plans_are_refused(client):

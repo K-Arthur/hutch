@@ -311,9 +311,9 @@ class Bot(BaseModel):
     paused: bool = False
     pinned: bool = False              # workspace roster preference; does not affect execution
     # --- dynamic workflows (schema v53): how Hutch may use a workflow for this Bot.
-    # ``off`` never proposes or starts one; ``suggest`` may describe a candidate route;
-    # ``auto`` may start within ``workflow_limits`` without a fresh confirmation.
-    workflow_mode: Literal["off", "suggest", "auto"] = "off"
+    # New assistants default to Suggest; the schema-v57 migration pins older persisted
+    # assistants to their former Off behavior when this field was absent.
+    workflow_mode: Literal["off", "suggest", "auto"] = "suggest"
     workflow_limits: dict = Field(default_factory=dict)  # auto scope: definitions + budget caps
     sidebar_hidden: bool = False       # removes an idle Bot from the main roster; never pauses work
     roster_section: Optional[str] = Field(default=None, max_length=40)

@@ -1477,6 +1477,23 @@ def _migrate_56(db: sqlite3.Connection) -> None:
                "ON workflow_probe_requests(probe_run_id, dimension)")
 
 
+def _migrate_57(db: sqlite3.Connection) -> None:
+    """Preserve old Bot routing while adding revisioned conversation overrides."""
+    # Pydantic's new-Bot default is Suggest. Preserve the historical Off behavior for
+    # already-saved records that predate the field; explicit values (including Off) win.
+    if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='bots'").fetchone():
+        db.execute("""UPDATE bots SET doc = json_set(doc, '$.workflow_mode', 'off')
+                      WHERE json_valid(doc) AND json_type(doc, '$.workflow_mode') IS NULL""")
+    db.execute("""CREATE TABLE IF NOT EXISTS conversation_workflow_policies (
+        conversation_id TEXT PRIMARY KEY REFERENCES conversations(id) ON DELETE CASCADE,
+        mode TEXT NOT NULL CHECK(mode IN ('inherit','off','suggest','auto')),
+        revision INTEGER NOT NULL CHECK(revision >= 1),
+        updated_at TEXT NOT NULL
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_conversation_workflow_policy_updated "
+               "ON conversation_workflow_policies(updated_at)")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -1485,7 +1502,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
                _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53, _migrate_54,
-               _migrate_55, _migrate_56]
+               _migrate_55, _migrate_56, _migrate_57]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -3464,6 +3481,60 @@ class Store:
             row = self._db.execute("SELECT COALESCE(MAX(seq), 0) AS seq FROM messages WHERE conversation_id = ?",
                                    (conversation_id,)).fetchone()
         return int(row["seq"])
+
+    def get_conversation_workflow_policy(self, conversation_id: str) -> Optional[dict[str, Any]]:
+        """Return the durable mode override for a conversation, if one was saved."""
+        with self._lock:
+            row = self._db.execute(
+                "SELECT p.conversation_id, p.mode, p.revision, p.updated_at "
+                "FROM conversation_workflow_policies p "
+                "JOIN conversations c ON c.id = p.conversation_id WHERE c.id = ?",
+                (conversation_id,),
+            ).fetchone()
+            exists = self._db.execute("SELECT 1 FROM conversations WHERE id = ?",
+                                      (conversation_id,)).fetchone()
+        if not exists:
+            raise KeyError(conversation_id)
+        return dict(row) if row else None
+
+    def set_conversation_workflow_policy(self, conversation_id: str, mode: str, *,
+                                         expected_revision: int, idem_key: str,
+                                         request_hash: str) -> tuple[dict[str, Any], bool]:
+        """Save a revisioned workflow-mode override with retry-safe idempotency."""
+        if mode not in ("inherit", "off", "suggest", "auto"):
+            raise ValueError("workflow mode must be inherit, off, suggest, or auto")
+        if expected_revision < 0 or not idem_key or not request_hash:
+            raise ValueError("expected revision and idempotency fields are required")
+        scope = f"api:v1:workflow-conversation:{conversation_id}:policy"
+        now = iso(utcnow())
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                return replay, False
+            if db.execute("SELECT 1 FROM conversations WHERE id = ?", (conversation_id,)).fetchone() is None:
+                raise KeyError(conversation_id)
+            previous = db.execute(
+                "SELECT mode, revision FROM conversation_workflow_policies WHERE conversation_id = ?",
+                (conversation_id,),
+            ).fetchone()
+            revision = int(previous["revision"]) if previous else 0
+            if revision != expected_revision:
+                raise RevisionConflict(
+                    f"workflow policy changed from revision {expected_revision} to {revision}; reload before editing")
+            revision += 1
+            db.execute("""INSERT INTO conversation_workflow_policies
+                          (conversation_id, mode, revision, updated_at) VALUES (?, ?, ?, ?)
+                          ON CONFLICT(conversation_id) DO UPDATE SET mode=excluded.mode,
+                          revision=excluded.revision, updated_at=excluded.updated_at""",
+                       (conversation_id, mode, revision, now))
+            result = {"conversation_id": conversation_id, "mode": mode,
+                      "revision": revision, "updated_at": now}
+            db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) "
+                       "VALUES (?, ?, ?, ?, ?)",
+                       (scope, idem_key, request_hash, _canonical(result), now))
+        self.bus.notify("conversations", f"conversation:{conversation_id}",
+                        f"workflow-policy:{conversation_id}")
+        return result, True
 
     def archive_conversation(self, conversation_id: str, archived: bool, *, idem_key: str,
                              request_hash: str) -> tuple[dict[str, Any], bool]:
