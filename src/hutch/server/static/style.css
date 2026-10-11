@@ -692,7 +692,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .workflow-amendment-error { min-height: 1.35em; margin: 0; font-size: var(--fs-xs); }
 .workflow-amendment-modal .modal-footer .btn, .workflow-amendment-preview > .btn { min-height: 44px; }
 .workflow-amendment-modal #modal-confirm:disabled { opacity: .48; filter: grayscale(.4); cursor: not-allowed; }
-.workflow-recommendation { display: grid; gap: var(--s-1); min-width: 0; margin: var(--s-2) 0 var(--s-3); padding: var(--s-3); border: 1px solid var(--line-strong); border-radius: var(--r-panel); background: var(--panel); color: var(--text-1); overflow-wrap: anywhere; }
+.workflow-recommendation { display: grid; gap: var(--s-1); min-width: 0; margin: var(--s-2) 0 var(--s-3); padding: var(--s-3); border: 1px solid var(--line-strong); border-radius: var(--r-panel); background: var(--panel); color: var(--text); overflow-wrap: anywhere; }
 .workflow-recommendation p { margin: 0; font-size: var(--fs-xs); }
 .workflow-recommendation > div:first-child { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s-2); }
 .workflow-recommendation-status { color: var(--text-2); font-size: var(--fs-2xs) !important; }

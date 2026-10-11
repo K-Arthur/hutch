@@ -5,9 +5,10 @@ honest partial joins and categorized output projections,
 fixture probes, bounded live negative-evidence campaign, Studio card, and current private-preview
 marketing copy verified)**.
 Chat routing is implemented behind an exact-profile selector gate, but both local candidates
-tested failed selector qualification; new-plan Auto, live-work amendment draining, Studio amendment
-controls, phone workflow supervision, and several recovery and integration cases remain open. No local candidate passed author or
-selector qualification. User guide:
+tested failed selector qualification; new-plan Auto, live-work amendment draining, terminal-run
+amendment, routine-to-workflow scheduling and several recovery and integration cases remain open.
+Studio amendment controls and paired-phone monitor/review are implemented. No local candidate
+passed author or selector qualification. User guide:
 [`docs/workflows.md`](../workflows.md).
 Evidence: [`artifacts/dynamic-workflows/`](artifacts/dynamic-workflows/) and the ledger entry.
 This file separates **verified** facts (read in source or fetched from a pinned revision)
@@ -243,6 +244,39 @@ campaign remains unrun.
 | A6 | Preserve the existing “How it helps” journey; evidence-backed workflow explanation, availability and FAQ | The website explains the exact-profile selector gate, reports that both tested local profiles failed, and states that Auto only starts an activated saved method; new-plan Auto and routine links remain unavailable. The marketing test asserts those claims plus the FAQ/CTA and captures 1440/768/360/320 with no page errors, external requests or horizontal overflow. Refreshed images and hashes are in [`marketing/`](artifacts/dynamic-workflows/marketing/); visual review: [`marketing/visual-review.md`](artifacts/dynamic-workflows/marketing/visual-review.md). This verifies copy and layout only, not public availability or a qualified local selector. |
 | A7 | Ollama 0.40.3, private storage/process, Qwen3 1.7b and 4b Q4_K_M candidate probes within the user-authorized request/time/token/download/storage bounds | Completed within caps: checksum-verified Ollama 0.40.3 and both exact Q4_K_M downloads; 16 inference requests, 2,808 accounted tokens, one CPU resident model, 4,096 context, less than 6 GiB model downloads and less than 15 GiB private storage. Both candidates failed author and selector qualification. Retained evidence: [`qualification-campaign-2026-10-11.json`](artifacts/dynamic-workflows/qualification-campaign-2026-10-11.json). |
 | A8 | Focused and broad runtime checks, browser/app/site visual captures at 320/360/768/1440, interaction/accessibility and soak evidence; classify exercised role combinations | Partial. Studio and website browser journeys are captured at 320/360/768/1440 and visually opened. Paired-phone monitor/review has a separate real API/browser journey and opened captures at 390 and 320; route permissions, redaction, CSRF/idempotency, 44px targets, zero 320px horizontal overflow and no page errors are recorded. Studio keyboard answer, website CTA navigation, and existing application checks remain covered. The 320px Studio non-latest scroll control overlap is recorded. Text-spacing, forced-colors, browser zoom, slow/offline reconnect, remaining broad suite and ten-minute soak remain. Role classifications are recorded in the model campaign; no author/selector pairing is verified. |
+
+### Integration verification after paired-phone supervision (2026-10-11)
+
+Question creation now commits the durable pending row and the workflow's waiting projection in
+one transaction. The owning attempt then parks and releases its run slot. The deterministic CSV
+acceptance test checks the status as soon as the durable question is visible. Runtime policy
+lookup treats a run with an unpersisted legacy conversation ID as having no conversation override
+and falls back to the Bot setting; policy API reads and writes still require a durable conversation.
+
+The non-browser broad run collected 2,136 tests: 2,127 passed and 9 failed. Four regressions were
+fixed and passed targeted checks: missing-conversation policy fallback, atomic question/wait
+publication, amendment comparison text caught by the emoji audit, and an undefined recommendation
+text token. The snapshot test fixture was corrected to mark its provider request started before it
+expects an uncertain reservation; tests/test_state_snapshot.py then passed all 10 tests. Three
+offline-worker tests failed with explicit ENOSPC under the already-full shared /tmp tmpfs. A
+fourth process-executor test failed before dispatch in the same run and remains unclassified until
+it can be repeated with temporary storage available. The earlier complete pytest -q invocation
+was interrupted at 33% after /tmp was full and is not counted as a completed suite.
+
+The amendment browser journey passed against a real SQLite store and supervisor at 1440, 768, 360
+and 320 CSS pixels. Opened screenshots show the candidate diff, the full pending-question
+cancellation label above the fixed footer, and the post-adoption state. Each viewport had zero
+horizontal overflow, a 44px adoption target, no page errors or failed requests, and zero provider
+calls. See
+[amendment-postfix visual review](artifacts/workflow-studio/amendment-postfix-2026-10-11/visual-review.md)
+for the opened views and artifact hashes.
+
+The selector recommendation card was re-rendered at the same four sizes with a
+synthetic event fixture. Its computed text color resolved to the shared base-content
+token, the long title wrapped at 320px, the 44px Review & run action remained visible,
+and keyboard review still started no workflow. This is presentation evidence only;
+it does not upgrade selector qualification. See
+[route-card visual review](artifacts/workflow-studio/route-card-postfix-2026-10-11/visual-review.md).
 
 The request-budget slice passed its broad compatibility set on 2026-10-11: 237 passed in
 102.91 s across usage-budget, step, engine, regression, plan, routing, API, CLI, reservation,

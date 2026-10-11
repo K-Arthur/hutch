@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import platform
 import re
 import secrets
@@ -1821,7 +1822,9 @@ def test_workflow_amendment_preview_adoption_is_explicit_and_responsive(browser,
         time.sleep(0.05)
     assert pending_questions, "the human-review workflow did not park on its question"
 
-    artifacts = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workflow-studio/amendment"
+    artifact_override = os.environ.get("HUTCH_WORKFLOW_AMENDMENT_ARTIFACTS")
+    artifacts = (Path(artifact_override) if artifact_override else
+                 Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workflow-studio/amendment")
     artifacts.mkdir(parents=True, exist_ok=True)
     page = browser.new_page(viewport={"width": 1440, "height": 960}, device_scale_factor=1)
     errors: list[str] = []
@@ -1884,7 +1887,14 @@ def test_workflow_amendment_preview_adoption_is_explicit_and_responsive(browser,
         dialog.get_by_label("I understand these questions will be canceled and archived").check()
         adopt_button = dialog.get_by_role("button", name="Adopt amendment")
         assert adopt_button.is_enabled()
-        dialog.get_by_label("I understand these questions will be canceled and archived").scroll_into_view_if_needed()
+        cancel_label = dialog.locator(".workflow-amendment-questions label")
+        cancel_label.scroll_into_view_if_needed()
+        label_bounds = cancel_label.bounding_box()
+        footer_bounds = dialog.locator(".modal-footer").bounding_box()
+        assert label_bounds and footer_bounds
+        assert label_bounds["y"] + label_bounds["height"] <= footer_bounds["y"] + 1, (
+            "the complete cancellation choice must remain above the fixed footer"
+        )
         page.screenshot(path=str(artifacts / "explicit-cancellation-compact-phone.png"),
                         full_page=True, animations="disabled")
         adopt_button.focus()
@@ -1933,6 +1943,8 @@ def test_workflow_amendment_preview_adoption_is_explicit_and_responsive(browser,
             "workflow_id": workflow_id, "old_question_id": old_question_id,
             "new_question_id": new_questions[0]["id"], "history_id": history_id,
             "interaction": "plan edited, field-level diff inspected, adoption stays disabled until explicit question cancellation is checked, adoption submitted with Enter; composer receives focus while continuation runs and the parked amend control returns",
+            "cancellation_choice_bounds": label_bounds,
+            "fixed_footer_bounds": footer_bounds,
             "page_errors": errors, "failed_requests": failed_requests, "provider_calls": 0,
             "source_sha256": {relative: hashlib.sha256((artifacts.parents[4] / relative).read_bytes()).hexdigest()
                               for relative in source_paths},

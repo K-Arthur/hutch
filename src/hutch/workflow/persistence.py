@@ -1004,6 +1004,25 @@ def create_question(store: Any, *, wf_id: str, owner_run_id: str, owner_fence: i
                     _json(list(options)[:20]), iso(utcnow()), expires_at, revision_id, owner_run_id))
         row = db.execute("SELECT * FROM workflow_questions WHERE workflow_run_id = ? AND site_id = ? "
                          "AND instance_key = ?", (wf_id, site_id, instance_key)).fetchone()
+        if row is not None and str(row["status"]) == "pending":
+            pending_count = int(db.execute(
+                """SELECT COUNT(*) FROM workflow_questions
+                   WHERE workflow_run_id = ? AND revision_id = ? AND attempt_run_id = ?
+                     AND status = 'pending'""",
+                (wf_id, revision_id, owner_run_id),
+            ).fetchone()[0])
+            # Publish the human-wait state in the same transaction as the durable
+            # question so readers never observe a pending question with a running
+            # workflow status. The attempt itself is parked immediately afterward.
+            cur = db.execute(
+                """UPDATE workflow_runs SET status = 'waiting', reason = ?, updated_at = ?
+                   WHERE id = ? AND revision_id = ? AND attempt_run_id = ?
+                     AND stop_requested = 0 AND status IN ('pending','running','waiting')""",
+                (f"waiting for {pending_count} answer(s)", iso(utcnow()),
+                 wf_id, revision_id, owner_run_id),
+            )
+            if cur.rowcount != 1:
+                raise ValueError("workflow question could not publish a current waiting state")
     store.bus.notify("workflows", f"workflow:{wf_id}")
     return _question_row(row)
 

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import threading
 import time
 from importlib.metadata import version as package_version
@@ -24,7 +25,8 @@ from hutch.workflow import persistence as wstore  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[2]
-EVIDENCE = ROOT / "docs/realignment/artifacts/dynamic-workflows/chat-router"
+EVIDENCE = Path(os.environ.get("HUTCH_WORKFLOW_ROUTE_ARTIFACTS",
+                              str(ROOT / "docs/realignment/artifacts/dynamic-workflows/chat-router")))
 SOURCES = (
     "src/hutch/runtime/builtin.py",
     "src/hutch/runtime/steps.py",
@@ -144,7 +146,8 @@ def test_chat_suggestion_card_reflows_and_requires_review(browser, live_studio):
             button = card.locator("[data-workflow-suggestion-run]").bounding_box()
             styles = card.evaluate("el => { const s = getComputedStyle(el); return {fontFamily:s.fontFamily, "
                                    "fontSize:s.fontSize, lineHeight:s.lineHeight, padding:s.padding, "
-                                   "borderRadius:s.borderRadius, borderLeftColor:s.borderLeftColor}; }")
+                                   "borderRadius:s.borderRadius, color:s.color, "
+                                   "borderLeftColor:s.borderLeftColor}; }")
             panel = page.locator("#workflow-panel").bounding_box()
             assert box and button and box["width"] <= width and button["height"] >= 44
             page.screenshot(path=str(EVIDENCE / f"suggestion-{label}.png"), animations="disabled")

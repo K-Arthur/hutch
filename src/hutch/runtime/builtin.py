@@ -687,7 +687,13 @@ class BuiltinRuntime:
         if (run.conversation_id and not run.origin.startswith("remote:") and not run.parent_run_id
                 and not run.workflow_step and not run.workflow_context and not run.rehearsal):
             current_bot = ctx.store.get_bot(ctx.bot.id)
-            saved_policy = ctx.store.get_conversation_workflow_policy(run.conversation_id)
+            try:
+                saved_policy = ctx.store.get_conversation_workflow_policy(run.conversation_id)
+            except KeyError:
+                # Legacy/imported runs may carry a conversation identity before there
+                # is a durable conversation row. They still use the Bot's reviewed
+                # default; only the conversation policy API requires a stored row.
+                saved_policy = None
             override = str(saved_policy["mode"]) if saved_policy else "inherit"
             route_mode = (getattr(current_bot, "workflow_mode", "suggest") if override == "inherit" else override)
         if route_mode in ("suggest", "auto"):

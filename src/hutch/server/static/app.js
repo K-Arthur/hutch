@@ -506,11 +506,11 @@ function workflowAmendmentPreviewMarkup(preview, detail) {
   const pendingIds = preview.quiescence?.pending_question_ids || [];
   const changes = (preview.nodes || []).map(node => {
     const fields = (node.fields || []).map(change =>
-      `<li><b>${esc(change.field)}</b><span>${esc(JSON.stringify(change.old ?? null))} → ${esc(JSON.stringify(change.new ?? null))}</span></li>`).join("");
+      `<li><b>${esc(change.field)}</b><span>${esc(JSON.stringify(change.old ?? null))} to ${esc(JSON.stringify(change.new ?? null))}</span></li>`).join("");
     return `<li><b>${esc(node.site_id)}</b> · ${esc(node.change)}${node.dependencies_changed ? " · dependencies changed" : ""}${fields ? `<ul>${fields}</ul>` : ""}</li>`;
   }).join("");
   const changedFields = (preview.changed_fields || []).map(change =>
-    `<li><b>${esc(change.field)}</b><span>${esc(JSON.stringify(change.old ?? null))} → ${esc(JSON.stringify(change.new ?? null))}</span></li>`).join("");
+    `<li><b>${esc(change.field)}</b><span>${esc(JSON.stringify(change.old ?? null))} to ${esc(JSON.stringify(change.new ?? null))}</span></li>`).join("");
   const reused = (preview.reuse || []).map(item =>
     `<li><b>${esc(item.site_id)}</b> · ${esc(item.instance_key)} · ${esc(item.status)}</li>`).join("");
   const invalidated = (preview.invalidate || []).map(item =>

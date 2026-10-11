@@ -236,9 +236,10 @@ remain in those records, so large artifacts are not duplicated into the summary.
   by writing into the Bot's shared workspace.
 * `stop` is durable: it cancels the owned work and prevents any continuation.
 
-When a workflow needs a person or a child step, Hutch parks the orchestration attempt durably
-and releases its run slot. The workflow remains visible as waiting, not successful. An answer
-or settled child lets the supervisor admit a fresh attempt; settled node records are reused.
+When a workflow needs a person or a child step, Hutch commits the pending question and the
+workflow's waiting status together, then parks the orchestration attempt and releases its run
+slot. The workflow remains visible as waiting, not successful. An answer or settled child lets
+the supervisor admit a fresh attempt; settled node records are reused.
 Stopping a parked workflow cancels its pending questions and owned child work, and it remains
 visible until cleanup is verified.
 
