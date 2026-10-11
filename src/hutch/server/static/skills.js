@@ -76,7 +76,10 @@
 
   // ------------------------------------------------------------------ library
 
+  let skillsRenderGeneration = 0;
+
   async function renderSkillsPage() {
+    const generation = ++skillsRenderGeneration;
     const container = q("#view");
     container.innerHTML = `<div class="page-scroll"><div class="container">
       <div class="page-title-row"><h1 class="page-title">Skills</h1>
@@ -122,23 +125,32 @@
 
     async function refresh() {
       const body = q("#skills-body");
+      if (!body || generation !== skillsRenderGeneration) return;   // the user left this route
       body.innerHTML = `<div class="empty-state"><div class="spinner" role="status" aria-label="Loading"></div><p>Loading skills…</p></div>`;
-      q("#skills-error").hidden = true;
+      const errorSlot = q("#skills-error");
+      if (errorSlot) errorSlot.hidden = true;
       let report;
       try {
         report = await callApi("/v1/skills");
       } catch (error) {
-        q("#skills-error").hidden = false;
-        q("#skills-error").textContent = `Skills could not be loaded: ${error.message}`;
+        if (!body.isConnected || generation !== skillsRenderGeneration) return;
+        if (errorSlot) {
+          errorSlot.hidden = false;
+          errorSlot.textContent = `Skills could not be loaded: ${error.message}`;
+        }
         body.innerHTML = `<div class="empty-state"><p>Nothing can be installed or changed until the skills state is readable.</p></div>`;
         return;
       }
+      if (!body.isConnected || generation !== skillsRenderGeneration) return;
       paint(report);
     }
 
     function paint(report) {
+      const body = q("#skills-body");
+      const bundledSlot = q("#skills-bundled");
+      if (!body || !bundledSlot || !body.isConnected || generation !== skillsRenderGeneration) return;
       const bundled = report.available.filter(item => item.source.scope === "builtin" && !item.installed);
-      q("#skills-bundled").innerHTML = bundled.length
+      bundledSlot.innerHTML = bundled.length
         ? bundled.map(item => `<button class="btn ghost small" type="button" data-install-builtin="${esc(item.name)}"
             title="${esc(item.description)}">${glyph("plus", 13)} ${esc(item.name)}</button>`).join("")
         : `<span class="hint">All bundled samples are installed.</span>`;
@@ -173,8 +185,8 @@
             `<div class="skill-diagnostic tone-${d.level === "error" ? "danger" : d.level === "warning" ? "warn" : "muted"}">${esc(d.message)}</div>`).join("")}
           </div></details>`);
       }
-      q("#skills-body").innerHTML = sections.join("");
-      wire();
+      body.innerHTML = sections.join("");
+      wire(body);
     }
 
     function card(item) {
@@ -231,8 +243,8 @@
       </div>`;
     }
 
-    function wire() {
-      qa("[data-install-builtin]", q("#skills-body")).forEach(button => button.addEventListener("click", () =>
+    function wire(body) {
+      qa("[data-install-builtin]", body).forEach(button => button.addEventListener("click", () =>
         withBusy(button, async () => {
           try {
             const kind = button.dataset.sourceKind || "builtin";
@@ -244,7 +256,7 @@
             await openInspector(detail.name);
           } catch (error) { notify(`Not installed: ${error.message}`, true); }
         })));
-      qa(".skill-card", q("#skills-body")).forEach(cardEl => {
+      qa(".skill-card", body).forEach(cardEl => {
         const name = cardEl.dataset.skill;
         qa("[data-action]", cardEl).forEach(button => button.addEventListener("click", () => {
           const action = button.dataset.action;
@@ -358,9 +370,10 @@
           callApi(`/v1/bots/${encodeURIComponent(bot.name)}/readiness`),
         ]);
       } catch (error) {
-        body.innerHTML = `<p class="hint">Skills could not be loaded: ${esc(error.message)}</p>`;
+        if (container.isConnected) body.innerHTML = `<p class="hint">Skills could not be loaded: ${esc(error.message)}</p>`;
         return;
       }
+      if (!container.isConnected) return;   // the user navigated away while this loaded
       const assigned = new Set(bot.skills || []);
       const installed = report.skills;
       const options = installed.length ? installed.map(item => {
@@ -467,6 +480,7 @@
     (async () => {
       try {
         const readiness = await callApi(`/v1/bots/${encodeURIComponent(bot.name)}/readiness`);
+        if (!slot.isConnected) return;   // the composer was replaced while this loaded
         const skillArea = readiness.areas.find(area => area.id === "skills");
         const bound = new Set(bot.skills || []);
         usable = (skillArea ? skillArea.items : [])

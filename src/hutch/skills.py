@@ -440,6 +440,30 @@ def content_hash(directory: Path, files: Optional[list[Path]] = None) -> str:
     return digest.hexdigest()
 
 
+def package_signature(directory: Path) -> str:
+    """A cheap change detector: file count, total size, newest mtime.
+
+    Used only to skip re-hashing unchanged packages when *listing* them. Every
+    security decision (run start, trust, recheck) still reads the bytes and compares full
+    hashes, so a forged signature can hide nothing from the enforcement path.
+    """
+    count = 0
+    total = 0
+    latest = 0
+    try:
+        for path in directory.rglob("*"):
+            if path.is_symlink():
+                return ""                      # force a full inspection for symlinked packages
+            if path.is_file():
+                stat_result = path.stat()
+                count += 1
+                total += stat_result.st_size
+                latest = max(latest, stat_result.st_mtime_ns)
+    except OSError:
+        return ""
+    return f"{count}:{total}:{latest}"
+
+
 def inspect_package(directory: Path, *, enforce_bounds: bool = True) -> tuple[Optional[ParsedSkill], list[SkillDiagnostic], str]:
     """Read and validate one skill directory. Returns (skill or None, diagnostics, hash)."""
     diagnostics: list[SkillDiagnostic] = []
@@ -635,14 +659,24 @@ class SkillRegistry:
         entry = document["skills"].get(name)
         return entry if isinstance(entry, dict) else None
 
-    def _status(self, entry: dict, directory: Path) -> str:
+    def _current_hash(self, entry: dict, directory: Path) -> str:
+        """The package's current hash, using the cheap signature to skip re-hashing unchanged files.
+
+        Listing uses this; run-time resolution and trust always read the bytes (``inspect_package``),
+        so a same-size/mtime edit cannot pass the enforcement boundary.
+        """
+        signature = package_signature(directory)
+        if signature and entry.get("signature") and signature == entry["signature"] and entry.get("hash"):
+            return str(entry["hash"])
+        _parsed, _diagnostics, current = inspect_package(directory, enforce_bounds=False)
+        return current
+
+    def _status(self, entry: dict, directory: Path, *, current_hash: Optional[str] = None) -> str:
         if entry.get("trust"):
             reviewed_hash = entry.get("trust", {}).get("hash_at_review")
-            try:
-                current = content_hash(directory)
-            except OSError:
-                current = ""
-            if current != reviewed_hash:
+            if current_hash is None:
+                current_hash = self._current_hash(entry, directory)
+            if current_hash != reviewed_hash:
                 return "modified"
         if entry.get("staged"):
             return "update_pending"
@@ -654,8 +688,13 @@ class SkillRegistry:
         directory = self.package_path(name)
         parsed, diagnostics, current_hash = (None, [], "")
         if directory.is_dir():
-            parsed, diagnostics, current_hash = inspect_package(directory, enforce_bounds=False)
-        status = self._status(entry, directory) if directory.is_dir() else "missing"
+            signature = package_signature(directory)
+            if signature and entry.get("signature") == signature and entry.get("hash"):
+                current_hash = str(entry["hash"])
+                parsed, diagnostics, _ignored = inspect_package(directory, enforce_bounds=False)
+            else:
+                parsed, diagnostics, current_hash = inspect_package(directory, enforce_bounds=False)
+        status = self._status(entry, directory, current_hash=current_hash) if directory.is_dir() else "missing"
         detail = {
             "name": name,
             "status": status,
@@ -800,6 +839,7 @@ class SkillRegistry:
                 "name": name,
                 "source": source_view,
                 "hash": package_hash,
+                "signature": package_signature(destination),
                 "installed_at": _iso_now(),
                 "updated_at": _iso_now(),
                 "trust": None,
@@ -898,6 +938,7 @@ class SkillRegistry:
                 entry.setdefault("versions", []).insert(0, previous_hash)
             shutil.move(str(staged_dir), str(current))
             entry["hash"] = staged["hash"]
+            entry["signature"] = package_signature(current)
             entry["updated_at"] = _iso_now()
             entry["version"] = staged.get("version", "")
             entry["license"] = staged.get("license", "")
@@ -954,6 +995,7 @@ class SkillRegistry:
                 versions.insert(0, current_hash)
             shutil.move(str(target_dir), str(current))
             entry["hash"] = target_hash
+            entry["signature"] = package_signature(current)
             entry["versions"] = [v for v in versions if v != target_hash]
             entry["updated_at"] = _iso_now()
             parsed, diagnostics, real_hash = inspect_package(current, enforce_bounds=False)
@@ -982,6 +1024,7 @@ class SkillRegistry:
                 reason = "; ".join(d.message for d in diagnostics if d.level == "error")
                 raise SkillError(f"refusing to trust an invalid package: {reason}")
             entry["hash"] = package_hash
+            entry["signature"] = package_signature(directory)
             entry["trust"] = {"reviewed_at": _iso_now(), "hash_at_review": package_hash}
             entry["enabled"] = True
             entry["version"] = parsed.version
@@ -1022,6 +1065,7 @@ class SkillRegistry:
                 raise SkillError(f"no such installed skill: {name}", status=404)
             directory = self.package_path(name)
             parsed, diagnostics, package_hash = inspect_package(directory)
+            entry["signature"] = package_signature(directory)
             if parsed is None:
                 entry["enabled"] = False
                 entry["trust"] = None

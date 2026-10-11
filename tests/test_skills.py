@@ -405,6 +405,26 @@ def test_requires_tools_that_the_bot_lacks_are_reported_not_loaded(tmp_path):
     assert [c.name for c in reg.effective_for_bot(with_shell).catalog] == ["needs-shell"]
 
 
+def test_same_size_edit_with_restored_mtime_is_still_caught_at_run_start(tmp_path):
+    """The listing may use a cheap signature; the run-security boundary always reads the bytes."""
+    source = make_skill(tmp_path / "src", "workspace-summary", "Summarize the workspace.")
+    reg = registry_for(tmp_path)
+    reg.install_path(source)
+    reg.trust("workspace-summary")
+    package = reg.package_path("workspace-summary") / "SKILL.md"
+    original = package.read_text(encoding="utf-8")
+    before = package.stat()
+    tampered = original.replace("workspace", "w0rkspace")          # same length
+    assert tampered != original and len(tampered) == len(original)
+    package.write_text(tampered, encoding="utf-8")
+    os.utime(package, ns=(before.st_atime_ns, before.st_mtime_ns))  # restore the cheap signature
+    assert reg.detail("workspace-summary")["status"] == "enabled", "listing uses the signature fast path"
+    bot = Bot(name="tester", skills=["workspace-summary"])
+    resolved = reg.effective_for_bot(bot)
+    assert resolved.catalog == [], "the run path must full-hash and withhold the package"
+    assert any("changed on disk" in warning for warning in resolved.warnings)
+
+
 def test_registry_state_survives_a_new_instance(tmp_path):
     source = make_skill(tmp_path / "src", "workspace-summary", "Summarize the workspace.")
     reg = registry_for(tmp_path)
@@ -432,5 +452,5 @@ def test_registry_never_stores_secret_material(tmp_path):
     assert set(document) == {"version", "skills"}
     for entry in document["skills"].values():
         assert "key" not in json.dumps(entry).lower() or "token" not in json.dumps(entry).lower()
-        assert set(entry) <= {"name", "source", "hash", "installed_at", "updated_at", "trust", "enabled",
+        assert set(entry) <= {"name", "source", "hash", "signature", "installed_at", "updated_at", "trust", "enabled",
                               "version", "license", "compatibility", "requires_tools", "staged", "versions"}
