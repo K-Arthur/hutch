@@ -4190,9 +4190,9 @@ on every continuation; unvalidated `join` targets that could fabricate `None`; a
 ignored `command` check `cwd`; a node record written without its run stalling the instance;
 nested map keys that could alias through the instance-key separator; skipped nodes recorded
 under one shared key; and oversized inputs surfacing as a 500. Each has a regression in
-`tests/test_workflow_regressions.py` (21).
+`tests/test_workflow_regressions.py` (22).
 
-Verification boundary: **94 focused workflow tests** pass (`test_workflow_plan.py` 18,
+Verification boundary: **95 focused workflow tests** pass (`test_workflow_plan.py` 18,
 `test_workflow_qualify.py` 14, `test_workflow_engine.py` 15, `test_workflow_api.py` 11,
 `test_workflow_routing.py` 9, `test_workflow_csv_acceptance.py` 2, `test_workflow_steps.py` 4,
 `test_workflow_regressions.py` 21), and the regression
