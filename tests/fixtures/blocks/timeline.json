@@ -1,0 +1,36 @@
+{
+  "v": 1,
+  "id": "blk_6f7a8b9c0d1e2f3a",
+  "kind": "timeline",
+  "revision": 1,
+  "availability": "ready",
+  "text_fallback": "Confirmed: request at 09:00 UTC; planned: deploy on 2026-10-11.",
+  "provenance": {
+    "run_id": "run_0f1e2d3c4b5a6978",
+    "tool": "shell"
+  },
+  "payload": {
+    "events": [
+      {
+        "id": "e1",
+        "label": "Request received",
+        "when": {
+          "iso8601": "2026-10-10T09:00:00+00:00",
+          "precision": "second",
+          "timezone": "UTC"
+        },
+        "state": "confirmed",
+        "source": "server log"
+      },
+      {
+        "id": "e2",
+        "label": "Planned deploy",
+        "when": {
+          "iso8601": "2026-10-11",
+          "precision": "day"
+        },
+        "state": "planned"
+      }
+    ]
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "v": 1,
+  "id": "blk_4d5e6f7a8b9c0d1e",
+  "kind": "chart",
+  "revision": 1,
+  "availability": "ready",
+  "text_fallback": "Line chart: requests per second climbing from 0 to 30 over two seconds.",
+  "provenance": {
+    "run_id": "run_0f1e2d3c4b5a6978",
+    "tool": "shell"
+  },
+  "payload": {
+    "kind": "line",
+    "series": [
+      {
+        "label": "requests/s",
+        "points": [
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            12
+          ],
+          [
+            2,
+            30
+          ]
+        ]
+      }
+    ],
+    "x": {
+      "label": "elapsed",
+      "unit": "s",
+      "scale": "linear"
+    },
+    "y": {
+      "label": "requests",
+      "scale": "linear"
+    },
+    "source": "executed",
+    "dataset_ref": "artifacts/001-shell.txt",
+    "notes": "Sampled once per second during the load run."
+  }
+}

@@ -27,6 +27,7 @@ from typing import Any, Optional
 from ..lifecycle import LeaseLost
 from ..action_receipts import freeze
 from ..models import Event, EventType, Run
+from ..outputblocks import parse_blocks
 from ..tools import Tool, ToolContext
 from ..tools.base import ToolResult
 
@@ -210,6 +211,30 @@ def _run_with_receipt(tool: Tool, name: str, args: dict[str, Any], ctx: ToolCont
                                  "verify the destination before repeating it") from exc
 
 
+def _presented_blocks(data: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Validate a tool's ``data['blocks']`` list. Never raises, never silent:
+    every rejected block comes back as a labeled error entry (outputblocks.py
+    owns the budgets - at most 24 blocks / 256k compact-JSON chars per result)."""
+    if "blocks" not in data:
+        return [], []
+    try:
+        return parse_blocks(data.get("blocks"))
+    except Exception as exc:  # parse_blocks never raises by contract; belt and braces
+        return [], [{"error": f"output blocks could not be validated ({exc!r})"}]
+
+
+def _blocks_summary(blocks: list[dict[str, Any]], errors: list[dict[str, Any]]) -> str:
+    """The ONE line of block awareness the model ever sees. Block JSON itself
+    never enters the model-facing text."""
+    if blocks:
+        line = "[presented: " + ", ".join(f"{b['kind']} {b['id']}" for b in blocks) + "]"
+    else:
+        line = f"[presented: none — {len(errors)} output block(s) failed validation]"
+    if errors:
+        line += f" ({len(errors)} output block(s) could not be validated; see block_errors)"
+    return line
+
+
 def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, args: dict[str, Any],
               timer: Optional[StepTimer] = None, output_chars: int = 2_000) -> ToolResult:
     """Emit the call, run the tool (timed), emit the result. Used by production and test runtimes."""
@@ -255,10 +280,21 @@ def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, arg
             result.data["workspace_file"] = {"error": str(exc)[:240]}
     full_chars = len(result.output)
     result.output, artifact = truncate_for_model(ctx, name, result.output)
+    # Typed output blocks: validated once here, then carried as plain data on the
+    # tool_result event. Message prose and tool output text are NEVER parsed for
+    # blocks - only a tool that explicitly supplies data['blocks'] presents any.
+    has_blocks = "blocks" in result.data
+    blocks, block_errors = _presented_blocks(result.data) if has_blocks else ([], [])
+    if blocks or block_errors:
+        result.output = f"{result.output}\n{_blocks_summary(blocks, block_errors)}"
     data: dict[str, Any] = {"tool": name, "ok": result.ok, "output": result.output[:output_chars]}
     if artifact:
         data.update(artifact=artifact["path"], artifact_sha256=artifact["sha256"],
                     artifact_bytes=artifact["bytes"], chars=full_chars)
+    if has_blocks:
+        data["blocks"] = blocks
+        if block_errors:
+            data["block_errors"] = block_errors
     workspace_file = result.data.get("workspace_file")
     if isinstance(workspace_file, dict):
         data["workspace_file"] = workspace_file

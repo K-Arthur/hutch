@@ -1,0 +1,49 @@
+{
+  "v": 1,
+  "id": "blk_5e6f7a8b9c0d1e2f",
+  "kind": "flowchart",
+  "revision": 1,
+  "availability": "ready",
+  "text_fallback": "Flow: collect input -> validate -> store, with validation failures looping back.",
+  "provenance": {
+    "run_id": "run_0f1e2d3c4b5a6978",
+    "tool": "shell"
+  },
+  "payload": {
+    "nodes": [
+      {
+        "id": "collect",
+        "label": "Collect input",
+        "group": "ingest"
+      },
+      {
+        "id": "validate",
+        "label": "Validate",
+        "group": "ingest",
+        "detail": "Rejects non-ASCII filenames"
+      },
+      {
+        "id": "store",
+        "label": "Store"
+      }
+    ],
+    "edges": [
+      {
+        "from": "collect",
+        "to": "validate"
+      },
+      {
+        "from": "validate",
+        "to": "store",
+        "label": "on success"
+      },
+      {
+        "from": "validate",
+        "to": "collect",
+        "label": "on rejection"
+      }
+    ],
+    "direction": "LR",
+    "assumptions_note": "Ordering assumes the approval gate grants every write."
+  }
+}

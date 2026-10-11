@@ -1,0 +1,21 @@
+{
+  "v": 1,
+  "id": "blk_9c0d1e2f3a4b5c6d",
+  "kind": "artifact_ref",
+  "revision": 1,
+  "availability": "ready",
+  "text_fallback": "Document: quarterly-report.pdf, version 2, 148,233 bytes.",
+  "provenance": {
+    "run_id": "run_0f1e2d3c4b5a6978",
+    "tool": "shell"
+  },
+  "payload": {
+    "ref_kind": "document",
+    "id": "doc_0f1e2d3c4b5a6978",
+    "version": 2,
+    "name": "quarterly-report.pdf",
+    "mime": "application/pdf",
+    "bytes": 148233,
+    "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  }
+}
