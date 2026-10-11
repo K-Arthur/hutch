@@ -4083,3 +4083,54 @@ inference was used. OpenRouter fallback routing and provider-side final billing
 remain separate from this explicit single-model picker flow. Apps & AI's
 provider setup, the rest of the product surfaces, and the full all-surface
 visual review remain open.
+
+## Agent Skills lifecycle (2026-10-10)
+
+Ownership: this slice was implemented by a second agent session in the detached
+worktree `.worktrees/skills-lifecycle` (no branch), based on `f2b8b00`, rebased
+onto the concurrent head at each milestone (`a2106ec`, `777324a`, `2fff076`; one
+CHANGELOG conflict at `777324a`, resolved by keeping both entry sets), because
+the shared checkout was being actively edited. Local commits `60ca912`…`47befee`
+(sixteen commits; the pre-rebase states are anchored by tags
+`skills-lifecycle-prerebase`, `-prerebase2`, `-prerebase3`). Integration was
+completed on 2026-10-10 18:33 PDT by fast-forwarding `main` to this slice's
+HEAD (`7b79078`); the other session's 75 modified and 10 untracked files had
+zero overlap with this slice's files and were left untouched.
+
+What landed: the complete Agent Skills lifecycle (discover/import -> validate ->
+review/trust by content hash -> install -> assign -> activate -> inspect ->
+update/rollback -> disable/uninstall) with `src/hutch/skills.py`,
+`src/hutch/tools/skill.py` (`use_skill`), `src/hutch/readiness.py`,
+`/api/v1/skills*` + `/api/v1/bots/{ref}/readiness`, `hutch skills …` and
+`hutch run --skill`, a Skills library / review inspector / Bot assignment panel
+/ composer picker in the SPA, and three bundled samples
+(`workspace-summary`, `repo-review`, `outlook-mail-digest`). Full details,
+measurements, boundaries and the audit fixes (template identity collision and
+template-tool override, both real bugs) are in
+[`skills-lifecycle.md`](skills-lifecycle.md); user-facing documentation is
+[`../skills.md`](../skills.md).
+
+Enforcement, not decoration: only trusted, enabled, hash-verified packages reach
+a run; a revoked or modified explicit activation fails the run before it starts;
+assigned-only exclusions are logged with reasons; `allowed-tools` never grants
+authority; delegated children inherit the parent's skill snapshot and can never
+gain newer bindings. The listing uses a stat-signature fast path while every
+security decision still reads the bytes (a same-size/mtime edit regression
+proves the boundary).
+
+Verification boundary: skills suites **74 passed**; the full offline suite on
+the rebased tree **1685 passed in 550.64s**; browser journeys **6 passed**
+(Chromium fixture service); a bounded 60.4 s soak (225 runs, 112 approvals,
+113 denials, 56 cancellations, 32 skill toggles, 202 SPA navigations) reported
+zero page/console/route errors and no leaked runs, and it exposed a stale-render
+bug in the new UI that is now fixed and guarded. An independent read-only agent
+review at `fa73b0e` attacked the subsystem with 14 probes and found eight
+issues (YAML alias bomb, unverified resource reads, hostile resource arguments,
+path-shaped bundled names, unreadable-file readiness 500, symlinked-package
+uninstall, staged-update reviewability, prompt markup escaping); all were fixed
+in `aeb244c` with eleven new regressions. Bounded-corpus measurements
+(200 skills / 100 Bots): library listing p50 213 ms, run resolution p50 12 ms,
+20-skill catalog ≈ 1,137 est. tokens. No live provider, account, OAuth refresh,
+physical device or screen-reader verification was performed for this slice;
+external runtimes (Pi, OpenCode) report Hutch skills as unsupported and fail
+explicit activation before start.

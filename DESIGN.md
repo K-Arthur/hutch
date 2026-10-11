@@ -307,6 +307,13 @@ language after explicit user direction ("right angles feel too off"):
   Keep standing directions and technical controls under one optional
   **Customize how it works** disclosure; preserve its open state after a save so
   people can adjust several related choices in one visit.
+- **Settings disclosure row** — every collapsible settings row uses the shared
+  skeleton: one grid of icon slot, copy, and trailing Show/Hide action, in a
+  large panel-level size and a small in-panel size. Borders and fills belong to
+  the surface, never the row. Never nest one disclosure inside another: a
+  separate connection with its own sign-in is a peer of the access it relates
+  to and sits at the same depth. The action word carries state; the chevron is
+  decoration.
 - **Template gallery** — keep reusable-helper examples collapsed below the
   direct message path. Label that opening an example enters setup and does not
   start work. Use compact rows with a small, shape-aware 2D assistant identity;

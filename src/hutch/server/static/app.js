@@ -1192,6 +1192,7 @@ const routes = [
   [/^#\/schedules$/, renderSchedules, "schedules"],
   [/^#\/bots$/, renderBots, "bots"],
   [/^#\/runs(?:\?(.*))?$/, m => renderRuns(m ? m[1] : ""), "runs"],
+  [/^#\/skills$/, () => window.hutchSkills.renderSkillsPage(), "skills"],
   [/^#\/approvals$/, renderApprovals, "chat"],
   [/^#\/connections$/, renderConnections, "connections"],
   [/^#\/bot\/([\w-]+)$/, m => renderBotDetail(decodeURIComponent(m[1])), "chat"],
@@ -2478,6 +2479,7 @@ async function renderChatStudio(preferredBot = null) {
               <label class="visually-hidden" for="chat-prompt">Message ${esc(bot.display_name || bot.name)}</label>
               <textarea class="composer-textarea" id="chat-prompt" rows="1" placeholder="Message…" aria-describedby="chat-help" enterkeyhint="send"></textarea>
               <div class="composer-actions">
+                <span class="skill-switch-slot" id="skill-switch-slot"></span>
                 <span class="model-switch-slot" id="model-switch-slot"></span>
                 <button class="composer-send" id="chat-send" type="submit" aria-label="Send message">${icon("up")}</button>
               </div>
@@ -2644,6 +2646,7 @@ async function renderChatStudio(preferredBot = null) {
   const form = $("#chat-form"), txt = $("#chat-prompt"), sendBtn = $("#chat-send");
   const box = $("#composer-box");
   const switcher = window.hutchModelSwitcher?.mount($("#model-switch-slot"), detail, selectedConversation.id);
+  const skillPicker = window.hutchSkills?.mountComposer($("#skill-switch-slot"), detail);
   if (selectedConversation.archived) {
     txt.disabled = true;
     txt.placeholder = "This conversation is archived. Start a new one to continue.";
@@ -2861,7 +2864,8 @@ async function renderChatStudio(preferredBot = null) {
       ? {...selectedWorkspaceTaskResult} : null;
     lastPrompt = text;
     try {
-      const body = { prompt: text, rehearse: !!rehearseOpt?.checked, model: switcher?.selected() || null };
+      const body = { prompt: text, rehearse: !!rehearseOpt?.checked, model: switcher?.selected() || null,
+                     skills: skillPicker?.selected() || [] };
       if (replySnapshot) body.reply_to_message_id = replySnapshot;
       if (workspaceResultSnapshot) {
         body.workspace_task_result_id = workspaceResultSnapshot.id;
@@ -2873,6 +2877,7 @@ async function renderChatStudio(preferredBot = null) {
       });
       clearMessageIdempotencyKey(composerConversationId, key);
       if (body.model) switcher?.consumeOverride(body.model);
+      if (body.skills.length) skillPicker?.consume();
       if (replySnapshot && selectedReply?.id === replySnapshot) setReply(null);
       if (workspaceResultSnapshot && selectedWorkspaceTaskResult?.id === workspaceResultSnapshot.id) {
         setWorkspaceTaskResult(null);
@@ -5596,11 +5601,11 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   const rules = b.command_rules || [];
   const specialistRosterHtml = b.is_workspace_coordinator ? `
           <section class="panel" id="workspace-specialist-roster" aria-labelledby="workspace-specialist-roster-title">
-            <details class="workspace-specialist-settings" id="workspace-specialist-settings" ${specialistRosterError ? "open" : ""}>
+            <details class="workspace-specialist-settings summary-row-sm summary-row-3col" id="workspace-specialist-settings" ${specialistRosterError ? "open" : ""}>
               <summary class="workspace-specialist-summary">
-                <span class="workspace-specialist-heading" id="workspace-specialist-roster-title">Approved specialist Bots</span>
+                <span class="summary-row-copy workspace-specialist-copy" id="workspace-specialist-roster-title"><strong>Approved specialist Bots</strong></span>
                 <span class="workspace-specialist-count" id="workspace-specialist-roster-count">${specialistRosterError ? "Unavailable" : `${specialistRoster?.specialist_bot_ids.length || 0} approved`}</span>
-                <span class="workspace-specialist-action"><span class="when-closed">Manage</span><span class="when-open">Close</span></span>
+                <span class="summary-row-action workspace-specialist-action"><span class="when-closed">Manage</span><span class="when-open">Close</span>${icon("down")}</span>
               </summary>
               <div class="workspace-specialist-content">
                 <p class="hint">Only Bots you approve here can receive new tasks from the coordinator. This changes future assignments; it does not stop existing work or remove its history.</p>
@@ -5640,11 +5645,11 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
         </label>
         <div class="btn-row"><button class="btn primary small" type="submit">Save details</button></div>
       </form>
-      <details class="assistant-more-settings" id="assistant-more-settings">
+      <details class="assistant-more-settings summary-row" id="assistant-more-settings">
         <summary>
           <span class="assistant-settings-summary-icon">${icon("sliders")}</span>
-          <span class="assistant-settings-summary-copy"><strong>Customize how it works</strong><small>Choose its AI, apps, schedule, safety, and saved notes</small></span>
-          <span class="assistant-settings-summary-action"><span class="when-closed">More settings</span><span class="when-open">Hide settings</span>${icon("down")}</span>
+          <span class="summary-row-copy"><strong>Customize how it works</strong><small>Choose its AI, apps, schedule, safety, and saved notes</small></span>
+          <span class="summary-row-action"><span class="when-closed">More settings</span><span class="when-open">Hide settings</span>${icon("down")}</span>
         </summary>
       <div class="detail-grid">
         <div>
@@ -5671,7 +5676,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
           <div class="panel" id="idp-panel">
             <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("bot")}</span>Look and feel</div>
             ${identityPickerHtml()}
-            <p class="hint" style="text-align:center;margin-top:8px;">Chosen immediately — the roster updates everywhere.</p>
+            <p class="hint idp-note">Chosen immediately — the roster updates everywhere.</p>
           </div>
 
           <form class="panel form-grid" id="form-model">
@@ -5755,8 +5760,9 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             </form>
           </section>
 
-          <section class="panel schedule-manager" id="schedule-manager" aria-labelledby="schedule-manager-title">
-            <div class="schedule-manager-head">
+          <div id="bot-skills-section"></div>
+
+          <section class="panel schedule-manager" id="schedule-manager" aria-labelledby="schedule-manager-title">            <div class="schedule-manager-head">
               <div>
                 <div class="panel-title settings-panel-title" id="schedule-manager-title"><span class="settings-panel-icon">${icon("calendar")}</span>Work on a schedule</div>
                 <p class="hint">Set a time for this assistant to check in or take care of a repeat task.</p>
@@ -5819,7 +5825,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
                 <div class="meta-row"><span class="mono">${esc(r.match)}</span>${statusChipTag(r.verdict)}</div>`).join("")
                 || `<p class="empty-inline">No rules — the risk tier decides everything.</p>`}
             </div>
-            <form class="form-grid row2" id="form-rule" style="margin-top:12px;">
+            <form class="form-grid row2 form-rule" id="form-rule">
               <label class="field">Match (glob)
                 <input type="text" name="match" placeholder="git push*" required>
               </label>
@@ -5842,13 +5848,13 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
 
         <div>
           <div class="panel assistant-usage-panel">
-            <details class="assistant-usage-details" id="assistant-usage-limits">
+            <details class="assistant-usage-details summary-row" id="assistant-usage-limits">
               <summary>
                 <span class="settings-panel-icon">${icon("chart")}</span>
-                <span class="assistant-usage-summary-copy"><strong>Usage and time limits</strong>
+                <span class="summary-row-copy assistant-usage-copy"><strong>Usage and time limits</strong>
                   <small>${limitMaxSteps} work steps · ${esc(limitDurationLabel)} per task</small>
                 </span>
-                <span class="assistant-usage-summary-action"><span class="when-closed">Change</span><span class="when-open">Hide</span>${icon("down")}</span>
+                <span class="summary-row-action assistant-usage-action"><span class="when-closed">Change</span><span class="when-open">Hide</span>${icon("down")}</span>
               </summary>
               <form class="form-grid assistant-usage-form" id="form-limits">
                 <div class="form-grid row2">
@@ -5909,6 +5915,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
 
   // wiring
   mountIdentityPicker($("#idp-panel"), b.name, pair => { sigilSet(b.name, pair); refreshRoster(); });
+  window.hutchSkills?.mountBotPanel($("#bot-skills-section"), b);
   const patch = async (body, msg) => {
     try {
       await api(`/bots/${encodeURIComponent(b.name)}`, { method: "PATCH", body });
@@ -6724,8 +6731,8 @@ async function renderConnections() {
         <div class="service-grid">${modelTiles}</div>
         <p class="local-model-note">Each assistant can have its own reply service. You can change it anytime.</p>
       </section>
-      <details class="connection-management" id="connection-management" ${connectionManagerOpen ? "open" : ""}>
-        <summary><span>More account settings</span><span class="connection-management-hint">Access, permissions and setup details</span></summary>
+      <details class="connection-management summary-row-sm" id="connection-management" ${connectionManagerOpen ? "open" : ""}>
+        <summary><span class="summary-row-copy"><strong>More account settings</strong><small>Access, permissions and setup details</small></span><span class="summary-row-action"><span class="when-closed">Show</span><span class="when-open">Hide</span>${icon("down")}</span></summary>
         <div class="connection-management-content">
       <section class="panel conn-card" id="connection-chatgpt" aria-labelledby="chatgpt-auth-title">
         <div class="bot-head"><span class="bot-name" id="chatgpt-auth-title">Sign in with ChatGPT</span>
@@ -6752,8 +6759,8 @@ async function renderConnections() {
           <span class="tag">experimental</span><span class="tag">local desktop sign in</span></div>
         <p class="hint">Connect with Google's official installed-app flow. By default, Hutch reads event titles, times and locations from one calendar you grant to one Bot. You can separately request event-creation access; Hutch shows each guest-free event in chat and waits for your exact approval before creating it.</p>
         <p class="hint"><strong>Google permission:</strong> event creation requires a broader account-level scope that can change or delete events on calendars you own. Google desktop OAuth cannot add that scope later, so it needs a separate sign-in. Hutch exposes only guest-free event creation on the one calendar you choose; it offers no event edits, deletes or invitations. Public OAuth verification and live account tests remain incomplete.</p>
-        <details class="google-oauth-setup" id="google-oauth-setup" ${googleOAuthSetupOpen ? "open" : ""}>
-          <summary>Google account setup <span class="chip ${googleOAuthClient.configured ? "ok" : "warn"}">${googleOAuthClient.configured ? "client ready" : "setup needed"}</span></summary>
+        <details class="google-oauth-setup summary-row-sm" id="google-oauth-setup" ${googleOAuthSetupOpen ? "open" : ""}>
+          <summary><span class="summary-row-copy"><strong>Google account setup</strong></span><span class="chip ${googleOAuthClient.configured ? "ok" : "warn"}">${googleOAuthClient.configured ? "client ready" : "setup needed"}</span></summary>
           <div class="google-oauth-setup-body">
             <p class="hint">Use a Google Cloud OAuth client of type <strong>Desktop app</strong>. Enable the Calendar API or Gmail API for each service you plan to use, then enter its public client ID. Never paste a client secret or access token.</p>
             <label class="field" for="google-oauth-client-id">Google Desktop OAuth client ID
@@ -6792,8 +6799,9 @@ async function renderConnections() {
         <p class="hint">Search a connected mailbox for up to 10 matches. Hutch returns only sender, subject, received date and a short preview, which becomes untrusted local run history. This search connection cannot send, edit, forward, delete or fetch attachments. Only built-in assistants with loopback Local model routes and no hosted fallbacks can receive search access; Hutch cannot verify what the operator's local model service does.</p>
         <p class="hint"><strong>Search permission:</strong> <code>gmail.readonly</code> is a restricted, account-wide scope. Each assistant grant is enforced by Hutch, but Google consent is broader and remains managed in your Google Account. Public distribution requires Google's restricted-scope verification; server-side access can also require a security assessment. This private-preview search integration is not approved for public release.</p>
         <p class="hint"><a href="https://developers.google.com/workspace/gmail/api/auth/scopes" target="_blank" rel="noopener noreferrer">Review Google's Gmail scope requirements</a> · <a href="https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification" target="_blank" rel="noopener noreferrer">Review restricted-scope verification</a>.</p>
-        <details class="outlook-calendar-details" id="google-mail-access" ${googleMailAccessOpen ? "open" : ""}>
-          <summary>Manage Gmail access</summary>
+        <details class="outlook-calendar-details summary-row-sm" id="google-mail-access" ${googleMailAccessOpen ? "open" : ""}>
+          <summary><span class="summary-row-copy"><strong>Manage Gmail access</strong></span><span class="summary-row-action"><span class="when-closed">Show</span><span class="when-open">Hide</span>${icon("down")}</span></summary>
+          <div class="outlook-calendar-details-body">
           ${!googleMail.configured ? '<p class="hint" role="status">Add a valid Google Desktop OAuth client ID in the shared setup above. <button class="inline-link" type="button" data-google-oauth-setup-link>Open Google setup</button> Gmail asks for restricted <code>gmail.readonly</code> consent, separately from Calendar.</p>' : ''}
           ${googleMail.configured && !googleMail.secret_store_available ? '<p class="hint" role="alert">Unavailable because Linux Secret Service is missing. Install and unlock <code>secret-tool</code> before connecting. Refresh tokens stay outside SQLite and browser storage.</p>' : ''}
           ${googleMail.configured && googleMail.secret_store_available ? `<div class="google-calendar-connect outlook-calendar-connect">
@@ -6805,9 +6813,11 @@ async function renderConnections() {
           </div>` : ''}
           ${googleMailAccountsHtml || '<p class="hint">No Gmail accounts connected.</p>'}
           ${orphanGoogleMailGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A Bot grant refers to a disconnected Gmail account. Revoke it before reconnecting.</p>${orphanGoogleMailGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Gmail search access</p></div><button class="btn ghost small" data-google-mail-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ''}
+          </div>
         </details>
-        <details class="outlook-calendar-details" id="google-mail-send-access" ${googleMailSendAccessOpen ? "open" : ""}>
-          <summary>Set up send-only access</summary>
+        <details class="outlook-calendar-details outlook-mail-send-details summary-row-sm" id="google-mail-send-access" ${googleMailSendAccessOpen ? "open" : ""}>
+          <summary><span class="summary-row-copy"><strong>Set up send-only access</strong><small>A separate Google connection for <code>gmail.send</code> only</small></span><span class="summary-row-action"><span class="when-closed">Show</span><span class="when-open">Hide</span>${icon("down")}</span></summary>
+          <div class="outlook-calendar-details-body">
           <p class="hint">This is a separate Google connection with <code>gmail.send</code> only. It cannot read or search your mailbox. An assistant can prepare one plain-text message; you approve the exact sender, recipients, subject and message each time, even in automatic mode. No attachments, CC, BCC, replies or forwards.</p>
           <p class="hint"><strong>Google permission:</strong> <code>gmail.send</code> is sensitive and requires additional OAuth app verification for public distribution. It is separate from restricted <code>gmail.readonly</code>. Hutch is a private preview; no live Google account or consent flow has been verified.</p>
           ${!googleMailSend.configured ? '<p class="hint" role="status">Add the Google Desktop OAuth client ID in the shared setup above to connect a send-only account.</p>' : ''}
@@ -6824,6 +6834,7 @@ async function renderConnections() {
           </div>` : ''}
           ${googleMailSendAccountsHtml || '<p class="hint">No send-only Gmail accounts connected.</p>'}
           ${orphanGoogleMailSendGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved send grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanGoogleMailSendGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Gmail send access</p></div><button class="btn ghost small" data-google-mail-send-ungrant="${esc(grant.bot_id)}">Revoke send access</button></div>`).join("")}</div>` : ''}
+          </div>
         </details>
       </section>
       <section class="panel conn-card outlook-calendar-card" id="connection-outlook-calendar" aria-labelledby="outlook-calendar-title">
@@ -6831,8 +6842,9 @@ async function renderConnections() {
           <span class="tag">experimental</span><span class="tag">read, with optional event creation</span></div>
         <p class="hint">Connect a Microsoft account to let an assistant check one selected calendar. The default sign-in uses delegated <code>Calendars.ReadBasic</code>; event bodies, attachments and extensions are not available. Event creation is a separate optional sign-in and requires your approval each time.</p>
         <p class="hint"><strong>Permission boundary:</strong> Microsoft consent applies to the signed-in account. Hutch enforces each Bot's selected-calendar grant locally, and calendar text stays untrusted. Disconnect clears Hutch's refresh credential and Bot grants; Microsoft consent must be revoked separately in your account or organisation settings.</p>
-        <details class="outlook-calendar-details" id="outlook-calendar-access">
-          <summary>Manage Outlook Calendar access</summary>
+        <details class="outlook-calendar-details summary-row-sm" id="outlook-calendar-access">
+          <summary><span class="summary-row-copy"><strong>Manage Outlook Calendar access</strong></span><span class="summary-row-action"><span class="when-closed">Show</span><span class="when-open">Hide</span>${icon("down")}</span></summary>
+          <div class="outlook-calendar-details-body">
           ${!outlookCalendar.configured ? '<p class="hint" role="status">Unavailable until the Hutch operator configures <code>HUTCH_OUTLOOK_OAUTH_CLIENT_ID</code> for a Microsoft public-client application registration.</p>' : ''}
           ${outlookCalendar.configured && !outlookCalendar.secret_store_available ? '<p class="hint" role="alert">Unavailable because Linux Secret Service is missing. Install and unlock <code>secret-tool</code> before connecting an account. Hutch never stores refresh tokens in SQLite or browser storage.</p>' : ''}
           <div class="google-calendar-connect outlook-calendar-connect">
@@ -6844,22 +6856,25 @@ async function renderConnections() {
           </div>
           ${outlookCalendarAccountsHtml || '<p class="hint">No Outlook Calendar accounts connected.</p>'}
           ${orphanOutlookGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanOutlookGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-outlook-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
-          <details class="outlook-mail-send-details" id="outlook-calendar-write-access" ${outlookCalendarWriteAccessOpen ? "open" : ""}>
-            <summary>Add event creation (optional)</summary>
-            <p class="hint">This needs a separate Microsoft sign-in for <code>Calendars.ReadWrite</code>. Microsoft grants that permission to create, read, change and delete events across the signed-in user's calendars. Hutch keeps this token separate and only gives an assistant the ability to create guest-free events on the one calendar you select. Hutch does not expose event editing or deletion.</p>
-            <div class="outlook-mail-send-safety"><strong>Every event needs your exact approval.</strong><p class="hint">The approval shows the title, time, description, location, account and calendar. Hutch creates once, checks the event details with Microsoft, and never retries an uncertain result. Disconnect removes Hutch's credential; revoke Microsoft's broader account permission in your Microsoft account or organisation settings.</p></div>
-            ${!outlookCalendarWrite.configured ? '<p class="hint" role="status">Unavailable until the Hutch operator configures <code>HUTCH_OUTLOOK_OAUTH_CLIENT_ID</code> for a Microsoft public-client application registration.</p>' : ''}
-            ${outlookCalendarWrite.configured && !outlookCalendarWrite.secret_store_available ? '<p class="hint" role="alert">Unavailable because Linux Secret Service is missing. Install and unlock <code>secret-tool</code> before connecting an account. Refresh tokens stay outside SQLite and browser storage.</p>' : ''}
-            <div class="google-calendar-connect outlook-calendar-connect">
-              <label class="field" for="outlook-calendar-write-label">Event-creation account label
-                <input id="outlook-calendar-write-label" type="text" maxlength="80" autocomplete="off" placeholder="Work calendar" aria-describedby="outlook-calendar-write-help">
-              </label>
-              <button class="microsoft-signin-button" id="outlook-calendar-write-connect" type="button" aria-label="Sign in with Microsoft for event creation" ${!outlookCalendarWrite.configured || !outlookCalendarWrite.secret_store_available ? "disabled" : ""}><img src="/static/brands/ms-symbollockup_signin_dark.svg" width="215" height="41" alt=""></button>
-              <p class="hint" id="outlook-calendar-write-help">Use a Microsoft registration that supports your account type. Add <code>http://localhost/api/v1/connections/outlook-calendar-write/callback</code> under Mobile and desktop application redirects. Sign in from this Hutch host.</p>
-            </div>
-            ${outlookCalendarWriteAccountsHtml || '<p class="hint">No Outlook event-creation accounts connected.</p>'}
-            ${orphanOutlookCalendarWriteGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved event-creation grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanOutlookCalendarWriteGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Can create approved events on ${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-outlook-calendar-write-ungrant="${esc(grant.bot_id)}">Revoke event access</button></div>`).join("")}</div>` : ''}
-          </details>
+          </div>
+        </details>
+        <details class="outlook-calendar-details outlook-mail-send-details summary-row-sm" id="outlook-calendar-write-access" ${outlookCalendarWriteAccessOpen ? "open" : ""}>
+          <summary><span class="summary-row-copy"><strong>Add event creation (optional)</strong><small>A separate Microsoft sign-in for one selected calendar</small></span><span class="summary-row-action"><span class="when-closed">Show</span><span class="when-open">Hide</span>${icon("down")}</span></summary>
+          <div class="outlook-calendar-details-body">
+          <p class="hint">This needs a separate Microsoft sign-in for <code>Calendars.ReadWrite</code>. Microsoft grants that permission to create, read, change and delete events across the signed-in user's calendars. Hutch keeps this token separate and only gives an assistant the ability to create guest-free events on the one calendar you select. Hutch does not expose event editing or deletion.</p>
+          <div class="outlook-mail-send-safety"><strong>Every event needs your exact approval.</strong><p class="hint">The approval shows the title, time, description, location, account and calendar. Hutch creates once, checks the event details with Microsoft, and never retries an uncertain result. Disconnect removes Hutch's credential; revoke Microsoft's broader account permission in your Microsoft account or organisation settings.</p></div>
+          ${!outlookCalendarWrite.configured ? '<p class="hint" role="status">Unavailable until the Hutch operator configures <code>HUTCH_OUTLOOK_OAUTH_CLIENT_ID</code> for a Microsoft public-client application registration.</p>' : ''}
+          ${outlookCalendarWrite.configured && !outlookCalendarWrite.secret_store_available ? '<p class="hint" role="alert">Unavailable because Linux Secret Service is missing. Install and unlock <code>secret-tool</code> before connecting an account. Refresh tokens stay outside SQLite and browser storage.</p>' : ''}
+          <div class="google-calendar-connect outlook-calendar-connect">
+            <label class="field" for="outlook-calendar-write-label">Event-creation account label
+              <input id="outlook-calendar-write-label" type="text" maxlength="80" autocomplete="off" placeholder="Work calendar" aria-describedby="outlook-calendar-write-help">
+            </label>
+            <button class="microsoft-signin-button" id="outlook-calendar-write-connect" type="button" aria-label="Sign in with Microsoft for event creation" ${!outlookCalendarWrite.configured || !outlookCalendarWrite.secret_store_available ? "disabled" : ""}><img src="/static/brands/ms-symbollockup_signin_dark.svg" width="215" height="41" alt=""></button>
+            <p class="hint" id="outlook-calendar-write-help">Use a Microsoft registration that supports your account type. Add <code>http://localhost/api/v1/connections/outlook-calendar-write/callback</code> under Mobile and desktop application redirects. Sign in from this Hutch host.</p>
+          </div>
+          ${outlookCalendarWriteAccountsHtml || '<p class="hint">No Outlook event-creation accounts connected.</p>'}
+          ${orphanOutlookCalendarWriteGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved event-creation grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanOutlookCalendarWriteGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Can create approved events on ${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-outlook-calendar-write-ungrant="${esc(grant.bot_id)}">Revoke event access</button></div>`).join("")}</div>` : ""}
+          </div>
         </details>
       </section>
       <section class="panel conn-card outlook-calendar-card outlook-mail-card" id="connection-outlook-mail" aria-labelledby="outlook-mail-title">
@@ -6869,8 +6884,9 @@ async function renderConnections() {
         <p class="hint"><strong>Permission boundary:</strong> Microsoft's delegated <code>Mail.Read</code> consent applies to the signed-in account; Hutch enables search only for a Bot you grant. Reading and sending use separate account sign-ins and separate Bot grants. Mail previews are sent to that Bot's selected model and kept in its run history. Local disconnect clears Hutch's credential and grants; provider consent must be revoked separately.</p>
         ${!outlookMail.configured ? '<p class="hint" role="status">Unavailable until the Hutch operator configures <code>HUTCH_OUTLOOK_OAUTH_CLIENT_ID</code> for a Microsoft public-client application registration.</p>' : ''}
         ${outlookMail.configured && !outlookMail.secret_store_available ? '<p class="hint" role="alert">Unavailable because Linux Secret Service is missing. Install and unlock <code>secret-tool</code> before connecting an account. Hutch never stores refresh tokens in SQLite or browser storage.</p>' : ''}
-        <details class="outlook-calendar-details" id="outlook-mail-access">
-          <summary>Manage Outlook Mail access</summary>
+        <details class="outlook-calendar-details summary-row-sm" id="outlook-mail-access">
+          <summary><span class="summary-row-copy"><strong>Manage Outlook Mail access</strong></span><span class="summary-row-action"><span class="when-closed">Show</span><span class="when-open">Hide</span>${icon("down")}</span></summary>
+          <div class="outlook-calendar-details-body">
           <div class="google-calendar-connect outlook-calendar-connect">
             <label class="field" for="outlook-mail-label">Account label
               <input id="outlook-mail-label" type="text" maxlength="80" autocomplete="off" placeholder="Work or Personal" aria-describedby="outlook-mail-label-help">
@@ -6880,28 +6896,31 @@ async function renderConnections() {
           </div>
           ${outlookMailAccountsHtml || '<p class="hint">No Outlook Mail accounts connected.</p>'}
           ${orphanOutlookMailGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanOutlookMailGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Outlook Mail access</p></div><button class="btn ghost small" data-outlook-mail-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
-          <details class="outlook-mail-send-details" id="outlook-mail-send-access" ${outlookMailSendAccessOpen ? "open" : ""}>
-            <summary>Set up optional email sending</summary>
-            <p class="hint">This uses a separate Microsoft sign-in for <code>Mail.Send</code>. Reading access does not include sending, and sending access does not include reading. Grant it only to a Bot that should prepare outgoing mail.</p>
-            <div class="outlook-mail-send-safety"><strong>Every send requires your exact approval.</strong><p class="hint">Hutch can prepare one new plain-text email to at most five recipients. No replies, forwards, attachments, CC or BCC. Hutch sends once and does not retry an uncertain result; Microsoft acceptance does not confirm delivery.</p></div>
-            <div class="google-calendar-connect outlook-calendar-connect">
-              <label class="field" for="outlook-mail-send-label">Sending account label
-                <input id="outlook-mail-send-label" type="text" maxlength="80" autocomplete="off" placeholder="Work sender" aria-describedby="outlook-mail-send-label-help">
-              </label>
-              <button class="microsoft-signin-button" id="outlook-mail-send-connect" type="button" aria-label="Sign in with Microsoft" ${!outlookMailSend.configured || !outlookMailSend.secret_store_available ? "disabled" : ""}>
-                <img src="/static/brands/ms-symbollockup_signin_dark.svg" width="215" height="41" alt="">
-              </button>
-              <p class="hint" id="outlook-mail-send-label-help">A new sign-in is required for delegated <code>Mail.Send</code>; Hutch never upgrades a read-only account. Register <code>http://localhost/api/v1/connections/outlook-mail-send/callback</code> as a desktop redirect.</p>
-            </div>
-            ${!outlookMailSend.configured ? '<p class="hint" role="status">Unavailable until the Hutch operator configures <code>HUTCH_OUTLOOK_OAUTH_CLIENT_ID</code> for a Microsoft public-client application registration.</p>' : ''}
-            ${outlookMailSend.configured && !outlookMailSend.secret_store_available ? '<p class="hint" role="alert">Unavailable because Linux Secret Service is missing. Install and unlock <code>secret-tool</code> before connecting. Hutch never stores refresh tokens in SQLite or browser storage.</p>' : ''}
-            ${outlookMailSendAccountsHtml || '<p class="hint">No Outlook Mail sending accounts connected.</p>'}
-            ${orphanOutlookMailSendGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved send grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanOutlookMailSendGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Outlook Mail send access</p></div><button class="btn ghost small" data-outlook-mail-send-ungrant="${esc(grant.bot_id)}">Revoke send access</button></div>`).join("")}</div>` : ""}
-          </details>
+          </div>
+        </details>
+        <details class="outlook-calendar-details outlook-mail-send-details summary-row-sm" id="outlook-mail-send-access" ${outlookMailSendAccessOpen ? "open" : ""}>
+          <summary><span class="summary-row-copy"><strong>Set up optional email sending</strong><small>A separate Microsoft sign-in for <code>Mail.Send</code></small></span><span class="summary-row-action"><span class="when-closed">Show</span><span class="when-open">Hide</span>${icon("down")}</span></summary>
+          <div class="outlook-calendar-details-body">
+          <p class="hint">This uses a separate Microsoft sign-in for <code>Mail.Send</code>. Reading access does not include sending, and sending access does not include reading. Grant it only to a Bot that should prepare outgoing mail.</p>
+          <div class="outlook-mail-send-safety"><strong>Every send requires your exact approval.</strong><p class="hint">Hutch can prepare one new plain-text email to at most five recipients. No replies, forwards, attachments, CC or BCC. Hutch sends once and does not retry an uncertain result; Microsoft acceptance does not confirm delivery.</p></div>
+          <div class="google-calendar-connect outlook-calendar-connect">
+            <label class="field" for="outlook-mail-send-label">Sending account label
+              <input id="outlook-mail-send-label" type="text" maxlength="80" autocomplete="off" placeholder="Work sender" aria-describedby="outlook-mail-send-label-help">
+            </label>
+            <button class="microsoft-signin-button" id="outlook-mail-send-connect" type="button" aria-label="Sign in with Microsoft" ${!outlookMailSend.configured || !outlookMailSend.secret_store_available ? "disabled" : ""}>
+              <img src="/static/brands/ms-symbollockup_signin_dark.svg" width="215" height="41" alt="">
+            </button>
+            <p class="hint" id="outlook-mail-send-label-help">A new sign-in is required for delegated <code>Mail.Send</code>; Hutch never upgrades a read-only account. Register <code>http://localhost/api/v1/connections/outlook-mail-send/callback</code> as a desktop redirect.</p>
+          </div>
+          ${!outlookMailSend.configured ? '<p class="hint" role="status">Unavailable until the Hutch operator configures <code>HUTCH_OUTLOOK_OAUTH_CLIENT_ID</code> for a Microsoft public-client application registration.</p>' : ''}
+          ${outlookMailSend.configured && !outlookMailSend.secret_store_available ? '<p class="hint" role="alert">Unavailable because Linux Secret Service is missing. Install and unlock <code>secret-tool</code> before connecting. Hutch never stores refresh tokens in SQLite or browser storage.</p>' : ''}
+          ${outlookMailSendAccountsHtml || '<p class="hint">No Outlook Mail sending accounts connected.</p>'}
+          ${orphanOutlookMailSendGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved send grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanOutlookMailSendGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Outlook Mail send access</p></div><button class="btn ghost small" data-outlook-mail-send-ungrant="${esc(grant.bot_id)}">Revoke send access</button></div>`).join("")}</div>` : ""}
+          </div>
         </details>
       </section>
-      <details class="device-manager">
-        <summary>Paired devices <span class="tag">${devices.length}</span></summary>
+      <details class="device-manager summary-row-sm">
+        <summary><span class="summary-row-copy"><strong>Paired devices</strong><small>${devices.length} paired</small></span><span class="summary-row-action"><span class="when-closed">Show</span><span class="when-open">Hide</span>${icon("down")}</span></summary>
         <p class="hint">A paired browser can access this Hutch host while it is online. On the host, run <code>hutch pairing create</code>, then open <a href="/pair">/pair</a> on the device and enter the one-time code. For another device, Hutch must use <code>--allow-remote</code> with trusted TLS certificates; keep it on a private network.</p>
         ${devicesError ? `<p class="hint bad" role="alert">Could not load paired devices: ${esc(devicesError)}</p>` : devices.length ? `
           <div class="device-list" aria-label="Active paired devices">${devices.map(device => `
@@ -6922,7 +6941,7 @@ async function renderConnections() {
             <span class="bot-name">${esc(c.title || c.name)}</span>
             <span class="tag mono">${esc(c.protocol)}</span>
             <span class="tag ${c.billing === "per_token" ? "info" : ""}">${esc(c.billing === "per_token" ? "per token" : "flat rate")}</span>
-            <span class="chip ${c.has_key ? "ok" : "danger"}" style="margin-left:auto;">${c.auth_type === "chatgpt-siws" ? (c.has_key ? "signed in" : "sign-in needed") : (c.has_key ? "key set" : "no key")}</span>
+            <span class="chip ${c.has_key ? "ok" : "danger"} chip-end">${c.auth_type === "chatgpt-siws" ? (c.has_key ? "signed in" : "sign-in needed") : (c.has_key ? "key set" : "no key")}</span>
             <span class="chip ${c.ack === "ok" || c.ack === "not_needed" ? "ok" : "warn"}">${esc(c.ack === "required" ? "terms need acknowledging" : c.ack === "stale" ? "terms changed" : c.ack === "ok" ? "terms accepted" : "no terms")}</span>
           </div>
           <div class="bot-facts">
@@ -6931,11 +6950,11 @@ async function renderConnections() {
             <div>allowance <b>${c.quota_tokens ? `${fmtTokens(c.quota_tokens)} ${windows[c.quota_window] || c.quota_window}` : "none declared"}</b></div>
             <div>used in window <b>${c.quota_tokens ? `${fmtTokens(c.used)} (${Math.round((c.used / c.quota_tokens) * 100)}%)` : "—"}</b></div>
           </div>
-          ${c.quota_tokens ? `<div class="meter-track" style="width:100%;margin:8px 0;"><div class="meter-fill" style="width:${Math.min(100, c.used / c.quota_tokens * 100)}%"></div></div>` : ""}
+          ${c.quota_tokens ? `<div class="meter-track meter-full"><div class="meter-fill" style="width:${Math.min(100, c.used / c.quota_tokens * 100)}%"></div></div>` : ""}
           ${c.terms_notice ? `<p class="hint">${esc(c.terms_notice)}</p>` : ""}
           ${c.auth_type === "chatgpt-siws" ? '<p class="hint">The provider does not accept a per-response output-token ceiling here. Hutch records estimates and provider-reported usage; it cannot guarantee a hard cap.</p>' : ""}
           ${c.get_key_url && c.template === "opencode-go" ? `<p class="hint"><a href="${esc(c.get_key_url)}" target="_blank" rel="noopener noreferrer">Get an OpenCode Go API key</a>. Sign in to Go, subscribe if needed, copy its provider-issued key, and paste it here. This is key-based access; Hutch does not read OpenCode's private auth file or browser session.</p>` : ""}
-          <div class="card-actions" style="margin-top:12px;">
+          <div class="card-actions">
             <button class="btn ghost small" data-conn-action="test">${icon("zap")} Test</button>
             ${c.auth_type === "chatgpt-siws" ? "" : '<button class="btn ghost small" data-conn-action="key">Set key</button>'}
             ${c.ack === "required" || c.ack === "stale" ? `<button class="btn warn small" data-conn-action="ack">Accept terms</button>` : ""}
@@ -6950,7 +6969,7 @@ async function renderConnections() {
           <p><b>No connections configured.</b></p>
           <p class="hint">Hosted providers (OpenAI, Anthropic) read their env keys directly. A connection is for a custom endpoint or a flat-rate plan you own.</p>
         </div>`}
-      ${data.errors?.length ? `<p class="hint" style="color:var(--warn);">${esc(data.errors.join(" "))}</p>` : ""}
+      ${data.errors?.length ? `<p class="hint conn-errors">${esc(data.errors.join(" "))}</p>` : ""}
       <section class="panel conn-card model-capability-card" aria-labelledby="model-capabilities-title">
         <div class="bot-head"><span class="bot-name" id="model-capabilities-title">Model tool-call observations</span>
           <span class="tag">observed evidence</span></div>
@@ -7846,8 +7865,8 @@ async function renderConnections() {
             <a id="provider-key-link" href="#" target="_blank" rel="noopener noreferrer" hidden>Get an API key</a>
           </div>
           <p class="provider-discovery-note">Hutch checks the provider's live model list without sending a chat. Names and prices can change; a listed model's actual chat and tool support is confirmed only by a normal run.</p>
-          <details class="provider-advanced" id="provider-advanced">
-            <summary>More providers and endpoint settings</summary>
+          <details class="provider-advanced summary-row-sm" id="provider-advanced">
+            <summary><span class="summary-row-copy"><strong>More providers and endpoint settings</strong></span><span class="summary-row-action"><span class="when-closed">Show</span><span class="when-open">Hide</span>${icon("down")}</span></summary>
             <div class="provider-advanced-body">
               <label class="field" for="provider-advanced-template">Provider or service
                 <select id="provider-advanced-template" name="advanced_template">
