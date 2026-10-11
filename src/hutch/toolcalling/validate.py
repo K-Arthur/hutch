@@ -9,7 +9,7 @@ when a backend enforces only a subset").
 This module deliberately does two honest things:
 
 1. It uses the maintained ``jsonschema`` package when it is importable
-   (optional extra ``hutch[toolcalling]``), with the dialect pinned to
+   (install it alongside Hutch: ``pip install jsonschema``), with the dialect pinned to
    Draft 2020-12 and format checking off (formats are informational unless the
    schema's author opts in elsewhere). No remote ``$ref`` is ever fetched.
 2. Without that package, a *bounded* validator checks exactly the keyword subset

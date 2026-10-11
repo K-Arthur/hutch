@@ -156,7 +156,7 @@ two-stage generation remain explicit follow-ups rather than defaults.
 1. Strict validation boundary — implemented, tests green.
 2. Compiler + profiles — implemented, tests green.
 3. Native adapter correctness — implemented (flat shapes, refusals, typed ids), tests green.
-4. Constrained backend (Ollama `format`, OpenAI-compatible `response_format`) — implemented at the fixture level; a live local server check remains open.
+4. Constrained backend (Ollama `format`, OpenAI-compatible `response_format`) — implemented and fixture-covered. A live local-server run is **blocked in this environment**: no Ollama, llama.cpp, or vLLM installation and no usable local checkpoint (see section 11).
 5. Governed prompt fallback — implemented (explicit per-Bot opt-in, versioned contract, strict whole-message parse, bounded repair), tests green.
 6. Streaming parity — implemented via `hutch.toolcalling.streamassembly`, corpus + differential tests green.
 7. Diagnostics UI — implemented as the inline "Tool calling" field (Route A, approved 2026-10-10); browser-verified at 1440/768/390/360 with screenshots, DOM metrics and a trace under `docs/realignment/artifacts/tool-compatibility/`.
@@ -208,3 +208,32 @@ Presented routes (awaiting the owner's choice before implementation):
 
 Approved: **Route A** (owner choice, 2026-10-10). Implemented in the SPA Bot settings and
 browser-verified with artifacts listed in section 9.
+
+## 11. Remaining gaps and uncertainties
+
+- **Live local-model verification is blocked in this environment.** No Ollama,
+  llama.cpp, or vLLM installation is present, and no usable local checkpoint is
+  cached. Native/constrained behavior against a real server and an exact
+  Mistral-family or Llama 8B checkpoint is therefore covered by fixtures and
+  simulators only; the mode matrix labels those cells accordingly. Re-run
+  `scripts/toolcalling_bench.py` and the conformance suites on a machine with a
+  local stack before claiming live verification.
+- **vLLM strict tool mode is documented, not enabled.** Hutch keeps best-effort
+  native schemas and reports `strict` as available; enabling it would require
+  schema rewrites (`additionalProperties: false`, all fields required) and is left
+  as an explicit operator decision.
+- **Large catalogs still generate one bounded envelope.** At 100 tools the
+  constrained envelope is ~51 KB with ~12.4k contract tokens. Scoped tool
+  selection and bounded two-stage generation are the designed follow-ups; they are
+  not implemented, and `auto` never narrows a catalog on its own.
+- **Multimodal tool results are unchanged.** Hutch's chat path does not expose
+  images to models today, so the profile reports multimodal support as unknown and
+  no image-tool-result conformance test exists.
+- **The optional `jsonschema` engine is not installed here.** Execution uses the
+  bounded validator (`hutch-bounded-v1`); every shipped catalog schema is
+  certifiable on it, and schemas using unsupported keywords fail closed with a
+  diagnostic rather than widening.
+- **Approval/business-rule validation is unchanged, by design.** This feature
+  adds no new authority; existing deny/ask/allow rules, sticky approvals, budgets,
+  and receipts remain the enforcement point, and all generation modes converge on
+  them.
