@@ -54,7 +54,7 @@ fork/exec to the interactive CLI, so `^C` never reached it; `spawn_interactive` 
 for the child (A/B-proven). The residue was the harness stopping its pty read before the
 controller's separate `EXIT=` write (now drained until `EXIT=`), and a hardcoded `/tmp` in
 `OfflineBrokerSet` that hit ENOSPC on a full shared tmpfs (now honors `TMPDIR`). Final offline
-suite on the merged tree: **2047 passed, 6 skipped, 0 failed**.
+suite on the merged tree: **2047 passed, 6 skipped, 0 failed**; after a second main merge (runtime/monitoring, `63b2712`) and the migration reconciliation (final schema v54: guards/sources/jobs + idempotent grounding ensure): **2111 passed, 6 skipped, 0 failed** offline and 93 grounding offline/browser tests.
 A genuine DOCX determinism defect found
 during integration (python-docx ZIP timestamps) is repaired and verified byte-identical across a
 2.2 s boundary. Evidence: `docs/realignment/grounding-evidence.md`, `docs/grounding.md`, artifacts under
