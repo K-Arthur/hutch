@@ -36,7 +36,7 @@ def _mode(path: Path) -> int:
 
 
 def run_doctor(config: Any, store: Any, hw: Any = None, deep: bool = False, online: bool = False,
-               systemctl: Optional[Any] = None) -> list[Check]:
+               systemctl: Optional[Any] = None, service_probe: Optional[Any] = None) -> list[Check]:
     from .connections import ConnectionBook
     from .context import run_selfcheck
     from .hardware import probe
@@ -88,7 +88,7 @@ def run_doctor(config: Any, store: Any, hw: Any = None, deep: bool = False, onli
     add("orphans", "Interrupted runs", WARN if orphans else OK,
         f"{len(orphans)} run(s) belong to a process that exited" if orphans else "no orphaned runs",
         "they are marked failed automatically the next time `hutch serve` or `hutch daemon` ticks" if orphans else "")
-    svc = _service_status(systemctl)
+    svc = _service_status(systemctl, config, probe_runner=service_probe)
     add("service", "Background service", svc[0], svc[1], svc[2])
 
     # ---- runtimes
@@ -212,8 +212,13 @@ def _pid_alive(pid: str) -> bool:
         return True
 
 
-def _service_status(systemctl: Optional[Any]) -> tuple[str, str, str]:
-    """(status, detail, fix) for the user-level systemd service (UI-14)."""
+def _service_status(systemctl: Optional[Any], config=None, probe_runner: Optional[Any] = None) -> tuple[str, str, str]:
+    """(status, detail, fix) for the user-level systemd service (UI-14).
+
+    Active is not ready: when the unit is active, verify the HTTP handshake for
+    this state directory and report the two facts separately. Linger state is
+    reported when it is the reason a service will not survive logout.
+    """
     run = systemctl or (lambda argv: subprocess.run(argv, capture_output=True, text=True, timeout=5))
     if systemctl is None and not shutil.which("systemctl"):
         return INFO, "systemd not available on this system", ""
@@ -226,8 +231,32 @@ def _service_status(systemctl: Optional[Any]) -> tuple[str, str, str]:
         return INFO, f"could not query systemd ({exc})", ""
     if loaded == "not-found":
         state = "not-installed"
-    if state == "active":
-        return OK, "hutch.service is active", ""
+    if state in ("active", "activating"):
+        from .service import ServiceError, linger_state, user_service_status
+
+        adapted = systemctl
+        if adapted is not None:
+            raw = adapted
+
+            def adapted(argv, **kwargs):  # noqa: ANN001 - normalize an injected argv-only runner
+                result = raw(argv)
+                return subprocess.CompletedProcess(
+                    argv, getattr(result, "returncode", 0),
+                    getattr(result, "stdout", "") or "", getattr(result, "stderr", "") or "")
+        try:
+            status = user_service_status(state_dir=(config.state_dir if config else None), probe=True,
+                                         systemctl_runner=adapted, probe_runner=probe_runner)
+        except ServiceError as exc:
+            return WARN, f"hutch.service is {state}, but readiness could not be checked ({exc})", \
+                "hutch service status"
+        linger = status.linger
+        if status.ready:
+            detail = "hutch.service is active and answered the readiness handshake"
+            if linger == "disabled":
+                detail += "; it stops at logout (loginctl enable-linger is a separate opt-in)"
+            return OK, detail, ""
+        problem = status.detail or "readiness was not confirmed"
+        return WARN, f"hutch.service is active but not confirmed ready: {problem}", "hutch service status"
     if state in ("inactive", "failed"):
         return WARN, f"hutch.service is {state}", "systemctl --user restart hutch   (logs: journalctl --user -u hutch)"
     return INFO, "not installed: schedules only run while `hutch serve` or `hutch daemon` is running",\

@@ -642,7 +642,7 @@ def test_v51_reconciliation_upgrades_a_database_from_either_branch(config):
     db.close()
     reopened = Store(config)
     try:
-        assert reopened.schema_version == 52
+        assert reopened.schema_version == SCHEMA_VERSION
         names = {row["name"] for row in reopened._db.execute("SELECT name FROM sqlite_master")}
         assert "investigations" in names, "grounding tables must be created for a v51-main database"
         assert "idx_runs_conversation_created" in names
@@ -657,7 +657,7 @@ def test_v51_reconciliation_upgrades_a_database_from_either_branch(config):
     db.close()
     reopened = Store(config)
     try:
-        assert reopened.schema_version == 52
+        assert reopened.schema_version == SCHEMA_VERSION
         names = {row["name"] for row in reopened._db.execute("SELECT name FROM sqlite_master")}
         assert "idx_runs_conversation_created" in names, "guards must be restored for a v51-grounding database"
         assert "investigations" in names
@@ -668,11 +668,11 @@ def test_v51_reconciliation_upgrades_a_database_from_either_branch(config):
 def test_v51_pending_specialist_questions_are_not_attachable_results():
     """Schema v51 keeps a waiting question out of the accepted-result record, in the database.
 
-    In the merged history these guards ride ``_migrate_52``: two unmerged development branches
-    each claimed v51 (the grounding evidence tables vs these guards), and the second migration is
-    the reconciler that guarantees both halves exist for databases stamped by either branch.
+    In the final merged history these guards are ``_migrate_51`` (the runtime slice's numbering);
+    ``_migrate_54`` re-applies them idempotently so databases stamped by the grounding branch —
+    which never saw them — end complete.
     """
-    from hutch.store import _migrate_52
+    from hutch.store import _migrate_51
 
     db = sqlite3.connect(":memory:")
     try:
@@ -686,7 +686,7 @@ def test_v51_pending_specialist_questions_are_not_attachable_results():
         db.execute("""CREATE TABLE conversation_questions (
             id TEXT PRIMARY KEY, assistant_message_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending')""")
         db.execute("""CREATE TABLE runs (id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, created_at TEXT NOT NULL)""")
-        _migrate_52(db)
+        _migrate_51(db)
         assert db.execute("SELECT 1 FROM sqlite_master WHERE type = 'index' "
                           "AND name = 'idx_runs_conversation_created'").fetchone() is not None
         db.execute("INSERT INTO conversation_questions VALUES ('choice_1', 'msg_question', 'pending')")

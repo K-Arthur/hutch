@@ -1191,6 +1191,7 @@ const routes = [
   [/^#\/conversation\/([\w-]+)$/, m => openConversation(m[1]), "chat"],
   [/^#\/overview$/, renderOverview, "overview"],
   [/^#\/schedules$/, renderSchedules, "schedules"],
+  [/^#\/runtime$/, renderRuntime, "runtime"],
   [/^#\/bots$/, renderBots, "bots"],
   [/^#\/runs(?:\?(.*))?$/, m => renderRuns(m ? m[1] : ""), "runs"],
   [/^#\/skills$/, () => window.hutchSkills.renderSkillsPage(), "skills"],
@@ -1312,7 +1313,8 @@ function openConversationSearch(trigger) {
 }
 
 const ROUTE_TITLES = { chat: "Chats", overview: "Activity", schedules: "Scheduled work",
-  runs: "Work history", bots: "Assistants", connections: "Apps & AI", approvals: "Needs you" };
+  runtime: "Runtime", runs: "Work history", bots: "Assistants", connections: "Apps & AI",
+  approvals: "Needs you" };
 
 function routeTitle(hash) {
   if (hash.startsWith("#/conversation/")) return "Conversation";
@@ -1349,7 +1351,7 @@ async function route(announce = false) {
         if (isActive) a.setAttribute("aria-current", "page");
         else a.removeAttribute("aria-current");
       });
-      if (["overview", "schedules", "runs", "bots"].includes(nav)) $("#monitor-nav").open = true;
+      if (["overview", "schedules", "runs", "bots", "runtime"].includes(nav)) $("#monitor-nav").open = true;
       try { await handler(m); }
       catch (err) { view.innerHTML = errorState(err); }
       if (announce) {
@@ -10080,5 +10082,557 @@ document.addEventListener("click", event => {
     openDocumentVersions(versions.dataset.docVersions, versions.dataset.docName, versions);
   }
 });
+
+/* ------------------------------------- runtime & background work (route) */
+
+/* One place that answers: where does execution live, is it really running,
+   what is watched, and what is waiting. Controls here are local-owner only;
+   paired phones never receive these routes (authorize_remote_route returns 403). */
+
+let runtimeCache = null;
+
+function runtimeHumanizeSeconds(seconds) {
+  const s = Math.max(0, Math.round(seconds));
+  if (s < 60) return `${s} second${s === 1 ? "" : "s"}`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m} minute${m === 1 ? "" : "s"}`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} hour${h === 1 ? "" : "s"}`;
+  return `${Math.round(h / 24)} day${h < 48 ? "" : "s"}`;
+}
+
+function runtimeNextLabel(iso) {
+  if (!iso) return "not scheduled";
+  const when = Date.parse(iso);
+  if (Number.isNaN(when)) return "unknown";
+  const delta = (when - Date.now()) / 1000;
+  return delta <= 0 ? "due now" : `in ${runtimeHumanizeSeconds(delta)}`;
+}
+
+function runtimeServiceWord(service) {
+  if (!service || service.supported === false) return { word: "Unavailable", cls: "warn" };
+  if (!service.installed) return { word: "Not installed", cls: "" };
+  if (service.state === "active") {
+    return service.ready ? { word: "Ready", cls: "ok" } : { word: "Active, not ready", cls: "warn" };
+  }
+  return { word: `systemd: ${service.state}`, cls: service.state === "failed" ? "danger" : "warn" };
+}
+
+function runtimeSourceState(source) {
+  if (!source.enabled) return { word: "Paused", cls: "" };
+  if (source.last_error) return { word: "Needs attention", cls: "warn", detail: source.last_error };
+  if (source.pending_events > 0) return { word: `${source.pending_events} waiting to start`, cls: "info" };
+  if (!source.last_success_at) return { word: "Never checked", cls: "" };
+  return { word: `Checked ${timeAgo(source.last_success_at)} — no changes`, cls: "ok" };
+}
+
+function runtimeSourceTarget(source) {
+  const config = source.config || {};
+  if (source.kind === "feed") return config.url || "feed";
+  const path = config.path || "folder";
+  return source.kind === "git" ? `${path} (${config.ref || "HEAD"})` : path;
+}
+
+function runtimeEventsHtml(sourceId) {
+  return `<div class="runtime-events" data-source-events-body="${esc(sourceId)}"><p class="hint">Loading recorded changes…</p></div>`;
+}
+
+async function loadRuntimeEvents(sourceId, container) {
+  try {
+    const page = await api(`/v1/sources/${encodeURIComponent(sourceId)}/events?limit=20`);
+    const items = page.items || [];
+    if (!items.length) {
+      container.innerHTML = `<p class="hint">Nothing recorded yet. Checks run in the background; an unchanged source records nothing.</p>`;
+      return;
+    }
+    container.innerHTML = `<ul class="runtime-event-list">${items.map(item => `
+      <li><span class="runtime-event-when mono">${esc((item.received_at || "").slice(0, 16).replace("T", " "))}Z</span>
+        <span class="tag ${item.status === "admitted" ? "ok" : item.status === "ignored" ? "" : item.status === "superseded" ? "" : "info"}">${esc(item.status)}</span>
+        <span>${esc(item.kind)}</span> <span class="runtime-event-summary">${esc(item.summary)}</span>
+        ${item.status === "admitted" && item.run_id ? `<a class="btn ghost small" href="#/run/${esc(item.run_id)}">Open run</a>` : ""}
+      </li>`).join("")}</ul>
+      <p class="hint">Newest first. Superseded means a newer revision of the same item arrived; ignored means it was deliberately excluded or retired.</p>`;
+  } catch (err) {
+    container.innerHTML = `<p class="hint">Could not load recorded changes: ${esc(err.message)}</p>`;
+  }
+}
+
+function paintRuntime() {
+  const { data, sources, bots, schedules } = runtimeCache;
+  const service = data.service || {};
+  const queue = data.queue || {};
+  const stats = data.sources || {};
+  const engine = data.engine || {};
+  const schedulerRole = data.scheduler?.role === "supervisor"
+    ? "This process holds the scheduler lease." : "Another Hutch process holds the scheduler lease.";
+  const serviceWord = runtimeServiceWord(service);
+  const automationPaused = !!schedules?.paused;
+
+  const attention = [];
+  if (!service.supported) {
+    attention.push({ text: "Background service management is unavailable on this platform; Hutch runs only while this process is open.",
+                     action: "" });
+  } else if (!service.installed) {
+    attention.push({ text: "Hutch is running without its background service — work stops when this process stops.",
+                     action: "install" });
+  } else if (service.active && service.ready === false) {
+    attention.push({ text: `The background service is active but not confirmed ready: ${service.detail || "not confirmed"}`,
+                     action: "restart" });
+  }
+  if (stats.failing > 0) {
+    attention.push({ text: `${stats.failing} watched source${stats.failing === 1 ? "" : "s"} cannot be read right now.`,
+                     action: "sources" });
+  }
+  if (queue.pending_approvals > 0 || queue.unresolved_actions > 0) {
+    attention.push({ text: `${queue.pending_approvals} approval${queue.pending_approvals === 1 ? "" : "s"} and ${queue.unresolved_actions} action outcome${queue.unresolved_actions === 1 ? "" : "s"} need review.`,
+                     action: "needs-you" });
+  }
+
+  setTopContext(`<div class="ctx-id"><h1>Runtime &amp; background work</h1></div>
+    <div class="ctx-actions"><button class="btn ghost small" type="button" data-runtime-action="refresh">Refresh</button></div>`);
+
+  view.innerHTML = `
+    <div class="page-scroll"><div class="container runtime-page">
+      <div id="runtime-notice" class="runtime-notice" role="status" aria-live="polite" hidden></div>
+
+      ${attention.length ? `<section class="runtime-attention" aria-label="Items that need attention">
+        <h2>Needs attention</h2>
+        ${attention.map(item => `<div class="runtime-attention-row">
+          <span>${esc(item.text)}</span>
+          ${item.action ? `<button class="btn ghost small" type="button" data-runtime-action="${esc(item.action)}">${{
+            install: "Set up background work", restart: "Restart and re-check", sources: "Review sources",
+            "needs-you": "Review in Needs you" }[item.action] || "Open"}</button>` : ""}
+        </div>`).join("")}
+      </section>` : ""}
+
+      <section class="runtime-card" aria-labelledby="runtime-machine-title">
+        <h2 id="runtime-machine-title">This machine</h2>
+        <dl class="runtime-facts">
+          <div><dt>Execution</dt><dd>On this computer — this process owns accepted work, schedules and watchers.</dd></div>
+          <div><dt>Version</dt><dd>v${esc(engine.version || "?")} · database schema ${esc(String(engine.schema ?? "?"))}</dd></div>
+          <div><dt>Instance</dt><dd class="mono">${esc(engine.instance_id || "unknown")} · PID ${esc(String(engine.pid ?? "?"))}</dd></div>
+          <div><dt>Scheduler</dt><dd>${esc(schedulerRole)}</dd></div>
+          <div><dt>Reachable from</dt><dd>${data.exposure?.mode === "remote"
+            ? "This computer and paired devices. Paired phones can monitor and review; they cannot administer this machine."
+            : "This computer only (loopback). Remote phone supervision is a separate, explicit setup."}</dd></div>
+        </dl>
+      </section>
+
+      <section class="runtime-card" aria-labelledby="runtime-service-title">
+        <h2 id="runtime-service-title">Background service</h2>
+        <p class="hint runtime-lead">Closing this window never stops accepted work. Hutch keeps running while this process runs${service.installed ? "" : " — install the user service to keep it running without a terminal."}</p>
+        <dl class="runtime-facts">
+          <div><dt>Managed service</dt><dd><span class="tag ${serviceWord.cls}">${esc(serviceWord.word)}</span>
+            ${service.state && service.supported ? `<span class="hint">systemd: ${esc(service.state)}</span>` : ""}
+            ${service.ready === true ? `<span class="hint">answered the readiness check for this state directory</span>` : ""}
+            ${service.ready === false && service.detail ? `<span class="hint">${esc(service.detail)}</span>` : ""}</dd></div>
+          <div><dt>Starts at login and survives logout</dt><dd>
+            ${service.linger === "enabled" ? `<span class="tag ok">On</span> <span class="hint">systemd lingering is enabled for this user</span>`
+              : service.linger === "disabled" ? `<span class="tag">Off</span> <span class="hint">logging out stops user services; turn this on only if you want scheduled work to continue after logout (a system-level opt-in)</span>`
+              : service.linger === "unavailable" ? `<span class="hint">cannot be determined here</span>`
+              : `<span class="hint">unknown</span>`}</dd></div>
+          <div><dt>Uninstalling</dt><dd>Stops and removes the unit only. Your database, assistants, credentials and workspaces stay.</dd></div>
+        </dl>
+        <div class="runtime-controls" role="group" aria-label="Background service controls">
+          ${!service.installed
+            ? `<button class="btn primary small" type="button" data-runtime-action="install">Set up background work</button>`
+            : `${service.active
+                ? `<button class="btn ghost small" type="button" data-runtime-action="restart">Restart service</button>
+                   <button class="btn ghost small" type="button" data-runtime-action="stop">Stop service</button>`
+                : `<button class="btn primary small" type="button" data-runtime-action="restart">Start service</button>`}
+               <button class="btn ghost small" type="button" data-runtime-action="uninstall">Remove background service</button>
+               ${service.linger === "enabled"
+                 ? `<button class="btn ghost small" type="button" data-runtime-action="startup-off">Stop starting at login</button>`
+                 : service.linger === "disabled"
+                   ? `<button class="btn ghost small" type="button" data-runtime-action="startup-on">Start at login and keep running after logout</button>`
+                   : ""}`}
+          <span class="runtime-controls-state hint" data-runtime-pending hidden>Working…</span>
+        </div>
+        ${!service.supported ? `<p class="hint">This platform has no supported service manager yet; Hutch runs while this process runs.</p>` : ""}
+      </section>
+
+      <section class="runtime-card" aria-labelledby="runtime-sources-title">
+        <div class="runtime-card-head">
+          <h2 id="runtime-sources-title">Watched sources</h2>
+          <button class="btn ghost small" type="button" data-runtime-action="add-source">Add a source</button>
+        </div>
+        <p class="hint runtime-lead">Checks are deterministic and run in the background: an unchanged source costs no model call. Material changes admit one bounded assistant run per cooldown window.</p>
+        ${sources.length ? `<div class="runtime-source-list" role="list">
+          ${sources.map(source => {
+            const state = runtimeSourceState(source);
+            const bot = bots.find(b => b.id === source.bot_id);
+            return `<article class="runtime-source" role="listitem" data-source-id="${esc(source.id)}">
+              <div class="runtime-source-main">
+                <div class="runtime-source-head">
+                  <strong>${esc(source.name)}</strong>
+                  <span class="tag">${esc(source.kind)}</span>
+                  <span class="tag ${state.cls}">${esc(state.word)}</span>
+                  ${source.enabled ? "" : `<span class="hint">checks paused</span>`}
+                </div>
+                <p class="hint runtime-source-target mono">${esc(runtimeSourceTarget(source))}</p>
+                <p class="hint">${bot ? `Assistant: ${esc(bot.display_name || bot.name)} · ` : ""}${source.enabled
+                  ? `last checked ${source.last_check_at ? timeAgo(source.last_check_at) : "never"} · next check ${esc(runtimeNextLabel(source.next_check_at))}`
+                  : "checks are paused"}</p>
+                ${state.detail ? `<p class="hint runtime-source-error">${esc(state.detail)}</p>` : ""}
+                ${source.ignored_events ? `<p class="hint">${source.ignored_events} change(s) were deliberately ignored (excluded paths or retired on an edit).</p>` : ""}
+              </div>
+              <div class="runtime-source-actions">
+                <button class="btn ghost small" type="button" data-runtime-action="source-check" data-source-id="${esc(source.id)}">Check now</button>
+                <button class="btn ghost small" type="button" data-runtime-action="${source.enabled ? "source-pause" : "source-resume"}" data-source-id="${esc(source.id)}">${source.enabled ? "Pause" : "Resume"}</button>
+                <button class="btn ghost small" type="button" data-runtime-action="source-remove" data-source-id="${esc(source.id)}">Remove</button>
+              </div>
+              <details class="runtime-source-events" data-source-events="${esc(source.id)}">
+                <summary>Recent changes${source.admitted_events ? ` · ${source.admitted_events} admitted` : ""}</summary>
+                ${runtimeEventsHtml(source.id)}
+              </details>
+            </article>`;
+          }).join("")}
+        </div>` : `<section class="empty-state runtime-empty">
+          <p><b>Nothing is watched yet.</b></p>
+          <p class="hint">Watch a folder, a git repository, or an RSS/Atom feed. Hutch records changes durably; only material changes start a bounded assistant run.</p>
+          <button class="btn primary small" type="button" data-runtime-action="add-source">Add a source</button>
+        </section>`}
+        ${stats.pending_events ? `<p class="hint" role="status">${stats.pending_events} recorded change(s) are waiting to start within their cooldown limits.</p>` : ""}
+      </section>
+
+      <section class="runtime-card" aria-labelledby="runtime-jobs-title">
+        <h2 id="runtime-jobs-title">Multi-step jobs</h2>
+        <p class="hint runtime-lead">A watched folder in document mode runs a checkpointed pipeline: register inputs, extract text, OCR only scanned pages, update the local index, then write a grounded summary. An interruption resumes at the last verified step; a possible external effect stops the job for review instead of being replayed.</p>
+        ${runtimeCache.jobs.length ? `<div class="runtime-job-list" role="list">
+          ${runtimeCache.jobs.map(job => {
+            const label = { document_pipeline: "Document summary" }[job.kind] || job.kind;
+            const done = (job.steps || []).filter(step => step.status === "succeeded").length;
+            const total = (job.steps || []).length || 6;
+            const statusWord = { queued: "Queued", running: "Working", blocked: "Needs review",
+              succeeded: "Done", failed: "Failed", cancelled: "Cancelled" }[job.status] || job.status;
+            const statusClass = { succeeded: "ok", blocked: "warn", failed: "danger", running: "info",
+              cancelled: "" }[job.status] || "";
+            return `<article class="runtime-job" role="listitem" data-job-id="${esc(job.id)}">
+              <div class="runtime-source-head">
+                <strong>${esc(label)}</strong>
+                <span class="tag ${statusClass}">${esc(statusWord)}</span>
+                <span class="hint mono">${done}/${total} steps</span>
+                <span class="hint">${timeAgo(job.updated_at || job.created_at)}</span>
+                ${["queued", "running", "blocked"].includes(job.status)
+                  ? `<button class="btn ghost small" type="button" data-runtime-action="job-cancel" data-job-id="${esc(job.id)}">Cancel job</button>` : ""}
+              </div>
+              ${job.error ? `<p class="hint runtime-source-error">${esc(job.error)}</p>` : ""}
+              <details class="runtime-source-events">
+                <summary>Steps and result</summary>
+                <div>
+                  <ul class="runtime-event-list">
+                    ${(job.steps || []).map(step => `<li>
+                      <span class="tag ${step.status === "succeeded" ? "ok" : step.status === "running" ? "info" : step.status === "failed" ? "danger" : ""}">${esc(step.status)}</span>
+                      <span>${esc(step.step_key)}</span>
+                      <span class="hint">attempt ${step.attempt}${step.error ? ` — ${esc(step.error)}` : ""}</span>
+                      ${step.run_id ? `<a class="btn ghost small" href="#/run/${esc(step.run_id)}">Open run</a>` : ""}
+                    </li>`).join("")}
+                  </ul>
+                  ${job.message ? `<p class="runtime-job-message">${esc(job.message.slice(0, 600))}${job.message.length > 600 ? "…" : ""}</p>` : ""}
+                  ${job.artifact ? `<p class="hint mono">artifact ${esc(job.artifact_sha256.slice(0, 12))} · ${esc(job.artifact)}</p>` : ""}
+                </div>
+              </details>
+            </article>`;
+          }).join("")}
+        </div>` : `<p class="hint">No multi-step jobs yet. A watched folder that uses document mode creates them automatically when something changes.</p>`}
+      </section>
+
+      <section class="runtime-card" aria-labelledby="runtime-queue-title">
+        <h2 id="runtime-queue-title">Queue &amp; automation</h2>
+        <dl class="runtime-facts">
+          <div><dt>Working now</dt><dd>${queue.active_runs || 0} run(s), ${queue.queued_tasks || 0} queued</dd></div>
+          <div><dt>Waiting for you</dt><dd>${queue.pending_approvals || 0} approval(s) · ${queue.unresolved_actions || 0} action outcome(s) to check
+            ${(queue.pending_approvals || queue.unresolved_actions) ? ` · <a href="#/approvals">Review in Needs you</a>` : ""}</dd></div>
+          <div><dt>Recurring work</dt><dd>${automationPaused
+            ? `<span class="tag warn">Paused</span> Scheduled starts and watched-source admissions are paused; work already running can finish.`
+            : `<span class="tag ok">On</span> Schedules and watched sources can start new work.`}</dd></div>
+          ${queue.execution_held ? `<div><dt>Execution</dt><dd><span class="tag danger">Held</span> Restore review is required before new work starts.</dd></div>` : ""}
+        </dl>
+        <div class="runtime-controls">
+          <button class="btn ${automationPaused ? "primary" : "ghost"} small" type="button"
+                  data-runtime-action="${automationPaused ? "automation-resume" : "automation-pause"}">
+            ${automationPaused ? "Resume automation" : "Pause automation"}
+          </button>
+        </div>
+      </section>
+    </div></div>`;
+  bindRuntimeActions();
+}
+
+function setRuntimePending(action, pending) {
+  runtimeCache = runtimeCache ? { ...runtimeCache, pending: pending ? action : "" } : runtimeCache;
+  const state = $("[data-runtime-pending]");
+  if (state) state.hidden = !pending;
+  $$("[data-runtime-action]").forEach(button => {
+    const interactive = ["refresh"].includes(button.dataset.runtimeAction);
+    if (pending && interactive) button.disabled = true;
+    if (!pending) button.disabled = false;
+  });
+}
+
+function runtimeNotice(message, isError = false) {
+  const notice = $("#runtime-notice");
+  if (!notice) return;
+  notice.hidden = !message;
+  notice.className = `runtime-notice${isError ? " error" : ""}`;
+  notice.textContent = message || "";
+}
+
+async function runtimeAction(action, button) {
+  if (runtimeCache?.pending) return;
+  const sourceId = button?.dataset.sourceId || "";
+  const focusId = button?.dataset.runtimeAction + (sourceId ? `:${sourceId}` : "");
+  try {
+    if (action === "refresh") {
+      await renderRuntime();
+      return;
+    }
+    if (action === "install") {
+      const ok = await confirmDialog({
+        title: "Set up background work",
+        body: `Install and start Hutch's <b>user service</b> on this machine? It runs the loopback dashboard without a terminal, starts after you log in, and never enables remote access. It uses this installation's Python environment and state directory.`,
+        confirmText: "Install service",
+      });
+      if (!ok) return;
+      setRuntimePending(action, true);
+      const snapshot = await api("/v1/runtime/service/install", { method: "POST", body: { confirm: "install", port: 8787 } });
+      await renderRuntime();
+      runtimeNotice(snapshot.ready ? "Background work is set up and ready."
+                                   : "The unit is installed but readiness was not confirmed. Check the service block.");
+      return;
+    }
+    if (action === "restart") {
+      setRuntimePending(action, true);
+      const snapshot = await api("/v1/runtime/service/restart", { method: "POST", body: { confirm: "restart" } });
+      await renderRuntime();
+      runtimeNotice(snapshot.ready ? "Service restarted; the readiness check passed." : "Restarted, but readiness is not confirmed.");
+      return;
+    }
+    if (action === "stop") {
+      const ok = await confirmDialog({
+        title: "Stop the Hutch service",
+        body: `Stop the background service? Work already accepted is signalled and records its outcome; nothing already sent to a provider is undone. Schedules and watchers <b>stop</b> until you start the service again — Hutch will not restart itself after a deliberate stop.`,
+        confirmText: "Stop service", danger: true,
+      });
+      if (!ok) return;
+      await api("/v1/runtime/service/stop", { method: "POST", body: { confirm: "stop" } });
+      runtimeNotice("Stopping… this page will stop responding when the service stops. Restart later with `hutch service restart` or by starting `hutch serve`.");
+      return;
+    }
+    if (action === "uninstall") {
+      const ok = await confirmDialog({
+        title: "Remove the background service",
+        body: `Stop and remove the managed unit? Scheduled and watched work will only run while a Hutch process is open. Your database, assistants, credentials and workspaces are <b>not</b> removed.`,
+        confirmText: "Remove service", danger: true,
+      });
+      if (!ok) return;
+      setRuntimePending(action, true);
+      await api("/v1/runtime/service/uninstall", { method: "POST", body: { confirm: "uninstall" } });
+      await renderRuntime();
+      runtimeNotice("The background service was removed. Data was preserved.");
+      return;
+    }
+    if (action === "startup-on" || action === "startup-off") {
+      const enabling = action === "startup-on";
+      const ok = await confirmDialog({
+        title: enabling ? "Start Hutch at login" : "Stop starting Hutch at login",
+        body: enabling
+          ? `Enable systemd <b>lingering</b> for this user? Hutch then starts at boot and keeps running after you log out. This changes login behavior for your user account and is an explicit opt-in.`
+          : `Disable systemd lingering? Hutch stops running after you log out; work continues while you are logged in.`,
+        confirmText: enabling ? "Enable lingering" : "Disable lingering",
+      });
+      if (!ok) return;
+      setRuntimePending(action, true);
+      const snapshot = await api("/v1/runtime/service/startup", { method: "POST", body: { confirm: "startup", enabled: enabling } });
+      await renderRuntime();
+      runtimeNotice(`Start-at-login is now ${snapshot.linger}.`);
+      return;
+    }
+    if (action === "automation-pause" || action === "automation-resume") {
+      const paused = action === "automation-pause";
+      setRuntimePending(action, true);
+      await api("/v1/schedules/control", { method: "PUT", body: { paused } });
+      await renderRuntime();
+      runtimeNotice(paused ? "Automation paused. Schedules and watched sources will not start new work; running work can finish."
+                           : "Automation resumed.");
+      return;
+    }
+    if (action === "source-check") {
+      setRuntimePending(action, true);
+      await api(`/v1/sources/${encodeURIComponent(sourceId)}/check`, { method: "POST", body: {} });
+      await renderRuntime();
+      runtimeNotice("A check is scheduled; the next refresh shows its result.");
+      return;
+    }
+    if (action === "source-pause" || action === "source-resume") {
+      setRuntimePending(action, true);
+      await api(`/v1/sources/${encodeURIComponent(sourceId)}`, { method: "PUT", body: { enabled: action === "source-resume" } });
+      await renderRuntime();
+      runtimeNotice(action === "source-pause"
+        ? "Checks paused. Recorded-but-unadmitted changes were retired so a pause cannot start work."
+        : "Checks resumed. The next check re-establishes the cursor from the source's current state.");
+      return;
+    }
+    if (action === "source-remove") {
+      const source = runtimeCache?.sources.find(item => item.id === sourceId);
+      const ok = await confirmDialog({
+        title: "Remove this watched source",
+        body: `Stop checking <b>${esc(source?.name || sourceId)}</b>? Recorded change history stays for review; no further checks or runs are admitted.`,
+        confirmText: "Remove source", danger: true,
+      });
+      if (!ok) return;
+      setRuntimePending(action, true);
+      await api(`/v1/sources/${encodeURIComponent(sourceId)}`, { method: "DELETE" });
+      await renderRuntime();
+      runtimeNotice("Source removed.");
+      return;
+    }
+    if (action === "add-source") {
+      openAddSourceDialog();
+      return;
+    }
+    if (action === "job-cancel") {
+      const jobId = button?.dataset.jobId || "";
+      const ok = await confirmDialog({
+        title: "Cancel this job",
+        body: "Stop this multi-step job? No further steps start, and a step that is currently running is asked to stop. Work already delivered is not undone.",
+        confirmText: "Cancel job", danger: true,
+      });
+      if (!ok) return;
+      setRuntimePending(action, true);
+      await api(`/v1/jobs/${encodeURIComponent(jobId)}/cancel`, { method: "POST", body: {} });
+      await renderRuntime();
+      runtimeNotice("Job cancelled.");
+      return;
+    }
+    if (action === "needs-you") {
+      $("#needs-you-open")?.click();
+      return;
+    }
+  } catch (err) {
+    setRuntimePending("", false);
+    runtimeNotice(err.message || "That action failed.", true);
+  } finally {
+    setRuntimePending("", false);
+    const again = focusId ? $(`[data-runtime-action="${focusId.split(":")[0]}"][data-source-id="${focusId.split(":")[1] || ""}"]`) : null;
+    (again || $("[data-runtime-action]"))?.focus?.({ preventScroll: true });
+  }
+}
+
+function openAddSourceDialog() {
+  const bots = runtimeCache?.bots || [];
+  if (!bots.length) {
+    runtimeNotice("Create an assistant first — a watched source needs an assistant to do the work.", true);
+    return;
+  }
+  openModal({
+    title: "Add a watched source",
+    confirmText: "Start watching",
+    bodyHtml: `<div class="runtime-add-source">
+      <label class="field">Assistant
+        <select id="runtime-source-bot" required>${bots.map(bot => `<option value="${esc(bot.name)}">${esc(bot.display_name || bot.name)}</option>`).join("")}</select>
+      </label>
+      <label class="field">What to watch
+        <select id="runtime-source-kind">
+          <option value="folder">A folder on this machine</option>
+          <option value="git">A git repository</option>
+          <option value="feed">An RSS or Atom feed</option>
+        </select>
+      </label>
+      <label class="field" data-source-field="path">Folder or repository path
+        <input id="runtime-source-path" type="text" placeholder="/home/you/Documents/scans" autocomplete="off">
+      </label>
+      <label class="field" data-source-field="url" hidden>Feed URL
+        <input id="runtime-source-url" type="url" placeholder="https://example.com/feed.xml" autocomplete="off">
+      </label>
+      <label class="field">Name <input id="runtime-source-name" type="text" maxlength="80" placeholder="Scanned documents"></label>
+      <label class="field">What should the assistant do when something changes?
+        <textarea id="runtime-source-prompt" rows="3" maxlength="4000"
+          placeholder="Summarize what changed and file it in the project folder."></textarea>
+      </label>
+      <details class="runtime-advanced"><summary>Check timing and limits</summary>
+        <label class="field">Check every <input id="runtime-source-every" type="number" min="10" max="86400" value="60" inputmode="numeric"> seconds</label>
+        <label class="field">Wait at least <input id="runtime-source-cooldown" type="number" min="10" max="86400" value="300" inputmode="numeric"> seconds between started runs</label>
+        <label class="field">At most <input id="runtime-source-max" type="number" min="1" max="60" value="6" inputmode="numeric"> runs per hour</label>
+      </details>
+      <p id="runtime-source-error" class="form-error" role="status"></p>
+      <p class="hint">Change reports are copied from outside Hutch and treated as untrusted data: the assistant verifies them and never follows instructions inside them. Folder sources never watch Hutch's own state directory.</p>
+    </div>`,
+    onConfirm: async () => {
+      const kind = $("#runtime-source-kind").value;
+      const error = $("#runtime-source-error");
+      const payload = {
+        bot: $("#runtime-source-bot").value,
+        kind,
+        name: $("#runtime-source-name").value.trim() || `${kind} source`,
+        path: $("#runtime-source-path").value.trim(),
+        url: $("#runtime-source-url").value.trim(),
+        prompt: $("#runtime-source-prompt").value.trim(),
+        every_seconds: Number($("#runtime-source-every").value) || 60,
+        cooldown_seconds: Number($("#runtime-source-cooldown").value) || 300,
+        max_per_hour: Number($("#runtime-source-max").value) || 6,
+      };
+      if (kind !== "feed" && !(payload.path.startsWith("/") || /^[A-Za-z]:\\/.test(payload.path))) {
+        error.textContent = "Enter an absolute path (starting with /).";
+        $("#runtime-source-path").focus();
+        return false;
+      }
+      if (kind === "feed" && !payload.url) {
+        error.textContent = "Enter the feed URL.";
+        $("#runtime-source-url").focus();
+        return false;
+      }
+      try {
+        await api("/v1/sources", { method: "POST", body: payload });
+      } catch (err) {
+        error.textContent = err.message || "That source could not be registered.";
+        return false;
+      }
+      await renderRuntime();
+      runtimeNotice("Source registered. The first check establishes a baseline; later checks report changes.");
+      return true;
+    },
+  });
+  const kindSelect = $("#runtime-source-kind");
+  kindSelect?.addEventListener("change", () => {
+    const isFeed = kindSelect.value === "feed";
+    $('[data-source-field="path"]').hidden = isFeed;
+    $('[data-source-field="url"]').hidden = !isFeed;
+  });
+}
+
+function bindRuntimeActions() {
+  const root = $(".runtime-page");
+  if (!root) return;
+  root.addEventListener("click", event => {
+    const button = event.target.closest("[data-runtime-action]");
+    if (button) {
+      event.preventDefault();
+      void runtimeAction(button.dataset.runtimeAction, button);
+    }
+  });
+  root.querySelectorAll(".runtime-source-events").forEach(details => {
+    details.addEventListener("toggle", () => {
+      if (!details.open) return;
+      const body = details.querySelector("[data-source-events-body]");
+      if (body && !body.dataset.loaded) {
+        body.dataset.loaded = "1";
+        void loadRuntimeEvents(details.dataset.sourceEvents, body);
+      }
+    });
+  });
+}
+
+async function renderRuntime() {
+  const [data, sourcePage, jobsPage, bots, schedules] = await Promise.all([
+    api("/v1/runtime"),
+    api("/v1/sources"),
+    api("/v1/jobs?limit=10"),
+    api("/bots"),
+    api("/v1/schedules/control"),
+  ]);
+  runtimeCache = { data, sources: sourcePage.items || [], jobs: jobsPage.items || [], bots, schedules, pending: "" };
+  paintRuntime();
+}
 
 void bootstrapHutchApp();

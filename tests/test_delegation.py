@@ -203,6 +203,8 @@ def _remove_later_conversation_schema(db):
     for table in ("document_versions", "documents",
                   "inv_stream_cursors", "inv_answers", "inv_observations", "inv_media_frames", "inv_media",
                   "inv_evidence", "inv_claims", "inv_sources", "inv_query_attempts", "investigations",
+                  "doc_index_fts", "doc_index_chunks", "doc_index_generations",
+                  "job_steps", "jobs", "source_events", "event_sources",
                   "workspace_task_continuations", "workspace_task_fact_shares", "workspace_task_checkpoints",
                   "workspace_tasks", "workspace_specialists", "workspace_settings",
                   "conversation_questions", "google_calendar_grants", "memory_fact_shares", "code_handoffs",

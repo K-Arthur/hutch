@@ -87,14 +87,29 @@ def test_orphaned_runs_are_reported(config, store):
     assert o.status == WARN and "exited" in o.detail
 
 
-def test_service_states_not_installed_inactive_active(config, store):
+def test_service_states_not_installed_inactive_active(config, store, tmp_path, monkeypatch):
     def sc(load, active):
         return lambda argv: type("R", (), {"stdout": load if "show" in argv else active})()
-    get = lambda s: by_id(run_doctor(config, store, hw=DOWN, systemctl=s))["service"]
+
+    from hutch.service import ServiceProbe, render_user_unit
+
+    config_home = tmp_path / "config"
+    unit_dir = config_home / "systemd/user"
+    unit_dir.mkdir(parents=True)
+    (unit_dir / "hutch.service").write_text(render_user_unit("/usr/bin/python3", config.state_dir, port=18888))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(config_home))
+
+    ready = lambda *a, **k: ServiceProbe(True, True, "ready", {"id": "x", "pid": 1})
+    unready = lambda *a, **k: ServiceProbe(True, False, "a different Hutch instance owns this port")
+    get = lambda s, probe=ready: by_id(run_doctor(config, store, hw=DOWN, systemctl=s,
+                                                  service_probe=probe))["service"]
     ni = get(sc("not-found", "inactive"))
     assert ni.status == INFO and "hutch service install" in ni.fix, "inactive must not be confused with not installed"
     assert get(sc("loaded", "inactive")).status == WARN
-    assert get(sc("loaded", "active")).status == OK
+    active = get(sc("loaded", "active"))
+    assert active.status == OK and "readiness handshake" in active.detail
+    not_ready = get(sc("loaded", "active"), probe=unready)
+    assert not_ready.status == WARN and "not confirmed ready" in not_ready.detail
 
 
 def test_a_local_bot_with_ollama_down_fails_with_the_fix(config, store):
