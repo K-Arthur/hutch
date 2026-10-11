@@ -373,6 +373,7 @@ class BotPatch(BaseModel):
     workdir: Optional[str] = None          # "" clears it
     limits: Optional[Limits] = None
     tool_limits: Optional[dict[str, int]] = None   # per-tool output caps in chars (PF-2); "" clears a tool
+    tool_protocol: Optional[Literal["auto", "native", "constrained", "prompt", "disabled"]] = None
     paused: Optional[bool] = None
     cron: Optional[str] = None
     clear_cron: bool = False
@@ -2390,6 +2391,59 @@ def create_app() -> FastAPI:
         return {"items": [{**row, "status": "observed", "scope": scope} for row in items],
                 "next_after_id": items[-1]["id"] if has_more and items else None}
 
+    @app.get("/api/v1/tool-compatibility")
+    def tool_compatibility(ref: str = Query(..., min_length=1, max_length=100)) -> dict:
+        """Read-only tool-calling capability report for one Bot's primary route.
+
+        This is evidence, not a probe: it makes no model request, spends no tokens, and
+        never widens a Bot's access. Unknown stays unknown; advertised is labeled as not
+        verified; a recorded observation is scoped to its route revision.
+        """
+        from ..connections import ConnectionBook
+        from ..providers.registry import default_endpoint
+        from ..runtime.ladder import Ladder
+        from ..toolcalling.profiles import resolve_profile, strategy_eligibility
+        from ..toolcalling.validate import schema_engine
+        target = bot_or_404(ref)
+        try:
+            ladder = Ladder(target)
+        except Exception as exc:
+            raise HTTPException(409, f"this Bot's model route is not usable: {exc}") from None
+        rung = ladder.primary
+        book = ConnectionBook(config.state_dir)
+        endpoint = ""
+        conn = book.get(rung.provider)
+        if conn is not None:
+            try:
+                _protocol, endpoint = conn.endpoint_for(rung.model)
+            except Exception:
+                endpoint = ""
+        if not endpoint:
+            endpoint = (target.base_url or "") if rung.provider == ladder.primary.provider else ""
+        endpoint = endpoint or default_endpoint(rung.provider)
+        try:
+            observations = store.list_model_capability_observations(limit=20)
+        except Exception:
+            observations = []
+        profile = resolve_profile(provider=rung.provider, endpoint=endpoint, model=rung.model,
+                                  observations=observations)
+        eligibility = {name: {"available": ok, "reason": why}
+                       for name, (ok, why) in strategy_eligibility(profile).items()}
+        seen = [{"observed_at": row.get("observed_at"), "source_tool": row.get("source_tool"),
+                 "capability": row.get("capability"), "route_revision": row.get("route_revision")}
+                for row in profile.observations[:5]]
+        return {
+            "bot": {"id": target.id, "name": target.name},
+            "model": rung.spec,
+            "requested": target.tool_protocol,
+            "profile": profile.capabilities_view(),
+            "eligibility": eligibility,
+            "validator": schema_engine(),
+            "observations": seen,
+            "evidence_note": ("unknown means no matching evidence; advertised is not verified; "
+                              "one valid call is not a model guarantee; route changes require new evidence"),
+        }
+
     @app.get("/api/v1/connections", response_model=list[ConnectionResource])
     def list_connections() -> list[dict]:
         from ..connections import ConnectionBook
@@ -3585,6 +3639,7 @@ def create_app() -> FastAPI:
         if body.local_browser_handoff is not None: bot.local_browser_handoff = body.local_browser_handoff
         if body.limits is not None: bot.limits = body.limits
         if body.tool_limits is not None: bot.tool_limits = _checked_tool_limits(body.tool_limits)
+        if body.tool_protocol is not None: bot.tool_protocol = body.tool_protocol
         if body.command_rules is not None: bot.command_rules = _checked_rules(body.command_rules)
         if body.workdir is not None: bot.workdir = _checked_workdir(body.workdir) if body.workdir else None
         if body.workspace_mode is not None:
