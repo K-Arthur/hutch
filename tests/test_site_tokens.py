@@ -63,6 +63,43 @@ def test_stylesheet_references_only_defined_tokens():
     assert not missing, f"undefined token refs in styles.css: {missing}"
 
 
+@pytest.mark.skipif(not CSS.exists(), reason="website tokens not built")
+def test_studio_stylesheet_references_only_defined_tokens():
+    """Studio equivalent of the stylesheet token guard.
+
+    A fallback-less var(--x) that resolves nowhere does not fall back to an
+    earlier rule — it computes to the property's initial (or inherited) value,
+    so a renamed radius or surface token silently squares corners and clears
+    backgrounds. Every fallback-less reference in the app-authored sheets must
+    resolve to a definition in the Studio sheets, an @property declaration in
+    the generated daisyUI sheet, or an element-scoped inline setter in the
+    app templates/scripts. References with an explicit fallback are allowed to
+    rely on it (that is how daisyUI exposes per-component hooks).
+    """
+    import re
+
+    static = ROOT / "src/hutch/server/static"
+    definition_files = ["ui.css", "brand-tokens.css", "style.css", "model-switcher.css"]
+    inline_files = ["app.js", "model-switcher.js", "index.html"]
+    defined: set[str] = set()
+    for name in definition_files + inline_files:
+        path = static / name
+        if not path.exists():
+            continue
+        text = path.read_text()
+        defined |= set(re.findall(r"(--[a-z0-9-]+)\s*:", text))
+        defined |= set(re.findall(r"@property\s*(--[a-z0-9-]+)", text))
+    missing: list[str] = []
+    for name in ["style.css", "model-switcher.css"]:
+        text = (static / name).read_text()
+        for match in re.finditer(r"var\(\s*(--[a-z0-9-]+)\s*(,)?", text):
+            token, has_fallback = match.group(1), bool(match.group(2))
+            if token not in defined and not has_fallback:
+                line = text[: match.start()].count("\n") + 1
+                missing.append(f"{name}:{line}: {token}")
+    assert not missing, "undefined fallback-less token refs:\n" + "\n".join(missing)
+
+
 @pytest.mark.skipif(not TOKENS.exists(), reason="website tokens not present")
 def test_built_tailwind_sheet_is_present():
     """The marketing site ships the compiled Tailwind/DaisyUI sheet.
