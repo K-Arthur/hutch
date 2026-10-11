@@ -45,15 +45,18 @@ widget direction.
 | Contained Python workspace | `workspace/`, `tools/python_exec.py`, routes (workspace lane) | merged; 85 lane tests + real sandbox integration test green |
 | Interactive widget renderers | `static/widgets.js`, `static/widgets.css`, `app.js` hook, tests (widgets lane) | merged; static tests green; visual verification pending |
 | Integration | `tools/__init__.py`, `server/app.py`, `tests/test_outputs_integration.py` | done on this branch |
+| Uploads intake + CSV disclosure | `server/uploads.py`, `workspace/csvprobe.py`, composer menu + attachment chips, `tests/test_uploads.py` (integrator, 2026-10-11) | implemented-and-verified at route level (11 tests) + `inspect_csv` injected into the kernel namespace; browser journey pending wave 4 |
 | Visual verification | `docs/realignment/capture_outputs_widgets.py`, `capture_widget_cards.py`, `artifacts/outputs-widgets/` | done (see below) |
 | Evidence + docs + packaging | `CHANGELOG.md`, `README.md`, this plan | done on this branch |
 
 ## Gaps and blocked gates (honest inventory)
 
-* **Uploads intake is not implemented.** There is no route or composer control that hands
-  a file to a conversation; the CSV journey currently works with files the model or a
-  seeded test places in the workspace. The `uploads` table exists (v51) but nothing writes
-  to it.
+* **Upload composer journey is not yet exercised in the browser suite.** The upload
+  routes, bounds, sniffing, hash re-verification, and the CSV disclosure are
+  route-tested (11 tests), the attachment chips render in the composer, and
+  `inspect_csv` is injected into the kernel — but a Playwright journey driving the
+  real composer control (upload → analyze → interactive chart → verified download)
+  lands with the wave-4 e2e work.
 * **Provider-backed media is unverified.** No OpenAI key or ComfyUI server is configured
   here, so `create_media` for image/video reports the backend as unavailable with setup
   steps; only deterministic SVG output was produced and inspected. The adapter protocol
