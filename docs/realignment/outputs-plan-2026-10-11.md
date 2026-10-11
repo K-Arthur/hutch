@@ -46,7 +46,29 @@ widget direction.
 | Interactive widget renderers | `static/widgets.js`, `static/widgets.css`, `app.js` hook, tests (widgets lane) | merged; static tests green; visual verification pending |
 | Integration | `tools/__init__.py`, `server/app.py`, `tests/test_outputs_integration.py` | done on this branch |
 | Visual verification | `docs/realignment/capture_outputs_widgets.py`, `capture_widget_cards.py`, `artifacts/outputs-widgets/` | done (see below) |
-| Evidence + docs + packaging | docs, capture scripts, CHANGELOG | pending |
+| Evidence + docs + packaging | `CHANGELOG.md`, `README.md`, this plan | done on this branch |
+
+## Gaps and blocked gates (honest inventory)
+
+* **Uploads intake is not implemented.** There is no route or composer control that hands
+  a file to a conversation; the CSV journey currently works with files the model or a
+  seeded test places in the workspace. The `uploads` table exists (v51) but nothing writes
+  to it.
+* **Provider-backed media is unverified.** No OpenAI key or ComfyUI server is configured
+  here, so `create_media` for image/video reports the backend as unavailable with setup
+  steps; only deterministic SVG output was produced and inspected. The adapter protocol
+  logic is covered by fixture transports, which is not live evidence.
+* **No real video container is produced.** The deterministic animation path emits SVG
+  animations; an mp4/webm pipeline is not implemented, so the video acceptance row is
+  `unsupported` rather than `implemented-but-unverified`.
+* **Blocks are read-only.** Flowchart/timeline/comparison cards support inspection,
+  filtering, sorting and selection, but there is no UI to edit a block's source and
+  re-render it; the source payload is preserved in the event for a future editor.
+* **The isolated rich-view path (MCP Apps-style)** is not implemented; ordinary output uses
+  trusted host components only, which is the contract's default.
+* **Physical-device and screen-reader checks were not run**; widget verification used
+  Chromium viewport emulation at 360/390, 900 and 1440 CSS pixels with zero console/page
+  errors and zero horizontal overflow.
 
 ## Visual verification (2026-10-11, real app, real outputs)
 
