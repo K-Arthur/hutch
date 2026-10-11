@@ -36,6 +36,7 @@ dependencies = [
     "weasyprint>=70",
     "pypdf>=6.20",
     "pypdfium2>=5.14",
+    "python-multipart>=0.0.20",
 ]
 
 [project.optional-dependencies]

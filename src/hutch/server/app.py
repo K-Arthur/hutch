@@ -4149,6 +4149,15 @@ def create_app() -> FastAPI:
     # None for paired phones).
     app.include_router(build_workspace_router(store, _workspace_manager))
 
+    # ---------------------------------------------------------------- uploads
+
+    from ..server.uploads import build_uploads_router
+
+    # Upload intake into the conversation workspace: bounded, hash-verified, and
+    # local-owner-only like the other typed-output routes (paired phones do not
+    # upload files).
+    app.include_router(build_uploads_router(store, config))
+
     def _document_or_404(doc_id: str) -> tuple[dict[str, Any], DocumentStorage]:
         if not _DOCUMENT_ID_RE.fullmatch(doc_id):
             raise HTTPException(404, "no such document")

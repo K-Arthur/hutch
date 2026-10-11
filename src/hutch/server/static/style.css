@@ -2568,3 +2568,60 @@ body.paired-phone > :not(#phone-root) { display: none !important; }
   border-radius: var(--r-ctl);
   background: white;
 }
+
+/* ─── composer attachments (uploads lane) ───
+   Chips for files uploaded into the conversation workspace; view state only. */
+
+.composer-attachments {
+  display: grid;
+  gap: var(--s-1);
+  padding: var(--s-1) var(--s-2) 0;
+}
+
+.composer-attachments-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+}
+
+.upload-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  max-width: 100%;
+  padding: 4px var(--s-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-chip);
+  background: var(--sunken);
+  font-size: var(--text-2, 0.85rem);
+}
+
+.upload-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upload-chip-size { color: var(--text-3); white-space: nowrap; }
+
+.upload-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 28px;
+  block-size: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--r-chip);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.upload-chip-remove svg { inline-size: 14px; block-size: 14px; }
+.upload-chip-remove:hover { background: var(--line); color: var(--text); }
+
+.composer-attachments-hint {
+  margin: 0;
+  font-size: var(--text-2, 0.8rem);
+  color: var(--text-3);
+}
+
+@media (pointer: coarse) {
+  .upload-chip-remove { inline-size: 44px; block-size: 44px; }
+}
