@@ -1,0 +1,90 @@
+FFFE..                                                                   [100%]
+==================================== ERRORS ====================================
+__________ ERROR at setup of test_workflow_pill_meets_target_minimum ___________
+tests/e2e/test_wcag_fixes.py:28: in audit_browser
+    b = p.chromium.launch()
+        ^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:16814: in launch
+    self._sync(
+.venv/lib/python3.13/site-packages/playwright/_impl/_browser_type.py:101: in launch
+    await self._channel.send(
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E   playwright._impl._errors.TargetClosedError: BrowserType.launch: Target page, context or browser has been closed
+E   Browser logs:
+E
+E   <launching> /home/kevina/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-dOOeq1 --remote-debugging-pipe --no-startup-window
+E   <launched> pid=1281708
+E   [pid=1281708][err] [1011/103751.416479:WARNING:components/discardable_memory/service/discardable_shared_memory_manager.cc:200] Less than 64MB of free space in temporary directory for shared memory files: 0
+E   Call log:
+E     - <launching> /home/kevina/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-dOOeq1 --remote-debugging-pipe --no-startup-window
+E     - <launched> pid=1281708
+E     - [pid=1281708][err] [1011/103751.416479:WARNING:components/discardable_memory/service/discardable_shared_memory_manager.cc:200] Less than 64MB of free space in temporary directory for shared memory files: 0
+E     - [pid=1281708] <gracefully close start>
+E     - [pid=1281708] <kill>
+E     - [pid=1281708] <will force kill>
+E     - [pid=1281708] <process did exit: exitCode=null, signal=SIGTRAP>
+E     - [pid=1281708] starting temporary directories cleanup
+E     - [pid=1281708] finished temporary directories cleanup
+E     - [pid=1281708] <gracefully close end>
+=================================== FAILURES ===================================
+__ test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive ___
+tests/e2e/test_design_system.py:2232: in test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive
+    context.tracing.stop(path=str(out / "trace.zip"))
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:17586: in stop
+    return mapping.from_maybe_impl(self._sync(self._impl_obj.stop(path=path)))
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/playwright/_impl/_tracing.py:91: in stop
+    await self._do_stop_chunk(path)
+.venv/lib/python3.13/site-packages/playwright/_impl/_tracing.py:110: in _do_stop_chunk
+    result = await self._channel.send_return_as_dict(
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:103: in send_return_as_dict
+    return await self._connection.wrap_api_call(
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E   playwright._impl._errors.Error: Tracing.stop: ENOSPC: no space left on device, write
+_ test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runtimes _
+tests/e2e/test_design_system.py:2448: in test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runtimes
+    actions.scroll_into_view_if_needed()
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:20142: in scroll_into_view_if_needed
+    self._sync(
+.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:621: in scroll_into_view_if_needed
+    return await self._with_element(
+.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:118: in _with_element
+    return await task(
+.venv/lib/python3.13/site-packages/playwright/_impl/_element_handle.py:112: in scroll_into_view_if_needed
+    await self._channel.send(
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E   playwright._impl._errors.Error: Locator.scroll_into_view_if_needed: Element is not attached to the DOM
+E   Call log:
+E     - attempting scroll into view action
+E       - waiting for element to be stable
+E       - element is not stable
+E     - retrying scroll into view action
+E       - waiting for element to be stable
+___________ test_specialist_question_is_answered_from_the_task_card ____________
+tests/e2e/test_delegation_clarification.py:190: in test_specialist_question_is_answered_from_the_task_card
+    context.tracing.stop(path=str(output / "trace.zip"))
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:17586: in stop
+    return mapping.from_maybe_impl(self._sync(self._impl_obj.stop(path=path)))
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/playwright/_impl/_tracing.py:91: in stop
+    await self._do_stop_chunk(path)
+.venv/lib/python3.13/site-packages/playwright/_impl/_tracing.py:110: in _do_stop_chunk
+    result = await self._channel.send_return_as_dict(
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:103: in send_return_as_dict
+    return await self._connection.wrap_api_call(
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E   playwright._impl._errors.Error: Tracing.stop: ENOSPC: no space left on device, write
+=========================== short test summary info ============================
+FAILED tests/e2e/test_design_system.py::test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive
+FAILED tests/e2e/test_design_system.py::test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runtimes
+FAILED tests/e2e/test_delegation_clarification.py::test_specialist_question_is_answered_from_the_task_card
+ERROR tests/e2e/test_wcag_fixes.py::test_workflow_pill_meets_target_minimum
+3 failed, 2 passed, 1 error in 86.26s (0:01:26)

@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_design_system.py::test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runtimes",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runtimes",
-  "captured_at": "2026-10-11T16:58:28.818159+00:00",
+  "captured_at": "2026-10-11T17:39:39.377744+00:00",
   "browser": "Chromium 153.0.8010.12",
   "playwright": "1.63.0",
   "viewports": [
@@ -494,7 +494,7 @@
   "external_requests": [],
   "correction_requests": [
     {
-      "url": "http://127.0.0.1:43781/api/v1/conversations/conv_04388657783a/messages",
+      "url": "http://127.0.0.1:33387/api/v1/conversations/conv_001e5e281c93/messages",
       "body": {
         "prompt": "Make this answer shorter.",
         "correction": "shorter",
@@ -508,10 +508,10 @@
   "reduced_motion": "reduce",
   "source_sha256": {
     "src/hutch/server/pages.py": "7884021b4a97b41a26c49e4337e8f53fe245ff8682c5e820a613a4dc70263826",
-    "src/hutch/server/static/app.js": "5182d78a3c4bc9576e10a87bf12384755fde9fa837c9aefcb527b4ae3c1691a8",
+    "src/hutch/server/static/app.js": "e232ad7a9152eb70dac4ddf60c493ea3e30559f4580b20066c272994ece07a09",
     "src/hutch/server/static/persona.js": "8bdf1af49b3a24c5baae25a9fb97134c5f26fcdf94398b8b5988f6fbd61228bf",
-    "src/hutch/server/static/index.html": "5f7faabcab72c2c2aa459cc143307275a03764ec9c72857d1c9f7d8f2ea5410b",
-    "src/hutch/server/static/style.css": "831db5076616a46b905c5ed5f268ef3abfca0b16349559d60c5649c8f8249b48",
+    "src/hutch/server/static/index.html": "4a0a45945ecaf67496fa809894467b1a1d571b5f32a656cd2f45743b93bbef30",
+    "src/hutch/server/static/style.css": "6a679d2f7291d8e289e9fa24f19231c79c11cf1bff3d015a677717e4a603a751",
     "src/hutch/server/static/brands/openai-white-monoblossom.svg": "b94ea61d860fae6f82f43571f36f17111fcf5d348e8e9cc22ae4b441c7560011",
     "src/hutch/server/static/brands/anthropic-symbol-ivory.svg": "38fc06d8e9390654cc4e96aa53691e2e78d929667c0034805b6d1b3891ba22dd",
     "src/hutch/server/static/brands/openrouter-glyph-volt.svg": "0d22462e4f2835a5a5b9000af0a55fc9238e39996100f54706e41ec45b9d1727",

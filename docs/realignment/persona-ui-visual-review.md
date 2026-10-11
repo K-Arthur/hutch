@@ -125,6 +125,12 @@ horizontal overflow. The successful fixture captures and source hashes are in
 `artifacts/persona-live-preview-2026-10-11/`; the full pre-main browser suite separately retains its historical stale
 assertion failure and is recorded in `persona-plan.md`.
 
+After integrating local main, I reran the live preview, answer rewrite, specialist question, workflow-pill, and Runtime-page
+browser checks with Chromium temp files under `/var/tmp`; all six tests passed. The preview fixture still reports zero
+horizontal overflow across 320/360/768/1440 CSS pixels and the effective 200%-width viewport. Its local fixture sends
+no provider request. The complete combined browser suite remains unverified because its broad workspace-settings run
+stalled and `/tmp` was full; see the retained run logs in `artifacts/persona-final-verification-2026-10-11/`.
+
 ## Image input availability
 
 The composer options menu says that image attachments are unavailable and suggests a text description. I inspected

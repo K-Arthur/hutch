@@ -325,17 +325,44 @@ Review follow-ups (status after the profile-compatibility slice):
   alone on both trees. The pre-integration browser log is retained at
   `artifacts/persona-final-verification-2026-10-11/browser-suite-pre-main.log`; it includes the now-fixed stale
   assertion and is historical evidence, not the final integrated browser result. The latest main is 10 commits ahead
-  of the branch's integration base and must be merged before final acceptance. The device OpenCode implementation
+  of the branch's integration base; it is now included through merge commit `15e1649`. The device OpenCode implementation
   work used the pinned low-cost `opencode-go/mimo-v2.6-flash`; two bounded final review attempts ended with a closed
   socket before returning findings, and no fallback model or paid API was used. Independent review is unverified.
   Hutch's separate Go connection is still unavailable, so product-model adherence, live latency and human scoring
   remain unverified.
 
+- Latest-main integration and final combined verification (2026-10-11): local main `63b2712` is included by merge
+  commit `15e1649`. Its event-source v52 and jobs/document-index v53 migrations collided with persona's then-v52
+  repair and v53 feedback table; duplicate Python migration names had silently replaced the mainline DDL. The merged
+  registry now keeps main's DDL, combines v52 source creation with the v51-shape/persona-column repair, applies
+  idempotent job/document and feedback DDL at v53, and adds v54 to repair either legacy main-v53 or persona-v53 shape.
+  The migration suite passed (**32 passed**), including a v50 upgrade, both v51 variants through Store startup,
+  main-v52 upgrade, both v53 shapes, retained chat/source/job/document/feedback rows, and repeated initialization.
+  The focused source, jobs, monitoring, document-store, persona and builtin-runtime batch passed (**227 passed**).
+  The full integrated offline suite passed (**2,116 passed in 495.04 s**); its retained log is
+  `artifacts/persona-final-verification-2026-10-11/offline-suite-integrated.log`.
+
+  The full integrated `tests/e2e` run did not complete: it stayed at 33% in the responsive workspace-settings test for
+  over seven minutes and was interrupted after 20 minutes. The partial log and interruption are retained as
+  `artifacts/persona-final-verification-2026-10-11/browser-suite-integrated-stalled.log`. `/tmp` was at 100% during a
+  subsequent focused attempt, causing Chromium/trace `ENOSPC`; no user data was removed. Repeating the task-specific
+  suite with Chromium temporary files redirected to `/var/tmp` passed (**6 passed**): live preview, answer rewrite,
+  specialist clarification, workflow-pill sizing and Runtime-page browser checks. The result is recorded in
+  `artifacts/persona-final-verification-2026-10-11/browser-focused-integrated.log`; the two environment-contaminated
+  failed attempts are retained separately. The full combined browser suite remains **blocked** by the stalled/full-temp
+  environment and is not reported as passing.
+
+  The updated preview and rewrite captures are in their persona artifact directories. I inspected the preview desktop,
+  tablet and phone inspector captures; measured overflow remained 0px at 320, 360, 768 and 1440 CSS pixels and at the
+  effective-200%-width viewport. The marketing-site responsive checks, token audit and same-origin/no-inference checks
+  remain **verified** from the marketing slice. Provider adherence and human review remain **implemented but unverified**:
+  Hutch's separate Go connection is absent, and no paid model/API route or OpenAI OAuth evaluation was used.
+
 ## Rollback
 
-- Nothing is pushed or deployed. The user authorized a final fast-forward into local `main`; until acceptance
-  checks and the clean-tree review pass, work stays on this branch. The original checkout and sibling worktrees
-  are never rewritten.
+- Nothing is pushed or deployed. The user authorized a final fast-forward into clean local `main`; the latest main
+  commit is already integrated into this branch. The final merge only advances the local `main` ref after review;
+  the original checkout and sibling worktrees are not rewritten.
 - Each slice is its own additive commit; reverting that commit restores prior behavior. Contract or schema
   changes require tested downgrades before landing.
 - Mid-run snapshotting prevents a bad preference change from corrupting an in-flight turn; verification uses
