@@ -2576,3 +2576,10 @@ details[open] > summary .summary-row-action .icon { transform: rotate(180deg); }
   border-radius: var(--r-ctl);
   background: white;
 }
+
+/* Response style (persona): settings form beside standing directions, and the chat-options panel. */
+.persona-form .persona-fields { margin-top: var(--s-1); }
+.persona-options-panel { display: grid; gap: var(--s-2); }
+.persona-fields { display: grid; gap: var(--s-2); }
+.persona-fields .persona-field { margin: 0; }
+.persona-options-panel .persona-field select { width: 100%; }

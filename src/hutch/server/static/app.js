@@ -2424,6 +2424,7 @@ async function renderChatStudio(preferredBot = null) {
                 <button class="conversation-action-item" id="studio-archive-conversation" data-conversation-action="archive" type="button" ${activeRun ? "hidden" : ""}>${icon("inbox")} ${selectedConversation.archived ? "Restore conversation" : "Archive conversation"}</button>` : ""}
             </div>
           </details>
+          <div id="persona-chat-options-slot"></div>
           <span class="conversation-action-divider" aria-hidden="true"></span>
           <a class="conversation-action-item" data-conversation-action="settings" href="#/bot/${esc(bot.name)}">${icon("sliders")} Assistant settings</a>
         </div>
@@ -2449,6 +2450,7 @@ async function renderChatStudio(preferredBot = null) {
               <div class="reply-composer-preview" id="workspace-result-composer-preview" role="status" aria-live="polite"></div>
               <button class="btn ghost small" id="workspace-result-composer-clear" type="button" aria-label="Remove specialist result reference">Remove</button>
             </div>
+            <div id="persona-turn-slot"></div>
             <div class="composer-row">
               <div class="cmenu-wrap">
                 <button class="composer-util" type="button" id="composer-menu-btn" aria-label="Message options" aria-haspopup="dialog" aria-expanded="false" aria-controls="composer-menu">${icon("plus")}</button>
@@ -2647,6 +2649,8 @@ async function renderChatStudio(preferredBot = null) {
   const box = $("#composer-box");
   const switcher = window.hutchModelSwitcher?.mount($("#model-switch-slot"), detail, selectedConversation.id);
   const skillPicker = window.hutchSkills?.mountComposer($("#skill-switch-slot"), detail);
+  window.hutchPersona?.mountChatOptions($("#persona-chat-options-slot"), selectedConversation.id);
+  window.hutchPersona?.mountComposerChip($("#persona-turn-slot"), selectedConversation.id);
   if (selectedConversation.archived) {
     txt.disabled = true;
     txt.placeholder = "This conversation is archived. Start a new one to continue.";
@@ -2871,6 +2875,8 @@ async function renderChatStudio(preferredBot = null) {
         body.workspace_task_result_id = workspaceResultSnapshot.id;
         body.workspace_task_result_message_id = workspaceResultSnapshot.result_message_id;
       }
+      const personaTurn = window.hutchPersona?.nextReply(composerConversationId);
+      if (personaTurn) body.persona = personaTurn;
       const key = await messageIdempotencyKey(composerConversationId, body);
       const r = await api(`/v1/conversations/${encodeURIComponent(composerConversationId)}/messages`, {
         method: "POST", headers: { "Idempotency-Key": key }, body,
@@ -2878,6 +2884,7 @@ async function renderChatStudio(preferredBot = null) {
       clearMessageIdempotencyKey(composerConversationId, key);
       if (body.model) switcher?.consumeOverride(body.model);
       if (body.skills.length) skillPicker?.consume();
+      if (personaTurn) window.hutchPersona?.consumeNextReply(composerConversationId);
       if (replySnapshot && selectedReply?.id === replySnapshot) setReply(null);
       if (workspaceResultSnapshot && selectedWorkspaceTaskResult?.id === workspaceResultSnapshot.id) {
         setWorkspaceTaskResult(null);
@@ -5662,6 +5669,8 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             <div class="btn-row"><button class="btn primary small" type="submit">Save directions</button></div>
           </form>
 
+          <div id="persona-form-slot"></div>
+
           ${b.is_workspace_coordinator || botsCache.length > 1 ? `<section class="panel" aria-labelledby="workspace-coordinator-title">
             <div class="panel-title" id="workspace-coordinator-title">Main assistant</div>
             <p class="hint">Choose which assistant opens as your main conversation. You can still chat with all of them directly. This role does not add app access or permissions.</p>
@@ -5901,6 +5910,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   // wiring
   mountIdentityPicker($("#idp-panel"), b.name, pair => { sigilSet(b.name, pair); refreshRoster(); });
   window.hutchSkills?.mountBotPanel($("#bot-skills-section"), b);
+  window.hutchPersona?.mountBotForm($("#persona-form-slot"), b.name);
   const patch = async (body, msg) => {
     try {
       await api(`/bots/${encodeURIComponent(b.name)}`, { method: "PATCH", body });

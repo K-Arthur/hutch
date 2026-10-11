@@ -1,0 +1,98 @@
+{
+  "checks": [
+    {
+      "name": "settings defaults to inherited",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "origin names the hutch default",
+      "ok": true,
+      "detail": "Hutch default: Balanced"
+    },
+    {
+      "name": "unsaved state is visible",
+      "ok": true,
+      "detail": "Unsaved changes"
+    },
+    {
+      "name": "save persisted",
+      "ok": true,
+      "detail": "{'depth': 'brief', 'tone': 'warm', 'banter': None}"
+    },
+    {
+      "name": "effective source is the saved style",
+      "ok": true,
+      "detail": "{'value': 'brief', 'source': 'agent_override'}"
+    },
+    {
+      "name": "conflict keeps the unsaved edits",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "conflict message asks for review",
+      "ok": true,
+      "detail": "This assistant's style changed elsewhere. Your edits are kept \u2014 review them and save again."
+    },
+    {
+      "name": "re-save after conflict applied",
+      "ok": true,
+      "detail": "{'depth': 'thorough', 'tone': 'warm', 'banter': None}"
+    },
+    {
+      "name": "reset cleared the tone back to inherited",
+      "ok": true,
+      "detail": "{'value': 'neutral', 'source': 'application'}"
+    },
+    {
+      "name": "conversation save persisted",
+      "ok": true,
+      "detail": "{'depth': None, 'tone': 'warm', 'banter': None}"
+    },
+    {
+      "name": "composer chip shows the next-reply style",
+      "ok": true,
+      "detail": "Next reply style\nshort\nRemove"
+    },
+    {
+      "name": "send carries the one-turn persona",
+      "ok": true,
+      "detail": "{'depth': 'brief'}"
+    },
+    {
+      "name": "chip is kept when the send fails honestly",
+      "ok": true,
+      "detail": "Next reply style\nshort\nRemove"
+    },
+    {
+      "name": "chip clears on remove",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "no page errors",
+      "ok": true,
+      "detail": "[]"
+    }
+  ],
+  "errors": [],
+  "console": [
+    "error: Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "error: Failed to load resource: the server responded with a status of 422 (Unprocessable Content)"
+  ],
+  "widths": {
+    "settings": [
+      360,
+      768,
+      1440
+    ],
+    "chat_options": [
+      360,
+      768,
+      1440
+    ]
+  },
+  "browser": "153.0.8010.12",
+  "model_calls": 0
+}
