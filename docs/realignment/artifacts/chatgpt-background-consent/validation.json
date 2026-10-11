@@ -1,6 +1,6 @@
 {
   "test": "tests/e2e/test_browser.py::test_chatgpt_background_permission_is_explicit_responsive_and_reversible",
-  "captured_at": "2026-10-10T23:58:16.693279+00:00",
+  "captured_at": "2026-10-11T02:07:53.251766+00:00",
   "browser": "153.0.8010.12",
   "playwright_version": "1.63.0",
   "synthetic_account": true,

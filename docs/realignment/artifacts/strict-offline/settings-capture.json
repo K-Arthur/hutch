@@ -5,8 +5,8 @@
   "playwrightVersion": "1.63.0",
   "capability": {
     "id": "strict_offline",
-    "status": "experimental",
-    "reason": "Hutch's isolated worker blocked TCP to tested IPv4/IPv6 loopback and host-interface listeners, and its PID namespace exposes only namespace processes; configured model traffic uses a private per-run Unix socket broker. The separate local inference service may still have its own network access.",
+    "status": "unavailable",
+    "reason": "network/PID namespace failed its local IPv4, IPv4/Unix-socket checks: bwrap: execvp /home/kevina/CodingProjects/hutch/.worktrees/documents/.venv/bin/python3: No such file or directory",
     "verification": "network_pid_namespace_tcp_unix_socket_probe"
   },
   "captures": [
@@ -22,8 +22,8 @@
       ],
       "settingsVisible": true,
       "taskFocusControlVisible": true,
-      "strictOfflineDisabled": false,
-      "capabilityStatus": "experimental"
+      "strictOfflineDisabled": true,
+      "capabilityStatus": "unavailable"
     },
     {
       "size": "tablet",
@@ -37,8 +37,8 @@
       ],
       "settingsVisible": true,
       "taskFocusControlVisible": true,
-      "strictOfflineDisabled": false,
-      "capabilityStatus": "experimental"
+      "strictOfflineDisabled": true,
+      "capabilityStatus": "unavailable"
     },
     {
       "size": "phone",
@@ -52,8 +52,8 @@
       ],
       "settingsVisible": true,
       "taskFocusControlVisible": true,
-      "strictOfflineDisabled": false,
-      "capabilityStatus": "experimental"
+      "strictOfflineDisabled": true,
+      "capabilityStatus": "unavailable"
     },
     {
       "size": "phone-routing",

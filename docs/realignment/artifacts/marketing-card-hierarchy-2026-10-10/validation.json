@@ -158,7 +158,7 @@
     }
   ],
   "source_sha256": {
-    "website/index.html": "d35001a2050a3dc2a800b624f6cea6b989adb9cd41a1806ba553948f09d76161",
+    "website/index.html": "114c9ae6bb3784b4c496e7ba6c1563eea63d176fb8b2852499116639e762488d",
     "website/styles.css": "4e2f4b3e4094cfc3aef1e9b21deaaf472421e607bb416824e63db0197dd0f4bd",
     "website/tokens.css": "5b585bb3e3513f5f5084de0110003862387c061b1f8b7257dcd8cc9d9153a9a0",
     "website/app.css": "0d79350069472ad3e7bc3879896ebb0c1c221d53a58232312e8d3013e333af89"

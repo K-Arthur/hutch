@@ -1,10 +1,10 @@
 {
   "test": "tests/e2e/test_website.py::test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_viewports",
-  "captured_at": "2026-10-11T00:17:35.408937+00:00",
+  "captured_at": "2026-10-11T02:24:42.676331+00:00",
   "python": "3.13.15",
   "browser": "153.0.8010.12",
   "playwright_version": "1.63.0",
-  "index_sha256": "d35001a2050a3dc2a800b624f6cea6b989adb9cd41a1806ba553948f09d76161",
+  "index_sha256": "114c9ae6bb3784b4c496e7ba6c1563eea63d176fb8b2852499116639e762488d",
   "styles_sha256": "4e2f4b3e4094cfc3aef1e9b21deaaf472421e607bb416824e63db0197dd0f4bd",
   "captures": [
     {
