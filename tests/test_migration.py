@@ -21,7 +21,7 @@ from hutch.models import RunStatus
 from hutch.store import (SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migrate_27, _migrate_28,
                          _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33, _migrate_34, _migrate_45,
                          _migrate_35, _migrate_37, _migrate_40, _migrate_41, _migrate_46, _migrate_47,
-                         _migrate_48)
+                         _migrate_48, _migrate_51)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "state_v4.db.fixture"
 BRIEFING, SWEEPER = "bot_7eef563ee683", "bot_611a4b96d543"
@@ -624,3 +624,18 @@ def test_a_database_from_a_newer_hutch_is_refused_not_downgraded(config):
     c.execute("PRAGMA user_version = 99"); c.commit(); c.close()
     with pytest.raises(RuntimeError, match="newer than this hutch"):
         Store(config)
+
+
+def test_persona_column_migration_preserves_existing_conversations():
+    assert SCHEMA_VERSION >= 51
+    db = sqlite3.connect(":memory:")
+    try:
+        db.execute("CREATE TABLE conversations (id TEXT PRIMARY KEY, bot_id TEXT NOT NULL, "
+                   "title TEXT NOT NULL DEFAULT '')")
+        db.execute("INSERT INTO conversations VALUES ('chat-a', 'bot-a', 'kept')")
+        _migrate_51(db)
+        columns = {row[1] for row in db.execute("PRAGMA table_info(conversations)")}
+        assert "persona" in columns
+        assert db.execute("SELECT id, title, persona FROM conversations").fetchall() == [("chat-a", "kept", "")]
+    finally:
+        db.close()

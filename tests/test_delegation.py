@@ -211,7 +211,7 @@ def _remove_later_conversation_schema(db):
         if column in columns:
             db.execute(f"ALTER TABLE messages DROP COLUMN {column}")
     conversation_columns = {row[1] for row in db.execute("PRAGMA table_info(conversations)")}
-    for column in ("section", "read_seq", "unread", "pinned"):
+    for column in ("section", "read_seq", "unread", "pinned", "persona"):
         if column in conversation_columns:
             db.execute(f"ALTER TABLE conversations DROP COLUMN {column}")
 

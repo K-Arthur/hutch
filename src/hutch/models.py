@@ -17,6 +17,8 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field, computed_field, field_validator, model_validator
 
+from .persona import PersonaPlan, PersonaStyle
+
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
@@ -295,6 +297,9 @@ class Bot(BaseModel):
     inference_mode: InferenceMode = InferenceMode.hybrid
     tools: list[str] = Field(default_factory=lambda: ["shell", "files", "memory", "documents"])
     skills: list[str] = Field(default_factory=list)   # bound Agent Skill names; review state lives in the skill registry
+    persona_preset: Optional[PersonaStyle] = None     # the agent's shipped response style (sparse; unset fields inherit)
+    persona_override: Optional[PersonaStyle] = None   # the owner's saved response style for this agent (sparse)
+    persona_revision: int = 0                         # bumped on every saved style change; guards concurrent edits
     schedule: Optional[Schedule] = None
     schedules: list[Schedule] = Field(default_factory=list)
     limits: Limits = Field(default_factory=Limits)
@@ -428,6 +433,8 @@ class Run(BaseModel):
     model_override: str = ""          # the model picked for THIS message in the chat switcher (bot.model is untouched)
     skill_activation: list[str] = Field(default_factory=list)  # operator-selected skills for this run (validated at submit)
     skill_snapshot: list[dict] = Field(default_factory=list)   # effective skills recorded when this run started
+    persona_turn: Optional[PersonaStyle] = None   # one-turn response style chosen with this message; never becomes durable
+    persona_plan: Optional[PersonaPlan] = None    # resolved style snapshot, written once when the run starts
     tool_access: Literal["bot", "none"] = "bot"  # per-run capability ceiling; "none" is reserved for review-only drafts
     conversation_id: str = ""          # canonical conversation this run belongs to, if submitted through /api/v1
     conversation_context: list[dict[str, str]] = Field(default_factory=list, exclude=True)

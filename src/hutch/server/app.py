@@ -34,7 +34,7 @@ from starlette.responses import FileResponse
 from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 from urllib.parse import quote as _url_quote
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .. import __version__
 from ..approvals import resolve_approval, resolve_approval_ex
@@ -56,8 +56,10 @@ from ..models import (
     InferenceMode, Limits, MemoryItem, OverlapPolicy, RiskTier, Run, RunStatus, RuntimeKind, Schedule, Task,
     TriggerKind, bot_slug_display_name, iso, utcnow,
 )
+from ..persona import (APPLICATION_DEFAULT, LAYER_LABELS, PERSONA_FIELDS, Depth, PersonaPlan, PersonaStyle, Tone,
+                       resolve_persona)
 from ..store import (ActiveRunConflict, AuthChallengeLimitExceeded, BotConflict, IdempotencyConflict,
-                     RevisionConflict, Store)
+                     PersonaConflict, RevisionConflict, Store)
 from ..state_snapshot import ExecutionHeld
 from ..skills import MAX_SKILLS_PER_BOT, SkillError
 from ..templates import TEMPLATE_INFO, TEMPLATES
@@ -628,6 +630,7 @@ class ConversationMessageRequest(BaseModel):
     rehearse: bool = False
     model: Optional[str] = None
     skills: list[str] = Field(default_factory=list, max_length=MAX_SKILLS_PER_BOT)
+    persona: Optional[PersonaStyle] = None    # a one-turn response style for this reply only; never persisted
     reply_to_message_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
     workspace_task_result_id: Optional[str] = Field(default=None, min_length=1, max_length=100)
     workspace_task_result_message_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
@@ -665,6 +668,42 @@ class ConversationPreferencesRequest(BaseModel):
         if value is None:
             return None
         return " ".join(value.split()) or None
+
+
+class PersonaUpdateRequest(BaseModel):
+    """Sparse response-style changes; an explicit ``null`` clears one field back to inheritance."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    depth: Optional[Depth] = None
+    tone: Optional[Tone] = None
+    banter: Optional[bool] = None
+    expected_revision: int = Field(ge=0)
+
+    def changes(self) -> dict[str, Any]:
+        return self.model_dump(exclude_unset=True, exclude={"expected_revision"})
+
+
+def _persona_effective(plan: PersonaPlan) -> dict[str, dict[str, Any]]:
+    return {field: {"value": getattr(plan, field), "source": plan.sources[field]} for field in PERSONA_FIELDS}
+
+
+def _bot_persona_view(bot: Bot) -> dict[str, Any]:
+    plan = resolve_persona(agent_preset=bot.persona_preset, agent_override=bot.persona_override)
+    return {"bot_id": bot.id, "revision": bot.persona_revision, "labels": dict(LAYER_LABELS),
+            "override": (bot.persona_override or PersonaStyle()).model_dump(),
+            "preset": bot.persona_preset.model_dump() if bot.persona_preset else None,
+            "defaults": APPLICATION_DEFAULT.model_dump(),
+            "effective": _persona_effective(plan)}
+
+
+def _conversation_persona_view(conversation_id: str, bot: Optional[Bot], style: Optional[PersonaStyle],
+                               revision: int) -> dict[str, Any]:
+    plan = resolve_persona(agent_preset=bot.persona_preset if bot else None,
+                           agent_override=bot.persona_override if bot else None, conversation=style)
+    return {"conversation_id": conversation_id, "revision": revision, "labels": dict(LAYER_LABELS),
+            "override": (style or PersonaStyle()).model_dump(),
+            "effective": _persona_effective(plan)}
 
 
 class TaskTemplateFields(BaseModel):
@@ -2772,7 +2811,8 @@ def create_app() -> FastAPI:
             from ..skills import SkillRegistry
             activation = SkillRegistry(config.state_dir).validate_activation(bot, list(body.skills))
         run = Run(bot_id=bot.id, prompt=body.prompt, origin=origin, rehearsal=body.rehearse,
-                  model_override="" if model == bot.model else model, skill_activation=activation)
+                  model_override="" if model == bot.model else model, skill_activation=activation,
+                  persona_turn=body.persona)
         task = Task(bot_id=bot.id, kind="on_demand", prompt=body.prompt)
         try:
             run_id, created = store.submit_conversation_message(
@@ -2965,6 +3005,41 @@ def create_app() -> FastAPI:
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
         return store.get_conversation(conversation_id)
+
+    @app.get("/api/v1/conversations/{conversation_id}/persona", response_model=dict)
+    def get_conversation_persona(conversation_id: str) -> dict:
+        conversation = store.get_conversation(conversation_id)
+        if conversation is None:
+            raise HTTPException(404, f"no such conversation: {conversation_id}")
+        try:
+            style, revision = store.read_conversation_persona(conversation_id)
+        except KeyError:
+            raise HTTPException(404, f"no such conversation: {conversation_id}") from None
+        return _conversation_persona_view(conversation_id, store.get_bot(conversation["bot_id"]), style, revision)
+
+    @app.patch("/api/v1/conversations/{conversation_id}/persona", response_model=dict)
+    def update_conversation_persona(conversation_id: str, body: PersonaUpdateRequest, request: Request) -> dict:
+        conversation = store.get_conversation(conversation_id)
+        if conversation is None:
+            raise HTTPException(404, f"no such conversation: {conversation_id}")
+        changes = body.changes()
+        if not changes:
+            raise HTTPException(422, "include at least one response-style change")
+        key = idempotency_key(request)
+        try:
+            style, revision, _ = store.update_conversation_persona(
+                conversation_id, changes, expected_revision=body.expected_revision, idem_key=key,
+                request_hash=request_digest({"conversation_id": conversation_id, "changes": changes,
+                                             "expected_revision": body.expected_revision}))
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        except PersonaConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        except KeyError:
+            raise HTTPException(404, f"no such conversation: {conversation_id}") from None
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        return _conversation_persona_view(conversation_id, store.get_bot(conversation["bot_id"]), style, revision)
 
     @app.patch("/api/v1/conversations/{conversation_id}/title", response_model=ConversationResource)
     def rename_conversation(conversation_id: str, body: ConversationTitleRequest,
@@ -3659,6 +3734,32 @@ def create_app() -> FastAPI:
         except ActiveRunConflict as exc:
             raise HTTPException(409, f"Stop or finish active run {exc.run_id} before changing this bot's runtime") from None
         return bot_view(bot)
+
+    @app.get("/api/v1/bots/{ref}/persona", response_model=dict)
+    def get_bot_persona(ref: str) -> dict:
+        return _bot_persona_view(bot_or_404(ref))
+
+    @app.patch("/api/v1/bots/{ref}/persona", response_model=dict)
+    def update_bot_persona(ref: str, body: PersonaUpdateRequest, request: Request) -> dict:
+        bot = bot_or_404(ref)
+        changes = body.changes()
+        if not changes:
+            raise HTTPException(422, "include at least one response-style change")
+        key = idempotency_key(request)
+        try:
+            updated, _ = store.update_bot_persona(
+                bot.id, changes, expected_revision=body.expected_revision, idem_key=key,
+                request_hash=request_digest({"bot_id": bot.id, "changes": changes,
+                                             "expected_revision": body.expected_revision}))
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        except PersonaConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        except KeyError:
+            raise HTTPException(404, f"no such bot: {ref}") from None
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        return _bot_persona_view(updated)
 
     @app.delete("/api/bots/{ref}")
     def delete_bot(ref: str) -> dict:

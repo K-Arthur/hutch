@@ -52,6 +52,7 @@ from .models import (
     bot_slug_display_name,
     utcnow,
 )
+from .persona import PERSONA_FIELDS, PersonaStyle, apply_persona_changes, decode_persona_state, encode_persona_state
 from .wake import Bus, WakeHub
 
 _SCHEMA = """
@@ -1336,6 +1337,11 @@ def _migrate_50(db: sqlite3.Connection) -> None:
     db.execute("CREATE INDEX idx_document_versions_run ON document_versions(run_id)")
 
 
+def _migrate_51(db: sqlite3.Connection) -> None:
+    """Per-conversation response-style overrides: sparse versioned JSON plus a revision counter."""
+    db.execute("ALTER TABLE conversations ADD COLUMN persona TEXT NOT NULL DEFAULT ''")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -1343,7 +1349,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
-               _migrate_48, _migrate_49, _migrate_50]
+               _migrate_48, _migrate_49, _migrate_50, _migrate_51]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -1374,6 +1380,14 @@ class IdempotencyConflict(ValueError):
 
 class RevisionConflict(ValueError):
     """An edit was based on an older resource revision."""
+
+
+class PersonaConflict(RevisionConflict):
+    """A response-style save raced another change: the caller's revision is stale."""
+
+    def __init__(self, current_revision: int):
+        super().__init__(f"response-style revision changed (current {current_revision})")
+        self.current_revision = current_revision
 
 
 class ActiveRunConflict(RuntimeError):
@@ -2163,6 +2177,40 @@ class Store:
         self.bus.notify("work", "bots", *(f"run:{run_id}" for run_id in cancelled_remote),
                         *("events", "approvals") if cancelled_remote else ())
         return bot
+
+    def update_bot_persona(self, bot_id: str, changes: dict[str, Any], *, expected_revision: int,
+                           idem_key: str, request_hash: str) -> tuple[Bot, bool]:
+        """Compare-and-swap the owner's saved response style for one agent.
+
+        ``changes`` carries explicit field values; ``None`` clears a field back to inheritance. The
+        revision guard refuses a save from a stale form instead of silently merging it.
+        """
+        if not changes or not set(changes) <= set(PERSONA_FIELDS) or expected_revision < 0:
+            raise ValueError("response-style changes must include depth, tone, or banter and a valid revision")
+        scope = f"api:v1:bot:{bot_id}:persona"
+        now = iso(utcnow())
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                row = db.execute("SELECT id, doc FROM bots WHERE id = ?", (bot_id,)).fetchone()
+                if row is None:
+                    raise RuntimeError("idempotent persona response points to missing state")
+                return Bot.model_validate_json(row["doc"]), False
+            row = db.execute("SELECT id, doc FROM bots WHERE id = ?", (bot_id,)).fetchone()
+            if row is None:
+                raise KeyError(bot_id)
+            bot = Bot.model_validate_json(row["doc"])
+            if bot.persona_revision != expected_revision:
+                raise PersonaConflict(bot.persona_revision)
+            bot.persona_override = apply_persona_changes(bot.persona_override, changes)
+            bot.persona_revision += 1
+            db.execute("UPDATE bots SET doc = ? WHERE id = ?", (bot.model_dump_json(), bot.id))
+            db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) "
+                       "VALUES (?, ?, ?, ?, ?)",
+                       (scope, idem_key, request_hash,
+                        _canonical({"bot_id": bot_id, "revision": bot.persona_revision, "changes": changes}), now))
+        self.bus.notify("work", "bots")
+        return bot, True
 
     def list_bots(self) -> list[Bot]:
         with self._lock:
@@ -3367,6 +3415,49 @@ class Store:
             result = db.execute("SELECT * FROM conversations WHERE id = ?", (conversation_id,)).fetchone()
         self.bus.notify("conversations", f"conversation:{conversation_id}")
         return dict(result), True
+
+    def read_conversation_persona(self, conversation_id: str) -> tuple[Optional[PersonaStyle], int]:
+        """This conversation's saved response style and its revision (``None``/0 when never set)."""
+        with self._lock:
+            row = self._db.execute("SELECT persona FROM conversations WHERE id = ?",
+                                   (conversation_id,)).fetchone()
+        if row is None:
+            raise KeyError(conversation_id)
+        return decode_persona_state(row["persona"])
+
+    def update_conversation_persona(self, conversation_id: str, changes: dict[str, Any], *,
+                                    expected_revision: int, idem_key: str,
+                                    request_hash: str) -> tuple[Optional[PersonaStyle], int, bool]:
+        """Compare-and-swap this conversation's response style; ``None`` clears a field."""
+        if not changes or not set(changes) <= set(PERSONA_FIELDS) or expected_revision < 0:
+            raise ValueError("response-style changes must include depth, tone, or banter and a valid revision")
+        scope = f"api:v1:conversation:{conversation_id}:persona"
+        now = iso(utcnow())
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                row = db.execute("SELECT persona FROM conversations WHERE id = ?", (conversation_id,)).fetchone()
+                if row is None:
+                    raise RuntimeError("idempotent persona response points to missing state")
+                style, revision = decode_persona_state(row["persona"])
+                return style, revision, False
+            row = db.execute("SELECT persona FROM conversations WHERE id = ?", (conversation_id,)).fetchone()
+            if row is None:
+                raise KeyError(conversation_id)
+            current, revision = decode_persona_state(row["persona"])
+            if revision != expected_revision:
+                raise PersonaConflict(revision)
+            updated = apply_persona_changes(current, changes)
+            new_revision = revision + 1
+            db.execute("UPDATE conversations SET persona = ?, updated_at = ? WHERE id = ?",
+                       (encode_persona_state(updated, new_revision), now, conversation_id))
+            db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) "
+                       "VALUES (?, ?, ?, ?, ?)",
+                       (scope, idem_key, request_hash,
+                        _canonical({"conversation_id": conversation_id, "revision": new_revision,
+                                    "changes": changes}), now))
+        self.bus.notify("conversations", f"conversation:{conversation_id}")
+        return updated, new_revision, True
 
     def rename_conversation(self, conversation_id: str, title: str, *,
                             idem_key: str, request_hash: str) -> tuple[dict[str, Any], bool]:
@@ -4969,7 +5060,8 @@ class Store:
     def transition_run(self, run_id: str, to: RunStatus, *, fence: Optional[int] = None, exit_reason: Optional[str] = None,
                        error: Optional[str] = None, event: Optional[dict[str, Any]] = None, bump_fence: bool = False,
                        fields: Optional[dict[str, Any]] = None, cancel_wins: bool = False,
-                       capability_snapshot: Optional[dict[str, Any]] = None) -> Run:
+                       capability_snapshot: Optional[dict[str, Any]] = None,
+                       persona_plan: Optional[dict[str, Any]] = None) -> Run:
         """Move a run to ``to`` - the ONLY way status changes for a claimed run (ADR-0003).
 
         In one transaction: the fence is checked (``LeaseLost``), the move is checked against the lifecycle table
@@ -4984,6 +5076,13 @@ class Store:
             snapshot_json = _canonical(capability_snapshot)
             if len(snapshot_json.encode("utf-8")) > 64 * 1024:
                 raise ValueError("run capability snapshot exceeds 64 KiB")
+        persona_plan_json = None
+        if persona_plan is not None:
+            if not isinstance(persona_plan, dict):
+                raise ValueError("the persona plan must be a JSON object")
+            persona_plan_json = _canonical(persona_plan)
+            if len(persona_plan_json.encode("utf-8")) > 16 * 1024:
+                raise ValueError("the persona plan exceeds 16 KiB")
         with self._buf_cv:                                       # lock order: event buffer, then database (as append_event)
             # A reader that sees the new status must also see every event that came before it. Wait out the writer's in-flight
             # batch, then commit this run's still-buffered events in the SAME transaction as the status change.
@@ -4994,7 +5093,8 @@ class Store:
                 kept = self._worker_events(db, run_id, mine)
                 row, emitted = self._apply_transition(db, run_id, to, fence, exit_reason, error, event, bump_fence, fields,
                                                       earlier=kept, cancel_wins=cancel_wins,
-                                                      capability_snapshot_json=snapshot_json)
+                                                      capability_snapshot_json=snapshot_json,
+                                                      persona_plan_json=persona_plan_json)
             self.dropped_events += len(mine) - len(kept)
             if mine:
                 done = {id(e) for e in mine}
@@ -5018,7 +5118,8 @@ class Store:
                           exit_reason: Optional[str], error: Optional[str], event: Optional[dict[str, Any]],
                           bump_fence: bool, fields: Optional[dict[str, Any]],
                           earlier: Optional[list[Event]] = None, cancel_wins: bool = False,
-                          capability_snapshot_json: Optional[str] = None) -> tuple[sqlite3.Row, Optional[Event]]:
+                          capability_snapshot_json: Optional[str] = None,
+                          persona_plan_json: Optional[str] = None) -> tuple[sqlite3.Row, Optional[Event]]:
         from .models import EventType
         row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
         if row is None:
@@ -5066,6 +5167,15 @@ class Store:
                 snapshot_to_write = capability_snapshot_json
         doc = json.loads(row["doc"])
         patch: dict[str, Any] = {"status": to.value, **(fields or {})}
+        if persona_plan_json is not None:
+            existing_plan = doc.get("persona_plan")
+            if existing_plan:
+                if _canonical(existing_plan) != persona_plan_json:
+                    raise LeaseLost(run_id, "run persona plan is immutable")
+            else:
+                if cur is not RunStatus.pending or to is not RunStatus.running:
+                    raise ValueError("the persona plan can only be captured when a run starts")
+                patch["persona_plan"] = json.loads(persona_plan_json)
         terminal = to in TERMINAL
         if terminal:
             terminal_at = iso(utcnow())

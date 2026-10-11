@@ -46,6 +46,7 @@ from .models import (
     iso,
     utcnow,
 )
+from .persona import resolve_persona
 from .runtime import RunAborted, get_runtime
 from .safety import PolicyEngine
 from .workdir import check_workdir_at_run
@@ -292,6 +293,15 @@ class Engine:
             self.store.transition_run(
                 run.id, RunStatus.failed, fence=run.fence, exit_reason="skill_unavailable", error=reason,
                 event={"reason": "skill_unavailable", "error": reason}, cancel_wins=True)
+        except (IllegalTransition, LeaseLost, KeyError):
+            pass
+
+    def _fail_persona_unavailable(self, run: Run, reason: str) -> None:
+        """Style state must be readable and version-compatible; fail closed instead of silently restyling the run."""
+        try:
+            self.store.transition_run(
+                run.id, RunStatus.failed, fence=run.fence, exit_reason="persona_unavailable", error=reason,
+                event={"reason": "persona_unavailable", "error": reason}, cancel_wins=True)
         except (IllegalTransition, LeaseLost, KeyError):
             pass
 
@@ -761,6 +771,24 @@ class Engine:
                 degraded.append(f"{type(exc).__name__}: {exc}")     # recorded on the run's final event, not swallowed
 
 
+        # Resolve this run's response style once, before it starts. An existing plan (from an earlier start
+        # attempt) is reused, never rewritten. The plan records the winning layer for every field, so the
+        # choice stays auditable after the settings that produced it change.
+        persona_plan = persisted.persona_plan
+        if persona_plan is None:
+            try:
+                conversation_style, conversation_revision = (
+                    self.store.read_conversation_persona(run.conversation_id)
+                    if run.conversation_id else (None, 0))
+                persona_plan = resolve_persona(
+                    agent_preset=bot.persona_preset, agent_override=bot.persona_override,
+                    conversation=conversation_style, turn=run.persona_turn,
+                    revisions={"agent": bot.persona_revision,
+                               **({"conversation": conversation_revision} if run.conversation_id else {})})
+            except Exception as exc:  # noqa: BLE001 - unreadable style state must fail closed, not silently restyle
+                self._fail_persona_unavailable(run, f"the response style could not be resolved: {exc}")
+                return
+
         # The first step of a run's life. A stop that arrived between the claim and now is noticed here: the run is then
         # 'cancelling' and not allowed to start.
         try:
@@ -768,6 +796,7 @@ class Engine:
                 run.id, RunStatus.running, fence=run.fence, event={"origin": run.origin},
                 fields={"started_at": iso(utcnow()), "workspace": str(workspace), "owner": str(os.getpid()),
                         "skill_snapshot": skill_snapshot},
+                persona_plan=persona_plan.model_dump(mode="json"),
                 capability_snapshot=self.capability_snapshot(bot, run.tool_access) if run.parent_run_id is None else None)
         except (IllegalTransition, LeaseLost, KeyError):
             self._finish_unstarted(run)
