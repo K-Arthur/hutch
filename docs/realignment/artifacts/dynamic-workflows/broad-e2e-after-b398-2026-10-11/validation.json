@@ -217,13 +217,13 @@
     "log_sha256": "42097efed715bdef980f056bd194baaa7658a89f41dda11eaa8a33ed394076ab"
   },
   "limitations": [
-    "The final full browser suite still has 25 unclassified failed cases and 8 teardown errors; do not describe broad browser validation as green.",
+    "The full browser suite remains non-green because 25 repeatable baseline failures in other app areas and 8 repeated live-fixture teardown timeouts are still unresolved.",
     "The in-scope Studio journey is a saved declarative ask flow and does not establish live model quality or dynamic authoring competence.",
-    "Failures outside the Studio, route-card and specialist-question journeys have not been individually reproduced or classified."
+    "Actual browser-chrome zoom, slow/offline reconnect, complete workflow/model-role classification and a live qualified author/selector pairing remain open."
   ],
   "bundle_sha256": {
     "failure-inventory-before-ui.md": "532d478632680556e85dcbf721f78b16f80c9e6f581da6abedc03de358768de3",
-    "failure-inventory.md": "e45f1a575922138fd3071022cc3fd67f6a84db19f126c7c342b311a8d7fc9178",
+    "failure-inventory.md": "519f682e96a38fd8921f11ce7e2093d78b710d06dc73c776a014f9a249676a96",
     "focused-ui.log": "42097efed715bdef980f056bd194baaa7658a89f41dda11eaa8a33ed394076ab",
     "full-e2e-before-ui.log": "e8c4d22a80d0f0d87e1868da71e5b393a685a4ad9b87a9401b4039f50e6f22dc",
     "full-e2e.log": "0446dd8126e466cd896af6ead949475a0a3de15488342009afe419b4b7990edd",
@@ -276,10 +276,20 @@
     "base_commit": "b398e6012f5d42b5b4a1c52ff03c0c7036195443",
     "includes_final_worktree_ui_sources": true,
     "workflow_studio_policy_test_in_failure_inventory": false,
-    "unclassified_failed_cases": 25,
-    "unclassified_teardown_errors": 8,
     "log_sha256": "0446dd8126e466cd896af6ead949475a0a3de15488342009afe419b4b7990edd",
     "failure_inventory": "failure-inventory.md",
-    "log": "full-e2e.log"
+    "log": "full-e2e.log",
+    "prior_run_failure_overlap": 25,
+    "new_failures_vs_prior_run": 0,
+    "prior_only_failures_now_passing": [
+      "tests/e2e/test_browser.py::test_large_idle_roster_stays_compact_and_remains_searchable_and_keyboard_accessible",
+      "tests/e2e/test_browser.py::test_run_detail_reports_transcript_chain_verification_and_tampering",
+      "tests/e2e/test_browser.py::test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences",
+      "tests/e2e/test_browser.py::test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports"
+    ],
+    "teardown_error_ids_identical_to_prior_run": true,
+    "classification": "The 25 repeated failures are existing app/browser areas outside dynamic-workflow surfaces. They are classified as baseline failures; their individual root causes remain unresolved. Eight identical live-fixture thread-join timeouts recur across both runs.",
+    "unresolved_baseline_failures": 25,
+    "unresolved_teardown_errors": 8
   }
 }
