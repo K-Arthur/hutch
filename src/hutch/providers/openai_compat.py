@@ -245,12 +245,8 @@ class OpenAICompatProvider(Provider):
             raise self._wrap_exc(exc)
 
     def _chat_stream(self, req: ChatRequest, body: dict[str, Any]) -> ChatResult:
-        content: list[str] = []
-        calls: dict[int, dict[str, Any]] = {}
-        usage: dict[str, Any] = {}
-        finish = "stop"
-        model = req.model
-        done = False
+        from ..toolcalling.streamassembly import OpenAIChatStreamAssembler, StreamAssemblyError, should_reject_empty_stream
+        assembler = OpenAIChatStreamAssembler()
         with self._http().stream("POST", "/chat/completions", json=body, timeout=self._timeout(req),
                                  headers=self._req_headers(req)) as resp:
             if resp.status_code >= 400:
@@ -266,7 +262,7 @@ class OpenAICompatProvider(Provider):
                         continue
                     data = line[5:].strip()
                     if data == "[DONE]":
-                        done = True
+                        assembler.mark_done()
                         break
                     try:
                         chunk = json.loads(data)
@@ -275,24 +271,10 @@ class OpenAICompatProvider(Provider):
                     if "error" in chunk:
                         raise ProviderError("server", f"{self.name} error mid-stream: {chunk['error']}",
                                             provider=self.name)
-                    model = chunk.get("model", model)
-                    if chunk.get("usage"):
-                        usage = chunk["usage"]
-                    for choice in chunk.get("choices") or []:
-                        delta = choice.get("delta") or {}
-                        if delta.get("content"):
-                            content.append(delta["content"])
-                        for tc in delta.get("tool_calls") or []:
-                            slot = calls.setdefault(tc.get("index", 0), {"id": "", "name": "", "args": []})
-                            if tc.get("id"):
-                                slot["id"] = tc["id"]
-                            fn = tc.get("function") or {}
-                            if fn.get("name"):
-                                slot["name"] += fn["name"]
-                            if fn.get("arguments"):
-                                slot["args"].append(fn["arguments"])
-                        if choice.get("finish_reason"):
-                            finish = choice["finish_reason"]
+                    try:
+                        assembler.feed(chunk)
+                    except StreamAssemblyError as exc:
+                        raise ProviderError("stream", f"unassemblable stream: {exc}", provider=self.name)
             except Exception as exc:
                 if dog.stalled:
                     raise ProviderError("stream", f"no data for {req.idle_timeout:.0f}s - the stream stalled",
@@ -301,15 +283,17 @@ class OpenAICompatProvider(Provider):
             finally:
                 dog.cancel()
                 unregister()
-        if not done and not usage and finish == "stop" and not content and not calls:
+        if should_reject_empty_stream(assembler):
             raise ProviderError("stream", "the stream ended without any content", provider=self.name)
         tcs = []
-        for i, slot in sorted(calls.items()):
-            raw = "".join(slot["args"])
-            args, err, state, double = parse_tool_args_state(raw)
-            tcs.append(ToolCall(id=slot["id"], name=slot["name"], arguments=args, raw=raw,
+        for slot in assembler.calls():
+            args, err, state, double = parse_tool_args_state(slot["arguments"])
+            tcs.append(ToolCall(id=slot["id"], name=slot["name"], arguments=args, raw=slot["arguments"],
                                 parse_error=err, arguments_state=state, double_decoded=double))
-        return self._result("".join(content), tcs, usage, finish, model, req, streamed=True)
+        result = self._result(assembler.content, tcs, assembler.usage, assembler.finish,
+                              assembler.model or req.model, req, streamed=True)
+        result.notes.extend(assembler.notes)
+        return result
 
     def _from_full(self, j: dict[str, Any], req: ChatRequest) -> ChatResult:
         choice = (j.get("choices") or [{}])[0]
@@ -327,7 +311,18 @@ class OpenAICompatProvider(Provider):
             tcs.append(ToolCall(id=tc.get("id") or "", name=name if isinstance(name, str) else "",
                                 arguments=args, raw=raw or "", parse_error=err,
                                 arguments_state=state, double_decoded=double))
-        return self._result(msg.get("content") or "", tcs, j.get("usage") or {}, choice.get("finish_reason") or "stop",
+        finish = choice.get("finish_reason") or "stop"
+        refusal = msg.get("refusal")
+        if isinstance(refusal, str) and refusal.strip() and not tcs:
+            err = ProviderError("refused", f"{self.name} declined the request: {refusal.strip()[:300]}",
+                                provider=self.name)
+            err.category = "provider_refusal"  # type: ignore[attr-defined]
+            raise err
+        if finish == "content_filter" and not tcs:
+            err = ProviderError("refused", f"{self.name} filtered the response (content_filter)", provider=self.name)
+            err.category = "content_filter"  # type: ignore[attr-defined]
+            raise err
+        return self._result(msg.get("content") or "", tcs, j.get("usage") or {}, finish,
                             j.get("model", req.model), req, streamed=False)
 
     def _result(self, content: str, tcs: list[ToolCall], usage: dict[str, Any], finish: str, model: str,
