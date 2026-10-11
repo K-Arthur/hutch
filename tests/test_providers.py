@@ -299,12 +299,17 @@ def test_claude_tool_use_round_trip_merges_parallel_results(claude_srv):
     assert msgs[1]["content"][0]["type"] == "tool_use"
 
 
-def test_claude_refusal_is_a_typed_retryable_error_with_its_category(claude_srv):
+def test_claude_refusal_is_terminal_typed_error_with_its_category(claude_srv):
     claude_srv.script = lambda b: {"refusal": "cyber"}
     with pytest.raises(ProviderError) as e:
         ClaudeProvider(api_key="sk-test", base_url=claude_srv.url).chat(
             ChatRequest(model="claude-opus-5-5", messages=[{"role": "user", "content": "x"}]))
-    assert e.value.kind == "refused" and "cyber" in str(e.value) and e.value.retryable   # chain can fall back
+    assert e.value.kind == "refused" and "cyber" in str(e.value) and not e.value.retryable   # refusal is terminal
+
+
+def test_provider_error_retryability_is_kind_based():
+    assert not ProviderError("refused", "policy").retryable
+    assert ProviderError("timeout", "network").retryable
 
 
 def test_claude_auth_rate_limit_and_missing_key(claude_srv):

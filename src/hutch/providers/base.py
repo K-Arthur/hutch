@@ -39,8 +39,8 @@ class ProviderError(Exception):
 
     @property
     def retryable(self) -> bool:
-        """Worth trying the next provider in the chain (or the same one again later)."""
-        return self.kind in ("unreachable", "timeout", "rate_limit", "server", "stream", "oom", "refused")
+        """Whether a later attempt may recover this availability failure."""
+        return self.kind in ("unreachable", "timeout", "rate_limit", "server", "stream", "oom")
 
     @property
     def streaming_related(self) -> bool:

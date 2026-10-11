@@ -602,6 +602,35 @@ def test_an_unreachable_primary_falls_back_in_order_and_says_so(store, config, t
     assert run.model_used == "lmstudio/some-model"
 
 
+def test_a_provider_refusal_during_start_never_uses_a_fallback(store, config, tmp_path):
+    from hutch.providers import ProviderError
+
+    calls = []
+
+    def refusing_provider(provider, _base_url):
+        calls.append(provider)
+        raise ProviderError("refused", "provider refusal", provider=provider)
+
+    ctx, run, _, tools = build(store, config, tmp_path, model="ollama/fake:8b",
+                               fallbacks=["lmstudio/some-model"])
+    with pytest.raises(RunAborted) as error:
+        run_it(runtime(provider_factory=refusing_provider), run, ctx, tools)
+    assert error.value.reason == "refused"
+    assert calls == ["ollama"]
+
+
+def test_a_provider_refusal_during_recovery_never_uses_a_fallback(store, config, tmp_path):
+    from types import SimpleNamespace
+    from hutch.providers import ProviderError
+
+    ctx, run, _, _ = build(store, config, tmp_path, tools=())
+    fallback_calls = []
+    ladder = SimpleNamespace(next_fallback=lambda: fallback_calls.append("fallback"))
+    result = runtime()._recover(ctx, run, ladder, None, ProviderError("refused", "provider refusal"), [], [], 0)
+    assert result is None
+    assert fallback_calls == []
+
+
 def test_local_model_routes_never_fall_back_to_hosted_after_local_start_failure(store, config, tmp_path):
     calls = []
 

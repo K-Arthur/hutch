@@ -520,6 +520,8 @@ class BuiltinRuntime:
             except ProviderError as exc:
                 if stop():
                     raise RunAborted("stopped", "user requested stop") from exc
+                if not exc.retryable and exc.kind not in ("model_missing", "auth"):
+                    raise RunAborted(_exit_reason(exc), f"cannot start on {rung.spec}: {exc}") from exc
                 nxt = ladder.next_fallback()
                 if nxt is None:
                     raise RunAborted(_exit_reason(exc), f"cannot start on {rung.spec}: {exc}") from exc
