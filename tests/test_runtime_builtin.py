@@ -221,22 +221,27 @@ def test_tool_free_bot_draft_run_cannot_call_tools_even_when_the_bot_has_them(st
     assert store.list_model_capability_observations() == []
 
 
-def test_tool_free_conversation_uses_its_own_purpose_and_prompt(store, config, tmp_path, ollama):
+def test_tool_free_conversation_uses_its_own_purpose_and_prompt(store, config, tmp_path, ollama, monkeypatch):
     from hutch.engine import Engine
 
     ctx, run, _, _ = build(store, config, tmp_path, tools=("files", "browser", "memory"))
     run.execution_purpose = "conversation"
     run.tool_access = "none"
     tools = Engine.tools_for_run(run, ctx.bot, ctx)
+    action_context_reads = []
+    monkeypatch.setattr(ctx.store, "action_context",
+                        lambda run_id: action_context_reads.append(run_id) or "\nACTION_CONTEXT")
     ollama.script = agent_script([{"content": "A quick database pun."}])
 
     assert run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools) == "A quick database pun."
     request = ollama.of("/api/chat")[0]["body"]
     system = request["messages"][0]["content"]
+    assert len(ollama.of("/api/chat")) == 1
     assert request.get("tools", []) == []
     assert "tool-free conversational turn" in system
     assert "review-only Bot-drafting request" not in system
     assert "only propose the Bot's standing instructions" not in system
+    assert "ACTION_CONTEXT" not in system and action_context_reads == []
 
 
 def test_tool_free_conversation_rejects_provider_tool_calls_without_execution(store, config, tmp_path, ollama):
@@ -265,6 +270,8 @@ def test_stored_bot_drafts_without_execution_purpose_keep_their_legacy_mode():
 
     with pytest.raises(ValueError, match="tool_access='none'"):
         Run(bot_id="bot", prompt="hello", execution_purpose="conversation", tool_access="bot")
+    with pytest.raises(ValueError, match="explicit tool-free execution purpose"):
+        Run(bot_id="bot", prompt="hello", tool_access="none")
 
 
 def test_structured_choice_is_conversation_only_and_pauses_the_model_loop(store, config, tmp_path, ollama):

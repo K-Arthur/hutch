@@ -291,7 +291,20 @@ _DEEPER_RE = re.compile(r"\b(?:go deeper|more detail|expand on that)\b", re.IGNO
 _LESS_HUMOR_RE = re.compile(r"\b(?:less banter|less joking|no jokes|stop joking)\b",
                             re.IGNORECASE)
 _CONVERSATION_REF_RE = re.compile(
-    r"\b(?:above|earlier|previous(?: answer| reply)?|last answer|what you said|that answer)\b",
+    r"\b(?:above|earlier|previous(?: answer| reply)?|last answer|what you said|that answer|"
+    r"what we discussed|what you told me|what i told you|from last time|last time)\b",
+    re.IGNORECASE,
+)
+_PERSONAL_CONTEXT_RE = re.compile(
+    r"\b(?:my\s+(?:favorite|usual|calendar|schedule|emails?|files?|notes?)|"
+    r"(?:this|that|the|attached|uploaded)\s+(?:email|message|calendar event)|"
+    r"(?:last|previous)\s+(?:email|message|calendar event)|"
+    r"what\s+(?:i|you)\s+(?:said|told you)|what we discussed)\b",
+    re.IGNORECASE,
+)
+_WORKSPACE_REFERENCE_RE = re.compile(
+    r"\b(?:(?:this|that|the|attached|uploaded)\s+(?:file|document|spreadsheet|pdf)|"
+    r"(?:image|photo|screenshot)\s+(?:above|attached|here))\b",
     re.IGNORECASE,
 )
 
@@ -323,7 +336,9 @@ def contextualize_persona(plan: PersonaPlan, prompt: str, *,
     explicit_humor = bool(_HUMOR_RE.search(text))
     humor_eligible = not (high_stakes or current_facts or external_sources or coding or analysis
                           or recipient_draft or external_action or explicit_correction or less_humor_request)
-    references_context = context_available and bool(_CONVERSATION_REF_RE.search(text))
+    references_context = bool(_CONVERSATION_REF_RE.search(text))
+    references_personal_context = bool(_PERSONAL_CONTEXT_RE.search(text))
+    workspace_reference = bool(_WORKSPACE_REFERENCE_RE.search(text))
 
     if high_stakes:
         intent: Intent = "high_stakes"
@@ -346,13 +361,13 @@ def contextualize_persona(plan: PersonaPlan, prompt: str, *,
 
     audience: Audience = "recipient" if recipient_draft else "operator"
     grounding: list[GroundingNeed] = []
-    if references_context or explicit_correction:
+    if references_context or references_personal_context or explicit_correction:
         grounding.append("conversation")
     if current_facts:
         grounding.append("current_facts")
     elif external_sources:
         grounding.append("external_sources")
-    if coding:
+    if coding or workspace_reference:
         grounding.append("workspace")
     if external_action:
         grounding.append("tool_execution")
@@ -395,7 +410,7 @@ def contextualize_persona(plan: PersonaPlan, prompt: str, *,
         reasons.append("current_information")
     if external_sources:
         reasons.append("external_sources")
-    if coding:
+    if coding or workspace_reference:
         reasons.append("code_or_workspace_work")
     if recipient_draft:
         reasons.append("recipient_draft")

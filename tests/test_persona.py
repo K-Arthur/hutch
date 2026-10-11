@@ -470,18 +470,55 @@ def test_a_persona_plan_can_only_be_captured_when_a_run_starts(store):
     assert store.get_run(run.id).status is RunStatus.running       # the refusal changed nothing
 
 
+@pytest.mark.parametrize(
+    ("prompt", "expected"),
+    [
+        ("Tell me a silly pun about a database.", True),
+        ("Tell me a joke about the latest weather.", False),
+        ("Tell me a joke about my debt and bankruptcy options.", False),
+        ("Tell me a joke about my favorite movie.", False),
+        ("Tell me a pun about the spreadsheet attached here.", False),
+        ("Compare these two options in detail.", False),
+    ],
+)
+def test_tool_free_conversation_route_requires_clear_ungrounded_low_risk_banter(prompt, expected):
+    from hutch.engine import Engine
+
+    run = Run(bot_id="route-bot", prompt=prompt, origin="manual:api", conversation_id="chat")
+    plan = contextualize_persona(resolve_persona(), prompt)
+    assert Engine._eligible_for_tool_free_conversation(run, plan) is expected
+
+
+def test_tool_free_conversation_route_requires_an_interactive_unspecialized_turn():
+    from hutch.engine import Engine
+
+    prompt = "Tell me a silly pun about a database."
+    plan = contextualize_persona(resolve_persona(), prompt)
+    no_conversation = Run(bot_id="route-bot", prompt=prompt, origin="manual:api")
+    selected_skill = Run(bot_id="route-bot", prompt=prompt, origin="manual:api", conversation_id="chat",
+                         skill_activation=["research"])
+    rehearsal = Run(bot_id="route-bot", prompt=prompt, origin="manual:api", conversation_id="chat", rehearsal=True)
+    assert not Engine._eligible_for_tool_free_conversation(no_conversation, plan)
+    assert not Engine._eligible_for_tool_free_conversation(selected_skill, plan)
+    assert not Engine._eligible_for_tool_free_conversation(rehearsal, plan)
+
+
 def test_engine_captures_the_resolved_persona_plan_at_start(store, config, monkeypatch):
     import hutch.engine as engine_module
     from hutch.engine import Engine
+
+    observed = {}
 
     class Runtime:
         kind = "fixture"
 
         def execute(self, run, ctx, tools, stop):
+            observed.update(execution_purpose=run.execution_purpose, tool_access=run.tool_access,
+                            tools=sorted(tools))
             return "ok"
 
     monkeypatch.setattr(engine_module, "get_runtime", lambda _: Runtime())
-    bot = store.create_bot(Bot(name="plan-engine", model="mock/demo", tools=[]))
+    bot = store.create_bot(Bot(name="plan-engine", model="mock/demo", tools=["files"]))
     store.update_bot_persona(bot.id, {"tone": "warm"}, expected_revision=0, idem_key="eng-1", request_hash="eng-1")
     bot = store.get_bot(bot.id)
     bot.persona_preset = PersonaStyle(depth="thorough")
@@ -493,7 +530,7 @@ def test_engine_captures_the_resolved_persona_plan_at_start(store, config, monke
 
     engine = Engine(config, store)
     prompt = "Tell me a joke about the database."
-    run = Run(bot_id=bot.id, prompt=prompt, conversation_id=conversation["id"],
+    run = Run(bot_id=bot.id, prompt=prompt, origin="manual:api", conversation_id=conversation["id"],
               persona_turn=PersonaStyle(banter=False))
     store.submit_conversation_message(conversation["id"], prompt, run, Task(bot_id=bot.id, prompt=prompt),
                                       idem_key="eng-3", request_hash="eng-3")
@@ -513,6 +550,11 @@ def test_engine_captures_the_resolved_persona_plan_at_start(store, config, monke
         "depth": "conversation", "tone": "agent_override", "banter": "turn"}
     assert plan.revisions["agent"] == 1 and plan.revisions["conversation"] == 1
     assert plan.intent == "banter" and plan.humor_eligible is True and plan.resolved_depth == "brief"
+    assert stored.execution_purpose == observed["execution_purpose"] == "conversation"
+    assert stored.tool_access == observed["tool_access"] == "none"
+    assert observed["tools"] == []
+    assert store.run_capability_snapshot(run.id)["execution_purpose"] == "conversation"
+    assert store.run_capability_snapshot(run.id)["tools"] == []
 
 
 # ============================================================ API: scoped saves with revision conflicts and reset

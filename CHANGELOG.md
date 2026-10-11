@@ -24,7 +24,10 @@
 - Separate run purpose (`task`, `bot_draft`, or `conversation`) from tool authority. Existing stored review-only
   drafts keep their Bot-draft guidance and one-response limit; a tool-free conversation has a short conversation
   instruction, no tool schemas, and refuses provider tool calls without execution. Automatic routing into that
-  purpose is not enabled yet.
+  purpose is limited to explicit, low-risk banter in an interactive chat when the response plan has no grounding
+  need, selected skill, structured output, rehearsal, or delegation. That route omits tool schemas and action-context
+  lookup; analytical, current-fact, sensitive, personal-context, and output-constrained requests retain the task path.
+  Mismatched purpose/tool-access pairs fail closed.
 - Extend assistant settings with the independent v2 selectors and bounded customization beside standing
   directions. Conversation controls save scoped preferences with conflict recovery; next-reply controls stay
   local until one send. Browser regressions cover persistence, reset, concurrent edits, focus, keyboard,

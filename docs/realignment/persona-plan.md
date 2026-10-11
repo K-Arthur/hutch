@@ -187,16 +187,24 @@ Review follow-ups (status after the profile-compatibility slice):
   schemas and refuses provider tool calls without executing them. Focused runtime checks passed (**4 passed**),
   and the Bot-purpose-draft API test passed (**1 passed**). The combined persona/runtime/engine and Bot-draft
   API check passed (**131 tests**). A local OpenCode packet pinned to `opencode-go/mimo-v2.6-flash` inspected
-  the requested files but made no edits after about two minutes; it was stopped without retry. Automatic
-  low-risk routing is not enabled yet.
+  the requested files but made no edits after about two minutes; it was stopped without retry.
+- Banter routing: only a new interactive chat run with explicit humor intent, safe humor eligibility, no grounding
+  needs, freeform output, operator audience, no selected skill, no rehearsal, and no delegation is downgraded to
+  the `conversation` execution purpose. Its persisted capability snapshot records `tool_access=none`; the runtime
+  sends no tool schemas and skips pending-action context lookup. Current facts, sensitive cues, analytical work,
+  personal/workspace references, and structured/recipient output stay on the normal task route. The engine/runtime
+  final combined persona/runtime/engine and Bot-purpose-draft API check passed (**138 tests**) after adding the
+  personal/workspace-reference guards, explicit purpose/tool-access consistency checks, and the no-action-context
+  regression. Provider recovery may still retry for availability failures;
+  one inference is the ordinary successful path, not a network-attempt guarantee.
 - The combined offline suite at `04b5722` completed with **1,989 passed, 2 failed** in 525.57 s. The Unix
   socket test failed only because the long test temp path exceeded `AF_UNIX` path length; rerunning with a short
   cache root made it pass. The other failure, `test_the_shell_cannot_see_the_real_home_or_any_folder_outside_the_workspace`, also failed on clean
   integration commit `8a63585` with the same observed `/home` visibility and is therefore an inherited sandbox
   environment failure, not a persona change. No assertions were weakened. The existing `/tmp` contents were not
   removed or altered.
-- Remaining acceptance: route only clear, low-risk banter to the separate tool-free conversation purpose; perform
-  answer-scoped corrections without rerunning tools or external actions; add feedback, isolated live preview and
+- Remaining acceptance: perform answer-scoped corrections without rerunning tools or external actions; add feedback,
+  isolated live preview and
   redacted inspector; update marketing claims/screenshots and remaining user-facing docs; verify supported-runtime
   request receipts; and run combined offline/browser checks plus bounded model evaluation. No separate supported
   Hutch Go connection is configured, so Hutch product-path response quality and model latency are unverified.

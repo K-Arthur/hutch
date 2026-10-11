@@ -538,6 +538,8 @@ class Run(BaseModel):
     def _tool_free_purposes_have_no_tools(self) -> "Run":
         if self.execution_purpose in {"bot_draft", "conversation"} and self.tool_access != "none":
             raise ValueError(f"{self.execution_purpose} runs must have tool_access='none'")
+        if self.execution_purpose == "task" and self.tool_access == "none":
+            raise ValueError("tool_access='none' requires an explicit tool-free execution purpose")
         return self
 
     @field_validator("parent_run_id")

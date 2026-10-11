@@ -599,11 +599,16 @@ class BuiltinRuntime:
 
     def execute(self, run: Run, ctx: ToolContext, tools: dict[str, Tool], stop: Callable[[], bool]) -> str:
         bot = ctx.bot
+        tool_free = run.execution_purpose in {"bot_draft", "conversation"}
+        if tool_free != (run.tool_access == "none"):
+            raise RunAborted("tool_access", "tool access and execution purpose do not form a valid run policy")
         ladder = Ladder(bot)
         prices = self._prices_for(ctx)
         guard = SpendGuard(ctx.store, bot, run, prices, self._connections(ctx))
         requested = "disabled" if run.tool_access == "none" else (getattr(bot, "tool_protocol", "auto") or "auto")
-        base_system = self._system_prompt(ctx) + ctx.store.action_context(run.id)
+        base_system = self._system_prompt(ctx)
+        if run.execution_purpose != "conversation":
+            base_system += ctx.store.action_context(run.id)
         if run.execution_purpose == "bot_draft":
             base_system += DRAFT_ONLY_GUIDANCE
         elif run.execution_purpose == "conversation":

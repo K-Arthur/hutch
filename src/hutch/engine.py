@@ -46,7 +46,7 @@ from .models import (
     iso,
     utcnow,
 )
-from .persona import PERSONA_VERSION, contextualize_persona, resolve_persona
+from .persona import PERSONA_VERSION, PersonaPlan, contextualize_persona, resolve_persona
 from .runtime import RunAborted, get_runtime
 from .safety import PolicyEngine
 from .workdir import check_workdir_at_run
@@ -528,6 +528,8 @@ class Engine:
         """The credential-free permission/routing policy active when a run starts."""
         from .tools import expand_tools
 
+        if tool_access == "none" and execution_purpose == "task":
+            raise ValueError("tool-free capability snapshots require an explicit execution purpose")
         fingerprint = lambda value: hashlib.sha256((value or "").encode("utf-8")).hexdigest()
         offline = bot.inference_mode.value == "offline"
         tools = [] if tool_access == "none" else expand_tools(bot.tools)
@@ -570,9 +572,23 @@ class Engine:
         return snapshot
 
     @staticmethod
+    def _eligible_for_tool_free_conversation(run: Run, plan: PersonaPlan) -> bool:
+        """Use the one-response chat path only for clear, ungrounded, low-risk banter."""
+        interactive = (run.origin == "manual" or run.origin.startswith(("manual:", "remote:")))
+        return bool(
+            run.execution_purpose == "task" and run.tool_access == "bot"
+            and run.conversation_id and run.parent_run_id is None and interactive
+            and not run.rehearsal and not run.skill_activation
+            and plan.intent == "banter" and plan.humor_eligible and not plan.grounding_needs
+            and plan.output_contract == "freeform" and plan.audience == "operator"
+        )
+
+    @staticmethod
     def tools_for_run(run: Run, bot: Bot, ctx: ToolContext) -> dict[str, Tool]:
         """Apply run-level restrictions before constructing any action or conversation tool."""
         if run.tool_access == "none":
+            if run.execution_purpose not in {"bot_draft", "conversation"}:
+                raise ValueError("tool-free runs require an explicit execution purpose")
             if bot.runtime.value != "builtin":
                 raise ValueError("tool-free execution purposes require the built-in runtime")
             return {}
@@ -807,6 +823,9 @@ class Engine:
                                **({"conversation": conversation_revision} if run.conversation_id else {})})
                 persona_plan = contextualize_persona(persona_plan, run.prompt,
                                                      conversation_context=run.conversation_context)
+                if self._eligible_for_tool_free_conversation(run, persona_plan):
+                    run.execution_purpose = "conversation"
+                    run.tool_access = "none"
             except Exception as exc:  # noqa: BLE001 - unreadable style state must fail closed, not silently restyle
                 self._fail_persona_unavailable(run, f"the response style could not be resolved: {exc}")
                 return
