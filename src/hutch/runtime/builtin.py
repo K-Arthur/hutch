@@ -1171,7 +1171,10 @@ class BuiltinRuntime:
                                   "arguments": tc.raw if (tc.parse_error and tc.raw) else json.dumps(tc.arguments)}}
                     for tc in result.tool_calls]})
             turn_bad = loop_hit = False
-            for tc in result.tool_calls:
+            for call_index, tc in enumerate(result.tool_calls):
+                # The application, not the provider, owns each call's position in the response:
+                # it is the stable half of a delegation invocation identity.
+                ctx.tool_call_index = call_index
                 definition = plan.resolve_name(tc.name) if plan is not None else None
                 canonical_name = definition.name if definition is not None else tc.name
                 tool = tools.get(canonical_name)

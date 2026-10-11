@@ -214,6 +214,7 @@ class ToolContext:
     closed: bool = False              # the run is over: a worker that outlived it must not start another action
     receipt: Optional[Callable[[], Optional[str]]] = None   # set per call by the runtime: records the intent (see begin_effect)
     delegation_submit: Optional[Callable[[str, str, str], ToolResult]] = None  # supervised, strict-offline child admission
+    tool_call_index: Optional[int] = None   # position of this call inside the model response, set by the built-in loop
     skills: Optional[Any] = None      # skills.ResolvedSkills for this run; the engine resolves it once at start
 
     def begin_effect(self) -> Optional[str]:

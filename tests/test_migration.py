@@ -624,3 +624,99 @@ def test_a_database_from_a_newer_hutch_is_refused_not_downgraded(config):
     c.execute("PRAGMA user_version = 99"); c.commit(); c.close()
     with pytest.raises(RuntimeError, match="newer than this hutch"):
         Store(config)
+
+
+def test_v51_pending_specialist_questions_are_not_attachable_results():
+    """Schema v51 keeps a waiting question out of the accepted-result record, in the database."""
+    from hutch.store import _migrate_51_pending_question_guards
+
+    db = sqlite3.connect(":memory:")
+    try:
+        db.execute("""CREATE TABLE messages (
+            id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, seq INTEGER NOT NULL,
+            run_id TEXT NOT NULL DEFAULT '', role TEXT NOT NULL, content TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            workspace_task_result_id TEXT, workspace_task_result_message_id TEXT,
+            workspace_task_result_display_name TEXT, workspace_task_result_content TEXT,
+            workspace_task_result_truncated INTEGER NOT NULL DEFAULT 0)""")
+        db.execute("""CREATE TABLE conversation_questions (
+            id TEXT PRIMARY KEY, assistant_message_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending')""")
+        db.execute("""CREATE TABLE runs (id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, created_at TEXT NOT NULL)""")
+        _migrate_51_pending_question_guards(db)
+        assert db.execute("SELECT 1 FROM sqlite_master WHERE type = 'index' "
+                          "AND name = 'idx_runs_conversation_created'").fetchone() is not None
+        db.execute("INSERT INTO conversation_questions VALUES ('choice_1', 'msg_question', 'pending')")
+        with pytest.raises(sqlite3.IntegrityError, match="pending specialist question"):
+            db.execute("""INSERT INTO messages (id, conversation_id, seq, role, content, created_at,
+                          workspace_task_result_id, workspace_task_result_message_id)
+                          VALUES ('msg_attach', 'conv_1', 1, 'user', 'x', 'now', 'wst_1', 'msg_question')""")
+        db.execute("UPDATE conversation_questions SET status = 'answered' WHERE id = 'choice_1'")
+        db.execute("""INSERT INTO messages (id, conversation_id, seq, role, content, created_at,
+                      workspace_task_result_id, workspace_task_result_message_id)
+                      VALUES ('msg_attach', 'conv_2', 1, 'user', 'x', 'now', 'wst_1', 'msg_question')""")
+        db.execute("UPDATE conversation_questions SET status = 'pending' WHERE id = 'choice_1'")
+        with pytest.raises(sqlite3.IntegrityError, match="pending specialist question"):
+            db.execute("UPDATE messages SET workspace_task_result_id = 'wst_2' WHERE id = 'msg_attach'")
+        assert SCHEMA_VERSION >= 51
+    finally:
+        db.close()
+
+
+def test_main_v51_database_receives_cost_schema_without_losing_clarification_guards(config):
+    """The historical main v51 fingerprint lacked the cost lane's v51 tables and columns."""
+    from hutch.store import SCHEMA_VERSION
+
+    Store(config).close()
+    db = sqlite3.connect(config.db_path)
+    try:
+        for name in ("budget_pause_releases", "budget_policies", "run_compactions"):
+            db.execute(f"DROP TABLE IF EXISTS {name}")
+        for table, column in (
+            ("usage_reservations", "quote_verified_on"),
+            ("usage_reservations", "quote_source"),
+            ("usage_reservations", "cost_unknown"),
+            ("usage", "reported_cost_usd"),
+            ("usage", "cost_source"),
+        ):
+            db.execute(f"ALTER TABLE {table} DROP COLUMN {column}")
+        db.execute("DROP INDEX IF EXISTS idx_usage_run")
+        db.execute("PRAGMA user_version = 51")
+        db.commit()
+    finally:
+        db.close()
+
+    upgraded = Store(config)
+    try:
+        assert upgraded.schema_version == SCHEMA_VERSION
+        assert upgraded._db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='budget_policies'").fetchone()
+        assert upgraded._db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='run_compactions'").fetchone()
+        assert upgraded._db.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' "
+                                    "AND name='messages_pending_question_result_insert'").fetchone()
+        reservation_columns = {row[1] for row in upgraded._db.execute("PRAGMA table_info(usage_reservations)")}
+        assert {"cost_unknown", "quote_source", "quote_verified_on"} <= reservation_columns
+    finally:
+        upgraded.close()
+
+
+def test_cost_v53_database_receives_main_v51_guards(config):
+    """The historical cost v53 fingerprint lacked main's independent clarification guards."""
+    Store(config).close()
+    db = sqlite3.connect(config.db_path)
+    try:
+        db.execute("DROP TRIGGER IF EXISTS messages_pending_question_result_insert")
+        db.execute("DROP TRIGGER IF EXISTS messages_pending_question_result_update")
+        db.execute("DROP INDEX IF EXISTS idx_runs_conversation_created")
+        db.execute("PRAGMA user_version = 53")
+        db.commit()
+    finally:
+        db.close()
+
+    upgraded = Store(config)
+    try:
+        assert upgraded._db.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' "
+                                     "AND name='messages_pending_question_result_insert'").fetchone()
+        assert upgraded._db.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' "
+                                     "AND name='messages_pending_question_result_update'").fetchone()
+        assert upgraded._db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='budget_policies'").fetchone()
+    finally:
+        upgraded.close()

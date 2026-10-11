@@ -552,6 +552,27 @@ class WorkspaceTaskCheckpointResource(BaseModel):
     created_at: str
 
 
+class WorkspaceTaskQuestionOptionResource(BaseModel):
+    id: str
+    label: str
+
+
+class WorkspaceTaskQuestionResource(BaseModel):
+    """A pending conversational question from the assigned specialist.
+
+    The question is a needed input, not an accepted result; the owner answers it through the
+    specialist conversation's normal single-resolution question endpoint. ``status`` stays the
+    derived task state: ``needs_input`` while the question waits.
+    """
+    id: str
+    question: str
+    selection_mode: Literal["single", "multiple"]
+    options: list[WorkspaceTaskQuestionOptionResource] = Field(default_factory=list)
+    run_id: str
+    assistant_message_id: str
+    created_at: str
+
+
 class WorkspaceTaskSharedFactResource(BaseModel):
     fact_id: str
     source_bot_id: str
@@ -581,10 +602,12 @@ class WorkspaceTaskResource(BaseModel):
     assumptions: str
     child_conversation_id: str
     child_run_id: str
+    current_run_id: str
     continuation_of_task_id: Optional[str] = None
     continuation_checkpoint_event_id: Optional[int] = None
     status: str
     reason: str
+    pending_question: Optional[WorkspaceTaskQuestionResource] = None
     result: str
     result_truncated: bool = False
     result_message_id: Optional[str] = None

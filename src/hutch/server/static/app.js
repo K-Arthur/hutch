@@ -39,6 +39,7 @@ let activeReplySelectionHandler = null;
 let activeWorkspaceResultSelectionHandler = null;
 let activeBotCreationFromMessageHandler = null;
 let activeChoiceSubmitHandler = null;
+let activeWorkspaceQuestionSubmitHandler = null;
 const requestedHumanResumes = new Set();
 const runIntegrityStates = new Map();
 let hutchSession = null;
@@ -2797,6 +2798,42 @@ async function renderChatStudio(preferredBot = null) {
       if (form.isConnected) form.dataset.submitting = "";
     }
   };
+  // Answer a specialist's question from the coordinator task card. The answer is
+  // created in the specialist's own conversation, so the coordinator's model
+  // switcher override must never be sent: the specialist keeps its saved route.
+  activeWorkspaceQuestionSubmitHandler = async form => {
+    if (generation !== studioGeneration || composerConversationId !== currentConversationId) return;
+    if (form.dataset.submitting === "1") return;
+    const questionConversationId = form.dataset.conversationId;
+    const questionId = form.dataset.questionId;
+    const optionIds = [...form.querySelectorAll("input:checked")].map(input => input.value);
+    const error = form.querySelector("[data-choice-error]");
+    if (!optionIds.length) {
+      error.textContent = "Choose an option before sending your answer.";
+      return;
+    }
+    const body = { option_ids: optionIds, model: null };
+    form.dataset.submitting = "1";
+    form.querySelectorAll("input, button").forEach(el => { el.disabled = true; });
+    error.textContent = "";
+    try {
+      const key = await choiceAnswerIdempotencyKey(questionConversationId, questionId, body);
+      await api(`/v1/conversations/${encodeURIComponent(questionConversationId)}/questions/${encodeURIComponent(questionId)}/answer`, {
+        method: "POST", headers: { "Idempotency-Key": key }, body,
+      });
+      clearChoiceIdempotencyKey(questionConversationId, questionId, key);
+      storageRemove(choiceDraftKey(questionConversationId, questionId));
+      toast("Answer sent to the specialist.");
+      if (generation !== studioGeneration) return;
+      scheduleFeedRender();
+    } catch (err) {
+      error.textContent = err.message || "Your answer could not be sent.";
+      form.querySelectorAll("input, button").forEach(el => { el.disabled = false; });
+      if (/already answered/i.test(err.message || "")) scheduleFeedRender();
+    } finally {
+      if (form.isConnected) form.dataset.submitting = "";
+    }
+  };
   $("#reply-composer-clear").addEventListener("click", () => {
     replySelectionGeneration++;
     setReply(null);
@@ -3218,6 +3255,12 @@ async function renderChatFeed() {
     workspaceTasks = await api(`/v1/workspace/tasks?conversation_id=${encodeURIComponent(conversationId)}&limit=100`)
       .catch(() => []);
     currentWorkspaceTasks = workspaceTasks;
+    for (const task of workspaceTasks) {
+      const question = task.pending_question;
+      if (!question || seenTaskQuestions.has(question.id)) continue;
+      seenTaskQuestions.add(question.id);
+      announce(`${botDisplayName(task.target_display_name || "A specialist")} is waiting for your answer.`);
+    }
     if (!stillCurrent()) return;
     codeHandoffs = await api(`/v1/code-handoffs?conversation_id=${encodeURIComponent(conversationId)}&limit=100`)
       .catch(() => []);
@@ -3581,6 +3624,8 @@ function announceRunLifecycle(runs) {
 }
 
 const seenRunStatus = new Map();
+// A pending specialist question is announced once, when its task card first shows it.
+const seenTaskQuestions = new Set();
 
 function welcomeHtml() {
   const b = botsCache.find(x => x.name === currentStudioBot);
@@ -3773,9 +3818,37 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHan
   return html;
 }
 
+// A specialist's pending question is a needed input, not a produced result. The
+// card answers it in place through the specialist conversation's single-resolution
+// question endpoint; the task keeps the exchange in its own audit surface.
+function workspaceTaskQuestionHtml(task) {
+  const question = task.pending_question;
+  const options = Array.isArray(question.options) ? question.options : [];
+  const multi = question.selection_mode === "multiple";
+  const controls = options.map(option => `<label class="choice-option">
+      <input data-choice-option type="${multi ? "checkbox" : "radio"}" name="question-${esc(question.id)}" value="${esc(option.id)}" ${multi ? "" : "required"}>
+      <span>${esc(option.label)}</span>
+    </label>`).join("");
+  return `<section class="workspace-task-question" data-workspace-task-question="${esc(task.id)}"
+      aria-label="Question from ${esc(task.target_display_name)}">
+    <form class="choice-card" data-workspace-question-form data-conversation-id="${esc(task.child_conversation_id)}"
+          data-question-id="${esc(question.id)}">
+      <div class="choice-card-head"><span class="choice-kicker">Question from ${esc(task.target_display_name)}</span>
+        <span class="choice-state">${multi ? "Choose any that fit" : "Choose one"}</span></div>
+      <fieldset class="choice-options"><legend class="choice-question">${esc(question.question)}</legend>${controls}</fieldset>
+      <p class="hint">Your answer goes to ${esc(task.target_display_name)}’s own chat. It is a preference, not approval for an action.</p>
+      <p class="choice-error" data-choice-error role="status" aria-live="polite"></p>
+      <button class="btn primary choice-submit" type="submit">Send answer</button>
+    </form>
+  </section>`;
+}
+
 function workspaceTaskCardHtml(task) {
   const active = ACTIVE.has(task.status);
-  const statusLabel = statusInfo[task.status]?.label || task.status || "Status unavailable";
+  const needsAnswer = task.status === "needs_input" && Boolean(task.pending_question);
+  const statusLabel = needsAnswer ? "Needs your answer"
+    : (statusInfo[task.status]?.label || task.status || "Status unavailable");
+  const questionHtml = needsAnswer ? workspaceTaskQuestionHtml(task) : "";
   const coordinator = botsCache.find(bot => bot.name === currentStudioBot && bot.is_workspace_coordinator);
   const capability = [task.model, task.inference_mode, task.tools?.length ? task.tools.join(", ") : "no tools",
     `${task.risk_tier || "unknown"} action policy`, `${task.workspace_mode || "configured"} workspace`].filter(Boolean).join(" · ");
@@ -3837,7 +3910,8 @@ function workspaceTaskCardHtml(task) {
     ${task.assumptions ? `<p class="workspace-task-assumptions"><b>Reviewed constraints:</b> ${esc(task.assumptions)}</p>` : ""}
     <p class="hint">Specialist settings: ${esc(capability)}</p>
     ${sharedFactsHtml}
-    ${task.result ? `<div class="workspace-task-result"><b>Latest specialist response</b><p>${esc(task.result)}${task.result_truncated ? "… [preview truncated]" : ""}</p></div>` : ""}
+    ${questionHtml}
+    ${task.result && !needsAnswer ? `<div class="workspace-task-result"><b>Latest specialist response</b><p>${esc(task.result)}${task.result_truncated ? "… [preview truncated]" : ""}</p></div>` : ""}
     ${task.reason && task.status !== "succeeded" ? `<p class="run-notice" role="status">${esc(task.reason)}</p>` : ""}
     ${checkpointHtml}
     <details><summary>Request and coordinator draft</summary>
@@ -3850,7 +3924,7 @@ function workspaceTaskCardHtml(task) {
       ${coordinator && task.status === "succeeded" && task.result && task.result_message_id
         ? `<button class="btn ghost small" type="button" data-discuss-specialist-result="${esc(task.id)}"
             data-result-message-id="${esc(task.result_message_id)}">Discuss with ${esc(botDisplayName(coordinator))}</button>` : ""}
-      ${active ? `<button class="btn ghost small" type="button" data-stop-run="${esc(task.child_run_id)}">Stop specialist</button>` : ""}
+      ${active ? `<button class="btn ghost small" type="button" data-stop-run="${esc(task.current_run_id || task.child_run_id)}">Stop specialist</button>` : ""}
     </div>
   </section>`;
 }
@@ -4507,8 +4581,13 @@ function wireFeedInteractions() {
   });
   stream.addEventListener("submit", ev => {
     const form = ev.target.closest("[data-choice-form]");
-    if (!form) return;
+    const questionForm = form ? null : ev.target.closest("[data-workspace-question-form]");
+    if (!form && !questionForm) return;
     ev.preventDefault();
+    if (questionForm) {
+      void activeWorkspaceQuestionSubmitHandler?.(questionForm);
+      return;
+    }
     void activeChoiceSubmitHandler?.(form);
   });
   stream.addEventListener("change", ev => {
