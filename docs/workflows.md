@@ -291,8 +291,10 @@ remain in those records, so large artifacts are not duplicated into the summary.
 
 When a workflow needs a person or a child step, Hutch commits the pending question and the
 workflow's waiting status together, then parks the orchestration attempt and releases its run
-slot. The workflow remains visible as waiting, not successful. An answer or settled child lets
-the supervisor admit a fresh attempt; settled node records are reused.
+slot. A human check inside `verify` also gets a separate durable ask node and stores its answer
+there, so the verification result remains distinct from the review interaction. The workflow
+remains visible as waiting, not successful. An answer or settled child lets the supervisor admit a
+fresh attempt; settled node records are reused.
 For independent top-level questions, later questions are also committed in that pass and shown
 together in Studio and paired-phone **Needs you**. Non-ask work and questions that depend on an
 unanswered question or deferred node stay held until the pending questions are answered. Each

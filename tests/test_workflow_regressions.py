@@ -154,6 +154,8 @@ def test_command_checks_execute_once_while_a_human_check_waits(store, config):
             break
         time.sleep(0.05)
     assert question is not None
+    human_node = wstore.node(store, submission.workflow_run_id, "check-human-2", "once:h1")
+    assert human_node is not None and human_node["kind"] == "ask" and human_node["status"] == "waiting"
     # Several interpreter passes have happened while the question waited; the command ran once.
     time.sleep(1.2)
     engine.dispatch_pending()
@@ -166,6 +168,9 @@ def test_command_checks_execute_once_while_a_human_check_waits(store, config):
     assert view["workflow"]["status"] == "succeeded", view["workflow"]["reason"]
     assert len([event for event in store.tail_events(submission.attempt_run_id, limit=200)
                 if event.type.value == "tool_call"]) == 1
+    human_node = wstore.node(store, submission.workflow_run_id, "check-human-2", "once:h1")
+    assert human_node is not None and human_node["status"] == "succeeded"
+    assert human_node["result"]["answer"] == "yes"
 
 
 def test_a_repair_round_is_charged_once_and_can_complete(store, config):

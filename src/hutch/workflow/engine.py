@@ -27,7 +27,7 @@ import contextlib
 import hashlib
 import json
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Optional
 
 from ..models import Event, EventType, Run, Task, iso, utcnow
@@ -723,19 +723,43 @@ class Interpreter:
 
     def _check_human(self, cnode: CompiledNode, check: Any, instance: str, index: int) -> dict[str, Any]:
         key = f"{instance}:h{index}"
-        question = self.questions.get((cnode.site_id, key))
+        human_site = f"{cnode.site_id}-human-{index + 1}"
+        human_node = replace(cnode, site_id=human_site)
+        prompt = f"{check.prompt} (answer yes or no)"
+        identity = {"question": prompt, "options": ["yes", "no"]}
+        record = self.nodes.get((human_site, key))
+        if record is None:
+            # A human verification is a durable ask too. Give it its own instance so
+            # create_question can atomically persist the question and waiting node.
+            self._start_node(human_node, key, "ask", identity)
+        elif record.get("input_hash") != _hash(identity):
+            raise WorkflowFailed(cnode.site_id, "the persisted human check inputs changed during continuation")
+
+        question = self.questions.get((human_site, key))
         if question is None:
             expires = _expiry(check.timeout_seconds)
-            prompt = f"{check.prompt} (answer yes or no)"
-            self._persist_question(cnode.site_id, key, prompt, ["yes", "no"], expires)
-            self._emit(EventType.human_needed, {"node": cnode.site_id, "kind": "human_check",
+            self._persist_question(human_site, key, prompt, ["yes", "no"], expires)
+            self._emit(EventType.human_needed, {"node": human_site, "verify_node": cnode.site_id,
+                                                "kind": "human_check",
                                                 "question": prompt, "expires_at": expires})
             raise _Wait()
         if question["status"] == "pending":
+            if record is None or record.get("status") != "waiting":
+                self._persist_question(human_site, key, prompt, ["yes", "no"],
+                                       str(question["expires_at"]))
             raise _Wait()
-        if question["status"] != "answered":
-            return {"kind": "human", "ok": False,
-                    "detail": f"the review {question['status']} before it was answered"}
+
+        if question["status"] == "answered":
+            result = {"answer": question["answer"], "question_id": question["id"]}
+            if record is None or record.get("status") not in ("succeeded", "failed", "cancelled", "skipped"):
+                self._settle(human_node, key, "succeeded", result, "")
+        else:
+            reason = f"the review {question['status']} before it was answered"
+            terminal = "cancelled" if question["status"] == "cancelled" else "failed"
+            if record is None or record.get("status") not in ("succeeded", "failed", "cancelled", "skipped"):
+                self._settle(human_node, key, terminal, {}, reason)
+            return {"kind": "human", "ok": False, "detail": reason}
+
         answer = str(question["answer"]).strip().lower()
         ok = answer in ("yes", "y", "true", "approve", "approved", "ok", "pass")
         return {"kind": "human", "ok": ok, "detail": f"a person answered {answer[:60]!r}"}
