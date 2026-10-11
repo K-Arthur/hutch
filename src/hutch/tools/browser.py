@@ -177,7 +177,9 @@ _SENSITIVE_FIELD_JS = r"""els => els.some(el => {
 _CLICK_SNAPSHOT_JS = r"""async function() {
   const source = this && this.nodeType === 1 ? this : this && this.parentElement;
   if (!source) return {error: 'browser target could not be resolved'};
-  const control = source.closest('button, input[type=submit], input[type=image], input[type=button], a') || source;
+  const shadowHost = source.getRootNode && source.getRootNode().host;
+  const control = shadowHost && shadowHost.matches('input[type=file]') ? shadowHost :
+    source.closest('button, input[type=submit], input[type=image], input[type=button], a') || source;
   const form = control.form || control.closest('form');
   const tag = String(control.tagName || '').toLowerCase();
   const type = String(control.type || control.getAttribute('type') || '').toLowerCase();
@@ -191,7 +193,9 @@ _CLICK_SNAPSHOT_JS = r"""async function() {
     const fieldType = String(field.type || '').toLowerCase();
     return field.matches('input,textarea,select') && 'value' in field &&
       !['submit','reset','button','image'].includes(fieldType);
-  }).slice(0, 129).map(field => {
+  }).slice(0, 129) : [];
+  if (fields.length > 128) return {error: "form fields exceed the safe review limit"};
+  const described = await Promise.all(fields.map(async field => {
     const fieldType = String(field.type || '').toLowerCase();
     const label = field.labels ? Array.from(field.labels).map(item => item.innerText || '').join(' ') : '';
     const metadata = [fieldType, field.name, field.id, field.getAttribute('autocomplete'), field.getAttribute('placeholder'),
@@ -199,27 +203,38 @@ _CLICK_SNAPSHOT_JS = r"""async function() {
     const name = String(field.name || field.id || '').slice(0, 120);
     const displayLabel = String(label || field.getAttribute('aria-label') || field.getAttribute('placeholder') || name || fieldType)
       .replace(/\s+/g, ' ').trim().slice(0, 120);
-    if (fieldType === 'file') return {name, label: displayLabel, type: fieldType, visible: visible(field), selected: Boolean(field.files && field.files.length)};
+    if (fieldType === 'file') {
+      const files = Array.from(field.files || []);
+      if (files.length > 1 || files.some(file => file.size > 4000000)) throw new Error('file selection exceeds transfer limit');
+      const selected = await Promise.all(files.map(async file => {
+        if (!crypto.subtle) throw new Error('secure file review unavailable');
+        const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+        return {name: file.name, bytes: file.size, sha256: Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2,'0')).join('')};
+      }));
+      return {name, label: displayLabel, type: fieldType, visible: visible(field), selected: files.length > 0, files: selected};
+    }
     const value = field.matches('select[multiple]')
       ? Array.from(field.selectedOptions).map(option => option.value)
       : String(field.value || '');
     return {name, label: displayLabel, type: fieldType, visible: visible(field), sensitive: sensitive.test(metadata), value,
       checked: ['checkbox','radio'].includes(fieldType) ? Boolean(field.checked) : undefined};
-  }) : [];
+  }));
   const label = control.getAttribute('aria-label') || control.innerText || control.value || control.title || '';
   const target = {
     tag, type,
     label: String(label).replace(/\s+/g, ' ').trim().slice(0, 200),
     destination: control.href ? (() => { const url = new URL(control.href, location.href); return url.origin + url.pathname; })() : '',
-    form: form ? {action: control.formAction || form.action || location.href,
-      method: String(control.formMethod || form.method || 'get').toLowerCase(), enctype: control.formEnctype || form.enctype,
-      target: control.formTarget || form.target, noValidate: Boolean(control.formNoValidate || form.noValidate),
+    form: form ? {action: control.hasAttribute('formaction') ? control.formAction : form.action || location.href,
+      method: String(control.hasAttribute('formmethod') ? control.formMethod : form.method || 'get').toLowerCase(),
+      enctype: control.hasAttribute('formenctype') ? control.formEnctype : form.enctype,
+      target: control.hasAttribute('formtarget') ? control.formTarget : form.target,
+      noValidate: Boolean(control.formNoValidate || form.noValidate),
       submitter: {name: String(control.name || ''), value: String(control.value || ''),
-        noValidate: Boolean(control.formNoValidate)}, fields} : null
+        noValidate: Boolean(control.formNoValidate)}, fields: described} : null
   };
-  if (fields.length > 128 || fields.some(field => field.type !== 'file' && JSON.stringify(field.value || '').length > 16384))
+  if (fields.length > 128 || described.some(field => field.type !== 'file' && JSON.stringify(field.value || '').length > 16384))
     return {error: 'form fields exceed the safe review limit; action was not performed'};
-  const raw = JSON.stringify({target, fields});
+  const raw = JSON.stringify({target, fields: described});
   if (raw.length > 65536) return {error: 'form fields exceed the safe review limit; action was not performed'};
   let fingerprint = '';
   if (window.crypto && window.crypto.subtle) {
@@ -228,11 +243,11 @@ _CLICK_SNAPSHOT_JS = r"""async function() {
   } else if (form) {
     return {error: 'secure browser form review is unavailable on this page'};
   }
-  const safeFields = fields.filter(field => field.visible).map(field => ({label: field.label, type: field.type,
+  const safeFields = described.filter(field => field.visible || field.type === 'file').map(field => ({label: field.label, type: field.type,
     ...(field.sensitive ? {sensitive: true, present: String(field.value || '').length > 0} : {}),
-    ...(field.type === 'file' ? {selected: field.selected} : {})}));
-  return {target: {tag, type, label: target.label, destination: target.destination,
-    form: form ? {destination: new URL(target.form.action, location.href).origin,
+    ...(field.type === 'file' ? {selected: field.selected, files: field.files} : {})}));
+  return {context_url: location.href, target: {tag, type, label: target.label, destination: target.destination,
+    form: form ? {destination: new URL(target.form.action, location.href).origin + new URL(target.form.action, location.href).pathname,
       method: target.form.method, fields: safeFields} : null}, fingerprint};
 }"""
 _VISIBLE_SENSITIVE_FIELD_JS = r"""() => {
@@ -305,7 +320,9 @@ _ACTIONS = {
     "read": "Read the page's visible text.",
     "click": "Click an element by CSS selector or its accessible/text name.",
     "type": "Type text into a form field identified by CSS selector.",
-    "screenshot": "Save a screenshot of the current page into the workspace.",
+    "screenshot": "Capture the current page as a bounded private frame (alias of observe).",
+    "upload": "Select one reviewed UTF-8 workspace file (at most 4 MB) in a visible file input. May transmit immediately.",
+    "download": "Click a reviewed same-origin direct HTTP text download into a new workspace path (at most 4 MB).",
     "wait": "Wait for a CSS selector (or seconds) to appear.",
     "tabs": "List open tabs and which is active; pass tab=<id> on any action to act on another tab.",
     "observe": ("Capture the active tab as a bounded image frame plus an observation record: frame id, viewport, "
@@ -367,7 +384,9 @@ class BrowserTool(Tool):
         {
             "action": {"type": "string", "enum": list(_ACTIONS)},
             "url": {"type": "string", "description": "for goto"},
-            "selector": {"type": "string", "description": "CSS selector for click/type/wait"},
+            "selector": {"type": "string", "description": "CSS selector for click/type/wait/upload/download"},
+            "frame": {"type": "string", "description": "optional unique CSS selector of an owned iframe; actions stay in that frame"},
+            "path": {"type": "string", "description": "workspace-relative UTF-8 file for upload/download (.txt/.md/.csv/.json)"},
             "text": {"type": "string", "description": "text to type, for type"},
             "label": {"type": "string", "description": "accessible/text name for click"},
             "seconds": {"type": "number", "description": "for wait without selector"},
@@ -400,6 +419,9 @@ class BrowserTool(Tool):
         self._owner_thread: Optional[int] = None    # sync Playwright objects must stay on the thread that launched them
         self._lease: Optional[ControlLease] = None
         self._last_observation: dict[str, Any] = {}    # what coordinates are valid against (see click_at)
+        self._upload_grants: dict[tuple, float] = {}
+        self._transfer_bytes = 0
+        self._transfer_count = 0
 
     # ------------------------------------------------------- emergency stop
 
@@ -607,7 +629,7 @@ class BrowserTool(Tool):
             from playwright.sync_api import sync_playwright
         except ImportError:
             raise BrowserUnavailable()
-        profile_dir = ctx.config.bot_profiles_dir(ctx.bot.name)
+        profile_dir = ctx.config.browser_profile_dir(ctx.bot.id)
         profile_dir.mkdir(parents=True, exist_ok=True)
         self._acquire_leases(ctx, profile_dir)
         try:
@@ -632,7 +654,7 @@ class BrowserTool(Tool):
             self._browser = self._pw.chromium.launch_persistent_context(
                 user_data_dir=str(profile_dir),
                 headless=ctx.headless,
-                accept_downloads=True,
+                accept_downloads=False,  # managed bounded transfers only; no unreviewed Chromium download spool
                 # Chromium implicitly bypasses proxies for localhost/link-local destinations. Remove that exception so
                 # the proxy remains the network boundary even if the early Playwright route policy changes.
                 proxy={"server": self._proxy.url, "bypass": "<-loopback>"},
@@ -756,19 +778,19 @@ class BrowserTool(Tool):
 
     def effect(self, args: dict[str, Any], ctx: ToolContext) -> str:
         action = (args.get("action") or "").strip()
-        return {"click": "web", "click_at": "web", "type": "web", "screenshot": "fs"}.get(action, "")
+        return {"click": "web", "click_at": "web", "type": "web", "upload": "web", "download": "fs"}.get(action, "")
 
     def recorded_arguments(self, args: dict[str, Any], ctx: ToolContext) -> dict[str, Any]:
         """Persist a reviewable call without persisting typed values or URL credentials."""
         action = (args.get("action") or "").strip()
         if action == "type":
-            recorded = {"action": "type", "selector": args.get("selector", ""),
+            recorded = {"action": "type", "selector": args.get("selector", ""), "frame": args.get("frame", ""), "tab": args.get("tab", ""),
                         "text": "[redacted]", "text_redacted": True}
             # Different form entries must not collapse onto one action key;
             # the opaque reference contains no recoverable input data.
             recorded["value_ref"] = secrets.token_hex(12)
             return recorded
-        recorded = {key: args[key] for key in ("action", "url", "selector", "label", "seconds", "tab", "frame_id", "x", "y")
+        recorded = {key: args[key] for key in ("action", "url", "selector", "label", "seconds", "tab", "frame", "path", "frame_id", "x", "y")
                     if key in args}
         if action == "goto" and isinstance(recorded.get("url"), str):
             recorded["url"] = _redact_sensitive_url(recorded["url"])
@@ -1026,7 +1048,8 @@ class BrowserTool(Tool):
     @staticmethod
     def _page_has_sensitive_fields(page) -> bool:
         try:
-            return page.evaluate(_VISIBLE_SENSITIVE_FIELD_JS) is not False
+            frames = getattr(page, "frames", None)
+            return any(frame.evaluate(_VISIBLE_SENSITIVE_FIELD_JS) is not False for frame in frames) if frames else page.evaluate(_VISIBLE_SENSITIVE_FIELD_JS) is not False
         except Exception:
             # Do not capture a page if this browser implementation cannot
             # establish that visible credential fields are absent.
@@ -1118,6 +1141,12 @@ class BrowserTool(Tool):
         # can enter an approval record. Ordinary targets contain no field
         # values, so their safe description can be fingerprinted here too.
         binding = fingerprint or json.dumps(target_snapshot, sort_keys=True, separators=(",", ":"))
+        cookies = page.context.cookies([snapshot.get("context_url") or page.url])
+        cookie_state = json.dumps(cookies, sort_keys=True, separators=(",", ":"))
+        if len(cookies) > 128 or len(cookie_state) > 65536:
+            raise BrowserUnavailable("account state exceeds the safe review limit; action was not performed")
+        # The keyed binding contains account state; no cookie or usable digest enters review/log/model data.
+        binding += cookie_state
         binding = f"{frame_id}:{node['backendNodeId']}:" + binding
         keyed = hmac.new(_APPROVAL_FINGERPRINT_KEY, binding.encode("utf-8"), hashlib.sha256).hexdigest()
         return {"target_kind": target_kind, "target": target, "target_fingerprint": keyed}, keyed
@@ -1224,13 +1253,136 @@ class BrowserTool(Tool):
             result.output += " The wait completed and a sensitive field appeared; inspect the page before continuing."
         return result
 
+    def _file_key(self, target: dict, file: dict) -> tuple:
+        generation = self._lease.snapshot().generation if self._lease else 0
+        return (self._active_tab, generation, target.get("destination"),
+                file.get("name"), file.get("sha256"), file.get("bytes"))
+
+    def _reviewed_files(self, target: dict) -> bool:
+        for field in target.get("fields", []):
+            if field.get("type") == "file" and field.get("selected"):
+                files = field.get("files", [])
+                if not files or any(self._upload_grants.get(self._file_key(target, file), 0) < time.monotonic()
+                                    for file in files):
+                    return False
+        return True
+
+    def _transfer(self, action: str, page, scope, args: dict, ctx) -> ToolResult:
+        from .browser_files import (MAX_FILE_BYTES, MAX_TRANSFER_BYTES, MAX_TRANSFERS,
+                                    read_upload, text_file)
+        from .filewrite import destination, replace_reviewed, revision
+        from ..runtime.steps import snapshot_workspace_file
+
+        path = str(args.get("path") or "")
+        try:
+            if not path:
+                raise ValueError("a browser transfer requires a workspace path")
+            if self._transfer_count >= MAX_TRANSFERS or self._transfer_bytes + MAX_FILE_BYTES > MAX_TRANSFER_BYTES:
+                raise ValueError("browser transfers exhausted this run's 8 file / 16 MB budget")
+            checkpoint = self._await_human_challenge(page, ctx)
+            if checkpoint:
+                return checkpoint
+            locator, refusal = self._resolve_target(scope, selector=str(args.get("selector") or ""))
+            if refusal:
+                return refusal
+            reviewed, fingerprint = self._click_review_snapshot(page, locator)
+            url, frame_url = page.url, scope.url
+            detail = {"action": action, "selector": args.get("selector"), "frame": args.get("frame", ""),
+                      "url": _redact_sensitive_url(url), "profile_bot_id": ctx.bot.id,
+                      "target": reviewed["target"], "target_fingerprint": fingerprint}
+            if action == "upload":
+                if reviewed["target"].get("tag") != "input" or reviewed["target"].get("type") != "file":
+                    raise ValueError("upload needs one visible file input; a native host file chooser is unsupported")
+                data, source = read_upload(ctx, path)
+                detail.update(file=source, consequence="the page may transmit this file immediately after selection")
+            else:
+                decision = ctx.policy.check_path(path, ctx.workspace, write=True)
+                if decision.verdict.value == "deny":
+                    raise ValueError(decision.reason)
+                workspace, parts = destination(path, ctx.workspace)
+                expected = revision(workspace, parts)
+                if expected.get("exists"):
+                    raise ValueError("download requires a new workspace file; overwriting an existing file is unsupported")
+                text_file(path, b"")
+                href = locator.evaluate("el => el.tagName === 'A' && (!el.target || el.target === '_self') ? el.href : ''")
+                if not href or urlsplit(href).scheme != "http" or display_url_origin(href) != display_url_origin(frame_url) or display_url_origin(href) != display_url_origin(url):
+                    raise ValueError("download needs a same-origin direct HTTP link; HTTPS, popups, redirects and blobs are unsupported")
+                detail.update(path="/".join(parts), source=_redact_sensitive_url(href), max_bytes=MAX_FILE_BYTES,
+                              source_fingerprint=hmac.new(_APPROVAL_FINGERPRINT_KEY, href.encode(), hashlib.sha256).hexdigest(),
+                              consequence="one UI-initiated GET, bounded text artifact and new workspace file")
+            _decide(ctx, "browser", f"{action} {path}", detail, outward=True, ask_in_auto=True)
+            if page.url != url or scope.url != frame_url:
+                raise ValueError("browser navigated after transfer review; request a new approval")
+            _, current = self._click_review_snapshot(page, locator)
+            if not hmac.compare_digest(fingerprint, current):
+                raise ValueError("browser transfer target changed after review; request a new approval")
+
+            def check():
+                probe = _cancelled_probe(ctx)
+                if probe and probe():
+                    raise ValueError("run was stopped during transfer; inspect before retrying")
+                refused = self._fence()
+                if refused:
+                    raise ValueError(refused.output)
+
+            check()
+            if action == "upload":
+                fresh, source_now = read_upload(ctx, path)
+                if source_now != source or fresh != data:
+                    raise ValueError("upload source changed after review; request a new approval")
+                if refusal := ctx.begin_effect():
+                    raise ValueError(refusal)
+                check()
+                # Freeze bytes, rather than let Playwright reopen a mutable host path after approval.
+                locator.set_input_files({"name": source["name"], "mimeType": source["mime_type"], "buffer": data}, timeout=5000)
+                self._transfer_count += 1
+                self._transfer_bytes += len(data)
+                self._stale("a reviewed file was selected")
+                selected, _ = self._click_review_snapshot(page, locator)
+                files = [file for field in selected["target"].get("fields", []) for file in field.get("files", [])]
+                proof = {key: source[key] for key in ("name", "sha256", "bytes")}
+                if proof not in files:
+                    return ToolResult(False, "error: file selection was dispatched but cannot be verified; inspect before retrying",
+                                      {"outcome": "unknown"})
+                self._upload_grants[self._file_key(selected["target"], proof)] = time.monotonic() + 120
+                self._upload_grants = {key: expires for key, expires in self._upload_grants.items() if expires > time.monotonic()}
+                return ToolResult(True, f"selected reviewed {source['name']} ({source['bytes']} bytes); service receipt still required",
+                                  {"outcome": "effect_verified", "verification": "selected file bytes only",
+                                   "transfer": {**proof, "path": source["path"], "destination": selected["target"].get("destination"),
+                                                "profile_bot_id": ctx.bot.id}})
+
+            if refusal := ctx.begin_effect():
+                raise ValueError(refusal)
+            with self._proxy.managed_download(href, frame_url, path, check) as captured:
+                locator.click(timeout=10_000)
+                deadline = time.monotonic() + 10
+                while not captured.done.is_set() and time.monotonic() < deadline:
+                    check()
+                    page.wait_for_timeout(50)
+                data, problem = captured.data, captured.error
+            self._stale("a managed download was requested")
+            if problem or data is None:
+                raise ValueError(problem or "the UI did not issue a supported download; inspect before retrying")
+            check()
+            text, _ = text_file(path, data)
+            ref = snapshot_workspace_file(ctx, path, text)
+            replace_reviewed(workspace, parts, text, expected, lambda: (check() or None))
+            self._transfer_count += 1
+            self._transfer_bytes += len(data)
+            return ToolResult(True, f"download verified: {ref['name']} ({ref['bytes']} bytes, SHA-256 {ref['sha256']})",
+                              {"outcome": "effect_verified", "workspace_file": ref,
+                               "transfer": {"source": _redact_sensitive_url(href), "profile_bot_id": ctx.bot.id,
+                                            "modality": "ui_initiated_managed_download"}})
+        except (ValueError, OSError, UnicodeError) as exc:
+            return ToolResult(False, f"error: {exc}", {"outcome": "not_verified"})
+
     def run(self, args: dict[str, Any], ctx: ToolContext) -> ToolResult:
         args = dict(args)  # a human wait must not resume from a mutable caller argument object
         action = (args.get("action") or "").strip()
         if action not in _ACTIONS:
             return ToolResult(ok=False, output=f"error: unknown action '{action}'")
 
-        if ctx.dry_run and action in ("click", "type", "screenshot"):
+        if ctx.dry_run and action in ("click", "type", "upload", "download", "click_at"):
             # a click or keystroke can submit a form, send a message or buy something; a screenshot writes a file
             return rehearsed(f"browser {action} {args.get('selector') or args.get('label') or ''}".strip())
         # Policy gates per action class
@@ -1274,6 +1426,19 @@ class BrowserTool(Tool):
         page, refusal = self._current_page(browser, str(args.get("tab") or "").strip())
         if refusal is not None:
             return refusal
+        scope = page
+        if args.get("frame"):
+            if action not in {"read", "click", "type", "wait", "upload", "download"}:
+                return ToolResult(False, "error: frame scope is supported for read/click/type/wait/upload/download only")
+            iframe, refused = self._resolve_target(page, selector=str(args["frame"]))
+            if refused:
+                return refused
+            handle = iframe.element_handle(timeout=2000)
+            scope = handle.content_frame() if handle else None
+            if scope is None:
+                return ToolResult(False, "error: the selected iframe is unavailable; nothing was done")
+        if action in {"upload", "download"}:
+            return self._transfer(action, page, scope, args, ctx)
         if action == "tabs":
             with self._tab_lock:
                 lines = [f"{'*' if tab_id == self._active_tab else ' '} {tab_id} "
@@ -1347,7 +1512,7 @@ class BrowserTool(Tool):
             from .base import MAX_TOOL_OUTPUT, truncation_meta
             # Bound in the page context so Playwright does not ship an unbounded DOM string.
             limit = MAX_TOOL_OUTPUT
-            text = page.evaluate(
+            text = scope.evaluate(
                 """(limit) => {
                     const raw = document.body ? (document.body.innerText || '') : '';
                     return raw.length > limit ? raw.slice(0, limit + 1) : raw;
@@ -1363,18 +1528,16 @@ class BrowserTool(Tool):
 
         if action == "click":
             target = args.get("selector") or args.get("label") or ""
-            locator, refusal = self._resolve_target(page, selector=args.get("selector", ""), label=args.get("label", ""))
+            locator, refusal = self._resolve_target(scope, selector=args.get("selector", ""), label=args.get("label", ""))
             if refusal is not None:
                 return refusal
             try:
                 reviewed_target, reviewed_fingerprint = self._click_review_snapshot(page, locator)
             except BrowserUnavailable as exc:
                 return ToolResult(ok=False, output=f"error: {exc}")
-            if reviewed_target["target_kind"] == "form_submit" and any(
-                field.get("type") == "file" and field.get("selected") for field in reviewed_target["target"].get("fields", [])
-            ):
+            if reviewed_target["target_kind"] == "form_submit" and not self._reviewed_files(reviewed_target["target"]):
                 return ToolResult(ok=False, output=("error: Hutch cannot submit an attached file because its contents "
-                                                     "are not available for this approval review"))
+                                                     "are not available for this approval review; use the reviewed upload action first"))
             url = page.url
             target_detail = reviewed_target["target"]
             if reviewed_target["target_kind"] == "form_submit":
@@ -1383,7 +1546,7 @@ class BrowserTool(Tool):
             else:
                 action_text = f"click {target or '(current focus)'}"
             _decide(ctx, "browser", action_text, {
-                "action": action, "selector": args.get("selector", ""), "label": args.get("label", ""),
+                "action": action, "selector": args.get("selector", ""), "label": args.get("label", ""), "frame": args.get("frame", ""),
                 "url": _redact_sensitive_url(url), "profile_bot_id": ctx.bot.id,
                 "target_kind": reviewed_target["target_kind"], "target": target_detail,
                 "target_fingerprint": reviewed_fingerprint}, outward=True)
@@ -1395,6 +1558,8 @@ class BrowserTool(Tool):
                 return ToolResult(ok=False, output=f"error: {exc}")
             if not hmac.compare_digest(reviewed_fingerprint, current_fingerprint):
                 return ToolResult(ok=False, output="error: browser target or form changed after review; request a new approval")
+            if reviewed_target["target_kind"] == "form_submit" and not self._reviewed_files(target_detail):
+                return ToolResult(False, "error: the reviewed file selection expired; request a new upload approval")
             if (refusal := ctx.begin_effect()):
                 return ToolResult(ok=False, output=f"error: {refusal}")
             refused = self._fence()
@@ -1419,9 +1584,9 @@ class BrowserTool(Tool):
 
         if action == "type":
             selector, text = args.get("selector", ""), args.get("text", "")
-            if self._is_sensitive_target(page, selector):
+            if self._is_sensitive_target(scope, selector):
                 return self._sensitive_entry_result(page, ctx)
-            locator, refusal = self._resolve_target(page, selector=selector, label="")
+            locator, refusal = self._resolve_target(scope, selector=selector, label="")
             if refusal is not None:
                 return refusal
             checkpoint = self._await_human_challenge(page, ctx)
@@ -1433,7 +1598,7 @@ class BrowserTool(Tool):
             except BrowserUnavailable as exc:
                 return ToolResult(False, f"error: {exc}")
             _decide(ctx, "browser", f"type into {selector}", {
-                "action": action, "selector": selector, "text": "[redacted]", "text_chars": len(text),
+                "action": action, "selector": selector, "frame": args.get("frame", ""), "text": "[redacted]", "text_chars": len(text),
                 "value_fingerprint": hmac.new(_APPROVAL_FINGERPRINT_KEY, text.encode("utf-8"), hashlib.sha256).hexdigest(),
                 "url": _redact_sensitive_url(url),
                 "profile_bot_id": ctx.bot.id, "target": reviewed["target"],
@@ -1453,7 +1618,7 @@ class BrowserTool(Tool):
             if refused is not None:
                 return refused
             had_sensitive_fields = self._page_has_sensitive_fields(page)
-            page.fill(selector, text, timeout=10_000)
+            scope.fill(selector, text, timeout=10_000)
             self._stale("text was entered")
             checkpoint = self._await_human_challenge(page, ctx, completed_action="text entry")
             if checkpoint:
@@ -1464,7 +1629,7 @@ class BrowserTool(Tool):
                 return sensitive
             outcome, detail = "dispatched", ""
             try:
-                held = page.input_value(selector, timeout=2_000)
+                held = scope.input_value(selector, timeout=2_000)
                 if held == text:
                     outcome = "effect_verified"
                 else:
@@ -1477,28 +1642,13 @@ class BrowserTool(Tool):
                               data={"outcome": outcome})
 
         if action == "screenshot":
-            if self._page_has_sensitive_fields(page):
-                return ToolResult(ok=False, output=("error: Hutch did not save a screenshot because a visible password, "
-                                                    "payment credential, or verification field is on this page"),
-                                  data={"screenshot_blocked_sensitive_fields": True})
-            if (refusal := ctx.begin_effect()):
-                return ToolResult(ok=False, output=f"error: {refusal}")
-            path = ctx.workspace / f"screenshot-{int(time.time())}.png"
-            png = page.screenshot(path=str(path))
-            data: dict[str, Any] = {}
-            note = ""
-            ref, problem = self._store_frame(ctx, png)
-            if ref is not None:
-                data["images"] = [ref.internal()]
-                note = f"; frame {ref.frame_id} ({ref.width}x{ref.height}) is available to the model if it accepts images"
-            elif problem:
-                note = f"; no model frame was kept ({problem})"
-            return ToolResult(ok=True, output=f"saved {path.name}{note}", data=data)
+            # Keep the historic action name without its unbounded, second-resolution workspace files.
+            return self._observe(page, ctx)
 
         if action == "wait":
             if args.get("selector"):
                 had_sensitive_fields = self._page_has_sensitive_fields(page)
-                page.wait_for_selector(args["selector"], timeout=15_000)
+                scope.wait_for_selector(args["selector"], timeout=15_000)
                 checkpoint = self._await_human_challenge(page, ctx)
                 if checkpoint:
                     return checkpoint

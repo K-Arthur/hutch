@@ -100,6 +100,37 @@ unlabelled targets. Zero or several matching elements are **refused** with a bou
 The desktop tool additionally reports whether the screen visibly changed. A driver return is never reported as an effect;
 the native scenario verifies the saved file on disk.
 
+## Profiles, iframe scope and governed files
+
+Profiles live at `browser-profiles/<immutable bot id>/browser-profile`, with one writer. Renaming an assistant preserves
+persistent cookies; deleting it and reusing its name gives a different profile. Session-cookie retention follows the site's
+cookie policy. Old `bots/<name>/browser-profile` directories stay untouched and are never silently imported: stop old runs,
+back up the old directory separately, and sign in again using human control. Do not copy a profile to a different bot ID.
+
+Pass `frame="#editor"` with a unique iframe selector for `read`, `type`, `click`, `wait`, `upload` or `download`. A removed
+frame, replacement element, changed form or changed URL-scoped cookie state invalidates review. Cookie bindings are keyed
+and ephemeral; cookies never reach an approval, log or planner. Browser observation refuses conventional sensitive fields
+in child frames too. This cannot establish an identity held solely in a site's custom storage or interpret arbitrary scripts.
+
+`browser upload` requires one visible file input and a regular UTF-8 workspace file (`.txt`, `.md`, `.csv`, `.json`). Review
+shows the file name, path, size, SHA-256, bounded preview and page/form destination; selection may transmit bytes immediately.
+Hutch rechecks the source revision, target and account binding after review, then selects frozen bytes. Symlinks, hard links,
+known credential paths, binary content and files over 4 MB are refused. A later form submit separately reviews the exact
+selected file digest and destination; its upload grant expires after 120 seconds or a control-generation change. File
+selection verifies bytes in the input; the task still needs the app's service receipt.
+
+`browser download` clicks a reviewed same-origin direct **HTTP** link into a new workspace text file. The pinned proxy
+captures that actual GET once, requires HTTP 200, one Content-Length, identity encoding and a supported MIME type, bounds
+headers to 32 KiB and body to 4 MB, and checks its eight-second deadline and authority during reads. A partial, oversized,
+redirected, chunked, compressed, HTTPS or blob download is refused without retry or partial workspace output. HTTPS browsing
+still works; its encrypted response cannot use this plaintext transfer boundary. Ordinary Chrome downloads are disabled.
+Successful bytes become a private immutable SHA-256 artifact and a new workspace file; existing files are never overwritten.
+The transfer budget is eight files / 16 MB per run, in addition to the shared 16 MB artifact cap.
+
+The historic `screenshot` action now uses the same bounded frame store as `observe`, removing unbounded timestamp files in
+the workspace. Human controls cannot invoke host uploads, clipboard or file transfer. A native dialog only sees its session's
+explicitly granted workspace and disposable home; other user files and host network are absent.
+
 ## Stop, takeover and recovery
 
 | Path | What happens | Measured here |
@@ -173,8 +204,8 @@ Add `computer` to the Bot's tools to enable the tool; nothing is on by default.
 
 Frames are private run artifacts (see above) and are removed with the run directory. Screens may show anything the allowed
 applications display. Typed text is redacted from events, receipts and approvals (a typed sentinel secret was verified absent
-from recorded events). Hutch does not read the clipboard, does not transfer files, and does not import your everyday browser
-profile. Redaction is best-effort, not a guarantee; sensitive sessions should not use a hosted model route.
+from recorded events). Hutch does not read the clipboard or import your everyday browser profile. Browser file transfers require the separate
+reviewed actions below; screen viewing or human step input grants no host file picker. Redaction is best-effort, not a guarantee; sensitive sessions should not use a hosted model route.
 
 ## Troubleshooting
 
@@ -221,6 +252,6 @@ No model in the loop (so these are driver costs, not task times).
 ## Tests
 
 `tests/test_computer_*.py`, `tests/test_netguard_local_origins.py` (deterministic); `tests/e2e/test_computer_browser_real.py`,
-`test_computer_isolation.py`, `test_computer_panel.py` (real Chromium/server); `tests/e2e/test_computer_native.py` and
+`test_computer_isolation.py`, `test_computer_transfers.py`, `test_computer_panel.py` (real Chromium/server); `tests/e2e/test_computer_native.py` and
 `test_computer_handoff_native.py` (real disposable KWin session; skipped when the prerequisites are absent). Fakes inject faults; they are not evidence that real
 capture or input works.

@@ -243,12 +243,12 @@ See [ADR-0015](adr/0015-held-database-restoration.md) and [Operations](operation
 
 Each production run has an owned worker process and a supervisor watcher. The worker holds a cancel `Event` and a reference to
 the run's approval gate so `stop` unblocks an approval wait immediately. In-process thread execution is only an explicit
-compatibility/test mode. The browser owns a distinct persistent profile per bot. A cross-process OS file lease prevents two workers
+compatibility/test mode. The browser owns a distinct persistent profile per immutable bot ID, so rename and name reuse cannot select another account. Legacy name profiles are retained but not automatically imported. A cross-process OS file lease prevents two workers
 from opening the same profile; an opted-in local handoff also reserves Hutch's visible-browser lease until that session closes.
 Agent typing into conventional sensitive fields is intercepted before input or durable action creation; browser type values are
 redacted from event/receipt records. Native HTML form submissions show a bounded destination/method/field-label review and bind
 the approval to a page-side digest of current form state, including secret values that never leave the page. A changed form refuses
-to submit; selected file uploads and forms without secure digest support fail closed. A visible sensitive field blocks screenshots.
+to submit; selected files need the separate reviewed upload grant and exact byte/destination match. Unsupported forms fail closed. Cookie-state changes invalidate review without exposing cookies. A visible sensitive field in any child frame blocks screenshots. Managed HTTP text downloads are bounded at the pinned proxy before Chromium or disk; ordinary downloads are disabled. See [computer-use](computer-use.md#profiles-iframe-scope-and-governed-files).
 Human password/CAPTCHA/MFA steps pause in the same live profile; Resume checks the page without reloading it. Field detection is heuristic, the Linux desktop handoff is
   experimental; controlled login and real native input are verified in disposable sessions, with no live third-party challenge claim. Paired-phone supervision now supports status/transcript
   viewing, approval review, Stop/Resume, and locally enabled starts through passkeys and an explicit route capability inventory; live

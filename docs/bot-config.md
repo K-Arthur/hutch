@@ -337,3 +337,8 @@ Available from `hutch bot templates` (`src/hutch/templates.py`); `hutch init` cr
 - **research-briefing** — weekly web research → `report.md`, dedupes via memory (scheduled Mon 09:00 UTC)
 - **repo-sweeper** — on-demand TODO/FIXME sweep of the workspace repo, reports only
 - **tidy-downloads** — sorts workspace files; deliberately `ask` mode so you can watch approvals work
+
+Browser account profiles follow immutable bot IDs, so renaming an assistant retains its persistent login and recycling a
+name cannot borrow it. Legacy name-scoped profiles are left for manual backup/relogin. Browser uploads and downloads use
+separate reviewed, bounded workspace actions; viewing and human step control do not grant a host file chooser. See
+[profiles and governed files](computer-use.md#profiles-iframe-scope-and-governed-files).

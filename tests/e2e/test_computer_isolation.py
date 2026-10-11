@@ -43,7 +43,7 @@ class _Origin(BaseHTTPRequestHandler):
         self.server.log.append(self.path)
         if parts.path == "/set":
             who = parse_qs(parts.query).get("v", ["?"])[0]
-            self._send(f"<title>set</title><p>cookie set for {who}</p>", [("Set-Cookie", f"sid={who}; Path=/")])
+            self._send(f"<title>set</title><p>cookie set for {who}</p>", [("Set-Cookie", f"sid={who}; Path=/; Max-Age=3600")])
         elif parts.path == "/who":
             self._send(f"<title>who</title><p id='c'>cookie-header:{self.headers.get('Cookie', '')}</p>")
         elif parts.path == "/hostile":
@@ -153,8 +153,8 @@ def test_two_bots_run_concurrently_in_separate_profiles_and_finish_out_of_order(
     for d in drivers:
         now = procguard.identity(d.pid)
         assert now is None or now.state in ("Z", "X"), "cross-thread cleanup left A's browser driver running"
-    prof_a = config.bot_profiles_dir("isolated-a")
-    prof_b = config.bot_profiles_dir("isolated-b")
+    prof_a = config.browser_profile_dir(ctx_a.bot.id)
+    prof_b = config.browser_profile_dir(ctx_b.bot.id)
     assert prof_a != prof_b and prof_a.exists() and prof_b.exists()
     # both profile leases were released: another run of either bot could start
     for profile in (prof_a, prof_b):
@@ -195,3 +195,33 @@ def test_page_instructions_are_data_and_typed_secrets_never_reach_events(store, 
         assert SENTINEL not in json.dumps(gate.decisions, default=str)
     finally:
         tool._teardown()
+
+
+def test_profile_survives_rename_but_recycled_name_and_legacy_path_never_share_cookies(config, origin):
+    _server, base = origin
+    first = _ctx(config, "before-rename", base, _Gate(), "run-first")
+    tool = BrowserTool()
+    try:
+        assert tool.run({"action": "goto", "url": f"{base}/set?v=owned"}, first).ok
+    finally:
+        tool._teardown()
+    legacy = config.bot_profiles_dir(first.bot.name)
+    legacy.mkdir(parents=True)
+    (legacy / "do-not-import.txt").write_text("legacy profile stays untouched")
+    original_id = first.bot.id
+    first.bot.name = "after-rename"
+    first.run.id = "run-renamed"
+    renamed = BrowserTool()
+    recycled = _ctx(config, "before-rename", base, _Gate(), "run-recycled")
+    fresh = BrowserTool()
+    try:
+        assert renamed.run({"action": "goto", "url": f"{base}/who"}, first).ok
+        assert "sid=owned" in renamed.run({"action": "read"}, first).output
+        renamed._teardown()  # another sync driver in this thread is unsupported; concurrency is covered above
+        assert fresh.run({"action": "goto", "url": f"{base}/who"}, recycled).ok
+        assert "sid=owned" not in fresh.run({"action": "read"}, recycled).output
+        assert config.browser_profile_dir(original_id) != config.browser_profile_dir(recycled.bot.id)
+        assert (legacy / "do-not-import.txt").read_text() == "legacy profile stays untouched"
+    finally:
+        renamed._teardown()
+        fresh._teardown()

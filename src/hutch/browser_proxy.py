@@ -9,11 +9,13 @@ loopback/link-local proxy bypass is removed by the browser launch configuration;
 from __future__ import annotations
 
 import ipaddress
+import contextlib
 import re
 import select
 import socket
 import socketserver
 import threading
+import time
 from typing import Callable, Optional
 from urllib.parse import urlsplit
 
@@ -29,6 +31,15 @@ _REQUEST_LINE = re.compile(rb"^([!#$%&'*+.^_`|~0-9A-Za-z-]+) ([^\x00-\x20\x7f]+)
 
 class BrowserProxyError(RuntimeError):
     """The pinned egress proxy could not start or stop cleanly."""
+
+
+class _Download:
+    def __init__(self, url, referrer, path, check):
+        self.url, self.referrer, self.path, self.check = url, referrer, path, check
+        self.claimed = False
+        self.done = threading.Event()
+        self.data = None
+        self.error = ""
 
 
 class _ProxyServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
@@ -47,6 +58,8 @@ class _ProxyServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
         self._slots = threading.BoundedSemaphore(MAX_CONNECTIONS)
         self._active_lock = threading.Lock()
         self._active: set[socket.socket] = set()
+        self._download_lock = threading.Lock()
+        self.download = None
         super().__init__(("127.0.0.1", 0), handler, bind_and_activate=True)
 
     def process_request(self, request, client_address):
@@ -135,12 +148,18 @@ class _ProxyHandler(socketserver.BaseRequestHandler):
                     pass
 
     @staticmethod
-    def _read_header(sock: socket.socket) -> tuple[Optional[bytes], bytes]:
+    def _read_header(sock: socket.socket, *, check=None, deadline=None) -> tuple[Optional[bytes], bytes]:
         data = bytearray()
         while True:
+            if check:
+                check()
+            if deadline is not None and time.monotonic() > deadline:
+                raise ValueError("proxy header exceeded its deadline")
             marker = data.find(b"\r\n\r\n")
             if marker >= 0:
                 end = marker + 4
+                if end > MAX_HEADER_BYTES:
+                    raise ValueError("proxy headers exceed the size limit")
                 return bytes(data[:end]), bytes(data[end:])
             if len(data) > MAX_HEADER_BYTES:
                 raise ValueError("proxy request headers exceed the size limit")
@@ -251,6 +270,14 @@ class _ProxyHandler(socketserver.BaseRequestHandler):
             context = self.server.local_access.refusal(candidate, headers)
             if context:
                 raise NetGuardError(context)
+        with self.server._download_lock:
+            download = self.server.download
+            if download is not None and download.url == candidate:
+                if download.claimed or method != "GET" or dict(headers).get("referer") != download.referrer or extra:
+                    raise NetGuardError("managed download changed or repeated; no automatic retry")
+                download.claimed = True
+            else:
+                download = None
         upstream = self._open_checked(host, port, local_ok=local_ok)
         path = parts.path or "/"
         if parts.query:
@@ -261,12 +288,30 @@ class _ProxyHandler(socketserver.BaseRequestHandler):
         if port != 80:
             host_header += f":{port}"
         outgoing = [request_line, f"Host: {host_header}\r\n".encode("latin-1")]
+        if download:
+            download.check()
+            headers = [(name, value) for name, value in headers if name != "accept-encoding"] + [("accept-encoding", "identity")]
         outgoing.extend(f"{name}: {value}\r\n".encode("latin-1") for name, value in headers)
         outgoing.append((b"Connection: Upgrade\r\n" if upgrade else b"Connection: close\r\n"))
         outgoing.append(b"\r\n")
         upstream.sendall(b"".join(outgoing))
         if extra:
             upstream.sendall(extra)
+        if download:
+            try:
+                from .tools.browser_files import read_download
+                data = read_download(upstream, self._read_header, download.path, download.check)
+                response = (f"HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\n"
+                            f"Content-Length: {len(data)}\r\nConnection: close\r\n\r\n").encode()
+                download.data = data
+                self.request.sendall(response + data)
+            except Exception:
+                # No server exception text, cookies, paths or partial bytes in diagnostics.
+                download.error = "managed download failed its response, size or authority checks; inspect before retrying"
+                self._error(502, "Bad Gateway", download.error)
+            finally:
+                download.done.set()
+            return
         self._tunnel_started = upgrade
         self._pump(self.request, upstream)
 
@@ -324,6 +369,21 @@ class PinnedBrowserProxy:
             self._thread = threading.Thread(target=self._server.serve_forever, name="hutch-browser-proxy", daemon=False)
             self._thread.start()
         return self
+
+    @contextlib.contextmanager
+    def managed_download(self, url, referrer, path, check):
+        download = _Download(url, referrer, path, check)
+        with self._server._download_lock:
+            if self._server.download is not None or self._closed:
+                raise BrowserProxyError("a managed download is already active or the proxy is closed")
+            self._server.download = download
+        try:
+            yield download
+        finally:
+            with self._server._download_lock:
+                if self._server.download is download:
+                    self._server.download = None
+            download.data = None  # bounded ephemeral bytes, no download spool
 
     def close(self) -> None:
         if self._closed:

@@ -1,0 +1,190 @@
+{
+  "document_sha256": "c005fe70a4d3e0e904159e4e12e6f7f003dc9e3a50f93e9828c89f45667ccf6b",
+  "requests": [
+    [
+      "GET",
+      "/"
+    ],
+    [
+      "GET",
+      "/form"
+    ],
+    [
+      "POST",
+      "/upload"
+    ],
+    [
+      "GET",
+      "/download"
+    ]
+  ],
+  "results": [
+    {
+      "action": "goto",
+      "ok": true,
+      "output": "opened http://localhost:43999\ntitle: Local record workflow",
+      "data": {
+        "url": "http://localhost:43999",
+        "outcome": "effect_verified",
+        "final_origin": "http://localhost:43999",
+        "tab": "t1",
+        "control": {
+          "session_id": "run_fdb4b3f58c56:browser",
+          "owner": "agent",
+          "generation": 1,
+          "reason": "the page navigated",
+          "fresh_observation_required": true,
+          "last_frame_id": ""
+        }
+      }
+    },
+    {
+      "action": "read",
+      "ok": true,
+      "output": "Record 42\nrecord,title\n42,Reviewed local report\n\nTitle Next",
+      "data": {
+        "url": "http://localhost:43999/",
+        "tab": "t1",
+        "control": {
+          "session_id": "run_fdb4b3f58c56:browser",
+          "owner": "agent",
+          "generation": 1,
+          "reason": "the page navigated",
+          "fresh_observation_required": true,
+          "last_frame_id": ""
+        }
+      }
+    },
+    {
+      "action": "type",
+      "ok": true,
+      "output": "typed 15 chars into #title",
+      "data": {
+        "outcome": "effect_verified",
+        "tab": "t1",
+        "control": {
+          "session_id": "run_fdb4b3f58c56:browser",
+          "owner": "agent",
+          "generation": 1,
+          "reason": "text was entered",
+          "fresh_observation_required": true,
+          "last_frame_id": ""
+        }
+      }
+    },
+    {
+      "action": "click",
+      "ok": true,
+      "output": "clicked #next",
+      "data": {
+        "url": "http://localhost:43999/",
+        "outcome": "dispatched",
+        "page_changed": false,
+        "verification": "not_verifiable: a click has no generic postcondition; observe the page to confirm the intended state",
+        "tab": "t1",
+        "control": {
+          "session_id": "run_fdb4b3f58c56:browser",
+          "owner": "agent",
+          "generation": 1,
+          "reason": "a click changed the page",
+          "fresh_observation_required": true,
+          "last_frame_id": ""
+        }
+      }
+    },
+    {
+      "action": "upload",
+      "ok": true,
+      "output": "selected reviewed report.csv (38 bytes); service receipt still required",
+      "data": {
+        "outcome": "effect_verified",
+        "verification": "selected file bytes only",
+        "transfer": {
+          "name": "report.csv",
+          "sha256": "c005fe70a4d3e0e904159e4e12e6f7f003dc9e3a50f93e9828c89f45667ccf6b",
+          "bytes": 38,
+          "path": "report.csv",
+          "destination": "http://localhost:43999/upload",
+          "profile_bot_id": "bot_1c48c0e42b15"
+        },
+        "tab": "t1",
+        "control": {
+          "session_id": "run_fdb4b3f58c56:browser",
+          "owner": "agent",
+          "generation": 1,
+          "reason": "a reviewed file was selected",
+          "fresh_observation_required": true,
+          "last_frame_id": ""
+        }
+      }
+    },
+    {
+      "action": "click",
+      "ok": true,
+      "output": "clicked #submit",
+      "data": {
+        "url": "http://localhost:43999/",
+        "outcome": "dispatched",
+        "page_changed": false,
+        "verification": "not_verifiable: a click has no generic postcondition; observe the page to confirm the intended state",
+        "tab": "t1",
+        "control": {
+          "session_id": "run_fdb4b3f58c56:browser",
+          "owner": "agent",
+          "generation": 1,
+          "reason": "a click changed the page",
+          "fresh_observation_required": true,
+          "last_frame_id": ""
+        }
+      }
+    },
+    {
+      "action": "read",
+      "ok": true,
+      "output": "Upload accepted\n\nc005fe70a4d3e0e904159e4e12e6f7f003dc9e3a50f93e9828c89f45667ccf6b\n\nDownload reviewed report",
+      "data": {
+        "url": "http://localhost:43999/",
+        "tab": "t1",
+        "control": {
+          "session_id": "run_fdb4b3f58c56:browser",
+          "owner": "agent",
+          "generation": 1,
+          "reason": "a click changed the page",
+          "fresh_observation_required": true,
+          "last_frame_id": ""
+        }
+      }
+    },
+    {
+      "action": "download",
+      "ok": true,
+      "output": "download verified: report.csv (38 bytes, SHA-256 c005fe70a4d3e0e904159e4e12e6f7f003dc9e3a50f93e9828c89f45667ccf6b)",
+      "data": {
+        "outcome": "effect_verified",
+        "workspace_file": {
+          "artifact": "artifacts/001-workspace_file.txt",
+          "sha256": "c005fe70a4d3e0e904159e4e12e6f7f003dc9e3a50f93e9828c89f45667ccf6b",
+          "bytes": 38,
+          "name": "report.csv",
+          "path": "received/report.csv"
+        },
+        "transfer": {
+          "source": "http://localhost:43999/download",
+          "profile_bot_id": "bot_1c48c0e42b15",
+          "modality": "ui_initiated_managed_download"
+        },
+        "tab": "t1",
+        "control": {
+          "session_id": "run_fdb4b3f58c56:browser",
+          "owner": "agent",
+          "generation": 1,
+          "reason": "a managed download was requested",
+          "fresh_observation_required": true,
+          "last_frame_id": ""
+        }
+      }
+    }
+  ],
+  "approval_count": 5,
+  "a11y": "- heading \"Records\" [level=1]\n- paragraph: Inspect the generated report and upload the reviewed version.\n- iframe"
+}

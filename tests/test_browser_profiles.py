@@ -39,8 +39,10 @@ def test_browser_tool_instances_own_distinct_bot_profiles(monkeypatch, config):
     api.sync_playwright = lambda: types.SimpleNamespace(start=Playwright)
     monkeypatch.setitem(sys.modules, "playwright.sync_api", api)
 
+    identities = {}
+
     def ctx(name):
-        bot = Bot(name=name)
+        bot = identities.setdefault(name, Bot(name=name))
         run = types.SimpleNamespace(id=f"run-{name}")
         return types.SimpleNamespace(
             config=config, bot=bot, run=run, headless=True,
@@ -54,8 +56,8 @@ def test_browser_tool_instances_own_distinct_bot_profiles(monkeypatch, config):
 
     assert browser_a is not browser_b
     assert browser_a.profile != browser_b.profile
-    assert browser_a.profile.endswith("profile-a/browser-profile")
-    assert browser_b.profile.endswith("profile-b/browser-profile")
+    assert browser_a.profile.endswith(f"{a.bot.id}/browser-profile")
+    assert browser_b.profile.endswith(f"{b.bot.id}/browser-profile")
     assert len(a.on_finish) == len(b.on_finish) == 1
 
     same_profile = BrowserTool()
@@ -106,7 +108,7 @@ def test_browser_route_setup_failure_closes_process_and_releases_profile_lease(m
         tool._ensure(context)
 
     assert browser_state == {"closed": True, "stopped": True}
-    profile_dir = config.bot_profiles_dir(bot.name)
+    profile_dir = config.browser_profile_dir(bot.id)
     probe = BrowserTool()
     probe._lease_fds.append(probe._lock(profile_dir.parent / "browser-profile.lock", "this bot's browser profile"))
     probe._release_leases()

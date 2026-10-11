@@ -273,6 +273,8 @@ def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, arg
     workspace_file = result.data.get("workspace_file")
     if isinstance(workspace_file, dict):
         data["workspace_file"] = workspace_file
+    if isinstance(result.data.get("transfer"), dict):
+        data["transfer"] = result.data["transfer"]
     if result.data.get("images"):
         data["frames"] = _public_frames(result.data["images"])      # ids, hashes and sizes; never run-local paths
     if result.data.get("observation"):

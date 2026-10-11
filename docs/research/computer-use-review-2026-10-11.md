@@ -129,3 +129,40 @@ acquired controller: it now rechecks authority after its API wait and before DOM
 **14 passing checks and one failure**; corrected phone/panel checks passed **15 in 57.08 s**. Updated landscape, 320-pixel
 reflow and the real process-worker signed-in preview were opened and inspected. Focus is visibly unobscured and Stop stays
 reachable. These results do not replace the separate remaining file-transfer/resource/package obligations.
+
+## Immutable profiles, iframe targets and bounded transfers
+
+Focused official research: [Playwright frames](https://playwright.dev/python/docs/frames),
+[in-memory file selection](https://playwright.dev/python/docs/input#upload-files),
+[route ordering](https://playwright.dev/python/docs/api/class-route#route-fallback),
+[download lifecycle](https://playwright.dev/python/docs/downloads),
+[Python 3.13 HTTP parsing](https://docs.python.org/3.13/library/http.client.html), and
+[formAction defaults](https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement/formAction).
+HTTPX streaming/proxy docs were also inspected for a candidate, then that candidate was removed after actual UI testing.
+No dependency was added. Stable-ID profile paths preserve persistent cookies across rename and keep recycled names separate;
+legacy name-profile data is untouched. Explicit iframe scope and the CDP backend-node binding refuse replacement frames.
+
+Failures were retained: initial browser/isolation checks had **32 pass / 1 fail in 43.60 s** (the new test used a session cookie).
+The first transfer batch had **3 pass / 2 fail in 9.15 s** (Chromium's file input UA shadow button was reviewed as a button).
+The next **4 pass / 2 fail in 11.56 s** exposed `formAction`'s default document URL and a second sync driver in one thread.
+Review now uses an override only when its HTML attribute exists, and the test respects driver thread ownership. Subsequent
+mixed attempts failed once each in **11.98, 13.11 and 13.57 s**: iframe downloads made a real GET that bypassed both page and
+context Playwright routes. A diagnostic trace confirmed the GET at the origin with no request callback. We did not repeat it.
+
+The corrected path captures the actual plaintext GET at Hutch's DNS-pinned proxy, before forwarding response bytes, with
+Content-Length/MIME/encoding/size/deadline/authority checks. HTTPS, redirects, chunks and blobs are explicitly unsupported
+for this managed action; normal HTTPS navigation retains Chromium TLS. No unbounded Chrome download spool is enabled.
+Uploads use descriptor-anchored workspace reads, reject secret paths/links, bind revisions/digests and select frozen bytes.
+Form submission has a fresh outward review, checks exact selected file hashes, and includes a private cookie-state binding.
+The legacy screenshot action now uses the bounded frame store rather than accumulating workspace PNGs.
+
+The first corrected transfer batch passed **5 in 8.44 s**. The actual mixed fixture uses the production approval gate and
+receipt recorder, a resource-contained shell command, a real iframe form, conditional upload receipt and one managed GET.
+Its expected CSV, uploaded bytes, receipt SHA-256, immutable artifact and final workspace file match. `mixed-workflow.png`
+was opened and inspected: the controlled app shows the accepted receipt and hash inside the intended iframe. The adjacent
+JSON records UI/a11y state and provenance. This is a local deterministic workflow, not model grounding or an OSWorld score.
+
+After adding the actual Next/upload form stage, cookie-account-change refusal, a whole-header bound and download-header
+deadline, the combined profile/real-browser/isolation/transfer/proxy checks passed **46 in 54.27 s**. The refreshed receipt
+screenshot was opened and inspected again. Source: `browser.py`, `browser_files.py`, `browser_proxy.py`, `config.py`;
+regressions: `test_computer_transfers.py`, `test_computer_isolation.py`, `test_browser_profiles.py`, `test_browser_proxy.py`.
