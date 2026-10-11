@@ -28,3 +28,9 @@ including the 720×480 effective-width check.
 After fast-forwarding integrated commit `a111ffb` into local `main`, a final clean-worktree smoke run passed **38 tests**
 (32 migration tests and 6 focused browser tests in 22.21 s). The captured output is `post-merge-smoke.log`. This
 targeted post-merge check does not change the full browser-suite status above.
+
+The stalled full run's workspace-mode settings case was isolated with `TMPDIR=/var/tmp`. On the integrated tree, all four
+viewport variants failed after 30 seconds at the same wait for the “Workspace Helper settings” heading (4 failed in
+128.38 s). At integration-base commit `63b2712`, the desktop variant failed at that same locator (1 failed, 3 deselected
+in 35.11 s). This confirms the reproduced desktop failure is inherited; the full integrated browser suite remains
+unverified. The comparison used an existing runtime worktree with unrelated documentation changes, which were preserved.

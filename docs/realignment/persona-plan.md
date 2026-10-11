@@ -363,6 +363,12 @@ Review follow-ups (status after the profile-compatibility slice):
   `artifacts/persona-final-verification-2026-10-11/post-merge-smoke.log`. Generated browser artifacts were restored to
   their committed state, and the main worktree was clean after verification.
 
+  Browser failure comparison: with `TMPDIR=/var/tmp`, the integrated workspace-mode settings case failed at all four
+  viewport sizes after 30 seconds waiting for the “Workspace Helper settings” heading (**4 failed in 128.38 s**). On
+  integration-base commit `63b2712`, its desktop variant failed at the same locator (**1 failed, 3 deselected in
+  35.11 s**). The desktop failure is inherited. This comparison ran in the existing runtime worktree, which had
+  unrelated documentation changes; those changes were preserved. The full integrated browser suite remains unverified.
+
 ## Rollback
 
 - Nothing is pushed or deployed. The authorized fast-forward from local `main` `63b2712` to integrated commit `a111ffb`
