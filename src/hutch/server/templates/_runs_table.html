@@ -4,7 +4,7 @@
   <thead><tr><th>Run</th><th>Bot</th><th>Status</th><th>Started by</th><th class="hide-sm">Prompt</th><th class="num">Steps</th><th class="num">Tokens</th><th class="num hide-sm">Spend</th><th>When</th></tr></thead>
   <tbody>
   {% for r in runs %}
-    <tr class="clickable" onclick="location.href='/runs/{{ r.id }}'">
+    <tr>
       <td class="mono"><a href="/runs/{{ r.id }}">{{ r.id[4:16] }}</a></td>
       <td><a href="/bots/{{ r.bot_name }}">{{ r.bot_name }}</a></td>
       <td><span class="chip st-{{ r.status.value }}">{{ r.status_label }}</span>{% if r.rehearsal %} <span class="tag">rehearsal</span>{% endif %}</td>

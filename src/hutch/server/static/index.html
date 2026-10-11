@@ -52,7 +52,7 @@
           </button>
         </div>
         <label class="visually-hidden" for="bot-search">Find an assistant</label>
-        <input class="roster-search" id="bot-search" type="search" placeholder="Find an assistant" autocomplete="off">
+        <input class="roster-search" id="bot-search" type="search" placeholder="Find an assistant" autocomplete="off" enterkeyhint="search">
         <div class="roster-list" id="roster-list"></div>
       </section>
 
@@ -98,7 +98,7 @@
       </div>
     </header>
 
-    <main id="view">
+    <main id="view" tabindex="-1">
       <div class="empty-state">
         <div class="spinner" role="status" aria-label="Loading"></div>
         <p>Loading…</p>

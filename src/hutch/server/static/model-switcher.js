@@ -217,7 +217,7 @@
       };
       const body = `
         <div class="ms-all">
-          <input type="text" role="searchbox" class="ms-search" placeholder="Search available models" aria-label="Search available models" autocomplete="off" spellcheck="false">
+          <input type="text" role="searchbox" class="ms-search" placeholder="Search available models" aria-label="Search available models" autocomplete="off" spellcheck="false" enterkeyhint="search">
           <p class="ms-search-status" role="status" aria-live="polite"></p>
           <div class="ms-groups" role="radiogroup" aria-label="Models"></div>
           <label class="ms-other">Another model <span class="muted">(provider/model, for example a model on one of your connections)</span>

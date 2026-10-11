@@ -14,6 +14,7 @@ from typing import Optional
 from urllib.parse import parse_qs, quote, unquote
 
 from fastapi import FastAPI, HTTPException, Request
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response, StreamingResponse
 from starlette.templating import Jinja2Templates
 
@@ -158,13 +159,19 @@ def register_pages(app: FastAPI) -> None:
         return env.get_template("_events_fragment.html").render(
             evs=evs, approvals=approvals, run=run, csrf=getattr(request.state, "csrf", ""))
 
-    @app.exception_handler(HTTPException)
-    async def http_error(request: Request, exc: HTTPException):
+    # Starlette's own HTTPException covers unmatched routes, whose default
+    # 404 is a bare text response with no html shell (no title, no lang).
+    @app.exception_handler(StarletteHTTPException)
+    async def http_error(request: Request, exc: StarletteHTTPException):
         if request.url.path.startswith("/api/") or "text/html" not in request.headers.get("accept", "text/html"):
             from fastapi.responses import JSONResponse
             return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+        fallback = {404: "This page does not exist.",
+                    405: "That method is not allowed on this address.",
+                    500: "Something went wrong handling this request."}
+        message = exc.detail or fallback.get(exc.status_code, "Something went wrong.")
         return page(request, "error.html", status_code=exc.status_code,
-                    status=exc.status_code, message=exc.detail)
+                    status=exc.status_code, message=message)
 
     # ------------------------------------------------------------------ legacy SPA
 

@@ -21,7 +21,7 @@
   <p class="approval-action">{{ a.action }}</p>
 
   {% if a.segments %}
-  <div class="segments" aria-label="Command parsed into segments">
+  <div class="segments" role="group" aria-label="Command parsed into segments">
     <div class="seg-title">Parsed into {{ a.segments | length }} segment{{ '' if a.segments | length == 1 else 's' }}; the worst verdict wins</div>
     {% for s in a.segments %}
     <div class="seg v-{{ s.verdict }}">
