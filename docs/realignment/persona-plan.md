@@ -39,6 +39,17 @@ No push, deploy, publication, provider, account or model change is authorized.
 | D. UI | approved compact form; temporary vs durable changes; unsaved/conflict states; accessible validation | actual-app browser workflows at 360/768/1440 |
 | E. Verification | targeted then broader combined checks; independent read-only review; measured routing overhead; honest boundary labels | review result and measurements recorded |
 
+Progress (2026-10-11):
+
+- `ab1929e` integration merge; `b9dc523` plan, research ledger and UI-route records.
+- `86fb19a` conversation context now spends its budget from the newest turn backwards, so recent
+  corrections survive a bounded window (regression: `test_conversation_context_budget_keeps_the_newest_turns`).
+- `83b3f89` empty and cap-truncated final answers can no longer report success; partial text stays visible
+  (regressions: `test_empty_final_answer_is_not_a_success`, `test_length_truncated_final_answer_is_preserved_but_not_a_success`).
+- Combined focused check on this tree: **246 passed** in 138.71 s (skills, routines durability, documents,
+  runtime, builtin runtime, conversations, migration, delegation); log at
+  `/tmp/opencode/hutch-persona-integration/focused-slices.log`. Full suite, browser suite and live checks remain unrun.
+
 ## Acceptance budgets
 
 | Check | Budget |
