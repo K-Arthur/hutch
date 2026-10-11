@@ -38,6 +38,31 @@ and shown as untrusted context to the specialist's run; they are not saved as sp
 specialist's provider may retain the submitted context. After dispatch, the provider copy cannot be recalled. See the
 [versioned handoff contract](contracts.md#3-versioned-resources-cursors-idempotency-pagination-partial-s8).
 
+## Questions and clarification
+
+A specialist run that needs a decision can ask one bounded choice question through its normal
+conversational tool. The question is written in the specialist's own conversation, where the owner can
+answer it with the same single-resolution control used by any chat question. Hutch additionally surfaces
+the waiting question on the coordinator task card: the card shows **Needs your answer**, the specialist
+identity, the exact question and its options, and a **Send answer** control that records the answer in the
+specialist conversation. The answer is admitted by the specialist's saved route; the coordinator's model
+switcher override is never sent. While a question is pending the card withholds the generic "latest
+specialist response" block and the **Discuss with …** result-attach control, shows no stop control because
+no run is working, and the task reports `needs_input` rather than a produced result. Attaching the pending
+question message as a specialist result is refused by the store and by a schema-v51 database guard.
+
+The task record follows its dedicated specialist conversation rather than freezing on the first dispatched
+run. A question ends its run normally; the owner's answer starts a new run in the same conversation, and
+the card's status, current run, stop target and latest response follow that conversation's newest run.
+**Stop specialist** therefore targets the run that is actually working after an answer. The ordered,
+content-free checkpoint timeline still records the original dispatch as the task's audit journal. A queued
+question announces once per page session through the shared polite status region; no second notification
+stream exists.
+
+A same-bot `delegate_task` child cannot ask the owner: its conversation belongs to the blocked parent, so
+an answer could not reach it. If a child ever ends with a pending question through another path, the parent
+receives an explicit needs-input result instead of a "completed" claim.
+
 ## Reusable owner-granted Bot references
 
 An operator may also share one exact, current, human-reviewed fact from any Bot with one other Bot. This is a durable memory
@@ -90,6 +115,11 @@ cleanup is verified. A timeout or lost result remains explicit and is not replay
 ## Verification boundary
 
 Automated fixtures cover approval in `auto` mode, process-supervised root/child execution, the Strict Offline local-model broker,
-bounded context transfer, child result return, ancestry slots, cancellation and inherited budgets. This does not certify a live
-Ollama/model installation, provider provenance, multi-child parallelism, child-to-parent artifact copying, external runtimes,
-or physical-device supervision. Pi and OpenCode remain unavailable as child runtimes.
+bounded context transfer, child result return, ancestry slots, cancellation and inherited budgets. For the coordinator handoff they
+also cover the derived `needs_input` state, the pending-question projection, refusal of a question attachment at the store and
+database layers, the answer run continuing the task conversation, and same-bot children being unable to ask the owner. A real
+Chromium fixture with the local mock runtime covers the task-card question, keyboard-only answering, the resolved audit state and
+the answered question in the specialist chat at desktop, tablet and phone sizes. This does not certify a live Ollama/model
+installation, provider provenance, multi-child parallelism, child-to-parent artifact copying, external runtimes, or
+physical-device supervision. Live model question quality and model-switcher behaviour remain unverified; Pi and OpenCode remain
+unavailable as child runtimes.

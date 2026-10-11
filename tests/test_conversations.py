@@ -792,7 +792,10 @@ def test_coordinator_dispatch_is_reviewed_atomic_and_stays_in_specialist_context
     assert record["checkpoints"][0]["event_type"] == "message"
     child = client.get(f"/api/v1/conversations/{record['child_conversation_id']}").json()
     assert child["bot_id"] == specialist["id"]
-    assert [(message["role"], message["content"]) for message in child["messages"]] == [
+    # Only user turns are checked here: the app engine may already be executing the child
+    # run, so its own assistant reply is legitimate and must not make this assertion racy.
+    assert [(message["role"], message["content"])
+            for message in child["messages"] if message["role"] == "user"] == [
         ("user", reviewed_brief + "\n\nUser-reviewed assumptions and constraints:\n" + payload["assumptions"])]
     run = client.app.state.store.get_run(record["child_run_id"])
     assert run.origin == "workspace_task" and len(run.conversation_context) == 1
@@ -804,7 +807,12 @@ def test_coordinator_dispatch_is_reviewed_atomic_and_stays_in_specialist_context
     assert [fact["fact_id"] for fact in task_facts] == [shared_fact.id]
     assert task_facts[0]["value"] == "The public launch is planned for November."
     assert unselected_fact.value not in shared_context and proposed_fact.value not in shared_context
-    assert client.get(f"/api/v1/bots/{specialist['id']}/facts?conversation_id={record['child_conversation_id']}").json()["facts"] == []
+    # The specialist's own run may propose its own fact at any moment; the isolation check is
+    # that no coordinator fact reaches this conversation, not that the list is empty in time.
+    specialist_facts = client.get(
+        f"/api/v1/bots/{specialist['id']}/facts?conversation_id={record['child_conversation_id']}").json()["facts"]
+    assert all(fact["value"] not in {shared_fact.value, unselected_fact.value, proposed_fact.value}
+               for fact in specialist_facts)
     with pytest.raises(sqlite3.IntegrityError, match="immutable"):
         with store._tx() as db:
             db.execute("UPDATE workspace_task_fact_shares SET fact_value = 'forged' WHERE workspace_task_id = ?",
@@ -990,3 +998,139 @@ def test_workspace_task_rejects_wrong_source_and_coordinator_authority(conversat
     assert client.put("/api/v1/workspace/specialists", json={"bot_ids": [specialist["id"]]}).status_code == 200
     assert client.post("/api/v1/workspace/tasks", json=payload,
                        headers={"Idempotency-Key": "dispatch-invalid-source"}).status_code == 409
+
+
+def test_specialist_clarifying_question_is_surfaced_and_gates_result_attachment(tmp_path, monkeypatch):
+    """A specialist's question is a needed input, not a finished result.
+
+    The runtime leaves a question-asking run with a normal success (the conversational primitive
+    only stops the run), so the task must derive a needs-input state from the specialist
+    conversation, refuse to treat the question as an attachable result, and return to ordinary
+    states once the owner answers.
+    """
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    from hutch.config import get_config
+    from hutch.engine import Engine
+    from hutch.models import Bot, Event, EventType, Run, RunStatus, Task
+    from hutch.store import Store
+
+    config = get_config()
+    store = Store(config)
+    try:
+        coordinator = store.create_bot(Bot(name="question-coordinator", display_name="Mara",
+                                           model="mock/demo", tools=[]))
+        specialist = store.create_bot(Bot(name="question-specialist", display_name="Research Partner",
+                                          model="mock/demo", tools=[]))
+        store.set_workspace_coordinator(coordinator.id)
+        store.set_workspace_specialists([specialist.id])
+        parent, _ = store.create_conversation(coordinator.id, "Coordinator",
+                                              idem_key="question-parent", request_hash="question-parent")
+        source_prompt = "Compare two options for the launch plan."
+        source = Run(bot_id=coordinator.id, prompt=source_prompt, conversation_id=parent["id"])
+        source_id, _ = store.submit_conversation_message(
+            parent["id"], source_prompt, source, Task(bot_id=coordinator.id, prompt=source_prompt),
+            idem_key="question-source", request_hash="question-source")
+        owned = store.claim_run(source_id, "question-source-owner", 60)
+        assert owned is not None
+        store.transition_run(source_id, RunStatus.running, fence=owned.fence)
+        store.append_event(Event(run_id=source_id, type=EventType.message,
+                                 data={"role": "assistant", "content": "Draft comparison ready.",
+                                       "message_id": "question-source-answer"}, owner_fence=owned.fence))
+        store.flush_events()
+        store.transition_run(source_id, RunStatus.succeeded, fence=owned.fence)
+        messages = store.list_conversation_messages(parent["id"])
+        source_user = next(message for message in messages if message["role"] == "user")
+        source_answer = next(message for message in messages if message["role"] == "assistant")
+
+        brief = "Compare two launch options and choose one."
+        assumptions = "Use public information only."
+        effective_prompt = brief + "\n\nUser-reviewed assumptions and constraints:\n" + assumptions
+        child_id, _ = store.submit_workspace_task(
+            parent_conversation_id=parent["id"], source_run_id=source_id,
+            source_user_message_id=source_user["id"], source_assistant_message_id=source_answer["id"],
+            target_bot_id=specialist.id, task_brief=brief, assumptions=assumptions,
+            run=Run(bot_id=specialist.id, prompt=effective_prompt, origin="workspace_task"),
+            task=Task(bot_id=specialist.id, prompt=effective_prompt),
+            capability_snapshot=Engine.capability_snapshot(specialist),
+            idem_key="question-task", request_hash="question-task")
+        child = store.claim_run(child_id, "question-child-owner", 60)
+        assert child is not None
+        store.transition_run(child_id, RunStatus.running, fence=child.fence)
+        question = store.create_conversation_question(
+            child_id, "Which launch option should I prefer?", "single", ["Alpha", "Beta"],
+            fence=child.fence)
+        # This is how the runtime leaves a run that asks a question: a normal end, no error.
+        store.transition_run(child_id, RunStatus.succeeded, fence=child.fence, exit_reason="completed")
+    finally:
+        store.close()
+
+    with TestClient(create_app()) as client:
+        tasks_url = f"/api/v1/workspace/tasks?conversation_id={parent['id']}"
+        task = client.get(tasks_url).json()[0]
+        assert task["status"] == "needs_input"
+        assert task["current_run_id"] == child_id
+        assert task["reason"] == ""
+        pending = task["pending_question"]
+        assert pending is not None and pending["id"] == question["id"]
+        assert pending["question"] == "Which launch option should I prefer?"
+        assert pending["selection_mode"] == "single"
+        assert [option["label"] for option in pending["options"]] == ["Alpha", "Beta"]
+        assert pending["assistant_message_id"] == question["assistant_message_id"]
+        assert task["result_message_id"] == question["assistant_message_id"]
+
+        refused = client.post(f"/api/v1/conversations/{parent['id']}/messages", json={
+            "prompt": "Consider the attached question as the specialist result.",
+            "workspace_task_result_id": task["id"],
+            "workspace_task_result_message_id": question["assistant_message_id"],
+        }, headers={"Idempotency-Key": "attach-pending-question"})
+        assert refused.status_code == 409, refused.text
+        assert "waiting for your answer" in refused.json()["detail"]
+
+        # Storage-level guard: even a direct insert that satisfies the provenance trigger
+        # cannot record a pending question as an accepted result.
+        live_store = client.app.state.store
+        with pytest.raises(sqlite3.IntegrityError, match="pending specialist question"):
+            with live_store._tx() as db:
+                seq = db.execute("SELECT COALESCE(MAX(seq), 0) + 1 FROM messages WHERE conversation_id = ?",
+                                 (parent["id"],)).fetchone()[0]
+                db.execute(
+                    "INSERT INTO messages (id, conversation_id, seq, run_id, role, content, created_at, "
+                    "workspace_task_result_id, workspace_task_result_message_id, "
+                    "workspace_task_result_display_name, workspace_task_result_content, "
+                    "workspace_task_result_truncated) VALUES (?, ?, ?, ?, 'user', ?, ?, ?, ?, ?, ?, ?)",
+                    ("msg_pending_question_bypass", parent["id"], seq, source_id, "Bypass attempt",
+                     question["created_at"], task["id"], question["assistant_message_id"],
+                     specialist.display_name, question["question"], 0))
+
+        answered = client.post(
+            f"/api/v1/conversations/{task['child_conversation_id']}/questions/{question['id']}/answer",
+            json={"option_ids": [pending["options"][1]["id"]]},
+            headers={"Idempotency-Key": "answer-specialist-question"})
+        assert answered.status_code == 201, answered.text
+        answer_run_id = answered.json()["id"]
+
+        after = client.get(tasks_url).json()[0]
+        assert after["pending_question"] is None
+        assert after["current_run_id"] == answer_run_id
+        assert after["status"] != "needs_input"
+
+        deadline = time.time() + 20
+        while time.time() < deadline:
+            after = client.get(tasks_url).json()[0]
+            if after["status"] in {"succeeded", "failed", "stopped", "outcome_unknown"}:
+                break
+            time.sleep(0.05)
+        assert after["status"] == "succeeded", after
+        child_messages = client.get(
+            f"/api/v1/conversations/{task['child_conversation_id']}").json()["messages"]
+        produced = next(message for message in reversed(child_messages)
+                        if message["role"] == "assistant" and message["run_id"] == answer_run_id)
+        assert after["result"] == produced["content"]
+        assert after["result_message_id"] == produced["id"]
+
+        attached = client.post(f"/api/v1/conversations/{parent['id']}/messages", json={
+            "prompt": "Use the specialist's final response.",
+            "workspace_task_result_id": task["id"],
+            "workspace_task_result_message_id": produced["id"],
+        }, headers={"Idempotency-Key": "attach-produced-result"})
+        assert attached.status_code == 201, attached.text

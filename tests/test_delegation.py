@@ -180,7 +180,8 @@ def _remove_later_conversation_schema(db):
     """Remove schema added after the simulated legacy version before lowering user_version."""
     for trigger in (
         "workspace_task_checkpoint_event_insert", "messages_workspace_task_result_insert",
-        "messages_workspace_task_result_update", "messages_choice_question_insert",
+        "messages_workspace_task_result_update", "messages_pending_question_result_insert",
+        "messages_pending_question_result_update", "messages_choice_question_insert",
         "messages_choice_question_update", "conversation_question_definition_immutable",
         "conversation_question_resolve_once", "messages_reply_target_insert", "messages_reply_target_update",
         "workspace_task_fact_share_source_guard", "workspace_task_fact_share_immutable",
@@ -956,3 +957,87 @@ def test_schema_v23_migration_adds_empty_capability_snapshots(config):
         assert (config.db_path.parent / "hutch.db.bak-v23").exists()
     finally:
         upgraded.close()
+
+
+def _offline_parent_with_conversation(store):
+    """A live Strict Offline parent attached to a conversation, able to admit children."""
+    bot = store.create_bot(Bot(name="choice-parent", model="ollama/qwen3:8b",
+                               base_url="http://127.0.0.1:11434", inference_mode=InferenceMode.offline,
+                               tools=["delegate_task"], limits=Limits(max_cost_usd=1.0)))
+    conversation, _ = store.create_conversation(bot.id, "Choice parent",
+                                                idem_key="choice-parent-conversation",
+                                                request_hash="choice-parent-conversation")
+    run = Run(bot_id=bot.id, prompt="coordinate work", conversation_id=conversation["id"])
+    parent_id, _ = store.submit_conversation_message(
+        conversation["id"], "coordinate work", run, Task(bot_id=bot.id, prompt="coordinate work"),
+        idem_key="choice-parent-run", request_hash="choice-parent-run")
+    claimed = store.claim_run(parent_id, "choice-parent-owner", 60, max_live=2)
+    assert claimed is not None
+    parent = store.transition_run(parent_id, RunStatus.running, fence=claimed.fence,
+                                  capability_snapshot=Engine.capability_snapshot(bot))
+    return bot, parent, conversation
+
+
+def _tool_context(store, config, bot, run):
+    from hutch.approvals import ApprovalGate
+    from hutch.safety import PolicyEngine
+    from hutch.tools.base import ToolContext
+    return ToolContext(bot=bot, run=run, store=store, policy=PolicyEngine(),
+                       gate=ApprovalGate(store, bot, run, PolicyEngine(), lambda _event: None),
+                       config=config, workspace=config.run_dir(bot.name, run.id) / "workspace")
+
+
+def test_delegated_child_tools_exclude_structured_questions(store, config):
+    """A synchronous child cannot prompt the owner: its conversation belongs to the parent."""
+    from hutch.tools import build_tools
+
+    bot, parent, _ = _offline_parent_with_conversation(store)
+    child, inserted = _child(store, parent, prompt="inspect one bounded area", key="choice-child")
+    assert inserted is True
+    claimed = store.claim_run(child.id, "choice-child-owner", 60, max_live=2)
+    assert claimed is not None
+    child = store.transition_run(child.id, RunStatus.running, fence=claimed.fence)
+
+    assert "ask_user_choice" in build_tools(["memory"], _tool_context(store, config, bot, parent))
+    child_tools = build_tools(["memory"], _tool_context(store, config, bot, child))
+    assert "ask_user_choice" not in child_tools
+    assert "delegate_task" not in child_tools
+
+
+def test_delegated_child_question_is_not_reported_as_success(store, config):
+    """If a child somehow records a question, the parent sees needs-input, never 'completed'."""
+    import time
+
+    bot, parent, conversation = _offline_parent_with_conversation(store)
+    engine = Engine(config, store, max_concurrent=2, executor="process",
+                    owner_id="choice-supervisor", light=True)
+    ctx = _tool_context(store, config, bot, parent)
+
+    def finish_child():
+        until = time.monotonic() + 4
+        child = None
+        while time.monotonic() < until:
+            child = next((run for run in store.active_runs()
+                          if run.parent_run_id == parent.id), None)
+            if child:
+                break
+            time.sleep(0.01)
+        assert child is not None
+        owned = store.claim_run(child.id, "choice-child-fixture", 60, max_live=2)
+        assert owned is not None
+        child = store.transition_run(child.id, RunStatus.running, fence=owned.fence)
+        store.create_conversation_question(child.id, "Which option should I take?", "single",
+                                           ["Alpha", "Beta"], fence=owned.fence)
+        store.transition_run(child.id, RunStatus.succeeded, fence=owned.fence, exit_reason="completed")
+
+    fixture = threading.Thread(target=finish_child)
+    fixture.start()
+    try:
+        result = engine._run_delegated_task(ctx, "Pick one option for the report.", "step-1-choice",
+                                            "sha256:choice", time.monotonic() + 5)
+    finally:
+        fixture.join(5)
+    assert result.ok is False
+    assert result.data.get("needs_input") is True
+    assert "question" in result.output.lower()
+    assert "completed" not in result.output.lower()

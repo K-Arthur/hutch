@@ -624,3 +624,39 @@ def test_a_database_from_a_newer_hutch_is_refused_not_downgraded(config):
     c.execute("PRAGMA user_version = 99"); c.commit(); c.close()
     with pytest.raises(RuntimeError, match="newer than this hutch"):
         Store(config)
+
+
+def test_v51_pending_specialist_questions_are_not_attachable_results():
+    """Schema v51 keeps a waiting question out of the accepted-result record, in the database."""
+    from hutch.store import _migrate_51
+
+    db = sqlite3.connect(":memory:")
+    try:
+        db.execute("""CREATE TABLE messages (
+            id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, seq INTEGER NOT NULL,
+            run_id TEXT NOT NULL DEFAULT '', role TEXT NOT NULL, content TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            workspace_task_result_id TEXT, workspace_task_result_message_id TEXT,
+            workspace_task_result_display_name TEXT, workspace_task_result_content TEXT,
+            workspace_task_result_truncated INTEGER NOT NULL DEFAULT 0)""")
+        db.execute("""CREATE TABLE conversation_questions (
+            id TEXT PRIMARY KEY, assistant_message_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending')""")
+        db.execute("""CREATE TABLE runs (id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, created_at TEXT NOT NULL)""")
+        _migrate_51(db)
+        assert db.execute("SELECT 1 FROM sqlite_master WHERE type = 'index' "
+                          "AND name = 'idx_runs_conversation_created'").fetchone() is not None
+        db.execute("INSERT INTO conversation_questions VALUES ('choice_1', 'msg_question', 'pending')")
+        with pytest.raises(sqlite3.IntegrityError, match="pending specialist question"):
+            db.execute("""INSERT INTO messages (id, conversation_id, seq, role, content, created_at,
+                          workspace_task_result_id, workspace_task_result_message_id)
+                          VALUES ('msg_attach', 'conv_1', 1, 'user', 'x', 'now', 'wst_1', 'msg_question')""")
+        db.execute("UPDATE conversation_questions SET status = 'answered' WHERE id = 'choice_1'")
+        db.execute("""INSERT INTO messages (id, conversation_id, seq, role, content, created_at,
+                      workspace_task_result_id, workspace_task_result_message_id)
+                      VALUES ('msg_attach', 'conv_2', 1, 'user', 'x', 'now', 'wst_1', 'msg_question')""")
+        db.execute("UPDATE conversation_questions SET status = 'pending' WHERE id = 'choice_1'")
+        with pytest.raises(sqlite3.IntegrityError, match="pending specialist question"):
+            db.execute("UPDATE messages SET workspace_task_result_id = 'wst_2' WHERE id = 'msg_attach'")
+        assert SCHEMA_VERSION >= 51
+    finally:
+        db.close()

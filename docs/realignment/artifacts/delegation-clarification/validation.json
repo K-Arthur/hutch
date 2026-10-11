@@ -1,0 +1,43 @@
+{
+  "test": "tests/e2e/test_delegation_clarification.py::test_specialist_question_is_answered_from_the_task_card",
+  "captured_at": "2026-10-11T10:31:29.921492+00:00",
+  "browser": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "fixture": "synthetic local bots and seeded conversation question; app engine executes the answer run",
+  "provider_requests": 0,
+  "page_errors": [],
+  "viewports": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "horizontal_overflow": 0
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "horizontal_overflow": 0
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "horizontal_overflow": 0
+    }
+  ],
+  "verified": [
+    "task card shows Needs your answer with the specialist identity and question options",
+    "the pending question text is not presented as a produced result",
+    "no result-attach or stop control is offered while the question waits",
+    "keyboard selection and Send answer create the answer run in the specialist chat",
+    "storage clears the pending question and follows the new run to succeeded",
+    "the answered choice and the specialist response remain in the task audit surface"
+  ]
+}
