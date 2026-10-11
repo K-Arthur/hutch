@@ -1717,7 +1717,7 @@ button.inline-link:hover { color: var(--text); }
 .schedule-editor .check { display: flex; align-items: center; gap: var(--s-2); min-height: 36px; }
 .schedule-editor { gap: var(--s-2); }
 .schedule-advanced-toggle { margin-top: var(--s-1); justify-self: start; min-height: 36px; }
-.schedule-advanced { margin: var(--s-2) 0; padding: var(--s-3); background: var(--sunken); border-radius: var(--r-control); }
+.schedule-advanced { margin: var(--s-2) 0; padding: var(--s-3); background: var(--sunken); border-radius: var(--r-ctl); }
 .schedule-editor .schedule-actions { margin-top: var(--s-1); }
 .schedule-empty-bots { display: grid; justify-items: center; gap: var(--s-2); width: min(100%, 760px); margin-top: var(--s-3); }
 .schedule-empty-bots > summary { display: inline-flex; align-items: center; justify-self: center; gap: var(--s-2); list-style: none; min-height: 44px; cursor: pointer; }
