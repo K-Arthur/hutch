@@ -10,6 +10,8 @@ from decimal import Decimal
 import pytest
 
 from hutch.providers.openrouter_pricing import (
+    DEFAULT_TTL_SECONDS,
+    MAX_CACHE_ENTRIES,
     ModelQuote,
     OpenRouterPricing,
     parse_endpoints_payload,
@@ -85,12 +87,15 @@ def test_fresh_quote_is_reused_within_ttl_and_refetched_after():
     service = OpenRouterPricing("https://router.example/api/v1", fetcher=fetcher, clock=lambda: clock[0])
     first = service.quote("acme/model-1")
     assert first is not None and not first.stale
-    clock[0] = NOW + timedelta(minutes=5)
-    assert service.quote("acme/model-1") is first     # cached within the 15-minute TTL
+    assert DEFAULT_TTL_SECONDS == 300
+    clock[0] = NOW + timedelta(minutes=4, seconds=59)
+    assert service.quote("acme/model-1") is first     # cached inside the five-minute quote lifetime
     assert calls == ["acme/model-1"]
-    clock[0] = NOW + timedelta(minutes=16)
+    clock[0] = NOW + timedelta(minutes=5, seconds=1)
     assert service.quote("acme/model-1") is not None
     assert calls == ["acme/model-1", "acme/model-1"]
+    refreshed = service.cached("acme/model-1")
+    assert refreshed and refreshed.snapshot_digest and refreshed.expires_at == refreshed.fetched_at + timedelta(seconds=300)
 
 
 def test_a_failed_refetch_keeps_the_last_quote_labeled_stale():
@@ -144,6 +149,44 @@ def test_degraded_and_context_capped_endpoints_can_be_excluded_by_eligibility():
     assert quote.worst_case(1000, 100) == Decimal("0.00033")                     # degraded excluded; max = big
     eligible = lambda endpoint: endpoint.context_length >= 100000 or endpoint.context_length == 0
     assert quote.worst_case(1000, 100, eligible=eligible) == Decimal("0.00033")  # only the 200k one
+
+
+def test_conditional_long_context_override_is_included_in_the_endpoint_quote():
+    row = endpoint("0.000003", "0.000015", name="conditional")
+    row["pricing"]["input_cache_read"] = "0.0000003"
+    row["pricing"]["input_cache_write"] = "0.00000375"
+    row["pricing"]["overrides"] = [{
+        "min_prompt_tokens": 200000,
+        "prompt": "0.000006",
+        "completion": "0.0000225",
+        "input_cache_read": "0.0000006",
+        "input_cache_write": "0.0000075",
+        "input_cache_write_1h": "0.000012",
+    }]
+    quote = parse_endpoints_payload(payload(row), "acme/model-1", fetched_at=NOW)
+    assert quote.worst_case(1000, 100, eligible=lambda endpoint: True) == Decimal("0.0045")
+    # Above the tier threshold, admission uses the conditional input/output/cache prices and 1h write rate.
+    assert quote.worst_case(250000, 10000, cached_tokens=1000, cache_write_tokens=1000,
+                            eligible=lambda endpoint: True) == Decimal("1.7256")
+
+
+def test_unknown_or_malformed_override_shape_makes_endpoint_ineligible():
+    row = endpoint("0.000003", "0.000015")
+    row["pricing"]["overrides"] = {"prompt": "0.000006"}
+    with pytest.raises(ValueError, match="no endpoint"):
+        parse_endpoints_payload(payload(row), "acme/model-1", fetched_at=NOW)
+
+
+def test_metadata_cache_has_a_fixed_entry_budget():
+    service = OpenRouterPricing(
+        "https://router.example/api/v1",
+        fetcher=lambda model: payload(endpoint("0.000001", "0.000002"), model=model),
+        clock=lambda: NOW,
+    )
+    for index in range(MAX_CACHE_ENTRIES + 1):
+        assert service.quote(f"acme/model-{index}") is not None
+    assert len(service._cache) == MAX_CACHE_ENTRIES
+    assert "acme/model-0" not in service._cache
 
 
 def test_split_model_id_handles_variants_and_latest_aliases():

@@ -695,7 +695,7 @@ class BuiltinRuntime:
         reservations: list[str] = []
 
         def summarize(units, dest):
-            text = self._summarize_units(ctx, run, ladder, guard, session, dest, units, reservations)
+            text = self._summarize_units(ctx, run, ladder, guard, session, dest, units, reservations, stop)
             captured[0] = text
             return text
 
@@ -705,9 +705,7 @@ class BuiltinRuntime:
             self._log(ctx, run, "compaction",
                       f"this run already compacted {MAX_COMPACTIONS_PER_RUN} times; history will no longer be "
                       "summarized for it", ok=False)
-        with self._inference(ctx, run, session.rung, stop):
-            result = fitloop.fit_or_compact(messages, destination,
-                                            summarize=(summarize if compaction_on else None))
+        result = fitloop.fit_or_compact(messages, destination, summarize=(summarize if compaction_on else None))
         if result.attempts or result.status in ("wont_fit", "compact_failed"):
             self._log(ctx, run, "compaction",
                       f"{result.status}: ~{result.before_tokens:,} -> ~{result.after_tokens:,} prompt tokens for "
@@ -764,7 +762,7 @@ class BuiltinRuntime:
 
     def _summarize_units(self, ctx, run, ladder: Ladder, guard: SpendGuard, session: Session,
                          destination: "fitloop.Destination", units: list[list[dict[str, Any]]],
-                         reservations: list[str]) -> Optional[str]:
+                         reservations: list[str], stop=None) -> Optional[str]:
         """One reserved, settled summarizer call on the route already in use; None when it cannot fit.
 
         Compaction never creates new provider authority and never asks a human: only rungs already
@@ -801,7 +799,16 @@ class BuiltinRuntime:
         timer = StepTimer()
         started = time.perf_counter()
         try:
-            result = session.provider.chat(req)
+            # The summarizer is another local model call: it waits for the same one-at-a-time slot as a
+            # normal turn. The pure fit check above never holds the slot, so a turn's own queue wait
+            # stays attached to the model call it belongs to.
+            with self._inference(ctx, run, rung, stop):
+                result = session.provider.chat(req)
+        except AdmissionError as exc:
+            ctx.store.release_usage_reservation(reservation.id,
+                                                f"compaction was cancelled before its call started: {exc}",
+                                                expected_fence=run.fence)
+            return None
         except ProviderError as exc:
             ctx.store.mark_usage_uncertain(reservation.id, f"summarizer outcome is uncertain ({exc.kind})",
                                            expected_fence=run.fence)
