@@ -4214,3 +4214,17 @@ partial (a continuation reuses settled nodes, but a plan-revision diff and adopt
 implemented); there is no MCP facade; and the human answer in the capture was given by the
 capture script through the CLI, not by a person. No push, publication, paid inference or
 model download occurred, and no other lane's work was altered.
+
+### Measured note: the CLI-startup benchmark regression is pre-existing, not this slice
+
+`python -m benchmarks.run --record-if-missing --check` reports `cli_version_ms` 2,817 ms and
+`cli_status_ms` 2,464 ms against a 255/275 ms baseline (+1003%/+796%). Attribution: the cost
+is the module import chain `hutch.cli → hutch.tools → hutch.documents.docgen.pdfdoc →
+weasyprint` (`weasyprint` alone is ~0.9 s of the ~2.1 s `hutch.cli` import), and local `main`
+already imports `.documents` and `.skill` at module level in `src/hutch/tools/__init__.py`
+(`git show main:src/hutch/tools/__init__.py` lines 12-13), so the regression predates this
+branch. This slice adds 19 µs: `import hutch.tools.workflow_draft` costs 1.468 s against
+1.468 s for `hutch.tools` alone, and `hutch.workflow.*` is not imported at all for
+`hutch version` (`python -X importtime`). The fix belongs to the documents/tools lane
+(lazy-import the document generators, or move them out of the tool registry's module-level
+imports); it is recorded here rather than silently inherited.
