@@ -329,6 +329,28 @@ has no tools. The prompt forbids credential or authority questions, and the clie
 complete detector. The result remains a proposal: the owner edits and explicitly applies it. Bot creation remains a separate confirmation, and this flow cannot alter the proposed Bot's model, account,
 memory, workspace or permissions. Required response fields and limits are validated, and malformed output stays unapplied.
 
+## Response style (persona)
+
+The owner can save a response style for each assistant beside its standing directions, and choose
+this-conversation or next-reply styles from a chat's options. Choices are sparse: depth (short,
+balanced, thorough), voice (neutral, warm, direct) and joking (off, or matched only to clearly
+playful messages). Unset fields inherit by precedence — current turn, then conversation, then the
+assistant's saved style, then its preset, then Hutch's default — and an explicit "Inherited" clears
+a saved value back to that chain. Saves are revision-guarded: a stale save is refused (409) and the
+person's edits stay on screen for review instead of being merged silently. A next-reply choice
+applies to one message only and never becomes a durable preference.
+
+At run start the engine resolves the layers once and writes a versioned, write-once plan into the
+run; a retried start reuses the recorded plan, and unreadable or newer state fails the run with a
+`persona_unavailable` reason instead of silently restyling it. The built-in runtime renders the plan
+into its system prompt locally — no extra model call is spent on style — and the guidance is
+subordinate wording: it never overrides safety, permissions, tool rules, the task, explicit operator
+requests or detail needed to act correctly, keeps sensitive topics plain and steady, and lets
+playfulness apply only to turns that are themselves clearly playful, re-decided each turn. The
+chain is covered by fixture and API tests, a real-engine plan-capture test, and a bounded real
+browser run at phone/tablet/desktop widths (`docs/realignment/artifacts/persona-ui-2026-10-11/`);
+live-model humor and boundary calibration remain unverified.
+
 ## What is deliberately NOT here (yet)
 
 Vector retrieval, webhook triggers, multi-user roles, bounded agent-to-agent collaboration, a cross-run artifact library, remote

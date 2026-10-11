@@ -68,6 +68,24 @@ Progress (2026-10-11):
   screenshots at 360/768/1440 and a trace in `docs/realignment/artifacts/persona-ui-2026-10-11/`
   (reproducible via `docs/realignment/capture_persona_ui.py`); static-asset guards and persona suites pass
   (59 tests). The full browser e2e suite and live-model checks remain unrun.
+- `f35d8fa` review hardening after an independent read-only review of all persona commits: the origins
+  surface now describes the value actually shown (unsaved edits, next-reply scope, post-conflict reloads),
+  a stored plan written by a newer Hutch fails clearly (`persona_unavailable`) instead of surfacing as a
+  user stop, and a stale whole-document bot save can no longer roll back the revision-guarded style.
+  Regression tests: stale-document guard, unreadable conversation state, newer stored plan. Browser
+  evidence regenerated with **20/20 checks**; focused regression batch **338 passed**.
+
+Known follow-ups (from the same review, not yet done):
+
+- The bot-level style fields are strict (`extra="forbid"`) without a version envelope: one unknown
+  style field in a bot document would make every bot unreadable on an older build. Decide between a
+  versioned envelope and tolerant storage validation for `persona_preset`/`persona_override` before any
+  released-build downgrade path matters.
+- `persona_preset` has no production writer yet (nothing ships an agent preset); the "Assistant preset"
+  origin appears only if a template or future flow sets it.
+- The persona flow has no committed test inside `tests/e2e/`; the reproducible capture script is the
+  current browser regression vehicle, and the full browser suite has not been run on this tree.
+- Live-model evaluation of humor, adherence and boundary calibration remains unrun (no authorized route).
 
 ## Acceptance budgets
 
