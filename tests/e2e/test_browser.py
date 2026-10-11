@@ -558,6 +558,114 @@ def test_paired_phone_keeps_mixed_question_and_approval_pending_in_either_order(
     }, indent=2) + "\n")
 
 
+
+@pytest.mark.parametrize("decision_order", [(0, 1), (1, 0)])
+def test_paired_phone_keeps_multiple_approvals_independently_pending(
+        browser, live, decision_order):
+    base, app = live
+    store, engine = app.state.store, app.state.engine
+    approvals = []
+    runs = []
+    for index in range(2):
+        bot = store.create_bot(Bot(name=f"phone-approval-order-{index}", model="mock/demo",
+                                   tools=["files"], approval_mode=ApprovalMode.ask))
+        run = engine.submit(bot, "write a report")
+        runs.append(run)
+        engine.dispatch_pending()
+        wait_for(lambda run_id=run.id: store.get_run(run_id).status is RunStatus.waiting_approval)
+        approval = next(a for a in store.pending_approvals() if a.run_id == run.id)
+        approvals.append(approval)
+
+    enrollment, outcome = store.exchange_pairing_code(
+        store.create_pairing_code(), "Multiple approval phone", "browser-test")
+    assert outcome == "ok" and enrollment
+    paired = store.finish_passkey_enrollment(enrollment["token"], {
+        "credential_id": secrets.token_bytes(24), "public_key": b"multiple-phone-approval-key",
+        "sign_count": 0, "backup_eligible": True, "backed_up": True,
+        "user_handle": store.webauthn_user_handle(),
+    })
+    artifacts = (Path(__file__).resolve().parents[2]
+                 / "docs/realignment/artifacts/workflow-studio/multiple-approvals-2026-10-11")
+    artifacts.mkdir(parents=True, exist_ok=True)
+    order_label = "-".join(str(index) for index in decision_order)
+    capture_names = [f"approvals-{order_label}-390.png", f"approvals-{order_label}-320.png",
+                     f"approvals-{order_label}-trace.zip"]
+    context = browser.new_context(viewport={"width": 390, "height": 844})
+    page = context.new_page()
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        context.add_cookies([{"name": "hutch_session", "value": paired["session_token"], "url": base}])
+        page.goto(base + "/")
+        page.locator("#phone-root .phone-brand").wait_for()
+        page.locator('.phone-tabs [data-phone-tab="review"]').click()
+        cards = page.locator(".approval-card")
+        wait_for(lambda: cards.count() == 2)
+        for approval in approvals:
+            card = page.locator(f'.approval-card [data-phone-approve="{approval.id}"]').locator(
+                "xpath=ancestor::article[contains(@class,'approval-card')]"
+            )
+            assert card.get_by_text(approval.id, exact=True).is_visible()
+            assert card.get_by_role("heading", name=approval.action).is_visible()
+        page.screenshot(path=str(artifacts / capture_names[0]), full_page=True, animations="disabled")
+
+        page.set_viewport_size({"width": 320, "height": 780})
+        overflow_320 = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow_320 <= 1
+        target_heights_320 = cards.locator(".phone-actions button").evaluate_all(
+            "items => items.map(el => Math.round(el.getBoundingClientRect().height))")
+        assert len(target_heights_320) == 4 and min(target_heights_320) >= 44
+        page.screenshot(path=str(artifacts / capture_names[1]), full_page=True, animations="disabled")
+        page.set_viewport_size({"width": 390, "height": 844})
+
+        for decision_index, approval_index in enumerate(decision_order):
+            approval = approvals[approval_index]
+            button = page.locator(f'.approval-card [data-phone-approve="{approval.id}"]')
+            assert button.is_visible()
+            with page.expect_response(lambda response, aid=approval.id: response.url.endswith(
+                    f"/api/v1/actions/approvals/{aid}/approve")) as response_info:
+                button.click()
+            assert response_info.value.status == 200, response_info.value.text()
+            wait_for(lambda run_id=runs[approval_index].id:
+                     store.get_run(run_id).status is RunStatus.succeeded)
+            expected_card_count = 1 if decision_index == 0 else 0
+            wait_for(lambda expected=expected_card_count: cards.count() == expected)
+            remaining_index = decision_order[decision_index + 1] if decision_index == 0 else None
+            if remaining_index is not None:
+                remaining = approvals[remaining_index]
+                assert store.get_approval(remaining.id).status.value == "pending"
+                assert page.get_by_text(remaining.id, exact=True).is_visible()
+                assert page.locator(f'.approval-card [data-phone-approve="{remaining.id}"]').is_visible()
+            assert store.get_approval(approval.id).status.value == "approved"
+
+        wait_for(lambda: cards.count() == 0)
+        assert all(store.get_approval(approval.id).status.value == "approved" for approval in approvals)
+        assert not errors, errors
+    finally:
+        context.tracing.stop(path=str(artifacts / capture_names[2]))
+        context.close()
+
+    (artifacts / f"results-{order_label}.json").write_text(json.dumps({
+        "test": "tests/e2e/test_browser.py::test_paired_phone_keeps_multiple_approvals_independently_pending",
+        "decision_order": [approvals[index].id for index in decision_order],
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "browser": browser.browser_type.name, "browser_version": browser.version,
+        "playwright": package_version("playwright"),
+        "approval_ids": [approval.id for approval in approvals],
+        "pending_after_first_decision": approvals[decision_order[1]].id,
+        "final_approval_statuses": [store.get_approval(approval.id).status.value for approval in approvals],
+        "viewports_css_px": {"phone": [390, 844], "compact_phone": [320, 780]},
+        "compact_phone_overflow_px": overflow_320,
+        "compact_phone_action_min_height_px": min(target_heights_320),
+        "page_errors": errors,
+        "artifact_sha256": {name: hashlib.sha256((artifacts / name).read_bytes()).hexdigest()
+                            for name in capture_names},
+        "source_sha256": {name: hashlib.sha256((Path(__file__).resolve().parents[2] / name).read_bytes()).hexdigest()
+                          for name in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                       "src/hutch/server/workflows_api.py", "tests/e2e/test_browser.py")},
+    }, indent=2) + "\n")
+
 def test_workflow_studio_lists_and_resolves_every_pending_question(browser, live):
     import hashlib
     from datetime import datetime, timezone
