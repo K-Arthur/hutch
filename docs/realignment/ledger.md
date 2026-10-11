@@ -4110,12 +4110,17 @@ gain newer bindings. The listing uses a stat-signature fast path while every
 security decision still reads the bytes (a same-size/mtime edit regression
 proves the boundary).
 
-Verification boundary: skills suites **60 passed**; the full offline suite on
+Verification boundary: skills suites **74 passed**; the full offline suite on
 the rebased tree **1685 passed in 550.64s**; browser journeys **6 passed**
 (Chromium fixture service); a bounded 60.4 s soak (225 runs, 112 approvals,
 113 denials, 56 cancellations, 32 skill toggles, 202 SPA navigations) reported
 zero page/console/route errors and no leaked runs, and it exposed a stale-render
-bug in the new UI that is now fixed and guarded. Bounded-corpus measurements
+bug in the new UI that is now fixed and guarded. An independent read-only agent
+review at `fa73b0e` attacked the subsystem with 14 probes and found eight
+issues (YAML alias bomb, unverified resource reads, hostile resource arguments,
+path-shaped bundled names, unreadable-file readiness 500, symlinked-package
+uninstall, staged-update reviewability, prompt markup escaping); all were fixed
+in `aeb244c` with eleven new regressions. Bounded-corpus measurements
 (200 skills / 100 Bots): library listing p50 213 ms, run resolution p50 12 ms,
 20-skill catalog ≈ 1,137 est. tokens. No live provider, account, OAuth refresh,
 physical device or screen-reader verification was performed for this slice;
