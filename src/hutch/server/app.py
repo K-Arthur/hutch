@@ -23,6 +23,7 @@ import sqlite3
 import stat
 from pathlib import Path
 from pathlib import PurePosixPath
+from types import SimpleNamespace
 from typing import Any, Literal, Optional
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
@@ -1720,6 +1721,40 @@ class OutlookMailSendGrantResponseResource(BaseModel):
     detail: str
 
 
+class SourceCreateRequest(BaseModel):
+    """One event-source registration as the UI/API submits it (kind-specific fields optional)."""
+
+    bot: str = Field(min_length=1, max_length=128)
+    kind: Literal["folder", "git", "feed"]
+    name: str = Field(min_length=1, max_length=80)
+    path: str = Field(default="", max_length=4096)
+    url: str = Field(default="", max_length=2048)
+    ref: str = Field(default="", max_length=200)
+    include: list[str] = Field(default_factory=list, max_length=32)
+    ignore: list[str] = Field(default_factory=list, max_length=32)
+    every_seconds: Optional[int] = Field(default=None, ge=10, le=86_400)
+    prompt: str = Field(default="", max_length=4000)
+    cooldown_seconds: int = Field(default=300, ge=10, le=86_400)
+    max_per_hour: int = Field(default=6, ge=1, le=60)
+
+
+class SourceUpdateRequest(BaseModel):
+    """A partial edit; any changed field fences an in-flight check via the revision."""
+
+    name: Optional[str] = Field(default=None, min_length=1, max_length=80)
+    path: Optional[str] = Field(default=None, max_length=4096)
+    url: Optional[str] = Field(default=None, max_length=2048)
+    ref: Optional[str] = Field(default=None, max_length=200)
+    include: Optional[list[str]] = Field(default=None, max_length=32)
+    ignore: Optional[list[str]] = Field(default=None, max_length=32)
+    every_seconds: Optional[int] = Field(default=None, ge=10, le=86_400)
+    prompt: Optional[str] = Field(default=None, max_length=4000)
+    cooldown_seconds: Optional[int] = Field(default=None, ge=10, le=86_400)
+    max_per_hour: Optional[int] = Field(default=None, ge=1, le=60)
+    enabled: Optional[bool] = None
+    replace_config: bool = False
+
+
 def create_app() -> FastAPI:
     config = get_config()
     store = Store(config)
@@ -2105,7 +2140,111 @@ def create_app() -> FastAPI:
                 "unresolved_actions": store.count_unresolved_actions(),
                 "execution_held": bool((report := store.restoration_status()) and report["execution_held"]),
             },
+            "sources": store.source_inbox_stats(),
         }
+
+    # ------------------------------------------------------------- sources
+    # Durable, model-free change detection. Registration lives here; checks run
+    # only in the elected supervisor (src/hutch/monitoring.py). Local owners
+    # only: none of these routes exist in REMOTE_ROUTE_CAPABILITIES.
+
+    def _source_config(body) -> dict:
+        """Validate one registration into the adapter's bounded config. Unknown stays refused."""
+        from ..sources import build_registration_config
+
+        try:
+            config = build_registration_config(body.kind, path=body.path, url=body.url, ref=body.ref,
+                                               include=body.include, ignore=body.ignore,
+                                               every_seconds=body.every_seconds)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        admission = {"prompt": (body.prompt or "").strip(), "cooldown_seconds": int(body.cooldown_seconds),
+                     "max_per_hour": int(body.max_per_hour)}
+        return config, admission
+
+    def _source_resource(row: dict, counts: dict[str, dict[str, int]]) -> dict:
+        seen = counts.get(row["id"], {})
+        return {
+            "id": row["id"], "bot_id": row["bot_id"], "kind": row["kind"], "name": row["name"],
+            "config": row["config"], "admission": row["admission"], "enabled": row["enabled"],
+            "revision": row["revision"], "next_check_at": row["next_check_at"],
+            "last_check_at": row["last_check_at"], "last_success_at": row["last_success_at"],
+            "last_error": row["last_error"], "error_count": row["error_count"],
+            "pending_events": seen.get("recorded", 0), "admitted_events": seen.get("admitted", 0),
+            "ignored_events": seen.get("ignored", 0), "superseded_events": seen.get("superseded", 0),
+            "created_at": row["created_at"],
+        }
+
+    @app.get("/api/v1/sources")
+    def list_sources(bot: Optional[str] = None) -> dict:
+        target = bot_or_404(bot).id if bot else None
+        return {"items": [_source_resource(row, store.source_event_counts())
+                          for row in store.list_event_sources(target)],
+                "stats": store.source_inbox_stats()}
+
+    @app.post("/api/v1/sources", status_code=201)
+    def create_source(body: SourceCreateRequest) -> dict:
+        target = bot_or_404(body.bot)
+        config, admission = _source_config(body)
+        row = store.create_event_source(bot_id=target.id, kind=body.kind, name=body.name,
+                                        config=config, admission=admission)
+        return _source_resource(row, store.source_event_counts())
+
+    @app.put("/api/v1/sources/{source_id}")
+    def update_source(source_id: str, body: SourceUpdateRequest) -> dict:
+        current = store.get_event_source(source_id)
+        if current is None:
+            raise HTTPException(404, "no such source")
+        config = None
+        if body.replace_config or any(value is not None for value in
+                                      (body.path, body.url, body.ref, body.include, body.ignore, body.every_seconds)):
+            merged = SimpleNamespace(
+                kind=current["kind"],
+                path=(body.path if body.path is not None else current["config"].get("path", "")),
+                url=(body.url if body.url is not None else current["config"].get("url", "")),
+                ref=(body.ref if body.ref is not None else current["config"].get("ref", "")),
+                include=(body.include if body.include is not None else current["config"].get("include", [])),
+                ignore=(body.ignore if body.ignore is not None else current["config"].get("ignore_globs", [])),
+                every_seconds=body.every_seconds or current["config"].get("check_seconds"),
+                prompt=(body.prompt if body.prompt is not None else current["admission"].get("prompt", "")),
+                cooldown_seconds=(body.cooldown_seconds if body.cooldown_seconds is not None
+                                  else current["admission"].get("cooldown_seconds", 300)),
+                max_per_hour=(body.max_per_hour if body.max_per_hour is not None
+                              else current["admission"].get("max_per_hour", 6)),
+            )
+            config, _ = _source_config(merged)
+        admission = None
+        if body.prompt is not None or body.cooldown_seconds is not None or body.max_per_hour is not None:
+            admission = dict(current["admission"])
+            if body.prompt is not None:
+                admission["prompt"] = body.prompt.strip()
+            if body.cooldown_seconds is not None:
+                admission["cooldown_seconds"] = int(body.cooldown_seconds)
+            if body.max_per_hour is not None:
+                admission["max_per_hour"] = int(body.max_per_hour)
+        updated = store.update_event_source(source_id, name=body.name, config=config, admission=admission,
+                                            enabled=body.enabled)
+        return _source_resource(updated, store.source_event_counts())
+
+    @app.delete("/api/v1/sources/{source_id}")
+    def delete_source(source_id: str) -> dict:
+        if not store.delete_event_source(source_id):
+            raise HTTPException(404, "no such source")
+        return {"removed": source_id}
+
+    @app.get("/api/v1/sources/{source_id}/events")
+    def source_events(source_id: str, status: Optional[str] = None, limit: int = 100, after: int = 0) -> dict:
+        if store.get_event_source(source_id) is None:
+            raise HTTPException(404, "no such source")
+        if status is not None and status not in ("recorded", "admitted", "ignored", "superseded"):
+            raise HTTPException(422, "unknown event status")
+        return {"items": store.source_events(source_id, status=status, limit=min(limit, 500), after=after)}
+
+    @app.post("/api/v1/sources/{source_id}/check")
+    def check_source_now(source_id: str) -> dict:
+        if not store.schedule_source_now(source_id):
+            raise HTTPException(404, "no enabled source with that id")
+        return {"scheduled": True}
 
     @app.get('/api/v1/state/restore', response_model=RestorePageResource)
     def restoration_status(limit: int = 100, offset: int = 0) -> dict:

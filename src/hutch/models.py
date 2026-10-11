@@ -421,8 +421,9 @@ class Run(BaseModel):
     context_limit: int = 0            # effective window the model actually got
     model_used: str = ""              # may differ from bot.model after escalation/fallback
     # --- lineage (SR-7)
-    origin: str = "manual"            # manual:dashboard | manual:cli | manual:api | schedule | plan
+    origin: str = "manual"            # manual:dashboard | manual:cli | manual:api | schedule | source | plan
     schedule_id: str = ""              # source schedule for recurring work; empty for other origins
+    source_id: str = ""                # event source that admitted this run; empty otherwise
     plan_id: Optional[str] = None
     plan_task_id: Optional[str] = None
     parent_run_id: Optional[str] = None  # bounded delegation lineage; immutable after admission

@@ -1618,6 +1618,112 @@ def service_uninstall() -> None:
         console.print("Hutch's user service is not installed. No local data was changed.")
 
 
+# ------------------------------------------------------------------ sources
+
+source_app = typer.Typer(no_args_is_help=True,
+                         help="Watched folders, repositories and feeds that can trigger work.")
+app.add_typer(source_app, name="source")
+
+
+@source_app.command("list")
+def source_list() -> None:
+    """Show every registered source with freshness, health and pending events."""
+    store = _store()
+    counts = store.source_event_counts()
+    sources = store.list_event_sources()
+    if not sources:
+        console.print("No watched sources. Add one with "
+                      "`hutch source add <bot> --kind folder --path /absolute/path`.")
+        return
+    console.print("Watched sources")
+    for source in sources:
+        state = "enabled" if source["enabled"] else "disabled"
+        seen = counts.get(source["id"], {})
+        if source["last_error"]:
+            health = f"failing: {source['last_error']}"
+        elif source["last_success_at"]:
+            health = f"last checked {source['last_success_at']}"
+        else:
+            health = "never checked"
+        console.print(
+            f"- {source['name']} ({source['kind']}/{state})\n"
+            f"  id={source['id']}  bot={source['bot_id']}  next={source['next_check_at'][:19]}Z\n"
+            f"  {health}  pending={seen.get('recorded', 0)}  admitted={seen.get('admitted', 0)}"
+        )
+
+
+@source_app.command("add")
+def source_add(bot_name: str = typer.Argument(..., help="Bot name or ID"),
+               kind: str = typer.Option(..., "--kind", help="folder | git | feed"),
+               name: str = typer.Option("", "--name", help="Display name"),
+               path: str = typer.Option("", "--path", help="Absolute folder/repository path"),
+               url: str = typer.Option("", "--url", help="Feed URL (http/https)"),
+               ref: str = typer.Option("HEAD", "--ref", help="Git ref to watch"),
+               include: Optional[list[str]] = typer.Option(None, "--include", help="Restrict folder matches"),
+               every_seconds: Optional[int] = typer.Option(None, "--every-seconds", min=10, max=86_400,
+                                                           help="Check cadence"),
+               prompt: str = typer.Option("", "--prompt",
+                                          help="Task instruction; {summary}/{source}/{count} are expanded"),
+               cooldown_seconds: int = typer.Option(300, "--cooldown-seconds", min=10, max=86_400),
+               max_per_hour: int = typer.Option(6, "--max-per-hour", min=1, max=60)) -> None:
+    """Register a source. Changes admit at most one bounded run per cooldown window."""
+    from .sources import build_registration_config
+
+    store = _store()
+    bot = _require_bot(store, bot_name)
+    try:
+        config = build_registration_config(kind, path=path, url=url, ref=ref, include=include,
+                                           every_seconds=every_seconds)
+    except ValueError as exc:
+        err.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=2) from None
+    source = store.create_event_source(
+        bot_id=bot.id, kind=kind, name=name or f"{kind} source",
+        config=config, admission={"prompt": prompt.strip(), "cooldown_seconds": cooldown_seconds,
+                                  "max_per_hour": max_per_hour})
+    console.print(f"Registered {source['name']} ({source['kind']}) as {source['id']} for {bot.name}.")
+    console.print("Checks run in the background supervisor and never call a model unless something material changes.")
+
+
+@source_app.command("remove")
+def source_remove(source_id: str = typer.Argument(..., help="Source ID from `hutch source list`")) -> None:
+    """Stop checking a source. Recorded event history stays for review."""
+    store = _store()
+    if store.delete_event_source(source_id):
+        console.print(f"Removed {source_id}. No further checks or runs will be admitted for it.")
+    else:
+        err.print(f"[red]No source with id {source_id}.[/red]")
+        raise typer.Exit(code=1)
+
+
+@source_app.command("check")
+def source_check(source_id: str = typer.Argument(..., help="Source ID from `hutch source list`")) -> None:
+    """Ask the supervisor to check one source as soon as possible (no model call)."""
+    store = _store()
+    if store.schedule_source_now(source_id):
+        console.print(f"Scheduled an immediate bounded check for {source_id}.")
+    else:
+        err.print(f"[red]No enabled source with id {source_id}.[/red]")
+        raise typer.Exit(code=1)
+
+
+@source_app.command("events")
+def source_events(source_id: str = typer.Argument(...),
+                  limit: int = typer.Option(20, "--limit", min=1, max=200)) -> None:
+    """Show the recorded inbox for one source (newest first)."""
+    store = _store()
+    if store.get_event_source(source_id) is None:
+        err.print(f"[red]No source with id {source_id}.[/red]")
+        raise typer.Exit(code=1)
+    rows = store.source_events(source_id, limit=limit)
+    if not rows:
+        console.print("No events recorded yet.")
+        return
+    for row in rows:
+        console.print(f"({row['status']}) {row['kind']} {row['event_key']} — "
+                      f"{' '.join(row['summary'].split())[:140]} ({row['received_at'][:19]}Z)")
+
+
 # ------------------------------------------------------------------ models
 
 models_app = typer.Typer(no_args_is_help=True, help="Local models: what fits this machine, presets, swap cost.")

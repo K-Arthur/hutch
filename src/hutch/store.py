@@ -1336,6 +1336,65 @@ def _migrate_50(db: sqlite3.Connection) -> None:
     db.execute("CREATE INDEX idx_document_versions_run ON document_versions(run_id)")
 
 
+def _migrate_51(db: sqlite3.Connection) -> None:
+    """Durable event-source registry and its durable inbox.
+
+    ``event_sources`` is the registration (identity, bounded config, versioned
+    revision, cursor, scheduling and admission policy); ``source_events`` is the
+    inbox. A check commits its cursor and its events in one transaction, and the
+    unique key ``(source_id, event_key, content_hash)`` makes a re-scan after a
+    crash absorb duplicates instead of admitting them twice.
+    """
+    db.execute("""CREATE TABLE event_sources (
+        id TEXT PRIMARY KEY,
+        bot_id TEXT NOT NULL,
+        kind TEXT NOT NULL CHECK(kind IN ('folder','git','feed')),
+        name TEXT NOT NULL,
+        config TEXT NOT NULL CHECK(json_valid(config)),
+        admission TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(admission)),
+        enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0,1)),
+        revision INTEGER NOT NULL DEFAULT 1 CHECK(revision >= 1),
+        cursor TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(cursor)),
+        next_check_at TEXT NOT NULL,
+        last_check_at TEXT,
+        last_success_at TEXT,
+        last_error TEXT NOT NULL DEFAULT '',
+        error_count INTEGER NOT NULL DEFAULT 0 CHECK(error_count >= 0),
+        last_admit_at TEXT,
+        admit_after TEXT,
+        created_at TEXT NOT NULL
+    )""")
+    db.execute("CREATE INDEX idx_event_sources_due ON event_sources(enabled, next_check_at)")
+    db.execute("CREATE INDEX idx_event_sources_bot ON event_sources(bot_id)")
+    db.execute("""CREATE TABLE source_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source_id TEXT NOT NULL,
+        source_revision INTEGER NOT NULL,
+        event_key TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        occurrence TEXT NOT NULL,
+        content_hash TEXT NOT NULL DEFAULT '',
+        summary TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'recorded'
+            CHECK(status IN ('recorded','admitted','ignored','superseded')),
+        run_id TEXT,
+        received_at TEXT NOT NULL,
+        processed_at TEXT,
+        UNIQUE(source_id, event_key, content_hash)
+    )""")
+    db.execute("CREATE INDEX idx_source_events_inbox ON source_events(status, id)")
+    db.execute("CREATE INDEX idx_source_events_source ON source_events(source_id, id)")
+    db.execute("CREATE INDEX idx_source_events_admitted ON source_events(source_id, status, processed_at)")
+    from . import durable_changes
+
+    durable_changes.install_resources(db, ((
+        "event_sources", "sources", "id",
+        ("name", "enabled", "revision", "config", "admission", "next_check_at",
+         "last_success_at", "last_error", "error_count"),
+        ("bot_id",),
+    ),))
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -1343,7 +1402,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
-               _migrate_48, _migrate_49, _migrate_50]
+               _migrate_48, _migrate_49, _migrate_50, _migrate_51]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -7437,6 +7496,323 @@ class Store:
             self.kv_set(f"resume:{run_id}", "0")
             return True
         return False
+
+    # --------------------------------------------------------- event sources
+
+    _SOURCE_COLS = ("id, bot_id, kind, name, config, admission, enabled, revision, cursor, "
+                    "next_check_at, last_check_at, last_success_at, last_error, error_count, "
+                    "last_admit_at, admit_after, created_at")
+
+    @staticmethod
+    def _source_row(row: sqlite3.Row) -> dict:
+        out = dict(row)
+        for key in ("config", "admission", "cursor"):
+            try:
+                out[key] = json.loads(out.get(key) or "{}")
+            except (TypeError, ValueError):
+                out[key] = {}
+        out["enabled"] = bool(out.get("enabled"))
+        return out
+
+    def create_event_source(self, *, bot_id: str, kind: str, name: str, config: dict,
+                            admission: Optional[dict] = None, next_check_at: Optional[str] = None) -> dict:
+        """Register one source. The caller owns config validation; the store owns identity and scheduling."""
+        if kind not in ("folder", "git", "feed"):
+            raise ValueError("source kind must be folder, git, or feed")
+        if self.get_bot(bot_id) is None:
+            raise ValueError("the source must belong to an existing Bot")
+        source_id = f"src_{uuid.uuid4().hex[:16]}"
+        now = utcnow()
+        row = {
+            "id": source_id, "bot_id": bot_id, "kind": kind, "name": " ".join((name or "").split())[:80] or f"{kind} source",
+            "config": _canonical(config), "admission": _canonical(admission or {}),
+            "enabled": 1, "revision": 1, "cursor": "{}",
+            "next_check_at": next_check_at or iso(now), "last_check_at": None, "last_success_at": None,
+            "last_error": "", "error_count": 0, "last_admit_at": None, "admit_after": None,
+            "created_at": iso(now),
+        }
+        with self._tx() as db:
+            db.execute(f"INSERT INTO event_sources ({self._SOURCE_COLS}) VALUES "
+                       "(:id, :bot_id, :kind, :name, :config, :admission, :enabled, :revision, :cursor, "
+                       ":next_check_at, :last_check_at, :last_success_at, :last_error, :error_count, "
+                       ":last_admit_at, :admit_after, :created_at)", row)
+        self.bus.notify("sources", "state")
+        with self._lock:
+            db_row = self._db.execute(
+                f"SELECT {self._SOURCE_COLS} FROM event_sources WHERE id = ?", (source_id,)).fetchone()
+        return self._source_row(db_row)
+
+    def get_event_source(self, source_id: str) -> Optional[dict]:
+        with self._lock:
+            row = self._db.execute(f"SELECT {self._SOURCE_COLS} FROM event_sources WHERE id = ?",
+                                   (source_id,)).fetchone()
+        return self._source_row(row) if row else None
+
+    def list_event_sources(self, bot_id: Optional[str] = None) -> list[dict]:
+        with self._lock:
+            if bot_id:
+                rows = self._db.execute(f"SELECT {self._SOURCE_COLS} FROM event_sources WHERE bot_id = ? "
+                                        "ORDER BY created_at", (bot_id,)).fetchall()
+            else:
+                rows = self._db.execute(f"SELECT {self._SOURCE_COLS} FROM event_sources ORDER BY created_at").fetchall()
+        return [self._source_row(row) for row in rows]
+
+    def update_event_source(self, source_id: str, *, name: Optional[str] = None,
+                            config: Optional[dict] = None, admission: Optional[dict] = None,
+                            enabled: Optional[bool] = None) -> Optional[dict]:
+        """Edit one source. Any material change bumps the revision and fences late check results.
+
+        A config change resets the cursor (the old cursor describes another
+        source) and retires recorded events; disabling a source retires pending
+        events so a pause cannot admit work recorded before it.
+        """
+        now = iso(utcnow())
+        with self._tx() as db:
+            row = db.execute(f"SELECT {self._SOURCE_COLS} FROM event_sources WHERE id = ?", (source_id,)).fetchone()
+            if row is None:
+                return None
+            current = self._source_row(row)
+            fresh_config = current["config"]
+            if config is not None and _canonical(config) != _canonical(current["config"]):
+                fresh_config = config
+                db.execute("UPDATE source_events SET status = 'superseded', processed_at = ? "
+                           "WHERE source_id = ? AND status = 'recorded'", (now, source_id))
+                db.execute("UPDATE event_sources SET cursor = '{}' WHERE id = ?", (source_id,))
+            if enabled is not None and not enabled and current["enabled"]:
+                db.execute("UPDATE source_events SET status = 'ignored', processed_at = ? "
+                           "WHERE source_id = ? AND status = 'recorded'", (now, source_id))
+            fresh_name = " ".join((name or current["name"]).split())[:80] or current["name"]
+            fresh_admission = _canonical(admission) if admission is not None else _canonical(current["admission"])
+            fresh_enabled = int(current["enabled"] if enabled is None else bool(enabled))
+            db.execute("UPDATE event_sources SET name = ?, config = ?, admission = ?, enabled = ?, "
+                       "revision = revision + 1, next_check_at = ?, last_error = '', error_count = 0, "
+                       "admit_after = NULL WHERE id = ?",
+                       (fresh_name, _canonical(fresh_config), fresh_admission, fresh_enabled, now, source_id))
+            updated = self._source_row(
+                db.execute(f"SELECT {self._SOURCE_COLS} FROM event_sources WHERE id = ?", (source_id,)).fetchone())
+        self.bus.notify("sources", f"source:{source_id}", "state")
+        return updated
+
+    def delete_event_source(self, source_id: str) -> bool:
+        """Remove a registration. Event history is retained as an audit trail; no future checks or admissions run."""
+        now = iso(utcnow())
+        with self._tx() as db:
+            row = db.execute("SELECT id FROM event_sources WHERE id = ?", (source_id,)).fetchone()
+            if row is None:
+                return False
+            db.execute("UPDATE source_events SET status = 'ignored', processed_at = ? "
+                       "WHERE source_id = ? AND status = 'recorded'", (now, source_id))
+            db.execute("DELETE FROM event_sources WHERE id = ?", (source_id,))
+        self.bus.notify("sources", f"source:{source_id}", "state")
+        return True
+
+    def due_event_sources(self, *, limit: int = 8, now: Optional[datetime] = None) -> list[dict]:
+        """Enabled sources whose next check is due, oldest first (indexed query, bounded)."""
+        stamp = iso(now or utcnow())
+        with self._lock:
+            rows = self._db.execute(
+                f"SELECT {self._SOURCE_COLS} FROM event_sources "
+                "WHERE enabled = 1 AND next_check_at <= ? ORDER BY next_check_at LIMIT ?",
+                (stamp, max(1, min(limit, 64)))).fetchall()
+        return [self._source_row(row) for row in rows]
+
+    def claim_event_source(self, source_id: str, observed_next_check_at: str, *, lease_until: str) -> bool:
+        """Optimistically claim one due check so two processes never run it twice."""
+        with self._tx() as db:
+            return db.execute(
+                "UPDATE event_sources SET next_check_at = ? WHERE id = ? AND enabled = 1 AND next_check_at = ?",
+                (lease_until, source_id, observed_next_check_at)).rowcount == 1
+
+    def record_source_check(self, source_id: str, revision: int, *, cursor: Optional[dict] = None,
+                            events: tuple = (), summary: str = "", error: Optional[str] = None,
+                            interval: float = 300.0, retry_after: Optional[float] = None,
+                            truncated: bool = False, now: Optional[datetime] = None) -> dict:
+        """Commit one check outcome: events and cursor together, or an error with backoff.
+
+        Results computed against a superseded revision (the source was edited,
+        disabled, or deleted while the check ran) are discarded, never admitted.
+        """
+        stamp = iso(now or utcnow())
+        moment = now or utcnow()
+        with self._tx() as db:
+            row = db.execute(f"SELECT {self._SOURCE_COLS} FROM event_sources WHERE id = ?", (source_id,)).fetchone()
+            if row is None:
+                return {"applied": False, "reason": "deleted"}
+            if int(row["revision"]) != int(revision):
+                return {"applied": False, "reason": "revision_superseded"}
+            if not row["enabled"]:
+                return {"applied": False, "reason": "disabled"}
+            if error is not None:
+                backoff = min(3600.0, max(retry_after or 0.0, 30.0 * (2 ** min(int(row["error_count"]), 6))))
+                next_at = iso(moment + timedelta(seconds=min(backoff, 3600.0)))
+                db.execute("UPDATE event_sources SET last_check_at = ?, last_error = ?, "
+                           "error_count = error_count + 1, next_check_at = ? WHERE id = ?",
+                           (stamp, " ".join(str(error).split())[:300], next_at, source_id))
+                result = {"applied": True, "recorded": 0, "ignored": 0, "superseded": 0, "error": True}
+            else:
+                recorded = ignored = superseded = 0
+                for draft in events:
+                    status = "ignored" if draft.excluded else "recorded"
+                    inserted = db.execute(
+                        "INSERT OR IGNORE INTO source_events(source_id, source_revision, event_key, kind, "
+                        "occurrence, content_hash, summary, status, received_at) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (source_id, int(revision), draft.key, draft.kind, draft.occurrence,
+                         draft.content_hash, draft.summary, status, stamp)).rowcount
+                    if inserted:
+                        if draft.excluded:
+                            ignored += 1
+                        else:
+                            recorded += 1
+                            db.execute("UPDATE source_events SET status = 'superseded', processed_at = ? "
+                                       "WHERE source_id = ? AND event_key = ? AND content_hash != ? "
+                                       "AND status = 'recorded'",
+                                       (stamp, source_id, draft.key, draft.content_hash))
+                    else:
+                        superseded += 1
+                wait = 5.0 if truncated else max(0.0, min(float(interval), 86_400.0))
+                next_at = iso(moment + timedelta(seconds=wait))
+                db.execute("UPDATE event_sources SET cursor = ?, last_check_at = ?, last_success_at = ?, "
+                           "last_error = '', error_count = 0, next_check_at = ? WHERE id = ?",
+                           (_canonical(cursor or {}), stamp, stamp, next_at, source_id))
+                result = {"applied": True, "recorded": recorded, "ignored": ignored, "superseded": superseded,
+                          "summary": summary}
+        if result.get("applied"):
+            self.bus.notify("sources", f"source:{source_id}", "state")
+        return result
+
+    def admit_source_changes(self, source_id: str, *, run: Run, task: Task, prompt: str,
+                             cooldown_seconds: float, max_per_hour: int,
+                             now: Optional[datetime] = None) -> Optional[Run]:
+        """Turn the recorded inbox into exactly one admitted run, idempotently.
+
+        The run, its task, and the event status updates commit in one
+        transaction, so a crash cannot admit the same batch twice. Cooldown and
+        hourly limits defer (never drop) pending events; ``admit_after``
+        prevents a deferral from spinning the loop.
+        """
+        stamp = iso(now or utcnow())
+        moment = now or utcnow()
+        with self._tx() as db:
+            row = db.execute(f"SELECT {self._SOURCE_COLS} FROM event_sources WHERE id = ?", (source_id,)).fetchone()
+            if row is None or not row["enabled"]:
+                return None
+            if row["admit_after"] and row["admit_after"] > stamp:
+                return None
+            pending = db.execute(
+                "SELECT id FROM source_events WHERE source_id = ? AND status = 'recorded' "
+                "ORDER BY id LIMIT 50", (source_id,)).fetchall()
+            if not pending:
+                return None
+            if row["last_admit_at"]:
+                try:
+                    elapsed = (moment - datetime.fromisoformat(row["last_admit_at"])).total_seconds()
+                except ValueError:
+                    elapsed = cooldown_seconds
+                if elapsed < cooldown_seconds:
+                    defer_until = iso(moment + timedelta(seconds=max(1.0, cooldown_seconds - elapsed)))
+                    db.execute("UPDATE event_sources SET admit_after = ? WHERE id = ?", (defer_until, source_id))
+                    return None
+            hour_ago = iso(moment - timedelta(seconds=3600))
+            admitted_recently = db.execute(
+                "SELECT COUNT(*) AS n FROM source_events WHERE source_id = ? AND status = 'admitted' "
+                "AND processed_at >= ?", (source_id, hour_ago)).fetchone()["n"]
+            if max_per_hour and admitted_recently >= max_per_hour:
+                db.execute("UPDATE event_sources SET admit_after = ? WHERE id = ?",
+                           (iso(moment + timedelta(seconds=cooldown_seconds)), source_id))
+                return None
+            self._assert_execution_ready(db)
+            if not self._remote_run_allowed(db, run):
+                return None
+            run.task_id = task.id
+            run.prompt = prompt
+            db.execute("INSERT INTO tasks (id, bot_id, kind, prompt, created_at, done, state, run_id) "
+                       "VALUES (?, ?, ?, ?, ?, 0, 'queued', ?)",
+                       (task.id, task.bot_id, task.kind, task.prompt, task.created_at, run.id))
+            db.execute("INSERT INTO runs (id, bot_id, task_id, doc, status, created_at, conversation_id, "
+                       "conversation_context) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                       (run.id, run.bot_id, task.id, self._run_json(run), run.status.value, run.created_at,
+                        run.conversation_id, json.dumps(run.conversation_context, ensure_ascii=False)))
+            db.execute("UPDATE source_events SET status = 'admitted', run_id = ?, processed_at = ? "
+                       "WHERE source_id = ? AND status = 'recorded'",
+                       (run.id, stamp, source_id))
+            db.execute("UPDATE event_sources SET last_admit_at = ?, admit_after = ? WHERE id = ?",
+                       (stamp, iso(moment + timedelta(seconds=cooldown_seconds)), source_id))
+        self.bus.notify("work", "runs", "sources", f"run:{run.id}")
+        return run
+
+    def source_events(self, source_id: Optional[str] = None, *, status: Optional[str] = None,
+                      limit: int = 100, after: int = 0) -> list[dict]:
+        clauses, args = ["id > ?"], [max(0, int(after))]
+        if source_id:
+            clauses.append("source_id = ?")
+            args.append(source_id)
+        if status:
+            clauses.append("status = ?")
+            args.append(status)
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT id, source_id, source_revision, event_key, kind, occurrence, content_hash, summary, "
+                f"status, run_id, received_at, processed_at FROM source_events WHERE {' AND '.join(clauses)} "
+                "ORDER BY id DESC LIMIT ?", (*args, max(1, min(limit, 500)))).fetchall()
+        return [dict(row) for row in rows]
+
+    def schedule_source_now(self, source_id: str, now: Optional[datetime] = None) -> bool:
+        """Make one source due immediately; the elected supervisor performs the actual bounded check."""
+        stamp = iso(now or utcnow())
+        with self._tx() as db:
+            changed = db.execute("UPDATE event_sources SET next_check_at = ? WHERE id = ? AND enabled = 1",
+                                 (stamp, source_id)).rowcount == 1
+        if changed:
+            self.bus.notify("sources", f"source:{source_id}", "work")
+        return changed
+
+    def source_event_counts(self) -> dict[str, dict[str, int]]:
+        """Per-source inbox counts in one query (UI summary, never a per-source scan)."""
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT source_id, status, COUNT(*) AS n FROM source_events GROUP BY source_id, status").fetchall()
+        out: dict[str, dict[str, int]] = {}
+        for row in rows:
+            out.setdefault(row["source_id"], {})[row["status"]] = int(row["n"])
+        return out
+
+    def next_source_check(self, now: Optional[datetime] = None) -> Optional[str]:
+        """The earliest scheduled check among enabled sources, or None."""
+        with self._lock:
+            row = self._db.execute(
+                "SELECT MIN(next_check_at) AS m FROM event_sources WHERE enabled = 1").fetchone()
+        return row["m"] if row and row["m"] else None
+
+    def pending_admission_sources(self, *, limit: int = 8, now: Optional[datetime] = None) -> list[dict]:
+        """Enabled sources with recorded events whose admission deferral has passed."""
+        stamp = iso(now or utcnow())
+        with self._lock:
+            rows = self._db.execute(
+                f"SELECT {self._SOURCE_COLS} FROM event_sources s WHERE s.enabled = 1 "
+                "AND (s.admit_after IS NULL OR s.admit_after <= ?) "
+                "AND EXISTS (SELECT 1 FROM source_events e WHERE e.source_id = s.id AND e.status = 'recorded') "
+                "ORDER BY s.next_check_at LIMIT ?", (stamp, max(1, min(limit, 64)))).fetchall()
+        return [self._source_row(row) for row in rows]
+
+    def source_inbox_stats(self, now: Optional[datetime] = None) -> dict:
+        stamp = iso(now or utcnow())
+        with self._lock:
+            totals = self._db.execute(
+                "SELECT COUNT(*) AS total, SUM(enabled) AS enabled, "
+                "SUM(CASE WHEN enabled = 1 AND next_check_at <= ? THEN 1 ELSE 0 END) AS due, "
+                "SUM(CASE WHEN last_error != '' THEN 1 ELSE 0 END) AS failing, "
+                "MIN(CASE WHEN enabled = 1 THEN next_check_at END) AS next_check_at, "
+                "MAX(last_success_at) AS last_success_at FROM event_sources", (stamp,)).fetchone()
+            pending = self._db.execute("SELECT COUNT(*) AS n FROM source_events WHERE status = 'recorded'").fetchone()
+            ignored = self._db.execute(
+                "SELECT COUNT(*) AS n FROM source_events WHERE kind = 'excluded'").fetchone()
+        return {
+            "total": int(totals["total"] or 0), "enabled": int(totals["enabled"] or 0),
+            "due": int(totals["due"] or 0), "failing": int(totals["failing"] or 0),
+            "pending_events": int(pending["n"] or 0), "excluded_events": int(ignored["n"] or 0),
+            "next_check_at": totals["next_check_at"], "last_success_at": totals["last_success_at"],
+        }
 
     # --------------------------------------------------------------- kv
 

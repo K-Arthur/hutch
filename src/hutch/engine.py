@@ -36,6 +36,7 @@ from . import durable_changes, procguard, sandbox
 from .approvals import ApprovalGate, expire_stale_approvals
 from .config import hutchConfig
 from .lifecycle import LIVE, TERMINAL as TERMINAL_STATUSES, IllegalTransition, LeaseLost
+from .monitoring import SourcePump
 from .models import (
     Bot,
     Event,
@@ -108,6 +109,8 @@ class Engine:
         #: run it was handed, so it does not need (or pay for) the dispatch machinery.
         self.slot_filter: Optional[Callable[[list[Run], list[Run]], list[Run]]] = None
         self.slot_reason: Optional[Callable[[Run], object]] = None
+        #: bounded, model-free event-source checks; only the elected supervisor pumps
+        self.sources: Optional[SourcePump] = SourcePump(self)
         if not light:
             from .hardware import probe
             from .slots import ModelSlots
@@ -1080,6 +1083,8 @@ class Engine:
             self.bus.notify("work", remote=False)
         if self._background_thread is not None:
             self._background_thread.join(timeout=max(0.0, deadline - time.monotonic()))
+        if self.sources is not None:
+            self.sources.shutdown()
         self.stop_owned()
         for t in list(self._threads.values()):
             t.join(timeout=max(0.0, deadline - time.monotonic()))
@@ -1153,6 +1158,8 @@ class Engine:
         expire_stale_approvals(self.store, self.config.default_approval_ttl_seconds)
         created = self.scheduler_claims()
         self.dispatch_pending()
+        if self.sources is not None:
+            self.sources.pump()
         now = time.monotonic()
         if (self._last_resource_change_prune is None
                 or now - self._last_resource_change_prune >= 300.0):
@@ -1188,6 +1195,18 @@ class Engine:
                 best = min(best, (datetime.fromisoformat(lapse) - now).total_seconds() + 1.0)
             except ValueError:
                 pass
+        if self.sources is not None and self._is_supervisor:
+            if self.sources.pending():
+                best = min(best, 0.25)                                          # collect a finished check promptly
+            if self.store.due_event_sources(limit=1):
+                best = min(best, 0.05)
+            else:
+                scheduled = self.store.next_source_check()
+                if scheduled:
+                    try:
+                        best = min(best, (datetime.fromisoformat(scheduled) - now).total_seconds())
+                    except ValueError:
+                        pass
         return max(0.05, best)
 
     def run_loop(self, stop: threading.Event, on_tick: Callable[[list[Run]], None] | None = None) -> None:
