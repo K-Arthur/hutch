@@ -293,7 +293,7 @@ class Bot(BaseModel):
     base_url: Optional[str] = None    # override for OpenAI-compatible endpoints
     runtime: RuntimeKind = RuntimeKind.builtin
     inference_mode: InferenceMode = InferenceMode.hybrid
-    tools: list[str] = Field(default_factory=lambda: ["shell", "files", "memory"])
+    tools: list[str] = Field(default_factory=lambda: ["shell", "files", "memory", "documents"])
     schedule: Optional[Schedule] = None
     schedules: list[Schedule] = Field(default_factory=list)
     limits: Limits = Field(default_factory=Limits)

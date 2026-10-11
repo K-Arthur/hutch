@@ -280,6 +280,36 @@ class DocumentStorage:
         """Resolve a version path after the hash check for streaming responses."""
         return self.root.joinpath(*PurePosixPath(rel_path).parts)
 
+    def read_preview_png(self, rel_path: str, page: int) -> Optional[bytes]:
+        """Read a derived preview page (``preview-NNN.png`` inside the version directory).
+
+        Preview pages are derived assets of an already-verified version: the path walk is
+        the same no-symlink discipline, the PNG signature is checked, and the size is
+        bounded, but they are not separately hash-recorded.
+        """
+        parts = PurePosixPath(rel_path).parts
+        if len(parts) != 3 or not 1 <= page <= 999:
+            return None
+        name = f"preview-{page:03d}.png"
+        try:
+            fd = self._walk_open((*parts[:2], name))
+        except (OSError, FileNotFoundError):
+            return None
+        try:
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode) or info.st_size > 8_000_000:
+                return None
+            chunks: list[bytes] = []
+            while True:
+                chunk = os.read(fd, 1 << 20)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+        finally:
+            os.close(fd)
+        data = b"".join(chunks)
+        return data if data.startswith(b"\x89PNG\r\n\x1a\n") else None
+
     def remove_version(self, rel_path: str) -> None:
         parts = PurePosixPath(rel_path).parts
         if len(parts) != 3:

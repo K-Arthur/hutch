@@ -16,6 +16,7 @@ from .storage import (
     DocumentStorageError,
     StagedDocument,
     new_document_id,
+    new_job_id,
     reconcile_documents_store,
     sanitize_storage_name,
 )
@@ -30,6 +31,7 @@ __all__ = [
     "DocumentStorageError",
     "StagedDocument",
     "new_document_id",
+    "new_job_id",
     "reconcile_documents_store",
     "sanitize_storage_name",
 ]
