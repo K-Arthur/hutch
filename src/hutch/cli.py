@@ -1642,7 +1642,7 @@ def workflow_list() -> None:
 def workflow_show(ref: str = typer.Argument(..., help="Workflow name or id")) -> None:
     """The plan of a saved workflow's latest revision, with its bounded structure."""
     from .workflow import persistence as wfstore
-    from .workflow.compile import plan_structure
+    from .workflow.compile import compile_plan, plan_structure
 
     store = _store()
     entry = wfstore.definition(store, ref)
@@ -1654,21 +1654,24 @@ def workflow_show(ref: str = typer.Argument(..., help="Workflow name or id")) ->
         err.print("[red]this workflow has no revision[/red]")
         raise typer.Exit(code=1)
     plan = revision["plan"]
-    console.print(f"[bold]{plan['name']}[/bold] rev {revision['revision']}  [dim]{revision['plan_hash'][:12]}…[/dim]")
-    if plan.get("description"):
-        console.print(plan["description"])
-    console.print(f"envelope: tools={plan['envelope'].get('tools') or []} "
-                  f"models={plan['envelope'].get('models') or ['$bot']} "
-                  f"network={plan['envelope'].get('network')} "
-                  f"parallel={plan['envelope'].get('max_parallel_steps')}")
-    budget = plan["budget"]
-    console.print(f"budget: nodes≤{budget['max_nodes']} model_calls≤{budget['max_model_calls']} "
-                  f"wall≤{budget['max_wall_seconds']}s fanout≤{budget['max_fanout']} repairs≤{budget['max_repairs']}")
-    if plan.get("inputs"):
+    # Show the *effective* plan: the stored document is exactly what was submitted, so the
+    # defaults the compiler fills in are what a reader needs to see.
+    effective = compile_plan(plan).plan
+    console.print(f"[bold]{effective.name}[/bold] rev {revision['revision']}  [dim]{revision['plan_hash'][:12]}…[/dim]")
+    if effective.description:
+        console.print(effective.description)
+    console.print(f"envelope: tools={effective.envelope.tools or []} "
+                  f"models={effective.envelope.models or ['$bot']} "
+                  f"network={effective.envelope.network} "
+                  f"parallel={effective.envelope.max_parallel_steps}")
+    budget = effective.budget
+    console.print(f"budget: nodes≤{budget.max_nodes} model_calls≤{budget.max_model_calls} "
+                  f"wall≤{budget.max_wall_seconds}s fanout≤{budget.max_fanout} repairs≤{budget.max_repairs}")
+    if effective.inputs:
         console.print("inputs:")
-        for name, spec in plan["inputs"].items():
-            console.print(f"  {name}: {spec['type']}{'' if spec.get('required', True) else ' (optional)'}"
-                          + (f" default={spec['default']!r}" if spec.get("default") is not None else ""))
+        for name, spec in effective.inputs.items():
+            console.print(f"  {name}: {spec.type}{'' if spec.required else ' (optional)'}"
+                          + (f" default={spec.default!r}" if spec.default is not None else ""))
     console.print("nodes:")
     _print_structure(plan_structure(plan))
 
@@ -1912,7 +1915,9 @@ def workflow_answer(question_id: str = typer.Argument(...), text: str = typer.Ar
         err.print("[red]that question expired unanswered; the workflow is not waiting on it[/red]")
         raise typer.Exit(code=1)
     if outcome == "already":
-        err.print("[yellow]that question was already answered; the recorded answer is unchanged[/yellow]")
+        row = wfstore.question(store, question_id) or {}
+        err.print(f"[yellow]that question is {row.get('status')} (answer={row.get('answer')!r}); "
+                  f"the recorded answer is unchanged[/yellow]")
         raise typer.Exit(code=1)
     console.print("answer recorded")
 
