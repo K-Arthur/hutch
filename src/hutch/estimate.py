@@ -40,6 +40,22 @@ class RunEstimate:
     reserved_tokens_today: int = 0
     reserved_cost_today_usd: float = 0.0
     note: str = ""
+    # --- preflight detail (SR-2): the basis a reservation would hold, and the scope's current state
+    message_tokens: int = 0
+    tool_tokens: int = 0
+    next_call_usd: Optional[float] = None     # worst-case price basis for ONE call (what admission holds)
+    price_source: str = ""                    # local | flat | openrouter | price_file | unknown
+    price_verified_on: str = ""               # price row date, or the live quote fetch time (UTC ISO)
+    price_stale: bool = False
+    window_tokens: int = 0                    # 0 = the destination has not reported a window
+    window_note: str = ""
+    budget_scope: str = ""                    # conversation | bot | "" when no policy applies
+    budget_scope_id: str = ""
+    warn_usd: Optional[float] = None
+    pause_usd: Optional[float] = None
+    ceiling_usd: Optional[float] = None
+    budget_measured_usd: float = 0.0
+    budget_held_usd: float = 0.0
 
     @property
     def effective_ceiling_usd(self) -> Optional[float]:
@@ -82,33 +98,84 @@ class RunEstimator:
         specs = [t.spec() for t in build_tools(bot.tools, None, memory_enabled=bot.memory_enabled).values()]
         msg, tool = prompt_tokens([{"role": "system", "content": system},
                                    {"role": "user", "content": prompt or "(your task)"}], specs)
+        self.message_tokens, self.tool_tokens = msg, tool
         self.prompt_tokens = msg + tool
         self.prices = PriceBook(config.state_dir / "prices.json")
         book = ConnectionBook(config.state_dir)
+        self.book = book
         self.prices.flat_providers = book.flat_providers()
 
-    def for_model(self, spec: Optional[str] = None) -> RunEstimate:
+    def for_model(self, spec: Optional[str] = None, conversation_id: str = "") -> RunEstimate:
         spec = spec or self.bot.model
         provider, model = parse_spec(spec)
         lim = self.bot.limits
         local = self.prices.is_local(provider, model)
         turn = lim.max_turn_tokens or (DEFAULT_LOCAL_TURN_TOKENS if local else DEFAULT_HOSTED_TURN_TOKENS)
-        worst = self.prices.estimate_run_ceiling(provider, model, self.prompt_tokens, turn, lim.max_steps)
+        from .runtime.ladder import make_rung, resolve_quote
+        rung = make_rung(spec, "primary")
+        quote = resolve_quote(rung, self.prices, self.book, self.prompt_tokens, turn)
+        file_cost = self.prices.estimate_run_ceiling(provider, model, self.prompt_tokens, turn, lim.max_steps)
         if local:
             kind = "local"
         elif provider in self.prices.flat_providers:
             kind = "flat"
-        elif worst is None:
-            kind = "unpriced"
-        else:
+        elif quote.usd is not None or file_cost is not None:
             kind = "priced"
+        else:
+            kind = "unpriced"
+        if quote.source == "openrouter" and quote.usd is not None:
+            worst = quote.usd * lim.max_steps
+        else:
+            worst = file_cost if file_cost is not None else (quote.usd * lim.max_steps if quote.usd is not None else None)
+        window, window_note = 0, "this runtime has not reported a window yet"
+        if quote.source == "openrouter":
+            try:
+                from .providers import openrouter_pricing
+                service = openrouter_pricing.live_pricing(quote_base_url(self.book, provider))
+                live = service.quote(model)
+                windows = [endpoint.context_length for endpoint in live.endpoints
+                           if endpoint.context_length > 0 and endpoint.status == 0] if live else []
+                if windows:
+                    window = min(windows)
+                    window_note = "smallest window across the admissible live endpoints"
+                else:
+                    window_note = "the live quote did not report a usable window"
+            except Exception:
+                pass
+        elif local:
+            window_note = "computed from the model and this machine when the run starts"
         measured_tokens, held_tokens, measured_cost, held_cost = self.store.bot_budget_today(self.bot.id)
+        scope_kind, scope_id = "", ""
+        if conversation_id and self.store.get_budget_policy("conversation", conversation_id) is not None:
+            scope_kind, scope_id = "conversation", conversation_id
+        elif self.store.get_budget_policy("bot", self.bot.id) is not None:
+            scope_kind, scope_id = "bot", self.bot.id
+        policy = self.store.get_budget_policy(scope_kind, scope_id) if scope_kind else None
+        scope_measured = scope_held = 0.0
+        if scope_kind:
+            scope_measured, scope_held = self.store.scope_spend(scope_kind=scope_kind, scope_id=scope_id)
         return RunEstimate(spec=spec, kind=kind, prompt_tokens=self.prompt_tokens, steps=lim.max_steps, turn_tokens=turn,
                            worst_case_usd=worst if kind == "priced" else None, run_cap_usd=lim.max_cost_usd,
                            daily_cap_usd=lim.daily_cost_cap_usd, spent_today_usd=measured_cost,
                            tokens_today=measured_tokens, daily_token_cap=lim.daily_token_cap,
-                           reserved_tokens_today=held_tokens, reserved_cost_today_usd=held_cost)
+                           reserved_tokens_today=held_tokens, reserved_cost_today_usd=held_cost,
+                           message_tokens=self.message_tokens, tool_tokens=self.tool_tokens,
+                           next_call_usd=quote.usd, price_source=quote.source,
+                           price_verified_on=quote.verified_on, price_stale=quote.stale,
+                           window_tokens=window, window_note=window_note,
+                           budget_scope=scope_kind, budget_scope_id=scope_id,
+                           warn_usd=(policy.warn_usd if policy else None),
+                           pause_usd=(policy.pause_usd if policy else None),
+                           ceiling_usd=(policy.ceiling_usd if policy else None),
+                           budget_measured_usd=scope_measured, budget_held_usd=scope_held)
 
 
-def estimate_run(config: Any, store: Any, bot: Bot, prompt: str = "", model: Optional[str] = None) -> RunEstimate:
-    return RunEstimator(config, store, bot, prompt).for_model(model)
+def quote_base_url(book: ConnectionBook, provider: str) -> str:
+    conn = book.get(provider)
+    from .providers import openrouter_pricing
+    return (getattr(conn, "base_url", "") if conn is not None else "") or openrouter_pricing.DEFAULT_BASE_URL
+
+
+def estimate_run(config: Any, store: Any, bot: Bot, prompt: str = "", model: Optional[str] = None,
+                 conversation_id: str = "") -> RunEstimate:
+    return RunEstimator(config, store, bot, prompt).for_model(model, conversation_id=conversation_id)

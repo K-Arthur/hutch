@@ -404,6 +404,18 @@ class BotPatch(BaseModel):
         return normalized
 
 
+class BudgetPolicyUpdate(BaseModel):
+    """SR-2: one scope's warn/pause/ceiling bands. NULL is unset; 0.0 is a real threshold of zero."""
+
+    scope_kind: Literal["run", "conversation", "bot", "account"]
+    scope_id: str = Field(min_length=1, max_length=128)
+    warn_usd: Optional[float] = Field(default=None, ge=0)
+    pause_usd: Optional[float] = Field(default=None, ge=0)
+    ceiling_usd: Optional[float] = Field(default=None, ge=0)
+    reset: Optional[Literal["run_lifetime", "conversation_lifetime", "local_day", "rolling_24h", "lifetime"]] = None
+    unknown_price: Literal["refuse", "mark"] = "refuse"
+
+
 class WorkspaceModelDefaultsUpdate(BaseModel):
     model: str = Field(default="", max_length=200)
     inference_mode: InferenceMode = InferenceMode.hybrid
@@ -3915,13 +3927,40 @@ def create_app() -> FastAPI:
         return run_view(store.get_run(run.id))
 
     @app.get("/api/bots/{ref}/estimate")
-    def bot_estimate(ref: str, model: Optional[str] = None, prompt: str = "") -> dict:
+    def bot_estimate(ref: str, model: Optional[str] = None, prompt: str = "", conversation_id: str = "") -> dict:
         """Estimate one run's priced usage before it starts; actual provider billing can differ."""
         from dataclasses import asdict
         from ..estimate import estimate_run
         bot = bot_or_404(ref)
-        e = estimate_run(config, store, bot, prompt, model)
+        e = estimate_run(config, store, bot, prompt, model, conversation_id=conversation_id)
         return {**asdict(e), "effective_ceiling_usd": e.effective_ceiling_usd, "summary": e.summary}
+
+    @app.get("/api/v1/budgets")
+    def get_budget(scope_kind: Literal["run", "conversation", "bot", "account"], scope_id: str) -> dict:
+        """One scope's warn/pause/ceiling bands and its current measured + held spend."""
+        policy = store.get_budget_policy(scope_kind, scope_id)
+        measured, held = store.scope_spend(scope_kind=scope_kind, scope_id=scope_id)
+        return {"policy": policy.model_dump() if policy is not None else None,
+                "spent_usd": measured, "held_usd": held}
+
+    @app.put("/api/v1/budgets")
+    def put_budget(body: BudgetPolicyUpdate) -> dict:
+        """Create or replace a scope's budget bands. NULL is unset; 0 is a real threshold of zero."""
+        reset = body.reset
+        if reset is None:
+            reset = {"run": "run_lifetime", "conversation": "conversation_lifetime"}.get(body.scope_kind, "local_day")
+        try:
+            policy = store.set_budget_policy(scope_kind=body.scope_kind, scope_id=body.scope_id,
+                                             warn_usd=body.warn_usd, pause_usd=body.pause_usd,
+                                             ceiling_usd=body.ceiling_usd, reset=reset,
+                                             unknown_price=body.unknown_price)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        return policy.model_dump()
+
+    @app.delete("/api/v1/budgets")
+    def delete_budget(scope_kind: Literal["run", "conversation", "bot", "account"], scope_id: str) -> dict:
+        return {"removed": store.delete_budget_policy(scope_kind, scope_id)}
 
     @app.get("/api/bots/{ref}/models")
     def bot_models(ref: str, discover: bool = False, q: str = Query(default="", max_length=80)) -> dict:
@@ -4004,6 +4043,7 @@ def create_app() -> FastAPI:
             view["reviewed_actions"] = store.list_actions(run_id, reviewed=True, limit=5)
         view["event_count"] = total
         view["events_truncated"] = bool(window) and window[0].seq > 1
+        view["compactions"] = store.run_compactions(run_id)
         return view
 
     @app.get("/api/v1/tasks/runs/{run_id}/artifacts", response_model=ArtifactPageResource)
