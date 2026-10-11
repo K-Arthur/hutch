@@ -39,6 +39,7 @@ let activeReplySelectionHandler = null;
 let activeWorkspaceResultSelectionHandler = null;
 let activeBotCreationFromMessageHandler = null;
 let activeChoiceSubmitHandler = null;
+let activeWorkspaceQuestionSubmitHandler = null;
 const requestedHumanResumes = new Set();
 const runIntegrityStates = new Map();
 let hutchSession = null;
@@ -2789,6 +2790,42 @@ async function renderChatStudio(preferredBot = null) {
       if (form.isConnected) form.dataset.submitting = "";
     }
   };
+  // Answer a specialist's question from the coordinator task card. The answer is
+  // created in the specialist's own conversation, so the coordinator's model
+  // switcher override must never be sent: the specialist keeps its saved route.
+  activeWorkspaceQuestionSubmitHandler = async form => {
+    if (generation !== studioGeneration || composerConversationId !== currentConversationId) return;
+    if (form.dataset.submitting === "1") return;
+    const questionConversationId = form.dataset.conversationId;
+    const questionId = form.dataset.questionId;
+    const optionIds = [...form.querySelectorAll("input:checked")].map(input => input.value);
+    const error = form.querySelector("[data-choice-error]");
+    if (!optionIds.length) {
+      error.textContent = "Choose an option before sending your answer.";
+      return;
+    }
+    const body = { option_ids: optionIds, model: null };
+    form.dataset.submitting = "1";
+    form.querySelectorAll("input, button").forEach(el => { el.disabled = true; });
+    error.textContent = "";
+    try {
+      const key = await choiceAnswerIdempotencyKey(questionConversationId, questionId, body);
+      await api(`/v1/conversations/${encodeURIComponent(questionConversationId)}/questions/${encodeURIComponent(questionId)}/answer`, {
+        method: "POST", headers: { "Idempotency-Key": key }, body,
+      });
+      clearChoiceIdempotencyKey(questionConversationId, questionId, key);
+      storageRemove(choiceDraftKey(questionConversationId, questionId));
+      toast("Answer sent to the specialist.");
+      if (generation !== studioGeneration) return;
+      scheduleFeedRender();
+    } catch (err) {
+      error.textContent = err.message || "Your answer could not be sent.";
+      form.querySelectorAll("input, button").forEach(el => { el.disabled = false; });
+      if (/already answered/i.test(err.message || "")) scheduleFeedRender();
+    } finally {
+      if (form.isConnected) form.dataset.submitting = "";
+    }
+  };
   $("#reply-composer-clear").addEventListener("click", () => {
     replySelectionGeneration++;
     setReply(null);
@@ -3162,6 +3199,12 @@ async function renderChatFeed() {
     workspaceTasks = await api(`/v1/workspace/tasks?conversation_id=${encodeURIComponent(conversationId)}&limit=100`)
       .catch(() => []);
     currentWorkspaceTasks = workspaceTasks;
+    for (const task of workspaceTasks) {
+      const question = task.pending_question;
+      if (!question || seenTaskQuestions.has(question.id)) continue;
+      seenTaskQuestions.add(question.id);
+      announce(`${botDisplayName(task.target_display_name || "A specialist")} is waiting for your answer.`);
+    }
     if (!stillCurrent()) return;
     codeHandoffs = await api(`/v1/code-handoffs?conversation_id=${encodeURIComponent(conversationId)}&limit=100`)
       .catch(() => []);
@@ -3525,6 +3568,8 @@ function announceRunLifecycle(runs) {
 }
 
 const seenRunStatus = new Map();
+// A pending specialist question is announced once, when its task card first shows it.
+const seenTaskQuestions = new Set();
 
 function welcomeHtml() {
   const b = botsCache.find(x => x.name === currentStudioBot);
@@ -3717,9 +3762,37 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHan
   return html;
 }
 
+// A specialist's pending question is a needed input, not a produced result. The
+// card answers it in place through the specialist conversation's single-resolution
+// question endpoint; the task keeps the exchange in its own audit surface.
+function workspaceTaskQuestionHtml(task) {
+  const question = task.pending_question;
+  const options = Array.isArray(question.options) ? question.options : [];
+  const multi = question.selection_mode === "multiple";
+  const controls = options.map(option => `<label class="choice-option">
+      <input data-choice-option type="${multi ? "checkbox" : "radio"}" name="question-${esc(question.id)}" value="${esc(option.id)}" ${multi ? "" : "required"}>
+      <span>${esc(option.label)}</span>
+    </label>`).join("");
+  return `<section class="workspace-task-question" data-workspace-task-question="${esc(task.id)}"
+      aria-label="Question from ${esc(task.target_display_name)}">
+    <form class="choice-card" data-workspace-question-form data-conversation-id="${esc(task.child_conversation_id)}"
+          data-question-id="${esc(question.id)}">
+      <div class="choice-card-head"><span class="choice-kicker">Question from ${esc(task.target_display_name)}</span>
+        <span class="choice-state">${multi ? "Choose any that fit" : "Choose one"}</span></div>
+      <fieldset class="choice-options"><legend class="choice-question">${esc(question.question)}</legend>${controls}</fieldset>
+      <p class="hint">Your answer goes to ${esc(task.target_display_name)}’s own chat. It is a preference, not approval for an action.</p>
+      <p class="choice-error" data-choice-error role="status" aria-live="polite"></p>
+      <button class="btn primary choice-submit" type="submit">Send answer</button>
+    </form>
+  </section>`;
+}
+
 function workspaceTaskCardHtml(task) {
   const active = ACTIVE.has(task.status);
-  const statusLabel = statusInfo[task.status]?.label || task.status || "Status unavailable";
+  const needsAnswer = task.status === "needs_input" && Boolean(task.pending_question);
+  const statusLabel = needsAnswer ? "Needs your answer"
+    : (statusInfo[task.status]?.label || task.status || "Status unavailable");
+  const questionHtml = needsAnswer ? workspaceTaskQuestionHtml(task) : "";
   const coordinator = botsCache.find(bot => bot.name === currentStudioBot && bot.is_workspace_coordinator);
   const capability = [task.model, task.inference_mode, task.tools?.length ? task.tools.join(", ") : "no tools",
     `${task.risk_tier || "unknown"} action policy`, `${task.workspace_mode || "configured"} workspace`].filter(Boolean).join(" · ");
@@ -3781,7 +3854,8 @@ function workspaceTaskCardHtml(task) {
     ${task.assumptions ? `<p class="workspace-task-assumptions"><b>Reviewed constraints:</b> ${esc(task.assumptions)}</p>` : ""}
     <p class="hint">Specialist settings: ${esc(capability)}</p>
     ${sharedFactsHtml}
-    ${task.result ? `<div class="workspace-task-result"><b>Latest specialist response</b><p>${esc(task.result)}${task.result_truncated ? "… [preview truncated]" : ""}</p></div>` : ""}
+    ${questionHtml}
+    ${task.result && !needsAnswer ? `<div class="workspace-task-result"><b>Latest specialist response</b><p>${esc(task.result)}${task.result_truncated ? "… [preview truncated]" : ""}</p></div>` : ""}
     ${task.reason && task.status !== "succeeded" ? `<p class="run-notice" role="status">${esc(task.reason)}</p>` : ""}
     ${checkpointHtml}
     <details><summary>Request and coordinator draft</summary>
@@ -3794,7 +3868,7 @@ function workspaceTaskCardHtml(task) {
       ${coordinator && task.status === "succeeded" && task.result && task.result_message_id
         ? `<button class="btn ghost small" type="button" data-discuss-specialist-result="${esc(task.id)}"
             data-result-message-id="${esc(task.result_message_id)}">Discuss with ${esc(botDisplayName(coordinator))}</button>` : ""}
-      ${active ? `<button class="btn ghost small" type="button" data-stop-run="${esc(task.child_run_id)}">Stop specialist</button>` : ""}
+      ${active ? `<button class="btn ghost small" type="button" data-stop-run="${esc(task.current_run_id || task.child_run_id)}">Stop specialist</button>` : ""}
     </div>
   </section>`;
 }
@@ -4451,8 +4525,13 @@ function wireFeedInteractions() {
   });
   stream.addEventListener("submit", ev => {
     const form = ev.target.closest("[data-choice-form]");
-    if (!form) return;
+    const questionForm = form ? null : ev.target.closest("[data-workspace-question-form]");
+    if (!form && !questionForm) return;
     ev.preventDefault();
+    if (questionForm) {
+      void activeWorkspaceQuestionSubmitHandler?.(questionForm);
+      return;
+    }
     void activeChoiceSubmitHandler?.(form);
   });
   stream.addEventListener("change", ev => {
@@ -5724,6 +5803,21 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
                 ? `Task focus could not be loaded: ${esc(taskPresetsError)}. Reload before changing this setting.`
                 : "This changes the built-in local runtime’s context sizing and residency only. The selected model still determines its capabilities; this never selects a model, provider, or paid route."}</span>
             </label>
+            <label class="field">Tool calling
+              <select name="tool_protocol" id="tool-protocol-select" aria-describedby="tool-protocol-help">
+                ${[["auto", "Automatic — this route’s own tool protocol"],
+                   ["native", "Provider-native tools"],
+                   ["constrained", "Constrained JSON — backend schema"],
+                   ["prompt", "Prompt contract — best effort"],
+                   ["disabled", "No tools"]].map(([value, label]) =>
+                     `<option value="${value}" ${(b.tool_protocol || "auto") === value ? "selected" : ""}>${label}</option>`).join("")}
+              </select>
+              <span class="hint" id="tool-protocol-help">Automatic keeps this route’s native tool protocol. Constrained and prompt modes are explicit choices; every mode validates each call before it can run.</span>
+            </label>
+            <details id="tool-compat" class="tool-compat">
+              <summary>Check compatibility for this model route</summary>
+              <div id="tool-compat-result" class="settings-list"><p class="hint">Open to check this route’s tool-calling evidence. No model request is made.</p></div>
+            </details>
             <div class="btn-row"><button class="btn primary small" type="submit">Save model settings</button></div>
           </form>
 
@@ -5989,11 +6083,79 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
       },
     });
   });
+  const toolCompat = { data: null };
+  const toolCompatDetails = $("#tool-compat");
+  const toolCompatResult = $("#tool-compat-result");
+  const toolProtocolSelect = $("#tool-protocol-select");
+  const toolProtocolHelp = $("#tool-protocol-help");
+  const modeLabels = { auto: "Automatic", native: "Provider-native tools", constrained: "Constrained JSON",
+    prompt: "Prompt contract", disabled: "No tools" };
+  const evidenceWords = { documented: "documented", advertised: "advertised (not verified)", probed: "probed on this route",
+    observed: "observed in a governed run", stale: "stale evidence", unsupported: "not supported", unknown: "unknown" };
+  const renderToolCompat = () => {
+    const data = toolCompat.data;
+    if (!data) return;
+    const eligibility = data.eligibility || {};
+    const profile = data.profile || {};
+    for (const option of toolProtocolSelect.options) {
+      const base = modeLabels[option.value] || option.value;
+      const entry = eligibility[option.value];
+      option.disabled = option.value !== "auto" && !!entry && !entry.available;
+      option.textContent = base + (entry && !entry.available ? " — unavailable here" : "");
+    }
+    const saved = data.requested || "auto";
+    const native = profile.native_tools || {};
+    const constrained = profile.constrained_schema || {};
+    toolProtocolHelp.textContent = `Saved: ${modeLabels[saved] || saved}. Native tool evidence: ` +
+      `${evidenceWords[native.state] || native.state || "unknown"}. Constrained schema: ` +
+      `${evidenceWords[constrained.state] || constrained.state || "unknown"}.`;
+    const rows = [];
+    rows.push(`<div class="meta-row"><span><b>Route</b><br><span class="hint">${esc(data.model || "")} · ${esc(profile.provider || "unknown provider")}${profile.endpoint_class ? " · " + esc(profile.endpoint_class) : ""}${profile.revision ? " · build " + esc(profile.revision) : ""}</span></span></div>`);
+    for (const mode of ["native", "constrained", "prompt", "disabled"]) {
+      const entry = eligibility[mode] || {};
+      rows.push(`<div class="meta-row"><span><b>${modeLabels[mode]}</b><br><span class="hint">${entry.available ? "Available — " : "Unavailable — "}${esc(entry.reason || "")}</span></span><span class="hint">${entry.available ? "available" : "blocked"}</span></div>`);
+    }
+    rows.push(`<div class="meta-row"><span><b>Argument validator</b><br><span class="hint">${esc(data.validator || "unknown")}; every run records its compiled catalog hash and diagnostics in the transcript</span></span></div>`);
+    const observations = data.observations || [];
+    rows.push(`<div class="meta-row"><span><b>Last governed observation</b><br><span class="hint">${observations.length ? esc(observations.map(item => `${item.observed_at || "unknown time"} · ${item.source_tool || "call"}`).join("; ")) : "No governed run has recorded a call on this exact route yet — and one valid call would not be a model guarantee."}</span></span></div>`);
+    rows.push(`<p class="hint" style="margin:0;">${esc(data.evidence_note || "")}</p>`);
+    toolCompatResult.innerHTML = rows.join("");
+  };
+  if (toolCompatDetails) {
+    toolCompatDetails.addEventListener("toggle", async () => {
+      if (!toolCompatDetails.open || toolCompat.data) return;
+      toolCompatResult.innerHTML = `<p class="hint">Checking this route…</p>`;
+      try {
+        const data = await api(`/v1/tool-compatibility?ref=${encodeURIComponent(name)}`);
+        if (generation !== botDetailRenderGeneration) return;
+        toolCompat.data = data;
+        renderToolCompat();
+      } catch (error) {
+        if (generation !== botDetailRenderGeneration) return;
+        toolCompatResult.innerHTML = `<p class="hint">Could not check this route: ${esc(error.message)}</p>`;
+      }
+    });
+    $('#form-model input[name="model"]').addEventListener("input", () => {
+      if (!toolCompat.data) return;
+      toolCompat.data = null;
+      for (const option of toolProtocolSelect.options) option.disabled = false;
+      toolCompatResult.innerHTML = `<p class="hint">Route changed — save the model, then check compatibility again.</p>`;
+    });
+  }
   $("#form-model").addEventListener("submit", ev => {
     ev.preventDefault();
     const fd = new FormData(ev.target);
+    const choice = fd.get("tool_protocol") || "auto";
+    const eligibility = toolCompat.data?.eligibility || {};
+    const blocked = choice !== "auto" && eligibility[choice] && !eligibility[choice].available
+      && choice !== (toolCompat.data.requested || "auto");
+    if (blocked) {
+      toast(`${modeLabels[choice]} cannot generate tool calls on this route: ${eligibility[choice].reason}`, true);
+      toolProtocolSelect.focus();
+      return;
+    }
     patch({ model: fd.get("model").trim(), inference_mode: fd.get("inference_mode"),
-      preset: fd.get("preset") || null }, "Model settings saved.");
+      preset: fd.get("preset") || null, tool_protocol: choice }, "Model settings saved.");
   });
   $$('[data-background-provider]').forEach(button => button.addEventListener("click", () => {
     const provider = button.dataset.backgroundProvider;

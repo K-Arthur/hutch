@@ -10,7 +10,7 @@ import json
 from typing import Any
 
 from .base import (ChatRequest, ChatResult, ModelMeta, Provider, ProviderError, ToolCall,
-                   Watchdog, abort_response, parse_tool_args)
+                   Watchdog, abort_response, parse_tool_args_state)
 
 API_URL = "https://api.openai.com/v1"
 
@@ -257,15 +257,17 @@ class OpenAIResponsesProvider(Provider):
             if not isinstance(item, dict):
                 continue
             if item.get("type") == "function_call":
-                raw = item.get("arguments") if isinstance(item.get("arguments"), str) else "{}"
-                args, error = parse_tool_args(raw)
+                raw_value = item.get("arguments")
+                args, error, state, double = parse_tool_args_state(raw_value)
+                raw = raw_value if isinstance(raw_value, str) else (
+                    json.dumps(raw_value, ensure_ascii=False) if raw_value is not None else "")
                 call_id = item.get("call_id") or item.get("id")
                 name = item.get("name")
                 if not isinstance(call_id, str) or not call_id or not isinstance(name, str) or not name:
                     raise ProviderError("stream", "ChatGPT completed with an invalid function call; usage may be uncertain",
                                         provider="chatgpt")
                 tool_calls.append(ToolCall(id=call_id, name=name, arguments=args, raw=raw,
-                                           parse_error=error))
+                                           parse_error=error, arguments_state=state, double_decoded=double))
             elif item.get("type") == "message":
                 for part in item.get("content") or []:
                     if isinstance(part, dict) and part.get("type") == "output_text" and isinstance(part.get("text"), str):

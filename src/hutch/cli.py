@@ -880,6 +880,9 @@ def bot_update(
     inference_mode: Optional[InferenceMode] = typer.Option(
         None, "--inference-mode", help="hybrid | local (local model routes; tools may use network) | offline (host-verified)"),
     tools: Optional[str] = typer.Option(None, "--tools", help=f"replace tool list; comma list, valid: {','.join(ALL_TOOL_NAMES)}"),
+    tool_protocol: Optional[Literal["auto", "native", "constrained", "prompt", "disabled"]] = typer.Option(
+        None, "--tool-protocol",
+        help="tool calling mode: auto (provider-native) | native | constrained (backend JSON schema) | prompt | disabled"),
     skills: Optional[str] = typer.Option(None, "--skills",
                                          help="replace skill bindings; comma list of installed, reviewed skills; empty string clears"),
     instructions: Optional[str] = typer.Option(None, "--instructions"),
@@ -941,6 +944,7 @@ def bot_update(
             err.print(f"[red]unknown tools:[/red] {', '.join(unknown)} — valid: {', '.join(ALL_TOOL_NAMES)}")
             raise typer.Exit(code=1)
         bot.tools = tool_list
+    if tool_protocol is not None: bot.tool_protocol = tool_protocol
     if skills is not None:
         from .skills import SkillError, SkillRegistry
         try:

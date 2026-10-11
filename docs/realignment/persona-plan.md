@@ -129,6 +129,30 @@ Known follow-ups (from the same review, not yet done):
   already use a textarea; dedicated persona/depth controls do not exist yet.
 - Local `main` is 473 commits ahead of `origin/main` (`8d71f8a`); all work stays local.
 
+## Resume checkpoint (2026-10-11, current execution)
+
+- The clean `persona/adaptive` worktree continued from `666edcd`. Local `main` had advanced to `6221cc2`,
+  which adds the mainline schema-v51 pending-question guards, unified tool protocol, and updated provider and
+  runtime contracts. The root checkout still has its unrelated visual artifact changes and untracked notes;
+  they were not modified.
+- Integration keeps mainline `_migrate_51` intact and adds an idempotent v52 repair that ensures its v51
+  guards and adds `conversations.persona` only when absent. Mainline captures remain canonical for filenames
+  changed on both sides; the persona capture set remains present under its own names.
+- Combined focused migration/persona/runtime/tool-calling check passed: **188 passed in 67.95 s** using the
+  existing documents worktree environment, with pytest temporary files directed to
+  `/home/kevina/.cache/hutch-persona-merge-20261011`. An earlier run using `/tmp` hit the full 12 GB tmpfs;
+  its own pytest directory was empty afterward. Existing `/tmp` caches were left untouched.
+- A targeted local probe has already reproduced the provider-refusal fallback defect. The terminal-refusal
+  code change and regression test are still pending; the provider retryability contract currently marks
+  refusals retryable. Do not claim the refusal guard is fixed until that check passes.
+- Remaining acceptance: complete/commit the current-main integration; make the independent refusal regression
+  green; implement richer profile, depth, routing, feedback and inspector behavior; add actual persona browser
+  regressions; update marketing/help/privacy/safety evidence; run combined offline/browser checks and the
+  bounded live evaluation. No supported Hutch Go connection is configured in isolated state, so no Hutch
+  provider response has been tested. The OpenCode CLI smoke did authenticate using MiMo Flash; its first
+  bounded edit attempt timed out without changes, and the second was stopped after repeated broad reads.
+  Keep later CLI packets small and confirm every diff before testing or staging.
+
 ## Rollback
 
 - Nothing is pushed or merged into `main`; abandoning the slice means not using the branch, and the original

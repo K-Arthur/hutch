@@ -182,16 +182,28 @@ onto the concurrent head at each milestone (`a2106ec`, then `777324a`, finally `
 `777324a` rebase produced exactly one conflict (both sessions appending to `CHANGELOG.md` under
 Unreleased), resolved by keeping both entry sets.
 
-**Integration completed 2026-10-10 18:33 PDT:** the shared checkout's uncommitted files (75
-modified, 10 untracked) had **zero overlap** with this slice's changed files, so `main` was
-fast-forwarded to this worktree's HEAD (`git merge --ff-only 7b79078`) without touching the other
-session's work; the integrated checkout re-ran the focused suites (**74 passed**). The other
-session's dirty files and untracked files are preserved exactly as they were.
+**Integration correction (2026-10-11).** The 2026-10-10 18:33 fast-forward advanced the shared
+checkout's *current branch* — `wcag22-audit-fixes`, which the concurrent session had switched to —
+not `main`; the earlier note that called that a `main` integration was wrong. `main` was owned by
+the separate `.worktrees/documents` session and kept advancing with the document-pipeline
+(schema v50) and unified tool-calling work.
 
-Local tags anchor the history across rebases: `skills-lifecycle-prerebase` (originals at
-`f2b8b00`), `skills-lifecycle-prerebase2` (pre-`777324a`), `skills-lifecycle-prerebase3`
-(pre-`2fff076`). After the final rebase, the focused suites (**74 passed**) and the skills browser
-files (**6 passed**; the soak was re-run green at the previous base and is unchanged by a compiled
-CSS refresh) were re-run green. The full browser-suite pass was run and classified at `777324a`;
+The slice was merged into `main` on 2026-10-11 as merge commit `09ad91b` (first parent `6fc6f38`,
+second parent the slice tip `2872f4f`), followed by this record-correction commit. Conflicts were
+resolved by keeping both sides: Bot tool defaults now include `documents` *and* the `skills`
+binding field; the CLI keeps `--tool-protocol` and `--skills`; `tools/__init__` imports both the
+document tools and `use_skill`; `CHANGELOG.md` keeps both entry sets (one duplicate bullet
+deduplicated); regenerated evidence artifacts take the main-side copies. The merged code tree was
+verified before integration: skills suites **74 passed**, document/tool-calling/runtime/API suites
+**307 passed + 1 skipped**, the full offline suite **1950 passed + 1 skipped**, and the skills
+browser journeys **7 passed** (soak included). A first full-suite run under heavy machine
+contention produced a transient failure burst (46F/58E); every affected file passed in isolation
+and in group reruns, `main`'s own full suite ran 1875 passed + 1 flaky docx-determinism failure,
+and the clean merged re-run was fully green — the burst was load, not the merge.
+
+`main` was fast-forwarded to the merge in the clean `documents` worktree, which landed in a clean
+merged state; no session's uncommitted work was altered. Local tags anchor the history across
+rebases: `skills-lifecycle-prerebase` (originals at `f2b8b00`), `-prerebase2` (pre-`777324a`),
+`-prerebase3` (pre-`2fff076`). The full browser-suite pass was run and classified at `777324a`;
 its 28 failures and 8 teardown errors are all pre-existing at that base, and this slice's own
 browser files passed within it.

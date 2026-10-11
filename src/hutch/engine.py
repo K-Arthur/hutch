@@ -676,6 +676,18 @@ class Engine:
                 return ToolResult(ok=False, output="child run record disappeared; no result can be verified")
             if current.status not in ACTIVE_STATUSES:
                 if current.status is RunStatus.succeeded:
+                    question = self.store.pending_question_for_run(child.id)
+                    if question is not None:
+                        # The conversational primitive ends a run without waiting, but a parent
+                        # blocked in this call cannot deliver the answer. Report needs-input
+                        # instead of claiming the child completed.
+                        return ToolResult(
+                            ok=False,
+                            output=(f"Child run {child.id} ended by asking the owner a question that this "
+                                    "delegation cannot deliver: "
+                                    f"{str(question['question'])[:300]} No answer was applied."),
+                            data={"child_run_id": child.id, "status": "needs_input", "needs_input": True,
+                                  "question_id": question["id"]})
                     final = ""
                     for event in reversed(self.store.tail_events(child.id, limit=100)):
                         if event.type is EventType.message and event.data.get("role") == "assistant":

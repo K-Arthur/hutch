@@ -626,16 +626,82 @@ def test_a_database_from_a_newer_hutch_is_refused_not_downgraded(config):
         Store(config)
 
 
-def test_persona_column_migration_preserves_existing_conversations():
-    assert SCHEMA_VERSION >= 51
+def test_v51_pending_specialist_questions_are_not_attachable_results():
+    """Schema v51 keeps a waiting question out of the accepted-result record, in the database."""
+    from hutch.store import _migrate_51
+
     db = sqlite3.connect(":memory:")
     try:
-        db.execute("CREATE TABLE conversations (id TEXT PRIMARY KEY, bot_id TEXT NOT NULL, "
-                   "title TEXT NOT NULL DEFAULT '')")
-        db.execute("INSERT INTO conversations VALUES ('chat-a', 'bot-a', 'kept')")
+        db.execute("""CREATE TABLE messages (
+            id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, seq INTEGER NOT NULL,
+            run_id TEXT NOT NULL DEFAULT '', role TEXT NOT NULL, content TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            workspace_task_result_id TEXT, workspace_task_result_message_id TEXT,
+            workspace_task_result_display_name TEXT, workspace_task_result_content TEXT,
+            workspace_task_result_truncated INTEGER NOT NULL DEFAULT 0)""")
+        db.execute("""CREATE TABLE conversation_questions (
+            id TEXT PRIMARY KEY, assistant_message_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending')""")
+        db.execute("""CREATE TABLE runs (id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, created_at TEXT NOT NULL)""")
         _migrate_51(db)
-        columns = {row[1] for row in db.execute("PRAGMA table_info(conversations)")}
-        assert "persona" in columns
-        assert db.execute("SELECT id, title, persona FROM conversations").fetchall() == [("chat-a", "kept", "")]
+        assert db.execute("SELECT 1 FROM sqlite_master WHERE type = 'index' "
+                          "AND name = 'idx_runs_conversation_created'").fetchone() is not None
+        db.execute("INSERT INTO conversation_questions VALUES ('choice_1', 'msg_question', 'pending')")
+        with pytest.raises(sqlite3.IntegrityError, match="pending specialist question"):
+            db.execute("""INSERT INTO messages (id, conversation_id, seq, role, content, created_at,
+                          workspace_task_result_id, workspace_task_result_message_id)
+                          VALUES ('msg_attach', 'conv_1', 1, 'user', 'x', 'now', 'wst_1', 'msg_question')""")
+        db.execute("UPDATE conversation_questions SET status = 'answered' WHERE id = 'choice_1'")
+        db.execute("""INSERT INTO messages (id, conversation_id, seq, role, content, created_at,
+                      workspace_task_result_id, workspace_task_result_message_id)
+                      VALUES ('msg_attach', 'conv_2', 1, 'user', 'x', 'now', 'wst_1', 'msg_question')""")
+        db.execute("UPDATE conversation_questions SET status = 'pending' WHERE id = 'choice_1'")
+        with pytest.raises(sqlite3.IntegrityError, match="pending specialist question"):
+            db.execute("UPDATE messages SET workspace_task_result_id = 'wst_2' WHERE id = 'msg_attach'")
+        assert SCHEMA_VERSION >= 51
     finally:
         db.close()
+
+
+def test_v52_repairs_both_v51_shapes_and_is_idempotent():
+    from hutch.store import _migrate_52
+
+    def connection_v51(*, persona_column: bool) -> sqlite3.Connection:
+        db = sqlite3.connect(":memory:")
+        persona = ", persona TEXT NOT NULL DEFAULT ''" if persona_column else ""
+        db.execute(f"CREATE TABLE conversations (id TEXT PRIMARY KEY, bot_id TEXT NOT NULL, title TEXT NOT NULL DEFAULT ''{persona})")
+        db.execute("CREATE TABLE runs (id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, created_at TEXT NOT NULL)")
+        db.execute("""CREATE TABLE messages (
+            id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, seq INTEGER NOT NULL,
+            run_id TEXT NOT NULL DEFAULT '', role TEXT NOT NULL, content TEXT NOT NULL,
+            created_at TEXT NOT NULL, workspace_task_result_id TEXT,
+            workspace_task_result_message_id TEXT)""")
+        db.execute("CREATE TABLE conversation_questions (id TEXT PRIMARY KEY, assistant_message_id TEXT NOT NULL, status TEXT NOT NULL)")
+        if persona_column:
+            db.execute("INSERT INTO conversations (id, bot_id, title, persona) VALUES ('chat-a', 'bot-a', 'kept', 'style-v1')")
+        else:
+            db.execute("INSERT INTO conversations (id, bot_id, title) VALUES ('chat-a', 'bot-a', 'kept')")
+        return db
+
+    # Mainline v51 had the question guards but not the persona column.
+    main_v51 = connection_v51(persona_column=False)
+    try:
+        _migrate_51(main_v51)
+        _migrate_52(main_v51)
+        _migrate_52(main_v51)
+        columns = {row[1] for row in main_v51.execute("PRAGMA table_info(conversations)")}
+        assert "persona" in columns
+        assert main_v51.execute("SELECT id, title, persona FROM conversations").fetchall() == [("chat-a", "kept", "")]
+        assert main_v51.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='messages_pending_question_result_insert'").fetchone()
+    finally:
+        main_v51.close()
+
+    # The persona v51 build already had the user's conversation value, but lacked mainline guards.
+    persona_v51 = connection_v51(persona_column=True)
+    try:
+        _migrate_52(persona_v51)
+        _migrate_52(persona_v51)
+        assert persona_v51.execute("SELECT id, title, persona FROM conversations").fetchall() == [("chat-a", "kept", "style-v1")]
+        assert persona_v51.execute("SELECT 1 FROM sqlite_master WHERE type='index' AND name='idx_runs_conversation_created'").fetchone()
+        assert persona_v51.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='messages_pending_question_result_update'").fetchone()
+    finally:
+        persona_v51.close()

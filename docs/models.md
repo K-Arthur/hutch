@@ -127,6 +127,42 @@ template is a different profile (the Models page flags "changed since measured")
 This is a profile of one model on one machine, not a leaderboard score. It has been exercised only against scripted
 models; run it on your own installed models to get real numbers.
 
+## Tool calling modes and compatibility
+
+Every Bot's tools are compiled into one per-run plan before the first model call, and the
+plan is recorded in the transcript (`tool_protocol` entries with catalog/plan hashes and
+field-level diagnostics). The default is **auto**: Hutch uses the provider's own tool
+protocol exactly as before and never silently switches modes.
+
+| Mode | What it means |
+|---|---|
+| `auto` / `native` | The provider's own function-tool protocol (OpenAI Chat Completions, Anthropic Messages, Ollama native, llama.cpp/vLLM when the server has tool parsing enabled). Best-effort call shaping; every call is still validated locally. |
+| `constrained` | The backend generates one JSON object from a versioned `hutch-action-v1` envelope, attached through the backend's own schema control (Ollama `format`; OpenAI-compatible `response_format`). Best for a route whose native parser mangles calls. Refused when the route has no verified schema control. |
+| `prompt` | The same envelope is requested in the prompt and parsed strictly, whole-message. Best-effort and off by default: choose it explicitly for a model that cannot follow a native or constrained path. |
+| `disabled` | No tools are offered to the model for this run. |
+
+Practical guidance:
+
+- Malformed calls, invented tool names, or a model that writes tool-shaped JSON into ordinary
+  content are all rejected, logged, and (for malformed calls) answered with one precise repair
+  prompt - nothing executable is invented from broken output.
+- If a local model repeatedly fails native tool calling, open the Bot's settings, check
+  **Tool compatibility** (below), and try `constrained` when the button is available. If the
+  endpoint rejects the schema control, the run fails with that reason instead of downgrading.
+- `prompt` mode is best-effort generation with local validation. It is not grammar-enforced;
+  quoted or example JSON is never executed.
+- Route evidence comes from documentation and from your own governed runs. `advertised` is not
+  `verified`, and a single successful call is not a model guarantee.
+
+## Tool compatibility diagnostics
+
+`GET /api/v1/tool-compatibility?ref=<Bot>` (and the **Tool compatibility** section in Bot
+settings) reports, without making a model request: the exact route profile (provider,
+endpoint class, model, build/template fingerprint when known), which strategies are
+available and why, the validator engine in use, and any recorded observations from governed
+runs. Unknown components stay unknown. The section explains missing prerequisites rather
+than saving settings that would be silently ignored.
+
 ## Local inference admission
 
 One Hutch local-inference call may hold capacity at a time, with eight waiting calls across

@@ -300,6 +300,9 @@ class Bot(BaseModel):
     persona_preset: Optional[PersonaStyle] = None     # the agent's shipped response style (sparse; unset fields inherit)
     persona_override: Optional[PersonaStyle] = None   # the owner's saved response style for this agent (sparse)
     persona_revision: int = 0                         # bumped on every saved style change; guards concurrent edits
+    #: How Hutch represents this Bot's tools to its model (docs/realignment/tool-calling.md).
+    #: ``auto`` keeps the provider-native protocol and never silently picks another mode.
+    tool_protocol: Literal["auto", "native", "constrained", "prompt", "disabled"] = "auto"
     schedule: Optional[Schedule] = None
     schedules: list[Schedule] = Field(default_factory=list)
     limits: Limits = Field(default_factory=Limits)

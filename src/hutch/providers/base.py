@@ -14,7 +14,6 @@ provider converts to its wire format. Tool specs are the OpenAI function-tool sh
 
 from __future__ import annotations
 
-import json
 import threading
 import time
 from abc import ABC, abstractmethod
@@ -78,6 +77,10 @@ class ChatRequest:
     #: True once the user pressed Stop. A cancelled call must never be "recovered" by the streaming retry
     is_cancelled: Callable[[], bool] = lambda: False
     session_id: str = ""                   # stable per conversation; standalone runs use their own id
+    #: Backend-native schema constraint ({name, schema, attachment}) for the constrained
+    #: strategy. Attachments: "response_format" (OpenAI-compatible) or "format_field"
+    #: (Ollama native). None means no structured-output control is attached.
+    structured_output: Optional[dict[str, Any]] = None
 
 
 @dataclass
@@ -87,6 +90,13 @@ class ToolCall:
     arguments: dict[str, Any] = field(default_factory=dict)
     raw: str = ""                          # the model's raw argument text, kept for repair (LM-13)
     parse_error: str = ""
+    #: "json_object" (a decoded body), "empty" (no body was emitted at all), or "invalid".
+    #: The loop decides whether an empty body is legal from the tool's own schema, so a
+    #: required-argument tool can never execute on an invented `{}`.
+    arguments_state: str = "json_object"
+    #: The body was a JSON string containing JSON (a documented small-model failure); the
+    #: decode is retained but flagged so the transcript shows the repair.
+    double_decoded: bool = False
 
 
 @dataclass
@@ -140,25 +150,42 @@ class Health:
 # ------------------------------------------------------------------ helpers
 
 def parse_tool_args(raw: Any) -> tuple[dict[str, Any], str]:
-    """Models emit arguments as a dict (Ollama), a JSON string (OpenAI), or occasionally garbage."""
+    """Backwards-compatible wrapper over :func:`parse_tool_args_state` (dict, error)."""
+    args, error, _state, _double = parse_tool_args_state(raw)
+    return args, error
+
+
+def parse_tool_args_state(raw: Any) -> tuple[dict[str, Any], str, str, bool]:
+    """Models emit arguments as a dict (Ollama/Anthropic), a JSON string (OpenAI), or occasionally garbage.
+
+    Returns ``(arguments, error, state, double_decoded)`` where state is
+    ``"json_object"``, ``"empty"`` (nothing was emitted), or ``"invalid"``. JSON is decoded
+    strictly (no duplicate keys, no NaN/Infinity, no trailing content) so a corrupted stream
+    cannot be silently repaired into a different executable call; the raw text stays available
+    for the one bounded repair retry (LM-13).
+    """
+    from ..toolcalling.strictjson import JSONProblem, loads_strict
+
     if isinstance(raw, dict):
-        return raw, ""
+        return raw, "", "json_object", False
     if raw is None or raw == "":
-        return {}, ""
+        return {}, "", "empty", False
     if isinstance(raw, str):
         try:
-            val = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            return {}, f"arguments are not valid JSON ({exc.msg} at char {exc.pos})"
-        if isinstance(val, str):  # double-encoded: a documented small-model failure
+            val = loads_strict(raw)
+        except JSONProblem as exc:
+            return {}, str(exc), "invalid", False
+        double = False
+        if isinstance(val, str):  # double-encoded: a documented small-model failure, retained with a flag
             try:
-                val = json.loads(val)
-            except json.JSONDecodeError:
-                return {}, "arguments were a JSON string that is not itself JSON"
+                val = loads_strict(val)
+                double = True
+            except JSONProblem:
+                return {}, "arguments were a JSON string that is not itself JSON", "invalid", False
         if isinstance(val, dict):
-            return val, ""
-        return {}, f"arguments must be a JSON object, got {type(val).__name__}"
-    return {}, f"unsupported arguments type {type(raw).__name__}"
+            return val, "", "json_object", double
+        return {}, f"arguments must be a JSON object, got {type(val).__name__}", "invalid", False
+    return {}, f"unsupported arguments type {type(raw).__name__}", "invalid", False
 
 
 def abort_response(resp: Any) -> None:
