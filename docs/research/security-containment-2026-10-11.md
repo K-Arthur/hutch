@@ -32,6 +32,12 @@ that proves them; anything not run is listed as unverified in §8.
   → **2383 passed, 9 skipped** (10:59, disk-backed basetemp; an earlier run under
   a full `/tmp` tmpfs was correctly discarded as corrupted by ENOSPC).
 * **Browser**: Playwright 1.63 / Chromium from `~/.cache/ms-playwright`.
+* **Measured on this host** (10 warm calls after one cold start, contained kernel):
+  cold start including first execution **0.40 s** (budget ≤ 2.5 s), warm
+  round-trip p50 **1.3 ms** / p95 **1.9 ms** (budget ≤ 300 ms), manager close
+  **≈1 ms** (the kernel process is owned by `--die-with-parent` and the session
+  tree teardown is verified in `tests/test_native_containment.py`). These are
+  local reference-machine numbers, not cross-device claims.
 
 ## 2. Trust domains and data flow
 
@@ -91,6 +97,7 @@ touched.
 | Effect intents + sealed receipts; no silent replay | `action_receipts.py` triggers; `begin_effect` | `tests/test_receipts.py`, `tests/test_action_intents.py` | verified |
 | Egress guard: address-based screening, every answer public, DNS pinning, redirect re-checks, bounded body | `netguard.py:safe_get` | `tests/test_netguard.py` (rebinding, redirects, multi-answer, bounds) | verified |
 | Browser egress pinned independently of route checks | `browser_proxy.py` | `tests/test_browser_proxy.py` (CONNECT pinning, rebinding answer, WS upgrade) | verified |
+| Strict Offline worker: credential-free mounts, network/PID isolation, Unix-socket broker | `sandbox.py:offline_worker_argv`, `offline.py` | `tests/test_offline_mode.py` (now runs end-to-end on this host after the probe fix: 55 passed with sandbox tests, no skips) | verified |
 | Untrusted payload cannot forge envelope framing or contract notes | `runtime/builtin.py:_neutralize_structural_markers` (fix in this slice) | `tests/test_runtime_builtin.py::test_a_tool_result_cannot_close_or_forge_its_own_envelope` | verified |
 | Untrusted web content is assessed, disclosed, never rewritten | `ingest.py`, `tools/webfetch.py` (fix in this slice) | `tests/test_ingest_assessment.py` | verified |
 | HTML comments removed from visible text, assessed separately, count disclosed | `ingest.py:strip_html_comments`, `webfetch.py` | `test_ingest_assessment.py` | verified |
@@ -120,6 +127,18 @@ touched.
    response; the one inline `onclick` in the SPA error state became a delegated
    listener so the policy is actually enforceable. Browser journeys
    (dashboard polish, inline approval, stale-approval race) pass under it.
+4. **Strict Offline falsely reported unavailable when Hutch ran from its venv**
+   (`sandbox.py:_probe_offline_egress`). The egress probe mounts only the system
+   tree but resolved `python3` through PATH — the venv shim — whose target is
+   not mounted, so the probe failed for an interpreter-path reason and every
+   Strict Offline route degraded (and its end-to-end test skipped) on such
+   hosts. The probe now chooses an interpreter under `/usr` and reports honestly
+   when none exists. Related hardening: `OfflineBrokerSet` and the probe no
+   longer hardcode `/tmp` for host-side broker directories (they honor
+   `TMPDIR`), so a full tmpfs cannot masquerade as an isolation failure.
+   Effect verified on this host: `tests/test_offline_mode.py` now runs the
+   network-isolated worker end-to-end and the file is fully green (55 passed,
+   no skips with `tests/test_sandbox.py`).
 
 Also recorded as corroborating audit results (no change needed): the workspace
 kernel's approval detail already carries the exact source and the approval hash
