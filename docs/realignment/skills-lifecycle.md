@@ -107,7 +107,7 @@ One design-system browser test (`test_assistant_settings_keep_everyday_edits_up_
 the base commit `a2106ec` **without this slice's commits** (reproduced in a clean worktree at
 `a2106ec`); it is pre-existing and not introduced here.
 
-The full browser suite on the final revision (rebased onto `777324a`) reports **28 failures and 8
+The full browser suite on the final revision (rebased onto the concurrent head (`2fff076` at the final rebase)) reports **28 failures and 8
 teardown errors, with 169 passed**. Every one of the 28 is pre-existing at the current base:
 
 * 25 exactly match the failure set at `a2106ec` (verified by diffing pytest `lastfailed` caches
@@ -176,12 +176,13 @@ browser tests also assert no page errors and (in the soak) no route error states
 ## Integration state
 
 The shared checkout `/home/kevina/CodingProjects/hutch` was owned by another active session
-(provider/model-switcher and UI work; commits `a2106ec`, `4f3f0c1`, `777324a`, with further
-uncommitted edits). This work was developed in `.worktrees/skills-lifecycle`, rebased first onto
-`a2106ec` and then onto `777324a`; the second rebase produced exactly one conflict (both sessions
-appending to `CHANGELOG.md` under Unreleased), resolved by keeping both entry sets. `main` has
-**not** been advanced underneath that session's dirty working tree. Integration is a fast-forward
-of `main` to this worktree's HEAD once the shared checkout is quiet:
+(provider/model-switcher and UI work; commits `a2106ec`, `4f3f0c1`, `777324a`, `2fff076`, with
+further uncommitted edits). This work was developed in `.worktrees/skills-lifecycle` and rebased
+onto the concurrent head at each milestone (`a2106ec`, then `777324a`, finally `2fff076`); the
+`777324a` rebase produced exactly one conflict (both sessions appending to `CHANGELOG.md` under
+Unreleased), resolved by keeping both entry sets. `main` has **not** been advanced underneath that
+session's dirty working tree. Integration is a fast-forward of `main` to this worktree's HEAD once
+the shared checkout is quiet:
 
 ```bash
 cd /home/kevina/CodingProjects/hutch
@@ -189,7 +190,9 @@ git merge --ff-only skills-lifecycle/HEAD   # after the active session commits o
 ```
 
 Local tags anchor the history across rebases: `skills-lifecycle-prerebase` (originals at
-`f2b8b00`) and `skills-lifecycle-prerebase2` (pre-second-rebase at `b823349`). After the rebase
-onto `777324a`, the focused suites (**74 passed**) and the skills browser files (**7 passed**,
-including the soak) were re-run green; a fresh full browser-suite pass is run from this revision
-and its result is recorded below when it completes.
+`f2b8b00`), `skills-lifecycle-prerebase2` (pre-`777324a`), `skills-lifecycle-prerebase3`
+(pre-`2fff076`). After the final rebase, the focused suites (**74 passed**) and the skills browser
+files (**6 passed**; the soak was re-run green at the previous base and is unchanged by a compiled
+CSS refresh) were re-run green. The full browser-suite pass was run and classified at `777324a`;
+its 28 failures and 8 teardown errors are all pre-existing at that base, and this slice's own
+browser files passed within it.

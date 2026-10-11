@@ -4082,13 +4082,14 @@ visual review remain open.
 
 Ownership: this slice was implemented by a second agent session in the detached
 worktree `.worktrees/skills-lifecycle` (no branch), based on `f2b8b00`, rebased
-onto the concurrent commits `a2106ec` and then `777324a` (one CHANGELOG
-conflict, resolved by keeping both entry sets), because the shared checkout was
-being actively edited. Local commits `60ca912`…`d4ad976` (fifteen commits;
-the pre-rebase states are anchored by tags `skills-lifecycle-prerebase` and
-`skills-lifecycle-prerebase2`). `main` has **not** been moved underneath the
-other session's dirty tree; integration is a fast-forward once that tree is
-quiet (`git merge --ff-only <skills worktree HEAD>`).
+onto the concurrent head at each milestone (`a2106ec`, `777324a`, `2fff076`; one
+CHANGELOG conflict at `777324a`, resolved by keeping both entry sets), because
+the shared checkout was being actively edited. Local commits `60ca912`…`47befee`
+(sixteen commits; the pre-rebase states are anchored by tags
+`skills-lifecycle-prerebase`, `-prerebase2`, `-prerebase3`). `main` has **not**
+been moved underneath the other session's dirty tree; integration is a
+fast-forward once that tree is quiet
+(`git merge --ff-only <skills worktree HEAD>`).
 
 What landed: the complete Agent Skills lifecycle (discover/import -> validate ->
 review/trust by content hash -> install -> assign -> activate -> inspect ->
