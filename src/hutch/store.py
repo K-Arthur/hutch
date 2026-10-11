@@ -34,6 +34,7 @@ from typing import Any, Callable, Optional
 
 from .config import hutchConfig, get_config
 from . import action_receipts, durable_changes
+from .money import format_usd
 from .lifecycle import TERMINAL, IllegalTransition, LeaseLost, allowed
 from .models import (
     ACTIVE_STATUSES,
@@ -1478,7 +1479,7 @@ class UsagePauseRequired(ValueError):
 
     def __init__(self, message: str, *, scope_kind: str, scope_id: str, cycle_key: str,
                  policy_revision: int, route_hash: str, pause_usd: float,
-                 ceiling_usd: Optional[float], observed_usd: float):
+                 ceiling_usd: Optional[float], observed_usd: float, planned_usd: float):
         super().__init__(message)
         self.scope_kind = scope_kind
         self.scope_id = scope_id
@@ -1488,6 +1489,7 @@ class UsagePauseRequired(ValueError):
         self.pause_usd = pause_usd
         self.ceiling_usd = ceiling_usd
         self.observed_usd = observed_usd
+        self.planned_usd = planned_usd
 
 
 EVENT_FLUSH_SECONDS = 0.02
@@ -7306,8 +7308,8 @@ class Store:
             projected = observed + planned_cost
             if policy.ceiling_usd is not None and planned_cost > 0 and projected > policy.ceiling_usd + 1e-9:
                 raise UsageBudgetRefusal(
-                    f"the next call could pass the ${policy.ceiling_usd:.2f} ceiling on {labels[kind]}; "
-                    f"${observed:.4f} is spent or reserved")
+                    f"the next call could pass the {format_usd(policy.ceiling_usd)} ceiling on {labels[kind]}; "
+                    f"{format_usd(observed)} is spent or reserved")
             if policy.pause_usd is not None and planned_cost > 0 and projected > policy.pause_usd + 1e-9:
                 cycle = self._budget_cycle_key(policy, now, run_id)
                 released = db.execute(
@@ -7316,11 +7318,12 @@ class Store:
                     (kind, policy.scope_id, route_hash, cycle, policy.revision)).fetchone()
                 if released is None:
                     raise UsagePauseRequired(
-                        f"the next call could pass the ${policy.pause_usd:.2f} pause threshold on {labels[kind]}; "
-                        f"${observed:.4f} is spent or reserved - approve to continue",
+                        f"the next call could pass the {format_usd(policy.pause_usd)} pause threshold on "
+                        f"{labels[kind]}; {format_usd(observed)} is spent or reserved - approve to continue",
                         scope_kind=kind, scope_id=policy.scope_id, cycle_key=cycle,
                         policy_revision=policy.revision, route_hash=route_hash,
-                        pause_usd=policy.pause_usd, ceiling_usd=policy.ceiling_usd, observed_usd=observed)
+                        pause_usd=policy.pause_usd, ceiling_usd=policy.ceiling_usd,
+                        observed_usd=observed, planned_usd=planned_cost)
             if policy.warn_usd is not None and projected > policy.warn_usd + 1e-9:
                 cycle = self._budget_cycle_key(policy, now, run_id)
                 key = f"{policy.warn_usd:.6f}|{cycle}"

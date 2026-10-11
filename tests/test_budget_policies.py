@@ -118,7 +118,7 @@ def test_pause_requires_a_human_release_and_never_lifts_the_ceiling(store):
     _admit(store, bot, second, cost=0.06, route_hash="route-1")
 
     third = store.create_run(Run(bot_id=bot.id, prompt="policy test"))
-    with pytest.raises(UsageBudgetRefusal, match=r"\$0\.20 ceiling"):
+    with pytest.raises(UsageBudgetRefusal, match=r"\$0\.2000 ceiling"):
         _admit(store, bot, third, cost=0.06, route_hash="route-1")
 
 
