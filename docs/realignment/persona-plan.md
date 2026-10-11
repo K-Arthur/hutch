@@ -74,6 +74,16 @@ Progress (2026-10-11):
   user stop, and a stale whole-document bot save can no longer roll back the revision-guarded style.
   Regression tests: stale-document guard, unreadable conversation state, newer stored plan. Browser
   evidence regenerated with **20/20 checks**; focused regression batch **338 passed**.
+- Browser-suite classification (2026-10-11): the full `tests/e2e` suite on this tree reports **26 failed,
+  172 passed, 8 teardown errors**; a clean run of the same suite at the pre-persona merge `ab1929e` (scratch
+  worktree, isolated basetemp) reports **27 failed, 171 passed, 8 errors**. The 8 teardown errors are the
+  **same set**; the base-only failures are the two order-sensitive tests already documented as pre-existing
+  (`test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports` and
+  `test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences`, both passing here); one test
+  failed only in this tree's full run (`test_large_idle_roster_stays_compact_and_remains_searchable_and_keyboard_accessible`,
+  an untouched roster surface) and **passes in isolation on both trees** — a suite-order flake, not a
+  persona regression. The suite regenerated 479 tracked evidence files; all were restored to their committed
+  bytes and no regenerated captures were kept.
 
 Known follow-ups (from the same review, not yet done):
 
@@ -83,8 +93,8 @@ Known follow-ups (from the same review, not yet done):
   released-build downgrade path matters.
 - `persona_preset` has no production writer yet (nothing ships an agent preset); the "Assistant preset"
   origin appears only if a template or future flow sets it.
-- The persona flow has no committed test inside `tests/e2e/`; the reproducible capture script is the
-  current browser regression vehicle, and the full browser suite has not been run on this tree.
+- The persona flow has no committed test inside `tests/e2e/`; the reproducible capture script is the current
+  browser regression vehicle (the full suite itself has now been classified against the pre-persona base).
 - Live-model evaluation of humor, adherence and boundary calibration remains unrun (no authorized route).
 
 ## Acceptance budgets
