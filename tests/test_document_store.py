@@ -38,7 +38,9 @@ def _version_rows(data: bytes, filename: str = "report.pdf", version: int = 1,
 
 
 def test_schema_v50_tables_exist(store: Store):
-    assert SCHEMA_VERSION == 50
+    # The version is a moving target (v51 grounding, v52 synthesis): what this test pins
+    # is that the v50 migration ran and its tables exist.
+    assert SCHEMA_VERSION >= 50
     names = {row["name"] for row in store._db.execute(
         "SELECT name FROM sqlite_master WHERE type='table'")}
     assert {"documents", "document_versions"} <= names
