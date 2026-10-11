@@ -72,7 +72,7 @@ Workspace actions (Docs brief, Sheets table, Drive placement, Calendar/reminder 
 | S5b | Workspace OAuth transport + executors + action plan/effect orchestration | **implemented, local tests green** (10 plan-engine + 8 fake-Google transport tests; live Google unexecuted — no account) |
 | S5c | Tool layer: ingest_source, register_manifest, register_script, render_audio_overview, plan_workspace_action, run_workspace_plan | **implemented, local tests green** (8 tool tests; registered in groups `synthesis`/`workspace`, hidden in Strict Offline for the network tools) |
 | S5d | Calendar: relative reminders on create, conditional (`If-Match`) reminder updates, plan-step executors with grant checks | **implemented, local tests green** (6 client tests + 2 tool tests; live Google unexecuted) |
-| S5e | Connections API for the Workspace OAuth callback + hash-verified artifact download routes | in progress |
+| S5e | Connections API for the Workspace OAuth callback + hash-verified artifact download routes | **implemented, local tests green** (3 route tests; fake/local only) |
 | S6 | UI integration (source selector, coverage, format controls, action drawer) | planned (design gate first) |
 | S7 | Integrated acceptance, visual/audio evidence, independent verification | planned |
 
@@ -114,9 +114,12 @@ Workspace actions (Docs brief, Sheets table, Drive placement, Calendar/reminder 
   Google Calendar grant; a reminder step with no `reminders` and no `reset_default` fails
   instead of silently clearing reminders. `routine_config` steps remain unbound (Hutch
   routine creation is a separate reviewed integration).
-* **Connections API/UI** for the Workspace OAuth callback (`/api/v1/connections/google-workspace/…`)
-  and **artifact download routes** for rendered audio/transcripts (hash-verified, conversation-
-  scoped) are the remaining server work before the acceptance journey can run in the app.
+* **Connections API (S5e, done 2026-10-12):** `/api/v1/connections/google-workspace` (status +
+  accounts), `/sign-in` (PKCE start, loopback-only callback), `/callback` (consumed query via the
+  security allowlist, honest error redirect), `/accounts/{id}/disconnect`; artifact routes
+  `GET /api/v1/synthesis/artifacts/{id}/content` (hash-verified, range-capable) and
+  `GET /api/v1/synthesis/manifests/{id}`. The **Connections UI** surface and the audio/infographic
+  UI remain before the in-app acceptance journey.
 * **UI** (source selector, coverage, audio player with Join/Ask, infographic view, action
   drawer) starts with the mandatory Figma Community research and a 3–4 route review.
 

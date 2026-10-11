@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urlsplit
 
 import httpx
 
@@ -130,6 +130,33 @@ class WorkspaceAccount:
 
 class GoogleWorkspaceClient:
     """Docs/Sheets/Drive operations for one or more connected Google accounts."""
+
+    callback_path = CALLBACK_PATH
+    feature_name = "Google Workspace"
+
+    @classmethod
+    def callback_uri(cls, request: Any) -> str:
+        """The exact local callback URI, validated the same way as Google Calendar's."""
+        host = request.headers.get("host", "")
+        try:
+            host_parts = urlsplit("//" + host)
+            port = int(request.scope["server"][1])
+            peer = request.client.host if request.client else ""
+            import ipaddress
+
+            try:
+                is_loopback = ipaddress.ip_address(peer).is_loopback
+            except ValueError:
+                is_loopback = peer == "testclient"
+            valid = (request.url.scheme == "http" and host_parts.hostname == "127.0.0.1" and
+                     host_parts.username is None and host_parts.password is None and
+                     (host_parts.port is None or host_parts.port == port) and 1 <= port <= 65535 and is_loopback)
+        except (KeyError, TypeError, ValueError, IndexError):
+            valid = False
+        if not valid:
+            raise GoogleWorkspaceError(
+                "Google Workspace sign-in must use Hutch's exact local 127.0.0.1 callback")
+        return f"http://127.0.0.1:{port}{CALLBACK_PATH}"
 
     def __init__(self, state_dir: Path, client_id: str, *, secrets_store: Optional[SecretStore] = None,
                  http_factory=None, docs_base: str = ws.DOCS_API, sheets_base: str = ws.SHEETS_API,
