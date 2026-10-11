@@ -393,6 +393,13 @@ async function openConversationFiles(conversationId, returnFocus) {
       const items = page.artifacts || [];
       list.insertAdjacentHTML(append ? "beforeend" : "afterbegin", items.map(conversationArtifactHtml).join(""));
       count += items.length;
+      if (!append) {
+        const docsPage = await api(`/v1/documents?conversation_id=${encodeURIComponent(conversationId)}&limit=50`);
+        if (!$("#conversation-files-list")) return;
+        const docs = (docsPage.documents || []).map(documentListRowRef).filter(Boolean);
+        list.insertAdjacentHTML("afterbegin", docs.map(documentCardHtml).join(""));
+        count += docs.length;
+      }
       cursor = page.next_cursor || "";
       status.textContent = count ? `${count} ${count === 1 ? "item" : "items"}`
         : "No files or saved tool output in this chat yet.";
@@ -4305,8 +4312,11 @@ function artifactDownloadHtml(runId, result) {
 
 function createdFilesHtml(runId, items) {
   const files = items.filter(it => it.result?.d?.workspace_file).map(it => it.result.d.workspace_file);
-  if (!files.length) return "";
+  const documents = items.map(it => it.result?.d?.document).filter(Boolean)
+    .map(validDocumentRef).filter(Boolean);
+  if (!files.length && !documents.length) return "";
   return `<div class="workspace-file-attachments" role="group" aria-label="Files created in this run">
+    ${documents.map(documentAttachmentHtml).join("")}
     ${files.map(file => {
       const match = /^artifacts\/([0-9]{3,6}-[a-z0-9_-]{1,40}\.txt)$/.exec(String(file.artifact || ""));
       const digest = String(file.sha256 || "");
@@ -9426,7 +9436,199 @@ function startPhoneApp() {
   phoneRender();
   void phoneRefresh();
   phonePoll = setInterval(() => { if (!document.hidden) void phoneRefresh({ quiet: true }); }, 12_000);
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) void phoneRefresh({ quiet: true }); });
+  
+/* ------------------------------------------- documents (generated, committed) */
+
+const DOCUMENT_FORMAT_LABELS = {
+  pdf: "PDF", docx: "DOCX", xlsx: "XLSX", pptx: "PPTX",
+  md: "MD", txt: "TXT", csv: "CSV", json: "JSON", yaml: "YAML", zip: "ZIP",
+};
+
+/* Only committed documents with a well-formed id and version get a card; the
+   download URL is built here from validated parts, never taken from event data. */
+function validDocumentRef(ref) {
+  if (!ref || typeof ref !== "object") return null;
+  const id = typeof ref.id === "string" ? ref.id : "";
+  const version = Number(ref.version);
+  if (!/^doc_[0-9a-f]{16}$/.test(id) || !Number.isInteger(version) || version < 1 || version > 999) return null;
+  const bytes = Number(ref.bytes);
+  return {
+    id, version,
+    name: String(ref.name || "document"),
+    title: String(ref.title || ref.name || "Document"),
+    format: String(ref.format || ""),
+    formatLabel: DOCUMENT_FORMAT_LABELS[ref.format] || String(ref.format || "?").toUpperCase(),
+    bytes: Number.isSafeInteger(bytes) && bytes >= 0 ? bytes : null,
+    validationState: String(ref.validation_state || "passed"),
+    findings: Array.isArray(ref.validation_findings) ? ref.validation_findings : [],
+    previewMode: String(ref.preview_mode || "download_only"),
+  };
+}
+
+function documentListRowRef(row) {
+  if (!row || typeof row !== "object") return null;
+  return validDocumentRef({
+    id: row.id, version: row.current_version ?? row.cur_version,
+    name: row.cur_filename || row.title, title: row.title,
+    format: row.format, bytes: row.cur_bytes,
+    validation_state: row.cur_validation, preview_mode: row.cur_preview,
+  });
+}
+
+function documentDownloadUrl(ref) {
+  return `/api/v1/documents/${ref.id}/versions/${ref.version}/download`;
+}
+
+function documentStateHtml(ref) {
+  if (ref.validationState === "passed") return `${icon("check")} Verified`;
+  if (ref.validationState === "passed_with_warnings") {
+    return `${icon("eye")} Validated · ${ref.findings.length || "notes"}`;
+  }
+  return `${icon("alert")} Validation failed`;
+}
+
+function documentCardHtml(ref) {
+  const failed = ref.validationState === "failed";
+  const download = failed ? "" :
+    `<a class="btn ghost small" href="${documentDownloadUrl(ref)}" aria-label="Download ${esc(ref.name)}">Download</a>`;
+  return `<article class="document-card conversation-file" data-document-card="${esc(ref.id)}">
+    <div class="conversation-file-main">
+      ${icon("fileText")}
+      <div class="conversation-file-copy">
+        <strong title="${esc(ref.name)}">${esc(ref.name)}</strong>
+        <span><span class="document-format">${esc(ref.formatLabel)}</span> · v${ref.version}${ref.bytes ? ` · ${conversationArtifactSize(ref.bytes)}` : ""} · ${timeAgo(ref.created_at || "")}</span>
+        <span class="conversation-file-state">${documentStateHtml(ref)}</span>
+      </div>
+      <div class="conversation-file-actions">
+        <button class="btn ghost small" type="button" data-doc-preview="${esc(ref.id)}"
+          data-doc-version="${ref.version}" data-doc-name="${esc(ref.name)}"
+          aria-label="Preview ${esc(ref.name)}">Preview</button>
+        <button class="btn ghost small" type="button" data-doc-versions="${esc(ref.id)}"
+          data-doc-name="${esc(ref.name)}" aria-label="Version history for ${esc(ref.name)}">Versions</button>
+        ${download}
+      </div>
+    </div>
+  </article>`;
+}
+
+function documentAttachmentHtml(ref) {
+  const failed = ref.validationState === "failed";
+  const download = failed ? "" :
+    ` <a class="btn ghost small" href="${documentDownloadUrl(ref)}" title="The server verifies this file against its recorded SHA-256 before download">Download ${esc(ref.name)}</a>`;
+  return `<div class="workspace-file-attachment document-attachment">
+    <span class="workspace-file-label"><span class="document-format">${esc(ref.formatLabel)}</span> Document</span>
+    <button class="btn ghost small" type="button" data-doc-preview="${esc(ref.id)}"
+      data-doc-version="${ref.version}" data-doc-name="${esc(ref.name)}"
+      aria-label="Preview ${esc(ref.name)}">Preview</button>
+    <button class="btn ghost small" type="button" data-doc-versions="${esc(ref.id)}"
+      data-doc-name="${esc(ref.name)}" aria-label="Version history for ${esc(ref.name)}">Versions</button>
+    ${download}
+    <span class="workspace-file-meta">v${ref.version}${ref.bytes ? ` · ${conversationArtifactSize(ref.bytes)}` : ""} · ${documentStateHtml(ref)}</span>
+  </div>`;
+}
+
+function documentPreviewBodyHtml(data) {
+  const note = (extra) => `<p class="hint">${esc(extra)}</p>`;
+  if (data.mode === "pages") {
+    const total = Number(data.rendered_pages || 0);
+    if (!total) {
+      return note("No rendered page images are available for this version. The exact file is unchanged and ready to download.");
+    }
+    const base = String(data.pages_url || "");
+    return note("Rendered page images — an approximate render of the exact stored file.") +
+      `<div class="document-pages">${Array.from({ length: Math.min(total, 60) }, (_, i) =>
+        `<img loading="lazy" src="${esc(base)}${i + 1}.png" alt="Page ${i + 1} of ${total} — approximate render">`).join("")}</div>`;
+  }
+  if (data.mode === "structure" && typeof data.text === "string") {
+    const clipped = data.text_truncated ? note("Preview truncated; the download contains the full text.") : "";
+    return clipped + `<pre class="document-preview-text">${esc(data.text)}</pre>`;
+  }
+  if (data.mode === "structure" && data.kind === "outline") {
+    const items = (data.items || []).map(item =>
+      `<li class="document-outline-${esc(item.level || "p")}">${esc(item.text || "")}</li>`).join("");
+    return note("Extracted structure — not the rendered layout.") + `<ul class="document-outline">${items}</ul>`;
+  }
+  if (data.mode === "structure" && data.kind === "grid") {
+    const sheets = (data.sheets || []).map(sheet => {
+      const head = (sheet.sample || [])[0] || [];
+      const rows = (sheet.sample || []).slice(1);
+      return `<h4>${esc(sheet.name || "Sheet")}</h4>
+        <table class="document-grid"><thead><tr>${head.map(cell => `<th>${esc(String(cell ?? ""))}</th>`).join("")}</tr></thead>
+        <tbody>${rows.map(row => `<tr>${row.map(cell => `<td>${esc(String(cell ?? ""))}</td>`).join("")}</tr>`).join("")}</tbody></table>
+        <p class="hint">${Number(sheet.rows || 0).toLocaleString("en-US")} rows total (sample shows the first ${Math.max((sheet.sample || []).length - 1, 0)}); values as stored, without formatting.</p>`;
+    }).join("");
+    return note("Extracted sheet values — not the rendered workbook.") + sheets;
+  }
+  if (data.mode === "structure" && data.kind === "slides") {
+    const slides = (data.items || []).map((slide, i) =>
+      `<li class="document-slide"><strong>Slide ${i + 1}: ${esc(slide.title || "(untitled)")}</strong>
+        <span>${Number(slide.bullet_count || 0)} bullet(s)${slide.has_table ? " · table" : ""}${slide.has_notes ? " · notes" : ""}</span></li>`).join("");
+    return note("Slide outline — not the rendered deck.") + `<ul class="document-outline">${slides}</ul>`;
+  }
+  return note("This version has no in-app preview. The exact file is ready to download; layout previews for office documents become available when LibreOffice is installed on the Hutch host.");
+}
+
+async function openDocumentPreview(docId, version, docName, returnFocus) {
+  openModal({
+    title: `Preview — ${docName || "document"}`,
+    bodyHtml: `<div id="doc-preview-status" class="hint" role="status" aria-live="polite">Loading preview…</div>
+      <div id="doc-preview-body"></div>`,
+    confirmText: "Close", showCancel: false, wide: true, tall: true, returnFocus,
+  });
+  try {
+    const data = await api(`/v1/documents/${encodeURIComponent(docId)}/versions/${version}/preview`);
+    const body = $("#doc-preview-body");
+    const status = $("#doc-preview-status");
+    if (!body) return;
+    body.innerHTML = documentPreviewBodyHtml(data);
+    if (status) status.textContent = `${data.mode === "pages" ? "Rendered pages" : "Extracted preview"}${data.mode === "pages" && data.rendered_pages ? ` · ${data.rendered_pages} page(s)` : ""}`;
+  } catch (err) {
+    const status = $("#doc-preview-status");
+    if (status) status.textContent = `Could not load the preview: ${err.message}. The download is unaffected.`;
+  }
+}
+
+async function openDocumentVersions(docId, docName, returnFocus) {
+  openModal({
+    title: `Versions — ${docName || "document"}`,
+    bodyHtml: `<div id="doc-versions-status" class="hint" role="status" aria-live="polite">Loading versions…</div>
+      <div id="doc-versions-list" class="conversation-files-list"></div>`,
+    confirmText: "Close", showCancel: false, returnFocus,
+  });
+  try {
+    const page = await api(`/v1/documents/${encodeURIComponent(docId)}/versions`);
+    const list = $("#doc-versions-list");
+    const status = $("#doc-versions-status");
+    if (!list) return;
+    const versions = (page.versions || []).filter(v =>
+      /^\/api\/v1\/documents\/doc_[0-9a-f]{16}\/versions\/\d+\/download$/.test(String(v.download_url || "")));
+    list.innerHTML = versions.map(v => `<div class="workspace-file-attachment">
+      <span class="workspace-file-label">v${v.version}</span>
+      <span>${esc(v.filename)}</span>
+      <span class="workspace-file-meta">${conversationArtifactSize(v.size_bytes)} · ${timeAgo(v.created_at)} · ${esc(v.validation_state === "passed" ? "Verified" : v.validation_state === "passed_with_warnings" ? "Validated with notes" : "Validation failed")}</span>
+      ${v.validation_state !== "failed" ? `<a class="btn ghost small" href="${esc(v.download_url)}" aria-label="Download version ${v.version} of ${esc(docName || "document")}">Download</a>` : ""}
+    </div>`).join("") || "";
+    if (status) status.textContent = versions.length ? `${versions.length} version(s); older versions stay downloadable` : "No versions recorded.";
+  } catch (err) {
+    const status = $("#doc-versions-status");
+    if (status) status.textContent = `Could not load versions: ${err.message}`;
+  }
+}
+
+document.addEventListener("click", event => {
+  const preview = event.target.closest("[data-doc-preview]");
+  if (preview) {
+    openDocumentPreview(preview.dataset.docPreview, Number(preview.dataset.docVersion),
+      preview.dataset.docName, preview);
+    return;
+  }
+  const versions = event.target.closest("[data-doc-versions]");
+  if (versions) {
+    openDocumentVersions(versions.dataset.docVersions, versions.dataset.docName, versions);
+  }
+});
+
+document.addEventListener("visibilitychange", () => { if (!document.hidden) void phoneRefresh({ quiet: true }); });
   window.addEventListener("online", () => { phoneModel.offline = false; void phoneRefresh(); });
   window.addEventListener("offline", () => { phoneModel.offline = true; phoneRender(); });
   void api("/v1/snapshot?limit=1").then(snapshot => {

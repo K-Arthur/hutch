@@ -2502,3 +2502,69 @@ body.paired-phone > :not(#phone-root) { display: none !important; }
   #app-top-context:has(.assistant-settings-menu) .ctx-id { width: auto; flex: 1 1 auto; }
   #app-top-context:has(.assistant-settings-menu) .ctx-actions { width: auto; flex: 0 0 auto; margin-left: auto; }
 }
+
+
+/* ── documents: committed generated files ──────────────────────────────────
+   Cards reuse the conversation-file skeleton; the format chip is the non-colour
+   cue, state always pairs a glyph with a word, and preview surfaces label
+   themselves as extracts or approximate renders. */
+
+.document-format {
+  display: inline-block;
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-chip);
+  font-size: var(--fs-xs);
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: var(--text-2);
+  vertical-align: 1px;
+}
+
+.document-attachment { flex-wrap: wrap; }
+
+.document-preview-text {
+  margin: 0;
+  padding: var(--s-3);
+  max-height: min(60vh, 560px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  background: var(--sunken);
+  font: 12px/1.55 var(--mono);
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.document-outline { margin: 0; padding-left: 1.2rem; display: grid; gap: var(--s-1); }
+.document-outline-h1 { font-weight: 700; font-size: var(--fs-md); }
+.document-outline-h2 { font-weight: 650; }
+.document-outline-h3, .document-outline-h4 { color: var(--text-2); }
+.document-outline .document-slide span,
+.document-outline li { overflow-wrap: anywhere; }
+.document-slide { display: grid; gap: 2px; margin-block: var(--s-1); }
+.document-slide span { color: var(--text-2); font-size: var(--fs-sm); }
+
+.document-grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+  margin-block: var(--s-2) var(--s-1);
+}
+.document-grid th, .document-grid td {
+  border: 1px solid var(--line);
+  padding: var(--s-1) var(--s-2);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.document-grid th { background: var(--sunken); font-weight: 650; }
+
+.document-pages { display: grid; gap: var(--s-3); }
+.document-pages img {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  background: white;
+}
