@@ -23,6 +23,7 @@ import sqlite3
 import stat
 from pathlib import Path
 from pathlib import PurePosixPath
+from types import SimpleNamespace
 from typing import Any, Literal, Optional
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
@@ -40,6 +41,7 @@ from .. import __version__
 from ..approvals import resolve_approval, resolve_approval_ex
 from ..action_receipts import ActionConflict
 from ..fact_memory import FactConflict
+from ..instance import instance_info
 from ..google_oauth_config import (GOOGLE_OAUTH_CLIENT_ID_KEY, GOOGLE_OAUTH_CLIENT_ID_PATTERN,
                                    google_oauth_client_settings, resolve_google_oauth_client_id,
                                    valid_google_oauth_client_id)
@@ -118,6 +120,22 @@ REMOTE_ROUTE_CAPABILITIES: dict[tuple[str, str], Optional[str]] = {
     ("POST", "/api/v1/actions/approvals/{approval_id}/deny"): "review",
     ("POST", "/api/v1/tasks/runs"): "start",
     ("POST", "/api/v1/search/messages"): "monitor",
+    # Local-owner-only surfaces (registered but explicitly unreachable from paired phones):
+    ("GET", "/api/v1/runtime"): None,
+    ("POST", "/api/v1/runtime/service/install"): None,
+    ("POST", "/api/v1/runtime/service/restart"): None,
+    ("POST", "/api/v1/runtime/service/stop"): None,
+    ("POST", "/api/v1/runtime/service/uninstall"): None,
+    ("POST", "/api/v1/runtime/service/startup"): None,
+    ("GET", "/api/v1/sources"): None,
+    ("POST", "/api/v1/sources"): None,
+    ("PUT", "/api/v1/sources/{source_id}"): None,
+    ("DELETE", "/api/v1/sources/{source_id}"): None,
+    ("GET", "/api/v1/sources/{source_id}/events"): None,
+    ("POST", "/api/v1/sources/{source_id}/check"): None,
+    ("GET", "/api/v1/jobs"): None,
+    ("GET", "/api/v1/jobs/{job_id}"): None,
+    ("POST", "/api/v1/jobs/{job_id}/cancel"): None,
 }
 
 PUBLIC_REMOTE_ROUTES = {("GET", "/login"), ("POST", "/login"), ("GET", "/pair"),
@@ -1825,6 +1843,53 @@ class OutlookMailSendGrantResponseResource(BaseModel):
     detail: str
 
 
+class SourceCreateRequest(BaseModel):
+    """One event-source registration as the UI/API submits it (kind-specific fields optional)."""
+
+    bot: str = Field(min_length=1, max_length=128)
+    kind: Literal["folder", "git", "feed"]
+    name: str = Field(min_length=1, max_length=80)
+    path: str = Field(default="", max_length=4096)
+    url: str = Field(default="", max_length=2048)
+    ref: str = Field(default="", max_length=200)
+    include: list[str] = Field(default_factory=list, max_length=32)
+    ignore: list[str] = Field(default_factory=list, max_length=32)
+    every_seconds: Optional[int] = Field(default=None, ge=10, le=86_400)
+    prompt: str = Field(default="", max_length=4000)
+    cooldown_seconds: int = Field(default=300, ge=10, le=86_400)
+    max_per_hour: int = Field(default=6, ge=1, le=60)
+
+
+class SourceUpdateRequest(BaseModel):
+    """A partial edit; any changed field fences an in-flight check via the revision."""
+
+    name: Optional[str] = Field(default=None, min_length=1, max_length=80)
+    path: Optional[str] = Field(default=None, max_length=4096)
+    url: Optional[str] = Field(default=None, max_length=2048)
+    ref: Optional[str] = Field(default=None, max_length=200)
+    include: Optional[list[str]] = Field(default=None, max_length=32)
+    ignore: Optional[list[str]] = Field(default=None, max_length=32)
+    every_seconds: Optional[int] = Field(default=None, ge=10, le=86_400)
+    prompt: Optional[str] = Field(default=None, max_length=4000)
+    cooldown_seconds: Optional[int] = Field(default=None, ge=10, le=86_400)
+    max_per_hour: Optional[int] = Field(default=None, ge=1, le=60)
+    enabled: Optional[bool] = None
+    replace_config: bool = False
+
+
+class ServiceActionRequest(BaseModel):
+    """A deliberate, confirmed local service action (never reachable by paired phones)."""
+
+    confirm: str = Field(min_length=1, max_length=32)
+    port: int = Field(default=8787, ge=1, le=65535)
+    delay_seconds: float = Field(default=1.2, ge=0.2, le=10.0)
+
+
+class ServiceStartupRequest(BaseModel):
+    enabled: bool
+    confirm: str = Field(min_length=1, max_length=32)
+
+
 def create_app() -> FastAPI:
     config = get_config()
     store = Store(config)
@@ -2141,7 +2206,326 @@ def create_app() -> FastAPI:
     def health() -> dict:
         report = store.restoration_status()
         return {"status": "ok", "version": __version__, "schema": store.schema_version,
-                "execution_held": bool(report and report['execution_held'])}
+                "execution_held": bool(report and report['execution_held']),
+                "instance": instance_info(config.state_dir),
+                "scheduler": engine.supervisor_snapshot()}
+
+    # -------------------------------------------------- runtime & background
+    # Local-owner only: this route is deliberately absent from
+    # REMOTE_ROUTE_CAPABILITIES, so paired phones receive 403 from
+    # authorize_remote_route. It reports where the engine runs, whether the
+    # managed service is really ready, and what is waiting — never secrets or
+    # file contents.
+
+    _runtime_service_cache: dict[str, Any] = {"at": 0.0, "value": None}
+
+    def runtime_service_snapshot(force: bool = False) -> dict:
+        """Service/linger snapshot, cached ~5s because each check shells out to systemd."""
+        import time as _time
+
+        now = _time.monotonic()
+        cached = _runtime_service_cache["value"]
+        if not force and cached is not None and now - float(_runtime_service_cache["at"]) < 5.0:
+            return cached
+        from ..service import ServiceError, linger_state, user_service_status
+
+        snapshot: dict[str, Any]
+        try:
+            status = user_service_status(state_dir=config.state_dir, probe=True)
+            snapshot = {
+                "supported": True, "installed": status.installed, "state": status.state,
+                "active": status.active, "ready": status.ready, "detail": status.detail,
+                "port": status.port, "linger": status.linger,
+                "unit_path": str(status.unit_path) if status.unit_path else "",
+                "main_pid": status.main_pid,
+            }
+        except ServiceError as exc:
+            snapshot = {"supported": True, "installed": False, "state": "unavailable", "active": False,
+                        "ready": None, "detail": str(exc), "port": None, "linger": linger_state(),
+                        "unit_path": "", "main_pid": None}
+        except Exception:  # a status read must never take down the dashboard
+            snapshot = {"supported": True, "installed": False, "state": "unknown", "active": False,
+                        "ready": None, "detail": "service status could not be read", "port": None,
+                        "linger": "unknown", "unit_path": "", "main_pid": None}
+        _runtime_service_cache["at"] = now
+        _runtime_service_cache["value"] = snapshot
+        return snapshot
+
+    @app.get("/api/v1/runtime")
+    def runtime() -> dict:
+        """Where execution lives, what is due, and what needs a person. Local owners only."""
+        active = store.active_runs()
+        pending = store.pending_approvals()
+        return {
+            "engine": {
+                "state_dir": str(config.state_dir),
+                "instance_id": instance_info(config.state_dir)["id"],
+                "pid": os.getpid(),
+                "started_at": instance_info(config.state_dir)["started_at"],
+                "version": __version__,
+                "schema": store.schema_version,
+            },
+            "scheduler": engine.supervisor_snapshot(),
+            "service": runtime_service_snapshot(),
+            "exposure": {
+                "mode": "remote" if os.environ.get("HUTCH_REMOTE_ENABLED") else "loopback",
+                "bind": os.environ.get("HUTCH_RUNTIME_BIND", "127.0.0.1"),
+            },
+            "queue": {
+                "queued_tasks": len(store.pending_tasks()),
+                "active_runs": len(active),
+                "pending_approvals": len(pending),
+                "unresolved_actions": store.count_unresolved_actions(),
+                "execution_held": bool((report := store.restoration_status()) and report["execution_held"]),
+            },
+            "sources": store.source_inbox_stats(),
+            "jobs": store.job_counts(),
+        }
+
+    def _confirmed(body, expected: str) -> None:
+        if body.confirm != expected:
+            raise HTTPException(422, f'this action needs the exact confirmation "{expected}"')
+
+    @app.post("/api/v1/runtime/service/install")
+    def runtime_service_install(body: ServiceActionRequest) -> dict:
+        """Install and start the loopback-only user service after a confirmed click."""
+        _confirmed(body, "install")
+        from ..service import ServiceError, install_user_service
+
+        try:
+            install_user_service(config.state_dir, port=body.port, ready_timeout=10.0)
+        except ServiceError as exc:
+            raise HTTPException(502, str(exc)) from None
+        return runtime_service_snapshot(force=True)
+
+    @app.post("/api/v1/runtime/service/restart")
+    def runtime_service_restart(body: ServiceActionRequest) -> dict:
+        _confirmed(body, "restart")
+        from ..service import ServiceError, restart_user_service
+
+        try:
+            restart_user_service()
+        except ServiceError as exc:
+            raise HTTPException(502, str(exc)) from None
+        snapshot = runtime_service_snapshot(force=True)
+        if not snapshot.get("ready"):
+            raise HTTPException(502, "the service restarted but did not answer the readiness handshake: "
+                                     f"{snapshot.get('detail') or 'not confirmed'}")
+        return snapshot
+
+    @app.post("/api/v1/runtime/service/stop")
+    def runtime_service_stop(body: ServiceActionRequest) -> dict:
+        """Stop the managed service after a confirmed click.
+
+        The stop is issued just after this response flushes (the dashboard is
+        served by the process being stopped). An explicit stop is a person's
+        decision: the unit's Restart=on-failure policy does not relaunch it.
+        """
+        _confirmed(body, "stop")
+        import threading
+        import time as _time
+
+        def _delayed_stop(delay: float) -> None:
+            _time.sleep(delay)
+            from ..service import ServiceError, stop_user_service
+
+            try:
+                stop_user_service()
+            except ServiceError:
+                pass  # nothing sensible to report to a closed connection; `hutch service status` shows the truth
+            _runtime_service_cache["value"] = None
+
+        threading.Thread(target=_delayed_stop, args=(body.delay_seconds,),
+                         name="hutch-service-stop", daemon=True).start()
+        return {"stopping": True, "delay_seconds": body.delay_seconds,
+                "detail": ("Hutch's background service stops in a moment. In-progress work is signalled and its "
+                           "outcome is recorded; nothing already sent to a provider is undone.")}
+
+    @app.post("/api/v1/runtime/service/uninstall")
+    def runtime_service_uninstall(body: ServiceActionRequest) -> dict:
+        _confirmed(body, "uninstall")
+        from ..service import ServiceError, remove_user_service
+
+        try:
+            removed = remove_user_service()
+        except ServiceError as exc:
+            raise HTTPException(502, str(exc)) from None
+        if not removed:
+            raise HTTPException(404, "Hutch's user service is not installed")
+        _runtime_service_cache["value"] = None
+        return {"removed": True, "detail": "The unit was stopped and removed. Your database, assistants, "
+                                           "credentials and workspaces were not changed."}
+
+    @app.post("/api/v1/runtime/service/startup")
+    def runtime_service_startup(body: ServiceStartupRequest) -> dict:
+        """Enable or disable login lingering (start at boot, keep running after logout)."""
+        _confirmed(body, "startup")
+        from ..service import ServiceError, set_linger
+
+        try:
+            state = set_linger(body.enabled)
+        except ServiceError as exc:
+            raise HTTPException(502, str(exc)) from None
+        snapshot = runtime_service_snapshot(force=True)
+        snapshot = {**snapshot, "linger": state}
+        _runtime_service_cache["value"] = snapshot
+        return snapshot
+
+    # ------------------------------------------------------------- sources
+    # Durable, model-free change detection. Registration lives here; checks run
+    # only in the elected supervisor (src/hutch/monitoring.py). Local owners
+    # only: none of these routes exist in REMOTE_ROUTE_CAPABILITIES.
+
+    def _source_config(body) -> dict:
+        """Validate one registration into the adapter's bounded config. Unknown stays refused."""
+        from ..sources import build_registration_config
+
+        try:
+            config = build_registration_config(body.kind, path=body.path, url=body.url, ref=body.ref,
+                                               include=body.include, ignore=body.ignore,
+                                               every_seconds=body.every_seconds)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        admission = {"prompt": (body.prompt or "").strip(), "cooldown_seconds": int(body.cooldown_seconds),
+                     "max_per_hour": int(body.max_per_hour)}
+        return config, admission
+
+    def _source_resource(row: dict, counts: dict[str, dict[str, int]]) -> dict:
+        seen = counts.get(row["id"], {})
+        return {
+            "id": row["id"], "bot_id": row["bot_id"], "kind": row["kind"], "name": row["name"],
+            "config": row["config"], "admission": row["admission"], "enabled": row["enabled"],
+            "revision": row["revision"], "next_check_at": row["next_check_at"],
+            "last_check_at": row["last_check_at"], "last_success_at": row["last_success_at"],
+            "last_error": row["last_error"], "error_count": row["error_count"],
+            "pending_events": seen.get("recorded", 0), "admitted_events": seen.get("admitted", 0),
+            "ignored_events": seen.get("ignored", 0), "superseded_events": seen.get("superseded", 0),
+            "created_at": row["created_at"],
+        }
+
+    @app.get("/api/v1/sources")
+    def list_sources(bot: Optional[str] = None) -> dict:
+        target = bot_or_404(bot).id if bot else None
+        return {"items": [_source_resource(row, store.source_event_counts())
+                          for row in store.list_event_sources(target)],
+                "stats": store.source_inbox_stats()}
+
+    @app.post("/api/v1/sources", status_code=201)
+    def create_source(body: SourceCreateRequest) -> dict:
+        target = bot_or_404(body.bot)
+        config, admission = _source_config(body)
+        row = store.create_event_source(bot_id=target.id, kind=body.kind, name=body.name,
+                                        config=config, admission=admission)
+        return _source_resource(row, store.source_event_counts())
+
+    @app.put("/api/v1/sources/{source_id}")
+    def update_source(source_id: str, body: SourceUpdateRequest) -> dict:
+        current = store.get_event_source(source_id)
+        if current is None:
+            raise HTTPException(404, "no such source")
+        config = None
+        if body.replace_config or any(value is not None for value in
+                                      (body.path, body.url, body.ref, body.include, body.ignore, body.every_seconds)):
+            merged = SimpleNamespace(
+                kind=current["kind"],
+                path=(body.path if body.path is not None else current["config"].get("path", "")),
+                url=(body.url if body.url is not None else current["config"].get("url", "")),
+                ref=(body.ref if body.ref is not None else current["config"].get("ref", "")),
+                include=(body.include if body.include is not None else current["config"].get("include", [])),
+                ignore=(body.ignore if body.ignore is not None else current["config"].get("ignore_globs", [])),
+                every_seconds=body.every_seconds or current["config"].get("check_seconds"),
+                prompt=(body.prompt if body.prompt is not None else current["admission"].get("prompt", "")),
+                cooldown_seconds=(body.cooldown_seconds if body.cooldown_seconds is not None
+                                  else current["admission"].get("cooldown_seconds", 300)),
+                max_per_hour=(body.max_per_hour if body.max_per_hour is not None
+                              else current["admission"].get("max_per_hour", 6)),
+            )
+            config, _ = _source_config(merged)
+        admission = None
+        if body.prompt is not None or body.cooldown_seconds is not None or body.max_per_hour is not None:
+            admission = dict(current["admission"])
+            if body.prompt is not None:
+                admission["prompt"] = body.prompt.strip()
+            if body.cooldown_seconds is not None:
+                admission["cooldown_seconds"] = int(body.cooldown_seconds)
+            if body.max_per_hour is not None:
+                admission["max_per_hour"] = int(body.max_per_hour)
+        updated = store.update_event_source(source_id, name=body.name, config=config, admission=admission,
+                                            enabled=body.enabled)
+        return _source_resource(updated, store.source_event_counts())
+
+    @app.delete("/api/v1/sources/{source_id}")
+    def delete_source(source_id: str) -> dict:
+        if not store.delete_event_source(source_id):
+            raise HTTPException(404, "no such source")
+        return {"removed": source_id}
+
+    @app.get("/api/v1/sources/{source_id}/events")
+    def source_events(source_id: str, status: Optional[str] = None, limit: int = 100, after: int = 0) -> dict:
+        if store.get_event_source(source_id) is None:
+            raise HTTPException(404, "no such source")
+        if status is not None and status not in ("recorded", "admitted", "ignored", "superseded"):
+            raise HTTPException(422, "unknown event status")
+        return {"items": store.source_events(source_id, status=status, limit=min(limit, 500), after=after)}
+
+    @app.post("/api/v1/sources/{source_id}/check")
+    def check_source_now(source_id: str) -> dict:
+        if not store.schedule_source_now(source_id):
+            raise HTTPException(404, "no enabled source with that id")
+        return {"scheduled": True}
+
+    # ---------------------------------------------------------------- jobs
+    # Durable multi-step work (document pipelines today). Local owners only.
+
+    def _job_resource(job: dict, *, include_steps: bool = True) -> dict:
+        out = {"id": job["id"], "kind": job["kind"], "bot_id": job["bot_id"], "status": job["status"],
+               "occurrence_key": job["occurrence_key"], "definition_revision": job["definition_revision"],
+               "error": job["error"], "created_at": job["created_at"], "updated_at": job["updated_at"]}
+        if include_steps:
+            steps = store.job_steps(job["id"])
+            latest: dict[str, dict] = {}
+            for step in steps:
+                latest[step["step_key"]] = step
+            out["steps"] = [{"step_key": step["step_key"], "attempt": step["attempt"], "status": step["status"],
+                             "error": step["error"], "run_id": step["run_id"],
+                             "finished_at": step["finished_at"]} for step in latest.values()]
+            delivered = latest.get("deliver", {}).get("output") or {}
+            summarize = latest.get("summarize", {}).get("output") or {}
+            out["artifact"] = delivered.get("artifact", "")
+            out["artifact_sha256"] = delivered.get("artifact_sha256", "")
+            out["message"] = str(summarize.get("message") or "")[:2000]
+        return out
+
+    @app.get("/api/v1/jobs")
+    def list_jobs(status: Optional[str] = None, limit: int = 20) -> dict:
+        if status is not None and status not in ("queued", "running", "blocked", "succeeded", "failed", "cancelled"):
+            raise HTTPException(422, "unknown job status")
+        return {"items": [_job_resource(job) for job in store.list_jobs(status=status, limit=min(limit, 100))],
+                "counts": store.job_counts()}
+
+    @app.get("/api/v1/jobs/{job_id}")
+    def get_job(job_id: str) -> dict:
+        job = store.get_job(job_id)
+        if job is None:
+            raise HTTPException(404, "no such job")
+        return _job_resource(job)
+
+    @app.post("/api/v1/jobs/{job_id}/cancel")
+    def cancel_job(job_id: str) -> dict:
+        """Cancel a queued/running job: no new steps start, and a live step's run is asked to stop."""
+        job = store.get_job(job_id)
+        if job is None:
+            raise HTTPException(404, "no such job")
+        if job["status"] in ("succeeded", "failed", "cancelled"):
+            raise HTTPException(409, "this job already finished")
+        for step in store.job_steps(job_id):
+            if step["status"] == "running" and step["run_id"]:
+                try:
+                    store.request_cancel(step["run_id"])
+                except Exception:
+                    pass
+        store.update_job_status(job_id, "cancelled", "cancelled by the owner")
+        return _job_resource(store.get_job(job_id))
 
     @app.get('/api/v1/state/restore', response_model=RestorePageResource)
     def restoration_status(limit: int = 100, offset: int = 0) -> dict:

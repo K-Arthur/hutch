@@ -2651,3 +2651,56 @@ details[open] > summary .summary-row-action .icon { transform: rotate(180deg); }
   .persona-habit-options { grid-template-columns: 1fr; }
   .persona-example-grid, .persona-depth-examples { grid-template-columns: 1fr; }
 }
+/* ── Runtime & background work (route #/runtime) ─────────────────────────
+   Machine facts, the managed service, watched sources and the queue in one
+   place. Status words always appear with their colour; mono is reserved for
+   measured values (instance id, paths, timestamps). */
+
+.runtime-page { display: grid; align-content: start; gap: var(--s-4); }
+.runtime-notice { padding: var(--s-3) var(--s-4); color: var(--text); background: var(--brand-wash); border: 1px solid var(--brand-line); border-radius: var(--r-panel); }
+.runtime-notice.error { color: var(--text); background: color-mix(in oklab, var(--danger) 10%, transparent); border-color: color-mix(in oklab, var(--danger) 45%, transparent); }
+.runtime-attention { display: grid; gap: var(--s-2); padding: var(--s-4); background: var(--panel); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: var(--r-panel); }
+.runtime-attention h2 { margin: 0; font-size: var(--fs-md); }
+.runtime-attention-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; }
+.runtime-card { display: grid; gap: var(--s-3); padding: var(--s-4); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-panel); }
+.runtime-card > h2 { margin: 0; font-size: var(--fs-lg); }
+.runtime-card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; }
+.runtime-lead { max-width: 78ch; margin: 0; }
+.runtime-facts { display: grid; gap: var(--s-2); margin: 0; }
+.runtime-facts > div { display: grid; grid-template-columns: minmax(160px, 220px) minmax(0, 1fr); gap: var(--s-3); align-items: baseline; }
+.runtime-facts dt { color: var(--text-3); font-size: var(--fs-sm); }
+.runtime-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.runtime-facts dd .hint { margin-left: var(--s-2); }
+.runtime-controls { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+.runtime-source-list { display: grid; gap: var(--s-2); }
+.runtime-source { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s-3); padding: var(--s-3) var(--s-4); background: var(--sunken); border: 1px solid var(--line); border-radius: var(--r-ctl); }
+.runtime-source-head { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+.runtime-source-target { margin: var(--s-1) 0 0; overflow-wrap: anywhere; }
+.runtime-source-main > .hint { margin: var(--s-1) 0 0; }
+.runtime-source-error { color: var(--danger); }
+.runtime-source-actions { display: flex; align-items: flex-start; gap: var(--s-2); flex-wrap: wrap; }
+.runtime-source-events { grid-column: 1 / -1; }
+.runtime-source-events > summary { min-height: 40px; display: flex; align-items: center; color: var(--text-2); cursor: pointer; font-size: var(--fs-sm); list-style: none; }
+.runtime-source-events > summary::after { content: "Show"; margin-left: auto; color: var(--text-3); font-size: var(--fs-xs); }
+.runtime-source-events[open] > summary::after { content: "Hide"; }
+.runtime-event-list { display: grid; gap: var(--s-2); margin: var(--s-2) 0; padding: 0; list-style: none; }
+.runtime-event-list > li { display: flex; align-items: baseline; gap: var(--s-2); flex-wrap: wrap; padding: var(--s-2) 0; border-bottom: 1px solid var(--line); }
+.runtime-event-when { color: var(--text-3); font-size: var(--fs-xs); }
+.runtime-event-summary { min-width: 0; overflow-wrap: anywhere; }
+.runtime-empty { justify-self: stretch; }
+.runtime-add-source { display: grid; gap: var(--s-3); }
+.runtime-add-source select, .runtime-add-source input, .runtime-add-source textarea { width: 100%; }
+.runtime-advanced { display: grid; gap: var(--s-2); }
+.runtime-advanced > summary { min-height: 40px; display: flex; align-items: center; color: var(--text-2); cursor: pointer; font-size: var(--fs-sm); }
+.runtime-advanced[open] { padding-bottom: var(--s-2); }
+
+@media (max-width: 640px) {
+  .runtime-facts > div { grid-template-columns: 1fr; gap: var(--s-1); }
+  .runtime-source { grid-template-columns: 1fr; }
+  .runtime-source-actions { justify-content: flex-start; }
+}
+
+.runtime-job-list { display: grid; gap: var(--s-2); }
+.runtime-job { display: grid; gap: var(--s-1); padding: var(--s-3) var(--s-4); background: var(--sunken); border: 1px solid var(--line); border-radius: var(--r-ctl); }
+.runtime-job .runtime-source-head { flex-wrap: wrap; align-items: center; }
+.runtime-job-message { max-width: 78ch; margin: var(--s-2) 0 0; color: var(--text-2); white-space: pre-wrap; }

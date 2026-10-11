@@ -720,19 +720,30 @@ def test_v53_feedback_migration_preserves_chat_and_repeats_startup(config):
             content="Existing answer remains intact.", created_at="2026-10-11T12:00:00+00:00")
     store.close()
 
-    # Model a real v52 database: it has chat data but does not have the new feedback table.
+    # Model a real mainline v52 database: it has source tables but has not yet
+    # received job, document-index, or persona-feedback state.
     db = sqlite3.connect(config.db_path)
     db.execute("DROP TABLE persona_feedback")
+    db.execute("DROP TABLE jobs")
+    db.execute("DROP TABLE job_steps")
+    db.execute("DROP TABLE doc_index_fts")
+    db.execute("DROP TABLE doc_index_chunks")
+    db.execute("DROP TABLE doc_index_generations")
+    db.execute("DROP INDEX idx_source_events_job")
+    db.execute("ALTER TABLE source_events DROP COLUMN job_id")
     db.execute("PRAGMA user_version = 52")
     db.commit()
     db.close()
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == SCHEMA_VERSION == 53
+        assert upgraded.schema_version == SCHEMA_VERSION == 54
         assert upgraded.get_conversation(conversation["id"])["title"] == "Keep this transcript"
         assert upgraded.list_conversation_messages(conversation["id"])[0]["content"] == "Existing answer remains intact."
         assert upgraded._db.execute("SELECT COUNT(*) FROM persona_feedback").fetchone()[0] == 0
+        assert upgraded._db.execute("SELECT COUNT(*) FROM event_sources").fetchone()[0] == 0
+        assert upgraded._db.execute("SELECT COUNT(*) FROM jobs").fetchone()[0] == 0
+        assert "job_id" in {row[1] for row in upgraded._db.execute("PRAGMA table_info(source_events)")}
     finally:
         upgraded.close()
 
@@ -740,17 +751,192 @@ def test_v53_feedback_migration_preserves_chat_and_repeats_startup(config):
     try:
         assert repeated.schema_version == SCHEMA_VERSION
         assert repeated.get_conversation(conversation["id"])["title"] == "Keep this transcript"
+        from hutch.store import _migrate_54
+        with repeated._tx() as db:
+            _migrate_54(db)
+            _migrate_54(db)
     finally:
         repeated.close()
 
-    # The migration DDL itself is also safe when an operator reruns the additive repair.
-    db = sqlite3.connect(":memory:")
-    try:
-        _migrate_53(db)
-        _migrate_53(db)
-        assert db.execute("SELECT COUNT(*) FROM persona_feedback").fetchone()[0] == 0
+    with sqlite3.connect(config.db_path) as db:
         with pytest.raises(sqlite3.IntegrityError):
             db.execute("INSERT INTO persona_feedback(conversation_id, message_id, revision, rating, reason, updated_at) "
                        "VALUES ('chat', 'answer', 1, NULL, 'accuracy', '2026-10-11T12:00:00+00:00')")
+
+
+def test_v54_repairs_legacy_main_and_persona_v53_shapes_without_data_loss(tmp_path):
+    from hutch.config import hutchConfig
+    from hutch.models import Bot
+
+    def state(name: str, *, style: bool):
+        config = hutchConfig(tmp_path / name)
+        store = Store(config)
+        bot = store.create_bot(Bot(name=f"{name}-upgrade", model="mock/demo", tools=[]))
+        conversation, _ = store.create_conversation(
+            bot.id, "Versioned transcript", idem_key=f"{name}-create", request_hash=f"{name}-create")
+        with store._tx() as db:
+            store._insert_conversation_message(db, message_id=f"{name}-answer",
+                conversation_id=conversation["id"], seq=1, run_id="old-run", role="assistant",
+                content="Existing answer remains intact.", created_at="2026-10-11T12:00:00+00:00")
+            db.execute("INSERT INTO event_sources(id, bot_id, kind, name, config, next_check_at, created_at) "
+                       "VALUES (?, ?, 'folder', 'old source', '{}', '2026-10-11T12:00:00+00:00', "
+                       "'2026-10-11T12:00:00+00:00')", (f"{name}-source", bot.id))
+            db.execute("INSERT INTO source_events(source_id, source_revision, event_key, kind, occurrence, "
+                       "content_hash, summary, received_at) VALUES (?, 1, 'old-key', 'changed', '{}', 'old-hash', "
+                       "'Old source event', '2026-10-11T12:00:00+00:00')", (f"{name}-source",))
+            db.execute("INSERT INTO jobs(id, bot_id, kind, occurrence_key, created_at, updated_at) "
+                       "VALUES (?, ?, 'old-job', 'old-occurrence', '2026-10-11T12:00:00+00:00', "
+                       "'2026-10-11T12:00:00+00:00')", (f"{name}-job", bot.id))
+            db.execute("INSERT INTO job_steps(job_id, step_key, attempt, status, updated_at) "
+                       "VALUES (?, 'old-step', 1, 'succeeded', '2026-10-11T12:00:00+00:00')", (f"{name}-job",))
+            db.execute("INSERT INTO doc_index_generations(status, created_at) "
+                       "VALUES ('active', '2026-10-11T12:00:00+00:00')")
+            generation = db.execute("SELECT MAX(generation) FROM doc_index_generations").fetchone()[0]
+            db.execute("INSERT INTO doc_index_chunks(generation, doc_name, doc_sha256, chunk_index, content) "
+                       "VALUES (?, 'old.md', 'old-sha', 0, 'Old indexed content')", (generation,))
+            if style:
+                db.execute("UPDATE conversations SET persona = ? WHERE id = ?", ('{"version":2}', conversation["id"]))
+                db.execute("INSERT INTO persona_feedback(conversation_id, message_id, revision, rating, reason, updated_at) "
+                           "VALUES (?, ?, 1, 'needs_work', 'depth', '2026-10-11T12:00:00+00:00')",
+                           (conversation["id"], f"{name}-answer"))
+        store.close()
+        return config, conversation["id"], f"{name}-answer"
+
+    # Mainline v53 had sources/jobs but did not have the persona conversation column or feedback table.
+    main_config, main_conversation_id, main_message_id = state("main-v53", style=False)
+    with sqlite3.connect(main_config.db_path) as db:
+        db.execute("ALTER TABLE conversations DROP COLUMN persona")
+        db.execute("DROP TABLE persona_feedback")
+        db.execute("PRAGMA user_version = 53")
+    main_upgraded = Store(main_config)
+    try:
+        assert main_upgraded.schema_version == SCHEMA_VERSION == 54
+        assert "persona" in {row[1] for row in main_upgraded._db.execute("PRAGMA table_info(conversations)")}
+        assert main_upgraded._db.execute("SELECT COUNT(*) FROM persona_feedback").fetchone()[0] == 0
+        assert main_upgraded.get_conversation(main_conversation_id)["title"] == "Versioned transcript"
+        assert main_upgraded.list_conversation_messages(main_conversation_id)[0]["id"] == main_message_id
+        assert main_upgraded._db.execute("SELECT name FROM event_sources").fetchone()[0] == "old source"
+        assert main_upgraded._db.execute("SELECT summary FROM source_events").fetchone()[0] == "Old source event"
+        assert main_upgraded._db.execute("SELECT kind FROM jobs").fetchone()[0] == "old-job"
+        assert main_upgraded._db.execute("SELECT status FROM job_steps").fetchone()[0] == "succeeded"
+        assert main_upgraded._db.execute("SELECT content FROM doc_index_chunks").fetchone()[0] == "Old indexed content"
     finally:
-        db.close()
+        main_upgraded.close()
+
+    # Persona v53 had the conversation style and feedback but lacked mainline source/job tables.
+    persona_config, persona_conversation_id, persona_message_id = state("persona-v53", style=True)
+    with sqlite3.connect(persona_config.db_path) as db:
+        for table in ("jobs", "job_steps", "doc_index_fts", "doc_index_chunks", "doc_index_generations",
+                      "source_events", "event_sources"):
+            db.execute(f"DROP TABLE {table}")
+        db.execute("PRAGMA user_version = 53")
+    persona_upgraded = Store(persona_config)
+    try:
+        assert persona_upgraded.schema_version == SCHEMA_VERSION == 54
+        assert persona_upgraded.get_conversation(persona_conversation_id)["persona"] == '{"version":2}'
+        assert persona_upgraded.list_conversation_messages(persona_conversation_id)[0]["id"] == persona_message_id
+        assert tuple(persona_upgraded._db.execute(
+            "SELECT rating, reason FROM persona_feedback WHERE conversation_id = ? AND message_id = ?",
+            (persona_conversation_id, persona_message_id)).fetchone()) == ("needs_work", "depth")
+        assert persona_upgraded._db.execute("SELECT COUNT(*) FROM event_sources").fetchone()[0] == 0
+        assert persona_upgraded._db.execute("SELECT COUNT(*) FROM jobs").fetchone()[0] == 0
+        assert "job_id" in {row[1] for row in persona_upgraded._db.execute("PRAGMA table_info(source_events)")}
+        from hutch.store import _migrate_54
+        with persona_upgraded._tx() as db:
+            _migrate_54(db)
+    finally:
+        persona_upgraded.close()
+
+
+def test_v50_upgrades_to_combined_v54_without_losing_state(config):
+    from hutch.models import Bot
+
+    store = Store(config)
+    bot = store.create_bot(Bot(name="schema-v50-upgrade", model="mock/demo", tools=[]))
+    conversation, _ = store.create_conversation(bot.id, "v50 transcript", idem_key="v50-upgrade-create",
+                                                request_hash="v50-upgrade-create")
+    with store._tx() as db:
+        store._insert_conversation_message(db, message_id="v50-upgrade-message",
+            conversation_id=conversation["id"], seq=1, run_id="v50-run", role="assistant",
+            content="Transcript data survives.", created_at="2026-10-11T12:00:00+00:00")
+    store.close()
+
+    # Recreate the portion of a genuine v50 schema that later migrations add.
+    with sqlite3.connect(config.db_path) as db:
+        db.execute("DROP TRIGGER messages_pending_question_result_insert")
+        db.execute("DROP TRIGGER messages_pending_question_result_update")
+        db.execute("DROP INDEX idx_runs_conversation_created")
+        for table in ("persona_feedback", "jobs", "job_steps", "doc_index_fts", "doc_index_chunks",
+                      "doc_index_generations", "source_events", "event_sources"):
+            db.execute(f"DROP TABLE {table}")
+        db.execute("ALTER TABLE conversations DROP COLUMN persona")
+        db.execute("PRAGMA user_version = 50")
+
+    upgraded = Store(config)
+    try:
+        assert upgraded.schema_version == SCHEMA_VERSION == 54
+        assert upgraded.get_conversation(conversation["id"])["title"] == "v50 transcript"
+        assert upgraded.list_conversation_messages(conversation["id"])[0]["content"] == "Transcript data survives."
+        assert "persona" in {row[1] for row in upgraded._db.execute("PRAGMA table_info(conversations)")}
+        assert upgraded._db.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' "
+                                     "AND name='messages_pending_question_result_insert'").fetchone()
+        assert upgraded._db.execute("SELECT COUNT(*) FROM event_sources").fetchone()[0] == 0
+        assert upgraded._db.execute("SELECT COUNT(*) FROM jobs").fetchone()[0] == 0
+        assert "job_id" in {row[1] for row in upgraded._db.execute("PRAGMA table_info(source_events)")}
+        assert upgraded._db.execute("SELECT COUNT(*) FROM persona_feedback").fetchone()[0] == 0
+    finally:
+        upgraded.close()
+
+
+@pytest.mark.parametrize("persona_column,mainline_guards", [(False, True), (True, False)])
+def test_v51_startup_upgrade_repairs_both_historical_shapes(tmp_path, persona_column, mainline_guards):
+    from hutch.config import hutchConfig
+    from hutch.models import Bot
+
+    config = hutchConfig(tmp_path / f"v51-{persona_column}-{mainline_guards}")
+    store = Store(config)
+    bot = store.create_bot(Bot(name="schema-v51-upgrade", model="mock/demo", tools=[]))
+    conversation, _ = store.create_conversation(bot.id, "v51 transcript", idem_key="v51-upgrade-create",
+                                                request_hash="v51-upgrade-create")
+    persona_value = '{"version":2,"preferences":{"depth":"brief"}}'
+    if persona_column:
+        with store._tx() as db:
+            db.execute("UPDATE conversations SET persona = ? WHERE id = ?", (persona_value, conversation["id"]))
+    with store._tx() as db:
+        store._insert_conversation_message(db, message_id="v51-upgrade-message",
+            conversation_id=conversation["id"], seq=1, run_id="v51-run", role="assistant",
+            content="The old answer survives.", created_at="2026-10-11T12:00:00+00:00")
+    store.close()
+
+    with sqlite3.connect(config.db_path) as db:
+        for table in ("persona_feedback", "jobs", "job_steps", "doc_index_fts", "doc_index_chunks",
+                      "doc_index_generations", "source_events", "event_sources"):
+            db.execute(f"DROP TABLE {table}")
+        if not mainline_guards:
+            db.execute("DROP TRIGGER messages_pending_question_result_insert")
+            db.execute("DROP TRIGGER messages_pending_question_result_update")
+            db.execute("DROP INDEX idx_runs_conversation_created")
+        if not persona_column:
+            db.execute("ALTER TABLE conversations DROP COLUMN persona")
+        db.execute("PRAGMA user_version = 51")
+
+    upgraded = Store(config)
+    try:
+        assert upgraded.schema_version == SCHEMA_VERSION == 54
+        current = upgraded.get_conversation(conversation["id"])
+        assert current["title"] == "v51 transcript"
+        assert current["persona"] == (persona_value if persona_column else "")
+        assert upgraded.list_conversation_messages(conversation["id"])[0]["content"] == "The old answer survives."
+        assert upgraded._db.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' "
+                                     "AND name='messages_pending_question_result_insert'").fetchone()
+        assert upgraded._db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='event_sources'").fetchone()
+        assert upgraded._db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='jobs'").fetchone()
+    finally:
+        upgraded.close()
+
+    repeated = Store(config)
+    try:
+        assert repeated.schema_version == SCHEMA_VERSION
+        assert repeated.get_conversation(conversation["id"])["persona"] == (persona_value if persona_column else "")
+    finally:
+        repeated.close()

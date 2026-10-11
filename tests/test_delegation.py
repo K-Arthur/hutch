@@ -200,6 +200,8 @@ def _remove_later_conversation_schema(db):
     db.execute("DROP INDEX IF EXISTS idx_documents_bot")
     db.execute("DROP INDEX IF EXISTS idx_document_versions_run")
     for table in ("document_versions", "documents",
+                  "doc_index_fts", "doc_index_chunks", "doc_index_generations",
+                  "job_steps", "jobs", "source_events", "event_sources",
                   "workspace_task_continuations", "workspace_task_fact_shares", "workspace_task_checkpoints",
                   "workspace_tasks", "workspace_specialists", "workspace_settings",
                   "conversation_questions", "google_calendar_grants", "memory_fact_shares", "code_handoffs",

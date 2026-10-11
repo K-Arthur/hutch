@@ -1515,42 +1515,91 @@ def doctor(deep: bool = typer.Option(False, "--deep", help="also run each local 
 
 # --------------------------------------------------------------- user service
 
+def _service_state_lines(status) -> None:
+    """Print one truth per line: process state and readiness are different facts."""
+    if status.installed:
+        console.print(f"unit:     {status.unit_path}" if status.unit_path else "unit:     installed")
+        console.print(f"systemd:  {status.state}" + (f" (main PID {status.main_pid})" if status.main_pid else ""))
+    if status.port:
+        console.print(f"dashboard: http://127.0.0.1:{status.port}/")
+    if status.ready is not None:
+        if status.ready:
+            instance = status.instance or {}
+            console.print("ready:    Hutch answered for this state directory"
+                          + (f" (instance {instance.get('id', '?')}, PID {instance.get('pid', '?')})" if instance else ""))
+        else:
+            console.print(f"ready:    NO — {status.detail or 'not confirmed'}")
+    if status.linger in ("enabled", "disabled"):
+        console.print(f"linger:   {status.linger} "
+                      + ("(starts at login and keeps running after logout)"
+                         if status.linger == "enabled"
+                         else "(user services stop at logout; `loginctl enable-linger $USER` is a separate opt-in)"))
+
+
 @service_app.command("install")
 def service_install(port: int = typer.Option(8787, min=1, max=65535,
-                                              help="loopback dashboard port for the user service")) -> None:
+                                              help="loopback dashboard port for the user service"),
+                    ready_timeout: float = typer.Option(15.0, min=0.0, max=120.0,
+                                                        help="seconds to wait for the readiness handshake")) -> None:
     """Install and start the loopback-only dashboard on this Linux user account."""
     from .service import ServiceError, install_user_service
 
     try:
-        installed = install_user_service(get_config().state_dir, port=port)
+        installed = install_user_service(get_config().state_dir, port=port, ready_timeout=ready_timeout)
     except ServiceError as exc:
         err.print(str(exc), style="red", markup=False)
         raise typer.Exit(code=2) from None
     console.print(f"Installed and started {installed.path}.")
-    console.print(f"Dashboard: http://127.0.0.1:{port}/")
+    console.print(f"Dashboard: http://127.0.0.1:{port}/ (readiness handshake passed)")
     console.print("Remote phone access stays off. Hutch state and workspaces were not moved.")
+    console.print("Logging out still stops user services unless you explicitly enable lingering.")
 
 
 @service_app.command("status")
-def service_status() -> None:
-    """Show whether the user-level Hutch dashboard service is installed and active."""
+def service_status(probe: bool = typer.Option(True, "--probe/--no-probe",
+                                              help="verify HTTP readiness and instance identity")) -> None:
+    """Show whether the user-level Hutch dashboard service is installed, active, and really ready."""
     from .service import ServiceError, user_service_status
 
     try:
-        status = user_service_status()
+        status = user_service_status(state_dir=get_config().state_dir, probe=probe)
     except ServiceError as exc:
         err.print(str(exc), style="red", markup=False)
         raise typer.Exit(code=2) from None
+    _service_state_lines(status)
+    if status.active and status.ready:
+        return
     if status.active:
-        console.print("systemd reports hutch.service active" +
-                      (f"; dashboard: http://127.0.0.1:{status.port}/" if status.port else "."))
-    elif status.installed:
-        console.print(f"hutch.service is installed but {status.state}.")
+        console.print("hutch.service is active but not confirmed ready for this state directory.")
         console.print("Inspect logs with: journalctl --user -u hutch.service")
         raise typer.Exit(code=1)
-    else:
-        console.print("hutch.service is not installed. Start Hutch with `hutch serve` or run `hutch service install`.")
+    if status.installed:
+        console.print("Inspect logs with: journalctl --user -u hutch.service")
         raise typer.Exit(code=1)
+    console.print("hutch.service is not installed. Start Hutch with `hutch serve` or run `hutch service install`.")
+    raise typer.Exit(code=1)
+
+
+@service_app.command("restart")
+def service_restart(ready_timeout: float = typer.Option(15.0, min=0.0, max=120.0,
+                                                        help="seconds to wait for the readiness handshake")) -> None:
+    """Restart the installed user service and confirm the expected instance is ready again."""
+    from .service import ServiceError, restart_user_service, user_service_status, wait_for_ready
+
+    try:
+        restart_user_service()
+        status = user_service_status(state_dir=get_config().state_dir, probe=True)
+    except ServiceError as exc:
+        err.print(str(exc), style="red", markup=False)
+        raise typer.Exit(code=2) from None
+    _service_state_lines(status)
+    if status.ready:
+        console.print("Restarted; the same state directory is serving again.")
+        return
+    err.print("hutch.service restarted but readiness was not confirmed; "
+              "inspect `hutch service status` and journalctl --user -u hutch.service",
+              style="red", markup=False)
+    raise typer.Exit(code=1)
 
 
 @service_app.command("uninstall")
@@ -1567,6 +1616,112 @@ def service_uninstall() -> None:
         console.print("Stopped and removed Hutch's user service. Your database, assistants, credentials and workspaces remain.")
     else:
         console.print("Hutch's user service is not installed. No local data was changed.")
+
+
+# ------------------------------------------------------------------ sources
+
+source_app = typer.Typer(no_args_is_help=True,
+                         help="Watched folders, repositories and feeds that can trigger work.")
+app.add_typer(source_app, name="source")
+
+
+@source_app.command("list")
+def source_list() -> None:
+    """Show every registered source with freshness, health and pending events."""
+    store = _store()
+    counts = store.source_event_counts()
+    sources = store.list_event_sources()
+    if not sources:
+        console.print("No watched sources. Add one with "
+                      "`hutch source add <bot> --kind folder --path /absolute/path`.")
+        return
+    console.print("Watched sources")
+    for source in sources:
+        state = "enabled" if source["enabled"] else "disabled"
+        seen = counts.get(source["id"], {})
+        if source["last_error"]:
+            health = f"failing: {source['last_error']}"
+        elif source["last_success_at"]:
+            health = f"last checked {source['last_success_at']}"
+        else:
+            health = "never checked"
+        console.print(
+            f"- {source['name']} ({source['kind']}/{state})\n"
+            f"  id={source['id']}  bot={source['bot_id']}  next={source['next_check_at'][:19]}Z\n"
+            f"  {health}  pending={seen.get('recorded', 0)}  admitted={seen.get('admitted', 0)}"
+        )
+
+
+@source_app.command("add")
+def source_add(bot_name: str = typer.Argument(..., help="Bot name or ID"),
+               kind: str = typer.Option(..., "--kind", help="folder | git | feed"),
+               name: str = typer.Option("", "--name", help="Display name"),
+               path: str = typer.Option("", "--path", help="Absolute folder/repository path"),
+               url: str = typer.Option("", "--url", help="Feed URL (http/https)"),
+               ref: str = typer.Option("HEAD", "--ref", help="Git ref to watch"),
+               include: Optional[list[str]] = typer.Option(None, "--include", help="Restrict folder matches"),
+               every_seconds: Optional[int] = typer.Option(None, "--every-seconds", min=10, max=86_400,
+                                                           help="Check cadence"),
+               prompt: str = typer.Option("", "--prompt",
+                                          help="Task instruction; {summary}/{source}/{count} are expanded"),
+               cooldown_seconds: int = typer.Option(300, "--cooldown-seconds", min=10, max=86_400),
+               max_per_hour: int = typer.Option(6, "--max-per-hour", min=1, max=60)) -> None:
+    """Register a source. Changes admit at most one bounded run per cooldown window."""
+    from .sources import build_registration_config
+
+    store = _store()
+    bot = _require_bot(store, bot_name)
+    try:
+        config = build_registration_config(kind, path=path, url=url, ref=ref, include=include,
+                                           every_seconds=every_seconds)
+    except ValueError as exc:
+        err.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=2) from None
+    source = store.create_event_source(
+        bot_id=bot.id, kind=kind, name=name or f"{kind} source",
+        config=config, admission={"prompt": prompt.strip(), "cooldown_seconds": cooldown_seconds,
+                                  "max_per_hour": max_per_hour})
+    console.print(f"Registered {source['name']} ({source['kind']}) as {source['id']} for {bot.name}.")
+    console.print("Checks run in the background supervisor and never call a model unless something material changes.")
+
+
+@source_app.command("remove")
+def source_remove(source_id: str = typer.Argument(..., help="Source ID from `hutch source list`")) -> None:
+    """Stop checking a source. Recorded event history stays for review."""
+    store = _store()
+    if store.delete_event_source(source_id):
+        console.print(f"Removed {source_id}. No further checks or runs will be admitted for it.")
+    else:
+        err.print(f"[red]No source with id {source_id}.[/red]")
+        raise typer.Exit(code=1)
+
+
+@source_app.command("check")
+def source_check(source_id: str = typer.Argument(..., help="Source ID from `hutch source list`")) -> None:
+    """Ask the supervisor to check one source as soon as possible (no model call)."""
+    store = _store()
+    if store.schedule_source_now(source_id):
+        console.print(f"Scheduled an immediate bounded check for {source_id}.")
+    else:
+        err.print(f"[red]No enabled source with id {source_id}.[/red]")
+        raise typer.Exit(code=1)
+
+
+@source_app.command("events")
+def source_events(source_id: str = typer.Argument(...),
+                  limit: int = typer.Option(20, "--limit", min=1, max=200)) -> None:
+    """Show the recorded inbox for one source (newest first)."""
+    store = _store()
+    if store.get_event_source(source_id) is None:
+        err.print(f"[red]No source with id {source_id}.[/red]")
+        raise typer.Exit(code=1)
+    rows = store.source_events(source_id, limit=limit)
+    if not rows:
+        console.print("No events recorded yet.")
+        return
+    for row in rows:
+        console.print(f"({row['status']}) {row['kind']} {row['event_key']} — "
+                      f"{' '.join(row['summary'].split())[:140]} ({row['received_at'][:19]}Z)")
 
 
 # ------------------------------------------------------------------ models

@@ -35,7 +35,9 @@ from typing import Callable, Optional
 from . import durable_changes, procguard, sandbox
 from .approvals import ApprovalGate, expire_stale_approvals
 from .config import hutchConfig
+from .jobs import JobRunner
 from .lifecycle import LIVE, TERMINAL as TERMINAL_STATUSES, IllegalTransition, LeaseLost
+from .monitoring import SourcePump
 from .models import (
     Bot,
     Event,
@@ -110,6 +112,11 @@ class Engine:
         #: run it was handed, so it does not need (or pay for) the dispatch machinery.
         self.slot_filter: Optional[Callable[[list[Run], list[Run]], list[Run]]] = None
         self.slot_reason: Optional[Callable[[Run], object]] = None
+        #: bounded, model-free event-source checks; only the elected supervisor pumps
+        self.sources: Optional[SourcePump] = SourcePump(self)
+        #: durable multi-step jobs; definitions live in src/hutch/pipelines.py
+        from . import pipelines  # noqa: F401 - registers job definitions and handlers
+        self.jobs: Optional[JobRunner] = JobRunner(self)
         if not light:
             from .hardware import probe
             from .slots import ModelSlots
@@ -1202,6 +1209,10 @@ class Engine:
             self.bus.notify("work", remote=False)
         if self._background_thread is not None:
             self._background_thread.join(timeout=max(0.0, deadline - time.monotonic()))
+        if self.sources is not None:
+            self.sources.shutdown()
+        if self.jobs is not None:
+            self.jobs.shutdown()
         self.stop_owned()
         for t in list(self._threads.values()):
             t.join(timeout=max(0.0, deadline - time.monotonic()))
@@ -1258,12 +1269,27 @@ class Engine:
         run = Run(bot_id=bot.id, prompt=prompt, origin="manual:schedule", schedule_id=schedule.id)
         return self.store.submit_run(run, Task(bot_id=bot.id, kind="on_demand", prompt=prompt))
 
+    def supervisor_snapshot(self) -> dict:
+        """Cheap, process-local view of who owns scheduling/recovery in this state directory."""
+        lease = self.store.supervisor_state()
+        return {
+            "role": "supervisor" if self._is_supervisor else "follower",
+            "owner": self.owner_id,
+            "holder": lease.get("owner", ""),
+            "fence": lease.get("fence", 0),
+            "expires_at": lease.get("expires_at"),
+        }
+
     def tick(self) -> list[Run]:
         """One beat: recover, expire approvals, claim schedules, drain work and bound change replay."""
         self.recover_orphans()
         expire_stale_approvals(self.store, self.config.default_approval_ttl_seconds)
         created = self.scheduler_claims()
         self.dispatch_pending()
+        if self.sources is not None:
+            self.sources.pump()
+        if self.jobs is not None:
+            self.jobs.pump()
         now = time.monotonic()
         if (self._last_resource_change_prune is None
                 or now - self._last_resource_change_prune >= 300.0):
@@ -1299,6 +1325,23 @@ class Engine:
                 best = min(best, (datetime.fromisoformat(lapse) - now).total_seconds() + 1.0)
             except ValueError:
                 pass
+        if self.sources is not None and self._is_supervisor:
+            if self.sources.pending():
+                best = min(best, 0.25)                                          # collect a finished check promptly
+            if self.store.due_event_sources(limit=1):
+                best = min(best, 0.05)
+            else:
+                scheduled = self.store.next_source_check()
+                if scheduled:
+                    try:
+                        best = min(best, (datetime.fromisoformat(scheduled) - now).total_seconds())
+                    except ValueError:
+                        pass
+        if self.jobs is not None and self._is_supervisor:
+            if self.jobs.pending():
+                best = min(best, 0.25)
+            if self.store.running_jobs(limit=1):
+                best = min(best, 0.5)
         return max(0.05, best)
 
     def run_loop(self, stop: threading.Event, on_tick: Callable[[list[Run]], None] | None = None) -> None:

@@ -60,7 +60,7 @@ def install_resources(db: sqlite3.Connection, resources) -> None:
             if verb == "UPDATE":
                 when = "WHEN " + " OR ".join(f"OLD.{column} IS NOT NEW.{column}" for column in material)
             payload = "json_object(" + ", ".join(f"'{column}', {prefix}.{column}" for column in context) + ")"
-            db.execute(f"""CREATE TRIGGER resource_outbox_{table}_{verb.lower()}
+            db.execute(f"""CREATE TRIGGER IF NOT EXISTS resource_outbox_{table}_{verb.lower()}
                 AFTER {verb} ON {table} {when} BEGIN
                 INSERT INTO resource_outbox(previous_id, resource, resource_id, operation, ts, context)
                 SELECT tail_id, '{resource}', CAST({prefix}.{identifier} AS TEXT), '{operation}',

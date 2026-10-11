@@ -1,9 +1,32 @@
 # Changelog
 
 ## Unreleased
+- Decide and document the deployment topology (ADR-0018): one local engine per state directory, clients attach to it, a personal
+  headless host is a supported profile of the same core, and shared multi-tenant hosting stays a separate release gate. Interface
+  packaging is independent of execution lifetime.
+- Verify the managed service for real: install/restart complete with an HTTP readiness handshake that must match this state
+  directory and the unit's main PID; `hutch service status` reports process state and readiness separately; `hutch service restart`
+  and an explicit stop that is not auto-restarted; start-at-login (systemd lingering) is an explicit opt-in reported, never enabled
+  silently. `/api/health` now carries instance identity and the scheduler role; a local-owner-only `/api/v1/runtime` reports engine
+  location, service/linger state, exposure, queue depth, source and job counts.
+- Add a **Runtime & background work** page (`#/runtime`): machine facts, the managed service, watched-source freshness and a lazy
+  change log, multi-step job detail, and queue/automation controls. Local owners only; paired phones receive 403 for these routes.
+- Add durable watched event sources (schema v52): folder, git-ref, and RSS/Atom polling with deterministic checks, conditional HTTP
+  requests, proven-scan-only deletions, transactional cursors/events, idempotent replay, and fenced edits/deletes. Cooldowns and
+  hourly caps defer rather than drop work; expose `/api/v1/sources` and `hutch source …`.
+- Add durable multi-step jobs (schema v53): every step is a claimed, sealed attempt; handlers run on a bounded worker with no
+  database access; run-backed steps reconcile from the run's terminal state and receipts. Effect-free interrupted steps retry only
+  under policy; uncertain external effects become `unknown` for review; changed definitions block instead of reinterpreting history.
+- Add a document pipeline: immutable hash-addressed ingest, per-page extraction and OCR only when needed, provenance chunking into a
+  scoped FTS5 index, grounded summary steps, and delivered artifacts with coverage receipts.
+- Fix: `linger` reported `unknown` when the unit was simply not installed; the Runtime page's change-log disclosure loaded before
+  `<details>` opened. Both now behave and are regression-tested.
 - Preserve local main's schema-v51 pending-question guards and tool-protocol contract while integrating the
   persona database field through an idempotent schema-v52 repair. Upgrade coverage exercises fresh, v50 and
   both v51 layouts, including repeated initialization.
+- Reconcile the latest local schema-v52 event-source and v53 jobs/document migrations with persona feedback and
+  conversation style storage. The final additive v54 repair completes either main-v53 or persona-v53 databases,
+  preserving existing source, job, chat, and feedback rows; repeated repair is safe.
 - Treat provider refusals as terminal during provider retry, startup fallback, and runtime recovery. Genuine
   availability failures retain their existing recovery behavior; provider and runtime regressions guard both.
 - Version each assistant's saved response-style profile. Legacy Bot documents read as profile version 1; an
@@ -19,8 +42,8 @@
   humor eligibility, output contract, bounded diagnostic labels and saved-profile revisions. Local classification
   examines a bounded portion of the current request and does not add a model call or store request text in its
   diagnostic reasons. Low-risk eligibility preserves preset discretion, while humor guidance still requires a
-  clearly playful request. This plan currently informs prompt guidance; routing and answer-scoped rewrite behavior
-  are still in progress, and live provider adherence remains unverified.
+  clearly playful request. The plan drives single-pass low-risk routing and answer-scoped rewrites without changing
+  authority; live provider adherence remains unverified.
 - Separate run purpose (`task`, `bot_draft`, `conversation`, or `answer_rewrite`) from tool authority. Existing stored review-only
   drafts keep their Bot-draft guidance and one-response limit; a tool-free conversation has a short conversation
   instruction, no tool schemas, and refuses provider tool calls without execution. Automatic routing into that
