@@ -713,8 +713,11 @@ def _persona_effective(plan: PersonaPlan) -> dict[str, dict[str, Any]]:
 
 
 def _bot_persona_view(bot: Bot) -> dict[str, Any]:
+    if bot.persona_profile_error:
+        raise HTTPException(409, bot.persona_profile_error)
     plan = resolve_persona(agent_preset=bot.persona_preset, agent_override=bot.persona_override)
     return {"bot_id": bot.id, "revision": bot.persona_revision, "labels": dict(LAYER_LABELS),
+            "profile_version": bot.persona_profile_version,
             "override": (bot.persona_override or PersonaStyle()).model_dump(),
             "preset": bot.persona_preset.model_dump() if bot.persona_preset else None,
             "defaults": APPLICATION_DEFAULT.model_dump(),
@@ -723,6 +726,8 @@ def _bot_persona_view(bot: Bot) -> dict[str, Any]:
 
 def _conversation_persona_view(conversation_id: str, bot: Optional[Bot], style: Optional[PersonaStyle],
                                revision: int) -> dict[str, Any]:
+    if bot and bot.persona_profile_error:
+        raise HTTPException(409, bot.persona_profile_error)
     plan = resolve_persona(agent_preset=bot.persona_preset if bot else None,
                            agent_override=bot.persona_override if bot else None, conversation=style)
     return {"conversation_id": conversation_id, "revision": revision, "labels": dict(LAYER_LABELS),
@@ -1877,6 +1882,8 @@ def create_app() -> FastAPI:
             sticky_allows = agg["sticky"].get(bot.id, [])
             is_coordinator = agg["coordinator_id"] == bot.id
         bot_data = bot.model_dump(exclude={"background_provider_consents"})
+        if bot.persona_profile_error:
+            bot_data["persona_profile_error"] = bot.persona_profile_error
         if bot.creation_source is not None:
             # Keep the exact source request with the Bot's local durable record for
             # auditability, but do not repeat its full text in every roster/API view.
@@ -1921,6 +1928,7 @@ def create_app() -> FastAPI:
         return {
             "id": bot.id, "name": bot.name, "display_name": bot.display_name,
             "description": bot.description, "model": bot.model, "paused": bot.paused,
+            **({"persona_profile_error": bot.persona_profile_error} if bot.persona_profile_error else {}),
             "remote_start_enabled": can_start and bot.remote_start_enabled,
             "approval_mode": bot.approval_mode.value,
             "active_run_id": active.id if active else None,

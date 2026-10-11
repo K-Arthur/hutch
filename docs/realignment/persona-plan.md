@@ -87,12 +87,11 @@ Progress (2026-10-11):
   persona regression. The suite regenerated 479 tracked evidence files; all were restored to their committed
   bytes and no regenerated captures were kept.
 
-Known follow-ups (from the same review, not yet done):
+Review follow-ups (status after the profile-compatibility slice):
 
-- The bot-level style fields are strict (`extra="forbid"`) without a version envelope: one unknown
-  style field in a bot document would make every bot unreadable on an older build. Decide between a
-  versioned envelope and tolerant storage validation for `persona_preset`/`persona_override` before any
-  released-build downgrade path matters.
+- Bot persona storage now carries `persona_profile_version`; old unversioned documents remain v1-compatible.
+  `Bot.from_store_json` isolates invalid/future profiles per assistant, keeps the original payload across
+  unrelated saves, and prevents applying it. New runs fail with an agent-specific `persona_unavailable` error.
 - `persona_preset` has no production writer yet (nothing ships an agent preset); the "Assistant preset"
   origin appears only if a template or future flow sets it.
 - The persona flow has no committed test inside `tests/e2e/`; the reproducible capture script is the current
@@ -150,6 +149,11 @@ Known follow-ups (from the same review, not yet done):
   and runtime guards then passed with provider tests (**106 passed**). The change also has regressions proving
   refusal does not invoke fallback from startup or recovery. No expensive Go model or paid API credential was
   used.
+- The profile-compatibility slice adds `persona_profile_version` to Bot storage and a tolerant per-Bot reader.
+  Invalid and future profiles stay out of runtime composition, produce an assistant-specific settings/run
+  error, and are preserved verbatim if an unrelated Bot field is saved. The roster still returns valid sibling
+  assistants. The integrated persona/runtime, Bot/workdir, general store and API batch passes (**115 tests**).
+  An earlier run had one test-message expectation mismatch, corrected and followed by a clean combined rerun.
 - The combined offline suite at `04b5722` completed with **1,989 passed, 2 failed** in 525.57 s. The Unix
   socket test failed only because the long test temp path exceeded `AF_UNIX` path length; rerunning with a short
   cache root made it pass. The other failure, `test_the_shell_cannot_see_the_real_home_or_any_folder_outside_the_workspace`, also failed on clean
@@ -174,10 +178,10 @@ Known follow-ups (from the same review, not yet done):
 - Mid-run snapshotting prevents a bad preference change from corrupting an in-flight turn; verification uses
   isolated state directories under `/tmp/opencode/`.
 
-## Evidence boundary (at plan time)
+## Initial evidence boundary
 
 - Run: 167 focused tests on the combined tree; isolated actual-app baseline capture; online source and issue
   inspection (all fetched 2026-10-11).
-- Unrun: full combined offline/browser suites, independent implementation review, any live model call (humor,
-  adherence, boundary calibration), multimodal/long-session/model-change checks. No live model route is
-  authorized; hosted evaluation stays out of scope until one exists.
+- At the initial checkpoint, combined offline/browser suites, independent review, model responses, and
+  multimodal/long-session checks were unrun. A product-path Hutch model connection is still unconfigured;
+  device OpenCode runs use a separate developer credential and do not count as Hutch product evidence.

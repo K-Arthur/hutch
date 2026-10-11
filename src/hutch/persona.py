@@ -14,6 +14,7 @@ from typing import Any, Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 PERSONA_VERSION = 1
+PERSONA_PROFILE_VERSION = 1
 
 Depth = Literal["brief", "standard", "thorough"]
 Tone = Literal["neutral", "warm", "direct"]

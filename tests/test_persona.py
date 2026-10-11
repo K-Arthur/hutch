@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import time
 
 import pytest
 
 from hutch.models import Bot, Run, RunStatus, Task
-from hutch.persona import (APPLICATION_DEFAULT, LAYER_LABELS, PERSONA_VERSION, PersonaPlan, PersonaStyle,
+from hutch.persona import (APPLICATION_DEFAULT, LAYER_LABELS, PERSONA_PROFILE_VERSION, PERSONA_VERSION,
+                           PersonaPlan, PersonaStyle,
                            apply_persona_changes, decode_persona_state, encode_persona_state, guidance,
                            resolve_persona)
 from hutch.store import LeaseLost, PersonaConflict
@@ -140,6 +142,67 @@ def test_bot_persona_round_trip_conflict_and_reset(store):
 
     stored = store.get_bot(bot.id)
     assert stored.persona_revision == 2 and stored.persona_override.banter is False
+
+
+@pytest.mark.parametrize(
+    ("profile_version", "override", "error_text"),
+    [
+        (1, {"depth": "ultra-long"}, "unreadable response-style profile"),
+        (99, {"future_field": "kept"}, "version 99"),
+    ],
+)
+def test_unreadable_or_future_bot_profiles_do_not_break_roster_or_get_overwritten(
+    store, profile_version, override, error_text
+):
+    bot = store.create_bot(Bot(name="profile-compat", display_name="Profile Compat", model="mock/demo", tools=[]))
+    sibling = store.create_bot(Bot(name="profile-sibling", model="mock/demo", tools=[]))
+    raw = json.loads(bot.store_json())
+    raw["persona_profile_version"] = profile_version
+    raw["persona_override"] = override
+    with store._lock:
+        store._db.execute("UPDATE bots SET doc = ? WHERE id = ?", (json.dumps(raw), bot.id))
+        store._db.commit()
+
+    loaded = store.get_bot(bot.id)
+    assert loaded is not None and loaded.persona_profile_error
+    assert "Profile Compat" in loaded.persona_profile_error
+    assert error_text in loaded.persona_profile_error
+    assert loaded.persona_override is None and loaded.persona_preset is None
+    assert {item.id for item in store.list_bots()} == {bot.id, sibling.id}
+    with pytest.raises(ValueError, match="Profile Compat"):
+        store.update_bot_persona(bot.id, {"depth": "brief"}, expected_revision=0,
+                                 idem_key=f"bad-profile-{profile_version}", request_hash="bad-profile")
+
+    # A normal unrelated Bot edit preserves the exact future/invalid profile for a compatible build.
+    loaded.description = "Unrelated safe edit"
+    store.upsert_bot(loaded)
+    persisted = json.loads(store._db.execute("SELECT doc FROM bots WHERE id = ?", (bot.id,)).fetchone()["doc"])
+    assert persisted["persona_profile_version"] == profile_version
+    assert persisted["persona_override"] == override
+
+
+def test_bot_persona_api_reports_only_the_affected_assistant_error(persona_client):
+    client = persona_client
+    broken = _make_bot(client, name="future-style")
+    sibling = _make_bot(client, name="normal-style")
+    store = client.app.state.store
+    raw = json.loads(store._db.execute("SELECT doc FROM bots WHERE id = ?", (broken["id"],)).fetchone()["doc"])
+    raw["persona_profile_version"] = PERSONA_PROFILE_VERSION + 10
+    raw["persona_override"] = {"future": "shape"}
+    store._db.execute("UPDATE bots SET doc = ? WHERE id = ?", (json.dumps(raw), broken["id"]))
+    store._db.commit()
+
+    response = client.get(f"/api/v1/bots/{broken['id']}/persona")
+    assert response.status_code == 409
+    assert "Future Style" in response.json()["detail"]
+    roster = client.get("/api/bots")
+    assert roster.status_code == 200
+    bodies = roster.json()
+    assert {item["id"] for item in bodies} == {broken["id"], sibling["id"]}
+    failed_bot = next(item for item in bodies if item["id"] == broken["id"])
+    okay_bot = next(item for item in bodies if item["id"] == sibling["id"])
+    assert "persona_profile_error" in failed_bot
+    assert "persona_profile_error" not in okay_bot
 
 
 def test_conversation_persona_round_trip_conflict_and_reset(store):
@@ -409,6 +472,24 @@ def test_engine_fails_closed_when_the_conversation_style_state_is_unreadable(sto
     failed = _wait_terminal(store, run.id)
     assert failed.status is RunStatus.failed and failed.exit_reason == "persona_unavailable"
     assert "newer Hutch" in failed.error
+
+
+def test_engine_fails_closed_for_a_future_bot_profile_with_an_agent_specific_error(store, config, monkeypatch):
+    bot = store.create_bot(Bot(name="future-bot-style", display_name="Future Bot", model="mock/demo", tools=[]))
+    raw = json.loads(store._db.execute("SELECT doc FROM bots WHERE id = ?", (bot.id,)).fetchone()["doc"])
+    raw["persona_profile_version"] = PERSONA_PROFILE_VERSION + 1
+    raw["persona_override"] = {"future_voice": "unknown"}
+    store._db.execute("UPDATE bots SET doc = ? WHERE id = ?", (json.dumps(raw), bot.id))
+    store._db.commit()
+    conversation, _ = store.create_conversation(bot.id, "future profile", idem_key="fp-create", request_hash="fp-create")
+    run = Run(bot_id=bot.id, prompt="hello", conversation_id=conversation["id"])
+    store.submit_conversation_message(conversation["id"], "hello", run, Task(bot_id=bot.id, prompt="hello"),
+                                      idem_key="fp-send", request_hash="fp-send")
+    _stub_dispatch(store, config, monkeypatch)
+
+    failed = _wait_terminal(store, run.id)
+    assert failed.status is RunStatus.failed and failed.exit_reason == "persona_unavailable"
+    assert "Future Bot" in failed.error and "does not support" in failed.error
 
 
 def test_engine_fails_closed_on_a_newer_stored_plan(store, config, monkeypatch):

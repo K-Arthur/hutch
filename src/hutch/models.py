@@ -15,9 +15,9 @@ from datetime import datetime, time, timedelta, timezone
 from enum import Enum
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field, computed_field, field_validator, model_validator
+from pydantic import BaseModel, Field, PrivateAttr, ValidationError, computed_field, field_validator, model_validator
 
-from .persona import PersonaPlan, PersonaStyle
+from .persona import PERSONA_PROFILE_VERSION, PersonaPlan, PersonaStyle
 
 
 def utcnow() -> datetime:
@@ -297,9 +297,12 @@ class Bot(BaseModel):
     inference_mode: InferenceMode = InferenceMode.hybrid
     tools: list[str] = Field(default_factory=lambda: ["shell", "files", "memory", "documents"])
     skills: list[str] = Field(default_factory=list)   # bound Agent Skill names; review state lives in the skill registry
+    persona_profile_version: int = Field(default=PERSONA_PROFILE_VERSION, ge=1, le=PERSONA_PROFILE_VERSION)
     persona_preset: Optional[PersonaStyle] = None     # the agent's shipped response style (sparse; unset fields inherit)
     persona_override: Optional[PersonaStyle] = None   # the owner's saved response style for this agent (sparse)
     persona_revision: int = 0                         # bumped on every saved style change; guards concurrent edits
+    _persona_profile_error: Optional[str] = PrivateAttr(default=None)
+    _persona_profile_payload: dict[str, Any] = PrivateAttr(default_factory=dict)
     #: How Hutch represents this Bot's tools to its model (docs/realignment/tool-calling.md).
     #: ``auto`` keeps the provider-native protocol and never silently picks another mode.
     tool_protocol: Literal["auto", "native", "constrained", "prompt", "disabled"] = "auto"
@@ -332,6 +335,68 @@ class Bot(BaseModel):
     sandbox: str = Field(default_factory=lambda: _default_sandbox())   # strict | off: OS containment of the shell (ADR-0006)
     shell_network: bool = False       # may commands in the sandbox use the network? (default: no)
     created_at: str = Field(default_factory=lambda: iso(utcnow()))
+
+    @classmethod
+    def from_store_json(cls, raw: str) -> "Bot":
+        """Load a Bot even when only its response-style profile is unreadable.
+
+        Bot permissions and configuration remain available to the rest of the app. The bad profile is kept
+        verbatim for future compatible builds, is excluded from normal API serialization, and is never applied
+        to a run. This prevents a future or damaged style from taking down the whole assistant roster.
+        """
+        document = json.loads(raw)
+        if not isinstance(document, dict):
+            raise ValueError("stored assistant document must be a JSON object")
+        profile_keys = ("persona_profile_version", "persona_preset", "persona_override")
+        raw_profile = {key: document[key] for key in profile_keys if key in document}
+        profile_error: str | None = None
+        version = document.get("persona_profile_version", PERSONA_PROFILE_VERSION)
+        if not isinstance(version, int) or isinstance(version, bool) or version < 1:
+            profile_error = "has an invalid response-style profile version"
+        elif version > PERSONA_PROFILE_VERSION:
+            profile_error = f"uses response-style profile version {str(version)[:32]}, which this Hutch does not support"
+        else:
+            for field in ("persona_preset", "persona_override"):
+                value = document.get(field)
+                if value is None:
+                    continue
+                try:
+                    PersonaStyle.model_validate(value)
+                except ValidationError as exc:
+                    first = exc.errors()[0]
+                    location = ".".join(str(part) for part in first.get("loc", ()))[:80]
+                    detail = f"field {location} is invalid" if location else "contains invalid values"
+                    profile_error = f"has an unreadable response-style profile ({detail})"
+                    break
+        if profile_error:
+            document = dict(document)
+            document["persona_profile_version"] = PERSONA_PROFILE_VERSION
+            document["persona_preset"] = None
+            document["persona_override"] = None
+        bot = cls.model_validate(document)
+        if profile_error:
+            label = bot.display_name.strip() or bot.name
+            bot._persona_profile_error = f"Assistant '{label}' {profile_error}; its response style was not applied."
+            bot._persona_profile_payload = raw_profile
+        return bot
+
+    @property
+    def persona_profile_error(self) -> Optional[str]:
+        """Readable, assistant-specific profile error; not part of the durable Bot document."""
+        return self._persona_profile_error
+
+    def store_json(self) -> str:
+        """Serialize this Bot while retaining an unreadable profile verbatim if one was encountered."""
+        document = self.model_dump(mode="json")
+        if self._persona_profile_payload:
+            document.update(self._persona_profile_payload)
+        return json.dumps(document, ensure_ascii=False, separators=(",", ":"))
+
+    def preserve_unreadable_persona_from(self, other: "Bot") -> None:
+        """Keep an invalid stored profile intact when a whole-Bot form saves unrelated fields."""
+        if other._persona_profile_error:
+            self._persona_profile_error = other._persona_profile_error
+            self._persona_profile_payload = dict(other._persona_profile_payload)
 
     @model_validator(mode="after")
     def folder_workspace_requires_path(self) -> "Bot":

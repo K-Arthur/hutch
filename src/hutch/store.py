@@ -2077,7 +2077,7 @@ class Store:
             row = self._db.execute("SELECT doc FROM bots WHERE id = ?", (replay["bot_id"],)).fetchone()
         if row is None:
             raise RuntimeError("idempotent bot response points to missing state")
-        return Bot.model_validate_json(row["doc"])
+        return Bot.from_store_json(row["doc"])
 
     def create_bot_idempotent(self, bot: Bot, *, idem_key: str,
                               request_hash: str) -> tuple[Bot, bool]:
@@ -2102,7 +2102,7 @@ class Store:
                 row = db.execute("SELECT doc FROM bots WHERE id = ?", (replay["bot_id"],)).fetchone()
                 if row is None:
                     raise RuntimeError("idempotent bot response points to missing state")
-                return Bot.model_validate_json(row["doc"]), False
+                return Bot.from_store_json(row["doc"]), False
             existing = db.execute("SELECT id FROM bots WHERE id = ? OR name = ? LIMIT 1",
                                   (bot.id, bot.name)).fetchone()
             if existing is not None:
@@ -2117,7 +2117,7 @@ class Store:
                 raise RuntimeError("schedule identity registry is missing from schema v21")
             existing_ids: set[str] = set()
             for row in db.execute("SELECT doc FROM bots").fetchall():
-                other = Bot.model_validate_json(row["doc"])
+                other = Bot.from_store_json(row["doc"])
                 existing_ids.update(schedule.id for schedule in other.schedules)
             if identity_table:
                 existing_ids.update(row["schedule_id"] for row in
@@ -2133,7 +2133,7 @@ class Store:
                 refreshed.append(replacement)
             bot.set_schedules(refreshed)
             db.execute("INSERT INTO bots (id, name, doc) VALUES (?, ?, ?)",
-                       (bot.id, bot.name, bot.model_dump_json()))
+                       (bot.id, bot.name, bot.store_json()))
             if identity_table:
                 db.executemany("INSERT INTO schedule_identities (schedule_id, bot_id, created_at) VALUES (?, ?, ?)",
                                [(schedule.id, bot.id, schedule.created_at) for schedule in refreshed])
@@ -2158,7 +2158,11 @@ class Store:
                     raise ActiveRunConflict(active["id"], active["status"])
             row = db.execute("SELECT id, doc FROM bots WHERE id = ? OR name = ? LIMIT 1",
                              (bot.id, bot.name)).fetchone()
-            previous = Bot.model_validate_json(row["doc"]) if row else None
+            previous = Bot.from_store_json(row["doc"]) if row else None
+            if previous is not None:
+                bot.preserve_unreadable_persona_from(previous)
+                if previous.persona_profile_error:
+                    bot.persona_profile_version = previous.persona_profile_version
             if previous is not None and previous.persona_revision > bot.persona_revision:
                 # The owner's saved response style changes only through update_bot_persona (a revision-guarded
                 # compare-and-swap); a whole-document write built from a stale read keeps the stored style
@@ -2212,7 +2216,7 @@ class Store:
             db.execute(
                 "INSERT INTO bots (id, name, doc) VALUES (?, ?, ?) "
                 "ON CONFLICT(name) DO UPDATE SET id=excluded.id, doc=excluded.doc",
-                (bot.id, bot.name, bot.model_dump_json()),
+                (bot.id, bot.name, bot.store_json()),
             )
             if previous and previous.remote_start_enabled and not bot.remote_start_enabled:
                 cancelled_remote = self._cancel_pending_remote_runs(
@@ -2238,16 +2242,18 @@ class Store:
                 row = db.execute("SELECT id, doc FROM bots WHERE id = ?", (bot_id,)).fetchone()
                 if row is None:
                     raise RuntimeError("idempotent persona response points to missing state")
-                return Bot.model_validate_json(row["doc"]), False
+                return Bot.from_store_json(row["doc"]), False
             row = db.execute("SELECT id, doc FROM bots WHERE id = ?", (bot_id,)).fetchone()
             if row is None:
                 raise KeyError(bot_id)
-            bot = Bot.model_validate_json(row["doc"])
+            bot = Bot.from_store_json(row["doc"])
+            if bot.persona_profile_error:
+                raise ValueError(bot.persona_profile_error)
             if bot.persona_revision != expected_revision:
                 raise PersonaConflict(bot.persona_revision)
             bot.persona_override = apply_persona_changes(bot.persona_override, changes)
             bot.persona_revision += 1
-            db.execute("UPDATE bots SET doc = ? WHERE id = ?", (bot.model_dump_json(), bot.id))
+            db.execute("UPDATE bots SET doc = ? WHERE id = ?", (bot.store_json(), bot.id))
             db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) "
                        "VALUES (?, ?, ?, ?, ?)",
                        (scope, idem_key, request_hash,
@@ -2258,7 +2264,7 @@ class Store:
     def list_bots(self) -> list[Bot]:
         with self._lock:
             rows = self._db.execute("SELECT doc FROM bots ORDER BY name").fetchall()
-        return [Bot.model_validate_json(r["doc"]) for r in rows]
+        return [Bot.from_store_json(r["doc"]) for r in rows]
 
     def workspace_coordinator(self) -> Optional[dict[str, str]]:
         """Return the current named coordinator Bot, if the owner selected one."""
@@ -2267,7 +2273,7 @@ class Store:
                 "SELECT b.id, b.name, b.doc FROM workspace_settings w JOIN bots b ON b.id = w.coordinator_bot_id "
                 "WHERE w.id = 1"
             ).fetchone()
-        bot = Bot.model_validate_json(row["doc"]) if row else None
+        bot = Bot.from_store_json(row["doc"]) if row else None
         return {"id": row["id"], "name": row["name"], "display_name": bot.display_name} if bot else None
 
     def workspace_coordinator_id(self) -> Optional[str]:
@@ -2289,7 +2295,7 @@ class Store:
                 "SELECT bot_id FROM workspace_specialists").fetchall()}
         bots = []
         for row in rows:
-            bot = Bot.model_validate_json(row["doc"])
+            bot = Bot.from_store_json(row["doc"])
             bots.append({"id": str(row["id"]), "name": str(row["name"]),
                          "display_name": bot.display_name})
         eligible_ids = {bot["id"] for bot in bots}
@@ -2358,7 +2364,7 @@ class Store:
             row = db.execute("SELECT b.id, b.name, b.doc FROM workspace_settings w "
                              "JOIN bots b ON b.id = w.coordinator_bot_id WHERE w.id = 1").fetchone()
         self.bus.notify("workspace", "bots", "workspace:coordinator")
-        bot = Bot.model_validate_json(row["doc"]) if row else None
+        bot = Bot.from_store_json(row["doc"]) if row else None
         return {"id": row["id"], "name": row["name"], "display_name": bot.display_name} if bot else None
 
     def workspace_schedule_control(self) -> dict[str, Any]:
@@ -2395,7 +2401,7 @@ class Store:
             row = self._db.execute(
                 "SELECT doc FROM bots WHERE id = ? OR name = ?", (ref, ref)
             ).fetchone()
-        return Bot.model_validate_json(row["doc"]) if row else None
+        return Bot.from_store_json(row["doc"]) if row else None
 
     def grant_background_provider_consent(self, bot_id: str, provider: str, account_id: str,
                                          expected_fingerprint: str) -> Bot:
@@ -2406,7 +2412,7 @@ class Store:
             row = db.execute("SELECT doc FROM bots WHERE id = ?", (bot_id,)).fetchone()
             if row is None:
                 raise KeyError(bot_id)
-            bot = Bot.model_validate_json(row["doc"])
+            bot = Bot.from_store_json(row["doc"])
             if background_route_fingerprint(bot) != expected_fingerprint:
                 raise ValueError("The Bot's model routing changed. Review it again before allowing background use.")
             if provider not in bot_route_provider_names(bot):
@@ -2416,7 +2422,7 @@ class Store:
                                                 terms_revision=CHATGPT_TERMS_REVISION)
             bot.background_provider_consents = [item for item in bot.background_provider_consents
                                                 if item.provider != provider] + [consent]
-            db.execute("UPDATE bots SET doc = ? WHERE id = ?", (bot.model_dump_json(), bot_id))
+            db.execute("UPDATE bots SET doc = ? WHERE id = ?", (bot.store_json(), bot_id))
         self.bus.notify("work", "bots")
         return bot
 
@@ -2433,14 +2439,14 @@ class Store:
             else:
                 rows = db.execute("SELECT id, doc FROM bots WHERE id = ?", (bot_id,)).fetchall()
             for row in rows:
-                bot = Bot.model_validate_json(row["doc"])
+                bot = Bot.from_store_json(row["doc"])
                 retained = [item for item in bot.background_provider_consents
                             if not ((provider is None or item.provider == provider) and
                                     (account_id is None or item.account_id == account_id))]
                 if len(retained) == len(bot.background_provider_consents):
                     continue
                 bot.background_provider_consents = retained
-                db.execute("UPDATE bots SET doc = ? WHERE id = ?", (bot.model_dump_json(), row["id"]))
+                db.execute("UPDATE bots SET doc = ? WHERE id = ?", (bot.store_json(), row["id"]))
                 changed += 1
         if changed:
             self.bus.notify("work", "bots")
@@ -2839,7 +2845,7 @@ class Store:
             row = db.execute("SELECT doc FROM bots WHERE id = ?", (bot_id,)).fetchone()
             if row is None:
                 return None
-            bot = Bot.model_validate_json(row["doc"])
+            bot = Bot.from_store_json(row["doc"])
             schedules = list(bot.schedules or ([bot.schedule] if bot.schedule else []))
             index = next((i for i, current in enumerate(schedules) if current.id == schedule.id), None)
             if index is None:
@@ -2862,7 +2868,7 @@ class Store:
                                (schedule.id, bot_id, schedule.created_at))
             bot.set_schedules(schedules)
             db.execute("UPDATE bots SET name = ?, doc = ? WHERE id = ?",
-                       (bot.name, bot.model_dump_json(), bot_id))
+                       (bot.name, bot.store_json(), bot_id))
         self.bus.notify("work", "bots")
         return bot
 
@@ -2901,7 +2907,7 @@ class Store:
             row = db.execute("SELECT doc FROM bots WHERE id = ?", (bot_id,)).fetchone()
             if row is None:
                 return None
-            bot = Bot.model_validate_json(row["doc"])
+            bot = Bot.from_store_json(row["doc"])
             schedules = list(bot.schedules or ([bot.schedule] if bot.schedule else []))
             updated = [schedule for schedule in schedules if schedule.id != schedule_id]
             if len(updated) == len(schedules):
@@ -2910,7 +2916,7 @@ class Store:
             db.execute("UPDATE schedule_identities SET removed_at = ? WHERE schedule_id = ? AND bot_id = ?",
                        (iso(utcnow()), schedule_id, bot_id))
             db.execute("UPDATE bots SET name = ?, doc = ? WHERE id = ?",
-                       (bot.name, bot.model_dump_json(), bot_id))
+                       (bot.name, bot.store_json(), bot_id))
         self.bus.notify("work", "bots")
         return bot
 
@@ -4017,7 +4023,7 @@ class Store:
             if db.execute("SELECT 1 FROM conversation_questions WHERE run_id = ? AND status = 'pending' LIMIT 1",
                           (source_run_id,)).fetchone():
                 raise ValueError("answer the Bot's pending question before preparing a coding task")
-            bot = Bot.model_validate_json(source["bot_doc"])
+            bot = Bot.from_store_json(source["bot_doc"])
             configured_root = Path(bot.workdir).expanduser().resolve(strict=True) if bot.workdir else None
             if bot.workspace_mode != "folder" or configured_root is None or str(configured_root) != project_root:
                 raise PermissionError("coding handoffs require this Bot's explicitly configured project folder")
@@ -4506,7 +4512,7 @@ class Store:
             return unavailable("Answer or dismiss the specialist's pending question before continuing.")
         try:
             from .engine import Engine
-            current_bot = Bot.model_validate_json(row["bot_doc"])
+            current_bot = Bot.from_store_json(row["bot_doc"])
             saved_snapshot = json.loads(row["capability_snapshot_json"] or "{}")
             if current_bot.paused:
                 return unavailable("Unpause the specialist Bot before continuing this task.")
@@ -4596,7 +4602,7 @@ class Store:
                 "WHERE wt.id = ?", (task_id,)).fetchone()
             if source is None:
                 raise KeyError(task_id)
-            bot = Bot.model_validate_json(source["bot_doc"])
+            bot = Bot.from_store_json(source["bot_doc"])
             if bot.id != run.bot_id or bot.id != task.bot_id:
                 raise ValueError("the specialist Bot changed; review the task before continuing")
             current_snapshot = Engine.capability_snapshot(bot)
@@ -4630,7 +4636,7 @@ class Store:
             run.conversation_context = conversation_context
             run.task_id = task.id
             run.model_override = ""
-            display_name = Bot.model_validate_json(source["bot_doc"]).display_name
+            display_name = Bot.from_store_json(source["bot_doc"]).display_name
 
             db.execute("INSERT INTO conversations (id, bot_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
                        (child_conversation_id, bot.id, title, now, now))
@@ -6361,7 +6367,7 @@ class Store:
                 self._db.rollback()
                 raise
 
-        bots = [Bot.model_validate_json(row["doc"]) for row in bot_rows[:limit]]
+        bots = [Bot.from_store_json(row["doc"]) for row in bot_rows[:limit]]
         runs = [self._run(row) for row in run_rows[:limit]]
         approvals = [ApprovalRequest.model_validate_json(row["doc"]) for row in approval_rows[:limit]]
         totals = {"bots": bot_total, "runs": run_total, "approvals": approval_total, "conversations": conv_total}
@@ -6693,7 +6699,7 @@ class Store:
                 if bot_row is None:
                     self._db.commit()
                     return None
-                bot = Bot.model_validate_json(bot_row["doc"])
+                bot = Bot.from_store_json(bot_row["doc"])
                 metadata = {"id": bot_row["id"], "name": bot_row["name"],
                             "display_name": bot.display_name, "memory_enabled": bot.memory_enabled}
 
@@ -6816,11 +6822,11 @@ class Store:
             state = 'source_revised'
         elif source_doc is None:
             state = 'source_bot_removed'
-        elif not Bot.model_validate_json(source_doc).memory_enabled:
+        elif not Bot.from_store_json(source_doc).memory_enabled:
             state = 'source_memory_disabled'
         elif target_doc is None:
             state = 'recipient_bot_removed'
-        elif not Bot.model_validate_json(target_doc).memory_enabled:
+        elif not Bot.from_store_json(target_doc).memory_enabled:
             state = 'recipient_memory_disabled'
         else:
             state = 'active'
@@ -6846,8 +6852,8 @@ class Store:
                 raise KeyError('source or recipient Bot is unavailable')
             if source_bot_id == target_bot_id:
                 raise ValueError('choose different Bots for a shared fact')
-            source_bot = Bot.model_validate_json(source['doc'])
-            target_bot = Bot.model_validate_json(target['doc'])
+            source_bot = Bot.from_store_json(source['doc'])
+            target_bot = Bot.from_store_json(target['doc'])
             if not source_bot.memory_enabled or not target_bot.memory_enabled:
                 raise ValueError('enable memory on both Bots before sharing a fact')
             fact = db.execute('SELECT f.* FROM memory_facts f WHERE f.id = ? AND f.bot_id = ? AND ' + CURRENT,

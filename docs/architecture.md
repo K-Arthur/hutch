@@ -340,6 +340,13 @@ a saved value back to that chain. Saves are revision-guarded: a stale save is re
 person's edits stay on screen for review instead of being merged silently. A next-reply choice
 applies to one message only and never becomes a durable preference.
 
+Each Bot document carries a response-style profile version; legacy documents without the version are read as
+version 1. A future-version or invalid style is isolated to that assistant: Hutch keeps the original profile
+data for a compatible build, marks the assistant with a readable profile error, does not apply the style, and
+fails a new run with `persona_unavailable`. Unrelated assistant data remains readable and saveable, and profile
+errors do not take down the assistant roster. Conversation-scoped state also carries its own version and
+revision.
+
 At run start the engine resolves the layers once and writes a versioned, write-once plan into the
 run; a retried start reuses the recorded plan, and unreadable or newer state fails the run with a
 `persona_unavailable` reason instead of silently restyling it. The built-in runtime renders the plan

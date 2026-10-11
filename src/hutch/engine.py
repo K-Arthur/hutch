@@ -794,6 +794,8 @@ class Engine:
             return
         if persona_plan is None:
             try:
+                if bot.persona_profile_error:
+                    raise ValueError(bot.persona_profile_error)
                 conversation_style, conversation_revision = (
                     self.store.read_conversation_persona(run.conversation_id)
                     if run.conversation_id else (None, 0))
