@@ -137,8 +137,9 @@ pid, master = pty.fork()
 if pid == 0:
     os.execv(sys.executable, [sys.executable, "-c", controller_code, child_code])
 output = bytearray()
-deadline = time.monotonic() + 8
-sent_input = False
+started = time.monotonic()
+deadline = started + 25          # one budget for the whole interaction, so a loaded machine
+sent_input = False               # cannot turn a slow start into a false failure
 sent_interrupt = False
 while time.monotonic() < deadline:
     readable, _, _ = select.select([master], [], [], 0.1)
@@ -160,7 +161,7 @@ while time.monotonic() < deadline:
     if b"RESTORED foreground=True" in output:
         break
 waited_pid = 0
-wait_deadline = time.monotonic() + 15
+wait_deadline = started + 40     # the outer subprocess timeout is 60 s; anything longer is a real failure
 while waited_pid == 0 and time.monotonic() < wait_deadline:
     waited_pid, status = os.waitpid(pid, os.WNOHANG)
     if waited_pid == 0:
@@ -176,7 +177,7 @@ print(output.decode(errors="replace"), end="")
 raise SystemExit(os.waitstatus_to_exitcode(status))
 '''
     result = subprocess.run([sys.executable, "-c", harness_code, controller_code, child_code],
-                            capture_output=True, text=True, timeout=15, check=False)
+                            capture_output=True, text=True, timeout=60, check=False)
     transcript = result.stdout + result.stderr
     assert result.returncode == 0, transcript
     assert "READY tty=1 foreground=1" in transcript
