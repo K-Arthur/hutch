@@ -256,6 +256,39 @@ def test_denied_approval_blocks_execution(store, config, tmp_path, strict_contai
     assert fake.calls == []
 
 
+def test_a_decision_shown_different_code_cannot_approve_this_cell(store, config, tmp_path, strict_containment):
+    """Consent binds to the exact executed effect (mission §10).
+
+    The request carries the full source and a fingerprint over it; a decision
+    presented a different action (another device, a stale card) resolves as a
+    mismatch and does not release the wait. Only the real fingerprint runs the
+    exact submitted code.
+    """
+    _, run, ctx = make_ctx(store, config, tmp_path)
+    fake = FakeManager(tmp_path)
+    tool = RunPythonTool(manager_factory=lambda c, conv: fake)
+    code = "answer = 'exactly this'\nprint(answer)\n"
+    result, worker = run_in_thread(tool, ctx, {"code": code})
+    approval = wait_for_approval(store)
+    assert approval.detail["code"] == code
+    assert approval.action_hash and len(approval.action_hash) == 32
+
+    mismatch = resolve_approval_ex(store, approval.id, approve=True, by="other-device",
+                                   expected_hash="0" * 32)
+    assert mismatch.outcome == "mismatch", "a decision shown a different action must not decide this one"
+    worker.join(0.3)
+    assert worker.is_alive(), "a mismatched decision released the wait"
+    assert fake.calls == []
+
+    won = resolve_approval_ex(store, approval.id, approve=True, by="human",
+                              expected_hash=approval.action_hash)
+    assert won.won
+    worker.join(10)
+    assert not worker.is_alive()
+    assert result["value"].ok is True
+    assert [call[0] for call in fake.calls] == [code], "execution must use the approved source unchanged"
+
+
 def test_readonly_tier_refuses(store, config, tmp_path, strict_containment):
     _, _, ctx = make_ctx(store, config, tmp_path, tier="readonly")
     fake = FakeManager(tmp_path)
