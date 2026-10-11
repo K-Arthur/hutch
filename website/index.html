@@ -229,6 +229,7 @@
               <div class="details-copy">
                 <p>Inspect the final status, tool results, ordered transcript and reported usage. Uncertain effects remain visible for reconciliation. Keep memory private by default. If another assistant needs a fact, share the reviewed snapshot with that named assistant. Either side can revoke; the share adds no tools, account access or workspace context.</p>
                 <p>For repeat work, save a reviewed request in Hutch&rsquo;s local library and search for it from another chat. Choosing one fills a draft only; you still review and send it yourself.</p>
+                <p>Documents Hutch creates &mdash; PDF, DOCX, XLSX, PPTX, CSV, JSON, Markdown or a ZIP bundle &mdash; are stored on your machine as versioned files with recorded SHA-256 hashes. Downloads come straight from that local store, so a file does not expire with the chat that made it, and each preview says whether it is the extracted content or an approximate render.</p>
               </div>
             </details>
           </div>
@@ -536,6 +537,7 @@
             <tbody>
               <tr><td class="av-k">Public access</td><td class="av-v">Private source; no anonymous download or public release</td><td><span class="ev"><span class="dot dot-warn" aria-hidden="true"></span>Unavailable</span></td></tr>
               <tr><td class="av-k">Supported</td><td class="av-v">Linux executor, local SQLite state and fixture-tested lifecycle/control flows; actual runs need a configured model route</td><td><span class="ev"><span class="dot dot-ok" aria-hidden="true"></span>Supported</span></td></tr>
+              <tr><td class="av-k">Documents</td><td class="av-v">Local generation of PDF, DOCX, XLSX, PPTX, CSV, JSON, Markdown, YAML and ZIP bundles from reviewed content, with SHA-256-verified downloads, versioned revisions and in-app previews (page images for PDF; extracted structure for other formats; office layout renders additionally need LibreOffice installed on the host)</td><td><span class="ev"><span class="dot dot-ok" aria-hidden="true"></span>Supported</span></td></tr>
               <tr><td class="av-k">Experimental</td><td class="av-v">Hosted/local models; OpenCode Go API-key handoff; reviewed OpenCode CLI coding tasks on Linux in pinned worktrees (separate sign-in/usage, command approvals outside Hutch); ChatGPT sign-in preview (eligibility unconfirmed); Google Calendar lookup plus owner-configured guest-free event creation after per-event approval (Google account scope is broader; consent unverified); Outlook Calendar lookup and optional guest-free event creation on one selected calendar, with exact approval each time (Microsoft consent is account-wide and unverified); read-only Outlook Mail previews; private Gmail search (owner OAuth and loopback Local routes only; public release awaits Google scope verification and any required security assessment); host-gated Offline; reviewed child tasks; HTTPS pairing; Linux credential/CAPTCHA handoff; fixture-tested DNS pinning. Browser field detection, public destinations and live provider checks remain unverified</td><td><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></td></tr>
               <tr><td class="av-k">Unavailable</td><td class="av-v">macOS/Windows executor, phone browser handoff, authenticated PTY/desktop control and OpenCode/Pi as Hutch-managed Bot runtimes</td><td><span class="ev"><span class="dot dot-warn" aria-hidden="true"></span>Unavailable</span></td></tr>
               <tr><td class="av-k">Data movement</td><td class="av-v">Prompts go to the selected hosted endpoint; network tools also contact their configured destinations</td><td><span class="ev">Per configuration</span></td></tr>
@@ -571,6 +573,10 @@
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">Do I need an API key, a credit card, or a GPU?</summary>
           <div class="collapse-content"><p>Hutch does not include hosted inference. Connect a compatible hosted provider or use a local model service that you already run; available models vary, and live paid-provider checks have not been performed for this preview.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary>What happens to files Hutch makes for me?</summary>
+          <div class="collapse-content"><p>They are kept on your machine in Hutch&rsquo;s own document store, not in a temporary session that expires. Every download is checked against its recorded size and SHA-256 before it is served, revisions create new versions while older versions stay downloadable, and previews are labelled as extracted content or approximate renders rather than pretending to be the exact file.</p></div>
         </details>
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">What actually leaves my machine?</summary>

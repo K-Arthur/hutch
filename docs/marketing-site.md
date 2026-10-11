@@ -28,6 +28,16 @@ Workspace copy may say that fresh per-run folders are the default, and that an o
 or a validated existing folder. It must also say that managed folders survive bot deletion and are excluded from database-only backup;
 the site must not imply that files are automatically moved or copied when the setting changes.
 
+The site may say that Hutch creates documents locally - PDF, DOCX, XLSX, PPTX, CSV, JSON, Markdown, YAML and ZIP bundles -
+from reviewed content specifications, stores them in Hutch's own document store on the user's machine as immutable versions with
+recorded SHA-256 hashes, and serves downloads through authenticated local routes that verify size and hash before every response.
+Copy may state that downloads do not expire with the chat or run that produced them, that revisions create new versions while older
+versions remain downloadable, and that previews are labelled: page images for PDF (rendered from the stored version), extracted
+structure or text for other formats, and approximate layout renders for office formats only when LibreOffice is installed on the
+host. It must not claim Word/Excel/PowerPoint desktop compatibility, malware-free status, cloud delivery, redaction, or
+password-protected-input support; those are named limits in `docs/file-formats.md`. The capability evidence trail is
+`docs/file-formats.md` plus failure classes E1-E15 in `docs/realignment/evidence-ledger.md`.
+
 The site may say that files created through Hutch's `write_file` tool are downloadable from their originating run as verified
 snapshots (up to 4 MB per file and 16 MB per run). The Studio composer menu can browse saved text files and saved tool output
 from runs attached to that same conversation. An owner can also explicitly add one verified file reference to a selected other

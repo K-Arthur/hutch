@@ -13,21 +13,21 @@ Failure-class motivation for each decision: [research/document-pipeline-failures
 
 | Format | Engine (pinned) | Creation | Structural validation | Preview | Target end state |
 |---|---|---|---|---|---|
-| PDF | WeasyPrint 70 (Pango) in a bounded subprocess; pypdf check; page images via pypdfium2 (bundled PDFium) | typed block spec → hutch-authored HTML → PDF | reopen via pypdf: page tree, text extraction spot-check, byte bounds | paginated page images (rendered from the exact version) | verified |
-| DOCX | python-docx 1.2 | typed block spec (headings, paragraphs, lists, tables, captions) | reopen via python-docx + zip/XML part integrity | structure preview (extracted outline + tables) | verified |
-| XLSX | XlsxWriter 3.2 (write) + openpyxl 3.1 (validate/read) | typed cells, formulas with cached results, number formats, freeze/filters | reopen via openpyxl: cached-value recompute, cell types, dimensions | sheet grid preview (values as cached; formatting not shown) | verified |
-| PPTX | python-pptx 1.0 | slide spec with `fit_text()` on probed fonts, notes, tables | reopen via python-pptx: slide count, shape bounds | per-slide text outline preview | verified |
-| Markdown / text | direct write | UTF-8, explicit newlines | encoding + newline policy check | inline text | verified |
-| CSV | direct write | UTF-8 with BOM, typed serialization | parse-back with csv module; formula-prefix guard (disclosed) | bounded table preview | verified |
-| JSON | direct write | UTF-8 | parse-back (stdlib) + size bounds | pretty text preview | verified |
-| YAML | PyYAML | UTF-8 | parse-back | text preview | verified |
-| ZIP bundle | stdlib zipfile | manifest + safe relative paths, entry/size/depth caps | manifest completeness check, entry audit | manifest listing | verified |
+| PDF | WeasyPrint 70 (Pango) in a bounded subprocess; pypdf check; page images via pypdfium2 (bundled PDFium) | typed block spec → hutch-authored HTML → PDF | reopen via pypdf: page tree, text extraction spot-check, byte bounds | paginated page images (rendered from the exact version) | **verified 2026-10-11** |
+| DOCX | python-docx 1.2 | typed block spec (headings, paragraphs, lists, tables, captions) | reopen via python-docx + zip/XML part integrity | structure preview (extracted outline + tables) | **verified 2026-10-11** |
+| XLSX | XlsxWriter 3.2 (write) + openpyxl 3.1 (validate/read) | typed cells, formulas with cached results, number formats, freeze/filters | reopen via openpyxl: cached-value recompute, cell types, dimensions | sheet grid preview (values as cached; formatting not shown) | **verified 2026-10-11** |
+| PPTX | python-pptx 1.0 | slide spec with `fit_text()` on probed fonts, notes, tables | reopen via python-pptx: slide count, shape bounds | per-slide text outline preview | **verified 2026-10-11** |
+| Markdown / text | direct write | UTF-8, explicit newlines | encoding + newline policy check | inline text | **verified 2026-10-11** |
+| CSV | direct write | UTF-8 with BOM, typed serialization | parse-back with csv module; formula-prefix guard (disclosed) | bounded table preview | **verified 2026-10-11** |
+| JSON | direct write | UTF-8 | parse-back (stdlib) + size bounds | pretty text preview | **verified 2026-10-11** |
+| YAML | PyYAML | UTF-8 | parse-back | text preview | **verified 2026-10-11** |
+| ZIP bundle | stdlib zipfile | manifest + safe relative paths, entry/size/depth caps | manifest completeness check, entry audit | manifest listing | **verified 2026-10-11** |
 
 ## Editing and conversion
 
 | Capability | State | Limit stated to users |
 |---|---|---|
-| Scoped revision of a document hutch generated | implemented (v-next: revision tool) | true scoped edits on the stored typed source; unrelated content preserved byte-for-byte where the format allows |
+| Scoped revision of a document hutch generated | implemented — `revise_document` compares-and-swaps on the expected version; the stored source specification grounds edits (2026-10-11) | true scoped edits on the stored typed source; unrelated content preserved byte-for-byte where the format allows |
 | Revision of an imported arbitrary DOCX/PPTX | unsupported v1 | disclosed as reconstruction, never silently rewritten (E7) |
 | Layout-accurate office preview (DOCX/XLSX/PPTX → page images) | implemented-unverified on this host | requires operator-installed LibreOffice (`soffice`); per-job profile, hard timeout, owned process group (E10); preview is an approximate render either way |
 | PDF-to-editable conversion | unsupported | would be reconstruction; not offered |
@@ -57,3 +57,14 @@ pretending a preview exists.
 - 2026-10-10 — stack smoke on this host: WeasyPrint→PDF (selectable text), pypdfium2 page render,
   pypdf reopen, python-docx roundtrip, XlsxWriter cached formula read back as the true value by
   openpyxl, python-pptx roundtrip. See `uv.lock` pins; evidence rows E15.
+- 2026-10-11 — creation formats verified on this host: 60 generator/validator/store/API tests plus
+  64 pipeline/revision tests green (`tests/test_docgen_*.py`, `tests/test_documents_*.py`); a real
+  browser journey downloaded byte-identical files and labelled previews
+  (`tests/e2e/test_documents.py`, Chromium 153); the acceptance report (6 pages, headed sections,
+  a 12-row table, lists, quote, appendices) was visually judged page-by-page with no clipping,
+  missing glyphs or blank pages, and the workbook's SUM formulas were recomputed against the cached
+  values at validation time. Evidence: `docs/realignment/artifacts/document-pipeline-2026-10-11/`
+  (documents, page renders, three-viewport UI captures with overflow 0, validation.json).
+- 2026-10-11 — still implemented-unverified on this host: LibreOffice layout rendering for office
+  formats (`soffice` absent; the path is skipif-gated in `tests/test_docgen_render.py`), and all
+  Word/Excel/PowerPoint desktop-compatibility, physical-phone and screen-reader checks (not exercised).
