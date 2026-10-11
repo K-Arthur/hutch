@@ -665,7 +665,8 @@ class Interpreter:
         context_text = _canonical(inputs)[:MAX_STEP_CONTEXT]
         spec = self._model_spec(model)
         verdict = qualify.assess("verifier" if role == "verifier" else "worker", spec=spec,
-                                 store=self.store, requires_tools=bool(tools),
+                                 store=self.store, base_url=self.ctx.bot.base_url or None,
+                                 requires_tools=bool(tools),
                                  requires_structured_output=output_schema is not None)
         if not verdict.allowed:
             raise WorkflowFailed(cnode.site_id, f"role blocked: {verdict.summary()}")

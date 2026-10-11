@@ -305,7 +305,9 @@ def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key:
     def assess_role(bot: str, role: str, requires_tools: bool = False) -> dict[str, Any]:
         resolved = _bot_or_404(store, bot)
         try:
-            verdict = qualify.assess(role, spec=resolved.model, store=store, requires_tools=requires_tools)
+            verdict = qualify.assess(role, spec=resolved.model, store=store,
+                                     base_url=resolved.base_url or None,
+                                     requires_tools=requires_tools)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
         return verdict.as_dict()
@@ -484,7 +486,8 @@ def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key:
         bot = _bot_or_404(store, payload.bot)
         try:
             verdict = qualify.acknowledge_limited(store, spec=bot.model, role=payload.role,
-                                                  reason=payload.reason, scope=payload.scope)
+                                                  reason=payload.reason, scope=payload.scope,
+                                                  base_url=bot.base_url or None)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
         return verdict.as_dict()
@@ -494,7 +497,8 @@ def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key:
         _idempotency(request, {"revoke": bot, "role": role})
         resolved = _bot_or_404(store, bot)
         try:
-            removed = qualify.revoke(store, spec=resolved.model, role=role)
+            removed = qualify.revoke(store, spec=resolved.model, role=role,
+                                     base_url=resolved.base_url or None)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
         return {"removed": removed}

@@ -1933,7 +1933,7 @@ def workflow_qualify(bot_ref: str = typer.Argument(...),
     store = _store()
     bot = _require_bot(store, bot_ref)
     if assess_only:
-        verdict = qualify.assess(role, spec=bot.model, store=store)
+        verdict = qualify.assess(role, spec=bot.model, store=store, base_url=bot.base_url or None)
         console.print(verdict.summary())
         if not verdict.allowed:
             from .workflow.routing import explain_block
@@ -1942,7 +1942,7 @@ def workflow_qualify(bot_ref: str = typer.Argument(...),
                 console.print(f"  {line}")
         raise typer.Exit(code=0 if verdict.allowed else 1)
     if revoke:
-        removed = qualify.revoke(store, spec=bot.model, role=role)
+        removed = qualify.revoke(store, spec=bot.model, role=role, base_url=bot.base_url or None)
         console.print(f"removed {removed} qualification record(s) for {role} on {bot.model}")
         raise typer.Exit(code=0)
     if not reason:
@@ -1950,7 +1950,8 @@ def workflow_qualify(bot_ref: str = typer.Argument(...),
         raise typer.Exit(code=2)
     try:
         verdict = qualify.acknowledge_limited(store, spec=bot.model, role=role, reason=reason,
-                                              scope={"acknowledged_by": "cli"})
+                                              scope={"acknowledged_by": "cli"},
+                                              base_url=bot.base_url or None)
     except ValueError as exc:
         err.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=2) from None

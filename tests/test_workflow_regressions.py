@@ -543,3 +543,21 @@ def test_route_scoped_observations_only_match_their_own_revision(store):
                            base_url="http://elsewhere:11434")
     assert same.evidence["native_tools"] == "observed"
     assert other.evidence["native_tools"] == "unknown"          # not upgraded by another route
+
+
+def test_qualification_is_bound_to_the_bots_endpoint_not_just_provider_and_model(store):
+    """A probe for one endpoint must not qualify the same provider/model on another."""
+    from hutch.workflow import qualify
+
+    first = make_bot(store, name="endpoint-a", model="ollama/tiny:1b", tools=["files"],
+                     base_url="http://127.0.0.1:11434")
+    second = make_bot(store, name="endpoint-b", model="ollama/tiny:1b", tools=["files"],
+                      base_url="http://elsewhere:11434")
+    qualify.acknowledge_limited(store, spec=first.model, role="worker", reason="local only",
+                                scope={}, base_url=first.base_url or None)
+    qualified = qualify.assess("worker", spec=first.model, store=store, requires_tools=False,
+                               base_url=first.base_url or None)
+    other = qualify.assess("worker", spec=second.model, store=store, requires_tools=False,
+                           base_url=second.base_url or None)
+    assert qualified.state == "limited"
+    assert other.state != "limited", "the acknowledgement must not leak across endpoints"

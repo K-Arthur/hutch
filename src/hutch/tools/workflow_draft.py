@@ -60,7 +60,8 @@ class DraftWorkflowTool(Tool):
 
         if len(json.dumps(plan, default=str)) > MAX_PLAN_CHARS:
             return ToolResult(ok=False, output="error: the plan is too large to review here")
-        gate = qualify.assess("author", spec=ctx.bot.model, store=ctx.store)
+        gate = qualify.assess("author", spec=ctx.bot.model, store=ctx.store,
+                              base_url=ctx.bot.base_url or None)
         if not gate.allowed:
             return ToolResult(
                 ok=False,

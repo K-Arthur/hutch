@@ -146,7 +146,7 @@ def check_authority(compiled: CompiledPlan, bot: Bot, *, store: Any = None) -> l
             continue
         spec = bot.model if node.model in ("", "$bot", "$default") else node.model
         verdict = qualify.assess("worker" if node.role != "verifier" else "verifier",
-                                 spec=spec, store=store,
+                                 spec=spec, store=store, base_url=bot.base_url or None,
                                  requires_tools=bool(node.tools),
                                  requires_structured_output=node.output_schema is not None)
         verdicts.append({"node": entry.site_id, **verdict.as_dict()})
@@ -228,7 +228,8 @@ def submit_workflow(store: Any, *, bot: Bot, plan: dict[str, Any] | Plan,
     if source == "model":
         if not planning_model:
             raise PlanNotSubmittable("a model-authored plan must name the planning model")
-        gate = qualify.assess("author", spec=planning_model, store=store)
+        gate = qualify.assess("author", spec=planning_model, store=store,
+                              base_url=bot.base_url or None)
         if not gate.allowed:
             raise PlanNotSubmittable(
                 f"the planning model is not qualified to author workflows: {gate.summary()}")
