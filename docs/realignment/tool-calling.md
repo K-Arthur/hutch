@@ -255,3 +255,10 @@ browser-verified with artifacts listed in section 9.
   rebase.
 - Benchmark rerun on the integrated tree matches the recorded budgets within run-to-run noise.
 - Unrelated artifact churn produced by other suites was excluded from this branch.
+- **Merged into `main`**: `toolcall/unified` merged as `f053e3a` (main tip then `4ac6041`)
+  with no conflicts. Verified on the merge commit in the isolated synced environment
+  (`.worktrees/documents/.venv`, installed from the committed `uv.lock`): full non-e2e suite
+  **1876 passed, 1 skipped**; the Tool Compatibility and design-system settings browser tests
+  passed. The three delegation schema tests that failed before the merge are fixed by main's
+  own v50 document-table heading helper.
+- `origin/main` was not updated; the merge is local-only pending an explicit push.
