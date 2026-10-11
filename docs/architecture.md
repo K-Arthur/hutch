@@ -425,7 +425,7 @@ events through the same ownership check. Failed admission rolls back both withou
 the buffer. Expired execution cannot receive a new approval or standing grant; decisions still
 resolve once through compare-and-swap, and full-request rewrites are refused.
 
-## Dynamic workflows (schema v57)
+## Dynamic workflows (schema v58)
 
 A workflow is a **saved, validated plan**, not generated code. The plan schema, the bounded
 evaluator and the compiler live in `src/hutch/workflow/`; `plan` is strict data, `expr`
@@ -553,8 +553,14 @@ Those writes are idempotent. A changed conversation mode is stored separately fr
 assistant default and cannot widen it. A route-card projection carries the decision, rationale
 and review action into chat; Auto's saved-workflow submission remains idempotent and goes through
 ordinary input, role, scope and approval checks. The routing card and its keyboard review action
-are browser-tested at 1440, 768, 360 and 320 CSS pixels. Workflow questions and Stop controls
-are not projected into the paired-phone interface.
+are browser-tested at 1440, 768, 360 and 320 CSS pixels. The paired-phone workflow projection
+uses the existing `monitor` permission for run summaries, safe plan structure, and redacted
+instance status; question IDs, question text/options, answers and Stop use the separate `review`
+permission. It omits inputs, node results, artifacts, usage ledgers and dynamic expansion keys.
+Paired sessions cannot plan, launch, probe, change policy, or amend workflows. A monitor-only
+session does not request approval or question data. Phone answer and Stop requests use the
+existing CSRF and per-credential idempotency checks; browser evidence is in
+`docs/realignment/artifacts/workflow-studio/phone/`.
 
 The plan defaults are 40 node instances, 12 actual provider requests, 64,000 reported or
 reserved tokens, 900 seconds, fan-out 8 and two repair rounds. The logical worker default is

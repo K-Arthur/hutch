@@ -117,6 +117,69 @@ class WorkflowQuestionResource(BaseModel):
     answered_at: Optional[str] = None
 
 
+class PhoneWorkflowNodeResource(BaseModel):
+    site_id: str
+    instance_number: int
+    kind: str
+    status: str
+
+
+class PhoneWorkflowPlannedStepResource(BaseModel):
+    site_id: str
+    kind: str
+    depth: int = 0
+    bounded: bool = False
+
+
+class PhoneWorkflowRunSummary(BaseModel):
+    id: str
+    title: str
+    bot_display_name: str
+    status: str
+    stop_requested: bool = False
+    created_at: str
+    updated_at: str
+    step_count: int = 0
+    planned_step_count: int = 0
+    needs_you: int = 0
+
+
+class PhoneWorkflowRunPage(BaseModel):
+    items: list[PhoneWorkflowRunSummary]
+    limit: int
+    offset: int
+
+
+class PhoneWorkflowRunDetail(PhoneWorkflowRunSummary):
+    revision_id: str
+    planned_steps: list[PhoneWorkflowPlannedStepResource] = Field(default_factory=list)
+    nodes: list[PhoneWorkflowNodeResource] = Field(default_factory=list)
+
+
+class PhoneWorkflowQuestionResource(BaseModel):
+    id: str
+    workflow_run_id: str
+    workflow_title: str
+    bot_display_name: str
+    site_id: str
+    question: str
+    options: list[str] = Field(default_factory=list)
+    expires_at: str
+
+
+class PhoneWorkflowQuestionPage(BaseModel):
+    items: list[PhoneWorkflowQuestionResource]
+    limit: int
+    offset: int
+
+
+class PhoneWorkflowMutationResource(BaseModel):
+    workflow_run_id: str
+    status: str
+    question_id: Optional[str] = None
+    stop_requested: Optional[bool] = None
+
+
 class WorkflowRunPage(BaseModel):
     items: list[WorkflowRunResource]
     limit: int
@@ -399,6 +462,76 @@ def _run_resource(row: dict[str, Any]) -> WorkflowRunResource:
         finished_at=row.get("finished_at"))
 
 
+def _phone_workflow_nodes(store: Any, row: dict[str, Any]) -> list[dict[str, Any]]:
+    """Project observed nodes and question-backed ask instances without exposing runtime keys."""
+    wf_id = str(row["id"])
+    revision_id = str(row.get("revision_id") or "")
+    attempt_run_id = str(row.get("attempt_run_id") or "")
+    raw_nodes = wstore.nodes(store, wf_id)
+    identities = {(str(node["site_id"]), str(node["instance_key"])) for node in raw_nodes}
+    observed: list[dict[str, Any]] = [
+        {"site_id": str(node["site_id"]), "instance_key": str(node["instance_key"]),
+         "kind": str(node["kind"]), "status": str(node["status"])}
+        for node in raw_nodes
+    ]
+    question_status = {"pending": "waiting", "answered": "succeeded",
+                       "expired": "failed", "cancelled": "cancelled"}
+    for question in wstore.questions(store, wf_id):
+        identity = (str(question["site_id"]), str(question["instance_key"]))
+        if (identity in identities or str(question.get("revision_id") or "") != revision_id
+                or str(question.get("attempt_run_id") or "") != attempt_run_id):
+            continue
+        observed.append({"site_id": identity[0], "instance_key": identity[1], "kind": "ask",
+                         "status": question_status.get(str(question.get("status") or ""), "unknown")})
+        identities.add(identity)
+    site_counts: dict[str, int] = {}
+    projected = []
+    for item in observed:
+        site_id = item["site_id"]
+        site_counts[site_id] = site_counts.get(site_id, 0) + 1
+        projected.append({"site_id": site_id, "instance_number": site_counts[site_id],
+                          "kind": item["kind"], "status": item["status"]})
+    return projected
+
+
+def _phone_workflow_summary(store: Any, row: dict[str, Any]) -> dict[str, Any]:
+    revision = wstore.revision(store, str(row.get("revision_id") or ""))
+    plan = (revision or {}).get("plan") or {}
+    bot = store.get_bot(str(row.get("bot_id") or ""))
+    nodes = _phone_workflow_nodes(store, row)
+    pending = [question for question in wstore.questions(store, str(row["id"]), status="pending")
+               if str(question.get("revision_id") or "") == str(row.get("revision_id") or "")
+               and str(question.get("attempt_run_id") or "") == str(row.get("attempt_run_id") or "")]
+    return {
+        "id": str(row["id"]),
+        "title": str(plan.get("name") or "Workflow"),
+        "bot_display_name": str((bot.display_name if bot else "") or (bot.name if bot else "Assistant")),
+        "status": str(row.get("status") or "unknown"),
+        "stop_requested": bool(row.get("stop_requested")),
+        "created_at": str(row.get("created_at") or ""),
+        "updated_at": str(row.get("updated_at") or ""),
+        "step_count": len(nodes),
+        "planned_step_count": len(_structure(plan)),
+        "needs_you": len(pending),
+    }
+
+
+def _phone_workflow_question(store: Any, row: dict[str, Any]) -> PhoneWorkflowQuestionResource:
+    revision = wstore.revision(store, str(row.get("revision_id") or ""))
+    plan = (revision or {}).get("plan") or {}
+    bot = store.get_bot(str(row.get("bot_id") or ""))
+    options = row.get("options")
+    if options is None:
+        raw_options = row.get("options_json") or "[]"
+        options = json.loads(raw_options) if isinstance(raw_options, str) else []
+    return PhoneWorkflowQuestionResource(
+        id=str(row["id"]), workflow_run_id=str(row["workflow_run_id"]),
+        workflow_title=str(plan.get("name") or "Workflow"),
+        bot_display_name=str((bot.display_name if bot else "") or (bot.name if bot else "Assistant")),
+        site_id=str(row["site_id"]),
+        question=str(row["question"]), options=list(options), expires_at=str(row["expires_at"]))
+
+
 def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key: Any,
                           request_digest: Any) -> None:
     """Attach the workflow routes to the existing app factory.
@@ -445,6 +578,79 @@ def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key:
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
         return WorkflowRunPage(items=[_run_resource(row) for row in rows], limit=limit, offset=offset)
+
+    @app.get("/api/v1/phone/workflows/runs", response_model=PhoneWorkflowRunPage)
+    def list_phone_workflow_runs(limit: int = 40, offset: int = 0) -> PhoneWorkflowRunPage:
+        try:
+            rows = wstore.list_workflow_runs(store, limit=limit, offset=offset)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        return PhoneWorkflowRunPage(
+            items=[PhoneWorkflowRunSummary(**_phone_workflow_summary(store, row)) for row in rows],
+            limit=limit, offset=offset)
+
+    @app.get("/api/v1/phone/workflows/runs/{wf_id}", response_model=PhoneWorkflowRunDetail)
+    def get_phone_workflow_run(wf_id: str) -> PhoneWorkflowRunDetail:
+        row = wstore.workflow_run(store, wf_id)
+        if row is None:
+            raise HTTPException(404, "no such workflow run")
+        summary = _phone_workflow_summary(store, row)
+        summary["revision_id"] = str(row["revision_id"])
+        revision = wstore.revision(store, str(row["revision_id"]))
+        plan = (revision or {}).get("plan") or {}
+        summary["planned_steps"] = [PhoneWorkflowPlannedStepResource(
+            site_id=str(step.get("site_id") or ""), kind=str(step.get("kind") or "unknown"),
+            depth=int(step.get("depth") or 0), bounded=bool(step.get("bounded")))
+            for step in _structure(plan)]
+        nodes = [PhoneWorkflowNodeResource(**node) for node in _phone_workflow_nodes(store, row)]
+        return PhoneWorkflowRunDetail(**summary, nodes=nodes)
+
+    @app.get("/api/v1/phone/workflows/questions", response_model=PhoneWorkflowQuestionPage)
+    def list_phone_workflow_questions(limit: int = 100, offset: int = 0) -> PhoneWorkflowQuestionPage:
+        try:
+            rows = wstore.pending_questions_for_review(store, limit=limit, offset=offset)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        return PhoneWorkflowQuestionPage(
+            items=[_phone_workflow_question(store, row) for row in rows], limit=limit, offset=offset)
+
+    @app.post("/api/v1/phone/workflows/questions/{question_id}/answer",
+              response_model=PhoneWorkflowMutationResource)
+    def answer_phone_workflow_question(
+            question_id: str, payload: AnswerRequest, request: Request) -> PhoneWorkflowMutationResource:
+        _idempotency(request, {"question": question_id, "answer": payload.answer})
+        try:
+            outcome = wfsubmit.answer(store, question_id, payload.answer)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        if outcome == "missing":
+            raise HTTPException(404, "no such question")
+        if outcome == "expired":
+            raise HTTPException(409, {"code": "question_expired", "message": "this question expired unanswered"})
+        row = wstore.question(store, question_id)
+        if row is None or (outcome == "already" and row["status"] != "answered"):
+            raise HTTPException(409, {"code": "question_not_answerable",
+                                      "message": f"this question is {row['status'] if row else 'missing'}"})
+        if outcome != "already":
+            engine.store.bus.notify("work")
+        return PhoneWorkflowMutationResource(
+            workflow_run_id=str(row["workflow_run_id"]), question_id=question_id, status=str(row["status"]))
+
+    @app.post("/api/v1/phone/workflows/runs/{wf_id}/stop", response_model=PhoneWorkflowMutationResource)
+    def stop_phone_workflow_run(
+            wf_id: str, payload: WorkflowStopRequest, request: Request) -> PhoneWorkflowMutationResource:
+        _idempotency(request, {"stop": wf_id, **payload.model_dump()})
+        try:
+            stopped = wfsubmit.stop_workflow(store, wf_id, expected_revision_id=payload.expected_revision_id)
+        except KeyError:
+            raise HTTPException(404, "no such workflow run") from None
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        engine.store.bus.notify("work")
+        current = wstore.workflow_run(store, wf_id)
+        return PhoneWorkflowMutationResource(
+            workflow_run_id=wf_id, status=str((current or {}).get("status") or "unknown"),
+            stop_requested=bool(stopped.get("stop_requested")))
 
     @app.get("/api/v1/workflows/qualifications")
     def list_qualifications(limit: int = 100, offset: int = 0) -> dict[str, Any]:

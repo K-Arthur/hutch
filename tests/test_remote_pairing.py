@@ -399,6 +399,109 @@ def test_paired_routes_require_origin_csrf_and_deny_legacy_mutation_aliases(tmp_
         assert client.get("/api/v1/conversations/missing/export", headers={"Host": "hutch.example"}).status_code == 403
 
 
+def test_phone_workflow_monitor_and_review_permissions_use_redacted_projections(tmp_path, monkeypatch):
+    from hutch.models import Bot
+    from hutch.workflow import persistence as wstore
+    from hutch.workflow.submit import submit_workflow
+
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("HUTCH_REMOTE_ENABLED", "1")
+    monkeypatch.setenv("HUTCH_ALLOWED_HOSTS", "hutch.example")
+    app = create_app()
+    store = app.state.store
+    bot = store.create_bot(Bot(name="phone-workflow", model="mock/demo", tools=[]))
+    plan = {"name": "phone-workflow-review", "inputs": {"memo": {"type": "string"}},
+            "envelope": {"tools": []}, "budget": {"max_nodes": 3, "max_model_calls": 0},
+            "nodes": [{"kind": "ask", "id": "confirm", "question": "Continue?",
+                       "options": ["yes", "no"], "timeout_seconds": 300}]}
+
+    def submit(name: str):
+        candidate = {**plan, "name": name}
+        return submit_workflow(store, bot=bot, plan=candidate, inputs={"memo": "PRIVATE_INPUT_SENTINEL"},
+                               definition_name=name)
+
+    first = submit("phone-workflow-review")
+    second = submit("phone-workflow-stop")
+    monitor = _enroll_test_passkey(store, store.create_pairing_code(), "Monitor-only phone")
+    store._db.execute("UPDATE paired_credentials SET capabilities_json='[\"monitor\"]' WHERE id=?",
+                      (monitor["id"],))
+    store._db.commit()
+    review = _enroll_test_passkey(store, store.create_pairing_code(), "Review phone")
+
+    with TestClient(app, base_url="https://testserver") as client:
+        deadline = time.monotonic() + 10
+        first_question = second_question = None
+        while time.monotonic() < deadline:
+            first_question = next(iter(wstore.questions(store, first.workflow_run_id, status="pending")), None)
+            second_question = next(iter(wstore.questions(store, second.workflow_run_id, status="pending")), None)
+            if first_question and second_question:
+                break
+            time.sleep(0.05)
+        assert first_question and second_question, "workflow ask nodes should park with durable question IDs"
+        # A private result in the authoritative record must remain absent from phone projections.
+        with store._tx() as db:
+            db.execute("UPDATE workflow_nodes SET result_json=? WHERE workflow_run_id=? AND site_id='confirm'",
+                       ('{"private":"PRIVATE_RESULT_SENTINEL"}', first.workflow_run_id))
+
+        client.cookies.set(SESSION_COOKIE, monitor["session_token"])
+        assert client.get("/api/v1/phone/workflows/runs", headers=_phone_headers()).status_code == 200
+        monitor_detail = client.get(f"/api/v1/phone/workflows/runs/{first.workflow_run_id}",
+                                    headers=_phone_headers())
+        assert monitor_detail.status_code == 200, monitor_detail.text
+        assert "PRIVATE_INPUT_SENTINEL" not in monitor_detail.text
+        assert "PRIVATE_RESULT_SENTINEL" not in monitor_detail.text
+        assert "instance_key" not in monitor_detail.text
+        assert monitor_detail.json()["nodes"] == [{"site_id": "confirm", "instance_number": 1,
+                                                   "kind": "ask", "status": "waiting"}]
+        assert client.get("/api/v1/phone/workflows/questions", headers=_phone_headers()).status_code == 403
+        monitor_csrf = store.auth_csrf_token(monitor["session_token"], monitor["session_id"])
+        monitor_headers = _phone_headers({"X-Hutch-Request": "1", "X-Hutch-CSRF": monitor_csrf,
+                                          "Idempotency-Key": "monitor-answer-denied"})
+        assert client.post(f"/api/v1/phone/workflows/questions/{first_question['id']}/answer",
+                           json={"answer": "yes"}, headers=monitor_headers).status_code == 403
+        assert client.post(f"/api/v1/phone/workflows/runs/{second.workflow_run_id}/stop",
+                           json={"expected_revision_id": second.revision_id}, headers=monitor_headers).status_code == 403
+        assert client.get("/api/v1/workflows/runs", headers=_phone_headers()).status_code == 403
+        assert client.post("/api/v1/workflows/policy", json={"bot": bot.name, "mode": "off"},
+                           headers=_phone_headers({"X-Hutch-Request": "1", "X-Hutch-CSRF": monitor_csrf,
+                                                  "Idempotency-Key": "phone-policy-denied"})).status_code == 403
+        owner_only_headers = _phone_headers({"X-Hutch-Request": "1", "X-Hutch-CSRF": monitor_csrf,
+                                             "Idempotency-Key": "phone-owner-only-denied"})
+        assert client.post("/api/v1/workflows/plans", json={"bot": bot.name, "plan": plan},
+                           headers=owner_only_headers).status_code == 403
+        assert client.post("/api/v1/workflows/qualifications/probe",
+                           json={"bot": bot.name, "role": "author"},
+                           headers=owner_only_headers).status_code == 403
+        assert client.post(f"/api/v1/workflows/runs/{first.workflow_run_id}/amendments/preview",
+                           json={"expected_revision_id": first.revision_id,
+                                 "expected_generation": first.attempt_run_id, "plan": plan},
+                           headers=owner_only_headers).status_code == 403
+
+        client.cookies.set(SESSION_COOKIE, review["session_token"])
+        review_csrf = store.auth_csrf_token(review["session_token"], review["session_id"])
+        review_headers = _phone_headers({"X-Hutch-Request": "1", "X-Hutch-CSRF": review_csrf,
+                                         "Idempotency-Key": "phone-question-answer"})
+        queue = client.get("/api/v1/phone/workflows/questions", headers=_phone_headers())
+        assert queue.status_code == 200, queue.text
+        question = next(item for item in queue.json()["items"] if item["id"] == first_question["id"])
+        assert question["question"] == "Continue?" and question["options"] == ["yes", "no"]
+        assert "instance_key" not in question and "PRIVATE_INPUT_SENTINEL" not in queue.text
+        answer = client.post(f"/api/v1/phone/workflows/questions/{question['id']}/answer",
+                             json={"answer": "yes"}, headers=review_headers)
+        assert answer.status_code == 200, answer.text
+        assert answer.json() == {"workflow_run_id": first.workflow_run_id, "status": "answered",
+                                 "question_id": question["id"], "stop_requested": None}
+        stop_headers = _phone_headers({"X-Hutch-Request": "1", "X-Hutch-CSRF": review_csrf,
+                                       "Idempotency-Key": "phone-workflow-stop"})
+        stopped = client.post(f"/api/v1/phone/workflows/runs/{second.workflow_run_id}/stop",
+                              json={"expected_revision_id": second.revision_id}, headers=stop_headers)
+        assert stopped.status_code == 200, stopped.text
+        assert stopped.json()["workflow_run_id"] == second.workflow_run_id
+        assert stopped.json()["status"] in {"waiting", "stopped"}
+        assert stopped.json()["stop_requested"] is True
+        assert "PRIVATE_INPUT_SENTINEL" not in stopped.text
+
+
 def test_remote_owner_token_is_rejected_but_local_owner_token_still_works(tmp_path, monkeypatch):
     monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
     monkeypatch.setenv("HUTCH_REMOTE_ENABLED", "1")

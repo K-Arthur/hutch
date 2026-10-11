@@ -7,7 +7,8 @@ decides **when** saved work is invoked), not a skill (a skill teaches a method t
 and not an MCP server (which exposes operations). The workflow engine owns execution state.
 
 Workflows are optional. New assistants start in **Suggest**; schema v57 preserves the former
-Off behavior for existing assistants whose saved record did not contain a mode. When the
+Off behavior for existing assistants whose saved record did not contain a mode, and schema v58
+adds archived amendment history. When the
 current chat model is selector-qualified for its exact execution profile, Suggest can return
 a compact route card during the ordinary model/tool turn. Simple requests do not get a separate
 classifier call, and Suggest never starts work. Auto can start only an activated saved definition
@@ -266,9 +267,16 @@ attempt can run.
   matching activated saved workflow under Auto. The two local Qwen3 profiles tested failed
   selector qualification, so neither receives the selector. Auto does not create a new plan;
   a qualified selector profile has not been verified locally.
-* **No paired-phone workflow monitor or review controls yet.** The workflow card and its
-  questions are owner-local. Phone supervision still covers ordinary run monitoring/review;
-  workflow question, approval and Stop projections have not been added there.
+* **Paired-phone workflow supervision is implemented as a redacted monitor/review view.** A
+  paired session with `monitor` can list workflow runs and inspect planned steps plus
+  question-backed or recorded instance statuses. It does not receive workflow inputs,
+  results, artifacts, usage ledgers, or expansion keys. A session with `review` can see each
+  pending durable question ID and answer that question, or request Stop against the current
+  revision; both mutations carry the paired session's CSRF token and an idempotency key.
+  Planning, workflow launch, probes, policy changes, and amendments remain local-owner-only.
+  Monitor-only sessions do not load review data or show review controls. Browser evidence at
+  390 and 320 CSS pixels and the route authorization/redaction regressions are recorded in
+  [`artifacts/workflow-studio/phone/`](realignment/artifacts/workflow-studio/phone/).
 * No MCP facade (Hutch has no MCP plane), no code facade, and no automatic downloads or
   model substitution.
 * **No scheduling of workflows yet.** A routine decides *when* saved work runs; wiring a

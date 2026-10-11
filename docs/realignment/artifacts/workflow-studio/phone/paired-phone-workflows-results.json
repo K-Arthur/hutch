@@ -1,0 +1,34 @@
+{
+  "fixture_boundary": "Real SQLite workflow submission, supervisor ask nodes, phone API, CSRF/idempotency and browser UI; no model request.",
+  "viewports": {
+    "review_and_detail": [
+      390,
+      844
+    ],
+    "reflow": [
+      320,
+      780
+    ]
+  },
+  "reflow_dimensions_320": {
+    "viewport": 320,
+    "document": 320,
+    "body": 320
+  },
+  "minimum_phone_target_height_px": 44,
+  "question_answer_status": 200,
+  "workflow_stop_status": 200,
+  "page_errors": [],
+  "screenshots_sha256": {
+    "workflow-detail-390.png": "4962d33a335370598cc7d0eedc6e3b6f7ad4b36b296567cef7c07ffdef99a075",
+    "workflow-question-390.png": "2594cb85da3effa19dae31ed8994d895bf6166b308b1247f4c6db119c1b1d5f0",
+    "workflow-detail-320.png": "5d0b47beefa56c8b16943cb653260dffa2a1a5a1575789f8d092672effb986d5",
+    "paired-phone-workflows-trace.zip": "42a121fd6695d3a19ec95286987069bcb8c484fa8429e2c1ddc1b14f965085a7"
+  },
+  "source_sha256": {
+    "src/hutch/server/workflows_api.py": "7fc8fd502787b3faedd15f8388e56901a693fafb0dc5fc1501c4ee780c6795af",
+    "src/hutch/server/static/app.js": "9ef7b71d5071ac21c6efe44f3db54f664e8e2b44130427591a6665732d489599",
+    "src/hutch/server/static/style.css": "41bf5a2e7a8d5d3801acabdebd032d71d61c43838ebe537f711b9da889a809ca"
+  },
+  "captured_at": "2026-10-11T16:59:23.587156+00:00"
+}

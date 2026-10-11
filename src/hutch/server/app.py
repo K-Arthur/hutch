@@ -116,6 +116,11 @@ REMOTE_ROUTE_CAPABILITIES: dict[tuple[str, str], Optional[str]] = {
     ("POST", "/api/v1/actions/approvals/{approval_id}/deny"): "review",
     ("POST", "/api/v1/tasks/runs"): "start",
     ("POST", "/api/v1/search/messages"): "monitor",
+    ("GET", "/api/v1/phone/workflows/runs"): "monitor",
+    ("GET", "/api/v1/phone/workflows/runs/{wf_id}"): "monitor",
+    ("GET", "/api/v1/phone/workflows/questions"): "review",
+    ("POST", "/api/v1/phone/workflows/questions/{question_id}/answer"): "review",
+    ("POST", "/api/v1/phone/workflows/runs/{wf_id}/stop"): "review",
 }
 
 PUBLIC_REMOTE_ROUTES = {("GET", "/login"), ("POST", "/login"), ("GET", "/pair"),

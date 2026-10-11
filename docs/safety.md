@@ -349,7 +349,11 @@ registration/login requires user verification, then grants a separate HttpOnly, 
 eight-hour absolute limit. Synced passkeys are supported, so a
 credential is not proof of one physical phone. Paired phones can monitor status/transcripts, review exact approval requests, allow
 once or deny, stop/resume through current server checks, and start only when both the pairing and local Bot settings grant Start.
-Owner tokens, credentials, schedules, Bot settings, device management, and computer interaction remain local. Route authorization is
+Workflow supervision uses the same split: `monitor` can see a redacted run summary, structural plan steps and instance statuses;
+`review` can see durable pending question IDs and the question text/options, answer a question, and request Stop against the current
+revision. These projections omit workflow inputs, results, artifacts, usage ledgers and expansion keys. Planning, workflow launch,
+qualification probes, policy changes and amendments remain owner-local. Monitor-only sessions do not fetch review queues. Workflow
+answer and Stop commands require the session-bound CSRF token and an idempotency key. Owner tokens, credentials, schedules, Bot settings, device management, and computer interaction remain local. Route authorization is
 deny-by-default; unsafe requests require same-origin checks and a session-bound CSRF token. Private responses are not cacheable, and
 streams check session validity while idle. An uncertain command is reconciled with its original idempotency key before retry.
 

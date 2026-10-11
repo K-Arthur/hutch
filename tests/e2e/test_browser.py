@@ -97,8 +97,15 @@ def test_paired_phone_uses_supervision_view_and_hides_data_after_revocation(brow
         "credential_id": secrets.token_bytes(24), "public_key": b"browser-test-key", "sign_count": 0,
         "backup_eligible": True, "backed_up": True, "user_handle": handle,
     })
+    store._db.execute("UPDATE paired_credentials SET capabilities_json='[\"monitor\"]' WHERE id=?",
+                      (paired["id"],))
+    store._db.commit()
+    assert store.authenticate_session(paired["session_token"])["capabilities"] == ["monitor"]
 
     page = browser.new_page(viewport={"width": 390, "height": 844})
+    forbidden_responses = []
+    page.on("response", lambda response: forbidden_responses.append(response.url)
+            if response.status == 403 else None)
     try:
         page.context.add_cookies([{"name": "hutch_session", "value": paired["session_token"], "url": base}])
         page.goto(base + "/")
@@ -107,10 +114,14 @@ def test_paired_phone_uses_supervision_view_and_hides_data_after_revocation(brow
         assert page.locator("body").evaluate("el => el.classList.contains('paired-phone')")
         assert page.locator(".app-shell").is_hidden()
         assert page.locator(".phone-start-form").count() == 0
-        assert "Monitor and review only" in page.locator("#phone-root").inner_text()
+        assert page.locator('.phone-tabs [data-phone-tab="review"]').count() == 0, (
+            f"session={page.evaluate('hutchSession.capabilities')} tabs={page.locator('.phone-tabs').get_attribute('class')}")
+        assert forbidden_responses == []
+        assert "Monitor only" in page.locator("#phone-root").inner_text()
         page.get_by_role("button", name="Runs").click()
         page.locator(f'[data-phone-run="{run.id}"]').click()
         page.locator(".phone-run-detail").wait_for()
+        assert page.locator("[data-phone-stop], [data-phone-resume]").count() == 0
         assert page.locator(".phone-run-detail").get_by_text("Phone transcript fixture marker.").is_visible()
         started_at = page.locator(".phone-run-detail .phone-card .phone-sub").first.inner_text()
         transcript_time = page.locator(".phone-transcript li > span").first.inner_text()
@@ -122,6 +133,138 @@ def test_paired_phone_uses_supervision_view_and_hides_data_after_revocation(brow
         assert "Phone transcript fixture marker." not in page.locator("body").inner_text()
     finally:
         page.close()
+
+
+def test_paired_phone_monitors_and_reviews_redacted_workflows(browser, live):
+    """Exercise real workflow rows through phone list, question answer, and durable Stop."""
+    from hutch.workflow import persistence as wstore
+    from hutch.workflow.submit import submit_workflow
+
+    base, app = live
+    store = app.state.store
+    bot = store.create_bot(Bot(name="phone-workflow-review", display_name="Workflow review fixture",
+                               model="mock/demo", tools=[]))
+    ask_plan = {"name": "phone-review-workflow", "inputs": {"private_note": {"type": "string"}},
+                "envelope": {"tools": []}, "budget": {"max_nodes": 3, "max_model_calls": 0},
+                "nodes": [{"kind": "ask", "id": "confirm", "question": "Continue with the review?",
+                           "options": ["yes", "no"], "timeout_seconds": 300}]}
+    review_workflow = submit_workflow(store, bot=bot, plan=ask_plan,
+                                      inputs={"private_note": "PRIVATE_PHONE_INPUT_SENTINEL"},
+                                      definition_name=ask_plan["name"])
+    stop_plan = {**ask_plan, "name": "phone-stop-workflow"}
+    stop_workflow = submit_workflow(store, bot=bot, plan=stop_plan, inputs={"private_note": "stop secret"},
+                                    definition_name=stop_plan["name"])
+    deadline = time.monotonic() + 20
+    review_question = stop_question = None
+    while time.monotonic() < deadline:
+        review_question = next(iter(wstore.questions(store, review_workflow.workflow_run_id, status="pending")), None)
+        stop_question = next(iter(wstore.questions(store, stop_workflow.workflow_run_id, status="pending")), None)
+        if review_question and stop_question:
+            break
+        time.sleep(0.05)
+    assert review_question and stop_question, "the real workflow supervisor should park both ask nodes"
+
+    enrollment, outcome = store.exchange_pairing_code(store.create_pairing_code(), "Workflow review phone", "browser-test")
+    assert outcome == "ok" and enrollment
+    paired = store.finish_passkey_enrollment(enrollment["token"], {
+        "credential_id": secrets.token_bytes(24), "public_key": b"browser-workflow-phone-key", "sign_count": 0,
+        "backup_eligible": True, "backed_up": True, "user_handle": store.webauthn_user_handle(),
+    })
+    artifacts = Path(__file__).parents[2] / "docs/realignment/artifacts/workflow-studio/phone"
+    artifacts.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=1)
+    context.tracing.start(screenshots=True, snapshots=True, sources=True)
+    page = context.new_page()
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    try:
+        context.add_cookies([{"name": "hutch_session", "value": paired["session_token"], "url": base}])
+        page.goto(base + "/")
+        page.locator("#phone-root .phone-brand").wait_for()
+        page.get_by_role("button", name="Workflows").click()
+        page.locator(f'[data-phone-workflow="{review_workflow.workflow_run_id}"]').wait_for()
+        page.locator(f'[data-phone-workflow="{stop_workflow.workflow_run_id}"]').wait_for()
+        page.locator(f'[data-phone-workflow="{review_workflow.workflow_run_id}"]').click()
+        page.locator(".phone-workflow-detail").wait_for()
+        assert page.locator(".phone-planned-steps .phone-step-title").filter(has_text="confirm").is_visible()
+        assert page.locator(".phone-planned-steps .phone-step-status").inner_text() == "Planned"
+        assert "waiting" in page.locator(".phone-workflow-heading").inner_text()
+        assert "PRIVATE_PHONE_INPUT_SENTINEL" not in page.locator("#phone-root").inner_text()
+        page.screenshot(path=str(artifacts / "workflow-detail-390.png"), full_page=True, animations="disabled")
+
+        page.get_by_role("button", name="Review").click()
+        question_card = page.locator(f'.phone-workflow-answer-form[data-question-id="{review_question["id"]}"]').locator("..")
+        question_card.get_by_text(review_question["id"], exact=False).wait_for()
+        assert "Continue with the review?" in question_card.inner_text()
+        assert "PRIVATE_PHONE_INPUT_SENTINEL" not in question_card.inner_text()
+        page.screenshot(path=str(artifacts / "workflow-question-390.png"), full_page=True, animations="disabled")
+        question_card.locator('select[name="answer"]').select_option("yes")
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/api/v1/phone/workflows/questions/{review_question['id']}/answer")) as answered:
+            question_card.get_by_role("button", name="Send answer").click()
+        answer_response = answered.value
+        assert answer_response.status == 200, answer_response.text()
+        assert answer_response.request.headers.get("x-hutch-csrf")
+        assert answer_response.request.headers.get("idempotency-key")
+        assert answer_response.request.post_data_json == {"answer": "yes"}
+        assert answer_response.json()["question_id"] == review_question["id"]
+        assert "yes" not in answer_response.text()
+
+        page.get_by_role("button", name="Workflows").click()
+        page.locator(f'[data-phone-workflow="{stop_workflow.workflow_run_id}"]').click()
+        stop_button = page.get_by_role("button", name="Stop workflow")
+        stop_button.wait_for()
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/api/v1/phone/workflows/runs/{stop_workflow.workflow_run_id}/stop")) as stopped:
+            stop_button.click()
+        stop_response = stopped.value
+        assert stop_response.status == 200, stop_response.text()
+        assert stop_response.request.headers.get("x-hutch-csrf")
+        assert stop_response.request.headers.get("idempotency-key")
+        assert stop_response.request.post_data_json == {"expected_revision_id": stop_workflow.revision_id}
+        assert stop_response.json()["stop_requested"] is True
+        wait_for(lambda: wstore.workflow_run(store, stop_workflow.workflow_run_id)["stop_requested"])
+        page.get_by_text("stop requested", exact=False).wait_for()
+        assert page.get_by_role("button", name="Stop workflow").count() == 0
+
+        page.set_viewport_size({"width": 320, "height": 780})
+        page.screenshot(path=str(artifacts / "workflow-detail-320.png"), full_page=True, animations="disabled")
+        dimensions_320 = page.evaluate("({ viewport: innerWidth, document: document.documentElement.scrollWidth, body: document.body.scrollWidth })")
+        assert dimensions_320["document"] <= dimensions_320["viewport"]
+        page.set_viewport_size({"width": 390, "height": 844})
+        target_heights = page.locator(".phone-tabs button, .phone-header-actions .btn, .phone-workflow-detail .btn").evaluate_all(
+            "items => items.map(el => Math.round(el.getBoundingClientRect().height))")
+        assert target_heights and min(target_heights) >= 44
+        store._db.execute("UPDATE paired_credentials SET capabilities_json='[\"monitor\"]' WHERE id=?",
+                          (paired["id"],))
+        store._db.commit()
+        page.locator("[data-phone-refresh]").click()
+        page.locator(".phone-tabs.monitor-only").wait_for()
+        assert page.locator('.phone-tabs [data-phone-tab="review"]').count() == 0
+        assert page.locator(".phone-question-card").count() == 0
+        assert not errors, errors
+    finally:
+        context.tracing.stop(path=str(artifacts / "paired-phone-workflows-trace.zip"))
+        context.close()
+
+    screenshots = ["workflow-detail-390.png", "workflow-question-390.png", "workflow-detail-320.png"]
+    source_paths = ["src/hutch/server/workflows_api.py", "src/hutch/server/static/app.js", "src/hutch/server/static/style.css"]
+    hashes = {name: hashlib.sha256((artifacts / name).read_bytes()).hexdigest() for name in screenshots}
+    hashes["paired-phone-workflows-trace.zip"] = hashlib.sha256(
+        (artifacts / "paired-phone-workflows-trace.zip").read_bytes()).hexdigest()
+    (artifacts / "paired-phone-workflows-results.json").write_text(json.dumps({
+        "fixture_boundary": "Real SQLite workflow submission, supervisor ask nodes, phone API, CSRF/idempotency and browser UI; no model request.",
+        "viewports": {"review_and_detail": [390, 844], "reflow": [320, 780]},
+        "reflow_dimensions_320": dimensions_320,
+        "minimum_phone_target_height_px": min(target_heights),
+        "question_answer_status": answer_response.status,
+        "workflow_stop_status": stop_response.status,
+        "page_errors": errors,
+        "screenshots_sha256": hashes,
+        "source_sha256": {name: hashlib.sha256((Path(__file__).parents[2] / name).read_bytes()).hexdigest()
+                          for name in source_paths},
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+    }, indent=2) + "\n")
 
 
 def test_paired_phone_reviews_the_exact_approval_once(browser, live):

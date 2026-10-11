@@ -1033,6 +1033,22 @@ def questions(store: Any, wf_id: str, *, status: str = "") -> list[dict[str, Any
     return [_question_row(row) for row in rows]
 
 
+def pending_questions_for_review(store: Any, *, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
+    """Read pending questions with only their workflow association for a review projection."""
+    if not 1 <= limit <= 200 or offset < 0:
+        raise ValueError("pending workflow question pagination is out of range")
+    with store._lock:
+        rows = store._db.execute(
+            """SELECT q.*, w.bot_id, w.revision_id, w.status AS workflow_status
+                 FROM workflow_questions q JOIN workflow_runs w ON w.id = q.workflow_run_id
+                WHERE q.status = 'pending' AND q.revision_id = w.revision_id
+                  AND q.attempt_run_id = w.attempt_run_id
+                  AND w.status IN ('pending','running','waiting') AND w.stop_requested = 0
+                ORDER BY q.asked_at, q.id LIMIT ? OFFSET ?""",
+            (limit, offset)).fetchall()
+    return [dict(row) for row in rows]
+
+
 def answer_question(store: Any, qid: str, answer: str) -> str:
     """Resolve one pending question by its own id. Returns won|already|expired|missing."""
     if len(answer) > 4_000:

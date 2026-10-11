@@ -9883,7 +9883,8 @@ function reconcileResourceStream(source) {
 /* ------------------------------------------------------- paired-phone mode */
 
 let phoneRoot = null;
-let phoneModel = { bots: [], runs: [], approvals: [], selectedRun: null, tab: "status", notice: "", offline: false };
+let phoneModel = { bots: [], runs: [], approvals: [], workflows: [], workflowQuestions: [],
+  selectedRun: null, selectedWorkflow: null, tab: "status", notice: "", offline: false };
 let phonePoll = null;
 let phoneChangeStream = null;
 let phoneRunStream = null;
@@ -9912,6 +9913,11 @@ function phoneSavePendingCommand() {
     else if (phoneUnresolvedCommand) sessionStorage.setItem(phoneStorageKey(), JSON.stringify(phoneUnresolvedCommand));
     else sessionStorage.removeItem(phoneStorageKey());
   } catch { /* an in-memory retry remains available for this page */ }
+}
+
+function phoneCommandIsAllowed(command) {
+  const required = command?.path === "/v1/tasks/runs" ? "start" : "review";
+  return (hutchSession?.capabilities || []).includes(required);
 }
 
 function lockExpiredPhone() {
@@ -9946,16 +9952,36 @@ async function phoneRefresh({ quiet = false } = {}) {
   if (!phoneRoot || phoneRefreshInFlight || document.hidden) return;
   phoneRefreshInFlight = true;
   try {
-    const [bots, runs, approvals] = await Promise.all([
-      api("/bots"), api("/v1/tasks/runs?limit=40"),
-      api("/v1/actions/approvals?status=pending&limit=100"),
-    ]);
+    const freshSession = await api("/v1/session");
+    if (freshSession.principal !== "paired") { lockExpiredPhone(); return; }
+    hutchSession = freshSession;
+    hutchCsrfToken = freshSession.csrf_token || "";
+    phoneSetSessionExpiry(freshSession.idle_expires_at, freshSession.absolute_expires_at);
+    const capabilities = new Set(hutchSession?.capabilities || []);
+    if (!capabilities.has("review")) {
+      phoneModel.approvals = [];
+      phoneModel.workflowQuestions = [];
+      if (phoneModel.tab === "review") phoneModel.tab = "status";
+    }
+    const requests = [api("/bots"), api("/v1/tasks/runs?limit=40"),
+      api("/v1/phone/workflows/runs?limit=40")];
+    if (capabilities.has("review")) {
+      requests.push(api("/v1/actions/approvals?status=pending&limit=100"));
+      requests.push(api("/v1/phone/workflows/questions?limit=100"));
+    }
+    const [bots, runs, workflows, approvalsPage, questionsPage] = await Promise.all(requests);
     phoneModel.bots = bots;
     phoneModel.runs = runs;
-    phoneModel.approvals = approvals;
+    phoneModel.workflows = workflows.items || [];
+    phoneModel.approvals = approvalsPage || [];
+    phoneModel.workflowQuestions = questionsPage?.items || [];
     if (phoneModel.selectedRun) {
       try { phoneModel.selectedRun = await api(`/v1/tasks/runs/${encodeURIComponent(phoneModel.selectedRun.id)}`); }
       catch (error) { if (error.status !== 404) throw error; phoneModel.selectedRun = null; }
+    }
+    if (phoneModel.selectedWorkflow) {
+      try { phoneModel.selectedWorkflow = await api(`/v1/phone/workflows/runs/${encodeURIComponent(phoneModel.selectedWorkflow.id)}`); }
+      catch (error) { if (error.status !== 404) throw error; phoneModel.selectedWorkflow = null; }
     }
     phoneModel.offline = false;
     if (!quiet) phoneModel.notice = "";
@@ -9963,6 +9989,11 @@ async function phoneRefresh({ quiet = false } = {}) {
     phoneAttachRunStream();
   } catch (error) {
     if (!phoneRoot) return;
+    if (error.status === 403) {
+      phoneModel.approvals = [];
+      phoneModel.workflowQuestions = [];
+      if (!(hutchSession?.capabilities || []).includes("review")) phoneModel.tab = "status";
+    }
     phoneModel.offline = true;
     if (!quiet) phoneModel.notice = `Could not refresh Hutch: ${error.message}. Displayed status may be out of date.`;
     phoneRender();
@@ -9975,9 +10006,15 @@ function phoneRender() {
   const bots = phoneModel.bots || [];
   const runs = phoneModel.runs || [];
   const approvals = phoneModel.approvals || [];
+  const workflows = phoneModel.workflows || [];
+  const workflowQuestions = phoneModel.workflowQuestions || [];
+  const canReview = (hutchSession?.capabilities || []).includes("review");
+  const canStart = (hutchSession?.capabilities || []).includes("start");
   const active = new Set(["pending", "loading_model", "running", "waiting_approval", "waiting_human",
     "waiting_resources", "recovering", "cancelling"]);
+  const activeWorkflow = new Set(["pending", "running", "waiting"]);
   const selected = phoneModel.selectedRun;
+  const selectedWorkflow = phoneModel.selectedWorkflow;
   const phoneTimestamp = (value) => {
     if (!value) return "time unavailable";
     const date = new Date(value);
@@ -9988,7 +10025,16 @@ function phoneRender() {
   let body = "";
 
   if (phoneModel.tab === "review") {
-    body = approvals.length ? `<section class="phone-list" aria-label="Pending approvals">${approvals.map(a => {
+    const questionCards = workflowQuestions.map(q => `<article class="phone-card phone-question-card">
+      <div class="phone-card-head"><span class="phone-status needs">Needs your answer</span><span>${esc(q.bot_display_name || "Assistant")}</span></div>
+      <h2>${esc(q.workflow_title || "Workflow")}</h2><p class="phone-sub">Step ${esc(q.site_id)} · Question ID <code>${esc(q.id)}</code></p>
+      <p class="phone-question-prompt">${esc(q.question)}</p>
+      <form class="phone-workflow-answer-form" data-question-id="${esc(q.id)}">
+        ${q.options?.length ? `<label>Answer<select name="answer" required><option value="">Choose an answer</option>${q.options.map(option => `<option value="${esc(option)}">${esc(option)}</option>`).join("")}</select></label>` : `<label>Your answer<textarea name="answer" rows="3" maxlength="4000" required></textarea></label>`}
+        <button class="btn primary" type="submit" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Send answer</button>
+      </form><p class="phone-sub">Expires ${esc(phoneTimestamp(q.expires_at))}</p>
+    </article>`).join("");
+    const approvalCards = approvals.map(a => {
       const id = a.approval_id || a.id;
       const detail = JSON.stringify(a.detail || {}, null, 2);
       return `<article class="phone-card approval-card"><div class="phone-card-head"><span class="phone-status needs">Needs review</span><span>${esc(a.bot_display_name || a.bot_name || "Bot")}</span></div>
@@ -9996,14 +10042,32 @@ function phoneRender() {
         <details><summary>Review exact request</summary><pre>${esc(detail)}</pre>${a.rule ? `<p>${esc(a.rule)}</p>` : ""}</details>
         <div class="phone-actions"><button class="btn primary" type="button" data-phone-approve="${esc(id)}" data-action-hash="${esc(a.action_hash || "")}" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Allow once</button><button class="btn danger" type="button" data-phone-deny="${esc(id)}" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Deny</button></div>
       </article>`;
-    }).join("")}</section>` : `<section class="phone-empty"><h2>Nothing needs review</h2><p>Pending action requests will appear here.</p></section>`;
+    }).join("");
+    body = questionCards || approvalCards
+      ? `<section class="phone-list" aria-label="Needs you">${questionCards}${approvalCards}</section>`
+      : `<section class="phone-empty"><h2>Nothing needs review</h2><p>Pending workflow questions and action requests will appear here.</p></section>`;
+  } else if (phoneModel.tab === "workflows" && selectedWorkflow) {
+    const nodes = selectedWorkflow.nodes || [];
+    const plannedSteps = selectedWorkflow.planned_steps || [];
+    body = `<section class="phone-workflow-detail"><button class="btn ghost" type="button" data-phone-workflow-back>All workflows</button>
+      <article class="phone-card phone-workflow-heading"><div class="phone-card-head"><span class="phone-status ${selectedWorkflow.needs_you ? "needs" : ""}">${esc(selectedWorkflow.status)}${selectedWorkflow.stop_requested ? " · stop requested" : ""}</span><span>${esc(selectedWorkflow.bot_display_name || "Assistant")}</span></div>
+      <h1>${esc(selectedWorkflow.title || "Workflow")}</h1><p class="phone-sub">${plannedSteps.length} planned · ${nodes.length} recorded instance${nodes.length === 1 ? "" : "s"} · updated ${esc(phoneTimestamp(selectedWorkflow.updated_at))}</p>
+      ${canReview && activeWorkflow.has(selectedWorkflow.status) && !selectedWorkflow.stop_requested ? `<button class="btn danger" type="button" data-phone-workflow-stop="${esc(selectedWorkflow.id)}" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Stop workflow</button>` : ""}</article>
+      <h2 class="phone-section-title">Planned steps</h2>
+      ${plannedSteps.length ? `<ol class="phone-workflow-steps phone-planned-steps">${plannedSteps.map(step => `<li data-depth="${Math.min(5, Math.max(0, Number(step.depth) || 0))}"><span class="phone-step-status">planned</span><span class="phone-step-title">${esc(step.site_id)}</span><span class="phone-sub">${esc(step.kind)}${step.bounded ? " · bounded group" : ""}</span></li>`).join("")}</ol>` : `<p class="phone-empty">No plan steps are available.</p>`}
+      <h2 class="phone-section-title">Recorded instances</h2>
+      ${nodes.length ? `<ol class="phone-workflow-steps">${nodes.map(node => `<li><span class="phone-step-status">${esc(node.status)}</span><span class="phone-step-title">${esc(node.site_id)}${node.instance_number > 1 ? ` · instance ${Number(node.instance_number)}` : ""}</span><span class="phone-sub">${esc(node.kind)}</span></li>`).join("")}</ol>` : `<p class="phone-empty">No discovered instances have been recorded yet.</p>`}
+      ${selectedWorkflow.needs_you ? `<p class="phone-sub">${selectedWorkflow.needs_you} pending question${selectedWorkflow.needs_you === 1 ? "" : "s"}. Open Review to answer by question ID.</p>` : ""}
+      <p class="phone-sub">Step names and status only. Results, inputs, artifacts and usage details stay on the local owner view.</p></section>`;
+  } else if (phoneModel.tab === "workflows") {
+    body = workflows.length ? `<section class="phone-list" aria-label="Workflows">${workflows.map(workflow => `<button class="phone-card phone-workflow-card" type="button" data-phone-workflow="${esc(workflow.id)}"><span class="phone-card-head"><span class="phone-status ${workflow.needs_you ? "needs" : ""}">${esc(workflow.status)}${workflow.stop_requested ? " · stop requested" : ""}</span><span>${esc(workflow.bot_display_name || "Assistant")}</span></span><strong>${esc(workflow.title || "Workflow")}</strong><span class="phone-sub">${Number(workflow.planned_step_count) || 0} planned · ${Number(workflow.step_count) || 0} instances · ${workflow.needs_you ? `${Number(workflow.needs_you)} need you · ` : ""}${esc(phoneTimestamp(workflow.updated_at))}</span></button>`).join("")}</section>` : `<section class="phone-empty"><h2>No workflow runs yet</h2><p>Workflows launched on the local Hutch host will appear here.</p></section>`;
   } else if (phoneModel.tab === "runs" && selected) {
     const events = selected.events || [];
     body = `<section class="phone-run-detail"><button class="btn ghost" type="button" data-phone-back><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg> All runs</button>
       <article class="phone-card"><div class="phone-card-head"><span class="phone-status">${esc(selected.status_label || selected.status)}</span><span>${esc(selected.bot_display_name || selected.bot_name || "Bot")}</span></div>
       <h1>${esc(selected.prompt || "Run")}</h1><p class="phone-sub">Started ${esc(phoneTimestamp(selected.created_at))}</p>
-      ${active.has(selected.status) ? `<button class="btn danger" type="button" data-phone-stop="${esc(selected.id)}" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Stop run</button>` : ""}
-      ${selected.status === "waiting_human" ? (() => { const wait = [...events].reverse().find(e => e.type === "human_needed"); return wait ? `<button class="btn primary" type="button" data-phone-resume="${esc(selected.id)}" data-human-seq="${Number(wait.seq) || 0}" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Resume after completing the requested step</button>` : ""; })() : ""}
+      ${canReview && active.has(selected.status) ? `<button class="btn danger" type="button" data-phone-stop="${esc(selected.id)}" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Stop run</button>` : ""}
+      ${canReview && selected.status === "waiting_human" ? (() => { const wait = [...events].reverse().find(e => e.type === "human_needed"); return wait ? `<button class="btn primary" type="button" data-phone-resume="${esc(selected.id)}" data-human-seq="${Number(wait.seq) || 0}" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Resume after completing the requested step</button>` : ""; })() : ""}
       </article><h2 class="phone-section-title">Progress</h2>
       ${events.length ? `<ol class="phone-transcript">${events.map(e => {
         const d = e.data || {};
@@ -10015,16 +10079,28 @@ function phoneRender() {
     body = runs.length ? `<section class="phone-list" aria-label="Runs">${runs.map(run => `<button class="phone-card phone-run-card" type="button" data-phone-run="${esc(run.id)}"><span class="phone-card-head"><span class="phone-status ${run.needs_person ? "needs" : ""}">${esc(run.status_label || run.status)}</span><span>${esc(run.bot_display_name || run.bot_name || "Bot")}</span></span><strong>${esc(run.prompt || "Run")}</strong><span class="phone-sub">${esc(phoneTimestamp(run.created_at))}</span></button>`).join("")}</section>` : `<section class="phone-empty"><h2>No runs yet</h2><p>Runs started locally or from a paired device will appear here.</p></section>`;
   } else {
     const running = runs.filter(run => active.has(run.status));
-    const candidates = bots.filter(bot => bot.remote_start_enabled);
-    body = `<section class="phone-summary"><div><strong>${running.length}</strong><span>in progress</span></div><div><strong>${approvals.length}</strong><span>need review</span></div><div><strong>${bots.length}</strong><span>Bots</span></div></section>
-      <section><h2 class="phone-section-title">Bots</h2>${bots.length ? `<div class="phone-list">${bots.map(bot => `<article class="phone-card"><div class="phone-card-head"><strong>${esc(bot.display_name || bot.name)}</strong><span class="phone-status ${bot.paused ? "needs" : ""}">${bot.paused ? "Paused" : esc(bot.active_run_status_label || "Ready")}</span></div><p class="phone-sub">${esc(bot.description || "")}</p>${bot.paused ? `<span class="phone-sub">Scheduled tasks are paused</span>` : ""}${bot.remote_start_enabled ? `<span class="phone-sub">Phone starts enabled by the local owner</span>` : `<span class="phone-sub">Monitor and review only</span>`}</article>`).join("")}</div>` : `<p class="phone-empty">No Bots are configured.</p>`}</section>
-      <section><h2 class="phone-section-title">Start work</h2>${candidates.length ? `<form class="phone-card phone-start-form" id="phone-start-form"><label>Bot<select name="bot" required>${candidates.map(bot => `<option value="${esc(bot.name)}">${esc(bot.display_name || bot.name)}${bot.paused ? " · scheduled tasks paused" : ""}</option>`).join("")}</select></label><label>What should this Bot do?<textarea name="prompt" rows="4" maxlength="20000" required placeholder="Describe the task"></textarea></label><p class="phone-sub">Uses the Bot’s locally configured model, tools, workspace and approval policy. Starting work here creates an on-demand run; pausing a Bot only pauses its scheduled tasks.</p><button class="btn primary" type="submit" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Start work</button></form>` : `<p class="phone-empty">No Bot is enabled for phone starts. A local owner can enable one with <code>hutch bot update NAME --remote-start</code>.</p>`}</section>
+    const candidates = canStart ? bots.filter(bot => bot.remote_start_enabled) : [];
+    const startUnavailable = canStart
+      ? `No Bot is enabled for phone starts. A local owner can enable one with <code>hutch bot update NAME --remote-start</code>.`
+      : `This paired session is ${canReview ? "monitor and review" : "monitor"} only. Starting work is unavailable.`;
+    body = `<section class="phone-summary"><div><strong>${running.length}</strong><span>in progress</span></div><div><strong>${approvals.length + workflowQuestions.length}</strong><span>need review</span></div><div><strong>${workflows.length}</strong><span>workflows</span></div></section>
+      <section><h2 class="phone-section-title">Bots</h2>${bots.length ? `<div class="phone-list">${bots.map(bot => `<article class="phone-card"><div class="phone-card-head"><strong>${esc(bot.display_name || bot.name)}</strong><span class="phone-status ${bot.paused ? "needs" : ""}">${bot.paused ? "Paused" : esc(bot.active_run_status_label || "Ready")}</span></div><p class="phone-sub">${esc(bot.description || "")}</p>${bot.paused ? `<span class="phone-sub">Scheduled tasks are paused</span>` : ""}${canStart && bot.remote_start_enabled ? `<span class="phone-sub">Phone starts enabled by the local owner</span>` : canReview ? `<span class="phone-sub">Monitor and review only</span>` : `<span class="phone-sub">Monitor only</span>`}</article>`).join("")}</div>` : `<p class="phone-empty">No Bots are configured.</p>`}</section>
+      <section><h2 class="phone-section-title">Start work</h2>${candidates.length ? `<form class="phone-card phone-start-form" id="phone-start-form"><label>Bot<select name="bot" required>${candidates.map(bot => `<option value="${esc(bot.name)}">${esc(bot.display_name || bot.name)}${bot.paused ? " · scheduled tasks paused" : ""}</option>`).join("")}</select></label><label>What should this Bot do?<textarea name="prompt" rows="4" maxlength="20000" required placeholder="Describe the task"></textarea></label><p class="phone-sub">Uses the Bot’s locally configured model, tools, workspace and approval policy. Starting work here creates an on-demand run; pausing a Bot only pauses its scheduled tasks.</p><button class="btn primary" type="submit" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Start work</button></form>` : `<p class="phone-empty">${startUnavailable}</p>`}</section>
       <section><h2 class="phone-section-title">Recent runs</h2>${runs.slice(0, 8).map(run => `<button class="phone-card phone-run-card" type="button" data-phone-run="${esc(run.id)}"><span class="phone-card-head"><span class="phone-status ${run.needs_person ? "needs" : ""}">${esc(run.status_label || run.status)}</span><span>${esc(run.bot_display_name || run.bot_name || "Bot")}</span></span><strong>${esc(run.prompt || "Run")}</strong></button>`).join("") || `<p class="phone-empty">No runs to show yet.</p>`}</section>`;
   }
 
   phoneRoot.innerHTML = `<header class="phone-header"><a href="/" class="phone-brand" aria-label="Hutch home">hutch <span>supervision</span></a><div class="phone-header-actions"><span class="phone-connection ${phoneModel.offline ? "offline" : ""}" role="status">${phoneModel.offline ? "Reconnect needed" : "Connected"}</span><button class="btn ghost small" type="button" data-phone-refresh>Refresh</button><button class="btn ghost small" type="button" data-phone-logout>Lock</button></div></header>
-    <nav class="phone-tabs" aria-label="Phone supervision"><button type="button" data-phone-tab="status" aria-current="${phoneModel.tab === "status" ? "page" : "false"}">Status</button><button type="button" data-phone-tab="review" aria-current="${phoneModel.tab === "review" ? "page" : "false"}">Review${approvals.length ? ` <span>${approvals.length}</span>` : ""}</button><button type="button" data-phone-tab="runs" aria-current="${phoneModel.tab === "runs" ? "page" : "false"}">Runs</button></nav>
-    <main class="phone-content">${pending ? `<aside class="phone-retry" role="alert"><strong>${esc(pending.label)} may not have been confirmed.</strong><p>Check the current run or approval state. Hutch will only resend if you choose Retry, using the same idempotency key.</p><div class="phone-actions"><button class="btn primary" type="button" data-phone-retry>Retry same request</button><button class="btn ghost" type="button" data-phone-clear-pending>Clear retry</button></div></aside>` : ""}${phoneUnresolvedCommand ? `<aside class="phone-retry" role="alert"><strong>A prior phone command is unresolved.</strong><p>${esc(phoneUnresolvedCommand.label)} used another paired credential. Check current runs and approvals on the host before issuing another command from this device.</p><button class="btn ghost" type="button" data-phone-clear-foreign>I've checked the current state</button></aside>` : ""}${phoneModel.notice ? `<p class="phone-notice" role="status">${esc(phoneModel.notice)}</p>` : ""}${body}</main>`;
+    <nav class="phone-tabs ${canReview ? "has-review" : "monitor-only"}" aria-label="Phone supervision"><button type="button" data-phone-tab="status" aria-current="${phoneModel.tab === "status" ? "page" : "false"}">Status</button><button type="button" data-phone-tab="workflows" aria-current="${phoneModel.tab === "workflows" ? "page" : "false"}">Workflows${workflowQuestions.length ? ` <span>${workflowQuestions.length}</span>` : ""}</button>${canReview ? `<button type="button" data-phone-tab="review" aria-current="${phoneModel.tab === "review" ? "page" : "false"}">Review${approvals.length + workflowQuestions.length ? ` <span>${approvals.length + workflowQuestions.length}</span>` : ""}</button>` : ""}<button type="button" data-phone-tab="runs" aria-current="${phoneModel.tab === "runs" ? "page" : "false"}">Runs</button></nav>
+    <main class="phone-content">${phonePendingCommandMarkup()}${phoneUnresolvedCommand ? `<aside class="phone-retry" role="alert"><strong>A prior phone command is unresolved.</strong><p>${esc(phoneUnresolvedCommand.label)} used another paired credential. Check current runs and approvals on the host before issuing another command from this device.</p><button class="btn ghost" type="button" data-phone-clear-foreign>I've checked the current state</button></aside>` : ""}${phoneModel.notice ? `<p class="phone-notice" role="status">${esc(phoneModel.notice)}</p>` : ""}${body}</main>`;
+}
+
+function phonePendingCommandMarkup() {
+  const pending = phonePendingCommand;
+  if (!pending) return "";
+  if (!phoneCommandIsAllowed(pending)) {
+    return `<aside class="phone-retry" role="alert"><strong>${esc(pending.label)} may not have been confirmed.</strong><p>This session no longer has permission to retry it. Reconcile the current state on the Hutch host first.</p><button class="btn ghost" type="button" data-phone-clear-pending>Clear saved command</button></aside>`;
+  }
+  return `<aside class="phone-retry" role="alert"><strong>${esc(pending.label)} may not have been confirmed.</strong><p>Check the current run or approval state. Hutch will only resend if you choose Retry, using the same idempotency key.</p><div class="phone-actions"><button class="btn primary" type="button" data-phone-retry>Retry same request</button><button class="btn ghost" type="button" data-phone-clear-pending>Clear retry</button></div></aside>`;
 }
 
 function phoneAttachRunStream() {
@@ -10048,6 +10124,11 @@ async function phoneQueueCommand(label, path, body = null) {
   if (phonePendingCommand || phoneUnresolvedCommand) return;
   const request = { method: "POST", path, body, label, key: newIdempotencyKey(),
     credential_id: hutchSession?.credential_id };
+  if (!phoneCommandIsAllowed(request)) {
+    phoneModel.notice = `${label} is not available to this paired session.`;
+    phoneRender();
+    return;
+  }
   phonePendingCommand = request;
   phoneSavePendingCommand();
   await phoneAttemptPending();
@@ -10056,6 +10137,11 @@ async function phoneQueueCommand(label, path, body = null) {
 async function phoneAttemptPending() {
   const command = phonePendingCommand;
   if (!command || !phoneRoot) return;
+  if (!phoneCommandIsAllowed(command)) {
+    phoneModel.notice = `${command.label} may have been sent, but this session no longer has permission to retry it. Reconcile the current state on the Hutch host first.`;
+    phoneRender();
+    return;
+  }
   try {
     const result = await api(command.path, { method: command.method, headers: { "Idempotency-Key": command.key }, body: command.body });
     phonePendingCommand = null;
@@ -10085,13 +10171,32 @@ function phoneHandleClick(event) {
   if (button.hasAttribute("data-phone-refresh")) void phoneRefresh();
   else if (button.hasAttribute("data-phone-logout")) {
     void api("/v1/session/logout", { method: "POST", body: {} }).catch(() => {}).finally(lockExpiredPhone);
-  } else if (button.dataset.phoneTab) { phoneModel.tab = button.dataset.phoneTab; phoneModel.selectedRun = null; phoneRender(); }
+  } else if (button.dataset.phoneTab) {
+    const requestedTab = button.dataset.phoneTab;
+    if (requestedTab === "review" && !(hutchSession?.capabilities || []).includes("review")) return;
+    phoneModel.tab = requestedTab; phoneModel.selectedRun = null; phoneModel.selectedWorkflow = null;
+    phoneRender(); phoneAttachRunStream();
+  }
   else if (button.dataset.phoneRun) {
     const id = button.dataset.phoneRun;
     void api(`/v1/tasks/runs/${encodeURIComponent(id)}`).then(run => {
       phoneModel.selectedRun = run; phoneModel.tab = "runs"; phoneRender(); phoneAttachRunStream();
     }).catch(error => { if (phoneRoot) { phoneModel.notice = `Could not load run: ${error.message}`; phoneRender(); } });
   } else if (button.hasAttribute("data-phone-back")) { phoneModel.selectedRun = null; phoneRender(); }
+  else if (button.dataset.phoneWorkflow) {
+    const id = button.dataset.phoneWorkflow;
+    void api(`/v1/phone/workflows/runs/${encodeURIComponent(id)}`).then(workflow => {
+      phoneModel.selectedWorkflow = workflow; phoneModel.selectedRun = null; phoneModel.tab = "workflows";
+      phoneRender(); phoneAttachRunStream();
+    }).catch(error => { if (phoneRoot) { phoneModel.notice = `Could not load workflow: ${error.message}`; phoneRender(); } });
+  } else if (button.hasAttribute("data-phone-workflow-back")) { phoneModel.selectedWorkflow = null; phoneRender(); }
+  else if (button.dataset.phoneWorkflowStop) {
+    const workflow = phoneModel.selectedWorkflow;
+    if (workflow?.id === button.dataset.phoneWorkflowStop && workflow.revision_id && (hutchSession?.capabilities || []).includes("review")) {
+      void phoneQueueCommand("Stop workflow", `/v1/phone/workflows/runs/${encodeURIComponent(workflow.id)}/stop`,
+        { expected_revision_id: workflow.revision_id });
+    }
+  }
   else if (button.dataset.phoneApprove) {
     if (!button.dataset.actionHash) { phoneModel.notice = "This approval has no current action fingerprint. Refresh before deciding."; phoneRender(); return; }
     void phoneQueueCommand("Allow once", `/v1/actions/approvals/${encodeURIComponent(button.dataset.phoneApprove)}/approve`,
@@ -10112,6 +10217,16 @@ function phoneHandleClick(event) {
 }
 
 function phoneHandleSubmit(event) {
+  const answerForm = event.target.closest(".phone-workflow-answer-form");
+  if (answerForm && phoneRoot?.contains(answerForm)) {
+    event.preventDefault();
+    if (phonePendingCommand || phoneUnresolvedCommand || !(hutchSession?.capabilities || []).includes("review")) return;
+    const answer = String(new FormData(answerForm).get("answer") || "").trim();
+    const questionId = answerForm.dataset.questionId;
+    if (!answer || !questionId) { phoneModel.notice = "Choose or enter an answer before sending it."; phoneRender(); return; }
+    void phoneQueueCommand("Answer workflow question", `/v1/phone/workflows/questions/${encodeURIComponent(questionId)}/answer`, { answer });
+    return;
+  }
   const form = event.target.closest("#phone-start-form");
   if (!form || !phoneRoot?.contains(form)) return;
   event.preventDefault();
