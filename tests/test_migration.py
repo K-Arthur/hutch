@@ -624,3 +624,83 @@ def test_a_database_from_a_newer_hutch_is_refused_not_downgraded(config):
     c.execute("PRAGMA user_version = 99"); c.commit(); c.close()
     with pytest.raises(RuntimeError, match="newer than this hutch"):
         Store(config)
+
+
+def test_v51_reconciliation_upgrades_a_database_from_either_branch(config):
+    """Two unmerged branches each claimed v51; opening a v51 database must leave BOTH halves
+    present. Simulate each branch's stamp by dropping the other side's objects first."""
+    store = Store(config)
+    store.close()
+    grounding_tables = ("inv_stream_cursors", "inv_answers", "inv_observations", "inv_media_frames",
+                        "inv_media", "inv_evidence", "inv_claims", "inv_sources", "inv_query_attempts",
+                        "investigations")
+    db = sqlite3.connect(config.db_path)
+    for table in grounding_tables:                       # main-lineage stamp: guards exist, grounding absent
+        db.execute(f"DROP TABLE IF EXISTS {table}")
+    db.execute("PRAGMA user_version = 51")
+    db.commit()
+    db.close()
+    reopened = Store(config)
+    try:
+        assert reopened.schema_version == 52
+        names = {row["name"] for row in reopened._db.execute("SELECT name FROM sqlite_master")}
+        assert "investigations" in names, "grounding tables must be created for a v51-main database"
+        assert "idx_runs_conversation_created" in names
+    finally:
+        reopened.close()
+    db = sqlite3.connect(config.db_path)
+    db.execute("DROP INDEX IF EXISTS idx_runs_conversation_created")   # grounding-lineage stamp
+    db.execute("DROP TRIGGER IF EXISTS messages_pending_question_result_insert")
+    db.execute("DROP TRIGGER IF EXISTS messages_pending_question_result_update")
+    db.execute("PRAGMA user_version = 51")
+    db.commit()
+    db.close()
+    reopened = Store(config)
+    try:
+        assert reopened.schema_version == 52
+        names = {row["name"] for row in reopened._db.execute("SELECT name FROM sqlite_master")}
+        assert "idx_runs_conversation_created" in names, "guards must be restored for a v51-grounding database"
+        assert "investigations" in names
+    finally:
+        reopened.close()
+
+
+def test_v51_pending_specialist_questions_are_not_attachable_results():
+    """Schema v51 keeps a waiting question out of the accepted-result record, in the database.
+
+    In the merged history these guards ride ``_migrate_52``: two unmerged development branches
+    each claimed v51 (the grounding evidence tables vs these guards), and the second migration is
+    the reconciler that guarantees both halves exist for databases stamped by either branch.
+    """
+    from hutch.store import _migrate_52
+
+    db = sqlite3.connect(":memory:")
+    try:
+        db.execute("""CREATE TABLE messages (
+            id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, seq INTEGER NOT NULL,
+            run_id TEXT NOT NULL DEFAULT '', role TEXT NOT NULL, content TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            workspace_task_result_id TEXT, workspace_task_result_message_id TEXT,
+            workspace_task_result_display_name TEXT, workspace_task_result_content TEXT,
+            workspace_task_result_truncated INTEGER NOT NULL DEFAULT 0)""")
+        db.execute("""CREATE TABLE conversation_questions (
+            id TEXT PRIMARY KEY, assistant_message_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending')""")
+        db.execute("""CREATE TABLE runs (id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, created_at TEXT NOT NULL)""")
+        _migrate_52(db)
+        assert db.execute("SELECT 1 FROM sqlite_master WHERE type = 'index' "
+                          "AND name = 'idx_runs_conversation_created'").fetchone() is not None
+        db.execute("INSERT INTO conversation_questions VALUES ('choice_1', 'msg_question', 'pending')")
+        with pytest.raises(sqlite3.IntegrityError, match="pending specialist question"):
+            db.execute("""INSERT INTO messages (id, conversation_id, seq, role, content, created_at,
+                          workspace_task_result_id, workspace_task_result_message_id)
+                          VALUES ('msg_attach', 'conv_1', 1, 'user', 'x', 'now', 'wst_1', 'msg_question')""")
+        db.execute("UPDATE conversation_questions SET status = 'answered' WHERE id = 'choice_1'")
+        db.execute("""INSERT INTO messages (id, conversation_id, seq, role, content, created_at,
+                      workspace_task_result_id, workspace_task_result_message_id)
+                      VALUES ('msg_attach', 'conv_2', 1, 'user', 'x', 'now', 'wst_1', 'msg_question')""")
+        db.execute("UPDATE conversation_questions SET status = 'pending' WHERE id = 'choice_1'")
+        with pytest.raises(sqlite3.IntegrityError, match="pending specialist question"):
+            db.execute("UPDATE messages SET workspace_task_result_id = 'wst_2' WHERE id = 'msg_attach'")
+        assert SCHEMA_VERSION >= 51
+    finally:
+        db.close()

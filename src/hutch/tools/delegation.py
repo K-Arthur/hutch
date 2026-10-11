@@ -14,6 +14,18 @@ MAX_DELEGATED_TASK_CHARS = 4_000
 MAX_DELEGATED_RESULT_CHARS = 8_000
 
 
+def delegation_invocation_key(steps: int, call_index: int | None, task: str) -> str:
+    """One application-owned identity per delegated invocation.
+
+    The model step plus the position of the call inside that step is stable for an exact retry
+    of the same step, while two deliberately repeated identical calls in one model response get
+    distinct identities. The task digest binds the identity to the submitted text.
+    """
+    digest = hashlib.sha256(task.encode("utf-8")).hexdigest()[:24]
+    position = f"-call-{call_index}" if call_index is not None else ""
+    return f"step-{steps}{position}-{digest}"
+
+
 class DelegateTaskTool(Tool):
     name = "delegate_task"
     description = (
@@ -76,11 +88,11 @@ class DelegateTaskTool(Tool):
         if refusal:
             return ToolResult(ok=False, output=f"error: {refusal}")
 
-        # The model call ID is not reliably stable across providers, so the call position and
-        # task digest form a compact key. Exact retry of this step reuses its original child;
-        # the same task requested on a later model step creates new work.
-        digest = hashlib.sha256(task.encode("utf-8")).hexdigest()
-        idem_key = f"step-{ctx.run.steps}-{digest[:24]}"
+        # The provider call ID is not reliably stable, so the application owns the identity:
+        # the model step plus the call's position in that step. Exact retry of this step reuses
+        # its original child; two identical calls in one response stay distinct, and the same
+        # task requested on a later model step creates new work.
+        idem_key = delegation_invocation_key(ctx.run.steps, getattr(ctx, "tool_call_index", None), task)
         request_hash = hashlib.sha256(json.dumps(detail, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
         try:
             result = ctx.delegation_submit(task, idem_key, request_hash)

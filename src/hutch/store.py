@@ -1336,8 +1336,11 @@ def _migrate_50(db: sqlite3.Connection) -> None:
     db.execute("CREATE INDEX idx_document_versions_run ON document_versions(run_id)")
 
 
-def _migrate_51(db: sqlite3.Connection) -> None:
-    """Grounding evidence layer: investigations, sources/revisions, claims, evidence links,
+def _create_grounding_schema(db: sqlite3.Connection) -> None:
+    """Create the grounding evidence tables (idempotent; see _migrate_51).
+
+    Investigations, sources/revisions, claims, evidence links, media
+    artifacts/observations, answers, and versioned stream cursors., sources/revisions, claims, evidence links,
     media artifacts/observations, answers, and versioned stream cursors.
 
     Design notes that are load-bearing:
@@ -1350,7 +1353,7 @@ def _migrate_51(db: sqlite3.Connection) -> None:
     * observations record what actually reached the model (``transmitted_json``) separately
       from what was observed locally, so "we inspected it" and "the model saw it" never blur.
     """
-    db.execute("""CREATE TABLE investigations (
+    db.execute("""CREATE TABLE IF NOT EXISTS investigations (
         id TEXT PRIMARY KEY,
         run_id TEXT NOT NULL DEFAULT '',
         conversation_id TEXT NOT NULL DEFAULT '',
@@ -1368,10 +1371,10 @@ def _migrate_51(db: sqlite3.Connection) -> None:
         updated_at TEXT NOT NULL,
         revision INTEGER NOT NULL DEFAULT 1
     )""")
-    db.execute("CREATE INDEX idx_investigations_run ON investigations(run_id)")
-    db.execute("CREATE INDEX idx_investigations_conversation ON investigations(conversation_id, created_at)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_investigations_run ON investigations(run_id)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_investigations_conversation ON investigations(conversation_id, created_at)")
 
-    db.execute("""CREATE TABLE inv_query_attempts (
+    db.execute("""CREATE TABLE IF NOT EXISTS inv_query_attempts (
         id TEXT PRIMARY KEY,
         investigation_id TEXT NOT NULL REFERENCES investigations(id),
         adapter TEXT NOT NULL,
@@ -1391,9 +1394,9 @@ def _migrate_51(db: sqlite3.Connection) -> None:
         started_at TEXT NOT NULL,
         finished_at TEXT NOT NULL DEFAULT ''
     )""")
-    db.execute("CREATE INDEX idx_inv_attempts_inv ON inv_query_attempts(investigation_id, started_at)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_inv_attempts_inv ON inv_query_attempts(investigation_id, started_at)")
 
-    db.execute("""CREATE TABLE inv_sources (
+    db.execute("""CREATE TABLE IF NOT EXISTS inv_sources (
         id TEXT PRIMARY KEY,
         investigation_id TEXT NOT NULL REFERENCES investigations(id),
         attempt_id TEXT NOT NULL DEFAULT '',
@@ -1422,10 +1425,10 @@ def _migrate_51(db: sqlite3.Connection) -> None:
         independence TEXT NOT NULL DEFAULT 'unknown',
         note TEXT NOT NULL DEFAULT ''
     )""")
-    db.execute("CREATE INDEX idx_inv_sources_item ON inv_sources(investigation_id, item_key, revision)")
-    db.execute("CREATE INDEX idx_inv_sources_time ON inv_sources(investigation_id, published_instant)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_inv_sources_item ON inv_sources(investigation_id, item_key, revision)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_inv_sources_time ON inv_sources(investigation_id, published_instant)")
 
-    db.execute("""CREATE TABLE inv_claims (
+    db.execute("""CREATE TABLE IF NOT EXISTS inv_claims (
         id TEXT PRIMARY KEY,
         investigation_id TEXT NOT NULL REFERENCES investigations(id),
         text TEXT NOT NULL,
@@ -1437,9 +1440,9 @@ def _migrate_51(db: sqlite3.Connection) -> None:
         created_at TEXT NOT NULL,
         revision INTEGER NOT NULL DEFAULT 1
     )""")
-    db.execute("CREATE INDEX idx_inv_claims_inv ON inv_claims(investigation_id, created_at)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_inv_claims_inv ON inv_claims(investigation_id, created_at)")
 
-    db.execute("""CREATE TABLE inv_evidence (
+    db.execute("""CREATE TABLE IF NOT EXISTS inv_evidence (
         id TEXT PRIMARY KEY,
         investigation_id TEXT NOT NULL REFERENCES investigations(id),
         claim_id TEXT NOT NULL REFERENCES inv_claims(id),
@@ -1452,10 +1455,10 @@ def _migrate_51(db: sqlite3.Connection) -> None:
         created_at TEXT NOT NULL,
         revision INTEGER NOT NULL DEFAULT 1
     )""")
-    db.execute("CREATE INDEX idx_inv_evidence_claim ON inv_evidence(claim_id)")
-    db.execute("CREATE INDEX idx_inv_evidence_source ON inv_evidence(source_id)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_inv_evidence_claim ON inv_evidence(claim_id)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_inv_evidence_source ON inv_evidence(source_id)")
 
-    db.execute("""CREATE TABLE inv_media (
+    db.execute("""CREATE TABLE IF NOT EXISTS inv_media (
         id TEXT PRIMARY KEY,
         investigation_id TEXT NOT NULL REFERENCES investigations(id),
         source_id TEXT NOT NULL DEFAULT '',
@@ -1472,9 +1475,9 @@ def _migrate_51(db: sqlite3.Connection) -> None:
         acquired_at TEXT NOT NULL,
         revision INTEGER NOT NULL DEFAULT 1
     )""")
-    db.execute("CREATE INDEX idx_inv_media_inv ON inv_media(investigation_id, acquired_at)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_inv_media_inv ON inv_media(investigation_id, acquired_at)")
 
-    db.execute("""CREATE TABLE inv_media_frames (
+    db.execute("""CREATE TABLE IF NOT EXISTS inv_media_frames (
         id TEXT PRIMARY KEY,
         media_id TEXT NOT NULL REFERENCES inv_media(id),
         at_ms INTEGER NOT NULL,
@@ -1482,9 +1485,9 @@ def _migrate_51(db: sqlite3.Connection) -> None:
         sha256 TEXT NOT NULL DEFAULT '',
         note TEXT NOT NULL DEFAULT ''
     )""")
-    db.execute("CREATE INDEX idx_inv_frames_media ON inv_media_frames(media_id, at_ms)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_inv_frames_media ON inv_media_frames(media_id, at_ms)")
 
-    db.execute("""CREATE TABLE inv_observations (
+    db.execute("""CREATE TABLE IF NOT EXISTS inv_observations (
         id TEXT PRIMARY KEY,
         investigation_id TEXT NOT NULL REFERENCES investigations(id),
         media_id TEXT NOT NULL DEFAULT '',
@@ -1497,9 +1500,9 @@ def _migrate_51(db: sqlite3.Connection) -> None:
         created_at TEXT NOT NULL,
         revision INTEGER NOT NULL DEFAULT 1
     )""")
-    db.execute("CREATE INDEX idx_inv_obs_inv ON inv_observations(investigation_id, created_at)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_inv_obs_inv ON inv_observations(investigation_id, created_at)")
 
-    db.execute("""CREATE TABLE inv_answers (
+    db.execute("""CREATE TABLE IF NOT EXISTS inv_answers (
         id TEXT PRIMARY KEY,
         investigation_id TEXT NOT NULL REFERENCES investigations(id),
         revision_of TEXT NOT NULL DEFAULT '',
@@ -1510,9 +1513,9 @@ def _migrate_51(db: sqlite3.Connection) -> None:
         coverage_json TEXT NOT NULL DEFAULT '{}',
         created_at TEXT NOT NULL
     )""")
-    db.execute("CREATE INDEX idx_inv_answers_inv ON inv_answers(investigation_id, created_at)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_inv_answers_inv ON inv_answers(investigation_id, created_at)")
 
-    db.execute("""CREATE TABLE inv_stream_cursors (
+    db.execute("""CREATE TABLE IF NOT EXISTS inv_stream_cursors (
         stream_key TEXT PRIMARY KEY,
         investigation_id TEXT NOT NULL DEFAULT '',
         adapter TEXT NOT NULL DEFAULT '',
@@ -1526,7 +1529,56 @@ def _migrate_51(db: sqlite3.Connection) -> None:
         updated_at TEXT NOT NULL
     )""")
 
-    db.execute("CREATE INDEX idx_inv_stream_inv ON inv_stream_cursors(investigation_id)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_inv_stream_inv ON inv_stream_cursors(investigation_id)")
+
+
+def _migrate_51(db: sqlite3.Connection) -> None:
+    """Grounding evidence layer (schema v51).
+
+    Design notes that are load-bearing:
+
+    * ``inv_sources.item_key`` is the source *identity* (platform object id or canonical URL);
+      the same identity observed again is a new ``revision`` of the same source item, never
+      a second independent witness.
+    * ``published_json`` keeps raw text + role + precision + zone; ``published_instant`` is
+      only a convenience index for ordering and is NULL when the source gave no parseable time.
+    * observations record what actually reached the model (``transmitted_json``) separately
+      from what was observed locally, so "we inspected it" and "the model saw it" never blur.
+    """
+    _create_grounding_schema(db)
+
+
+def _migrate_52(db: sqlite3.Connection) -> None:
+    """Reconcile two independent schema-v51 claims; keep pending questions out of results.
+
+    Two unmerged development branches each claimed v51 (the grounding tables here vs the guards
+    below). A database stamped by either branch upgrades through this migration, so it makes
+    sure both halves exist; the grounding DDL is idempotent.
+
+    Guards: a question-asking run ends normally (the conversational primitive only stops the run),
+    so a provenance-valid question message used to be attachable as a finished specialist result.
+    These guards refuse that until the question is answered; the application layer raises the same
+    refusal before insert so the API can explain it. The index supports the task record following
+    its specialist conversation's newest run.
+    """
+    db.execute("CREATE INDEX IF NOT EXISTS idx_runs_conversation_created ON runs(conversation_id, created_at)")
+    db.execute("""CREATE TRIGGER IF NOT EXISTS messages_pending_question_result_insert
+        BEFORE INSERT ON messages
+        WHEN NEW.workspace_task_result_id IS NOT NULL
+          AND NEW.workspace_task_result_message_id IS NOT NULL
+          AND EXISTS (SELECT 1 FROM conversation_questions q
+                      WHERE q.assistant_message_id = NEW.workspace_task_result_message_id
+                        AND q.status = 'pending')
+        BEGIN SELECT RAISE(ABORT, 'a pending specialist question is not an attachable result'); END""")
+    db.execute("""CREATE TRIGGER IF NOT EXISTS messages_pending_question_result_update
+        BEFORE UPDATE OF workspace_task_result_id, workspace_task_result_message_id ON messages
+        WHEN NEW.workspace_task_result_id IS NOT NULL
+          AND NEW.workspace_task_result_message_id IS NOT NULL
+          AND EXISTS (SELECT 1 FROM conversation_questions q
+                      WHERE q.assistant_message_id = NEW.workspace_task_result_message_id
+                        AND q.status = 'pending')
+        BEGIN SELECT RAISE(ABORT, 'a pending specialist question is not an attachable result'); END""")
+    _create_grounding_schema(db)
 
 
 #: schema upgrades applied in order; index + 2 == resulting user_version
@@ -1536,7 +1588,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
-               _migrate_48, _migrate_49, _migrate_50, _migrate_51]
+               _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -3816,6 +3868,23 @@ class Store:
                 "bot_id": owner["bot_id"], "assistant_message_id": message_id, "question": question,
                 "selection_mode": selection_mode, "options": options, "status": "pending", "created_at": now}
 
+    def pending_question_for_run(self, run_id: str) -> Optional[dict[str, Any]]:
+        """Return the run's pending conversational question, if any.
+
+        A declared child cannot wait for an owner answer while its parent blocks, so the
+        delegation result path uses this to report needs-input instead of a completed child.
+        """
+        with self._lock:
+            row = self._db.execute(
+                "SELECT id, conversation_id, question, selection_mode, options_json, created_at "
+                "FROM conversation_questions WHERE run_id = ? AND status = 'pending' "
+                "ORDER BY created_at DESC, rowid DESC LIMIT 1", (run_id,)).fetchone()
+        if row is None:
+            return None
+        return {"id": str(row["id"]), "conversation_id": str(row["conversation_id"]),
+                "question": str(row["question"]), "selection_mode": str(row["selection_mode"]),
+                "options": json.loads(row["options_json"] or "[]"), "created_at": str(row["created_at"])}
+
     def submit_conversation_message(self, conversation_id: str, prompt: str, run: Run, task: Task, *,
                                     idem_key: str, request_hash: str, context_messages: int = 12,
                                     context_chars: int = 16_000,
@@ -3896,6 +3965,9 @@ class Store:
                     raise ValueError("the selected specialist result is unavailable in this coordinator conversation")
                 if not str(workspace_result["result_content"] or "").strip():
                     raise ValueError("the selected specialist response is empty")
+                if db.execute("SELECT 1 FROM conversation_questions WHERE assistant_message_id = ? "
+                              "AND status = 'pending'", (workspace_result["result_message_id"],)).fetchone():
+                    raise ValueError("the specialist is waiting for your answer; a question is not an accepted result")
 
             quoted = None
             quote_context = None
@@ -4407,6 +4479,7 @@ class Store:
                 "continuation_of_task_id": row["continuation_of_task_id"],
                 "continuation_checkpoint_event_id": row["continuation_checkpoint_event_id"],
                 "status": row["status"], "reason": run_doc.get("error") or run_doc.get("exit_reason") or "",
+                "current_run_id": row["child_run_id"], "pending_question": None,
                 "result": row["result"] or "", "result_truncated": bool(row["result_truncated"]),
                 "result_message_id": row["result_message_id"],
                 "model": snapshot.get("model", ""),
@@ -4455,6 +4528,37 @@ class Store:
                     })
                 for task in result:
                     task["shared_facts"] = facts_by_task.get(task["id"], [])
+                # The task record follows its dedicated specialist conversation: a question-asking
+                # run ends normally, and the owner's answer continues the work in a new run. Derive
+                # the visible state and the stop target from the conversation's latest run, and
+                # surface a waiting question as needs-input instead of letting it look produced.
+                for task in result:
+                    latest = self._db.execute(
+                        "SELECT id, status, doc FROM runs WHERE conversation_id = ? "
+                        "ORDER BY created_at DESC, rowid DESC LIMIT 1",
+                        (task["child_conversation_id"],)).fetchone()
+                    pending = self._db.execute(
+                        "SELECT id, question, selection_mode, options_json, run_id, assistant_message_id, created_at "
+                        "FROM conversation_questions WHERE conversation_id = ? AND status = 'pending' "
+                        "ORDER BY created_at DESC, rowid DESC LIMIT 1",
+                        (task["child_conversation_id"],)).fetchone()
+                    if latest is not None:
+                        task["current_run_id"] = str(latest["id"])
+                    if pending is not None:
+                        task["status"] = "needs_input"
+                        task["reason"] = ""
+                        task["pending_question"] = {
+                            "id": str(pending["id"]), "question": str(pending["question"]),
+                            "selection_mode": str(pending["selection_mode"]),
+                            "options": json.loads(pending["options_json"] or "[]"),
+                            "run_id": str(pending["run_id"]),
+                            "assistant_message_id": str(pending["assistant_message_id"]),
+                            "created_at": str(pending["created_at"]),
+                        }
+                    elif latest is not None:
+                        latest_doc = json.loads(latest["doc"] or "{}")
+                        task["status"] = str(latest["status"])
+                        task["reason"] = latest_doc.get("error") or latest_doc.get("exit_reason") or ""
             for task in result:
                 continuation = self.workspace_task_continuation_candidate(task["id"])
                 task["continuation_available"] = continuation["available"]
