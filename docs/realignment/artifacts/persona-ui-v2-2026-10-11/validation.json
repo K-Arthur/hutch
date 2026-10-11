@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_design_system.py::test_adaptive_persona_controls_round_trip_recover_conflicts_and_stay_local",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_adaptive_persona_controls_round_trip_recover_conflicts_and_stay_local",
-  "captured_at": "2026-10-11T14:33:28.477166+00:00",
+  "captured_at": "2026-10-11T14:46:10.859549+00:00",
   "browser": "Chromium 153.0.8010.12",
   "playwright": "1.63.0",
   "viewports": {
@@ -128,11 +128,11 @@
   "failed_responses": [
     {
       "status": 409,
-      "url": "http://127.0.0.1:43293/api/v1/bots/design-system-review/persona"
+      "url": "http://127.0.0.1:45807/api/v1/bots/design-system-review/persona"
     },
     {
       "status": 409,
-      "url": "http://127.0.0.1:43293/api/v1/conversations/conv_bb5a387bdc6d/persona"
+      "url": "http://127.0.0.1:45807/api/v1/conversations/conv_d1913892eafb/persona"
     }
   ],
   "external_requests": [],
@@ -149,9 +149,9 @@
   "source_sha256": {
     "src/hutch/server/pages.py": "7884021b4a97b41a26c49e4337e8f53fe245ff8682c5e820a613a4dc70263826",
     "src/hutch/server/static/app.js": "943c4446a58dfb9f257c8b396522d41c5612d68dded7a19d6c435399c46e46a6",
-    "src/hutch/server/static/persona.js": "7699bfc4ab212e8d170fddf35e96d9f2d18f702c85dd98bd9911ae82c156827d",
+    "src/hutch/server/static/persona.js": "075039ae1719936dd80d0ded267f46a604ed5fe6578831b10dbb60c8157d3f34",
     "src/hutch/server/static/index.html": "5f7faabcab72c2c2aa459cc143307275a03764ec9c72857d1c9f7d8f2ea5410b",
-    "src/hutch/server/static/style.css": "4f8d41e4918caafef9c2eebbfb0ef29a880dd0696c05445bdfe5a49050de334a",
+    "src/hutch/server/static/style.css": "91c1286ff5d23005580bebabeeb47bf977d04e8ff891bae13d815cf924464af1",
     "src/hutch/server/static/brands/openai-white-monoblossom.svg": "b94ea61d860fae6f82f43571f36f17111fcf5d348e8e9cc22ae4b441c7560011",
     "src/hutch/server/static/brands/anthropic-symbol-ivory.svg": "38fc06d8e9390654cc4e96aa53691e2e78d929667c0034805b6d1b3891ba22dd",
     "src/hutch/server/static/brands/openrouter-glyph-volt.svg": "0d22462e4f2835a5a5b9000af0a55fc9238e39996100f54706e41ec45b9d1727",
@@ -161,7 +161,7 @@
     "website/index.html": "cae44861517f80b505843ac618e1bb56801425842867b8bbead8bcfe820aa7ec",
     "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
     "website/styles.css": "4e2f4b3e4094cfc3aef1e9b21deaaf472421e607bb416824e63db0197dd0f4bd",
-    "tests/e2e/test_design_system.py": "5c41673fa2a4d304ff0ae098c157a9f55a1a4329dc9a6109ffb4557fe199e889"
+    "tests/e2e/test_design_system.py": "8a95c037b9093a323903f4e2e2a5af068cc5a3c20a6fce090c74a843f736dbd5"
   },
   "visual_review": "Manually inspected; see docs/realignment/persona-ui-visual-review.md. Native browser zoom was unavailable; 720x480 checks the 200% effective CSS viewport for 1440x960."
 }

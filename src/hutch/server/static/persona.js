@@ -328,6 +328,21 @@
         <p class="hint">Choose a voice, answer depth, and humor independently. Style changes wording only; tools,
         permissions, evidence, and requested formats stay unchanged.</p>
         <div class="form-grid row2 persona-fields">${fieldsHtml("persona", CHAT_FIELDS)}</div>
+        <details class="persona-examples" data-persona-examples>
+          <summary>See written examples</summary>
+          <p class="hint">These are fixed examples, not generated previews. Opening them and changing settings makes no model request.</p>
+          <p class="persona-example-prompt"><strong>Same request:</strong> “I have 20 minutes before a meeting and a long report to skim. What should I do?”</p>
+          <div class="persona-example-grid" aria-label="Written voice examples">
+            <article class="persona-example-card"><h4>Direct</h4><p>Read the executive summary, conclusion, and headings. Write down the decision the meeting needs. Skip details unless they affect that decision.</p></article>
+            <article class="persona-example-card"><h4>Warm</h4><p>Start with the executive summary and conclusion, then scan the headings. Jot down the decision you need to make and one open question. The fine detail can wait.</p></article>
+            <article class="persona-example-card"><h4>Dry Wit</h4><p>Read the executive summary, conclusion, then headings. Note the decision and one open question. The appendix can wait; it has no meeting invite.</p></article>
+          </div>
+          <p class="persona-example-prompt"><strong>Depth changes independently:</strong> “What is a checksum for?”</p>
+          <div class="persona-example-grid persona-depth-examples" aria-label="Written answer-depth examples">
+            <article class="persona-example-card"><h4>Brief</h4><p>A checksum is a short value used to detect whether data changed or was corrupted.</p></article>
+            <article class="persona-example-card"><h4>Detailed</h4><p>A checksum is a value calculated from a block of data. Recalculating it later lets software detect accidental changes or corruption. Checksums help check integrity, but ordinary checksums are not designed to prove who created the data or protect it from deliberate tampering.</p></article>
+          </div>
+        </details>
         <section class="persona-customize" aria-labelledby="persona-customize-title">
           <h3 id="persona-customize-title">Optional customization</h3>
           <p class="hint">These bounded preferences refine wording. Inherited values follow the assistant, conversation, and Hutch defaults.</p>

@@ -203,8 +203,14 @@ Review follow-ups (status after the profile-compatibility slice):
   integration commit `8a63585` with the same observed `/home` visibility and is therefore an inherited sandbox
   environment failure, not a persona change. No assertions were weakened. The existing `/tmp` contents were not
   removed or altered.
-- Remaining acceptance: add static examples and explicitly requested live preview on isolated state, and
-  redacted request/adapter inspector; update marketing claims/screenshots and remaining user-facing docs; verify
+- Static examples: added fixed, labeled Direct/Warm/Dry Wit samples plus a separate Brief/Detailed pair. The
+  actual-app Chromium regression verifies keyboard disclosure, unchanged authored text after unsaved control edits,
+  expected grid layout and zero inference requests at 320/360/720×480/768/1440; screenshots and trace are inspected
+  under `artifacts/persona-static-examples-2026-10-11/`. Impeccable reported only three unchanged shared-style advisories.
+  A low-cost OpenCode review was attempted with `opencode-go/mimo-v2.6-flash`, but stopped while discovering unrelated
+  MCP tools before returning code findings; independent review remains outstanding.
+- Remaining acceptance: add explicitly requested live preview on isolated state, and a redacted request/adapter
+  inspector; update marketing claims/screenshots and remaining user-facing docs; verify
   supported-runtime serialized request receipts and image delivery; and run combined offline/browser checks plus
   bounded model evaluation. No separate supported
   Hutch Go connection is configured, so Hutch product-path response quality and model latency are unverified.

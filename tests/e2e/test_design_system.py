@@ -2046,6 +2046,104 @@ def test_adaptive_persona_controls_round_trip_recover_conflicts_and_stay_local(b
         context.close()
 
 
+def test_static_persona_examples_are_labeled_local_and_responsive(browser, app_server):
+    """Authored examples explain voice and depth without previewing through a model."""
+    app_url, _app = app_server
+    out = ROOT / "docs/realignment/artifacts/persona-static-examples-2026-10-11"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 360, "height": 844}, reduced_motion="reduce")
+    page = context.new_page()
+    page.set_default_timeout(8000)
+    errors: list[str] = []
+    inference_requests: list[str] = []
+    external_requests: list[str] = []
+    console_errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" else None)
+    page.on("request", lambda request: inference_requests.append(request.url)
+            if request.method == "POST" and ("/messages" in request.url or "/runs" in request.url) else None)
+    page.on("request", lambda request: external_requests.append(request.url)
+            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    trace_failed = True
+    try:
+        page.goto(f"{app_url}/#/bot/design-system-review", wait_until="domcontentloaded")
+        page.get_by_role("heading", name="Design Partner").wait_for()
+        page.locator("#assistant-more-settings").evaluate("el => { el.open = true; }")
+        form = page.locator("#persona-form-slot .persona-form")
+        examples = form.locator("[data-persona-examples]")
+        examples.wait_for()
+        assert not examples.evaluate("el => el.open"), "examples start collapsed"
+        summary = examples.locator("summary")
+        summary.focus()
+        assert summary.evaluate("el => el === document.activeElement")
+        summary_height = summary.evaluate("el => Math.round(el.getBoundingClientRect().height)")
+        assert summary_height >= 44, summary_height
+        page.keyboard.press("Enter")
+        assert examples.evaluate("el => el.open"), "the disclosure opens from the keyboard"
+        assert "fixed examples, not generated previews" in examples.inner_text()
+        labels = examples.locator(".persona-example-card h4").all_text_contents()
+        assert labels == ["Direct", "Warm", "Dry Wit", "Brief", "Detailed"]
+        direct_text = examples.locator(".persona-example-card").nth(0).inner_text()
+        assert "Same request:" in examples.inner_text()
+        assert "Depth changes independently:" in examples.inner_text()
+        form.locator('[data-persona-field="preset"]').select_option("dry_wit")
+        form.locator('[data-persona-field="depth"]').select_option("detailed")
+        form.locator('[data-persona-field="humor"]').select_option("playful")
+        assert examples.locator(".persona-example-card").nth(0).inner_text() == direct_text
+        assert not inference_requests, inference_requests
+
+        viewports = (("compact-phone", 320, 800), ("phone", 360, 844),
+                     ("zoom-200-effective", 720, 480), ("tablet", 768, 960), ("desktop", 1440, 960))
+        evidence = []
+        for label, width, height in viewports:
+            page.set_viewport_size({"width": width, "height": height})
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            geometry = examples.evaluate("""el => ({
+              width: Math.round(el.getBoundingClientRect().width),
+              voiceColumns: getComputedStyle(el.querySelector('.persona-example-grid')).gridTemplateColumns.split(' ').length,
+              depthColumns: getComputedStyle(el.querySelector('.persona-depth-examples')).gridTemplateColumns.split(' ').length
+            })""")
+            assert geometry["voiceColumns"] == (1 if width <= 480 else 3), (label, geometry)
+            assert geometry["depthColumns"] == (1 if width <= 480 else 2), (label, geometry)
+            evidence.append({"viewport": [width, height], "horizontal_overflow_px": overflow, **geometry})
+            if label == "phone":
+                examples.evaluate("el => el.scrollIntoView({block: 'start'})")
+                page.screenshot(path=str(out / "examples-phone-voice.png"), animations="disabled")
+                examples.locator(".persona-depth-examples").evaluate("el => el.scrollIntoView({block: 'start'})")
+                page.screenshot(path=str(out / "examples-phone-depth.png"), animations="disabled")
+            elif label == "desktop":
+                examples.evaluate("el => el.scrollIntoView({block: 'start'})")
+                page.screenshot(path=str(out / "examples-desktop.png"), animations="disabled")
+
+        assert not errors, errors
+        assert not console_errors, console_errors
+        assert not external_requests, external_requests
+        assert not inference_requests, inference_requests
+        (out / "validation.json").write_text(json.dumps({
+            "browser": f"{browser.browser_type.name} {browser.version}",
+            "page_errors": errors,
+            "console_errors": console_errors,
+            "external_requests": external_requests,
+            "inference_requests": inference_requests,
+            "static_labels": labels,
+            "summary_target_height_px": summary_height,
+            "controls_changed_without_saving": True,
+            "viewports": evidence,
+            "visual_source_sha256": _visual_source_hashes(),
+        }, indent=2) + "\n", encoding="utf-8")
+        context.tracing.stop(path=str(out / "trace.zip"))
+        trace_failed = False
+    finally:
+        if trace_failed:
+            try:
+                context.tracing.stop(path=str(out / "trace-failed.zip"))
+            except Exception:
+                pass
+        context.close()
+
+
 def test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runtimes(browser, app_server):
     """Answer corrections stay answer-scoped, tool-free, keyboard reachable, and responsive."""
     app_url, app = app_server

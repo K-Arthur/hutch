@@ -2603,6 +2603,15 @@ details[open] > summary .summary-row-action .icon { transform: rotate(180deg); }
 
 /* Response style (persona): settings form beside standing directions, and the chat-options panel. */
 .persona-form .persona-fields { margin-top: var(--s-1); }
+.persona-examples { display: grid; gap: var(--s-2); border-top: 1px solid var(--line); padding-top: var(--s-2); }
+.persona-examples > summary { min-height: 44px; padding-block: 12px; cursor: pointer; font-weight: 600; }
+.persona-examples > .hint, .persona-example-prompt { margin: 0; }
+.persona-example-prompt { color: var(--text-2); }
+.persona-example-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-2); }
+.persona-depth-examples { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.persona-example-card { min-width: 0; border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--sunken); padding: var(--s-2); }
+.persona-example-card h4 { margin: 0 0 var(--s-1); font-size: var(--fs-sm); line-height: 1.35; }
+.persona-example-card p { margin: 0; color: var(--text-2); overflow-wrap: anywhere; }
 .persona-options-panel { display: grid; gap: var(--s-2); }
 .persona-fields { display: grid; gap: var(--s-2); }
 .persona-fields .persona-field { margin: 0; }
@@ -2625,4 +2634,5 @@ details[open] > summary .summary-row-action .icon { transform: rotate(180deg); }
   .persona-range-row { grid-template-columns: 108px minmax(60px, 1fr) 44px; gap: var(--s-1); }
   .persona-range-row select { width: 108px !important; }
   .persona-habit-options { grid-template-columns: 1fr; }
+  .persona-example-grid, .persona-depth-examples { grid-template-columns: 1fr; }
 }

@@ -6,10 +6,12 @@ and a network rule that blocks non-local requests.
 
 Reviewed settings screenshots: `settings-controls-phone.png`, `settings-controls-tablet.png`,
 `settings-controls-desktop.png`, `settings-controls-compact-phone.png`, `settings-custom-phone.png`, and
-`settings-controls-zoom-200-effective.png`. The three top-level controls remain easy to scan; customization follows in a
-separate group. The form stacks at phone width, uses two columns at tablet/desktop, and the compact-phone layout stays
-within the viewport. Custom slider and inheritance states are distinguishable, and the optional controls continue below
-the viewport using the existing page scroll.
+`settings-controls-zoom-200-effective.png`. These captures were refreshed to show the new collapsed **See written examples**
+row between the main selectors and optional customization. I inspected the refreshed phone, compact-phone, tablet,
+desktop, effective-200%-width, and customization states. The three top-level controls remain easy to scan; customization
+follows in a separate group. The form stacks at phone width, uses two columns at tablet/desktop, and the compact-phone
+layout stays within the viewport. Custom slider and inheritance states are distinguishable, and the optional controls
+continue below the viewport using the existing page scroll.
 
 Reviewed conversation screenshots: `chat-phone.png`, `chat-tablet.png`, `chat-desktop.png`, `chat-compact-phone.png`,
 `chat-zoom-200-effective.png`, and `chat-compact-text-spacing.png`. The scoped style controls remain inside the existing
@@ -71,3 +73,18 @@ The trace, screenshots and measured request/viewport record are in
 `artifacts/persona-feedback-2026-10-11/`; `impeccable-detect.json` has no reported findings. This is local UI and
 storage-path verification, not evidence about model response quality. Screen readers, Firefox/WebKit, physical devices
 and native browser zoom remain untested.
+
+## Fixed response-style examples
+
+The fixed Direct, Warm and Dry Wit examples use the same request; a separate Brief/Detailed pair makes answer depth
+independence visible. I inspected `examples-phone-voice.png`, `examples-phone-depth.png` and `examples-desktop.png`.
+At 360px, voice cards stack and the depth pair is reached by ordinary page scrolling. At desktop, the three voice cards
+and two depth cards form separate rows. The summary retains the visible disclosure marker and a keyboard focus outline.
+The browser regression opens it with Enter, changes unsaved controls, and confirms the authored text stays fixed. At
+320/360/720×480/768/1440 CSS pixels, page overflow is zero and the card grids use the expected one-column phone and
+three/two-column wide layouts. Chromium 153.0.8010.12 recorded zero page or console errors, external requests, or
+inference POSTs. Evidence, source hashes and trace are in `artifacts/persona-static-examples-2026-10-11/`.
+
+The targeted Impeccable detector found three advisory radius/color entries at existing shared stylesheet lines 1368,
+1714 and 2301; none is in the persona diff. This verifies the fixed examples only. It does not verify live model
+preview, adapter propagation or model response adherence.

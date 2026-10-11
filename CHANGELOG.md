@@ -42,6 +42,9 @@
   saved response style, and is excluded from conversation exports. Built-in chat feedback controls preserve keyboard
   focus, drafts and reader position and stay hidden for disabled external runtimes. API, migration and actual-app
   responsive/accessibility checks are recorded in `docs/realignment/artifacts/persona-feedback-2026-10-11/`.
+- Add fixed, labeled voice and answer-depth examples beside assistant style controls. They clarify the independent
+  Direct/Warm/Dry Wit and Brief/Detailed choices without adapting to unsaved controls or making a model request; the
+  actual-app browser regression checks responsive layout and confirms opening examples and changing controls stay local.
 - Extend assistant settings with the independent v2 selectors and bounded customization beside standing
   directions. Conversation controls save scoped preferences with conflict recovery; next-reply controls stay
   local until one send. Browser regressions cover persistence, reset, concurrent edits, focus, keyboard,

@@ -10,7 +10,7 @@ Optional warmth, directness, formality, profanity, format, and avoid-habit contr
 
 An unset choice inherits in this order: the current turn, the conversation, your saved style for that assistant, the assistant's preset, then Hutch's default. Choose **Inherited** to remove an override and return to that chain. Assistant and conversation edits use revisions; if another tab saves first, Hutch reloads the current version and keeps your edits for review before you try again. A next-reply override applies to one message and stays in that browser's conversation state until it is sent or cleared.
 
-Controls are not previews: changing them makes no model request. Examples are labeled separately. Any live preview must be explicitly requested, use isolated state, and show its usage budget before it runs.
+Controls are not previews: changing them makes no model request. **See written examples** opens fixed, labeled Direct, Warm, Dry Wit, Brief and Detailed examples; these are authored text and do not use your selected model. Any live preview must be explicitly requested, use isolated state, and show its usage budget before it runs.
 
 ## Correct or rate one answer
 
