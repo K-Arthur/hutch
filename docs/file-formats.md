@@ -65,6 +65,10 @@ pretending a preview exists.
   missing glyphs or blank pages, and the workbook's SUM formulas were recomputed against the cached
   values at validation time. Evidence: `docs/realignment/artifacts/document-pipeline-2026-10-11/`
   (documents, page renders, three-viewport UI captures with overflow 0, validation.json).
+- 2026-10-11 — completion check found the ZIP bundle generator missing while the matrix
+  already claimed it; implemented (`docgen/bundle.py`: manifest audit, CRC re-open, path
+  safety, 512-entry/64 MB bounds) and gated by `tests/test_docgen_bundle.py`, then an
+  end-to-end tool smoke. Logged here because the claim briefly ran ahead of the code.
 - 2026-10-11 — still implemented-unverified on this host: LibreOffice layout rendering for office
   formats (`soffice` absent; the path is skipif-gated in `tests/test_docgen_render.py`), and all
   Word/Excel/PowerPoint desktop-compatibility, physical-phone and screen-reader checks (not exercised).
