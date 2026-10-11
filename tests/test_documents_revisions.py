@@ -56,10 +56,9 @@ def test_revision_requires_same_bot_and_real_document(store, config, tmp_path):
         {"document_id": "doc_0123456789abcdef", "expected_version": 1,
          "content": {"text": "x"}}, ctx).ok
     ref = _create_csv(ctx)
-    other = make_ctx(store, config, tmp_path / "other") if False else None
-    from hutch.models import Bot
+    from hutch.models import ApprovalMode, Bot
     bot2 = Bot(name="other-bot", model="mock/demo", tools=["documents"],
-               approval_mode=__import__("hutch.models", fromlist=["ApprovalMode"]).ApprovalMode.auto)
+               approval_mode=ApprovalMode.auto)
     if not store.get_bot(bot2.name):
         store.create_bot(bot2)
     ctx2 = make_ctx(store, config, tmp_path, bot=bot2)
