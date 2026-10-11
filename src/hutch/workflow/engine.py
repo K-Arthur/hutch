@@ -123,6 +123,7 @@ class Interpreter:
         self.ledger: dict[str, Any] = {}
         self.events: list[str] = []
         self.verified: Optional[bool] = None
+        self.pending_questions_seen = False
         self.join_targets = {
             target for candidate in compiled.nodes if candidate.kind == "join"
             for target in candidate.node.of
@@ -166,8 +167,10 @@ class Interpreter:
         self.ledger = dict(self.workflow.get("ledger") or {})
         self.scope = {"input": dict(self.workflow.get("inputs") or {})}
         self.opened_steps = set()
+        self.pending_questions_seen = False
         try:
-            value = self._walk(self.compiled.top_level(), self.scope)
+            value = self._walk(self.compiled.top_level(), self.scope,
+                               collect_independent_questions=True)
         except _Wait:
             return Advance("wait")
         except WorkflowFailed as exc:
@@ -180,6 +183,8 @@ class Interpreter:
             raise
         except Exception as exc:  # noqa: BLE001 - an interpreter bug must fail the run honestly
             return Advance("failed", detail=f"{type(exc).__name__}: {exc}")
+        if self.pending_questions_seen:
+            return Advance("wait")
         result = {"outputs": {site: self.scope.get(site) for site in self.compiled.plan.outputs
                               if self.scope.get(site) is not _JOIN_SKIPPED},
                   "value": value}
@@ -187,11 +192,19 @@ class Interpreter:
 
     # ------------------------------------------------------------------ walking
 
-    def _walk(self, nodes: list[CompiledNode], scope: dict[str, Any]) -> Any:
+    def _walk(self, nodes: list[CompiledNode], scope: dict[str, Any], *,
+              collect_independent_questions: bool = False) -> Any:
         value: Any = None
+        deferred_sites: set[str] = set()
         for cnode in nodes:
             if wstore.workflow_pause_requested(self.store, self.wf_id):
                 raise _Wait()
+            dependencies = set(cnode.deps) | set(cnode.control_deps)
+            if collect_independent_questions and (
+                    dependencies & deferred_sites or
+                    self.pending_questions_seen and cnode.kind != "ask"):
+                deferred_sites.add(cnode.site_id)
+                continue
             blocked = [dep for dep in cnode.deps if scope.get(dep) is _JOIN_SKIPPED]
             if blocked and cnode.kind != "join":
                 if cnode.site_id in self.all_settled_targets:
@@ -206,6 +219,14 @@ class Interpreter:
                 continue
             try:
                 value = self._visit(cnode, scope)
+            except _Wait:
+                question = self.questions.get((cnode.site_id, self._instance_key))
+                if (collect_independent_questions and cnode.kind == "ask"
+                        and question is not None and question["status"] == "pending"):
+                    self.pending_questions_seen = True
+                    deferred_sites.add(cnode.site_id)
+                    continue
+                raise
             except WorkflowFailed:
                 if cnode.site_id not in self.all_settled_targets:
                     raise
@@ -363,7 +384,8 @@ class Interpreter:
                 self._spend(cnode.site_id, "nodes")
                 rendered = self._render(node.question, self._resolve_inputs(node, scope))
                 expires = _expiry(node.timeout_seconds)
-                self._persist_question(cnode.site_id, key, rendered, node.options, expires)
+                question = self._persist_question(cnode.site_id, key, rendered, node.options, expires)
+                self.questions[(cnode.site_id, key)] = question
             self._emit(EventType.human_needed, {"node": cnode.site_id, "kind": "question",
                                                 "instance": key, "question": rendered,
                                                 "options": list(node.options),

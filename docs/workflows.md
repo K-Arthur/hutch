@@ -280,7 +280,8 @@ remain in those records, so large artifacts are not duplicated into the summary.
   A request that never crossed the dispatch boundary releases its reservation. A fan-out over
   its bound fails loudly.
 * Every wait expires. A question has its own id, answer and deadline; an unanswered
-  question is never treated as consent.
+  question is never treated as consent. Independent top-level `ask` nodes are collected
+  into one waiting state, so each durable question can be reviewed and answered separately.
 * Workflow model steps are ordinary Hutch runs: same approval gate, same receipts, same
   artifacts, same transcripts. They run in a workflow lane, so a workflow can progress while
   you keep chatting with the same Bot, and one workflow per Bot runs at a time.
@@ -292,6 +293,11 @@ When a workflow needs a person or a child step, Hutch commits the pending questi
 workflow's waiting status together, then parks the orchestration attempt and releases its run
 slot. The workflow remains visible as waiting, not successful. An answer or settled child lets
 the supervisor admit a fresh attempt; settled node records are reused.
+For independent top-level questions, later questions are also committed in that pass and shown
+together in Studio and paired-phone **Needs you**. Non-ask work and questions that depend on an
+unanswered question or deferred node stay held until the pending questions are answered. Each
+answer resolves only its durable question ID and grants no action authority. Asks nested inside
+bounded constructs remain serial and stop at the first wait; collecting those is not yet supported.
 Stopping a parked workflow cancels its pending questions and owned child work, and it remains
 visible until cleanup is verified.
 Automatic continuation is reserved for attempts recovered as interrupted and canonical

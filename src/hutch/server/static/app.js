@@ -456,6 +456,7 @@ async function refreshWorkflowPanel(botName, conversationId, generation, force =
       `<li><span class="workflow-step-copy"><b title="${esc(item.title || item.site_id)}">${esc(item.title || item.site_id)}</b><span>${esc(item.kind || "step")}</span></span><span class="workflow-step-status">Planned</span></li>`
     ).join("")}</ol>` : `<p class="hint">This saved method has no compiled step outline.</p>`;
     const pendingQuestions = (detail?.questions || []).filter(question => question.status === "pending");
+    const pendingQuestionLabel = `${pendingQuestions.length} pending question${pendingQuestions.length === 1 ? "" : "s"}`;
     const questionMarkup = pendingQuestions.map(question => `<form class="workflow-question" data-workflow-question-form data-question-id="${esc(question.id)}">
       <p><b>Question ${esc(question.id)}</b></p><p>${esc(question.question)}</p>
       <label for="workflow-answer-${esc(question.id)}">Your answer</label>
@@ -471,7 +472,7 @@ async function refreshWorkflowPanel(botName, conversationId, generation, force =
     const disclosure = selected ? `<details class="workflow-inspector" data-workflow-disclosure="run" ${oldDetails.has("run") ? (oldDetails.get("run") ? "open" : "") : "open"}>
       <summary>Inspect workflow steps</summary>
       <div class="workflow-inspector-body">
-        ${pendingQuestions.length ? `<section class="workflow-needs-you" aria-labelledby="workflow-questions-title"><h3 id="workflow-questions-title">Needs you</h3>${questionMarkup}</section>` : ""}
+        ${pendingQuestions.length ? `<section class="workflow-needs-you" aria-labelledby="workflow-questions-title"><h3 id="workflow-questions-title">Needs you <span class="workflow-pending-count">${esc(pendingQuestionLabel)}</span></h3>${questionMarkup}</section>` : ""}
         <section aria-labelledby="workflow-planned-title"><h3 id="workflow-planned-title">Planned structure</h3>${plannedList}</section>
         <section aria-labelledby="workflow-instances-title"><h3 id="workflow-instances-title">Discovered instances</h3>${liveList}</section>
         ${selected.reason ? `<p class="workflow-queue-reason"><b>Current reason:</b> ${esc(selected.reason)}</p>` : ""}
@@ -514,9 +515,14 @@ async function refreshWorkflowPanel(botName, conversationId, generation, force =
       if (oldFocus) {
         const actionOrder = oldFocus.action === "pause" ? ["resume", "pause", "refresh"]
           : oldFocus.action === "resume" ? ["pause", "resume", "refresh"] : [oldFocus.action];
+        const questionForms = [...panel.querySelectorAll("[data-workflow-question-form]")];
+        const restoredQuestion = oldFocus.questionId
+          ? questionForms.find(form => form.dataset.questionId === oldFocus.questionId)
+          : null;
         const target = oldFocus.questionId
-          ? [...panel.querySelectorAll("[data-workflow-question-form]")]
-            .find(form => form.dataset.questionId === oldFocus.questionId)?.querySelector("textarea[name=answer]")
+          ? (restoredQuestion?.querySelector("textarea[name=answer]")
+            || questionForms[0]?.querySelector("textarea[name=answer]")
+            || panel.querySelector('[data-workflow-action="refresh"]'))
           : oldFocus.summary && oldFocus.disclosure
           ? panel.querySelector(`details[data-workflow-disclosure="${CSS.escape(oldFocus.disclosure)}"] > summary`)
           : actionOrder.map(action => $$('[data-workflow-action]', panel).find(element =>
@@ -869,6 +875,9 @@ async function answerWorkflowQuestion(form, botName, conversationId, generation)
     announce(`Answer sent for workflow question ${questionId}.`);
     $("#workflow-panel")?.scrollTo({ top: 0, behavior: "auto" });
     await refreshWorkflowPanel(botName, conversationId, generation, true);
+    const refreshedPanel = $("#workflow-panel");
+    const nextAnswer = refreshedPanel?.querySelector("[data-workflow-question-form] textarea[name=answer]");
+    (nextAnswer || refreshedPanel?.querySelector('[data-workflow-action="refresh"]'))?.focus({ preventScroll: true });
   } catch (error) {
     if (errorNode) errorNode.textContent = error.message;
     button.disabled = false;

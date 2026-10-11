@@ -684,6 +684,70 @@ def test_question_waits_and_is_answered_by_its_own_id(store, config):
     assert nodes["after"]["result"] == "yes"
 
 
+@pytest.mark.parametrize("answer_order", [("first", "second"), ("second", "first")])
+def test_independent_questions_are_all_exposed_and_answerable_in_both_orders_after_restart(
+        store, config, answer_order):
+    bot = make_bot(store, name="parallel-questions")
+    engine = Engine(config, store)
+    plan = {
+        "name": "independent-questions",
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 10, "max_model_calls": 0},
+        "nodes": [
+            {"kind": "ask", "id": "first", "question": "Choose the first setting?",
+             "timeout_seconds": 600},
+            {"kind": "ask", "id": "second", "question": "Choose the second setting?",
+             "timeout_seconds": 600},
+            {"kind": "transform", "id": "combined", "op": "to_json",
+             "args": {"value": [{"ref": "first.answer"}, {"ref": "second.answer"}]}},
+        ],
+    }
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=plan)
+    drive(engine, store, submission.attempt_run_id)
+
+    questions = wstore.questions(store, submission.workflow_run_id)
+    pending = {question["site_id"]: question for question in questions
+               if question["status"] == "pending"}
+    assert set(pending) == {"first", "second"}
+    assert len({question["id"] for question in pending.values()}) == 2
+    assert {question["id"] for question in wstore.pending_questions_for_review(store)} == {
+        question["id"] for question in pending.values()}
+
+    answer_values = {"first": "alpha", "second": "beta"}
+    before_answer_attempt = wstore.workflow_run(store, submission.workflow_run_id)["attempt_run_id"]
+    first_site, second_site = answer_order
+    assert wfsubmit.answer(store, pending[first_site]["id"], answer_values[first_site]) == "won"
+    drive(engine, store, submission.attempt_run_id)
+
+    after_first = wstore.workflow_run(store, submission.workflow_run_id)
+    assert after_first["attempt_run_id"] == before_answer_attempt
+    still_pending = [question for question in wstore.questions(store, submission.workflow_run_id)
+                     if question["status"] == "pending"]
+    assert [question["id"] for question in still_pending] == [pending[second_site]["id"]]
+    assert after_first["status"] == "waiting"
+    assert not any(node["site_id"] == "combined"
+                   for node in wstore.nodes(store, submission.workflow_run_id))
+    assert {question["id"] for question in wstore.pending_questions_for_review(store)} == {
+        pending[second_site]["id"]}
+
+    # A partial answer does not advance the workflow generation or retire its other IDs.
+    # Closing the original Store and using a new Engine/SQLite connection models restart.
+    store.close()
+    store = Store(config)
+    engine = Engine(config, store)
+    after_restart = wstore.workflow_run(store, submission.workflow_run_id)
+    assert after_restart["attempt_run_id"] == before_answer_attempt
+    pending_after_restart = wstore.questions(store, submission.workflow_run_id, status="pending")
+    assert [question["id"] for question in pending_after_restart] == [pending[second_site]["id"]]
+    assert wfsubmit.answer(store, pending[second_site]["id"], answer_values[second_site]) == "won"
+    drive(engine, store, submission.attempt_run_id)
+
+    final = wfsubmit.status(store, submission.workflow_run_id)
+    assert final["workflow"]["status"] == "succeeded"
+    combined = next(node for node in final["nodes"] if node["site_id"] == "combined")["result"]
+    assert json.loads(combined) == ["alpha", "beta"]
+
+
 def test_stopping_a_parked_workflow_finishes_after_cleanup_and_cancels_questions(store, config):
     bot = make_bot(store, name="stop-parked")
     engine = Engine(config, store)

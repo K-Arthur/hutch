@@ -1,0 +1,138 @@
+{
+  "test": "tests/e2e/test_browser.py::test_workflow_studio_lists_and_resolves_every_pending_question",
+  "captured_at": "2026-10-11T22:42:16.118778+00:00",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright": "1.63.0",
+  "scenario": "Two independent durable questions shown together, one answered while the other remains pending, then completion",
+  "workflow_status": "succeeded",
+  "question_ids": [
+    "wq_7f6ee8d9a917",
+    "wq_8f0b03f7cf22"
+  ],
+  "trace": [
+    {
+      "viewport": "desktop",
+      "size": [
+        1440,
+        960
+      ],
+      "pending_question_forms": 2,
+      "horizontal_overflow_px": 0,
+      "second_answer_button_height_px": 26,
+      "second_question_id_visible_in_scroll_panel": true
+    },
+    {
+      "viewport": "tablet",
+      "size": [
+        768,
+        1024
+      ],
+      "pending_question_forms": 2,
+      "horizontal_overflow_px": 0,
+      "second_answer_button_height_px": 44,
+      "second_question_id_visible_in_scroll_panel": true
+    },
+    {
+      "viewport": "phone",
+      "size": [
+        360,
+        800
+      ],
+      "pending_question_forms": 2,
+      "horizontal_overflow_px": 0,
+      "second_answer_button_height_px": 44,
+      "second_question_id_visible_in_scroll_panel": true
+    },
+    {
+      "viewport": "compact-phone",
+      "size": [
+        320,
+        800
+      ],
+      "pending_question_forms": 2,
+      "horizontal_overflow_px": 0,
+      "second_answer_button_height_px": 44,
+      "second_question_id_visible_in_scroll_panel": true
+    },
+    {
+      "state": "answers-submitted",
+      "answer_order": [
+        "wq_7f6ee8d9a917",
+        "wq_8f0b03f7cf22"
+      ],
+      "workflow_status": "succeeded",
+      "page_errors": []
+    }
+  ],
+  "page_errors": [],
+  "source_sha256": {
+    "src/hutch/workflow/engine.py": "6797cdaa55b60ebc152a0502fe9bd90dc9278effa85ec0414cc3d4ed5e5f4752",
+    "src/hutch/server/static/app.js": "8a124987bab741ffca4381d694422a22d854fbb734aa73309e89758f98860883",
+    "src/hutch/server/static/style.css": "4eb5625f7b73a86bf28245323ccbbc6abd3f3e5c075cc510dabc73ba6c947afc",
+    "tests/e2e/test_browser.py": "ff80966690ef8a9aba89c1a27a8463dcb061b81106ce13cdda27aa4827441673",
+    "tests/test_workflow_engine.py": "8a278cc1252aef0a410823c416af8301008f5e9ff8dad63799f69f76ee8a32f1",
+    "tests/test_workflow_api.py": "3db5a1a86f5bec9c241e761f48a6a9440b33261a44f088e978d53542274217cb",
+    "tests/test_remote_pairing.py": "d523ef47e8c58a0bf7349d16bb268847c0bae245022a626ab35d003c06821d85"
+  },
+  "verification": [
+    {
+      "command": "TMPDIR=/var/tmp/pytest-of-kevina .venv/bin/pytest -q tests/test_workflow_engine.py tests/test_workflow_api.py tests/test_remote_pairing.py tests/test_workflow_effect_receipts.py --basetemp=/var/tmp/hutch-multi-question-focused-20261011-serial",
+      "result": "111 passed in 64.31s"
+    },
+    {
+      "command": "TMPDIR=/var/tmp/pytest-of-kevina .venv/bin/pytest -q tests/test_workflow_api.py::test_amendment_adoption_archives_and_cancels_old_question_then_continues --basetemp=/var/tmp/hutch-amendment-pause-fenced-20261011",
+      "result": "1 passed in 2.28s"
+    },
+    {
+      "command": "TMPDIR=/var/tmp/pytest-of-kevina .venv/bin/pytest -q tests/e2e/test_browser.py::test_workflow_studio_lists_and_resolves_every_pending_question --basetemp=/var/tmp/hutch-multi-question-e2e-final-20261011",
+      "result": "1 passed in 6.29s"
+    },
+    {
+      "command": "git diff --check && node --check src/hutch/server/static/app.js && .venv/bin/python -m py_compile src/hutch/workflow/engine.py tests/test_workflow_api.py tests/test_workflow_engine.py tests/test_remote_pairing.py tests/e2e/test_browser.py",
+      "result": "passed"
+    }
+  ],
+  "provider_calls": 0,
+  "visual_review": {
+    "file": "visual-review.md",
+    "opened_screenshots": [
+      "waiting-desktop.png",
+      "waiting-tablet.png",
+      "waiting-phone.png",
+      "waiting-compact-phone.png",
+      "second-question-desktop.png",
+      "second-question-tablet.png",
+      "second-question-phone.png",
+      "second-question-compact-phone.png",
+      "answered-phone.png"
+    ],
+    "horizontal_overflow_px": 0,
+    "phone_answer_action_min_height_px": 44,
+    "keyboard_focus_after_partial_answer": "remaining question textarea",
+    "limitations": [
+      "bounded card scroll means only the first question is initially visible",
+      "actual browser zoom and screen-reader behavior not tested",
+      "nested asks and question/approval ordering not covered"
+    ]
+  },
+  "artifact_sha256": {
+    "answered-phone.png": "c087aee09749a468b09168f0aa86cf5ad893d867de3bb55cbc0a911dc7277fa8",
+    "second-question-compact-phone.png": "b9de6f016c2562f3d1b665b6ff0ba1fc582c9d50c7cc61c1bb78bd255425f0fe",
+    "second-question-desktop.png": "6d0581ff28ced957553e9a84ee58ad4cc33f4a6b7a3bfba35d9a0b0727ca2dea",
+    "second-question-phone.png": "708b85eaebe608b41668bc07dc90c4a097a04d373b82191bea17dc895da5b071",
+    "second-question-tablet.png": "c533d85550051e290d60a9eba09f6ee34e506776beee39e8a6b2fe4c487b3448",
+    "waiting-compact-phone.png": "81f87834ee3630693dcd2e1287e415ad6d091abc269197f1bf6299c0b92b9b47",
+    "waiting-desktop.png": "b0a564ddc01a3a18927de276901367da030c07025145160f5a4c4b55cbf8ac31",
+    "waiting-phone.png": "68a5cc0e34c12183cfb95bc30eabd7c3c345f8a6a268d030f96863c975965646",
+    "waiting-tablet.png": "5909a53826c1d0439e88794870e0b466d51c2c521fe044b01337f6e48ab6628a",
+    "trace.zip": "262eeba8ab5347069c61c981bfd090cca4dde138cd6a15691d086fb788a64865"
+  },
+  "test_investigations": [
+    {
+      "initial_parallel_rerun": "110 passed, 1 failed in 64.09s; test_amendment_adoption_archives_and_cancels_old_question_then_continues attempted pause after question publication but before the supervisor parked the attempt, receiving the expected 409 for that transient state.",
+      "classification": "test polling race; the test assumed a pending question meant the run was already parked.",
+      "resolution": "poll now waits for workflow status waiting and attempt status waiting_workflow before amendment adoption; isolated regression passed in 2.28s, followed by the full 111-test focused set passing in 64.31s."
+    }
+  ]
+}

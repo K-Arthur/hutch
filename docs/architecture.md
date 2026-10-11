@@ -485,6 +485,11 @@ the run remains visible and nonterminal, while its lease and capacity are releas
 supervisor creates a new attempt after the pending question is answered or all children and
 owned processes are verified settled. Node and question creation/settlement verifies the
 current workflow revision, attempt, run fence and lease in the same database transaction.
+The interpreter may collect independent top-level `ask` nodes during one pass, publishing each
+under its own durable ID before parking. It holds later work and dependent asks until the current
+questions are answered. Studio and paired-phone review project every active question; an answer
+is scoped to its ID and does not grant action authority. Asks nested in bounded constructs still
+park serially at the first wait.
 The process worker permits a child step to remain under its matching parked workflow attempt;
 a stop or replacement still fences that child. Stable effect receipts across a crash after
 an external effect but before node settlement use a stable identity derived from workflow

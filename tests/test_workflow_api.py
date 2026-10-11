@@ -1004,7 +1004,11 @@ def test_amendment_adoption_archives_and_cancels_old_question_then_continues(cli
     detail = None
     while time.monotonic() < deadline:
         detail = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
-        if any(question["status"] == "pending" for question in detail["questions"]):
+        # The question and workflow waiting status publish atomically, then the supervisor
+        # parks the attempt. Amendment adoption requires that second transition to finish.
+        if (any(question["status"] == "pending" for question in detail["questions"])
+                and detail["workflow"]["status"] == "waiting"
+                and (detail.get("attempt") or {}).get("status") == "waiting_workflow"):
             break
         time.sleep(0.1)
     assert detail is not None

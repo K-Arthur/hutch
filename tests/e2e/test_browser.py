@@ -352,6 +352,175 @@ def test_paired_phone_reviews_the_exact_approval_once(browser, live):
         context.close()
 
 
+def test_workflow_studio_lists_and_resolves_every_pending_question(browser, live):
+    import hashlib
+    from datetime import datetime, timezone
+    from pathlib import Path
+
+    from hutch.workflow import persistence as workflow_store
+
+    base, app = live
+    store = app.state.store
+    bot = Bot(name="workflow-multiple-questions", display_name="Multi question fixture",
+              model="mock/demo", tools=[])
+    store.upsert_bot(bot)
+    conversation, _ = store.create_conversation(
+        bot.id, "Workflow question review", idem_key="workflow-multi-question-conversation",
+        request_hash="workflow-multi-question-conversation")
+    title = "review-two-independent-settings"
+    plan = {
+        "name": title,
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 8, "max_model_calls": 0},
+        "nodes": [
+            {"kind": "ask", "id": "first", "title": "First setting",
+             "question": "Which first setting should be used?", "timeout_seconds": 600},
+            {"kind": "ask", "id": "second", "title": "Second setting",
+             "question": "Which second setting should be used?", "timeout_seconds": 600},
+            {"kind": "transform", "id": "combine", "op": "to_json",
+             "args": {"value": [{"ref": "first.answer"}, {"ref": "second.answer"}]}},
+        ],
+    }
+    out = Path(__file__).resolve().parents[2] / \
+        "docs/realignment/artifacts/workflow-studio/multiple-questions-2026-10-11"
+    out.mkdir(parents=True, exist_ok=True)
+    page = browser.new_page(viewport={"width": 1440, "height": 960}, device_scale_factor=1)
+    context = page.context
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    trace = []
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        saved = page.request.post(f"{base}/api/v1/workflows", data={"name": title, "plan": plan},
+                                  headers={"Idempotency-Key": "workflow-multi-question-save"})
+        assert saved.status == 201, saved.text()
+        definition = saved.json()
+        launched = page.request.post(
+            f"{base}/api/v1/workflows/{definition['id']}/runs",
+            data={"bot": bot.name, "conversation_id": conversation["id"], "inputs": {}},
+            headers={"Idempotency-Key": "workflow-multi-question-launch"})
+        assert launched.status == 201, launched.text()
+        workflow_id = launched.json()["workflow_run_id"]
+        deadline = time.monotonic() + 20
+        pending_questions = []
+        while time.monotonic() < deadline:
+            pending_questions = workflow_store.questions(store, workflow_id, status="pending")
+            workflow = workflow_store.workflow_run(store, workflow_id)
+            attempt = store.get_run(workflow["attempt_run_id"]) if workflow else None
+            if len(pending_questions) == 2 and attempt is not None and attempt.status is RunStatus.waiting_workflow:
+                break
+            time.sleep(0.05)
+        assert {question["site_id"] for question in pending_questions} == {"first", "second"}
+
+        page.goto(f"{base}/#/chat/{bot.name}")
+        panel = page.locator("#workflow-panel")
+        panel.wait_for(state="visible")
+        page.get_by_role("heading", name="Review Two Independent Settings").wait_for()
+        panel.get_by_role("heading", name="Needs you").wait_for()
+        panel.get_by_text("2 pending questions", exact=True).wait_for()
+        forms = panel.locator("[data-workflow-question-form]")
+        assert forms.count() == 2
+        assert {forms.nth(index).get_attribute("data-question-id") for index in range(2)} == {
+            question["id"] for question in pending_questions}
+        assert panel.get_by_text("Which first setting should be used?", exact=True).count() == 1
+        assert panel.get_by_text("Which second setting should be used?", exact=True).count() == 1
+
+        sizes = [("desktop", 1440, 960), ("tablet", 768, 1024),
+                 ("phone", 360, 800), ("compact-phone", 320, 800)]
+        for label, width, height in sizes:
+            page.set_viewport_size({"width": width, "height": height})
+            page.wait_for_timeout(80)
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, f"{label} has horizontal overflow: {overflow}px"
+            viewport_forms = panel.locator("[data-workflow-question-form]")
+            assert viewport_forms.count() == 2
+            page.screenshot(path=str(out / f"waiting-{label}.png"),
+                            full_page=True, animations="disabled")
+            panel.evaluate("element => element.querySelectorAll('[data-workflow-question-form]')[1]?.scrollIntoView({block: 'center'})")
+            geometry = page.evaluate("""() => {
+              const panel = document.querySelector('#workflow-panel');
+              const forms = panel?.querySelectorAll('[data-workflow-question-form]') || [];
+              const question = forms[1]?.querySelector('p');
+              const button = forms[1]?.querySelector('[type=submit]');
+              if (!panel || !question || !button) return null;
+              const rect = element => {
+                const box = element.getBoundingClientRect();
+                return {x: box.x, y: box.y, width: box.width, height: box.height};
+              };
+              return {panel: rect(panel), question: rect(question), button: rect(button)};
+            }""")
+            assert geometry
+            panel_bounds, question_bounds = geometry["panel"], geometry["question"]
+            answer_button_bounds = geometry["button"]
+            assert (question_bounds["y"] >= panel_bounds["y"]
+                    and question_bounds["y"] + question_bounds["height"] <= panel_bounds["y"] + panel_bounds["height"] + 1), (
+                        label, panel_bounds, question_bounds)
+            if width <= 820:
+                assert answer_button_bounds["height"] >= 44, (label, answer_button_bounds)
+            page.screenshot(path=str(out / f"second-question-{label}.png"),
+                            full_page=True, animations="disabled")
+            panel.evaluate("element => element.scrollTo({top: 0, behavior: 'instant'})")
+            trace.append({"viewport": label, "size": [width, height], "pending_question_forms": 2,
+                          "horizontal_overflow_px": overflow,
+                          "second_answer_button_height_px": answer_button_bounds["height"],
+                          "second_question_id_visible_in_scroll_panel": True})
+
+        first = panel.locator(f'[data-question-id="{pending_questions[0]["id"]}"]')
+        first.locator("textarea[name=answer]").fill("Alpha setting")
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/v1/workflows/questions/{pending_questions[0]['id']}/answer")) as answer_response:
+            first.get_by_role("button", name="Send answer").click()
+        assert answer_response.value.status == 200, answer_response.value.text()
+        panel.locator(f'[data-question-id="{pending_questions[1]["id"]}"]').wait_for(state="visible")
+        assert panel.locator("[data-workflow-question-form]").count() == 1
+        panel.get_by_text("1 pending question", exact=True).wait_for()
+        page.wait_for_function(
+            """questionId => document.activeElement?.closest('[data-workflow-question-form]')?.dataset.questionId === questionId""",
+            arg=pending_questions[1]["id"])
+        remaining = panel.locator(f'[data-question-id="{pending_questions[1]["id"]}"]')
+        remaining.locator("textarea[name=answer]").fill("Beta setting")
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/v1/workflows/questions/{pending_questions[1]['id']}/answer")) as answer_response:
+            remaining.get_by_role("button", name="Send answer").click()
+        assert answer_response.value.status == 200, answer_response.value.text()
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            current = workflow_store.workflow_run(store, workflow_id)
+            if current and current["status"] == "succeeded":
+                break
+            time.sleep(0.05)
+        assert workflow_store.workflow_run(store, workflow_id)["status"] == "succeeded"
+        assert not errors, errors
+        trace.append({"state": "answers-submitted", "answer_order": [
+            pending_questions[0]["id"], pending_questions[1]["id"]], "workflow_status": "succeeded",
+            "page_errors": errors})
+        page.set_viewport_size({"width": 360, "height": 800})
+        panel.evaluate("element => element.scrollTo({top: 0, behavior: 'instant'})")
+        page.screenshot(path=str(out / "answered-phone.png"), full_page=True, animations="disabled")
+        (out / "results.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_workflow_studio_lists_and_resolves_every_pending_question",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright": package_version("playwright"),
+            "scenario": "Two independent durable questions shown together, one answered while the other remains pending, then completion",
+            "workflow_status": "succeeded", "question_ids": [question["id"] for question in pending_questions],
+            "trace": trace, "page_errors": errors,
+            "source_sha256": {path: hashlib.sha256((Path(__file__).resolve().parents[2] / path).read_bytes()).hexdigest()
+                              for path in ("src/hutch/workflow/engine.py", "src/hutch/server/static/app.js",
+                                           "src/hutch/server/static/style.css", "tests/e2e/test_browser.py",
+                                           "tests/test_workflow_engine.py", "tests/test_workflow_api.py",
+                                           "tests/test_remote_pairing.py")},
+        }, indent=2) + "\n")
+        context.tracing.stop(path=str(out / "trace.zip"))
+    finally:
+        if context.tracing:
+            try:
+                context.tracing.stop(path=str(out / "trace.zip"))
+            except Exception:
+                pass
+        context.close()
+
+
 def test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports(browser, live):
     from hutch.workflow import persistence as workflow_store
 

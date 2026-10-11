@@ -413,7 +413,9 @@ def test_phone_workflow_monitor_and_review_permissions_use_redacted_projections(
     plan = {"name": "phone-workflow-review", "inputs": {"memo": {"type": "string"}},
             "envelope": {"tools": []}, "budget": {"max_nodes": 3, "max_model_calls": 0},
             "nodes": [{"kind": "ask", "id": "confirm", "question": "Continue?",
-                       "options": ["yes", "no"], "timeout_seconds": 300}]}
+                       "options": ["yes", "no"], "timeout_seconds": 300},
+                      {"kind": "ask", "id": "confirm_scope", "question": "Which scope?",
+                       "options": ["summary", "full"], "timeout_seconds": 300}]}
 
     def submit(name: str):
         candidate = {**plan, "name": name}
@@ -430,14 +432,15 @@ def test_phone_workflow_monitor_and_review_permissions_use_redacted_projections(
 
     with TestClient(app, base_url="https://testserver") as client:
         deadline = time.monotonic() + 10
-        first_question = second_question = None
+        first_questions = second_questions = []
         while time.monotonic() < deadline:
-            first_question = next(iter(wstore.questions(store, first.workflow_run_id, status="pending")), None)
-            second_question = next(iter(wstore.questions(store, second.workflow_run_id, status="pending")), None)
-            if first_question and second_question:
+            first_questions = wstore.questions(store, first.workflow_run_id, status="pending")
+            second_questions = wstore.questions(store, second.workflow_run_id, status="pending")
+            if len(first_questions) == len(second_questions) == 2:
                 break
             time.sleep(0.05)
-        assert first_question and second_question, "workflow ask nodes should park with durable question IDs"
+        assert len(first_questions) == len(second_questions) == 2, "workflow ask nodes should park with durable question IDs"
+        first_question = next(question for question in first_questions if question["site_id"] == "confirm")
         deadline = time.monotonic() + 10
         parked_attempt = wstore.workflow_attempt_quiescence(store, second.attempt_run_id)
         while time.monotonic() < deadline and not parked_attempt["attempt_parked"]:
@@ -475,8 +478,10 @@ def test_phone_workflow_monitor_and_review_permissions_use_redacted_projections(
         assert "PRIVATE_INPUT_SENTINEL" not in monitor_detail.text
         assert "PRIVATE_RESULT_SENTINEL" not in monitor_detail.text
         assert "instance_key" not in monitor_detail.text
-        assert monitor_detail.json()["nodes"] == [{"site_id": "confirm", "instance_number": 1,
-                                                   "kind": "ask", "status": "waiting"}]
+        assert monitor_detail.json()["nodes"] == [
+            {"site_id": "confirm", "instance_number": 1, "kind": "ask", "status": "waiting"},
+            {"site_id": "confirm_scope", "instance_number": 1, "kind": "ask", "status": "waiting"},
+        ]
         requested_detail = client.get(f"/api/v1/phone/workflows/runs/{second.workflow_run_id}",
                                       headers=_phone_headers())
         assert requested_detail.status_code == 200
@@ -527,6 +532,9 @@ def test_phone_workflow_monitor_and_review_permissions_use_redacted_projections(
                                          "Idempotency-Key": "phone-question-answer"})
         queue = client.get("/api/v1/phone/workflows/questions", headers=_phone_headers())
         assert queue.status_code == 200, queue.text
+        first_question_ids = {item["id"] for item in queue.json()["items"]
+                              if item["workflow_run_id"] == first.workflow_run_id}
+        assert first_question_ids == {question["id"] for question in first_questions}
         question = next(item for item in queue.json()["items"] if item["id"] == first_question["id"])
         assert question["question"] == "Continue?" and question["options"] == ["yes", "no"]
         assert "instance_key" not in question and "PRIVATE_INPUT_SENTINEL" not in queue.text
@@ -535,6 +543,9 @@ def test_phone_workflow_monitor_and_review_permissions_use_redacted_projections(
         assert answer.status_code == 200, answer.text
         assert answer.json() == {"workflow_run_id": first.workflow_run_id, "status": "answered",
                                  "question_id": question["id"], "stop_requested": None}
+        queue_after_partial_answer = client.get("/api/v1/phone/workflows/questions", headers=_phone_headers())
+        assert {item["id"] for item in queue_after_partial_answer.json()["items"]
+                if item["workflow_run_id"] == first.workflow_run_id} == first_question_ids - {question["id"]}
         stop_headers = _phone_headers({"X-Hutch-Request": "1", "X-Hutch-CSRF": review_csrf,
                                        "Idempotency-Key": "phone-workflow-stop"})
         stopped = client.post(f"/api/v1/phone/workflows/runs/{second.workflow_run_id}/stop",
