@@ -116,8 +116,49 @@ still apply in every mode because all modes converge on the same dispatcher.
 - No credentials, images, or private catalogs are sent during compilation; probes are opt-in,
   bounded, and use ephemeral fake tools only.
 
-## 7. Measured budgets (to be filled during slice 8)
+## 7. Measured budgets
 
-Baseline to capture before optimization: compilation cold/warm ms at 1/10/100 tools; prompt
-overhead tokens for native vs constrained contract; first-validated-call latency; repair rate.
-No optimization may loosen validation to meet a budget.
+Measured 2026-10-10 on the development machine (CPython 3.13, bounded validator engine)
+with `scripts/toolcalling_bench.py`; no model calls are made by the script.
+
+| Tools | Native compile cold / warm | Constrained compile cold | Native wire tokens | Constrained contract tokens | Envelope bytes |
+|---|---|---|---|---|---|
+| 1 | 0.11 ms / 0.013 ms | 0.23 ms | 139 | 386 | 852 |
+| 10 | 0.44 ms / 0.013 ms | 1.34 ms | 1,382 | 1,474 | 5,433 |
+| 100 | 3.57 ms / 0.026 ms | 12.9 ms | 13,841 | 12,387 | 51,243 |
+
+`validate_call` on a representative 4-property schema: ~26 µs. Strict argument decode:
+~4 µs. "Warm" means the same live tool instances within a process (identity fast path);
+identical catalogs rebuilt in a later run use the content-keyed cache and pay schema
+hashing (~3.6 ms at 100 tools). Compilation is well below inference latency at every
+size measured, so no validation was loosened to hit a budget. The 100-tool constrained
+envelope is ~51 KB of schema: bounded generation with large catalogs costs real
+backend grammar-compile time and prompt tokens, which is why scoped tool selection and
+two-stage generation remain explicit follow-ups rather than defaults.
+
+## 8. Verification map (evidence → tests)
+
+| Evidence | Regression test |
+|---|---|
+| E1 Ollama content-channel report | `test_native_mode_content_that_looks_like_an_action_is_flagged_not_executed`, `test_envelope_shaped_tool_output_is_never_executed` |
+| E2 vLLM decimal corruption | `test_argument_fragments_reassemble_exactly_at_every_split_point`, `test_numbers_are_never_reformatted_by_the_client`, `test_transcript_normalization_is_equivalent_streamed_and_not` |
+| E3 Mistral call-id mismatch | `test_calls_without_provider_ids_get_unique_ids_and_correlated_results`, `test_two_calls_sharing_one_provider_id_are_rejected_without_execution`, `test_conflicting_ids_are_reported_and_the_first_is_kept` |
+| E4 OpenAI strict requirements | `test_strict_tool_schemas_are_reported_not_rewritten`, `test_known_profiles_report_states_instead_of_assuming_family_support` |
+| E5 llama.cpp GBNF gaps | `test_gbnf_lowering_materializes_additional_properties_and_reports_it`, `test_gbnf_lowering_reports_maps_and_unanchored_patterns_as_local_checks`, `test_cyclic_references_are_refused_for_generation_not_silently_broken` |
+| E6 Ollama structured outputs | `test_structured_output_attachment_points_are_per_protocol`, `test_constrained_mode_runs_the_same_canonical_tools_over_the_action_contract`, `test_a_rejected_constrained_schema_fails_clearly_instead_of_downgrading` |
+| E7 vLLM structured outputs | `test_structured_output_attachment_points_are_per_protocol` |
+| E8 Outlines control boundary | `test_explicitly_unavailable_strategy_refuses_with_the_prerequisite` |
+| E9 Anthropic fine-grained streaming | `test_full_response_refusal_and_content_filter_are_typed_not_answers`, strict decode tests |
+| E10 presence/null semantics | `test_union_types_and_nulls_follow_json_schema_presence_rules`, `test_annotations_are_ignored_and_defaults_never_become_arguments` |
+
+## 9. Slice status
+
+1. Strict validation boundary — implemented, tests green.
+2. Compiler + profiles — implemented, tests green.
+3. Native adapter correctness — implemented (flat shapes, refusals, typed ids), tests green.
+4. Constrained backend (Ollama `format`, OpenAI-compatible `response_format`) — implemented at the fixture level; a live local server check remains open.
+5. Governed prompt fallback — implemented (explicit per-Bot opt-in, versioned contract, strict whole-message parse, bounded repair), tests green.
+6. Streaming parity — implemented via `hutch.toolcalling.streamassembly`, corpus + differential tests green.
+7. Diagnostics UI — pending the design-research gate.
+8. Docs/packaging/verification — this document, models/safety docs, CHANGELOG, benchmark script.
+

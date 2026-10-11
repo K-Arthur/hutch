@@ -31,10 +31,16 @@ class ToolProtocolUnavailable(Exception):
 
 
 _PLAN_CACHE: "OrderedDict[tuple, CompilationPlan]" = OrderedDict()
+#: In-process fast path: a tool instance is immutable once built, so the identity of the
+#: objects in the snapshot plus the resolved profile/strategy is a valid plan key. The
+#: content-keyed cache below still covers identical catalogs rebuilt in a later run.
+_IDENTITY_CACHE: "OrderedDict[tuple, CompilationPlan]" = OrderedDict()
+MAX_IDENTITY_PLANS = 128
 
 
 def clear_plan_cache() -> None:
     _PLAN_CACHE.clear()
+    _IDENTITY_CACHE.clear()
 
 
 def openai_function_spec(definition: ToolDefinition) -> dict[str, Any]:
@@ -70,23 +76,30 @@ def compile_plan(*, tools: Mapping[str, Any], profile: ModelCapabilityProfile, s
         raise ToolProtocolUnavailable(f"unknown tool protocol choice {requested!r}")
     validator = validator or schema_engine()
     started = time.perf_counter()
-    definitions = build_definitions(tools, protocol=profile.protocol, scope=scope)
-    diagnostics: list[Diagnostic] = []
-
-    eligibility = strategy_eligibility(profile)
     if requested == "auto":
         chosen = "native"
     else:
+        eligibility = strategy_eligibility(profile)
         available, why = eligibility.get(requested, (False, "unknown strategy"))
         if not available:
             raise ToolProtocolUnavailable(
                 f"this route cannot use the {requested!r} tool protocol: {why}")
         chosen = requested
 
+    identity_key = (tuple(sorted((name, id(tool)) for name, tool in tools.items())),
+                    profile.fingerprint(), profile.protocol, chosen, validator, COMPILER_VERSION)
+    fast = _IDENTITY_CACHE.get(identity_key)
+    if fast is not None:
+        _IDENTITY_CACHE.move_to_end(identity_key)
+        return CompilationPlan(**{**fast.__dict__, "cache_hit": True,
+                                  "compiled_ms": round((time.perf_counter() - started) * 1000, 3)})
+
+    definitions = build_definitions(tools, protocol=profile.protocol, scope=scope)
+    diagnostics: list[Diagnostic] = []
+    backend = backend_for_protocol(profile.protocol, profile.provider)
     wire_tools: tuple[dict[str, Any], ...] = ()
     envelope_schema = None
     contract = ""
-    backend = backend_for_protocol(profile.protocol, profile.provider)
 
     if chosen == "native":
         wire_tools = tuple(openai_function_spec(d) for d in definitions)
@@ -147,6 +160,9 @@ def compile_plan(*, tools: Mapping[str, Any], profile: ModelCapabilityProfile, s
     _PLAN_CACHE[cache_key] = plan
     while len(_PLAN_CACHE) > MAX_CACHED_PLANS:
         _PLAN_CACHE.popitem(last=False)
+    _IDENTITY_CACHE[identity_key] = plan
+    while len(_IDENTITY_CACHE) > MAX_IDENTITY_PLANS:
+        _IDENTITY_CACHE.popitem(last=False)
     return plan
 
 

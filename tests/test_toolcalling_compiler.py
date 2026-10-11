@@ -139,6 +139,15 @@ def test_explicitly_unavailable_strategy_refuses_with_the_prerequisite():
                  strategy="constrained")
 
 
+def test_strict_tool_schemas_are_reported_not_rewritten():
+    """OpenAI documents strict mode with schema rewrites Hutch does not perform silently."""
+    profile = resolve_profile(provider="openai", endpoint="https://api.openai.com/v1", model="gpt-6")
+    plan = compile_plan(tools={"read_file": _CATALOG["read_file"]()}, profile=profile, strategy="native")
+    assert plan.wire_tools[0]["function"]["parameters"].get("additionalProperties") is None
+    assert any(d.code == "strategy.strict.available" and d.classification == "locally_enforced"
+               for d in plan.diagnostics)
+
+
 def test_disabled_plan_sends_no_tools_and_says_so():
     plan, _ = plan_for(strategy="disabled")
     assert plan.strategy == "disabled" and plan.wire_tools == ()

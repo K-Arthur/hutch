@@ -86,6 +86,7 @@ class ToolDefinition:
     capabilities: frozenset[str] = frozenset()
     policy: Mapping[str, Any] = field(default_factory=lambda: MappingProxyType({}))
     alias: str = ""                       # provider-visible name (defaults to ``name``)
+    revision_hash: str = ""               # computed once at snapshot time
 
     @property
     def visible_name(self) -> str:
@@ -93,7 +94,7 @@ class ToolDefinition:
 
     @property
     def revision(self) -> str:
-        return schema_revision(self.canonical_schema())
+        return self.revision_hash or schema_revision(self.canonical_schema())
 
     def canonical_schema(self) -> dict[str, Any]:
         return _thaw(self.parameters)
@@ -111,7 +112,7 @@ class ToolDefinition:
                 raise ValueError(f"cannot build a provider-visible alias for {tool.name!r}")
         return cls(name=tool.name, description=getattr(tool, "description", "") or "",
                    parameters=_deep_freeze(schema), owner=owner, scope=scope,
-                   effect="", alias=alias)
+                   effect="", alias=alias, revision_hash=schema_revision(schema))
 
 
 @dataclass(frozen=True)
