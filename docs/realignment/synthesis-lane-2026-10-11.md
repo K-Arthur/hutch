@@ -70,7 +70,8 @@ Workspace actions (Docs brief, Sheets table, Drive placement, Calendar/reminder 
 | S4 | Interactive join/answer/resume state machine + UI audio surface | planned (design gate first) |
 | S5a | Workspace request contracts (Docs tabs/revisions, Sheets RAW+append, Drive ids/uploads, Calendar events, reminder routing) | **implemented, local tests green** (17 tests, no I/O) |
 | S5b | Workspace OAuth transport + executors + action plan/effect orchestration | **implemented, local tests green** (10 plan-engine + 8 fake-Google transport tests; live Google unexecuted — no account) |
-| S5c | Calendar executor + tool/UI wiring (source selector, action drawer) | planned (design gate first) |
+| S5c | Tool layer: ingest_source, register_manifest, register_script, render_audio_overview, plan_workspace_action, run_workspace_plan | **implemented, local tests green** (8 tool tests; registered in groups `synthesis`/`workspace`, hidden in Strict Offline for the network tools) |
+| S5d | Calendar executor + connections API/UI for the Workspace OAuth callback + artifact download routes | planned (design gate first for UI) |
 | S6 | UI integration (source selector, coverage, format controls, action drawer) | planned (design gate first) |
 | S7 | Integrated acceptance, visual/audio evidence, independent verification | planned |
 
