@@ -3357,7 +3357,7 @@ async function renderChatStudio(preferredBot = null) {
         method: "POST", headers: { "Idempotency-Key": key }, body,
       });
       clearChoiceIdempotencyKey(questionConversationId, questionId, key);
-      storageRemove(choiceDraftKey(questionConversationId, questionId));
+      storageRemove(choiceDraftKey(composerConversationId, questionId));
       toast("Answer sent to the specialist.");
       if (generation !== studioGeneration) return;
       scheduleFeedRender();
@@ -3815,6 +3815,12 @@ async function renderChatFeed() {
   const focusedChoice = focused?.dataset.approve;
   const focusedReceipt = focused?.dataset.receiptReview;
   const focusedFact = focused?.dataset.factReview;
+  const focusedWorkflowSuggestion = focused?.dataset.workflowSuggestionRun;
+  const focusedWorkspaceQuestion = focused?.closest("[data-workspace-question-form]")?.dataset.questionId;
+  const focusedWorkspaceOption = focused?.matches("[data-workspace-question-form] [data-choice-option]")
+    ? focused.value : null;
+  const focusedWorkspaceSubmit = Boolean(focusedWorkspaceQuestion
+    && focused?.matches("[data-workspace-question-form] [type=submit]"));
   const factUi = captureFactUi(stream);
   const nextHtml = parts.join("") + factPanelHtml(factPage.facts || [], factPage.error, factShares);
   if (chatRenderSnapshots.get(stream) === nextHtml) return;
@@ -3843,6 +3849,20 @@ async function renderChatFeed() {
   }
   if (focusedFact && !focused.isConnected) {
     ($$('[data-fact-review]', stream).find(b => b.dataset.factReview === focusedFact) || $('#chat-prompt'))?.focus({ preventScroll: true });
+  }
+  if (focusedWorkflowSuggestion && !focused.isConnected) {
+    ($$('[data-workflow-suggestion-run]', stream)
+      .find(button => button.dataset.workflowSuggestionRun === focusedWorkflowSuggestion) || $('#chat-prompt'))
+      ?.focus({ preventScroll: true });
+  }
+  if (focusedWorkspaceQuestion && !focused.isConnected) {
+    const form = $$('[data-workspace-question-form]', stream)
+      .find(item => item.dataset.questionId === focusedWorkspaceQuestion);
+    const target = focusedWorkspaceOption !== null
+      ? [...(form?.querySelectorAll("[data-choice-option]") || [])]
+        .find(input => input.value === focusedWorkspaceOption)
+      : focusedWorkspaceSubmit ? form?.querySelector('[type="submit"]') : null;
+    (target || $("#chat-prompt"))?.focus({ preventScroll: true });
   }
   restoreFactUi(stream, factUi);
   if (wasNearBottom) scroll.scrollTop = scroll.scrollHeight;
@@ -4311,8 +4331,13 @@ function workspaceTaskQuestionHtml(task) {
   const question = task.pending_question;
   const options = Array.isArray(question.options) ? question.options : [];
   const multi = question.selection_mode === "multiple";
+  let selected = [];
+  try {
+    const stored = JSON.parse(storageGet(choiceDraftKey(currentConversationId, question.id)) || "[]");
+    if (Array.isArray(stored)) selected = stored.filter(value => options.some(option => option.id === value));
+  } catch { /* ignore a damaged local draft and render the durable question */ }
   const controls = options.map(option => `<label class="choice-option">
-      <input data-choice-option type="${multi ? "checkbox" : "radio"}" name="question-${esc(question.id)}" value="${esc(option.id)}" ${multi ? "" : "required"}>
+      <input data-choice-option type="${multi ? "checkbox" : "radio"}" name="question-${esc(question.id)}" value="${esc(option.id)}" ${selected.includes(option.id) ? "checked" : ""} ${multi ? "" : "required"}>
       <span>${esc(option.label)}</span>
     </label>`).join("");
   return `<section class="workspace-task-question" data-workspace-task-question="${esc(task.id)}"
@@ -5117,9 +5142,11 @@ function wireFeedInteractions() {
   stream.addEventListener("change", ev => {
     const input = ev.target.closest("[data-choice-option]");
     const form = input?.closest("[data-choice-form]");
-    if (!form) return;
-    const selected = [...form.querySelectorAll("input:checked")].map(item => item.value);
-    storageSet(choiceDraftKey(currentConversationId, form.dataset.choiceQuestion), JSON.stringify(selected));
+    const workspaceForm = form ? null : input?.closest("[data-workspace-question-form]");
+    if (!form && !workspaceForm) return;
+    const selected = [...(form || workspaceForm).querySelectorAll("input:checked")].map(item => item.value);
+    const questionId = form ? form.dataset.choiceQuestion : workspaceForm.dataset.questionId;
+    storageSet(choiceDraftKey(currentConversationId, questionId), JSON.stringify(selected));
   });
 }
 

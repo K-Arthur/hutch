@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-11",
+  "route_journey": "Real Studio/API shell with a synthetic saved-workflow recommendation; Enter opened review, Cancel closed it; no workflow launched; zero model requests and no external requests.",
+  "question_journey": "Real Studio/API/engine answer run with a seeded specialist question and scripted loopback Ollama-compatible endpoint; two local HTTP chat requests; no external requests.",
+  "files_sha256": {
+    "question-desktop-needs-answer.png": "1c9c572f2a0432e730bd11f83f8d6d0fe25b3c1fd0aa78078c06431bf45e1e70",
+    "question-desktop-question-answered.png": "9b2b74c3971e6964c5f25609d42f4bfe7ec2a1ffe8bba5475e023674789c629f",
+    "question-phone-needs-answer.png": "8d5826691dd46a2dfa7d20667ef08bf553016324cf5bb8cc9fc4056442b05a2f",
+    "question-specialist-chat-answered-desktop.png": "8a1a2ef2477a0102fe12f54287591748b5790aa7b793411d98816e7d28d95dfa",
+    "question-tablet-needs-answer.png": "397e461fa3c60d9944d2dc5c3b122f73cbfcc9de4a9d047b0d262817efd240ae",
+    "question-trace.zip": "d0c7b2f59c30c52e54cc971df65508c651a25075b21cb9b7b8c3208581423e29",
+    "question-validation.json": "059dcaf6c4be8e226928f949a0b0fd0bbad3d0a99423ad5d84c74843f737a932",
+    "route-results.json": "d1027595a54858e5c8df0fdcd91dff5d642df8cce055660cac12477cfd93e9d6",
+    "route-suggestion-compact-phone.png": "363c268713beb260bf8b8d9af182250be81feef9595448fab99a6a7b9380db1b",
+    "route-suggestion-desktop.png": "beab9311ec95c5f49155e49e800657af0ddf91debcf67600aeea0dfafd193cdd",
+    "route-suggestion-forced-colors-card-start-compact-phone.png": "cfe9e752636a03371fa09304ab747cb3ce774965831ff037e6e65f06059ea661",
+    "route-suggestion-forced-colors-focus-compact-phone.png": "54edbc2b894241fbcba3909f0a1f7159741373fb445fb83c93eeea64ae6fa1b4",
+    "route-suggestion-phone.png": "5d157d170f66fcf5431d4ce0772ebb7494b6eb7f32c12e7ac4d1fbf97a5e8ebb",
+    "route-suggestion-review-dialog.png": "8db8cf0ae079a051c27e672f5d462e70ec7b99d6dc4c38a57001fc9489d48f56",
+    "route-suggestion-tablet.png": "c2d81e92144e6f903d0eb3ce71baeda8976ba6761772e2d2817a36b3bb155a74",
+    "route-suggestion-text-spacing-card-start-compact-phone.png": "53a0fe150ac899b44de1b2109300509eaf4017715ce96116e0339a2e13d4b5ac",
+    "route-suggestion-text-spacing-focus-compact-phone.png": "b3b7b96134c6a9d44c05ed5b1d2c03db4e18db870b1c54768c17447fb1fd1a78",
+    "route-trace.zip": "990a5b511cba4daafbb1c0b573b768ecbca650a418f73e80eab4609a71b83904",
+    "visual-review.md": "a4d3bb119458e0528421b66521266f4ebe2fc41c57aff6999e881f5b5a27f758"
+  }
+}

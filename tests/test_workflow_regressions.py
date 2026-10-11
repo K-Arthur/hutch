@@ -17,7 +17,7 @@ from hutch.workflow import persistence as wstore
 from hutch.workflow import submit as wfsubmit
 from hutch.workflow.compile import PlanInvalid, compile_plan
 from tests.fakes import FakeOllama, agent_script
-from tests.test_workflow_engine import deterministic_plan, drive, make_bot
+from tests.test_workflow_engine import deterministic_plan, drive, make_bot, simulate_workflow_crash
 
 
 @pytest.fixture()
@@ -523,6 +523,8 @@ def test_a_continuation_does_not_re_execute_settled_nodes(store, config):
     before = {node["site_id"]: node for node in wstore.nodes(store, submission.workflow_run_id)}
     events_before = len(store.tail_events(submission.attempt_run_id, limit=500))
 
+    # A process crash after all nodes settle still re-walks the immutable plan safely.
+    simulate_workflow_crash(store, submission.attempt_run_id)
     wstore.update_workflow_run(store, submission.workflow_run_id, status="running")
     continuation = wstore.admit_workflow_continuation(store, submission.workflow_run_id)
     assert continuation is not None and continuation.id != submission.attempt_run_id

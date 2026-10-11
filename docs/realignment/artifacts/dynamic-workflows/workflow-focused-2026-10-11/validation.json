@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-11",
+  "source_commit": "bef3b2b2 (working tree source hashes below)",
+  "command": "uv run --extra dev pytest tests/test_workflow_engine.py tests/test_workflow_regressions.py tests/test_workflow_steps.py tests/test_workflow_api.py tests/test_workflow_plan.py tests/test_workflow_qualify.py tests/test_workflow_routing.py tests/test_workflow_cli.py tests/test_store_events.py tests/test_claims.py -q",
+  "exit_code": 0,
+  "result": "192 passed in 90.43s (0:01:30)",
+  "duration_seconds": 90.43,
+  "python": "3.13.15",
+  "pytest": "9.1.1",
+  "log": "pytest.log",
+  "log_sha256": "115ff15a49faf9a1b7c3b7cde41e4a46178ea113c9d149d8c139f5490a9f988e",
+  "source_sha256": {
+    "src/hutch/engine.py": "b7a7acd34f5a6403ded0494ae86b5e819770fd18a7dd7eeb118fdd061c0c17a7",
+    "src/hutch/workflow/persistence.py": "303101df49cb72d3f3620a0153b75f055561ad08fdc6b9f1b9c80b7c74e7219a",
+    "src/hutch/workflow/engine.py": "3535ae2c51672e99e12fb3fdb10b5c28c3e3c84cbe7bb1586ff258145979bd09",
+    "tests/test_workflow_engine.py": "d657395952f8bacc6b27a2036ac4705cd431de91e349a7864e3a118a71e75862",
+    "tests/test_workflow_regressions.py": "e1f4023d9d477b1f566a94927b5ae119ccdb49d8d445f803c371f8c4304ccace",
+    "tests/test_workflow_steps.py": "10042eb2077f6e46f2ce8efc0751301ed8299497f7a2763d653c5b97a2908a19",
+    "tests/test_workflow_api.py": "0167881cf0d2d2c040ac54dba7c6e5654daa98650e88fbe30805290dde391c4b",
+    "tests/test_workflow_plan.py": "63457c46feba11765eed2cfb4c488673b49ce4a988f9a90421b9916b35048ab2",
+    "tests/test_workflow_qualify.py": "c08cdb7c5c9d76763728626e151f28b580a1e467b6dc8904493f7c13aa212022",
+    "tests/test_workflow_routing.py": "66e1ed460a61f8897b00f5e4adbca26c3206396962ecac88093ae3f030bfe7f6",
+    "tests/test_workflow_cli.py": "fd4e54119300fecc6438388eb34f5759d76fe4cca00e1cf97d57302c3487144a",
+    "tests/test_store_events.py": "6fdc6fd73c88ab0b1c201cb4624d381a8f57cdfbce1698a7eaeeaba7145296bd",
+    "tests/test_claims.py": "32a15babfad75781d7671bf5934ba4755c5453b04f617538d052e52ac449e3e6"
+  },
+  "scope_note": "Focused workflow/runtime/API/event/claim regression suite. The separate full browser suite snapshot is not green; see ../broad-e2e-2026-10-11/."
+}

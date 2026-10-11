@@ -266,6 +266,12 @@ slot. The workflow remains visible as waiting, not successful. An answer or sett
 the supervisor admit a fresh attempt; settled node records are reused.
 Stopping a parked workflow cancels its pending questions and owned child work, and it remains
 visible until cleanup is verified.
+Automatic continuation is reserved for attempts recovered as interrupted and canonical
+event-delivery failures whose history needs to be completed, with at most two such recoveries.
+Child and question wakeups are ordinary continuations, bounded by the original node, model and
+wall-clock budgets. A normal model or runtime failure settles the workflow as failed instead of
+being retried as a crash; an uncertain effect remains `outcome_unknown` for review. Continuations
+reuse settled node and effect receipts.
 Stop commits cancellation fences for the attempt and its descendants before transitioning any
 run. An owned step that is still queued and unclaimed becomes stopped without dispatch; a racing
 late step admission sees the fenced parent and is refused. The orchestration attempt remains

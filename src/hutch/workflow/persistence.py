@@ -40,6 +40,26 @@ WORKFLOW_STATES = ("pending", "running", "waiting", "succeeded", "failed", "stop
 MAX_NODES_PER_RUN = 4_000
 MAX_LEDGER_KEYS = 64
 MAX_AMENDMENT_SNAPSHOT_BYTES = 8 * 1024 * 1024
+MAX_AUTOMATIC_WORKFLOW_RECOVERIES = 2
+RECOVERABLE_WORKFLOW_EXIT_REASONS = frozenset({"interrupted", "event_delivery_failed"})
+
+
+def is_recoverable_workflow_attempt(status: str, exit_reason: str) -> bool:
+    """Only crash or canonical-outbox failures may start an automatic continuation."""
+    return status == "failed" and exit_reason in RECOVERABLE_WORKFLOW_EXIT_REASONS
+
+
+def workflow_recovery_exhausted(store: Any, wf_id: str) -> bool:
+    """Return whether this workflow has used its bounded automatic continuations."""
+    with store._lock:
+        row = store._db.execute("SELECT ledger_json FROM workflow_runs WHERE id = ?", (wf_id,)).fetchone()
+    if row is None:
+        return False
+    try:
+        continuations = int(json.loads(str(row["ledger_json"] or "{}")).get("recoveries", 0))
+    except (TypeError, ValueError):
+        continuations = 0
+    return continuations >= MAX_AUTOMATIC_WORKFLOW_RECOVERIES
 
 
 class AmendmentSnapshotLimit(ValueError):
@@ -846,10 +866,12 @@ def set_workflow_pause(store: Any, wf_id: str, *, paused: bool, expected_revisio
 
 def workflow_runs_needing_attempt(store: Any, *, limit: int = 4,
                                   quiet_seconds: float = 2.0) -> list[dict[str, Any]]:
-    """Live workflow instances whose orchestration attempt is gone (crashed or killed).
+    """Live workflow instances whose orchestration attempt is terminal or missing.
 
-    A stopped instance is never continued, and an instance is left alone while its attempt
-    is queued, running, or still has an unreaped process.
+    The supervisor only continues an interrupted attempt after a quiet period. Ordinary
+    model/runtime failures are returned immediately so the supervisor can settle the
+    workflow as failed instead of retrying them as if they were process crashes. A stopped
+    instance is never continued, and owned descendants must be quiescent first.
     """
     from datetime import timedelta
 
@@ -868,7 +890,13 @@ def workflow_runs_needing_attempt(store: Any, *, limit: int = 4,
         for workflow in rows:
             attempt_id = str(workflow["attempt_run_id"] or "")
             previous = store._db.execute(
-                "SELECT status, cancel_requested FROM runs WHERE id = ?", (attempt_id,)).fetchone()
+                "SELECT status, cancel_requested, doc FROM runs WHERE id = ?", (attempt_id,)).fetchone()
+            previous_exit_reason = ""
+            if previous is not None:
+                try:
+                    previous_exit_reason = str(json.loads(str(previous["doc"] or "{}")).get("exit_reason") or "")
+                except (TypeError, ValueError):
+                    previous_exit_reason = ""
             if int(workflow["pause_requested"]):
                 # A paused, parked generation stays parked when its wait resolves. If an
                 # active attempt disappeared during a pause request, admit one fresh
@@ -878,8 +906,10 @@ def workflow_runs_needing_attempt(store: Any, *, limit: int = 4,
                     if str(workflow["updated_at"]) <= cutoff:
                         ready.append(workflow)
                 elif (str(previous["status"]) in terminal
-                      and (str(workflow["updated_at"]) <= cutoff or
-                           str(previous["status"]) == "stopped")):
+                      and (str(previous["status"]) != "failed"
+                           or not is_recoverable_workflow_attempt(
+                               str(previous["status"]), previous_exit_reason)
+                           or str(workflow["updated_at"]) <= cutoff)):
                     if _workflow_branch_ready(store._db, str(workflow["id"]), attempt_id):
                         ready.append(workflow)
                 continue
@@ -887,8 +917,10 @@ def workflow_runs_needing_attempt(store: Any, *, limit: int = 4,
                 if str(workflow["updated_at"]) <= cutoff:
                     ready.append(workflow)
             elif (str(previous["status"]) in terminal
-                  and (str(workflow["updated_at"]) <= cutoff or
-                       str(previous["status"]) == "stopped")):
+                  and (str(previous["status"]) != "failed"
+                       or not is_recoverable_workflow_attempt(
+                           str(previous["status"]), previous_exit_reason)
+                       or str(workflow["updated_at"]) <= cutoff)):
                 if _workflow_branch_ready(store._db, str(workflow["id"]), attempt_id):
                     ready.append(workflow)
             elif (str(previous["status"]) == "waiting_workflow"
@@ -940,21 +972,31 @@ def admit_workflow_continuation(store: Any, wf_id: str) -> Optional[Run]:
                 or int(row["stop_requested"])):
             return None
         pause_requested = bool(row["pause_requested"])
-        previous = db.execute("SELECT id, status, cancel_requested FROM runs WHERE id = ?",
+        previous = db.execute("SELECT id, status, cancel_requested, doc FROM runs WHERE id = ?",
                               (str(row["attempt_run_id"]),)).fetchone()
+        ledger = json.loads(str(row["ledger_json"]) or "{}") or {}
+        previous_status = ""
+        previous_exit_reason = ""
         if previous is not None:
             if int(previous["cancel_requested"]):
                 return None
             previous_status = str(previous["status"])
+            try:
+                previous_exit_reason = str(json.loads(str(previous["doc"] or "{}")).get("exit_reason") or "")
+            except (TypeError, ValueError):
+                previous_exit_reason = ""
             if pause_requested:
-                if previous_status not in _TERMINAL_VALUES or not _workflow_branch_ready(
-                        db, wf_id, str(row["attempt_run_id"])):
+                if (not is_recoverable_workflow_attempt(previous_status, previous_exit_reason)
+                        or not _workflow_branch_ready(
+                            db, wf_id, str(row["attempt_run_id"]))):
                     return None
             elif previous_status == "waiting_workflow":
                 if str(row["status"]) != "waiting" or not _workflow_branch_ready(
                         db, wf_id, str(row["attempt_run_id"])):
                     return None
-            elif previous_status not in _TERMINAL_VALUES:
+            elif (previous_status not in _TERMINAL_VALUES
+                  or (previous_status != "outcome_unknown"
+                      and not is_recoverable_workflow_attempt(previous_status, previous_exit_reason))):
                 return None
             elif not _workflow_branch_ready(db, wf_id, str(row["attempt_run_id"])):
                 return None
@@ -966,8 +1008,13 @@ def admit_workflow_continuation(store: Any, wf_id: str) -> Optional[Run]:
                 name = str(json.loads(str(revision["plan_json"])).get("name") or name)
             except (ValueError, TypeError):
                 pass
-        ledger = json.loads(str(row["ledger_json"]) or "{}") or {}
-        attempt = 1 + int(ledger.get("attempts", 0))
+        continuations = int(ledger.get("attempts", 0))
+        is_recovery = previous is not None and is_recoverable_workflow_attempt(
+            previous_status, previous_exit_reason)
+        recoveries = int(ledger.get("recoveries", 0))
+        if is_recovery and recoveries >= MAX_AUTOMATIC_WORKFLOW_RECOVERIES:
+            return None
+        attempt = 2 + continuations
         prompt = f"workflow: {name}"[:4_000]
         run = Run(bot_id=str(row["bot_id"]), prompt=prompt, kind="workflow",
                   workflow_run_id=wf_id,
@@ -982,7 +1029,9 @@ def admit_workflow_continuation(store: Any, wf_id: str) -> Optional[Run]:
                    "conversation_context, kind) VALUES (?, ?, ?, ?, ?, ?, ?, '[]', 'workflow')",
                    (run.id, run.bot_id, task.id, store._run_json(run), run.status.value, run.created_at,
                     run.conversation_id))
-        ledger["attempts"] = attempt
+        ledger["attempts"] = continuations + 1
+        if is_recovery:
+            ledger["recoveries"] = recoveries + 1
         cur = db.execute("UPDATE workflow_runs SET attempt_run_id = ?, status = 'running', updated_at = ?, "
                          "ledger_json = ? WHERE id = ? AND attempt_run_id = ?",
                          (run.id, iso(utcnow()), _json(ledger), wf_id, str(row["attempt_run_id"])))

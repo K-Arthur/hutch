@@ -7,6 +7,7 @@ verification vocabulary. The model side uses the harness's deterministic scenari
 """
 from __future__ import annotations
 
+import json
 import time
 
 import pytest
@@ -48,6 +49,17 @@ def drive(engine: Engine, store: Store, attempt_run_id: str, timeout: float = 30
                 return
         time.sleep(0.05)
     raise AssertionError("the workflow did not settle in time")
+
+
+def simulate_workflow_crash(store: Store, attempt_run_id: str) -> None:
+    """Record the status the supervisor writes after the workflow owner disappears."""
+    with store._tx() as db:
+        row = db.execute("SELECT doc FROM runs WHERE id = ?", (attempt_run_id,)).fetchone()
+        assert row is not None
+        document = json.loads(str(row["doc"]))
+        document.update(status="failed", exit_reason="interrupted", error="simulated crash")
+        db.execute("UPDATE runs SET status='failed', doc=? WHERE id=?",
+                   (json.dumps(document), attempt_run_id))
 
 
 def claim_workflow_owner(store: Store, wf_id: str, attempt_id: str, *, owner: str = "test-workflow-owner"):
@@ -283,7 +295,8 @@ def test_reused_results_are_not_re_executed_on_continuation(store, config):
     first = wstore.nodes(store, submission.workflow_run_id)
     before = {node["site_id"]: node["result"] for node in first}
 
-    # Force a continuation of the same instance: a fresh attempt re-walks the plan.
+    # Simulate a process loss after the plan's settled rows were recorded.
+    simulate_workflow_crash(store, submission.attempt_run_id)
     wstore.update_workflow_run(store, submission.workflow_run_id, status="running")
     continuation = wstore.admit_workflow_continuation(store, submission.workflow_run_id)
     assert continuation is not None and continuation.id != submission.attempt_run_id
@@ -295,19 +308,67 @@ def test_reused_results_are_not_re_executed_on_continuation(store, config):
 
 
 def test_recovery_query_uses_cutoff_before_terminal_status_values(store):
-    """The first terminal state must not be consumed as the timestamp cutoff."""
-    from hutch.store import _TERMINAL_VALUES
+    """A crash-marked failed attempt is eligible only after the cutoff."""
 
     bot = make_bot(store)
     submission = wfsubmit.submit_workflow(store, bot=bot, plan=deterministic_plan())
     with store._tx() as db:
         db.execute("UPDATE workflow_runs SET status='running', updated_at='2000-01-01T00:00:00+00:00' "
                    "WHERE id=?", (submission.workflow_run_id,))
-        db.execute("UPDATE runs SET status=?, cancel_requested=0 WHERE id=?",
-                   (_TERMINAL_VALUES[0], submission.attempt_run_id))
+    simulate_workflow_crash(store, submission.attempt_run_id)
 
     rows = wstore.workflow_runs_needing_attempt(store, quiet_seconds=0)
     assert submission.workflow_run_id in {row["id"] for row in rows}
+
+
+def test_model_unavailable_attempt_fails_workflow_without_retry(store, config):
+    bot = make_bot(store)
+    engine = Engine(config, store, light=True)
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=deterministic_plan())
+    owner = store.claim_run(submission.attempt_run_id, "unavailable-model-owner", 60)
+    assert owner is not None
+    owner = store.transition_run(owner.id, RunStatus.running, fence=owner.fence)
+    store.transition_run(owner.id, RunStatus.failed, fence=owner.fence,
+                         exit_reason="model_unavailable", error="the configured model route is unavailable")
+
+    assert wstore.admit_workflow_continuation(store, submission.workflow_run_id) is None
+    engine.continue_workflow_runs()
+
+    view = wfsubmit.status(store, submission.workflow_run_id)
+    assert view["workflow"]["status"] == "failed"
+    assert "configured model route is unavailable" in view["workflow"]["reason"]
+    assert view["workflow"]["attempt_run_id"] == submission.attempt_run_id
+    assert wstore.workflow_runs_needing_attempt(store, quiet_seconds=0) == []
+
+
+def test_interrupted_attempt_recovery_is_bounded_at_two_continuations(store, config):
+    bot = make_bot(store)
+    engine = Engine(config, store, light=True)
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=deterministic_plan())
+    attempt_id = submission.attempt_run_id
+    for _ in range(2):
+        simulate_workflow_crash(store, attempt_id)
+        with store._tx() as db:
+            db.execute("UPDATE workflow_runs SET updated_at='2000-01-01T00:00:00+00:00' WHERE id=?",
+                       (submission.workflow_run_id,))
+        continuation = wstore.admit_workflow_continuation(store, submission.workflow_run_id)
+        assert continuation is not None
+        attempt_id = continuation.id
+
+    simulate_workflow_crash(store, attempt_id)
+    with store._tx() as db:
+        db.execute("UPDATE workflow_runs SET updated_at='2000-01-01T00:00:00+00:00' WHERE id=?",
+                   (submission.workflow_run_id,))
+    assert wstore.admit_workflow_continuation(store, submission.workflow_run_id) is None
+    assert wstore.workflow_recovery_exhausted(store, submission.workflow_run_id)
+    engine.continue_workflow_runs()
+
+    view = wfsubmit.status(store, submission.workflow_run_id)
+    assert view["workflow"]["status"] == "failed"
+    assert view["workflow"]["attempt_run_id"] == attempt_id
+    assert view["workflow"]["ledger"]["attempts"] == 2
+    assert view["workflow"]["ledger"]["recoveries"] == 2
+    assert "recovery limit reached" in view["workflow"]["reason"]
 
 
 def test_stale_workflow_attempt_cannot_replace_the_current_owner(store):

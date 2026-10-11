@@ -643,7 +643,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .model-slot { flex: none; }
 
 .studio { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.chat-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; position: relative; }
+.chat-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; position: relative; scroll-padding-block-end: 4rem; }
 .workflow-panel { box-sizing: border-box; flex: none; width: min(760px, calc(100% - 2 * var(--s-5))); max-height: min(36dvh, 24rem); overflow: auto; overscroll-behavior: contain; margin: var(--s-3) auto 0; padding: var(--s-3) var(--s-4); border: 1px solid var(--line-strong); border-radius: var(--r-panel); background: var(--panel); }
 .workflow-panel[hidden] { display: none; }
 .workflow-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3); min-width: 0; }
@@ -692,7 +692,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .workflow-amendment-error { min-height: 1.35em; margin: 0; font-size: var(--fs-xs); }
 .workflow-amendment-modal .modal-footer .btn, .workflow-amendment-preview > .btn { min-height: 44px; }
 .workflow-amendment-modal #modal-confirm:disabled { opacity: .48; filter: grayscale(.4); cursor: not-allowed; }
-.workflow-recommendation { display: grid; gap: var(--s-1); min-width: 0; margin: var(--s-2) 0 var(--s-3); padding: var(--s-3); border: 1px solid var(--line-strong); border-radius: var(--r-panel); background: var(--panel); color: var(--text); overflow-wrap: anywhere; }
+.workflow-recommendation { display: grid; gap: var(--s-1); min-width: 0; margin: var(--s-2) 0 var(--s-3); padding: var(--s-3); border: 1px solid var(--line-strong); border-radius: var(--r-panel); background: var(--panel); color: var(--text); overflow-wrap: anywhere; scroll-margin-block-start: var(--s-3); }
 .workflow-recommendation p { margin: 0; font-size: var(--fs-xs); }
 .workflow-recommendation > div:first-child { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s-2); }
 .workflow-recommendation-status { color: var(--text-2); font-size: var(--fs-2xs) !important; }
@@ -704,7 +704,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 /* ── conversation: iMessage-style turns, quiet tool activity ──
    Bubbles carry the chat; tool calls are plain lines — visible, transparent,
    never boxed. Amber is reserved for "a person is needed", nothing else. */
-.feed { position: relative; max-width: 760px; margin: 0 auto; padding: var(--s-5) var(--s-5) var(--s-4); display: flex; flex-direction: column; }
+.feed { position: relative; max-width: 760px; margin: 0 auto; padding: var(--s-5) var(--s-5) calc(var(--s-4) + 1rem); display: flex; flex-direction: column; }
 
 .msg { display: flex; flex-direction: column; gap: 4px; margin-bottom: var(--s-4); min-width: 0; }
 .msg.you { align-self: flex-end; align-items: flex-end; max-width: min(560px, 88%); }
@@ -768,6 +768,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .workspace-task-result p { margin-bottom: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 /* A waiting question is part of the task card, not a nested card; the option rows keep the shared choice rhythm. */
 .workspace-task-question { margin: var(--s-3) 0; padding-top: var(--s-3); border-top: 1px solid var(--line); }
+.workspace-task-question .btn { min-height: 44px; }
 .workspace-task-question .choice-card { width: 100%; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
 .workspace-task-question .choice-question { margin-bottom: var(--s-3); }
 .workspace-task-continuation-preview { min-width: 0; margin: var(--s-3) 0; padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--sunken); color: var(--text-2); white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -1852,7 +1853,7 @@ button.inline-link:hover { color: var(--text); }
   .kpi:nth-child(-n + 2) { border-top: 0; }
   .kpi:nth-child(odd) { border-left: 0; }
   .container { padding: var(--s-4) var(--s-4) var(--s-7); }
-  .feed { padding: var(--s-4) var(--s-3) var(--s-5); }
+  .feed { padding: var(--s-4) var(--s-3) calc(var(--s-5) + 1rem); }
   .run-integrity { align-items: stretch; flex-direction: column; }
   .run-technical-details > summary { gap: var(--s-2); padding-inline: var(--s-3); }
   .run-technical-details > summary span:nth-child(2) { max-width: 16ch; text-align: right; }
@@ -1955,11 +1956,11 @@ button.inline-link:hover { color: var(--text); }
 
 /* forced colors: system paints what matters; state never rides on color alone */
 @media (forced-colors: active) {
-  .card, .panel, .answer, .bubble, .modal-card, .toast, .approval-card-chat, .approval-card,
+  .card, .panel, .modal-card, .toast, .approval-card-chat, .approval-card,
   .bot-card, .ov-col, .table-wrap, .composer-box, .run-error, .feed-pill,
   .chip, .status, .tag, .pill, .roster-search { border: 1px solid CanvasText; forced-color-adjust: none; }
   .btn.primary, button.primary { background: ButtonFace; color: ButtonText; border-color: ButtonText; }
-  .thread .bubble, .answer, .typing { border: 1px solid CanvasText; forced-color-adjust: none; }
+  .thread .bubble, .answer, .typing { border: 1px solid CanvasText; }
   .tool-group-items { background: transparent; }
   :focus-visible { outline: 2px solid Highlight; }
   .status::before, .chip::before { forced-color-adjust: none; }

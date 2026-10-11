@@ -39,6 +39,17 @@ def make_bot(client, name="wf-api-bot", **overrides) -> dict:
     return res.json()
 
 
+def simulate_interrupted_attempt(store, run_id: str) -> None:
+    """Persist the same interruption marker the engine writes after process loss."""
+    with store._tx() as db:
+        row = db.execute("SELECT doc FROM runs WHERE id = ?", (run_id,)).fetchone()
+        assert row is not None
+        document = json.loads(str(row["doc"] or "{}"))
+        document.update(status="failed", exit_reason="interrupted", error="simulated process loss")
+        db.execute("UPDATE runs SET status='failed', doc=? WHERE id=?",
+                   (json.dumps(document), run_id))
+
+
 def plan(**overrides) -> dict:
     body = {
         "name": "api-collect",
@@ -480,8 +491,8 @@ def test_recovery_parks_a_lost_active_attempt_when_pause_is_requested(client):
     # Simulate process replacement after a crash: the parked attempt disappeared, while
     # the answered wait and durable pause survive in SQLite. Recovery may establish a new
     # parked attempt, but must not run the downstream node until Resume.
+    simulate_interrupted_attempt(client.app.state.store, old_generation)
     with client.app.state.store._tx() as db:
-        db.execute("UPDATE runs SET status='failed' WHERE id=?", (old_generation,))
         db.execute("UPDATE workflow_runs SET status='running', updated_at=datetime('now','-10 seconds') WHERE id=?",
                    (workflow_id,))
 

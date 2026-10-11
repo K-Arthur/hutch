@@ -1271,6 +1271,25 @@ class Engine:
                                             reason=(previous.error or "a stop was requested")[:500],
                                             finished=True)
                 continue
+            if (previous is not None and previous.terminal
+                    and not wfstore.is_recoverable_workflow_attempt(
+                        previous.status.value, previous.exit_reason)):
+                terminal = ("outcome_unknown" if previous.status is RunStatus.outcome_unknown
+                            else "stopped" if previous.status is RunStatus.stopped
+                            else "failed")
+                reason = (previous.error or previous.reason or previous.exit_reason
+                          or "the workflow attempt ended before settling the workflow")[:500]
+                wfstore.update_workflow_run(self.store, wf_id, status=terminal,
+                                            reason=reason, finished=True)
+                continue
+            if (previous is not None
+                    and wfstore.is_recoverable_workflow_attempt(previous.status.value, previous.exit_reason)
+                    and wfstore.workflow_recovery_exhausted(self.store, wf_id)):
+                wfstore.update_workflow_run(
+                    self.store, wf_id, status="failed",
+                    reason="automatic workflow recovery limit reached after two recoveries",
+                    finished=True)
+                continue
             if self.store.get_bot(str(candidate["bot_id"])) is None:
                 wfstore.update_workflow_run(self.store, wf_id, status="failed", reason="the Bot no longer exists",
                                             finished=True)

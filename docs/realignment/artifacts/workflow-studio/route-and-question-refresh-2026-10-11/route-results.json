@@ -1,0 +1,339 @@
+{
+  "test": "tests/e2e/test_workflow_route_card.py::test_chat_suggestion_card_reflows_and_requires_review",
+  "browser": "Chromium 153.0.8010.12",
+  "playwright": "1.63.0",
+  "viewports": [
+    {
+      "label": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "document_width": 1440,
+      "card_bounds": {
+        "x": 500,
+        "y": 394.484375,
+        "width": 712,
+        "height": 169.015625
+      },
+      "button_bounds": {
+        "x": 513,
+        "y": 506.5,
+        "width": 117.75,
+        "height": 44
+      },
+      "panel_bounds": {
+        "x": 476,
+        "y": 68,
+        "width": 760,
+        "height": 75
+      },
+      "computed_style": {
+        "fontFamily": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+        "fontSize": "16px",
+        "lineHeight": "24.8px",
+        "padding": "12px",
+        "borderRadius": "12px",
+        "color": "rgb(240, 244, 249)",
+        "borderLeftColor": "rgba(255, 255, 255, 0.14)"
+      },
+      "card_text": "Workflow suggestion \u00b7 saved workflow\n\nSuggestion \u00b7 nothing started\n\nquarterly-analysis-long-label-long-label-long-label-long-label-long-label-long-label-long-label-\n\nThe saved method covers this recurring sequence, and each result is checked before the summary is accepted.\n\nSimpler option: Run the direct checks once if this is a one-off request.\n\nReview & run"
+    },
+    {
+      "label": "tablet",
+      "viewport": [
+        768,
+        1024
+      ],
+      "document_width": 768,
+      "card_bounds": {
+        "x": 16,
+        "y": 440.625,
+        "width": 736,
+        "height": 169.015625
+      },
+      "button_bounds": {
+        "x": 29,
+        "y": 552.640625,
+        "width": 117.75,
+        "height": 44
+      },
+      "panel_bounds": {
+        "x": 24,
+        "y": 122.140625,
+        "width": 720,
+        "height": 75
+      },
+      "computed_style": {
+        "fontFamily": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+        "fontSize": "16px",
+        "lineHeight": "24.8px",
+        "padding": "12px",
+        "borderRadius": "12px",
+        "color": "rgb(240, 244, 249)",
+        "borderLeftColor": "rgba(255, 255, 255, 0.14)"
+      },
+      "card_text": "Workflow suggestion \u00b7 saved workflow\n\nSuggestion \u00b7 nothing started\n\nquarterly-analysis-long-label-long-label-long-label-long-label-long-label-long-label-long-label-\n\nThe saved method covers this recurring sequence, and each result is checked before the summary is accepted.\n\nSimpler option: Run the direct checks once if this is a one-off request.\n\nReview & run"
+    },
+    {
+      "label": "phone",
+      "viewport": [
+        360,
+        800
+      ],
+      "document_width": 360,
+      "card_bounds": {
+        "x": 12,
+        "y": 383.421875,
+        "width": 336,
+        "height": 274.46875
+      },
+      "button_bounds": {
+        "x": 25,
+        "y": 600.890625,
+        "width": 117.75,
+        "height": 44
+      },
+      "panel_bounds": {
+        "x": 24,
+        "y": 122.140625,
+        "width": 312,
+        "height": 75
+      },
+      "computed_style": {
+        "fontFamily": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+        "fontSize": "16px",
+        "lineHeight": "24.8px",
+        "padding": "12px",
+        "borderRadius": "12px",
+        "color": "rgb(240, 244, 249)",
+        "borderLeftColor": "rgba(255, 255, 255, 0.14)"
+      },
+      "card_text": "Workflow suggestion \u00b7 saved workflow\n\nSuggestion \u00b7 nothing started\n\nquarterly-analysis-long-label-long-label-long-label-long-label-long-label-long-label-long-label-\n\nThe saved method covers this recurring sequence, and each result is checked before the summary is accepted.\n\nSimpler option: Run the direct checks once if this is a one-off request.\n\nReview & run"
+    },
+    {
+      "label": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "document_width": 320,
+      "card_bounds": {
+        "x": 12,
+        "y": 251.421875,
+        "width": 296,
+        "height": 294.609375
+      },
+      "button_bounds": {
+        "x": 25,
+        "y": 489.03125,
+        "width": 117.75,
+        "height": 44
+      },
+      "panel_bounds": {
+        "x": 24,
+        "y": 122.140625,
+        "width": 272,
+        "height": 75
+      },
+      "computed_style": {
+        "fontFamily": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+        "fontSize": "16px",
+        "lineHeight": "24.8px",
+        "padding": "12px",
+        "borderRadius": "12px",
+        "color": "rgb(240, 244, 249)",
+        "borderLeftColor": "rgba(255, 255, 255, 0.14)"
+      },
+      "card_text": "Workflow suggestion \u00b7 saved workflow\n\nSuggestion \u00b7 nothing started\n\nquarterly-analysis-long-label-long-label-long-label-long-label-long-label-long-label-long-label-\n\nThe saved method covers this recurring sequence, and each result is checked before the summary is accepted.\n\nSimpler option: Run the direct checks once if this is a one-off request.\n\nReview & run"
+    }
+  ],
+  "accessibility_states": [
+    {
+      "state": "wcag-text-spacing",
+      "viewport": [
+        320,
+        740
+      ],
+      "document_overflow": false,
+      "card_start_bounds": {
+        "x": 12,
+        "y": 216,
+        "width": 296,
+        "height": 478
+      },
+      "heading_bounds": {
+        "x": 25,
+        "y": 229,
+        "width": 270,
+        "height": 39
+      },
+      "heading_hit_test": {
+        "text": "Workflow suggestion \u00b7 saved workflow",
+        "hitTag": "P",
+        "hitClass": "workflow-panel-kicker",
+        "coveredByOtherElement": false
+      },
+      "focused_action_bounds": {
+        "x": 25,
+        "y": 385,
+        "width": 142.390625,
+        "height": 44
+      },
+      "composer_bounds": {
+        "x": 0,
+        "y": 662,
+        "width": 320,
+        "height": 78
+      },
+      "jump_bounds": {
+        "x": 68.78125,
+        "y": 610,
+        "width": 182.4375,
+        "height": 44
+      },
+      "jump_slot_bounds": {
+        "x": 0,
+        "y": 610,
+        "width": 320,
+        "height": 52
+      },
+      "scroll_bounds": {
+        "x": 0,
+        "y": 204.5,
+        "width": 320,
+        "height": 405.5
+      },
+      "scroll_metrics": {
+        "scrollHeight": 981,
+        "clientHeight": 406,
+        "scrollTop": 575
+      },
+      "text": "Workflow suggestion \u00b7 saved workflow\n\nSuggestion \u00b7 nothing started\n\nquarterly-analysis-long-label-long-label-long-label-long-label-long-label-long-label-long-label-\n\nThe saved method covers this recurring sequence, and each result is checked before the summary is accepted.\n\nSimpler option: Run the direct checks once if this is a one-off request.\n\nReview & run"
+    },
+    {
+      "state": "forced-colors-active",
+      "viewport": [
+        320,
+        740
+      ],
+      "document_overflow": false,
+      "card_start_bounds": {
+        "x": 12,
+        "y": 216,
+        "width": 296,
+        "height": 478
+      },
+      "heading_bounds": {
+        "x": 25,
+        "y": 229,
+        "width": 270,
+        "height": 39
+      },
+      "focused_action_bounds": {
+        "x": 25,
+        "y": 383,
+        "width": 142.390625,
+        "height": 44
+      },
+      "composer_bounds": {
+        "x": 0,
+        "y": 662,
+        "width": 320,
+        "height": 78
+      },
+      "jump_bounds": {
+        "x": 68.78125,
+        "y": 610,
+        "width": 182.4375,
+        "height": 44
+      },
+      "jump_slot_bounds": {
+        "x": 0,
+        "y": 610,
+        "width": 320,
+        "height": 52
+      },
+      "scroll_bounds": {
+        "x": 0,
+        "y": 204.5,
+        "width": 320,
+        "height": 405.5
+      },
+      "scroll_metrics": {
+        "scrollHeight": 983,
+        "clientHeight": 406,
+        "scrollTop": 577
+      },
+      "answer_colors": {
+        "actual": "rgb(0, 0, 0)",
+        "expected": "rgb(0, 0, 0)"
+      },
+      "user_bubble_color": "rgb(0, 0, 0)",
+      "jump_layout": {
+        "parentId": "jump-latest-slot",
+        "offsetParentId": "",
+        "computedPosition": "static",
+        "bottom": "auto",
+        "rect": {
+          "x": 68.78125,
+          "y": 610,
+          "width": 182.4375,
+          "height": 44,
+          "top": 610,
+          "right": 251.21875,
+          "bottom": 654,
+          "left": 68.78125
+        },
+        "parentRect": {
+          "x": 0,
+          "y": 610,
+          "width": 320,
+          "height": 52,
+          "top": 610,
+          "right": 320,
+          "bottom": 662,
+          "left": 0
+        }
+      },
+      "computed_style": {
+        "color": "rgb(0, 0, 0)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "borderColor": "rgb(0, 0, 0)",
+        "forcedColorAdjust": "auto"
+      },
+      "text": "Workflow suggestion \u00b7 saved workflow\n\nSuggestion \u00b7 nothing started\n\nquarterly-analysis-long-label-long-label-long-label-long-label-long-label-long-label-long-label-\n\nThe saved method covers this recurring sequence, and each result is checked before the summary is accepted.\n\nSimpler option: Run the direct checks once if this is a one-off request.\n\nReview & run"
+    }
+  ],
+  "jump_latest_interaction": {
+    "shown": true,
+    "clicked": true,
+    "scroll_top_before": 575,
+    "scroll_top_after": 523,
+    "scroll_max_after": 523
+  },
+  "interaction": "Enter opens the explicit saved-workflow review dialog; Cancel restores focus; no workflow started",
+  "page_errors": [],
+  "failed_requests": [],
+  "external_requests": [],
+  "artifact_sha256": {
+    "suggestion-compact-phone.png": "363c268713beb260bf8b8d9af182250be81feef9595448fab99a6a7b9380db1b",
+    "suggestion-desktop.png": "beab9311ec95c5f49155e49e800657af0ddf91debcf67600aeea0dfafd193cdd",
+    "suggestion-forced-colors-card-start-compact-phone.png": "cfe9e752636a03371fa09304ab747cb3ce774965831ff037e6e65f06059ea661",
+    "suggestion-forced-colors-focus-compact-phone.png": "54edbc2b894241fbcba3909f0a1f7159741373fb445fb83c93eeea64ae6fa1b4",
+    "suggestion-phone.png": "5d157d170f66fcf5431d4ce0772ebb7494b6eb7f32c12e7ac4d1fbf97a5e8ebb",
+    "suggestion-review-dialog.png": "8db8cf0ae079a051c27e672f5d462e70ec7b99d6dc4c38a57001fc9489d48f56",
+    "suggestion-tablet.png": "c2d81e92144e6f903d0eb3ce71baeda8976ba6761772e2d2817a36b3bb155a74",
+    "suggestion-text-spacing-card-start-compact-phone.png": "53a0fe150ac899b44de1b2109300509eaf4017715ce96116e0339a2e13d4b5ac",
+    "suggestion-text-spacing-focus-compact-phone.png": "b3b7b96134c6a9d44c05ed5b1d2c03db4e18db870b1c54768c17447fb1fd1a78",
+    "trace.zip": "990a5b511cba4daafbb1c0b573b768ecbca650a418f73e80eab4609a71b83904"
+  },
+  "source_sha256": {
+    "src/hutch/runtime/builtin.py": "e2e1ad6a9a5d0419b46c4f4dedd18b16ed7e50d21eccfaa9090214b884357cca",
+    "src/hutch/runtime/steps.py": "cc3beb43a42a4f4375a50e6f265cc21f6f79d31f44700d27e20f501a7699f87f",
+    "src/hutch/tools/workflow_route.py": "d51495256874d4f0842c3f5c540ad150b82206e6f70179b98048edefbbc1263d",
+    "src/hutch/server/static/app.js": "952f6d146f1c94021f56cf0e727952bf321b85d2ce5031241b4331f4351f7278",
+    "src/hutch/server/static/style.css": "3935f4b3f87e7da84680a0a6c1ae1aa498e103d5a667fa9e67fdd3146bf78b87",
+    "tests/e2e/test_workflow_route_card.py": "9231fbf4a63de5b5f8f5c8ae22d5e654c0fcdec15774ed553c251743e7de5568"
+  }
+}

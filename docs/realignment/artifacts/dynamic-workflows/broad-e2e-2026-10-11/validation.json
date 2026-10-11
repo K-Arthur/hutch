@@ -1,0 +1,166 @@
+{
+  "test": "full E2E browser suite",
+  "date": "2026-10-11",
+  "source_commit": "bef3b2b2",
+  "command": "env TMPDIR=/var/tmp uv run --extra dev --extra browser pytest tests/e2e -q --basetemp=/var/tmp/hutch-dynamic-e2e-basetemp-bef3b2b2",
+  "exit_code": 1,
+  "result": "29 failed, 177 passed, 8 errors in 1193.28s (0:19:53)",
+  "failed_count": 29,
+  "error_count": 8,
+  "failed_and_error_tests": [
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_opencode_coding_handoff_is_reviewed_and_responsive"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_truncated_tool_source_card_opens_verified_plain_text_at_all_viewports"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_verified_artifact_can_be_shared_with_another_chat_and_revoked"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_mobile_navigation_traps_tab_and_restores_focus"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_tool_permissions_are_clear_and_save_at_desktop_tablet_and_phone"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_sizes"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_large_idle_roster_stays_compact_and_remains_searchable_and_keyboard_accessible"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_duplicate_bot_starts_from_safe_editable_setup_without_copying_authority"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_small_workspace_has_one_roster_and_legacy_routes_do_not_trap_back"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_bot_workspace_modes_are_clear_and_persist_across_settings[1440-1000-desktop]"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_bot_workspace_modes_are_clear_and_persist_across_settings[900-1024-tablet]"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_bot_workspace_modes_are_clear_and_persist_across_settings[390-844-phone]"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_bot_workspace_modes_are_clear_and_persist_across_settings[320-740-compact-phone]"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_local_browser_handoff_setting_is_explicit_and_persists[1440-1000-desktop]"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_local_browser_handoff_setting_is_explicit_and_persists[900-1024-tablet]"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_local_browser_handoff_setting_is_explicit_and_persists[390-844-phone]"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_bot_and_conversation_switches_isolate_unsent_drafts"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus[1440-1000-desktop]"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus[900-1024-tablet]"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus[390-844-phone]"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_composer_options_rehearsal_and_cancelled_notice[1440-1000-desktop]"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_composer_options_rehearsal_and_cancelled_notice[900-1024-tablet]"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_composer_options_rehearsal_and_cancelled_notice[390-844-phone]"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_scoped_fact_review_revision_conflict_and_memory_off[1440-1000-desktop]"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_scoped_fact_review_revision_conflict_and_memory_off[900-1024-tablet]"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_browser.py::test_scoped_fact_review_revision_conflict_and_memory_off[390-844-phone]"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_delegation_clarification.py::test_specialist_question_is_answered_from_the_task_card"
+    },
+    {
+      "kind": "failed",
+      "test": "tests/e2e/test_workflow_route_card.py::test_chat_suggestion_card_reflows_and_requires_review"
+    },
+    {
+      "kind": "error",
+      "test": "tests/e2e/test_browser.py::test_mobile_navigation_traps_tab_and_restores_focus"
+    },
+    {
+      "kind": "error",
+      "test": "tests/e2e/test_browser.py::test_bot_and_conversation_switches_isolate_unsent_drafts"
+    },
+    {
+      "kind": "error",
+      "test": "tests/e2e/test_browser.py::test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus[1440-1000-desktop]"
+    },
+    {
+      "kind": "error",
+      "test": "tests/e2e/test_browser.py::test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus[900-1024-tablet]"
+    },
+    {
+      "kind": "error",
+      "test": "tests/e2e/test_browser.py::test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus[390-844-phone]"
+    },
+    {
+      "kind": "error",
+      "test": "tests/e2e/test_browser.py::test_composer_options_rehearsal_and_cancelled_notice[1440-1000-desktop]"
+    },
+    {
+      "kind": "error",
+      "test": "tests/e2e/test_browser.py::test_composer_options_rehearsal_and_cancelled_notice[900-1024-tablet]"
+    },
+    {
+      "kind": "error",
+      "test": "tests/e2e/test_browser.py::test_composer_options_rehearsal_and_cancelled_notice[390-844-phone]"
+    }
+  ],
+  "duration_seconds": 1193.28,
+  "browser": "Chromium 153.0.8010.12",
+  "playwright": "1.63.0",
+  "log": "pytest.log",
+  "log_sha256": "4acb82376ae96ca55ebc597d9dc40a912e14666060b94a8bc601b33600157794",
+  "scope_note": "This full run preceded the current focus/clearance and recovery fixes. Two in-scope browser cases (workflow suggestion card and specialist question) were then corrected and passed focused reruns. The remaining broad failures and fixture teardown errors remain unclassified; this suite is not green."
+}
