@@ -380,7 +380,8 @@ def sheets_resolve_sheet(spreadsheet: dict[str, Any], *, title: str = "",
     return {"sheet_id": matches[0]["sheetId"], "title": matches[0]["title"]}
 
 
-def _a1_sheet_title(title: str) -> str:
+def a1_sheet_title(title: str) -> str:
+    """Quote a sheet title for A1 notation only when it needs quoting."""
     if re.search(r"[^A-Za-z0-9_]", title):
         return "'" + title.replace("'", "''") + "'"
     return title
@@ -389,7 +390,7 @@ def _a1_sheet_title(title: str) -> str:
 def sheets_header_read_range(title: str, columns: int) -> str:
     if columns < 1 or columns > MAX_SHEET_COLUMNS:
         raise WorkspaceRequestError(f"columns must be 1-{MAX_SHEET_COLUMNS}")
-    return f"{_a1_sheet_title(title)}!A1:{_column_letter(columns)}1"
+    return f"{a1_sheet_title(title)}!A1:{_column_letter(columns)}1"
 
 
 def sheets_append_spec(*, resolved: dict[str, Any], columns: list[ColumnSpec],
@@ -420,7 +421,7 @@ def sheets_append_spec(*, resolved: dict[str, Any], columns: list[ColumnSpec],
     return {
         "sheet_id": resolved.get("sheet_id"),
         "sheet_title": resolved.get("title", ""),
-        "range": f"{_a1_sheet_title(resolved.get('title', ''))}!{range_start}",
+        "range": f"{a1_sheet_title(resolved.get('title', ''))}!{range_start}",
         "value_input_option": "RAW",
         "insert_data_option": insert_data_option,
         "major_dimension": "ROWS",
@@ -436,7 +437,7 @@ def sheets_values_lookup_spec(*, resolved: dict[str, Any], first_column: int, la
         raise WorkspaceRequestError("invalid column window")
     if max_rows < 1 or max_rows > 1_000:
         raise WorkspaceRequestError("max_rows must be 1-1000")
-    title = _a1_sheet_title(resolved.get("title", ""))
+    title = a1_sheet_title(resolved.get("title", ""))
     return {
         "sheet_id": resolved.get("sheet_id"),
         "range": f"{title}!{_column_letter(first_column)}2:{_column_letter(last_column)}{max_rows + 1}",
@@ -452,7 +453,7 @@ def sheets_verify_append(response: dict[str, Any], spec: dict[str, Any]) -> list
     if not rng:
         problems.append("the append response carries no updatedRange")
     title = spec.get("sheet_title", "")
-    if title and title not in rng and _a1_sheet_title(title).strip("'") not in rng:
+    if title and title not in rng and a1_sheet_title(title).strip("'") not in rng:
         problems.append(f"the append landed in {rng!r}, not sheet {title!r}")
     updated_rows = int(updates.get("updatedRows", 0) or 0)
     if updated_rows != len(spec.get("values") or []):

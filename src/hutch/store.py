@@ -1623,6 +1623,27 @@ def _migrate_52(db: sqlite3.Connection) -> None:
     db.execute("CREATE INDEX IF NOT EXISTS idx_syn_effects_plan ON syn_effects(plan_id, created_at)")
 
 
+def _migrate_53(db: sqlite3.Connection) -> None:
+    """Durable action plans: the inspectable, reviewable unit behind every external write.
+
+    The plan document is the authority for what was reviewed (its ``approval_scope_hash``
+    binds the review); ``syn_effects`` remains the per-step effect journal.
+    """
+    db.execute("""CREATE TABLE IF NOT EXISTS syn_plans (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL DEFAULT '',
+        bot_id TEXT NOT NULL DEFAULT '',
+        run_id TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'draft',
+        approval_scope_hash TEXT NOT NULL DEFAULT '',
+        doc TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_syn_plans_conv ON syn_plans(conversation_id, created_at)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_syn_plans_run ON syn_plans(run_id)")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -1630,7 +1651,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
-               _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52]
+               _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -8284,3 +8305,60 @@ class Store:
                     "SELECT * FROM syn_effects ORDER BY created_at DESC LIMIT ?",
                     (max(1, min(limit, 500)),)).fetchall()
         return [self._synthesis_row(r) for r in rows]
+
+    def save_action_plan(self, plan: dict[str, Any]) -> dict[str, Any]:
+        """Persist the plan document (upsert); the plan id is its identity."""
+        plan_id = str(plan.get("id") or "").strip()
+        if not plan_id:
+            raise ValueError("an action plan needs an id")
+        now = iso(utcnow())
+        doc = _canonical(plan)
+        with self._lock:
+            self._db.execute(
+                "INSERT INTO syn_plans (id, conversation_id, bot_id, run_id, status, "
+                "approval_scope_hash, doc, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(id) DO UPDATE SET status = excluded.status, "
+                "approval_scope_hash = excluded.approval_scope_hash, doc = excluded.doc, "
+                "updated_at = excluded.updated_at",
+                (plan_id, str(plan.get("conversation_id", "")), str(plan.get("bot_id", "")),
+                 str(plan.get("run_id", "")), str(plan.get("status", "draft")),
+                 str(plan.get("approval_scope_hash", "")), doc, now, now))
+            self._db.commit()
+            row = self._db.execute("SELECT * FROM syn_plans WHERE id = ?", (plan_id,)).fetchone()
+        return self._synthesis_row(row)
+
+    def get_action_plan(self, plan_id: str) -> Optional[dict[str, Any]]:
+        with self._lock:
+            row = self._db.execute("SELECT * FROM syn_plans WHERE id = ?", (plan_id,)).fetchone()
+        return self._synthesis_row(row) if row else None
+
+    def list_action_plans(self, *, conversation_id: Optional[str] = None, run_id: Optional[str] = None,
+                          limit: int = 50) -> list[dict[str, Any]]:
+        with self._lock:
+            if conversation_id:
+                rows = self._db.execute(
+                    "SELECT * FROM syn_plans WHERE conversation_id = ? ORDER BY created_at DESC LIMIT ?",
+                    (conversation_id, max(1, min(limit, 200)))).fetchall()
+            elif run_id:
+                rows = self._db.execute(
+                    "SELECT * FROM syn_plans WHERE run_id = ? ORDER BY created_at LIMIT ?",
+                    (run_id, max(1, min(limit, 200)))).fetchall()
+            else:
+                rows = self._db.execute("SELECT * FROM syn_plans ORDER BY created_at DESC LIMIT ?",
+                                        (max(1, min(limit, 200)),)).fetchall()
+        return [self._synthesis_row(r) for r in rows]
+
+    def claim_synthesis_effect_for_retry(self, effect_id: str) -> bool:
+        """Flip a definitively-failed effect back to 'prepared' so one explicit retry runs.
+
+        Uncertain outcomes are deliberately not retryable here: reconciliation must look
+        first. Returns False when the effect is not in a retryable state.
+        """
+        with self._lock:
+            row = self._db.execute("SELECT status FROM syn_effects WHERE id = ?", (effect_id,)).fetchone()
+            if row is None or row["status"] != "failed":
+                return False
+            self._db.execute("UPDATE syn_effects SET status = 'prepared', updated_at = ? WHERE id = ?",
+                             (iso(utcnow()), effect_id))
+            self._db.commit()
+            return True

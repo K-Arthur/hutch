@@ -38,3 +38,12 @@ from .requests import (  # noqa: F401
     sheets_verify_append,
     walk_tabs,
 )
+
+from .client import (  # noqa: F401
+    GoogleWorkspaceClient,
+    GoogleWorkspaceError,
+    GoogleWorkspaceOutcomeUnknown,
+    WorkspaceAccount,
+    WorkspaceSecretToolStore,
+)
+from .executors import workspace_executors  # noqa: F401
