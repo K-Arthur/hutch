@@ -34,6 +34,14 @@ Hutch never executes generated code: there is no script sandbox to escape.
 | `suggest` | describe a candidate route and its bounds in the conversation; starting it stays your action |
 | `auto` | start a workflow without a fresh confirmation, but only inside the scope you preauthorized in Bot settings |
 
+Set the policy per Bot; saving it starts nothing:
+
+```bash
+hutch workflow mode research-bot --mode suggest
+hutch workflow mode research-bot --mode auto --allow-definition weekly-report \
+    --max-nodes 40 --max-model-calls 5 --max-wall-seconds 900 --max-fanout 10
+```
+
 `auto` needs an explicit scope: which saved definitions it may start and the maximum nodes,
 model calls, wall clock and fan-out. Anything outside that scope is refused with the reason.
 Consequential actions inside a run still use their own approval boundaries - permission to
@@ -67,6 +75,8 @@ Write a plan as JSON and save it:
 ```bash
 hutch workflow validate my-plan.json --bot research-bot
 hutch workflow save my-plan.json --name my-plan --note "reviewed 2026-10-11"
+hutch workflow submit my-plan.json --bot research-bot   # validate + save + run, and wait
+hutch workflow export my-plan --out reviewed-plan.json # review the exact committed plan
 ```
 
 A model may draft a plan only when its route is qualified for the **author** role (probed
@@ -136,5 +146,11 @@ with a bounded number of rounds.
   the development host, which has no model server installed.
 * **No workflow surface in Studio yet.** The API and CLI are complete; the plan/graph view,
   mode selection and inline question cards are a later slice.
-* No MCP facade (Hutch has no MCP plane), no code facade, no scheduling of workflows, and no
-  automatic downloads or model substitution.
+* No MCP facade (Hutch has no MCP plane), no code facade, and no automatic downloads or
+  model substitution.
+* **No scheduling of workflows yet.** A routine decides *when* saved work runs; wiring a
+  routine to a saved workflow is a separate, explicit act that is not implemented, so a
+  workflow cannot currently run unattended on a schedule.
+* **No amendment of a running instance.** A crashed attempt is continued and reuses its
+  settled nodes, but changing the plan of a live instance (a revision diff and adoption) is
+  not implemented; edit the definition and run the new revision instead.
