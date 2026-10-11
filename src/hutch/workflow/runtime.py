@@ -52,7 +52,7 @@ def run_attempt(engine: Any, ctx: Any, run: Run, tools: dict[str, Any], stop: An
 
     revision = wstore.revision(store, str(workflow["revision_id"]))
     if revision is None:
-        _settle(store, wf_id, run, "failed", "the plan revision is missing", "")
+        _settle(store, wf_id, run, "failed", "the plan revision is missing")
         raise RunAborted("error", "the workflow's plan revision no longer exists")
     compiled = compile_plan(revision["plan"])  # the stored revision is immutable: recompile is exact
     budget = dict(workflow.get("budget") or {})
@@ -68,16 +68,16 @@ def run_attempt(engine: Any, ctx: Any, run: Run, tools: dict[str, Any], stop: An
     waits = 0
     while True:
         if stop():
-            _settle(store, wf_id, run, "stopped", "stopped by the owner", "")
+            _settle(store, wf_id, run, "stopped", "stopped by the owner")
             raise RunAborted("stopped", "the workflow attempt was stopped")
         if time.monotonic() > deadline:
-            _settle(store, wf_id, run, "failed", "the workflow exceeded its wall-clock budget", "")
+            _settle(store, wf_id, run, "failed", "the workflow exceeded its wall-clock budget")
             raise RunAborted("error", "the workflow exceeded its wall-clock budget")
         fresh = wstore.workflow_run(store, wf_id)
         if fresh is None:
             raise RunAborted("error", "the workflow instance disappeared")
         if fresh.get("stop_requested"):
-            _settle(store, wf_id, run, "stopped", "a stop was requested", "")
+            _settle(store, wf_id, run, "stopped", "a stop was requested")
             raise RunAborted("stopped", "a stop was requested for this workflow")
         interp.workflow = fresh
 
@@ -99,12 +99,12 @@ def run_attempt(engine: Any, ctx: Any, run: Run, tools: dict[str, Any], stop: An
             continue
         waits = 0
         if advance.kind == "failed":
-            _settle(store, wf_id, run, "failed", advance.detail, "")
+            _settle(store, wf_id, run, "failed", advance.detail)
             ctx.emit(Event(run_id=run.id, type=EventType.error, data={"error": advance.detail}))
             raise RunAborted("error", f"the workflow failed: {advance.detail}")
 
         digest = _digest(compiled, interp, advance)
-        _settle(store, wf_id, run, "succeeded", "", digest["text"])
+        _settle(store, wf_id, run, "succeeded", "")
         return digest["text"]
 
 
@@ -119,7 +119,7 @@ def _artifact_list(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
-def _settle(store: Any, wf_id: str, run: Run, status: str, reason: str, text: str) -> None:
+def _settle(store: Any, wf_id: str, run: Run, status: str, reason: str) -> None:
     nodes = wstore.nodes(store, wf_id)
     counts: dict[str, int] = {}
     for node in nodes:
@@ -129,8 +129,6 @@ def _settle(store: Any, wf_id: str, run: Run, status: str, reason: str, text: st
                                reason=reason[:500], result=result, finished=True)
     if status != "succeeded":
         wstore.cancel_questions(store, wf_id)
-    if text:
-        run.status = RunStatus.running  # the engine's own bookkeeping stays authoritative
 
 
 def _digest(compiled: Any, interp: Interpreter, advance: Advance) -> dict[str, Any]:
