@@ -95,9 +95,15 @@ Workspace actions (Docs brief, Sheets table, Drive placement, Calendar/reminder 
   Workspace or Calendar call (no connected account or OAuth client), the Connections UI,
   the audio player/Join-Ask surface, and listening to rendered speech. The TTS and Google
   routes must be live-verified before any "listened/verified" claim.
-* Contaminated-run note: an intermediate full-suite run overlapped this lane's own edits and
-  reported import-time errors; it is not evidence about the committed tree. The final clean
-  run result is recorded in the session report.
+* Contaminated-run note: two intermediate full-suite runs overlapped other agents' pytest
+  sessions that share `/tmp/pytest-of-kevina`; pytest's keep-last-3 pruning deleted this
+  lane's temp base mid-run, producing mass `FileNotFoundError` "errors" that say nothing
+  about the committed tree.
+* Final isolated run (`--basetemp=/tmp/opencode/synthesis-final-tmp`): **2132 passed,
+  8 skipped, 1 failed** — the single failure
+  (`test_code_handoff.py::test_interactive_process_keeps_terminal_and_owns_a_separate_group`,
+  a PTY-ownership timing test in another lane) passes 12/12 in isolation and is attributed
+  to load from the three concurrent suites, not to a code change.
 * Determinism: `deterministic_draft` is a plainly-labeled offline script used for tests and
   strict-offline derivatives; it is not presented as good dialogue.
 * Deliberate non-claims: no UI exists yet; no scheduling/notifications have been configured;
