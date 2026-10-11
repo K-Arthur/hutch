@@ -227,6 +227,31 @@ def test_paired_phone_monitors_and_reviews_redacted_workflows(browser, live):
         question_card.get_by_text(review_question["id"], exact=False).wait_for()
         assert "Continue with the review?" in question_card.inner_text()
         assert "PRIVATE_PHONE_INPUT_SENTINEL" not in question_card.inner_text()
+        for question in (review_question, stop_question):
+            prompt_name = re.compile(
+                rf"Question ID {re.escape(question['id'])}.*Continue with the review\?"
+            )
+            accessible_form = page.get_by_role("form", name=prompt_name)
+            assert accessible_form.count() == 1
+            answer_name = re.compile(
+                rf"Question ID {re.escape(question['id'])}.*Continue with the review\?.*Answer"
+            )
+            answer = accessible_form.get_by_role(
+                "combobox", name=answer_name,
+                description=re.compile(r"Answering this resolves only this question"),
+            )
+            assert answer.count() == 1
+        page.set_viewport_size({"width": 320, "height": 780})
+        question_dimensions_320 = page.evaluate(
+            "({viewport: innerWidth, document: document.documentElement.scrollWidth})")
+        assert question_dimensions_320["document"] <= question_dimensions_320["viewport"]
+        question_answer_heights = page.locator(
+            ".phone-workflow-answer-form button[type=submit]").evaluate_all(
+                "items => items.map(el => Math.round(el.getBoundingClientRect().height))")
+        assert len(question_answer_heights) == 2 and min(question_answer_heights) >= 44
+        page.screenshot(path=str(artifacts / "workflow-questions-320.png"),
+                        full_page=True, animations="disabled")
+        page.set_viewport_size({"width": 390, "height": 844})
         page.screenshot(path=str(artifacts / "workflow-question-390.png"), full_page=True, animations="disabled")
         question_card.locator('select[name="answer"]').select_option("yes")
         with page.expect_response(lambda response: response.url.endswith(
@@ -287,17 +312,27 @@ def test_paired_phone_monitors_and_reviews_redacted_workflows(browser, live):
         context.tracing.stop(path=str(artifacts / "paired-phone-workflows-trace.zip"))
         context.close()
 
-    screenshots = ["workflow-detail-390.png", "workflow-question-390.png", "workflow-detail-320.png",
-                   "workflow-pause-requested-390.png"]
-    source_paths = ["src/hutch/server/workflows_api.py", "src/hutch/server/static/app.js", "src/hutch/server/static/style.css"]
+    screenshots = ["workflow-detail-390.png", "workflow-question-390.png", "workflow-questions-320.png",
+                   "workflow-detail-320.png", "workflow-pause-requested-390.png"]
+    source_paths = ["src/hutch/server/workflows_api.py", "src/hutch/server/static/app.js",
+                    "src/hutch/server/static/style.css", "tests/e2e/test_browser.py"]
     hashes = {name: hashlib.sha256((artifacts / name).read_bytes()).hexdigest() for name in screenshots}
     hashes["paired-phone-workflows-trace.zip"] = hashlib.sha256(
         (artifacts / "paired-phone-workflows-trace.zip").read_bytes()).hexdigest()
+    hashes["visual-review.md"] = hashlib.sha256((artifacts / "visual-review.md").read_bytes()).hexdigest()
     (artifacts / "paired-phone-workflows-results.json").write_text(json.dumps({
         "fixture_boundary": "Real SQLite workflow submission, supervisor ask nodes, phone API, CSRF/idempotency and browser UI; no model request.",
         "viewports": {"review_and_detail": [390, 844], "reflow": [320, 780]},
         "reflow_dimensions_320": dimensions_320,
         "minimum_phone_target_height_px": min(target_heights),
+        "computed_accessibility": {
+            "simultaneous_named_question_forms": 2,
+            "answer_control_names_include_durable_question_ids_and_prompts": True,
+            "authority_boundary_is_associated_as_description": True,
+            "operating_system_screen_reader": "not tested",
+        },
+        "question_reflow_320": question_dimensions_320,
+        "question_answer_min_height_320_px": min(question_answer_heights),
         "question_answer_status": answer_response.status,
         "workflow_stop_status": stop_response.status,
         "page_errors": errors,

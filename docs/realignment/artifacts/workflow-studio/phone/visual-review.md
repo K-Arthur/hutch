@@ -9,9 +9,13 @@ hashes.
 At 390 CSS pixels, the four-tab navigation fits without clipping. The workflow detail separates
 planned structure from a question-backed waiting instance, keeps the workflow title readable,
 and places status opposite the step name. The review view lists each pending question with its
-durable ID, prompt, options, expiry and a full-width answer action. The multiple-question view
-has no separator artifacts. The Stop action is visible only for a live workflow to a review
-session, and disappears after the server records Stop.
+durable ID, prompt, options, expiry and a full-width answer action. Two simultaneous questions
+with the same prompt remain distinguishable by their workflow titles and durable IDs. Chromium's
+computed accessibility semantics expose separately named forms and answer controls containing
+the matching question ID and prompt; the authority-boundary explanation is associated with each
+control as its description. The 320px capture shows both cards without horizontal overflow, and
+the answer actions remain at least 44px high. The Stop action is visible only for a live workflow
+to a review session, and disappears after the server records Stop.
 
 At 320 CSS pixels, the detail reflows to one column with no horizontal scroll. The status and
 step name remain distinguishable, and the local-only data boundary stays visible. The Hutch
@@ -27,7 +31,8 @@ monitor-only cannot read or mutate questions/Stop, and that paired sessions cann
 workflow planning, qualification probes, policy or amendment routes. Projection checks confirm
 that inputs, results and `instance_key` are absent.
 
-This pass reviews default color, responsive layout, labels and target geometry. Browser zoom,
-text-spacing overrides, forced colors, reduced motion, screen-reader output, offline reconnect
+This pass reviews default color, responsive layout, labels and target geometry. Playwright role
+queries verify the browser's computed names and descriptions; operating-system screen-reader
+output, browser zoom, text-spacing overrides, forced colors, reduced motion, offline reconnect
 and live iOS/Android browsers remain unverified. See `paired-phone-workflows-results.json` for
 captured state, source hashes and artifact hashes.

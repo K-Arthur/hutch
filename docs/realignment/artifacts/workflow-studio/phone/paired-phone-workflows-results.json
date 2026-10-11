@@ -16,20 +16,34 @@
     "body": 320
   },
   "minimum_phone_target_height_px": 44,
+  "computed_accessibility": {
+    "simultaneous_named_question_forms": 2,
+    "answer_control_names_include_durable_question_ids_and_prompts": true,
+    "authority_boundary_is_associated_as_description": true,
+    "operating_system_screen_reader": "not tested"
+  },
+  "question_reflow_320": {
+    "viewport": 320,
+    "document": 320
+  },
+  "question_answer_min_height_320_px": 48,
   "question_answer_status": 200,
   "workflow_stop_status": 200,
   "page_errors": [],
   "screenshots_sha256": {
-    "workflow-detail-390.png": "ef015173e475bb95ae0e2650037b25b1a2fb22062490cb06c52c6eb3d409eb5a",
-    "workflow-question-390.png": "bf45d7737a80bab18bcab9fd0378502fded526c9367647d75c96aacab7406cae",
-    "workflow-detail-320.png": "1d1a23d4a156954e3e9124342456f8553fb6383de992bdc7ec7e13dc297d963f",
-    "workflow-pause-requested-390.png": "b3d6df2bc7ba10849c7981049d439f8e195bd8443c52433391aa20b0963035d5",
-    "paired-phone-workflows-trace.zip": "a3acf4152e66e900e608e1ff421a1f2ffc3cb0cdd69a2b18bd0d17e283626bd0"
+    "workflow-detail-390.png": "e6d6d35ccf41f5a82304eac3d4e78950cdcb4889e6b72a93d0270fa1e87528a4",
+    "workflow-question-390.png": "f6c98cd2af4a3e41c6e5cd3a3e4f0466797e171a340945984560300433c5c90a",
+    "workflow-questions-320.png": "19b5ba8c8d5337648607128e1fc1094684082c60963dfd9b8da54f205bc53932",
+    "workflow-detail-320.png": "f0d61a07540cb68ee47d03d01dd8dcf0b9ff7dfe830e28d4ab32363c2d1b7c88",
+    "workflow-pause-requested-390.png": "ceeccd119d35f9c336911d27f1bce4c1d67c0d4975e465c7a19a5d084ccb5821",
+    "paired-phone-workflows-trace.zip": "9cdad02d7006e318150e767e7445f2c4ecc4ce66f534b72b2a85c7cc592ad6f0",
+    "visual-review.md": "0904e7df72cb12df7f3d08c70325f8c37501aadfe554403336060971dc6f65c2"
   },
   "source_sha256": {
-    "src/hutch/server/workflows_api.py": "9c8b49e976e11900d13614913220c2ee38b2ccf7fbdbbd2b2d4a6f033049718a",
-    "src/hutch/server/static/app.js": "bf5bf28a9e720b2e07b71d0a8dc64d996f30714997fd5c970d022d5cf593b4ba",
-    "src/hutch/server/static/style.css": "52e1ea61a280e8658c2608c9710053cbc235438df4699b66f3333f920ea9c45e"
+    "src/hutch/server/workflows_api.py": "64199f3a358c99fb7e2908787b6bb7b555f64ad9d0ff53ff3c43fc04e6b11a07",
+    "src/hutch/server/static/app.js": "7157155cf8e3b82f1391e5e4e3157b636642274eb950d93ceaf52d7c0cc67262",
+    "src/hutch/server/static/style.css": "4eb5625f7b73a86bf28245323ccbbc6abd3f3e5c075cc510dabc73ba6c947afc",
+    "tests/e2e/test_browser.py": "19f5e2721e6a3272be31cedab8e766ac7c97c7e4b6ea74ab60cae44ea643ec11"
   },
-  "captured_at": "2026-10-11T19:36:42.921098+00:00"
+  "captured_at": "2026-10-11T23:16:28.934618+00:00"
 }

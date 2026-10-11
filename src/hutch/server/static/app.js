@@ -10238,12 +10238,12 @@ function phoneRender() {
   if (phoneModel.tab === "review") {
     const questionCards = workflowQuestions.map(q => `<article class="phone-card phone-question-card">
       <div class="phone-card-head"><span class="phone-status needs">Needs your answer</span><span>${esc(q.bot_display_name || "Assistant")}</span></div>
-      <h2>${esc(workflowDisplayTitle(q.workflow_title || "Workflow"))}</h2><p class="phone-sub">Step ${esc(q.site_id)} · Question ID <code>${esc(q.id)}</code></p>
-      <p class="phone-question-prompt">${esc(q.question)}</p>
-      <form class="phone-workflow-answer-form" data-question-id="${esc(q.id)}">
-        ${q.options?.length ? `<label>Answer<select name="answer" required><option value="">Choose an answer</option>${q.options.map(option => `<option value="${esc(option)}">${esc(option)}</option>`).join("")}</select></label>` : `<label>Your answer<textarea name="answer" rows="3" maxlength="4000" required></textarea></label>`}
+      <h2 id="phone-question-title-${esc(q.id)}">${esc(workflowDisplayTitle(q.workflow_title || "Workflow"))}</h2><p class="phone-sub" id="phone-question-id-${esc(q.id)}">Step ${esc(q.site_id)} · Question ID <code>${esc(q.id)}</code></p>
+      <p class="phone-question-prompt" id="phone-question-prompt-${esc(q.id)}">${esc(q.question)}</p>
+      <form class="phone-workflow-answer-form" data-question-id="${esc(q.id)}" aria-labelledby="phone-question-title-${esc(q.id)} phone-question-id-${esc(q.id)} phone-question-prompt-${esc(q.id)}">
+        ${q.options?.length ? `<label id="phone-question-answer-label-${esc(q.id)}" for="phone-question-answer-${esc(q.id)}">Answer<select id="phone-question-answer-${esc(q.id)}" name="answer" required aria-labelledby="phone-question-title-${esc(q.id)} phone-question-id-${esc(q.id)} phone-question-prompt-${esc(q.id)} phone-question-answer-label-${esc(q.id)}" aria-describedby="phone-question-help-${esc(q.id)}"><option value="">Choose an answer</option>${q.options.map(option => `<option value="${esc(option)}">${esc(option)}</option>`).join("")}</select></label>` : `<label id="phone-question-answer-label-${esc(q.id)}" for="phone-question-answer-${esc(q.id)}">Your answer<textarea id="phone-question-answer-${esc(q.id)}" name="answer" rows="3" maxlength="4000" required aria-labelledby="phone-question-title-${esc(q.id)} phone-question-id-${esc(q.id)} phone-question-prompt-${esc(q.id)} phone-question-answer-label-${esc(q.id)}" aria-describedby="phone-question-help-${esc(q.id)}"></textarea></label>`}
         <button class="btn primary" type="submit" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Send answer</button>
-      </form><p class="phone-sub">Expires ${esc(phoneTimestamp(q.expires_at))}</p>
+      </form><p class="phone-sub" id="phone-question-help-${esc(q.id)}">Answering this resolves only this question. It does not approve a separate action.</p><p class="phone-sub">Expires ${esc(phoneTimestamp(q.expires_at))}</p>
     </article>`).join("");
     const approvalCards = approvals.map(a => {
       const id = a.approval_id || a.id;
