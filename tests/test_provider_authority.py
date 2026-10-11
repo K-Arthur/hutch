@@ -138,7 +138,7 @@ def test_connection_revision_change_during_review_is_refused(store, config, tmp_
     rt = runtime()
     ladder = Ladder(ctx.bot)
     rung = make_rung("secondary/model", "fallback")
-    with in_worker(ctx, lambda: rt._ask_first_hosted(ctx, ladder, rung, "primary down", 50)) as result:
+    with in_worker(ctx, lambda: rt._ask_first_hosted(ctx, run, ladder, rung, "primary down", 50)) as result:
         req = pending(store)
         assert req.detail["destination"] == "https://old.example.test/v1"
         book.update("secondary", base_url="https://new.example.test/v1")
@@ -154,9 +154,9 @@ def test_approved_route_is_scoped_to_one_run_not_all_hosted_accounts(store, conf
     decisions = []
     monkeypatch.setattr(ctx.gate, "decide", lambda *args, **kw: decisions.append((args, kw)))
     for spec in ("openai/gpt-4o-mini", "openai/gpt-4o", "anthropic/claude-test"):
-        rt._ask_first_hosted(ctx, ladder, make_rung(spec, "fallback"), "fixture", 50)
+        rt._ask_first_hosted(ctx, run, ladder, make_rung(spec, "fallback"), "fixture", 50)
     assert len(decisions) == 2  # same authority may change explicitly configured models in this run
-    rt._ask_first_hosted(ctx, Ladder(ctx.bot), make_rung("openai/gpt-4o", "fallback"), "new run", 50)
+    rt._ask_first_hosted(ctx, run, Ladder(ctx.bot), make_rung("openai/gpt-4o", "fallback"), "new run", 50)
     assert len(decisions) == 3
     assert all(kw["outward"] and kw["ask_in_auto"] for args, kw in decisions)
 

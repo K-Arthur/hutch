@@ -2179,7 +2179,7 @@ def test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive(br
         inspector_text = inspector.inner_text()
         assert "assistant preview draft" in inspector_text and "saved profile r0" in inspector_text
         assert "ollama-native-chat · fake:8b" in inspector_text
-        assert "2 messages (system → user)" in inspector_text
+        assert "2 messages (system, user)" in inspector_text
         assert "output cap 128 via options.num_predict" in inspector_text
         assert "Model round-trip 123.4 ms · queue 5.2 ms" in inspector_text
         assert "houseplants" not in inspector_text and "sunny windowsill" not in inspector_text

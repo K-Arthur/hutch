@@ -311,6 +311,26 @@ Review follow-ups (status after the profile-compatibility slice):
   pass reported two existing shared-style radius advisories (17px and 26px), not in the new response-style rules. Live
   provider adherence and human review remain unverified.
 
+- Pre-latest-main integration checkpoint (2026-10-11): the complete offline suite passed (**2,048 passed in
+  479.22 s**) with its basetemp under `/var/tmp`; its captured output is retained in
+  `artifacts/persona-final-verification-2026-10-11/offline-suite.log`. The complete browser suite before importing
+  the latest local main (`63b2712`) reported **29 failed, 181 passed, 8 teardown errors** in 1213.84 s. Compared
+  with the earlier `ab1929e` base run, 25 failed cases overlap; the coordinator-specialist and schedule-overview
+  failures from that older base now pass, and the previously flaky large-roster case also passed. The run exposed a
+  stale persona-inspector assertion that expected the former arrow separator; the rendered labels now use commas to
+  meet the repository emoji audit, and the assertion is updated. Focused live-preview and answer-rewrite browser tests
+  then passed (**2 passed in 11.06 s**). The rewrite test's detached-locator failure occurred only in the full suite.
+  A separate specialist-question UI locator failure did reproduce alone on this branch but passed alone on clean main
+  `63b2712`; importing that main change and rechecking this flow is still required. The workflow-pill case also passed
+  alone on both trees. The pre-integration browser log is retained at
+  `artifacts/persona-final-verification-2026-10-11/browser-suite-pre-main.log`; it includes the now-fixed stale
+  assertion and is historical evidence, not the final integrated browser result. The latest main is 10 commits ahead
+  of the branch's integration base and must be merged before final acceptance. The device OpenCode implementation
+  work used the pinned low-cost `opencode-go/mimo-v2.6-flash`; two bounded final review attempts ended with a closed
+  socket before returning findings, and no fallback model or paid API was used. Independent review is unverified.
+  Hutch's separate Go connection is still unavailable, so product-model adherence, live latency and human scoring
+  remain unverified.
+
 ## Rollback
 
 - Nothing is pushed or deployed. The user authorized a final fast-forward into local `main`; until acceptance

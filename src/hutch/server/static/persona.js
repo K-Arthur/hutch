@@ -436,7 +436,7 @@
         const tools = Number.isInteger(receipt.tool_schema_count) ? Math.max(0, receipt.tool_schema_count) : "?";
         previewInspectorAdapter.textContent = `${adapter} · ${model}`;
         previewInspectorShape.textContent = [
-          `${count} message${count === 1 ? "" : "s"}${roles.length ? ` (${roles.join(" → ")})` : ""}`,
+          `${count} message${count === 1 ? "" : "s"}${roles.length ? ` (${roles.join(", ")})` : ""}`,
           receipt.stream === true ? "streaming" : "non-streaming",
           outputCap,
           `${tools} tool schema${tools === 1 ? "" : "s"}`,

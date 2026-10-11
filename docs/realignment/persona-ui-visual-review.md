@@ -117,6 +117,14 @@ responses or external requests; no provider call was made by this fixture. The f
 tests and the inspector browser regression passed 1 test. Source hashes match the saved validation record. Native browser
 zoom, screen readers, other browser engines, real provider receipt and model adherence remain untested.
 
+After the emoji audit replaced the request-role arrow with comma-separated labels, I reran the explicit preview and
+answer-rewrite browser regressions together; both passed. I inspected the refreshed `preview-desktop.png`,
+`preview-tablet.png`, and `preview-inspector-phone.png`. The inspector now shows `system, user`, the phone wraps that
+value without clipping, and the 320px/360px/tablet/desktop/effective-200%-width measurements still report zero
+horizontal overflow. The successful fixture captures and source hashes are in
+`artifacts/persona-live-preview-2026-10-11/`; the full pre-main browser suite separately retains its historical stale
+assertion failure and is recorded in `persona-plan.md`.
+
 ## Image input availability
 
 The composer options menu says that image attachments are unavailable and suggests a text description. I inspected
