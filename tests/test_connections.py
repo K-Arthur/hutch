@@ -466,6 +466,78 @@ def test_check_without_a_key_names_the_env_var(book, monkeypatch):
     assert "OPENCODE_API_KEY" in check_connection(book, "opencode-go").detail
 
 
+def test_anthropic_first_party_catalog_uses_the_documented_model_api(book, monkeypatch):
+    from hutch.providers.claude import ClaudeProvider
+
+    book.add("anthropic-api")
+    book.set_key("anthropic-api", "fixture-anthropic-key")
+    calls = []
+
+    class Page:
+        def __init__(self, data, has_more=False, last_id=None):
+            self.data = data
+            self.has_more = has_more
+            self.last_id = last_id
+
+    class Models:
+        def list(self, **kwargs):
+            calls.append(kwargs)
+            if len(calls) == 1:
+                return Page([type("Model", (), {"id": "claude-active"})()], True, "cursor-1")
+            return Page([type("Model", (), {"id": "claude-legacy"})()])
+
+    client = type("AnthropicClient", (), {"models": Models()})()
+    monkeypatch.setattr(ClaudeProvider, "_c", lambda self: client)
+
+    result = check_connection(book, "anthropic-api")
+
+    assert result.ok and result.models == ["claude-active", "claude-legacy"]
+    assert calls == [{"limit": 1000}, {"limit": 1000, "after_id": "cursor-1"}]
+
+
+def test_connection_api_accepts_a_key_once_and_reports_model_discovery(book, config, oai, monkeypatch):
+    monkeypatch.setenv("HUTCH_ALLOWED_HOSTS", "testserver")
+    monkeypatch.setenv("CUSTOM_API_KEY", "the-old-environment-key")
+    oai.require_key = "the-key-pasted-in-hutch"
+    oai.models = [{"id": "account-model-one"}, {"id": "account-model-two"}]
+
+    with TestClient(create_app()) as client:
+        response = client.post("/api/connections", json={
+            "template": "custom-openai", "name": "connected-provider", "base_url": f"{oai.url}/v1",
+            "api_key": "the-key-pasted-in-hutch",
+        })
+
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert payload["added"] == "connected-provider"
+    assert payload["discovery"]["ok"] is True
+    assert payload["discovery"]["model_count"] == 2
+    assert "the-key-pasted-in-hutch" not in response.text
+    assert "the-old-environment-key" not in response.text
+    stored = ConnectionBook(config.state_dir)
+    assert stored.key("connected-provider") == "the-key-pasted-in-hutch"
+    assert stored.get("connected-provider").api_key_env == "CUSTOM_API_KEY"
+    assert stored.get("connected-provider").prefer_stored_key is True
+    assert [request["headers"]["authorization"] for request in oai.requests] == [
+        "Bearer the-key-pasted-in-hutch"]
+    stored.clear_key("connected-provider")
+    assert stored.key("connected-provider") == "the-old-environment-key"
+    assert stored.get("connected-provider").prefer_stored_key is False
+
+
+def test_connection_api_rejects_an_empty_or_oversized_pasted_key_without_echo(config, monkeypatch):
+    monkeypatch.setenv("HUTCH_ALLOWED_HOSTS", "testserver")
+    oversized_key = "s" * 4097
+    with TestClient(create_app()) as client:
+        empty = client.post("/api/connections", json={"template": "openrouter", "api_key": "  "})
+        too_long = client.post("/api/connections", json={"template": "openrouter", "api_key": oversized_key})
+
+    assert empty.status_code == 422
+    assert too_long.status_code == 413
+    assert oversized_key not in too_long.text
+    assert ConnectionBook(config.state_dir).get("openrouter") is None
+
+
 # ============================================================ usage summary (feeds UI-11)
 
 def test_usage_summary_groups_by_day_bot_provider_and_model(store):

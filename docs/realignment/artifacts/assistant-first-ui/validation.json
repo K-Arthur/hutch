@@ -1,0 +1,83 @@
+{
+  "test": "tests/e2e/test_design_system.py::test_assistant_first_run_and_app_catalog_use_familiar_visual_language",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_assistant_first_run_and_app_catalog_use_familiar_visual_language",
+  "captured_at": "2026-10-10T11:02:39.633336+00:00",
+  "python": "3.13.15",
+  "browser": "Chromium 153.0.8010.12",
+  "playwright": "1.63.0",
+  "viewports": [
+    {
+      "surface": "first-run",
+      "viewport": [
+        1440,
+        960
+      ],
+      "overflow": 0
+    },
+    {
+      "surface": "first-run",
+      "viewport": [
+        900,
+        1024
+      ],
+      "overflow": 0
+    },
+    {
+      "surface": "first-run",
+      "viewport": [
+        390,
+        844
+      ],
+      "overflow": 0
+    },
+    {
+      "surface": "first-run",
+      "viewport": [
+        320,
+        740
+      ],
+      "overflow": 0
+    },
+    {
+      "surface": "apps-ai",
+      "viewport": [
+        1440,
+        960
+      ],
+      "overflow": 0
+    },
+    {
+      "surface": "apps-ai",
+      "viewport": [
+        900,
+        1024
+      ],
+      "overflow": 0
+    },
+    {
+      "surface": "apps-ai",
+      "viewport": [
+        390,
+        844
+      ],
+      "overflow": 0
+    },
+    {
+      "surface": "apps-ai",
+      "viewport": [
+        320,
+        740
+      ],
+      "overflow": 0
+    }
+  ],
+  "states": [
+    "empty first run",
+    "request carried into assistant setup",
+    "service catalog",
+    "Google Calendar access expanded"
+  ],
+  "external_requests": [],
+  "provider_calls": 0,
+  "reduced_motion": "reduce"
+}

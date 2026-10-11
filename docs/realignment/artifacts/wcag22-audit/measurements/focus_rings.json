@@ -1,0 +1,47 @@
+[
+ {
+  "sel": "a[href^='#/']",
+  "tag": "A",
+  "outlineWidth": "2px",
+  "outlineStyle": "solid",
+  "outlineColor": "rgb(96, 165, 250)",
+  "outlineOffset": "2px",
+  "boxShadow": null
+ },
+ {
+  "sel": "button",
+  "tag": "BUTTON",
+  "outlineWidth": "2px",
+  "outlineStyle": "solid",
+  "outlineColor": "rgb(96, 165, 250)",
+  "outlineOffset": "2px",
+  "boxShadow": null
+ },
+ {
+  "sel": "input",
+  "tag": "INPUT",
+  "outlineWidth": "3px",
+  "outlineStyle": "none",
+  "outlineColor": "rgb(240, 244, 249)",
+  "outlineOffset": "2px",
+  "boxShadow": "rgb(96, 165, 250) 0px 0px 0px 1px"
+ },
+ {
+  "sel": "summary",
+  "tag": "SUMMARY",
+  "outlineWidth": "2px",
+  "outlineStyle": "solid",
+  "outlineColor": "rgb(96, 165, 250)",
+  "outlineOffset": "-2px",
+  "boxShadow": null
+ },
+ {
+  "sel": "a.btn",
+  "tag": "SUMMARY",
+  "outlineWidth": "2px",
+  "outlineStyle": "solid",
+  "outlineColor": "rgb(96, 165, 250)",
+  "outlineOffset": "-2px",
+  "boxShadow": null
+ }
+]

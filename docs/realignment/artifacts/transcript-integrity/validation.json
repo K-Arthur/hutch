@@ -1,6 +1,6 @@
 {
   "test": "tests/e2e/test_browser.py::test_run_detail_reports_transcript_chain_verification_and_tampering",
-  "captured_at": "2026-10-10T15:32:11.900082+00:00",
+  "captured_at": "2026-10-10T23:58:20.151616+00:00",
   "browser": "153.0.8010.12",
   "playwright_version": "1.63.0",
   "provider_calls": 0,
@@ -8,19 +8,19 @@
   "external_requests": [],
   "verification_responses": [
     {
-      "url": "http://127.0.0.1:36971/api/v1/tasks/runs/run_e5b2a3881ae3/verify",
+      "url": "http://127.0.0.1:39815/api/v1/tasks/runs/run_6e9f1c052ce9/verify",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:36971/api/v1/tasks/runs/run_e5b2a3881ae3/verify",
+      "url": "http://127.0.0.1:39815/api/v1/tasks/runs/run_6e9f1c052ce9/verify",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:36971/api/v1/tasks/runs/run_e5b2a3881ae3/verify",
+      "url": "http://127.0.0.1:39815/api/v1/tasks/runs/run_6e9f1c052ce9/verify",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:36971/api/v1/tasks/runs/run_e5b2a3881ae3/verify",
+      "url": "http://127.0.0.1:39815/api/v1/tasks/runs/run_6e9f1c052ce9/verify",
       "status": 200
     }
   ],
@@ -67,9 +67,9 @@
     960
   ],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "dc5c6f66fab32d0042110b2c74a89b761667c4ee2aaddcc9e9c8e871e45178a1",
-    "src/hutch/server/static/style.css": "a98e7a18de42a2a06282a210d0d37a96b61a0a5309622753f076c8da6c824ba4",
-    "src/hutch/server/app.py": "436c20c0ba64bb6b31c754b7d2626879c6585450de86b0abb9884c929b0136cf",
-    "src/hutch/store.py": "d34012dc090f31f63392a8fae9a69f451fb30657a7b90ada3546dcd31cd7a74f"
+    "src/hutch/server/static/app.js": "7fc20ab82bb8dcd8733cba2a36ca21193f35d1fbef2fded56d077b5a0fc09a21",
+    "src/hutch/server/static/style.css": "7d54b4214d55318f15c9f0cfa1e0e510261334b3b10a849fbe656291e7c29fcb",
+    "src/hutch/server/app.py": "4c9c1c8629a0d20a66eea708fea41496324ebeb3ea7808cb7f2fc72b019293f8",
+    "src/hutch/store.py": "fb8e8f9861a4e01044b8f49002005597e83947ab4d728b3a022e6e1bc59d0fdb"
   }
 }

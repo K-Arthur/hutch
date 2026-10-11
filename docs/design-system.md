@@ -109,16 +109,13 @@ opens setup rather than starting work. Keep their names result-focused and hide
 storage IDs. Use a consistent local outline-icon family for actions and
 categories, with plain-language labels beside them. Apps & AI uses 48px service
 tiles on broad layouts and compact phone rows with a 40px category mark and 44px
-action target.
-ChatGPT uses OpenAI's exact, unaltered white Blossom mark under its
-published brand terms. Microsoft Outlook, Gmail, and Google Calendar use
-original service-category marks until product-icon use is permitted. Microsoft
-guidance requires an express license for Outlook product artwork. Google's
-current Partner Marketing Hub guidance directs product-icon use through its
-approval form; Hutch has no permission recorded. See
-[Google's product-icon guidance](https://partnermarketinghub.withgoogle.com/brands/google/branding-guidelines/how-to-show-googles-brand/)
-and [Microsoft's trademark guidance](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks).
-Never present a category icon as a provider logo. Keep provider, model,
+action target. Use exact, locally bundled OpenAI, Anthropic, OpenRouter, Google
+Workspace, and Outlook artwork only beside the named service it identifies;
+generic app categories keep the original service-category glyphs. Follow the
+asset-specific constraints in [brand asset provenance](brand-assets.md): do not
+alter the marks or imply endorsement, and use Microsoft's Outlook icon only as
+a functional access cue on a neutral field beside “Microsoft Outlook.” Keep
+provider, model,
 permission, and runtime terminology in the relevant optional detail layer.
 
 Assistant settings lead with the editable name and what the assistant helps with.
@@ -163,15 +160,12 @@ workspace sidebar, contextual header, system type, emerald actions, azure focus,
 solid graphite surfaces, and 8px/12px control-panel geometry. Sign-in, pairing,
 and remaining server-rendered pages load the same generated semantic tokens and
 map their components to that contract. Service categories use the same locally
-drawn outline glyphs across the app and marketing site. Apps & AI shows the exact,
-unaltered OpenAI Blossom beside the named ChatGPT service under OpenAI's published
-brand terms. Microsoft Outlook, Gmail, and Google Calendar use original
-service-category glyphs beside their full names: Microsoft requires an express
-license for its product icons, and Google directs product-icon requests through
-Partner Marketing Hub. Hutch has no recorded approval for those marks.
-Names and
-connection states stay visible beside every mark; a category glyph is never
-presented as a provider logo. The first layer explains the useful choice;
+drawn outline glyphs across the app and marketing site. Apps & AI uses the
+unaltered official artwork documented in [brand asset provenance](brand-assets.md)
+for named functional connections. Keep the full service name and connection
+state visible beside every mark, keep the mark subordinate to the name, and do
+not imply endorsement; generic categories keep their shared outline glyph.
+The first layer explains the useful choice;
 detailed scopes, OAuth setup, and account controls stay inside the optional
 **More account settings** disclosure. Avoid a separate brand palette, blue
 primary actions, glass panels, or square-button overrides.

@@ -1,0 +1,56 @@
+{
+  "test": "tests/e2e/test_website.py::test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_viewports",
+  "captured_at": "2026-10-10T20:22:17.326005+00:00",
+  "python": "3.13.15",
+  "browser": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "index_sha256": "e60b3f1df26f93720e6781040864d859fa0be2c07f1c8f19b9ac0a367f0daa0d",
+  "styles_sha256": "5fad30e38ec34405dc5158127771a55bde8f6f5902fc56c5de09ce7201644a52",
+  "captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        900
+      ],
+      "table": {
+        "scrollWidth": 558,
+        "clientWidth": 558
+      },
+      "table_capture": "availability-table-desktop.png",
+      "viewport_capture": "availability-viewport-desktop.png",
+      "page_overflow": 0
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "table": {
+        "scrollWidth": 802,
+        "clientWidth": 802
+      },
+      "table_capture": "availability-table-tablet.png",
+      "viewport_capture": "availability-viewport-tablet.png",
+      "page_overflow": 0
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "table": {
+        "scrollWidth": 324,
+        "clientWidth": 324
+      },
+      "table_capture": "availability-table-phone.png",
+      "viewport_capture": "availability-viewport-phone.png",
+      "page_overflow": 0
+    }
+  ],
+  "anonymous": true,
+  "external_requests": [],
+  "page_errors": []
+}

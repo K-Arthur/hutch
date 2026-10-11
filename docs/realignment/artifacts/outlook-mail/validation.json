@@ -1,6 +1,6 @@
 {
   "test": "tests/e2e/test_browser.py::test_outlook_mail_grant_and_consent_boundary_fit_all_viewports",
-  "captured_at": "2026-10-10T05:26:50.265875+00:00",
+  "captured_at": "2026-10-10T23:59:40.403376+00:00",
   "browser": "153.0.8010.12",
   "playwright_version": "1.63.0",
   "provider_credentials_used": false,
@@ -47,12 +47,12 @@
     }
   ],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
-    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
-    "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
-    "src/hutch/server/security.py": "f089474763ce669a2b2a0f7400eb99635a3a59782620cc0d505b230c5f035bfb",
-    "src/hutch/store.py": "febf2e054c553fd67684a2f361bda5c43e7fdfce317f2d04d69e601ab8324fdb",
-    "src/hutch/outlook_mail.py": "85440b4aff2dccd22c36e9d120d92c8e9a29ec15a491ecd3823857027e297227",
+    "src/hutch/server/static/app.js": "7fc20ab82bb8dcd8733cba2a36ca21193f35d1fbef2fded56d077b5a0fc09a21",
+    "src/hutch/server/static/style.css": "6dabab0b5ab90ee7c6ab3521b85f10c50391f6b648986a765151d8668a04b943",
+    "src/hutch/server/app.py": "4c9c1c8629a0d20a66eea708fea41496324ebeb3ea7808cb7f2fc72b019293f8",
+    "src/hutch/server/security.py": "b83059b4571344c2d0a057305b9e086c46b9905f5772a9ca97c90d46c25c7f0c",
+    "src/hutch/store.py": "fb8e8f9861a4e01044b8f49002005597e83947ab4d728b3a022e6e1bc59d0fdb",
+    "src/hutch/outlook_mail.py": "668420ab4dceb93809c454583e647691cc129b04f748d03644ceff3801778e50",
     "src/hutch/tools/outlook_mail.py": "0673012abd7346494416bf5a7203e7f325f3745107b8772eaae9382d125a849b"
   }
 }

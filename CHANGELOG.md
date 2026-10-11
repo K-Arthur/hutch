@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Streamline model-provider setup: connect OpenAI API, Anthropic API, or OpenRouter with one provider-specific API key, then discover current model IDs without an inference call. Keep plan sign-in separate, use a collapsed advanced endpoint section, and bundle sourced provider marks locally. Model catalogs and prices remain live/provider-reported, and catalog visibility does not claim tool compatibility.
 - Make advanced assistant usage controls quieter: show work steps and time per task in a short summary, keep token and cost estimates behind an explicit disclosure, and accept minutes in the UI while preserving the seconds-based configuration.
 - Tighten chat reply references: discard template indentation instead of rendering it as empty quoted space, and rely on the visible message for ordinary send confirmation so phone toasts no longer cover the composer. Keep notices for rehearsals and queued work.
 - Streamline assistant settings headers: keep the assistant name on one line and group chat navigation and the destructive delete action under one accessible options menu.

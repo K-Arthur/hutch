@@ -1,0 +1,218 @@
+{
+ "axe_spa": {
+  "chat": {
+   "violations": []
+  },
+  "overview": {
+   "violations": []
+  },
+  "schedules": {
+   "violations": []
+  },
+  "bots": {
+   "violations": []
+  },
+  "runs": {
+   "violations": []
+  },
+  "approvals": {
+   "violations": []
+  },
+  "connections": {
+   "violations": []
+  },
+  "bot-settings": {
+   "violations": []
+  },
+  "conversation": {
+   "violations": []
+  },
+  "run-detail": {
+   "violations": []
+  }
+ },
+ "axe_spa_phone": {
+  "chat": {
+   "violations": []
+  },
+  "runs": {
+   "violations": []
+  },
+  "approvals": {
+   "violations": []
+  },
+  "connections": {
+   "violations": []
+  },
+  "bot-settings": {
+   "violations": []
+  }
+ },
+ "chat_tab_order_clean": [
+  {
+   "tag": "a",
+   "id": "",
+   "cls": "skip-link",
+   "name": "Skip to content"
+  },
+  {
+   "tag": "a",
+   "id": "",
+   "cls": "brand",
+   "name": "hutch \u2014 open chats"
+  },
+  {
+   "tag": "button",
+   "id": "sidebar-toggle",
+   "cls": "icon-btn ws-dock",
+   "name": "Collapse sidebar"
+  },
+  {
+   "tag": "a",
+   "id": "",
+   "cls": "",
+   "name": "Chats"
+  },
+  {
+   "tag": "button",
+   "id": "needs-you-open",
+   "cls": "attention",
+   "name": "Needs you1"
+  },
+  {
+   "tag": "summary",
+   "id": "",
+   "cls": "",
+   "name": "More"
+  },
+  {
+   "tag": "button",
+   "id": "topbar-new-bot",
+   "cls": "icon-btn roster-new",
+   "name": "New assistant"
+  },
+  {
+   "tag": "input",
+   "id": "bot-search",
+   "cls": "roster-search",
+   "name": ""
+  },
+  {
+   "tag": "button",
+   "id": "",
+   "cls": "roster-row",
+   "name": "Scout\n        Needs you"
+  },
+  {
+   "tag": "button",
+   "id": "",
+   "cls": "icon-btn roster-options",
+   "name": "Options for Scout"
+  },
+  {
+   "tag": "button",
+   "id": "",
+   "cls": "roster-row",
+   "name": "Ledger\n        Idle"
+  },
+  {
+   "tag": "button",
+   "id": "",
+   "cls": "icon-btn roster-options",
+   "name": "Options for Ledger"
+  },
+  {
+   "tag": "button",
+   "id": "",
+   "cls": "roster-row",
+   "name": "Scribe\n        Idle"
+  },
+  {
+   "tag": "button",
+   "id": "",
+   "cls": "icon-btn roster-options",
+   "name": "Options for Scribe"
+  },
+  {
+   "tag": "a",
+   "id": "",
+   "cls": "ws-foot-link",
+   "name": "Apps & AI"
+  },
+  {
+   "tag": "button",
+   "id": "prefs-toggle",
+   "cls": "ws-foot-link",
+   "name": "Settings"
+  },
+  {
+   "tag": "select",
+   "id": "conversation-switcher",
+   "cls": "conversation-select",
+   "name": "Conversation"
+  },
+  {
+   "tag": "button",
+   "id": "studio-search-messages",
+   "cls": "icon-btn studio-search-button",
+   "name": "Search chats"
+  },
+  {
+   "tag": "summary",
+   "id": "studio-conversation-options",
+   "cls": "icon-btn",
+   "name": "Chat and assistant options"
+  },
+  {
+   "tag": "a",
+   "id": "",
+   "cls": "w needs",
+   "name": "1 needs you"
+  },
+  {
+   "tag": "summary",
+   "id": "",
+   "cls": "tpl-gal-summary",
+   "name": "Create a helper from an example\n            "
+  },
+  {
+   "tag": "button",
+   "id": "composer-menu-btn",
+   "cls": "composer-util",
+   "name": "Message options"
+  },
+  {
+   "tag": "textarea",
+   "id": "chat-prompt",
+   "cls": "composer-textarea",
+   "name": ""
+  },
+  {
+   "tag": "button",
+   "id": "",
+   "cls": "ms-btn",
+   "name": "Model: demo. Bot default. Change model."
+  },
+  {
+   "tag": "button",
+   "id": "chat-send",
+   "cls": "composer-send",
+   "name": "Send message"
+  },
+  {
+   "tag": "button",
+   "id": "attention-review",
+   "cls": "btn ghost small",
+   "name": "Review"
+  }
+ ],
+ "login_link_style": {
+  "decoration": "none",
+  "color": "rgb(52, 211, 153)"
+ },
+ "legacy_link_style": {
+  "decoration": "none",
+  "color": "rgb(52, 211, 153)",
+  "text": "preview limits"
+ }
+}

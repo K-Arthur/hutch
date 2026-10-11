@@ -218,6 +218,36 @@ def test_openrouter_model_catalog_is_fetched_only_on_request_and_searches_with_i
         router.close()
 
 
+def test_openai_compatible_connection_discovers_its_own_model_catalog(env, monkeypatch):
+    from tests.fakes import FakeOpenAI
+
+    provider = FakeOpenAI()
+    provider.require_key = "account-scoped-key"
+    provider.models = [{"id": "account-model-a"}, {"id": "account-model-b"}]
+    try:
+        monkeypatch.delenv("CUSTOM_API_KEY", raising=False)
+        monkeypatch.setenv("OPENAI_API_KEY", "must-not-be-sent-to-custom-endpoint")
+        book = ConnectionBook(env.config.state_dir)
+        book.add("custom-openai", name="account", base_url=f"{provider.url}/v1")
+        book.set_key("account", "account-scoped-key")
+        bot = mkbot(env, model="ollama/fake:8b")
+        reset_cache()
+
+        before = len(provider.requests)
+        model_choices(env.config, env.store, bot, discover_hosted_models=False)
+        assert len(provider.requests) == before, "opening a chat must not contact provider catalogs"
+
+        choices = model_choices(env.config, env.store, bot, discover_hosted_models=True)
+        found = {choice.spec for choice in choices}
+        assert {"account/account-model-a", "account/account-model-b"} <= found
+        assert len(provider.of("/v1/models")) == 1
+        request = provider.of("/v1/models")[0]
+        assert request["headers"]["authorization"] == "Bearer account-scoped-key"
+        assert "must-not-be-sent-to-custom-endpoint" not in str(request)
+    finally:
+        provider.close()
+
+
 def test_model_catalog_cache_is_bounded_and_keeps_recent_entries():
     from hutch.modelchoices import _CACHE_MAX, _cache, _cached
 

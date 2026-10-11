@@ -31,7 +31,7 @@
     "name": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36"
   },
   "source_sha256": {
-    "app.js": "babf688692c8ab7078ea0b018d827ed7f7785f0f6fd92e8febc5b60650cf6ee7",
-    "style.css": "f2b6351171d443d679395aca7c2254970278ebed79c46710964a099665371439"
+    "app.js": "fbe00e52466024a2e59aeb7e6fd6aaf946e50639054ce5185dea5253bf0cbb2c",
+    "style.css": "6dabab0b5ab90ee7c6ab3521b85f10c50391f6b648986a765151d8668a04b943"
   }
 }

@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_design_system.py::test_assistant_first_run_and_app_catalog_use_familiar_visual_language",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_assistant_first_run_and_app_catalog_use_familiar_visual_language",
-  "captured_at": "2026-10-10T17:27:43.182536+00:00",
+  "captured_at": "2026-10-10T18:18:42.166522+00:00",
   "python": "3.13.15",
   "browser": "Chromium 153.0.8010.12",
   "playwright": "1.63.0",
@@ -97,13 +97,13 @@
   "provider_calls": 0,
   "reduced_motion": "reduce",
   "source_sha256": {
-    "src/hutch/server/static/app.js": "2f27e83d4553cc1a2576cce619e59517bb6f5684e1eb3a53575e0343fd4b6b78",
+    "src/hutch/server/static/app.js": "86a7571d4698102778ed7c68fd455f781906a88d89a696b457b0882417ac4a21",
     "src/hutch/server/static/index.html": "575a9641e4be85f5ed3294571370073ed90656c728baa218cfe11bd0b6e6f932",
     "src/hutch/server/static/style.css": "4ef9b9a4fbf491f781f1cce7d57467604f508d927267b0e3ced9ca7b8fed8f0f",
     "src/hutch/server/static/brands/openai-white-monoblossom.svg": "b94ea61d860fae6f82f43571f36f17111fcf5d348e8e9cc22ae4b441c7560011",
     "website/index.html": "3cc72969a1db70426edff5ff5f2bea107915636cf5ee733ae39c87b6cbd3de2c",
     "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
     "website/styles.css": "b4734e30bccfce415329ffc6dc8b0631bb7937f51e8f8525c912229526ddfda8",
-    "tests/e2e/test_design_system.py": "d0b72c510f47884fd05e6934c240c879d21869cae7641298d7d3013fccf86ee0"
+    "tests/e2e/test_design_system.py": "a0324b3b11d375bdbba00c00bf8fe9a7059639d96b9695c5ad3c942cc2b031ba"
   }
 }

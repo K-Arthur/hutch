@@ -41,10 +41,10 @@
   ],
   "page_errors": [],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "a160192a44ffe9c88c0092f4fa5d26a3f1f27b0c57e24f24e2a8cfff0d9bda2b",
-    "src/hutch/server/static/style.css": "cce1d42b0600f3ac386f702390ab77dee8ec33978f533683739d45def79fc2dd",
-    "src/hutch/server/app.py": "e2bb8f171b4d2d70de26ec82ce8961f3c5f8ee817e9282f6842494dc15a1d660",
-    "src/hutch/store.py": "5630bce3b9d00e535069a7bc605b50fe3fb8c75e8f257687cc3b0a9d78969548",
-    "tests/e2e/test_browser.py": "8916b6c9abae3cd5bd16c2a5c56647721b6ba1e73e44c338fde766e70c6c0974"
+    "src/hutch/server/static/app.js": "fbe00e52466024a2e59aeb7e6fd6aaf946e50639054ce5185dea5253bf0cbb2c",
+    "src/hutch/server/static/style.css": "6dabab0b5ab90ee7c6ab3521b85f10c50391f6b648986a765151d8668a04b943",
+    "src/hutch/server/app.py": "4c9c1c8629a0d20a66eea708fea41496324ebeb3ea7808cb7f2fc72b019293f8",
+    "src/hutch/store.py": "fb8e8f9861a4e01044b8f49002005597e83947ab4d728b3a022e6e1bc59d0fdb",
+    "tests/e2e/test_browser.py": "a51449f6a94c918d6361253daa45d12b4656c05af3e34c3c2af0ff294be871df"
   }
 }

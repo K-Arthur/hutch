@@ -48,9 +48,9 @@
     "creation starts no run"
   ],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "18bc816aaf05423a06832262f9ea3e6a0393aa8be9f6ce97434b4f209f868837",
-    "src/hutch/server/static/style.css": "4ef9b9a4fbf491f781f1cce7d57467604f508d927267b0e3ced9ca7b8fed8f0f",
-    "src/hutch/server/app.py": "9d835a811f94ea5c0606c8ebfea0cbe3f18bc3e5431d47a6982b18c844160cf5",
-    "tests/e2e/test_browser.py": "5eff70143ded674556f633a56861b190390d712c1381c0a600edad47545f0288"
+    "src/hutch/server/static/app.js": "fbe00e52466024a2e59aeb7e6fd6aaf946e50639054ce5185dea5253bf0cbb2c",
+    "src/hutch/server/static/style.css": "6dabab0b5ab90ee7c6ab3521b85f10c50391f6b648986a765151d8668a04b943",
+    "src/hutch/server/app.py": "4c9c1c8629a0d20a66eea708fea41496324ebeb3ea7808cb7f2fc72b019293f8",
+    "tests/e2e/test_browser.py": "a51449f6a94c918d6361253daa45d12b4656c05af3e34c3c2af0ff294be871df"
   }
 }

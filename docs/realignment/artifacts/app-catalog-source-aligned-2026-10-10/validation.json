@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_design_system.py::test_assistant_first_run_and_app_catalog_use_familiar_visual_language",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_assistant_first_run_and_app_catalog_use_familiar_visual_language",
-  "captured_at": "2026-10-10T18:45:39.616135+00:00",
+  "captured_at": "2026-10-11T00:04:57.315983+00:00",
   "python": "3.13.15",
   "browser": "Chromium 153.0.8010.12",
   "playwright": "1.63.0",
@@ -97,13 +97,19 @@
   "provider_calls": 0,
   "reduced_motion": "reduce",
   "source_sha256": {
-    "src/hutch/server/static/app.js": "ba09dfaf35dc401f3b5cd01c27c29f51552f9cb18ebb1382d7a430c131926741",
-    "src/hutch/server/static/index.html": "575a9641e4be85f5ed3294571370073ed90656c728baa218cfe11bd0b6e6f932",
-    "src/hutch/server/static/style.css": "f479dee7a6a547f157123fec5cba61c994f6a25b1242d8833f2921bc5e124e2e",
+    "src/hutch/server/pages.py": "366765446fb63c0ce3f1d80425526d93af9173481671023359e7be6b41cf4040",
+    "src/hutch/server/static/app.js": "fbe00e52466024a2e59aeb7e6fd6aaf946e50639054ce5185dea5253bf0cbb2c",
+    "src/hutch/server/static/index.html": "1b0401d605f694214fa52c1e8fbac54eb37ed8d302b51093db9de1e1031a23cc",
+    "src/hutch/server/static/style.css": "21729e037c748d01ad2ca2faf30459e80a441524e62fa8ae058bfa7e0eb92f6b",
     "src/hutch/server/static/brands/openai-white-monoblossom.svg": "b94ea61d860fae6f82f43571f36f17111fcf5d348e8e9cc22ae4b441c7560011",
-    "website/index.html": "3cc72969a1db70426edff5ff5f2bea107915636cf5ee733ae39c87b6cbd3de2c",
+    "src/hutch/server/static/brands/anthropic-symbol-ivory.svg": "38fc06d8e9390654cc4e96aa53691e2e78d929667c0034805b6d1b3891ba22dd",
+    "src/hutch/server/static/brands/openrouter-glyph-volt.svg": "0d22462e4f2835a5a5b9000af0a55fc9238e39996100f54706e41ec45b9d1727",
+    "src/hutch/server/static/brands/google-calendar-2026q2.png": "eac7b1d7c78a7c7fb40d74b6d879ba5fe781cbf2cd5f8d7d40f3c28fea73f77e",
+    "src/hutch/server/static/brands/google-gmail-2026q2.png": "ab8e9e880a28e2bc29207a62394aa7d296f435113fcc922819dab629ffbd64e6",
+    "src/hutch/server/static/brands/microsoft-outlook.svg": "4a3b6ab15d36e7c5317f75a83d1781708d68cce4d8b9073a3c82f0af662eaf18",
+    "website/index.html": "d35001a2050a3dc2a800b624f6cea6b989adb9cd41a1806ba553948f09d76161",
     "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
-    "website/styles.css": "b4734e30bccfce415329ffc6dc8b0631bb7937f51e8f8525c912229526ddfda8",
-    "tests/e2e/test_design_system.py": "b6c8032037187169107dedbd6aeabbf9d3bed04885689ef4124035825f6f9f8d"
+    "website/styles.css": "4e2f4b3e4094cfc3aef1e9b21deaaf472421e607bb416824e63db0197dd0f4bd",
+    "tests/e2e/test_design_system.py": "0440600f3ea0a140661fa75860d8c674116d850082a97028d326e347a21c9b83"
   }
 }

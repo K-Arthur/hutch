@@ -22,7 +22,7 @@
       ],
       "overflow_px": 0,
       "page_errors": [],
-      "screenshot_sha256": "c350ef2be96ce9ac3d7406987aaff4439fb85aed2c842f3e62d63e0d9faf30ad"
+      "screenshot_sha256": "53c5a735cef93bda9f2e3d42f7567eba715557755a94a674f5fb2e89c5faf5b3"
     },
     {
       "viewport": "tablet",
@@ -32,7 +32,7 @@
       ],
       "overflow_px": 0,
       "page_errors": [],
-      "screenshot_sha256": "39825d9dcac0b541b8c176cd2135e46759ebb7e769c21c852cf3d0b9134073a9"
+      "screenshot_sha256": "506feeb69a5ccafd7b824d3d5d846fbd6b57374c77bb426d99fc59a323d33414"
     },
     {
       "viewport": "phone",
@@ -46,8 +46,8 @@
     }
   ],
   "source_sha256": {
-    "src/hutch/server/static/index.html": "d9d037b323fa06b27dbe718edf247f3c925839642a410264926d085b860d07c6",
-    "src/hutch/server/static/app.js": "710a8f554c9b3fd177e9077bfbca2e89164246d972252adfca5eb92cf5278d5f",
-    "src/hutch/server/static/style.css": "3a7990c641c1119b8387761831bde00ebb2cec06f17d2674707014e95e3e8107"
+    "src/hutch/server/static/index.html": "1b0401d605f694214fa52c1e8fbac54eb37ed8d302b51093db9de1e1031a23cc",
+    "src/hutch/server/static/app.js": "fbe00e52466024a2e59aeb7e6fd6aaf946e50639054ce5185dea5253bf0cbb2c",
+    "src/hutch/server/static/style.css": "21729e037c748d01ad2ca2faf30459e80a441524e62fa8ae058bfa7e0eb92f6b"
   }
 }

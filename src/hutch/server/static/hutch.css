@@ -50,6 +50,9 @@ html, body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.
 body { min-height: 100vh; display: flex; flex-direction: column; }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
+/* Links inside prose carry only a 1.74:1 color difference from body text, so
+   they need an at-rest underline to be identifiable by more than color. */
+p a:not(.btn) { text-decoration: underline; text-underline-offset: 2px; }
 h1, h2, h3, h4 { font-family: var(--display); }
 h1 { font-weight: 700; font-size: 24px; line-height: 1.25; letter-spacing: -0.02em; margin: 0 0 3px; }
 h2 { font-size: var(--text-size-section); font-weight: 650; letter-spacing: -0.005em; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
@@ -240,8 +243,6 @@ th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--bor
 th { color: var(--dim); font: 600 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; background: var(--bg-subtle); }
 td.snip { white-space: normal; min-width: 200px; max-width: 360px; }
 .num { text-align: right; }
-tr.clickable { cursor: pointer; }
-tr.clickable:hover { background: var(--elevated); }
 tbody tr:last-child td { border-bottom: 0; }
 .pager { margin-top: 12px; }
 

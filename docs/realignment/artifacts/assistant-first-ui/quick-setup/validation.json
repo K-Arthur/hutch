@@ -1,0 +1,56 @@
+{
+  "command": "uv run pytest -q tests/e2e/test_browser.py::test_quick_bot_creation_uses_the_workspace_default_without_starting_work",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "provider_calls": 0,
+  "external_requests": [],
+  "page_errors": [],
+  "captures": [
+    {
+      "viewport": [
+        1440,
+        960
+      ],
+      "horizontal_overflow": 0,
+      "footer_visible": true,
+      "summary_visible_above_footer": true,
+      "name_visible_above_footer": true
+    },
+    {
+      "viewport": [
+        900,
+        1024
+      ],
+      "horizontal_overflow": 0,
+      "footer_visible": true,
+      "summary_visible_above_footer": true,
+      "name_visible_above_footer": true
+    },
+    {
+      "viewport": [
+        390,
+        844
+      ],
+      "horizontal_overflow": 0,
+      "footer_visible": true,
+      "summary_visible_above_footer": true,
+      "name_visible_above_footer": true
+    }
+  ],
+  "verified": [
+    "purpose-first one-screen setup",
+    "editable suggested name visible",
+    "workspace model default reused",
+    "advanced controls remain available",
+    "no tools or recurring task enabled",
+    "approval remains ask-first",
+    "creation starts no run"
+  ],
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "f7fedef13a9d1769d5cfef4c7014866990b12f2d20eec2b4e3bdce5ea4fa7fb0",
+    "src/hutch/server/static/style.css": "8047aeae3de203e7caa7487c3a5e59eecdb4ecd14e0b7a8f3b0db4bbe863c9f5",
+    "src/hutch/server/app.py": "9d97a8bd03b1ca8c7bc37718829c4881b2ff59fcc44a8e326921f2cea926c3e5",
+    "tests/e2e/test_browser.py": "546a30ee4163cc1f9a4c9bf763d0976da18ed8287246d237d2c692ab7e20772f"
+  }
+}

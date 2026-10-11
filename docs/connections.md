@@ -270,6 +270,36 @@ price row in Settings > Prices. Tool support varies by model and upstream
 provider, so a catalog entry does not prove a model will work for every task.
 Live OpenRouter account and model requests have not been tested here.
 
+## Connect a model provider in one step
+
+From **Apps & AI → AI model providers → Connect a provider**, choose OpenAI API,
+Anthropic API, or OpenRouter, paste the key, and select **Connect and find
+models**. Hutch makes one authenticated catalog request; it does not spend
+inference tokens. The response reports whether the catalog was verified and how
+many model IDs it returned. Use the model picker to choose one. The list is live
+and may change; it does not prove tool support, model quality, price stability,
+or successful inference. Advanced providers and custom endpoints stay behind
+**More providers and endpoint settings**.
+
+OpenAI API keys use OpenAI API billing and are separate from ChatGPT sign-in or
+a ChatGPT subscription. Anthropic's account catalog is paginated. OpenRouter
+catalog details and prices are provider-reported and can change; OpenRouter may
+route to a different upstream model under its own fallback rules. Hutch records
+the model returned by the provider and does not silently select a different
+Hutch connection. Review each provider's billing and routing controls. Catalog
+prices are not Hutch's reviewed pricebook and cannot enforce currency caps.
+
+Pasted keys are written to a private file on this Hutch with owner-only
+permissions; they are never returned to the browser or stored in browser
+storage. A key pasted through this dialog takes precedence over that connection's
+environment variable, so Hutch uses the key the owner just chose. **Remove key**
+clears the local key and restores the environment variable if configured. A
+provider catalog error does not discard the connection: the UI says it could
+not verify the list, and the connection appears in **More account settings** for
+testing or key replacement. No provider account or inference request was used
+for visual validation. See the [multi-provider UX review](research/multi-provider-platform-review-2026-10-10.md)
+and [brand asset provenance](brand-assets.md).
+
 For OpenCode Go, sign in and manage the plan on OpenCode, then copy its provider API key into Hutch. This is the
 provider's documented third-party connection method, not an OAuth session shared with Hutch. Hutch's Go connection does not
 reuse OpenCode's private auth database, browser profile or CLI sign-in. Separately, the experimental interactive coding handoff

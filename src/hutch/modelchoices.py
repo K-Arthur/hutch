@@ -168,6 +168,22 @@ def _connection_choices(bot: Bot, store: Any, book: ConnectionBook, extra: set[s
                 # A catalog outage must not disable a route already selected by the
                 # user; ordinary run admission still checks its key and policy.
                 catalog_by_spec = {}
+        elif has_key and discover_hosted_models and c.models_endpoint:
+            from .providers.base import ProviderError
+            from .providers.connection import provider_for_connection
+            key_hash = hashlib.sha256((book.key(name) or "").encode()).hexdigest()
+            cache_key = f"provider-catalog:{name}:{c.base_url}:{key_hash}"
+            try:
+                rows = _cached(cache_key,
+                               lambda: provider_for_connection(book, name, "catalog").list_models(),
+                               ttl=60.0)
+                discovered = {row.name for row in rows if row.name}
+                if len(model_query) >= 2:
+                    q = model_query.casefold()
+                    discovered = {model for model in discovered if q in model.casefold()}
+                models.update(f"{name}/{model}" for model in discovered)
+            except ProviderError as exc:
+                model_error = str(exc)
         ordered_specs = list(catalog_by_spec) + sorted(models - set(catalog_by_spec))
         for spec in ordered_specs:
             if not has_key:
@@ -176,14 +192,12 @@ def _connection_choices(bot: Bot, store: Any, book: ConnectionBook, extra: set[s
                        else f"set ${c.api_key_env} or run `hutch connections set-key {name}`")
             elif ack in ("required", "stale"):
                 state, fix = "setup", f"acknowledge its terms: `hutch connections ack {name}`"
-            elif model_error:
-                state, fix = "setup", model_error
             else:
                 state, fix = "ready", ""
             catalog_row = catalog_by_spec.get(spec)
             note = ("needs a key" if not has_key else
                     "terms not acknowledged" if ack in ("required", "stale") else
-                    "model list unavailable" if model_error else
+                    "model list unavailable; retry from Connections" if model_error else
                     _openrouter_price_note(catalog_row) if catalog_row and catalog_row.get("pricing") else
                     "listed in OpenRouter's model catalog" if catalog_row else
                     "subscription; output limit is provider-unbounded" if c.auth_type == "chatgpt-siws" else

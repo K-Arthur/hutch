@@ -24,9 +24,9 @@
   "scenario": "the selected workspace coordinator opens as the default direct chat, is labelled in the roster and composer, the owner can maintain an explicit specialist allowlist from settings, and promoting a specialist removes it without adding the former coordinator",
   "page_errors": [],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
-    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
-    "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
-    "tests/e2e/test_browser.py": "cb110cb5fb29bab353bc2c87d883f43f3a237301df33b2136a4c50ed04b03238"
+    "src/hutch/server/static/app.js": "f9ec5cedf21cf04db04f98d69c658a987bf026e6cf46ee97e354246ab7c1ce4d",
+    "src/hutch/server/static/style.css": "580461addb6a236c7e6786b0ca81c68a80d8cd08f8cfefd7a95be565ad7a0ea9",
+    "src/hutch/server/app.py": "9d97a8bd03b1ca8c7bc37718829c4881b2ff59fcc44a8e326921f2cea926c3e5",
+    "tests/e2e/test_browser.py": "96804de3212c120f6871c28948da1b3af64c498872139e73a71b3a181af21ee9"
   }
 }

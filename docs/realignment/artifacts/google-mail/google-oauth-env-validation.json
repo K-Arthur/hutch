@@ -1,6 +1,6 @@
 {
   "test": "tests/e2e/test_browser.py::test_google_oauth_environment_override_is_readonly_in_connections",
-  "captured_at": "2026-10-10T07:44:47.478732+00:00",
+  "captured_at": "2026-10-10T23:59:26.071965+00:00",
   "command": ".venv/bin/pytest -q tests/e2e/test_browser.py::test_google_oauth_environment_override_is_readonly_in_connections",
   "browser": "153.0.8010.12",
   "playwright_version": "1.63.0",
@@ -50,9 +50,9 @@
     "operator-managed-compact-phone.png"
   ],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "55773656fcf1f943f0d18cf6d1898b2d35b2eece545c5725bc4d391fff713686",
-    "src/hutch/server/static/style.css": "f78e415560c31ecfdfa86cdb9af8589f9650ea5391353232441e762b461c2c47",
-    "src/hutch/server/app.py": "4905a2a1ca15fe174ddc60225634e75de50937c63b73cd9c464f8e9c5b94ddaa",
+    "src/hutch/server/static/app.js": "7fc20ab82bb8dcd8733cba2a36ca21193f35d1fbef2fded56d077b5a0fc09a21",
+    "src/hutch/server/static/style.css": "6dabab0b5ab90ee7c6ab3521b85f10c50391f6b648986a765151d8668a04b943",
+    "src/hutch/server/app.py": "4c9c1c8629a0d20a66eea708fea41496324ebeb3ea7808cb7f2fc72b019293f8",
     "src/hutch/google_oauth_config.py": "ef9e692f11939c27570ea97db0f0a4f64892bfbb7f5f3b41521b9dfaeed4c644"
   }
 }

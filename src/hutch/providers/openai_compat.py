@@ -29,6 +29,9 @@ PRESET_URLS = {
     "vllm": "http://localhost:8000/v1",
 }
 
+_MODEL_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,159}$")
+_MAX_DISCOVERED_MODELS = 10000
+
 
 def _httpx():
     import httpx
@@ -133,17 +136,33 @@ class OpenAICompatProvider(Provider):
         if r.status_code in (401, 403):
             return False, "reachable, but the API key was rejected", []
         if r.status_code >= 400:
-            return False, f"the endpoint answered HTTP {r.status_code}", []
+            return False, self._error_from_response(r).args[0], []
         try:
-            names = sorted(m.get("id", "") for m in r.json().get("data", []))
-        except ValueError:
-            return True, "authenticated, but the model list could not be read", []
+            names = self._catalog_ids(r.json())
+        except (ValueError, TypeError, ProviderError) as exc:
+            return False, str(exc) or "the endpoint returned an invalid model list", []
         return True, f"authenticated; {len(names)} model(s) available", names
 
     def list_models(self) -> list[ModelMeta]:
-        r = self._http().get("/models", timeout=self._timeout(read=10.0))
-        r.raise_for_status()
-        return [ModelMeta(name=m.get("id", "")) for m in r.json().get("data", [])]
+        try:
+            r = self._http().get("/models", timeout=self._timeout(read=10.0))
+            if r.status_code >= 400:
+                raise self._error_from_response(r)
+            return [ModelMeta(name=name) for name in self._catalog_ids(r.json())]
+        except ProviderError:
+            raise
+        except Exception as exc:
+            raise self._wrap_exc(exc)
+
+    def _catalog_ids(self, payload: Any) -> list[str]:
+        if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
+            raise ProviderError("other", f"{self.name} returned an invalid model catalog", provider=self.name)
+        if len(payload["data"]) > _MAX_DISCOVERED_MODELS:
+            raise ProviderError("other", f"{self.name}'s model catalog exceeded Hutch's discovery limit",
+                                provider=self.name)
+        ids = {row.get("id") for row in payload["data"] if isinstance(row, dict)
+               and isinstance(row.get("id"), str) and _MODEL_ID.fullmatch(row["id"])}
+        return sorted(ids)
 
     def list_openrouter_catalog(self, query: str = "", limit: int = 40) -> list[dict[str, Any]]:
         """Read OpenRouter's text-model catalog for the model picker; never makes an inference request."""

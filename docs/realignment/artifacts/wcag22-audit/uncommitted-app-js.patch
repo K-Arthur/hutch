@@ -1,0 +1,189 @@
+--- /tmp/hutch-audit/pre/app.js	2026-10-10 16:52:49.506411255 -0700
++++ src/hutch/server/static/app.js	2026-10-10 17:08:36.310553270 -0700
+@@ -230,7 +230,7 @@
+     ? conversationArtifactSize(item.size_bytes) : item.size_bytes ? conversationArtifactSize(item.size_bytes)
+     : item.chars ? `${Number(item.chars).toLocaleString("en-US")} characters` : "";
+   const sharedWith = Array.isArray(item.shared_with) ? item.shared_with : [];
+-  const sharedWithHtml = sharedWith.length ? `<div class="conversation-file-grants" aria-label="Active shares">
++  const sharedWithHtml = sharedWith.length ? `<div class="conversation-file-grants" role="group" aria-label="Active shares">
+     ${sharedWith.map(target => `<div class="conversation-file-grant">
+       <span>Shared with ${esc(target.target_conversation_title || "another chat")}</span>
+       <button class="btn ghost small" type="button" data-artifact-unshare="${esc(target.id)}"
+@@ -268,7 +268,7 @@
+   if (!region.hidden) { region.hidden = true; region.innerHTML = ""; return; }
+   region.hidden = false;
+   region.innerHTML = `<label class="field">Share with another chat
+-      <input class="artifact-share-search" type="search" placeholder="Find a chat" autocomplete="off">
++      <input class="artifact-share-search" type="search" placeholder="Find a chat" autocomplete="off" enterkeyhint="search">
+       <select class="artifact-share-target" aria-label="Destination chat" disabled><option value="">Choose a chat…</option></select>
+     </label>
+     <p class="hint artifact-share-note">This adds a verified file reference to that chat’s Files list. It does not copy the file into its workspace or add the contents to its model context.</p>
+@@ -491,6 +491,7 @@
+   const root = $("#toast-root");
+   const el = document.createElement("div");
+   el.className = "toast" + (isError ? " error" : "");
++  if (isError) el.setAttribute("role", "alert");
+   el.innerHTML = `<span class="toast-msg">${esc(msg)}</span>
+     <button class="toast-close" aria-label="Dismiss notification">${icon("x")}</button>`;
+   const dismiss = () => el.remove();
+@@ -1214,7 +1215,7 @@
+     bodyHtml: `<form class="message-search" id="message-search-form" role="search">
+       <div class="message-search-controls">
+         <label class="field message-search-query" for="message-search-query">Search messages
+-          <input id="message-search-query" type="search" maxlength="256" autocomplete="off" spellcheck="false"
++          <input id="message-search-query" type="search" maxlength="256" autocomplete="off" spellcheck="false" enterkeyhint="search"
+             aria-describedby="message-search-scope" placeholder="Search words or a phrase" />
+         </label>
+         <label class="field message-search-bot-filter" for="message-search-bot">Bot
+@@ -1223,7 +1224,7 @@
+       </div>
+       <p class="hint message-search-scope" id="message-search-scope">Search covers active chats. Archived and imported history stays out of results.</p>
+       <p class="message-search-status" id="message-search-status" role="status" aria-live="polite">Type at least two characters to search.</p>
+-      <div class="message-search-results" id="message-search-results" aria-label="Search results"></div>
++      <div class="message-search-results" id="message-search-results" role="group" aria-label="Search results"></div>
+     </form>`,
+   });
+   const form = $("#message-search-form");
+@@ -1301,8 +1302,28 @@
+   });
+ }
+ 
+-async function route() {
++const ROUTE_TITLES = { chat: "Chats", overview: "Activity", schedules: "Scheduled work",
++  runs: "Work history", bots: "Assistants", connections: "Apps & AI", approvals: "Needs you" };
++
++function routeTitle(hash) {
++  if (hash.startsWith("#/conversation/")) return "Conversation";
++  if (hash.startsWith("#/approvals")) return "Needs you";
++  const bot = hash.match(/^#\/(?:chat|bot)\/([^/?]+)/);
++  if (bot) return decodeURIComponent(bot[1]);
++  const run = hash.match(/^#\/run\/([^/?]+)/);
++  if (run) return `Run ${run[1].slice(4, 16)}`;
++  const nav = routes.find(([re]) => re.test(hash))?.[2];
++  return ROUTE_TITLES[nav] || "hutch";
++}
++
++async function route(announce = false) {
+   const hash = location.hash || "#/chat";
++  if (!hash.startsWith("#/")) {
++    /* Plain fragment targets (the skip link's #view) are not views: leave the
++       hash alone so the browser moves focus to the target element. */
++    closeWorkspace();
++    return;
++  }
+   updateRosterCurrentItem();
+   document.body.classList.toggle("has-composer", hash.startsWith("#/chat"));
+   stopRunSubs();
+@@ -1322,6 +1343,16 @@
+       if (["overview", "schedules", "runs", "bots"].includes(nav)) $("#monitor-nav").open = true;
+       try { await handler(m); }
+       catch (err) { view.innerHTML = errorState(err); }
++      if (announce) {
++        document.title = `hutch — ${routeTitle(hash)}`;
++        /* Replacing #view orphans keyboard focus to body; handlers that place
++           focus deliberately keep it. Only rescue the orphaned case. */
++        if (!document.activeElement || document.activeElement === document.body) {
++          const heading = topContext?.querySelector("h1");
++          if (heading) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); }
++          else { view.tabIndex = -1; view.focus({ preventScroll: true }); }
++        }
++      }
+       void refreshBadge();
+       return;
+     }
+@@ -1340,7 +1371,7 @@
+ 
+ function setTopContext(html) { if (topContext) topContext.innerHTML = html; }
+ 
+-window.addEventListener("hashchange", route);
++window.addEventListener("hashchange", () => route(true));
+ 
+ /* -------------------------------------------------- roster + attention */
+ 
+@@ -2146,7 +2177,7 @@
+     title: "Saved requests",
+     bodyHtml: `<p class="hint">Choose a request to place it in this chat’s draft. Nothing is sent until you review and send it.</p>
+       <label class="field" for="saved-task-template-search">Find a saved request
+-        <input id="saved-task-template-search" type="search" autocomplete="off" placeholder="Search by name or request">
++        <input id="saved-task-template-search" type="search" autocomplete="off" placeholder="Search by name or request" enterkeyhint="search">
+       </label>
+       <div class="saved-request-list" id="saved-task-template-list" role="list" aria-label="Saved requests"></div>`,
+     confirmText: "Done", showCancel: false, wide: true, returnFocus,
+@@ -2413,7 +2444,7 @@
+             <div class="composer-row">
+               <div class="cmenu-wrap">
+                 <button class="composer-util" type="button" id="composer-menu-btn" aria-label="Message options" aria-haspopup="dialog" aria-expanded="false" aria-controls="composer-menu">${icon("plus")}</button>
+-                <div class="cmenu" id="composer-menu" role="dialog" aria-label="Message options" hidden>
++                <div class="cmenu" id="composer-menu" role="dialog" aria-modal="false" aria-label="Message options" hidden>
+                   <p class="cmenu-h">Start from a suggestion</p>
+                   <div class="quick-prompts" id="quick-prompts">
+                     <button type="button" data-quick="Sort this week's downloads and move invoices into folders">${icon("folder")} Sort downloads</button>
+@@ -2438,7 +2469,7 @@
+                 </div>
+               </div>
+               <label class="visually-hidden" for="chat-prompt">Message ${esc(bot.display_name || bot.name)}</label>
+-              <textarea class="composer-textarea" id="chat-prompt" rows="1" placeholder="Message…" aria-describedby="chat-help"></textarea>
++              <textarea class="composer-textarea" id="chat-prompt" rows="1" placeholder="Message…" aria-describedby="chat-help" enterkeyhint="send"></textarea>
+               <div class="composer-actions">
+                 <span class="model-switch-slot" id="model-switch-slot"></span>
+                 <button class="composer-send" id="chat-send" type="submit" aria-label="Send message">${icon("up")}</button>
+@@ -4984,7 +5015,7 @@
+   view.innerHTML = `
+     <div class="page-scroll"><div class="container">
+       ${bots.length ? `
+-      <div class="fleet-filters"><label class="field">Find an assistant<input id="fleet-search" type="search" placeholder="Search by name or task"></label>
++      <div class="fleet-filters"><label class="field">Find an assistant<input id="fleet-search" type="search" placeholder="Search by name or task" enterkeyhint="search"></label>
+         <label class="field">Show<select id="fleet-state"><option value="all">All assistants</option><option value="needs">Need your attention</option><option value="active">Working now</option><option value="paused">Paused</option></select></label></div>
+       <p class="hint" id="fleet-count" role="status"></p>
+       <div class="bot-grid">
+@@ -5071,7 +5102,7 @@
+       <p class="runs-intro">See what your assistants have done. Open any task to review the full conversation and decisions.</p>
+       <div class="runs-filter-bar">
+         <label class="visually-hidden" for="run-search">Find a task or assistant</label>
+-        <input type="search" id="run-search" placeholder="Find a task or assistant…" value="${esc(runsState.q)}">
++        <input type="search" id="run-search" placeholder="Find a task or assistant…" value="${esc(runsState.q)}" enterkeyhint="search">
+         <div class="runs-filter-pills" role="group" aria-label="Filter past work">
+           ${["all", "succeeded", "failed", "waiting_approval"].map(f => `
+             <button class="${runsState.status === f ? "active" : ""}" data-filter="${f}" aria-pressed="${runsState.status === f}">
+@@ -5446,7 +5477,7 @@
+               ? `<p class="error" role="alert">The roster could not be loaded: ${esc(specialistRosterError)}. Reload this page before changing it.</p>`
+               : specialistRoster?.bots.length
+                 ? `${specialistRoster.bots.length > 8 ? `<label class="field">Filter specialist Bots
+-                      <input type="search" id="workspace-specialist-filter" aria-controls="workspace-specialist-options" placeholder="Name or address">
++                      <input type="search" id="workspace-specialist-filter" aria-controls="workspace-specialist-options" placeholder="Name or address" enterkeyhint="search">
+                     </label><p id="workspace-specialist-filter-status" class="hint" role="status">${specialistRoster.bots.length} Bots available.</p>` : ""}
+                   <fieldset class="workspace-specialist-list" id="workspace-specialist-options">
+                     <legend class="sr-only">Bots the coordinator may assign new tasks to</legend>
+@@ -5470,8 +5501,8 @@
+           <div><h2 class="panel-title">About this assistant</h2><p class="hint">Give it a name and a little direction. You can change the details whenever you like.</p></div>
+         </div>
+         <label class="field">Assistant name
+-          <input type="text" name="display_name" maxlength="80" value="${esc(b.display_name || b.name)}" required>
+-          <span class="hint">Shown in your chats and assistant list.</span>
++          <input type="text" name="display_name" maxlength="80" value="${esc(b.display_name || b.name)}" required aria-describedby="assistant-name-hint">
++          <span class="hint" id="assistant-name-hint">Shown in your chats and assistant list.</span>
+         </label>
+         <label class="field">What it helps with
+           <input type="text" name="description" value="${esc(b.description || "")}" placeholder="For example, helps me stay on top of email">
+@@ -5516,8 +5547,8 @@
+             <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("zap")}</span>AI service and model</div>
+             <div class="form-grid row2">
+               <label class="field">Default model
+-                <input type="text" name="model" value="${esc(b.model || "")}">
+-                <span class="hint">Hybrid allows local and hosted routes; Local blocks hosted models but keeps tools online. Offline requires a host that verifies worker network isolation.</span>
++                <input type="text" name="model" value="${esc(b.model || "")}" aria-describedby="default-model-hint">
++                <span class="hint" id="default-model-hint">Hybrid allows local and hosted routes; Local blocks hosted models but keeps tools online. Offline requires a host that verifies worker network isolation.</span>
+               </label>
+               <label class="field">Execution runtime
+                 <input type="text" disabled value="${esc(runtimeUnavailable ? `${runtimeName} (unavailable)` : runtimeName)}">
+@@ -5617,8 +5648,8 @@
+               <span class="hint" id="workspace-mode-help">Fresh starts each run in a new folder. Managed reuses one private folder for this bot’s runs and chats. Folder uses the existing path below. Changing modes never moves or deletes files; deleting a bot keeps its managed folder.</span>
+             </label>
+             <label class="field workspace-folder-field" id="workspace-folder-field" ${b.workspace_mode === "folder" ? "" : "hidden"}>Existing folder
+-              <input type="text" name="workdir" value="${esc(b.workdir || "")}" placeholder="absolute path, for example ~/Projects/report" ${b.workspace_mode === "folder" ? "required" : ""}>
+-              <span class="hint">Choose a folder that already exists. System folders, your whole home, and Hutch’s private state are refused.</span>
++              <input type="text" name="workdir" value="${esc(b.workdir || "")}" placeholder="absolute path, for example ~/Projects/report" ${b.workspace_mode === "folder" ? "required" : ""} aria-describedby="workdir-folder-hint">
++              <span class="hint" id="workdir-folder-hint">Choose a folder that already exists. System folders, your whole home, and Hutch’s private state are refused.</span>
+             </label>
+             <label class="field browser-handoff-field">Local browser handoff
+               <select name="local_browser_handoff" aria-describedby="browser-handoff-help">

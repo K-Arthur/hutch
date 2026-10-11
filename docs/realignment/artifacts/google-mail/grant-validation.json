@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_browser.py::test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone",
   "command": "PLAYWRIGHT_BROWSERS_PATH=/home/kevina/.cache/ms-playwright .venv/bin/pytest -q tests/e2e/test_browser.py::test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone",
-  "captured_at": "2026-10-10T07:44:50.022994+00:00",
+  "captured_at": "2026-10-10T23:59:29.681600+00:00",
   "browser": "153.0.8010.12",
   "provider_credentials_used": false,
   "provider_calls": 0,
@@ -77,15 +77,15 @@
     }
   ],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "55773656fcf1f943f0d18cf6d1898b2d35b2eece545c5725bc4d391fff713686",
-    "src/hutch/server/static/style.css": "f78e415560c31ecfdfa86cdb9af8589f9650ea5391353232441e762b461c2c47",
-    "src/hutch/server/app.py": "4905a2a1ca15fe174ddc60225634e75de50937c63b73cd9c464f8e9c5b94ddaa",
-    "src/hutch/server/security.py": "f089474763ce669a2b2a0f7400eb99635a3a59782620cc0d505b230c5f035bfb",
-    "src/hutch/store.py": "5630bce3b9d00e535069a7bc605b50fe3fb8c75e8f257687cc3b0a9d78969548",
-    "src/hutch/google_calendar.py": "cbeb8b8c0cbe74aa50e4733f4649be04571a6e345822a1fe514110cfe3727027",
+    "src/hutch/server/static/app.js": "7fc20ab82bb8dcd8733cba2a36ca21193f35d1fbef2fded56d077b5a0fc09a21",
+    "src/hutch/server/static/style.css": "6dabab0b5ab90ee7c6ab3521b85f10c50391f6b648986a765151d8668a04b943",
+    "src/hutch/server/app.py": "4c9c1c8629a0d20a66eea708fea41496324ebeb3ea7808cb7f2fc72b019293f8",
+    "src/hutch/server/security.py": "b83059b4571344c2d0a057305b9e086c46b9905f5772a9ca97c90d46c25c7f0c",
+    "src/hutch/store.py": "fb8e8f9861a4e01044b8f49002005597e83947ab4d728b3a022e6e1bc59d0fdb",
+    "src/hutch/google_calendar.py": "44b9696a35ee95374fdbae5a28691eb535ccbf17784d2b572091a2994a4a7ff6",
     "src/hutch/google_mail.py": "07fc56e6918d2ccdb8759e2c648a2ec31b9d261916c4223413f0650d683bed1a",
     "src/hutch/google_oauth_config.py": "ef9e692f11939c27570ea97db0f0a4f64892bfbb7f5f3b41521b9dfaeed4c644",
-    "src/hutch/tools/google_calendar.py": "c0e0805b0bba964c4b22600e469270a1d07c0117a098441a3c2b9b18f022b9cc",
+    "src/hutch/tools/google_calendar.py": "ffeaf98ad800b3fa003a82ee6389c27a3041af6e624cbf6fbbb53f4eed289881",
     "src/hutch/tools/google_mail.py": "2ac53c8d4e2411524a6e93f8625bcf8a1a1b96a2e6b1a4d6171a95f25b80d69f"
   },
   "inspected_screenshots": [

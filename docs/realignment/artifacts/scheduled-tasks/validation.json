@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_browser.py::test_multiple_scheduled_tasks_can_be_managed_from_bot_settings",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_multiple_scheduled_tasks_can_be_managed_from_bot_settings",
-  "captured_at": "2026-10-10T23:50:04.756677+00:00",
+  "captured_at": "2026-10-11T00:03:38.325185+00:00",
   "python": "3.13.15",
   "hutch_version": "0.1.0",
   "browser": "chromium",
@@ -24,12 +24,12 @@
       "task_entries": [
         {
           "index": 0,
-          "height": 589.375,
+          "height": 545.0625,
           "width": 632
         },
         {
           "index": 1,
-          "height": 589.375,
+          "height": 545.0625,
           "width": 632
         }
       ]
@@ -50,12 +50,12 @@
       "task_entries": [
         {
           "index": 0,
-          "height": 589.375,
+          "height": 523.375,
           "width": 800
         },
         {
           "index": 1,
-          "height": 589.375,
+          "height": 523.375,
           "width": 800
         }
       ]
@@ -76,12 +76,12 @@
       "task_entries": [
         {
           "index": 0,
-          "height": 816.03125,
+          "height": 766.125,
           "width": 302
         },
         {
           "index": 1,
-          "height": 816.03125,
+          "height": 766.125,
           "width": 302
         }
       ]
@@ -90,8 +90,8 @@
   "scenario": "edit, retain, remove, and promote independent task streams through the dashboard; isolated bot fixture only, no model/provider call",
   "page_errors": [],
   "source_sha256": {
-    "app.js": "3d641593bdca4bdbdadfe7fec68c869aa52b13b350e92384d3742d23c75a3c21",
-    "style.css": "3d0e9f53f3e68d3a38c613b353ca5e8c642987147d30d5d36f4d1a1c1ec63ee4",
-    "app.py": "623bda14b6d0b492126535cbea92b2c750d4cd64b5382218fe43160135e8fbe7"
+    "app.js": "fbe00e52466024a2e59aeb7e6fd6aaf946e50639054ce5185dea5253bf0cbb2c",
+    "style.css": "21729e037c748d01ad2ca2faf30459e80a441524e62fa8ae058bfa7e0eb92f6b",
+    "app.py": "4c9c1c8629a0d20a66eea708fea41496324ebeb3ea7808cb7f2fc72b019293f8"
   }
 }

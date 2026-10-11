@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_browser.py::test_model_switcher_can_explicitly_save_the_selected_route_as_bot_default",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_model_switcher_can_explicitly_save_the_selected_route_as_bot_default",
-  "captured_at": "2026-10-10T05:29:45.829572+00:00",
+  "captured_at": "2026-10-11T00:03:55.384251+00:00",
   "python": "3.13.15",
   "browser": "153.0.8010.12",
   "playwright_version": "1.63.0",
@@ -13,22 +13,22 @@
       ],
       "menu": {
         "x": 925,
-        "y": 574.578125,
+        "y": 552.109375,
         "width": 320,
-        "height": 297.421875,
-        "top": 574.578125,
+        "height": 316.890625,
+        "top": 552.109375,
         "right": 1245,
-        "bottom": 872,
+        "bottom": 869,
         "left": 925
       },
       "save": {
         "x": 934,
-        "y": 784.125,
+        "y": 774.921875,
         "width": 302,
-        "height": 78.875,
-        "top": 784.125,
+        "height": 85.078125,
+        "top": 774.921875,
         "right": 1236,
-        "bottom": 863,
+        "bottom": 860,
         "left": 934
       },
       "document_width": 1440
@@ -40,22 +40,22 @@
       ],
       "menu": {
         "x": 519,
-        "y": 646.578125,
+        "y": 624.109375,
         "width": 320,
-        "height": 297.421875,
-        "top": 646.578125,
+        "height": 316.890625,
+        "top": 624.109375,
         "right": 839,
-        "bottom": 944,
+        "bottom": 941,
         "left": 519
       },
       "save": {
         "x": 528,
-        "y": 856.125,
+        "y": 846.921875,
         "width": 302,
-        "height": 78.875,
-        "top": 856.125,
+        "height": 85.078125,
+        "top": 846.921875,
         "right": 830,
-        "bottom": 935,
+        "bottom": 932,
         "left": 528
       },
       "document_width": 900
@@ -67,20 +67,20 @@
       ],
       "menu": {
         "x": 13,
-        "y": 478.171875,
+        "y": 440.109375,
         "width": 364,
-        "height": 278.828125,
-        "top": 478.171875,
+        "height": 316.890625,
+        "top": 440.109375,
         "right": 377,
         "bottom": 757,
         "left": 13
       },
       "save": {
         "x": 22,
-        "y": 687.71875,
+        "y": 662.921875,
         "width": 346,
-        "height": 60.28125,
-        "top": 687.71875,
+        "height": 85.078125,
+        "top": 662.921875,
         "right": 368,
         "bottom": 748,
         "left": 22
@@ -92,9 +92,9 @@
   "runs_created": 0,
   "provider_calls": 0,
   "source_sha256": {
-    "src/hutch/server/static/model-switcher.js": "5d95d9662f20f245eda722278a2f2decb7d6baa49a807635dc9efc23edd9c0b0",
-    "src/hutch/server/static/model-switcher.css": "012143a1438b37f9b3ba3cc8282ab194ab6b05ce7e751df7c7d9e65bcc15ca20",
-    "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
-    "tests/e2e/test_browser.py": "cb110cb5fb29bab353bc2c87d883f43f3a237301df33b2136a4c50ed04b03238"
+    "src/hutch/server/static/model-switcher.js": "4add0f6530e573fb5fbb4d2494b3863f5409840eff68a369538b053d29da5121",
+    "src/hutch/server/static/model-switcher.css": "5ad36c7f5774bf1813ea12169a879fcf74e799e38f63f7e1362bc79112fb6198",
+    "src/hutch/server/app.py": "4c9c1c8629a0d20a66eea708fea41496324ebeb3ea7808cb7f2fc72b019293f8",
+    "tests/e2e/test_browser.py": "a51449f6a94c918d6361253daa45d12b4656c05af3e34c3c2af0ff294be871df"
   }
 }

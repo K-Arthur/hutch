@@ -21,12 +21,12 @@
   "scenario": "keyboard chooses a versioned YAML file, server validation copies it into a draft, every saved setting is reviewed, and only explicit final confirmation creates the Bot; no run or model call",
   "page_errors": [],
   "request_hosts": [
-    "127.0.0.1:42345"
+    "127.0.0.1:46169"
   ],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
-    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
-    "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
-    "tests/e2e/test_browser.py": "cb110cb5fb29bab353bc2c87d883f43f3a237301df33b2136a4c50ed04b03238"
+    "src/hutch/server/static/app.js": "fbe00e52466024a2e59aeb7e6fd6aaf946e50639054ce5185dea5253bf0cbb2c",
+    "src/hutch/server/static/style.css": "6dabab0b5ab90ee7c6ab3521b85f10c50391f6b648986a765151d8668a04b943",
+    "src/hutch/server/app.py": "4c9c1c8629a0d20a66eea708fea41496324ebeb3ea7808cb7f2fc72b019293f8",
+    "tests/e2e/test_browser.py": "a51449f6a94c918d6361253daa45d12b4656c05af3e34c3c2af0ff294be871df"
   }
 }

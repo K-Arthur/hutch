@@ -1,0 +1,31 @@
+{
+  "captured_at": "2026-10-10T11:12:24.047444+00:00",
+  "browser": "Chromium 153.0.8010.12",
+  "playwright": "1.63.0",
+  "source": "website/index.html",
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900,
+      "horizontal_overflow": 0
+    },
+    {
+      "name": "tablet",
+      "width": 900,
+      "height": 1024,
+      "horizontal_overflow": 0
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "horizontal_overflow": 0
+    }
+  ],
+  "mascot_asset": "assets/hutch-agent.webp?v=da73ea5e",
+  "mascot_loaded": true,
+  "external_requests": [],
+  "page_errors": [],
+  "reduced_motion": "reduce"
+}

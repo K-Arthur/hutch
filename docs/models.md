@@ -25,6 +25,17 @@ by OpenRouter and are not verified Hutch prices or guarantees of upstream availa
 live catalog prices for currency-limit admission: review and save a row in Settings > Prices first. A model listing
 also does not establish tool-call compatibility; verify task behavior with a normal governed run.
 
+OpenAI API and other OpenAI-compatible connections discover model IDs from
+their own authenticated `/models` endpoint when the model picker requests
+discovery; Anthropic uses its paginated Models API. The catalog response and
+short-lived cache are not a bundled inventory, and a catalog outage does not
+remove an already configured route. Provider model IDs, prices, and capabilities
+change independently of Hutch releases. A successful list request proves only
+that Hutch could read the catalog, not that a selected model can complete a
+task or call tools. OpenRouter can route within its own service according to
+its fallback configuration; Hutch reports the response model for usage and
+receipt records. See the [provider setup and compatibility review](connections.md#connect-a-model-provider-in-one-step).
+
 Rules worth knowing:
 
 - **Local model routes keep tools online.** A bot configured with `inference_mode=local` hides hosted choices and blocks hosted message overrides, fallbacks and escalation. Known Ollama cloud-tagged names are refused, but a local model server may still proxy traffic and network tools keep their own egress rules. Select **Hybrid** to allow hosted routes.

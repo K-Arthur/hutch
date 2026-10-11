@@ -1,0 +1,541 @@
+{
+ "chat": {
+  "320": {
+   "doc": 0,
+   "body": 0
+  },
+  "zoom200": {
+   "doc": 0,
+   "body": -320
+  },
+  "textspacing-desktop": {
+   "doc": 0,
+   "clipped": []
+  },
+  "textspacing-phone": {
+   "doc": 0,
+   "clipped": [
+    {
+     "tag": "A",
+     "cls": "brand",
+     "text": "hutch"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Chats"
+    },
+    {
+     "tag": "BUTTON",
+     "cls": "attention",
+     "text": "Needs you1"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Activity"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Scheduled work"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Work history"
+    }
+   ]
+  }
+ },
+ "chat-scribe": {
+  "320": {
+   "doc": 0,
+   "body": 0
+  },
+  "zoom200": {
+   "doc": 0,
+   "body": -320
+  },
+  "textspacing-desktop": {
+   "doc": 0,
+   "clipped": []
+  },
+  "textspacing-phone": {
+   "doc": 0,
+   "clipped": [
+    {
+     "tag": "A",
+     "cls": "brand",
+     "text": "hutch"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Chats"
+    },
+    {
+     "tag": "BUTTON",
+     "cls": "attention",
+     "text": "Needs you1"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Activity"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Scheduled work"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Work history"
+    }
+   ]
+  }
+ },
+ "conversation": {
+  "320": {
+   "doc": 0,
+   "body": 0
+  },
+  "zoom200": {
+   "doc": 0,
+   "body": -320
+  },
+  "textspacing-desktop": {
+   "doc": 0,
+   "clipped": []
+  },
+  "textspacing-phone": {
+   "doc": 0,
+   "clipped": [
+    {
+     "tag": "A",
+     "cls": "brand",
+     "text": "hutch"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Chats"
+    },
+    {
+     "tag": "BUTTON",
+     "cls": "attention",
+     "text": "Needs you1"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Activity"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Scheduled work"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Work history"
+    }
+   ]
+  }
+ },
+ "overview": {
+  "320": {
+   "doc": 0,
+   "body": 0
+  },
+  "zoom200": {
+   "doc": 0,
+   "body": -320
+  },
+  "textspacing-desktop": {
+   "doc": 0,
+   "clipped": []
+  },
+  "textspacing-phone": {
+   "doc": 0,
+   "clipped": [
+    {
+     "tag": "A",
+     "cls": "brand",
+     "text": "hutch"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Chats"
+    },
+    {
+     "tag": "BUTTON",
+     "cls": "attention",
+     "text": "Needs you1"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Activity"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Scheduled work"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Work history"
+    }
+   ]
+  }
+ },
+ "schedules": {
+  "320": {
+   "doc": 0,
+   "body": 0
+  },
+  "zoom200": {
+   "doc": 0,
+   "body": -320
+  },
+  "textspacing-desktop": {
+   "doc": 0,
+   "clipped": []
+  },
+  "textspacing-phone": {
+   "doc": 0,
+   "clipped": [
+    {
+     "tag": "A",
+     "cls": "brand",
+     "text": "hutch"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Chats"
+    },
+    {
+     "tag": "BUTTON",
+     "cls": "attention",
+     "text": "Needs you1"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Activity"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Scheduled work"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Work history"
+    }
+   ]
+  }
+ },
+ "bots": {
+  "320": {
+   "doc": 0,
+   "body": 0
+  },
+  "zoom200": {
+   "doc": 0,
+   "body": -320
+  },
+  "textspacing-desktop": {
+   "doc": 0,
+   "clipped": []
+  },
+  "textspacing-phone": {
+   "doc": 0,
+   "clipped": [
+    {
+     "tag": "A",
+     "cls": "brand",
+     "text": "hutch"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Chats"
+    },
+    {
+     "tag": "BUTTON",
+     "cls": "attention",
+     "text": "Needs you1"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Activity"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Scheduled work"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Work history"
+    }
+   ]
+  }
+ },
+ "runs": {
+  "320": {
+   "doc": 0,
+   "body": 0
+  },
+  "zoom200": {
+   "doc": 0,
+   "body": -320
+  },
+  "textspacing-desktop": {
+   "doc": 0,
+   "clipped": []
+  },
+  "textspacing-phone": {
+   "doc": 0,
+   "clipped": [
+    {
+     "tag": "A",
+     "cls": "brand",
+     "text": "hutch"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Chats"
+    },
+    {
+     "tag": "BUTTON",
+     "cls": "attention",
+     "text": "Needs you1"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Activity"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Scheduled work"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Work history"
+    }
+   ]
+  }
+ },
+ "approvals": {
+  "320": {
+   "doc": 0,
+   "body": 0
+  },
+  "zoom200": {
+   "doc": 0,
+   "body": -320
+  },
+  "textspacing-desktop": {
+   "doc": 0,
+   "clipped": []
+  },
+  "textspacing-phone": {
+   "doc": 0,
+   "clipped": [
+    {
+     "tag": "A",
+     "cls": "brand",
+     "text": "hutch"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Chats"
+    },
+    {
+     "tag": "BUTTON",
+     "cls": "attention",
+     "text": "Needs you1"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Activity"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Scheduled work"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Work history"
+    }
+   ]
+  }
+ },
+ "connections": {
+  "320": {
+   "doc": 0,
+   "body": 0
+  },
+  "zoom200": {
+   "doc": 0,
+   "body": -320
+  },
+  "textspacing-desktop": {
+   "doc": 0,
+   "clipped": []
+  },
+  "textspacing-phone": {
+   "doc": 0,
+   "clipped": [
+    {
+     "tag": "A",
+     "cls": "brand",
+     "text": "hutch"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Chats"
+    },
+    {
+     "tag": "BUTTON",
+     "cls": "attention",
+     "text": "Needs you1"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Activity"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Scheduled work"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Work history"
+    }
+   ]
+  }
+ },
+ "bot-settings": {
+  "320": {
+   "doc": 0,
+   "body": 0
+  },
+  "zoom200": {
+   "doc": 0,
+   "body": -320
+  },
+  "textspacing-desktop": {
+   "doc": 0,
+   "clipped": []
+  },
+  "textspacing-phone": {
+   "doc": 0,
+   "clipped": [
+    {
+     "tag": "A",
+     "cls": "brand",
+     "text": "hutch"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Chats"
+    },
+    {
+     "tag": "BUTTON",
+     "cls": "attention",
+     "text": "Needs you1"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Activity"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Scheduled work"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Work history"
+    }
+   ]
+  }
+ },
+ "run-detail": {
+  "320": {
+   "doc": 0,
+   "body": 0
+  },
+  "zoom200": {
+   "doc": 0,
+   "body": -320
+  },
+  "textspacing-desktop": {
+   "doc": 0,
+   "clipped": []
+  },
+  "textspacing-phone": {
+   "doc": 0,
+   "clipped": [
+    {
+     "tag": "A",
+     "cls": "brand",
+     "text": "hutch"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Chats"
+    },
+    {
+     "tag": "BUTTON",
+     "cls": "attention",
+     "text": "Needs you1"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Activity"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Scheduled work"
+    },
+    {
+     "tag": "A",
+     "cls": "",
+     "text": "Work history"
+    }
+   ]
+  }
+ }
+}

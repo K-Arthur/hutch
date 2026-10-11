@@ -1,6 +1,6 @@
 {
   "test": "tests/e2e/test_browser.py::test_outlook_calendar_event_creation_is_separate_approved_and_responsive",
-  "captured_at": "2026-10-10T20:25:32.452490+00:00",
+  "captured_at": "2026-10-10T23:59:37.715686+00:00",
   "browser": "153.0.8010.12",
   "provider_credentials_used": false,
   "provider_calls": 0,
@@ -92,10 +92,10 @@
     }
   ],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "9416d78e38c9de5603225114062fafbc5fd80e5e832bf2c36adf7e31be5a3f74",
-    "src/hutch/server/app.py": "743ab6fae831bef9bed41f842ac4775b9f1f9cca2e7df177d3f0ceb0934f71f3",
+    "src/hutch/server/static/app.js": "7fc20ab82bb8dcd8733cba2a36ca21193f35d1fbef2fded56d077b5a0fc09a21",
+    "src/hutch/server/app.py": "4c9c1c8629a0d20a66eea708fea41496324ebeb3ea7808cb7f2fc72b019293f8",
     "src/hutch/server/security.py": "b83059b4571344c2d0a057305b9e086c46b9905f5772a9ca97c90d46c25c7f0c",
-    "src/hutch/store.py": "922dd5eed149ccfa371fb13e8a6c453b346a2a4183e11a6afbda0d6073d6b53a",
+    "src/hutch/store.py": "fb8e8f9861a4e01044b8f49002005597e83947ab4d728b3a022e6e1bc59d0fdb",
     "src/hutch/outlook_calendar_write.py": "63e4cc7f0ec54dbe7bcf3ee9f99c02c681d89c050ddd44dc9691c9618b93450e",
     "src/hutch/tools/outlook_calendar_write.py": "8c298493185b76103064de1198c15425f2bf6e2fb158124dca9eca51a4538fa0"
   }

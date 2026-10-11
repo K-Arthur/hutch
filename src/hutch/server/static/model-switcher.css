@@ -85,6 +85,9 @@
   .ms-btn { max-width: 120px; min-height: 36px; padding: 0 9px; gap: 5px; }
   .ms-menu { left: 0; right: 0; width: auto; max-width: none; }
 }
+@media (pointer: coarse) {
+  .ms-btn { min-height: 44px; }
+}
 /* phone: the model chip shows dot + caret only, so the composer placeholder
    keeps a single line (same label-hiding pattern as the context header). */
 @media (max-width: 640px) {

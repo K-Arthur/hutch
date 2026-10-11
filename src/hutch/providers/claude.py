@@ -127,7 +127,43 @@ class ClaudeProvider(Provider):
         return Health(ok=True, detail="API key present (not verified: Hutch does not spend tokens to check)")
 
     def list_models(self) -> list[ModelMeta]:
-        return []
+        client = self._c()
+        models: list[ModelMeta] = []
+        cursor = ""
+        seen_cursors: set[str] = set()
+        for _ in range(10):
+            kwargs: dict[str, Any] = {"limit": 1000}
+            if cursor:
+                kwargs["after_id"] = cursor
+            try:
+                page = client.models.list(**kwargs)
+            except Exception as exc:
+                raise self._map(exc)
+            rows = getattr(page, "data", None)
+            if not isinstance(rows, (list, tuple)):
+                raise ProviderError("other", "Anthropic returned an invalid model catalog", provider=self.name)
+            for row in rows:
+                model_id = getattr(row, "id", None)
+                if isinstance(model_id, str) and model_id and len(model_id) <= 160 and not any(
+                        ord(char) < 32 for char in model_id):
+                    models.append(ModelMeta(name=model_id))
+            if not getattr(page, "has_more", False):
+                return models
+            next_cursor = getattr(page, "last_id", None)
+            if not isinstance(next_cursor, str) or not next_cursor or next_cursor in seen_cursors:
+                raise ProviderError("other", "Anthropic returned a repeated or missing model-list cursor",
+                                    provider=self.name)
+            seen_cursors.add(next_cursor)
+            cursor = next_cursor
+        raise ProviderError("other", "Anthropic's model catalog exceeded Hutch's 10,000-model discovery limit",
+                            provider=self.name)
+
+    def probe_models(self) -> tuple[bool, str, list[str]]:
+        try:
+            names = sorted({row.name for row in self.list_models()})
+            return True, f"authenticated; {len(names)} model(s) listed by Anthropic", names
+        except ProviderError as exc:
+            return False, str(exc), []
 
     # --------------------------------------------------------------- errors
 
