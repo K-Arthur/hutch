@@ -69,23 +69,30 @@ Workspace actions (Docs brief, Sheets table, Drive placement, Calendar/reminder 
 | S3 | Infographic renderer (deterministic SVG) + exports + accessible companion | planned |
 | S4 | Interactive join/answer/resume state machine + UI audio surface | planned (design gate first) |
 | S5a | Workspace request contracts (Docs tabs/revisions, Sheets RAW+append, Drive ids/uploads, Calendar events, reminder routing) | **implemented, local tests green** (17 tests, no I/O) |
-| S5b | Workspace OAuth transport + executors + action plan/effect orchestration | planned |
+| S5b | Workspace OAuth transport + executors + action plan/effect orchestration | **implemented, local tests green** (10 plan-engine + 8 fake-Google transport tests; live Google unexecuted — no account) |
+| S5c | Calendar executor + tool/UI wiring (source selector, action drawer) | planned (design gate first) |
 | S6 | UI integration (source selector, coverage, format controls, action drawer) | planned (design gate first) |
 | S7 | Integrated acceptance, visual/audio evidence, independent verification | planned |
 
-### S1/S2 evidence boundary (2026-10-11)
+### S1/S2/S5 evidence boundary (2026-10-11)
 
 * Verified locally: manifest/claim/quantity invariants and invalidation; thread reconstruction
   against the 20-post fixture (quote post, attachment, correction, duplicate, deleted post,
   unreachable remainder; "16 of 20 accessible"); PDF structure extraction on real generated
   PDFs; storage commit/verify/reconcile semantics; TTS request shapes, retry policy, key
   redaction and per-segment idempotency against local fake HTTP servers; transcript VTT with
-  labeled estimate alignment.
-* Unexecuted: any real provider call (no Gemini/OpenAI key on this host), real Google
-  Workspace write (no connected account), and rendering actual audio a person has listened
-  to. The TTS route must be live-verified before any "listened and verified" claim.
+  labeled estimate alignment; Workspace request contracts (tabs, RAW values, reminder
+  routing); the OAuth client, Docs/Sheets/Drive flows, reconciliation and the governed
+  action-plan engine against a local fake Google API (including a five-step journey where an
+  append targets the spreadsheet a prior step created).
+* Unexecuted: any real provider call (no Gemini/OpenAI key on this host), any real Google
+  Workspace call (no connected account or OAuth client), Calendar executor wiring, and
+  rendering actual audio a person has listened to. The TTS and Workspace routes must be
+  live-verified before any "listened/verified" claim.
 * Determinism: `deterministic_draft` is a plainly-labeled offline script used for tests and
   strict-offline derivatives; it is not presented as good dialogue.
+* Deliberate non-claims: no UI exists yet; no scheduling/notifications have been configured;
+  nothing has been pushed, deployed, or shared with anyone.
 
 ## Budgets (local reference machine; measure, then revise)
 
