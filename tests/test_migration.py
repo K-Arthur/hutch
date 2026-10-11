@@ -660,3 +660,112 @@ def test_v51_pending_specialist_questions_are_not_attachable_results():
         assert SCHEMA_VERSION >= 51
     finally:
         db.close()
+
+
+def _prepare_historical_workflow_schema(config, *, version: int, qualification: bool,
+                                        workflow_tables: bool, question_guards: bool) -> None:
+    """Build a disposable current DB, then shape it like one historical branch layout."""
+    current = Store(config)
+    current.close()
+    db = sqlite3.connect(config.db_path)
+    try:
+        db.execute("PRAGMA foreign_keys = OFF")
+        if not question_guards:
+            db.execute("DROP TRIGGER IF EXISTS messages_pending_question_result_insert")
+            db.execute("DROP TRIGGER IF EXISTS messages_pending_question_result_update")
+            db.execute("DROP INDEX IF EXISTS idx_runs_conversation_created")
+        if not qualification:
+            db.execute("DROP INDEX IF EXISTS idx_workflow_role_qualifications_route")
+            db.execute("DROP TABLE IF EXISTS workflow_role_qualifications")
+        if not workflow_tables:
+            for table in ("workflow_questions", "workflow_nodes", "workflow_runs",
+                          "workflow_revisions", "workflow_definitions"):
+                db.execute(f"DROP TABLE IF EXISTS {table}")
+            db.execute("DROP INDEX IF EXISTS idx_runs_kind_status")
+            columns = {row[1] for row in db.execute("PRAGMA table_info(runs)")}
+            if "kind" in columns:
+                db.execute("ALTER TABLE runs DROP COLUMN kind")
+        if qualification:
+            db.execute("INSERT INTO workflow_role_qualifications "
+                       "(provider, model, route_revision, role, state, source, tested_at) "
+                       "VALUES ('local', 'candidate', ?, 'worker', 'probed', 'probe', '2026-10-11T00:00:00Z')",
+                       ("a" * 64,))
+        if workflow_tables:
+            db.execute("INSERT INTO workflow_definitions "
+                       "(id, name, created_at, updated_at) VALUES ('def_legacy', 'legacy', 'now', 'now')")
+        db.execute(f"PRAGMA user_version = {version}")
+        db.commit()
+    finally:
+        db.close()
+
+
+@pytest.mark.parametrize(
+    ("version", "qualification", "workflow_tables", "question_guards"),
+    [
+        pytest.param(51, False, False, True, id="main-v51-delegation-guards"),
+        pytest.param(51, True, False, False, id="workflow-v51-qualification"),
+        pytest.param(52, True, True, False, id="workflow-v52-tables"),
+    ],
+)
+def test_historical_schema_51_and_52_variants_converge_on_schema_53(
+    config, version, qualification, workflow_tables, question_guards,
+):
+    _prepare_historical_workflow_schema(
+        config, version=version, qualification=qualification,
+        workflow_tables=workflow_tables, question_guards=question_guards,
+    )
+
+    upgraded = Store(config)
+    try:
+        assert upgraded.schema_version == 53
+        names = {row[0] for row in upgraded._db.execute(
+            "SELECT name FROM sqlite_master WHERE type IN ('table', 'trigger', 'index')")}
+        assert "workflow_role_qualifications" in names
+        assert {"workflow_definitions", "workflow_revisions", "workflow_runs",
+                "workflow_nodes", "workflow_questions"} <= names
+        assert {"messages_pending_question_result_insert", "messages_pending_question_result_update",
+                "idx_runs_conversation_created"} <= names
+        if qualification:
+            assert upgraded._db.execute("SELECT COUNT(*) FROM workflow_role_qualifications").fetchone()[0] == 1
+        if workflow_tables:
+            assert upgraded._db.execute("SELECT name FROM workflow_definitions WHERE id='def_legacy'").fetchone()[0] == "legacy"
+    finally:
+        upgraded.close()
+
+
+def test_interrupted_schema_53_upgrade_rolls_back_and_keeps_backup(config, monkeypatch):
+    from hutch import store as store_module
+
+    _prepare_historical_workflow_schema(
+        config, version=51, qualification=False, workflow_tables=False, question_guards=True,
+    )
+
+    def fail_after_role_migration(_db):
+        raise RuntimeError("injected workflow migration interruption")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(store_module, "_MIGRATIONS",
+                      [*store_module._MIGRATIONS[:-1], fail_after_role_migration])
+        with pytest.raises(RuntimeError, match="injected workflow migration interruption"):
+            Store(config)
+
+    db = sqlite3.connect(config.db_path)
+    try:
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 51
+        assert db.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
+                          "AND name='workflow_role_qualifications'").fetchone() is None
+    finally:
+        db.close()
+    backup = config.db_path.with_suffix(".db.bak-v51")
+    assert backup.exists()
+    backup_db = sqlite3.connect(backup)
+    try:
+        assert backup_db.execute("PRAGMA user_version").fetchone()[0] == 51
+    finally:
+        backup_db.close()
+
+    upgraded = Store(config)
+    try:
+        assert upgraded.schema_version == 53
+    finally:
+        upgraded.close()

@@ -359,23 +359,11 @@ class BuiltinRuntime:
 
     def _route_identity(self, ctx: ToolContext, ladder: Ladder, rung: Rung, *, book: ConnectionBook | None = None) -> tuple:
         """Billing and destination authority, separate from the selected model and secret."""
-        conn = (book if book is not None else self._connections(ctx)).get(rung.provider)
-        if conn:
-            protocol, endpoint = conn.endpoint_for(rung.model)
-            revision = hashlib.sha256(json.dumps(asdict(conn), sort_keys=True).encode()).hexdigest()
-            return (conn.name, conn.account_id, conn.billing, protocol, endpoint, revision)
-        from ..providers.openai_compat import PRESET_URLS
-        import os
-        endpoint = ladder.base_url_for(rung)
-        if rung.provider == "ollama":
-            endpoint = endpoint or os.environ.get("OLLAMA_HOST") or PRESET_URLS.get(rung.provider, "")
-        else:
-            endpoint = endpoint or PRESET_URLS.get(rung.provider, "")
-        if rung.provider == "anthropic":
-            endpoint = endpoint or os.environ.get("ANTHROPIC_BASE_URL") or "https://api.anthropic.com"
-        elif rung.provider == "openai-compatible":
-            endpoint = endpoint or os.environ.get("HUTCH_BASE_URL", "")
-        return (rung.provider, rung.provider, "per_token", rung.provider, endpoint, "builtin")
+        from ..route_identity import route_tuple
+
+        return route_tuple(provider=rung.provider, model=rung.model,
+                           base_url=ladder.base_url_for(rung),
+                           connections=(book if book is not None else self._connections(ctx)))
 
     def _ask_first_hosted(self, ctx: ToolContext, ladder: Ladder, rung: Rung, why: str, est_prompt: int) -> tuple | None:
         """Every new hosted billing/destination authority requires per-run outward approval."""

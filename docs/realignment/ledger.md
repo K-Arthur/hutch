@@ -4178,3 +4178,120 @@ in `aeb244c` with eleven new regressions. Bounded-corpus measurements
 physical device or screen-reader verification was performed for this slice;
 external runtimes (Pi, OpenCode) report Hutch skills as unsupported and fail
 explicit activation before start.
+
+## Dynamic workflows with model-capability gates (2026-10-11)
+
+Ownership: implemented on `workflow/dynamic` in the isolated worktree `.worktrees/workflows`.
+The base is the agreed local integration trunk: local `main` at `6fc6f38` (tool-calling,
+documents, routines/durable, UI realignment) merged with `wcag22-audit-fixes` (the Agent
+Skills lifecycle) at `13850c0`, so workflow nodes can carry skill bindings. Nothing in the
+shared checkout, the other worktrees or any other lane's branch was modified; the merge
+resolved five conflicts (CHANGELOG, `models.py`, `cli.py`, `tools/__init__.py`, and
+both-modified regenerated evidence files) as unions, and the merged tree passed the full
+offline suite (**1,949 passed, 2 skipped**) before the workflow work began.
+
+What landed (commits `0b6f519`, `e1751b8`, `f3c3209` on `workflow/dynamic`):
+
+* **Reference audit** (`docs/realignment/dynamic-workflows.md`): the pinned ZCode
+  `dynamic-workflows` design at `aac4755666d09fdcd70272fcf063c077a639015f` read from its
+  spec/launch/authoring/engine documents, with an adopt/adapt/reject matrix; the four
+  defaults not to copy verified with quotes (explicit-request-only launching, unbounded
+  provider-transient retries, indefinite question waits, no token/node cap) plus
+  surface-dependent approval bypass; Apache-2.0 license terms; and a failure-mode evidence
+  table from first-hand sources (Node `vm` is not a security mechanism; LangGraph interrupt
+  replay re-runs side effects, issues #9106/#9075 open; Cline #11263 capability-blind tool
+  injection; vLLM `auto` malformed arguments; Ollama context/RAM multiplication).
+* **Canonical plans + capability gate**: strict pydantic plan schema with operator ceilings;
+  a bounded reference/condition evaluator with no `eval`; a compiler that assigns stable
+  identity, checks references and envelopes, expands worst-case cardinality and fails closed
+  on an uncertifiable output schema; role qualification bound to the runtime's own route
+  identity digest with states documented/advertised/probed/observed/limited/unsupported/
+  stale/unknown.
+* **Deterministic execution**: a durable interpreter over node records; step runs as ordinary
+  child runs; crash continuation that reuses settled nodes; a workflow lane in the claim
+  statement; submission gates for inputs, envelope-vs-Bot authority, local-model-only policy
+  and per-node role qualification; durable questions with their own ids and expiry; artifact
+  publication through committed events with re-hashed read-back.
+* **Dynamic primitives**: bounded fan-out with declared `item_key` identity and loud cap
+  failures, branches on observed data, bounded loops, explicit join policies, and
+  verification that requires independent evidence (schema, artifact, fixed-argv command or a
+  person's answer) with `agent_review` advisory-only.
+* **Routing and authoring**: Off/Suggest/Auto with a preauthorized scope; explainable
+  structural recommendations; the `draft_workflow` tool that validates and explains but
+  cannot start work, refused without probed authoring evidence.
+* **Typed API and CLI**: `/api/v1/workflows/*` (owner-only) and
+  `hutch workflow list/show/validate/save/export/run/submit/status/stop/answer/qualify`.
+
+An independent adversarial review of this slice (three reviewers: correctness/security,
+simplicity/conventions, test honesty) found and drove fixes for real defects before the
+slice was called done: a model-facing tool whose `effect()` signature would have crashed on
+the real tool path; `max_model_calls: 0` meaning "unlimited"; step runs failing under the
+**process executor** (the production path) because the worker branched on `parent_run_id`
+before `kind`; a repair round charged on every interpreter pass instead of once; a command
+check re-executed on every pass while a sibling check waited; a step's declared model never
+applied (so qualification gated a route that did not run); the wall-clock budget restarting
+on every continuation; unvalidated `join` targets that could fabricate `None`; a silently
+ignored `command` check `cwd`; a node record written without its run stalling the instance;
+nested map keys that could alias through the instance-key separator; skipped nodes recorded
+under one shared key; and oversized inputs surfacing as a 500. Each has a regression in
+`tests/test_workflow_regressions.py` (22), `tests/test_workflow_cli.py` (4).
+
+Verification boundary: **99 focused workflow tests** pass (`test_workflow_plan.py` 18,
+`test_workflow_qualify.py` 14, `test_workflow_engine.py` 15, `test_workflow_api.py` 11,
+`test_workflow_routing.py` 9, `test_workflow_csv_acceptance.py` 2, `test_workflow_steps.py` 4,
+`test_workflow_regressions.py` 21), and the regression
+subsets that touch the changed seams pass (engine/store/claims/cancel/delegation/approvals/
+API/lifecycle/receipts/action-intents: **270 passed**; remote-pairing route inventory: **35
+passed**). The acceptance capture (`docs/realignment/capture_workflow_acceptance.py`) ran the
+**product CLI** end to end in a throwaway state directory: a 394-row messy CSV was parsed
+(6 ragged rows reported, not dropped), the plan branched on the observed `category` column,
+deterministic totals and a grouped count were computed, an `expense-report` artifact was
+published and re-hashed, a durable question was asked and answered by its own id, and the
+instance settled `succeeded` with **zero model calls** (ledger `{"nodes": 9}`); evidence in
+`artifacts/dynamic-workflows/` (plan, sample CSV, published report, validation record).
+
+Not verified, and not claimed: **no live local model exists on this host** (no Ollama,
+llama.cpp or vLLM, no GPU), so a model-authored plan, a passing authoring probe and the
+planner/worker role split are implemented and gated but were never exercised against a real
+checkpoint; no Studio surface exists yet (API and CLI only); amendment of a live instance is
+partial (a continuation reuses settled nodes, but a plan-revision diff and adoption is not
+implemented); there is no MCP facade; and the human answer in the capture was given by the
+capture script through the CLI, not by a person. No push, publication, paid inference or
+model download occurred, and no other lane's work was altered.
+
+### Measured note: the CLI-startup benchmark regression is pre-existing, not this slice
+
+`python -m benchmarks.run --record-if-missing --check` reports `cli_version_ms` 2,817 ms and
+`cli_status_ms` 2,464 ms against a 255/275 ms baseline (+1003%/+796%). Attribution: the cost
+is the module import chain `hutch.cli → hutch.tools → hutch.documents.docgen.pdfdoc →
+weasyprint` (`weasyprint` alone is ~0.9 s of the ~2.1 s `hutch.cli` import), and local `main`
+already imports `.documents` and `.skill` at module level in `src/hutch/tools/__init__.py`
+(`git show main:src/hutch/tools/__init__.py` lines 12-13), so the regression predates this
+branch. This slice adds 19 µs: `import hutch.tools.workflow_draft` costs 1.468 s against
+1.468 s for `hutch.tools` alone, and `hutch.workflow.*` is not imported at all for
+`hutch version` (`python -X importtime`). The fix belongs to the documents/tools lane
+(lazy-import the document generators, or move them out of the tool registry's module-level
+imports); it is recorded here rather than silently inherited.
+
+### Final verification on the committed branch (`workflow/dynamic`, HEAD `0658e14`)
+
+`uv`-installed venv, Python 3.13.15, `pytest -q --ignore=tests/e2e`
+(basetemp on the root filesystem, because the host's `/tmp` is a 12 GB tmpfs at 93% and a
+`--basetemp` under `/home` breaks the sandbox test that asserts a shell cannot see the home
+directory):
+
+* **2047 passed, 2 skipped, 1 failed in 721 s.**
+* The single failure is `tests/test_code_handoff.py::test_interactive_process_keeps_terminal_and_owns_a_separate_group`,
+  a real-PTY test that drives a controlling terminal and expects Ctrl+C to reach the child
+  (`EXIT=-2`). It **passes 3/3 in isolation immediately after** the suite run, and this
+  branch touches neither that test nor `src/hutch/code_handoff.py` (`git diff --stat main..HEAD`
+  shows only `worker.py`, whose change is the workflow-step kind branch). Attributed as a
+  load-sensitive flake in the code-handoff lane, not a regression from this slice; recorded
+  rather than silently ignored.
+* The workflow feature's own suite is **99 passed** (`pytest --collect-only -q tests/test_workflow_*.py`),
+  and the acceptance capture ran the product CLI end to end with every command exiting 0.
+
+Earlier runs on the same tree: the merged base before any workflow code passed the full
+offline suite (**1949 passed, 2 skipped**), and the touched seams passed their focused
+regression subsets (**270 passed**: engine, store, claims, cancel, delegation, approvals,
+API, lifecycle, receipts, action intents; **35 passed**: remote-pairing route inventory).

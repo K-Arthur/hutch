@@ -309,6 +309,11 @@ class Bot(BaseModel):
     remote_start_enabled: bool = False   # local-owner opt-in for passkey-paired phone starts; never grants new tools
     paused: bool = False
     pinned: bool = False              # workspace roster preference; does not affect execution
+    # --- dynamic workflows (schema v53): how Hutch may use a workflow for this Bot.
+    # ``off`` never proposes or starts one; ``suggest`` may describe a candidate route;
+    # ``auto`` may start within ``workflow_limits`` without a fresh confirmation.
+    workflow_mode: Literal["off", "suggest", "auto"] = "off"
+    workflow_limits: dict = Field(default_factory=dict)  # auto scope: definitions + budget caps
     sidebar_hidden: bool = False       # removes an idle Bot from the main roster; never pauses work
     roster_section: Optional[str] = Field(default=None, max_length=40)
     template: Optional[str] = None    # which starter template it came from
@@ -443,6 +448,11 @@ class Run(BaseModel):
     pgid: int = 0                     # process group of the worker, so a supervisor that did not spawn it can still end it
     verified: Optional[bool] = None   # did the task's expectation hold? None = no expectation was declared
     reason: str = ""                  # why a waiting/recovering run is in that state (shown with the label)
+    # --- dynamic workflows (schema v53). ``kind`` also exists as a column, because claim
+    # admission needs it in SQL; the document copy keeps it readable everywhere else.
+    kind: Literal["attempt", "workflow", "step"] = "attempt"
+    workflow_run_id: str = ""          # the workflow instance this attempt/step belongs to
+    workflow_step: Optional[dict] = None  # a step's frozen execution contract (tools, limits, role)
 
     @field_validator("parent_run_id")
     @classmethod

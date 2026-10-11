@@ -5638,6 +5638,10 @@ def create_app() -> FastAPI:
     install_skills_routes(app, store, config)
     from .pages import register_pages
     register_pages(app)
+    from .workflows_api import register_workflow_api
+
+    register_workflow_api(app, store, engine, idempotency_key=idempotency_key,
+                          request_digest=request_digest)
     app.mount("/static", StaticFiles(directory=_STATIC), name="static")
     for route in app.routes:
         if isinstance(route, APIRoute):

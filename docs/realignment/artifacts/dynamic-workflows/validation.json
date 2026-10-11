@@ -1,0 +1,488 @@
+{
+  "captured": "2026-10-11",
+  "scenario": "messy CSV -> observed-column branch -> deterministic totals -> published report -> schema+artifact+human verification, zero model calls",
+  "commands": [
+    {
+      "args": [
+        "init"
+      ],
+      "exit_code": 0,
+      "stdout": "\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 hutch init \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502 hutch initialized                                         \u2502\n\u2502 state dir: /tmp/hutch-workflow-evidence-5973h_t1          \u2502\n\u2502 database:  /tmp/hutch-workflow-evidence-5973h_t1/hutch.db \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\nNo bots were created. Configure a provider in Connections or start a local \nmodel, then create a bot.\n\nnext: hutch serve \u2192 dashboard, or hutch bot create <name> --model \n<provider/model>\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "bot",
+        "create",
+        "evidence-bot",
+        "--display-name",
+        "Evidence Bot",
+        "--model",
+        "ollama/qwen3:4b",
+        "--tools",
+        "files",
+        "--approvals",
+        "ask"
+      ],
+      "exit_code": 0,
+      "stdout": "created Evidence Bot (evidence-bot) (model ollama/qwen3:4b, runtime builtin, \ntools: read_file, list_files, write_file)\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "workflow",
+        "validate",
+        "/home/kevina/CodingProjects/hutch/.worktrees/workflows/docs/realignment/artifacts/dynamic-workflows/expense-audit.plan.json",
+        "--bot",
+        "evidence-bot"
+      ],
+      "exit_code": 0,
+      "stdout": "warning inputs.period: INPUT_DEFAULT_UNUSED a required input's default is never \nused\nvalid expense-audit \u00b7 10 sites \u00b7 hash 97dfc913bac3\u2026\ntools needed: none\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "workflow",
+        "save",
+        "/home/kevina/CodingProjects/hutch/.worktrees/workflows/docs/realignment/artifacts/dynamic-workflows/expense-audit.plan.json",
+        "--name",
+        "expense-audit",
+        "--note",
+        "acceptance capture"
+      ],
+      "exit_code": 0,
+      "stdout": "saved expense-audit as revision 1 (inactive until run)\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "workflow",
+        "answer",
+        "wq_905d0729d3c6",
+        "yes"
+      ],
+      "exit_code": 0,
+      "stdout": "answer recorded\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "workflow",
+        "run",
+        "expense-audit",
+        "--bot",
+        "evidence-bot"
+      ],
+      "exit_code": 0,
+      "stdout": "started wrun_9048771a40c8 (revision wrev_aeff4670a1a3)\nwaiting for you: Does this expense summary look right for the sample data? \n(answer yes or no)\n  answer with: hutch workflow answer wq_905d0729d3c6 \"...\"\nwaiting for you: Does this expense summary look right for the sample data? \n(answer yes or no)\n  answer with: hutch workflow answer wq_905d0729d3c6 \"...\"\nwaiting for you: Does this expense summary look right for the sample data? \n(answer yes or no)\n  answer with: hutch workflow answer wq_905d0729d3c6 \"...\"\nwaiting for you: Does this expense summary look right for the sample data? \n(answer yes or no)\n  answer with: hutch workflow answer wq_905d0729d3c6 \"...\"\nwaiting for you: Does this expense summary look right for the sample data? \n(answer yes or no)\n  answer with: hutch workflow answer wq_905d0729d3c6 \"...\"\nworkflow wrun_9048771a40c8 \u2192 succeeded\n  \u2713 table once succeeded\n  \u2713 shape.then.by_category once succeeded\n  \u2713 shape.then.totals once succeeded\n  \u2713 shape.then.packed once succeeded\n  \u2713 shape once succeeded\n  \u2713 problems once succeeded\n  \u2713 report once succeeded\n  \u2713 deliver once succeeded\n  \u2713 check once succeeded\n  artifact: expense-report (226 bytes, sha256 eef2da2349bb\u2026)\n",
+      "stderr": ""
+    }
+  ],
+  "validate_stdout": "warning inputs.period: INPUT_DEFAULT_UNUSED a required input's default is never \nused\nvalid expense-audit \u00b7 10 sites \u00b7 hash 97dfc913bac3\u2026\ntools needed: none\n",
+  "save_stdout": "saved expense-audit as revision 1 (inactive until run)\n",
+  "run_stdout": "started wrun_9048771a40c8 (revision wrev_aeff4670a1a3)\nwaiting for you: Does this expense summary look right for the sample data? \n(answer yes or no)\n  answer with: hutch workflow answer wq_905d0729d3c6 \"...\"\nwaiting for you: Does this expense summary look right for the sample data? \n(answer yes or no)\n  answer with: hutch workflow answer wq_905d0729d3c6 \"...\"\nwaiting for you: Does this expense summary look right for the sample data? \n(answer yes or no)\n  answer with: hutch workflow answer wq_905d0729d3c6 \"...\"\nwaiting for you: Does this expense summary look right for the sample data? \n(answer yes or no)\n  answer with: hutch workflow answer wq_905d0729d3c6 \"...\"\nwaiting for you: Does this expense summary look right for the sample data? \n(answer yes or no)\n  answer with: hutch workflow answer wq_905d0729d3c6 \"...\"\nworkflow wrun_9048771a40c8 \u2192 succeeded\n  \u2713 table once succeeded\n  \u2713 shape.then.by_category once succeeded\n  \u2713 shape.then.totals once succeeded\n  \u2713 shape.then.packed once succeeded\n  \u2713 shape once succeeded\n  \u2713 problems once succeeded\n  \u2713 report once succeeded\n  \u2713 deliver once succeeded\n  \u2713 check once succeeded\n  artifact: expense-report (226 bytes, sha256 eef2da2349bb\u2026)\n",
+  "question_id_from_cli": "wq_905d0729d3c6",
+  "plan_hash": "97dfc913bac3076b3e8aeafc70d876c71fdaada246a993ced0dd992904908a60",
+  "workflow": {
+    "id": "wrun_9048771a40c8",
+    "status": "succeeded",
+    "reason": "",
+    "origin": "manual:cli",
+    "attempt_run_id": "run_10e80c0bc4a0",
+    "ledger": {
+      "nodes": 9
+    },
+    "result": {
+      "artifacts": [
+        {
+          "artifact": "artifacts/001-expense-report.txt",
+          "bytes": 226,
+          "media_type": "text/markdown",
+          "name": "expense-report",
+          "primary": true,
+          "run_id": "run_10e80c0bc4a0",
+          "sha256": "eef2da2349bb346a585e67d6478617b51f695a3bbe9fcf41441161c586897399"
+        }
+      ],
+      "counts": {
+        "succeeded": 9
+      }
+    }
+  },
+  "nodes": [
+    {
+      "site_id": "table",
+      "instance_key": "once",
+      "kind": "transform",
+      "status": "succeeded",
+      "attempt": 1,
+      "result_digest": "15c17ad185e67d4f",
+      "error": {}
+    },
+    {
+      "site_id": "shape.then.by_category",
+      "instance_key": "once",
+      "kind": "transform",
+      "status": "succeeded",
+      "attempt": 1,
+      "result_digest": "5c9a5e6e41b0b420",
+      "error": {}
+    },
+    {
+      "site_id": "shape.then.totals",
+      "instance_key": "once",
+      "kind": "transform",
+      "status": "succeeded",
+      "attempt": 1,
+      "result_digest": "319239b0d397f11c",
+      "error": {}
+    },
+    {
+      "site_id": "shape.then.packed",
+      "instance_key": "once",
+      "kind": "transform",
+      "status": "succeeded",
+      "attempt": 1,
+      "result_digest": "884fa20cee76ef48",
+      "error": {}
+    },
+    {
+      "site_id": "shape",
+      "instance_key": "once",
+      "kind": "branch",
+      "status": "succeeded",
+      "attempt": 1,
+      "result_digest": "fb07a9557062d359",
+      "error": {}
+    },
+    {
+      "site_id": "problems",
+      "instance_key": "once",
+      "kind": "transform",
+      "status": "succeeded",
+      "attempt": 1,
+      "result_digest": "74c04a9ea44a0438",
+      "error": {}
+    },
+    {
+      "site_id": "report",
+      "instance_key": "once",
+      "kind": "transform",
+      "status": "succeeded",
+      "attempt": 1,
+      "result_digest": "a289dbc489a12b4a",
+      "error": {}
+    },
+    {
+      "site_id": "deliver",
+      "instance_key": "once",
+      "kind": "publish",
+      "status": "succeeded",
+      "attempt": 1,
+      "result_digest": "684d62e40d8ef5c5",
+      "error": {}
+    },
+    {
+      "site_id": "check",
+      "instance_key": "once",
+      "kind": "verify",
+      "status": "succeeded",
+      "attempt": 1,
+      "result_digest": "82b36ff6bd6e5470",
+      "error": {}
+    }
+  ],
+  "questions": [
+    {
+      "site_id": "check",
+      "status": "answered",
+      "answer": "yes"
+    }
+  ],
+  "report_text": "Expense audit \u2014 FY26 Q3\nRows kept: 394 of 400\nRows rejected: 6\nTotal amount: 177262.20999999996\nBy category:\n{\"hardware\": 87, \"services\": 81, \"software\": 80, \"training\": 78, \"travel\": 68}\nRejected lines:\n3\n75\n147\n220\n292\n364",
+  "artifact": {
+    "artifact": "artifacts/001-expense-report.txt",
+    "bytes": 226,
+    "media_type": "text/markdown",
+    "name": "expense-report",
+    "primary": true,
+    "run_id": "run_10e80c0bc4a0",
+    "sha256": "eef2da2349bb346a585e67d6478617b51f695a3bbe9fcf41441161c586897399",
+    "copied_to": "artifacts/001-expense-report.txt",
+    "copied_bytes_match_recorded_sha256": true
+  },
+  "events": [
+    {
+      "seq": 1,
+      "type": "status",
+      "data": {
+        "origin": "manual:cli",
+        "status": "running"
+      }
+    },
+    {
+      "seq": 2,
+      "type": "log",
+      "data": {
+        "browser_handoff": "headless",
+        "inference_mode": "hybrid",
+        "limits": {
+          "daily_cost_cap_usd": 0.0,
+          "daily_token_cap": 200000,
+          "max_cost_usd": 0.0,
+          "max_steps": 24,
+          "max_turn_tokens": 0,
+          "timeout_seconds": 900
+        },
+        "model": "ollama/qwen3:4b",
+        "runtime": "workflow",
+        "skill_activation": [],
+        "skills": [],
+        "tool_access": "bot",
+        "tools": [
+          "list_files",
+          "read_file",
+          "write_file"
+        ]
+      }
+    },
+    {
+      "seq": 3,
+      "type": "log",
+      "data": {
+        "attempt": "run_10e80c0bc4a0",
+        "budget": {
+          "max_fanout": 10,
+          "max_model_calls": 0,
+          "max_nodes": 40,
+          "max_repairs": 0,
+          "max_step_seconds": 600,
+          "max_steps_per_node": 12,
+          "max_wall_seconds": 300
+        },
+        "nodes": 10,
+        "plan": "expense-audit",
+        "plan_hash": "97dfc913bac3076b3e8aeafc70d876c71fdaada246a993ced0dd992904908a60",
+        "revision": 1,
+        "workflow": "wrun_9048771a40c8"
+      }
+    },
+    {
+      "seq": 4,
+      "type": "step",
+      "data": {
+        "instance": "once",
+        "kind": "transform",
+        "node": "table",
+        "phase": "started",
+        "title": ""
+      }
+    },
+    {
+      "seq": 5,
+      "type": "step",
+      "data": {
+        "instance": "once",
+        "kind": "transform",
+        "node": "table",
+        "phase": "succeeded",
+        "summary": "{\"bad\":6,\"bad_rows\":[{\"line\":3,\"raw\":\"2026-06-05,training,vendor-4\",\"reason\":\"3 fields but the header has 5\"},{\"line\":75,\"raw\":\"2026-01-25,hardware,vendor-29\",\"reason\":\"3 fields but the header has 5\"}"
+      }
+    },
+    {
+      "seq": 6,
+      "type": "step",
+      "data": {
+        "instance": "once",
+        "kind": "transform",
+        "node": "shape.then.by_category",
+        "phase": "started",
+        "title": ""
+      }
+    },
+    {
+      "seq": 7,
+      "type": "step",
+      "data": {
+        "instance": "once",
+        "kind": "transform",
+        "node": "shape.then.by_category",
+        "phase": "succeeded",
+        "summary": "{\"hardware\":87,\"services\":81,\"software\":80,\"training\":78,\"travel\":68}"
+      }
+    },
+    {
+      "seq": 8,
+      "type": "step",
+      "data": {
+        "instance": "once",
+        "kind": "transform",
+        "node": "shape.then.totals",
+        "phase": "started",
+        "title": ""
+      }
+    },
+    {
+      "seq": 9,
+      "type": "step",
+      "data": {
+        "instance": "once",
+        "kind": "transform",
+        "node": "shape.then.totals",
+        "phase": "succeeded",
+        "summary": "177262.20999999996"
+      }
+    },
+    {
+      "seq": 10,
+      "type": "step",
+      "data": {
+        "instance": "once",
+        "kind": "transform",
+        "node": "shape.then.packed",
+        "phase": "started",
+        "title": ""
+      }
+    },
+    {
+      "seq": 11,
+      "type": "step",
+      "data": {
+        "instance": "once",
+        "kind": "transform",
+        "node": "shape.then.packed",
+        "phase": "succeeded",
+        "summary": "{\"by_category\":{\"hardware\":87,\"services\":81,\"software\":80,\"training\":78,\"travel\":68},\"total\":177262.20999999996}"
+      }
+    },
+    {
+      "seq": 12,
+      "type": "step",
+      "data": {
+        "instance": "once",
+        "kind": "transform",
+        "node": "problems",
+        "phase": "started",
+        "title": ""
+      }
+    },
+    {
+      "seq": 13,
+      "type": "step",
+      "data": {
+        "instance": "once",
+        "kind": "transform",
+        "node": "problems",
+        "phase": "succeeded",
+        "summary": "\"3\\n75\\n147\\n220\\n292\\n364\""
+      }
+    },
+    {
+      "seq": 14,
+      "type": "step",
+      "data": {
+        "instance": "once",
+        "kind": "transform",
+        "node": "report",
+        "phase": "started",
+        "title": ""
+      }
+    },
+    {
+      "seq": 15,
+      "type": "step",
+      "data": {
+        "instance": "once",
+        "kind": "transform",
+        "node": "report",
+        "phase": "succeeded",
+        "summary": "\"Expense audit \u2014 FY26 Q3\\nRows kept: 394 of 400\\nRows rejected: 6\\nTotal amount: 177262.20999999996\\nBy category:\\n{\\\"hardware\\\": 87, \\\"services\\\": 81, \\\"software\\\": 80, \\\"training\\\": 78, \\\"travel\\\": "
+      }
+    },
+    {
+      "seq": 16,
+      "type": "step",
+      "data": {
+        "instance": "once",
+        "kind": "publish",
+        "node": "deliver",
+        "phase": "started",
+        "title": ""
+      }
+    },
+    {
+      "seq": 17,
+      "type": "tool_result",
+      "data": {
+        "artifact": "artifacts/001-expense-report.txt",
+        "artifact_bytes": 226,
+        "artifact_sha256": "eef2da2349bb346a585e67d6478617b51f695a3bbe9fcf41441161c586897399",
+        "media_type": "text/markdown",
+        "name": "expense-report",
+        "ok": true,
+        "output": "Expense audit \u2014 FY26 Q3\nRows kept: 394 of 400\nRows rejected: 6\nTotal amount: 177262.20999999996\nBy category:\n{\"hardware\": 87, \"services\": 81, \"software\": 80, \"training\": 78, \"travel\": 68}\nRejected lines:\n3\n75\n147\n220\n292\n364",
+        "run_id": "run_10e80c0bc4a0",
+        "tool": "publish_artifact"
+      }
+    },
+    {
+      "seq": 18,
+      "type": "step",
+      "data": {
+        "instance": "once",
+        "kind": "publish",
+        "node": "deliver",
+        "phase": "succeeded",
+        "summary": "{\"artifacts\":[{\"artifact\":\"artifacts/001-expense-report.txt\",\"bytes\":226,\"media_type\":\"text/markdown\",\"name\":\"expense-report\",\"primary\":true,\"run_id\":\"run_10e80c0bc4a0\",\"sha256\":\"eef2da2349bb346a585e6"
+      }
+    },
+    {
+      "seq": 19,
+      "type": "step",
+      "data": {
+        "instance": "once",
+        "kind": "verify",
+        "node": "check",
+        "phase": "started"
+      }
+    },
+    {
+      "seq": 20,
+      "type": "human_needed",
+      "data": {
+        "expires_at": "2026-10-11T10:31:52.890900+00:00",
+        "kind": "human_check",
+        "node": "check",
+        "question": "Does this expense summary look right for the sample data? (answer yes or no)"
+      }
+    },
+    {
+      "seq": 21,
+      "type": "log",
+      "data": {
+        "final_chars": 691,
+        "steps": 0,
+        "tokens": 0
+      }
+    },
+    {
+      "seq": 22,
+      "type": "status",
+      "data": {
+        "reason": "completed",
+        "status": "succeeded"
+      }
+    }
+  ],
+  "environment": {
+    "python": "3.13.15",
+    "sandbox": "HUTCH_SANDBOX=off (no Linux shell containment in this capture)",
+    "state_dir": "a throwaway temporary directory (not included)"
+  },
+  "not_verified": [
+    "no live local model server exists on this host, so no model-authored plan, planner role or worker step ran here; the deterministic path is what this capture proves",
+    "the plan and sample CSV are generated by tests/test_workflow_csv_acceptance.py",
+    "the human answer was given by this capture script through the CLI, not by a person",
+    "no browser/UI surface was exercised (the Studio workflow view is a later slice)"
+  ]
+}
