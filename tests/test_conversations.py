@@ -546,6 +546,37 @@ def test_terminal_drain_commits_reply_and_history_atomically(store, config):
     assert store.verify_chain(run.id)["ok"]
 
 
+def test_conversation_context_budget_keeps_the_newest_turns(store):
+    """A bounded context window favors recent turns: corrections outrank old context and cannot be evicted."""
+    from hutch.models import Bot, Run, Task
+
+    bot = store.create_bot(Bot(name="budget-chat", model="mock/demo", tools=[]))
+    conversation, _ = store.create_conversation(bot.id, "window", idem_key="budget-create",
+                                                request_hash="budget-create")
+    oldest = "old " + "a" * 100
+    correction = "corrected: please use British spelling"
+    latest = "latest: keep answers under three sentences"
+
+    def send(content: str, key: str):
+        run = Run(bot_id=bot.id, prompt=content)
+        store.submit_conversation_message(conversation["id"], content, run, Task(bot_id=bot.id, prompt=content),
+                                          idem_key=key, request_hash=key, context_chars=140)
+        return run
+
+    send(oldest, "budget-1")
+    send(correction, "budget-2")
+    send(latest, "budget-3")
+    current = send("current question", "budget-4")
+
+    contents = [item["content"] for item in current.conversation_context]
+    assert latest in contents                       # the newest prior turn survives
+    assert correction in contents                   # a recent correction survives
+    assert oldest not in contents                   # the oldest turn yields its budget first
+    assert contents[0].startswith("[earlier text omitted]")   # the cut lands on old text, not new
+    assert sum(len(item) for item in contents) <= 140
+    assert contents[-1] == latest                   # the window stays chronological
+
+
 def test_chat_choice_answer_api_is_idempotent_and_survives_restart(tmp_path, monkeypatch):
     from hutch.models import RunStatus
 

@@ -3756,10 +3756,12 @@ class Store:
             else:
                 recent = db.execute("SELECT role, content FROM messages WHERE conversation_id = ? "
                                     "ORDER BY seq DESC LIMIT ?", (conversation_id, context_messages)).fetchall()
-                context = []
                 selected_context = quote_context or result_context
                 remaining = max(0, context_chars - len(selected_context["content"])) if selected_context else context_chars
-                for row in reversed(recent):
+                # Budget newest-first: recent corrections and the latest turns outrank old context,
+                # and a long old message must never evict the newest ones.
+                kept: list[dict[str, str]] = []
+                for row in recent:
                     if remaining <= 0:
                         break
                     content = str(row["content"])
@@ -3767,8 +3769,9 @@ class Store:
                         marker = "[earlier text omitted]\n"
                         content = (marker + content[-(remaining - len(marker)):]) if remaining > len(marker) else content[-remaining:]
                     if content:
-                        context.append({"role": row["role"], "content": content})
+                        kept.append({"role": row["role"], "content": content})
                         remaining -= len(content)
+                context = list(reversed(kept))
                 if selected_context:
                     context.append(selected_context)
             run.conversation_id = conversation_id
