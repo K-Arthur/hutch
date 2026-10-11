@@ -10094,7 +10094,7 @@ function paintRuntime() {
 
       <section class="runtime-card" aria-labelledby="runtime-jobs-title">
         <h2 id="runtime-jobs-title">Multi-step jobs</h2>
-        <p class="hint runtime-lead">A watched folder in document mode runs a checkpointed pipeline: register inputs → extract text → OCR only scanned pages → update the local index → write a grounded summary. An interruption resumes at the last verified step; a possible external effect stops the job for review instead of being replayed.</p>
+        <p class="hint runtime-lead">A watched folder in document mode runs a checkpointed pipeline: register inputs, extract text, OCR only scanned pages, update the local index, then write a grounded summary. An interruption resumes at the last verified step; a possible external effect stops the job for review instead of being replayed.</p>
         ${runtimeCache.jobs.length ? `<div class="runtime-job-list" role="list">
           ${runtimeCache.jobs.map(job => {
             const label = { document_pipeline: "Document summary" }[job.kind] || job.kind;
