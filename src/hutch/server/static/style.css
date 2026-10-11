@@ -2586,3 +2586,21 @@ details[open] > summary .summary-row-action .icon { transform: rotate(180deg); }
   border-radius: var(--r-ctl);
   background: white;
 }
+
+/* Spending bands, context meter and the preflight review (SR-2, LM-3) */
+.preflight { margin-top: 8px; }
+.preflight > summary { cursor: pointer; }
+.preflight-body { max-width: 460px; }
+.preflight-grid { display: grid; gap: 6px; margin: 8px 0 4px; }
+.preflight-grid > div { display: grid; grid-template-columns: 118px 1fr; gap: 8px; align-items: baseline; }
+.preflight-grid dt { margin: 0; font-size: 12px; opacity: .72; }
+.preflight-grid dd { margin: 0; font-size: 12px; overflow-wrap: anywhere; }
+.context-line { margin: 8px 0; font-size: 12px; }
+.context-line.warn { font-weight: 600; }
+.context-line.over { font-weight: 700; }
+.run-cost-provenance { margin: 4px 0 8px; }
+.compaction-list .meta-row { align-items: baseline; }
+.budget-meter .cost { font-variant-numeric: tabular-nums; }
+@media (max-width: 480px) {
+  .preflight-grid > div { grid-template-columns: 1fr; gap: 2px; }
+}
