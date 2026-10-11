@@ -31,8 +31,12 @@
 - Add a typed answer-correction API for Shorter, Go deeper, and Less banter. Each rewrite must target a succeeded
   assistant answer in the same conversation; Hutch snapshots its original request and answer as bounded untrusted
   context, resolves the original safety/output cues, and runs through a dedicated built-in tool-free purpose that
-  omits action/workspace context and refuses provider tool calls. API/runtime tests pass; the conversation controls
-  and live provider adherence are still unverified.
+  omits action/workspace context and refuses provider tool calls. Completed built-in answers now show Shorter, Go deeper
+  and Less banter actions; the actual-app browser regression checks keyboard use, answer scope, draft/selection and
+  scroll retention, unsupported OpenCode handling, 44px touch targets and AA text contrast at 320/360/768/1440 plus
+  a 720×480 effective 200% viewport. The regression uses a mock route with engine work disabled and makes zero
+  provider calls; live provider adherence remains unverified. Screenshots and trace are retained in
+  `docs/realignment/artifacts/persona-rewrite-ui-2026-10-11/`.
 - Extend assistant settings with the independent v2 selectors and bounded customization beside standing
   directions. Conversation controls save scoped preferences with conflict recovery; next-reply controls stay
   local until one send. Browser regressions cover persistence, reset, concurrent edits, focus, keyboard,

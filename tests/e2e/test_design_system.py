@@ -19,7 +19,7 @@ import pytest
 pw = pytest.importorskip("playwright.sync_api")
 import uvicorn  # noqa: E402
 
-from hutch.models import Bot, Event, EventType, Run, RunStatus  # noqa: E402
+from hutch.models import Bot, Event, EventType, Run, RunStatus, RuntimeKind  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
 
 
@@ -2036,6 +2036,218 @@ def test_adaptive_persona_controls_round_trip_recover_conflicts_and_stay_local(b
             "hint_text_contrast": contrast,
             "source_sha256": _visual_source_hashes(),
             "visual_review": "Manually inspected; see docs/realignment/persona-ui-visual-review.md. Native browser zoom was unavailable; 720x480 checks the 200% effective CSS viewport for 1440x960.",
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        if not trace_saved:
+            try:
+                context.tracing.stop(path=str(out / "trace-failed.zip"))
+            except Exception:
+                pass
+        context.close()
+
+
+def test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runtimes(browser, app_server):
+    """Answer corrections stay answer-scoped, tool-free, keyboard reachable, and responsive."""
+    app_url, app = app_server
+    store = app.state.store
+    bot = store.get_bot("design-system-review")
+    app.state.engine.tick = lambda: None  # accepted correction runs remain queued; no model is called
+    conversation, _ = store.create_conversation(
+        bot.id, "Answer correction controls", idem_key="answer-correction-conversation",
+        request_hash="answer-correction-conversation",
+    )
+    out = ROOT / "docs/realignment/artifacts/persona-rewrite-ui-2026-10-11"
+    out.mkdir(parents=True, exist_ok=True)
+    errors: list[str] = []
+    console_errors: list[str] = []
+    correction_requests: list[dict[str, object]] = []
+    external_requests: list[str] = []
+    failed_responses: list[dict[str, object]] = []
+    evidence: list[dict[str, object]] = []
+    trace_saved = False
+
+    def seed_answer(target_bot, target_conversation_id: str, request: str, answer: str, suffix: str) -> str:
+        stamp = datetime.now(timezone.utc).isoformat()
+        run = store.create_run(Run(
+            bot_id=target_bot.id, prompt=request, conversation_id=target_conversation_id,
+            status=RunStatus.succeeded, exit_reason="completed", finished_at=stamp,
+        ))
+        with store._tx() as db:
+            seq = db.execute("SELECT COALESCE(MAX(seq), 0) + 1 FROM messages WHERE conversation_id = ?",
+                             (target_conversation_id,)).fetchone()[0]
+            store._insert_conversation_message(db, message_id=f"rewrite-request-{suffix}",
+                conversation_id=target_conversation_id, seq=seq, run_id=run.id, role="user",
+                content=request, created_at=stamp)
+        answer_id = f"rewrite-answer-{suffix}"
+        store.append_event(Event(run_id=run.id, type=EventType.message,
+            data={"role": "assistant", "content": answer, "message_id": answer_id}))
+        store.flush_events()
+        return answer_id
+
+    answer = "\n".join(
+        f"Finding {index}: the source answer keeps its original evidence, caveats, and useful detail in this section."
+        for index in range(1, 33)
+    )
+    target_message_id = seed_answer(bot, conversation["id"], "Summarize these findings.", answer, "selected")
+    for index in range(1, 4):
+        seed_answer(bot, conversation["id"], f"Follow-up note {index}.",
+                    (f"Follow-up {index} remains in the conversation history with enough detail to keep the "
+                     "selected older answer away from the bottom of the reading area. ") * 5, f"later-{index}")
+
+    external_bot = store.create_bot(Bot(
+        name="disabled-opencode-review", display_name="Disabled OpenCode Review", model="mock/demo",
+        runtime=RuntimeKind.opencode, tools=[],
+    ))
+    external_conversation, _ = store.create_conversation(
+        external_bot.id, "External adapter exclusion", idem_key="rewrite-external-conversation",
+        request_hash="rewrite-external-conversation",
+    )
+    external_answer_id = seed_answer(external_bot, external_conversation["id"], "Review this result.",
+                                     "A completed answer from the disabled adapter.", "external")
+    store.flush_transcripts()
+
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, has_touch=True, reduced_motion="reduce")
+    page = context.new_page()
+    page.set_default_timeout(8000)
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" else None)
+    page.on("request", lambda request: correction_requests.append({"url": request.url,
+            "body": request.post_data_json})
+            if request.method == "POST" and request.url.endswith("/messages") else None)
+    page.on("request", lambda request: external_requests.append(request.url)
+            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+    page.on("response", lambda response: failed_responses.append({"status": response.status, "url": response.url})
+            if response.status >= 400 and urlsplit(response.url).hostname in {"127.0.0.1", "localhost"} else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+
+    viewports = (("phone", 360, 844), ("tablet", 768, 960), ("desktop", 1440, 960),
+                 ("compact-phone", 320, 800), ("zoom-200-effective", 720, 480))
+    try:
+        page.goto(f"{app_url}/#/chat/design-system-review", wait_until="domcontentloaded")
+        page.locator("#chat-form").wait_for()
+        actions = page.locator(f'[data-answer-message="{target_message_id}"][data-answer-correction="shorter"]')
+        actions.wait_for()
+        assert page.locator(f'[data-answer-message="{target_message_id}"][data-answer-correction="go_deeper"]').count() == 1
+        assert page.locator(f'[data-answer-message="{target_message_id}"][data-answer-correction="less_banter"]').count() == 1
+        action_labels = [page.locator(f'[data-answer-message="{target_message_id}"][data-answer-correction="{kind}"]')
+                         .get_attribute("aria-label") for kind in ("shorter", "go_deeper", "less_banter")]
+        assert all("tools and external actions will not be repeated" in label for label in action_labels)
+
+        for label, width, height in viewports:
+            page.set_viewport_size({"width": width, "height": height})
+            actions.scroll_into_view_if_needed()
+            measurements = page.evaluate("""() => {
+              const controls = [...document.querySelectorAll('[data-answer-correction]')];
+              const scroll = document.querySelector('#chat-scroll');
+              const sampleColor = (background, foreground) => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 2; canvas.height = 1;
+                const context = canvas.getContext('2d', {willReadFrequently: true});
+                context.fillStyle = background;
+                context.fillRect(0, 0, 1, 1);
+                context.fillRect(1, 0, 1, 1);
+                context.fillStyle = foreground;
+                context.fillRect(1, 0, 1, 1);
+                const pixels = context.getImageData(0, 0, 2, 1).data;
+                return {background: [...pixels.slice(0, 3)], foreground: [...pixels.slice(4, 7)]};
+              };
+              const luminance = rgb => rgb.map(value => {
+                const channel = value / 255;
+                return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
+              }).reduce((sum, value, index) => sum + value * [.2126, .7152, .0722][index], 0);
+              const textContrast = button => {
+                const sampled = sampleColor(getComputedStyle(document.body).backgroundColor,
+                                            getComputedStyle(button).color);
+                const foreground = luminance(sampled.foreground), backdrop = luminance(sampled.background);
+                return (Math.max(foreground, backdrop) + .05) / (Math.min(foreground, backdrop) + .05);
+              };
+              return {
+                documentOverflow: document.documentElement.scrollWidth - innerWidth,
+                chatOverflow: scroll.scrollWidth - scroll.clientWidth,
+                buttons: controls.map(button => ({
+                  kind: button.dataset.answerCorrection,
+                  width: button.getBoundingClientRect().width,
+                  height: button.getBoundingClientRect().height,
+                  name: button.getAttribute('aria-label'),
+                  text_contrast: textContrast(button),
+                })),
+              };
+            }""")
+            assert measurements["documentOverflow"] <= 1, (label, "document overflow", measurements)
+            assert measurements["chatOverflow"] <= 1, (label, "chat overflow", measurements)
+            assert len(measurements["buttons"]) == 12, (label, measurements["buttons"])
+            assert all(button["height"] >= 44 for button in measurements["buttons"][:3]), (label, measurements)
+            assert all(button["text_contrast"] >= 4.5 for button in measurements["buttons"][:3]), (label, measurements)
+            page.screenshot(path=str(out / f"chat-answer-actions-{label}.png"), animations="disabled")
+            evidence.append({"label": label, "viewport": [width, height], **measurements})
+
+        # The external adapter remains deliberately disabled for production and
+        # cannot advertise a rewrite flow that the server does not support.
+        page.goto(f"{app_url}/#/conversation/{external_conversation['id']}", wait_until="domcontentloaded")
+        page.locator("#chat-form").wait_for()
+        page.wait_for_function("id => document.querySelector('#conversation-switcher')?.value === id",
+                               arg=external_conversation["id"])
+        external_transcript = page.request.get(
+            f"{app_url}/api/v1/conversations/{external_conversation['id']}?after=0&limit=100"
+        ).json()
+        assert any(message["id"] == external_answer_id for message in external_transcript["messages"])
+        assert page.locator("#chat-stream .answer").inner_text() == "A completed answer from the disabled adapter."
+        assert page.locator(f'[data-answer-message="{external_answer_id}"][data-answer-correction]').count() == 0
+
+        page.goto(f"{app_url}/#/chat/design-system-review", wait_until="domcontentloaded")
+        actions = page.locator(f'[data-answer-message="{target_message_id}"][data-answer-correction="shorter"]')
+        page.wait_for_function("id => document.querySelector('#conversation-switcher')?.value === id",
+                               arg=conversation["id"])
+        actions.wait_for()
+        scroll = page.locator("#chat-scroll")
+        actions.scroll_into_view_if_needed()
+        page.locator("#chat-prompt").fill("Keep this draft and its selection.")
+        page.locator("#chat-prompt").evaluate("el => el.setSelectionRange(5, 13)")
+        actions.focus()
+        page.keyboard.press("Tab")
+        assert page.evaluate("document.activeElement.dataset.answerCorrection") == "go_deeper"
+        page.keyboard.press("Shift+Tab")
+        assert page.evaluate("document.activeElement.dataset.answerCorrection") == "shorter"
+        scroll_before = scroll.evaluate("el => el.scrollTop")
+        assert scroll.evaluate("el => el.scrollHeight - el.scrollTop - el.clientHeight") > 90
+        page.keyboard.press("Enter")
+        page.wait_for_function("() => document.querySelectorAll('#chat-stream [data-run-id]').length >= 5")
+        page.wait_for_function("() => document.activeElement?.dataset?.answerCorrection === 'shorter'")
+        assert page.locator("#chat-prompt").input_value() == "Keep this draft and its selection."
+        assert page.locator("#chat-prompt").evaluate("el => [el.selectionStart, el.selectionEnd]") == [5, 13]
+        assert scroll.evaluate("el => el.scrollTop") == scroll_before
+        assert len(correction_requests) == 1, correction_requests
+        sent = correction_requests[0]["body"]
+        assert sent["correction"] == "shorter" and sent["prompt"] == "Make this answer shorter."
+        assert sent["reply_to_message_id"] == target_message_id
+        assert not {"rehearse", "skills", "workspace_task_result_id", "workspace_task_result_message_id"}.intersection(sent)
+        assert sent["model"] is None
+        assert len(failed_responses) == 0, failed_responses
+        assert errors == [], errors
+        assert console_errors == [], console_errors
+        assert external_requests == [], external_requests
+
+        context.tracing.stop(path=str(out / "trace.zip"))
+        trace_saved = True
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_design_system.py::test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runtimes",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runtimes",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "browser": f"{browser.browser_type.name.title()} {browser.version}",
+            "playwright": package_version("playwright"),
+            "viewports": evidence,
+            "states": ["completed answer actions", "keyboard navigation and activation", "draft and selection retained",
+                       "reader scroll retained", "disabled OpenCode actions hidden"],
+            "page_errors": errors,
+            "console_errors": console_errors,
+            "failed_responses": failed_responses,
+            "external_requests": external_requests,
+            "correction_requests": correction_requests,
+            "provider_calls": 0,
+            "runtime": "mock/demo with engine work disabled; no inference was attempted",
+            "reduced_motion": "reduce",
+            "source_sha256": _visual_source_hashes(),
+            "visual_review": "Screenshots are stored alongside this record and manually inspected after the browser run.",
         }, indent=2) + "\n", encoding="utf-8")
     finally:
         if not trace_saved:

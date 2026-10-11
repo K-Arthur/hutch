@@ -1,0 +1,527 @@
+{
+  "test": "tests/e2e/test_design_system.py::test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runtimes",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runtimes",
+  "captured_at": "2026-10-11T14:11:18.918628+00:00",
+  "browser": "Chromium 153.0.8010.12",
+  "playwright": "1.63.0",
+  "viewports": [
+    {
+      "label": "phone",
+      "viewport": [
+        360,
+        844
+      ],
+      "documentOverflow": 0,
+      "chatOverflow": 0,
+      "buttons": [
+        {
+          "kind": "shorter",
+          "width": 78.515625,
+          "height": 44,
+          "name": "Make this answer shorter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "go_deeper",
+          "width": 97.5625,
+          "height": 44,
+          "name": "Go deeper on this answer; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "less_banter",
+          "width": 106.90625,
+          "height": 44,
+          "name": "Rewrite this answer with less banter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "shorter",
+          "width": 78.515625,
+          "height": 44,
+          "name": "Make this answer shorter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "go_deeper",
+          "width": 97.5625,
+          "height": 44,
+          "name": "Go deeper on this answer; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "less_banter",
+          "width": 106.90625,
+          "height": 44,
+          "name": "Rewrite this answer with less banter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "shorter",
+          "width": 78.515625,
+          "height": 44,
+          "name": "Make this answer shorter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "go_deeper",
+          "width": 97.5625,
+          "height": 44,
+          "name": "Go deeper on this answer; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "less_banter",
+          "width": 106.90625,
+          "height": 44,
+          "name": "Rewrite this answer with less banter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "shorter",
+          "width": 78.515625,
+          "height": 44,
+          "name": "Make this answer shorter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "go_deeper",
+          "width": 97.5625,
+          "height": 44,
+          "name": "Go deeper on this answer; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "less_banter",
+          "width": 106.90625,
+          "height": 44,
+          "name": "Rewrite this answer with less banter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        }
+      ]
+    },
+    {
+      "label": "tablet",
+      "viewport": [
+        768,
+        960
+      ],
+      "documentOverflow": 0,
+      "chatOverflow": 0,
+      "buttons": [
+        {
+          "kind": "shorter",
+          "width": 78.515625,
+          "height": 44,
+          "name": "Make this answer shorter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "go_deeper",
+          "width": 97.5625,
+          "height": 44,
+          "name": "Go deeper on this answer; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "less_banter",
+          "width": 106.90625,
+          "height": 44,
+          "name": "Rewrite this answer with less banter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "shorter",
+          "width": 78.515625,
+          "height": 44,
+          "name": "Make this answer shorter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "go_deeper",
+          "width": 97.5625,
+          "height": 44,
+          "name": "Go deeper on this answer; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "less_banter",
+          "width": 106.90625,
+          "height": 44,
+          "name": "Rewrite this answer with less banter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "shorter",
+          "width": 78.515625,
+          "height": 44,
+          "name": "Make this answer shorter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "go_deeper",
+          "width": 97.5625,
+          "height": 44,
+          "name": "Go deeper on this answer; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "less_banter",
+          "width": 106.90625,
+          "height": 44,
+          "name": "Rewrite this answer with less banter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "shorter",
+          "width": 78.515625,
+          "height": 44,
+          "name": "Make this answer shorter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "go_deeper",
+          "width": 97.5625,
+          "height": 44,
+          "name": "Go deeper on this answer; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "less_banter",
+          "width": 106.90625,
+          "height": 44,
+          "name": "Rewrite this answer with less banter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        }
+      ]
+    },
+    {
+      "label": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentOverflow": 0,
+      "chatOverflow": 0,
+      "buttons": [
+        {
+          "kind": "shorter",
+          "width": 78.515625,
+          "height": 44,
+          "name": "Make this answer shorter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "go_deeper",
+          "width": 97.5625,
+          "height": 44,
+          "name": "Go deeper on this answer; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "less_banter",
+          "width": 106.90625,
+          "height": 44,
+          "name": "Rewrite this answer with less banter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "shorter",
+          "width": 78.515625,
+          "height": 44,
+          "name": "Make this answer shorter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "go_deeper",
+          "width": 97.5625,
+          "height": 44,
+          "name": "Go deeper on this answer; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "less_banter",
+          "width": 106.90625,
+          "height": 44,
+          "name": "Rewrite this answer with less banter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "shorter",
+          "width": 78.515625,
+          "height": 44,
+          "name": "Make this answer shorter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "go_deeper",
+          "width": 97.5625,
+          "height": 44,
+          "name": "Go deeper on this answer; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "less_banter",
+          "width": 106.90625,
+          "height": 44,
+          "name": "Rewrite this answer with less banter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "shorter",
+          "width": 78.515625,
+          "height": 44,
+          "name": "Make this answer shorter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "go_deeper",
+          "width": 97.5625,
+          "height": 44,
+          "name": "Go deeper on this answer; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "less_banter",
+          "width": 106.90625,
+          "height": 44,
+          "name": "Rewrite this answer with less banter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        }
+      ]
+    },
+    {
+      "label": "compact-phone",
+      "viewport": [
+        320,
+        800
+      ],
+      "documentOverflow": 0,
+      "chatOverflow": 0,
+      "buttons": [
+        {
+          "kind": "shorter",
+          "width": 78.515625,
+          "height": 44,
+          "name": "Make this answer shorter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "go_deeper",
+          "width": 97.5625,
+          "height": 44,
+          "name": "Go deeper on this answer; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "less_banter",
+          "width": 106.90625,
+          "height": 44,
+          "name": "Rewrite this answer with less banter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "shorter",
+          "width": 78.515625,
+          "height": 44,
+          "name": "Make this answer shorter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "go_deeper",
+          "width": 97.5625,
+          "height": 44,
+          "name": "Go deeper on this answer; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "less_banter",
+          "width": 106.90625,
+          "height": 44,
+          "name": "Rewrite this answer with less banter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "shorter",
+          "width": 78.515625,
+          "height": 44,
+          "name": "Make this answer shorter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "go_deeper",
+          "width": 97.5625,
+          "height": 44,
+          "name": "Go deeper on this answer; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "less_banter",
+          "width": 106.90625,
+          "height": 44,
+          "name": "Rewrite this answer with less banter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "shorter",
+          "width": 78.515625,
+          "height": 44,
+          "name": "Make this answer shorter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "go_deeper",
+          "width": 97.5625,
+          "height": 44,
+          "name": "Go deeper on this answer; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "less_banter",
+          "width": 106.90625,
+          "height": 44,
+          "name": "Rewrite this answer with less banter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        }
+      ]
+    },
+    {
+      "label": "zoom-200-effective",
+      "viewport": [
+        720,
+        480
+      ],
+      "documentOverflow": 0,
+      "chatOverflow": 0,
+      "buttons": [
+        {
+          "kind": "shorter",
+          "width": 78.515625,
+          "height": 44,
+          "name": "Make this answer shorter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "go_deeper",
+          "width": 97.5625,
+          "height": 44,
+          "name": "Go deeper on this answer; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "less_banter",
+          "width": 106.90625,
+          "height": 44,
+          "name": "Rewrite this answer with less banter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "shorter",
+          "width": 78.515625,
+          "height": 44,
+          "name": "Make this answer shorter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "go_deeper",
+          "width": 97.5625,
+          "height": 44,
+          "name": "Go deeper on this answer; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "less_banter",
+          "width": 106.90625,
+          "height": 44,
+          "name": "Rewrite this answer with less banter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "shorter",
+          "width": 78.515625,
+          "height": 44,
+          "name": "Make this answer shorter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "go_deeper",
+          "width": 97.5625,
+          "height": 44,
+          "name": "Go deeper on this answer; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "less_banter",
+          "width": 106.90625,
+          "height": 44,
+          "name": "Rewrite this answer with less banter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "shorter",
+          "width": 78.515625,
+          "height": 44,
+          "name": "Make this answer shorter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "go_deeper",
+          "width": 97.5625,
+          "height": 44,
+          "name": "Go deeper on this answer; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        },
+        {
+          "kind": "less_banter",
+          "width": 106.90625,
+          "height": 44,
+          "name": "Rewrite this answer with less banter; tools and external actions will not be repeated",
+          "text_contrast": 9.916653352697587
+        }
+      ]
+    }
+  ],
+  "states": [
+    "completed answer actions",
+    "keyboard navigation and activation",
+    "draft and selection retained",
+    "reader scroll retained",
+    "disabled OpenCode actions hidden"
+  ],
+  "page_errors": [],
+  "console_errors": [],
+  "failed_responses": [],
+  "external_requests": [],
+  "correction_requests": [
+    {
+      "url": "http://127.0.0.1:36363/api/v1/conversations/conv_a9a74d8df2c5/messages",
+      "body": {
+        "prompt": "Make this answer shorter.",
+        "correction": "shorter",
+        "reply_to_message_id": "rewrite-answer-selected",
+        "model": null
+      }
+    }
+  ],
+  "provider_calls": 0,
+  "runtime": "mock/demo with engine work disabled; no inference was attempted",
+  "reduced_motion": "reduce",
+  "source_sha256": {
+    "src/hutch/server/pages.py": "7884021b4a97b41a26c49e4337e8f53fe245ff8682c5e820a613a4dc70263826",
+    "src/hutch/server/static/app.js": "b45c54085f0bc08a4cd817ae948be99ad79c707dbed21e9302e64aa5e008f313",
+    "src/hutch/server/static/persona.js": "7699bfc4ab212e8d170fddf35e96d9f2d18f702c85dd98bd9911ae82c156827d",
+    "src/hutch/server/static/index.html": "5f7faabcab72c2c2aa459cc143307275a03764ec9c72857d1c9f7d8f2ea5410b",
+    "src/hutch/server/static/style.css": "22197075a70702597748825b8e40118b13c9e9597e195566b26d4983a7a9cef7",
+    "src/hutch/server/static/brands/openai-white-monoblossom.svg": "b94ea61d860fae6f82f43571f36f17111fcf5d348e8e9cc22ae4b441c7560011",
+    "src/hutch/server/static/brands/anthropic-symbol-ivory.svg": "38fc06d8e9390654cc4e96aa53691e2e78d929667c0034805b6d1b3891ba22dd",
+    "src/hutch/server/static/brands/openrouter-glyph-volt.svg": "0d22462e4f2835a5a5b9000af0a55fc9238e39996100f54706e41ec45b9d1727",
+    "src/hutch/server/static/brands/google-calendar-2026q2.png": "eac7b1d7c78a7c7fb40d74b6d879ba5fe781cbf2cd5f8d7d40f3c28fea73f77e",
+    "src/hutch/server/static/brands/google-gmail-2026q2.png": "ab8e9e880a28e2bc29207a62394aa7d296f435113fcc922819dab629ffbd64e6",
+    "src/hutch/server/static/brands/microsoft-outlook.svg": "4a3b6ab15d36e7c5317f75a83d1781708d68cce4d8b9073a3c82f0af662eaf18",
+    "website/index.html": "cae44861517f80b505843ac618e1bb56801425842867b8bbead8bcfe820aa7ec",
+    "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
+    "website/styles.css": "4e2f4b3e4094cfc3aef1e9b21deaaf472421e607bb416824e63db0197dd0f4bd",
+    "tests/e2e/test_design_system.py": "0a84a1d70dbe59eed200d8f3f9cb324744781832346d50f1507ea9dbef304ba2"
+  },
+  "visual_review": "Screenshots are stored alongside this record and manually inspected after the browser run."
+}

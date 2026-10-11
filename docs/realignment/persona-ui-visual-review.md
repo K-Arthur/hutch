@@ -32,3 +32,24 @@ evidence, not a direct browser-zoom test. Screen readers, Firefox/WebKit, and ph
 The `impeccable detect` scan returned three advisory findings in unchanged shared stylesheet rules (lines 1359, 1705,
 and 2291 at capture time); none is in the persona CSS diff. New persona styles use Hutch's documented radius, spacing,
 and color tokens.
+
+## Answer corrections
+
+The actual-app chat regression passed in Chromium 153.0.8010.12 with reduced motion and touch input. I inspected
+`chat-answer-actions-phone.png`, `chat-answer-actions-tablet.png`, `chat-answer-actions-desktop.png`,
+`chat-answer-actions-compact-phone.png` and `chat-answer-actions-zoom-200-effective.png` individually. The three
+correction actions sit next to the existing Reply action, wrap cleanly at 320px, retain Hutch's dark palette and
+do not cause horizontal overflow. The measured buttons are 44px high and their text has 9.92:1 contrast against
+the chat surface across all captured widths. Focus returns to the activated action when the feed refreshes.
+
+The test navigates among Shorter and Go deeper with the keyboard, activates Shorter, and checks that the exact
+answer id and typed correction are sent once. The composer text and selected range remain intact, and the reader's
+scroll offset is unchanged when the new run appears. A completed OpenCode fixture still renders its answer but
+does not show corrections. The mock route's engine is disabled: there are zero provider calls, page errors,
+console errors, failed local responses or external requests. See `validation.json`, `impeccable-detect.json` and
+`trace.zip` beside the screenshots.
+
+Viewport checks cover 360×844, 768×960, 1440×960, 320×800 and 720×480 as the effective CSS viewport for 200%
+reflow at 1440×960. The browser runner does not provide a native zoom gesture. Screen readers, Firefox/WebKit and
+physical devices remain untested; this browser fixture verifies UI handling and does not measure provider
+adherence or response quality.

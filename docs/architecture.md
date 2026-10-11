@@ -372,8 +372,11 @@ assistant message from a succeeded run in the same conversation. The store snaps
 user request as untrusted, bounded reference data; oversized, pending, failed, missing and cross-conversation targets
 are rejected. The rewrite purpose is available only to the built-in runtime, exposes no tool schemas, skips action
 context and workspace paths, and refuses any provider tool call. It preserves the original request's safety cues and
-output contract, and does not repeat tools or external actions. This API/runtime path is fixture-tested; the chat
-controls and provider-side adherence still require verification.
+output contract, and does not repeat tools or external actions. A completed built-in answer in chat exposes
+Shorter, Go deeper and Less banter actions; pending-choice, failed and non-built-in answers do not. The browser
+regression verifies answer targeting, keyboard activation, draft and selection retention, reader scroll retention,
+and 44px touch targets. It uses a mock route with engine work disabled, so it makes no provider call and says
+nothing about provider adherence.
 
 At run start the engine resolves the layers once and writes a versioned, write-once plan into the
 run; a retried start reuses the recorded plan, and unreadable or newer state fails the run with a
@@ -391,14 +394,15 @@ itself is clearly playful. This is deterministic guidance, not a provider-enforc
 shape the current response plan when conversation context exists; typed answer rewrites also resolve against their
 explicit selected request, including when the answer is older than the recent context window. The rewrite route keeps
 existing citations and contracts as references and never performs new retrieval. The
-chain is covered by fixture and API tests, a real-engine plan-capture test, and a real-app browser
-regression at 320, 360, 768 and 1440 CSS pixels plus a 720 × 480 effective viewport for 200% reflow
-at 1440 × 960. Screenshots, browser trace and response/network checks are retained in
-`docs/realignment/artifacts/persona-ui-v2-2026-10-11/`; manually inspected screenshots and the exact
-evidence boundary are recorded in `docs/realignment/persona-ui-visual-review.md`. Browser zoom itself
-was not controllable through the headless test runner, so the 720px case checks the corresponding
-effective CSS viewport rather than claiming a native zoom gesture. Live-model humor, boundary
-calibration, and provider-side request receipt remain unverified.
+chain is covered by fixture and API tests, a real-engine plan-capture test, and actual-app browser regressions
+at 320, 360, 768 and 1440 CSS pixels plus a 720 × 480 effective viewport for 200% reflow at 1440 × 960.
+Settings evidence is retained in `docs/realignment/artifacts/persona-ui-v2-2026-10-11/`; rewrite-action
+screenshots, a browser trace and request/network checks are in
+`docs/realignment/artifacts/persona-rewrite-ui-2026-10-11/`. Manually inspected screenshots and the exact
+evidence boundaries are recorded in `docs/realignment/persona-ui-visual-review.md`. Browser zoom itself was
+not controllable through the headless test runner, so the 720px case checks the corresponding effective CSS
+viewport rather than claiming a native zoom gesture. Live-model humor, boundary calibration, and provider-side
+request receipt remain unverified.
 
 ## What is deliberately NOT here (yet)
 

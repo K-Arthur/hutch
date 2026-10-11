@@ -79,6 +79,13 @@ new provider request, so hosted-provider retention terms still apply. A rewrite 
 not undo the source run's effects or turn a prior statement into fresh evidence. Its prompt guidance asks the model to
 preserve citations, uncertainty, caveats and output contracts, but live provider adherence remains unverified.
 
+In chat, Shorter, Go deeper and Less banter appear only below a completed answer from the built-in runtime. The
+buttons target that answer explicitly and start a new tool-free response; they do not repeat tools or external
+actions. Failed, pending-choice, oversized and non-built-in answers do not offer these controls. Browser checks
+confirm that using a correction preserves the composer draft and selection and keeps the reader's scroll position.
+Changing persona controls alone does not send a request; choosing a correction is an explicit request to the
+configured provider with the bounded source request and answer as untrusted context.
+
 Worker review requests, wait state and inline review events commit together. Canonical decision
 summaries override stale transcript asks after a worker crash. Schema v11 resource replay
 contains identifiers rather than message, argument or secret content; clients fetch current

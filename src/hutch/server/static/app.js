@@ -36,11 +36,13 @@ let currentCodeHandoffs = [];
 let studioGeneration = 0;
 let studioConversationMenuCleanup = null;
 let activeReplySelectionHandler = null;
+let activeAnswerCorrectionHandler = null;
 let activeWorkspaceResultSelectionHandler = null;
 let activeBotCreationFromMessageHandler = null;
 let activeChoiceSubmitHandler = null;
 let activeWorkspaceQuestionSubmitHandler = null;
 const requestedHumanResumes = new Set();
+const pendingAnswerCorrections = new Set();
 const runIntegrityStates = new Map();
 let hutchSession = null;
 let hutchCsrfToken = "";
@@ -2745,6 +2747,58 @@ async function renderChatStudio(preferredBot = null) {
       toast(`Could not reference that message: ${err.message}`, true);
     }
   };
+  activeAnswerCorrectionHandler = async (messageId, correction, button) => {
+    if (generation !== studioGeneration || composerConversationId !== currentConversationId) return;
+    if (!bot || bot.runtime !== "builtin") {
+      toast("Answer rewrites are available for the built-in runtime only.", true);
+      return;
+    }
+    const pendingKey = `${composerConversationId}:${messageId}:${correction}`;
+    if (pendingAnswerCorrections.has(pendingKey)) return;
+    const prompts = {
+      shorter: "Make this answer shorter.",
+      go_deeper: "Go deeper on this answer.",
+      less_banter: "Rewrite this answer with less banter.",
+    };
+    const prompt = prompts[correction];
+    if (!prompt || !messageId) return;
+    pendingAnswerCorrections.add(pendingKey);
+    const actionGroup = button?.closest("[data-answer-actions]");
+    actionGroup?.querySelectorAll("[data-answer-correction]").forEach(action => {
+      action.setAttribute("aria-disabled", "true");
+      action.setAttribute("aria-busy", "true");
+    });
+    const originalButtonLabel = button?.textContent;
+    if (button) button.textContent = "Starting…";
+    try {
+      const body = { prompt, correction, reply_to_message_id: messageId, model: switcher?.selected() || null };
+      const key = await messageIdempotencyKey(`correction:${composerConversationId}`, body);
+      const result = await api(`/v1/conversations/${encodeURIComponent(composerConversationId)}/messages`, {
+        method: "POST", headers: { "Idempotency-Key": key }, body,
+      });
+      clearMessageIdempotencyKey(`correction:${composerConversationId}`, key);
+      if (body.model) switcher?.consumeOverride(body.model);
+      if (generation !== studioGeneration || composerConversationId !== currentConversationId) return;
+      currentRunId = result.id;
+      subscribeRun(result.id);
+      toast(ACTIVE.has(result.status) && activeRun ? "Rewrite queued behind the current run." : "Rewrite started.");
+      refreshRoster();
+    } catch (err) {
+      if (generation === studioGeneration && composerConversationId === currentConversationId) {
+        toast(`Could not rewrite this answer: ${err.message}. Your draft is unchanged.`, true);
+      }
+    } finally {
+      pendingAnswerCorrections.delete(pendingKey);
+      if (button?.isConnected) {
+        if (originalButtonLabel) button.textContent = originalButtonLabel;
+        actionGroup?.querySelectorAll("[data-answer-correction]").forEach(action => {
+          action.removeAttribute("aria-disabled");
+          action.removeAttribute("aria-busy");
+        });
+      }
+      if (generation === studioGeneration && composerConversationId === currentConversationId) renderChatFeed();
+    }
+  };
   activeBotCreationFromMessageHandler = async messageId => {
     if (generation !== studioGeneration || composerConversationId !== currentConversationId) return;
     await promptNewBot("", messageId);
@@ -3246,9 +3300,11 @@ async function renderChatFeed() {
     let html;
     try {
       const hasVisibleBotReply = messages.some(m => m.role === "assistant" && m.run_id === runId);
+      const hasPendingAnswerCorrection = messages.some(m => m.role === "assistant" && m.run_id === runId
+        && [...pendingAnswerCorrections].some(key => key.startsWith(`${conversationId}:${m.id}:`)));
       const hasWorkspaceTask = workspaceTasks.some(task => task.source_run_id === runId);
       const hasCodeHandoff = codeHandoffs.some(task => task.source_run_id === runId);
-      if (runId === currentRunId || hasWorkspaceTask || hasCodeHandoff || !terminalRunCache.has(runId)
+      if (runId === currentRunId || hasPendingAnswerCorrection || hasWorkspaceTask || hasCodeHandoff || !terminalRunCache.has(runId)
           || hasVisibleBotReply && !terminalRunReplyCache.has(runId)) {
         html = await runBlockHtml(runId, messages, workspaceTasks, codeHandoffs);
       } else html = terminalRunCache.get(runId);
@@ -3274,6 +3330,8 @@ async function renderChatFeed() {
   const focusedChoice = focused?.dataset.approve;
   const focusedReceipt = focused?.dataset.receiptReview;
   const focusedFact = focused?.dataset.factReview;
+  const focusedAnswerCorrection = focused?.dataset.answerCorrection;
+  const focusedAnswerMessage = focused?.dataset.answerMessage;
   const factUi = captureFactUi(stream);
   const nextHtml = parts.join("") + factPanelHtml(factPage.facts || [], factPage.error, factShares);
   if (chatRenderSnapshots.get(stream) === nextHtml) return;
@@ -3302,6 +3360,10 @@ async function renderChatFeed() {
   }
   if (focusedFact && !focused.isConnected) {
     ($$('[data-fact-review]', stream).find(b => b.dataset.factReview === focusedFact) || $('#chat-prompt'))?.focus({ preventScroll: true });
+  }
+  if (focusedAnswerCorrection && !focused.isConnected) {
+    $$('[data-answer-correction]', stream).find(button => button.dataset.answerCorrection === focusedAnswerCorrection
+      && button.dataset.answerMessage === focusedAnswerMessage)?.focus({ preventScroll: true });
   }
   restoreFactUi(stream, factUi);
   if (wasNearBottom) scroll.scrollTop = scroll.scrollHeight;
@@ -3688,7 +3750,22 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHan
   const replyPreview = userMessage?.reply_to_message_id ? `<aside class="reply-reference-quote">
     <span>Reply to ${esc(botName)}’s message</span><blockquote>${esc(replyExcerpt.slice(0, 240))}${replyExcerpt.length > 240 ? "…" : ""}</blockquote>
   </aside>` : "";
-  const replyAction = botMessage ? `<div class="answer-actions"><button class="btn ghost small" type="button" data-reply-message="${esc(botMessage.id)}" aria-label="Reply to ${esc(botName)} message">Reply to this</button></div>` : "";
+  const sourceBot = botsCache.find(bot => bot.id === run.bot_id);
+  const correctionKey = botMessage ? `${run.conversation_id}:${botMessage.id}` : "";
+  const pendingCorrectionKey = [...pendingAnswerCorrections].find(key => key.startsWith(`${correctionKey}:`)) || "";
+  const correctionBusy = !!pendingCorrectionKey;
+  const correctionBusyKind = pendingCorrectionKey.split(":").at(-1);
+  const correctionActions = run.status === "succeeded" && botMessage?.content && botMessage.content.length <= 12_000
+    && !waitingForChoice && sourceBot?.runtime === "builtin"
+    ? `<button class="btn ghost small" type="button" data-answer-correction="shorter" data-answer-message="${esc(botMessage.id)}"
+          aria-label="Make this answer shorter; tools and external actions will not be repeated" ${correctionBusy ? 'aria-disabled="true" aria-busy="true"' : ""}>${correctionBusyKind === "shorter" ? "Starting…" : "Shorter"}</button>
+       <button class="btn ghost small" type="button" data-answer-correction="go_deeper" data-answer-message="${esc(botMessage.id)}"
+          aria-label="Go deeper on this answer; tools and external actions will not be repeated" ${correctionBusy ? 'aria-disabled="true" aria-busy="true"' : ""}>${correctionBusyKind === "go_deeper" ? "Starting…" : "Go deeper"}</button>
+       <button class="btn ghost small" type="button" data-answer-correction="less_banter" data-answer-message="${esc(botMessage.id)}"
+          aria-label="Rewrite this answer with less banter; tools and external actions will not be repeated" ${correctionBusy ? 'aria-disabled="true" aria-busy="true"' : ""}>${correctionBusyKind === "less_banter" ? "Starting…" : "Less banter"}</button>` : "";
+  const replyAction = botMessage ? `<div class="answer-actions" data-answer-actions role="group"
+      aria-label="Adjust this answer. Rewrites do not run tools or external actions again.">
+      ${correctionActions}<button class="btn ghost small" type="button" data-reply-message="${esc(botMessage.id)}" aria-label="Reply to ${esc(botName)} message">Reply to this</button></div>` : "";
   const createBotAction = userMessage ? `<div class="request-actions"><button class="btn ghost small" type="button"
       data-create-bot-from-request="${esc(userMessage.id)}" aria-label="Create a bot from this request">Make a bot</button></div>` : "";
   const coordinator = botsCache.find(bot => bot.name === currentStudioBot);
@@ -3698,7 +3775,6 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHan
         data-source-run="${esc(runId)}" data-source-user="${esc(userMessage.id)}"
         data-source-answer="${esc(botMessage.id)}" data-source-request="${esc(run.prompt)}">Prepare for a Bot</button>` : "";
   const relatedTasks = workspaceTasks.filter(task => task.source_run_id === runId).map(workspaceTaskCardHtml).join("");
-  const sourceBot = botsCache.find(bot => bot.id === run.bot_id);
   const prepareCodeTaskAction = sourceBot?.workspace_mode === "folder" && sourceBot?.workdir
     && run.status === "succeeded" && userMessage && botMessage && !waitingForChoice
     ? `<button class="btn ghost small" type="button" data-prepare-code-task
@@ -4476,6 +4552,11 @@ function wireFeedInteractions() {
     if (continueTask) { continueWorkspaceTask(continueTask); return; }
     const reply = ev.target.closest("[data-reply-message]");
     if (reply) { void activeReplySelectionHandler?.(reply.dataset.replyMessage); return; }
+    const correction = ev.target.closest("[data-answer-correction]");
+    if (correction && correction.getAttribute("aria-disabled") !== "true") {
+      void activeAnswerCorrectionHandler?.(correction.dataset.answerMessage, correction.dataset.answerCorrection, correction);
+      return;
+    }
     const createBotFromRequest = ev.target.closest("[data-create-bot-from-request]");
     if (createBotFromRequest) {
       void activeBotCreationFromMessageHandler?.(createBotFromRequest.dataset.createBotFromRequest);

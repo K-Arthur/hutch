@@ -203,10 +203,10 @@ Review follow-ups (status after the profile-compatibility slice):
   integration commit `8a63585` with the same observed `/home` visibility and is therefore an inherited sandbox
   environment failure, not a persona change. No assertions were weakened. The existing `/tmp` contents were not
   removed or altered.
-- Remaining acceptance: expose answer-scoped corrections in chat UI without rerunning tools or external actions; add feedback,
-  isolated live preview and
-  redacted inspector; update marketing claims/screenshots and remaining user-facing docs; verify supported-runtime
-  request receipts; and run combined offline/browser checks plus bounded model evaluation. No separate supported
+- Remaining acceptance: add feedback, static examples and explicitly requested live preview on isolated state, and
+  redacted request/adapter inspector; update marketing claims/screenshots and remaining user-facing docs; verify
+  supported-runtime serialized request receipts and image delivery; and run combined offline/browser checks plus
+  bounded model evaluation. No separate supported
   Hutch Go connection is configured, so Hutch product-path response quality and model latency are unverified.
   The device OpenCode CLI did authenticate and run the low-cost MiMo Flash development task; its credential store
   has not been imported into Hutch. Keep subsequent CLI packets narrow and review every diff.
@@ -216,7 +216,17 @@ Review follow-ups (status after the profile-compatibility slice):
   as bounded untrusted context; rejects stale, failed, oversized, unanswered-question, missing and cross-chat targets;
   resolves source safety/output cues; and executes with no tool schemas, workspace path or action context. The tool-free
   runtime refuses provider tool calls. Final focused persona/runtime/conversation verification passed (**155 tests**).
-  The UI controls, full offline/browser suites, real-app browser capture and live provider adherence remain outstanding.
+- Answer-rewrite chat UI slice: completed built-in answers now expose **Shorter**, **Go deeper**, and **Less banter**.
+  The actions use the typed answer-scoped endpoint, leave composer text/selection and one-turn style state intact, and
+  preserve reader scroll and keyboard focus across feed refresh. They are absent on failed, pending-choice, oversized
+  and non-built-in answers; the completed OpenCode fixture retains its normal answer UI without advertising rewrites.
+  The real-app browser regression passed in Chromium 153.0.8010.12 with no provider/model call: **0** page errors,
+  console errors, failed local responses or external requests; one explicit correction POST with the selected answer
+  id; **44px** action targets and **9.92:1** measured text contrast; no horizontal overflow at 320, 360, 768, 1440,
+  or 720×480 effective CSS pixels. The settings and rewrite browser regressions pass together (**2 tests**).
+  Screenshots, trace and detector output are inspected and retained under
+  `artifacts/persona-rewrite-ui-2026-10-11/`; details are in `persona-ui-visual-review.md`. Live response quality,
+  human review and native browser zoom remain unverified.
 
 ## Rollback
 
