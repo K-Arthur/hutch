@@ -1,5 +1,68 @@
 # Visual validation record
 
+## Settings disclosure alignment axes (2026-10-10)
+
+Settings disclosures on the Apps & AI screen and in assistant settings now
+share one row skeleton (`.summary-row` / `.summary-row-sm`: icon slot, copy,
+trailing Show/Hide action). I inspected the restructured surfaces with
+`tests/e2e/test_design_system.py::test_connection_and_assistant_settings_share_disclosure_axes`
+at desktop **1440×960**, short desktop **1280×720**, tablet **900×1024**,
+phone **390×844**, and compact phone **320×740**, and opened the saved
+captures individually: the Apps & AI screen with **More account settings**
+expanded and Outlook Calendar access open at desktop and phone, and assistant
+settings with **Customize how it works** and **Usage and time limits** open at
+desktop and phone, in
+[`artifacts/settings-disclosure-axes-2026-10-10/`](artifacts/settings-disclosure-axes-2026-10-10/).
+
+Structural evidence, asserted in the browser at every viewport: no
+`<details>` is nested inside another `<details>`; Outlook event creation,
+Outlook Mail sending, and Gmail sending each sit as a sibling of the access
+they relate to instead of a child of it; all in-card disclosure summaries
+report one identical computed left padding and min-height; every summary row
+meets a 24px target; and the assistant-settings summaries share their panel
+edge and content padding with the forms beside them. Keyboard toggling of the
+peer disclosure works with Enter and shows the 2px focus ring when reached by
+Tab. The connect modal's key input now sits on the 44px touch scale.
+
+The visual-inconsistency class this fixes was confirmed before the change:
+six disclosure summaries used four grid templates, three icon-slot widths,
+and five min-heights, four in-card connection disclosures had no styles at
+all, and the dead inline `margin-left:auto` on the connection key chip (losing
+to a `!important` rule) left its intended trailing alignment not rendering.
+
+Undefined CSS custom properties were also repaired this slice (see the
+`Resolve undefined Studio CSS tokens` change): eighteen `--r-control`
+references, twelve `--surface` backgrounds, six `--bg-subtle` wells, and
+one-off `--r-md`/`--panel-hover`/`--rail`/`--link` tokens resolved to nothing
+at computed-value time, which squared corners on provider choices, task cards,
+and setup choices and cleared card backgrounds. A new Studio token guard
+(`tests/test_site_tokens.py::test_studio_stylesheet_references_only_defined_tokens`)
+fails when any fallback-less `var()` reference stops resolving; it was
+verified to fail on a simulated token rename before being trusted.
+
+Chromium **153** / Playwright **1.63** produced screenshots, `validation.json`,
+and traces; the browser made no external requests and no provider calls.
+Zoom behavior was checked live at 90%, 125%, and 200% (no horizontal overflow;
+browser zoom does not change CSS-px layout, and the 320px reflow check covers
+the worst case). Limits: no Firefox or WebKit run this session, no screen
+reader, no physical phone, and the app ships a single dark theme, so no theme
+switch was exercised.
+
+## Marketing proof screenshot resync (2026-10-10)
+
+The public site's "Real application" proof image had drifted from the shipped
+app: it still showed the retired sparkle glyph beside the mascot and the
+pre-rename roster copy. Recaptured the real empty first-run screen with
+`docs/realignment/capture_first_run.py` against an empty temporary state
+(the script's guards were updated for the current copy and refuse any state
+containing product records), re-encoded
+`website/assets/captures/setup-desktop.webp` (1440×1000) and
+`setup-phone.webp` (390×844), and re-stamped content hashes with
+`npm run build:css`. The rendered proof section was inspected at 1440×960 and
+shows the current welcome screen. `tests/test_site_tokens.py` and
+`tests/e2e/test_website.py` passed together (**36 passed**), including the
+content-hash pin test.
+
 ## Shared design system across Studio, Connections, and marketing (2026-10-09)
 
 The shared semantic tokens now feed the operator UI and static marketing build from

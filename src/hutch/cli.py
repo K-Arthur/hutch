@@ -46,11 +46,13 @@ schedule_app = typer.Typer(no_args_is_help=True, help="Manage a bot's recurring 
 run_app = typer.Typer(no_args_is_help=True, help="Inspect runs.")
 apr_app = typer.Typer(no_args_is_help=True, help="Resolve pending approvals.")
 code_app = typer.Typer(no_args_is_help=True, help="Launch and review local OpenCode coding handoffs.")
+skills_app = typer.Typer(no_args_is_help=True, help="Discover, review and manage Agent Skills (SKILL.md packages).")
 app.add_typer(bot_app, name="bot")
 bot_app.add_typer(schedule_app, name="schedules")
 app.add_typer(run_app, name="runs")
 app.add_typer(apr_app, name="approvals")
 app.add_typer(code_app, name="code")
+app.add_typer(skills_app, name="skills")
 conn_app = typer.Typer(no_args_is_help=True, help="Hosted endpoints and subscription plans, each with its own key.")
 usage_app = typer.Typer(no_args_is_help=True, help="Inspect and reconcile model-usage reservations.")
 app.add_typer(conn_app, name="connections")
@@ -679,8 +681,9 @@ def bot_create(
         InferenceMode.hybrid, "--inference-mode",
         help="hybrid | local model routes (tools may use the network) | offline (host isolation verified at run time)",
     ),
-    tools: str = typer.Option("shell,files,memory", "--tools",
-                              help=f"comma list; groups shell/files/memory/browser; all: {','.join(ALL_TOOL_NAMES)}"),
+    tools: Optional[str] = typer.Option(None, "--tools",
+                              help=f"comma list; groups shell/files/memory/browser; omit to keep the template's tools (or the safe default); an empty string selects none. all: {','.join(ALL_TOOL_NAMES)}"),
+    skills: str = typer.Option("", "--skills", help="comma list of installed, reviewed skills to assign to this bot"),
     cron: Optional[str] = typer.Option(None, "--cron", help="5-field cron schedule"),
     tz: str = typer.Option("UTC", "--tz", help="IANA timezone for the schedule"),
     schedule_prompt: str = typer.Option("", "--schedule-prompt", help="task prompt for each scheduled run"),
@@ -720,8 +723,8 @@ def bot_create(
         if base is None:
             err.print(f"[red]unknown template:[/red] {template} (see `hutch bot templates`)")
             raise typer.Exit(code=1)
-        bot = base.model_copy(deep=True)
-        bot.name, bot.template = name, template
+        from .templates import instantiate
+        bot = instantiate(template, name)
     else:
         bot = Bot(name=name)
 
@@ -732,11 +735,20 @@ def bot_create(
             raise typer.Exit(code=1)
     bot.display_name = display_name or bot_slug_display_name(name)
 
-    tool_list = expand_tools([t.strip() for t in tools.split(",") if t.strip()])
+    tool_list = expand_tools(list(bot.tools)) if tools is None else expand_tools(
+        [t.strip() for t in tools.split(",") if t.strip()])
     unknown = [t for t in tool_list if t not in ALL_TOOL_NAMES]
     if unknown:
         err.print(f"[red]unknown tools:[/red] {', '.join(unknown)} — valid: {', '.join(ALL_TOOL_NAMES)}")
         raise typer.Exit(code=1)
+    if skills.strip():
+        from .skills import SkillError, SkillRegistry
+        try:
+            bot.skills = SkillRegistry(get_config().state_dir).validate_binding(
+                [item.strip() for item in skills.split(",") if item.strip()])
+        except SkillError as exc:
+            err.print(f"[red]{exc}[/red]")
+            raise typer.Exit(code=1) from None
 
     if not (model or "").strip():
         err.print("[red]a real --model route is required[/red] (configure a provider or local model first)")
@@ -871,6 +883,8 @@ def bot_update(
     tool_protocol: Optional[Literal["auto", "native", "constrained", "prompt", "disabled"]] = typer.Option(
         None, "--tool-protocol",
         help="tool calling mode: auto (provider-native) | native | constrained (backend JSON schema) | prompt | disabled"),
+    skills: Optional[str] = typer.Option(None, "--skills",
+                                         help="replace skill bindings; comma list of installed, reviewed skills; empty string clears"),
     instructions: Optional[str] = typer.Option(None, "--instructions"),
     description: Optional[str] = typer.Option(None, "--description"),
     approval: Optional[ApprovalMode] = typer.Option(None, "--approvals"),
@@ -931,6 +945,14 @@ def bot_update(
             raise typer.Exit(code=1)
         bot.tools = tool_list
     if tool_protocol is not None: bot.tool_protocol = tool_protocol
+    if skills is not None:
+        from .skills import SkillError, SkillRegistry
+        try:
+            bot.skills = SkillRegistry(get_config().state_dir).validate_binding(
+                [item.strip() for item in skills.split(",") if item.strip()])
+        except SkillError as exc:
+            err.print(f"[red]{exc}[/red]")
+            raise typer.Exit(code=1) from None
     if instructions is not None: bot.instructions = instructions
     if description is not None: bot.description = description
     if approval is not None: bot.approval_mode = approval
@@ -1059,9 +1081,11 @@ def run(
     prompt: str = typer.Argument(..., help="What the bot should do"),
     watch: bool = typer.Option(True, "--watch/--no-watch", help="stream events while running"),
     rehearse: bool = typer.Option(False, "--rehearse", help="dry run: mutating actions are simulated and logged"),
+    skill: list[str] = typer.Option([], "--skill", help="activate one assigned, reviewed skill for this run (repeatable)"),
 ) -> None:
     """Run a bot once, now (blocking)."""
     from .engine import Engine
+    from .skills import SkillError
     config = get_config()
     store = _store()
     store.assert_execution_ready()
@@ -1074,7 +1098,11 @@ def run(
         raise typer.Exit(code=1) from None
     engine = Engine(config, store, executor=os.environ.get("HUTCH_EXECUTOR") or "process")
 
-    created = engine.submit(bot, prompt, origin="manual:cli", rehearsal=rehearse)
+    try:
+        created = engine.submit(bot, prompt, origin="manual:cli", rehearsal=rehearse, skills=skill)
+    except SkillError as exc:
+        err.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from None
     try:
         engine.dispatch_pending()
         topic, seen = f"run:{created.id}", 0
@@ -1812,6 +1840,185 @@ def serve(host: str = typer.Option("127.0.0.1"), port: int = typer.Option(8787),
     console.print(f"[bold]hutch[/bold] dashboard → {scheme}://{host}:{port}")
     uvicorn.run("hutch.server.app:create_app", factory=True, host=host, port=port, log_level="warning",
                 ssl_certfile=tls_cert, ssl_keyfile=tls_key, proxy_headers=False)
+
+
+@skills_app.command("list")
+def skills_list(
+    workspace: Optional[str] = typer.Option(None, "--workspace", help="also scan this project folder's skill locations"),
+) -> None:
+    """Show installed skills and discovered candidates."""
+    from .skills import SkillRegistry
+    report = SkillRegistry(get_config().state_dir).library(workspace=workspace)
+    installed = report["skills"]
+    if installed:
+        console.print("[bold]Installed[/bold]")
+        for item in installed:
+            mark = {"enabled": "[green]enabled[/green]", "disabled": "[yellow]disabled[/yellow]",
+                    "review_required": "[yellow]needs review[/yellow]", "update_pending": "[cyan]update ready[/cyan]",
+                    "modified": "[red]changed on disk[/red]", "missing": "[red]missing[/red]"}.get(item["status"], item["status"])
+            console.print(f"  {item['name']:<28} {mark}  {item['description'][:70]}")
+    else:
+        console.print("no installed skills yet — install one from the bundled samples or a local directory")
+    available = [item for item in report["available"] if not item["installed"]]
+    if available:
+        console.print("\n[bold]Available to install[/bold]")
+        for item in available:
+            if not item["valid"]:
+                reason = next((d["message"] for d in item["diagnostics"] if d["level"] == "error"), "invalid package")
+                console.print(f"  {item['name']:<28} [red]invalid[/red]  {reason[:70]}")
+            else:
+                scope = item["source"]["scope"]
+                console.print(f"  {item['name']:<28} [{scope}]  {item['description'][:60]}")
+    if report["collisions"]:
+        console.print("\n[yellow]Shadowed duplicates[/yellow] (project > user > bundled):")
+        for collision in report["collisions"]:
+            console.print(f"  {collision['name']}: using {collision['winner']}, shadowed {', '.join(collision['shadowed'])}")
+    for diagnostic in report["scan_diagnostics"]:
+        console.print(f"[dim]scan: {diagnostic['message']}[/dim]")
+
+
+@skills_app.command("show")
+def skills_show(name: str = typer.Argument(...), body: bool = typer.Option(False, "--body", help="print the instructions")) -> None:
+    """Inspect one installed skill: review state, source, hash, resources and diagnostics."""
+    from .skills import SkillRegistry
+    store = _store()
+    detail = SkillRegistry(get_config().state_dir).detail(name, include_body=body)
+    if detail is None:
+        err.print(f"[red]no such installed skill:[/red] {name}")
+        raise typer.Exit(code=1)
+    console.print(f"[bold]{detail['name']}[/bold]  {detail['status']}  hash {detail['hash'][:12]}")
+    console.print(f"  source: {detail['source'].get('kind', '?')} {detail['source'].get('detail', '')}")
+    console.print(f"  license: {detail['license'] or '(none)'}   version: {detail['version'] or '(none)'}")
+    if detail["requires_tools"]:
+        console.print(f"  requires tools: {', '.join(detail['requires_tools'])}")
+    if detail["resources"]:
+        console.print("  resources:")
+        for resource in detail["resources"][:20]:
+            console.print(f"    {resource['path']} ({resource['size']} bytes)")
+    bound = [bot.name for bot in store.list_bots() if name in (bot.skills or [])]
+    console.print(f"  assigned to: {', '.join(bound) if bound else '(no bots)'}")
+    for diagnostic in detail["diagnostics"]:
+        color = {"error": "red", "warning": "yellow"}.get(diagnostic["level"], "dim")
+        console.print(f"  [{color}]{diagnostic['level']}: {diagnostic['message']}[/{color}]")
+    if body and detail.get("body"):
+        console.print("\n[bold]Instructions[/bold]\n")
+        console.print(detail["body"])
+    if body and detail.get("staged_body"):
+        console.print("\n[bold]Staged update instructions (not active yet)[/bold]\n")
+        console.print(detail["staged_body"])
+
+
+@skills_app.command("validate")
+def skills_validate(path: str = typer.Argument(..., help="a local skill directory to inspect without installing")) -> None:
+    """Validate a SKILL.md package and show every diagnostic without installing it."""
+    from .skills import inspect_package
+    parsed, diagnostics, package_hash = inspect_package(Path(path).expanduser())
+    for diagnostic in diagnostics:
+        color = {"error": "red", "warning": "yellow"}.get(diagnostic.level, "dim")
+        console.print(f"  [{color}]{diagnostic.level}: {diagnostic.message}[/{color}]")
+    if parsed is None:
+        err.print("[red]not a valid skill package[/red]")
+        raise typer.Exit(code=1)
+    console.print(f"[green]valid[/green] {parsed.name}: {parsed.description[:80]}")
+    console.print(f"  hash {package_hash[:12]}  resources {len(parsed.resources)}  "
+                  f"requires tools: {', '.join(parsed.requires_tools) or '(none)'}")
+
+
+@skills_app.command("install")
+def skills_install(
+    path: Optional[str] = typer.Argument(None, help="a local skill directory to copy into Hutch"),
+    builtin: Optional[str] = typer.Option(None, "--builtin", help="install one of Hutch's bundled sample skills"),
+) -> None:
+    """Install a skill package. Installation is inert until you review and trust it."""
+    from .skills import SkillError, SkillRegistry
+    registry = SkillRegistry(get_config().state_dir)
+    if bool(path) == bool(builtin):
+        err.print("[red]give exactly one of a directory path or --builtin <name>[/red]")
+        raise typer.Exit(code=1)
+    try:
+        detail = registry.install_builtin(builtin) if builtin else registry.install_path(path)
+    except SkillError as exc:
+        err.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from None
+    console.print(f"[green]installed[/green] {detail['name']} (hash {detail['hash'][:12]}). "
+                  f"Review it with `hutch skills show {detail['name']}`, then `hutch skills trust {detail['name']}`.")
+
+
+def _skill_action(name: str, action: str):
+    from .skills import SkillError, SkillRegistry
+    registry = SkillRegistry(get_config().state_dir)
+    try:
+        return getattr(registry, action)(name)
+    except SkillError as exc:
+        err.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from None
+
+
+@skills_app.command("trust")
+def skills_trust(name: str = typer.Argument(...)) -> None:
+    """Record operator review of the exact installed bytes and enable the skill."""
+    detail = _skill_action(name, "trust")
+    console.print(f"[green]trusted and enabled[/green] {detail['name']} (hash {detail['hash'][:12]})")
+
+
+@skills_app.command("enable")
+def skills_enable(name: str = typer.Argument(...)) -> None:
+    """Re-enable a trusted skill that was disabled."""
+    _skill_action(name, "enable")
+    console.print(f"[green]enabled[/green] {name}")
+
+
+@skills_app.command("disable")
+def skills_disable(name: str = typer.Argument(...)) -> None:
+    """Stop disclosing or activating a skill; bindings and files stay in place."""
+    _skill_action(name, "disable")
+    console.print(f"disabled {name} — it will not load into any new run")
+
+
+@skills_app.command("recheck")
+def skills_recheck(name: str = typer.Argument(...)) -> None:
+    """Re-inspect the installed package after external changes; a changed trusted skill needs review again."""
+    detail = _skill_action(name, "recheck")
+    console.print(f"{detail['name']}: {detail['status']} (hash {detail['hash'][:12]})")
+
+
+@skills_app.command("update")
+def skills_update(name: str = typer.Argument(...)) -> None:
+    """Stage a new version from the skill's recorded source; the reviewed version stays active until applied."""
+    detail = _skill_action(name, "update")
+    staged = detail.get("staged_update") or {}
+    console.print(f"staged update {staged.get('hash', '')[:12]} for {name}. "
+                  f"Review it, then `hutch skills apply-update {name}` (or discard it).")
+
+
+@skills_app.command("apply-update")
+def skills_apply_update(name: str = typer.Argument(...)) -> None:
+    """Make a reviewed staged update the active version."""
+    detail = _skill_action(name, "apply_update")
+    console.print(f"[green]updated[/green] {name} → hash {detail['hash'][:12]}")
+
+
+@skills_app.command("discard-update")
+def skills_discard_update(name: str = typer.Argument(...)) -> None:
+    """Drop a staged update and keep the active version."""
+    _skill_action(name, "discard_update")
+    console.print(f"discarded the staged update for {name}")
+
+
+@skills_app.command("rollback")
+def skills_rollback(name: str = typer.Argument(...)) -> None:
+    """Restore the previous retained version of a skill."""
+    detail = _skill_action(name, "rollback")
+    console.print(f"[green]rolled back[/green] {name} → hash {detail['hash'][:12]}")
+
+
+@skills_app.command("uninstall")
+def skills_uninstall(name: str = typer.Argument(...), yes: bool = typer.Option(False, "--yes", help="skip the confirmation")) -> None:
+    """Remove an installed skill and its retained versions. Bots keep the name in their settings and show it as missing."""
+    if not yes:
+        typer.confirm(f"Uninstall skill '{name}'? Bots using it will stop loading it.", abort=True)
+    _skill_action(name, "uninstall")
+    console.print(f"uninstalled {name}")
 
 
 def main() -> None:  # console_scripts entry point
