@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Verify Stop against an active workflow model step through the process executor and scripted local HTTP model server. The workflow does not become terminal until its step child and orchestration attempt are stopped and their owned process records are closed; see the A1 regression in `docs/realignment/dynamic-workflows.md`.
 - Keep “Jump to latest” in its own reserved row below the transcript so a scrolled chat control cannot cover workflow-card text or collide with the fixed composer. The real local Studio route-card journey now checks WCAG text-spacing overrides, forced-colors rendering, keyboard focus, 44px action geometry and jump-to-latest behavior at 320px; opened screenshots and traces are retained. Actual browser-chrome zoom remains unverified.
 - Re-run the complete non-browser test suite in an isolated worktree after fixing configured temporary-root handling: 2,137 passed in 603.70s, including the previously storage-blocked offline worker and delegated-offline paths. Retain the command, source hashes and output log in the dynamic workflow evidence ledger; broad E2E and soak checks remain.
 - Place Strict Offline broker sockets under the configured private temporary root instead of forcing `/tmp`. This keeps isolated local workers available when the shared `/tmp` filesystem is full; the complete offline-mode test file passes with `TMPDIR=/var/tmp`.

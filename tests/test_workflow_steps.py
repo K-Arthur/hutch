@@ -88,6 +88,73 @@ def test_agent_node_releases_its_slot_while_its_child_step_runs(store, config, o
     assert view["workflow"]["ledger"].get("model_calls", 0) == 2
 
 
+def test_stopping_workflow_cancels_active_step_and_drains_its_process(store, config, ollama):
+    """Workflow Stop reaches a live model child and waits for verified process cleanup."""
+    bot = make_bot(store, name="stop-step-bot", model="ollama/tiny:1b", tools=[], selfcheck=False)
+    engine = Engine(config, store, executor="process")
+    ollama.script = agent_script([{"content": "This response is deliberately delayed."}])
+    ollama.stall_once = 2.0
+    plan = {
+        "name": "stop-active-step",
+        "envelope": {"tools": [], "models": ["ollama/tiny:1b"]},
+        "budget": {"max_nodes": 4, "max_model_calls": 2, "max_wall_seconds": 60},
+        "nodes": [{"kind": "agent", "id": "answer", "role": "worker",
+                   "model": "ollama/tiny:1b", "instruction": "Answer briefly.",
+                   "tools": [], "max_steps": 2}],
+    }
+    try:
+        submission = wfsubmit.submit_workflow(store, bot=bot, plan=plan,
+                                              definition_name="stop-active-step")
+        child_id = None
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            engine.tick()
+            node = next((item for item in wstore.nodes(store, submission.workflow_run_id)
+                         if item["site_id"] == "answer"), None)
+            if node and node.get("run_id"):
+                child = store.get_run(str(node["run_id"]))
+                if (child is not None and child.status.value == "running"
+                        and ollama.of("/api/chat")):
+                    child_id = child.id
+                    break
+            time.sleep(0.05)
+
+        assert child_id is not None, "the scripted model step did not enter its live request"
+        child = store.get_run(child_id)
+        assert child is not None and child.status.value == "running"
+        stopped = wfsubmit.stop_workflow(store, submission.workflow_run_id,
+                                         expected_revision_id=submission.revision_id)
+        assert stopped["stop_requested"] is True
+        assert store.get_run(child_id).cancel_requested is True
+
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
+            engine.tick()
+            view = wfsubmit.status(store, submission.workflow_run_id)
+            child = store.get_run(child_id)
+            attempt = store.get_run(submission.attempt_run_id)
+            if (view["workflow"]["status"] == "stopped" and child is not None
+                    and child.status.value == "stopped" and attempt is not None
+                    and attempt.status.value == "stopped"
+                    and not store.live_procs(child_id)
+                    and not store.live_procs(submission.attempt_run_id)):
+                break
+            time.sleep(0.05)
+
+        view = wfsubmit.status(store, submission.workflow_run_id)
+        child = store.get_run(child_id)
+        attempt = store.get_run(submission.attempt_run_id)
+        assert view["workflow"]["status"] == "stopped", view["workflow"]
+        assert child is not None and child.status.value == "stopped", child
+        assert attempt is not None and attempt.status.value == "stopped", attempt
+        assert not store.live_procs(child_id)
+        assert not store.live_procs(submission.attempt_run_id)
+        assert all(question["status"] != "pending"
+                   for question in wstore.questions(store, submission.workflow_run_id))
+    finally:
+        engine.shutdown()
+
+
 def test_agent_step_output_contract_is_enforced_and_fails_honestly(store, config, ollama):
     """A reply that does not satisfy the node's contract fails that node with the reason."""
     bot = make_bot(store, name="contract-bot", model="ollama/tiny:1b", tools=["files"], selfcheck=False)

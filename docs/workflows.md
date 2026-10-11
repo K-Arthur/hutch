@@ -242,6 +242,11 @@ slot. The workflow remains visible as waiting, not successful. An answer or sett
 the supervisor admit a fresh attempt; settled node records are reused.
 Stopping a parked workflow cancels its pending questions and owned child work, and it remains
 visible until cleanup is verified.
+Stopping while a model step is active also cancels the step run. The process-executor
+regression verifies that both the step and orchestration attempt settle as stopped, and that
+their owned process records are closed before the workflow becomes terminal.
+The scripted local model-server test and recorded source hashes are listed in the
+[A1 workflow acceptance evidence](realignment/dynamic-workflows.md#a1).
 
 Effect receipts use a stable workflow revision/site/instance/slot identity. If a process
 crashes after an effect is recorded but before its node settles, Hutch reuses the stored result
