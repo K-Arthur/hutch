@@ -440,6 +440,38 @@ def test_connection_skills_do_not_load_in_strict_offline_mode(tmp_path):
     assert [c.name for c in reg.effective_for_bot(hybrid, connections={"outlook-mail"}).catalog] == ["mail-digest"]
 
 
+def test_concurrent_registry_mutations_serialize(tmp_path):
+    """Two writers (separate registry instances/handles) must not corrupt the registry."""
+    import threading
+
+    sources = {}
+    for name in ("alpha", "beta"):
+        sources[name] = make_skill(tmp_path / "src", name, f"{name} skill.")
+
+    results: dict[str, dict] = {}
+    errors: list[str] = []
+
+    def worker(name: str):
+        registry = sk.SkillRegistry(tmp_path / "state")
+        try:
+            registry.install_path(sources[name])
+            results[name] = registry.trust(name)
+        except Exception as exc:  # noqa: BLE001 - reported, not swallowed
+            errors.append(f"{name}: {type(exc).__name__}: {exc}")
+
+    threads = [threading.Thread(target=worker, args=(name,)) for name in sources]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert not errors, errors
+    assert results["alpha"]["status"] == "enabled" and results["beta"]["status"] == "enabled"
+    document = json.loads((tmp_path / "state" / "skills" / "registry.json").read_text())
+    assert set(document["skills"]) == {"alpha", "beta"}
+    for entry in document["skills"].values():
+        assert entry["trust"] and entry["hash"]
+
+
 def test_registry_state_survives_a_new_instance(tmp_path):
     source = make_skill(tmp_path / "src", "workspace-summary", "Summarize the workspace.")
     reg = registry_for(tmp_path)
