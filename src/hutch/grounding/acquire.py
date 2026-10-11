@@ -779,7 +779,7 @@ def run_search(question: str, *, cutoff: EvidenceCutoff, budget: AcquireBudget, 
     result = AcquireResult()
     deadline = time.monotonic() + budget.wall_seconds
 
-    def run_one(name: str, query: str) -> list[tuple[list[FoundSource], AdapterOutcome]]:
+    def run_one(name: str, query: str, stop_fn: Callable[[], bool]) -> list[tuple[list[FoundSource], AdapterOutcome]]:
         fn = overrides.get(name, ADAPTERS.get(name))
         if fn is None:
             outcome = AdapterOutcome(adapter=name, lane="?", query=query, state="unavailable",
@@ -788,7 +788,7 @@ def run_search(question: str, *, cutoff: EvidenceCutoff, budget: AcquireBudget, 
         out: list[tuple[list[FoundSource], AdapterOutcome]] = []
         for attempt in range(2):
             try:
-                out.append(fn(query, cutoff, budget, clock, cfg, stop))
+                out.append(fn(query, cutoff, budget, clock, cfg, stop_fn))
                 break
             except Exception as exc:  # noqa: BLE001 - last-line defense; adapters already report
                 if attempt == 1:
@@ -799,30 +799,60 @@ def run_search(question: str, *, cutoff: EvidenceCutoff, budget: AcquireBudget, 
         return out
 
     jobs = [(name, query) for name in selected for query in query_list]
-    with ThreadPoolExecutor(max_workers=max(1, min(budget.max_concurrency, len(jobs) or 1)),
-                            thread_name_prefix="hutch-grounding") as pool:
-        futures = {pool.submit(run_one, name, query): (name, query) for name, query in jobs}
+    deadline_flag = threading.Event()
+
+    def stop_or_deadline() -> bool:
+        return stop() or deadline_flag.is_set()
+
+    def absorb(name: str, query: str, pairs: list[tuple[list[FoundSource], AdapterOutcome]]) -> None:
+        for sources, outcome in pairs:
+            if len(result.sources) + len(sources) > budget.max_total_sources:
+                room = max(0, budget.max_total_sources - len(result.sources))
+                sources, result.truncated = sources[:room], True
+            result.sources.extend(sources)
+            result.outcomes.append(outcome)
+
+    pool = ThreadPoolExecutor(max_workers=max(1, min(budget.max_concurrency, len(jobs) or 1)),
+                              thread_name_prefix="hutch-grounding")
+    try:
+        futures = {pool.submit(run_one, name, query, stop_or_deadline): (name, query)
+                   for name, query in jobs}
         while futures:
             remaining = deadline - time.monotonic()
             if remaining <= 0 or stop():
+                # The wall budget is a hard bound on THIS call: late results are discarded and
+                # reported as a ledger entry, never silently merged after the deadline. Adapter
+                # threads see stop_or_deadline, so cooperative adapters stop at the next check;
+                # an in-flight socket read is still bounded by its own timeout. Results that
+                # finished before the deadline check are still harvested.
                 result.deadline_hit = not stop()
-                for future in futures:
-                    future.cancel()
+                deadline_flag.set()
+                for future, (name, query) in list(futures.items()):
+                    if future.done() and not future.cancelled():
+                        try:
+                            absorb(name, query, future.result())
+                        except Exception as exc:  # pragma: no cover - run_one catches
+                            absorb(name, query, [([], AdapterOutcome(
+                                adapter=name, lane="?", query=query, state="error",
+                                detail=f"{type(exc).__name__}: {exc}"))])
+                    else:
+                        future.cancel()
+                        result.outcomes.append(AdapterOutcome(
+                            adapter=name, lane="?", query=query, state="partial",
+                            detail=("discarded at the investigation deadline: no result was accepted from this "
+                                    "call; the adapter may finish in the background and its output is not used")))
+                futures.clear()
                 break
             done, _ = wait(list(futures), timeout=min(remaining, 1.0), return_when=FIRST_COMPLETED)
             for future in done:
                 name, query = futures.pop(future)
                 try:
-                    pairs = future.result()
+                    absorb(name, query, future.result())
                 except Exception as exc:  # pragma: no cover - run_one catches
-                    pairs = [([], AdapterOutcome(adapter=name, lane="?", query=query, state="error",
-                                                 detail=f"{type(exc).__name__}: {exc}"))]
-                for sources, outcome in pairs:
-                    if len(result.sources) + len(sources) > budget.max_total_sources:
-                        room = max(0, budget.max_total_sources - len(result.sources))
-                        sources, result.truncated = sources[:room], True
-                    result.sources.extend(sources)
-                    result.outcomes.append(outcome)
+                    absorb(name, query, [([], AdapterOutcome(adapter=name, lane="?", query=query, state="error",
+                                                             detail=f"{type(exc).__name__}: {exc}"))])
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
     # stable, newest-first ordering for the reader (unknown dates last)
     result.sources.sort(key=lambda s: (s.published.ordering_key() if s.published else (1, "")), reverse=True)
     return result

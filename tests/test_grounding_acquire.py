@@ -195,11 +195,17 @@ def test_fan_out_mixes_unavailable_adapters_with_useful_results(monkeypatch):
 def test_fan_out_wall_deadline_returns_partial_findings(monkeypatch):
     monkeypatch.setitem(acquire_mod.ADAPTERS, "gdelt", _fake("gdelt", ["https://n.example/1"]))
     monkeypatch.setitem(acquire_mod.ADAPTERS, "hn", _fake("hn", ["https://n.example/2"], delay=1.5))
+    started = time.monotonic()
     result = acquire_mod.run_search("x", cutoff=CUTOFF, budget=acquire_mod.AcquireBudget(wall_seconds=0.4,
                                                                                          max_adapters=2),
                                     clock=CLOCK, cfg=acquire_mod.GroundingConfig(), lanes=("news", "discussion"))
+    elapsed = time.monotonic() - started
     assert result.deadline_hit and any(s.url.endswith("/1") for s in result.sources)
     assert not any(s.url.endswith("/2") for s in result.sources)
+    # the wall budget bounds THIS call: the still-running 1.5 s adapter must not hold it open
+    assert elapsed < 1.2, f"wall deadline was not a hard bound ({elapsed:.2f}s)"
+    discarded = [o for o in result.outcomes if o.state == "partial" and "discarded" in o.detail]
+    assert discarded and discarded[0].adapter == "hn"
 
 
 def test_fan_out_respects_the_total_source_budget(monkeypatch):

@@ -143,6 +143,12 @@ receipts strip. The chosen panel keeps the existing dark token set and Archivo d
   schema-downgrade helper; the documents schema pin updated; the sandbox home-containment test
   strengthened to assert real home entries are invisible rather than counting an environment
   dependent error string.
+- Measured scheduler comparison (`benchmarks/grounding_fanout.py`, deterministic fake adapters,
+  no network, 5 samples, this machine): serial baseline **2.001 s** vs bounded fan-out
+  **0.501 s** for four 0.5 s adapters (≈4.0×). With a 0.6 s wall budget the call returned in
+  **0.60 s** and the still-running adapter was recorded as a discarded deadline entry; the first
+  measurement showed 1.5 s, which exposed that the wall budget was not a hard bound — fixed and
+  locked with a unit-test bound. This measures Hutch's scheduler, not providers or networks.
 
 ## Classification of each source/model/workflow
 
