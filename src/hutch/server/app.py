@@ -118,6 +118,19 @@ REMOTE_ROUTE_CAPABILITIES: dict[tuple[str, str], Optional[str]] = {
     ("POST", "/api/v1/actions/approvals/{approval_id}/deny"): "review",
     ("POST", "/api/v1/tasks/runs"): "start",
     ("POST", "/api/v1/search/messages"): "monitor",
+    # Local-owner-only surfaces (registered but explicitly unreachable from paired phones):
+    ("GET", "/api/v1/runtime"): None,
+    ("POST", "/api/v1/runtime/service/install"): None,
+    ("POST", "/api/v1/runtime/service/restart"): None,
+    ("POST", "/api/v1/runtime/service/stop"): None,
+    ("POST", "/api/v1/runtime/service/uninstall"): None,
+    ("POST", "/api/v1/runtime/service/startup"): None,
+    ("GET", "/api/v1/sources"): None,
+    ("POST", "/api/v1/sources"): None,
+    ("PUT", "/api/v1/sources/{source_id}"): None,
+    ("DELETE", "/api/v1/sources/{source_id}"): None,
+    ("GET", "/api/v1/sources/{source_id}/events"): None,
+    ("POST", "/api/v1/sources/{source_id}/check"): None,
 }
 
 PUBLIC_REMOTE_ROUTES = {("GET", "/login"), ("POST", "/login"), ("GET", "/pair"),
@@ -1755,6 +1768,19 @@ class SourceUpdateRequest(BaseModel):
     replace_config: bool = False
 
 
+class ServiceActionRequest(BaseModel):
+    """A deliberate, confirmed local service action (never reachable by paired phones)."""
+
+    confirm: str = Field(min_length=1, max_length=32)
+    port: int = Field(default=8787, ge=1, le=65535)
+    delay_seconds: float = Field(default=1.2, ge=0.2, le=10.0)
+
+
+class ServiceStartupRequest(BaseModel):
+    enabled: bool
+    confirm: str = Field(min_length=1, max_length=32)
+
+
 def create_app() -> FastAPI:
     config = get_config()
     store = Store(config)
@@ -2081,13 +2107,13 @@ def create_app() -> FastAPI:
 
     _runtime_service_cache: dict[str, Any] = {"at": 0.0, "value": None}
 
-    def runtime_service_snapshot() -> dict:
+    def runtime_service_snapshot(force: bool = False) -> dict:
         """Service/linger snapshot, cached ~5s because each check shells out to systemd."""
         import time as _time
 
         now = _time.monotonic()
         cached = _runtime_service_cache["value"]
-        if cached is not None and now - float(_runtime_service_cache["at"]) < 5.0:
+        if not force and cached is not None and now - float(_runtime_service_cache["at"]) < 5.0:
             return cached
         from ..service import ServiceError, linger_state, user_service_status
 
@@ -2142,6 +2168,95 @@ def create_app() -> FastAPI:
             },
             "sources": store.source_inbox_stats(),
         }
+
+    def _confirmed(body, expected: str) -> None:
+        if body.confirm != expected:
+            raise HTTPException(422, f'this action needs the exact confirmation "{expected}"')
+
+    @app.post("/api/v1/runtime/service/install")
+    def runtime_service_install(body: ServiceActionRequest) -> dict:
+        """Install and start the loopback-only user service after a confirmed click."""
+        _confirmed(body, "install")
+        from ..service import ServiceError, install_user_service
+
+        try:
+            install_user_service(config.state_dir, port=body.port, ready_timeout=10.0)
+        except ServiceError as exc:
+            raise HTTPException(502, str(exc)) from None
+        return runtime_service_snapshot(force=True)
+
+    @app.post("/api/v1/runtime/service/restart")
+    def runtime_service_restart(body: ServiceActionRequest) -> dict:
+        _confirmed(body, "restart")
+        from ..service import ServiceError, restart_user_service
+
+        try:
+            restart_user_service()
+        except ServiceError as exc:
+            raise HTTPException(502, str(exc)) from None
+        snapshot = runtime_service_snapshot(force=True)
+        if not snapshot.get("ready"):
+            raise HTTPException(502, "the service restarted but did not answer the readiness handshake: "
+                                     f"{snapshot.get('detail') or 'not confirmed'}")
+        return snapshot
+
+    @app.post("/api/v1/runtime/service/stop")
+    def runtime_service_stop(body: ServiceActionRequest) -> dict:
+        """Stop the managed service after a confirmed click.
+
+        The stop is issued just after this response flushes (the dashboard is
+        served by the process being stopped). An explicit stop is a person's
+        decision: the unit's Restart=on-failure policy does not relaunch it.
+        """
+        _confirmed(body, "stop")
+        import threading
+        import time as _time
+
+        def _delayed_stop(delay: float) -> None:
+            _time.sleep(delay)
+            from ..service import ServiceError, stop_user_service
+
+            try:
+                stop_user_service()
+            except ServiceError:
+                pass  # nothing sensible to report to a closed connection; `hutch service status` shows the truth
+            _runtime_service_cache["value"] = None
+
+        threading.Thread(target=_delayed_stop, args=(body.delay_seconds,),
+                         name="hutch-service-stop", daemon=True).start()
+        return {"stopping": True, "delay_seconds": body.delay_seconds,
+                "detail": ("Hutch's background service stops in a moment. In-progress work is signalled and its "
+                           "outcome is recorded; nothing already sent to a provider is undone.")}
+
+    @app.post("/api/v1/runtime/service/uninstall")
+    def runtime_service_uninstall(body: ServiceActionRequest) -> dict:
+        _confirmed(body, "uninstall")
+        from ..service import ServiceError, remove_user_service
+
+        try:
+            removed = remove_user_service()
+        except ServiceError as exc:
+            raise HTTPException(502, str(exc)) from None
+        if not removed:
+            raise HTTPException(404, "Hutch's user service is not installed")
+        _runtime_service_cache["value"] = None
+        return {"removed": True, "detail": "The unit was stopped and removed. Your database, assistants, "
+                                           "credentials and workspaces were not changed."}
+
+    @app.post("/api/v1/runtime/service/startup")
+    def runtime_service_startup(body: ServiceStartupRequest) -> dict:
+        """Enable or disable login lingering (start at boot, keep running after logout)."""
+        _confirmed(body, "startup")
+        from ..service import ServiceError, set_linger
+
+        try:
+            state = set_linger(body.enabled)
+        except ServiceError as exc:
+            raise HTTPException(502, str(exc)) from None
+        snapshot = runtime_service_snapshot(force=True)
+        snapshot = {**snapshot, "linger": state}
+        _runtime_service_cache["value"] = snapshot
+        return snapshot
 
     # ------------------------------------------------------------- sources
     # Durable, model-free change detection. Registration lives here; checks run

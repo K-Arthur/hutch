@@ -402,6 +402,54 @@ def restart_user_service(*, systemctl_bin: str | None = None,
         raise ServiceError("systemd did not report hutch.service active after the restart")
 
 
+def stop_user_service(*, systemctl_bin: str | None = None,
+                      systemctl_runner: Callable[..., Any] | None = None) -> None:
+    """Stop the unit explicitly.
+
+    An explicit stop is a person's decision: ``Restart=on-failure`` does not
+    relaunch a unit that systemd was asked to stop. This only stops the
+    service; the unit file and all Hutch data stay in place.
+    """
+    binary = _systemd_binary(systemctl_bin)
+    _systemctl(binary, ["stop", UNIT_NAME], systemctl_runner)
+    active = _systemctl(binary, ["is-active", UNIT_NAME], systemctl_runner)
+    state = (getattr(active, "stdout", "") or "").strip() or "unknown"
+    if state not in ("inactive", "failed", "deactivating"):
+        raise ServiceError(f"systemd did not report hutch.service stopped (state: {state})")
+
+
+def set_linger(enabled: bool, *, systemctl_runner: Callable[..., Any] | None = None,
+               loginctl_bin: str | None = None, user: str | None = None) -> str:
+    """Enable or disable login lingering after an explicit owner choice; verify the new state.
+
+    Lingering changes login semantics: with it enabled, the user manager (and
+    therefore Hutch) starts at boot and keeps running after logout. It is never
+    changed as a side effect of another command.
+    """
+    if sys.platform != "linux":
+        raise ServiceError("login lingering is a Linux/systemd concept")
+    binary = loginctl_bin or shutil.which("loginctl")
+    if not binary:
+        raise ServiceError("loginctl is not installed; lingering cannot be changed here")
+    target_user = user or os.environ.get("USER") or os.environ.get("LOGNAME") or ""
+    if not target_user:
+        raise ServiceError("cannot determine the current user for loginctl")
+    run = systemctl_runner if systemctl_runner is not None else subprocess.run
+    action = "enable-linger" if enabled else "disable-linger"
+    try:
+        result = run([binary, action, target_user], capture_output=True, text=True, timeout=30, check=False)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ServiceError(f"loginctl {action} could not be run") from exc
+    if result.returncode != 0:
+        detail = " ".join(((result.stderr or result.stdout) or "").split())[:200]
+        raise ServiceError(f"loginctl {action} failed" + (f": {detail}" if detail else ""))
+    state = linger_state(systemctl_runner=run, loginctl_bin=binary, user=target_user)
+    expected = "enabled" if enabled else "disabled"
+    if state != expected:
+        raise ServiceError(f"loginctl reported lingering as {state!r} after the change")
+    return state
+
+
 def user_service_status(*, systemctl_bin: str | None = None,
                         config_home: Path | None = None,
                         systemctl_runner: Callable[..., Any] | None = None,
@@ -413,7 +461,8 @@ def user_service_status(*, systemctl_bin: str | None = None,
     binary = _systemd_binary(systemctl_bin)
     loaded = _systemctl(binary, ["show", "-p", "LoadState", "--value", UNIT_NAME], systemctl_runner)
     if (getattr(loaded, "stdout", "") or "").strip() == "not-found":
-        return ServiceStatus("not installed", installed=False, active=False, linger="unknown")
+        return ServiceStatus("not installed", installed=False, active=False,
+                             linger=linger_state(systemctl_runner=systemctl_runner, loginctl_bin=loginctl_bin))
     active = _systemctl(binary, ["is-active", UNIT_NAME], systemctl_runner)
     state = (getattr(active, "stdout", "") or "").strip() or "unknown"
     path = _unit_path(config_home)

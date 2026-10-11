@@ -1,0 +1,92 @@
+{
+  "screens": [
+    {
+      "size": "desktop",
+      "width": 1440,
+      "height": 960,
+      "nav_current": "page",
+      "heading": "Runtime & background work",
+      "overflow_x": 0,
+      "sections": [
+        "This machine",
+        "Background service",
+        "Watched sources",
+        "Queue & automation"
+      ],
+      "attention_rows": 1,
+      "source_rows": 2,
+      "focusable_controls": 12,
+      "keyboard_focus": "install",
+      "a11y": {
+        "headings": [
+          "Assistants",
+          "Runtime & background work",
+          "Needs attention",
+          "This machine",
+          "Background service",
+          "Watched sources",
+          "Queue & automation",
+          "Needs you",
+          "Action outcomes to check"
+        ],
+        "buttons": 10,
+        "labelled_sections": 4,
+        "status_regions": 6
+      }
+    },
+    {
+      "size": "tablet",
+      "width": 900,
+      "height": 1024,
+      "nav_current": "page",
+      "heading": "Runtime & background work",
+      "overflow_x": 0,
+      "sections": [
+        "This machine",
+        "Background service",
+        "Watched sources",
+        "Queue & automation"
+      ],
+      "attention_rows": 1,
+      "source_rows": 2,
+      "focusable_controls": 12
+    },
+    {
+      "size": "phone",
+      "width": 390,
+      "height": 844,
+      "nav_current": "page",
+      "heading": "Runtime & background work",
+      "overflow_x": 0,
+      "sections": [
+        "This machine",
+        "Background service",
+        "Watched sources",
+        "Queue & automation"
+      ],
+      "attention_rows": 1,
+      "source_rows": 2,
+      "focusable_controls": 12
+    },
+    {
+      "size": "compact-phone",
+      "width": 320,
+      "height": 740,
+      "nav_current": "page",
+      "heading": "Runtime & background work",
+      "overflow_x": 0,
+      "sections": [
+        "This machine",
+        "Background service",
+        "Watched sources",
+        "Queue & automation"
+      ],
+      "attention_rows": 1,
+      "source_rows": 2,
+      "focusable_controls": 12
+    }
+  ],
+  "console_errors": [],
+  "page_errors": [],
+  "failed_requests": []
+}

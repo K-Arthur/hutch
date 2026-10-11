@@ -7694,6 +7694,8 @@ class Store:
         stamp = iso(now or utcnow())
         moment = now or utcnow()
         with self._tx() as db:
+            if self.workspace_schedule_control()["paused"]:
+                return None
             row = db.execute(f"SELECT {self._SOURCE_COLS} FROM event_sources WHERE id = ?", (source_id,)).fetchone()
             if row is None or not row["enabled"]:
                 return None

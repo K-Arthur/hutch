@@ -119,6 +119,121 @@ def test_runtime_endpoint_includes_source_summary(tmp_path, monkeypatch):
         assert body["sources"]["total"] == 1 and body["sources"]["enabled"] == 1
 
 
+# ------------------------------------------------------ service controls
+
+def _fake_service_status(**overrides):
+    from hutch.service import ServiceStatus
+
+    values = dict(state="active", installed=True, active=True, port=8787, unit_path=None,
+                  ready=True, detail="ready", instance={"id": "x", "pid": 1}, linger="disabled",
+                  main_pid=1)
+    values.update(overrides)
+    return ServiceStatus(**values)
+
+
+def test_service_controls_require_exact_confirmation(tmp_path, monkeypatch):
+    app, client = _client(tmp_path, monkeypatch)
+    called: list[str] = []
+    monkeypatch.setattr("hutch.service.install_user_service",
+                        lambda *a, **k: called.append("install"))
+    with client:
+        for route, payload in (
+            ("install", {"confirm": "yes"}),
+            ("restart", {"confirm": "nope"}),
+            ("stop", {"confirm": ""}),
+            ("uninstall", {"confirm": "delete"}),
+        ):
+            response = client.post(f"/api/v1/runtime/service/{route}", json=payload)
+            assert response.status_code in (422,), (route, response.text)
+        assert called == [], "no service action may run without the exact confirmation"
+
+
+def test_service_install_and_restart_report_readiness(tmp_path, monkeypatch):
+    from hutch.service import ServiceInstall, ServiceProbe
+
+    app, client = _client(tmp_path, monkeypatch)
+    installs: list[dict] = []
+    monkeypatch.setattr("hutch.service.install_user_service",
+                        lambda state_dir, port=8787, ready_timeout=10.0: installs.append(
+                            {"state_dir": state_dir, "port": port, "ready_timeout": ready_timeout})
+                        or ServiceInstall(path=tmp_path / "unit", started=True, ready=True))
+    monkeypatch.setattr("hutch.service.user_service_status", lambda **k: _fake_service_status())
+    with client:
+        response = client.post("/api/v1/runtime/service/install",
+                               json={"confirm": "install", "port": 18899})
+        assert response.status_code == 200, response.text
+        assert installs and installs[0]["port"] == 18899
+        assert response.json()["ready"] is True
+
+        monkeypatch.setattr("hutch.service.restart_user_service", lambda **k: None)
+        restarted = client.post("/api/v1/runtime/service/restart", json={"confirm": "restart"})
+        assert restarted.status_code == 200 and restarted.json()["state"] == "active"
+
+
+def test_service_restart_fails_loudly_when_not_ready(tmp_path, monkeypatch):
+    app, client = _client(tmp_path, monkeypatch)
+    monkeypatch.setattr("hutch.service.restart_user_service", lambda **k: None)
+    monkeypatch.setattr("hutch.service.user_service_status", lambda **k: _fake_service_status(
+        ready=False, detail="a different Hutch instance owns this port"))
+    with client:
+        response = client.post("/api/v1/runtime/service/restart", json={"confirm": "restart"})
+        assert response.status_code == 502
+        assert "readiness handshake" in response.json()["detail"]
+
+
+def test_service_install_failure_is_honest(tmp_path, monkeypatch):
+    from hutch.service import ServiceError
+
+    def boom(*a, **k):
+        raise ServiceError("unit file was written and systemd reports hutch.service active, but the readiness "
+                           "check did not confirm the expected instance: no Hutch answered")
+
+    app, client = _client(tmp_path, monkeypatch)
+    monkeypatch.setattr("hutch.service.install_user_service", boom)
+    with client:
+        response = client.post("/api/v1/runtime/service/install", json={"confirm": "install"})
+        assert response.status_code == 502
+        assert "did not confirm" in response.json()["detail"]
+
+
+def test_service_stop_issues_the_action_after_responding(tmp_path, monkeypatch):
+    import time
+
+    app, client = _client(tmp_path, monkeypatch)
+    stopped: list[str] = []
+    monkeypatch.setattr("hutch.service.stop_user_service", lambda **k: stopped.append("stop"))
+    with client:
+        response = client.post("/api/v1/runtime/service/stop",
+                               json={"confirm": "stop", "delay_seconds": 0.2})
+        assert response.status_code == 200 and response.json()["stopping"] is True
+        deadline = time.time() + 5
+        while time.time() < deadline and not stopped:
+            time.sleep(0.05)
+        assert stopped == ["stop"], "the delayed stop must actually run after the response"
+
+
+def test_service_uninstall_and_startup(tmp_path, monkeypatch):
+    app, client = _client(tmp_path, monkeypatch)
+    monkeypatch.setattr("hutch.service.remove_user_service", lambda **k: False)
+    monkeypatch.setattr("hutch.service.user_service_status", lambda **k: _fake_service_status(
+        installed=False, active=False, state="not installed", ready=None))
+    with client:
+        assert client.post("/api/v1/runtime/service/uninstall",
+                           json={"confirm": "uninstall"}).status_code == 404
+
+        monkeypatch.setattr("hutch.service.remove_user_service", lambda **k: True)
+        removed = client.post("/api/v1/runtime/service/uninstall", json={"confirm": "uninstall"})
+        assert removed.status_code == 200 and removed.json()["removed"] is True
+
+        linger_calls: list[bool] = []
+        monkeypatch.setattr("hutch.service.set_linger", lambda enabled, **k: linger_calls.append(enabled)
+                            or ("enabled" if enabled else "disabled"))
+        started = client.post("/api/v1/runtime/service/startup",
+                              json={"confirm": "startup", "enabled": True})
+        assert started.status_code == 200 and linger_calls == [True]
+        assert started.json()["linger"] == "enabled"
+
+
 def test_source_cli_add_list_check_remove(tmp_path, monkeypatch):
     from typer.testing import CliRunner
 

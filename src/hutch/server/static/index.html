@@ -41,6 +41,7 @@
           <a href="#/overview" data-nav="overview"><span class="nav-ico" aria-hidden="true"></span>Activity</a>
           <a href="#/schedules" data-nav="schedules"><span class="nav-ico" aria-hidden="true"></span>Scheduled work</a>
           <a href="#/runs" data-nav="runs"><span class="nav-ico" aria-hidden="true"></span>Work history</a>
+          <a href="#/runtime" data-nav="runtime"><span class="nav-ico" aria-hidden="true"></span>Runtime</a>
           <a href="#/skills" data-nav="skills"><span class="nav-ico" aria-hidden="true"></span>Skills</a>
           <a href="#/bots" data-nav="bots" id="fleet-nav" hidden><span class="nav-ico" aria-hidden="true"></span>Manage assistants</a>
         </details>
@@ -90,9 +91,10 @@
            idle = quiet. -->
       <div class="app-top-status" id="app-top-status">
         <span id="workflow" class="workflow" hidden></span>
-        <span id="daemon-pill" class="pill daemon connecting" data-state="connecting" title="Checking executor health…" hidden>
+        <a id="daemon-pill" class="pill daemon connecting" data-state="connecting" href="#/runtime"
+           title="Checking executor health…" hidden>
           <span class="daemon-dot" aria-hidden="true"></span><span id="daemon-label">checking</span>
-        </span>
+        </a>
       </div>
       <div id="execution-hold" class="execution-hold" role="status" hidden>
         <span><strong>Restored history — execution paused.</strong> Review this copy on the executor before starting new work.</span>
