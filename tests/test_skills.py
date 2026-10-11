@@ -425,6 +425,21 @@ def test_same_size_edit_with_restored_mtime_is_still_caught_at_run_start(tmp_pat
     assert any("changed on disk" in warning for warning in resolved.warnings)
 
 
+def test_connection_skills_do_not_load_in_strict_offline_mode(tmp_path):
+    source = make_skill(tmp_path / "src", "mail-digest", "Digest mail.",
+                         frontmatter=("---\nname: mail-digest\ndescription: Digest mail.\nmetadata:\n"
+                                      "  hutch.requires-connections: \"outlook-mail\"\n---\nbody"))
+    reg = registry_for(tmp_path)
+    reg.install_path(source)
+    reg.trust("mail-digest")
+    bot = Bot(name="tester", skills=["mail-digest"], inference_mode="offline")
+    resolved = reg.effective_for_bot(bot, connections={"outlook-mail"})
+    assert resolved.catalog == []
+    assert any("Strict Offline" in warning for warning in resolved.warnings)
+    hybrid = Bot(name="tester2", skills=["mail-digest"])
+    assert [c.name for c in reg.effective_for_bot(hybrid, connections={"outlook-mail"}).catalog] == ["mail-digest"]
+
+
 def test_registry_state_survives_a_new_instance(tmp_path):
     source = make_skill(tmp_path / "src", "workspace-summary", "Summarize the workspace.")
     reg = registry_for(tmp_path)

@@ -1191,6 +1191,9 @@ class SkillRegistry:
             return None, (f"skill '{name}' requires the {', '.join(missing_tools)} tool(s) this Bot does not enable"), "requires_tools"
         if parsed.requires_connections:
             granted = available_connections if available_connections is not None else set()
+            if getattr(getattr(bot, "inference_mode", None), "value", "") == "offline":
+                labels = ", ".join(CONNECTION_SERVICE_LABELS.get(service, service) for service in parsed.requires_connections)
+                return None, (f"skill '{name}' requires the {labels} connection, which Strict Offline mode does not use"), "requires_connections"
             missing = [service for service in parsed.requires_connections if service not in granted]
             if missing:
                 labels = ", ".join(CONNECTION_SERVICE_LABELS.get(service, service) for service in missing)
