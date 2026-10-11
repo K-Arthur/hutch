@@ -209,6 +209,60 @@ def test_runtime_transmits_frames_as_image_parts_and_records_it(store, config, t
         oai.close()
 
 
+def test_runtime_transmits_frames_to_anthropic_as_image_blocks(store, config, tmp_path):
+    from tests.fakes import FakeAnthropic, agent_script
+    from tests.test_runtime_builtin import build, factory, run_it, runtime
+    srv = FakeAnthropic()
+    try:
+        def base(body):
+            return {"content": "seen", "input_tokens": 10, "output_tokens": 2, "cache_read": 0, "cache_write": 0}
+
+        def scripted(body):  # first turn asks for the tool, then answers
+            if not scripted.called:
+                scripted.called = True
+                return {"content": "", "tool_calls": [{"name": "fake_media", "arguments": {}}],
+                        "input_tokens": 10, "output_tokens": 2, "cache_read": 0, "cache_write": 0}
+            return base(body)
+        scripted.called = False
+        srv.script = scripted
+        ctx, run, _, _ = build(store, config, tmp_path, model="anthropic/claude-opus-5-5", tools=())
+        tools = {"fake_media": _MediaReturningTool(_jpeg_bytes(tmp_path))}
+        assert run_it(runtime(provider_factory=factory(claude=srv)), run, ctx, tools) == "seen"
+        bodies = [r["body"] for r in srv.of("/v1/messages")]
+        image = None
+        for body in bodies:
+            for message in body.get("messages", []):
+                content = message.get("content")
+                if isinstance(content, list):
+                    for block in content:
+                        if isinstance(block, dict) and block.get("type") == "image":
+                            image = block
+        assert image is not None, "the Anthropic wire request must carry an image block"
+        assert image["source"]["type"] == "base64" and image["source"]["media_type"] == "image/jpeg"
+        import base64
+        assert base64.b64decode(image["source"]["data"]).startswith(b"\xff\xd8\xff")
+    finally:
+        srv.close()
+
+
+def test_runtime_transmits_frames_to_ollama_as_native_images(store, config, tmp_path):
+    from tests.fakes import FakeOllama, agent_script
+    from tests.test_runtime_builtin import build, factory, run_it, runtime
+    srv = FakeOllama({"fake:8b": {}})
+    try:
+        srv.script = agent_script([{"tool_calls": [{"name": "fake_media", "arguments": {}}]}, {"content": "seen"}])
+        ctx, run, _, _ = build(store, config, tmp_path, model="ollama/fake:8b", tools=())
+        tools = {"fake_media": _MediaReturningTool(_jpeg_bytes(tmp_path))}
+        assert run_it(runtime(provider_factory=factory(ollama=srv)), run, ctx, tools) == "seen"
+        chats = srv.of("/api/chat")
+        carried = [m for body in chats for m in body["body"].get("messages", []) if m.get("images")]
+        assert carried, "the Ollama native request must carry base64 images on a user message"
+        import base64
+        assert base64.b64decode(carried[-1]["images"][0]).startswith(b"\xff\xd8\xff")
+    finally:
+        srv.close()
+
+
 def test_runtime_tells_the_model_when_a_route_cannot_receive_images(store, config, tmp_path):
     from hutch.providers.openai_compat import OpenAICompatProvider
     from tests.fakes import FakeOpenAI, agent_script

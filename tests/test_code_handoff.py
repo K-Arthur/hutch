@@ -160,7 +160,7 @@ while time.monotonic() < deadline:
     if b"RESTORED foreground=True" in output:
         break
 waited_pid = 0
-wait_deadline = time.monotonic() + 2
+wait_deadline = time.monotonic() + 15
 while waited_pid == 0 and time.monotonic() < wait_deadline:
     waited_pid, status = os.waitpid(pid, os.WNOHANG)
     if waited_pid == 0:

@@ -105,6 +105,57 @@ def test_hard_cut_is_sampled_even_when_it_misses_the_uniform_grid(tmp_path):
     assert "scene changes" in plan["text"]
 
 
+def test_region_crop_maps_back_to_original_coordinates(tmp_path):
+    """A claim about a sign or a receipt total is inspected as a crop of the *original*
+    coordinates, and the mapping back is recorded; nothing outside the region is claimed."""
+    from PIL import Image
+    source = tmp_path / "receipt.png"
+    image = Image.new("RGB", (200, 100), (200, 30, 30))
+    for x in range(100, 200):
+        for y in range(100):
+            image.putpixel((x, y), (20, 30, 200))
+    image.save(source, "PNG")
+    bundle = media_mod.inspect_media(str(source), store_dir=tmp_path / "store", media_id="media_region",
+                                     clock=CLOCK, claim="the total reads 250.00", workspace=tmp_path,
+                                     region="100,0,100,100")
+    assert bundle.frames, bundle.limitations
+    with Image.open(bundle.frames[0]["path"]) as crop:
+        assert crop.size == (100, 100), "the attachment must contain only the requested region"
+        assert crop.getpixel((50, 50))[2] > 150 and crop.getpixel((50, 50))[0] < 100
+    transformation = bundle.transformations[0]
+    assert transformation["region"] == {"x": 100, "y": 0, "width": 100, "height": 100}
+    assert "100 +" in transformation["coordinate_mapping"]
+    assert any(o["kind"] == "region_applied" for o in bundle.observations)
+
+
+def test_region_out_of_bounds_is_refused_with_real_dimensions(tmp_path):
+    source = _png(tmp_path / "small.png", size=(60, 30))
+    with pytest.raises(media_mod.MediaError) as exc:
+        media_mod.inspect_media(str(source), store_dir=tmp_path / "store", media_id="media_bad_region",
+                                clock=CLOCK, workspace=tmp_path, region="50,0,40,30")
+    assert "60x30" in str(exc.value)
+
+
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg not installed")
+def test_video_region_is_applied_to_every_sampled_frame(tmp_path):
+    import subprocess
+    video = tmp_path / "clip2.mp4"
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "lavfi",
+                    "-i", "testsrc=size=160x120:rate=10:duration=1.0", "-pix_fmt", "yuv420p", str(video)],
+                   check=True, timeout=60)
+    bundle = media_mod.inspect_media(str(video), store_dir=tmp_path / "store", media_id="media_vregion",
+                                     clock=CLOCK, workspace=tmp_path, region="0,0,80,120")
+    frames = [f for f in bundle.frames if f.get("path")]
+    assert frames
+    from PIL import Image
+    for frame in frames:
+        with Image.open(frame["path"]) as shot:
+            assert shot.size == (80, 120)
+    assert any(t.get("region") == {"x": 0, "y": 0, "width": 80, "height": 120}
+               for t in bundle.transformations)
+    assert any(o["kind"] == "region_applied" for o in bundle.observations)
+
+
 def test_reverse_image_search_is_unsupported_not_simulated():
     status = media_mod.reverse_image_search_status()
     assert status["state"] == "unsupported" and "permission" in status["detail"]

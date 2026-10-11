@@ -186,16 +186,22 @@ def _ffprobe(path: Path) -> dict[str, Any]:
         return {"available": True, "error": f"{type(exc).__name__}: {exc}"}
 
 
-def _sample_frame(source: Path, at_ms: int, out_path: Path) -> dict[str, Any]:
+def _sample_frame(source: Path, at_ms: int, out_path: Path,
+                  region: Optional[tuple[int, int, int, int]] = None) -> dict[str, Any]:
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
         return {"at_ms": at_ms, "error": "ffmpeg is not installed"}
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    filters = []
+    if region is not None:
+        x, y, w, h = region
+        filters.append(f"crop={w}:{h}:{x}:{y}")
+    filters.append(f"scale='min({MAX_FRAME_EDGE},iw)':-2")
     try:
         result = subprocess.run(
             [ffmpeg, "-hide_banner", "-loglevel", "error", "-ss", f"{max(0, at_ms) / 1000:.3f}",
              "-i", str(source), "-frames:v", "1",
-             "-vf", f"scale='min({MAX_FRAME_EDGE},iw)':-2", "-q:v", "4", "-y", str(out_path)],
+             "-vf", ",".join(filters), "-q:v", "4", "-y", str(out_path)],
             capture_output=True, timeout=FFMPEG_TIMEOUT, text=True)
         if result.returncode != 0 or not out_path.exists():
             return {"at_ms": at_ms, "error": (result.stderr or "ffmpeg produced no frame")[:300]}
@@ -204,6 +210,27 @@ def _sample_frame(source: Path, at_ms: int, out_path: Path) -> dict[str, Any]:
         return {"at_ms": at_ms, "path": str(out_path), "sha256": digest}
     except subprocess.TimeoutExpired:
         return {"at_ms": at_ms, "error": "frame extraction timed out (bounded at 40 s)"}
+
+
+def parse_region(text: str, width: int, height: int) -> Optional[tuple[int, int, int, int]]:
+    """Parse an ``x,y,w,h`` pixel region against the artifact's real dimensions.
+
+    Out-of-bounds regions are refused with the actual dimensions in the message — never
+    silently clamped, because a clamped crop would misrepresent what was inspected.
+    """
+    value = (text or "").strip()
+    if not value:
+        return None
+    parts = [p.strip() for p in value.replace(" ", "").split(",")]
+    if len(parts) != 4 or not all(p.lstrip("-").isdigit() for p in parts):
+        raise MediaError(f"region must be 'x,y,w,h' in pixels, got {text!r}")
+    x, y, w, h = (int(p) for p in parts)
+    if w < 16 or h < 16:
+        raise MediaError("region must be at least 16x16 pixels")
+    if x < 0 or y < 0 or x + w > width or y + h > height:
+        raise MediaError(f"region {x},{y},{w},{h} exceeds the {width}x{height} artifact; "
+                         "adjust it instead of relying on a silent clamp")
+    return (x, y, w, h)
 
 
 def _scene_change_times(source: Path, *, threshold: float = 0.3, limit: int = 8) -> tuple[list[int], str]:
@@ -268,11 +295,16 @@ def _default_frame_times(duration_ms: int, claim_times: list[int], scene_times: 
 def inspect_media(source: str, *, store_dir: Path, media_id: str, clock: Clock,
                   claim: str = "", claim_times_ms: Optional[list[int]] = None,
                   workspace: Optional[Path] = None, allow_remote: bool = True,
-                  max_frames: int = MAX_FRAMES) -> MediaBundle:
+                  max_frames: int = MAX_FRAMES, region: str = "") -> MediaBundle:
     """Acquire + inspect one image/video/audio artifact.
 
     ``source`` is either a public https URL (fetched through the SSRF guard and stored as a
     derivative original) or a path inside ``workspace`` (never read outside it).
+
+    ``region`` is an optional ``x,y,w,h`` pixel rectangle of a specific claim-relevant area
+    (a sign, a plate, a receipt total). The crop is taken from the original coordinates,
+    the attachment contains *only* that region, and the mapping back to original pixels is
+    recorded — anything outside the region is explicitly not inspected.
     """
     claim_times_ms = claim_times_ms or []
     bundle_dir = store_dir / media_id
@@ -328,7 +360,7 @@ def inspect_media(source: str, *, store_dir: Path, media_id: str, clock: Clock,
     bundle.c2pa = _c2pa_presence(data)
 
     if kind == "image":
-        _inspect_image(bundle, data, bundle_dir)
+        _inspect_image(bundle, data, bundle_dir, region)
     elif kind in ("video", "audio"):
         probe = _ffprobe(original_path)
         bundle.probe = probe
@@ -338,11 +370,18 @@ def inspect_media(source: str, *, store_dir: Path, media_id: str, clock: Clock,
                                                      "edited and does not establish when the depicted event occurred")
         duration_s = float(probe.get("duration_s") or 0.0)
         if kind == "video" and probe.get("available") and duration_s > 0:
+            video_stream = next((s for s in probe.get("streams", []) if s.get("codec_type") == "video"), {})
+            rect = None
+            if region:
+                width, height = int(video_stream.get("width") or 0), int(video_stream.get("height") or 0)
+                if not width or not height:
+                    raise MediaError("the region could not be applied: the video's pixel dimensions were not reported")
+                rect = parse_region(region, width, height)
             scene_times, scene_note = _scene_change_times(original_path)
             times, plan_counts = _default_frame_times(int(duration_s * 1000), claim_times_ms, scene_times)
             times = times[:max_frames]
             for at_ms in times:
-                frame = _sample_frame(original_path, at_ms, bundle_dir / "frames" / f"{at_ms:08d}.jpg")
+                frame = _sample_frame(original_path, at_ms, bundle_dir / "frames" / f"{at_ms:08d}.jpg", rect)
                 bundle.frames.append(frame)
             inspected = [f["at_ms"] for f in bundle.frames if f.get("path")]
             if bundle.frames and not inspected:
@@ -351,6 +390,18 @@ def inspect_media(source: str, *, store_dir: Path, media_id: str, clock: Clock,
                 bundle.limitations.append(
                     f"inspected {len(inspected)} frames at {inspected} ms; intervals between frames and all audio "
                     "were not inspected (no audio track analysis in this slice)")
+            if rect is not None:
+                bundle.transformations.append({
+                    "from": "sampled frames", "to": "attachments",
+                    "steps": [f"crop {rect[2]}x{rect[3]}+{rect[0]}+{rect[1]} on each sampled frame",
+                              f"scale to at most {MAX_FRAME_EDGE}px"],
+                    "region": {"x": rect[0], "y": rect[1], "width": rect[2], "height": rect[3]},
+                    "coordinate_mapping": (f"attachment pixel (px,py) maps to frame coordinates "
+                                           f"({rect[0]} + k*px, {rect[1]} + k*py) where k is the per-frame scale")})
+                bundle.observations.append({
+                    "kind": "region_applied",
+                    "text": (f"inspected region x={rect[0]} y={rect[1]} w={rect[2]} h={rect[3]} on every sampled "
+                             "frame; anything outside the region was not inspected")})
             bundle.observations.append({
                 "kind": "sampling_plan", "text":
                     f"claim-relevant times {sorted(claim_times_ms)}, scene changes {scene_times}, plus a boundary-aware "
@@ -376,7 +427,7 @@ def inspect_media(source: str, *, store_dir: Path, media_id: str, clock: Clock,
     return bundle
 
 
-def _inspect_image(bundle: MediaBundle, data: bytes, bundle_dir: Path) -> None:
+def _inspect_image(bundle: MediaBundle, data: bytes, bundle_dir: Path, region_text: str = "") -> None:
     try:
         from PIL import Image
     except ImportError:
@@ -389,27 +440,43 @@ def _inspect_image(bundle: MediaBundle, data: bytes, bundle_dir: Path) -> None:
             bundle.probe = {"available": True, "format": image.format, "width": image.width,
                             "height": image.height, "mode": image.mode}
             bundle.metadata["exif"] = _exif_clues(image)
-            derivative = bundle_dir / "attachment.jpg"
+            rect = parse_region(region_text, image.width, image.height)
             preview = image.convert("RGB")
+            offset = (0, 0)
+            if rect is not None:
+                x, y, w, h = rect
+                preview = preview.crop((x, y, x + w, y + h))
+                offset = (x, y)
             scale = min(1.0, MAX_FRAME_EDGE / max(preview.width, preview.height))
             if scale < 1.0:
                 preview = preview.resize((max(1, int(preview.width * scale)), max(1, int(preview.height * scale))))
+            derivative = bundle_dir / "attachment.jpg"
             preview.save(derivative, "JPEG", quality=82)
             os.chmod(derivative, 0o600)
+            steps = ([f"crop {w}x{h}+{offset[0]}+{offset[1]} from the original"] if rect else []) \
+                + ([f"scale {scale:.3f}"] if scale < 1.0 else []) + ["re-encode JPEG q82"]
             bundle.transformations.append({
-                "from": "original", "to": str(derivative),
-                "steps": ([f"scale {scale:.3f}"] if scale < 1.0 else []) + ["re-encode JPEG q82"],
-                "coordinate_mapping": f"attachment pixel (x,y) maps to original ({x_scale(scale):.3f}*x, {x_scale(scale):.3f}*y)"})
+                "from": "original", "to": str(derivative), "steps": steps,
+                "region": {"x": offset[0], "y": offset[1], "width": rect[2], "height": rect[3]} if rect else None,
+                "coordinate_mapping": (
+                    f"attachment pixel (px,py) maps to original "
+                    f"({offset[0]} + {1 / scale if scale else 1:.3f}*px, {offset[1]} + {1 / scale if scale else 1:.3f}*py)"
+                    if rect else
+                    f"attachment pixel (px,py) maps to original (px,py) scaled x{1 / scale if scale else 1:.3f}")})
             bundle.frames.append({"at_ms": 0, "path": str(derivative),
                                   "sha256": hashlib.sha256(derivative.read_bytes()).hexdigest()})
+            if rect:
+                bundle.observations.append({
+                    "kind": "region_applied",
+                    "text": (f"inspected region x={offset[0]} y={offset[1]} "
+                             f"w={rect[2]} h={rect[3]} of the {image.width}x{image.height} original; the attachment "
+                             "is that crop only, so anything outside it was not inspected")})
+    except MediaError:
+        raise                              # a refused region is an error, not a decode limitation
     except (OSError, ValueError) as exc:
         bundle.limitations.append(f"the image could not be decoded safely ({type(exc).__name__}); "
                                   "no visual observation was made")
         bundle.probe = {"available": False, "error": str(exc)[:300]}
-
-
-def x_scale(scale: float) -> float:
-    return 1.0 / scale if scale > 0 else 1.0
 
 
 def reverse_image_search_status() -> dict[str, str]:

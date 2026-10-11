@@ -202,6 +202,10 @@ class InspectMediaTool(Tool):
         "claim": {"type": "string", "description": "What is being asserted about this media (the claim under check)"},
         "times_ms": {"type": "array", "items": {"type": "integer"},
                      "description": "Claim-relevant video moments to sample (milliseconds)"},
+        "region": {"type": "string",
+                   "description": "Optional x,y,w,h pixel region of a claim-relevant area (a sign, plate, or receipt "
+                                  "total). The attachment contains only that region and the mapping to original "
+                                  "coordinates is recorded; anything outside it is not inspected."},
         "max_frames": {"type": "integer", "description": "Frame budget (default 6, max 6)"},
     })
 
@@ -212,6 +216,7 @@ class InspectMediaTool(Tool):
         if bool(url) == bool(path):
             return ToolResult(ok=False, output="error: provide exactly one of 'url' or 'path'")
         claim = str(args.get("claim") or "").strip()
+        region = str(args.get("region") or "").strip()
         times = [int(t) for t in (args.get("times_ms") or []) if isinstance(t, (int, float))][:6]
         max_frames = max(1, min(int(args.get("max_frames") or media_mod.MAX_FRAMES), media_mod.MAX_FRAMES))
         offline = getattr(getattr(ctx.bot, "inference_mode", None), "value", "") == "offline"
@@ -227,7 +232,7 @@ class InspectMediaTool(Tool):
         try:
             bundle = media_mod.inspect_media(url or path, store_dir=store_dir, media_id=media_id, clock=clock,
                                              claim=claim, claim_times_ms=times, workspace=ctx.workspace,
-                                             allow_remote=not offline, max_frames=max_frames)
+                                             allow_remote=not offline, max_frames=max_frames, region=region)
         except media_mod.MediaError as exc:
             return ToolResult(ok=False, output=f"error: {exc}")
         row_id = ctx.store.add_media(
@@ -269,6 +274,9 @@ class InspectMediaTool(Tool):
             lines.append(f"frames inspected: {shown}" if shown else "no frame could be extracted")
         else:
             lines.append("no frames were extracted")
+        region_note = next((o for o in bundle.observations if o.get("kind") == "region_applied"), None)
+        if region_note:
+            lines.append(str(region_note.get("text", ""))[:400])
         for limitation in bundle.limitations:
             lines.append(f"limit: {limitation}")
         if attachments:
