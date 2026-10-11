@@ -1,5 +1,12 @@
 # Bot configuration reference
 
+Computer capabilities are opt-in in `tools` (`browser`, `computer`). `computer_apps` accepts up to eight installed program
+names; native apps require the private KWin desktop and namespace/resource containment even if shell containment is off.
+`local_dev_origins` accepts up to eight exact HTTP loopback origins with ports; Hutch's dashboard is refused.
+`observation_to_hosted` defaults off and covers page text, labels and images, independently of action approvals.
+These settings are available under **Customize how it works → Computer access**; saving starts no session. See
+[computer-use.md](computer-use.md) for platform, privacy, readiness, retention and recovery details.
+
 `memory_enabled: false` omits memory tools from new runtime tool lists and refuses recall/proposal
 through existing tool objects after the persisted setting changes. It does not hide saved facts from
 human management or retract prior provider input. `remember` proposes a reference fact within its

@@ -249,8 +249,8 @@ class BuiltinRuntime:
         """The messages a provider may see: tool-result frames become real image input only for a route that accepts
         them, only the newest frame is sent, and no internal reference ever leaves the process."""
         from ..computer.frames import FrameStore
-        from ..providers.images import has_images, prepare_messages
-        if not has_images(messages):
+        from ..providers.images import has_observations, prepare_messages
+        if not has_observations(messages):
             return messages
         try:
             vision = bool(session.provider.supports_vision(session.rung.model))
@@ -261,13 +261,21 @@ class BuiltinRuntime:
             local_route = bool(session.provider.data_stays_local())
         except Exception:
             local_route = False
-        if vision and not local_route and not getattr(ctx.bot, "observation_to_hosted", False):
-            # Screen/page images are data egress even when execution is local: a hosted route needs the Bot owner's
-            # explicit consent (a Bot setting), separate from the consent to use the route for text.
-            withheld = ("this Bot has not allowed sending screen or page images to a hosted model; use the text "
-                        "observation, or enable it in the Bot's settings")
+        allow_observation = local_route or getattr(ctx.bot, "observation_to_hosted", False)
+        if not allow_observation and getattr(ctx, "private_computer_history", False):
+            # Local model replies can quote observed secrets. Sanitizing only tool results cannot make that
+            # accumulated conversation safe for a hosted fallback.
+            raise RunAborted("observation_policy", "This conversation contains private local computer observations. "
+                             "Hosted fallback is blocked; use a local route or explicitly allow observations.")
+        if local_route and not getattr(ctx.bot, "observation_to_hosted", False):
+            ctx.private_computer_history = True
+        if not allow_observation:
+            # Page text and labels are egress too. This also covers a switch from a local to a hosted route.
+            withheld = ("this assistant has not allowed sending computer observations to a hosted model; "
+                        "ask the owner to review Computer access settings")
         prepared, report = prepare_messages(
-            messages, vision=vision, frames=FrameStore(ctx.config.run_dir(ctx.bot.name, run.id)), withheld=withheld)
+            messages, vision=vision, frames=FrameStore(ctx.config.run_dir(ctx.bot.name, run.id)), withheld=withheld,
+            allow_observation_text=allow_observation)
         notable = [o for o in report["omitted"] if o["reason"] != "superseded"]
         if report["delivered"] or notable:
             detail = [f"sent {', '.join(report['delivered'])}"] if report["delivered"] else []
@@ -811,6 +819,8 @@ class BuiltinRuntime:
                     return ""
                 tool_message = {"role": "tool", "tool_call_id": tc.id, "name": tc.name,
                                 "content": res.output or "(empty)"}
+                if tc.name in ("browser", "computer"):
+                    tool_message["computer_observation"] = True
                 if res.data.get("images"):
                     tool_message["images"] = res.data["images"]   # frame references; bytes are attached per request
                 messages.append(tool_message)

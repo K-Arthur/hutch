@@ -5,9 +5,9 @@ private runtime dir, HOME and XDG dirs under a mode-0700 temp directory, a D-Bus
 nothing is auto-activated), and its own compositor socket. It never uses the user's session bus, Wayland socket, EIS socket
 or input devices, so automated input cannot reach the personal desktop.
 
-It is NOT a security sandbox: applications launched inside run as the same user, share the host network namespace, and can
-read any file that user can. A replaced HOME is a convenience, not a boundary. Do NOT add ``uinput``/``ydotool`` here: those
-are system-global and would reach the real input stack.
+Applications launched through ``launch`` additionally use workspace-only mount and network/PID namespaces plus resource
+limits. The private compositor and minimal bus remain trusted host processes, not a VM boundary. Do NOT add
+``uinput``/``ydotool`` here: those are system-global and would reach the real input stack.
 """
 
 from __future__ import annotations
@@ -118,8 +118,12 @@ class ManagedDesktop:
     def _spawn(self, argv: list[str], name: str, extra_env: Optional[Mapping[str, str]] = None,
                cwd: Optional[str] = None) -> subprocess.Popen:
         log = open(self.root / f"{name}.log", "ab") if self.root else subprocess.DEVNULL
-        proc = subprocess.Popen(argv, env={**self.env, **(extra_env or {})}, stdout=log, stderr=log,
-                                stdin=subprocess.DEVNULL, start_new_session=True, cwd=cwd)
+        try:
+            proc = subprocess.Popen(argv, env={**self.env, **(extra_env or {})}, stdout=log, stderr=log,
+                                    stdin=subprocess.DEVNULL, start_new_session=True, cwd=cwd)
+        finally:
+            if hasattr(log, "close"):
+                log.close()
         self._procs.append(proc)
         return proc
 
@@ -138,9 +142,18 @@ class ManagedDesktop:
     # ------------------------------------------------------------- the API
 
     def launch(self, argv: list[str], name: str = "app", cwd: Optional[str] = None) -> subprocess.Popen:
-        """Start an application inside this desktop. ``cwd`` is where its file dialogs open: never leave it as the
-        supervisor's directory, or a frame would show the host's project tree to a model."""
-        return self._spawn(argv, name, cwd=cwd)
+        """Start a contained application with only the workspace and this desktop's private sockets."""
+        from ...sandbox import Policy, desktop_argv, status
+        if not cwd:
+            raise DesktopUnavailable("a workspace is required for native applications")
+        readiness = status()
+        if not readiness.ok:
+            raise DesktopUnavailable(f"native app containment is unavailable: {readiness.reason}")
+        command = desktop_argv(argv, Policy(workspace=Path(cwd)), self.env)
+        # The resource-limit launcher talks to the host user service manager. Its child clears the environment and
+        # binds only the PRIVATE bus; the app cannot request host systemd activation through this socket.
+        launcher_env = {key: os.environ[key] for key in ("XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS") if key in os.environ}
+        return self._spawn(command, name, extra_env=launcher_env, cwd=cwd)
 
     def capture_png(self, timeout: float = 15.0) -> bytes:
         """A full-output screenshot of THIS compositor only (KWin ScreenShot2 via spectacle's authorization)."""

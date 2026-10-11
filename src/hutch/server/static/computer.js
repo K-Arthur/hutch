@@ -92,7 +92,7 @@
     if (desktop) {
       var env = state.environment || {};
       next.appendChild(el("p", { class: "hint computer-env",
-        text: "Separate display and input from your own desktop. Applications run as you and can use your network and files; this is not a sandbox." +
+        text: "Separate display and input from your own desktop. " + (env.boundary ? env.boundary + "." : "App containment was not recorded; this frame does not prove a sandbox boundary.") +
               (env.applications && env.applications.length ? " Allowed applications: " + env.applications.join(", ") + "." : "") }));
     } else if (state.frame && state.frame.page && state.frame.page.url) {
       next.appendChild(el("p", { class: "hint computer-env", text: "Page: " + state.frame.page.url + (state.frame.page.id ? " (tab " + state.frame.page.id + ")" : "") }));

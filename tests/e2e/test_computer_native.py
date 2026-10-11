@@ -7,6 +7,8 @@ not evidence about GNOME, a portal consent flow, or a physical display. Skipped 
 from __future__ import annotations
 
 import time
+import os
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -61,6 +63,17 @@ def _frame(result) -> str:
     return result.data["observation"]["frame_id"]
 
 
+def _shot(native, result, name):
+    target = os.environ.get("HUTCH_EVIDENCE_DIR")
+    if not target:
+        return
+    from hutch.computer.frames import FrameStore, ImageRef
+    frames = FrameStore(native.ctx.config.run_dir(native.ctx.bot.name, native.ctx.run.id))
+    ref = ImageRef.from_internal(result.data["images"][0])
+    Path(target).mkdir(parents=True, exist_ok=True)
+    (Path(target) / f"native-{name}.png").write_bytes(frames.load(ref))
+
+
 def _wait_for(predicate, seconds=8.0, step=0.2):
     deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
@@ -78,8 +91,9 @@ def test_edit_save_through_a_native_file_dialog_reopen_and_verify(native):
     assert launched.data["launched"]["alive"] is True
     # exactly one approval described the session boundary honestly, one the launch
     session_approval = next(d for a, d in native.gate.decisions if a.startswith("operate an isolated desktop"))
-    assert session_approval["applications"] == ["kwrite"] and "NOT a process, network or filesystem sandbox" in \
+    assert session_approval["applications"] == ["kwrite"] and "workspace-only files" in \
         session_approval["boundary"]
+    _shot(native, launched, "welcome")
 
     # KWrite starts on a Welcome page when launched without a file: the observation shows it, so click "New File"
     # first (a scripted click on a remembered position would have typed into the wrong widget).
@@ -93,6 +107,7 @@ def test_edit_save_through_a_native_file_dialog_reopen_and_verify(native):
     # Ctrl+S on an untitled document opens the toolkit's file dialog
     dialog = tool.run({"action": "key", "frame_id": _frame(typed), "keys": "ctrl+s"}, ctx)
     assert dialog.ok and dialog.data["visual_change"] is True, "a save dialog should have appeared"
+    _shot(native, dialog, "save-dialog")
     target = workspace / "saved-by-hutch.txt"
     entered = tool.run({"action": "type", "frame_id": _frame(dialog), "text": str(target)}, ctx)
     assert entered.ok
@@ -108,12 +123,14 @@ def test_edit_save_through_a_native_file_dialog_reopen_and_verify(native):
     assert quit_result.ok
     relaunched = tool.run({"action": "launch", "app": "kwrite", "path": "saved-by-hutch.txt"}, ctx)
     assert relaunched.ok, relaunched.output
+    _shot(native, relaunched, "reopened")
     focus = tool.run({"action": "click", "frame_id": _frame(relaunched), "x": 640, "y": 400}, ctx)
     edit = tool.run({"action": "key", "frame_id": _frame(focus), "keys": "ctrl+home"}, ctx)
     typed2 = tool.run({"action": "type", "frame_id": _frame(edit), "text": "REOPENED "}, ctx)
     assert typed2.ok
     saved = tool.run({"action": "key", "frame_id": _frame(typed2), "keys": "ctrl+s"}, ctx)
     assert saved.ok
+    _shot(native, saved, "saved")
     assert _wait_for(lambda: target.read_text().strip() == "REOPENED Native desktop task 7"), \
         f"reopen/edit/save did not preserve content: {target.read_text()!r}"
 
@@ -124,6 +141,7 @@ def test_a_menu_opens_and_closes_and_the_screen_change_is_reported(native):
     assert launched.ok
     menu = tool.run({"action": "click", "frame_id": _frame(launched), "x": 340, "y": 189}, ctx)      # "File"
     assert menu.ok and menu.data["visual_change"] is True and menu.data["outcome"] == "dispatched"
+    _shot(native, menu, "menu")
     closed = tool.run({"action": "key", "frame_id": _frame(menu), "keys": "escape"}, ctx)
     assert closed.ok and closed.data["visual_change"] is True
 
@@ -180,6 +198,25 @@ def test_a_bot_without_allowed_apps_cannot_start_a_session(config, tmp_path):
                           cancel_hooks=[], procs=ProcRegistry(), headless=True)
     result = ComputerTool().run({"action": "observe"}, ctx)
     assert not result.ok and "no applications allowed" in result.output
+
+
+def test_native_app_namespace_cannot_read_outside_workspace_or_reach_host_loopback(tmp_path):
+    import json
+    import socket
+    workspace = tmp_path / "granted"
+    workspace.mkdir()
+    outside = tmp_path / "outside-secret.txt"
+    outside.write_text("SENTINEL-OUTSIDE-WORKSPACE")
+    with socket.socket() as listener, ManagedDesktop() as desktop:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        script = ("import pathlib,socket,json,sys; result={'outside':pathlib.Path(sys.argv[1]).exists()}; "
+                  "s=socket.socket();s.settimeout(1);result['network']=s.connect_ex(('127.0.0.1',int(sys.argv[2])))==0;"
+                  "pathlib.Path('containment.json').write_text(json.dumps(result))")
+        proc = desktop.launch(["/usr/bin/python3", "-c", script, str(outside), str(listener.getsockname()[1])],
+                              "containment-probe", cwd=str(workspace))
+        assert proc.wait(timeout=12) == 0
+        assert json.loads((workspace / "containment.json").read_text()) == {"outside": False, "network": False}
 
 
 def test_mixed_workflow_terminal_generates_a_file_the_desktop_app_edits_and_saves(store, config, tmp_path):

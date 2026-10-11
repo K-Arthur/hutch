@@ -111,6 +111,44 @@ def _shot(page, name):
 
 
 @pytest.mark.parametrize("width,height", [(360, 780), (768, 1024), (1440, 900)])
+def test_computer_settings_round_trip_and_readiness_at_each_width(browser, live, width, height):
+    base, app = live
+    bot = Bot(name="computer-settings", tools=["browser"])
+    app.state.store.upsert_bot(bot)
+    page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+    errors = []
+    page.on("pageerror", lambda err: errors.append(str(err)))
+    try:
+        page.goto(f"{base}/#/bot/{bot.name}")
+        page.locator("#assistant-more-settings > summary").click()
+        form = page.locator("#form-computer")
+        form.get_by_label("Local web apps").fill("http://localhost:3000\nhttp://127.0.0.1:5000")
+        form.get_by_label("Allowed desktop applications").fill("kwrite")
+        form.get_by_label("Allow observations to hosted AI").check()
+        form.get_by_role("button", name="Save computer access").click()
+        page.wait_for_function("() => document.querySelector('#form-computer input[name=observation_to_hosted]')?.checked")
+        deadline = time.monotonic() + 5
+        while not app.state.store.get_bot(bot.id).observation_to_hosted and time.monotonic() < deadline:
+            time.sleep(0.05)
+        saved = app.state.store.get_bot(bot.id)
+        assert set(saved.local_dev_origins) == {"http://localhost:3000", "http://127.0.0.1:5000"}
+        assert saved.computer_apps == ["kwrite"] and saved.observation_to_hosted
+        page.reload()
+        page.locator("#assistant-more-settings > summary").click()
+        form = page.locator("#form-computer")
+        assert form.get_by_label("Allow observations to hosted AI").is_checked()
+        form.get_by_role("button", name="Check host readiness").click()
+        page.wait_for_function("() => {const el=document.querySelector('#computer-readiness'); return el && el.textContent && !el.textContent.includes('Checking');}")
+        assert "undefined" not in page.locator("#computer-readiness").inner_text()
+        form.scroll_into_view_if_needed()
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+        assert not errors, errors
+        _shot(page, f"settings-{width}")
+    finally:
+        page.close()
+
+
+@pytest.mark.parametrize("width,height", [(360, 780), (768, 1024), (1440, 900)])
 def test_panel_shows_environment_owner_and_a_never_live_frame_at_each_width(browser, live, width, height):
     base, app = live
     run = _seed(app)
@@ -119,7 +157,7 @@ def test_panel_shows_environment_owner_and_a_never_live_frame_at_each_width(brow
         panel = page.locator("[data-computer-panel]")
         text = panel.inner_text()
         assert "Isolated desktop" in text and "Hutch is in control" in text
-        assert "not a sandbox" in text
+        assert "does not prove a sandbox boundary" in text
         assert "not a live view" in text and "Live" not in text.replace("not a live view", "")
         img = panel.locator("img.computer-img")
         img.wait_for()

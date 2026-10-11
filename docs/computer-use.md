@@ -2,7 +2,7 @@
 
 Hutch can operate a **browser tab** and a **native desktop application** for a run, under the same approval, audit and stop
 machinery as every other tool. This page says what that does and does not give you. Evidence for each claim is in
-[research/computer-use-baseline-2026-10-10.md](research/computer-use-baseline-2026-10-10.md); status words used here:
+[research/computer-use-review-2026-10-11.md](research/computer-use-review-2026-10-11.md) and its linked baseline; status words used here:
 
 | Word | Meaning |
 | --- | --- |
@@ -48,10 +48,12 @@ run ──▶ ApprovalGate (hard deny ▸ policy ▸ sticky ▸ ask)         out
 auto-activated) and private runtime/HOME directories. Automated input cannot reach your desktop: it never uses your Wayland
 socket, your EIS socket or your input devices (it does not use `uinput`, which is system-global).
 
-It is **not a security sandbox**. Applications run as you, share the host network namespace, and can read any file you can.
-The session approval says so in those words. Allow only applications you would run yourself, and do not allow a terminal or
-browser inside it unless that is what you intend. Files are opened from, and saved to, the run's workspace only; application
-file dialogs start in the workspace.
+Native applications additionally require the existing bubblewrap/systemd/prlimit containment backend: only the workspace,
+a disposable app home, read-only system files and the private Wayland socket are mounted. Apps have their own PID/network
+namespaces, no host network and no D-Bus broker, with CPU, memory, task, descriptor and file-size limits. File dialogs start
+in the workspace and cannot reach other user files. Unavailable containment fails closed even when shell containment is off.
+The compositor, capture and input worker remain trusted host processes; this is **not a VM** or a boundary against a hostile
+compositor. Allow only installed applications you intend to use. Do not put credentials in the granted workspace.
 
 Keyboard input is sent as evdev keycodes and typed for a **US layout** (printable ASCII); other characters are refused
 rather than guessed. The result of typing is confirmed by observation, not assumed.
@@ -67,13 +69,16 @@ interactive elements) and one image frame.
   screen continuously; there is no video.
 * Only the **newest** frame is sent to a model, converted to the route's real image format at the provider boundary.
   Older frames become text notes. Image bytes are never stored in the transcript or in message history.
-* Image-capable routes: Anthropic `claude-*` models and Ollama models whose `/api/show` capabilities include `vision`
+* Image-capable routes: documented exact OpenAI image models at the official endpoint, Anthropic `claude-*` models,
+  and Ollama models whose `/api/show` capabilities include `vision`
   (**protocol-verified**: no live hosted call and no local multimodal model was available on the test host). Every other
-  route (including "OpenAI-compatible" and Sign in with ChatGPT) is **semantic-only** with an explicit note; "OpenAI-
+  route (including custom "OpenAI-compatible" endpoints and Sign in with ChatGPT) is **semantic-only** with an explicit note; "OpenAI-
   compatible" does not establish image support.
-* **Egress consent.** Sending screen or page images to a *hosted* route is data egress even though execution is local, so it
+* **Egress consent.** Sending page text, labels or images to a *hosted* route is data egress even though execution is local, so it
   needs the Bot owner's explicit `observation_to_hosted` setting (default off). Loopback model routes are unaffected.
-  Page **text** read by the browser tool is sent through the Bot's route like any tool output; the route approval covers it.
+  Without consent the tool's observation text is also withheld. Once private observations have reached a local model,
+  hosted fallback is blocked: model replies may quote them, so deleting image parts alone would not protect that history.
+  Configure these choices under **Assistant settings → Customize how it works → Computer access**; saving does not launch a session.
 * Hutch refuses to capture a browser page while a conventional password, payment or verification field is visible.
   Detection is by label/attribute and can miss custom widgets: the isolated desktop has no such detection, so do not point
   it at accounts or secrets.

@@ -428,13 +428,15 @@ reports the current host result.
 The full contract is in [computer-use.md](computer-use.md). The safety-relevant points:
 
 * **Authority.** Every browser and desktop action passes the same `ApprovalGate`; click and type remain outward and never
-  sticky. The `computer` tool asks once per session and states that the isolated desktop separates display and input but is
-  **not** a process, network or filesystem sandbox. Page text, accessibility labels, screenshots and application windows are
+  sticky. The `computer` tool requires fresh session consent, even in auto mode; native read-only denials precede custom
+  allows and sticky grants. Native apps require workspace-only mount/PID/network namespaces and resource limits, and have
+  no D-Bus broker. The private compositor/capture/input processes remain trusted host processes, not a VM. Page text, accessibility labels, screenshots and application windows are
   untrusted data and cannot grant authority; reading one changes no approval, setting or permission.
 * **Control fence.** Who may inject input is tracked with a generation counter; an in-flight action re-checks it immediately
   before dispatch, so a takeover or stop wins a race. After a stop the interrupted action's outcome is `unknown`.
-* **Egress.** Screen/page images go only to routes whose model accepts them, and to a hosted route only with the Bot's
-  `observation_to_hosted` setting. Approved local development origins are never reachable from a public page, and never
+* **Egress.** Page text, labels and images reach a hosted route only with the Bot's `observation_to_hosted` setting.
+  Images additionally require a documented model/wire capability. Private local observation history blocks hosted fallback,
+  since later model replies can quote those observations. Approved local development origins are never reachable from a public page, and never
   include Hutch's own dashboard.
 * **Limits.** There is no remote (phone) control surface; a headless browser has no human view; the existing personal desktop
   is not offered as a target; frames are not redacted (do not point the tool at accounts or secrets).

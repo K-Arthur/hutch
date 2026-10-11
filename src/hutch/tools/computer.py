@@ -5,8 +5,8 @@ applications the bot is allowed to use, observes the screen as bounded frames an
 commands. The personal desktop is never the target: its input stack is not touched. Controlling the user's existing desktop
 is a deliberately different, weaker-isolation mode that is not offered by this build.
 
-What the boundary is NOT: applications run as the same user with the same network and file access. A person approves the
-session (naming the applications and saying so) before anything starts.
+Applications are namespace-contained with workspace-only user files and no network, using the existing resource-limit
+backend. The private compositor and minimal bus are trusted host processes; this is not a virtual machine.
 """
 
 from __future__ import annotations
@@ -92,6 +92,10 @@ class ComputerTool(Tool):
             return ToolResult(False, f"error: unknown action '{action}'")
         if self._stopped:
             return ToolResult(False, "error: this run was stopped and its desktop was closed; no further action runs")
+        if action in ("launch", "click", "type", "key") and hasattr(getattr(ctx, "policy", None), "check_computer"):
+            decision = ctx.policy.check_computer(action, str(args.get("app") or ""))
+            if decision.verdict is Verdict.deny:
+                return ToolResult(False, f"error: denied by policy: {decision.reason}", {"outcome": "not_dispatched"})
         if ctx.dry_run and action in ("launch", "click", "type", "key"):
             return rehearsed(f"computer {action}")
         try:
@@ -150,11 +154,11 @@ class ComputerTool(Tool):
         ctx.gate.decide(
             "computer", f"operate an isolated desktop session (applications: {', '.join(apps)})",
             {"environment": "isolated", "applications": apps,
-             "boundary": "separate display, input and session bus; NOT a process, network or filesystem sandbox",
-             "reads": "screen frames are sent to the model route this Bot uses",
+             "boundary": "separate display/input/bus; apps: workspace-only files, private home, no network, bounded resources",
+             "reads": "page text and frames reach the selected model only under its observation policy",
              "profile_bot_id": ctx.bot.id},
-            Decision(Verdict.ask, "start an isolated desktop session", "computer:session", rule="ask:computer-session",
-                     risk="medium"))
+            Decision(Verdict.ask, "start an isolated desktop session", rule="ask:computer-session", risk="medium"),
+            ask_in_auto=True)
         self._approved = True
 
         from ..computer.native.eis import EisInput
@@ -189,13 +193,14 @@ class ComputerTool(Tool):
             session_id=f"{run_id}:desktop", capture=desktop.capture_png, input_backend=eis,
             frames=FrameStore(ctx.config.run_dir(ctx.bot.name, run_id)), lease=self._lease,
             environment={"mode": "isolated",
-                         "boundary": "display/input/session bus only; not a process, network or filesystem sandbox",
+                         "boundary": "apps: workspace-only files, private home, no network, bounded resources; trusted private compositor/bus",
                          "applications": apps, "keyboard_layout": "us (assumed)"})
         ctx.on_finish.append(lambda: self._shutdown(ctx))
         ctx.cancel_hooks.append(self._emergency_stop)
         return self._session
 
     def _launch(self, args: dict[str, Any], ctx: ToolContext, session: DesktopSession) -> ToolResult:
+        ticket = self._lease.begin_action()
         app = str(args.get("app") or "").strip()
         allowed = list(getattr(ctx.bot, "computer_apps", []) or [])
         if app not in allowed:
@@ -220,6 +225,7 @@ class ComputerTool(Tool):
                         {"application": app, "path": path, "profile_bot_id": ctx.bot.id},
                         Decision(Verdict.ask, f"launch {app}", f"computer:launch:{app}", rule="ask:computer-launch",
                                  risk="medium"))
+        self._lease.check(ticket)
         if (refusal := ctx.begin_effect()):
             return ToolResult(False, f"error: {refusal}")
         before = session.observe()                       # what the screen shows before the application exists

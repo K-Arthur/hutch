@@ -508,6 +508,43 @@ def shell_argv(command: str, policy: Policy, shell: str = "/bin/bash") -> list[s
              "--clearenv", "--setenv", "PATH", DEFAULT_PATH, "--setenv", "HOME", ws, "--setenv", "LANG", "C.UTF-8",
              "--setenv", "TERM", "dumb", "--setenv", "TMPDIR", "/tmp",
              "--", shell, "-c", command]
+    return _limited_argv(argv, policy)
+
+
+def desktop_argv(command: list[str], policy: Policy, environment: dict[str, str]) -> list[str]:
+    """A workspace-only GUI client of Hutch's private compositor, with no host network or user bus.
+
+    Only the private Wayland socket crosses this boundary; no D-Bus broker is exposed. The compositor remains a trusted
+    host process; this is namespace containment of the application, not a VM or a hostile-compositor boundary.
+    """
+    if environment.get("HUTCH_ISOLATED_SESSION") != "1" or policy.network:
+        raise ValueError("desktop containment requires an owned isolated session and no network")
+    runtime = Path(environment["XDG_RUNTIME_DIR"]).resolve(strict=True)
+    home = Path(environment["HOME"]).resolve(strict=True)
+    display = environment.get("WAYLAND_DISPLAY", "")
+    if not display or Path(display).name != display or home.parent != runtime.parent:
+        raise ValueError("invalid private desktop directories or socket identity")
+    if environment.get("DBUS_SESSION_BUS_ADDRESS") != f"unix:path={runtime / 'bus'}":
+        raise ValueError("desktop must use its own minimal D-Bus session")
+    for sock in (runtime / display,):
+        if not stat.S_ISSOCK(sock.lstat().st_mode):
+            raise ValueError("the private desktop socket is unavailable")
+    ws = str(policy.workspace.resolve(strict=True))
+    argv = [binary(), "--die-with-parent", "--new-session", "--unshare-all",
+            "--ro-bind", "/usr", "/usr", *_layout(), *_etc(False),
+            "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--tmpfs", "/run",
+            "--bind", ws, ws, "--bind", str(home), str(home), "--dir", str(runtime)]
+    for sock in (runtime / display,):
+        argv += ["--ro-bind", str(sock), str(sock)]
+    argv += ["--chdir", ws, "--clearenv"]
+    for key, value in environment.items():
+        argv += ["--setenv", key, value]
+    argv += ["--setenv", "DBUS_SESSION_BUS_ADDRESS", "unix:path=/run/hutch-no-bus",
+             "--setenv", "TMPDIR", "/tmp", "--setenv", "QT_QUICK_BACKEND", "software", "--", *command]
+    return _limited_argv(argv, policy)
+
+
+def _limited_argv(argv: list[str], policy: Policy) -> list[str]:
     limits = [f"--cpu={policy.cpu_seconds}", f"--fsize={policy.fsize_mb * 1024 * 1024}",
               f"--nofile={policy.nofile}", f"--as={policy.memory_mb * 1024 * 1024}", "--core=0"]
     prlimit = shutil.which("prlimit")

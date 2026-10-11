@@ -1075,6 +1075,7 @@ class BrowserTool(Tool):
         # can enter an approval record. Ordinary targets contain no field
         # values, so their safe description can be fingerprinted here too.
         binding = fingerprint or json.dumps(target_snapshot, sort_keys=True, separators=(",", ":"))
+        binding = f"{frame_id}:{node['backendNodeId']}:" + binding
         keyed = hmac.new(_APPROVAL_FINGERPRINT_KEY, binding.encode("utf-8"), hashlib.sha256).hexdigest()
         return {"target_kind": target_kind, "target": target, "target_fingerprint": keyed}, keyed
 
@@ -1377,20 +1378,32 @@ class BrowserTool(Tool):
             selector, text = args.get("selector", ""), args.get("text", "")
             if self._is_sensitive_target(page, selector):
                 return self._sensitive_entry_result(page, ctx)
-            _, refusal = self._resolve_target(page, selector=selector, label="")
+            locator, refusal = self._resolve_target(page, selector=selector, label="")
             if refusal is not None:
                 return refusal
             checkpoint = self._await_human_challenge(page, ctx)
             if checkpoint:
                 return checkpoint
             url = page.url
+            try:
+                reviewed, fingerprint = self._click_review_snapshot(page, locator)
+            except BrowserUnavailable as exc:
+                return ToolResult(False, f"error: {exc}")
             _decide(ctx, "browser", f"type into {selector}", {
                 "action": action, "selector": selector, "text": "[redacted]", "text_chars": len(text),
                 "value_fingerprint": hmac.new(_APPROVAL_FINGERPRINT_KEY, text.encode("utf-8"), hashlib.sha256).hexdigest(),
                 "url": _redact_sensitive_url(url),
-                "profile_bot_id": ctx.bot.id}, outward=True)
+                "profile_bot_id": ctx.bot.id, "target": reviewed["target"],
+                "target_fingerprint": fingerprint}, outward=True)
             if page.url != url:
                 return ToolResult(ok=False, output="error: browser navigated after review; request a new approval")
+            try:
+                _, current_fingerprint = self._click_review_snapshot(page, locator)
+            except BrowserUnavailable as exc:
+                return ToolResult(False, f"error: {exc}")
+            if not hmac.compare_digest(fingerprint, current_fingerprint):
+                return ToolResult(False, "error: browser field or form changed after review; request a new approval",
+                                  {"outcome": "not_dispatched"})
             if (refusal := ctx.begin_effect()):
                 return ToolResult(ok=False, output=f"error: {refusal}")
             refused = self._fence()

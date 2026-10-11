@@ -58,3 +58,29 @@ browser target checks, and the session panel. Current 360/768/1440 panel capture
 `docs/research/artifacts/computer-use-2026-10-11`; 360 and 1440 were opened and inspected.
 The isolated visible-browser handoff recheck passed in **8.98 seconds** with the disk-backed temporary directory;
 the original failed attempt remains recorded. This proves disposable KWin/EIS human input, not a physical phone.
+
+## Privacy, control and native containment milestone
+
+Replacing an approved field at the same URL is refused by its frame/backend-node fingerprint. Stop cannot be overwritten
+by takeover/hand-back/pause between transition precheck and mutation. Hosted consent now covers page text and labels,
+including text-only observations. Private local observation history blocks hosted fallback: model replies can quote it.
+Official OpenAI image messages were checked through an HTTP mock transport; custom endpoints and unknown model names do
+not infer vision. No hosted inference was performed.
+
+Focused browser/privacy/image/profile checks: **43 passed** in 103.41 seconds. Earlier attempts caught two obsolete policy
+expectations and an uninitialized test page; the corrected real DOM test requires the replacement field to remain untouched.
+Settings round-trip/readiness: **3 passed** in 23.97 seconds after fixing a test label and respecting sorted backend origins.
+Visual inspection caught the lengthy readiness wall; it now has a summary and expandable capability details.
+
+Native apps now require the existing namespace/resource backend: workspace/private-home user files, no host network, no
+D-Bus broker and bounded resources. The private compositor remains trusted. Before implementation, we read
+[Bubblewrap's security notes](https://github.com/containers/bubblewrap/blob/main/README.md): arguments define the boundary,
+and mounting a service bus can widen authority. The systemd web manual was unavailable through the browser; the existing
+verified Hutch scope path and installed tooling were used. No dependency was added. A real app-process probe confirms an
+outside sentinel is absent and a host loopback listener unreachable. Menus/edit/save/native-dialog/reopen still work.
+
+Combined privacy/control/desktop/containment/native/panel checks: **65 passed** in 104.55 seconds. Native stop: **0.06 s**.
+An earlier 54-pass/one-failure batch exposed a test assumption that its workspace was outside HOME; a workspace below the
+disk-backed TMPDIR legitimately creates empty mount ancestors. The assertion accounts for that location and retains the
+outside-file canary check. Native dialog/reopened/menu captures, settings at 360/1440, and the 768 panel were opened and
+inspected. These are disposable Wayland and viewport-emulation results; physical phone/model validation remains open.

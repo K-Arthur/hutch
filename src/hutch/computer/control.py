@@ -52,7 +52,7 @@ class Snapshot:
     last_frame_id: str
 
     def public(self) -> dict:
-        return {"owner": self.owner.value, "generation": self.generation, "reason": self.reason,
+        return {"session_id": self.session_id, "owner": self.owner.value, "generation": self.generation, "reason": self.reason,
                 "fresh_observation_required": self.fresh_observation_required, "last_frame_id": self.last_frame_id}
 
 
@@ -86,11 +86,18 @@ class ControlLease:
 
     def _move(self, owner: ControlOwner, reason: str, *, fence: bool = True) -> Snapshot:
         with self._lock:
+            # The caller's precheck and mutation must not straddle a stop. Validate again atomically here.
+            terminal = (ControlOwner.stopping, ControlOwner.stopped, ControlOwner.recovery_required)
+            if owner in (ControlOwner.agent, ControlOwner.human, ControlOwner.paused) and self._owner in terminal:
+                raise StaleControl(f"the session is {self._owner.value}; control cannot be resumed or taken")
+            if owner is ControlOwner.stopping and self._owner in (ControlOwner.stopped, ControlOwner.recovery_required):
+                return self._snapshot_locked()
             self._owner = owner
             self._reason = reason
             self._since = self._clock()
             if fence:
                 self._generation += 1
+                self._fresh_required = True
             snap = self._snapshot_locked()
         if self._on_change is not None:
             try:

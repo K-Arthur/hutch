@@ -41,15 +41,20 @@ def has_images(messages: list[dict[str, Any]]) -> bool:
     return any(m.get("images") for m in messages)
 
 
+def has_observations(messages: list[dict[str, Any]]) -> bool:
+    return any(m.get("images") or m.get("computer_observation") or
+               (m.get("role") == "tool" and m.get("name") in ("browser", "computer")) for m in messages)
+
+
 def prepare_messages(messages: list[dict[str, Any]], *, vision: bool, frames: Optional[FrameStore],
                      keep_latest: int = DEFAULT_KEEP_LATEST, max_payload_bytes: int = MAX_PAYLOAD_BYTES,
-                     withheld: str = "") -> tuple[list[dict[str, Any]], dict[str, Any]]:
+                     withheld: str = "", allow_observation_text: bool = True) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Return ``(messages_for_the_provider, report)``. ``messages`` is never modified.
 
     ``report`` is ``{"delivered": [frame ids], "omitted": [{"frame_id", "reason"}]}`` for run events and tests.
     """
     report: dict[str, Any] = {"delivered": [], "omitted": []}
-    if not has_images(messages):
+    if not has_observations(messages):
         return messages, report
 
     ordered: list[ImageRef] = [ref for m in messages for ref in _refs(m)]
@@ -70,6 +75,13 @@ def prepare_messages(messages: list[dict[str, Any]], *, vision: bool, frames: Op
         pending.clear()
 
     for message in messages:
+        observation = bool(message.get("computer_observation") or
+                           (message.get("role") == "tool" and message.get("name") in ("browser", "computer")))
+        message = {k: v for k, v in message.items() if k != "computer_observation"}
+        if observation and not allow_observation_text:
+            message = {**message, "content": "[Computer observation withheld: this assistant has not been allowed "
+                       "to send page text, labels or screen content to a hosted model. Ask the owner to review "
+                       "Computer access settings or use an authorized local route.]"}
         if message.get("role") != "tool":
             flush()
         refs = _refs(message)

@@ -269,6 +269,8 @@ def test_browser_typing_approval_binds_text_destination_and_profile(
                                  locator=lambda _selector: Locator())
     tool = BrowserTool()
     monkeypatch.setattr(tool, "_ensure", lambda _: types.SimpleNamespace(pages=[page]))
+    monkeypatch.setattr(tool, "_click_review_snapshot", lambda *_: (
+        {"target": {"tag": "input", "label": "Recipient"}}, "f" * 64))
     wait = ctx.gate._wait
 
     def human(req, action, **wait_args):

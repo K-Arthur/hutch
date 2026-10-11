@@ -5344,6 +5344,7 @@ const TOOL_SETTINGS = [
   ["shell", "Run shell commands", "Run commands inside the configured shell boundary."],
   ["web_fetch", "Fetch public pages", "Read public HTTP(S) pages through Hutch’s checked request path."],
   ["browser", "Use a browser", "Control this bot’s isolated browser profile."],
+  ["computer", "Use isolated desktop apps", "Experimental Linux Wayland support. Choose allowed apps under Computer access."],
   ["remember", "Propose reference facts", "Suggest facts for human review before they can be recalled."],
   ["recall", "Recall reviewed facts", "Search reviewed facts available to this bot and chat."],
   ["delegate_task", "Delegate a bounded task", "Strict Offline only. Each request asks for approval and uses another run slot; the child receives only its task text."],
@@ -5615,6 +5616,24 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
           </section>
 
           <div id="bot-skills-section"></div>
+
+          <form class="panel form-grid" id="form-computer" aria-labelledby="computer-settings-title">
+            <div class="panel-title settings-panel-title" id="computer-settings-title"><span class="settings-panel-icon">${icon("sliders")}</span>Computer access</div>
+            <p class="hint">Browser profiles belong to this assistant. Native apps use a separate Linux display and input session. Enable the relevant tool above; saving these choices does not start a session.</p>
+            <label class="field">Local web apps
+              <textarea name="local_dev_origins" rows="2" aria-describedby="local-origin-help" placeholder="http://localhost:3000">${esc((b.local_dev_origins || []).join("\n"))}</textarea>
+              <span class="hint" id="local-origin-help">One exact HTTP loopback origin per line, with a port. Up to eight. Hutch’s own dashboard and other private addresses are refused.</span>
+            </label>
+            <label class="field">Allowed desktop applications
+              <input name="computer_apps" value="${esc((b.computer_apps || []).join(", "))}" placeholder="kwrite" aria-describedby="desktop-app-help">
+              <span class="hint" id="desktop-app-help">Up to eight installed program names, separated by commas. Apps have workspace-only user files, a private home and no network. This experimental Linux tool needs a private KWin session and the containment backend.</span>
+            </label>
+            <label class="tool-option"><input type="checkbox" name="observation_to_hosted" ${b.observation_to_hosted ? "checked" : ""}>
+              <span class="tool-option-copy"><b>Allow observations to hosted AI</b><small>Page text, labels and screenshots may leave this machine through this assistant’s chosen AI service. Sensitive-field detection is best effort. Leave off for private sessions; local model routes can still receive observations.</small></span>
+            </label>
+            <div class="btn-row"><button class="btn primary small" type="submit">Save computer access</button><button class="btn ghost small" type="button" id="computer-doctor">Check host readiness</button></div>
+            <p class="hint" id="computer-readiness" role="status"></p><details id="computer-readiness-details" hidden><summary>Capability details and setup steps</summary><ul class="computer-capabilities"></ul></details>
+          </form>
 
           <section class="panel schedule-manager" id="schedule-manager" aria-labelledby="schedule-manager-title">            <div class="schedule-manager-head">
               <div>
@@ -5895,6 +5914,31 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     ev.preventDefault();
     const tools = [...ev.target.querySelectorAll('input[name="tools"]:checked')].map(input => input.value);
     patch({ tools }, "Tool permissions saved.");
+  });
+  $("#form-computer").addEventListener("submit", ev => {
+    ev.preventDefault();
+    const fd = new FormData(ev.target);
+    patch({ local_dev_origins: String(fd.get("local_dev_origins") || "").split(/\n/).map(s => s.trim()).filter(Boolean),
+      computer_apps: String(fd.get("computer_apps") || "").split(",").map(s => s.trim()).filter(Boolean),
+      observation_to_hosted: fd.get("observation_to_hosted") === "on" }, "Computer access saved.");
+  });
+  $("#computer-doctor").addEventListener("click", async ev => {
+    const button = ev.currentTarget, status = $("#computer-readiness");
+    button.disabled = true; status.textContent = "Checking this host…";
+    try {
+      const report = await api("/v1/computer/readiness");
+      const capabilities = report.capabilities || [];
+      status.textContent = `Browser: ${report.summary?.browser || "unknown"}. Personal desktop: ${report.summary?.native_desktop || "unknown"}. Expand the details for private desktop prerequisites and setup.`;
+      const details = $("#computer-readiness-details"), list = details.querySelector("ul");
+      list.replaceChildren(...capabilities.map(c => {
+        const li = document.createElement("li"), title = document.createElement("b"), description = document.createElement("p");
+        title.textContent = `${c.title || c.id}: ${c.state}`;
+        description.textContent = `${c.detail || ""}${c.fix ? " " + c.fix : ""}`;
+        li.append(title, description); return li;
+      }));
+      details.hidden = capabilities.length === 0;
+    } catch (err) { status.textContent = `Readiness unavailable: ${err.message}`; }
+    finally { button.disabled = false; }
   });
   $("#btn-add-schedule").addEventListener("click", () => {
     const form = `<form id="modal-schedule-form" class="form-grid">

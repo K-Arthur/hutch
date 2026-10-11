@@ -439,6 +439,22 @@ def test_a_takeover_between_approval_and_dispatch_prevents_the_click(shop):
     assert shop.tool.run({"action": "read"}, shop.ctx).ok
 
 
+def test_replacing_the_reviewed_field_at_the_same_url_refuses_typing(shop):
+    _open(shop)
+    page = _page(shop)
+    original = shop.ctx.gate.decide
+
+    def replace_field(*args, **kwargs):
+        decision = original(*args, **kwargs)
+        page.evaluate("() => { const old = document.querySelector('#note'); old.replaceWith(old.cloneNode(true)); }")
+        return decision
+
+    shop.ctx.gate.decide = replace_field
+    result = shop.tool.run({"action": "type", "selector": "#note", "text": "private review"}, shop.ctx)
+    assert not result.ok and "changed after review" in result.output
+    assert page.input_value("#note") == "", "the unreviewed replacement field must remain untouched"
+
+
 def test_typing_and_navigation_report_verified_outcomes(shop):
     opened = shop.tool.run({"action": "goto", "url": shop.base}, shop.ctx)
     assert opened.data["outcome"] == "effect_verified"

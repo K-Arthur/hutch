@@ -151,6 +151,7 @@ def test_an_openai_compatible_route_never_receives_image_parts_or_internal_keys(
     try:
         srv.script = _tool_script(1)
         ctx, run, emitted, tools = build(store, config, tmp_path, model="openai/gpt-4o")
+        ctx.bot.observation_to_hosted = True
         tools["observe_fake"] = ObserveTool()
         assert run_it(runtime(provider_factory=factory(oai=srv)), run, ctx, tools) == "done"
         wire = json.dumps([r["body"] for r in srv.requests if r["path"].endswith("/chat/completions")])
@@ -170,7 +171,7 @@ def test_a_hosted_route_receives_no_images_until_the_bot_owner_allows_it(store, 
         bodies = [r["body"] for r in srv.of("/v1/messages")]
         assert all(_image_blocks(b["messages"]) == [] for b in bodies)
         wire = json.dumps(bodies[-1])
-        assert "has not allowed sending screen or page images to a hosted model" in wire
+        assert "has not allowed sending computer observations to a hosted model" in wire
         notes = [e.data for e in emitted if e.type is EventType.log and "observation images" in str(e.data.get("note", ""))]
         assert notes and "withheld_by_policy" in notes[0]["note"]
     finally:

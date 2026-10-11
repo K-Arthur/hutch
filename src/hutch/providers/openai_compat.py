@@ -32,6 +32,11 @@ PRESET_URLS = {
 _MODEL_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,159}$")
 _MAX_DISCOVERED_MODELS = 10000
 
+# Official image-input model table, checked 2026-10-11. Unknown/custom endpoints remain semantic-only.
+_VISION_MODELS = {"gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-5.1", "gpt-5.2",
+                  "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.5", "gpt-5.6-sol", "gpt-5.6-terra",
+                  "gpt-5.6-luna", "gpt-6-astra", "o4-mini"}
+
 
 def _httpx():
     import httpx
@@ -40,6 +45,10 @@ def _httpx():
 
 class OpenAICompatProvider(Provider):
     name = "openai-compatible"
+
+    def supports_vision(self, model: str) -> bool:
+        return self._official_openai and (model in _VISION_MODELS or any(
+            re.fullmatch(re.escape(name) + r"-\d{4}-\d{2}-\d{2}", model) for name in _VISION_MODELS))
 
     def __init__(self, base_url: str, api_key: str = "", provider_name: str = "openai-compatible",
                  headers: Optional[dict[str, str]] = None, session_header: str = "", auth_hint: str = ""):

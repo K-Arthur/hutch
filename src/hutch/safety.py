@@ -316,6 +316,15 @@ class PolicyEngine:
                             risk=d.risk, segments=d.segments)
         return d
 
+    def check_computer(self, action: str, application: str = "") -> Decision:
+        """Native input is consequential even without network: it can modify granted workspace files."""
+        if self.tier == "readonly":
+            return Decision(Verdict.deny, "this bot is read-only; native input and application launch are refused",
+                            rule="deny:tier-readonly", risk="medium")
+        text = f"computer {action}" + (f" {application}" if application else "")
+        decision = Decision(Verdict.ask, text, rule="ask:computer-action", risk="medium")
+        return self._tier(self._apply_rule(text, decision))
+
     # ------------------------------------------------------------ shell
 
     def check_shell(self, command: str, _depth: int = 0) -> Decision:

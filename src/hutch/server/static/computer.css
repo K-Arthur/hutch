@@ -74,3 +74,7 @@
   .computer-actions .btn { flex: 1 1 100%; min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { .computer-img { transition: none; } }
+.computer-capabilities { padding-left: 20px; font-size: 0.875rem; }
+.computer-capabilities li { margin-block: 12px; overflow-wrap: anywhere; }
+.computer-capabilities p { margin-block: 4px; color: var(--text-2); }
+#form-computer .btn { min-height: 44px; }
