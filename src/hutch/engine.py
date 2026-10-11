@@ -46,7 +46,7 @@ from .models import (
     iso,
     utcnow,
 )
-from .persona import resolve_persona
+from .persona import PERSONA_VERSION, resolve_persona
 from .runtime import RunAborted, get_runtime
 from .safety import PolicyEngine
 from .workdir import check_workdir_at_run
@@ -775,6 +775,11 @@ class Engine:
         # attempt) is reused, never rewritten. The plan records the winning layer for every field, so the
         # choice stays auditable after the settings that produced it change.
         persona_plan = persisted.persona_plan
+        if persona_plan is not None and persona_plan.version > PERSONA_VERSION:
+            self._fail_persona_unavailable(
+                run, f"the run's stored response-style plan was written by a newer Hutch "
+                     f"(version {persona_plan.version})")
+            return
         if persona_plan is None:
             try:
                 conversation_style, conversation_revision = (

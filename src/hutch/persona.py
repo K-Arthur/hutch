@@ -108,10 +108,12 @@ def resolve_persona(*, application: Optional[PersonaStyle] = None, agent_preset:
     """Resolve every field from the highest layer that set it, recording which layer won."""
     app = APPLICATION_DEFAULT if application is None else apply_persona_changes(
         APPLICATION_DEFAULT, application.model_dump(exclude_none=True))
+    layer_styles = {"application": app, "agent_preset": agent_preset, "agent_override": agent_override,
+                    "conversation": conversation, "turn": turn}
     values: dict[str, Any] = {}
     sources: dict[str, str] = {}
-    for name, style in (("application", app), ("agent_preset", agent_preset), ("agent_override", agent_override),
-                        ("conversation", conversation), ("turn", turn)):
+    for name in LAYERS:
+        style = layer_styles[name]
         if style is None:
             continue
         for field in PERSONA_FIELDS:

@@ -71,7 +71,7 @@
   function fieldsHtml(prefix) {
     return FIELDS.map(field => `
       <label class="field persona-field">${esc(field.label)}
-        <select data-persona-field="${field.key}" aria-describedby="${prefix}-hint-${field.key}">
+        <select id="${prefix}-${field.key}" data-persona-field="${field.key}">
           <option value="${INHERIT}">Inherited</option>
           ${field.options.map(([value, label]) =>
             `<option value="${esc(value)}">${esc(label)}</option>`).join("")}
@@ -110,10 +110,16 @@
 
   function writeOrigins(scope, state, explicitText) {
     const els = originEls(scope);
+    const selects = selectEls(scope);
     FIELDS.forEach(field => {
       const el = els[field.key];
       if (!el) return;
-      const field_ = FIELDS.find(f => f.key === field.key);
+      const savedValue = encodeValue(field.key, state?.override?.[field.key]);
+      const current = selects[field.key]?.value;
+      if (current !== undefined && current !== savedValue) {
+        el.textContent = "Unsaved change — not saved yet.";
+        return;
+      }
       const explicit = state?.override?.[field.key] !== null && state?.override?.[field.key] !== undefined;
       if (explicit) { el.textContent = explicitText; return; }
       const effective = state?.effective?.[field.key];
@@ -121,7 +127,7 @@
         const source = state.labels?.[effective.source] || effective.source;
         el.textContent = `${source}: ${optionLabel(field.key, effective.value)}`;
       } else {
-        el.textContent = field_.hint;
+        el.textContent = FIELDS.find(f => f.key === field.key).hint;
       }
     });
   }
@@ -164,8 +170,10 @@
     writeSelects(form, saved);
     writeOrigins(form, state, "Saved for this assistant.");
     refreshDirty();
-    qa("[data-persona-field]", form).forEach(el => el.addEventListener("change", () =>
-      setStatus(refreshDirty() ? "Unsaved changes" : "")));
+    qa("[data-persona-field]", form).forEach(el => el.addEventListener("change", () => {
+      setStatus(refreshDirty() ? "Unsaved changes" : "");
+      writeOrigins(form, state, "Saved for this assistant.");
+    }));
     form.addEventListener("submit", async event => {
       event.preventDefault();
       const changes = changesBetween(form, saved);
@@ -285,14 +293,18 @@
       writeOrigins(conversationScope, state, "Saved for this conversation.");
     };
     const renderTurn = () => {
-      writeSelects(turnScope, pendingStyle(conversationId));
-      writeOrigins(turnScope, conversationStates.get(conversationId), "For the next reply only.");
+      const state = conversationStates.get(conversationId);
+      const pending = pendingStyle(conversationId) || {};
+      writeSelects(turnScope, pending);
+      writeOrigins(turnScope, { override: pending, effective: state?.effective, labels: state?.labels },
+                   "For the next reply only.");
     };
 
     qa("[data-persona-field]", conversationScope).forEach(el => el.addEventListener("change", async () => {
       if (busy) return;
       const state = conversationStates.get(conversationId);
       if (!state) return;
+      writeOrigins(conversationScope, state, "Saved for this conversation.");
       const changes = changesBetween(conversationScope, state.override || {});
       if (!Object.keys(changes).length) return;
       busy = true;
@@ -349,7 +361,7 @@
     if (activeChip) { conversationListeners.get(activeChip.conversationId)?.delete(activeChip.listener); activeChip = null; }
     container.innerHTML = `
       <div class="reply-composer persona-turn-chip" hidden>
-        <div class="reply-composer-preview">
+        <div class="reply-composer-preview" role="status" aria-live="polite">
           <span class="reply-composer-by">Next reply style</span>
           <span class="reply-composer-text" data-persona-turn-text></span>
         </div>

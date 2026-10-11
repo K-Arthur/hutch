@@ -2123,6 +2123,13 @@ class Store:
             row = db.execute("SELECT id, doc FROM bots WHERE id = ? OR name = ? LIMIT 1",
                              (bot.id, bot.name)).fetchone()
             previous = Bot.model_validate_json(row["doc"]) if row else None
+            if previous is not None and previous.persona_revision > bot.persona_revision:
+                # The owner's saved response style changes only through update_bot_persona (a revision-guarded
+                # compare-and-swap); a whole-document write built from a stale read keeps the stored style
+                # instead of silently rolling it back.
+                bot.persona_preset = previous.persona_preset
+                bot.persona_override = previous.persona_override
+                bot.persona_revision = previous.persona_revision
             identity_changed = previous is not None and previous.id != bot.id
             if identity_changed and (preserve_schedules or primary_schedule_update is not _SCHEDULE_UNCHANGED):
                 raise ValueError("cannot change a bot identity while preserving or editing its schedules")

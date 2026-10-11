@@ -351,3 +351,75 @@ def test_conversation_persona_api_and_next_reply_plan(persona_client):
         time.sleep(0.1)
     plan = store.get_run(run_id).persona_plan
     assert plan is not None and plan.sources == {"depth": "turn", "tone": "conversation", "banter": "application"}
+
+
+# ============================================================ independent-review regressions
+
+def _stub_dispatch(store, config, monkeypatch):
+    import hutch.engine as engine_module
+    from hutch.engine import Engine
+
+    class Runtime:
+        kind = "fixture"
+
+        def execute(self, run, ctx, tools, stop):
+            return "ok"
+
+    monkeypatch.setattr(engine_module, "get_runtime", lambda _: Runtime())
+    Engine(config, store).dispatch_pending()
+
+
+def _wait_terminal(store, run_id):
+    deadline = time.time() + 10
+    while time.time() < deadline:
+        run = store.get_run(run_id)
+        if run.status in (RunStatus.succeeded, RunStatus.failed, RunStatus.stopped):
+            return run
+        time.sleep(0.05)
+    raise AssertionError("the run did not reach a terminal state")
+
+
+def test_a_stale_full_document_save_cannot_roll_back_the_saved_style(store):
+    bot = store.create_bot(Bot(name="stale-bot", model="mock/demo", tools=[]))
+    stale = store.get_bot(bot.id)
+    store.update_bot_persona(bot.id, {"depth": "brief"}, expected_revision=0, idem_key="sp-1", request_hash="sp-1")
+
+    stale.instructions = "edited elsewhere"
+    store.upsert_bot(stale)
+
+    saved = store.get_bot(bot.id)
+    assert saved.instructions == "edited elsewhere"          # the unrelated edit lands
+    assert saved.persona_override.depth == "brief"           # the guarded style survives
+    assert saved.persona_revision == 1
+
+
+def test_engine_fails_closed_when_the_conversation_style_state_is_unreadable(store, config, monkeypatch):
+    bot = store.create_bot(Bot(name="broken-style", model="mock/demo", tools=[]))
+    conversation, _ = store.create_conversation(bot.id, "broken", idem_key="bs-create", request_hash="bs-create")
+    with store._lock:
+        store._db.execute("UPDATE conversations SET persona = ? WHERE id = ?",
+                          ('{"version": 99, "revision": 1, "values": {}}', conversation["id"]))
+        store._db.commit()
+
+    run = Run(bot_id=bot.id, prompt="hello", conversation_id=conversation["id"])
+    store.submit_conversation_message(conversation["id"], "hello", run, Task(bot_id=bot.id, prompt="hello"),
+                                      idem_key="bs-send", request_hash="bs-send")
+    _stub_dispatch(store, config, monkeypatch)
+
+    failed = _wait_terminal(store, run.id)
+    assert failed.status is RunStatus.failed and failed.exit_reason == "persona_unavailable"
+    assert "newer Hutch" in failed.error
+
+
+def test_engine_fails_closed_on_a_newer_stored_plan(store, config, monkeypatch):
+    bot = store.create_bot(Bot(name="newer-plan", model="mock/demo", tools=[]))
+    conversation, _ = store.create_conversation(bot.id, "newer", idem_key="np-create", request_hash="np-create")
+    plan = PersonaPlan(version=PERSONA_VERSION + 1, depth="brief", tone="neutral", banter=True)
+    run = Run(bot_id=bot.id, prompt="hello", conversation_id=conversation["id"], persona_plan=plan)
+    store.submit_conversation_message(conversation["id"], "hello", run, Task(bot_id=bot.id, prompt="hello"),
+                                      idem_key="np-send", request_hash="np-send")
+    _stub_dispatch(store, config, monkeypatch)
+
+    failed = _wait_terminal(store, run.id)
+    assert failed.status is RunStatus.failed and failed.exit_reason == "persona_unavailable"
+    assert "newer Hutch" in failed.error

@@ -119,10 +119,14 @@ try:
             page.wait_for_function("() => document.querySelector('#persona-form-slot [data-persona-status]').textContent.includes('changed elsewhere')")
             check("conflict keeps the unsaved edits", depth.input_value() == "thorough")
             check("conflict message asks for review", "review" in status.inner_text(), status.inner_text())
+            depth_origin = form.locator('[data-persona-origin="depth"]').inner_text()
+            check("conflict labels the differing field as unsaved", "Unsaved change" in depth_origin, depth_origin)
             form.locator('[data-persona-save]').click()
             page.wait_for_function("() => document.querySelector('#persona-form-slot [data-persona-status]').textContent.includes('Saved.')")
             after = json.loads(api("GET", "/v1/bots/persona-ui/persona").body())
             check("re-save after conflict applied", after["override"]["depth"] == "thorough", after["override"])
+            saved_origin = form.locator('[data-persona-origin="depth"]').inner_text()
+            check("saved field says saved", "Saved for this assistant" in saved_origin, saved_origin)
 
             tone.select_option("inherit")
             form.locator('[data-persona-save]').click()
@@ -130,6 +134,8 @@ try:
             reset = json.loads(api("GET", "/v1/bots/persona-ui/persona").body())
             check("reset cleared the tone back to inherited", reset["override"]["tone"] is None
                   and reset["effective"]["tone"]["source"] == "application", reset["effective"]["tone"])
+            reset_origin = form.locator('[data-persona-origin="tone"]').inner_text()
+            check("reset shows the inherited source", "Hutch default: Neutral" in reset_origin, reset_origin)
 
             for width in (360, 768, 1440):
                 page.set_viewport_size({'width': width, 'height': 960})
@@ -158,6 +164,10 @@ try:
             chip = page.locator('#persona-turn-slot .persona-turn-chip')
             check("composer chip shows the next-reply style", chip.is_visible() and "short" in chip.inner_text(),
                   chip.inner_text())
+            turn_origin = page.locator('#persona-chat-options .persona-fields-turn [data-persona-origin="depth"]').inner_text()
+            check("turn origin names the next-reply scope", "For the next reply only" in turn_origin, turn_origin)
+            turn_tone_origin = page.locator('#persona-chat-options .persona-fields-turn [data-persona-origin="tone"]').inner_text()
+            check("unset turn field names its inherited source", "This conversation" in turn_tone_origin, turn_tone_origin)
 
             captured = {}
             page.on('request', lambda req: captured.setdefault('body', req.post_data_json)
