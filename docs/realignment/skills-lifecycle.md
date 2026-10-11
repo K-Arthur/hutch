@@ -69,16 +69,56 @@ Commits (in order):
 
 | Check | Command | Result |
 |---|---|---|
-| Skills core | `.venv/bin/python -m pytest tests/test_skills.py tests/test_skill_runtime.py tests/test_skills_api.py -q` | **60 passed** |
+| Skills core | `.venv/bin/python -m pytest tests/test_skills.py tests/test_skill_runtime.py tests/test_skills_api.py -q` | **74 passed** (after the review fixes) |
 | Full offline suite (on the rebased tree) | `.venv/bin/python -m pytest -q --ignore=tests/e2e` | **1685 passed in 550.64s** |
 | Concurrent agent's new suites with mine | `pytest tests/test_bot_stats_scaling.py tests/test_capacity_procs.py tests/test_bounded_file_read.py tests/test_dispatch_fairness.py` + skills suites | **70 passed** |
 | Browser journeys | `.venv/bin/python -m pytest tests/e2e/test_skills_browser.py -q` | **6 passed** (Chromium 153, local fixture service) |
 | Bounded soak | `.venv/bin/python -m pytest tests/e2e/test_skills_soak.py -q -s` | **1 passed, 60.4 s** — 225 runs submitted (75 activated), 112 approvals + 113 denials, 56 cancellations, 32 skill toggles, 45 library reads, 202 SPA navigations; 0 page errors, 0 console errors, 0 route errors, 0 leaked active runs, registry readable |
 | Packaging | `uv build --wheel` + isolated `uv venv` install | Wheel ships `hutch/skills.py`, `readiness.py`, `server/skills_api.py`, `server/static/skills.js`, `skills.css` and all three sample `SKILL.md` files; installed wheel passes an install→trust→resolve smoke test |
+| Independent adversarial review | separate read-only agent session at `fa73b0e`; re-ran suites and 14 probes | Confirmed enforcement boundary, path safety, API default-deny, concurrency integrity; found 8 issues, all fixed in `aeb244c` with 11 new regressions |
+
+### Independent review findings and fixes (`aeb244c`)
+
+A separate agent session reviewed the subsystem read-only and attacked it with 14 probes. It
+confirmed: untrusted/disabled/tampered/hand-edited skills never reach a prompt, tool or
+activation; run start is byte-level even when listing is not; revocation is fail-closed; resource
+path traversal, symlink escapes and hostile install paths are refused; `allowed-tools`/metadata
+never change tool exposure; all skills routes are default-deny for paired phones (403 reproduced
+with a real paired session); two- and four-process registry races stay consistent. Its real
+findings, all now fixed:
+
+| # | Finding | Fix |
+|---|---|---|
+| D1 | YAML alias bomb (~1 KB SKILL.md → MemoryError) reachable through discovery on every library view | Frontmatter is scanned for aliases/anchors before construction; metadata values must be scalars; 5,000-node cap |
+| D2 | Resource reads were not hash-verified (mid-run tamper served silently) | `read_resource` verifies the package hash before serving |
+| D3 | Hostile `use_skill(resource=…)` args (NUL, over-long) raised and crashed the run | Refusals instead of exceptions; schema `maxLength` bounds added |
+| D4 | `install_builtin` accepted absolute/parent names and could install outside the bundle | Path-shaped names rejected |
+| D5 | One unreadable file made the readiness endpoint 500 and blocked runs unclearly | `inspect_package`/`resolve_binding` return "could not be read"; readiness catches all resolution errors and stays 200 |
+| D6 | `uninstall` raised on a symlinked package dir (registry entry stuck) | Removes the link (never the target) or returns a clean error |
+| D7 | Listing could show a stale hash for a same-size/mtime-forged edit; docs overstated detection | The review inspector and CLI always full-hash the bytes they show; docs state the exact boundary (listing signature vs enforcement hash) |
+| D8 | Staged updates were not actually reviewable; `apply` did not re-hash the staged bytes | Staged instructions exposed in the inspector/CLI; `apply_update` re-verifies the staged hash and refuses changed content |
+| D9 | Catalog descriptions were interpolated into the prompt block unescaped | Prompt text escapes skill-provided markup |
+
+The reviewer also disclosed that running the browser suite regenerated two committed screenshots;
+those files were restored to their committed bytes and the full browser suite is re-run from the
+final revision.
 
 One design-system browser test (`test_assistant_settings_keep_everyday_edits_up_front`) fails on
 the base commit `a2106ec` **without this slice's commits** (reproduced in a clean worktree at
 `a2106ec`); it is pre-existing and not introduced here.
+
+The full browser suite on the final revision reports 25 failures and 8 teardown errors that are
+**pre-existing at the base commit**: a clean worktree at `a2106ec` (no slice commits) run with the
+same selection produced the identical failure set (verified by diffing both pytest `lastfailed`
+caches — zero difference). The clearest mechanism found:
+`test_composer_options_rehearsal_and_cancelled_notice` asserts `inner_text()` of `.run-queue-time`,
+but commit `8059efd` moved that element inside a collapsed `<details id="run-technical-details">`,
+where Chromium's `innerText` is empty; the element itself renders the correct `1.3s` text and the
+run API carries `queue_ms=1250` (verified with a standalone DOM probe). The other failures cluster
+in the same recently refactored surfaces (workspace modes, browser handoff, fact review, tool
+permissions, coordinator, duplication) and are outside this slice's diff. This slice's own browser
+files (`test_skills_browser.py` 6 tests, `test_skills_soak.py`) passed within the same full-suite
+run; the offline suite (1685 tests) is fully green.
 
 ### Bounded-corpus measurements (200 installed skills, 100 Bots, 20 bound, 3 activated)
 
