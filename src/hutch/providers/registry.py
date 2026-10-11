@@ -100,6 +100,15 @@ _OFFLINE_DEFAULTS = {
 }
 
 
+def default_endpoint(provider: str) -> str:
+    """The endpoint a built-in route uses when no explicit base URL is configured."""
+    if provider == "anthropic":
+        return "https://api.anthropic.com"
+    if provider == "openai":
+        return "https://api.openai.com/v1"
+    return _OFFLINE_DEFAULTS.get(provider, "")
+
+
 def loopback_endpoint(provider: str, url: Optional[str] = None) -> str:
     """Return a loopback-only local model endpoint or reject the route.
 

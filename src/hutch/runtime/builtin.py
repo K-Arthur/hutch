@@ -462,8 +462,8 @@ class BuiltinRuntime:
             if rung.provider == "ollama":
                 endpoint = endpoint or os.environ.get("OLLAMA_HOST") or ""
             if not endpoint:
-                from ..providers.openai_compat import PRESET_URLS
-                endpoint = PRESET_URLS.get(rung.provider, "")
+                from ..providers.registry import default_endpoint
+                endpoint = default_endpoint(rung.provider)
             if rung.provider == "anthropic":
                 endpoint = endpoint or os.environ.get("ANTHROPIC_BASE_URL") or "https://api.anthropic.com"
             elif rung.provider == "openai-compatible":

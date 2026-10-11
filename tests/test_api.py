@@ -53,6 +53,25 @@ def test_health_and_stats(client):
     assert stats["bots"] == 0 and stats["pending_approvals"] == 0
 
 
+def test_tool_compatibility_reports_route_evidence_without_a_probe(client):
+    make_bot(client, "local-tools-bot", model="ollama/llama3.2")
+    report = client.get("/api/v1/tool-compatibility", params={"ref": "local-tools-bot"})
+    assert report.status_code == 200, report.text
+    body = report.json()
+    assert body["model"] == "ollama/llama3.2" and body["requested"] == "auto"
+    assert body["profile"]["provider"] == "ollama" and body["profile"]["endpoint_class"] == "local"
+    assert body["eligibility"]["native"]["available"] is True
+    assert body["eligibility"]["constrained"]["available"] is True
+    assert body["observations"] == [] and "validator" in body
+    assert "advertised is not verified" in body["evidence_note"]
+
+    make_bot(client, "hosted-tools-bot", model="lmstudio/qwen2.5-7b")
+    hosted = client.get("/api/v1/tool-compatibility", params={"ref": "hosted-tools-bot"}).json()
+    assert hosted["eligibility"]["constrained"]["available"] is False
+    assert hosted["eligibility"]["native"]["available"] is True
+    assert client.get("/api/v1/tool-compatibility", params={"ref": "missing"}).status_code == 404
+
+
 def test_tool_protocol_is_a_validated_bot_setting(client):
     bot = make_bot(client, "protocol-bot")
     assert bot["tool_protocol"] == "auto"
