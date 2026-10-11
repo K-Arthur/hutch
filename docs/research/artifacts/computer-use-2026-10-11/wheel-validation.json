@@ -15,8 +15,8 @@
       "sha256": "fad1429bf7e7ea76ecd2071e1726bc4c3105ad96744694eec90817fe3eebc6dd"
     },
     "computer/native/eis_worker.py": {
-      "bytes": 15955,
-      "sha256": "dc9c0f8bb2c484038a4ffc3bb9995e90373412fa318a3ac887482378cf15934a"
+      "bytes": 20122,
+      "sha256": "70e862be2ed8bd1933e99573be62b12db07e2cb435adbea31f2edc3c2f9c2f20"
     },
     "computer/native/virtual.py": {
       "bytes": 10645,
@@ -130,7 +130,7 @@
         "id": "browser_engine",
         "title": "Browser engine",
         "state": "ready",
-        "detail": "Headless launch in a throwaway profile worked in 0.6s.",
+        "detail": "Headless launch in a throwaway profile worked in 0.5s.",
         "fix": "",
         "evidence": "/home/kevina/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome"
       },
@@ -160,5 +160,10 @@
       "width": 1280,
       "height": 720
     }
+  },
+  "installed_real_native": {
+    "status": "passed",
+    "saved_sha256": "87d65fa7b096a9973ebd21a931bca06889f3a5a86f9a77d690732da628a56d1c",
+    "screenshot": "native-installed-wheel.png"
   }
 }

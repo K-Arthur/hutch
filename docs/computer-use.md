@@ -289,6 +289,38 @@ No model in the loop (so these are driver costs, not task times).
 These are the earlier slice's baseline, **not measurements of the final resource-watchdog code**. The earlier 100-cycle result is in
 `research/artifacts/computer-use/soak-100-cycles.json`.
 
+## Current bounded measurements
+
+The final source ran 100 browser and 100 native cycles in 109.3 seconds, followed by 200 browser cycles in 53.3 seconds.
+The workloads include re-observation, real input, navigation/errors and exclusive lease takeover/handback; they do not
+include model inference or physical-phone network latency. JSON evidence is in
+`research/artifacts/computer-use-2026-10-11/soak-100-cycles.json` and `soak-browser-200-cycles.json`.
+
+| Current quantity | Median / p90, or retained value |
+| --- | --- |
+| Browser observation | 41.0 / 51.2 ms |
+| Browser action | 218.7 / 258.9 ms; independent field/title verification 1.3 / 2.1 ms |
+| Browser PNG capture/encoding/driver roundtrip | 31.9 / 40.7 ms |
+| Browser semantic driver roundtrip | 1.7 / 2.3 ms; this is not model grounding |
+| Image-wire serialization | 0.1 / 0.1 ms, one current image, at most 10,357 PNG bytes in this fixture |
+| Native action/settle/identity/observation | 696.6 / 752.6 ms |
+| Native PNG capture/encoding/subprocess roundtrip | 415.0 / 465.5 ms |
+| Native input acknowledgement | 0.4 / 0.6 ms; acknowledgement alone is not a verified effect |
+| Native frame validation/persistence | 0.7 / 1.0 ms |
+| Browser / native stop plus cleanup | 1,505.0 / 332.2 ms |
+| Native sampled RSS sum | 369.1 → 366.7 MiB; saved exactly 50 `x` characters plus KWrite's newline |
+| Browser sampled RSS sum, 100 cycles | 643.2 → 734.3 MiB; still growing at that point |
+| Browser sampled RSS sum, extended 200 cycles | 640.5 → 749.1 MiB; last 100 cycles grew 2.36%, approaching a plateau |
+| Retained frames | 64, about 0.61 MiB browser / 1.94 MiB native; eviction verified |
+| Browser persistent profile, 200 cycles | 2,089,967 bytes / 109 entries |
+| Held keys/buttons and owned descendants at exit | zero |
+
+RSS sums can double-count shared mappings and are sampled, not peak physical memory. The extended result establishes a
+bounded observed interval, not indefinite memory stability. Capture includes encoding and transport together; encoder CPU
+is not separately instrumented. The earlier workload and machine/cache state differ, so these are not a controlled speedup
+claim. Actual HTTP control, approval and cancellation races have their separate integration checks. Real model inference,
+model-server memory and arbitrary GUI grounding remain unmeasured because no local model was available.
+
 ## Contributor and installed-package checks
 
 Use the existing development environment and installed Chromium; native tests need the prerequisites above. Use a private,
@@ -307,7 +339,8 @@ uv build --offline --wheel --out-dir /private/dist
 ```
 
 The wheel check serves packaged assets/readiness, invokes the installed CLI, checks native worker/driver source hashes,
-and observes a real throwaway Chromium page. It does not claim real model inference, native delivery on another platform,
+and observes a real throwaway Chromium page. With `--native`, it also opens KWrite in a private compositor, types/saves
+through the installed input worker, checks the saved bytes and retains a screenshot. It does not claim real model inference, native delivery on another platform,
 or a deployed phone connection. The soak measures deterministic driver tasks, errors/navigation and control-lease handoff;
 HTTP/phone latency is a separate scenario. Capture includes encoding/driver transport, whose CPU costs are not separately
 instrumented. Fresh results and unexecuted checks belong in the dated evidence ledger, rather than being inferred from a

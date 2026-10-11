@@ -43,6 +43,8 @@ No new dependency, model download, privileged daemon, network exposure, or paid 
 Linux 7.2.7 CachyOS, KDE Wayland; XWayland also exists but is not evidence of native Wayland input.
 CPython 3.13.15, Playwright 1.63.0, OpenAI package 3.26.0, Anthropic package 1.13.0, FastAPI 0.142.3.
 KWin, Spectacle, libei-related tools, D-Bus and KWrite are available. All input tests use disposable desktops/profiles.
+Final native version probes: KWin/Spectacle 6.7.5, KWrite 26.08.2; the GI/EIS worker uses system CPython 3.14.7 and
+PyGObject 3.58.1. Bubblewrap 0.13.0 and systemd 262 enforce the existing namespace/scope boundaries.
 
 Initial integrated baseline: **124 passed** in 47.82 seconds (browser profiles, approval CAS, runtime, skills, Responses).
 Restored browser/frame/control unit and wire checks: **163 passed** in 54.37 seconds. Real-browser/native and visual
@@ -272,3 +274,122 @@ returned unavailable; installed systemd 262 and Bubblewrap 0.13.0 were checked. 
 host bus or downgrading containment. Actual file-write → shell-copy → file-read, four local protocol chat turns, credential
 masking, network-tool omission, namespace/resource tests and native control contracts passed **88 in 14.45 s**. The fixture
 is explicitly a scripted protocol server, not local model weights, GUI grounding or cloud inference.
+
+## Final resource, trace and installed-package evidence
+
+The corrected four-cycle pilot completed both drivers in **15.4 s**, with independent saved-file and browser state checks;
+it was kept privately as a pilot, not substituted for sustained evidence. The first pilot had failed an incomplete benchmark
+path-policy stub; the benchmark now uses the real `PolicyEngine`. Native save comparisons retain KWrite's newline semantics.
+The final [100-cycle JSON](artifacts/computer-use-2026-10-11/soak-100-cycles.json) completed both surfaces in **109.3 s**:
+15 browser navigations, 12 missing-target refusals without neighbouring-field input, ten takeover/handback transitions per
+surface, actual browser field/title checks and exactly 50 `x` characters saved through KWrite. Held keys/buttons and verified
+owned descendants at exit were zero. Native sampled RSS stayed 369.1 → 366.7 MiB; browser RSS grew 643.2 → 734.3 MiB, so
+this run alone is **not called a browser plateau**.
+
+That unresolved growth justified a separate [200-cycle browser JSON](artifacts/computer-use-2026-10-11/soak-browser-200-cycles.json),
+**53.3 s**, 29 navigations, 23 refusals and twenty exclusive handoffs. RSS approached a plateau: 640.5 → 749.1 MiB overall,
+only **2.36%** growth over cycles 100–199. Final splits were Python 63.2, Playwright driver 179.5, Chromium 506.4 MiB.
+Frames plateaued at 64 / 637,155 bytes and profile storage was 2,089,967 bytes / 109 entries. No leftover descendants.
+This establishes a finite sampled interval, not indefinite stability or a hard Chromium memory limit. We inspected the
+installed Playwright 1.63 CDP close/dispatcher-disposal source and official
+[CDPSession lifetime](https://playwright.dev/python/docs/api/class-cdpsession); no unconfirmed leak hypothesis was shipped as
+a fix. Capture/encoding/transport remain combined; image-wire serialization is local work, not a network/inference time.
+The exact latency split and earlier-baseline qualifications are in [computer-use.md](../computer-use.md#current-bounded-measurements).
+
+The credential-free mixed fixture now retains a bounded **113,344-byte**
+[Playwright trace](artifacts/computer-use-2026-10-11/mixed-workflow-trace.zip), screenshots and separate top-level/iframe
+accessibility snapshots. Its follow-up transfer suite passed **7 in 12.34 s**. Trace data was opened and inspected: 137
+instrumented calls include actual fill/click/file selection, the upload POST got 200, no trace action failed, and the origin's
+independent request log confirms the managed download GET occurred once. The saved CSV, immutable artifact and receipt
+SHA-256 match `c005fe70a4d3e0e904159e4e12e6f7f003dc9e3a50f93e9828c89f45667ccf6b`. Console errors were absent and
+the iframe accessibility tree names the accepted receipt/download. The fresh receipt screenshot was opened and inspected.
+Authentication tests deliberately do **not** export Playwright traces containing human-entered credentials.
+
+The final wheel was rebuilt/reinstalled offline from cache and checked by its own isolated Python with `-I`, outside the
+checkout. Packaged assets/source hashes, installed HTTP/readiness/CLI and actual Chromium capture passed. `--native` then
+required real input in a private KWin session: installed KWrite saved `Installed wheel native outcome`, with verified bytes
+SHA-256 `87d65fa7b096a9973ebd21a931bca06889f3a5a86f9a77d690732da628a56d1c`. The installed-native screenshot was opened
+and inspected. [wheel-validation.json](artifacts/computer-use-2026-10-11/wheel-validation.json) records the noneditable
+package path and actual cached versions: FastAPI 0.143.0, OpenAI 3.28.0, Pydantic 2.14.0, Playwright 1.63.0, Anthropic 1.13.0.
+No dependency range changed and no new package or weight was downloaded.
+
+## Acceptance coverage and limits
+
+| Obligation | Implemented and verified evidence | Unsupported or blocked |
+| --- | --- | --- |
+| Research / root causes | Earlier and current ledgers distinguish reports, reproduced Hutch failures, versions, fix evidence, design choices and regression tests; all requested failure classes covered | No prevalence estimate or claim that a closed upstream issue proves an installed fix |
+| Owned browser / accounts | Real records/form/enable-after-type/ambiguous-target/popup/iframe/upload/download, two profiles/tabs/out-of-order finish, immutable bot-ID profiles, target/account review fences | Custom site account identity in arbitrary storage is not provable; legacy profiles are never automatically imported |
+| Native desktop | Actual private KWin 6.7.5 + KWrite menus/edit/save/native dialog/reopen; OS app containment; real move/resize refusals and identity/lease faults; installed worker delivered input | Personal desktop, host portal capture/input, GNOME/X11/macOS/Windows adapters, AT-SPI actions and physical monitor changes unsupported/unexecuted |
+| Observation/model path | One bounded current frame; explicit hosted text/image consent and fallback refusal; real provider wire schemas tested against protocol fixtures | No live hosted inference or local multimodal weights; actual GUI grounding/model-server memory blocked by unavailable models |
+| Authority / stop / recovery | Production policy/review/CAS receipts, hard-deny precedence, target/argument/generation/revocation fences, isolated apps, independent stop/watchdogs, actual interrupted input and cleanup | Arbitrary GUI semantics cannot be classified universally; uncertain external effects require inspection and are never blindly retried |
+| Governed mixed workflow | Actual contained shell-generated CSV, iframe UI inspection, reviewed frozen-byte upload, application receipt and one managed download with immutable provenance | Managed download limited to direct same-origin HTTP text; clipboard, PTY, binary/executable transfer and remote file picker unsupported |
+| Human and phone controls | Actual authenticated HTTP clicks/text/keys to headless browser and native app, normal process-worker Unix IPC, Monitor/Review/CSRF/revocation, exclusive viewers, duplicate/out-of-order/background/stale-frame faults | Viewport emulation/lifecycle injection do not validate physical iOS/Android keyboards, cellular links, private HTTPS deployment, sleep or screen lock |
+| Visual / marketing | Opened app, actual human preview and site at 360/768/1440, landscape/reflow/focus/failure/settings; native/receipt pixels; DOM/a11y/trace and site console/network checks | No whole-app WCAG certification or physical-phone usability claim; no publication |
+| Resources / Offline / package | 100 browser+native cycles, extended 200 browser cycles, capped frames/profiles/queues, soft RSS watchdogs, hard native/shell scopes, actual offline file/shell process loop, isolated installed browser/native wheel | Real-model capability remains blocked; compositor/browser RSS bounds are sampled; external Pi/OpenCode execution is explicitly refused |
+| Delivery / state | Progressive commits in owner-authorized detached worktree; configuration defaults off, immutable profiles and restart-invalidated authority; docs/setup/rollback updated | No master created, shared checkout switched, push, deployment, permission change or external account write |
+
+## Reproducible commands and implementation index
+
+Commands below reproduce the recorded runs with the original project's existing CPython 3.13.15 development environment. A private disk-backed
+`TMPDIR=/home/kevina/.cache/hutch-supervised-validation` avoids the unrelated full `/tmp`. These overlapping checks must not
+be summed into a unique scenario count. After the native and Offline corrections, the final full non-e2e suite passed
+**1,845 in 476.28 s**, with thread exceptions treated as failures. This supersedes the earlier 1,839 result for affected
+unit boundaries; the real interaction scenarios retain their separate 73-check and 7-check evidence. The final site source
+hashes and installed worker/asset hashes were rechecked against the current tree, and the bounded trace archive passed
+integrity inspection. No further implementation edit followed that full check.
+
+```sh
+HUTCH_PY=/home/kevina/CodingProjects/hutch/.venv/bin/python
+export TMPDIR=/home/kevina/.cache/hutch-supervised-validation
+# Final full non-e2e recheck, after native/offline changes:
+PYTHONPATH=src "$HUTCH_PY" -m pytest -q --ignore=tests/e2e --basetemp=/home/kevina/.cache/hv-final \
+  -W error::pytest.PytestUnhandledThreadExceptionWarning --maxfail=3 --tb=short
+
+# Final scoped real integration (73 passed):
+HUTCH_EVIDENCE_DIR=docs/research/artifacts/computer-use-2026-10-11 PYTHONPATH=src "$HUTCH_PY" -m pytest -q \
+  tests/e2e/test_computer_browser_real.py tests/e2e/test_computer_isolation.py \
+  tests/e2e/test_computer_transfers.py tests/e2e/test_computer_native.py \
+  tests/e2e/test_computer_handoff_native.py tests/e2e/test_computer_phone.py \
+  tests/e2e/test_computer_panel.py tests/e2e/test_computer_site.py tests/e2e/test_browser_egress.py \
+  tests/e2e/test_browser.py::test_paired_phone_uses_supervision_view_and_hides_data_after_revocation \
+  tests/e2e/test_browser.py::test_paired_phone_reviews_the_exact_approval_once \
+  tests/e2e/test_browser.py::test_paired_phone_can_stop_a_run_and_resume_the_current_human_wait \
+  tests/e2e/test_browser.py::test_paired_phone_recovers_approval_after_lost_response_with_same_key \
+  --basetemp=/home/kevina/.cache/hv-sup -W error::pytest.PytestUnhandledThreadExceptionWarning --maxfail=1 --tb=short
+
+# Native/control/Offline regression boundary (88 passed):
+PYTHONPATH=src "$HUTCH_PY" -m pytest -q tests/test_offline_mode.py tests/test_sandbox.py \
+  tests/test_computer_desktop.py tests/test_computer_control.py tests/test_computer_human.py \
+  --basetemp=/home/kevina/.cache/hv-offh -W error::pytest.PytestUnhandledThreadExceptionWarning --maxfail=1 --tb=short
+
+# Credential-free trace follow-up (7 passed):
+HUTCH_EVIDENCE_DIR=docs/research/artifacts/computer-use-2026-10-11 PYTHONPATH=src "$HUTCH_PY" -m pytest -q \
+  tests/e2e/test_computer_transfers.py --basetemp=/home/kevina/.cache/hv-trace \
+  -W error::pytest.PytestUnhandledThreadExceptionWarning --maxfail=1 --tb=short
+
+PYTHONPATH=src "$HUTCH_PY" benchmarks/computer_use_soak.py --cycles 100 --json docs/research/artifacts/computer-use-2026-10-11/soak-100-cycles.json
+PYTHONPATH=src "$HUTCH_PY" benchmarks/computer_use_soak.py --surface browser --cycles 200 --json docs/research/artifacts/computer-use-2026-10-11/soak-browser-200-cycles.json
+uv build --offline --wheel --out-dir /home/kevina/.cache/hutch-supervised-validation/dist
+uv pip install --offline --python /home/kevina/.cache/hutch-supervised-validation/wheel-install/bin/python \
+  --reinstall-package hutch /home/kevina/.cache/hutch-supervised-validation/dist/hutch-0.1.0-py3-none-any.whl
+# Executed outside the checkout, with the installed environment's Python:
+/home/kevina/.cache/hutch-supervised-validation/wheel-install/bin/python -I \
+  /home/kevina/.codex/worktrees/supervised-computer-use/hutch/scripts/verify_computer_wheel.py \
+  --source-root /home/kevina/.codex/worktrees/supervised-computer-use/hutch \
+  --evidence /home/kevina/.codex/worktrees/supervised-computer-use/hutch/docs/research/artifacts/computer-use-2026-10-11/wheel-validation.json --native
+```
+
+The [implementation manifest](artifacts/computer-use-2026-10-11/implementation-manifest.json) gives exact changed source,
+test and document paths, hashes and Python function definitions relative to `2872f4f`. Principal boundaries:
+`BrowserTool` lifecycle/observe/target review/transfers; `ControlLease` ownership; `DesktopSession` observation/dispatch;
+`EisInput`/`_KwinSession` real private input/identity; `HumanSession` private capture/dispatch/lease; Linux worker transport;
+fresh `authority`/`workspace_grant` and resource watchdogs; bounded `FrameStore`; provider image adapters and built-in loop;
+authenticated server routes/settings; `computer.js` render/mount/mountControl; scoped `website/index.html` claims. Model
+settings stay default-off. Upgrade/profile migration and safe rollback are in [computer-use.md](../computer-use.md#upgrade-and-rollback).
+
+Local milestones: `2ae1603` browser ownership/frames/stop; `e5c911b` isolated Wayland/readiness/panel; `288bda1` native
+containment/observation privacy/target authority; `eeac48b` authenticated worker-backed human control and site; `bb81f71`
+immutable profiles/iframe/frozen-byte transfers; `ebb12c0` revocation/grants/watchdogs/capture/IPC/installed wheel;
+`44258c4` native geometry/per-primitive input and contained Offline probe correction. The final evidence/documentation
+milestone adds the inspected captures/trace, sustained resource results, installed native smoke check and this delivery
+record after the full recheck. Its commit is discoverable in the local log; no push or publication.

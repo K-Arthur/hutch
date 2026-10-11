@@ -159,6 +159,9 @@ def test_real_governed_shell_iframe_upload_receipt_and_download(store, config, t
     reviewer_thread = threading.Thread(target=reviewer, daemon=True)
     reviewer_thread.start()
     results = []
+    evidence = os.environ.get("HUTCH_EVIDENCE_DIR")
+    tracing = False
+    console_errors = []
 
     def invoke(action, **args):
         result = call_tool(ctx.run, ctx, tools, "browser", {"action": action, **args})
@@ -172,6 +175,13 @@ def test_real_governed_shell_iframe_upload_receipt_and_download(store, config, t
         assert generated.ok, generated.output
         assert (ctx.workspace / "report.csv").read_bytes() == DOCUMENT
         invoke("goto", url=base)
+        page = browser._tabs[browser._active_tab]
+        page.on("pageerror", lambda error: console_errors.append(str(error)))
+        if evidence:
+            # Only this credential-free local fixture is traced. Authentication
+            # scenarios must not export entered secrets via Playwright traces.
+            browser._browser.tracing.start(screenshots=True, snapshots=True, sources=False)
+            tracing = True
         assert "Reviewed local report" in invoke("read", frame="#editor").output
         invoke("type", selector="#title", frame="#editor", text="Reviewed record")
         invoke("click", selector="#next", frame="#editor")
@@ -191,18 +201,24 @@ def test_real_governed_shell_iframe_upload_receipt_and_download(store, config, t
         assert any(a["detail"].get("file", {}).get("sha256") == ref["sha256"] and a["outward"] for a in approvals)
         assert any(a["detail"].get("target_kind") == "form_submit" and a["outward"] for a in approvals)
         assert not failures
-        evidence = os.environ.get("HUTCH_EVIDENCE_DIR")
+        assert not console_errors, console_errors
         if evidence:
             out = Path(evidence)
             out.mkdir(parents=True, exist_ok=True)
             page = browser._tabs[browser._active_tab]
             page.screenshot(path=str(out / "mixed-workflow.png"), scale="css")
+            browser._browser.tracing.stop(path=str(out / "mixed-workflow-trace.zip"))
+            tracing = False
             (out / "mixed-workflow.json").write_text(json.dumps({"document_sha256": ref["sha256"],
                 "requests": server.requests, "results": results, "approval_count": len(approvals),
-                "a11y": page.locator("body").aria_snapshot()}, indent=2))
+                "console_errors": console_errors, "trace": "mixed-workflow-trace.zip",
+                "a11y": page.locator("body").aria_snapshot(),
+                "iframe_a11y": page.frame_locator("#editor").locator("body").aria_snapshot()}, indent=2))
     finally:
         done.set()
         reviewer_thread.join(3)
+        if tracing:
+            browser._browser.tracing.stop()
         browser._teardown()
 
 

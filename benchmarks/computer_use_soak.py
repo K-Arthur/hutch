@@ -14,6 +14,7 @@ Everything stays on loopback and in disposable sessions; nothing paid or persona
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import socket
@@ -81,6 +82,29 @@ def stats(values: list[float]) -> dict:
             "max_ms": round(ordered[-1], 1)}
 
 
+def instrument(obj, method, samples):
+    original = getattr(obj, method)
+    def measured(*args, **kwargs):
+        started = time.monotonic()
+        try:
+            return original(*args, **kwargs)
+        finally:
+            samples.append((time.monotonic() - started) * 1000)
+    setattr(obj, method, measured)
+
+
+def handoff(lease):
+    from hutch.computer.control import StaleControl
+    lease.take_over("bounded soak: human intervention")
+    try:
+        lease.begin_action()
+    except StaleControl:
+        pass
+    else:
+        raise AssertionError("agent authority overlapped human ownership")
+    lease.hand_back("bounded soak: explicit handback")
+
+
 class Gate:
     def decide(self, *a, **k):
         return None
@@ -93,8 +117,7 @@ def make_ctx(config, name: str, workspace: Path, **bot_kw):
     return SimpleNamespace(config=config, bot=Bot(name=name, **bot_kw), run=SimpleNamespace(id=f"run-{name}"),
                            workspace=workspace, gate=Gate(), dry_run=False, begin_effect=lambda: None,
                            emit=lambda e: None, on_finish=[], cancel_hooks=[], procs=ProcRegistry(), headless=True,
-                           policy=SimpleNamespace(check_url=lambda u: __import__("hutch.safety", fromlist=["x"]).Decision(
-                               __import__("hutch.safety", fromlist=["x"]).Verdict.allow, "soak", rule="allow:soak")))
+                           policy=__import__("hutch.safety", fromlist=["PolicyEngine"]).PolicyEngine())
 
 
 def soak_browser(config, cycles: int) -> dict:
@@ -107,16 +130,39 @@ def soak_browser(config, cycles: int) -> dict:
     ctx = make_ctx(config, "soak-browser", workspace, local_dev_origins=[f"http://localhost:{port}"])
     tool = BrowserTool()
     observe_ms, act_ms, rss, frames_bytes, split = [], [], [], [], []
+    capture_ms, semantic_ms, verify_ms, wire_ms, frame_bytes = [], [], [], [], []
+    errors, navigation, takeovers = 0, 0, []
+    report = {}
     store = FrameStore(config.run_dir("soak-browser", "run-soak-browser"))
     try:
         assert tool.run({"action": "goto", "url": f"http://localhost:{port}/"}, ctx).ok
+        page = tool._tabs[tool._active_tab]
+        instrument(page, "screenshot", capture_ms)
+        instrument(page, "evaluate", semantic_ms)
         pids = tree_pids(os.getpid())
         for cycle in range(cycles):
+            if cycle % 10 == 0:
+                t = time.monotonic()
+                handoff(tool._lease)
+                takeovers.append((time.monotonic() - t) * 1000)
+            if cycle % 7 == 0:
+                assert tool.run({"action": "goto", "url": f"http://localhost:{port}/?cycle={cycle}"}, ctx).ok
+                navigation += 1
+            if cycle % 9 == 0:
+                refused = tool.run({"action": "type", "selector": "#missing", "text": "must not substitute"}, ctx)
+                assert not refused.ok and page.locator("#note").input_value() != "must not substitute"
+                errors += 1
             t = time.monotonic()
             obs = tool.run({"action": "observe"}, ctx)
             observe_ms.append((time.monotonic() - t) * 1000)
             assert obs.ok, obs.output
-            frame_id = obs.data["observation"]["frame_id"]
+            from hutch.computer.frames import ImageRef
+            png = store.load(ImageRef.from_internal(obs.data["images"][0]))
+            frame_bytes.append(len(png))
+            t = time.monotonic()
+            payload = json.dumps({"images": [base64.b64encode(png).decode()]})
+            wire_ms.append((time.monotonic() - t) * 1000)
+            assert len(payload) < 3000000
             t = time.monotonic()
             if cycle % 3 == 0:
                 res = tool.run({"action": "type", "selector": "#note", "text": f"cycle {cycle}"}, ctx)
@@ -128,6 +174,12 @@ def soak_browser(config, cycles: int) -> dict:
                                ctx)
             act_ms.append((time.monotonic() - t) * 1000)
             assert res.ok, res.output
+            t = time.monotonic()
+            if cycle % 3 == 0:
+                assert page.locator("#note").input_value() == f"cycle {cycle}"
+            elif cycle % 3 == 1:
+                assert page.title().startswith("clicked ")
+            verify_ms.append((time.monotonic() - t) * 1000)
             usage = store.usage()
             frames_bytes.append(usage["bytes"])
             if cycle % 5 == 0 or cycle == cycles - 1:
@@ -139,12 +191,22 @@ def soak_browser(config, cycles: int) -> dict:
                 browser_mb = rss_mb([p for p in tree if p != os.getpid() and p not in driver])
                 split.append({"cycle": cycle, "python_mb": round(me, 1), "driver_mb": round(driver_mb, 1),
                               "browser_mb": round(browser_mb, 1)})
-        return {"surface": "browser", "cycles": cycles, "observe": stats(observe_ms), "act_verify": stats(act_ms),
+        from hutch.computer.budgets import profile_usage
+        report = {"surface": "browser", "cycles": cycles, "observe": stats(observe_ms), "act_verify": stats(act_ms),
                 "rss_mb_samples": rss, "rss_split": split, "frame_store_bytes_max": max(frames_bytes),
-                "frame_store_final": store.usage()}
+                "frame_store_final": store.usage(), "profile_final": profile_usage(config.browser_profile_dir(ctx.bot.id)),
+                "capture_encode_driver_roundtrip": stats(capture_ms), "semantic_driver_roundtrip": stats(semantic_ms),
+                "independent_state_verification": stats(verify_ms), "image_wire_serialization": stats(wire_ms),
+                "image_bytes_max": max(frame_bytes), "navigation_count": navigation, "refused_missing_targets": errors,
+                "lease_takeover_handback": stats(takeovers)}
+        return report
     finally:
+        t = time.monotonic()
+        tool._emergency_stop()
         tool._teardown()
+        report["stop_and_cleanup_ms"] = round((time.monotonic() - t) * 1000, 1)
         origin.shutdown()
+        origin.server_close()
 
 
 def soak_desktop(config, cycles: int) -> dict:
@@ -154,12 +216,25 @@ def soak_desktop(config, cycles: int) -> dict:
     ctx = make_ctx(config, "soak-desktop", workspace, computer_apps=["kwrite"])
     tool = ComputerTool()
     step_ms, rss, frames_bytes = [], [], []
+    capture_ms, input_ms, persist_ms, split, takeovers = [], [], [], [], []
+    report = {}
     store = FrameStore(config.run_dir("soak-desktop", "run-soak-desktop"))
     try:
         launched = tool.run({"action": "launch", "app": "kwrite", "path": "soak.txt"}, ctx)
         assert launched.ok, launched.output
+        instrument(tool._desktop, "capture_png", capture_ms)
+        instrument(tool._session._frames, "save", persist_ms)
+        for method in ("click", "type_text", "chord"):
+            instrument(tool._input, method, input_ms)
         frame = launched.data["observation"]["frame_id"]
         for cycle in range(cycles):
+            if cycle % 10 == 0:
+                t = time.monotonic()
+                handoff(tool._lease)
+                takeovers.append((time.monotonic() - t) * 1000)
+                fresh = tool.run({"action": "observe"}, ctx)
+                assert fresh.ok, fresh.output
+                frame = fresh.data["observation"]["frame_id"]
             t = time.monotonic()
             if cycle % 2 == 0:
                 res = tool.run({"action": "click", "frame_id": frame, "x": 640, "y": 400}, ctx)
@@ -175,15 +250,35 @@ def soak_desktop(config, cycles: int) -> dict:
                 for root in roots:
                     pids.extend(tree_pids(root) if root != os.getpid() else [root])
                 rss.append(round(rss_mb(sorted(set(pids))), 1))
+                compositor = [p.pid for proc in tool._desktop._procs[:2] for p in procguard.descendants(proc.pid)]
+                compositor += [p.pid for p in tool._desktop._procs[:2]]
+                split.append({"cycle": cycle, "python_mb": round(rss_mb([os.getpid()]), 1),
+                              "compositor_bus_mb": round(rss_mb(sorted(set(compositor))), 1),
+                              "apps_mb": round(rss_mb(sorted(set(pids) - set(compositor) - {os.getpid()})), 1)})
+        saved = tool.run({"action": "key", "frame_id": frame, "keys": "ctrl+s"}, ctx)
+        assert saved.ok, saved.output
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline and (workspace / "soak.txt").read_text().rstrip("\n") != "x" * (cycles // 2):
+            time.sleep(.05)
+        assert (workspace / "soak.txt").read_text().rstrip("\n") == "x" * (cycles // 2), "actual saved editor state differs"
         input_proc = tool._input._proc if tool._input is not None else None
-        held_clean = tool._input is not None and tool._input.alive
-        return {"surface": "desktop", "cycles": cycles, "act_observe_verify": stats(step_ms),
+        input_state = tool._input._send({"cmd": "state"})
+        assert input_state["held_keys"] == 0 and input_state["held_buttons"] == 0, "input remains held after the workflow"
+        report = {"surface": "desktop", "cycles": cycles, "act_observe_verify": stats(step_ms),
                 "rss_mb_samples": rss, "frame_store_bytes_max": max(frames_bytes),
-                "frame_store_final": store.usage(), "input_worker_alive": bool(held_clean),
-                "input_worker_pid": getattr(input_proc, "pid", None)}
+                "frame_store_final": store.usage(), "input_worker_alive": tool._input.alive,
+                "held_keys": input_state["held_keys"], "held_buttons": input_state["held_buttons"],
+                "input_worker_pid": getattr(input_proc, "pid", None), "rss_split": split,
+                "capture_encode_subprocess_roundtrip": stats(capture_ms), "input_acknowledgement": stats(input_ms),
+                "frame_validate_persist": stats(persist_ms), "lease_takeover_handback": stats(takeovers),
+                "saved_editor_chars": len((workspace / "soak.txt").read_text())}
+        return report
     finally:
+        t = time.monotonic()
+        tool._emergency_stop()
         tool._shutdown(ctx)
         ctx.procs.kill_all(0.2)
+        report["stop_and_cleanup_ms"] = round((time.monotonic() - t) * 1000, 1)
 
 
 def main() -> int:
@@ -192,11 +287,16 @@ def main() -> int:
     parser.add_argument("--surface", choices=["browser", "desktop", "both"], default="both")
     parser.add_argument("--json", default="")
     args = parser.parse_args()
+    if not 2 <= args.cycles <= 200:
+        parser.error("cycles must be between 2 and 200")
     state = tempfile.mkdtemp(prefix="soak-state-")
     os.environ["HUTCH_STATE_DIR"] = state
     from hutch.config import get_config
     config = get_config()
-    report: dict = {"python": sys.version.split()[0], "started": time.strftime("%Y-%m-%dT%H:%M:%S%z")}
+    report: dict = {"python": sys.version.split()[0], "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                    "model_server": "absent; loopback probe separately recorded", "inference": "not run",
+                    "scope": "deterministic driver tasks; lease handoff, not HTTP/physical-phone latency",
+                    "measurement_notes": "RSS sums may double-count shared mappings and are sampled. Capture includes encoding and protocol/file roundtrip; encoder CPU and transport are not separately instrumented."}
     started = time.monotonic()
     if args.surface in ("browser", "both"):
         report["browser"] = soak_browser(config, args.cycles)

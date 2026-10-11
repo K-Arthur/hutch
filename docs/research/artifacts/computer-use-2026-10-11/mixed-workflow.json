@@ -22,14 +22,14 @@
     {
       "action": "goto",
       "ok": true,
-      "output": "opened http://localhost:43999\ntitle: Local record workflow",
+      "output": "opened http://localhost:35947\ntitle: Local record workflow",
       "data": {
-        "url": "http://localhost:43999",
+        "url": "http://localhost:35947",
         "outcome": "effect_verified",
-        "final_origin": "http://localhost:43999",
+        "final_origin": "http://localhost:35947",
         "tab": "t1",
         "control": {
-          "session_id": "run_fdb4b3f58c56:browser",
+          "session_id": "run_e3ea3880f040:browser",
           "owner": "agent",
           "generation": 1,
           "reason": "the page navigated",
@@ -43,10 +43,10 @@
       "ok": true,
       "output": "Record 42\nrecord,title\n42,Reviewed local report\n\nTitle Next",
       "data": {
-        "url": "http://localhost:43999/",
+        "url": "http://localhost:35947/",
         "tab": "t1",
         "control": {
-          "session_id": "run_fdb4b3f58c56:browser",
+          "session_id": "run_e3ea3880f040:browser",
           "owner": "agent",
           "generation": 1,
           "reason": "the page navigated",
@@ -63,7 +63,7 @@
         "outcome": "effect_verified",
         "tab": "t1",
         "control": {
-          "session_id": "run_fdb4b3f58c56:browser",
+          "session_id": "run_e3ea3880f040:browser",
           "owner": "agent",
           "generation": 1,
           "reason": "text was entered",
@@ -77,13 +77,13 @@
       "ok": true,
       "output": "clicked #next",
       "data": {
-        "url": "http://localhost:43999/",
+        "url": "http://localhost:35947/",
         "outcome": "dispatched",
         "page_changed": false,
         "verification": "not_verifiable: a click has no generic postcondition; observe the page to confirm the intended state",
         "tab": "t1",
         "control": {
-          "session_id": "run_fdb4b3f58c56:browser",
+          "session_id": "run_e3ea3880f040:browser",
           "owner": "agent",
           "generation": 1,
           "reason": "a click changed the page",
@@ -104,12 +104,12 @@
           "sha256": "c005fe70a4d3e0e904159e4e12e6f7f003dc9e3a50f93e9828c89f45667ccf6b",
           "bytes": 38,
           "path": "report.csv",
-          "destination": "http://localhost:43999/upload",
-          "profile_bot_id": "bot_1c48c0e42b15"
+          "destination": "http://localhost:35947/upload",
+          "profile_bot_id": "bot_59091e225aff"
         },
         "tab": "t1",
         "control": {
-          "session_id": "run_fdb4b3f58c56:browser",
+          "session_id": "run_e3ea3880f040:browser",
           "owner": "agent",
           "generation": 1,
           "reason": "a reviewed file was selected",
@@ -123,13 +123,13 @@
       "ok": true,
       "output": "clicked #submit",
       "data": {
-        "url": "http://localhost:43999/",
+        "url": "http://localhost:35947/",
         "outcome": "dispatched",
         "page_changed": false,
         "verification": "not_verifiable: a click has no generic postcondition; observe the page to confirm the intended state",
         "tab": "t1",
         "control": {
-          "session_id": "run_fdb4b3f58c56:browser",
+          "session_id": "run_e3ea3880f040:browser",
           "owner": "agent",
           "generation": 1,
           "reason": "a click changed the page",
@@ -143,10 +143,10 @@
       "ok": true,
       "output": "Upload accepted\n\nc005fe70a4d3e0e904159e4e12e6f7f003dc9e3a50f93e9828c89f45667ccf6b\n\nDownload reviewed report",
       "data": {
-        "url": "http://localhost:43999/",
+        "url": "http://localhost:35947/",
         "tab": "t1",
         "control": {
-          "session_id": "run_fdb4b3f58c56:browser",
+          "session_id": "run_e3ea3880f040:browser",
           "owner": "agent",
           "generation": 1,
           "reason": "a click changed the page",
@@ -169,13 +169,13 @@
           "path": "received/report.csv"
         },
         "transfer": {
-          "source": "http://localhost:43999/download",
-          "profile_bot_id": "bot_1c48c0e42b15",
+          "source": "http://localhost:35947/download",
+          "profile_bot_id": "bot_59091e225aff",
           "modality": "ui_initiated_managed_download"
         },
         "tab": "t1",
         "control": {
-          "session_id": "run_fdb4b3f58c56:browser",
+          "session_id": "run_e3ea3880f040:browser",
           "owner": "agent",
           "generation": 1,
           "reason": "a managed download was requested",
@@ -186,5 +186,8 @@
     }
   ],
   "approval_count": 5,
-  "a11y": "- heading \"Records\" [level=1]\n- paragraph: Inspect the generated report and upload the reviewed version.\n- iframe"
+  "console_errors": [],
+  "trace": "mixed-workflow-trace.zip",
+  "a11y": "- heading \"Records\" [level=1]\n- paragraph: Inspect the generated report and upload the reviewed version.\n- iframe",
+  "iframe_a11y": "- heading \"Upload accepted\" [level=1]\n- paragraph: c005fe70a4d3e0e904159e4e12e6f7f003dc9e3a50f93e9828c89f45667ccf6b\n- link \"Download reviewed report\":\n  - /url: /download"
 }

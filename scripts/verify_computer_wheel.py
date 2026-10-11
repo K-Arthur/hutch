@@ -15,6 +15,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 from types import SimpleNamespace
 
 
@@ -22,6 +23,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True)
     parser.add_argument("--evidence", required=True)
+    parser.add_argument("--native", action="store_true", help="also require delivered input in a disposable KWin/KWrite session")
     args = parser.parse_args()
     import hutch
     package = Path(hutch.__file__).resolve().parent
@@ -84,9 +86,45 @@ def main():
             server.shutdown()
             server.server_close()
             thread.join(3)
+        if args.native:
+            from hutch.computer.frames import FrameStore, ImageRef
+            from hutch.tools.computer import ComputerTool
+            workspace = Path(state) / "native-workspace"
+            workspace.mkdir(mode=0o700)
+            document = workspace / "installed-wheel.txt"
+            document.write_text("")
+            native_ctx = SimpleNamespace(**{**vars(ctx), "bot": Bot(name="wheel-native", tools=["computer"],
+                                        computer_apps=["kwrite"]), "run": SimpleNamespace(id="wheel-native"),
+                                        "workspace": workspace, "on_finish": [], "cancel_hooks": [],
+                                        "procs": ProcRegistry()})
+            native = ComputerTool()
+            try:
+                result = native.run({"action": "launch", "app": "kwrite", "path": document.name}, native_ctx)
+                assert result.ok, result.output
+                result = native.run({"action": "observe"}, native_ctx)
+                assert result.ok, result.output
+                for action in ({"action": "click", "x": 640, "y": 400},
+                               {"action": "type", "text": "Installed wheel native outcome"},
+                               {"action": "key", "keys": "ctrl+s"}):
+                    result = native.run({**action, "frame_id": result.data["observation"]["frame_id"]}, native_ctx)
+                    assert result.ok, result.output
+                deadline = time.monotonic() + 3
+                while time.monotonic() < deadline and document.read_text().rstrip("\n") != "Installed wheel native outcome":
+                    time.sleep(.05)
+                assert document.read_text().rstrip("\n") == "Installed wheel native outcome", "installed native UI did not save the expected text"
+                png = FrameStore(config.run_dir("wheel-native", "wheel-native")).load(ImageRef.from_internal(result.data["images"][0]))
+                screenshot = Path(args.evidence).with_name("native-installed-wheel.png")
+                screenshot.write_bytes(png)
+                report["installed_real_native"] = {"status": "passed", "saved_sha256": hashlib.sha256(document.read_bytes()).hexdigest(),
+                                                   "screenshot": screenshot.name}
+            finally:
+                native._emergency_stop()
+                native._shutdown(native_ctx)
+                native_ctx.procs.kill_all(.2)
     Path(args.evidence).write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps({"http_assets_and_readiness": report["http_assets_and_readiness"],
-                      "installed_real_browser": "passed", "dependencies": report["dependencies"]}))
+                      "installed_real_browser": "passed", "installed_real_native": report.get("installed_real_native", "not run"),
+                      "dependencies": report["dependencies"]}))
 
 
 if __name__ == "__main__":
