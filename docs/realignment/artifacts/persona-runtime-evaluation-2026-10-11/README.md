@@ -14,3 +14,6 @@ This checkpoint records deterministic local routing cost separately from provide
 This result excludes retrieval, engine scheduling, network, streaming, provider inference, first-useful-content latency, completion latency, and actual model adherence. It does not substitute for the matched live-model runs or human review in the approved evaluation plan.
 
 The isolated ChatGPT sign-in flow is currently awaiting the user to complete authentication and approve plan-use scope. No account is connected and no model response has been requested in this isolated state yet. Any follow-on live run is limited to 12 responses, uses synthetic test prompts and the supported Hutch flow, and will be recorded separately from this local benchmark.
+
+The pre-registered response allocation is in `openai-fallback-protocol.md`. It is prepared but not run, and does not
+replace the Go-model matrix, long-session recovery tests or human review requirements in the approved plan.
