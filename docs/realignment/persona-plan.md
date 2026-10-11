@@ -301,6 +301,15 @@ Review follow-ups (status after the profile-compatibility slice):
   assertion on the current branch and clean local-main commit `63b2712` at the same `1.3s` assertion; its fixture also
   times out during server teardown after the assertion. No assertion was weakened. The independently scoped image-input
   regression passes on desktop, tablet, phone and compact phone.
+- Marketing-site slice: extend the existing workflow section with independent voice/depth/humor choices, a real local
+  settings capture, authored fixed examples and a separate depth comparison. The FAQ and availability table make the
+  authority and text-only image boundaries explicit without changing the site's identity or section structure. The new
+  static-site regression and token suite passed (**9 passed**); homepage content and full-site responsive screenshot checks
+  passed (**1 + 3 passed**). Inspected Chromium captures at 1440, 768, 720×480 effective-width, 360 and 320 CSS pixels
+  have zero horizontal overflow, and the page sent only same-origin GETs. Evidence and source hashes are in
+  `artifacts/persona-marketing-2026-10-11/`; full-page captures are in `artifacts/no-mock-setup/site/`. The one detector
+  pass reported two existing shared-style radius advisories (17px and 26px), not in the new response-style rules. Live
+  provider adherence and human review remain unverified.
 
 ## Rollback
 

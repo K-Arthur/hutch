@@ -57,6 +57,11 @@
 - Clarify that Hutch chat accepts text only: the local Vision focus adjusts context sizing but does not enable image
   input. Pasting an image now keeps the user's text draft and explains that images cannot be attached, without posting
   a run. The supported-runtime matrix records the same limit.
+- Update the private-preview marketing workflow with the independent voice, depth and humor choices, an actual local
+  settings capture and fixed written examples. The page states that humor defaults to off, preference changes do not
+  make model calls, the explicit preview shows an estimate first, authority rules do not change, and live quality is
+  unverified. The FAQ and availability table explain that chat image input remains unavailable. Responsive browser
+  captures and same-origin/no-inference checks are in `docs/realignment/artifacts/persona-marketing-2026-10-11/`.
 - Extend assistant settings with the independent v2 selectors and bounded customization beside standing
   directions. Conversation controls save scoped preferences with conflict recovery; next-reply controls stay
   local until one send. Browser regressions cover persistence, reset, concurrent edits, focus, keyboard,

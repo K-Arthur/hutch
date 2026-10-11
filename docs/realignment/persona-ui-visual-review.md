@@ -127,3 +127,30 @@ existing draft, shows a status message, and records zero conversation-message PO
 page overflow is zero and there are no page errors, console errors, failed responses or external requests. Per-viewport
 screenshots, hashes and Playwright traces are in `artifacts/persona-image-input-unsupported/`. This confirms Hutch's
 current unsupported path; it does not test provider image APIs or add image delivery.
+
+## Marketing website response style
+
+The existing workflow section now includes the independent voice/depth/humor choices, the real settings screen, three
+fixed voice samples and a separate Brief/Detailed comparison. The screenshot assets are crops of the retained actual-app
+captures, not recreated UI; both show the fictional `Design Partner` with no model route or request. The samples beside
+them are authored site text and clearly labelled as such. The page and FAQ also state that humor defaults to off, changes
+do not call a model, an explicit live preview shows a local one-response estimate first, authority is unchanged, and live
+model adherence remains unverified. The support table and FAQ describe image input as unavailable.
+
+I inspected `persona-marketing-2026-10-11/response-style-desktop.png`, `response-style-tablet.png`,
+`response-style-200-percent-effective.png`, `response-style-phone.png`, and `response-style-compact-phone.png`.
+The fixed examples remain distinct and readable; desktop uses three voice cards and two depth cards, while the phone
+stacks them in order. The embedded settings screenshot stays inside its frame and the main copy wraps without clipping.
+I also inspected the full-page current marketing captures at desktop, tablet and phone in `no-mock-setup/site/`.
+
+Chromium 153.0.8010.12 tests passed: the marketing block plus site-token suite (**9 passed**), the homepage contract
+(**1 passed**) and the full-site viewport/screenshot regression (**3 passed**). The marketing block reports zero horizontal
+overflow at 1440×1000, 768×1024, 720×480, 360×844 and 320×800, with no page errors or non-local requests. Keyboard Enter
+opens both new FAQ disclosures. The static page makes no provider or inference calls; all captured requests are local
+GETs. The 720×480 case is an effective CSS-width reflow check for 200% zoom, not a native zoom gesture. Reduced motion
+was enabled for capture. Evidence, source hashes and the detector result are under
+`artifacts/persona-marketing-2026-10-11/`.
+
+The one Impeccable detector pass found two advisory radius values (17px and 26px) in existing shared hero/use-case
+styles; it found no primary issue in the new response-style rules. The app/site-token contrast checks still use the
+declared color pairs. Native browser zoom, physical devices and screen-reader behavior remain untested.

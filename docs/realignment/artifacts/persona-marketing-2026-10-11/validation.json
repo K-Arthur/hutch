@@ -1,0 +1,110 @@
+{
+  "captured_at": "2026-10-11T16:04:02.152937+00:00",
+  "test": "tests/e2e/test_website.py::test_adaptive_response_style_marketing_is_labeled_and_fits",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "scenario": "Anonymous static page; written examples and real local settings screenshot; no provider or inference requests",
+  "model_calls": 0,
+  "sticky_header_and_skip_link_suppressed_for_component_captures": true,
+  "requests": [
+    [
+      "GET",
+      "http://127.0.0.1:40521/"
+    ],
+    [
+      "GET",
+      "http://127.0.0.1:40521/assets/fonts/archivo-latin-var.woff2?v=e3a28ead"
+    ],
+    [
+      "GET",
+      "http://127.0.0.1:40521/tokens.css?v=5b585bb3"
+    ],
+    [
+      "GET",
+      "http://127.0.0.1:40521/app.css?v=8f05fcde"
+    ],
+    [
+      "GET",
+      "http://127.0.0.1:40521/styles.css?v=a4a5286a"
+    ],
+    [
+      "GET",
+      "http://127.0.0.1:40521/assets/hutch-agent.webp?v=da73ea5e"
+    ],
+    [
+      "GET",
+      "http://127.0.0.1:40521/site.js?v=5905a0e4"
+    ],
+    [
+      "GET",
+      "http://127.0.0.1:40521/assets/fonts/archivo-latin-var.woff2"
+    ],
+    [
+      "GET",
+      "http://127.0.0.1:40521/assets/captures/setup-desktop.webp?v=7045bf93"
+    ],
+    [
+      "GET",
+      "http://127.0.0.1:40521/assets/captures/response-style-desktop.webp?v=95964c33"
+    ],
+    [
+      "GET",
+      "http://127.0.0.1:40521/assets/captures/setup-phone.webp?v=d67ddca8"
+    ],
+    [
+      "GET",
+      "http://127.0.0.1:40521/assets/captures/response-style-phone.webp?v=3e9fabbc"
+    ]
+  ],
+  "errors": [],
+  "viewports": [
+    {
+      "label": "desktop",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "overflow_px": 0
+    },
+    {
+      "label": "tablet",
+      "viewport": [
+        768,
+        1024
+      ],
+      "overflow_px": 0
+    },
+    {
+      "label": "200-percent-effective",
+      "viewport": [
+        720,
+        480
+      ],
+      "overflow_px": 0
+    },
+    {
+      "label": "phone",
+      "viewport": [
+        360,
+        844
+      ],
+      "overflow_px": 0
+    },
+    {
+      "label": "compact-phone",
+      "viewport": [
+        320,
+        800
+      ],
+      "overflow_px": 0
+    }
+  ],
+  "source_sha256": {
+    "website/index.html": "a984dd782bb9e8b961765bfeaff0e33638e94a546ac64de219db587673377429",
+    "website/styles.css": "a4a5286aa86f17671b88214ede01d8080be304c844e3d3f977c844790f5f60ac",
+    "website/app.css": "8f05fcde86a9fdddbb01002a3c4d4a947e497e249933d7fc4102eb3cdfe8da68",
+    "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
+    "website/assets/captures/response-style-desktop.webp": "95964c335767c92286cc22d35ad7704430220e5ed30a05828a468056b2bc02cd",
+    "website/assets/captures/response-style-phone.webp": "3e9fabbc8ac2c5b0c9dc2c4e0a098f8ff0d9c8dd5544b5b8abd5b0f4f2bdf6de"
+  }
+}

@@ -761,6 +761,88 @@ def test_mobile_drawer_focus_and_ctas(browser, site_url):
     context.close()
 
 
+def test_adaptive_response_style_marketing_is_labeled_and_fits(browser, site_url):
+    context, page, errors = _page(browser, width=1440, height=900, reduced_motion="reduce")
+    requests: list[tuple[str, str]] = []
+    page.on("request", lambda request: requests.append((request.method, request.url)))
+    page.goto(site_url, wait_until="networkidle")
+
+    block = page.locator("#response-style")
+    assert block.get_by_role("heading", name="Choose the voice. Set the depth separately.").count() == 1
+    for option in (
+        "Direct · Warm · Dry Wit",
+        "Auto · Brief · Standard · Detailed",
+        "Off · Subtle · Playful",
+    ):
+        assert option in block.inner_text()
+    assert "Humor defaults to off" in block.inner_text()
+    assert "fixed written examples" in block.inner_text().lower()
+    assert block.locator(".response-style-voice-examples .response-style-example").count() == 3
+    assert block.locator(".response-style-depth-grid .response-style-example").count() == 2
+    assert "Changing a setting makes no model request" in block.inner_text()
+    image = block.locator("picture img")
+    assert image.get_attribute("alt")
+    assert "fictional assistant and no model request" in block.inner_text()
+
+    faq = page.locator("#faq .faq-item").filter(has_text="Can I choose how Hutch answers?")
+    faq.locator("summary").focus()
+    page.keyboard.press("Enter")
+    assert faq.evaluate("element => element.open")
+    assert "voice (direct, warm, or dry wit)" in faq.inner_text().lower()
+    assert "live answer quality remain unverified" in faq.inner_text().lower()
+    image_input = page.locator("#faq .faq-item").filter(has_text="Can Hutch look at an image I attach?")
+    image_input.locator("summary").focus()
+    page.keyboard.press("Enter")
+    assert image_input.evaluate("element => element.open")
+    assert "text-only today" in image_input.inner_text().lower()
+    assert "does not enable image input" in image_input.inner_text().lower()
+
+    out = ROOT / "docs/realignment/artifacts/persona-marketing-2026-10-11"
+    out.mkdir(parents=True, exist_ok=True)
+    # This is a tall, section-only capture. Keep the sticky site header from being
+    # composited repeatedly over the captured content by the browser's full-element shot.
+    page.add_style_tag(content="body > header, .skip-link { visibility: hidden !important; }")
+    viewports = ((1440, 1000, "desktop"), (768, 1024, "tablet"),
+                 (720, 480, "200-percent-effective"), (360, 844, "phone"),
+                 (320, 800, "compact-phone"))
+    measurements = []
+    for width, height, label in viewports:
+        page.set_viewport_size({"width": width, "height": height})
+        block.scroll_into_view_if_needed()
+        page.wait_for_function("""() => {
+          const img = document.querySelector('#response-style picture img');
+          return img && img.complete && img.naturalWidth > 0;
+        }""")
+        overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow <= 1, f"{label} has {overflow}px horizontal overflow"
+        assert not errors, errors
+        assert all(method == "GET" and url.startswith(site_url) for method, url in requests), requests
+        block.screenshot(path=str(out / f"response-style-{label}.png"), animations="disabled")
+        measurements.append({"label": label, "viewport": [width, height], "overflow_px": overflow})
+
+    source_files = (
+        "website/index.html", "website/styles.css", "website/app.css", "website/site.js",
+        "website/assets/captures/response-style-desktop.webp",
+        "website/assets/captures/response-style-phone.webp",
+    )
+    manifest = {
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "test": "tests/e2e/test_website.py::test_adaptive_response_style_marketing_is_labeled_and_fits",
+        "browser": browser.browser_type.name,
+        "browser_version": browser.version,
+        "scenario": "Anonymous static page; written examples and real local settings screenshot; no provider or inference requests",
+        "model_calls": 0,
+        "sticky_header_and_skip_link_suppressed_for_component_captures": True,
+        "requests": requests,
+        "errors": errors,
+        "viewports": measurements,
+        "source_sha256": {path: hashlib.sha256((ROOT / path).read_bytes()).hexdigest()
+                           for path in source_files},
+    }
+    (out / "validation.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    context.close()
+
+
 def test_term_tabs_keyboard_operable(browser, site_url):
     context, page, errors = _page(browser)
     page.goto(site_url, wait_until="networkidle")

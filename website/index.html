@@ -12,7 +12,7 @@
   <link rel="preload" href="assets/fonts/archivo-latin-var.woff2?v=e3a28ead" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="tokens.css?v=5b585bb3">
   <link rel="stylesheet" href="app.css?v=8f05fcde">
-    <link rel="stylesheet" href="styles.css?v=4e2f4b3e">
+    <link rel="stylesheet" href="styles.css?v=a4a5286a">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -235,6 +235,62 @@
           </div>
         </li>
       </ol>
+
+      <div class="response-style-showcase" id="response-style">
+        <div class="response-style-top">
+          <div class="response-style-copy">
+            <span class="response-style-kicker">Optional response style</span>
+            <h3>Choose the voice. Set the depth separately.</h3>
+            <p>Pick Direct, Warm, or Dry Wit for the voice. Choose Auto, Brief, Standard, or Detailed for how much explanation you want. Humor has its own Off, Subtle, or Playful setting.</p>
+            <dl class="response-style-choices">
+              <div><dt>Voice</dt><dd>Direct · Warm · Dry Wit</dd></div>
+              <div><dt>Depth</dt><dd>Auto · Brief · Standard · Detailed</dd></div>
+              <div><dt>Humor</dt><dd>Off · Subtle · Playful</dd></div>
+            </dl>
+            <p class="response-style-boundary">Humor defaults to off. Style changes wording only; tools, evidence, permissions, approvals, spending, requested formats, and recipients keep their existing rules.</p>
+          </div>
+          <figure class="response-style-capture">
+            <picture>
+              <source media="(max-width: 640px)" srcset="assets/captures/response-style-phone.webp?v=3e9fabbc">
+              <img src="assets/captures/response-style-desktop.webp?v=95964c33" width="730" height="383" loading="lazy" decoding="async" alt="Hutch assistant settings showing separate Warm voice, Detailed answer depth, and Off humor controls">
+            </picture>
+            <figcaption>The real local settings screen, captured with a fictional assistant and no model request.</figcaption>
+          </figure>
+        </div>
+
+        <div class="response-style-samples">
+          <div class="response-style-sample-head">
+            <div>
+              <span class="response-style-kicker">Fixed written examples</span>
+              <h4>One request, three voices.</h4>
+            </div>
+            <p>These examples are authored text, not generated previews.</p>
+          </div>
+          <p class="response-style-prompt"><b>Request:</b> “I have 20 minutes before a meeting and a long report to skim. What should I do?”</p>
+          <div class="response-style-example-grid response-style-voice-examples">
+            <article class="response-style-example"><h5>Direct</h5><p>Read the executive summary and headings. Note the decision you need; skip details that do not affect it.</p></article>
+            <article class="response-style-example"><h5>Warm</h5><p>Start with the executive summary and headings. Jot down the decision you need to make, then let the appendix wait.</p></article>
+            <article class="response-style-example"><h5>Dry Wit</h5><p>Start with the executive summary and headings. Find the decision and one open question. The appendix has no meeting invite.</p></article>
+          </div>
+        </div>
+
+        <div class="response-style-samples response-style-depth-samples">
+          <div class="response-style-sample-head">
+            <div>
+              <span class="response-style-kicker">Depth changes independently</span>
+              <h4>Same question, shorter or fuller answer.</h4>
+            </div>
+            <p>The voice can stay the same while the amount of explanation changes.</p>
+          </div>
+          <p class="response-style-prompt"><b>Question:</b> “What is a checksum for?”</p>
+          <div class="response-style-example-grid response-style-depth-grid">
+            <article class="response-style-example"><h5>Brief</h5><p>A checksum is a short value that helps detect whether data changed or was corrupted.</p></article>
+            <article class="response-style-example"><h5>Detailed</h5><p>A checksum is calculated from a block of data. Recalculating it later helps catch accidental changes or corruption. Ordinary checksums can check integrity, but they do not prove who created the data or protect it from deliberate tampering.</p></article>
+          </div>
+        </div>
+
+        <p class="response-style-preview-note">Changing a setting makes no model request. A separate, explicit preview shows a local one-response estimate first and uses a fictional sample without conversation history, tools, skills, or workspace access. Hosted provider terms still apply, and live model adherence has not been verified.</p>
+      </div>
     </div>
   </section>
 
@@ -538,6 +594,7 @@
               <tr><td class="av-k">Public access</td><td class="av-v">Private source; no anonymous download or public release</td><td><span class="ev"><span class="dot dot-warn" aria-hidden="true"></span>Unavailable</span></td></tr>
               <tr><td class="av-k">Supported</td><td class="av-v">Linux executor, local SQLite state and fixture-tested lifecycle/control flows; actual runs need a configured model route</td><td><span class="ev"><span class="dot dot-ok" aria-hidden="true"></span>Supported</span></td></tr>
               <tr><td class="av-k">Documents</td><td class="av-v">Local generation of PDF, DOCX, XLSX, PPTX, CSV, JSON, Markdown, YAML and ZIP bundles from reviewed content, with SHA-256-verified downloads, versioned revisions and in-app previews (page images for PDF; extracted structure for other formats; office layout renders additionally need LibreOffice installed on the host)</td><td><span class="ev"><span class="dot dot-ok" aria-hidden="true"></span>Supported</span></td></tr>
+              <tr><td class="av-k">Chat image input</td><td class="av-v">Unavailable: Hutch chat accepts text only; the Vision focus setting does not attach or send images</td><td><span class="ev"><span class="dot dot-warn" aria-hidden="true"></span>Unavailable</span></td></tr>
               <tr><td class="av-k">Experimental</td><td class="av-v">Hosted/local models; OpenCode Go API-key handoff; reviewed OpenCode CLI coding tasks on Linux in pinned worktrees (separate sign-in/usage, command approvals outside Hutch); ChatGPT sign-in preview (eligibility unconfirmed); Google Calendar lookup plus owner-configured guest-free event creation after per-event approval (Google account scope is broader; consent unverified); Outlook Calendar lookup and optional guest-free event creation on one selected calendar, with exact approval each time (Microsoft consent is account-wide and unverified); read-only Outlook Mail previews; private Gmail search (owner OAuth and loopback Local routes only; public release awaits Google scope verification and any required security assessment); host-gated Offline; reviewed child tasks; HTTPS pairing; Linux credential/CAPTCHA handoff; fixture-tested DNS pinning. Browser field detection, public destinations and live provider checks remain unverified</td><td><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></td></tr>
               <tr><td class="av-k">Unavailable</td><td class="av-v">macOS/Windows executor, phone browser handoff, authenticated PTY/desktop control and OpenCode/Pi as Hutch-managed Bot runtimes</td><td><span class="ev"><span class="dot dot-warn" aria-hidden="true"></span>Unavailable</span></td></tr>
               <tr><td class="av-k">Data movement</td><td class="av-v">Prompts go to the selected hosted endpoint; network tools also contact their configured destinations</td><td><span class="ev">Per configuration</span></td></tr>
@@ -573,6 +630,14 @@
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">Do I need an API key, a credit card, or a GPU?</summary>
           <div class="collapse-content"><p>Hutch does not include hosted inference. Connect a compatible hosted provider or use a local model service that you already run; available models vary, and live paid-provider checks have not been performed for this preview.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">Can I choose how Hutch answers?</summary>
+          <div class="collapse-content"><p>Yes. Set voice (Direct, Warm, or Dry Wit), answer depth (Auto, Brief, Standard, or Detailed), and humor (Off, Subtle, or Playful) independently. Humor defaults to off. The fixed examples above use written sample text and make no model request; changing a setting also makes no request. If you choose the separate live preview, Hutch shows a local one-response estimate first and uses a fictional prompt without your conversation, tools, skills, or workspace. Style guides wording and cannot change permissions, approvals, evidence, spending, requested formats, or recipients. Provider adherence and live answer quality remain unverified.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">Can Hutch look at an image I attach?</summary>
+          <div class="collapse-content"><p>No. Hutch chat is text-only today: it does not attach or send image files. The Vision focus option only tunes context and model residency; it does not enable image input. Describe the image in text instead.</p></div>
         </details>
         <details class="collapse collapse-arrow faq-item">
           <summary>What happens to files Hutch makes for me?</summary>

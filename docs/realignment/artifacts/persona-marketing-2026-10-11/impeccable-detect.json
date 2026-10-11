@@ -1,0 +1,26 @@
+[
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/persona-adaptive/website/index.html",
+    "line": 0,
+    "snippet": "border-radius 26px on div \"Help me plan my weekExample request You \" is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "26px"
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/persona-adaptive/website/index.html",
+    "line": 0,
+    "snippet": "border-radius 17px on div \"Help me plan my weekExample request\" is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "17px"
+  }
+]
