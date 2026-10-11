@@ -4178,10 +4178,24 @@ What landed (commits `0b6f519`, `e1751b8`, `f3c3209` on `workflow/dynamic`):
 * **Typed API and CLI**: `/api/v1/workflows/*` (owner-only) and
   `hutch workflow list/show/validate/save/export/run/submit/status/stop/answer/qualify`.
 
-Verification boundary: **74 focused workflow tests** pass (`test_workflow_plan.py` 18,
+An independent adversarial review of this slice (three reviewers: correctness/security,
+simplicity/conventions, test honesty) found and drove fixes for real defects before the
+slice was called done: a model-facing tool whose `effect()` signature would have crashed on
+the real tool path; `max_model_calls: 0` meaning "unlimited"; step runs failing under the
+**process executor** (the production path) because the worker branched on `parent_run_id`
+before `kind`; a repair round charged on every interpreter pass instead of once; a command
+check re-executed on every pass while a sibling check waited; a step's declared model never
+applied (so qualification gated a route that did not run); the wall-clock budget restarting
+on every continuation; unvalidated `join` targets that could fabricate `None`; a silently
+ignored `command` check `cwd`; a node record written without its run stalling the instance;
+nested map keys that could alias through the instance-key separator; skipped nodes recorded
+under one shared key; and oversized inputs surfacing as a 500. Each has a regression in
+`tests/test_workflow_regressions.py` (21).
+
+Verification boundary: **94 focused workflow tests** pass (`test_workflow_plan.py` 18,
 `test_workflow_qualify.py` 14, `test_workflow_engine.py` 15, `test_workflow_api.py` 11,
-`test_workflow_routing.py` 9, `test_workflow_csv_acceptance.py` 2, `test_workflow_steps.py` 4),
-and the regression
+`test_workflow_routing.py` 9, `test_workflow_csv_acceptance.py` 2, `test_workflow_steps.py` 4,
+`test_workflow_regressions.py` 21), and the regression
 subsets that touch the changed seams pass (engine/store/claims/cancel/delegation/approvals/
 API/lifecycle/receipts/action-intents: **270 passed**; remote-pairing route inventory: **35
 passed**). The acceptance capture (`docs/realignment/capture_workflow_acceptance.py`) ran the

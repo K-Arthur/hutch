@@ -33,7 +33,6 @@ CEILINGS = {
     "max_wall_seconds": 86_400,
     "max_fanout": 100,
     "max_repairs": 5,
-    "max_replans": 2,
     "max_parallel_steps": 4,
     "max_iterations": 20,
     "max_nesting_depth": 3,
@@ -209,8 +208,6 @@ class Budget(_Strict):
     max_wall_seconds: int = Field(default=3_600, ge=5, le=CEILINGS["max_wall_seconds"])
     max_fanout: int = Field(default=20, ge=1, le=CEILINGS["max_fanout"])
     max_repairs: int = Field(default=2, ge=0, le=CEILINGS["max_repairs"])
-    max_replans: int = Field(default=0, ge=0, le=CEILINGS["max_replans"])
-    max_parallel_steps: int = Field(default=1, ge=1, le=CEILINGS["max_parallel_steps"])
 
 
 class InputSpec(_Strict):
@@ -245,7 +242,9 @@ class Node(_Strict):
     purpose: str = Field(default="", max_length=400)
 
     # agent / agent_review
-    role: Literal["worker", "verifier", "author"] = "worker"
+    #: Authoring is a *submission-time* gate, never a node role: a node is bounded work
+    #: performed by a worker, or a review performed by a verifier.
+    role: Literal["worker", "verifier"] = "worker"
     instruction: str = Field(default="", max_length=CEILINGS["max_instruction_chars"])
     inputs: dict[str, Any] = Field(default_factory=dict)
     output_schema: Optional[dict[str, Any]] = None
@@ -378,8 +377,6 @@ class Plan(_Strict):
 
     @model_validator(mode="after")
     def _budget_parallelism(self) -> "Plan":
-        if self.budget.max_parallel_steps > self.envelope.max_parallel_steps:
-            raise ValueError("budget.max_parallel_steps exceeds the envelope's ceiling")
         if len(self.inputs) > CEILINGS["max_inputs"]:
             raise ValueError("too many declared inputs")
         return self

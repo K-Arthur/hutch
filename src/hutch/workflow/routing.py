@@ -25,9 +25,16 @@ from typing import Any, Optional
 
 MODES = ("off", "suggest", "auto")
 
-#: Structural signals a caller can supply (all optional; absence is not evidence).
-SIGNALS = ("independent_items", "known_inputs", "repeatable_procedure", "needs_verification",
-           "depends_on_results", "single_step", "conversational", "long_horizon")
+#: The budget keys an auto scope may cap, with the same bounds the plan schema enforces.
+#: Derived from the compiler's ceilings so raising one cannot leave this validator stale.
+AUTO_CAPS = ("max_nodes", "max_model_calls", "max_wall_seconds", "max_fanout")
+
+
+def _cap_bounds(key: str) -> tuple[int, int]:
+    from .plan import CEILINGS
+
+    low = 0 if key == "max_model_calls" else 1
+    return low, int(CEILINGS[key])
 
 
 @dataclass(frozen=True)
@@ -43,8 +50,7 @@ class Recommendation:
                 "bounds": self.bounds, "suggested_plan_name": self.suggested_plan_name}
 
 
-def recommend(*, signals: dict[str, Any], saved_workflow: str = "",
-              active_definitions: Optional[list[str]] = None) -> Recommendation:
+def recommend(*, signals: dict[str, Any], saved_workflow: str = "") -> Recommendation:
     """The application's routing policy: deterministic, explainable, abstaining by default."""
     def on(name: str) -> bool:
         return bool(signals.get(name))
@@ -107,13 +113,8 @@ def check_auto(*, bot: Any, definition: Optional[dict[str, Any]], budget: dict[s
             return False, f"{plan_name!r} is not in this Bot's preauthorized definitions"
     if definition is not None and not definition.get("active"):
         return False, "that saved workflow is not activated, so auto may not start it"
-    caps = {
-        "max_nodes": (1, 2_000),
-        "max_model_calls": (0, 500),
-        "max_wall_seconds": (5, 86_400),
-        "max_fanout": (1, 100),
-    }
-    for key, (low, high) in caps.items():
+    for key in AUTO_CAPS:
+        low, high = _cap_bounds(key)
         limit = scope.get(key)
         if limit is None:
             continue

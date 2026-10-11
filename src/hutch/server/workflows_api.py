@@ -21,7 +21,7 @@ from ..workflow import persistence as wstore
 from ..workflow import qualify
 from ..workflow import routing
 from ..workflow import submit as wfsubmit
-from ..workflow.compile import CEILINGS, PlanInvalid, compile_plan
+from ..workflow.compile import CEILINGS, PlanInvalid, compile_plan, plan_structure
 
 MAX_PLAN_BYTES = CEILINGS["max_plan_bytes"]
 
@@ -192,18 +192,8 @@ class WorkflowPolicyRequest(BaseModel):
     max_fanout: Optional[int] = Field(default=None, ge=1, le=100)
 
 
-def _digest(payload: Any) -> str:
-    return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":"),
-                                     default=str).encode()).hexdigest()
-
-
-def _idempotency(request: Request, payload: Any) -> tuple[str, str]:
-    key = request.headers.get("idempotency-key", "").strip()
-    if not key:
-        raise HTTPException(428, "an Idempotency-Key header is required for this command")
-    if len(key) > 128 or any(not (32 <= ord(char) < 127) for char in key):
-        raise HTTPException(422, "Idempotency-Key must be 1-128 printable ASCII characters")
-    return key, _digest(payload)
+def _structure(plan: dict[str, Any]) -> list[dict[str, Any]]:
+    return plan_structure(plan)
 
 
 def _plan_size(plan: dict[str, Any]) -> None:
@@ -257,29 +247,17 @@ def _run_resource(row: dict[str, Any]) -> WorkflowRunResource:
         finished_at=row.get("finished_at"))
 
 
-def _structure(plan: dict[str, Any]) -> list[dict[str, Any]]:
-    """The planned shape, flattened for a compact accessible list (never a fake graph)."""
-    out: list[dict[str, Any]] = []
+def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key: Any,
+                          request_digest: Any) -> None:
+    """Attach the workflow routes to the existing app factory.
 
-    def walk(nodes: list[dict[str, Any]], parent: str, depth: int) -> None:
-        for node in nodes:
-            site = f"{parent}.{node.get('id')}" if parent else str(node.get("id"))
-            out.append({"site_id": site, "kind": node.get("kind"), "title": node.get("title") or "",
-                        "parent": parent or None, "depth": depth,
-                        "bounded": node.get("kind") in ("map", "expand", "branch", "repeat")})
-            for body in ("body", "then", "else"):
-                children = node.get(body)
-                if isinstance(children, list) and children:
-                    walk(children, site, depth + 1)
+    ``idempotency_key``/``request_digest`` are the app's own helpers, passed in rather than
+    re-implemented, so a paired phone's receipts stay isolated per credential exactly as they
+    are everywhere else.
+    """
 
-    nodes = plan.get("nodes")
-    if isinstance(nodes, list):
-        walk(nodes, "", 0)
-    return out
-
-
-def register_workflow_api(app: Any, store: Any, engine: Any) -> None:
-    """Attach the workflow routes to the existing app factory."""
+    def _idempotency(request: Request, payload: Any) -> tuple[str, str]:
+        return idempotency_key(request), request_digest(payload)
 
     @app.get("/api/v1/workflows", response_model=WorkflowDefinitionPage)
     def list_workflows(limit: int = 50, offset: int = 0) -> WorkflowDefinitionPage:
@@ -376,10 +354,13 @@ def register_workflow_api(app: Any, store: Any, engine: Any) -> None:
         try:
             roles = wfsubmit.check_authority(compiled, bot, store=store)
         except wfsubmit.PlanNotSubmittable as exc:
+            blocked = routing.explain_block(bot, [{"role": "worker", "allowed": False,
+                                                   "reasons": [str(exc)], "route": None}])
             return WorkflowValidationResource(
                 ok=False, plan_hash=compiled.plan_hash, node_count=len(compiled.nodes),
                 required_tools=sorted(wfsubmit.required_tools(compiled)),
-                diagnostics=[DiagnosticResource(code="authority", path="", message=str(exc))],
+                diagnostics=[DiagnosticResource(code="authority", path="",
+                                                message=" ".join(blocked) or str(exc))],
                 warnings=[DiagnosticResource(code=w.code, path=w.path, message=w.message,
                                              severity="warning") for w in compiled.warnings])
         return WorkflowValidationResource(

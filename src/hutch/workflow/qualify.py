@@ -34,7 +34,7 @@ Rules that matter and are enforced here:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Optional
+from typing import Any, Optional
 
 from ..providers import parse_spec
 from ..route_identity import route_revision, route_tuple
@@ -47,11 +47,9 @@ PROBE_ONLY_ROLES = ("author", "selector")
 POSITIVE = ("documented", "probed", "observed")
 CAVEAT_STATES = ("advertised", "unknown")
 
-VERDICT_STATES = ("qualified", "caveated", "limited", "blocked")
-
-#: Providers the runtime can actually speak to (mirrors providers.registry).
-KNOWN_PROVIDERS = frozenset({"ollama", "openai", "anthropic", "openai-compatible",
-                             "lmstudio", "llamacpp", "llama.cpp", "vllm"})
+#: Providers the runtime can actually speak to. This is the same set the model catalog
+#: offers, so a provider added there is never refused here as "no adapter".
+from ..modelchoices import KNOWN_PROVIDERS
 
 
 class QualificationBlocked(RuntimeError):
@@ -128,7 +126,7 @@ def _observations(store: Any, route: RouteRef) -> list[dict[str, Any]]:
 
 def assess(role: str, *, spec: str, store: Any = None, connections: Any = None,
            base_url: Optional[str] = None, requires_tools: bool = False,
-           tool_protocol: str = "auto", producer_spec: Optional[str] = None,
+           producer_spec: Optional[str] = None,
            requires_structured_output: bool = False) -> RoleVerdict:
     """Explain whether ``role`` may run on ``spec`` right now, and why."""
     if role not in ROLES:
@@ -175,12 +173,10 @@ def assess(role: str, *, spec: str, store: Any = None, connections: Any = None,
     # worker / verifier ------------------------------------------------------
     observations = _observations(store, route)
     profile = resolve_profile(provider=route.provider, endpoint=route.endpoint, model=route.model,
-                              revision=route.revision, observations=observations,
-                              override=None if tool_protocol == "auto" else tool_protocol)
+                              revision=route.revision, observations=observations)
     eligibility = strategy_eligibility(profile)
     native = profile.native_tools
     constrained_ok = eligibility["constrained"][0]
-    prompt_ok = tool_protocol == "prompt"
 
     reasons: list[str] = []
     state = "qualified"
@@ -191,19 +187,16 @@ def assess(role: str, *, spec: str, store: Any = None, connections: Any = None,
                                route=route, evidence={"native_tools": native.state})
         if native.state in POSITIVE:
             reasons.append(f"tool support is {native.state} on this route")
-        elif native.state in CAVEAT_STATES and (constrained_ok or prompt_ok):
-            reasons.append(f"tool support is {native.state}; {eligibility['constrained'][1] if constrained_ok else 'prompt-contract mode is enabled'}")
+        elif native.state in CAVEAT_STATES and constrained_ok:
+            reasons.append(f"tool support is {native.state}; {eligibility['constrained'][1]}")
             state = "caveated"
         elif constrained_ok:
             reasons.append("tool calls run through the documented schema-constrained control")
             state = "caveated"
-        elif prompt_ok:
-            reasons.append("tool calls run through the versioned prompt contract with strict local validation")
-            state = "caveated"
         else:
             return RoleVerdict(role=role, state="blocked", allowed=False,
-                               reasons=(f"tool support on this route is {native.state} and no constrained or "
-                                        f"prompt-contract mode is available",),
+                               reasons=(f"tool support on this route is {native.state} and the backend "
+                                        f"offers no documented schema-constrained control",),
                                route=route, evidence={"native_tools": native.state})
     else:
         if native.state in POSITIVE:

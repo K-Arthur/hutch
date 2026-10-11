@@ -56,7 +56,21 @@ def main(argv: list[str] | None = None) -> int:
             engine = Engine(config, store, owner_id=args.owner, light=True)
             engine._finish_unstarted(run)
             return EXIT_MISSING
-        if run.parent_run_id is not None:
+        kind = store.run_kind(run.id)
+        if kind == "step":
+            # A workflow step is *not* a delegated child: its frozen contract (tools, skills,
+            # limits, model) is the authority, and it is re-checked against the Bot here.
+            engine = Engine(config, store, owner_id=args.owner, light=True)
+            try:
+                bot = Engine._step_bot(bot, run)
+            except ValueError as exc:
+                engine._fail_unavailable_child_executor(run, str(exc))
+                latest = store.get_run(run.id)
+                if latest is None or latest.status not in LIVE:
+                    return EXIT_OK
+                print(f"hutch.worker: {args.run_id} could not enforce its step contract: {exc}", file=sys.stderr)
+                return EXIT_NOT_OURS
+        elif run.parent_run_id is not None:
             engine = Engine(config, store, owner_id=args.owner, light=True)
             snapshot = store.run_capability_snapshot(run.id)
             try:
@@ -73,7 +87,7 @@ def main(argv: list[str] | None = None) -> int:
         elif run.model_override:
             bot = bot.model_copy(update={"model": run.model_override})
 
-        engine = engine if run.parent_run_id is not None else Engine(config, store, owner_id=args.owner, light=True)
+        engine = engine if (kind == "step" or run.parent_run_id is not None) else Engine(config, store, owner_id=args.owner, light=True)
         try:
             store.set_pgid(run.id, run.fence, os.getpgrp())
         except LeaseLost:

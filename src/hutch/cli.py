@@ -1614,7 +1614,7 @@ def _load_plan_file(path: str) -> dict:
     return data
 
 
-def _print_structure(structure: list[dict], plan: dict) -> None:
+def _print_structure(structure: list[dict]) -> None:
     for item in structure:
         indent = "  " * item["depth"]
         marker = "◆" if item["bounded"] else "•"
@@ -1642,7 +1642,7 @@ def workflow_list() -> None:
 def workflow_show(ref: str = typer.Argument(..., help="Workflow name or id")) -> None:
     """The plan of a saved workflow's latest revision, with its bounded structure."""
     from .workflow import persistence as wfstore
-    from .server.workflows_api import _structure
+    from .workflow.compile import plan_structure
 
     store = _store()
     entry = wfstore.definition(store, ref)
@@ -1670,7 +1670,7 @@ def workflow_show(ref: str = typer.Argument(..., help="Workflow name or id")) ->
             console.print(f"  {name}: {spec['type']}{'' if spec.get('required', True) else ' (optional)'}"
                           + (f" default={spec['default']!r}" if spec.get("default") is not None else ""))
     console.print("nodes:")
-    _print_structure(_structure(plan), plan)
+    _print_structure(plan_structure(plan))
 
 
 @workflow_app.command("validate")
@@ -1934,7 +1934,12 @@ def workflow_qualify(bot_ref: str = typer.Argument(...),
     bot = _require_bot(store, bot_ref)
     if assess_only:
         verdict = qualify.assess(role, spec=bot.model, store=store)
-        console.print(f"{verdict.summary()}")
+        console.print(verdict.summary())
+        if not verdict.allowed:
+            from .workflow.routing import explain_block
+
+            for line in explain_block(bot, [verdict.as_dict()]):
+                console.print(f"  {line}")
         raise typer.Exit(code=0 if verdict.allowed else 1)
     if revoke:
         removed = qualify.revoke(store, spec=bot.model, role=role)

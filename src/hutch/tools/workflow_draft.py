@@ -44,14 +44,14 @@ class DraftWorkflowTool(Tool):
         "additionalProperties": False,
     }
 
-    def effect(self) -> str:
+    def effect(self, args: dict[str, Any], ctx: ToolContext) -> str:
         return ""            # writes no receipt: drafting is not an effect on the world
 
     def run(self, args: dict[str, Any], ctx: ToolContext) -> ToolResult:
         from ..workflow import persistence as wstore
         from ..workflow import qualify
         from ..workflow import submit as wfsubmit
-        from ..workflow.compile import PlanInvalid, compile_plan
+        from ..workflow.compile import PlanInvalid, compile_plan, plan_structure
 
         plan = args.get("plan")
         if not isinstance(plan, dict):
@@ -79,7 +79,7 @@ class DraftWorkflowTool(Tool):
             verdicts = wfsubmit.check_authority(compiled, ctx.bot, store=ctx.store)
         except wfsubmit.PlanNotSubmittable as exc:
             return ToolResult(ok=False, output=f"this Bot may not run that plan: {exc}")
-        structure = _structure(plan)
+        structure = plan_structure(plan)
         summary = [f"plan {compiled.plan.name!r} compiles: {len(compiled.nodes)} sites, "
                    f"hash {compiled.plan_hash[:12]}…",
                    "structure: " + ", ".join(f"{item['site_id']}({item['kind']})" for item in structure)]
@@ -97,23 +97,3 @@ class DraftWorkflowTool(Tool):
                           data={"plan_hash": compiled.plan_hash, "nodes": len(compiled.nodes),
                                 "roles": verdicts, "structure": structure,
                                 "started": False})
-
-
-def _structure(plan: dict[str, Any]) -> list[dict[str, Any]]:
-    out: list[dict[str, Any]] = []
-
-    def walk(nodes: list[Any], parent: str, depth: int) -> None:
-        for node in nodes:
-            if not isinstance(node, dict):
-                continue
-            site = f"{parent}.{node.get('id')}" if parent else str(node.get("id"))
-            out.append({"site_id": site, "kind": node.get("kind"), "depth": depth,
-                        "bounded": node.get("kind") in ("map", "expand", "branch", "repeat")})
-            for body in ("body", "then", "else"):
-                children = node.get(body)
-                if isinstance(children, list):
-                    walk(children, site, depth + 1)
-
-    if isinstance(plan.get("nodes"), list):
-        walk(plan["nodes"], "", 0)
-    return out

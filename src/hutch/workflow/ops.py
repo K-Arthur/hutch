@@ -14,26 +14,47 @@ from __future__ import annotations
 import csv
 import io
 import json
-from typing import Any, Iterable
+from typing import Any
+
+from .expr import EvalError, compare_values, typed_eq
 
 MAX_ITEMS = 20_000
 MAX_TEXT = 4 * 1024 * 1024
 MAX_ROWS = 20_000
-MAX_DEPTH = 16
 
-_OPS = {
-    "constant", "parse_json", "to_json", "parse_csv", "parse_table", "select", "filter", "sort",
-    "dedupe", "first", "last", "slice", "count", "sum", "total", "to_number", "group_count",
-    "join_text", "merge", "to_markdown_table", "pluck",
+#: The one op table: the compiler imports it to validate arguments, and :func:`apply_op`
+#: dispatches on it. Adding an op in one place cannot leave the other stale.
+TRANSFORM_OPS: dict[str, set[str]] = {
+    "constant": {"value"},
+    "parse_json": {"text"},
+    "to_json": {"value"},
+    "parse_csv": {"text", "delimiter", "max_rows"},
+    "parse_table": {"text", "delimiter", "max_rows"},
+    "select": {"items", "fields"},
+    "filter": {"items", "where"},
+    "sort": {"items", "by", "descending"},
+    "dedupe": {"items", "by"},
+    "first": {"items", "count"},
+    "last": {"items", "count"},
+    "slice": {"items", "start", "end"},
+    "count": {"items"},
+    "sum": {"items", "of"},
+    "total": {"items", "of"},
+    "to_number": {"value"},
+    "group_count": {"items", "by"},
+    "join_text": {"items", "separator", "of"},
+    "merge": {"values"},
+    "to_markdown_table": {"items", "fields"},
+    "pluck": {"value", "path"},
 }
 
-#: Comparison operators a ``filter`` predicate may use.
+#: Comparison operators a ``filter`` predicate may use (the same vocabulary conditions use).
 _FILTER_OPS = {"eq", "ne", "gt", "ge", "lt", "le", "in", "not_in", "contains", "matches",
-               "exists", "is_empty", "not_empty"}
+               "exists", "is_null", "is_empty", "not_empty"}
 
 
 def apply_op(op: str, args: dict[str, Any]) -> Any:
-    if op not in _OPS:
+    if op not in TRANSFORM_OPS:
         raise ValueError(f"unknown transform op {op!r}")
     handler = globals()["_op_" + op]
     return handler(args)
@@ -84,10 +105,13 @@ def _text(value: Any) -> str:
 
 
 def _compare(left: Any, op: str, right: Any, field: str) -> bool:
+    """A filter predicate uses the same comparison rules a ``when``/``until`` condition does."""
     if op not in _FILTER_OPS:
         raise ValueError(f"unknown filter op {op!r}")
     if op == "exists":
         return left is not _MISSING
+    if op == "is_null":
+        return left is None
     if op == "is_empty":
         return left is _MISSING or left is None or left == "" or left == [] or left == {}
     if op == "not_empty":
@@ -95,35 +119,13 @@ def _compare(left: Any, op: str, right: Any, field: str) -> bool:
     if left is _MISSING:
         raise ValueError(f"filter field {field!r} does not exist on this item")
     if op == "eq":
-        return left == right
+        return typed_eq(left, right)
     if op == "ne":
-        return left != right
-    if op in ("gt", "ge", "lt", "le"):
-        if isinstance(left, bool) or isinstance(right, bool):
-            raise ValueError("ordered comparisons do not compare booleans")
-        if not (isinstance(left, (int, float)) and isinstance(right, (int, float))
-                or isinstance(left, str) and isinstance(right, str)):
-            raise ValueError("ordered comparisons need two numbers or two strings")
-        return {"gt": left > right, "ge": left >= right, "lt": left < right, "le": left <= right}[op]
-    if op == "in":
-        return left in right if isinstance(right, (list, str, dict)) else _bad_container()
-    if op == "not_in":
-        return left not in right if isinstance(right, (list, str, dict)) else _bad_container()
-    if op == "contains":
-        return right in left if isinstance(left, (list, str, dict)) else _bad_container()
-    if op == "matches":
-        import re
-
-        if not isinstance(left, str) or not isinstance(right, str):
-            raise ValueError("matches needs two strings")
-        if len(right) > 300 or len(left) > 20_000:
-            raise ValueError("matches pattern or subject is too large")
-        return re.search(right, left) is not None
-    raise ValueError(f"unknown filter op {op!r}")
-
-
-def _bad_container() -> bool:
-    raise ValueError("in/contains needs a list, string or object")
+        return not typed_eq(left, right)
+    try:
+        return compare_values(left, op, right, f"filter field {field!r}")
+    except EvalError as exc:
+        raise ValueError(str(exc)) from None
 
 
 class _Missing:
@@ -228,7 +230,8 @@ def _op_parse_table(args: dict[str, Any]) -> dict[str, Any]:
             continue
         rows.append({name: value for name, value in zip(columns, row)})
     return {"columns": columns, "rows": rows, "bad_rows": bad, "kept": len(rows),
-            "bad": len(bad), "blank_lines": blank, "clean": not bad}
+            "bad": len(bad), "blank_lines": blank, "total": len(rows) + len(bad),
+            "clean": not bad}
 
 
 def _op_select(args: dict[str, Any]) -> list[dict[str, Any]]:
@@ -370,7 +373,8 @@ def _op_to_number(args: dict[str, Any]) -> float:
         return float(value)
     if isinstance(value, str):
         text = value.strip().replace(",", "")
-        if text and text.replace(".", "", 1).lstrip("+-").isdigit():
+        digits = text.lstrip("+-")
+        if text and digits.count(".") <= 1 and digits.replace(".", "", 1).isdigit() and digits:
             return float(text)
         raise ValueError(f"{value!r} is not a decimal number")
     raise ValueError(f"cannot read a number from {type(value).__name__}")

@@ -40,6 +40,12 @@ class PlanNotSubmittable(ValueError):
     """The plan is valid but this Bot may not run it as declared."""
 
 
+#: Per-step bounds. They are named here once and carried in the workflow's budget so the
+#: interpreter and the step contract cannot disagree.
+STEP_MAX_STEPS = 12
+STEP_MAX_SECONDS = 600
+
+
 @dataclass
 class Submission:
     workflow_run_id: str
@@ -47,7 +53,7 @@ class Submission:
     revision_id: str
     definition_id: Optional[str]
     plan_hash: str
-    verdicts: list[dict[str, Any]]
+    verdicts: list[dict[str, Any]] = None  # type: ignore[assignment]
 
 
 def validate_inputs(plan: Plan, inputs: Optional[dict[str, Any]]) -> dict[str, Any]:
@@ -81,8 +87,14 @@ def _check_input(name: str, spec: Any, value: Any) -> Any:
     }[kind]
     if not ok:
         raise PlanInputError(f"input {name!r} must be {kind}, got {type(value).__name__}")
-    if kind == "string" and spec.max_length and len(value) > spec.max_length:
-        raise PlanInputError(f"input {name!r} is longer than {spec.max_length} characters")
+    if kind == "string":
+        if spec.max_length and len(value) > spec.max_length:
+            raise PlanInputError(f"input {name!r} is longer than {spec.max_length} characters")
+        if len(value) > CEILINGS["max_input_chars"]:
+            raise PlanInputError(
+                f"input {name!r} is longer than {CEILINGS['max_input_chars']} characters")
+    if kind == "array" and len(value) > CEILINGS["max_fanout"] * 10:
+        raise PlanInputError(f"input {name!r} has more than {CEILINGS['max_fanout'] * 10} items")
     if kind == "array" and spec.max_items is not None and len(value) > spec.max_items:
         raise PlanInputError(f"input {name!r} has more than {spec.max_items} items")
     return value
@@ -104,8 +116,7 @@ def required_tools(compiled: CompiledPlan) -> set[str]:
     return needed
 
 
-def check_authority(compiled: CompiledPlan, bot: Bot, *, store: Any = None,
-                    role_verdicts: bool = True) -> list[dict[str, Any]]:
+def check_authority(compiled: CompiledPlan, bot: Bot, *, store: Any = None) -> list[dict[str, Any]]:
     """Refuse a plan that asks for more than this Bot has. Returns role verdicts."""
     envelope = compiled.plan.envelope
     allowed_tools = set(expand_tools(bot.tools))
@@ -129,20 +140,19 @@ def check_authority(compiled: CompiledPlan, bot: Bot, *, store: Any = None,
                 f"this plan requires local-model-only execution, but these routes are not local: "
                 f"{hosted}. Choose a local route for the Bot, or change the plan's network policy.")
     verdicts: list[dict[str, Any]] = []
-    if role_verdicts:
-        for entry in compiled.nodes:
-            node = entry.node
-            if node.kind != "agent":
-                continue
-            spec = bot.model if node.model in ("", "$bot", "$default") else node.model
-            verdict = qualify.assess("worker" if node.role != "verifier" else "verifier",
-                                     spec=spec, store=store,
-                                     requires_tools=bool(node.tools),
-                                     requires_structured_output=node.output_schema is not None)
-            verdicts.append({"node": entry.site_id, **verdict.as_dict()})
-            if not verdict.allowed:
-                raise PlanNotSubmittable(
-                    f"node {entry.site_id} cannot run in its declared role: {verdict.summary()}")
+    for entry in compiled.nodes:
+        node = entry.node
+        if node.kind != "agent":
+            continue
+        spec = bot.model if node.model in ("", "$bot", "$default") else node.model
+        verdict = qualify.assess("worker" if node.role != "verifier" else "verifier",
+                                 spec=spec, store=store,
+                                 requires_tools=bool(node.tools),
+                                 requires_structured_output=node.output_schema is not None)
+        verdicts.append({"node": entry.site_id, **verdict.as_dict()})
+        if not verdict.allowed:
+            raise PlanNotSubmittable(
+                f"node {entry.site_id} cannot run in its declared role: {verdict.summary()}")
     return verdicts
 
 
@@ -153,6 +163,47 @@ def _is_local(spec: str, bot: Bot) -> bool:
     return bool(is_local_route(provider, model))
 
 
+def _gate_auto(store: Any, bot: Bot, *, compiled: CompiledPlan, definition: Any,
+               plan_name: str) -> None:
+    from . import routing
+
+    allowed, why = routing.check_auto(bot=bot, definition=definition,
+                                      budget=compiled.plan.budget.model_dump(mode="json"),
+                                      plan_name=plan_name)
+    if not allowed:
+        raise PlanNotSubmittable(f"an automatic start was refused: {why}")
+
+
+def _admit(store: Any, *, bot: Bot, compiled: CompiledPlan, revision_id: str,
+           definition_id: Optional[str], inputs: dict[str, Any], origin: str,
+           conversation_id: str, idem_key: str, request_hash: str,
+           plan_payload: dict[str, Any]) -> Submission:
+    """The one admission path: instance + first orchestration attempt, idempotently."""
+    attempt = Run(bot_id=bot.id, prompt=f"workflow: {compiled.plan.name}"[:4_000], kind="workflow",
+                  origin=origin, conversation_id=conversation_id)
+    task = Task(bot_id=bot.id, kind="workflow", prompt=attempt.prompt)
+    workflow, created = wstore.submit_workflow_run(
+        store, plan=plan_payload, definition_id=definition_id, revision_id=revision_id,
+        plan_hash=compiled.plan_hash, bot_id=bot.id, inputs=inputs,
+        budget=step_budget(compiled), origin=origin, conversation_id=conversation_id,
+        run=attempt, task=task, idem_key=idem_key, request_hash=request_hash)
+    if not created:
+        return _from_record(workflow)
+    return Submission(workflow_run_id=str(workflow["id"]), attempt_run_id=attempt.id,
+                      revision_id=revision_id, definition_id=definition_id,
+                      plan_hash=compiled.plan_hash, verdicts=[])
+
+
+def step_budget(compiled: CompiledPlan) -> dict[str, Any]:
+    """The plan's budget plus the two per-step bounds the interpreter enforces.
+
+    Kept in one place so the interpreter, the step contract and every submission agree on
+    what a model step may spend.
+    """
+    return {**compiled.plan.budget.model_dump(mode="json"),
+            "max_steps_per_node": STEP_MAX_STEPS, "max_step_seconds": STEP_MAX_SECONDS}
+
+
 def submit_workflow(store: Any, *, bot: Bot, plan: dict[str, Any] | Plan,
                     inputs: Optional[dict[str, Any]] = None, definition_name: str = "",
                     save_definition: bool = True, activate_definition: bool = False,
@@ -160,8 +211,13 @@ def submit_workflow(store: Any, *, bot: Bot, plan: dict[str, Any] | Plan,
                     source: str = "operator", planning_model: str = "",
                     created_by: str = "", note: str = "",
                     idem_key: str = "", request_hash: str = "",
-                    auto: bool = False) -> Submission:
-    """Validate, gate and admit one workflow instance."""
+                    auto: bool = False, revision_id: str = "") -> Submission:
+    """Validate, gate and admit one workflow instance.
+
+    ``revision_id`` names an already-saved revision to run as-is; otherwise the plan is
+    saved as a new revision (``save_definition=False`` with no ``revision_id`` is refused
+    rather than silently saving one).
+    """
     compiled = compile_plan(plan)
     resolved_inputs = validate_inputs(compiled.plan, inputs)
     if idem_key:
@@ -169,15 +225,6 @@ def submit_workflow(store: Any, *, bot: Bot, plan: dict[str, Any] | Plan,
         if replay is not None:
             return _replayed(store, replay)
     verdicts = check_authority(compiled, bot, store=store)
-    if auto:
-        from . import routing
-
-        definition_row = wstore.definition(store, definition_name) if definition_name else None
-        allowed, why = routing.check_auto(
-            bot=bot, definition=definition_row,
-            budget=compiled.plan.budget.model_dump(mode="json"), plan_name=compiled.plan.name)
-        if not allowed:
-            raise PlanNotSubmittable(f"an automatic start was refused: {why}")
     if source == "model":
         if not planning_model:
             raise PlanNotSubmittable("a model-authored plan must name the planning model")
@@ -187,32 +234,35 @@ def submit_workflow(store: Any, *, bot: Bot, plan: dict[str, Any] | Plan,
                 f"the planning model is not qualified to author workflows: {gate.summary()}")
 
     definition_id: Optional[str] = None
-    revision_id: Optional[str] = None
+    plan_payload = compiled.plan.model_dump(by_alias=True, exclude_none=True, mode="json")
     if save_definition:
         name = definition_name or compiled.plan.name
-        saved = wstore.save_definition(store, name=name, plan=compiled.plan.model_dump(
-            by_alias=True, exclude_none=True, mode="json"), description=compiled.plan.description,
-            note=note, created_by=created_by, source=source, activate=activate_definition)
+        saved = wstore.save_definition(store, name=name, plan=plan_payload,
+                                       description=compiled.plan.description, note=note,
+                                       created_by=created_by, source=source,
+                                       activate=activate_definition)
         definition_id, revision_id = saved["definition_id"], saved["revision_id"]
-    if revision_id is None:
+    elif revision_id:
+        existing = wstore.revision(store, revision_id)
+        if existing is None:
+            raise PlanNotSubmittable(f"no such revision: {revision_id}")
+        if str(existing["plan_hash"]) != compiled.plan_hash:
+            raise PlanNotSubmittable(
+                "the submitted plan does not match that revision's hash; save it as a new revision")
+        definition_id = str(existing["definition_id"])
+        plan_payload = existing["plan"]
+    else:
         raise PlanNotSubmittable("submission needs either a saved definition or an existing revision")
-    attempt = Run(bot_id=bot.id, prompt=f"workflow: {compiled.plan.name}"[:4_000], kind="workflow",
-                  origin=origin, conversation_id=conversation_id)
-    task = Task(bot_id=bot.id, kind="workflow", prompt=attempt.prompt)
-    workflow, created = wstore.submit_workflow_run(
-        store, plan=compiled.plan.model_dump(by_alias=True, exclude_none=True, mode="json"),
-        definition_id=definition_id, revision_id=revision_id, plan_hash=compiled.plan_hash,
-        bot_id=bot.id, inputs=resolved_inputs,
-        budget={**compiled.plan.budget.model_dump(mode="json"),
-                "max_steps_per_node": min(CEILINGS["max_agent_steps"], 12),
-                "max_step_seconds": 600},
-        origin=origin, conversation_id=conversation_id, run=attempt, task=task,
-        idem_key=idem_key, request_hash=request_hash)
-    if not created:
-        return _from_record(workflow)
-    return Submission(workflow_run_id=str(workflow["id"]), attempt_run_id=attempt.id,
-                      revision_id=revision_id, definition_id=definition_id,
-                      plan_hash=compiled.plan_hash, verdicts=verdicts)
+    if auto:
+        definition_row = wstore.definition(store, definition_id) if definition_id else None
+        _gate_auto(store, bot, compiled=compiled, definition=definition_row,
+                   plan_name=compiled.plan.name)
+    submission = _admit(store, bot=bot, compiled=compiled, revision_id=revision_id,
+                        definition_id=definition_id, inputs=resolved_inputs, origin=origin,
+                        conversation_id=conversation_id, idem_key=idem_key,
+                        request_hash=request_hash, plan_payload=plan_payload)
+    submission.verdicts = verdicts
+    return submission
 
 
 def submit_saved(store: Any, *, bot: Bot, definition: str, inputs: Optional[dict[str, Any]] = None,
@@ -232,30 +282,15 @@ def submit_saved(store: Any, *, bot: Bot, definition: str, inputs: Optional[dict
         if replay is not None:
             return _replayed(store, replay)
     if auto:
-        from . import routing
-
-        allowed, why = routing.check_auto(
-            bot=bot, definition=entry, budget=compiled.plan.budget.model_dump(mode="json"),
-            plan_name=str(entry["name"]))
-        if not allowed:
-            raise PlanNotSubmittable(f"an automatic start was refused: {why}")
+        _gate_auto(store, bot, compiled=compiled, definition=entry,
+                   plan_name=str(entry["name"]))
     verdicts = check_authority(compiled, bot, store=store)
-    attempt = Run(bot_id=bot.id, prompt=f"workflow: {compiled.plan.name}"[:4_000], kind="workflow",
-                  origin=origin, conversation_id=conversation_id)
-    task = Task(bot_id=bot.id, kind="workflow", prompt=attempt.prompt)
-    workflow, created = wstore.submit_workflow_run(
-        store, plan=revision["plan"], definition_id=str(entry["id"]), revision_id=str(revision["id"]),
-        plan_hash=str(revision["plan_hash"]), bot_id=bot.id, inputs=resolved_inputs,
-        budget={**compiled.plan.budget.model_dump(mode="json"),
-                "max_steps_per_node": min(CEILINGS["max_agent_steps"], 12),
-                "max_step_seconds": 600},
-        origin=origin, conversation_id=conversation_id, run=attempt, task=task,
-        idem_key=idem_key, request_hash=request_hash)
-    if not created:
-        return _from_record(workflow)
-    return Submission(workflow_run_id=str(workflow["id"]), attempt_run_id=attempt.id,
-                      revision_id=str(revision["id"]), definition_id=str(entry["id"]),
-                      plan_hash=str(revision["plan_hash"]), verdicts=verdicts)
+    submission = _admit(store, bot=bot, compiled=compiled, revision_id=str(revision["id"]),
+                        definition_id=str(entry["id"]), inputs=resolved_inputs, origin=origin,
+                        conversation_id=conversation_id, idem_key=idem_key,
+                        request_hash=request_hash, plan_payload=revision["plan"])
+    submission.verdicts = verdicts
+    return submission
 
 
 def _from_record(workflow: dict[str, Any]) -> Submission:

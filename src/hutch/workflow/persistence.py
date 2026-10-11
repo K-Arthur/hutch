@@ -377,13 +377,6 @@ def request_workflow_stop(store: Any, wf_id: str) -> dict[str, Any]:
     return {"workflow_run_id": wf_id, "attempt_run_id": attempt, "stop_requested": True}
 
 
-def set_step_kind(store: Any, run_id: str, kind: str) -> None:
-    if kind not in ("attempt", "workflow", "step"):
-        raise ValueError(f"unknown run kind {kind!r}")
-    with store._tx() as db:
-        db.execute("UPDATE runs SET kind = ? WHERE id = ?", (kind, run_id))
-
-
 def workflow_runs_needing_attempt(store: Any, *, limit: int = 4,
                                   quiet_seconds: float = 2.0) -> list[dict[str, Any]]:
     """Live workflow instances whose orchestration attempt is gone (crashed or killed).
@@ -472,12 +465,6 @@ def admit_workflow_continuation(store: Any, wf_id: str) -> Optional[Run]:
     return run
 
 
-def run_kind(store: Any, run_id: str) -> str:
-    with store._lock:
-        row = store._db.execute("SELECT kind FROM runs WHERE id = ?", (run_id,)).fetchone()
-    return str(row["kind"]) if row else "attempt"
-
-
 # ----------------------------------------------------------------------- nodes
 
 def nodes(store: Any, wf_id: str) -> list[dict[str, Any]]:
@@ -529,19 +516,6 @@ def open_node(store: Any, wf_id: str, *, site_id: str, instance_key: str, kind: 
     return node(store, wf_id, site_id, instance_key) or {}
 
 
-def set_node_status(store: Any, wf_id: str, site_id: str, instance_key: str, status: str,
-                    *, reason: str = "") -> None:
-    if status not in NODE_STATES:
-        raise ValueError(f"unknown node state {status!r}")
-    with store._tx() as db:
-        db.execute("""UPDATE workflow_nodes SET status = ?, error_json = ?, finished_at = ?
-                      WHERE workflow_run_id = ? AND site_id = ? AND instance_key = ?""",
-                   (status, _json({"reason": reason} if reason else {}),
-                    iso(utcnow()) if status in ("succeeded", "failed", "skipped", "cancelled") else None,
-                    wf_id, site_id, instance_key))
-    store.bus.notify("workflows", f"workflow:{wf_id}")
-
-
 def settle_node(store: Any, wf_id: str, site_id: str, instance_key: str, *,
                 status: str, result: Any = None, error: str = "", run_id: Optional[str] = None,
                 input_hash: str = "") -> None:
@@ -558,14 +532,6 @@ def settle_node(store: Any, wf_id: str, site_id: str, instance_key: str, *,
                           input_hash, input_hash, wf_id, site_id, instance_key))
         if cur.rowcount != 1:
             raise ValueError("node instance is already settled")
-    store.bus.notify("workflows", f"workflow:{wf_id}")
-
-
-def bind_node_run(store: Any, wf_id: str, site_id: str, instance_key: str, run_id: str) -> None:
-    with store._tx() as db:
-        db.execute("""UPDATE workflow_nodes SET run_id = ? WHERE workflow_run_id = ? AND site_id = ?
-                      AND instance_key = ? AND run_id IS NULL""",
-                   (run_id, wf_id, site_id, instance_key))
     store.bus.notify("workflows", f"workflow:{wf_id}")
 
 

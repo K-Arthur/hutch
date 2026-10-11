@@ -42,9 +42,9 @@ executed).
 
 | Idea | ZCode mechanism | Decision | Rationale for Hutch |
 |---|---|---|---|
-| Stable call-site identity + per-instance identity | site ids + `(siteId, ordinal)` unique keys | **Adopt** | Reordered/duplicated items must not alias; a repeated call site is not one invocation. Hutch uses `site_id` + deterministic item keys. |
+| Stable call-site identity + per-instance identity | site ids + `(siteId, ordinal)` unique keys | **Adopt** | Reordered/duplicated items must not alias; a repeated call site is not one invocation. Hutch uses `site_id` + deterministic item keys, escaped so nested keys cannot collide. |
 | Journal before dispatch | node row `running` + `input_hash` written at admission | **Adopt** | Crash-safe idempotency in SQLite; a redelivered dispatch must not double-run a node. |
-| Input-hash purity guard | `InputHashMismatch` on replay | **Adapt** | Hutch hashes the exact node input bundle (args + resolved refs) and refuses a continuation whose inputs drifted, instead of silently recomputing. |
+| Input-hash purity guard | `InputHashMismatch` on replay | **Adapt (partial)** | Hutch records the hash of each node's resolved input bundle at admission; drift *cannot* occur today because revisions and input snapshots are immutable and a settled node is never re-executed. The recorded hash is the identity used for step idempotency; a continuation-time comparison is not implemented (and is only meaningful once amendments exist). |
 | Journal is the truth | transcript/notifications built from engine records | **Adopt** | Matches Hutch's event/outbox discipline; the displayed graph derives from the committed plan, not model prose. |
 | Complete structure before the run | static graph drawn before execution | **Adapt** | Hutch shows planned structure, then marks bounded not-yet-expanded regions; actual instances come from engine records. No claim that static analysis predicts future targets. |
 | Explicit artifact publication | `artifact.*` + `report` items, one primary | **Adapt** | Publish through Hutch's existing artifact registry (events + SHA-256 + verified download), never a side channel. |
@@ -111,7 +111,7 @@ Agent nodes are step runs executed by the existing worker/claim machinery with a
 scoped input bundle, an intersected tool allowlist, optional skill bindings, an explicit
 model binding and an output contract.
 
-**Capacity.** `runs.lane` distinguishes `interactive` from `workflow`. Interactive runs of
+**Capacity.** `runs.kind` distinguishes `interactive` work from the `workflow`/`step` lane. Interactive runs of
 one bot remain mutually exclusive (unchanged). A workflow attempt of a bot may run beside
 that bot's interactive work; its steps share the attempt's global slot, bounded by the
 workflow's own logical concurrency (default 1, operator-raised under review). Inference
@@ -141,22 +141,41 @@ download/read-back.
 |---|---|---|
 | Plan schema, bounded evaluator, compiler | implemented, verified | `tests/test_workflow_plan.py` (18): identity, reference scope, envelope membership, nesting/cardinality expansion, fail-closed schema certification, strictness |
 | Role capability gate + durable evidence | implemented, verified (mechanism) | `tests/test_workflow_qualify.py` (14), `tests/test_workflow_api.py` qualification routes |
-| Durable execution: interpreter, step runs, continuation, lanes | implemented, verified | `tests/test_workflow_engine.py` (15): deterministic run, artifact publication + verified read-back, continuation reuse, loud caps, question waits, branch/map identity, stop semantics |
-| Model steps as real child runs (scripted local HTTP server) | implemented, verified on the wire path | `tests/test_workflow_steps.py` (4): own transcript/workspace/tool calls, frozen contract, output-contract enforcement, contract re-checked when the step starts |
+| Durable execution: interpreter, step runs, continuation, lanes | implemented, verified | `tests/test_workflow_engine.py` (15) + `tests/test_workflow_regressions.py`: deterministic run, artifact publication + tamper-detecting read-back, continuation that reuses settled nodes without re-running them, workflow lane beside interactive work, one workflow per Bot, loud caps, question waits and expiry, branch/map/repeat/join identity, stop semantics |
+| Model steps as real child runs (scripted local HTTP server, thread **and** process executor) | implemented, verified on the wire path | `tests/test_workflow_steps.py` (4) + `tests/test_workflow_regressions.py`: own transcript/workspace/tool calls, the declared model actually runs, frozen contract, output-contract enforcement, contract re-checked when the step starts, zero-call budgets enforced, a node opened without a run is re-admitted |
 | Submission gates (inputs, envelope-vs-Bot, local-only, role) | implemented, verified | `tests/test_workflow_engine.py`, `tests/test_workflow_api.py` |
 | Typed API + CLI | implemented, verified | `tests/test_workflow_api.py` (12); CLI exercised by the acceptance capture |
 | Routing policy Off/Suggest/Auto | implemented, verified (rules) | `tests/test_workflow_routing.py` (8) |
 | Chat wiring for suggest/auto (a turn that offers or starts one) | **not implemented** | nothing calls `routing.recommend` from a chat turn; submissions that declare themselves automatic are still scope-checked |
 | Model-facing authoring gate | implemented, verified (mechanism) | `tests/test_workflow_routing.py::test_authoring_tool_is_refused_without_probed_evidence` |
-| Acceptance: messy CSV → verified report | implemented, **verified end to end with the real CLI**, zero model calls | `tests/test_workflow_csv_acceptance.py` (2) + `artifacts/dynamic-workflows/validation.json` |
+| Acceptance: messy CSV → verified report | implemented, **verified end to end with the real CLI**, zero model calls | `tests/test_workflow_csv_acceptance.py` (2) asserts the report's own numbers are consistent; `artifacts/dynamic-workflows/validation.json` records every command, the question id the CLI printed, and the copied artifact re-hashed against the engine's digest |
 | Model-authored plan on a live local route | **not verified** | no local model server on this host; the gate and refusal paths are tested, and a scripted local HTTP server exercises the step path, but a passing probe was never recorded for a real checkpoint |
 | Planner/worker role split on one inference slot | **not verified live** | depends on the row above; admission is unchanged and shared |
 | Studio surface (plan preview, graph, inline questions) | **not implemented** | API/CLI only; UI is a later slice behind the design-research gate |
 | Amendment / replanning of a live instance | **partially implemented** | a new attempt continues an instance and reuses settled nodes; a plan *revision* diff + adoption of a changed revision is not implemented |
 | MCP facade | **not implemented** | Hutch has no MCP plane (ADR-0017 is proposed only) |
 
-### Residual uncertainty
+### Role / model-route classification (mission completion criteria)
 
+| Combination | Class | Basis |
+|---|---|---|
+| Deterministic executor + any plan without model nodes | **verified** | 15 engine tests + the CLI acceptance capture (zero model calls, published + verified artifact) |
+| Bounded worker on a documented local route, no tools | **verified on the wire path** | `test_workflow_steps.py` (scripted local HTTP server, real builtin runtime, real admission) |
+| Bounded worker on a documented local route, with tools | **verified on the wire path** | same, including the step's own tool call, transcript and workspace |
+| Bounded worker whose output contract cannot be met | **verified (fails honestly)** | `test_workflow_steps.py::test_agent_step_output_contract_is_enforced_and_fails_honestly` |
+| Worker on an unknown provider | **blocked** | `test_workflow_qualify.py::test_unresolvable_route_is_blocked_with_a_reason` |
+| Worker with tools on a route with negative tool evidence | **blocked** | `qualify.assess` returns `blocked`; no test exercises a real negative-evidence route yet |
+| Verifier on a different route | **implemented** | independence computed; no live multi-route run |
+| Verifier on the producer's route | **advisory only** | `qualify.assess` marks `independent=False`; `agent_review` can never certify |
+| Author / selector without probed evidence | **blocked** | `test_workflow_routing.py::test_authoring_tool_is_refused_without_probed_evidence`, `test_workflow_qualify.py` |
+| Author / selector with probed evidence | **implemented-but-unverified** | the record path is tested; no real probe was ever run against a checkpoint |
+| Any role on a live local model | **blocked on this host** | no local model server, no GPU; downloads need authorization |
+| Any role on a hosted route | **implemented, unverified, and a data-egress decision** | hosted routes work through the ordinary per-run route authority; `network: local_model_only` refuses them outright |
+| Pi / OpenCode as a workflow executor | **unsupported** | external runtimes are disabled before process start; a workflow attempt requires the built-in runtime |
+| Code facade / generated scripts | **unsupported by design** | declarative plans only; Node's own docs say `vm` is not a security mechanism |
+| MCP facade | **unsupported** | Hutch has no MCP plane (ADR-0017 proposed only) |
+
+### Residual uncertainty
 * No live local checkpoint was available, so "a qualified local planner coordinates a smaller
   local worker" is implemented-but-unverified. Nothing here claims model planning competence.
 * The workflow lane changes the per-Bot single-instance rule deliberately (interactive work

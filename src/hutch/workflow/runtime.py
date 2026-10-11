@@ -59,7 +59,9 @@ def run_attempt(engine: Any, ctx: Any, run: Run, tools: dict[str, Any], stop: An
     interp = Interpreter(engine=engine, ctx=ctx, run=run, compiled=compiled, workflow=workflow,
                          tools=tools, budget=budget)
 
-    deadline = time.monotonic() + float(budget.get("max_wall_seconds") or 3_600)
+    # The wall-clock allowance belongs to the *instance*: a continuation gets what is left,
+    # never a fresh allowance (a repeated crash must not extend it without bound).
+    deadline = _instance_deadline(workflow, budget)
     ctx.emit(Event(run_id=run.id, type=EventType.log,
                    data={"workflow": wf_id, "plan": compiled.plan.name,
                          "plan_hash": compiled.plan_hash, "revision": revision["revision"],
@@ -106,6 +108,21 @@ def run_attempt(engine: Any, ctx: Any, run: Run, tools: dict[str, Any], stop: An
         digest = _digest(compiled, interp, advance)
         _settle(store, wf_id, run, "succeeded", "")
         return digest["text"]
+
+
+def _instance_deadline(workflow: dict[str, Any], budget: dict[str, Any]) -> float:
+    from datetime import datetime, timezone
+
+    allowance = float(budget.get("max_wall_seconds") or 3_600)
+    created = str(workflow.get("created_at") or "")
+    try:
+        started = datetime.fromisoformat(created)
+        if started.tzinfo is None:
+            started = started.replace(tzinfo=timezone.utc)
+        elapsed = (datetime.now(timezone.utc) - started).total_seconds()
+    except (TypeError, ValueError):
+        elapsed = 0.0
+    return time.monotonic() + max(0.0, allowance - max(0.0, elapsed))
 
 
 def _artifact_list(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:

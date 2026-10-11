@@ -657,10 +657,18 @@ class Engine:
             "max_steps": max(1, min(bot.limits.max_steps, max_steps)),
             "timeout_seconds": max(5, min(bot.limits.timeout_seconds, timeout_seconds)),
         })
-        return Bot.model_validate({**bot.model_dump(mode="json"), **{
+        model = spec.get("model")
+        if model is not None and (not isinstance(model, str) or not model.strip()):
+            raise ValueError("the step's frozen model binding is invalid")
+        update: dict[str, object] = {
             "tools": list(tools), "skills": list(skills), "limits": limits.model_dump(mode="json"),
             "workspace_mode": "fresh", "workdir": None, "local_browser_handoff": False,
-        }})
+        }
+        if isinstance(model, str) and model.strip():
+            # The step runs on the model its node declared (and that qualification was
+            # assessed against), never on whatever the Bot's model happens to be now.
+            update["model"] = model.strip()
+        return Bot.model_validate({**bot.model_dump(mode="json"), **update})
 
     def _run_delegated_task(self, ctx: ToolContext, task_text: str, idem_key: str,
                             request_hash: str, parent_deadline: float) -> ToolResult:

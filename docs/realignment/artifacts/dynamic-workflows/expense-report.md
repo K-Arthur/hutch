@@ -1,5 +1,5 @@
 Expense audit — FY26 Q3
-Rows kept: 394 of 394
+Rows kept: 394 of 400
 Rows rejected: 6
 Total amount: 177262.20999999996
 By category:

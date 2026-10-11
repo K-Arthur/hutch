@@ -87,7 +87,7 @@ def csv_plan() -> dict:
              "args": {"separator": "\n", "items": [
                  {"template": "Expense audit — {{period}}", "values": {"period": {"ref": "input.period"}}},
                  {"template": "Rows kept: {{kept}} of {{total}}",
-                  "values": {"kept": {"ref": "table.kept"}, "total": {"ref": "table.kept"}}},
+                  "values": {"kept": {"ref": "table.kept"}, "total": {"ref": "table.total"}}},
                  {"template": "Rows rejected: {{bad}}", "values": {"bad": {"ref": "table.bad"}}},
                  {"template": "Total amount: {{total}}",
                   "values": {"total": {"ref": "shape.result.total"}}},
@@ -147,7 +147,14 @@ def test_messy_csv_becomes_a_verified_report_without_any_model_call(store, confi
     assert nodes["shape.then.totals"]["result"] > 0
     assert nodes["shape.then.packed"]["result"]["total"] > 0
     assert nodes["shape.then.packed"]["result"]["by_category"]["travel"] > 0
-    assert "Rejected lines" in nodes["report"]["result"]
+    report_text = str(nodes["report"]["result"])
+    assert "Rejected lines" in report_text
+    # The prose must be internally consistent, not merely present: kept + rejected = total.
+    kept = nodes["table"]["result"]["kept"]
+    bad = nodes["table"]["result"]["bad"]
+    assert f"Rows kept: {kept} of {kept + bad}" in report_text
+    assert f"Rows rejected: {bad}" in report_text
+    assert "Total amount:" in report_text and "By category:" in report_text
 
     # The verification recorded independent evidence, including the person's answer.
     check = nodes["check"]["result"]

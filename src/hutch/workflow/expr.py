@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Optional
+from typing import Any
 
 MAX_PATTERN = 300
 MAX_SUBJECT = 20_000
@@ -180,6 +180,11 @@ def resolve_value(value: Any, scope: Scope) -> Any:
     return value
 
 
+def to_text(value: Any) -> str:
+    """The one value-to-text rule: strings as-is, scalars literally, everything else JSON."""
+    return _to_text(value)
+
+
 def _to_text(value: Any) -> str:
     if isinstance(value, str):
         return value
@@ -270,6 +275,16 @@ def _compare(left: Any, op: str, right: Any, ref: str) -> bool:
         except re.error as exc:
             raise EvalError(f"invalid pattern in {ref}: {exc}") from None
     raise EvalError(f"unsupported operator {op!r}")
+
+
+def typed_eq(left: Any, right: Any) -> bool:
+    """Type-strict equality: ``True != 1``, ``1 == 1.0``, no cross-type surprises."""
+    return _typed_eq(left, right)
+
+
+def compare_values(left: Any, op: str, right: Any, ref: str) -> bool:
+    """One comparison implementation shared by conditions and filter predicates."""
+    return _compare(left, op, right, ref)
 
 
 def _typed_eq(left: Any, right: Any) -> bool:

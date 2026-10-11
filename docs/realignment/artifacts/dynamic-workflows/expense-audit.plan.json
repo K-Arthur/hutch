@@ -130,7 +130,7 @@
                 "ref": "table.kept"
               },
               "total": {
-                "ref": "table.kept"
+                "ref": "table.total"
               }
             }
           },

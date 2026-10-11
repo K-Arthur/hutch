@@ -5357,10 +5357,6 @@ class Store:
             row = self._db.execute("SELECT kind FROM runs WHERE id = ?", (run_id,)).fetchone()
         return str(row["kind"]) if row else "attempt"
 
-    def set_run_kind(self, run_id: str, kind: str) -> None:
-        from .workflow import persistence
-        persistence.set_step_kind(self, run_id, kind)
-
     def idempotency_replay(self, scope: str, key: str, request_hash: str) -> Optional[dict[str, Any]]:
         """Read-only replay lookup for a versioned command (raises on a reused key)."""
         with self._lock:

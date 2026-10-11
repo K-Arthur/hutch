@@ -32,31 +32,9 @@ from typing import Any, Iterable, Optional, Sequence
 from .expr import is_ref, is_template
 from .plan import CEILINGS, ArtifactSpec, Check, Condition, Node, Plan
 
-#: Deterministic operations the interpreter implements. Anything else is rejected.
-#: This table is the contract between the plan schema and :mod:`hutch.workflow.ops`.
-TRANSFORM_OPS = {
-    "constant": {"value"},
-    "parse_json": {"text"},
-    "to_json": {"value"},
-    "parse_csv": {"text", "delimiter", "max_rows"},
-    "parse_table": {"text", "delimiter", "max_rows"},
-    "select": {"items", "fields"},
-    "filter": {"items", "where"},
-    "sort": {"items", "by", "descending"},
-    "dedupe": {"items", "by"},
-    "first": {"items", "count"},
-    "last": {"items", "count"},
-    "slice": {"items", "start", "end"},
-    "count": {"items"},
-    "sum": {"items", "of"},
-    "total": {"items", "of"},
-    "to_number": {"value"},
-    "group_count": {"items", "by"},
-    "join_text": {"items", "separator", "of"},
-    "merge": {"values"},
-    "to_markdown_table": {"items", "fields"},
-    "pluck": {"value", "path"},
-}
+#: The deterministic operation table lives with the operations themselves, so the plan
+#: schema and the interpreter cannot disagree about what exists or what it accepts.
+from .ops import TRANSFORM_OPS  # noqa: E402  (imported after the module docstring block)
 
 CHECK_KINDS = {"schema", "artifact", "command", "human", "agent_review"}
 #: Checks that can establish a verified outcome on their own.
@@ -119,6 +97,34 @@ class CompiledPlan:
         if body_name:
             out = [n for n in out if n.body_name == body_name]
         return out
+
+
+def plan_structure(plan: dict[str, Any] | Plan) -> list[dict[str, Any]]:
+    """The planned shape, flattened for a compact list view (the CLI, the API and the tool).
+
+    This is *planned* structure only: a bounded construct appears as one entry with its body
+    nested. Runtime instances come from the engine's node records, never from here.
+    """
+    payload = plan.model_dump(by_alias=True, exclude_none=True, mode="json") if isinstance(plan, Plan) else plan
+    out: list[dict[str, Any]] = []
+
+    def walk(nodes: list[Any], parent: str, depth: int) -> None:
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            site = f"{parent}.{node.get('id')}" if parent else str(node.get("id"))
+            out.append({"site_id": site, "kind": node.get("kind"), "title": node.get("title") or "",
+                        "parent": parent or None, "depth": depth,
+                        "bounded": node.get("kind") in ("map", "expand", "branch", "repeat")})
+            for body in ("body", "then", "else"):
+                children = node.get(body)
+                if isinstance(children, list) and children:
+                    walk(children, site, depth + 1)
+
+    nodes = payload.get("nodes") if isinstance(payload, dict) else None
+    if isinstance(nodes, list):
+        walk(nodes, "", 0)
+    return out
 
 
 def plan_hash(plan: Plan) -> str:
@@ -228,6 +234,8 @@ class _Compiler:
 
             deps = self._collect_deps(node, local_scope, node_path)
             control = self._check_needs(node, local_scope, node_path)
+            if node.kind == "join":
+                control |= self._check_join_targets(node, local_scope, node_path)
             self._check_node(node, node_path, depth)
 
             compiled = CompiledNode(site_id=site, node=node, order=self._order, depth=depth,
@@ -255,7 +263,8 @@ class _Compiler:
                            instance_template=instance_template + (f"{site}.else",),
                            id_prefix=f"{site}.else")
             elif node.kind == "repeat":
-                self._walk(node.body, scope=local_scope, depth=depth + 1, parent=site,
+                # The runtime exposes the current iteration to the body, so the compiler must too.
+                self._walk(node.body, scope=local_scope | {"iteration"}, depth=depth + 1, parent=site,
                            body_name="body", path=f"{node_path}.body",
                            instance_template=instance_template + (f"{site}.iter",))
 
@@ -313,6 +322,7 @@ class _Compiler:
             if node.require is not None and node.require > len(node.of):
                 self.error("JOIN_REQUIRE", f"{path}.require",
                            "require exceeds the number of joined nodes")
+
         if node.kind in ("ask",) and node.timeout_seconds > CEILINGS["max_question_wait_seconds"]:
             self.error("ASK_TIMEOUT", f"{path}.timeout_seconds", "timeout exceeds the ceiling")
         if node.kind == "publish":
@@ -322,8 +332,6 @@ class _Compiler:
                                "artifact names use letters, digits, dot, dash and underscore")
 
     def _check_agent(self, node: Node, path: str) -> None:
-        if node.role == "author" and node.role not in ("worker", "verifier", "author"):
-            self.error("AGENT_ROLE", f"{path}.role", "unknown agent role")
         if node.output_schema is not None:
             from hutch.toolcalling.validate import analyze_schema
 
@@ -358,6 +366,10 @@ class _Compiler:
         if check.kind == "command":
             if not check.argv or not all(isinstance(part, str) and part for part in check.argv):
                 self.error("CHECK_ARGV", f"{path}.argv", "command argv entries must be non-empty strings")
+            if check.cwd:
+                self.error("CHECK_CWD", f"{path}.cwd",
+                           "a command check always runs in the run workspace; a different working "
+                           "directory is not supported yet, so this plan must not declare one")
         if check.kind == "artifact" and check.expect_sha256:
             if len(check.expect_sha256) != 64 or any(c not in "0123456789abcdef" for c in check.expect_sha256):
                 self.error("CHECK_SHA", f"{path}.expect_sha256", "expects a lowercase hex sha256")
@@ -435,6 +447,27 @@ class _Compiler:
                 control.add(need)
         return control
 
+    def _check_join_targets(self, node: Node, scope: set[str], path: str) -> set[str]:
+        """Every joined site must be visible *and* have a value in this scope.
+
+        A node inside a bounded construct settles per item and its value lives in the item's
+        scope, so joining it from outside would fabricate ``None``. That is a compile error.
+        """
+        joined: set[str] = set()
+        for index, target in enumerate(node.of):
+            if target not in scope:
+                self.error("JOIN_TARGET", f"{path}.of[{index}]",
+                           f"joins an unknown or not-yet-run node {target!r}")
+                continue
+            compiled = self.by_site.get(target)
+            if compiled is not None and compiled.body_of is not None:
+                self.error("JOIN_TARGET", f"{path}.of[{index}]",
+                           f"{target!r} lives inside a bounded construct; join its container or "
+                           f"the container's own result instead")
+                continue
+            joined.add(target)
+        return joined
+
     def _node_values(self, node: Node) -> Iterable[tuple[str, Any]]:
         yield "args", node.args
         yield "inputs", node.inputs
@@ -452,9 +485,6 @@ class _Compiler:
             yield "check_schemas", [c.schema_ for c in node.checks if c.schema_ is not None]
         if node.kind == "publish":
             yield "artifacts", [{"ref": a.ref} for a in node.artifacts]
-        if node.kind == "join":
-            # `of` names nodes, not refs; checked separately below
-            pass
 
     # -- structural totals ------------------------------------------------------
     def _instances(self, node: Node, depth: int) -> int:

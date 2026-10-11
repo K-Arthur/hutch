@@ -44,7 +44,6 @@ MAX_INPUT_BUNDLE = 16_000
 MAX_STEP_PROMPT = 4_000
 MAX_STEP_CONTEXT = 16_000
 MAX_TOOL_OUTPUT_IN_RESULT = 8_000
-MAX_REPAIR_ROUNDS_HARD = 5
 
 _VERIFIER_SCHEMA = {
     "type": "object",
@@ -169,7 +168,7 @@ class Interpreter:
         value: Any = None
         for cnode in nodes:
             if cnode.node.when is not None and not evaluate(cnode.node.when, Scope(scope)):
-                self._mark_skipped(cnode, "once", "condition was false")
+                self._mark_skipped(cnode, self._instance_key, "condition was false")
                 continue
             value = self._visit(cnode, scope)
             scope[cnode.site_id] = value
@@ -225,6 +224,9 @@ class Interpreter:
             result = fn(node, scope)
         except WorkflowFailed as exc:
             self._settle(cnode, instance_key, "failed", {}, str(exc))
+            if exc.site_id != cnode.site_id:
+                # Name the full site so a failure inside a fan-out identifies the instance's node.
+                raise WorkflowFailed(cnode.site_id, str(exc).split(":", 1)[-1].strip()) from None
             raise
         except (EvalError, ValueError, OSError) as exc:
             self._settle(cnode, instance_key, "failed", {}, f"{type(exc).__name__}: {exc}")
@@ -260,6 +262,8 @@ class Interpreter:
         for target in node.of:
             record = self._site_state(target)
             if record == "settled":
+                if target not in scope:
+                    raise WorkflowFailed(node.id, f"join target {target!r} has no value in this scope")
                 items[target] = scope.get(target)
             elif record == "pending":
                 pending = True
@@ -346,7 +350,7 @@ class Interpreter:
             item_scope = dict(scope)
             item_scope["item"] = item
             item_scope["index"] = index
-            key = self._item_key(node, item, item_scope, index)
+            key = _escape_key(self._item_key(node, item, item_scope, index))
             keys.append(key)
             if keys.count(key) > 1:
                 raise WorkflowFailed(cnode.site_id, f"duplicate item key {key!r}; item keys must be unique")
@@ -412,8 +416,13 @@ class Interpreter:
 
     def _verify(self, cnode: CompiledNode, scope: dict[str, Any]) -> Any:
         node = cnode.node
-        rounds = 0
-        instance = self._instance_key
+        # Rounds are derived from durable records, not from this pass: a repair round is
+        # opened once and charged once, however many times the interpreter re-enters.
+        rounds = sum(1 for (site, key) in self.nodes
+                     if site == cnode.site_id
+                     and key.startswith(f"{self._instance_key}|r")
+                     and "|repair:" not in key)
+        instance = self._instance_key if rounds == 0 else f"{self._instance_key}|r{rounds}"
         while True:
             record = self.nodes.get((cnode.site_id, instance))
             if record is not None and record["status"] == "succeeded":
@@ -428,31 +437,32 @@ class Interpreter:
             failed = [c for c in independent if not c["ok"]]
             passed = [c for c in independent if c["ok"]]
             advisory_failed = [c for c in advisory if not c["ok"]]
-            if passed:
-                self.verified = True if not failed else self.verified
             if not failed and not advisory_failed:
-                if passed:
-                    self.verified = True
+                # "Verified" means: independent evidence passed and nothing failed - an
+                # advisory reviewer's objection counts as a failure here too.
+                self.verified = bool(passed)
                 result = {"ok": True, "checks": checks, "advisory": advisory,
-                          "verified": bool(passed), "rounds": rounds}
+                          "verified": self.verified, "rounds": rounds}
                 self._settle(cnode, instance, "succeeded", result, "")
                 return result
             # Failure: apply the declared policy.
             policy = node.on_fail
             detail = "; ".join(f"{c['kind']}: {c['detail']}" for c in failed + advisory_failed)
             if policy.action == "continue":
-                self.verified = False if failed else self.verified
+                self.verified = False
                 result = {"ok": False, "checks": checks, "advisory": advisory,
                           "verified": False, "rounds": rounds,
                           "note": "the plan chose to continue with an unverified result"}
                 self._settle(cnode, instance, "succeeded", result, "")
                 return result
-            if policy.action == "repair" and rounds < min(policy.rounds, self.budget.get("max_repairs", 0)):
-                rounds += 1
-                self._spend(cnode.site_id, "repairs")
-                repair_key = f"{self._instance_key}|repair:{rounds}"
+            if policy.action == "repair" and rounds < min(policy.rounds, int(self.budget.get("max_repairs") or 0)):
+                # The repair step is opened (and charged) once; later passes see its record
+                # and wait for it instead of spending another round.
+                next_round = rounds + 1
+                repair_key = f"{self._instance_key}|repair:{next_round}"
+                if (cnode.site_id, repair_key) not in self.nodes:
+                    self._spend(cnode.site_id, "repairs")
                 self._repair_step(cnode, scope, repair_key, policy.instruction, detail)
-                instance = f"{self._instance_key}|r{rounds}"
                 continue
             self._settle(cnode, instance, "failed", {}, detail)
             raise WorkflowFailed(cnode.site_id, f"verification failed: {detail}")
@@ -476,7 +486,7 @@ class Interpreter:
             elif check.kind == "artifact":
                 independent.append(self._check_artifact(check, value, scope))
             elif check.kind == "command":
-                independent.append(self._check_command(cnode, check))
+                independent.append(self._check_command(cnode, check, instance, index))
             elif check.kind == "human":
                 independent.append(self._check_human(cnode, check, instance, index))
             elif check.kind == "agent_review":
@@ -509,16 +519,39 @@ class Interpreter:
             return {"kind": "artifact", "ok": False, "detail": f"{size} bytes exceeds the allowed maximum"}
         return {"kind": "artifact", "ok": True, "detail": f"verified {size} bytes against sha256"}
 
-    def _check_command(self, cnode: CompiledNode, check: Any) -> dict[str, Any]:
-        """A fixed argv through the governed shell tool: real exit status, recorded as an effect."""
+    def _check_command(self, cnode: CompiledNode, check: Any, instance: str,
+                       index: int) -> dict[str, Any]:
+        """A fixed argv through the governed shell tool, executed once per verify attempt.
+
+        The result is memoized in the node record so re-entering the interpreter while a
+        sibling check waits (a human answer, a reviewer step) can never re-run the command:
+        an effect is executed once, and its recorded outcome is what later passes read.
+        """
+        memo_key = f"{instance}:c{index}"
+        record = self.nodes.get((cnode.site_id, memo_key))
+        if record is not None and record["status"] in ("succeeded", "failed"):
+            return dict(record["result"] or {"kind": "command", "ok": False, "detail": "no recorded outcome"})
+        self._ensure_open(cnode, memo_key, "verify", {"check": index, "of": instance})
+        outcome = self._run_command(cnode, check)
+        try:
+            wstore.settle_node(self.store, self.wf_id, cnode.site_id, memo_key,
+                               status="succeeded" if outcome.get("ok") else "failed", result=outcome)
+        except ValueError:
+            pass
+        self.nodes[(cnode.site_id, memo_key)] = {
+            "site_id": cnode.site_id, "instance_key": memo_key,
+            "status": "succeeded" if outcome.get("ok") else "failed", "result": outcome,
+            "error": {}, "run_id": None}
+        return outcome
+
+    def _run_command(self, cnode: CompiledNode, check: Any) -> dict[str, Any]:
+        """Run the fixed argv exactly once through the governed shell tool."""
         if "shell" not in self.tools:
             return {"kind": "command", "ok": False,
                     "detail": "this workflow has no shell tool, so a command check cannot run"}
         command = " ".join(_quote(part) for part in check.argv)
-        args = {"command": command, "timeout": check.timeout_seconds}
-        if check.cwd:
-            args["cwd"] = check.cwd
-        result = steps.call_tool(self.run, self.ctx, self.tools, "shell", args)
+        result = steps.call_tool(self.run, self.ctx, self.tools, "shell",
+                                 {"command": command, "timeout": check.timeout_seconds})
         if not result.ok:
             return {"kind": "command", "ok": False, "detail": f"the command could not run: {str(result.output)[:300]}"}
         exit_code = int((result.data or {}).get("exit_code", 0)) if isinstance(result.data, dict) else 0
@@ -532,11 +565,12 @@ class Interpreter:
         question = self.questions.get((cnode.site_id, key))
         if question is None:
             expires = _expiry(check.timeout_seconds)
+            prompt = f"{check.prompt} (answer yes or no)"
             wstore.create_question(self.store, wf_id=self.wf_id, site_id=cnode.site_id,
-                                   instance_key=key, question=check.prompt, options=["yes", "no"],
+                                   instance_key=key, question=prompt, options=["yes", "no"],
                                    expires_at=expires)
             self._emit(EventType.human_needed, {"node": cnode.site_id, "kind": "human_check",
-                                                "question": check.prompt, "expires_at": expires})
+                                                "question": prompt, "expires_at": expires})
             raise _Wait()
         if question["status"] == "pending":
             raise _Wait()
@@ -611,7 +645,11 @@ class Interpreter:
                     raise _Wait()
                 self._settle_step(cnode, instance_key, step, output_schema)
                 return
-            raise _Wait()
+            # The record was written but the step run never was (the attempt died in
+            # between): re-admit it under the same idempotency key rather than waiting
+            # forever for a run that does not exist.
+            if instance_key in self.opened_steps:
+                raise _Wait()
         if (cnode.site_id, instance_key) in self.opened_steps:
             raise _Wait()
 
@@ -644,6 +682,7 @@ class Interpreter:
         run.workflow_step = {
             "workflow_run_id": self.wf_id, "site_id": cnode.site_id, "instance_key": instance_key,
             "role": role, "tools": list(tools), "skills": list(skills),
+            "model": spec,
             "max_steps": min(int(node.max_steps or 12), int(self.budget.get("max_steps_per_node") or 12)),
             "timeout_seconds": min(600, int(self.budget.get("max_step_seconds") or 600)),
             "output_schema": output_schema or None,
@@ -729,11 +768,17 @@ class Interpreter:
         return model
 
     def _spend(self, site_id: str, key: str) -> None:
+        """Charge one unit against a root-level allowance.
+
+        A declared limit of ``0`` means *none* - the same rule ``max_repairs`` already
+        followed - so a plan can promise "no model calls at all" and be held to it. A
+        missing key means "no limit" (the plan schema always supplies one).
+        """
         limit_key = {"nodes": "max_nodes", "model_calls": "max_model_calls",
-                     "repairs": "max_repairs", "replans": "max_replans"}[key]
-        limit = int(self.budget.get(limit_key, 0) or 0)
+                     "repairs": "max_repairs"}[key]
         used = int(self.ledger.get(key, 0)) + 1
-        if limit and used > limit:
+        limit = self.budget.get(limit_key)
+        if limit is not None and used > int(limit):
             raise WorkflowFailed(site_id, f"the workflow's {limit_key} budget is exhausted ({limit})")
         self.ledger[key] = used
         wstore.update_workflow_run(self.store, self.wf_id, attempt_run_id=self.run.id, ledger=self.ledger)
@@ -831,9 +876,9 @@ def _read_published_artifact(ctx: Any, run_id: str, rel_path: str) -> Optional[b
 
 
 def _as_text(value: Any) -> str:
-    if isinstance(value, str):
-        return value
-    return json.dumps(value, ensure_ascii=False, default=str)
+    from .expr import to_text
+
+    return to_text(value)
 
 
 def _quote(part: str) -> str:
@@ -841,6 +886,15 @@ def _quote(part: str) -> str:
     import shlex
 
     return shlex.quote(part)
+
+
+def _escape_key(key: str) -> str:
+    """Escape the instance-key separator so nested keys can never alias.
+
+    ``a|item:b`` inside a nested map must not compose to the same identity as ``a`` with
+    item ``b``; a backslash escape keeps the key readable and unambiguous.
+    """
+    return key.replace("\\", "\\\\").replace("|", "\\|")
 
 
 def _expiry(seconds: int) -> str:
