@@ -73,6 +73,28 @@ def test_flush_reports_uncommitted_events_and_preserves_them_for_retry(store, mo
     assert store.list_events(run.id)[0].data == {"not_yet_committed": True}
 
 
+def test_non_lock_database_failure_requeues_event_batch_without_acknowledging_it(store, monkeypatch):
+    run = _run(store)
+    transaction = store._tx
+    failed = False
+
+    def fail_once():
+        nonlocal failed
+        if not failed:
+            failed = True
+            raise sqlite3.IntegrityError("injected event transaction failure")
+        return transaction()
+
+    monkeypatch.setattr(store, "_tx", fail_once)
+    store.append_event(Event(run_id=run.id, type=EventType.log, data={"retry": True}))
+    store.flush_events(timeout=2)
+
+    assert failed
+    assert store.count_events(run.id) == 1
+    assert store.verify_chain(run.id)["ok"]
+    assert store.dropped_events == 0
+
+
 def test_seq_is_contiguous_per_run_and_independent_between_runs(store):
     a, b = _run(store), None
     bot2 = store.create_bot(Bot(name="other"))

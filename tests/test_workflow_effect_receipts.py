@@ -99,6 +99,17 @@ def test_completed_effect_result_replays_without_a_second_dispatch(store, config
     assert replay.data == {"receipt": "durable-result"}
     assert sink.read_text(encoding="utf-8") == "effect\n"
     assert len(store.list_actions(unresolved=False)) == 1
+    with pytest.raises(action_receipts.ActionConflict, match="changed operation semantics"):
+        store.begin_action(second.id, "shell", "changed-input", "process", fence=second.fence,
+                           arguments={"command": "different-effect"},
+                           workflow_identity=ctx.workflow_action_identity)
+    with pytest.raises(action_receipts.ActionConflict, match="changed operation semantics"):
+        store.begin_action(second.id, "shell", "changed-scope", "process", fence=second.fence,
+                           arguments={"command": "fixture-effect"},
+                           scope={"workspace": str(config.run_dir(bot.name, second.id) / "workspace"),
+                                  "model": "different/model", "browser_profile": None},
+                           workflow_identity=ctx.workflow_action_identity)
+    assert sink.read_text(encoding="utf-8") == "effect\n"
 
 
 def test_uncertain_effect_requires_reconciliation_before_retry(store, config):

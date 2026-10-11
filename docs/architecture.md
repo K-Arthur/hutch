@@ -214,6 +214,13 @@ and to `transcript.jsonl` on disk. A run becomes terminal (`succeeded`, `failed`
 verified; otherwise `cancelling` or `recovering` remains visible with a reason. Terminal `exit_reason` values include `completed`,
 `timeout`, `steps_exceeded`, `token_cap`, `approval_expired`, and `error`.
 
+SQLite's event writer batches commits through a bounded queue. Failed batches remain queued and do
+not advance the commit acknowledgement; a full queue refuses new events. Workflow-owned event
+callbacks wait for that canonical acknowledgement before the interpreter can advance. If enqueue or
+commit fails, the attempt stops with `event_delivery_failed` and recovery starts a new attempt;
+completed effect receipts are reused only when their immutable operation identity still matches.
+The JSONL transcript is a separate recoverable mirror and does not stand in for canonical history.
+
 ### D5 — Caps are enforced by the engine, not by model behavior
 
 - `max_steps` — agent turns per run

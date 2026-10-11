@@ -835,8 +835,9 @@ class Engine:
         )
         closed = threading.Event()          # set once the run is over: a late worker's events and tool calls are dropped
         degraded: list[str] = []            # audit writes that failed: shown, never silent
+        workflow_owned_events = run.kind == "workflow" or bool(run.workflow_run_id)
 
-        def emit(ev: Event) -> None:
+        def emit(ev: Event, *, propagate: bool = False) -> None:
             if closed.is_set():
                 return                      # a worker that outlived its run must not extend the transcript
             try:
@@ -844,6 +845,27 @@ class Engine:
                 self.store.append_event(ev)
             except Exception as exc:
                 degraded.append(f"{type(exc).__name__}: {exc}")     # recorded on the run's final event, not swallowed
+                if propagate:
+                    raise RunAborted(
+                        "event_delivery_failed",
+                        f"canonical workflow event could not be queued: {type(exc).__name__}: {exc}",
+                    ) from exc
+
+        def context_emit(ev: Event) -> None:
+            if closed.is_set():
+                return
+            emit(ev, propagate=workflow_owned_events)
+            if workflow_owned_events:
+                try:
+                    # Workflow node state and effects are only recoverable when their
+                    # transcript checkpoint is durable before execution continues.
+                    self.store.flush_events()
+                except Exception as exc:
+                    degraded.append(f"{type(exc).__name__}: {exc}")
+                    raise RunAborted(
+                        "event_delivery_failed",
+                        f"canonical workflow event could not be committed: {type(exc).__name__}: {exc}",
+                    ) from exc
 
 
         # The first step of a run's life. A stop that arrived between the claim and now is noticed here: the run is then
@@ -862,11 +884,11 @@ class Engine:
                        data={"note": f"catch-up run: {run.missed_windows} missed schedule window(s) coalesced"}))
 
         policy = PolicyEngine(bot.risk_tier, bot.command_rules)
-        gate = ApprovalGate(self.store, bot, run, policy, emit)
+        gate = ApprovalGate(self.store, bot, run, policy, context_emit)
         self._gates[run.id] = gate
         deadline = time.monotonic() + bot.limits.timeout_seconds
         ctx = ToolContext(bot=bot, run=run, store=self.store, policy=policy, gate=gate,
-                          config=self.config, workspace=workspace, emit=emit,
+                          config=self.config, workspace=workspace, emit=context_emit,
                           headless=not bot.local_browser_handoff, dry_run=run.rehearsal,
                           skills=resolved_skills)
         self._ctxs[run.id] = ctx

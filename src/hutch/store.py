@@ -1519,6 +1519,7 @@ _PROGRESS_FIELDS = {"steps", "tokens", "workspace", "started_at", "prompt_tokens
                     "owner", "missed_windows", "reason", "verified", "task_id"}
 
 EVENT_BATCH_MAX = 256
+EVENT_PENDING_MAX = 10_000
 MAX_WORKSPACE_TASK_FACTS = 8
 MAX_WORKSPACE_TASK_FACT_CHARS = 6_000
 MAX_AUTH_CHALLENGES_PER_FLOW = 16
@@ -6098,6 +6099,54 @@ class Store:
             st = RunStatus(row["status"])
             if st in TERMINAL | {RunStatus.cancelling, RunStatus.recovering} or row["cancel_requested"]:
                 raise LeaseLost(run_id, f"the run is {st.value}; no new action may start")
+            previous_workflow_action = None
+            if workflow_payload is not None:
+                self._assert_workflow_action_owner(db, run_id, row, workflow_payload)
+                previous_workflow_action = db.execute(
+                    "SELECT a.id, a.status, a.intent_json, a.intent_hash, a.result_json "
+                    "FROM tool_actions a WHERE a.workflow_identity = ? "
+                    "ORDER BY a.started_at DESC, a.id DESC LIMIT 1", (workflow_key,)).fetchone()
+                if previous_workflow_action is not None and str(previous_workflow_action["status"]) in ("done", "failed"):
+                    # A completed receipt is evidence that this exact workflow operation already ran.
+                    # Reuse its result by stable operation identity; current-attempt workspace state,
+                    # revisions and authorization hashes may differ after recovery. No effect is
+                    # authorized or dispatched here. The current workflow owner and action arguments
+                    # still have to match, and the tool's current policy gate runs before this point.
+                    raw_intent = str(previous_workflow_action["intent_json"] or "")
+                    if action_receipts.digest(raw_intent) != str(previous_workflow_action["intent_hash"] or ""):
+                        raise action_receipts.ActionUnresolved(
+                            "the completed workflow effect intent failed its integrity check; inspect the recorded action")
+                    try:
+                        old_intent = json.loads(raw_intent)
+                        old_identity = old_intent.get("workflow_identity")
+                        old_scope = old_intent.get("scope")
+                        old_result = json.loads(str(previous_workflow_action["result_json"] or "{}"))
+                    except (TypeError, json.JSONDecodeError, AttributeError):
+                        old_intent, old_identity, old_scope, old_result = {}, None, None, None
+                    stable_old_scope = ({key: value for key, value in old_scope.items() if key != "workspace"}
+                                        if isinstance(old_scope, dict) else None)
+                    stable_current_scope = {key: value for key, value in (scope or {}).items()
+                                            if key != "workspace"}
+                    operation_matches = (
+                        isinstance(old_intent, dict)
+                        and str(old_intent.get("bot_id") or "") == str(row["bot_id"])
+                        and str(old_intent.get("tool") or "") == tool
+                        and str(old_intent.get("effect") or "") == effect
+                        and action_receipts.canonical(old_intent.get("arguments")) == action_receipts.canonical(arguments)
+                        and stable_old_scope is not None
+                        and action_receipts.canonical(stable_old_scope) == action_receipts.canonical(stable_current_scope)
+                        and isinstance(old_identity, dict)
+                        and action_receipts.canonical(old_identity) == action_receipts.canonical(workflow_payload)
+                    )
+                    if not operation_matches:
+                        raise action_receipts.ActionConflict(
+                            "this workflow effect identity was reused with changed operation semantics")
+                    if (not isinstance(old_result, dict) or not isinstance(old_result.get("ok"), bool)
+                            or not isinstance(old_result.get("output"), str)
+                            or not isinstance(old_result.get("data", {}), dict)):
+                        raise action_receipts.ActionUnresolved(
+                            "the effect completed but its replay result is unavailable; inspect the recorded action")
+                    raise action_receipts.ActionReplay(old_result)
             if authority and authority.get("approval_id"):
                 approval = db.execute("SELECT doc, status, action_hash, expires_at FROM approvals WHERE id = ?",
                                       (authority["approval_id"],)).fetchone()
@@ -6118,7 +6167,6 @@ class Store:
             effect_key = action_receipts.digest(action_receipts.canonical(
                 {"tool": tool, "effect": effect, "arguments": arguments, "scope": repeat_scope})) if arguments is not None else ""
             if workflow_payload is not None:
-                self._assert_workflow_action_owner(db, run_id, row, workflow_payload)
                 stable_scope = {key: value for key, value in (scope or {}).items() if key != "workspace"}
                 stable_authority = None
                 if authority:
@@ -6432,6 +6480,8 @@ class Store:
                 raise RuntimeError("Hutch state is closing; new events are refused")
             if event.run_id in self._sealed:
                 return event                  # the run is over: a worker that outlived it cannot extend the transcript
+            if len(self._pending) + self._inflight >= EVENT_PENDING_MAX:
+                raise RuntimeError("canonical event queue is full; new events are refused")
             self._pending.append(event)
             self._enqueued += 1
             self._buf_cv.notify_all()
@@ -6520,17 +6570,19 @@ class Store:
                     continue  # a status transition drained the buffer while we waited
                 batch, self._pending = self._pending, []
                 self._inflight = len(batch)
-            kept: list[Event] = []
+            committed: Optional[list[Event]] = None
             try:
-                kept = self._commit_batch(batch)
+                committed = self._commit_batch(batch)
             finally:
                 with self._buf_cv:
-                    self._committed += len(batch)
+                    if committed is not None:
+                        self._committed += len(batch)
                     self._inflight = 0
                     self._buf_cv.notify_all()
-            self.bus.notify(*{f"run:{e.run_id}" for e in kept}, "events")
+            if committed is not None:
+                self.bus.notify(*{f"run:{e.run_id}" for e in committed}, "events")
 
-    def _commit_batch(self, batch: list[Event]) -> list[Event]:
+    def _commit_batch(self, batch: list[Event]) -> Optional[list[Event]]:
         """Commit a batch: per run, assign sequence and hash from the database tail, in one transaction. Events for a run that a
         transition already ended (a zombie worker's late writes, possibly from another process) are dropped here, at the
         database, and counted. Returns the events that were stored."""
@@ -6559,18 +6611,18 @@ class Store:
             except sqlite3.OperationalError as exc:  # another process held the write lock past busy_timeout
                 last = exc
                 time.sleep(0.05 * (attempt + 1))
-        # Not silent and not lost if it can be avoided: put them back for the next cycle, up to a bound.
+            except Exception as exc:
+                # An unexpected database/serialization failure is not a commit. Preserve
+                # the batch and let flush_events surface the missing acknowledgement.
+                last = exc
+                break
+        # Keep the batch queued for retry. append_event enforces the same bound across
+        # pending and in-flight events, so a failed commit must never turn into a drop.
         import sys
         with self._buf_cv:
-            if len(self._pending) + len(batch) <= 10_000:
-                self._pending = batch + self._pending
-                self._enqueued += 0
-                self._committed -= len(batch)         # they are not committed after all
-                print(f"hutch: {len(batch)} events could not be written ({last}); retrying", file=sys.stderr)
-                return []
-        self.dropped_events += len(batch)
-        print(f"hutch: DROPPED {len(batch)} events after repeated DB errors: {last}", file=sys.stderr)
-        return []
+            self._pending = batch + self._pending
+            print(f"hutch: {len(batch)} events could not be written ({last}); retrying", file=sys.stderr)
+        return None
 
     @staticmethod
     def _worker_events(db: sqlite3.Connection, run_id: str, events: list[Event]) -> list[Event]:

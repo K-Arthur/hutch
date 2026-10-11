@@ -12,7 +12,7 @@ import time
 import pytest
 
 from hutch.engine import Engine
-from hutch.models import ACTIVE_STATUSES, Bot, Run, RunStatus, Task
+from hutch.models import ACTIVE_STATUSES, Bot, EventType, Run, RunStatus, Task
 from hutch.store import Store
 from hutch.workflow import persistence as wstore
 from hutch.workflow import submit as wfsubmit
@@ -35,11 +35,12 @@ def drive(engine: Engine, store: Store, attempt_run_id: str, timeout: float = 30
     while time.monotonic() < deadline:
         engine.tick()
         workflow = wstore.workflow_run(store, workflow_id)
-        if workflow is not None and workflow["status"] in ("succeeded", "failed", "stopped", "outcome_unknown"):
-            return
         if workflow is not None and workflow["attempt_run_id"] != current_attempt:
             current_attempt = workflow["attempt_run_id"]
         run = store.get_run(current_attempt)
+        if (workflow is not None and workflow["status"] in ("succeeded", "failed", "stopped", "outcome_unknown")
+                and (run is None or run.terminal)):
+            return
         if run is None or (run.status not in ACTIVE_STATUSES and run.status.value != "waiting_workflow"):
             engine.tick()
         if run is not None and run.status.value == "waiting_workflow":
@@ -460,3 +461,123 @@ def test_saved_definition_runs_without_any_planning_call(store, config):
     entry = wstore.definition(store, "collect-and-report")
     assert entry is not None and entry["revisions"] == 1
     assert len(wstore.list_workflow_runs(store)) == 2
+
+
+def test_canonical_event_rejection_fails_the_attempt_then_recovers(store, config, monkeypatch):
+    bot = make_bot(store, name="event-delivery-bot")
+    engine = Engine(config, store)
+    plan = {
+        "name": "event-delivery-recovery",
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 4, "max_model_calls": 0, "max_wall_seconds": 30},
+        "nodes": [
+            {"kind": "transform", "id": "first", "op": "constant", "args": {"value": "first"}},
+            {"kind": "transform", "id": "second", "op": "constant", "args": {"value": "second"}},
+        ],
+    }
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=plan)
+    append = store.append_event
+    rejected = False
+
+    def reject_once(event):
+        nonlocal rejected
+        if (not rejected and event.type is EventType.step
+                and event.data.get("node") == "first"
+                and event.data.get("phase") == "started"):
+            rejected = True
+            raise RuntimeError("injected canonical event queue failure")
+        return append(event)
+
+    monkeypatch.setattr(store, "append_event", reject_once)
+    drive(engine, store, submission.attempt_run_id, timeout=30)
+
+    failed_attempt = store.get_run(submission.attempt_run_id)
+    view = wfsubmit.status(store, submission.workflow_run_id)
+    assert rejected
+    assert failed_attempt.status is RunStatus.failed
+    assert failed_attempt.exit_reason == "event_delivery_failed"
+    assert "canonical workflow event could not be queued" in failed_attempt.error
+    assert view["workflow"]["status"] == "succeeded", view["workflow"]["reason"]
+    assert view["workflow"]["attempt_run_id"] != submission.attempt_run_id
+    assert {node["site_id"]: node["status"] for node in view["nodes"]} == {
+        "first": "succeeded", "second": "succeeded"}
+
+
+def test_workflow_waits_for_canonical_event_commit_before_continuing(store, config, monkeypatch):
+    bot = make_bot(store, name="event-commit-bot")
+    engine = Engine(config, store)
+    plan = {
+        "name": "event-commit-recovery",
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 4, "max_model_calls": 0, "max_wall_seconds": 30},
+        "nodes": [{"kind": "transform", "id": "first", "op": "constant", "args": {"value": "first"}}],
+    }
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=plan)
+    flush = store.flush_events
+    rejected = False
+
+    def reject_commit_once(timeout=10.0):
+        nonlocal rejected
+        if not rejected:
+            rejected = True
+            raise RuntimeError("injected canonical event commit failure")
+        return flush(timeout)
+
+    monkeypatch.setattr(store, "flush_events", reject_commit_once)
+    drive(engine, store, submission.attempt_run_id, timeout=30)
+
+    failed_attempt = store.get_run(submission.attempt_run_id)
+    view = wfsubmit.status(store, submission.workflow_run_id)
+    assert rejected
+    assert failed_attempt.status is RunStatus.failed
+    assert failed_attempt.exit_reason == "event_delivery_failed"
+    assert "could not be committed" in failed_attempt.error
+    assert view["workflow"]["status"] == "succeeded", view["workflow"]["reason"]
+    assert view["workflow"]["attempt_run_id"] != submission.attempt_run_id
+    assert view["nodes"][0]["status"] == "succeeded"
+
+
+def test_event_failure_after_effect_reuses_receipt_on_recovery(store, config, monkeypatch):
+    from hutch.tools import files as file_tools
+
+    bot = make_bot(store, name="effect-event-delivery-bot", risk_tier="trusted")
+    engine = Engine(config, store)
+    plan = {
+        "name": "effect-event-delivery-recovery",
+        "envelope": {"tools": ["write_file"]},
+        "budget": {"max_nodes": 4, "max_model_calls": 0, "max_wall_seconds": 30},
+        "nodes": [{"kind": "tool", "id": "write", "tool": "write_file",
+                   "args": {"path": "event-proof.txt", "content": "one effect"}}],
+    }
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=plan)
+    effect_calls = []
+    replace_reviewed = file_tools.replace_reviewed
+
+    def record_completed_write(workspace, parts, content, expected, begin_effect):
+        replace_reviewed(workspace, parts, content, expected, begin_effect)
+        effect_calls.append((str(workspace), "/".join(parts), content))
+
+    monkeypatch.setattr(file_tools, "replace_reviewed", record_completed_write)
+    append = store.append_event
+    rejected = False
+
+    def reject_result_once(event):
+        nonlocal rejected
+        if (not rejected and event.type is EventType.tool_result
+                and event.data.get("tool") == "write_file"):
+            rejected = True
+            raise RuntimeError("injected result-event queue failure")
+        return append(event)
+
+    monkeypatch.setattr(store, "append_event", reject_result_once)
+    drive(engine, store, submission.attempt_run_id, timeout=30)
+
+    failed_attempt = store.get_run(submission.attempt_run_id)
+    view = wfsubmit.status(store, submission.workflow_run_id)
+    assert rejected
+    assert failed_attempt.status is RunStatus.failed
+    assert failed_attempt.exit_reason == "event_delivery_failed"
+    assert view["workflow"]["status"] == "succeeded", view["workflow"]["reason"]
+    assert view["workflow"]["attempt_run_id"] != submission.attempt_run_id
+    assert len(effect_calls) == 1
+    assert effect_calls[0][1:] == ("event-proof.txt", "one effect")

@@ -866,10 +866,7 @@ class Interpreter:
             "result": {}, "error": {"reason": reason}}
 
     def _emit(self, kind: EventType, data: dict[str, Any]) -> None:
-        try:
-            self.ctx.emit(Event(run_id=self.run.id, type=kind, data=data))
-        except Exception:  # noqa: BLE001 - a transcript write must never stop the workflow
-            pass
+        self.ctx.emit(Event(run_id=self.run.id, type=kind, data=data))
 
     def _persist_settle(self, site_id: str, instance_key: str, **values: Any) -> None:
         wstore.settle_node(
