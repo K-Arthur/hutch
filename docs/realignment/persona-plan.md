@@ -358,11 +358,16 @@ Review follow-ups (status after the profile-compatibility slice):
   remain **verified** from the marketing slice. Provider adherence and human review remain **implemented but unverified**:
   Hutch's separate Go connection is absent, and no paid model/API route or OpenAI OAuth evaluation was used.
 
+  After local `main` fast-forwarded to `a111ffb`, the post-merge clean-worktree smoke check passed (**38 passed in
+  22.21 s**: 32 migration tests and 6 focused browser tests). Its output is retained at
+  `artifacts/persona-final-verification-2026-10-11/post-merge-smoke.log`. Generated browser artifacts were restored to
+  their committed state, and the main worktree was clean after verification.
+
 ## Rollback
 
-- Nothing is pushed or deployed. The user authorized a final fast-forward into clean local `main`; the latest main
-  commit is already integrated into this branch. The final merge only advances the local `main` ref after review;
-  the original checkout and sibling worktrees are not rewritten.
+- Nothing is pushed or deployed. The authorized fast-forward from local `main` `63b2712` to integrated commit `a111ffb`
+  is complete, and the main worktree was clean after its post-merge smoke check. The original checkout and sibling
+  worktrees were not rewritten.
 - Each slice is its own additive commit; reverting that commit restores prior behavior. Contract or schema
   changes require tested downgrades before landing.
 - Mid-run snapshotting prevents a bad preference change from corrupting an in-flight turn; verification uses

@@ -24,3 +24,7 @@ moved to `/var/tmp`, recorded in `browser-focused-integrated.log`, passed **6 te
 specialist clarification, workflow-pill dimensions, and the Runtime page. These task-specific Chromium runs did not use a
 provider. `persona-live-preview-2026-10-11/validation.json` records zero horizontal overflow from 320 to 1440 CSS pixels,
 including the 720×480 effective-width check.
+
+After fast-forwarding integrated commit `a111ffb` into local `main`, a final clean-worktree smoke run passed **38 tests**
+(32 migration tests and 6 focused browser tests in 22.21 s). The captured output is `post-merge-smoke.log`. This
+targeted post-merge check does not change the full browser-suite status above.
