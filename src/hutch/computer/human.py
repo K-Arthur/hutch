@@ -268,6 +268,7 @@ class HumanSession:
                 body, viewer, future = self._queue.popleft()
                 self._inflight = True
             try:
+                dispatched = False
                 def check():
                     with self._lock:
                         self._check_locked(viewer, body.get("control_token"), body.get("generation"))
@@ -284,6 +285,7 @@ class HumanSession:
                         if not all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) for v in (x, y)) or not (0 <= x < before["width"] and 0 <= y < before["height"]):
                             raise HumanError("coordinates are outside the captured image", 422)
                     self.dispatch(body, before["identity"], check)
+                    dispatched = True
                     time.sleep(0.15)
                 check()
                 png, identity = self.capture()
@@ -304,7 +306,9 @@ class HumanSession:
                     future.set_result(answer)
             except Exception as exc:
                 # Do not expose driver errors which may contain an entered value or host path.
-                error = exc if isinstance(exc, HumanError) else HumanError("input/capture failed; inspect before retrying")
+                error = (HumanError("Input was dispatched, but its follow-up capture failed; inspect before sending more input.")
+                         if dispatched else exc if isinstance(exc, HumanError)
+                         else HumanError("input/capture failed; inspect before retrying"))
                 with self._lock:
                     self._frame, self._png = {}, b""
                 if not future.done():

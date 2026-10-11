@@ -26,6 +26,8 @@ import argparse
 import ctypes
 import json
 import os
+from pathlib import Path
+import secrets
 import select
 import sys
 import time
@@ -88,6 +90,65 @@ class _KwinSession:
         except Exception:
             pass
 
+    def surface(self) -> dict:
+        """Bounded focus/stacking/geometry identity from this private compositor, without titles or contents."""
+        from gi.repository import Gio, GLib
+        connection = self.connection
+        nonce = secrets.token_hex(12)
+        object_path = "/HutchGeometry" + nonce
+        script = Path(os.environ["XDG_RUNTIME_DIR"]) / ("geometry-" + nonce + ".js")
+        info = Gio.DBusNodeInfo.new_for_xml('<node><interface name="org.hutch.PrivateGeometry"><method name="Set">'
+                                          '<arg name="state" type="s" direction="in"/></method></interface></node>')
+        def call(path, interface, method, signature=None, args=None):
+            return connection.call_sync("org.kde.KWin", path, interface, method,
+                GLib.Variant(signature, args) if signature else None, None, Gio.DBusCallFlags.NONE, 750, None).unpack()
+        owner = connection.call_sync("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "GetNameOwner",
+            GLib.Variant("(s)", ("org.kde.KWin",)), None, Gio.DBusCallFlags.NONE, 750, None).unpack()[0]
+        answers = []
+        def receive(_conn, sender, _path, _interface, _method, parameters, invocation):
+            value = parameters.unpack()[0]
+            if sender != owner or len(value) > 16384 or answers:
+                invocation.return_dbus_error("org.hutch.Refused", "surface identity refused")
+                return
+            answers.append(value)
+            invocation.return_value(GLib.Variant("()", ()))
+        registration = connection.register_object(object_path, info.interfaces[0], receive, None, None)
+        loaded = False
+        try:
+            code = """const windows = workspace.stackingOrder;
+if (windows.length <= 64) {
+ const state = {active: workspace.activeWindow ? String(workspace.activeWindow.internalId) : null,
+   desktop: String(workspace.currentDesktop.id), windows: windows.map(w => ({id: String(w.internalId),
+     x: w.frameGeometry.x, y: w.frameGeometry.y, width: w.frameGeometry.width, height: w.frameGeometry.height,
+     minimized: w.minimized, desktops: w.desktops.map(d => String(d.id))}))};
+ callDBus(SERVICE, OBJECT, 'org.hutch.PrivateGeometry', 'Set', JSON.stringify(state));
+}""".replace("SERVICE", json.dumps(connection.get_unique_name())).replace("OBJECT", json.dumps(object_path))
+            fd = os.open(script, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+            with os.fdopen(fd, "w") as stream:
+                stream.write(code)
+            index = call("/Scripting", "org.kde.kwin.Scripting", "loadScript", "(ss)", (str(script), nonce))[0]
+            if not isinstance(index, int) or index < 0:
+                raise RuntimeError("private compositor rejected the identity probe")
+            loaded = True
+            call(f"/Scripting/Script{index}", "org.kde.kwin.Script", "run")
+            context, deadline = GLib.MainContext.default(), time.monotonic() + .75
+            while time.monotonic() < deadline and not answers:
+                while context.pending():
+                    context.iteration(False)
+                time.sleep(.005)
+            if not answers:
+                raise RuntimeError("private compositor identity probe did not answer")
+            state = json.loads(answers[0])
+            if not isinstance(state, dict) or len(state.get("windows", [])) > 64:
+                raise RuntimeError("private compositor identity exceeded its bound")
+            return state
+        finally:
+            connection.unregister_object(registration)
+            if loaded:
+                try: call("/Scripting", "org.kde.kwin.Scripting", "unloadScript", "(s)", (nonce,))
+                except Exception: pass
+            script.unlink(missing_ok=True)
+
 
 class Ei:
     def __init__(self) -> None:
@@ -117,7 +178,8 @@ class Ei:
 
 
 class Worker:
-    def __init__(self, fd: int) -> None:
+    def __init__(self, fd: int, kwin_session=None) -> None:
+        self.kwin_session = kwin_session
         self.ei = Ei().lib
         self.ctx = self.ei.ei_new_sender(None)
         self.ei.ei_configure_name(self.ctx, b"hutch-computer-use")
@@ -205,7 +267,7 @@ class Worker:
         self.ei.ei_device_frame(device, self.ei.ei_now(self.ctx))
         self.pump(0.0)
 
-    def execute(self, message: dict) -> None:
+    def execute(self, message: dict) -> dict | None:
         cmd = message.get("cmd")
         if self.disconnected:
             raise RuntimeError("the input connection was closed by the compositor")
@@ -236,6 +298,10 @@ class Worker:
             self.release_all()
         elif cmd == "state":
             pass
+        elif cmd == "surface":
+            if self.kwin_session is None:
+                raise RuntimeError("surface identity requires the private KWin session")
+            return {"surface": self.kwin_session.surface()}
         else:
             raise RuntimeError(f"unknown command {cmd!r}")
 
@@ -274,7 +340,7 @@ def main() -> int:
             fd = kwin_session.fd
         else:
             fd = args.fd
-        worker = Worker(fd)
+        worker = Worker(fd, kwin_session)
         needed = {n.strip() for n in args.need.split(",") if n.strip()}
         deadline = time.monotonic() + args.wait
         while time.monotonic() < deadline and not (worker.ready() and needed <= worker.caps_seen):
@@ -308,9 +374,9 @@ def main() -> int:
                     _out({"id": message.get("id"), "ok": True})
                     break
                 try:
-                    worker.execute(message)
+                    result = worker.execute(message) or {}
                     _out({"id": message.get("id"), "ok": True, "held_keys": len(worker.held_keys),
-                          "held_buttons": len(worker.held_buttons)})
+                          "held_buttons": len(worker.held_buttons), **result})
                 except Exception as exc:
                     _out({"id": message.get("id"), "ok": False, "error": str(exc)})
     finally:

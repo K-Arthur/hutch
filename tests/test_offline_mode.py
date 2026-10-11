@@ -246,6 +246,50 @@ def test_process_engine_runs_fake_local_model_inside_offline_worker(store, confi
         fake.close()
 
 
+def test_offline_process_executes_governed_file_shell_read_workflow_without_cloud(store, config, monkeypatch):
+    import time
+    from tests.fakes import FakeOllama, agent_script
+    from hutch.models import EventType
+    if not sandbox.status().ok or not sandbox.offline_egress_status(refresh=True).ok:
+        pytest.skip("host lacks the verified offline process boundary")
+    # This workflow exercises the real shell containment, which the shared
+    # fixture deliberately disables for unrelated policy-only tests.
+    monkeypatch.delenv("HUTCH_SANDBOX", raising=False)
+    fake = FakeOllama({"fake:1b": {"params": "1B", "size": 200_000_000}})
+    fake.script = agent_script([
+        {"tool_calls": [{"name": "write_file", "arguments": {"path": "input.txt", "content": "offline input\n"}}]},
+        {"tool_calls": [{"name": "shell", "arguments": {"command": "cat input.txt > combined.txt"}}]},
+        {"tool_calls": [{"name": "read_file", "arguments": {"path": "combined.txt"}}]},
+        {"content": "The local artifact was verified."},
+    ])
+    bot = store.create_bot(Bot(name="offline-files", model="ollama/fake:1b", base_url=fake.url,
+                              inference_mode="offline", tools=["files", "shell"], sandbox="strict",
+                              approval_mode="auto", selfcheck=False))
+    engine = Engine(config, store, executor="process", light=True)
+    run = engine.submit(bot, "Write a local input file, copy it with the governed shell, then inspect the copy.")
+    try:
+        assert engine.dispatch_pending() == 1
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline and not store.get_run(run.id).terminal:
+            time.sleep(.05)
+        final = store.get_run(run.id)
+        assert final.status is RunStatus.succeeded, (final.status, final.error, final.exit_reason)
+        assert (Path(final.workspace) / "combined.txt").read_bytes() == b"offline input\n"
+        results = [event.data for event in store.list_events(run.id) if event.type is EventType.tool_result]
+        assert {row["tool"] for row in results} >= {"write_file", "shell", "read_file"}
+        assert all(row["ok"] for row in results)
+        chats = fake.of("/api/chat")
+        assert len(chats) == 4
+        for request in chats:
+            names = {spec["function"]["name"] for spec in request["body"].get("tools", [])}
+            assert not names & {"browser", "computer", "web_search", "http_request"}
+        assert "offline input" in str(chats[-1]["body"]["messages"])
+    finally:
+        engine.stop_all()
+        engine.shutdown(timeout=10)
+        fake.close()
+
+
 def test_loopback_broker_rejects_authority_and_method_changes(tmp_path):
     import httpx
 

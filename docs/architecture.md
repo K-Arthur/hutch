@@ -383,10 +383,14 @@ configuration or dispatch. Each worker has no host TCP interface, a scrubbed env
 read-only empty views over saved connection/key files; a private Unix-socket broker forwards model
 requests only to configured numeric loopback endpoints.
 Hosted routes, external runtimes, browser and web-fetch tools are refused; shell requires
-bubblewrap's private no-network namespace. systemd user scopes enforce resource caps only.
+bubblewrap's private no-network namespace. systemd user scopes enforce resource caps only. A nested
+Offline shell probe and command inherit the outer worker's memory/task scope and add `prlimit` plus
+fresh bubblewrap namespaces; neither can reach the host user bus. This avoids a probe requesting a
+new host scope from inside the isolated worker.
 `GET /api/v1/capabilities` reports whether the current host passes. The current Linux development
-host passes the local probe and a fake Ollama request completed through the broker inside an
-isolated worker. No live local model was available, and Hutch still cannot constrain the separate
+host passes the local probe and a scripted Ollama protocol fixture completed a real file-write →
+contained shell → file-read workflow through the broker inside an isolated process worker. This
+tests transport/tool integration rather than model intelligence. No live local model was available, and Hutch still cannot constrain the separate
 model-server process or prove model provenance. See
 [ADR-0009](adr/0009-local-inference-and-resource-admission.md).
 

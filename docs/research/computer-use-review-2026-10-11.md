@@ -218,3 +218,57 @@ install dependencies (including newer cached FastAPI/OpenAI/Pydantic than the so
 changed. The local Ollama 11434 probe returned ConnectError (`environment-final.json`); actual local model inference remains
 blocked, with no weight download or hosted fallback. Native reopened pixels and 360/landscape control captures were opened
 and inspected again: saved content, masked field, visible focus and reachable Stop are present.
+
+## Native focus/geometry binding and complete unit recheck
+
+Review found a remaining native gap: latest-frame IDs and lease age did not detect a window moving between observation and
+input. Before choosing the fix we read the [KWin scripting API](https://develop.kde.org/docs/plasma/kwin/api/), explicitly
+generated for 6.0, then introspected the installed 6.7.5 private compositor. Two initial probes got no `print` log/signal
+result; the installed Script object's introspection does not expose that documented signal. The working mechanism uses
+`callDBus` to a short-lived object registered by the existing private EIS connection, verifies KWin's unique bus sender,
+and returns only active-window/stacking/geometry/virtual-desktop metadata. It reads neither titles nor document text. Scripts,
+objects, deadlines, metadata size and window count are bounded. Native agent and human paths compare identity around capture
+and before injection. Missing or changed identity fails closed; no input is automatically retried. The boundary still is not
+an atomic transaction with inner widget state or a native semantic/accessibility adapter.
+
+The first geometry integration had **19 pass / 3 fail in 78.55 s**: native file-name completion and menu removal changed
+stacking during/after capture. The safe response was unavailable capture/refused input, but scripted tests assumed every
+post-action frame existed. Capture now allows three bounded observation-only settling attempts, and the file-dialog tests
+explicitly refresh after name completion before Enter. Actual native/desktop contracts passed **27 in 89.89 s**. Real move
+and resize refusals plus human/desktop contracts passed **26 in 24.17 s**, with delivered-input counters remaining zero on
+refusal. Additional faults cover changed focus/desktop and unstable capture identity. Physical scaling/monitor unplugging
+are not represented by those tests. Human errors after delivered input now explicitly identify dispatched input with failed
+follow-up capture; inspection is required before any new action.
+
+The corrected full non-e2e suite passed **1839 in 438.86 s**, with thread exceptions treated as failures. This full run began
+at `ebb12c0`; the subsequent geometry code has its separate focused/native rechecks above. Native input now rechecks the
+control ticket before each pointer movement/key/button press; release/cleanup remains possible after takeover. An actual
+KWrite text burst was interrupted after its first character, saved with human input, and read back as exactly `a\n`; no
+remaining character or held key/button survived. The first burst batch had **33 pass / 1 fail in 25.36 s** because its
+assertion omitted KWrite's final newline; the corrected native/control/human/desktop batch passed **34 in 16.89 s**.
+
+The final scoped real browser/native/phone/panel/site/egress integration passed **73 in 236.07 s**, with thread exceptions
+treated as failures. The exact selection is recorded below. An earlier overbroad selection included all unrelated browser
+UI scenarios, reported failures and stalled without final diagnostics. It was interrupted and its exact owned pytest
+process tree ended with zero verified survivors; it is **uncounted and not a passing suite**. Only this test run's regenerated
+294 tracked out-of-scope `docs/realignment/artifacts` files were restored, preserving the isolated tree's source and the
+original shared checkout. Native dialog/reopened pixels, panels and actual HTTP step-control previews at 360/768/1440,
+landscape focus, and website cards/limitations were opened and visually inspected again. Synthetic checkerboard/XSS-escape
+panel fixtures are distinguished from real editor and human-preview pixels.
+
+## Offline shell integration correction
+
+A new real process-worker workflow found two separate conditions. The first check had **26 pass / 1 fail in 3.78 s**:
+the general unit fixture sets `HUTCH_SANDBOX=off`, and Offline correctly refused admission. The fixture now explicitly enables
+its strict boundary. The next had **26 pass / 1 fail in 4.47 s**: write-file worked, but the nested shell readiness probe
+requested a new host systemd scope even though Offline deliberately hides the user bus. The final run status alone said
+success after a scripted model reply, but the independent saved-file assertion caught the failed tools. This is not called
+successful completion.
+
+We rechecked [Bubblewrap's bus/namespace security notes](https://github.com/containers/bubblewrap/blob/main/README.md) and
+[kernel cgroup inheritance](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html). The systemd web manual again
+returned unavailable; installed systemd 262 and Bubblewrap 0.13.0 were checked. The corrected probe uses the same nested
+`prlimit`/bubblewrap path as the command, inheriting the parent-supervised worker's memory/task cgroup, without exposing the
+host bus or downgrading containment. Actual file-write → shell-copy → file-read, four local protocol chat turns, credential
+masking, network-tool omission, namespace/resource tests and native control contracts passed **88 in 14.45 s**. The fixture
+is explicitly a scripted protocol server, not local model weights, GUI grounding or cloud inference.

@@ -205,6 +205,7 @@ class ComputerTool(Tool):
         self._session = DesktopSession(
             session_id=f"{run_id}:desktop", capture=lambda: checked_capture(), input_backend=eis,
             frames=FrameStore(ctx.config.run_dir(ctx.bot.name, run_id)), lease=self._lease,
+            surface_identity=getattr(eis, "surface", None),
             environment={"mode": "isolated",
                          "boundary": "apps: workspace-only files, private home, no network, bounded resources; trusted private compositor/bus",
                          "applications": apps, "keyboard_layout": "us (assumed)"})
@@ -238,19 +239,38 @@ class ComputerTool(Tool):
         if getattr(ctx.bot, "remote_computer_access", "off") == "control":
             from ..computer.human import HumanSession, HumanError
             def capture():
-                return checked_capture(), {"session": self._lease.session_id, "width": desktop.width, "height": desktop.height}
+                for attempt in range(3):
+                    identity = eis.surface()
+                    png = checked_capture()
+                    if identity == eis.surface():
+                        break
+                    if attempt == 2:
+                        raise HumanError("window identity changed during capture; capture again")
+                    time.sleep(.1)
+                return png, {"session": self._lease.session_id, "width": desktop.width, "height": desktop.height, "surface": identity}
             def dispatch(command, identity, check):
-                if identity != {"session": self._lease.session_id, "width": desktop.width, "height": desktop.height} or not desktop.alive():
+                if identity != {"session": self._lease.session_id, "width": desktop.width, "height": desktop.height,
+                                "surface": eis.surface()} or not desktop.alive():
                     raise HumanError("the desktop identity changed; capture again")
                 check()
                 authority(ctx, "desktop")
                 workspace_grant(ctx)
-                if command["action"] == "click":
-                    eis.click(command["x"], command["y"])
-                elif command["action"] == "type":
-                    eis.type_text(command["text"])
-                elif command["action"] == "key":
-                    eis.chord(command["keys"].lower())
+                previous = eis.before_input
+                sent_before = eis.input_count
+                eis.before_input = check
+                try:
+                    if command["action"] == "click":
+                        eis.click(command["x"], command["y"])
+                    elif command["action"] == "type":
+                        eis.type_text(command["text"])
+                    elif command["action"] == "key":
+                        eis.chord(command["keys"].lower())
+                except Exception:
+                    if eis.input_count != sent_before:
+                        raise HumanError("Native input was interrupted after dispatch; its outcome is unknown. Capture and inspect before sending more input.") from None
+                    raise
+                finally:
+                    eis.before_input = previous
             self._human = HumanSession(ctx, "desktop", self._lease, capture, dispatch)
         return self._session
 

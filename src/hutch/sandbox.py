@@ -88,23 +88,31 @@ def _probe() -> Status:
     prlimit = shutil.which("prlimit")
     if not prlimit:
         return Status(False, reason="'prlimit' (util-linux) is not installed; strict mode needs it for resource limits")
+    offline_worker = os.environ.get("HUTCH_OFFLINE_RUN") == "1"
+    backend = "bubblewrap+inherited-offline-scope" if offline_worker else "bubblewrap+systemd-user-scope"
     systemd_run = shutil.which("systemd-run")
-    if not systemd_run:
+    if not systemd_run and not offline_worker:
         return Status(False, reason="'systemd-run' is not installed; strict mode needs a delegated cgroup for memory and process limits")
     try:
         ver = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=10).stdout.strip()
         argv = [exe, "--unshare-all", "--ro-bind", "/usr", "/usr", "--proc", "/proc", "--dev", "/dev", *_layout(),
                 "/usr/bin/true" if Path("/usr/bin/true").exists() else "/bin/true"]
-        r = subprocess.run([systemd_run, "--user", "--scope", "--quiet", "--property=MemoryMax=512M",
-                            "--property=TasksMax=64", "--", prlimit, "--as=536870912", "--nofile=128",
-                            "--core=0", "--", *argv], capture_output=True, text=True, timeout=20)
+        # The parent launched Offline inside a memory/task-limited scope and
+        # hid the host bus. Probe nested namespaces with the same inherited
+        # cgroup/per-process limits used by shell_argv; never expose that bus
+        # or ask systemd to launch a command outside the Offline namespace.
+        prefix = [prlimit, "--as=536870912", "--nofile=128", "--core=0", "--"]
+        if not offline_worker:
+            prefix = [systemd_run, "--user", "--scope", "--quiet", "--property=MemoryMax=512M",
+                      "--property=TasksMax=64", "--", *prefix]
+        r = subprocess.run([*prefix, *argv], capture_output=True, text=True, timeout=20)
     except (OSError, subprocess.SubprocessError) as exc:
-        return Status(False, reason=f"could not run bubblewrap: {exc}")
+        return Status(False, backend=backend, reason=f"could not run bubblewrap: {exc}")
     if r.returncode != 0:
         why = (r.stderr or "").strip().splitlines()[-1:] or ["unknown error"]
         hint = " (unprivileged user namespaces may be disabled: sysctl kernel.unprivileged_userns_clone / user.max_user_namespaces)"
-        return Status(False, version=ver, reason=f"bubblewrap cannot create a sandbox here: {why[0]}{hint}")
-    return Status(True, version=ver)
+        return Status(False, backend=backend, version=ver, reason=f"bubblewrap cannot create a sandbox here: {why[0]}{hint}")
+    return Status(True, backend=backend, version=ver)
 
 
 def status(refresh: bool = False) -> Status:

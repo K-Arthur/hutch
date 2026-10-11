@@ -116,6 +116,27 @@ def test_an_unchanged_screen_is_reported_as_unchanged_not_as_success(tmp_path):
     assert result.ok and result.data["visual_change"] is False and "did not visibly change" in result.output
 
 
+@pytest.mark.parametrize("change", ["focus", "geometry", "stacking", "desktop"])
+def test_native_identity_change_refuses_before_input_and_requires_new_observation(tmp_path, change):
+    session, backend, _ = make(tmp_path, frames=(10, 10))
+    state = {"focus": "window-a", "geometry": [0, 0, 200, 100], "stacking": ["window-a"], "desktop": "one"}
+    session._surface_identity = lambda: dict(state)
+    frame = session.observe().image.frame_id
+    state[change] = "changed"
+    result = session.click(frame, 40, 30)
+    assert not result.ok and result.data["outcome"] == "not_dispatched" and result.data["identity_changed"]
+    assert backend.calls == [] and session.lease.snapshot().fresh_observation_required
+
+
+def test_identity_changes_during_capture_never_publish_a_coordinate_frame(tmp_path):
+    session, backend, _ = make(tmp_path)
+    state = iter([{"geometry": i} for i in range(6)])
+    session._surface_identity = lambda: next(state)
+    result = session.observe()
+    assert not result.ok and result.data["observation"]["status"] == "unavailable"
+    assert not session.click("f000001", 1, 1).ok and backend.calls == []
+
+
 def test_a_takeover_between_validation_and_dispatch_prevents_input(tmp_path):
     session, backend, _ = make(tmp_path)
     frame = session.observe().image.frame_id

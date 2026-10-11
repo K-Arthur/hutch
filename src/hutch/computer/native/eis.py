@@ -79,6 +79,8 @@ class EisInput:
         self.regions: list[list[int]] = [list(r) for r in ready.get("regions", [])]
         self.capabilities: list[str] = list(ready.get("capabilities", []))
         self._seq = 0
+        self.before_input = None
+        self.input_count = 0
 
     # ----------------------------------------------------------- lifecycle
 
@@ -142,6 +144,9 @@ class EisInput:
     def alive(self) -> bool:
         return self._proc.poll() is None
 
+    def surface(self) -> dict:
+        return self._send({"cmd": "surface"}, timeout=4.0)["surface"]
+
     def close(self) -> None:
         if self.alive:
             try:
@@ -158,6 +163,10 @@ class EisInput:
     # ------------------------------------------------------------ commands
 
     def _send(self, message: dict, *, timeout: float = 3.0) -> dict:
+        injecting = message.get("cmd") == "pointer_abs" or (
+            message.get("cmd") in ("key", "button") and message.get("press") is True)
+        if injecting and self.before_input is not None:
+            self.before_input()
         if not self.alive or self._proc.stdin is None:
             raise InputError("the input worker is not running")
         self._seq += 1
@@ -165,6 +174,8 @@ class EisInput:
         try:
             self._proc.stdin.write(json.dumps(message) + "\n")
             self._proc.stdin.flush()
+            if injecting:
+                self.input_count += 1
         except (OSError, ValueError) as exc:
             raise InputError(f"could not reach the input worker: {exc}") from exc
         line = self._readline(self._proc, timeout)

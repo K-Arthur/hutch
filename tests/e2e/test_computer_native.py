@@ -24,6 +24,7 @@ pytestmark = pytest.mark.skipif(not _ok or find_gi_python() is None or not Manag
                                 reason=_why or "no PyGObject interpreter or KWin virtual session available")
 pytest.importorskip("shutil")
 import shutil  # noqa: E402
+import subprocess
 
 if shutil.which("kwrite") is None:                      # the editor under test
     pytestmark = pytest.mark.skip(reason="kwrite is not installed")
@@ -99,6 +100,65 @@ def test_native_idle_authority_revocation_stops_private_processes(native, store)
     assert not refused.ok
 
 
+@pytest.mark.parametrize("change", ["move", "resize"])
+def test_real_window_geometry_change_refuses_old_coordinates(native, monkeypatch, change):
+    tool, ctx = native.tool, native.ctx
+    launched = tool.run({"action": "launch", "app": "kwrite"}, ctx)
+    assert launched.ok, launched.output
+    identity = tool._input.surface()
+    script = tool._desktop.root / "move-for-regression.js"
+    adjustment = "x: r.x + 60, y: r.y + 30, width: r.width, height: r.height" if change == "move" else \
+                 "x: r.x, y: r.y, width: r.width + 80, height: r.height + 40"
+    script.write_text("const w=workspace.activeWindow; const r=w.frameGeometry; w.frameGeometry={" + adjustment + "};")
+    name = "hutch-geometry-regression"
+    def call(path, interface, method, *args):
+        return subprocess.run(["busctl", "--user", "call", "org.kde.KWin", path, interface, method, *args],
+                              env=tool._desktop.env, capture_output=True, text=True, timeout=3, check=True).stdout
+    index = int(call("/Scripting", "org.kde.kwin.Scripting", "loadScript", "ss", str(script), name).split()[1])
+    try:
+        call(f"/Scripting/Script{index}", "org.kde.kwin.Script", "run")
+        assert _wait_for(lambda: tool._input.surface() != identity, seconds=3)
+        calls, original = [], tool._input.click
+        def counted(*args, **kwargs):
+            calls.append(args)
+            return original(*args, **kwargs)
+        monkeypatch.setattr(tool._input, "click", counted)
+        result = tool.run({"action": "click", "frame_id": _frame(launched), "x": 430, "y": 367}, ctx)
+        assert not result.ok and result.data["identity_changed"] and result.data["outcome"] == "not_dispatched"
+        assert calls == []
+        fresh = tool.run({"action": "observe"}, ctx)
+        assert fresh.ok, fresh.output
+    finally:
+        call("/Scripting", "org.kde.kwin.Scripting", "unloadScript", "s", name)
+        script.unlink(missing_ok=True)
+
+
+def test_real_takeover_interrupts_a_native_typing_burst_and_releases_keys(native, monkeypatch):
+    tool, ctx = native.tool, native.ctx
+    path = native.workspace / "partial.txt"
+    path.write_text("")
+    launched = tool.run({"action": "launch", "app": "kwrite", "path": "partial.txt"}, ctx)
+    assert launched.ok, launched.output
+    focused = tool.run({"action": "click", "frame_id": _frame(launched), "x": 640, "y": 400}, ctx)
+    assert focused.ok, focused.output
+    original, pressed = tool._input._send, []
+    def observed(message, **kwargs):
+        reply = original(message, **kwargs)
+        if message.get("cmd") == "key" and message.get("press") is True and message.get("code") in (30, 48, 46):
+            pressed.append(message["code"])
+            if len(pressed) == 1:
+                tool._lease.take_over("controlled interruption during typing")
+        return reply
+    monkeypatch.setattr(tool._input, "_send", observed)
+    result = tool.run({"action": "type", "frame_id": _frame(focused), "text": "abc"}, ctx)
+    assert not result.ok and result.data["outcome"] == "unknown" and pressed == [30]
+    state = original({"cmd": "state"})
+    assert state["held_keys"] == 0 and state["held_buttons"] == 0
+    # The controlled human verifies the partial effect; the agent does not retry.
+    tool._input.chord("ctrl+s")
+    assert _wait_for(lambda: path.read_text() == "a\n")  # KWrite's normal final-newline save behavior
+
+
 def test_edit_save_through_a_native_file_dialog_reopen_and_verify(native):
     tool, ctx, workspace = native.tool, native.ctx, native.workspace
 
@@ -127,6 +187,9 @@ def test_edit_save_through_a_native_file_dialog_reopen_and_verify(native):
     target = workspace / "saved-by-hutch.txt"
     entered = tool.run({"action": "type", "frame_id": _frame(dialog), "text": str(target)}, ctx)
     assert entered.ok
+    # Path completion can change popup stacking after typing; inspect its settled native frame before confirming.
+    entered = tool.run({"action": "observe"}, ctx)
+    assert entered.ok, entered.output
     confirmed = tool.run({"action": "key", "frame_id": _frame(entered), "keys": "enter"}, ctx)
     assert confirmed.ok
 
@@ -261,6 +324,7 @@ def test_human_step_input_edits_and_saves_the_real_native_application_without_mo
     command("key", keys="ctrl+s")
     target = native.workspace / "human-native.txt"
     command("type", text=str(target))
+    command("capture")  # explicit fresh inspection after native file-name completion
     command("key", keys="enter")
     assert _wait_for(lambda: target.exists() and target.read_text().strip() == "HUMAN-PRIVATE-NATIVE-NOTE")
     assert "HUMAN-PRIVATE-NATIVE-NOTE" not in str([e.model_dump() for e in native.events])

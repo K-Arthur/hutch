@@ -49,7 +49,7 @@ class DesktopSession:
     def __init__(self, *, session_id: str, capture: Callable[[], bytes], input_backend: InputBackend,
                  frames: FrameStore, lease: ControlLease, environment: Optional[dict[str, Any]] = None,
                  settle_seconds: float = 0.25, sleep: Callable[[float], None] = time.sleep,
-                 clock: Callable[[], float] = time.monotonic):
+                 clock: Callable[[], float] = time.monotonic, surface_identity: Optional[Callable[[], dict]] = None):
         self.session_id = session_id
         self._capture = capture
         self._input = input_backend
@@ -59,6 +59,8 @@ class DesktopSession:
         self._settle = settle_seconds
         self._sleep = sleep
         self._clock = clock
+        self._surface_identity = surface_identity
+        self._identity = None
         self._last: dict[str, Any] = {}
         #: called right before input is dispatched (after the control check); a returned string refuses the action.
         #: The tool uses it to record the action's intent/receipt (ADR-0003).
@@ -68,7 +70,14 @@ class DesktopSession:
 
     def observe(self) -> DesktopResult:
         try:
-            png = self._capture()
+            for capture_attempt in range(1, 4):
+                identity = self._surface_identity() if self._surface_identity else None
+                png = self._capture()
+                if not self._surface_identity or identity == self._surface_identity():
+                    break
+                if capture_attempt == 3:
+                    raise FrameError("window focus/stacking/geometry changed during capture; observe again")
+                self._sleep(.1)  # bounded observation-only settling; input is never retried
         except Exception as exc:
             self.lease.invalidate_observation("capture failed")
             return DesktopResult(False, f"error: the screen could not be captured ({exc}); nothing was done",
@@ -80,9 +89,11 @@ class DesktopSession:
             return DesktopResult(False, f"error: the capture could not be kept as a frame ({exc})",
                                  {"observation": {"schema": 1, "status": "unavailable", "status_reason": str(exc)[:200]}})
         self._last = {"frame_id": ref.frame_id, "width": ref.width, "height": ref.height, "sha256": ref.sha256}
+        self._identity = identity
         self.lease.note_observation(ref.frame_id)
         record = {
             "schema": 1,
+            "capture_attempts": capture_attempt,
             "surface": {"kind": "desktop_screen", "id": "screen-0"},
             "frame_id": ref.frame_id,
             "captured_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="milliseconds"),
@@ -135,15 +146,31 @@ class DesktopSession:
                 return DesktopResult(False, f"error: {exc.reason}",
                                      {"outcome": "not_dispatched", "dispatched": False,
                                       "control": self.lease.snapshot().public()})
+        if self._surface_identity is not None:
+            try:
+                current = self._surface_identity()
+                if current != self._identity:
+                    raise FrameError("window focus/stacking/geometry changed after observation; observe again")
+                self.lease.check(ticket, needs_fresh_observation=True)
+            except Exception as exc:
+                self.lease.invalidate_observation("surface identity changed or unavailable")
+                return DesktopResult(False, f"error: {exc}; nothing was done",
+                                     {"outcome": "not_dispatched", "dispatched": False, "identity_changed": True})
+        old_check = getattr(self._input, "before_input", None)
+        sent_before = getattr(self._input, "input_count", None)
+        self._input.before_input = lambda: self.lease.check(ticket, needs_fresh_observation=True)
         try:
             action()
         except Exception as exc:
             text = str(exc)
-            unknown = "stopped answering" in text or "not running" in text or "unknown" in text
+            unknown = (sent_before is None or getattr(self._input, "input_count", None) != sent_before or
+                       "stopped answering" in text or "not running" in text or "unknown" in text)
             self.lease.invalidate_observation("input failed")
             return DesktopResult(
                 False, f"error: {text}", {"outcome": "unknown" if unknown else "not_dispatched",
                                           "dispatched": bool(unknown)})
+        finally:
+            self._input.before_input = old_check
         self.lease.invalidate_observation("input was sent")
         self._sleep(self._settle)
         after = self.observe()

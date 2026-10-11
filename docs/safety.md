@@ -414,7 +414,9 @@ provider keys, proxy variables, or custom endpoint environment overrides; saved 
 and `keys/` are hidden behind read-only empty mounts while SQLite run state stays available. A private
 per-run Unix-socket broker forwards HTTP only
 to configured numeric loopback model endpoints; browser and web-fetch tools are omitted, and shell
-requires the existing bubblewrap no-network sandbox. systemd scopes apply resource caps only. A
+requires the existing bubblewrap no-network sandbox. Its nested probe/command inherit the outer
+Offline worker's memory/task cgroup, add per-process limits and fresh namespaces, and retain no host
+user-bus access. systemd scopes apply resource caps only. A
 failed capability check refuses both configuration and run start. This Linux development host now
 passes the local TCP/Unix-socket probe, and a fixture provider completed a request from an isolated
 worker; no public destination or live model was contacted. The separately running local model

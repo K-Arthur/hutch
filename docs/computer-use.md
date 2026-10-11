@@ -40,7 +40,10 @@ run ──▶ ApprovalGate (hard deny ▸ policy ▸ sticky ▸ ask)         out
   with a generation counter. An action captures a ticket and re-checks it immediately before dispatching, so a takeover or
   stop that races an approved action wins. Changes are recorded as `computer_control` run events and shown in the panel.
 * **Observation is separate from action.** Frames are bounded, private, hash-verified artifacts (below); an action is only
-  accepted against the latest frame and inside it. Coordinates are never clamped onto a different target.
+  accepted against the latest frame and inside it. Native actions also check the private compositor's active window, stacking,
+  geometry and virtual desktop before injection. Changed identity requires another observation. Coordinates are never clamped.
+  Each native pointer movement/key/button press rechecks control ownership; cleanup releases remain allowed after revocation.
+  A takeover during text entry interrupts the remaining characters and reports a partial, unknown outcome.
 
 ## The isolated desktop: what it does and does not isolate
 
@@ -54,6 +57,13 @@ namespaces, no host network and no D-Bus broker, with CPU, memory, task, descrip
 in the workspace and cannot reach other user files. Unavailable containment fails closed even when shell containment is off.
 The compositor, capture and input worker remain trusted host processes; this is **not a VM** or a boundary against a hostile
 compositor. Allow only installed applications you intend to use. Do not put credentials in the granted workspace.
+
+The KWin identity probe carries no window titles or document content. It allows at most 64 windows / 16 KB of metadata,
+uses only the private bus and unloads its temporary script after each probe. It binds identity before and after capture and
+again immediately before input; transient menu/completion changes allow up to three **observation-only** settling attempts.
+It never replays an input. A human preview uses the same guard. A missing probe refuses capture/input. There is still no
+atomic transaction with an application's inner widget state and no AT-SPI semantic action adapter: inspect the fresh frame
+and verify the actual outcome. Physical monitors, arbitrary window selectors and other compositor adapters remain unsupported.
 
 Keyboard input is sent as evdev keycodes and typed for a **US layout** (printable ASCII); other characters are refused
 rather than guessed. The driver reports dispatched input and visual change; confirm the intended effect in application state or a saved artifact.
@@ -239,6 +249,7 @@ reviewed actions below; screen viewing or human step input grants no host file p
 | --- | --- |
 | "the isolated desktop could not start" | `hutch computer doctor`: missing `kwin_wayland`, `dbus-daemon`, `busctl` or `spectacle` |
 | "input could not be established" | no PyGObject interpreter (set `HUTCH_GI_PYTHON`); KWin EIS not ready |
+| window focus/stacking/geometry changed | refresh and inspect the new frame; the refused input was not dispatched |
 | click lands on the wrong widget | the app showed a different screen than assumed (for example KWrite's Welcome page): act on the frame you got back |
 | typed text differs | non-US keyboard layout in the session; typing is US-keycode based |
 | "frame … is not the latest observation" | an action since then returned a new frame; use that frame_id |
@@ -286,11 +297,13 @@ limits); the normal run broker already creates a short private directory.
 
 ```sh
 PYTHONPATH=src python -m pytest -q --ignore=tests/e2e --basetemp=/short/private/test-path
-PYTHONPATH=src python -m pytest -q tests/e2e/test_computer_*.py tests/e2e/test_browser*.py
+PYTHONPATH=src python -m pytest -q tests/e2e/test_computer_*.py tests/e2e/test_browser_egress.py
 PYTHONPATH=src python benchmarks/computer_use_soak.py --cycles 100 --json /private/soak.json
 uv build --offline --wheel --out-dir /private/dist
 # Install that wheel with browser/anthropic extras into a separate environment; no editable source import.
 /private/install/bin/python -I scripts/verify_computer_wheel.py --source-root "$PWD" --evidence /private/wheel.json
+# On a host with the native prerequisites, additionally require actual installed KWrite input/save:
+/private/install/bin/python -I scripts/verify_computer_wheel.py --source-root "$PWD" --evidence /private/wheel.json --native
 ```
 
 The wheel check serves packaged assets/readiness, invokes the installed CLI, checks native worker/driver source hashes,
