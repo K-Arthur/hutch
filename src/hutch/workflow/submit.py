@@ -177,16 +177,18 @@ def _gate_auto(store: Any, bot: Bot, *, compiled: CompiledPlan, definition: Any,
 def _admit(store: Any, *, bot: Bot, compiled: CompiledPlan, revision_id: str,
            definition_id: Optional[str], inputs: dict[str, Any], origin: str,
            conversation_id: str, idem_key: str, request_hash: str,
-           plan_payload: dict[str, Any]) -> Submission:
+           plan_payload: dict[str, Any], schedule_id: str = "",
+           schedule_claim: Optional[dict[str, Any]] = None) -> Submission:
     """The one admission path: instance + first orchestration attempt, idempotently."""
     attempt = Run(bot_id=bot.id, prompt=f"workflow: {compiled.plan.name}"[:4_000], kind="workflow",
-                  origin=origin, conversation_id=conversation_id)
+                  origin=origin, schedule_id=schedule_id, conversation_id=conversation_id)
     task = Task(bot_id=bot.id, kind="workflow", prompt=attempt.prompt)
     workflow, created = wstore.submit_workflow_run(
         store, plan=plan_payload, definition_id=definition_id, revision_id=revision_id,
         plan_hash=compiled.plan_hash, bot_id=bot.id, inputs=inputs,
         budget=step_budget(compiled), origin=origin, conversation_id=conversation_id,
-        run=attempt, task=task, idem_key=idem_key, request_hash=request_hash)
+        run=attempt, task=task, idem_key=idem_key, request_hash=request_hash,
+        schedule_claim=schedule_claim)
     if not created:
         return _from_record(workflow)
     return Submission(workflow_run_id=str(workflow["id"]), attempt_run_id=attempt.id,
@@ -212,7 +214,8 @@ def submit_workflow(store: Any, *, bot: Bot, plan: dict[str, Any] | Plan,
                     planning_profile_hash: str = "",
                     created_by: str = "", note: str = "",
                     idem_key: str = "", request_hash: str = "",
-                    auto: bool = False, revision_id: str = "") -> Submission:
+                    auto: bool = False, revision_id: str = "", schedule_id: str = "",
+                    schedule_claim: Optional[dict[str, Any]] = None) -> Submission:
     """Validate, gate and admit one workflow instance.
 
     ``revision_id`` names an already-saved revision to run as-is; otherwise the plan is
@@ -263,7 +266,8 @@ def submit_workflow(store: Any, *, bot: Bot, plan: dict[str, Any] | Plan,
     submission = _admit(store, bot=bot, compiled=compiled, revision_id=revision_id,
                         definition_id=definition_id, inputs=resolved_inputs, origin=origin,
                         conversation_id=conversation_id, idem_key=idem_key,
-                        request_hash=request_hash, plan_payload=plan_payload)
+                        request_hash=request_hash, plan_payload=plan_payload,
+                        schedule_id=schedule_id, schedule_claim=schedule_claim)
     submission.verdicts = verdicts
     return submission
 

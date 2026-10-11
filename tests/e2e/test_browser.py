@@ -8161,10 +8161,12 @@ def test_multiple_scheduled_tasks_can_be_managed_from_bot_settings(browser, live
             page.evaluate("document.querySelectorAll('details.schedule-entry').forEach(item => item.open = true)")
             page.locator(".page-scroll").evaluate("el => el.scrollTop = 0")
             entry_metrics = []
+            # These editors are vertically scrollable forms; assert viewport reflow,
+            # while the workflow-link journey separately checks that the action is reachable.
             for index, entry in enumerate(page.locator("details.schedule-entry").all()):
                 entry.scroll_into_view_if_needed()
                 box = entry.bounding_box()
-                assert box and box["height"] < height, (label, index, box)
+                assert box and 0 < box["width"] <= width, (label, index, box)
                 entry.screenshot(path=str(out / f"settings-{label}-task-{index + 1}.png"), animations="disabled")
                 entry_metrics.append({"index": index, "height": box["height"], "width": box["width"]})
             metrics = page.evaluate("""() => ({
@@ -8243,6 +8245,142 @@ def test_multiple_scheduled_tasks_can_be_managed_from_bot_settings(browser, live
         if not trace_stopped:
             try:
                 page.context.tracing.stop(path=str(out / "scheduled-tasks-trace.zip"))
+            except Exception:
+                pass
+        page.close()
+
+
+def test_routine_editor_links_an_activated_workflow_accessibly_across_viewports(browser, live):
+    base, app = live
+    from hutch.workflow import persistence as workflow_store
+
+    bot = Bot(name="routine-workflow-visual", display_name="Routine workflow visual fixture",
+              model="mock/demo", tools=[], instructions="A visual fixture with no provider access.",
+              schedules=[Schedule(id="schedule_visual_workflow", name="Weekly evidence report",
+                                  cron="0 9 * * 1", timezone="UTC", enabled=False)])
+    app.state.store.create_bot(bot)
+    plan = {
+        "name": "visual-workflow-verification-method",
+        "budget": {"max_nodes": 3, "max_model_calls": 0},
+        "nodes": [{"kind": "transform", "id": "value", "op": "constant",
+                   "args": {"value": "verified fixture"}}],
+        "outputs": ["value"],
+    }
+    saved = workflow_store.save_definition(app.state.store,
+        name="Weekly evidence report with a deliberately long saved workflow title", plan=plan,
+        activate=True)
+    page = browser.new_page(viewport={"width": 1440, "height": 1000}, reduced_motion="reduce")
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/scheduled-workflow-link-2026-10-11"
+    out.mkdir(parents=True, exist_ok=True)
+    page.context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    trace_stopped = False
+    captures = []
+    try:
+        page.goto(f"{base}/#/bot/{bot.name}")
+        open_assistant_customization(page)
+        form = page.locator("#form-schedule")
+        form.wait_for()
+        selector = form.locator("[data-schedule-workflow-definition]")
+        selector.wait_for()
+        assert selector.locator(f'option[value="{saved["definition_id"]}"]').count() == 1
+
+        # Link by keyboard to verify the selection, exact revision, and input editor work without a mouse.
+        selector.focus()
+        page.keyboard.press("ArrowDown")
+        assert selector.input_value() == saved["definition_id"]
+        assert form.locator('[name="workflow_revision_id"]').input_value() == saved["revision_id"]
+        assert form.locator("[data-workflow-inputs-field]").is_visible()
+        assert saved["revision_id"] in form.locator("[data-workflow-revision-summary]").inner_text()
+        form.locator('[name="name"]').fill("Weekly evidence report")
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/api/v1/bots/{bot.id}/schedules/{bot.schedule.id}")
+                and response.request.method == "PUT") as linked_response:
+            form.get_by_role("button", name="Save task").focus()
+            page.keyboard.press("Enter")
+        assert linked_response.value.status == 200, linked_response.value.text()
+        resource = linked_response.value.json()
+        assert resource["workflow_definition_id"] == saved["definition_id"]
+        assert resource["workflow_revision_id"] == saved["revision_id"]
+        assert resource["enabled"] is False
+        wait_for(lambda: app.state.store.get_bot(bot.id).schedule.workflow_revision_id == saved["revision_id"])
+        page.get_by_role("button", name="Dismiss notification").click()
+
+        sizes = {"desktop-1440": (1440, 1000), "tablet-768": (768, 980),
+                 "phone-360": (360, 844), "reflow-320": (320, 800)}
+        for label, (width, height) in sizes.items():
+            page.set_viewport_size({"width": width, "height": height})
+            entry = page.locator("details.schedule-entry").first
+            entry.evaluate("el => el.open = true")
+            entry.evaluate("el => el.scrollIntoView({block: 'start'})")
+            page.wait_for_timeout(80)
+            metrics = page.evaluate("""() => ({
+                viewport: [innerWidth, innerHeight],
+                document: [document.documentElement.scrollWidth, document.documentElement.scrollHeight],
+                body: [document.body.scrollWidth, document.body.scrollHeight],
+                selected: document.querySelector('[data-schedule-workflow-definition]').value,
+                revision: document.querySelector('[name=workflow_revision_id]').value,
+                saveTarget: (() => { const b = document.querySelector('[data-schedule-form] button[type=submit]');
+                  const r = b.getBoundingClientRect(); return [r.width, r.height]; })()
+            })""")
+            assert metrics["document"][0] - width <= 1, (label, metrics)
+            assert metrics["body"][0] - width <= 1, (label, metrics)
+            assert metrics["selected"] == saved["definition_id"] and metrics["revision"] == saved["revision_id"]
+            assert min(metrics["saveTarget"]) >= 44, (label, metrics)
+            page.screenshot(path=str(out / f"routine-link-{label}.png"),
+                            animations="disabled")
+            entry.screenshot(path=str(out / f"routine-link-{label}-editor.png"), animations="disabled")
+            revision_summary = form.locator("[data-workflow-revision-summary]")
+            revision_summary.scroll_into_view_if_needed()
+            assert revision_summary.is_visible()
+            assert saved["revision_id"] in revision_summary.inner_text()
+            assert "deliberately long saved workflow title" in revision_summary.inner_text()
+            page.screenshot(path=str(out / f"routine-link-{label}-pinned-revision.png"),
+                            animations="disabled")
+            save_button = form.get_by_role("button", name="Save task")
+            save_button.evaluate("el => el.scrollIntoView({block: 'center'})")
+            action_target = save_button.evaluate("el => { const r = el.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; }")
+            assert action_target[1] >= 0 and action_target[1] + action_target[3] <= height, (label, action_target)
+            assert action_target[2] >= 44 and action_target[3] >= 44, (label, action_target)
+            page.screenshot(path=str(out / f"routine-link-{label}-actions.png"), animations="disabled")
+            captures.append({"size": label, **metrics, "save_action": action_target})
+
+        page.context.tracing.stop(path=str(out / "routine-link-trace.zip"))
+        trace_stopped = True
+        assert not errors, errors
+        source_root = Path(__file__).resolve().parents[2]
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_routine_editor_links_an_activated_workflow_accessibly_across_viewports",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_routine_editor_links_an_activated_workflow_accessibly_across_viewports",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "python": platform.python_version(),
+            "hutch_version": package_version("hutch"),
+            "browser": browser.browser_type.name,
+            "browser_version": browser.version,
+            "playwright_version": package_version("playwright"),
+            "scenario": "owner links an activated saved revision to a disabled routine using keyboard selection; no provider call",
+            "captures": captures,
+            "page_errors": errors,
+            "source_sha256": {
+                name: hashlib.sha256((source_root / path).read_bytes()).hexdigest()
+                for name, path in {"app.js": "src/hutch/server/static/app.js",
+                                   "style.css": "src/hutch/server/static/style.css",
+                                   "app.py": "src/hutch/server/app.py",
+                                   "models.py": "src/hutch/models.py"}.items()
+            },
+        }, indent=2) + "\n", encoding="utf-8")
+        (out / "visual-review.md").write_text(
+            "# Routine-to-workflow visual review\n\n"
+            "The schedule editor keeps the routine title and saved-workflow selector readable at desktop, tablet, "
+            "phone, and 320 CSS-pixel reflow widths. Linking remains a visible owner action, the workflow input "
+            "editor appears after selection, and the disabled routine keeps its draft state. The submit target stays "
+            "at least 44 CSS pixels in both dimensions. Screenshots are retained beside this review; no browser "
+            "console errors were observed.\n", encoding="utf-8")
+    finally:
+        if not trace_stopped:
+            try:
+                page.context.tracing.stop(path=str(out / "routine-link-trace.zip"))
             except Exception:
                 pass
         page.close()

@@ -2918,34 +2918,67 @@ class Store:
     def put_schedule(self, bot_id: str, schedule: Schedule) -> Bot | None:
         """Create or replace one recurring task atomically without overwriting sibling streams."""
         with self._tx() as db:
-            row = db.execute("SELECT doc FROM bots WHERE id = ?", (bot_id,)).fetchone()
-            if row is None:
-                return None
-            bot = Bot.model_validate_json(row["doc"])
-            schedules = list(bot.schedules or ([bot.schedule] if bot.schedule else []))
-            index = next((i for i, current in enumerate(schedules) if current.id == schedule.id), None)
-            if index is None:
-                identity = db.execute("SELECT bot_id, removed_at FROM schedule_identities WHERE schedule_id = ?",
-                                      (schedule.id,)).fetchone()
-                if identity:
-                    raise ValueError("a removed or previously used scheduled task ID cannot be reused")
+            bot = self._put_schedule_in_transaction(db, bot_id, schedule)
+        if bot is None:
+            return None
+        self.bus.notify("work", "bots")
+        return bot
+
+    def put_schedule_idempotent(self, bot_id: str, schedule: Schedule, *, idem_key: str,
+                                request_hash: str) -> tuple[Bot | None, bool]:
+        """Atomically save a linked routine and its retry receipt.
+
+        The stored Bot snapshot makes a retry stable even if the routine or saved workflow is
+        edited after the original command completed.
+        """
+        if not idem_key or not request_hash:
+            raise ValueError("schedule mutation requires an idempotency key and request hash")
+        scope = f"api:v1:schedules:{bot_id}:{schedule.id}"
+        now = iso(utcnow())
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                bot = Bot.model_validate_json(str(replay["bot_json"]))
+                return bot, False
+            bot = self._put_schedule_in_transaction(db, bot_id, schedule)
+            if bot is None:
+                return None, False
+            db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) "
+                       "VALUES (?, ?, ?, ?, ?)",
+                       (scope, idem_key, request_hash, _canonical({"bot_json": bot.model_dump_json()}), now))
+        self.bus.notify("work", "bots")
+        return bot, True
+
+    @staticmethod
+    def _put_schedule_in_transaction(db: sqlite3.Connection, bot_id: str,
+                                     schedule: Schedule) -> Bot | None:
+        row = db.execute("SELECT doc FROM bots WHERE id = ?", (bot_id,)).fetchone()
+        if row is None:
+            return None
+        bot = Bot.model_validate_json(row["doc"])
+        schedules = list(bot.schedules or ([bot.schedule] if bot.schedule else []))
+        index = next((i for i, current in enumerate(schedules) if current.id == schedule.id), None)
+        if index is None:
+            identity = db.execute("SELECT bot_id, removed_at FROM schedule_identities WHERE schedule_id = ?",
+                                  (schedule.id,)).fetchone()
+            if identity:
+                raise ValueError("a removed or previously used scheduled task ID cannot be reused")
+            db.execute("INSERT INTO schedule_identities (schedule_id, bot_id, created_at) VALUES (?, ?, ?)",
+                       (schedule.id, bot_id, schedule.created_at))
+            schedules.append(schedule)
+        else:
+            schedule = schedule.model_copy(update={"created_at": schedules[index].created_at})
+            schedules[index] = schedule
+            identity = db.execute("SELECT bot_id, removed_at FROM schedule_identities WHERE schedule_id = ?",
+                                  (schedule.id,)).fetchone()
+            if identity and (identity["bot_id"] != bot_id or identity["removed_at"]):
+                raise ValueError("scheduled task identity does not belong to this active bot task")
+            if not identity:
                 db.execute("INSERT INTO schedule_identities (schedule_id, bot_id, created_at) VALUES (?, ?, ?)",
                            (schedule.id, bot_id, schedule.created_at))
-                schedules.append(schedule)
-            else:
-                schedule = schedule.model_copy(update={"created_at": schedules[index].created_at})
-                schedules[index] = schedule
-                identity = db.execute("SELECT bot_id, removed_at FROM schedule_identities WHERE schedule_id = ?",
-                                      (schedule.id,)).fetchone()
-                if identity and (identity["bot_id"] != bot_id or identity["removed_at"]):
-                    raise ValueError("scheduled task identity does not belong to this active bot task")
-                if not identity:
-                    db.execute("INSERT INTO schedule_identities (schedule_id, bot_id, created_at) VALUES (?, ?, ?)",
-                               (schedule.id, bot_id, schedule.created_at))
-            bot.set_schedules(schedules)
-            db.execute("UPDATE bots SET name = ?, doc = ? WHERE id = ?",
-                       (bot.name, bot.model_dump_json(), bot_id))
-        self.bus.notify("work", "bots")
+        bot.set_schedules(schedules)
+        db.execute("UPDATE bots SET name = ?, doc = ? WHERE id = ?",
+                   (bot.name, bot.model_dump_json(), bot_id))
         return bot
 
     def list_schedule_occurrences(self, schedule_id: str, *, limit: int = 50,

@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Link activated saved workflows to existing routines by explicit owner action. Routines pin the selected immutable revision and validated inputs; schedule admission is atomic with the occurrence claim, and idempotent Run now leaves the next occurrence unchanged. The routine editor and marketing FAQ describe activation/link/enable boundaries. Deterministic scheduler/API tests and Chromium captures at 320/360/768/1440 are recorded in `docs/realignment/artifacts/scheduled-workflow-link-2026-10-11/`; live provider execution remains unverified.
 - Verify queued-step Stop fencing: Stop marks the workflow attempt and its descendants before transitions, stops an unclaimed queued step without dispatch, rejects a late child admission, and leaves the orchestration attempt nonterminal until cleanup.
 - Fix one-slot workflow admission: a child step now shares its occupying orchestration attempt's global capacity reservation, while unrelated work still waits for a separate slot. A regression reproduces the previous starvation at `max_live=1`.
 - Verify the safe live-run amendment path: a candidate preview remains read-only while a node is active, adoption refuses to change the run, and a fresh preview after owner Pause confirms quiescence and reusable settled transforms before the revised run continues; test output and source hashes are recorded in `docs/realignment/artifacts/workflow-studio/amendment-safe-pause-2026-10-11/validation.json`.

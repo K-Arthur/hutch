@@ -147,6 +147,98 @@ def test_save_run_and_read_back_with_idempotency(client):
     assert detail["workflow"]["result"]["artifacts"][0]["name"] == "summary"
 
 
+def test_routine_link_requires_an_activated_workflow_and_pins_validated_revision(client):
+    bot = make_bot(client, name="workflow-routine-link-bot")
+    saved = client.post(
+        "/api/v1/workflows", headers={"Idempotency-Key": "routine-save-method"},
+        json={"name": "routine-linked-report", "plan": plan()},
+    )
+    assert saved.status_code == 201, saved.text
+    definition_id = saved.json()["id"]
+    assert saved.json()["active"] is False
+    schedule_url = f"/api/v1/bots/{bot['id']}/schedules/schedule_routine_link"
+    body = {
+        "name": "Weekly report", "trigger": "once", "anchor_at": "2026-10-12T09:00:00+00:00",
+        "timezone": "UTC", "enabled": False, "workflow_definition_id": definition_id,
+        "workflow_inputs": {"unknown": "must be refused"},
+    }
+
+    refused = client.put(schedule_url, json=body, headers={"Idempotency-Key": "routine-link-inactive"})
+    assert refused.status_code == 409
+    assert "activate" in refused.text.lower()
+
+    activated = client.post(f"/api/v1/workflows/{definition_id}/activate",
+                            headers={"Idempotency-Key": "routine-activate-method"})
+    assert activated.status_code == 200 and activated.json()["active"] is True
+
+    missing_key = client.put(schedule_url, json={**body, "workflow_inputs": {}})
+    assert missing_key.status_code == 428
+
+    invalid_inputs = client.put(schedule_url, json=body,
+                                headers={"Idempotency-Key": "routine-link-invalid-input"})
+    assert invalid_inputs.status_code == 422
+    assert "unknown inputs" in invalid_inputs.text
+
+    linked = client.put(schedule_url, json={**body, "workflow_inputs": {"root": "reports"}},
+                        headers={"Idempotency-Key": "routine-link-valid"})
+    assert linked.status_code == 200, linked.text
+    resource = linked.json()
+    latest = client.get(f"/api/v1/workflows/{definition_id}").json()
+    assert resource["workflow_definition_id"] == definition_id
+    assert resource["workflow_revision_id"] == latest["revision_id"]
+    assert resource["workflow_inputs"] == {"root": "reports"}
+    assert resource["enabled"] is False
+
+    replay = client.put(schedule_url, json={**body, "workflow_inputs": {"root": "reports"}},
+                        headers={"Idempotency-Key": "routine-link-valid"})
+    assert replay.status_code == 200 and replay.json()["workflow_revision_id"] == latest["revision_id"]
+    conflict = client.put(schedule_url, json={**body, "workflow_inputs": {"root": "other"}},
+                          headers={"Idempotency-Key": "routine-link-valid"})
+    assert conflict.status_code == 409
+
+
+def test_run_now_launches_the_routine_pinned_revision_idempotently_without_advancing_schedule(client):
+    bot = make_bot(client, name="workflow-routine-run-now-bot", tools=[])
+    tiny_plan = {
+        "name": "one-off-routine-method",
+        "budget": {"max_nodes": 3, "max_model_calls": 0},
+        "nodes": [{"kind": "transform", "id": "value", "op": "constant",
+                   "args": {"value": "scheduled result"}}],
+        "outputs": ["value"],
+    }
+    saved = client.post("/api/v1/workflows", headers={"Idempotency-Key": "routine-run-now-save"},
+                        json={"name": "one-off-routine-method", "plan": tiny_plan, "activate": True})
+    assert saved.status_code == 201, saved.text
+    definition_id = saved.json()["id"]
+    revision_id = client.get(f"/api/v1/workflows/{definition_id}").json()["revision_id"]
+    schedule_id = "schedule_routine_run_now"
+    schedule_url = f"/api/v1/bots/{bot['id']}/schedules/{schedule_id}"
+    linked = client.put(schedule_url, headers={"Idempotency-Key": "routine-run-now-link"}, json={
+        "name": "One-off report", "trigger": "once", "anchor_at": "2026-10-12T09:00:00+00:00",
+        "timezone": "UTC", "enabled": False, "workflow_definition_id": definition_id,
+        "workflow_inputs": {},
+    })
+    assert linked.status_code == 200, linked.text
+    store = client.app.state.store
+    marker_before = store.kv_get(f"{schedule_id}:last_fire")
+
+    run_url = f"/api/v1/bots/{bot['id']}/schedules/{schedule_id}/run-now"
+    headers = {"Idempotency-Key": "routine-run-now-launch"}
+    launched = client.post(run_url, headers=headers, json={})
+    assert launched.status_code == 200, launched.text
+    result = launched.json()
+    assert result["workflow_run_id"] and result["attempt_run_id"] == result["run_id"]
+    detail = client.get(f"/api/v1/workflows/runs/{result['workflow_run_id']}")
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["workflow"]["revision_id"] == revision_id
+    from hutch.workflow import persistence as workflow_store
+    workflow_store.set_active(store, definition_id, False)
+    replay = client.post(run_url, headers=headers, json={})
+    assert replay.status_code == 200 and replay.json()["workflow_run_id"] == result["workflow_run_id"]
+    assert replay.json()["run_id"] == result["run_id"]
+    assert store.kv_get(f"{schedule_id}:last_fire") == marker_before
+
+
 def test_dynamic_plan_submission_is_bound_to_its_conversation(client):
     bot = make_bot(client, name="wf-plan-chat-owner")
     other = make_bot(client, name="wf-plan-chat-other")

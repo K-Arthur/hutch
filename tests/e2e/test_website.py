@@ -727,7 +727,9 @@ def test_dynamic_workflow_marketing_is_truthful_and_responsive(browser, site_url
                        "stop while owned work settles",
                        "completed step is not necessarily verified", "selector qualification for the exact model profile",
                        "two local profiles tested did not qualify", "auto does not create new plans",
-                       "routine links are not available yet"):
+                       "an owner can link an activated saved method to an existing routine",
+                       "pins that revision and its checked inputs", "enabling the routine stays a separate choice",
+                       "run now launches one copy without moving the next scheduled occurrence"):
             assert phrase in preview_text, phrase
         assert page.locator("#workflow .workflow-details").count() == 3
 
@@ -736,17 +738,19 @@ def test_dynamic_workflow_marketing_is_truthful_and_responsive(browser, site_url
         assert workflow_row.count() == 1
         availability = workflow_row.inner_text().lower()
         for phrase in ("owner-started saved workflows", "chat route cards", "auto starts of activated saved methods",
-                       "a pause request lets the current node and owned work settle before the next step is held",
-                       "a parked run can be resumed from its chat",
                        "selector qualification for the exact model profile", "two local profiles tested did not qualify",
-                       "auto does not create new plans", "routine links are not available yet", "experimental"):
+                       "auto does not create new plans", "an owner can link an activated saved method to an existing routine",
+                       "pins the exact revision and checked inputs", "enabling the routine stays separate",
+                       "run now starts one copy without advancing the schedule",
+                       "the existing local supervisor and host must be running", "live provider execution remains unverified",
+                       "experimental"):
             assert phrase in availability, phrase
 
         faq_expectations = {
             "How do Suggest and Auto work for workflows?": "the two local profiles tested did not qualify",
             "Can a local model design or choose a workflow?": "neither of the two qwen3 profiles tested qualified",
             "What happens if I stop a workflow or Hutch restarts?": "a pause request does not cancel active work",
-            "What is the difference between a workflow and a routine?": "connecting a saved workflow to a routine is a separate action",
+            "What is the difference between a workflow and a routine?": "hutch pins the exact revision and checks its inputs",
         }
         for question, expected in faq_expectations.items():
             item = page.locator("#faq details").filter(has=page.get_by_text(question, exact=True))

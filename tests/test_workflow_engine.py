@@ -13,7 +13,7 @@ import time
 import pytest
 
 from hutch.engine import Engine
-from hutch.models import ACTIVE_STATUSES, Bot, EventType, Run, RunStatus, Task
+from hutch.models import ACTIVE_STATUSES, Bot, EventType, Run, RunStatus, Schedule, Task, TriggerKind
 from hutch.store import Store
 from hutch.workflow import persistence as wstore
 from hutch.workflow import submit as wfsubmit
@@ -119,6 +119,39 @@ def test_deterministic_workflow_runs_publishes_and_verifies(store, config):
     # The published artifact is reachable through the canonical artifact API.
     records = store.artifact_records(submission.attempt_run_id)
     assert any(kind == "tool_output" for _event, kind in records)
+
+
+def test_existing_scheduler_runs_the_pinned_saved_workflow_once(store, config):
+    bot = make_bot(store)
+    saved = wstore.save_definition(store, name="scheduled report", plan=deterministic_plan(), activate=True)
+    schedule = Schedule(
+        id="schedule_workflow_once", name="Weekly report", trigger=TriggerKind.once,
+        anchor_at="2026-10-10T00:00:00+00:00", timezone="UTC", enabled=True,
+        workflow_definition_id=saved["definition_id"], workflow_revision_id=saved["revision_id"],
+        workflow_inputs={"root": "."},
+    )
+    store.put_schedule(bot.id, schedule)
+    store.kv_set(f"{schedule.id}:last_fire", "2026-10-09T00:00:00+00:00")
+    engine = Engine(config, store)
+
+    created = engine.scheduler_claims()
+    assert len(created) == 1
+    attempt = created[0]
+    assert attempt.kind == "workflow"
+    assert attempt.schedule_id == schedule.id
+    assert attempt.workflow_run_id
+    drive(engine, store, attempt.id)
+
+    result = wstore.workflow_run(store, attempt.workflow_run_id)
+    assert result is not None
+    assert result["status"] == "succeeded"
+    assert result["definition_id"] == saved["definition_id"]
+    assert result["revision_id"] == saved["revision_id"]
+    occurrences = store.list_schedule_occurrences(schedule.id, limit=10)
+    assert len(occurrences) == 1
+    assert occurrences[0]["run_id"] == attempt.id
+    assert engine.scheduler_claims() == []
+    assert len(store.list_schedule_occurrences(schedule.id, limit=10)) == 1
 
 
 def test_output_projection_separates_verified_and_partial_from_node_counts(store, config):

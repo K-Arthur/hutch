@@ -34,6 +34,7 @@ class WorkflowDefinitionResource(BaseModel):
     active: bool = False
     source: str = "operator"
     revisions: int = 0
+    latest_revision_id: Optional[str] = None
     created_at: str = ""
     updated_at: str = ""
 
@@ -445,6 +446,7 @@ def _definition_resource(row: dict[str, Any]) -> WorkflowDefinitionResource:
         id=str(row["id"]), name=str(row["name"]), description=str(row.get("description") or ""),
         active=bool(row.get("active")), source=str(row.get("source") or "operator"),
         revisions=int(row.get("revisions") or 0), created_at=str(row.get("created_at") or ""),
+        latest_revision_id=(str(row["latest_revision_id"]) if row.get("latest_revision_id") else None),
         updated_at=str(row.get("updated_at") or ""))
 
 

@@ -18,9 +18,11 @@ approval.
 Workflows are in private preview. The owner can start a reviewed saved workflow from Studio,
 the API or CLI. Chat recommendations and Auto saved-workflow launch now use an exact-profile
 selector gate, but neither Qwen3 local profile tested in the bounded campaign qualified, so those
-paths are blocked for the tested checkpoints. Auto does not start a newly generated plan, and
-scheduled routine links are not connected. The public website describes these limits; it does
-not imply a public download or a currently qualified local selector.
+paths are blocked for the tested checkpoints. Auto does not start a newly generated plan. The
+existing routine editor can link an activated saved workflow to a schedule; the routine pins one
+immutable revision and validated input snapshot. This path is covered by deterministic local
+tests, while live provider execution remains unverified. The public website describes these
+limits; it does not imply a public download or a currently qualified local selector.
 
 ## What a workflow is
 
@@ -145,8 +147,28 @@ A model may draft a plan only when its route is qualified for the **author** rol
 evidence on that exact route revision), and only through the `draft_workflow` tool, which
 validates and explains but never starts anything. A person then reviews and runs it.
 
-Importing a definition starts it **inactive**; running it and scheduling it are separate
-actions, and saving never grants a schedule or wider permissions.
+Importing a definition starts it **inactive**. Activating the definition, linking it to a routine,
+and enabling that routine are separate owner actions. Saving never starts work or grants a schedule
+or wider permissions.
+
+## Running a saved workflow from a routine
+
+In Assistant settings, choose an activated saved workflow in an existing routine, review its input
+JSON, then save the routine. The server checks the workflow's current authority and input contract.
+If no revision is supplied, Hutch pins the latest immutable revision at link time. Later saves of
+the workflow do not silently change that routine's pin. Saving the link does not enable the routine;
+the existing Enabled control remains a separate decision.
+
+The owner API uses `PUT /api/v1/bots/{ref}/schedules/{schedule_id}` with
+`workflow_definition_id`, optional `workflow_revision_id`, and `workflow_inputs`. When linking,
+editing, or unlinking a workflow-backed routine, include an `Idempotency-Key`; inactive methods
+return 409, invalid input or a revision from another method returns 422. At the due occurrence,
+the existing local supervisor atomically claims the occurrence and admits one workflow instance
+for that pinned revision and input snapshot. The workflow is not replanned. `POST
+/api/v1/bots/{ref}/schedules/{schedule_id}/run-now` starts the same pin once and leaves the next
+scheduled occurrence unchanged; send an `Idempotency-Key` so a retry returns the same attempt.
+The host and local supervisor must be running when the routine is due, and ordinary workflow role,
+budget, approval and capability checks still apply.
 
 ## Roles and qualification
 
@@ -325,9 +347,6 @@ attempt can run.
   [`artifacts/workflow-studio/phone/`](realignment/artifacts/workflow-studio/phone/).
 * No MCP facade (Hutch has no MCP plane), no code facade, and no automatic downloads or
   model substitution.
-* **No scheduling of workflows yet.** A routine decides *when* saved work runs; wiring a
-  routine to a saved workflow is a separate, explicit act that is not implemented, so a
-  workflow cannot currently run unattended on a schedule.
 * **Amendment preview and a constrained adoption API exist.** The local-owner API
   `POST /api/v1/workflows/runs/{id}/amendments/preview` takes an expected immutable revision,
   the current attempt ID as an opaque generation token, a candidate plan and optional new input

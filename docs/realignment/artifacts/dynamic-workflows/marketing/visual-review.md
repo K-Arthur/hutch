@@ -34,12 +34,18 @@ and screenshot/trace hashes are in [`results.json`](results.json).
   own text begins “Experimental” to keep that state visible at narrow widths.
   The long neighboring availability entries wrap within the table and cause no
   document overflow.
+- The availability copy is intentionally shorter than the workflow preview. It
+  keeps the pin, separate enable action, Run now behavior, local-supervisor
+  requirement, exact-profile qualification and provider limitation while reducing
+  the tall table row on phone screens.
 - The teaser preserves Hutch’s dark surface, blue information marker, green
   brand rail, existing type scale and button treatment. It explains that chat
   route cards and saved-workflow Auto starts require exact-profile selector
   qualification; the two local profiles tested did not qualify. It states that
-  generated-plan Auto and routine links are unavailable. The workflow copy now
-  explains that an owner can request Pause during a running step; the current
+  generated-plan Auto does not create plans. An owner can link an activated
+  method to an existing routine, with a pinned revision and checked inputs; the
+  FAQ explains the separate enable action and one-off Run now behavior. The
+  workflow copy explains that an owner can request Pause during a running step; the current
   node and owned work settle before the next step is held. A run that is already
   parked can be resumed from the same chat. The FAQ explains that pending
   questions remain answerable and no downstream work starts before Resume.

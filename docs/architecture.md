@@ -425,7 +425,7 @@ events through the same ownership check. Failed admission rolls back both withou
 the buffer. Expired execution cannot receive a new approval or standing grant; decisions still
 resolve once through compare-and-swap, and full-request rewrites are refused.
 
-## Dynamic workflows (schema v59)
+## Dynamic workflows (schema migration v59)
 
 A workflow is a **saved, validated plan**, not generated code. The plan schema, the bounded
 evaluator and the compiler live in `src/hutch/workflow/`; `plan` is strict data, `expr`
@@ -446,6 +446,15 @@ invocation, and a reordered collection produces the same keys because map identi
 from the declared `item_key`. A settled node record is reused; it is never re-executed. An
 orchestration attempt that crashes is continued by a **new** attempt that skips settled
 records - attempts themselves still never resume mid-flight (ADR-0003).
+
+Routines use the existing elected schedule supervisor. A schedule may explicitly pin an
+activated workflow definition, one immutable revision, and a validated input object in its
+existing JSON record. Linking, activating the saved method, and enabling the routine are
+separate owner decisions; saving a later workflow revision does not move an existing pin. At a
+due occurrence, one transaction rechecks the routine and pin, writes the occurrence and first
+workflow attempt, and advances the existing markers. An idempotent Run now uses ordinary
+admission for the same pin and does not consume the next occurrence. The schedule still requires
+the local supervisor and host to be running.
 
 Deterministic nodes (transforms, governed tool calls, joins, verification, publication,
 questions) run inside the orchestration process through the canonical `steps.call_tool`

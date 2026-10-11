@@ -643,10 +643,13 @@ of source content and 16 MiB serialized JSON. Oversize returns 413 with guidance
 fact/history/share resources; records are never silently truncated. This is an export of Bot memory,
 not a database backup or permanent-delete facility.
 
-## Dynamic workflows (schema v55, owner-only v1 routes)
+## Dynamic workflows (schema migrations v55–v59, owner-only v1 routes)
 
 Workflows are **saved methods, not schedules**: a definition is inert until it is run, and
-running it never grants a schedule, a wider permission or a permanent background process.
+running it never grants a schedule, a wider permission or a permanent background process. The
+existing routine editor may separately link an activated definition to an existing schedule; the
+routine then pins the immutable revision and checked input object. The additive `Schedule` fields
+do not add a migration.
 
 * Resources: `GET/POST /api/v1/workflows` (definitions), `GET /api/v1/workflows/{ref}` (latest
   revision plan), `POST /api/v1/workflows/{ref}/activate`,
@@ -663,6 +666,21 @@ running it never grants a schedule, a wider permission or a permanent background
   instance instead of starting a second one. Errors: 428 without a key, 422 for a malformed
   or invalid plan (with `{code, diagnostics}`), 409 when the Bot's authority or a role blocks
   the plan, 413 for an oversized plan, 404 for unknown resources.
+* Routine integration: `PUT /api/v1/bots/{ref}/schedules/{schedule_id}` accepts
+  `workflow_definition_id`, optional `workflow_revision_id`, and `workflow_inputs`. When linking,
+  changing, or clearing a workflow link, it requires an idempotency key; the key receipt and
+  schedule document are committed together. The method must already be active, the selected
+  revision must belong to it, and the inputs are validated before the link is stored. Omitting the
+  revision pins the current latest revision. A later definition save does not move the routine's
+  pin. Schedule enabled state is independent and remains an owner choice.
+* Scheduled admission uses the existing elected supervisor. In one transaction it rechecks the
+  routine, pinned active definition/revision, inputs, workspace pause and expected occurrence
+  marker; writes the schedule occurrence, workflow instance, first attempt and stable idempotency
+  receipt; then advances the existing schedule markers. Duplicate or stale claims create no second
+  occurrence. `POST /api/v1/bots/{ref}/schedules/{schedule_id}/run-now` launches the same pin once,
+  returns `workflow_run_id` and `attempt_run_id`, and leaves the next scheduled occurrence
+  unchanged. Run-now uses the same idempotency key on retries and resolves an admitted attempt
+  before mutable activation checks.
 * Identity: definition → immutable revision (`plan_hash`) → instance (`wrun_…`, stable across
   orchestration attempts) → node instance (`(site_id, instance_key)`) → step attempt (an
   ordinary run). A source change is a new revision, never a byte-identical resume.

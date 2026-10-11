@@ -1115,6 +1115,9 @@ class ScheduleResource(BaseModel):
     overlap: str = "queue"
     enabled: bool = True
     prompt: str = ""
+    workflow_definition_id: Optional[str] = None
+    workflow_revision_id: Optional[str] = None
+    workflow_inputs: dict[str, Any] = Field(default_factory=dict)
     created_at: str
     paused: bool
     workspace_paused: bool = False
@@ -1147,6 +1150,9 @@ class SchedulePut(BaseModel):
     overlap: str = Field(default="queue", pattern="^(queue|skip|buffer_one)$")
     enabled: bool = True
     prompt: str = Field(default="", max_length=4000)
+    workflow_definition_id: Optional[str] = Field(default=None, max_length=80)
+    workflow_revision_id: Optional[str] = Field(default=None, max_length=80)
+    workflow_inputs: dict[str, Any] = Field(default_factory=dict)
 
 
 class BackgroundProviderConsentRequest(BaseModel):
@@ -2528,7 +2534,11 @@ def create_app() -> FastAPI:
                 "interval_seconds": scheduled.interval_seconds, "anchor_at": scheduled.anchor_at,
                 "timezone": scheduled.timezone, "catch_up": scheduled.catch_up.value,
                 "overlap": scheduled.overlap.value, "enabled": scheduled.enabled,
-                "prompt": scheduled.prompt, "created_at": scheduled.created_at, "paused": bot.paused,
+                "prompt": scheduled.prompt,
+                "workflow_definition_id": scheduled.workflow_definition_id,
+                "workflow_revision_id": scheduled.workflow_revision_id,
+                "workflow_inputs": scheduled.workflow_inputs,
+                "created_at": scheduled.created_at, "paused": bot.paused,
                 "workspace_paused": workspace_paused,
                 "effective_paused": bot.paused or workspace_paused or (not scheduled.enabled),
                 "next_fire": nxt.isoformat() if nxt else None,
@@ -2590,8 +2600,67 @@ def create_app() -> FastAPI:
         return Response(status_code=204)
 
     @app.put("/api/v1/bots/{ref}/schedules/{schedule_id}", response_model=ScheduleResource)
-    def put_schedule(ref: str, schedule_id: str, body: SchedulePut) -> dict:
+    def put_schedule(ref: str, schedule_id: str, body: SchedulePut, request: Request) -> dict:
         bot = bot_or_404(ref)
+        current = next((item for item in (bot.schedules or ([bot.schedule] if bot.schedule else []))
+                        if item.id == schedule_id), None)
+        requires_idempotency = bool(body.workflow_definition_id or (current and current.workflow_definition_id))
+        idem_key = request_hash = ""
+        idem_scope = f"api:v1:schedules:{bot.id}:{schedule_id}"
+        if requires_idempotency:
+            idem_key = idempotency_key(request)
+            request_hash = request_digest({"bot_id": bot.id, "schedule_id": schedule_id,
+                                           **body.model_dump(mode="json")})
+            try:
+                replay = store.idempotency_replay(idem_scope, idem_key, request_hash)
+            except IdempotencyConflict as exc:
+                raise HTTPException(409, str(exc)) from None
+            if replay is not None:
+                replay_bot = Bot.model_validate_json(str(replay["bot_json"]))
+                replay_schedule = next((item for item in replay_bot.schedules
+                                        if item.id == schedule_id), None)
+                if replay_schedule is None and replay_bot.schedule and replay_bot.schedule.id == schedule_id:
+                    replay_schedule = replay_bot.schedule
+                if replay_schedule is None:
+                    raise HTTPException(409, "the saved routine result is no longer available")
+                return _schedule_resource(replay_bot, replay_schedule,
+                                          workspace_paused=store.workspace_schedule_control()["paused"],
+                                          include_preview=True)
+
+        workflow_definition_id = body.workflow_definition_id
+        workflow_revision_id = body.workflow_revision_id
+        workflow_inputs = body.workflow_inputs
+        if not workflow_definition_id:
+            if workflow_revision_id or workflow_inputs:
+                raise HTTPException(422, "workflow revision and inputs require a linked saved workflow")
+            workflow_revision_id = None
+            workflow_inputs = {}
+        else:
+            from ..workflow import persistence as wfstore
+            from ..workflow import submit as wfsubmit
+            from ..workflow.compile import PlanInvalid, compile_plan
+
+            definition = wfstore.definition(store, workflow_definition_id)
+            if definition is None:
+                raise HTTPException(404, "no such saved workflow")
+            if not definition.get("active"):
+                raise HTTPException(409, "activate the saved workflow before linking it to a routine")
+            if not workflow_revision_id:
+                workflow_revision_id = str(definition.get("latest_revision_id") or "") or None
+            revision = wfstore.revision(store, workflow_revision_id) if workflow_revision_id else None
+            if revision is None or str(revision["definition_id"]) != str(definition["id"]):
+                raise HTTPException(422, "the selected immutable revision does not belong to this saved workflow")
+            try:
+                compiled = compile_plan(revision["plan"])
+                wfsubmit.check_authority(compiled, bot, store=store)
+                workflow_inputs = wfsubmit.validate_inputs(compiled.plan, workflow_inputs)
+            except wfsubmit.PlanInputError as exc:
+                raise HTTPException(422, str(exc)) from None
+            except wfsubmit.PlanNotSubmittable as exc:
+                raise HTTPException(409, str(exc)) from None
+            except PlanInvalid as exc:
+                raise HTTPException(422, {"code": "plan_invalid",
+                                          "diagnostics": [item.render() for item in exc.diagnostics]}) from None
         from croniter import croniter
         try:
             trigger = TriggerKind(body.trigger)
@@ -2611,11 +2680,18 @@ def create_app() -> FastAPI:
                 interval_seconds=body.interval_seconds, anchor_at=body.anchor_at,
                 timezone=body.timezone, catch_up=body.catch_up, overlap=overlap,
                 enabled=body.enabled, prompt=body.prompt,
+                workflow_definition_id=workflow_definition_id,
+                workflow_revision_id=workflow_revision_id,
+                workflow_inputs=workflow_inputs,
             )
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
         try:
-            updated = store.put_schedule(bot.id, schedule)
+            if requires_idempotency:
+                updated, _created = store.put_schedule_idempotent(
+                    bot.id, schedule, idem_key=idem_key, request_hash=request_hash)
+            else:
+                updated = store.put_schedule(bot.id, schedule)
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from None
         if updated is None:
@@ -2626,18 +2702,36 @@ def create_app() -> FastAPI:
                                   include_preview=True)
 
     @app.post("/api/v1/bots/{ref}/schedules/{schedule_id}/run-now")
-    def run_schedule_now(ref: str, schedule_id: str) -> dict:
+    def run_schedule_now(ref: str, schedule_id: str, request: Request) -> dict:
         bot = bot_or_404(ref)
         scheduled = next((item for item in bot.schedules if item.id == schedule_id), None)
         if scheduled is None:
             raise HTTPException(404, f"no such scheduled task: {schedule_id}")
         marker_before = store.kv_get(f"{schedule_id}:last_fire")
-        run = engine.run_schedule_now(bot, scheduled)
+        idem_key = ""
+        digest = ""
+        if scheduled.workflow_definition_id or request.headers.get("Idempotency-Key"):
+            idem_key = idempotency_key(request)
+            digest = request_digest({"action": "run-now", "bot_id": bot.id,
+                                     "schedule_id": schedule_id,
+                                     "workflow_definition_id": scheduled.workflow_definition_id,
+                                     "workflow_revision_id": scheduled.workflow_revision_id,
+                                     "workflow_inputs": scheduled.workflow_inputs,
+                                     "prompt": scheduled.prompt})
+        try:
+            run = engine.run_schedule_now(bot, scheduled, idem_key=idem_key, request_hash=digest)
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
         marker_after = store.kv_get(f"{schedule_id}:last_fire")
         if marker_before != marker_after:
             raise HTTPException(500, "run-now must not advance the schedule marker")
-        return {"run_id": run.id, "schedule_id": schedule_id, "origin": run.origin,
-                "marker_unchanged": True}
+        result = {"run_id": run.id, "schedule_id": schedule_id, "origin": run.origin,
+                  "marker_unchanged": True}
+        if run.workflow_run_id:
+            result.update({"workflow_run_id": run.workflow_run_id, "attempt_run_id": run.id})
+        return result
 
     @app.post("/api/v1/bots/{ref}/schedules/{schedule_id}/skip-next", response_model=ScheduleResource)
     def skip_next_schedule(ref: str, schedule_id: str) -> dict:

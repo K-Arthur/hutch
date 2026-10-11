@@ -30,7 +30,7 @@ import sqlite3
 from typing import Any, Iterable, Optional
 
 from ..lifecycle import IllegalTransition, LeaseLost, TERMINAL
-from ..models import Run, RunStatus, Task, iso, new_id, utcnow
+from ..models import Bot, Run, RunStatus, Task, iso, new_id, utcnow
 
 #: Node instance states.
 NODE_STATES = ("pending", "running", "waiting", "succeeded", "failed", "skipped", "cancelled")
@@ -68,6 +68,10 @@ class AmendmentSnapshotLimit(ValueError):
 
 class WorkflowPauseRequested(RuntimeError):
     """A node has not started because the owner requested a safe-boundary pause."""
+
+
+class ScheduleClaimLost(RuntimeError):
+    """A due routine changed or was claimed before its linked workflow could be admitted."""
 
 
 def migrate(db: sqlite3.Connection) -> None:
@@ -273,7 +277,10 @@ def save_definition(store: Any, *, name: str, plan: dict[str, Any], description:
 def definition(store: Any, ref: str) -> Optional[dict[str, Any]]:
     with store._lock:
         row = store._db.execute(
-            """SELECT d.*, (SELECT MAX(revision) FROM workflow_revisions r WHERE r.definition_id = d.id) AS revisions
+            """SELECT d.*,
+                      (SELECT MAX(revision) FROM workflow_revisions r WHERE r.definition_id = d.id) AS revisions,
+                      (SELECT id FROM workflow_revisions r WHERE r.definition_id = d.id
+                       ORDER BY revision DESC LIMIT 1) AS latest_revision_id
                FROM workflow_definitions d WHERE d.id = ? OR d.name = ?""", (ref, ref)).fetchone()
     return dict(row) if row else None
 
@@ -283,7 +290,10 @@ def list_definitions(store: Any, *, limit: int = 100, offset: int = 0) -> list[d
         raise ValueError("definition pagination is out of range")
     with store._lock:
         rows = store._db.execute(
-            """SELECT d.*, (SELECT MAX(revision) FROM workflow_revisions r WHERE r.definition_id = d.id) AS revisions
+            """SELECT d.*,
+                      (SELECT MAX(revision) FROM workflow_revisions r WHERE r.definition_id = d.id) AS revisions,
+                      (SELECT id FROM workflow_revisions r WHERE r.definition_id = d.id
+                       ORDER BY revision DESC LIMIT 1) AS latest_revision_id
                FROM workflow_definitions d ORDER BY d.updated_at DESC LIMIT ? OFFSET ?""",
             (limit, offset)).fetchall()
     return [dict(row) for row in rows]
@@ -594,7 +604,8 @@ def submit_workflow_run(store: Any, *, plan: dict[str, Any], definition_id: Opti
                         revision_id: Optional[str], plan_hash: str, bot_id: str, inputs: dict[str, Any],
                         budget: dict[str, Any], origin: str, conversation_id: str,
                         run: Run, task: Task, idem_key: str = "",
-                        request_hash: str = "") -> tuple[dict[str, Any], bool]:
+                        request_hash: str = "", schedule_claim: Optional[dict[str, Any]] = None
+                        ) -> tuple[dict[str, Any], bool]:
     """Admit one workflow instance and its first orchestration attempt, atomically.
 
     Returns ``(workflow, created)``; a replayed idempotency key returns the original
@@ -607,6 +618,11 @@ def submit_workflow_run(store: Any, *, plan: dict[str, Any], definition_id: Opti
     run.kind = "workflow"
     run.workflow_run_id = wf_id
     run.task_id = task.id
+    if schedule_claim is not None:
+        if not idem_key:
+            raise ValueError("a scheduled workflow occurrence requires an idempotency key")
+        run.schedule_id = str(schedule_claim["schedule_id"])
+        run.missed_windows = int(schedule_claim.get("missed_windows") or 0)
     scope = "api:v1:workflow-runs"
     with store._tx() as db:
         store._assert_execution_ready(db)
@@ -618,6 +634,42 @@ def submit_workflow_run(store: Any, *, plan: dict[str, Any], definition_id: Opti
                 if row is None:
                     raise RuntimeError("idempotent workflow response points to missing state")
                 return _row_to_workflow(row), False
+        if schedule_claim is not None:
+            schedule_id = str(schedule_claim["schedule_id"])
+            schedule_marker = f"{schedule_id}:last_fire"
+            dispatch_marker = f"{schedule_id}:last_dispatch"
+            control = db.execute("SELECT schedules_paused FROM workspace_settings WHERE id = 1").fetchone()
+            if control is None or bool(control["schedules_paused"]):
+                raise ScheduleClaimLost("workspace schedules were paused before admission")
+            bot_row = db.execute("SELECT doc FROM bots WHERE id = ?", (bot_id,)).fetchone()
+            if bot_row is None:
+                raise ScheduleClaimLost("the routine's assistant no longer exists")
+            current_bot = Bot.model_validate_json(str(bot_row["doc"]))
+            current_schedules = current_bot.schedules or ([current_bot.schedule] if current_bot.schedule else [])
+            current_schedule = next((item for item in current_schedules if item.id == schedule_id), None)
+            if (current_bot.paused or current_schedule is None or not current_schedule.enabled
+                    or current_schedule.workflow_definition_id != definition_id
+                    or current_schedule.workflow_revision_id != revision_id
+                    or current_schedule.workflow_inputs != inputs):
+                raise ScheduleClaimLost("the routine or its pinned workflow changed before admission")
+            active_revision = db.execute(
+                """SELECT d.active FROM workflow_definitions d JOIN workflow_revisions r
+                     ON r.definition_id = d.id WHERE d.id = ? AND r.id = ?""",
+                (definition_id, revision_id)).fetchone()
+            if active_revision is None or not bool(active_revision["active"]):
+                raise ScheduleClaimLost("the linked workflow is no longer active")
+            marker = db.execute("SELECT value FROM kv WHERE key = ?", (schedule_marker,)).fetchone()
+            actual_marker = marker["value"] if marker else None
+            if actual_marker != schedule_claim.get("expected_marker"):
+                raise ScheduleClaimLost("another scheduler claimed this routine occurrence")
+            try:
+                db.execute("""INSERT INTO schedule_occurrences_v20
+                    (schedule_id, occurrence, bot_id, run_id, claimed_at, claimed_by)
+                    VALUES (?, ?, ?, ?, ?, ?)""",
+                    (schedule_id, str(schedule_claim["occurrence"]), bot_id, run.id, now,
+                     str(schedule_claim.get("claimed_by") or "")))
+            except sqlite3.IntegrityError:
+                raise ScheduleClaimLost("another scheduler claimed this routine occurrence") from None
         db.execute("""INSERT INTO workflow_runs (id, definition_id, revision_id, plan_hash, bot_id,
                         conversation_id, origin, inputs_json, budget_json, ledger_json, status, reason,
                         attempt_run_id, created_at, updated_at)
@@ -636,7 +688,15 @@ def submit_workflow_run(store: Any, *, plan: dict[str, Any], definition_id: Opti
                        "VALUES (?, ?, ?, ?, ?)",
                        (scope, idem_key, request_hash,
                         _json({"workflow_run_id": wf_id, "attempt_run_id": run.id}), iso(utcnow())))
-    store.bus.notify("work", "runs", f"run:{run.id}")
+        if schedule_claim is not None:
+            db.execute("INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                       (schedule_marker, str(schedule_claim["occurrence"])))
+            note = {"scheduled_workflow": wf_id, "workflow_attempt": run.id,
+                    "schedule_id": schedule_id, "revision_id": revision_id,
+                    "missed_windows": run.missed_windows, "occurrence": schedule_claim["occurrence"]}
+            db.execute("INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                       (dispatch_marker, json.dumps(note, sort_keys=True)))
+    store.bus.notify("work", "runs", f"run:{run.id}", *(('schedules',) if schedule_claim is not None else ()))
     return workflow_run(store, wf_id) or {}, True
 
 

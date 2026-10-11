@@ -121,6 +121,9 @@ class Schedule(BaseModel):
     overlap: OverlapPolicy = OverlapPolicy.queue
     enabled: bool = True               # draft/disabled routines do not admit occurrences
     prompt: str = Field(default="", max_length=4000)  # task to perform; empty preserves legacy instruction fallback
+    workflow_definition_id: Optional[str] = Field(default=None, max_length=80)
+    workflow_revision_id: Optional[str] = Field(default=None, max_length=80)
+    workflow_inputs: dict[str, Any] = Field(default_factory=dict)
     created_at: str = Field(default_factory=lambda: iso(utcnow()))
 
     @field_validator("name")
@@ -147,6 +150,10 @@ class Schedule(BaseModel):
 
     @model_validator(mode="after")
     def _trigger_fields(self) -> "Schedule":
+        if bool(self.workflow_definition_id) != bool(self.workflow_revision_id):
+            raise ValueError("a linked workflow needs both definition and immutable revision IDs")
+        if not self.workflow_definition_id and self.workflow_inputs:
+            raise ValueError("workflow_inputs require a linked workflow")
         if self.trigger is TriggerKind.cron:
             cron = self.cron.strip()
             if not cron:

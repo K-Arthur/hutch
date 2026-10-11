@@ -18,6 +18,7 @@ approval waits, and kill every child process group the run started.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import signal
 import socket
@@ -1225,6 +1226,57 @@ class Engine:
         by exactly one (``Store.submit_scheduled``), and the run is created in the same transaction as the claim."""
         created: list[Run] = []
         for due in self.scheduler.due_claims():
+            if due.schedule.workflow_definition_id:
+                from .workflow import persistence as wfstore
+                from .workflow import submit as wfsubmit
+
+                definition = wfstore.definition(self.store, due.schedule.workflow_definition_id)
+                revision = wfstore.revision(self.store, due.schedule.workflow_revision_id or "")
+                if (definition is None or not definition.get("active") or revision is None
+                        or str(revision["definition_id"]) != str(definition["id"])):
+                    reason = "the linked saved workflow is missing or inactive"
+                    self.scheduler._note_blocked(due.schedule, "workflow_not_ready", reason)
+                    self.scheduler._note_skipped(due.bot, 1, due.schedule, reason="workflow_not_ready")
+                    self.scheduler.mark_dispatched(due.bot, due.occurrence, due.schedule)
+                    continue
+                occurrence = iso(due.occurrence)
+                request_data = {
+                    "schedule_id": due.schedule.id,
+                    "workflow_definition_id": due.schedule.workflow_definition_id,
+                    "workflow_revision_id": due.schedule.workflow_revision_id,
+                    "workflow_inputs": due.schedule.workflow_inputs,
+                    "occurrence": occurrence,
+                }
+                request_hash = hashlib.sha256(json.dumps(
+                    request_data, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+                ).encode("utf-8")).hexdigest()
+                schedule_claim = {
+                    "schedule_id": due.schedule.id,
+                    "occurrence": occurrence,
+                    "expected_marker": due.marker,
+                    "claimed_by": self.owner_id,
+                    "missed_windows": due.missed,
+                }
+                try:
+                    submission = wfsubmit.submit_workflow(
+                        self.store, bot=due.bot, plan=revision["plan"], inputs=due.schedule.workflow_inputs,
+                        save_definition=False, revision_id=str(revision["id"]), origin="schedule",
+                        schedule_id=due.schedule.id,
+                        idem_key=f"schedule:{due.schedule.id}:{occurrence}",
+                        request_hash=request_hash, schedule_claim=schedule_claim,
+                    )
+                except wfstore.ScheduleClaimLost:
+                    continue
+                except (wfsubmit.PlanInputError, wfsubmit.PlanNotSubmittable, KeyError, ValueError) as exc:
+                    reason = str(exc)[:300]
+                    self.scheduler._note_blocked(due.schedule, "workflow_not_ready", reason)
+                    self.scheduler._note_skipped(due.bot, 1, due.schedule, reason="workflow_not_ready")
+                    self.scheduler.mark_dispatched(due.bot, due.occurrence, due.schedule)
+                    continue
+                run = self.store.get_run(submission.attempt_run_id)
+                if run is not None:
+                    created.append(run)
+                continue
             run = Run(bot_id=due.bot.id, prompt=bot_prompt_for_schedule(due.bot, due.schedule),
                       missed_windows=due.missed, origin="schedule", schedule_id=due.schedule.id)
             task = Task(bot_id=due.bot.id, kind="scheduled", prompt=run.prompt)
@@ -1241,15 +1293,49 @@ class Engine:
                 created.append(won)
         return created
 
-    def run_schedule_now(self, bot: Bot, schedule) -> Run:
-        """On-demand execution of a routine's task prompt without consuming the next scheduled occurrence.
+    def run_schedule_now(self, bot: Bot, schedule, *, idem_key: str = "",
+                         request_hash: str = "") -> Run:
+        """Run the routine's prompt or pinned saved workflow once without advancing its occurrence.
 
         Uses ordinary admission (not ``submit_scheduled``), so the last-fire marker and occurrence
-        identity stay untouched. The run still records ``schedule_id`` for provenance.
+        identity stay untouched. The run still records ``schedule_id`` for provenance. A workflow
+        retry is resolved before checking mutable activation state so a completed admission remains
+        addressable after the saved method is later deactivated.
         """
+        if schedule.workflow_definition_id:
+            from .workflow import persistence as wfstore
+            from .workflow import submit as wfsubmit
+
+            if idem_key:
+                replay = self.store.idempotency_replay("api:v1:workflow-runs", idem_key, request_hash)
+                if replay is not None:
+                    run = self.store.get_run(str(replay.get("attempt_run_id") or ""))
+                    if run is None:
+                        raise RuntimeError("idempotent routine launch points to a missing workflow attempt")
+                    return run
+            definition = wfstore.definition(self.store, schedule.workflow_definition_id)
+            revision = wfstore.revision(self.store, schedule.workflow_revision_id or "")
+            if definition is None or not definition.get("active") or revision is None:
+                raise ValueError("the linked workflow is missing or inactive")
+            if str(revision["definition_id"]) != str(definition["id"]):
+                raise ValueError("the linked workflow revision no longer matches its saved method")
+            submission = wfsubmit.submit_workflow(
+                self.store, bot=bot, plan=revision["plan"], inputs=schedule.workflow_inputs,
+                save_definition=False, revision_id=str(revision["id"]), origin="manual:schedule",
+                schedule_id=schedule.id, idem_key=idem_key, request_hash=request_hash,
+            )
+            run = self.store.get_run(submission.attempt_run_id)
+            if run is None:
+                raise RuntimeError("scheduled workflow submission lost its attempt record")
+            return run
         prompt = bot_prompt_for_schedule(bot, schedule)
         run = Run(bot_id=bot.id, prompt=prompt, origin="manual:schedule", schedule_id=schedule.id)
-        return self.store.submit_run(run, Task(bot_id=bot.id, kind="on_demand", prompt=prompt))
+        task = Task(bot_id=bot.id, kind="on_demand", prompt=prompt)
+        if idem_key:
+            result, _created = self.store.submit_run_idempotent(
+                run, task, idem_key=idem_key, request_hash=request_hash)
+            return result
+        return self.store.submit_run(run, task)
 
     def continue_workflow_runs(self, limit: int = 4) -> int:
         """Admit a fresh orchestration attempt for any live workflow instance whose attempt is gone.

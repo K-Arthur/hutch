@@ -5738,8 +5738,12 @@ function paintSchedules() {
       const [botName, scheduleId] = button.getAttribute("data-schedule-run-now").split("/");
       button.setAttribute("aria-busy", "true");
       try {
-        const result = await api(`/v1/bots/${encodeURIComponent(botName)}/schedules/${encodeURIComponent(scheduleId)}/run-now`, { method: "POST", body: {} });
-        toast("Started a one-off run. The recurring schedule is unchanged.");
+        const result = await api(`/v1/bots/${encodeURIComponent(botName)}/schedules/${encodeURIComponent(scheduleId)}/run-now`, {
+          method: "POST", headers: { "Idempotency-Key": newIdempotencyKey() }, body: {},
+        });
+        toast(result?.workflow_run_id
+          ? "Started the linked saved workflow once. The routine schedule is unchanged."
+          : "Started a one-off run. The recurring schedule is unchanged.");
         if (result?.run_id) location.hash = `#/run/${encodeURIComponent(result.run_id)}`;
       } catch (error) {
         toast(`Could not run now: ${error.message}`, true);
@@ -6136,6 +6140,14 @@ const TOOL_SETTINGS = [
 
 function scheduleBodyFromForm(fd) {
   const trigger = String(fd.get("trigger") || "cron");
+  const workflowDefinitionId = String(fd.get("workflow_definition_id") || "").trim();
+  let workflowInputs = {};
+  if (workflowDefinitionId) {
+    workflowInputs = JSON.parse(String(fd.get("workflow_inputs_json") || "{}"));
+    if (!workflowInputs || Array.isArray(workflowInputs) || typeof workflowInputs !== "object") {
+      throw new Error("Workflow inputs must be a JSON object.");
+    }
+  }
   const body = {
     name: String(fd.get("name") || "").trim(),
     trigger,
@@ -6145,6 +6157,9 @@ function scheduleBodyFromForm(fd) {
     overlap: String(fd.get("overlap") || "queue"),
     enabled: fd.get("enabled") === "on" || fd.get("enabled") === "true",
     prompt: String(fd.get("schedule_prompt") || fd.get("prompt") || "").trim(),
+    workflow_definition_id: workflowDefinitionId || null,
+    workflow_revision_id: workflowDefinitionId ? (String(fd.get("workflow_revision_id") || "").trim() || null) : null,
+    workflow_inputs: workflowInputs,
   };
   if (trigger === "interval") {
     const minutes = Number(fd.get("interval_minutes"));
@@ -6159,7 +6174,7 @@ function scheduleBodyFromForm(fd) {
   return body;
 }
 
-function scheduleEditorHtml(schedule, index, status = null) {
+function scheduleEditorHtml(schedule, index, status = null, workflowDefinitions = [], workflowError = "") {
   const id = String(schedule.id || "");
   const trigger = schedule.trigger || "cron";
   const enabled = schedule.enabled !== false;
@@ -6174,6 +6189,14 @@ function scheduleEditorHtml(schedule, index, status = null) {
     : trigger === "once" ? "one time" : (schedule.cron || "cron");
   const formId = index === 0 ? "form-schedule" : `form-schedule-${index}`;
   const preview = Array.isArray(status?.preview) ? status.preview.slice(0, 5) : [];
+  const currentDefinition = workflowDefinitions.find(item => item.id === schedule.workflow_definition_id);
+  const workflowOptions = workflowDefinitions.filter(item => item.active || item.id === schedule.workflow_definition_id)
+    .map(item => `<option value="${esc(item.id)}" data-revision-id="${esc(item.latest_revision_id || "")}" ${item.id === schedule.workflow_definition_id ? "selected" : ""}>${esc(item.name)}${item.active ? "" : " · inactive"}</option>`).join("");
+  const missingLinkedOption = schedule.workflow_definition_id && !currentDefinition
+    ? `<option value="${esc(schedule.workflow_definition_id)}" selected>Linked workflow ${esc(schedule.workflow_definition_id)} · details unavailable</option>` : "";
+  const currentRevisionId = schedule.workflow_revision_id || "";
+  const workflowInputsText = JSON.stringify(schedule.workflow_inputs || {}, null, 2);
+  const linkedWorkflowName = currentDefinition?.name || schedule.workflow_definition_id || "none";
   return `<details class="schedule-entry" data-schedule-entry ${index === 0 ? "open" : ""}>
     <summary class="schedule-summary">
       <strong>${esc(schedule.name || "Scheduled task")}</strong>
@@ -6201,8 +6224,24 @@ function scheduleEditorHtml(schedule, index, status = null) {
       </div>
       <label class="field">Task prompt
         <textarea name="schedule_prompt" rows="2" maxlength="4000" aria-describedby="schedule-prompt-help-${index}">${esc(schedule.prompt || "")}</textarea>
-        <span class="hint" id="schedule-prompt-help-${index}">Leave blank to use this bot’s standing instructions.</span>
+        <span class="hint" id="schedule-prompt-help-${index}">Leave blank to use this bot’s standing instructions. This prompt is ignored when a saved workflow is linked.</span>
       </label>
+      <label class="field">Run a saved workflow
+        <select name="workflow_definition_id" data-schedule-workflow-definition>
+          <option value="" ${schedule.workflow_definition_id ? "" : "selected"}>Run the routine prompt</option>
+          ${workflowOptions}${missingLinkedOption}
+        </select>
+        <span class="hint">Connecting here is a separate owner action. Only activated saved methods are offered; the routine stores an exact revision and checked inputs.</span>
+      </label>
+      <p class="hint" data-workflow-revision-summary ${schedule.workflow_definition_id ? "" : "hidden"}>${schedule.workflow_definition_id
+        ? `Pinned revision ${esc(currentRevisionId)} of ${esc(linkedWorkflowName)}.` : ""}</p>
+      <input type="hidden" name="workflow_revision_id" value="${esc(currentRevisionId)}">
+      <label class="field" data-workflow-inputs-field ${schedule.workflow_definition_id ? "" : "hidden"}>
+        <span data-workflow-inputs-title>Inputs for ${esc(linkedWorkflowName)}</span>
+        <textarea name="workflow_inputs_json" rows="3" maxlength="32768" spellcheck="false">${esc(workflowInputsText)}</textarea>
+        <span class="hint">JSON object only. Inputs are validated against the pinned plan before saving and again when it runs.</span>
+      </label>
+      ${workflowError ? `<p class="hint" role="status">Saved workflow choices are unavailable: ${esc(workflowError)}</p>` : ""}
       <div class="meta-row"><span>Next run</span><span class="mono">${esc(nextFire)}</span></div>
       ${status?.blocked ? `<p class="hint schedule-skip" role="status">Blocked: ${esc(String(status.blocked.reason || "configuration").replaceAll("_", " "))}.</p>` : ""}
       ${status?.last_skip ? `<p class="hint schedule-skip" role="status">Last skipped ${esc(status.last_skip.windows)} missed windows${status.last_skip.reason ? ` · ${esc(String(status.last_skip.reason).replaceAll("_", " "))}` : ""}.</p>` : ""}
@@ -6277,6 +6316,12 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   let scheduleRows = [];
   try { scheduleRows = await api(`/v1/schedules?bot=${encodeURIComponent(b.id)}&limit=100&offset=0`); } catch {}
   const scheduleStatus = new Map(scheduleRows.map(item => [item.id, item]));
+  let workflowDefinitions = [];
+  let workflowDefinitionsError = "";
+  try {
+    const workflowPage = await api("/v1/workflows?limit=100");
+    workflowDefinitions = workflowPage.items || [];
+  } catch (error) { workflowDefinitionsError = error.message; }
   let offlineCapability = { status: "unavailable", reason: "Host isolation could not be verified." };
   let browserHandoffCapability = { status: "unavailable", reason: "The server could not verify this host's display and browser support." };
   try {
@@ -6494,7 +6539,8 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             </div>
             <div class="schedule-list" id="schedule-list">
               ${schedules.length ? schedules.map((scheduled, index) =>
-                scheduleEditorHtml(scheduled, index, scheduleStatus.get(scheduled.id))).join("")
+                scheduleEditorHtml(scheduled, index, scheduleStatus.get(scheduled.id),
+                  workflowDefinitions, workflowDefinitionsError)).join("")
                 : `<div class="empty-state schedule-empty"><p>No recurring tasks yet.</p><p class="hint">Add one when this bot should work on a regular schedule.</p></div>`}
             </div>
           </section>
@@ -6879,22 +6925,48 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     form.querySelectorAll("[data-interval-field]").forEach(el => { el.hidden = trigger !== "interval"; el.querySelector("input")?.toggleAttribute("required", trigger === "interval"); });
     form.querySelectorAll("[data-anchor-field]").forEach(el => { el.hidden = trigger === "cron"; el.querySelector("input")?.toggleAttribute("required", trigger === "once"); });
   }));
+  $$('[data-schedule-workflow-definition]').forEach(select => select.addEventListener("change", () => {
+    const form = select.closest("form");
+    if (!form) return;
+    const selected = select.selectedOptions[0];
+    const linked = Boolean(select.value);
+    const revision = form.querySelector('[name="workflow_revision_id"]');
+    const inputsField = form.querySelector("[data-workflow-inputs-field]");
+    const inputsTitle = form.querySelector("[data-workflow-inputs-title]");
+    const revisionSummary = form.querySelector("[data-workflow-revision-summary]");
+    const selectedName = selected?.textContent?.replace(/ · inactive$/, "") || "saved workflow";
+    if (revision) revision.value = linked ? (selected?.dataset.revisionId || "") : "";
+    if (inputsField) inputsField.hidden = !linked;
+    if (inputsTitle) inputsTitle.textContent = `Inputs for ${selectedName}`;
+    if (revisionSummary) {
+      revisionSummary.hidden = !linked;
+      revisionSummary.textContent = linked
+        ? `Pinned revision ${revision?.value || "not available"} of ${selectedName}.`
+        : "";
+    }
+  }));
   $$('[data-schedule-form]').forEach(form => form.addEventListener("submit", async ev => {
     ev.preventDefault();
     const fd = new FormData(form);
     const scheduleId = form.dataset.scheduleId;
     try {
       await api(`/v1/bots/${encodeURIComponent(b.id)}/schedules/${encodeURIComponent(scheduleId)}`, {
-        method: "PUT", body: scheduleBodyFromForm(fd),
+        method: "PUT", headers: { "Idempotency-Key": newIdempotencyKey() }, body: scheduleBodyFromForm(fd),
       });
-      toast(fd.get("enabled") === "on" ? "Scheduled task saved." : "Draft saved. Future occurrences stay off until enabled.");
+      toast(fd.get("workflow_definition_id")
+        ? (fd.get("enabled") === "on" ? "Saved workflow linked. Future runs are enabled." : "Saved workflow linked to this draft. Future runs stay off until enabled.")
+        : (fd.get("enabled") === "on" ? "Scheduled task saved." : "Draft saved. Future occurrences stay off until enabled."));
       renderBotDetail(b.name); refreshRoster();
     } catch (err) { toast(`Task not saved: ${err.message}`, true); }
   }));
   $$("[data-schedule-run-now-bot]").forEach(button => button.addEventListener("click", async () => {
     try {
-      const result = await api(`/v1/bots/${encodeURIComponent(b.id)}/schedules/${encodeURIComponent(button.dataset.scheduleRunNowBot)}/run-now`, { method: "POST", body: {} });
-      toast("Started a one-off run. The recurring schedule is unchanged.");
+      const result = await api(`/v1/bots/${encodeURIComponent(b.id)}/schedules/${encodeURIComponent(button.dataset.scheduleRunNowBot)}/run-now`, {
+        method: "POST", headers: { "Idempotency-Key": newIdempotencyKey() }, body: {},
+      });
+      toast(result?.workflow_run_id
+        ? "Started the linked saved workflow once. The routine schedule is unchanged."
+        : "Started a one-off run. The recurring schedule is unchanged.");
       if (result?.run_id) location.hash = `#/run/${encodeURIComponent(result.run_id)}`;
     } catch (err) { toast(`Could not run now: ${err.message}`, true); }
   }));
