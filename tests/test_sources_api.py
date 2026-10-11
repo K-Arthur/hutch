@@ -234,6 +234,30 @@ def test_service_uninstall_and_startup(tmp_path, monkeypatch):
         assert started.json()["linger"] == "enabled"
 
 
+def test_jobs_api_lists_details_and_cancels(tmp_path, monkeypatch):
+    app, client = _client(tmp_path, monkeypatch)
+    store = app.state.store
+    bot = _bot(store)
+    job, _ = store.create_job(bot_id=bot.id, kind="document_pipeline", occurrence_key="api",
+                              input={"paths": ["/tmp/none.pdf"]})
+    store.update_job_status(job["id"], "blocked", "waiting for review")
+    store.start_job_step(job["id"], "ingest", 1, input_hash="h")
+    store.finish_job_step(job["id"], "ingest", 1, status="succeeded", output={"documents": []})
+    with client:
+        listed = client.get("/api/v1/jobs").json()
+        assert [item["id"] for item in listed["items"]] == [job["id"]]
+        assert listed["counts"]["blocked"] == 1
+        detail = client.get(f"/api/v1/jobs/{job['id']}").json()
+        assert [step["step_key"] for step in detail["steps"]] == ["ingest"]
+        assert detail["steps"][0]["status"] == "succeeded"
+        assert client.get("/api/v1/jobs").json()["items"][0]["kind"] == "document_pipeline"
+
+        cancelled = client.post(f"/api/v1/jobs/{job['id']}/cancel")
+        assert cancelled.status_code == 200 and cancelled.json()["status"] == "cancelled"
+        assert client.post(f"/api/v1/jobs/{job['id']}/cancel").status_code == 409
+        assert client.get("/api/v1/jobs/job_missing").status_code == 404
+
+
 def test_source_cli_add_list_check_remove(tmp_path, monkeypatch):
     from typer.testing import CliRunner
 

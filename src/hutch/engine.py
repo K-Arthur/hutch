@@ -35,6 +35,7 @@ from typing import Callable, Optional
 from . import durable_changes, procguard, sandbox
 from .approvals import ApprovalGate, expire_stale_approvals
 from .config import hutchConfig
+from .jobs import JobRunner
 from .lifecycle import LIVE, TERMINAL as TERMINAL_STATUSES, IllegalTransition, LeaseLost
 from .monitoring import SourcePump
 from .models import (
@@ -111,6 +112,9 @@ class Engine:
         self.slot_reason: Optional[Callable[[Run], object]] = None
         #: bounded, model-free event-source checks; only the elected supervisor pumps
         self.sources: Optional[SourcePump] = SourcePump(self)
+        #: durable multi-step jobs; definitions live in src/hutch/pipelines.py
+        from . import pipelines  # noqa: F401 - registers job definitions and handlers
+        self.jobs: Optional[JobRunner] = JobRunner(self)
         if not light:
             from .hardware import probe
             from .slots import ModelSlots
@@ -1085,6 +1089,8 @@ class Engine:
             self._background_thread.join(timeout=max(0.0, deadline - time.monotonic()))
         if self.sources is not None:
             self.sources.shutdown()
+        if self.jobs is not None:
+            self.jobs.shutdown()
         self.stop_owned()
         for t in list(self._threads.values()):
             t.join(timeout=max(0.0, deadline - time.monotonic()))
@@ -1160,6 +1166,8 @@ class Engine:
         self.dispatch_pending()
         if self.sources is not None:
             self.sources.pump()
+        if self.jobs is not None:
+            self.jobs.pump()
         now = time.monotonic()
         if (self._last_resource_change_prune is None
                 or now - self._last_resource_change_prune >= 300.0):
@@ -1207,6 +1215,11 @@ class Engine:
                         best = min(best, (datetime.fromisoformat(scheduled) - now).total_seconds())
                     except ValueError:
                         pass
+        if self.jobs is not None and self._is_supervisor:
+            if self.jobs.pending():
+                best = min(best, 0.25)
+            if self.store.running_jobs(limit=1):
+                best = min(best, 0.5)
         return max(0.05, best)
 
     def run_loop(self, stop: threading.Event, on_tick: Callable[[list[Run]], None] | None = None) -> None:

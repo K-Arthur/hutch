@@ -70,7 +70,7 @@ def test_runtime_page_shows_truth_and_controls_bounded_work(live, browser, tmp_p
     page.wait_for_selector("h1:has-text('Runtime')")
 
     assert page.locator(".runtime-card h2").all_inner_texts() == [
-        "This machine", "Background service", "Watched sources", "Queue & automation"]
+        "This machine", "Background service", "Watched sources", "Multi-step jobs", "Queue & automation"]
     assert page.locator('a[data-nav="runtime"]').get_attribute("aria-current") == "page"
     assert page.locator(".runtime-source").count() == 1
     assert "Inbox" in page.locator(".runtime-source").first.inner_text()
@@ -135,7 +135,7 @@ def test_runtime_page_is_usable_at_phone_width(live, browser):
     page.wait_for_selector("h1:has-text('Runtime')")
     overflow = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
     assert overflow <= 1, f"phone layout overflows by {overflow}px"
-    assert page.locator(".runtime-card").count() == 4
+    assert page.locator(".runtime-card").count() == 5
     # The empty state's one primary action is reachable and labelled.
     button = page.locator('[data-runtime-action="add-source"]').first
     assert button.is_visible()

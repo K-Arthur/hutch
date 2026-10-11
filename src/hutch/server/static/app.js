@@ -10013,6 +10013,48 @@ function paintRuntime() {
         ${stats.pending_events ? `<p class="hint" role="status">${stats.pending_events} recorded change(s) are waiting to start within their cooldown limits.</p>` : ""}
       </section>
 
+      <section class="runtime-card" aria-labelledby="runtime-jobs-title">
+        <h2 id="runtime-jobs-title">Multi-step jobs</h2>
+        <p class="hint runtime-lead">A watched folder in document mode runs a checkpointed pipeline: register inputs → extract text → OCR only scanned pages → update the local index → write a grounded summary. An interruption resumes at the last verified step; a possible external effect stops the job for review instead of being replayed.</p>
+        ${runtimeCache.jobs.length ? `<div class="runtime-job-list" role="list">
+          ${runtimeCache.jobs.map(job => {
+            const label = { document_pipeline: "Document summary" }[job.kind] || job.kind;
+            const done = (job.steps || []).filter(step => step.status === "succeeded").length;
+            const total = (job.steps || []).length || 6;
+            const statusWord = { queued: "Queued", running: "Working", blocked: "Needs review",
+              succeeded: "Done", failed: "Failed", cancelled: "Cancelled" }[job.status] || job.status;
+            const statusClass = { succeeded: "ok", blocked: "warn", failed: "danger", running: "info",
+              cancelled: "" }[job.status] || "";
+            return `<article class="runtime-job" role="listitem" data-job-id="${esc(job.id)}">
+              <div class="runtime-source-head">
+                <strong>${esc(label)}</strong>
+                <span class="tag ${statusClass}">${esc(statusWord)}</span>
+                <span class="hint mono">${done}/${total} steps</span>
+                <span class="hint">${timeAgo(job.updated_at || job.created_at)}</span>
+                ${["queued", "running", "blocked"].includes(job.status)
+                  ? `<button class="btn ghost small" type="button" data-runtime-action="job-cancel" data-job-id="${esc(job.id)}">Cancel job</button>` : ""}
+              </div>
+              ${job.error ? `<p class="hint runtime-source-error">${esc(job.error)}</p>` : ""}
+              <details class="runtime-source-events">
+                <summary>Steps and result</summary>
+                <div>
+                  <ul class="runtime-event-list">
+                    ${(job.steps || []).map(step => `<li>
+                      <span class="tag ${step.status === "succeeded" ? "ok" : step.status === "running" ? "info" : step.status === "failed" ? "danger" : ""}">${esc(step.status)}</span>
+                      <span>${esc(step.step_key)}</span>
+                      <span class="hint">attempt ${step.attempt}${step.error ? ` — ${esc(step.error)}` : ""}</span>
+                      ${step.run_id ? `<a class="btn ghost small" href="#/run/${esc(step.run_id)}">Open run</a>` : ""}
+                    </li>`).join("")}
+                  </ul>
+                  ${job.message ? `<p class="runtime-job-message">${esc(job.message.slice(0, 600))}${job.message.length > 600 ? "…" : ""}</p>` : ""}
+                  ${job.artifact ? `<p class="hint mono">artifact ${esc(job.artifact_sha256.slice(0, 12))} · ${esc(job.artifact)}</p>` : ""}
+                </div>
+              </details>
+            </article>`;
+          }).join("")}
+        </div>` : `<p class="hint">No multi-step jobs yet. A watched folder that uses document mode creates them automatically when something changes.</p>`}
+      </section>
+
       <section class="runtime-card" aria-labelledby="runtime-queue-title">
         <h2 id="runtime-queue-title">Queue &amp; automation</h2>
         <dl class="runtime-facts">
@@ -10167,6 +10209,20 @@ async function runtimeAction(action, button) {
       openAddSourceDialog();
       return;
     }
+    if (action === "job-cancel") {
+      const jobId = button?.dataset.jobId || "";
+      const ok = await confirmDialog({
+        title: "Cancel this job",
+        body: "Stop this multi-step job? No further steps start, and a step that is currently running is asked to stop. Work already delivered is not undone.",
+        confirmText: "Cancel job", danger: true,
+      });
+      if (!ok) return;
+      setRuntimePending(action, true);
+      await api(`/v1/jobs/${encodeURIComponent(jobId)}/cancel`, { method: "POST", body: {} });
+      await renderRuntime();
+      runtimeNotice("Job cancelled.");
+      return;
+    }
     if (action === "needs-you") {
       $("#needs-you-open")?.click();
       return;
@@ -10286,13 +10342,14 @@ function bindRuntimeActions() {
 }
 
 async function renderRuntime() {
-  const [data, sourcePage, bots, schedules] = await Promise.all([
+  const [data, sourcePage, jobsPage, bots, schedules] = await Promise.all([
     api("/v1/runtime"),
     api("/v1/sources"),
+    api("/v1/jobs?limit=10"),
     api("/bots"),
     api("/v1/schedules/control"),
   ]);
-  runtimeCache = { data, sources: sourcePage.items || [], bots, schedules, pending: "" };
+  runtimeCache = { data, sources: sourcePage.items || [], jobs: jobsPage.items || [], bots, schedules, pending: "" };
   paintRuntime();
 }
 

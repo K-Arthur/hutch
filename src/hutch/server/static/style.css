@@ -2635,3 +2635,8 @@ details[open] > summary .summary-row-action .icon { transform: rotate(180deg); }
   .runtime-source { grid-template-columns: 1fr; }
   .runtime-source-actions { justify-content: flex-start; }
 }
+
+.runtime-job-list { display: grid; gap: var(--s-2); }
+.runtime-job { display: grid; gap: var(--s-1); padding: var(--s-3) var(--s-4); background: var(--sunken); border: 1px solid var(--line); border-radius: var(--r-ctl); }
+.runtime-job .runtime-source-head { flex-wrap: wrap; align-items: center; }
+.runtime-job-message { max-width: 78ch; margin: var(--s-2) 0 0; color: var(--text-2); white-space: pre-wrap; }

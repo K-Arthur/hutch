@@ -162,6 +162,9 @@ class SourcePump:
         template = str(admission.get("prompt") or DEFAULT_ADMISSION_PROMPT)
         cooldown = _clamp(admission.get("cooldown_seconds") or 300.0, 1.0, 86_400.0)
         max_per_hour = int(_clamp(admission.get("max_per_hour") or 6, 1, 60))
+        if str(admission.get("mode") or "") == "documents":
+            self._try_admit_documents(source, events, admission, cooldown, max_per_hour)
+            return
         prompt = render_admission_prompt(template, source, events)
         run = Run(bot_id=source["bot_id"], prompt=prompt, origin="source", source_id=source["id"])
         task = Task(bot_id=source["bot_id"], kind="on_demand", prompt=prompt)
@@ -170,3 +173,31 @@ class SourcePump:
                                             cooldown_seconds=cooldown, max_per_hour=max_per_hour)
         except Exception:  # admission defers on its own; a hold/permission race must not kill the loop
             return
+
+    def _try_admit_documents(self, source: dict, events: list[dict], admission: dict,
+                             cooldown: float, max_per_hour: int) -> None:
+        """Admission mode ``documents``: one durable document pipeline per material batch."""
+        import hashlib
+        import os
+
+        root = str((source.get("config") or {}).get("path") or "")
+        if not root:
+            return
+        paths: list[str] = []
+        for event in events:
+            key = str(event.get("event_key") or "")
+            if event.get("kind") in ("created", "changed", "renamed") and key and not key.startswith("__"):
+                paths.append(os.path.join(root, key))
+        if not paths:
+            self.store.retire_source_events(source["id"], note="no readable paths in this batch")
+            return
+        identity = hashlib.sha256("|".join(sorted(
+            f"{event.get('event_key')}:{event.get('content_hash')}" for event in events)).encode()).hexdigest()[:32]
+        job_input = {"paths": paths[:20], "source_id": source["id"], "source_name": source["name"],
+                     "summary_prompt": str(admission.get("prompt") or "")}
+        job, created = self.store.create_job(bot_id=source["bot_id"], kind="document_pipeline",
+                                             occurrence_key=f"{source['id']}:{identity}", input=job_input,
+                                             budget={"max_files": 20})
+        if created or job["status"] in ("queued", "running"):
+            self.store.admit_source_job(source["id"], job_id=job["id"], cooldown_seconds=cooldown,
+                                        max_per_hour=max_per_hour)

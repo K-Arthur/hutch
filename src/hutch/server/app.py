@@ -131,6 +131,9 @@ REMOTE_ROUTE_CAPABILITIES: dict[tuple[str, str], Optional[str]] = {
     ("DELETE", "/api/v1/sources/{source_id}"): None,
     ("GET", "/api/v1/sources/{source_id}/events"): None,
     ("POST", "/api/v1/sources/{source_id}/check"): None,
+    ("GET", "/api/v1/jobs"): None,
+    ("GET", "/api/v1/jobs/{job_id}"): None,
+    ("POST", "/api/v1/jobs/{job_id}/cancel"): None,
 }
 
 PUBLIC_REMOTE_ROUTES = {("GET", "/login"), ("POST", "/login"), ("GET", "/pair"),
@@ -2167,6 +2170,7 @@ def create_app() -> FastAPI:
                 "execution_held": bool((report := store.restoration_status()) and report["execution_held"]),
             },
             "sources": store.source_inbox_stats(),
+            "jobs": store.job_counts(),
         }
 
     def _confirmed(body, expected: str) -> None:
@@ -2360,6 +2364,59 @@ def create_app() -> FastAPI:
         if not store.schedule_source_now(source_id):
             raise HTTPException(404, "no enabled source with that id")
         return {"scheduled": True}
+
+    # ---------------------------------------------------------------- jobs
+    # Durable multi-step work (document pipelines today). Local owners only.
+
+    def _job_resource(job: dict, *, include_steps: bool = True) -> dict:
+        out = {"id": job["id"], "kind": job["kind"], "bot_id": job["bot_id"], "status": job["status"],
+               "occurrence_key": job["occurrence_key"], "definition_revision": job["definition_revision"],
+               "error": job["error"], "created_at": job["created_at"], "updated_at": job["updated_at"]}
+        if include_steps:
+            steps = store.job_steps(job["id"])
+            latest: dict[str, dict] = {}
+            for step in steps:
+                latest[step["step_key"]] = step
+            out["steps"] = [{"step_key": step["step_key"], "attempt": step["attempt"], "status": step["status"],
+                             "error": step["error"], "run_id": step["run_id"],
+                             "finished_at": step["finished_at"]} for step in latest.values()]
+            delivered = latest.get("deliver", {}).get("output") or {}
+            summarize = latest.get("summarize", {}).get("output") or {}
+            out["artifact"] = delivered.get("artifact", "")
+            out["artifact_sha256"] = delivered.get("artifact_sha256", "")
+            out["message"] = str(summarize.get("message") or "")[:2000]
+        return out
+
+    @app.get("/api/v1/jobs")
+    def list_jobs(status: Optional[str] = None, limit: int = 20) -> dict:
+        if status is not None and status not in ("queued", "running", "blocked", "succeeded", "failed", "cancelled"):
+            raise HTTPException(422, "unknown job status")
+        return {"items": [_job_resource(job) for job in store.list_jobs(status=status, limit=min(limit, 100))],
+                "counts": store.job_counts()}
+
+    @app.get("/api/v1/jobs/{job_id}")
+    def get_job(job_id: str) -> dict:
+        job = store.get_job(job_id)
+        if job is None:
+            raise HTTPException(404, "no such job")
+        return _job_resource(job)
+
+    @app.post("/api/v1/jobs/{job_id}/cancel")
+    def cancel_job(job_id: str) -> dict:
+        """Cancel a queued/running job: no new steps start, and a live step's run is asked to stop."""
+        job = store.get_job(job_id)
+        if job is None:
+            raise HTTPException(404, "no such job")
+        if job["status"] in ("succeeded", "failed", "cancelled"):
+            raise HTTPException(409, "this job already finished")
+        for step in store.job_steps(job_id):
+            if step["status"] == "running" and step["run_id"]:
+                try:
+                    store.request_cancel(step["run_id"])
+                except Exception:
+                    pass
+        store.update_job_status(job_id, "cancelled", "cancelled by the owner")
+        return _job_resource(store.get_job(job_id))
 
     @app.get('/api/v1/state/restore', response_model=RestorePageResource)
     def restoration_status(limit: int = 100, offset: int = 0) -> dict:

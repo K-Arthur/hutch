@@ -1395,6 +1395,70 @@ def _migrate_51(db: sqlite3.Connection) -> None:
     ),))
 
 
+def _migrate_52(db: sqlite3.Connection) -> None:
+    """Durable multi-step jobs and the scoped local document index.
+
+    A job is a bounded sequence of steps; every step is either a deterministic
+    handler or an ordinary run. Steps are the checkpoint boundary: a restart
+    resumes at the first step that has not succeeded, and a step's output is
+    reused only while its input hash and definition revision still match.
+    """
+    db.execute("""CREATE TABLE jobs (
+        id TEXT PRIMARY KEY,
+        bot_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        occurrence_key TEXT NOT NULL,
+        definition_revision INTEGER NOT NULL DEFAULT 1 CHECK(definition_revision >= 1),
+        status TEXT NOT NULL DEFAULT 'queued'
+            CHECK(status IN ('queued','running','blocked','succeeded','failed','cancelled')),
+        input TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(input)),
+        budget TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(budget)),
+        error TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE(kind, occurrence_key)
+    )""")
+    db.execute("CREATE INDEX idx_jobs_status ON jobs(status, updated_at)")
+    db.execute("""CREATE TABLE job_steps (
+        job_id TEXT NOT NULL,
+        step_key TEXT NOT NULL,
+        attempt INTEGER NOT NULL CHECK(attempt >= 1),
+        status TEXT NOT NULL
+            CHECK(status IN ('queued','running','succeeded','failed','blocked','unknown','skipped')),
+        input_hash TEXT NOT NULL DEFAULT '',
+        output TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(output)),
+        run_id TEXT,
+        error TEXT NOT NULL DEFAULT '',
+        started_at TEXT,
+        finished_at TEXT,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (job_id, step_key, attempt)
+    )""")
+    db.execute("CREATE INDEX idx_job_steps_status ON job_steps(status, updated_at)")
+    db.execute("CREATE INDEX idx_job_steps_run ON job_steps(run_id)")
+    db.execute("ALTER TABLE source_events ADD COLUMN job_id TEXT")
+    db.execute("CREATE INDEX idx_source_events_job ON source_events(job_id)")
+    db.execute("""CREATE TABLE doc_index_generations (
+        generation INTEGER PRIMARY KEY AUTOINCREMENT,
+        status TEXT NOT NULL CHECK(status IN ('building','active','retired','failed')),
+        source_hashes TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(source_hashes)),
+        created_at TEXT NOT NULL,
+        published_at TEXT
+    )""")
+    db.execute("""CREATE TABLE doc_index_chunks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        generation INTEGER NOT NULL,
+        doc_name TEXT NOT NULL,
+        doc_sha256 TEXT NOT NULL,
+        page INTEGER,
+        chunk_index INTEGER NOT NULL,
+        extraction TEXT NOT NULL DEFAULT 'text' CHECK(extraction IN ('text','ocr')),
+        content TEXT NOT NULL
+    )""")
+    db.execute("CREATE INDEX idx_doc_index_chunks_gen ON doc_index_chunks(generation, doc_sha256)")
+    db.execute("CREATE VIRTUAL TABLE doc_index_fts USING fts5(content, doc_name, doc_sha256)")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -1402,7 +1466,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
-               _migrate_48, _migrate_49, _migrate_50, _migrate_51]
+               _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -7755,7 +7819,7 @@ class Store:
         with self._lock:
             rows = self._db.execute(
                 "SELECT id, source_id, source_revision, event_key, kind, occurrence, content_hash, summary, "
-                f"status, run_id, received_at, processed_at FROM source_events WHERE {' AND '.join(clauses)} "
+                f"status, run_id, job_id, received_at, processed_at FROM source_events WHERE {' AND '.join(clauses)} "
                 "ORDER BY id DESC LIMIT ?", (*args, max(1, min(limit, 500)))).fetchall()
         return [dict(row) for row in rows]
 
@@ -7815,6 +7879,276 @@ class Store:
             "pending_events": int(pending["n"] or 0), "excluded_events": int(ignored["n"] or 0),
             "next_check_at": totals["next_check_at"], "last_success_at": totals["last_success_at"],
         }
+
+    # ---------------------------------------------------------- durable jobs
+
+    _JOB_COLS = ("id, bot_id, kind, occurrence_key, definition_revision, status, input, budget, error, "
+                 "created_at, updated_at")
+    _STEP_COLS = ("job_id, step_key, attempt, status, input_hash, output, run_id, error, started_at, "
+                  "finished_at, updated_at")
+
+    @staticmethod
+    def _job_row(row: sqlite3.Row) -> dict:
+        out = dict(row)
+        for key in ("input", "budget"):
+            try:
+                out[key] = json.loads(out.get(key) or "{}")
+            except (TypeError, ValueError):
+                out[key] = {}
+        return out
+
+    @staticmethod
+    def _step_row(row: sqlite3.Row) -> dict:
+        out = dict(row)
+        try:
+            out["output"] = json.loads(out.get("output") or "{}")
+        except (TypeError, ValueError):
+            out["output"] = {}
+        return out
+
+    def create_job(self, *, bot_id: str, kind: str, occurrence_key: str, input: dict,
+                   budget: Optional[dict] = None, definition_revision: int = 1) -> tuple[dict, bool]:
+        """Admit one job idempotently: the same (kind, occurrence) never runs twice."""
+        job_id = f"job_{uuid.uuid4().hex[:16]}"
+        stamp = iso(utcnow())
+        with self._tx() as db:
+            inserted = db.execute(
+                "INSERT OR IGNORE INTO jobs (id, bot_id, kind, occurrence_key, definition_revision, status, "
+                "input, budget, error, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, 'queued', ?, ?, '', ?, ?)",
+                (job_id, bot_id, kind, occurrence_key, max(1, int(definition_revision)),
+                 _canonical(input), _canonical(budget or {}), stamp, stamp)).rowcount
+            row = db.execute(f"SELECT {self._JOB_COLS} FROM jobs WHERE kind = ? AND occurrence_key = ?",
+                             (kind, occurrence_key)).fetchone()
+        created = bool(inserted)
+        if created:
+            self.bus.notify("jobs", "work")
+        return self._job_row(row), created
+
+    def get_job(self, job_id: str) -> Optional[dict]:
+        with self._lock:
+            row = self._db.execute(f"SELECT {self._JOB_COLS} FROM jobs WHERE id = ?", (job_id,)).fetchone()
+        return self._job_row(row) if row else None
+
+    def list_jobs(self, *, status: Optional[str] = None, limit: int = 50) -> list[dict]:
+        with self._lock:
+            if status:
+                rows = self._db.execute(
+                    f"SELECT {self._JOB_COLS} FROM jobs WHERE status = ? ORDER BY updated_at DESC LIMIT ?",
+                    (status, max(1, min(limit, 200)))).fetchall()
+            else:
+                rows = self._db.execute(
+                    f"SELECT {self._JOB_COLS} FROM jobs ORDER BY updated_at DESC LIMIT ?",
+                    (max(1, min(limit, 200)),)).fetchall()
+        return [self._job_row(row) for row in rows]
+
+    def update_job_status(self, job_id: str, status: str, error: str = "") -> None:
+        if status not in ("queued", "running", "blocked", "succeeded", "failed", "cancelled"):
+            raise ValueError("unknown job status")
+        with self._tx() as db:
+            db.execute("UPDATE jobs SET status = ?, error = ?, updated_at = ? WHERE id = ?",
+                       (status, " ".join((error or "").split())[:500], iso(utcnow()), job_id))
+        self.bus.notify("jobs", f"job:{job_id}", "state")
+
+    def job_steps(self, job_id: str) -> list[dict]:
+        with self._lock:
+            rows = self._db.execute(
+                f"SELECT {self._STEP_COLS} FROM job_steps WHERE job_id = ? ORDER BY step_key, attempt",
+                (job_id,)).fetchall()
+        return [self._step_row(row) for row in rows]
+
+    def start_job_step(self, job_id: str, step_key: str, attempt: int, *, input_hash: str,
+                       run_id: Optional[str] = None, status: str = "running") -> bool:
+        """Claim one step attempt. Returns False when that attempt already exists (never re-runs it)."""
+        stamp = iso(utcnow())
+        with self._tx() as db:
+            inserted = db.execute(
+                "INSERT OR IGNORE INTO job_steps (job_id, step_key, attempt, status, input_hash, output, "
+                "run_id, error, started_at, finished_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, '{}', ?, '', ?, NULL, ?)",
+                (job_id, step_key, max(1, int(attempt)), status, input_hash[:128], run_id or None, stamp,
+                 stamp)).rowcount
+        if inserted:
+            self.bus.notify("jobs", f"job:{job_id}", "state")
+        return bool(inserted)
+
+    def finish_job_step(self, job_id: str, step_key: str, attempt: int, *, status: str,
+                        output: Optional[dict] = None, error: str = "",
+                        run_id: Optional[str] = None) -> bool:
+        """Seal one attempt. Only a running attempt can be finished; history is never rewritten."""
+        if status not in ("succeeded", "failed", "blocked", "unknown", "skipped"):
+            raise ValueError("a finished step must be succeeded, failed, blocked, unknown or skipped")
+        stamp = iso(utcnow())
+        with self._tx() as db:
+            changed = db.execute(
+                "UPDATE job_steps SET status = ?, output = ?, error = ?, run_id = COALESCE(?, run_id), "
+                "finished_at = ?, updated_at = ? WHERE job_id = ? AND step_key = ? AND attempt = ? "
+                "AND status = 'running'",
+                (status, _canonical(output or {}), " ".join((error or "").split())[:500], run_id,
+                 stamp, stamp, job_id, step_key, max(1, int(attempt)))).rowcount
+        if changed:
+            self.bus.notify("jobs", f"job:{job_id}", "state")
+        return bool(changed)
+
+    def step_for_run(self, run_id: str) -> Optional[dict]:
+        with self._lock:
+            row = self._db.execute(
+                f"SELECT {self._STEP_COLS} FROM job_steps WHERE run_id = ? AND status = 'running' "
+                "ORDER BY updated_at DESC LIMIT 1", (run_id,)).fetchone()
+        return self._step_row(row) if row else None
+
+    def running_jobs(self, *, limit: int = 8) -> list[dict]:
+        with self._lock:
+            rows = self._db.execute(
+                f"SELECT {self._JOB_COLS} FROM jobs WHERE status IN ('queued','running') "
+                "ORDER BY updated_at LIMIT ?", (max(1, min(limit, 64)),)).fetchall()
+        return [self._job_row(row) for row in rows]
+
+    def retire_source_events(self, source_id: str, *, note: str = "", now: Optional[datetime] = None) -> int:
+        """Mark recorded events as handled without admitting work (e.g. a delete-only batch)."""
+        stamp = iso(now or utcnow())
+        with self._tx() as db:
+            changed = db.execute("UPDATE source_events SET status = 'ignored', processed_at = ? "
+                                 "WHERE source_id = ? AND status = 'recorded'", (stamp, source_id)).rowcount
+        if changed:
+            self.bus.notify("sources", f"source:{source_id}", "state")
+        return changed
+
+    def last_assistant_text(self, run_id: str, *, limit_chars: int = 20000) -> str:
+        """The final assistant message of a run, bounded (a run step's typed output)."""
+        self.flush_events()
+        with self._lock:
+            row = self._db.execute(
+                "SELECT data FROM events WHERE run_id = ? AND type = 'message' "
+                "AND json_extract(data, '$.role') = 'assistant' ORDER BY seq DESC LIMIT 1",
+                (run_id,)).fetchone()
+        if row is None:
+            return ""
+        try:
+            data = json.loads(row["data"] or "{}")
+        except (TypeError, ValueError):
+            return ""
+        return str(data.get("content") or "")[: max(1, int(limit_chars))]
+
+    def run_action_count(self, run_id: str) -> int:
+        """How many tool actions this run recorded, whatever their status.
+
+        A non-zero count is why an interrupted run step is never retried: a
+        successful earlier action would be repeated by a replay.
+        """
+        with self._lock:
+            row = self._db.execute("SELECT COUNT(*) AS n FROM tool_actions WHERE run_id = ?",
+                                   (run_id,)).fetchone()
+        return int(row["n"] or 0) if row else 0
+
+    def admit_source_job(self, source_id: str, *, job_id: str, cooldown_seconds: float,
+                         max_per_hour: int, now: Optional[datetime] = None) -> bool:
+        """Turn the recorded inbox into one admitted job, atomically with the event statuses."""
+        stamp = iso(now or utcnow())
+        moment = now or utcnow()
+        with self._tx() as db:
+            if self.workspace_schedule_control()["paused"]:
+                return False
+            row = db.execute(f"SELECT {self._SOURCE_COLS} FROM event_sources WHERE id = ?", (source_id,)).fetchone()
+            if row is None or not row["enabled"]:
+                return False
+            if row["admit_after"] and row["admit_after"] > stamp:
+                return False
+            pending = db.execute("SELECT id FROM source_events WHERE source_id = ? AND status = 'recorded' "
+                                 "ORDER BY id LIMIT 50", (source_id,)).fetchall()
+            if not pending:
+                return False
+            if row["last_admit_at"]:
+                try:
+                    elapsed = (moment - datetime.fromisoformat(row["last_admit_at"])).total_seconds()
+                except ValueError:
+                    elapsed = cooldown_seconds
+                if elapsed < cooldown_seconds:
+                    db.execute("UPDATE event_sources SET admit_after = ? WHERE id = ?",
+                               (iso(moment + timedelta(seconds=max(1.0, cooldown_seconds - elapsed))), source_id))
+                    return False
+            hour_ago = iso(moment - timedelta(seconds=3600))
+            admitted = db.execute("SELECT COUNT(*) AS n FROM source_events WHERE source_id = ? AND status = 'admitted' "
+                                  "AND processed_at >= ?", (source_id, hour_ago)).fetchone()["n"]
+            if max_per_hour and admitted >= max_per_hour:
+                db.execute("UPDATE event_sources SET admit_after = ? WHERE id = ?",
+                           (iso(moment + timedelta(seconds=cooldown_seconds)), source_id))
+                return False
+            db.execute("UPDATE source_events SET status = 'admitted', job_id = ?, processed_at = ? "
+                       "WHERE source_id = ? AND status = 'recorded'", (job_id, stamp, source_id))
+            db.execute("UPDATE event_sources SET last_admit_at = ?, admit_after = ? WHERE id = ?",
+                       (stamp, iso(moment + timedelta(seconds=cooldown_seconds)), source_id))
+        self.bus.notify("jobs", "sources", "state")
+        return True
+
+    def job_counts(self) -> dict[str, int]:
+        with self._lock:
+            rows = self._db.execute("SELECT status, COUNT(*) AS n FROM jobs GROUP BY status").fetchall()
+        return {str(row["status"]): int(row["n"]) for row in rows}
+
+    # ------------------------------------------------- local document index
+
+    def start_index_generation(self, source_hashes: dict) -> int:
+        with self._tx() as db:
+            cursor = db.execute(
+                "INSERT INTO doc_index_generations (status, source_hashes, created_at) "
+                "VALUES ('building', ?, ?)", (_canonical(source_hashes), iso(utcnow())))
+            return int(cursor.lastrowid)
+
+    def append_index_chunks(self, generation: int, chunks: list[dict], *, limit: int = 2000) -> int:
+        """Append bounded provenance chunks; the caller publishes the generation only when complete."""
+        written = 0
+        with self._tx() as db:
+            for chunk in chunks[: max(1, min(limit, 5000))]:
+                cursor = db.execute(
+                    "INSERT INTO doc_index_chunks (generation, doc_name, doc_sha256, page, chunk_index, "
+                    "extraction, content) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (int(generation), str(chunk.get("doc_name", ""))[:300], str(chunk.get("doc_sha256", ""))[:64],
+                     chunk.get("page"), int(chunk.get("chunk_index", 0)),
+                     "ocr" if chunk.get("extraction") == "ocr" else "text",
+                     str(chunk.get("content", ""))[:4000]))
+                db.execute("INSERT INTO doc_index_fts (rowid, content, doc_name, doc_sha256) VALUES (?, ?, ?, ?)",
+                           (cursor.lastrowid, str(chunk.get("content", ""))[:4000],
+                            str(chunk.get("doc_name", ""))[:300], str(chunk.get("doc_sha256", ""))[:64]))
+                written += 1
+        return written
+
+    def publish_index_generation(self, generation: int, *, status: str = "active") -> None:
+        if status not in ("active", "retired", "failed"):
+            raise ValueError("unknown index generation status")
+        with self._tx() as db:
+            if status == "active":
+                db.execute("UPDATE doc_index_generations SET status = 'retired' WHERE status = 'active'")
+            db.execute("UPDATE doc_index_generations SET status = ?, published_at = ? WHERE generation = ?",
+                       (status, iso(utcnow()), int(generation)))
+        self.bus.notify("jobs", "state")
+
+    def active_index_generation(self) -> Optional[dict]:
+        with self._lock:
+            row = self._db.execute(
+                "SELECT generation, status, source_hashes, created_at, published_at "
+                "FROM doc_index_generations WHERE status = 'active' ORDER BY generation DESC LIMIT 1").fetchone()
+        if row is None:
+            return None
+        out = dict(row)
+        try:
+            out["source_hashes"] = json.loads(out.get("source_hashes") or "{}")
+        except (TypeError, ValueError):
+            out["source_hashes"] = {}
+        return out
+
+    def search_index(self, query: str, *, limit: int = 10) -> list[dict]:
+        """Search only the active generation; an incomplete build is never visible."""
+        active = self.active_index_generation()
+        if active is None or not (query or "").strip():
+            return []
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT c.doc_name, c.doc_sha256, c.page, c.chunk_index, c.extraction, c.content "
+                "FROM doc_index_fts f JOIN doc_index_chunks c ON c.id = f.rowid "
+                "WHERE c.generation = ? AND doc_index_fts MATCH ? ORDER BY rank LIMIT ?",
+                (active["generation"], query, max(1, min(limit, 50)))).fetchall()
+        return [dict(row) for row in rows]
 
     # --------------------------------------------------------------- kv
 
