@@ -31,19 +31,19 @@
   "workflow_stop_status": 200,
   "page_errors": [],
   "screenshots_sha256": {
-    "workflow-detail-390.png": "e6d6d35ccf41f5a82304eac3d4e78950cdcb4889e6b72a93d0270fa1e87528a4",
-    "workflow-question-390.png": "f6c98cd2af4a3e41c6e5cd3a3e4f0466797e171a340945984560300433c5c90a",
-    "workflow-questions-320.png": "19b5ba8c8d5337648607128e1fc1094684082c60963dfd9b8da54f205bc53932",
-    "workflow-detail-320.png": "f0d61a07540cb68ee47d03d01dd8dcf0b9ff7dfe830e28d4ab32363c2d1b7c88",
-    "workflow-pause-requested-390.png": "ceeccd119d35f9c336911d27f1bce4c1d67c0d4975e465c7a19a5d084ccb5821",
-    "paired-phone-workflows-trace.zip": "9cdad02d7006e318150e767e7445f2c4ecc4ce66f534b72b2a85c7cc592ad6f0",
-    "visual-review.md": "0904e7df72cb12df7f3d08c70325f8c37501aadfe554403336060971dc6f65c2"
+    "workflow-detail-390.png": "584b6f1a7774b440f4949878eef7ad6faab27cdf037fe6941380cb2317da950c",
+    "workflow-question-390.png": "9c64ee646a74448bbb97d028a4041801644cd0cc531cf713670d6bd1bb48acf2",
+    "workflow-questions-320.png": "f9441d5b59e4affe66b71bbfc3dad94e32663dce48102234d5ca09213e0d81a6",
+    "workflow-detail-320.png": "5bc3d9b5f1d8003297fd9ef088af35734bee665f855d3df665612aa73c5ed851",
+    "workflow-pause-requested-390.png": "cb18cb28ec8a2462733302c0edb4b751f79f47dda60c8a83e67e0de5b887e3e2",
+    "paired-phone-workflows-trace.zip": "2a32121d6f719a45f82a8a0b4c7eb4452df54d098df6e2a897e42f1a37e4b303",
+    "visual-review.md": "0bc5bd276090cca8a204f8715507536986ccdfc2711e19e2af096a1a30d3bbea"
   },
   "source_sha256": {
     "src/hutch/server/workflows_api.py": "64199f3a358c99fb7e2908787b6bb7b555f64ad9d0ff53ff3c43fc04e6b11a07",
-    "src/hutch/server/static/app.js": "7157155cf8e3b82f1391e5e4e3157b636642274eb950d93ceaf52d7c0cc67262",
+    "src/hutch/server/static/app.js": "19bbc96be1ef20a8515327f44952334e9aaa0168698da240f48718bfa41551d6",
     "src/hutch/server/static/style.css": "4eb5625f7b73a86bf28245323ccbbc6abd3f3e5c075cc510dabc73ba6c947afc",
-    "tests/e2e/test_browser.py": "19f5e2721e6a3272be31cedab8e766ac7c97c7e4b6ea74ab60cae44ea643ec11"
+    "tests/e2e/test_browser.py": "2c8726b0a4f4b2ad238cc46a76811dfb6bc79bbe714a673e0c8c59539914f7fc"
   },
-  "captured_at": "2026-10-11T23:16:28.934618+00:00"
+  "captured_at": "2026-10-11T23:19:26.850446+00:00"
 }

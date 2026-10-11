@@ -296,7 +296,9 @@ the supervisor admit a fresh attempt; settled node records are reused.
 For independent top-level questions, later questions are also committed in that pass and shown
 together in Studio and paired-phone **Needs you**. Non-ask work and questions that depend on an
 unanswered question or deferred node stay held until the pending questions are answered. Each
-answer resolves only its durable question ID and grants no action authority. A bounded map can
+answer resolves only its durable question ID and grants no action authority. **Needs you** shows
+each question ID and action approval ID on its own review card; resolving one request leaves the
+other pending requests intact. A bounded map can
 surface independent asks from each of up to its declared number of unresolved items; asks within an
 item are collected together, while items are visited in stable order and are not dispatched in
 parallel. An ask that depends on an unanswered ask, or an ask inside a branch or repeat, waits at the

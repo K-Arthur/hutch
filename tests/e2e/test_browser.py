@@ -359,8 +359,13 @@ def test_paired_phone_reviews_the_exact_approval_once(browser, live):
         "backup_eligible": True, "backed_up": True, "user_handle": store.webauthn_user_handle(),
     })
 
+    artifacts = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workflow-studio/phone"
+    artifacts.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 390, "height": 844})
     page = context.new_page()
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
         context.add_cookies([{"name": "hutch_session", "value": paired["session_token"], "url": base}])
         page.goto(base + "/")
@@ -369,6 +374,16 @@ def test_paired_phone_reviews_the_exact_approval_once(browser, live):
         card = page.locator(f'.approval-card [data-phone-approve="{approval.id}"]').locator("..").locator("..")
         card.wait_for()
         assert card.get_by_role("heading", name=approval.action).is_visible()
+        assert card.get_by_text(approval.id, exact=True).is_visible()
+        page.screenshot(path=str(artifacts / "phone-approval-390.png"), full_page=True, animations="disabled")
+        page.set_viewport_size({"width": 320, "height": 780})
+        overflow_320 = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow_320 <= 1
+        target_heights_320 = card.locator(".phone-actions button").evaluate_all(
+            "items => items.map(el => Math.round(el.getBoundingClientRect().height))")
+        assert target_heights_320 and min(target_heights_320) >= 44
+        page.screenshot(path=str(artifacts / "phone-approval-320.png"), full_page=True, animations="disabled")
+        page.set_viewport_size({"width": 390, "height": 844})
         card.locator("summary").click()
         assert card.locator("pre").is_visible()
         button = card.get_by_role("button", name="Allow once")
@@ -383,8 +398,28 @@ def test_paired_phone_reviews_the_exact_approval_once(browser, live):
         assert response.request.post_data_json == {"always": False, "action_hash": approval.action_hash}
         wait_for(lambda: store.get_run(run.id).status is RunStatus.succeeded)
         assert store.get_approval(approval.id).status.value == "approved"
+        assert not errors, errors
     finally:
+        context.tracing.stop(path=str(artifacts / "phone-approval-trace.zip"))
         context.close()
+    artifact_names = ["phone-approval-390.png", "phone-approval-320.png",
+                      "phone-approval-trace.zip", "visual-review.md"]
+    (artifacts / "phone-approval-results.json").write_text(json.dumps({
+        "test": "tests/e2e/test_browser.py::test_paired_phone_reviews_the_exact_approval_once",
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "browser": browser.browser_type.name, "browser_version": browser.version,
+        "playwright": package_version("playwright"), "approval_id": approval.id,
+        "approval_id_visible": True, "decision": store.get_approval(approval.id).status.value,
+        "viewport_css_px": {"phone": [390, 844], "compact_phone": [320, 780]},
+        "compact_phone_overflow_px": overflow_320,
+        "compact_phone_action_min_height_px": min(target_heights_320),
+        "page_errors": errors,
+        "artifact_sha256": {name: hashlib.sha256((artifacts / name).read_bytes()).hexdigest()
+                            for name in artifact_names},
+        "source_sha256": {name: hashlib.sha256((Path(__file__).resolve().parents[2] / name).read_bytes()).hexdigest()
+                          for name in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                       "tests/e2e/test_browser.py")},
+    }, indent=2) + "\n")
 
 
 def test_workflow_studio_lists_and_resolves_every_pending_question(browser, live):
@@ -9483,6 +9518,7 @@ def test_inline_chat_approval_is_one_click_and_preserves_conversation(browser, l
     card = page.locator("#chat-stream [data-approval-card]").first
     card.locator('[data-approve="1"]').wait_for()
     approval_id = card.get_attribute("data-approval-card")
+    assert card.get_by_text(approval_id, exact=True).is_visible()
     assert card.get_attribute("data-action-hash")
     thread = card.locator("xpath=ancestor::article[@data-run-id]")
     assert thread.locator(".msg.you").count() == 1

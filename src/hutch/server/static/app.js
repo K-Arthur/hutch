@@ -5312,6 +5312,7 @@ function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
         <span class="ttl-countdown">${icon("hourglass")}<span data-ttl-text>${expired ? "expired — denied" : ""}</span></span>
       </div>
       <div class="approval-action-text">${esc(action)}</div>
+      <p class="hint approval-id">Approval ID <code class="mono">${esc(id)}</code></p>
       <details class="approval-review">
         <summary>Review details</summary>
         <div class="review-rows">${rows}</div>
@@ -10249,7 +10250,7 @@ function phoneRender() {
       const id = a.approval_id || a.id;
       const detail = JSON.stringify(a.detail || {}, null, 2);
       return `<article class="phone-card approval-card"><div class="phone-card-head"><span class="phone-status needs">Needs review</span><span>${esc(a.bot_display_name || a.bot_name || "Bot")}</span></div>
-        <h2>${esc(a.action || "Requested action")}</h2><p class="phone-sub">${esc(a.tool || "Action")} · ${esc(a.risk || "risk unavailable")}${a.outward ? " · sends data outside this machine" : ""}</p>
+        <h2>${esc(a.action || "Requested action")}</h2><p class="phone-sub">Approval ID <code>${esc(id)}</code></p><p class="phone-sub">${esc(a.tool || "Action")} · ${esc(a.risk || "risk unavailable")}${a.outward ? " · sends data outside this machine" : ""}</p>
         <details><summary>Review exact request</summary><pre>${esc(detail)}</pre>${a.rule ? `<p>${esc(a.rule)}</p>` : ""}</details>
         <div class="phone-actions"><button class="btn primary" type="button" data-phone-approve="${esc(id)}" data-action-hash="${esc(a.action_hash || "")}" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Allow once</button><button class="btn danger" type="button" data-phone-deny="${esc(id)}" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Deny</button></div>
       </article>`;

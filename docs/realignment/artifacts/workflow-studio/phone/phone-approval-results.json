@@ -1,0 +1,34 @@
+{
+  "test": "tests/e2e/test_browser.py::test_paired_phone_reviews_the_exact_approval_once",
+  "captured_at": "2026-10-11T23:19:08.737940+00:00",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright": "1.63.0",
+  "approval_id": "apr_11b601ec7c7f",
+  "approval_id_visible": true,
+  "decision": "approved",
+  "viewport_css_px": {
+    "phone": [
+      390,
+      844
+    ],
+    "compact_phone": [
+      320,
+      780
+    ]
+  },
+  "compact_phone_overflow_px": 0,
+  "compact_phone_action_min_height_px": 48,
+  "page_errors": [],
+  "artifact_sha256": {
+    "phone-approval-390.png": "df801100e392d54d04c21fb483f9be1aaab36ac683629e07e1daf6361fd89d8d",
+    "phone-approval-320.png": "b337c048d911b0383f8b52a6b37752fcd4984faf19a0e63306b54a1777176aad",
+    "phone-approval-trace.zip": "73642084655838ed2c1252780a14815eea6257b7179094f85e8a7a2a6d550b79",
+    "visual-review.md": "0bc5bd276090cca8a204f8715507536986ccdfc2711e19e2af096a1a30d3bbea"
+  },
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "19bbc96be1ef20a8515327f44952334e9aaa0168698da240f48718bfa41551d6",
+    "src/hutch/server/static/style.css": "4eb5625f7b73a86bf28245323ccbbc6abd3f3e5c075cc510dabc73ba6c947afc",
+    "tests/e2e/test_browser.py": "2c8726b0a4f4b2ad238cc46a76811dfb6bc79bbe714a673e0c8c59539914f7fc"
+  }
+}

@@ -17,6 +17,11 @@ control as its description. The 320px capture shows both cards without horizonta
 the answer actions remain at least 44px high. The Stop action is visible only for a live workflow
 to a review session, and disappears after the server records Stop.
 
+Phone action approvals also show their durable approval ID directly on the review card. The owner
+card in chat shows the same ID; the IDs remain available before opening exact-request details or
+making a decision. Paired-phone captures at 390px and 320px show the ID and exact action, with
+compact-phone action buttons at least 44px high.
+
 At 320 CSS pixels, the detail reflows to one column with no horizontal scroll. The status and
 step name remain distinguishable, and the local-only data boundary stays visible. The Hutch
 descriptor wraps under the wordmark at this width; it stays legible. The captured post-Stop view
