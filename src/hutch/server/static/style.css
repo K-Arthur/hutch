@@ -286,6 +286,16 @@ a:hover { text-decoration: underline; }
 .roster-idle-details[open] > summary::after { content: "Hide"; }
 .roster-idle-details > summary:hover { color: var(--text); background: rgba(255, 255, 255, 0.045); }
 .roster-idle-details > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+.tool-compat { border-top: 1px solid var(--hairline); margin-top: var(--s-2); padding-top: var(--s-1); }
+.tool-compat > summary { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); min-height: 36px; padding: 0 var(--s-2); color: var(--text-3); border-radius: var(--r-ctl); cursor: pointer; font-size: var(--fs-sm); list-style: none; }
+.tool-compat > summary::-webkit-details-marker { display: none; }
+.tool-compat > summary::after { content: "Show"; color: var(--text-3); font-size: var(--fs-xs); }
+.tool-compat[open] > summary { color: var(--text); }
+.tool-compat[open] > summary::after { content: "Hide"; }
+.tool-compat > summary:hover { background: rgba(255, 255, 255, 0.045); }
+.tool-compat > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.tool-compat .settings-list { padding: var(--s-1) var(--s-2) var(--s-2); }
 .roster-hidden-note { margin: 0 var(--s-3) var(--s-2); padding: var(--s-2) var(--s-3); color: var(--text-2); background: var(--sunken); border-radius: var(--r-ctl); font-size: var(--fs-xs); line-height: 1.5; }
 .roster-count { min-width: 1.7em; padding: 2px 6px; color: var(--text-2); border: 1px solid var(--line); border-radius: var(--r-chip); font: 500 var(--fs-2xs)/1.2 var(--mono); text-align: center; }
 .roster-idle-list { gap: 1px; }

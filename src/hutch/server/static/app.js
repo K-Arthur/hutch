@@ -5700,6 +5700,21 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
                 ? `Task focus could not be loaded: ${esc(taskPresetsError)}. Reload before changing this setting.`
                 : "This changes the built-in local runtime’s context sizing and residency only. The selected model still determines its capabilities; this never selects a model, provider, or paid route."}</span>
             </label>
+            <label class="field">Tool calling
+              <select name="tool_protocol" id="tool-protocol-select" aria-describedby="tool-protocol-help">
+                ${[["auto", "Automatic — this route’s own tool protocol"],
+                   ["native", "Provider-native tools"],
+                   ["constrained", "Constrained JSON — backend schema"],
+                   ["prompt", "Prompt contract — best effort"],
+                   ["disabled", "No tools"]].map(([value, label]) =>
+                     `<option value="${value}" ${(b.tool_protocol || "auto") === value ? "selected" : ""}>${label}</option>`).join("")}
+              </select>
+              <span class="hint" id="tool-protocol-help">Automatic keeps this route’s native tool protocol. Constrained and prompt modes are explicit choices; every mode validates each call before it can run.</span>
+            </label>
+            <details id="tool-compat" class="tool-compat">
+              <summary>Check compatibility for this model route</summary>
+              <div id="tool-compat-result" class="settings-list"><p class="hint">Open to check this route’s tool-calling evidence. No model request is made.</p></div>
+            </details>
             <div class="btn-row"><button class="btn primary small" type="submit">Save model settings</button></div>
           </form>
 
@@ -5962,11 +5977,79 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
       },
     });
   });
+  const toolCompat = { data: null };
+  const toolCompatDetails = $("#tool-compat");
+  const toolCompatResult = $("#tool-compat-result");
+  const toolProtocolSelect = $("#tool-protocol-select");
+  const toolProtocolHelp = $("#tool-protocol-help");
+  const modeLabels = { auto: "Automatic", native: "Provider-native tools", constrained: "Constrained JSON",
+    prompt: "Prompt contract", disabled: "No tools" };
+  const evidenceWords = { documented: "documented", advertised: "advertised (not verified)", probed: "probed on this route",
+    observed: "observed in a governed run", stale: "stale evidence", unsupported: "not supported", unknown: "unknown" };
+  const renderToolCompat = () => {
+    const data = toolCompat.data;
+    if (!data) return;
+    const eligibility = data.eligibility || {};
+    const profile = data.profile || {};
+    for (const option of toolProtocolSelect.options) {
+      const base = modeLabels[option.value] || option.value;
+      const entry = eligibility[option.value];
+      option.disabled = option.value !== "auto" && !!entry && !entry.available;
+      option.textContent = base + (entry && !entry.available ? " — unavailable here" : "");
+    }
+    const saved = data.requested || "auto";
+    const native = profile.native_tools || {};
+    const constrained = profile.constrained_schema || {};
+    toolProtocolHelp.textContent = `Saved: ${modeLabels[saved] || saved}. Native tool evidence: ` +
+      `${evidenceWords[native.state] || native.state || "unknown"}. Constrained schema: ` +
+      `${evidenceWords[constrained.state] || constrained.state || "unknown"}.`;
+    const rows = [];
+    rows.push(`<div class="meta-row"><span><b>Route</b><br><span class="hint">${esc(data.model || "")} · ${esc(profile.provider || "unknown provider")}${profile.endpoint_class ? " · " + esc(profile.endpoint_class) : ""}${profile.revision ? " · build " + esc(profile.revision) : ""}</span></span></div>`);
+    for (const mode of ["native", "constrained", "prompt", "disabled"]) {
+      const entry = eligibility[mode] || {};
+      rows.push(`<div class="meta-row"><span><b>${modeLabels[mode]}</b><br><span class="hint">${entry.available ? "Available — " : "Unavailable — "}${esc(entry.reason || "")}</span></span><span class="hint">${entry.available ? "available" : "blocked"}</span></div>`);
+    }
+    rows.push(`<div class="meta-row"><span><b>Argument validator</b><br><span class="hint">${esc(data.validator || "unknown")}; every run records its compiled catalog hash and diagnostics in the transcript</span></span></div>`);
+    const observations = data.observations || [];
+    rows.push(`<div class="meta-row"><span><b>Last governed observation</b><br><span class="hint">${observations.length ? esc(observations.map(item => `${item.observed_at || "unknown time"} · ${item.source_tool || "call"}`).join("; ")) : "No governed run has recorded a call on this exact route yet — and one valid call would not be a model guarantee."}</span></span></div>`);
+    rows.push(`<p class="hint" style="margin:0;">${esc(data.evidence_note || "")}</p>`);
+    toolCompatResult.innerHTML = rows.join("");
+  };
+  if (toolCompatDetails) {
+    toolCompatDetails.addEventListener("toggle", async () => {
+      if (!toolCompatDetails.open || toolCompat.data) return;
+      toolCompatResult.innerHTML = `<p class="hint">Checking this route…</p>`;
+      try {
+        const data = await api(`/v1/tool-compatibility?ref=${encodeURIComponent(name)}`);
+        if (generation !== botDetailRenderGeneration) return;
+        toolCompat.data = data;
+        renderToolCompat();
+      } catch (error) {
+        if (generation !== botDetailRenderGeneration) return;
+        toolCompatResult.innerHTML = `<p class="hint">Could not check this route: ${esc(error.message)}</p>`;
+      }
+    });
+    $('#form-model input[name="model"]').addEventListener("input", () => {
+      if (!toolCompat.data) return;
+      toolCompat.data = null;
+      for (const option of toolProtocolSelect.options) option.disabled = false;
+      toolCompatResult.innerHTML = `<p class="hint">Route changed — save the model, then check compatibility again.</p>`;
+    });
+  }
   $("#form-model").addEventListener("submit", ev => {
     ev.preventDefault();
     const fd = new FormData(ev.target);
+    const choice = fd.get("tool_protocol") || "auto";
+    const eligibility = toolCompat.data?.eligibility || {};
+    const blocked = choice !== "auto" && eligibility[choice] && !eligibility[choice].available
+      && choice !== (toolCompat.data.requested || "auto");
+    if (blocked) {
+      toast(`${modeLabels[choice]} cannot generate tool calls on this route: ${eligibility[choice].reason}`, true);
+      toolProtocolSelect.focus();
+      return;
+    }
     patch({ model: fd.get("model").trim(), inference_mode: fd.get("inference_mode"),
-      preset: fd.get("preset") || null }, "Model settings saved.");
+      preset: fd.get("preset") || null, tool_protocol: choice }, "Model settings saved.");
   });
   $$('[data-background-provider]').forEach(button => button.addEventListener("click", () => {
     const provider = button.dataset.backgroundProvider;

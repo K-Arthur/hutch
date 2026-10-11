@@ -159,6 +159,52 @@ two-stage generation remain explicit follow-ups rather than defaults.
 4. Constrained backend (Ollama `format`, OpenAI-compatible `response_format`) — implemented at the fixture level; a live local server check remains open.
 5. Governed prompt fallback — implemented (explicit per-Bot opt-in, versioned contract, strict whole-message parse, bounded repair), tests green.
 6. Streaming parity — implemented via `hutch.toolcalling.streamassembly`, corpus + differential tests green.
-7. Diagnostics UI — pending the design-research gate.
-8. Docs/packaging/verification — this document, models/safety docs, CHANGELOG, benchmark script.
+7. Diagnostics UI — implemented as the inline "Tool calling" field (Route A, approved 2026-10-10); browser-verified at 1440/768/390/360 with screenshots, DOM metrics and a trace under `docs/realignment/artifacts/tool-compatibility/`.
+8. Docs/packaging/verification — this document, models/safety docs, CHANGELOG, benchmark script, CLI parity.
 
+## 10. Frontend diagnostic research (2026-10-10) and routes
+
+Gate required by the project's design workflow: interface, audience, and constraints inspected
+before proposing anything. Hutch's existing surface: SPA Bot settings, "AI service and model"
+and "What it can do" panels (`src/hutch/server/static/app.js` around the `form-model` /
+`tool-settings-title` sections), shared dark token system (`docs/design-system.md`,
+`DESIGN.md`), `field`/`hint`/`panel` components, 44 px touch targets, non-color status cues.
+Mobbin MCP is unavailable on the current (unpaid) plan - disclosed, not retried; Figma
+Community could not be visually inspected in this environment, so real shipped product
+screenshots were fetched from official documentation and read directly.
+
+Inspected screens (downloaded and read, not remembered):
+
+| # | Product / creator | Screen (source) | Pattern observed |
+|---|---|---|---|
+| 1 | Open WebUI (docs.openwebui.com, official docs) | Model editor - Capabilities | Capability truth as a grouped checkbox grid; "Advanced Params" and "JSON Preview" collapsed behind "Show" disclosures; single Save & Update |
+| 2 | Open WebUI | Models list + view filter | Inline status labels next to each name (Private / Selected / Pinned) with a filter popover and per-row menus |
+| 3 | Open WebUI | Chat controls - thinking/verbosity popover | Popover with labeled sliders and a footer note showing "Default - Balanced" so the inherited value is visible |
+| 4 | LM Studio (lmstudio.ai docs) | Model list with gear action | "Edit model default config" lives behind a gear action per model row; technical columns (quant, size) stay scannable |
+| 5 | Jan (jan.ai docs) | Model switcher gear | Model settings are reached from a gear adjacent to the model switcher, keeping model choice and model behavior adjacent |
+
+Transferable patterns: put mode/capability truth where the model is chosen; make inherited or
+automatic values visible ("effective: ..."); collapse advanced/diagnostic detail behind an
+explicit disclosure; use labeled status text, not color alone. Do not transfer: Open WebUI's
+many-tab admin structure (Hutch settings is one scroll page), its unrestricted custom parameter
+editor (the assignment explicitly rejects an arbitrary untrusted grammar/template editor as the
+default), or LM Studio's desktop-app chrome.
+
+Presented routes (awaiting the owner's choice before implementation):
+
+- **A (recommended): inline block in "AI service and model".** A "Tool calling" field under
+  Model routing: select (Automatic / Provider-native / Constrained JSON / Prompt contract /
+  No tools), an effective-mode line with evidence state, and a "Check compatibility"
+  disclosure that loads `GET /api/v1/tool-compatibility` on demand with prerequisite rows and
+  the last observation. Saved with the existing model form. Closest to screens 4-5; least
+  chrome; keeps the fix one scroll from the symptom.
+- **B: dedicated "Tool calling" panel** next to "What it can do" with its own save and a
+  read-only evidence table. Mirrors screen 1's separation of capabilities; clearer for long
+  explanations, adds another panel and more phone scrolling.
+- **C: status-first compact row + Why popover.** Default state shows a status row
+  ("Tools: provider-native - documented") with a "Why / change" disclosure containing the
+  select and evidence, mirroring screens 2-3. Denser and calmer, but hides the primary control
+  one level deep.
+
+Approved: **Route A** (owner choice, 2026-10-10). Implemented in the SPA Bot settings and
+browser-verified with artifacts listed in section 9.
