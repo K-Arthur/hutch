@@ -235,6 +235,38 @@ def validate_call(schema: dict[str, Any], args: Any) -> list[str]:
     return problems[:_MAX_PROBLEMS]
 
 
+def validate_value(schema: dict[str, Any], value: Any) -> list[str]:
+    """Problems with any JSON ``value`` under ``schema``; empty list means valid.
+
+    ``validate_call`` is the tool-argument entry point and requires an object. This is the
+    same bounded validator for values that are not argument objects (a workflow node's
+    typed result, a structured model answer), with the same fail-closed rule: a schema the
+    local engine cannot certify is a refusal, never a pass.
+    """
+    report = analyze_schema(schema)
+    if report.unsupported:
+        detail = "; ".join(report.unsupported[:_MAX_PROBLEMS])
+        return [f"this schema cannot be fully checked locally ({detail}); the value was not accepted"]
+    if _HAVE_JSONSCHEMA:
+        problems = _validate_with_jsonschema_any(schema, value)
+        if problems:
+            return problems
+    problems: list[str] = []
+    _errors(value, schema, "", schema, problems, depth=0, ref_seen=frozenset())
+    return problems[:_MAX_PROBLEMS]
+
+
+def _validate_with_jsonschema_any(schema: dict[str, Any], value: Any) -> list[str]:
+    validator = _Draft202012Validator(schema)  # type: ignore[misc]
+    out: list[str] = []
+    for error in validator.iter_errors(value):
+        location = "/".join(str(part) for part in error.absolute_path) or "<root>"
+        out.append(f"value {location!r}: {error.message}")
+        if len(out) >= _MAX_PROBLEMS:
+            break
+    return out
+
+
 def _validate_with_jsonschema(schema: dict[str, Any], args: dict[str, Any]) -> list[str]:
     validator = _Draft202012Validator(schema)  # type: ignore[misc]
     out: list[str] = []

@@ -1,0 +1,252 @@
+"""Plan submission: validate, gate, admit.
+
+This is where a plan becomes work, and it is deliberately strict. Submission:
+
+1. validates the caller's inputs against the plan's declared inputs (types, bounds,
+   unknown keys - no coercion, no invented defaults);
+2. compiles the plan (identity, references, envelopes, cardinality - fail closed);
+3. checks the plan's **declared envelope against the Bot's actual authority**: the tools
+   and skills it names must be within what this Bot may use, the models must resolve, and
+   ``network: local_model_only`` must be genuinely satisfiable - a workflow can never
+   widen a Bot;
+4. qualifies every model role the plan needs *before* anything is queued, so a blocked
+   model is a submission-time refusal with the reason and the options, not a surprise
+   half-way through a run;
+5. admits the instance and its first orchestration attempt atomically.
+
+Model-authored plans additionally require the authoring role to be qualified for the
+planning model; an operator-submitted plan is authored by the person and needs no such
+gate.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any, Optional
+
+from ..models import Bot, Run, Task
+from ..providers.pricing import is_local_route
+from ..tools import expand_tools
+from . import persistence as wstore
+from . import qualify
+from .compile import CompiledPlan, PlanInvalid, compile_plan
+from .plan import CEILINGS, Plan
+
+
+class PlanInputError(ValueError):
+    """The supplied inputs do not match the plan's declared inputs."""
+
+
+class PlanNotSubmittable(ValueError):
+    """The plan is valid but this Bot may not run it as declared."""
+
+
+@dataclass
+class Submission:
+    workflow_run_id: str
+    attempt_run_id: str
+    revision_id: str
+    definition_id: Optional[str]
+    plan_hash: str
+    verdicts: list[dict[str, Any]]
+
+
+def validate_inputs(plan: Plan, inputs: Optional[dict[str, Any]]) -> dict[str, Any]:
+    supplied = dict(inputs or {})
+    unknown = sorted(set(supplied) - set(plan.inputs))
+    if unknown:
+        raise PlanInputError(f"unknown inputs: {unknown}")
+    resolved: dict[str, Any] = {}
+    for name, spec in plan.inputs.items():
+        if name in supplied:
+            value = supplied[name]
+        elif spec.default is not None:
+            value = spec.default
+        elif spec.required:
+            raise PlanInputError(f"missing required input {name!r}")
+        else:
+            continue
+        resolved[name] = _check_input(name, spec, value)
+    return resolved
+
+
+def _check_input(name: str, spec: Any, value: Any) -> Any:
+    kind = spec.type
+    ok = {
+        "string": isinstance(value, str),
+        "number": isinstance(value, (int, float)) and not isinstance(value, bool),
+        "integer": isinstance(value, int) and not isinstance(value, bool),
+        "boolean": isinstance(value, bool),
+        "array": isinstance(value, list),
+        "object": isinstance(value, dict),
+    }[kind]
+    if not ok:
+        raise PlanInputError(f"input {name!r} must be {kind}, got {type(value).__name__}")
+    if kind == "string" and spec.max_length and len(value) > spec.max_length:
+        raise PlanInputError(f"input {name!r} is longer than {spec.max_length} characters")
+    if kind == "array" and spec.max_items is not None and len(value) > spec.max_items:
+        raise PlanInputError(f"input {name!r} has more than {spec.max_items} items")
+    return value
+
+
+def required_tools(compiled: CompiledPlan) -> set[str]:
+    """Every governed tool the plan can reach, including command checks and repair steps."""
+    needed: set[str] = set()
+    for entry in compiled.nodes:
+        node = entry.node
+        if node.kind == "tool":
+            needed.add(node.tool)
+        elif node.kind == "agent":
+            needed.update(node.tools)
+        elif node.kind == "verify":
+            for check in node.checks:
+                if check.kind == "command":
+                    needed.add("shell")
+    return needed
+
+
+def check_authority(compiled: CompiledPlan, bot: Bot, *, store: Any = None,
+                    role_verdicts: bool = True) -> list[dict[str, Any]]:
+    """Refuse a plan that asks for more than this Bot has. Returns role verdicts."""
+    envelope = compiled.plan.envelope
+    allowed_tools = set(expand_tools(bot.tools))
+    declared = set(envelope.tools) | required_tools(compiled)
+    outside = sorted(declared - allowed_tools)
+    if outside:
+        raise PlanNotSubmittable(
+            f"this plan declares tools the Bot does not allow: {outside}. "
+            f"Add them to the Bot deliberately, or narrow the plan's envelope.")
+    outside_skills = sorted(set(envelope.skills) - set(bot.skills))
+    if outside_skills:
+        raise PlanNotSubmittable(
+            f"this plan declares skills the Bot is not bound to: {outside_skills}. "
+            f"Bind them to the Bot deliberately, or narrow the plan's envelope.")
+    specs = [spec for spec in envelope.models if spec not in ("$bot", "$default")]
+    if envelope.network == "local_model_only":
+        candidates = specs + [bot.model]
+        hosted = [spec for spec in candidates if not _is_local(spec, bot)]
+        if hosted:
+            raise PlanNotSubmittable(
+                f"this plan requires local-model-only execution, but these routes are not local: "
+                f"{hosted}. Choose a local route for the Bot, or change the plan's network policy.")
+    verdicts: list[dict[str, Any]] = []
+    if role_verdicts:
+        for entry in compiled.nodes:
+            node = entry.node
+            if node.kind != "agent":
+                continue
+            spec = bot.model if node.model in ("", "$bot", "$default") else node.model
+            verdict = qualify.assess("worker" if node.role != "verifier" else "verifier",
+                                     spec=spec, store=store,
+                                     requires_tools=bool(node.tools),
+                                     requires_structured_output=node.output_schema is not None)
+            verdicts.append({"node": entry.site_id, **verdict.as_dict()})
+            if not verdict.allowed:
+                raise PlanNotSubmittable(
+                    f"node {entry.site_id} cannot run in its declared role: {verdict.summary()}")
+    return verdicts
+
+
+def _is_local(spec: str, bot: Bot) -> bool:
+    provider, _, model = spec.partition("/")
+    if not model:
+        provider, model = bot.model.partition("/")
+    return bool(is_local_route(provider, model))
+
+
+def submit_workflow(store: Any, *, bot: Bot, plan: dict[str, Any] | Plan,
+                    inputs: Optional[dict[str, Any]] = None, definition_name: str = "",
+                    save_definition: bool = True, activate_definition: bool = False,
+                    origin: str = "operator", conversation_id: str = "",
+                    source: str = "operator", planning_model: str = "",
+                    created_by: str = "", note: str = "") -> Submission:
+    """Validate, gate and admit one workflow instance."""
+    compiled = compile_plan(plan)
+    resolved_inputs = validate_inputs(compiled.plan, inputs)
+    verdicts = check_authority(compiled, bot, store=store)
+    if source == "model":
+        if not planning_model:
+            raise PlanNotSubmittable("a model-authored plan must name the planning model")
+        gate = qualify.assess("author", spec=planning_model, store=store)
+        if not gate.allowed:
+            raise PlanNotSubmittable(
+                f"the planning model is not qualified to author workflows: {gate.summary()}")
+
+    definition_id: Optional[str] = None
+    revision_id: Optional[str] = None
+    if save_definition:
+        name = definition_name or compiled.plan.name
+        saved = wstore.save_definition(store, name=name, plan=compiled.plan.model_dump(
+            by_alias=True, exclude_none=True, mode="json"), description=compiled.plan.description,
+            note=note, created_by=created_by, source=source, activate=activate_definition)
+        definition_id, revision_id = saved["definition_id"], saved["revision_id"]
+    if revision_id is None:
+        raise PlanNotSubmittable("submission needs either a saved definition or an existing revision")
+    attempt = Run(bot_id=bot.id, prompt=f"workflow: {compiled.plan.name}"[:4_000], kind="workflow",
+                  origin=origin, conversation_id=conversation_id)
+    task = Task(bot_id=bot.id, kind="workflow", prompt=attempt.prompt)
+    workflow = wstore.submit_workflow_run(
+        store, plan=compiled.plan.model_dump(by_alias=True, exclude_none=True, mode="json"),
+        definition_id=definition_id, revision_id=revision_id, plan_hash=compiled.plan_hash,
+        bot_id=bot.id, inputs=resolved_inputs,
+        budget={**compiled.plan.budget.model_dump(mode="json"),
+                "max_steps_per_node": min(CEILINGS["max_agent_steps"], 12),
+                "max_step_seconds": 600},
+        origin=origin, conversation_id=conversation_id, run=attempt, task=task)
+    return Submission(workflow_run_id=str(workflow["id"]), attempt_run_id=attempt.id,
+                      revision_id=revision_id, definition_id=definition_id,
+                      plan_hash=compiled.plan_hash, verdicts=verdicts)
+
+
+def submit_saved(store: Any, *, bot: Bot, definition: str, inputs: Optional[dict[str, Any]] = None,
+                 origin: str = "operator", conversation_id: str = "") -> Submission:
+    """Run a saved definition's latest revision without a planning call of any kind."""
+    entry = wstore.definition(store, definition)
+    if entry is None:
+        raise KeyError(definition)
+    revision = wstore.latest_revision(store, str(entry["id"]))
+    if revision is None:
+        raise KeyError(definition)
+    compiled = compile_plan(revision["plan"])
+    resolved_inputs = validate_inputs(compiled.plan, inputs)
+    verdicts = check_authority(compiled, bot, store=store)
+    attempt = Run(bot_id=bot.id, prompt=f"workflow: {compiled.plan.name}"[:4_000], kind="workflow",
+                  origin=origin, conversation_id=conversation_id)
+    task = Task(bot_id=bot.id, kind="workflow", prompt=attempt.prompt)
+    workflow = wstore.submit_workflow_run(
+        store, plan=revision["plan"], definition_id=str(entry["id"]), revision_id=str(revision["id"]),
+        plan_hash=str(revision["plan_hash"]), bot_id=bot.id, inputs=resolved_inputs,
+        budget={**compiled.plan.budget.model_dump(mode="json"),
+                "max_steps_per_node": min(CEILINGS["max_agent_steps"], 12),
+                "max_step_seconds": 600},
+        origin=origin, conversation_id=conversation_id, run=attempt, task=task)
+    return Submission(workflow_run_id=str(workflow["id"]), attempt_run_id=attempt.id,
+                      revision_id=str(revision["id"]), definition_id=str(entry["id"]),
+                      plan_hash=str(revision["plan_hash"]), verdicts=verdicts)
+
+
+def stop_workflow(store: Any, wf_id: str) -> dict[str, Any]:
+    return wstore.request_workflow_stop(store, wf_id)
+
+
+def answer(store: Any, question_id: str, text: str) -> str:
+    return wstore.answer_question(store, question_id, text)
+
+
+def status(store: Any, wf_id: str) -> dict[str, Any]:
+    """The authoritative view: instance, nodes, questions and attempt - one read model."""
+    workflow = wstore.workflow_run(store, wf_id)
+    if workflow is None:
+        raise KeyError(wf_id)
+    attempt = store.get_run(str(workflow["attempt_run_id"])) if workflow["attempt_run_id"] else None
+    return {
+        "workflow": workflow,
+        "attempt": {"run_id": attempt.id, "status": attempt.status.value, "error": attempt.error,
+                    "reason": attempt.reason, "exit_reason": attempt.exit_reason} if attempt else None,
+        "nodes": wstore.nodes(store, wf_id),
+        "questions": wstore.questions(store, wf_id),
+    }
+
+
+__all__ = ["Submission", "PlanInputError", "PlanNotSubmittable", "validate_inputs",
+           "required_tools", "check_authority", "submit_workflow", "submit_saved",
+           "stop_workflow", "answer", "status"]

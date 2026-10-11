@@ -258,6 +258,9 @@ class Node(_Strict):
     item_key: str = Field(default="", max_length=200)
     concurrency: int = Field(default=1, ge=1, le=CEILINGS["max_parallel_steps"])
     max_items: int = Field(default=20, ge=1, le=CEILINGS["max_fanout"])
+    #: What one failed item does to the whole fan-out. ``skip`` keeps the run honest by
+    #: reporting the item as skipped and the aggregate as incomplete; ``fail`` stops.
+    on_item_failure: Literal["fail", "skip"] = "fail"
     body: list["Node"] = Field(default_factory=list)
     allow_tools: list[str] = Field(default_factory=list)
     allow_models: list[str] = Field(default_factory=list)

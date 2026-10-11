@@ -443,6 +443,11 @@ class Run(BaseModel):
     pgid: int = 0                     # process group of the worker, so a supervisor that did not spawn it can still end it
     verified: Optional[bool] = None   # did the task's expectation hold? None = no expectation was declared
     reason: str = ""                  # why a waiting/recovering run is in that state (shown with the label)
+    # --- dynamic workflows (schema v52). ``kind`` also exists as a column, because claim
+    # admission needs it in SQL; the document copy keeps it readable everywhere else.
+    kind: Literal["attempt", "workflow", "step"] = "attempt"
+    workflow_run_id: str = ""          # the workflow instance this attempt/step belongs to
+    workflow_step: Optional[dict] = None  # a step's frozen execution contract (tools, limits, role)
 
     @field_validator("parent_run_id")
     @classmethod

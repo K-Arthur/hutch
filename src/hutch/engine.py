@@ -51,7 +51,7 @@ from .safety import PolicyEngine
 from .workdir import check_workdir_at_run
 from .scheduler import Scheduler
 from .store import Store
-from .tools import ToolContext, ToolResult, build_tools
+from .tools import ToolContext, ToolResult, build_tools, expand_tools
 
 DEFAULT_MAX_CONCURRENT = 2
 
@@ -189,7 +189,14 @@ class Engine:
 
     def _start_worker(self, bot: Bot, run: Run) -> bool:
         try:
-            if run.parent_run_id is not None:
+            kind = self.store.run_kind(run.id)
+            if kind == "step":
+                target = self._step_bot(bot, run)
+            elif kind == "workflow":
+                if bot.runtime.value != "builtin":
+                    raise ValueError("dynamic workflows require the built-in runtime")
+                target = bot.model_copy(update={"model": run.model_override}) if run.model_override else bot
+            elif run.parent_run_id is not None:
                 snapshot = self.store.run_capability_snapshot(run.id)
                 if snapshot is None:
                     raise ValueError("delegated run has no inherited capability snapshot")
@@ -211,7 +218,7 @@ class Engine:
                 return False
             get_runtime(target)
         except ValueError as exc:
-            if run.parent_run_id is not None:
+            if run.parent_run_id is not None or self.store.run_kind(run.id) == "step":
                 self._fail_unavailable_child_executor(run, str(exc))
                 return False
             raise
@@ -616,6 +623,45 @@ class Engine:
         except (KeyError, TypeError, ValueError) as exc:
             raise ValueError(f"the parent's execution snapshot cannot be enforced: {exc}") from None
 
+    @staticmethod
+    def _step_bot(bot: Bot, run: Run) -> Bot:
+        """Reconstruct one workflow step's execution envelope from its frozen contract.
+
+        The contract was written at admission from a *validated* plan: the tools were
+        already intersected with the workflow envelope, and the envelope with the Bot's own
+        tool list. Re-checking here means a Bot edited after admission cannot be widened by
+        an old step, and a tool the Bot no longer allows fails the step instead of running.
+        """
+        spec = run.workflow_step if isinstance(run.workflow_step, dict) else None
+        if not spec:
+            raise ValueError("this step run has no frozen execution contract")
+        tools = spec.get("tools")
+        if not isinstance(tools, list) or any(not isinstance(name, str) or not name for name in tools):
+            raise ValueError("the step's frozen tool list is invalid")
+        allowed = set(expand_tools(bot.tools))
+        missing = sorted(name for name in tools if name not in allowed)
+        if missing:
+            raise ValueError(f"this Bot no longer allows the step's tools: {missing}")
+        skills = spec.get("skills") or []
+        if not isinstance(skills, list) or any(not isinstance(name, str) for name in skills):
+            raise ValueError("the step's frozen skill list is invalid")
+        unknown = sorted(name for name in skills if name not in set(bot.skills))
+        if unknown:
+            raise ValueError(f"this Bot is no longer bound to the step's skills: {unknown}")
+        try:
+            max_steps = int(spec.get("max_steps") or 12)
+            timeout_seconds = int(spec.get("timeout_seconds") or 600)
+        except (TypeError, ValueError):
+            raise ValueError("the step's frozen limits are invalid") from None
+        limits = bot.limits.model_copy(update={
+            "max_steps": max(1, min(bot.limits.max_steps, max_steps)),
+            "timeout_seconds": max(5, min(bot.limits.timeout_seconds, timeout_seconds)),
+        })
+        return Bot.model_validate({**bot.model_dump(mode="json"), **{
+            "tools": list(tools), "skills": list(skills), "limits": limits.model_dump(mode="json"),
+            "workspace_mode": "fresh", "workdir": None, "local_browser_handoff": False,
+        }})
+
     def _run_delegated_task(self, ctx: ToolContext, task_text: str, idem_key: str,
                             request_hash: str, parent_deadline: float) -> ToolResult:
         """Admit one child under the live parent's fence, then wait without model calls."""
@@ -693,7 +739,16 @@ class Engine:
         persisted = self.store.get_run(run.id)
         if persisted is None:
             return
-        if persisted.parent_run_id is not None:
+        run_kind = self.store.run_kind(run.id)
+        if run_kind == "step":
+            if persisted.status is not RunStatus.pending:
+                return
+            try:
+                bot = self._step_bot(bot, persisted)
+            except ValueError as exc:
+                self._fail_unavailable_child_executor(persisted, str(exc))
+                return
+        elif persisted.parent_run_id is not None:
             if persisted.status is not RunStatus.pending:
                 return
             snapshot = self.store.run_capability_snapshot(run.id)
@@ -720,7 +775,12 @@ class Engine:
             self._fail_unavailable_runtime(run, "tool-free review runs require the built-in runtime")
             return
         try:
-            runtime = get_runtime(bot)
+            if run_kind == "workflow":
+                from .workflow.runtime import WorkflowRuntime
+
+                runtime = WorkflowRuntime(self)
+            else:
+                runtime = get_runtime(bot)
         except RuntimeError as exc:
             self._fail_unavailable_runtime(run, str(exc))
             return
@@ -1136,11 +1196,43 @@ class Engine:
         run = Run(bot_id=bot.id, prompt=prompt, origin="manual:schedule", schedule_id=schedule.id)
         return self.store.submit_run(run, Task(bot_id=bot.id, kind="on_demand", prompt=prompt))
 
+    def continue_workflow_runs(self, limit: int = 4) -> int:
+        """Admit a fresh orchestration attempt for any live workflow instance whose attempt is gone.
+
+        A crashed attempt is never resumed (ADR-0003); the *instance* continues, and the new
+        interpreter pass skips every node record that already settled. A previous attempt that
+        was cancelled means the person stopped the workflow, so it is left stopped.
+        """
+        from .workflow import persistence as wfstore
+
+        admitted = 0
+        for candidate in wfstore.workflow_runs_needing_attempt(self.store, limit=limit):
+            wf_id = str(candidate["id"])
+            previous_id = str(candidate.get("attempt_run_id") or "")
+            previous = self.store.get_run(previous_id) if previous_id else None
+            if previous is not None and previous.cancel_requested:
+                wfstore.update_workflow_run(self.store, wf_id, status="stopped", reason="a stop was requested",
+                                            finished=True)
+                continue
+            if self.store.get_bot(str(candidate["bot_id"])) is None:
+                wfstore.update_workflow_run(self.store, wf_id, status="failed", reason="the Bot no longer exists",
+                                            finished=True)
+                continue
+            try:
+                run = wfstore.admit_workflow_continuation(self.store, wf_id)
+            except (ValueError, KeyError, PermissionError):
+                continue
+            if run is not None:
+                admitted += 1
+                self.store.bus.notify("work", "runs", f"run:{run.id}")
+        return admitted
+
     def tick(self) -> list[Run]:
         """One beat: recover, expire approvals, claim schedules, drain work and bound change replay."""
         self.recover_orphans()
         expire_stale_approvals(self.store, self.config.default_approval_ttl_seconds)
         created = self.scheduler_claims()
+        self.continue_workflow_runs()
         self.dispatch_pending()
         now = time.monotonic()
         if (self._last_resource_change_prune is None

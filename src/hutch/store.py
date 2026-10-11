@@ -1362,6 +1362,12 @@ def _migrate_51(db: sqlite3.Connection) -> None:
                "ON workflow_role_qualifications(provider, model, route_revision)")
 
 
+def _migrate_52(db: sqlite3.Connection) -> None:
+    """Dynamic workflow definitions, revisions, instances, node records and questions."""
+    from .workflow import persistence
+    persistence.migrate(db)
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -1369,7 +1375,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
-               _migrate_48, _migrate_49, _migrate_50, _migrate_51]
+               _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -4731,38 +4737,49 @@ class Store:
         """Take ownership of a queued run, atomically. Returns the claimed run (new ``fence``) or None.
 
         One statement decides: the run is still pending and unclaimed (or its claimant's lease lapsed), no stop was requested,
-        no other run of the SAME bot is live or freshly claimed (the per-bot single-instance rule, now enforced across
-        processes), and - if ``max_live`` is given - fewer than that many runs are live overall.
+        no other run of the SAME bot in the SAME lane is live or freshly claimed (the per-bot single-instance rule, now
+        enforced across processes), and - if ``max_live`` is given - fewer than that many runs are live overall.
         A child may share its bot's slot with its parent and siblings in the same delegation branch;
         unrelated work for that bot remains mutually exclusive.
+
+        Workflow lanes (schema v52): an orchestration attempt (``kind='workflow'``) and its step runs
+        (``kind='step'``) form one lane, separate from interactive work, so a workflow may progress while
+        the person keeps chatting with the same Bot - and one workflow at a time per Bot, because two
+        attempts are unrelated runs in the same lane. A step run does not add to the global live count:
+        it shares its orchestration attempt's slot, and the workflow's own logical concurrency bound
+        (enforced by the interpreter) is what limits how many steps run at once.
         """
         now = now or utcnow()
         stamp, expires = iso(now), iso(now + timedelta(seconds=lease_seconds))
         marks = ",".join("?" for _ in _LIVE_VALUES)
+
         # Capacity includes: live statuses, leased pending (starting), and any run that still
         # has unreaped recorded processes — even if its status already became terminal. A timed-out
         # wrapper must not free a slot while owned descendants can still act.
-        occupying = (
-            "(c.status IN (" + marks + ") OR "
-            "(c.status = 'pending' AND c.lease_owner != '' AND c.lease_expires_at >= ?) OR "
-            "EXISTS (SELECT 1 FROM run_procs rp WHERE rp.run_id = c.id "
-            "AND rp.ended_at IS NULL AND rp.detached_at IS NULL))"
-        )
-        peer_occupying = (
-            "(o.status IN (" + marks + ") OR "
-            "(o.status = 'pending' AND o.lease_owner != '' AND o.lease_expires_at >= ?) OR "
-            "EXISTS (SELECT 1 FROM run_procs rp WHERE rp.run_id = o.id "
-            "AND rp.ended_at IS NULL AND rp.detached_at IS NULL))"
-        )
+        def _occupying(alias: str) -> str:
+            return ("(" + alias + ".status IN (" + marks + ") OR "
+                    "(" + alias + ".status = 'pending' AND " + alias + ".lease_owner != '' AND " + alias + ".lease_expires_at >= ?) OR "
+                    "EXISTS (SELECT 1 FROM run_procs rp WHERE rp.run_id = " + alias + ".id "
+                    "AND rp.ended_at IS NULL AND rp.detached_at IS NULL))")
+
+        occupying = _occupying("c")
+        peer_occupying = _occupying("o")
+        parent_occupying = _occupying("p")
         # A successful claim leaves a run in `pending` while its supervisor starts the
         # worker. That reservation already consumes a global slot, even though it is not
-        # yet one of the active execution statuses.
-        cap = (" AND (SELECT COUNT(*) FROM runs c WHERE " + occupying + ") < ?") if max_live else ""
+        # yet one of the active execution statuses. A workflow step shares its attempt's slot.
+        cap = ""
+        if max_live:
+            cap = (" AND (SELECT COUNT(*) FROM runs c WHERE " + occupying +
+                   " AND NOT (c.kind = 'step' AND c.parent_run_id IS NOT NULL AND EXISTS ("
+                   "SELECT 1 FROM runs p WHERE p.id = c.parent_run_id AND p.kind = 'workflow' AND "
+                   + parent_occupying + "))) < ?")
         sql = (
             "UPDATE runs SET lease_owner = ?, lease_expires_at = ?, heartbeat_at = ?, fence = fence + 1 "
             "WHERE id = ? AND status = 'pending' AND cancel_requested = 0 "
             "AND (lease_owner = '' OR lease_expires_at IS NULL OR lease_expires_at < ?) "
             "AND NOT EXISTS (SELECT 1 FROM runs o WHERE o.bot_id = runs.bot_id AND o.id != runs.id AND "
+            "((o.kind IN ('workflow','step')) = (runs.kind IN ('workflow','step'))) AND "
             + peer_occupying + " "
             "AND NOT (runs.parent_run_id IS NOT NULL AND (o.id IN (runs.parent_run_id, "
             "(SELECT parent_run_id FROM runs p WHERE p.id = runs.parent_run_id)) "
@@ -4770,7 +4787,7 @@ class Store:
             + cap)
         args: list[Any] = [owner, expires, stamp, run_id, stamp, *_LIVE_VALUES, stamp]
         if max_live:
-            args += [*_LIVE_VALUES, stamp, max_live]
+            args += [*_LIVE_VALUES, stamp, *_LIVE_VALUES, stamp, max_live]
         with self._tx() as db:
             if self._execution_hold(db):
                 return None
@@ -5333,6 +5350,16 @@ class Store:
         with self._lock:
             row = self._db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
         return self._run(row) if row else None
+
+    def run_kind(self, run_id: str) -> str:
+        """Which executor owns this run: ``attempt`` | ``workflow`` | ``step`` (schema v52)."""
+        with self._lock:
+            row = self._db.execute("SELECT kind FROM runs WHERE id = ?", (run_id,)).fetchone()
+        return str(row["kind"]) if row else "attempt"
+
+    def set_run_kind(self, run_id: str, kind: str) -> None:
+        from .workflow import persistence
+        persistence.set_step_kind(self, run_id, kind)
 
     def list_runs(self, bot_id: Optional[str] = None, limit: int = 50) -> list[Run]:
         q = f"SELECT {_RUN_COLS} FROM runs"

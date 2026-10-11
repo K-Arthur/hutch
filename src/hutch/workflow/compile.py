@@ -33,13 +33,14 @@ from .expr import is_ref, is_template
 from .plan import CEILINGS, ArtifactSpec, Check, Condition, Node, Plan
 
 #: Deterministic operations the interpreter implements. Anything else is rejected.
+#: This table is the contract between the plan schema and :mod:`hutch.workflow.ops`.
 TRANSFORM_OPS = {
     "constant": {"value"},
-    "parse_json": {"text", "max_bytes"},
+    "parse_json": {"text"},
     "to_json": {"value"},
     "parse_csv": {"text", "delimiter", "max_rows"},
     "select": {"items", "fields"},
-    "filter": {"items", "condition"},
+    "filter": {"items", "where"},
     "sort": {"items", "by", "descending"},
     "dedupe": {"items", "by"},
     "first": {"items", "count"},
@@ -262,6 +263,9 @@ class _Compiler:
                 if unknown:
                     self.error("OP_ARGS", f"{path}.args",
                                f"unsupported arguments for {node.op}: {sorted(unknown)}")
+        if node.kind == "tool" and node.tool not in set(self.plan.envelope.tools):
+            self.error("TOOL_ENVELOPE", f"{path}.tool",
+                       f"tool {node.tool!r} is outside the workflow envelope")
         if node.kind in ("map", "expand"):
             if node.concurrency > self.plan.envelope.max_parallel_steps:
                 self.error("MAP_CONCURRENCY", f"{path}.concurrency",
