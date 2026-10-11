@@ -138,6 +138,11 @@ with a bounded number of rounds.
   by writing into the Bot's shared workspace.
 * `stop` is durable: it cancels the owned work and prevents any continuation.
 
+Recovery currently reuses settled node records and only offers continuation after the prior
+attempt is terminal or has no unreaped process. Stable effect receipts across the crash window
+between an external effect and node settlement are still being completed. Until that guarantee
+is implemented, avoid workflows that depend on retry-safe non-idempotent effects.
+
 ## What is not implemented yet
 
 * **No live local-model evidence.** The deterministic path (tools, transforms, verification,

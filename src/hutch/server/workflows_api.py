@@ -98,8 +98,8 @@ class WorkflowNodeResource(BaseModel):
     attempt: int = 1
     run_id: Optional[str] = None
     input_hash: str = ""
-    result: dict[str, Any] = Field(default_factory=dict)
-    error: dict[str, Any] = Field(default_factory=dict)
+    result: Any = None
+    error: Any = None
     started_at: Optional[str] = None
     finished_at: Optional[str] = None
 
@@ -221,8 +221,10 @@ def _node_resource(row: dict[str, Any]) -> WorkflowNodeResource:
         site_id=str(row["site_id"]), instance_key=str(row["instance_key"]), kind=str(row["kind"]),
         status=str(row["status"]), attempt=int(row.get("attempt") or 1),
         run_id=(str(row["run_id"]) if row.get("run_id") else None),
-        input_hash=str(row.get("input_hash") or ""), result=row.get("result") or {},
-        error=row.get("error") or {}, started_at=row.get("started_at"),
+        input_hash=str(row.get("input_hash") or ""),
+        result=row["result"] if "result" in row else None,
+        error=row["error"] if "error" in row else None,
+        started_at=row.get("started_at"),
         finished_at=row.get("finished_at"))
 
 

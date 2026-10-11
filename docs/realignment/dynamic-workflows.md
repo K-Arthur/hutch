@@ -82,7 +82,7 @@ executed).
 
 | Capability | State today | Evidence |
 |---|---|---|
-| Run ownership, fencing, recovery | Implemented for ordinary runs; workflow owner replacement and node/question mutations need stronger fencing | `Store.claim_run`, `lifecycle.TRANSITIONS`, `Engine.recover_orphans`; workflow regressions listed below |
+| Run ownership, fencing, recovery | Ordinary-run fences are in place; recovery query ordering and stale workflow-attempt replacement are fixed and tested; node/question/effect writes still need attempt-and-lease fences | `Store.claim_run`, `workflow.persistence.workflow_runs_needing_attempt`, `claim_workflow_attempt`; `test_recovery_query_uses_cutoff_before_terminal_status_values`, `test_stale_workflow_attempt_cannot_replace_the_current_owner` |
 | Local inference admission (1 caller + 8 waiters) | Implemented for model turns; workflow waits must release run/process capacity without losing durable ownership | `admission.inference_slot`; workflow capacity and wait behavior need separate checks |
 | Bounded child delegation | Implemented, narrow | built-in + Strict Offline + process executor; depth ≤ 2, ≤ 3 lifetime children, ≤ 2 active; waits for one child |
 | Saved reusable procedures | Implemented as inactive definitions and immutable revisions | `workflow.persistence`; save/import are separate from run and schedule actions |
@@ -222,8 +222,8 @@ are explicit A1 failures below, not properties inferred from the diagram.
 
 | ID | Acceptance boundary | Baseline state and evidence pointer |
 |---|---|---|
-| A0 | Merge local main and workflow work; reconcile schema histories and recover from interrupted migration | Implemented; the migration path and historical variants are covered by `test_historical_schema_51_and_52_variants_converge_on_schema_53` and `test_interrupted_schema_53_upgrade_rolls_back_and_keeps_backup`. Broader branch integration: focused baseline recorded 2026-10-11. |
-| A1 | Fence recovery, questions, nodes and callbacks; prevent duplicate effects; charge every request; park waits; fair capacity; truthful Stop and event delivery | Open. Regression IDs: `WF-EFFECT-01`, `WF-QUESTIONS-01`; see runtime recovery and event paths in `workflow.persistence` / `workflow.engine`. |
+| A0 | Merge local main and workflow work; reconcile schema histories and recover from interrupted migration | Verified in commit `488200f`; main v51, workflow v51/v52, rollback, backup and retry: `tests/test_migration.py` (32 passed with CSV acceptance). |
+| A1 | Fence recovery, questions, nodes and callbacks; prevent duplicate effects; charge every request; park waits; fair capacity; truthful Stop and event delivery | Partial. Recovery query, stale attempt claim and JSON result projection are fixed; the complete set remains open. Regressions: `test_recovery_query_uses_cutoff_before_terminal_status_values`, `test_stale_workflow_attempt_cannot_replace_the_current_owner`, `test_run_detail_preserves_scalar_array_null_and_falsy_node_values`. |
 | A2 | Exact capability identity, tested scope, negative evidence, bounded disposable probes, no acknowledgement-made qualification | Partial mechanism only; no actual checkpoint is yet qualified. Planned evidence scope is per backend/template/context/decoding profile and task role. |
 | A3 | Strict dynamic plan validation, repair adoption and recheck, explicit join policies, honest result categories, amendment preview/adoption and reuse rules | Interpreter exists; listed semantics remain open until regression tests exercise them. Generated code remains unsupported. |
 | A4 | New assistants default to Suggest; server-persisted conversation policy; rules plus eligible model-turn recommendations; explicit reviewed Auto | Per-Bot routing exists; conversation default, overrides, chat path and scope-complete API remain open. |
@@ -249,7 +249,7 @@ are a narrow pre-hardening baseline for those exact fixtures, not a production t
 
 | Failure hypothesis | Hutch test contract | Status at this checkpoint |
 |---|---|---|
-| A completed parallel effect may run again after process replacement ([LangGraph #9106](https://github.com/langchain-ai/langgraph/issues/9106)) | Assert exactly one append in an independent sink after crash-after-effect, restart, and recovery; compare stable effect identity across attempts | Not yet implemented |
+| A completed parallel effect may run again after process replacement ([LangGraph #9106](https://github.com/langchain-ai/langgraph/issues/9106)) | Assert exactly one append in an independent sink after crash-after-effect, restart, and recovery; compare stable effect identity across attempts | Not yet implemented; open-node recovery still needs stable receipt/reconciliation |
 | A snapshot may omit one of several pending decisions ([LangGraph #9075](https://github.com/langchain-ai/langgraph/issues/9075)) | List each durable question/approval by ID across partial answers, both answer orders, reconnect and restart | Not yet implemented |
 | An adapter may issue the same tool call again after consuming a result ([LiteLLM #40575](https://github.com/BerriAI/litellm/issues/40575)) | Exercise every supported protocol's streaming, call/result ID pairing, result consumption, retry and hard stop | Not yet implemented |
 | A fast approval may beat UI registration ([Cline PR #14643](https://github.com/cline/cline/pull/14643)) | Register authority before publication; cover immediate answer, publication failure, expiry, reconnect, revocation and stale response | Existing ordinary approval CAS is present; workflow-specific cases not yet implemented |

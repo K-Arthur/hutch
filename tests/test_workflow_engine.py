@@ -106,6 +106,36 @@ def test_reused_results_are_not_re_executed_on_continuation(store, config):
     assert store.get_run(continuation.id).status.value == "succeeded"
 
 
+def test_recovery_query_uses_cutoff_before_terminal_status_values(store):
+    """The first terminal state must not be consumed as the timestamp cutoff."""
+    from hutch.store import _TERMINAL_VALUES
+
+    bot = make_bot(store)
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=deterministic_plan())
+    with store._tx() as db:
+        db.execute("UPDATE workflow_runs SET status='running', updated_at='2000-01-01T00:00:00+00:00' "
+                   "WHERE id=?", (submission.workflow_run_id,))
+        db.execute("UPDATE runs SET status=?, cancel_requested=0 WHERE id=?",
+                   (_TERMINAL_VALUES[0], submission.attempt_run_id))
+
+    rows = wstore.workflow_runs_needing_attempt(store, quiet_seconds=0)
+    assert submission.workflow_run_id in {row["id"] for row in rows}
+
+
+def test_stale_workflow_attempt_cannot_replace_the_current_owner(store):
+    bot = make_bot(store)
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=deterministic_plan())
+    old_attempt = submission.attempt_run_id
+    assert wstore.claim_workflow_attempt(store, submission.workflow_run_id, old_attempt)
+
+    with store._tx() as db:
+        db.execute("UPDATE workflow_runs SET attempt_run_id='replacement-attempt' WHERE id=?",
+                   (submission.workflow_run_id,))
+
+    assert not wstore.claim_workflow_attempt(store, submission.workflow_run_id, old_attempt)
+    assert wstore.workflow_run(store, submission.workflow_run_id)["attempt_run_id"] == "replacement-attempt"
+
+
 def test_failed_node_fails_the_workflow_with_a_reason(store, config):
     bot = make_bot(store)
     engine = Engine(config, store)

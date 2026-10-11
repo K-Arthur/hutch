@@ -354,12 +354,17 @@ def update_workflow_run(store: Any, wf_id: str, *, attempt_run_id: Optional[str]
 
 
 def claim_workflow_attempt(store: Any, wf_id: str, attempt_run_id: str) -> bool:
-    """Bind a freshly claimed orchestration run to its instance, if the instance is still open."""
+    """Confirm the already-admitted attempt is still the instance's current owner.
+
+    Attempt replacement happens atomically during continuation admission. A late process
+    from the prior generation must never bind itself over the new attempt.
+    """
     with store._tx() as db:
         cur = db.execute(
-            """UPDATE workflow_runs SET attempt_run_id = ?, status = 'running', reason = '', updated_at = ?
-               WHERE id = ? AND stop_requested = 0 AND status IN ('pending','running','waiting')""",
-            (attempt_run_id, iso(utcnow()), wf_id))
+            """UPDATE workflow_runs SET status = 'running', reason = '', updated_at = ?
+               WHERE id = ? AND attempt_run_id = ? AND stop_requested = 0
+                 AND status IN ('pending','running','waiting')""",
+            (iso(utcnow()), wf_id, attempt_run_id))
         return cur.rowcount == 1
 
 
@@ -405,7 +410,7 @@ def workflow_runs_needing_attempt(store: Any, *, limit: int = 4,
                           AND NOT EXISTS (SELECT 1 FROM run_procs rp WHERE rp.run_id = r.id
                                           AND rp.ended_at IS NULL AND rp.detached_at IS NULL)))))
                 ORDER BY w.updated_at LIMIT ?""",
-            (*_TERMINAL_VALUES, cutoff, limit)).fetchall()
+            (cutoff, *_TERMINAL_VALUES, limit)).fetchall()
     return [_row_to_workflow(row) for row in rows]
 
 

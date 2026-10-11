@@ -124,6 +124,32 @@ def test_save_run_and_read_back_with_idempotency(client):
     assert detail["workflow"]["result"]["artifacts"][0]["name"] == "summary"
 
 
+@pytest.mark.parametrize(
+    ("value", "encoded", "site_id"),
+    [(False, "false", "value-false"), (0, "0", "value-zero"),
+     ([], "[]", "value-array"), (None, "null", "value-null"), ("", '""', "value-empty")],
+)
+def test_run_detail_preserves_scalar_array_null_and_falsy_node_values(client, value, encoded, site_id):
+    bot = make_bot(client, name="wf-lossless-api-bot")
+    submitted = client.post("/api/v1/workflows/plans", headers=KEY,
+                            json={"plan": plan(), "bot": bot["name"],
+                                  "definition_name": "lossless-values"})
+    assert submitted.status_code == 201, submitted.text
+    workflow_id = submitted.json()["workflow_run_id"]
+    store = client.app.state.store
+    with store._tx() as db:
+        db.execute("""INSERT INTO workflow_nodes
+                      (workflow_run_id, site_id, instance_key, kind, status, result_json, error_json)
+                      VALUES (?, ?, 'once', 'transform', 'succeeded', ?, ?)""",
+                   (workflow_id, site_id, encoded, encoded))
+
+    detail = client.get(f"/api/v1/workflows/runs/{workflow_id}")
+    assert detail.status_code == 200, detail.text
+    node = next(row for row in detail.json()["nodes"] if row["site_id"] == site_id)
+    assert node["result"] == value
+    assert node["error"] == value
+
+
 def test_commands_require_an_idempotency_key(client):
     bot = make_bot(client)
     res = client.post("/api/v1/workflows/validate", json={"plan": plan(), "bot": bot["name"]})
