@@ -59,6 +59,7 @@ media is refused offline (pass a workspace path instead).
   "searxng_base": "http://127.0.0.1:8080",
   "searxng_accepts_json": true,
   "bluesky_base": "https://public.api.bsky.app",
+  "jetstream_host": "jetstream.us-west.bsky.network",
   "language": "",
   "max_feed_age_hours": 168
 }
@@ -70,6 +71,11 @@ media is refused offline (pass a workspace path instead).
   classes: out-of-range results under a time filter are dropped locally and counted
   (searxng#3358), and engines lost to a time filter are surfaced as `disabled` with a
   single filterless retry whose results are re-validated locally (searxng#3400).
+- `jetstream_host` — a Jetstream instance for the `stream` lane (a bounded live window of
+  the Bluesky post firehose, filtered client-side by the query). Install the optional
+  dependency with `pip install 'hutch[jetstream]'`; without it the lane reports
+  `unsupported`. A per-investigation cursor is stored and resumed at-least-once; a
+  `CursorTooOld` reply becomes an explicit coverage gap.
 - GDELT, Hacker News and the Wikimedia event stream need no configuration; their hosts are
   fixed and fetched through the same SSRF-guarded client.
 
@@ -85,8 +91,9 @@ connection. No secrets are placed in prompts, URLs, or reports.
 | Hacker News (Algolia) | **Verified live** — story times parsed |
 | Wikimedia EventStreams (events stream) | **Verified live** — 40 events in one bounded read; cursor is the raw `id` array, resumed with `Last-Event-ID` |
 | Bluesky public search | **Implemented, blocked from this network** — HTTP 403 is reported as `blocked` |
+| Bluesky Jetstream (`stream` lane) | **Verified live 2026-10-11** — 227 events scanned / 8 s window with a matching post retained; cursor resumed to a later window (advanced even when the window matched nothing). Requires `hutch[jetstream]`; the first live read also caught a v2 wire-shape change (nested `payload`, ISO times) that the v1-shaped parser silently ignored |
 | SearXNG | **Implemented, needs your instance** — fixture tests cover both failure classes |
-| Jetstream (websocket) | **Contract only** — cursor semantics and event folding are tested; the live reader needs the optional `websockets` dependency and reports `unsupported` without it |
+| Jetstream cursor/folding contract | **Tested offline** against a local instance: duplicates, `CursorTooOld` gaps, filtered windows, instance-switch rewind |
 | Reverse-image / image fact-check | **Unsupported by design** — sending your media to a public matching service is a separate permission this slice does not hold |
 
 ## Budgets
@@ -117,6 +124,9 @@ spaced at one request per 5 s per host. These are defaults in code, not tuning c
 | `blocked` for bluesky | The public AppView refused this network | Not a missing-post finding; try another network or wait |
 | `rate_limited` for gdelt | Courtesy limit (1 request / 5 s) | Retry later; Hutch already spaces requests |
 | `disabled` for searxng | No instance configured | Set `searxng_base` in `grounding.json` |
+| `unsupported` for the stream lane | The optional `websockets` dependency is missing | `pip install 'hutch[jetstream]'` |
+| `partial` with a `CursorTooOld` note | The stored cursor is below the instance's lookback floor | Hutch stopped instead of silently skipping; a new window starts from the live tip |
+| `zero_results` in a stream window | Nothing matched **in that bounded window** | Check the scanned count in the outcome detail; this is a sample, not the network |
 | `zero_results` under a SearXNG time filter | Engines that ignore time filters are disabled by SearXNG | Hutch retried once without the filter; check `detail` and the dropped counts |
 | Frames missing in the panel | Extraction failed, or the media details were collapsed | The model brief and panel state which frames were inspected |
 | The model "saw" no frames | The selected route cannot receive images | The brief says so and the run records what was transmitted |

@@ -38,6 +38,7 @@ from ..netguard import NetGuardError, safe_get
 from .clock import Clock
 from .dedup import DedupItem, domain_of
 from .temporal import EvidenceCutoff, TimestampRole, TimestampValue, parse_epoch, parse_gdelt, parse_iso, parse_rfc822
+from . import streams as stream_mod
 
 USER_AGENT = "hutch/0.1 (+local agent platform; evidence retrieval)"
 GDELT_MIN_INTERVAL = 5.0        # GDELT's documented courtesy limit: one request / 5 s
@@ -51,6 +52,7 @@ _LANE_ADAPTERS = {
     "feeds": ("feeds",),
     "discussion": ("hn",),
     "social": ("bluesky",),
+    "stream": ("jetstream",),
     "search": ("searxng",),
 }
 LANES = tuple(_LANE_ADAPTERS)
@@ -68,8 +70,12 @@ class GroundingConfig:
     searxng_base: str = ""
     searxng_accepts_json: bool = False
     bluesky_base: str = "https://public.api.bsky.app"
+    jetstream_host: str = "jetstream.us-west.bsky.network"
     language: str = ""
     max_feed_age_hours: float = 168.0
+    #: per-adapter resume cursors supplied by the caller (usually loaded from the store);
+    #: never invented here — an absent cursor means "start at the live tip"
+    stream_cursors: dict[str, dict] = field(default_factory=dict)
 
     @classmethod
     def load(cls, config_dir) -> "GroundingConfig":
@@ -88,6 +94,7 @@ class GroundingConfig:
             searxng_base=str(data.get("searxng_base") or "").rstrip("/"),
             searxng_accepts_json=bool(data.get("searxng_accepts_json", False)),
             bluesky_base=str(data.get("bluesky_base") or "https://public.api.bsky.app").rstrip("/"),
+            jetstream_host=str(data.get("jetstream_host") or "jetstream.us-west.bsky.network"),
             language=str(data.get("language") or ""),
             max_feed_age_hours=float(data.get("max_feed_age_hours", 168.0)),
         )
@@ -162,6 +169,11 @@ class AdapterOutcome:
     latency_ms: float = 0.0
     freshness: str = "polled"
     attempts: int = 1
+    #: streaming adapters: the resume cursor and liveness report travel with the outcome so
+    #: the caller can persist them and a later run resumes instead of restarting blind
+    cursor_json: dict = field(default_factory=dict)
+    liveness_json: dict = field(default_factory=dict)
+    gap_note: str = ""
 
     def to_json(self) -> dict[str, Any]:
         return {k: v for k, v in self.__dict__.items()}
@@ -643,9 +655,103 @@ def search_bluesky(query: str, cutoff: EvidenceCutoff, budget: AcquireBudget, cl
     return locals().get("sources", []) or [], outcome
 
 
+def search_jetstream_stream(query: str, cutoff: EvidenceCutoff, budget: AcquireBudget, clock: Clock,
+                            cfg: GroundingConfig, stop: Callable[[], bool], *, adapter: str = "jetstream",
+                            lane: str = "stream",
+                            window_seconds: float = 20.0,
+                            max_scanned: int = 400) -> tuple[list[FoundSource], AdapterOutcome]:
+    """A bounded live window from the Bluesky Jetstream firehose, filtered client-side.
+
+    The server has no keyword search; this observes the live post firehose for a *bounded*
+    window, keeps posts whose text matches the query terms, and reports exactly what was
+    scanned. A window with no matches is ``zero_results`` with the window stated — never a
+    claim that nobody posted. A stored cursor (per investigation) resumes at-least-once;
+    ``CursorTooOld`` becomes an explicit gap, not a silent skip.
+    """
+    started = time.monotonic()
+    readiness, detail = stream_mod.jetstream_readiness()
+    outcome = AdapterOutcome(adapter=adapter, lane=lane, query=query, state="unsupported",
+                             freshness="stream", detail=detail)
+    if readiness != "ready":
+        return [], outcome
+    terms = _query_terms(query)
+    window = max(3.0, min(window_seconds, max(5.0, budget.per_adapter_timeout)))
+    stored = cfg.stream_cursors.get(adapter) if cfg.stream_cursors else None
+    cursor = None
+    if isinstance(stored, dict) and stored.get("value") is not None:
+        try:
+            if str(stored.get("adapter", "")) == "jetstream" and str(stored.get("instance", "")) == cfg.jetstream_host:
+                cursor = stream_mod.StreamCursor.from_json(stored)
+            elif str(stored.get("adapter", "")) == "jetstream":
+                # instance switch: sequence cursors rewind explicitly; timestamps cannot be rewound here
+                cursor = stream_mod.StreamCursor.from_json({**stored, "kind": stream_mod.CursorKind.seq.value})
+                cursor, note = stream_mod.migrate_jetstream_cursor(cursor, new_instance=cfg.jetstream_host)
+                outcome.gap_note = note
+        except (ValueError, stream_mod.CursorMismatch):
+            cursor = None
+            outcome.gap_note = "the stored stream cursor could not be resumed; this window starts at the live tip"
+    sources: list[FoundSource] = []
+
+    def post_text(event) -> str:
+        record = (event.payload.get("commit") or {}).get("record")
+        return str(record.get("text") or "") if isinstance(record, dict) else ""
+
+    def keep(event) -> bool:
+        return _relevance(post_text(event), terms) >= 0.5 if terms else False
+
+    def collect(event) -> None:
+        if len(sources) >= budget.max_results_per_adapter:
+            return
+        record = (event.payload.get("commit") or {}).get("record")
+        record = record if isinstance(record, dict) else {}
+        did = event.did or ""
+        rkey = event.rkey or ""
+        url = f"https://bsky.app/profile/{did}/post/{rkey}" if did and rkey else ""
+        langs = record.get("langs") if isinstance(record.get("langs"), list) else []
+        sources.append(FoundSource(
+            adapter=adapter, lane=lane, platform="bluesky", kind="post", url=url,
+            canonical_url=f"at://{did}/{event.collection}/{rkey}" if did and rkey else "",
+            excerpt=post_text(event)[:800], language=",".join(str(x) for x in langs[:3]),
+            origin=did, origin_id=f"{did}|{event.collection}|{rkey}".strip("|"),
+            published=parse_epoch(event.time_us, unit="microseconds", role=TimestampRole.upload.value,
+                                  method="jetstream_time_us", clock=clock) if event.time_us else None,
+            retrieved_at=clock.now().isoformat(), freshness="stream",
+            note=(f"observed in a bounded live window ({window:.0f}s); not a complete sample of the network "
+                  "and not evidence the posting is representative")))
+
+    pump = stream_mod.StreamPump(key_fn=lambda e: e.get("id", ""), clock=clock)
+    report = stream_mod.read_jetstream_stream(
+        pump=pump, host=cfg.jetstream_host, cursor=cursor, kinds=("commit",),
+        collections=("app.bsky.feed.post",), max_events=max_scanned, max_seconds=window,
+        filter_fn=keep, sink=collect, stop=stop, clock=clock)
+    outcome.liveness_json = report
+    state = report.get("state")
+    outcome.cursor_json = pump.cursor.to_json() if pump.cursor is not None else {}
+    if state == "unsupported":
+        outcome.state = "unsupported"
+        return [], outcome
+    if state == "blocked":
+        outcome.state = "blocked"
+        outcome.detail = report.get("gap_note") or "the Jetstream instance refused the connection"
+        return [], outcome
+    if state == "gap":
+        outcome.state = "partial"
+        outcome.detail = report.get("gap_note") or "stream coverage gap"
+    if stop():
+        outcome.state = "partial"
+        outcome.detail = outcome.detail or "cancelled during the live window"
+    outcome.returned = int(report.get("scanned") or 0)          # traffic observed
+    outcome.retained = len(sources)
+    if outcome.state not in ("partial",):
+        outcome.state = "ok" if sources else "zero_results"
+    outcome.detail = outcome.detail or report.get("scanned_note", "")
+    outcome.latency_ms = round((time.monotonic() - started) * 1000, 1)
+    return sources, outcome
+
+
 ADAPTERS: dict[str, Callable[..., tuple[list[FoundSource], AdapterOutcome]]] = {
     "gdelt": search_gdelt, "feeds": search_feeds, "hn": search_hn,
-    "searxng": search_searxng, "bluesky": search_bluesky,
+    "searxng": search_searxng, "bluesky": search_bluesky, "jetstream": search_jetstream_stream,
 }
 
 

@@ -34,10 +34,13 @@ pipeline) lacked both the Agent Skills work (`wcag22-audit-fixes`) and the tool-
 layer (investigations, attempts, source revisions, claims, evidence links, media, observations,
 answers, stream cursors). `live_search` and `inspect_media` are opt-in tools; `web_fetch` records
 source rows with declared dates. Live-verified read-only: BBC/HN feeds, Hacker News Algolia,
-Wikimedia EventStreams (40 events, structured cursor). GDELT answered HTTP 200 earlier and
-`rate_limited` later — reported as its own outcome. Bluesky's public host is blocked from this
-network and says so; SearXNG awaits an operator instance; the Jetstream live reader reports
-`unsupported` without the optional dependency. The Evidence panel (approved route: run panel +
+Wikimedia EventStreams (40 events, structured cursor), and the Bluesky Jetstream firehose (227
+events scanned in an 8 s window; stored `seq` cursor resumed to a later window and advanced even
+when that window matched nothing — a continuity bug the live check caught, alongside a v2
+wire-shape change the first parser silently ignored; both are fixed and regression-tested).
+GDELT answered HTTP 200 earlier and `rate_limited` later — reported as its own outcome.
+Bluesky's public search host is blocked from this network and says so; SearXNG awaits an
+operator instance. The Evidence panel (approved route: run panel +
 chat entry) shows effective as-of, claimed/what-evidence-shows, outcomes and gaps, independence
 clusters with exact times, hash-verified frames, and answer revisions; inspected in a real browser
 at 1440/900/360 with zero console errors and no overflow. Offline tests: 72 grounding tests plus

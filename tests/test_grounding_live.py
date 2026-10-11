@@ -65,3 +65,15 @@ def test_live_wikimedia_stream_reads_events_with_a_structured_cursor():
         assert isinstance(pump.cursor.value, list)
     print(f"[live] wikimedia stream: state={report['state']} events={report['events']} "
           f"duplicates={report['duplicates']} canary_age={report['canary_age_seconds']}")
+
+
+def test_live_jetstream_bounded_window_with_a_seq_cursor():
+    from hutch.grounding.streams import read_jetstream_stream
+    pump = StreamPump(key_fn=lambda e: str(e.get("seq", "")), clock=SYSTEM_CLOCK)
+    report = read_jetstream_stream(pump=pump, max_events=30, max_seconds=15.0, clock=SYSTEM_CLOCK)
+    assert report["state"] in ("live", "quiet", "gap"), report
+    assert report.get("scanned", 0) > 0, report
+    if report["state"] != "gap":
+        assert pump.cursor is not None and pump.cursor.kind == "seq"
+    print(f"[live] jetstream: state={report['state']} scanned={report.get('scanned')} "
+          f"kept={report['events']} duplicates={report['duplicates']} cursor={pump.cursor.value if pump.cursor else None}")

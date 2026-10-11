@@ -119,6 +119,27 @@ def test_live_search_with_zero_results_says_so_without_inventing_events(store, c
     assert "Do not assert" in result.output
 
 
+def test_live_search_persists_a_stream_cursor_from_the_outcome(store, config, tmp_path, monkeypatch):
+    ctx = make_ctx(store, config, tmp_path)
+    ctx.clock = CLOCK
+
+    def fake_jetstream(query, cutoff, budget, clock, cfg, stop):
+        outcome = acquire_mod.AdapterOutcome(
+            adapter="jetstream", lane="stream", query=query, state="zero_results", freshness="stream",
+            cursor_json={"adapter": "jetstream", "instance": "js.example", "kind": "seq", "value": 99,
+                         "schema_version": 2},
+            liveness_json={"state": "quiet"}, gap_note="")
+        return [], outcome
+
+    monkeypatch.setitem(acquire_mod.ADAPTERS, "jetstream", fake_jetstream)
+    tools = build_tools(["live_search"], ctx)
+    result = tools["live_search"].run({"question": "anything from the stream?", "lanes": ["stream"]}, ctx)
+    assert result.ok
+    row = store.get_stream_cursor("jetstream:js.example")
+    assert row is not None and json.loads(row["cursor_json"])["value"] == 99
+    assert row["cursor_kind"] == "seq"
+
+
 def test_inspect_media_tool_attaches_frames_and_records_observations(store, config, tmp_path):
     from PIL import Image
     ctx = make_ctx(store, config, tmp_path)

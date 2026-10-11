@@ -31,7 +31,7 @@ restriction was imposed.
 |---|---|---|---|
 | SearXNG #3358 (2024-03; fixed via PR #5793, 2026-03) | Bing `time_range` returned out-of-range results; quotes made it worse | Not reproduced (no SearXNG instance); defect class accepted | `grounding/acquire.py` **always validates date bounds locally** and counts `dropped_out_of_range` per attempt; a time-filtered zero-result is never reported as "nothing happened" |
 | SearXNG #3400 (2024-04; closed as by-design) | With a date filter, news engines that do not support it are **disabled**, so "no results" | Same class confirmed by reading thread + docs; no instance to reproduce | Adapter records `unresponsive_engines`/disabled engines and the fallback retry-without-filter + local date validation; outcome states distinguish `zero_results` / `disabled` / `unavailable` |
-| Jetstream README (read 2026-10-11) | Cursors are **instance-local seqs** (inclusive, monotonic, non-contiguous, at-least-once), v1 timestamp cursors accepted on the same parameter and split by magnitude (>=1e15 = unix-µs); `CursorTooOld` when below floor; witnessed_at is the only correct resume unit | Read from upstream README at purity; live websocket blocked from this network (no `websockets` dep installed; public host not probed) | `grounding/streams.py` **parses cursor kind by namespace, never compares across kinds**, dedupes by seq, keeps a rewind margin on instance switch, and maps `CursorTooOld` to a bounded gap state. Jetstream adapter reports `unsupported` (dependency) / `blocked` (host) instead of faking a connection |
+| Jetstream README (read 2026-10-11) | Cursors are **instance-local seqs** (inclusive, monotonic, non-contiguous, at-least-once), v1 timestamp cursors accepted on the same parameter and split by magnitude (>=1e15 = unix-µs); `CursorTooOld` when below floor; witnessed_at is the only correct resume unit | **Live-verified same day**: `wss://jetstream.us-west.bsky.network` reachable (HTTP 200; protocol-correct handshake); 227 events scanned in an 8 s window; cursor resumed to a later window. The live read also exposed a v2 wire shape (frames nested under `payload`, ISO `time`/`witnessedAt`) the v1-shaped parser silently ignored | `grounding/streams.py` parses both wire shapes, **never compares cursor namespaces**, dedupes by seq, advances the read position even when the term filter matches nothing (a continuity bug the live resume check caught), rewinds explicitly on instance switch, and maps `CursorTooOld` to a bounded gap state |
 | Jetstream issue #349 (2026-09; fixed v0.2.3) | A v1 timestamp cursor fed into v2 seq dedup silently drops **all** events; no error, just quiet | Root cause read from issue; regression test reproduces the mixed-namespace comparison in our parser | Test `test_cursor_namespace_mismatch_never_silently_drops`: v2 client must reject/migrate mixed cursor kinds explicitly |
 | Gemini video understanding docs (updated 2026-10-09) | Static mode samples **1 fps**; rapid motion can be missed; audio processed; MM:SS references; >20MB needs Files API; prompt after media | Read from current docs | `grounding/media.py` samples frames at claim-relevant + boundary times, records exact inspected frame times and explicitly reports uninspected intervals/audio; frames (not "the video") are what reach the model through the tool contract |
 | Wikimedia EventStreams docs (page rev 2026-08-20) | SSE `id` is a JSON array of topic/partition/(offset\|timestamp); `Last-Event-ID` resume; **timestamps are the multi-DC-stable resume unit, offsets are per-cluster**; canary events ≤1/hour signal broken-vs-quiet; 15-min server connection cap; 7–31 day history; no server-side filtering | **Confirmed live** on 2026-10-11: 946 events in 8s, `id` arrays observed with `{topic,partition,timestamp}` and `{topic,partition,offset:-1}` | Verified live stream adapter: verbatim `Last-Event-ID` resume, canary-aware liveness, client-side filtering, bounded reconnect backoff, cursor stored as structured JSON with schema version |
@@ -118,8 +118,10 @@ receipts strip. The chosen panel keeps the existing dark token set and Archivo d
   media (6), tools/runtime delivery (12), API (4), adversarial scenarios (5); plus 2 real-browser
   regression tests in `tests/e2e/test_grounding_panel.py` (1440 and 360 CSS px).
 - Live read-only checks (`HUTCH_LIVE_TEST=1`): BBC feed retained 5 items with declared dates;
-  HN retained 5 stories; Wikimedia stream read 40 events with a structured cursor; GDELT returned
-  HTTP 200 earlier in the day and `rate_limited` during the later run (reported honestly).
+  HN retained 5 stories; Wikimedia stream read 40 events with a structured cursor; Jetstream read
+  227 events in an 8 s window and resumed from the stored seq cursor to a later window (advanced
+  even though that window matched nothing); GDELT returned HTTP 200 earlier in the day and
+  `rate_limited` during the later run (reported honestly).
 - Browser validation of the panel (seeded fixture, real server, headless Chromium): panel, scoped
   label, 2 source rows with text independence chips, 6 outcome rows, 1 loaded frame served from the
   hash-verified API, revision list, chat entry link; zero console errors; no horizontal overflow at
@@ -150,7 +152,7 @@ receipts strip. The chosen panel keeps the existing dark token set and Archivo d
 | GDELT DOC 2.0 | **Verified live earlier; 429 under repeated use → honest `rate_limited`** |
 | Bluesky public search | **Blocked from this network (HTTP 403)** — implemented, unverified live |
 | SearXNG | **Implemented; fixture-verified** — needs the operator's instance |
-| Jetstream websocket | **Contract tested; live reader unsupported without the optional `websockets` dependency** |
+| Jetstream websocket | **Verified live 2026-10-11** (bounded windows; `seq` cursors persisted and resumed; `CursorTooOld` gap state tested against a local instance) |
 | Image/video input to models | **Implemented and wire-verified** (OpenAI-compatible, Anthropic, Ollama conversions); a live hosted vision call was not made and is not claimed |
 | C2PA validation | **Presence verified against fabricated markers; signature validation unsupported without a maintained verifier** |
 | Reverse-image / image fact-check | **Unsupported by design** (egress permission not held) |
@@ -159,8 +161,8 @@ receipts strip. The chosen panel keeps the existing dark token set and Archivo d
 
 - No live hosted-model run was performed end-to-end (no provider call was made with media), so
   "frames reached a real hosted model" remains implemented-and-wire-tested, not live-verified.
-- The Bluesky lane stays `blocked` from this network; SearXNG awaits a local instance.
-- Jetstream's live reader needs the optional websockets dependency before it can move from
-  contract-tested to live-verified.
+- The Bluesky public *search* lane stays `blocked` from this network; the Jetstream `stream`
+  lane is live-verified and needs the optional `hutch[jetstream]` extra.
+- SearXNG awaits a local instance.
 - Phone-width panel was inspected at 360 px; physical-device and screen-reader passes were not run.
 - Budgets are defaults asserted in code, not tuned against large real corpora.

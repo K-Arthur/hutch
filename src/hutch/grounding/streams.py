@@ -26,7 +26,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Callable, Iterable, Iterator, Optional
+from typing import Any, Callable, Iterable, Iterator, Optional, Sequence
 
 from ..netguard import NetGuardError, resolve_public, screen_url
 from .clock import UTC, Clock
@@ -263,6 +263,19 @@ class StreamPump:
         self.liveness.state = "live"
         return True
 
+    def advance(self, cursor: StreamCursor) -> None:
+        """Move the read position without counting an event (e.g. frames filtered out).
+
+        Delivery position and evidence admission are different things: a window where the
+        term filter matches nothing still made progress over the wire, and a later resume
+        must not restart from a stale position.
+        """
+        if self.cursor is not None and not self.cursor.same_lineage(cursor):
+            raise CursorMismatch(
+                f"cursor lineage changed mid-stream ({self.cursor.adapter}/{self.cursor.instance}/"
+                f"{self.cursor.kind} -> {cursor.adapter}/{cursor.instance}/{cursor.kind})")
+        self.cursor = cursor
+
     def record_gap(self, note: str) -> None:
         self.liveness.gaps += 1
         self.liveness.gap_note = note
@@ -421,13 +434,63 @@ class JetstreamEvent:
 
 
 def parse_jetstream_event(raw: str) -> Optional[JetstreamEvent]:
-    """Parse one Jetstream websocket message. Unknown shapes return None (never guessed)."""
+    """Parse one Jetstream websocket message in either documented wire shape.
+
+    * **v1** — flat: ``{did, seq, time_us, kind, commit: {operation, collection, rkey, record}}``
+    * **v2** — nested: ``{$type: "message", payload: {$type: ".../commit", did, seq, time,
+      witnessedAt, collection, rkey, operation, record}}`` with ISO-8601 times (observed on the
+      live instance 2026-10-11; the initial v1-shaped parser silently treated those frames as
+      unknown fields, which the live smoke test caught).
+
+    Both are normalized to the v1-like shape downstream code expects; unknown shapes return
+    None rather than guessed values. ``time_us`` is normalized to unix microseconds for
+    ordering, and the raw v2 ISO times stay in ``payload`` for honest display.
+    """
     try:
         data = json.loads(raw)
     except ValueError:
         return None
     if not isinstance(data, dict):
         return None
+    if isinstance(data.get("payload"), dict):
+        body = data["payload"]
+        body_type = str(body.get("$type") or "")
+        kind = body_type.rsplit("#", 1)[-1] if "#" in body_type else ""
+        if not kind:
+            kind = str(body.get("operation") or "commit")
+        seq_raw = body.get("seq")
+        try:
+            seq_int = int(seq_raw) if seq_raw is not None else None
+        except (TypeError, ValueError):
+            seq_int = None
+        micros: Optional[int] = None
+        for key in ("time", "witnessedAt", "time_us"):
+            value = body.get(key)
+            if value is None:
+                continue
+            if isinstance(value, str):
+                try:
+                    micros = int(datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp() * 1_000_000)
+                    break
+                except ValueError:
+                    continue
+            try:
+                micros = int(value)
+                break
+            except (TypeError, ValueError):
+                continue
+        commit_body = {
+            "operation": body.get("operation"), "collection": body.get("collection"),
+            "rkey": body.get("rkey"), "record": body.get("record"), "cid": body.get("cid"),
+            "rev": body.get("rev"), "seq": seq_int, "time": body.get("time"),
+            "witnessedAt": body.get("witnessedAt"),
+        }
+        normalized = {"did": body.get("did"), "seq": seq_int, "time_us": micros, "kind": kind,
+                      "commit": commit_body, "$v2": True,
+                      "witnessedAt": body.get("witnessedAt")}
+        return JetstreamEvent(seq=seq_int, time_us=micros, kind=kind, did=str(body.get("did") or ""),
+                              collection=str(body.get("collection") or ""),
+                              rkey=str(body.get("rkey") or ""), payload=normalized)
     commit = data.get("commit") or {}
     if not isinstance(commit, dict):
         commit = {}
@@ -436,7 +499,7 @@ def parse_jetstream_event(raw: str) -> Optional[JetstreamEvent]:
         seq_int = int(seq) if seq is not None else None
     except (TypeError, ValueError):
         seq_int = None
-    # v2 names the display time `time`; v1 used `time_us`. Both are unix micros.
+    # v2 names the display time `time`; v1 used `time_us`. Both are unix micros in the flat shape.
     raw_time = data.get("time_us", data.get("time"))
     try:
         time_us = int(raw_time) if raw_time is not None else None
@@ -450,13 +513,150 @@ def parse_jetstream_event(raw: str) -> Optional[JetstreamEvent]:
 def jetstream_readiness() -> tuple[str, str]:
     """Whether the live Jetstream reader can run here, honestly.
 
-    v1 of this adapter ships the *contract* (cursor parsing, event folding, dedup) with
-    tests; the live websocket needs the optional ``websockets`` dependency. Without it the
-    tool reports ``unsupported`` — never a fake connection.
+    The reader needs the optional ``websockets`` dependency (``hutch`` extra ``jetstream``).
+    Without it the tool reports ``unsupported`` — never a fake connection. Host reachability
+    is a *runtime* question answered per connection, not a readiness claim.
     """
     try:
         import websockets  # noqa: F401
     except ImportError:
-        return "unsupported", ("the optional websockets dependency is not installed; the cursor/folding contract "
-                               "is tested offline but no live Jetstream connection is claimed")
+        return "unsupported", ("the optional websockets dependency is not installed (pip install 'hutch[jetstream]'); "
+                               "the cursor/folding contract is tested offline but no live Jetstream connection is claimed")
     return "ready", ""
+
+
+JETSTREAM_DEFAULT_HOST = "jetstream.us-west.bsky.network"
+
+
+def read_jetstream_stream(*, pump: StreamPump, host: str = JETSTREAM_DEFAULT_HOST,
+                          cursor: Optional[StreamCursor] = None,
+                          kinds: Sequence[str] = ("commit",), collections: Sequence[str] = (),
+                          max_events: int = 400, max_seconds: float = 20.0,
+                          filter_fn: Optional[Callable[[JetstreamEvent], bool]] = None,
+                          sink: Optional[Callable[[JetstreamEvent], None]] = None,
+                          stop: Optional[Callable[[], bool]] = None,
+                          clock: Clock) -> dict[str, Any]:
+    """Bounded live read of a Jetstream instance, at-least-once and cursor-explicit.
+
+    Contract details that are load-bearing (Jetstream README, re-read 2026-10-11):
+
+    * The cursor is an **instance-local sequence number**; the value is inclusive on replay
+      (events with ``seq >= cursor``), so a resume re-receives at least its last event and
+      this reader dedupes by seq. Timestamp cursors are accepted by the server but are a
+      different namespace — they are never compared with seqs here.
+    * Delivery is at-least-once, and seqs may have registered gaps after a rebuild; a
+      sequence jump is tolerated, a malformed value is not invented.
+    * Below the lookback floor the server answers ``CursorTooOld``: this reader records a
+      bounded gap state instead of silently skipping ahead.
+    * Deletes are positive marker events; the caller folds them. A bounded read that ends
+      is reported with scanned/kept counts so "quiet" and "broken" stay distinct.
+    """
+    stop = stop or (lambda: False)
+    try:
+        from websockets.exceptions import InvalidStatus, WebSocketException
+        from websockets.sync.client import connect as ws_connect
+    except ImportError:
+        pump.liveness.state = "unsupported"
+        pump.record_gap("the optional websockets dependency is not installed")
+        return pump.liveness.report(clock.now())
+
+    from urllib.parse import urlencode
+    params: list[tuple[str, str]] = [("maxMessageSizeBytes", "0")]  # keep markers; oversized folding stays safe
+    if cursor is not None:
+        expected_kind = CursorKind.seq.value if cursor.adapter == "jetstream" else cursor.kind
+        # only the two documented namespaces may be sent; anything else is a lineage error
+        if cursor.adapter != "jetstream" or expected_kind not in (CursorKind.seq.value, CursorKind.timestamp_micros.value):
+            pump.record_gap(f"cursor lineage {cursor.adapter}/{cursor.kind} cannot be sent to Jetstream")
+            pump.liveness.state = "gap"
+            return pump.liveness.report(clock.now())
+        params.append(("cursor", str(cursor.value)))
+    if kinds:
+        params.append(("kinds", ",".join(kinds)))
+    if collections:
+        params.append(("collections", ",".join(collections)))
+    base = host if host.startswith(("ws://", "wss://")) else f"wss://{host}"
+    url = f"{base.rstrip('/')}/xrpc/network.bsky.jetstream.subscribeEvents?{urlencode(params)}"
+
+    deadline = time.monotonic() + max_seconds
+    received = 0
+    scanned = 0
+    try:
+        with ws_connect(url, open_timeout=15, close_timeout=5, max_size=8_000_000) as socket:
+            pump.liveness.connected = True
+            pump.liveness.connected_at = pump.liveness.connected_at or clock.now()
+            while not stop() and time.monotonic() < deadline and received < max_events:
+                remaining = deadline - time.monotonic()
+                try:
+                    raw = socket.recv(timeout=max(0.05, min(1.0, remaining)))
+                except TimeoutError:
+                    continue
+                text = raw.decode("utf-8", errors="replace") if isinstance(raw, (bytes, bytearray)) else raw
+                event = parse_jetstream_event(text if isinstance(text, str) else str(text))
+                if event is None:
+                    pump.record_gap("an unparseable frame was skipped; it is not treated as evidence")
+                    continue
+                scanned += 1
+                event_time = None
+                if event.time_us:
+                    try:
+                        event_time = datetime.fromtimestamp(event.time_us / 1_000_000, tz=UTC)
+                    except (OverflowError, OSError, ValueError):
+                        event_time = None
+                next_cursor: Optional[StreamCursor] = None
+                if cursor is None or cursor.kind == CursorKind.seq.value:
+                    if event.seq is not None:
+                        next_cursor = StreamCursor(adapter="jetstream", instance=host, kind=CursorKind.seq.value,
+                                                   value=event.seq,
+                                                   schema_version=cursor.schema_version if cursor else 2,
+                                                   filter_revision=cursor.filter_revision if cursor else "",
+                                                   note="inclusive replay start; dedupe by seq on resume")
+                elif cursor.kind == CursorKind.timestamp_micros.value and event.time_us:
+                    next_cursor = StreamCursor(adapter="jetstream", instance=host,
+                                               kind=CursorKind.timestamp_micros.value, value=event.time_us,
+                                               schema_version=cursor.schema_version,
+                                               filter_revision=cursor.filter_revision,
+                                               note="v1-style timestamp resume; the server maps it to a replay position")
+                if next_cursor is not None:
+                    # the read position advances on every parsed frame; the filter only decides
+                    # what becomes evidence (a zero-match window must still resume forward)
+                    pump.advance(next_cursor)
+                if filter_fn is not None and not filter_fn(event):
+                    continue
+                if pump.observe({"seq": event.seq, "kind": event.kind, "did": event.did},
+                                event_key=event.dedup_key(), event_time=event_time):
+                    received += 1
+                    if sink is not None:
+                        try:
+                            sink(event)
+                        except Exception:  # noqa: BLE001 - one bad consumer must not kill the read
+                            pass
+    except InvalidStatus as exc:
+        response = getattr(exc, "response", None)
+        status = getattr(response, "status_code", 0)
+        body = getattr(response, "body", b"") or b""
+        body_text = body.decode("utf-8", errors="replace") if isinstance(body, (bytes, bytearray)) else str(body)
+        if "CursorTooOld" in body_text:
+            pump.liveness.state = "gap"
+            pump.record_gap("CursorTooOld: the requested cursor is below this instance's lookback floor; "
+                            "re-enter the archive from the last processed seq (bounded reader stopped instead of "
+                            "silently skipping the gap)")
+        elif status in (401, 403):
+            pump.liveness.state = "blocked"
+            pump.record_gap(f"HTTP {status} during the websocket handshake")
+        else:
+            pump.record_reconnect(reason=f"handshake failed (HTTP {status})")
+    except WebSocketException as exc:
+        pump.record_reconnect(reason=f"websocket error: {exc}")
+    except OSError as exc:
+        pump.liveness.state = "blocked"
+        pump.record_gap(f"connect failed: {type(exc).__name__}: {exc}")
+    except Exception as exc:  # noqa: BLE001 - transport failure is reported, never raised at the caller
+        pump.record_reconnect(reason=f"read ended: {type(exc).__name__}: {exc}")
+    if pump.liveness.state == "live":
+        pump.liveness.state = "live" if received else "quiet"
+    report = pump.liveness.report(clock.now())
+    report["scanned"] = scanned
+    report["scanned_note"] = (f"bounded live window: scanned {scanned} event(s), kept {received} after the filter "
+                              f"(duplicates {pump.liveness.duplicates}); a bounded window is a sample, not complete "
+                              "coverage")
+    return report

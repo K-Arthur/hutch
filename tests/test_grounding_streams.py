@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 
 import pytest
 
@@ -85,6 +86,30 @@ def test_jetstream_event_parsing_keeps_seq_and_time_separate():
     assert event.seq == 42 and event.time_us == 1789920855962065
     assert event.dedup_key() == "seq:42"
     assert parse_jetstream_event("garbage") is None
+
+
+def test_jetstream_v2_payload_shape_is_normalized():
+    """Captured verbatim from the live instance 2026-10-11: v2 nests the commit under `payload`
+    with ISO times; the v1-shaped parser silently saw unknown fields (found by the live smoke)."""
+    raw = json.dumps({
+        "$type": "message",
+        "payload": {
+            "$type": "network.bsky.jetstream.subscribeEvents#commit",
+            "cid": "bafyreifn5i", "collection": "app.bsky.feed.post", "did": "did:plc:m7fs",
+            "operation": "create",
+            "record": {"$type": "app.bsky.feed.post", "createdAt": "2026-10-11T08:50:10.519Z",
+                       "langs": ["ja"], "text": "hello from the live stream"},
+            "rev": "3mxlmpoklhk2y", "rkey": "3mxlmpoerys2g", "seq": 26861373670,
+            "time": "2026-10-11T08:50:10.957156Z", "witnessedAt": "2026-10-11T08:50:10.957156Z"}})
+    event = parse_jetstream_event(raw)
+    assert event is not None
+    assert event.seq == 26861373670 and event.dedup_key() == "seq:26861373670"
+    assert event.did == "did:plc:m7fs" and event.collection == "app.bsky.feed.post" and event.rkey == "3mxlmpoerys2g"
+    assert event.kind == "commit"
+    # ISO time normalized to microseconds; the raw witnessed time stays available
+    assert event.time_us == int(datetime.fromisoformat("2026-10-11T08:50:10.957156+00:00").timestamp() * 1_000_000)
+    assert event.payload["commit"]["record"]["text"] == "hello from the live stream"
+    assert event.payload["witnessedAt"] == "2026-10-11T08:50:10.957156Z"
 
 
 def test_jetstream_readiness_is_honest_about_the_missing_dependency():

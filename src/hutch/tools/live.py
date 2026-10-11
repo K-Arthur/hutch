@@ -13,6 +13,7 @@ selected model route can receive them and records what actually reached the mode
 from __future__ import annotations
 
 import hashlib
+import json
 import uuid
 from typing import Any
 
@@ -67,6 +68,16 @@ class LiveSearchTool(Tool):
         cutoff = EvidenceCutoff.from_clock(clock, as_of=args.get("as_of"), timezone_name=timezone_name,
                                            horizon_hours=horizon)
         cfg = acquire_mod.GroundingConfig.load(ctx.config.state_dir)
+        resume: dict[str, dict] = {}
+        stored_jetstream = ctx.store.get_stream_cursor(f"jetstream:{cfg.jetstream_host}")
+        if stored_jetstream is not None:
+            try:
+                resume["jetstream"] = json.loads(stored_jetstream["cursor_json"])
+            except (TypeError, ValueError):
+                resume = {}
+        if resume:
+            import dataclasses
+            cfg = dataclasses.replace(cfg, stream_cursors=resume)
         budget = acquire_mod.AcquireBudget(
             max_total_sources=max(1, min(int(args.get("max_results") or 40), 40)))
         question_kind = "recent" if horizon <= 48 else "general"
@@ -82,6 +93,12 @@ class LiveSearchTool(Tool):
                                         lanes=lanes, queries=queries, stop=_stop_predicate(ctx))
 
         attempt_ids = ctx.store.record_query_attempts(inv_id, [o.to_json() for o in result.outcomes])
+        for outcome in result.outcomes:
+            if outcome.cursor_json:
+                instance = str(outcome.cursor_json.get("instance") or "unknown")
+                ctx.store.save_stream_cursor(f"{outcome.adapter}:{instance}", investigation_id=inv_id,
+                                             cursor_json=outcome.cursor_json,
+                                             liveness_json=outcome.liveness_json, gap_note=outcome.gap_note)
         by_adapter: dict[str, str] = {}
         for outcome, attempt_id in zip(result.outcomes, attempt_ids):
             by_adapter.setdefault(outcome.adapter, attempt_id)
@@ -276,7 +293,6 @@ class InspectMediaTool(Tool):
 
 
 def json_safe(value: Any) -> str:
-    import json
     try:
         return json.dumps(value, ensure_ascii=False)[:600]
     except (TypeError, ValueError):
