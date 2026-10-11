@@ -152,6 +152,7 @@ receipts strip. The chosen panel keeps the existing dark token set and Archivo d
   appends a labelled revision (verified in the API and in a browser click-through); a
   concurrent refresh is refused with 409. Media region inspection (`x,y,w,h`) is covered by
   image, refusal, and video-frame tests.
+- Suite10's four failures (the TTY test plus three Strict Offline tests) were **environmental** and diagnosable from their own traces: the host's shared 12 GB `/tmp` tmpfs hit 98% because of other sessions, and `OfflineBrokerSet` hardcoded `/tmp` for its scratch sockets. That hardcode is a real robustness bug and is fixed (now `tempfile.gettempdir()`, honoring `TMPDIR`); with temp redirected, all 48 offline/terminal tests pass. The TTY transcript also now shows `KeyboardInterrupt` and `RESTORED foreground=True`, confirming the SIGINT fix.
 - The interactive-terminal full-suite failure was **diagnosed to its root, and it was a product
   bug, not a flaky test**: the suite runs were backgrounded (`nohup`/non-interactive shell),
   which ignores SIGINT, and fork/exec inherits that disposition into the handed-off interactive
