@@ -171,16 +171,20 @@ browser tests also assert no page errors and (in the soak) no route error states
 ## Integration state
 
 The shared checkout `/home/kevina/CodingProjects/hutch` was owned by another active session
-(provider/model-switcher work, committed as `a2106ec`, with docs/artifacts still uncommitted). This
-work was therefore developed in `.worktrees/skills-lifecycle`, rebased onto `a2106ec`, and verified
-there. `main` has **not** been advanced underneath that session's dirty working tree. Integration is
-a fast-forward of `main` to `bb6d009` (or a cherry-pick of the seven commits) once the shared
-checkout is quiet:
+(provider/model-switcher and UI work; commits `a2106ec`, `4f3f0c1`, `777324a`, with further
+uncommitted edits). This work was developed in `.worktrees/skills-lifecycle`, rebased first onto
+`a2106ec` and then onto `777324a`; the second rebase produced exactly one conflict (both sessions
+appending to `CHANGELOG.md` under Unreleased), resolved by keeping both entry sets. `main` has
+**not** been advanced underneath that session's dirty working tree. Integration is a fast-forward
+of `main` to this worktree's HEAD once the shared checkout is quiet:
 
 ```bash
 cd /home/kevina/CodingProjects/hutch
 git merge --ff-only skills-lifecycle/HEAD   # after the active session commits or clears its tree
 ```
 
-The commits are anchored by the local tag `skills-lifecycle-prerebase` (pre-rebase originals) and
-by the worktree HEAD `bb6d009`.
+Local tags anchor the history across rebases: `skills-lifecycle-prerebase` (originals at
+`f2b8b00`) and `skills-lifecycle-prerebase2` (pre-second-rebase at `b823349`). After the rebase
+onto `777324a`, the focused suites (**74 passed**) and the skills browser files (**7 passed**,
+including the soak) were re-run green; a fresh full browser-suite pass is run from this revision
+and its result is recorded below when it completes.
