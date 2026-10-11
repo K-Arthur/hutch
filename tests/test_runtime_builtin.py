@@ -783,3 +783,33 @@ def test_a_stream_retry_is_visible_in_the_transcript(store, config, tmp_path, ol
     ctx, run, emitted, tools = build(store, config, tmp_path)
     run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools)
     assert kinds(emitted, "stream_retry") and "without streaming" in kinds(emitted, "stream_retry")[0]["note"]
+
+
+# ============================================================ completion honesty: no silent partial success
+
+def test_empty_final_answer_is_not_a_success(store, config, tmp_path, ollama):
+    ollama.script = agent_script([{"content": ""}])
+    ctx, run, emitted, tools = build(store, config, tmp_path, tools=())
+    with pytest.raises(RunAborted) as excinfo:
+        run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools)
+    assert excinfo.value.reason == "empty"
+    assert not [e for e in emitted if e.type is EventType.message and e.data.get("role") == "assistant"]
+
+
+def test_length_truncated_final_answer_is_preserved_but_not_a_success(store, config, tmp_path, ollama):
+    partial = "Here is the first half of the plan;"
+    ollama.script = agent_script([{"content": partial, "length": True}])
+    ctx, run, emitted, tools = build(store, config, tmp_path, tools=())
+    with pytest.raises(RunAborted) as excinfo:
+        run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools)
+    assert excinfo.value.reason == "length"
+    replies = [e.data["content"] for e in emitted if e.type is EventType.message and e.data.get("role") == "assistant"]
+    assert replies == [partial]          # the paid-for partial text stays visible; the run is not "done"
+
+
+def test_a_normal_final_answer_still_completes(store, config, tmp_path, ollama):
+    ollama.script = agent_script([{"content": "done"}])
+    ctx, run, emitted, tools = build(store, config, tmp_path, tools=())
+    assert run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools) == "done"
+    replies = [e.data["content"] for e in emitted if e.type is EventType.message and e.data.get("role") == "assistant"]
+    assert replies == ["done"]

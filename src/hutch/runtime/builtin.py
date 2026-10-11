@@ -690,7 +690,20 @@ class BuiltinRuntime:
             # ---- final answer
             if not result.tool_calls:
                 final = result.content or ""
+                if not final.strip():
+                    # No text and no tool calls is not a completion: the store would drop the empty
+                    # message anyway, and reporting success would misstate what happened (SR-5).
+                    raise RunAborted("empty", "the model returned no text for this turn, so there is no answer to "
+                                              "record; retry, or check the model's health with `hutch doctor`")
                 ctx.emit(Event(run_id=run.id, type=EventType.message, data={"role": "assistant", "content": final}))
+                if result.finish_reason == "length":
+                    # The text above is real and was paid for, but the model was cut off by the per-turn
+                    # budget. Keep it visible and refuse to report the run as complete.
+                    self._log(ctx, run, "note",
+                              f"the reply hit the per-turn cap of {self._turn_cap(bot, session.rung)} tokens and was cut off")
+                    raise RunAborted("length", "the model's answer hit the per-turn token cap before it finished; "
+                                               "the partial text is kept in the transcript, but the run is incomplete. "
+                                               "Ask for a shorter answer or raise the model's per-turn token cap")
                 return final
 
             # The estimate limit stops FURTHER model calls; it never discards a final answer already paid for.
