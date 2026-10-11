@@ -6125,6 +6125,7 @@ async function renderRunDetail(runId) {
   const block = await runBlockHtml(runId);
   if (!stillCurrent() || !stream.isConnected) return;
   stream.insertAdjacentHTML("beforeend", block);
+  window.HutchComputer?.mount(stream, runId);   // computer-session panel; renders only for runs that used a surface
   const verifyButton = $(`[data-verify-run-history]`, stream);
   const savedIntegrity = runIntegrityStates.get(runId);
   if (savedIntegrity) {

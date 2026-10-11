@@ -256,8 +256,18 @@ class BuiltinRuntime:
             vision = bool(session.provider.supports_vision(session.rung.model))
         except Exception:
             vision = False
+        withheld = ""
+        try:
+            local_route = bool(session.provider.data_stays_local())
+        except Exception:
+            local_route = False
+        if vision and not local_route and not getattr(ctx.bot, "observation_to_hosted", False):
+            # Screen/page images are data egress even when execution is local: a hosted route needs the Bot owner's
+            # explicit consent (a Bot setting), separate from the consent to use the route for text.
+            withheld = ("this Bot has not allowed sending screen or page images to a hosted model; use the text "
+                        "observation, or enable it in the Bot's settings")
         prepared, report = prepare_messages(
-            messages, vision=vision, frames=FrameStore(ctx.config.run_dir(ctx.bot.name, run.id)))
+            messages, vision=vision, frames=FrameStore(ctx.config.run_dir(ctx.bot.name, run.id)), withheld=withheld)
         notable = [o for o in report["omitted"] if o["reason"] != "superseded"]
         if report["delivered"] or notable:
             detail = [f"sent {', '.join(report['delivered'])}"] if report["delivered"] else []

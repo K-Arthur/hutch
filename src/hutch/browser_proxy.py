@@ -17,7 +17,7 @@ import threading
 from typing import Callable, Optional
 from urllib.parse import urlsplit
 
-from .netguard import LocalAccess, LocalOrigins, NetGuardError, display_url_origin, resolve_public, screen_url
+from .netguard import LocalAccess, NetGuardError, display_url_origin, resolve_public, screen_url
 
 MAX_CONNECTIONS = 64
 MAX_HEADER_BYTES = 32 * 1024

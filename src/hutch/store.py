@@ -5815,6 +5815,18 @@ class Store:
             ).fetchall()
         return [(self._event(row), row["artifact_kind"]) for row in rows]
 
+    def frame_event(self, run_id: str, frame_id: str) -> Optional[Event]:
+        """The committed tool-result event that records one observation frame (its authority to be fetched)."""
+        self.flush_events()
+        with self._lock:
+            row = self._db.execute(
+                "SELECT e.id, e.run_id, e.seq, e.hash, e.ts, e.type, e.data FROM events e, "
+                "json_each(e.data, '$.frames') f WHERE e.run_id = ? AND e.type = 'tool_result' "
+                "AND json_extract(f.value, '$.frame_id') = ? ORDER BY e.seq DESC LIMIT 1",
+                (run_id, frame_id),
+            ).fetchone()
+        return self._event(row) if row else None
+
     def artifact_event(self, run_id: str, artifact_path: str) -> Optional[Event]:
         """Find the committed event that authorizes access to one run-local artifact path."""
         self.flush_events()

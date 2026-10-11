@@ -1,14 +1,16 @@
 """Browser tool — optional Playwright automation with per-bot profiles.
 
-Answers the documented browser-agent failures:
-- Session expiry: each bot gets a PERSISTENT browser profile, so logins survive
-  across runs instead of being re-harvested by hand.
-- One desktop: browser contexts are serialized behind a global lock — two bots
-  never fight over one GUI; OS file leases extend ownership across worker processes.
-- CAPTCHA/MFA walls: navigating to a login/captcha challenge emits a
-  pause_to_human event only when this bot has opted into a visible local
-  desktop browser. Headless runs report that no handoff exists; the bot never
-  solves challenges itself.
+What it guarantees (see docs/computer-use.md):
+- Session expiry: each bot gets a PERSISTENT browser profile, so logins survive across runs instead of being re-harvested
+  by hand. A profile has exactly one writer (an OS file lease across worker processes); contexts are instance-owned, so a bot
+  never inherits another bot's cookies, tabs or pages.
+- Waiting is not driving: a bounded driver slot covers browser work only, and is released while a call waits for an approval
+  or for a person, so one bot's pending decision never freezes another bot's browser.
+- Targets are identified, not guessed: zero or several matching elements are refused; tabs have stable ids; coordinates are
+  only accepted against the latest observation frame.
+- CAPTCHA/MFA walls: a login/challenge page parks the run in ``waiting_human`` only when this bot has opted into a visible
+  local desktop browser. Headless runs report that no handoff exists; the bot never solves challenges itself.
+- Stop works while a call is hung: a run-cancel hook ends the browser driver's process tree from outside the owning thread.
 
 Requires the optional extra:  pip install "hutch[browser]"
 """
@@ -42,8 +44,8 @@ from ..approvals import DeniedError
 from ..safety import Decision, Verdict
 from ..browser_proxy import PinnedBrowserProxy
 from ..computer.control import ControlLease, StaleControl
-from ..computer.frames import FrameError, FrameStore, MAX_FRAME_BYTES
-from ..netguard import LocalAccess, LocalOrigins, display_url_origin
+from ..computer.frames import FrameError, FrameStore
+from ..netguard import LocalAccess, LocalOrigins, dashboard_ports, display_url_origin
 from .base import Tool, ToolContext, ToolResult, _schema, clip, rehearsed
 
 class _DriverSlot:
@@ -531,7 +533,8 @@ class BrowserTool(Tool):
 
     @staticmethod
     def _local_origins(ctx) -> LocalOrigins:
-        return LocalOrigins.lenient(getattr(getattr(ctx, "bot", None), "local_dev_origins", ()) or ())
+        approved = LocalOrigins.lenient(getattr(getattr(ctx, "bot", None), "local_dev_origins", ()) or ())
+        return approved.without_ports(dashboard_ports())      # never Hutch's own approval/settings screens
 
     @staticmethod
     def _lock(path, label: str) -> int:
@@ -673,13 +676,24 @@ class BrowserTool(Tool):
             self._tabs, self._active_tab, self._tab_notice, self._tab_listener_for = {}, "", "", None
         playwright, self._pw = self._pw, None
         proxy, self._proxy = self._proxy, None
+        # Synchronous Playwright objects may only be driven from the thread that launched them. Cleanup can legitimately
+        # arrive from another thread (a supervisor, or after the owner exited): then closing through the API is not
+        # possible, so end the driver's process tree from outside instead of reporting a cleanup failure.
+        same_thread = self._owner_thread in (None, threading.get_ident())
         try:
-            if browser is not None:
+            if not same_thread:
+                for root in list(self._driver_procs):
+                    try:
+                        if procguard.end_tree(root):
+                            errors.append(BrowserUnavailable("a browser process could not be confirmed ended"))
+                    except Exception as exc:
+                        errors.append(exc)
+            if browser is not None and same_thread:
                 try:
                     browser.close()
                 except Exception as exc:
                     errors.append(exc)
-            if playwright is not None:
+            if playwright is not None and same_thread:
                 try:
                     playwright.stop()
                 except Exception as exc:
@@ -1000,7 +1014,10 @@ class BrowserTool(Tool):
             })
             frame_id = node.get("frameId") or session.send("Page.getFrameTree")["frameTree"]["frame"]["id"]
             world = session.send("Page.createIsolatedWorld", {
-                "frameId": frame_id, "worldName": f"hutch-review-{secrets.token_hex(8)}",
+                # A stable name makes Chromium return the frame's existing isolated world instead of creating a new
+                # JS context per reviewed click (measured: a unique name per call grew the browser ~0.5 MB per click).
+                # Isolated worlds are not reachable from page scripts, so the name is not a secret.
+                "frameId": frame_id, "worldName": "hutch-review",
                 "grantUniversalAccess": False,
             })
             resolved = session.send("DOM.resolveNode", {

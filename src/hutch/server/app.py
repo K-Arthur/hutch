@@ -196,6 +196,9 @@ class BotCreate(BaseModel):
     command_rules: list[CommandRule] = []
     workspace_mode: Optional[Literal["fresh", "managed", "folder"]] = None
     local_browser_handoff: bool = False
+    local_dev_origins: list[str] = Field(default_factory=list, max_length=8)
+    computer_apps: list[str] = Field(default_factory=list, max_length=8)
+    observation_to_hosted: bool = False
     workdir: Optional[str] = None
     limits: Optional[Limits] = None
     source_conversation_id: Optional[str] = Field(default=None, max_length=100)
@@ -361,6 +364,9 @@ class BotPatch(BaseModel):
     command_rules: Optional[list[CommandRule]] = None
     workspace_mode: Optional[Literal["fresh", "managed", "folder"]] = None
     local_browser_handoff: Optional[bool] = None
+    local_dev_origins: Optional[list[str]] = Field(default=None, max_length=8)
+    computer_apps: Optional[list[str]] = Field(default=None, max_length=8)
+    observation_to_hosted: Optional[bool] = None
     workdir: Optional[str] = None          # "" clears it
     limits: Optional[Limits] = None
     tool_limits: Optional[dict[str, int]] = None   # per-tool output caps in chars (PF-2); "" clears a tool
@@ -2265,6 +2271,13 @@ def create_app() -> FastAPI:
         return [{"status": status.value, "label": LABELS[status], "terminal": status not in ACTIVE_STATUSES,
                  "needs_person": status in NEEDS_PERSON} for status in RunStatus]
 
+    @app.get("/api/v1/computer/readiness")
+    def computer_readiness(deep: bool = False) -> dict:
+        """What this host can do for computer use, per capability. Read-only; never captures or sends input."""
+        from ..computer.doctor import probe_computer_use, summary
+        results = probe_computer_use(deep=deep)
+        return {"capabilities": [c.public() for c in results], "summary": summary(results)}
+
     @app.get("/api/v1/capabilities", response_model=list[CapabilityResource])
     def capabilities() -> list[dict]:
         linux = platform.system() == "Linux"
@@ -3178,6 +3191,26 @@ def create_app() -> FastAPI:
             out[tool] = n
         return out
 
+    def _checked_local_origins(values: list[str]) -> list[str]:
+        from ..netguard import LocalOrigins, dashboard_ports
+        try:
+            parsed = LocalOrigins.parse(values)
+        except ValueError as exc:
+            raise HTTPException(422, f"local_dev_origins: {exc}") from None
+        own = parsed.ports() & dashboard_ports()
+        if own:
+            raise HTTPException(422, "local_dev_origins: that is Hutch's own dashboard; a Bot's browser cannot be "
+                                     f"approved to open it (port {sorted(own)[0]})")
+        return list(parsed)
+
+    def _checked_computer_apps(values: list[str]) -> list[str]:
+        from ..models import normalize_computer_apps
+        try:
+            return normalize_computer_apps(values)
+        except ValueError as exc:
+            raise HTTPException(422, f"computer_apps: {exc}") from None
+
+
     def _checked_rules(rules: list[CommandRule]) -> list[CommandRule]:
         from ..safety import MAX_RULES
         if len(rules) > MAX_RULES:
@@ -3249,6 +3282,9 @@ def create_app() -> FastAPI:
         bot.approval_mode = body.approval_mode
         bot.risk_tier = body.risk_tier
         bot.local_browser_handoff = body.local_browser_handoff
+        bot.local_dev_origins = _checked_local_origins(body.local_dev_origins)
+        bot.computer_apps = _checked_computer_apps(body.computer_apps)
+        bot.observation_to_hosted = body.observation_to_hosted
         bot.creation_source = creation_source
         bot.creation_context_sources = list(creation_context_sources or [])
         bot.command_rules = _checked_rules(body.command_rules)
@@ -3483,6 +3519,9 @@ def create_app() -> FastAPI:
         if body.approval_mode is not None: bot.approval_mode = body.approval_mode
         if body.risk_tier is not None: bot.risk_tier = body.risk_tier
         if body.local_browser_handoff is not None: bot.local_browser_handoff = body.local_browser_handoff
+        if body.local_dev_origins is not None: bot.local_dev_origins = _checked_local_origins(body.local_dev_origins)
+        if body.computer_apps is not None: bot.computer_apps = _checked_computer_apps(body.computer_apps)
+        if body.observation_to_hosted is not None: bot.observation_to_hosted = body.observation_to_hosted
         if body.limits is not None: bot.limits = body.limits
         if body.tool_limits is not None: bot.tool_limits = _checked_tool_limits(body.tool_limits)
         if body.command_rules is not None: bot.command_rules = _checked_rules(body.command_rules)
@@ -3986,6 +4025,91 @@ def create_app() -> FastAPI:
                                           PurePosixPath((events[0].data.get("workspace_file", {}) or {}).get("artifact", "")
                                                         if share["artifact_kind"] == "workspace_file"
                                                         else events[0].data.get("artifact", "")).name)
+
+    _FRAME_ID = re.compile(r"^f\d{6}$")
+
+    @app.get("/api/v1/tasks/runs/{run_id}/computer")
+    def run_computer_state(run_id: str) -> dict:
+        """What the computer-session panel shows: who controls the surface, the environment, and the latest frame.
+
+        Derived only from the run's recorded events, so it cannot claim more than was recorded: a frame is described by
+        when it was captured, never as "live"."""
+        from ..models import iso, utcnow
+        run = run_or_404(run_id)
+        events = store.tail_events(run_id, 400)                   # newest 400, oldest first
+        control = None
+        surface = None
+        frame = None
+        observation = None
+        history: list[dict] = []
+        human_seq = 0
+        for ev in events:
+            data = ev.data if isinstance(ev.data, dict) else {}
+            if ev.type is EventType.log and data.get("kind") == "computer_control":
+                control = {k: data.get(k) for k in ("owner", "generation", "reason", "fresh_observation_required")}
+                control["since"] = ev.ts
+                surface = data.get("surface") or surface
+                history.append({"owner": data.get("owner"), "reason": str(data.get("reason") or "")[:160],
+                                "at": ev.ts, "generation": data.get("generation")})
+            elif ev.type is EventType.tool_result and data.get("frames"):
+                frames = [f for f in data["frames"] if isinstance(f, dict)]
+                if frames:
+                    frame = {**frames[-1], "seq": ev.seq, "recorded_at": ev.ts}
+                    observation = data.get("observation") if isinstance(data.get("observation"), dict) else observation
+                    if surface is None and isinstance(observation, dict):
+                        kind = (observation.get("surface") or {}).get("kind", "")
+                        surface = "desktop" if kind.startswith("desktop") else "browser"
+            elif ev.type is EventType.human_needed:
+                human_seq = ev.seq
+        waiting = run.status.value == "waiting_human"
+        active = frame is not None or control is not None
+        env = (observation or {}).get("environment") if isinstance(observation, dict) else None
+        return {
+            "active": active,
+            "run_status": run.status.value,
+            "surface": surface or ("desktop" if (env or {}).get("mode") == "isolated" else "browser"),
+            "control": control,
+            "environment": env or None,
+            "frame": ({**frame, "url": f"/api/v1/tasks/runs/{run_id}/frames/{frame['frame_id']}",
+                       "captured_at": (observation or {}).get("captured_at") or frame.get("recorded_at"),
+                       "page": (observation or {}).get("surface")} if frame else None),
+            "history": history[-6:],
+            "human_needed_seq": human_seq if waiting else 0,
+            "remote_control": False,
+            "remote_control_note": ("Remote clicking and typing are not available in this build. You can supervise, "
+                                    "approve, stop and resume from here."),
+            "now": iso(utcnow()),
+        }
+
+    @app.get("/api/v1/tasks/runs/{run_id}/frames/{frame_id}")
+    def run_frame(run_id: str, frame_id: str) -> Response:
+        """One observation frame, only if the run recorded it, and only after size + SHA-256 verification."""
+        run = run_or_404(run_id)
+        if not _FRAME_ID.fullmatch(frame_id):
+            raise HTTPException(404, "no such frame")
+        event = store.frame_event(run.id, frame_id)
+        if event is None:
+            raise HTTPException(404, "no such frame")
+        recorded = next((f for f in event.data.get("frames", []) if isinstance(f, dict)
+                         and f.get("frame_id") == frame_id), None)
+        bot = store.get_bot(run.bot_id)
+        if recorded is None or bot is None:
+            raise HTTPException(404, "no such frame")
+        from ..computer.frames import FrameError, FrameStore, ImageRef
+        extension = {"image/png": "png", "image/jpeg": "jpg"}.get(recorded.get("media_type"))
+        if extension is None:
+            raise HTTPException(404, "no such frame")
+        try:
+            ref = ImageRef.from_internal({**recorded, "path": f"frames/{frame_id}.{extension}"})
+            content = FrameStore(config.run_dir(bot.name, run.id)).load(ref)
+        except FrameError as exc:
+            # superseded frames are evicted by design (bounded store); say so instead of a generic failure
+            raise HTTPException(410, f"this frame is no longer retained: {exc}") from None
+        return Response(content=content, media_type=ref.media_type, headers={
+            "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Content-Disposition": "inline",
+            "Content-Security-Policy": "default-src 'none'; sandbox", "ETag": f'"{ref.sha256}"',
+            "X-Hutch-Frame-Verified": "sha256",
+        })
 
     @app.get("/api/v1/tasks/runs/{run_id}/artifacts/{filename}")
     def download_run_artifact(run_id: str, filename: str) -> Response:

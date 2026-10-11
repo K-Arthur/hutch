@@ -236,6 +236,10 @@ class Provider(ABC):
         result.total_ms = result.total_ms or (time.perf_counter() - t0) * 1000.0
         return result
 
+    def data_stays_local(self) -> bool:
+        """True only when this route's endpoint is on this machine (loopback). Anything else is data egress."""
+        return False
+
     def supports_vision(self, model: str) -> bool:
         """Whether ``model`` on this route accepts image input. Conservative: an unverified route is semantic-only.
 

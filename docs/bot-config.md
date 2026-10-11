@@ -79,6 +79,9 @@ response is marked `Cache-Control: no-store`.
 | `memory_enabled` | bool | true | allow runtime fact proposal/retrieval tools; facts are never automatically injected |
 | `workdir` | path? | null | a folder of yours the bot works in, run after run (see below); null = a fresh empty workspace per run |
 | `local_browser_handoff` | bool | false | open this bot's browser as a visible Linux desktop window; a login wait holds one Hutch handoff/profile lease until the user resumes. Requires a live Linux display and Playwright Chromium; does not enable phone control. |
+| `local_dev_origins` | list | `[]` | exact `http://localhost:PORT` / loopback origins the browser may open for local web-app work (at most 8; no LAN or metadata addresses; Hutch's own dashboard is refused). See [computer-use.md](computer-use.md). |
+| `computer_apps` | list | `[]` | program names the `computer` tool may launch in its isolated desktop (names only; no paths or arguments). Empty means the tool cannot start a session. |
+| `observation_to_hosted` | bool | false | allow screen or page **images** to be sent to a hosted (non-loopback) model route; local routes are unaffected. |
 | `risk_tier` | enum | `supervised` | `readonly` · `supervised` · `trusted`: what happens to medium-risk actions ([safety.md](safety.md)) |
 | `command_rules` | list | `[]` | `{match, verdict}` per-command `allow`/`ask`/`deny` globs ([safety.md](safety.md)) |
 | `sandbox` | enum | `strict` for new bots | `strict` uses Linux bubblewrap for shell commands and fails closed if unavailable; `off` runs shell commands without OS containment |

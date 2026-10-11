@@ -197,6 +197,11 @@ class OllamaProvider(Provider):
         self._caps[model] = meta.capabilities
         return meta
 
+    def data_stays_local(self) -> bool:
+        from urllib.parse import urlsplit
+        host = (urlsplit(self.base_url).hostname or "").lower()
+        return host in ("localhost", "127.0.0.1", "::1") or host.endswith(".localhost")
+
     def supports_vision(self, model: str) -> bool:
         """Ollama reports ``vision`` in a model's capabilities (``/api/show``); that is the signal, not a name guess."""
         try:

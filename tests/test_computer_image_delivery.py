@@ -73,7 +73,8 @@ def test_claude_receives_only_the_newest_frame_as_a_real_image_block(store, conf
     srv = FakeAnthropic()
     try:
         srv.script = _tool_script(2)
-        ctx, run, emitted, tools = build(store, config, tmp_path, model="anthropic/claude-opus-5-5")
+        ctx, run, emitted, tools = build(store, config, tmp_path, model="anthropic/claude-opus-5-5",
+                                         observation_to_hosted=True)
         tools["observe_fake"] = ObserveTool()
         assert run_it(runtime(provider_factory=factory(claude=srv)), run, ctx, tools) == "done"
 
@@ -155,5 +156,22 @@ def test_an_openai_compatible_route_never_receives_image_parts_or_internal_keys(
         wire = json.dumps([r["body"] for r in srv.requests if r["path"].endswith("/chat/completions")])
         assert "image_url" not in wire and '"images"' not in wire and "frames/" not in wire
         assert "cannot receive images" in wire
+    finally:
+        srv.close()
+
+
+def test_a_hosted_route_receives_no_images_until_the_bot_owner_allows_it(store, config, tmp_path):
+    srv = FakeAnthropic()
+    try:
+        srv.script = _tool_script(1)
+        ctx, run, emitted, tools = build(store, config, tmp_path, model="anthropic/claude-opus-5-5")  # default: not allowed
+        tools["observe_fake"] = ObserveTool()
+        assert run_it(runtime(provider_factory=factory(claude=srv)), run, ctx, tools) == "done"
+        bodies = [r["body"] for r in srv.of("/v1/messages")]
+        assert all(_image_blocks(b["messages"]) == [] for b in bodies)
+        wire = json.dumps(bodies[-1])
+        assert "has not allowed sending screen or page images to a hosted model" in wire
+        notes = [e.data for e in emitted if e.type is EventType.log and "observation images" in str(e.data.get("note", ""))]
+        assert notes and "withheld_by_policy" in notes[0]["note"]
     finally:
         srv.close()

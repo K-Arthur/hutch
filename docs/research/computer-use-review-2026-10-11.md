@@ -48,3 +48,13 @@ Initial integrated baseline: **124 passed** in 47.82 seconds (browser profiles, 
 Restored browser/frame/control unit and wire checks: **163 passed** in 54.37 seconds. Real-browser/native and visual
 continuation results, packaging, phone emulation and live-model limitations are separate obligations; these counts do not
 establish their completion.
+
+Restored native/doctor/privacy/offline checks: **158 passed** in 52.49 seconds. The first real-process batch ran
+**37 passing scenarios and one failure** in 237.52 seconds. The failure was the visible-browser handoff launch:
+the host's 12 GiB `/tmp` tmpfs was full (`ENOSPC` in Chromium/dconf). It is not classified as a passing handoff.
+Testing moves to a private, disk-backed `TMPDIR`; no unrelated temporary files or services are removed.
+The passing scenarios include the real KWrite edit/save/dialog/reopen and menu flows, profile isolation,
+browser target checks, and the session panel. Current 360/768/1440 panel captures live in
+`docs/research/artifacts/computer-use-2026-10-11`; 360 and 1440 were opened and inspected.
+The isolated visible-browser handoff recheck passed in **8.98 seconds** with the disk-backed temporary directory;
+the original failed attempt remains recorded. This proves disposable KWin/EIS human input, not a physical phone.

@@ -189,11 +189,28 @@ class LocalOrigins:
         """For CONNECT tunnels, where the scheme is not visible to the proxy."""
         return any(self.allows(scheme, host, port) for scheme in ("http", "https"))
 
+    def without_ports(self, ports: "set[int]") -> "LocalOrigins":
+        """The same approvals minus any origin on one of ``ports`` (used to exclude Hutch's own dashboard)."""
+        return LocalOrigins(frozenset(e for e in self._entries if e[2] not in ports))
+
+    def ports(self) -> set[int]:
+        return {e[2] for e in self._entries}
+
     @staticmethod
     def addresses(host: str) -> list[str]:
         """Numeric addresses to connect to for an approved host (never a DNS lookup)."""
         h = host.lower().strip("[]").rstrip(".")
         return ["127.0.0.1", "::1"] if h == "localhost" else [h]
+
+
+def dashboard_ports() -> "set[int]":
+    """Ports on which Hutch's own dashboard may be listening: the default plus the one ``hutch serve`` exported."""
+    import os
+    ports = {8787}
+    exported = os.environ.get("HUTCH_DASHBOARD_PORT", "").strip()
+    if exported.isdigit():
+        ports.add(int(exported))
+    return ports
 
 
 class LocalAccess:

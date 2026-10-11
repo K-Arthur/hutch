@@ -75,70 +75,101 @@ compositor (see section 6).
    that as "new top-level navigation", not as an error that fails the page.
 4. `--unsafely-treat-insecure-origin-as-secure` had **no effect** in this build (headless persistent context); `localhost` is a
    secure context. The in-page form review needs `crypto.subtle`, so plain-HTTP non-localhost forms are refused (by design).
+5. **KWin ties an EIS context to the requesting D-Bus peer.** The first input worker let its D-Bus connection be garbage
+   collected after obtaining the socket; libei then logged `failed to send message: Broken pipe` and no device ever appeared,
+   nondeterministically. Keeping the connection alive for the socket's lifetime (and calling `disconnect(cookie)` on exit) made
+   it deterministic. This is the same failure mode as cua #2105 ("sessions ending when the creating D-Bus connection exits").
+6. `connectToEIS` on KWin 6.7.5 returned the keyboard device only after the pointer device resumed; a worker that reports
+   "ready" on the first resumed device has no keyboard yet. The worker therefore waits for every capability the caller needs.
+7. **An application's first screen is not the one a script assumes.** KWrite started without a file shows a Welcome page; a
+   scripted click/type landed on its recent-documents list. Every action therefore returns a fresh frame and is refused
+   against an older one.
+8. **A unique isolated-world name per reviewed click leaked a JS context each time** (about 0.5 MB per click, measured by a
+   per-process RSS split in the soak). A stable name makes Chromium reuse the world.
+9. Desktop capture through KWin (spectacle) costs about 600 ms per frame on the reference host; input dispatch is sub-
+   millisecond, so a dispatched input is never evidence of an effect.
 
-## 4. Capability / gap matrix
+## 4. Capability / gap matrix (final state of this work)
 
-State words: **verified** (exercised in a real process), **implemented** (code exists, only fakes/unit tests), **gap**, **unsupported**.
+State words: **verified** (exercised in a real process), **protocol-verified** (wire-level fake, no live model),
+**implemented** (unit tests only), **gap**, **unsupported**, **blocked** (cannot be exercised on this host).
 
-| Capability | Browser | Native desktop (this host) | Notes |
+| Capability | Browser | Native desktop (KDE Wayland, isolated KWin) | Notes |
 | --- | --- | --- | --- |
-| Isolated profile per bot, exclusive write ownership | verified (existing tests) | n/a | OS file leases; instance-owned contexts |
-| Driver slot not held while waiting on a person | **verified** (this work) | n/a | `_DriverSlot`; limit `HUTCH_BROWSER_MAX_ACTIVE` (default 1) |
-| Target identity (no first-match guessing) | **verified** | gap | exact label first; refuse 0/>1 |
-| Tab identity / popups | **verified** | n/a | `t1…` ids, popup follows with notice, `tabs` action |
-| Approved local development origins | **verified** | n/a | per-bot, `http` loopback only; proxy-enforced context |
-| Observation envelope + frame ids + freshness | gap | gap | not started |
-| Image delivery to model (per provider adapter) | gap | gap | no image path exists in `src/`; `compat.json` says not exposed |
-| Coordinate contract / transforms | gap | gap | no coordinate actions exist in the tool yet |
-| Verified action outcomes (dispatched vs effect-verified) | partial | gap | receipts exist (ADR-0003); no postcondition checks |
-| Human takeover with a viewable surface | partial (local desktop opt-in only) | gap | no phone/remote surface |
-| Control ownership with generation fence | gap | gap | run status only |
-| Emergency stop independent of the model | partial | gap | bounded by call timeouts; driver not killable |
-| Wayland capture / input / a11y readiness probes | n/a | gap | host has the pieces; nothing probes them |
-| Observation (data egress) consent | gap | gap | `read`/`screenshot` are not gated; hosted-provider policy not applied to page text |
-| Terminal/file/clipboard transfer grants | existing tools only | gap | |
+| Exclusive per-bot profile / session ownership | verified | verified (own bus, display, input) | OS file lease; instance-owned contexts |
+| Driver not held while waiting on a person | **verified** | n/a | `_DriverSlot` |
+| Target identity (no first-match guessing) | **verified** | frame-bound coordinates | exact label first; refuse 0/>1 |
+| Tab identity / popups | **verified** | n/a | `t1…`, popup follows with notice |
+| Approved local development origins | **verified** | n/a | http loopback only; proxy-enforced; dashboard refused |
+| Observation record + frame ids + freshness | **verified** | **verified** | bounded, hash-verified, evicting |
+| Image delivery to a model | protocol-verified (Anthropic, Ollama-vision) | protocol-verified | no live hosted call; **blocked**: no local multimodal runtime on host |
+| Hosted-route image consent | **verified** (wire test) | same | `observation_to_hosted`, default off |
+| Coordinate contract | verified (CSS-px frame, stale/scroll/OOB refused) | verified (screen px, stale/OOB refused) | no crop/zoom transform exists yet |
+| Verified outcomes | partial: nav origin + field read-back | visual-change only; file verified in the scenario | `dispatched` is never reported as an effect |
+| Control ownership with generation fence | **verified** | **verified** | `ControlLease`; `computer_control` run events |
+| Emergency stop independent of the model | **verified** (1.1–1.3 s) | **verified** (0.06 s) | hung-call and whole-desktop kill |
+| Stop while other bot waits / out-of-order finish | verified | n/a | two profiles, one parked in approval |
+| Readiness probes (session, portal, ScreenCast/RemoteDesktop versions, PipeWire, libei, AT-SPI, clipboard, compositor) | n/a | **verified** read-only on host; unit-tested branches | consent-gated parts report `needs_consent` |
+| Portal consent flow capture/input on a personal desktop | n/a | **gap / not exercised** | never driven in tests |
+| Accessibility (AT-SPI) semantic targeting | DOM semantics instead | **gap** | bus present; bindings absent in the venv; worker pattern is ready for it |
+| Human takeover, local visible browser | **verified** in a disposable Wayland session: genuine pause, person's input via real EIS, no frame captured during the pause, secret absent from every record, owner human→agent with a new generation | n/a | `tests/e2e/test_computer_handoff_native.py`; not a phone, not a personal desktop |
+| Human takeover, remote/phone *control* | **gap** | **gap** | panel is supervision only and says so |
+| Computer-session panel (360/768/1440) | verified with screenshots | same panel | static/computer.js |
+| Terminal PTY, clipboard and file-transfer grants | **gap** | **gap** | tool launches only allowlisted apps and workspace files |
+| Strict offline for the computer tool | **gap** | **gap** | not verified; do not rely on it |
+| Page-text egress consent for hosted routes | **gap** | n/a | text rides the route approval |
+| macOS / Windows / GNOME / X11-only | unsupported | unsupported | not assessed beyond reading platform docs |
 
-## 5. Authority and session diagram (target design; only the first column exists today)
+## 5. Authority and session diagram (as built)
 
 ```
- person ──approves/grants──▶ Bot settings (tools, local_browser_handoff, local_dev_origins, approval_mode)
-                                   │ (configuration version)
-                                   ▼
- run ──▶ ApprovalGate (deny ▸ policy ▸ sticky ▸ ask)      ◀── hard deny always first; outward actions never sticky
-   │          │ binds action_hash to args + target fingerprint
-   ▼          ▼
- BrowserTool session (instance-owned context, profile lease, tab registry)   [implemented]
-   │   driver slot (bounded) — released while waiting on a person              [implemented]
-   │   egress proxy (every hop) + route guard (page-aware) + LocalAccess       [implemented]
-   ▼
- ComputerSession (control owner + generation, observation envelope, frames)    [planned]
-   ├─ browser driver (Playwright)   semantic first, coordinates only for canvases
-   └─ desktop driver (portal/EIS, AT-SPI) in an isolated compositor            [planned]
+ person ─ enables ─▶ Bot settings (tools, computer_apps, local_dev_origins, observation_to_hosted, approval_mode)
+ run ──▶ ApprovalGate (deny ▸ policy ▸ sticky ▸ ask)      hard deny first; outward actions never sticky
+   │
+   ├─ BrowserTool  per-bot profile lease · driver slot (released while waiting) · tab registry
+   │      egress proxy (every hop) + route guard + LocalAccess permit · ControlLease · FrameStore
+   │      emergency stop = end driver tree from the supervisor thread
+   └─ ComputerTool one session approval · ManagedDesktop (kwin --virtual, own bus, workspace cwd)
+          DesktopSession(ControlLease, FrameStore, typed commands) ─ EIS worker (separate, killable process)
+          capture: KWin ScreenShot2 via spectacle         input: EIS (libei) keycodes / absolute pointer
+ events: tool_result.frames (public refs) · log kind=computer_control · human_needed/resumed
+ UI: GET /api/v1/tasks/runs/{id}/computer · GET .../frames/{frame_id} (verified) · panel in the run view
 ```
 
-## 6. Plan, budgets, risks, rollback
+## 6. Migrations, rollback and residual risks
 
-1. **Done here:** driver-slot scope, target identity, tab ownership, approved local development origins, egress-block reporting.
-2. **Next:** observation envelope + bounded frame store + image delivery through the provider adapters (new module for the
-   conversion logic so that the provider files only gain small hooks, because those files are being edited concurrently);
-   control-ownership state with a generation fence; kill-able driver process for emergency stop; capability probes (doctor).
-3. **Then:** isolated `kwin_wayland --virtual` environment for the native slice; computer-session panel in the run view.
-4. **Budgets (to be measured, not asserted):** frame ≤ 600 KB and ≤ 1280 px long edge by default; at most the latest frame in
-   model context; stop-to-quiescent target ≤ 2 s for a hung navigation; no unbounded retention of frames.
-5. **Rollback:** every change is additive. `local_dev_origins` defaults to empty (behaviour unchanged); removing the field
-   from a stored bot doc is safe. The driver-slot limit defaults to the previous behaviour (one active driver call per process).
-   Rolling back never re-enables a known unsafe path because the previous unsafe path (global lock held across waits) only
-   *reduced* concurrency; no authority is widened by this slice.
-6. **Known residual risks:** an approved local origin is reachable from approved local pages by design (a local app can still
-   call itself); `http://localhost` approval is per bot, not per run; Playwright redirect behaviour was measured on one build.
+* **No schema migration.** New fields (`local_dev_origins`, `computer_apps`, `observation_to_hosted`) live in the bot's JSON
+  document with empty/false defaults; older documents load unchanged. New events are `log`/`tool_result` data keys.
+* **Rollback.** Reverting the commits removes the tool, panel and routes. Stored bots keep the unknown fields harmlessly
+  (extra JSON keys). Nothing here widens authority that a rollback could re-open: every new capability is off until a Bot opts in.
+* **Residual risks (not mitigated):** isolated desktop apps share the host network/filesystem; frames are not redacted;
+  hosted-route page *text* is not separately consented; the keyboard layout is assumed US; capture is KDE-specific
+  (spectacle/KWin), the portal path is the portable one and is not implemented; Playwright redirect/popup semantics were
+  measured on one build; the soak is 100 cycles, not hours.
 
 ## 7. Implemented / verified / not run
 
-- **Verified in a real browser:** duplicate-label refusal with candidates; scoped selector click with CDP review; type-then-click
-  on a button enabled by typing; popup becomes the active tab and the original stays addressable; public page cannot load
-  sub-resources from an approved local origin; public redirect into it is refused and reported as blocked; unapproved loopback
-  port refused; approved local app and public names both reachable.
-- **Verified by deterministic tests:** driver slot released during approval and human waits; local-origin validation and
-  request-context matrix.
-- **Not run / not implemented:** everything in the "gap" rows above, including all native-desktop work, image delivery, phone
-  supervision, and the long-run resource soak.
+Commits on the detached worktree (no branch exists to land on; see the report):
+
+| Commit | Content |
+| --- | --- |
+| `455fb73` | driver slot, target identity, tabs, local dev origins, frame store, baseline document |
+| `00d6128` | `observe`, image delivery (Anthropic/Ollama), runtime choke point, public frame refs |
+| `8502e07` | emergency stop (driver tree), owner-thread guard, procguard helpers |
+| `a3034da` | control lease, `click_at`, verified outcomes |
+| `f3cdad6` | `hutch computer doctor` + readiness API |
+| `605c1e3` | native slice: ManagedDesktop, EIS worker, DesktopSession, `computer` tool, Bot settings, hosted-image consent |
+| `4a24cd4` | state API, verified frame route, run-view panel, evidence screenshots |
+| `643dd62` | isolated-world leak fix + soak |
+| `b231a6f` | dashboard-origin refusal, cross-thread cleanup, isolation and untrusted-content tests |
+| `fa14f4a` | documentation |
+| `fefad08` | computer tool withheld in strict offline mode; baseline record finalized |
+| `2cac434` | mixed terminal-to-desktop workflow test |
+| `be923ba` | launch waits for the window to appear and settle |
+| `98b9311` | human takeover of a visible browser verified in a disposable Wayland session |
+
+* **Verified in real processes:** everything in section 4 marked verified.
+* **Protocol-level only:** image delivery to Anthropic and Ollama; provider limits were taken from the documentation.
+* **Blocked on this host:** a real local multimodal model; a physical phone; a second compositor (GNOME); live hosted models.
+* **Not implemented:** remote control surface, portal consent flow, existing-desktop mode, AT-SPI targeting, PTY/clipboard/file
+  transfer grants, macOS/Windows.

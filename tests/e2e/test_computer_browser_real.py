@@ -462,3 +462,18 @@ def test_control_changes_are_announced_as_run_events(shop):
     kinds = [e.data for e in events if e.data.get("kind") == "computer_control"]
     assert [k["owner"] for k in kinds] == ["human", "agent"] and kinds[1]["generation"] > kinds[0]["generation"]
     assert all(k["surface"] == "browser" for k in kinds)
+
+
+def test_reviewed_clicks_reuse_one_isolated_world_instead_of_leaking_a_context_each(shop):
+    """Measured regression: a unique isolated-world name per reviewed click grew the browser ~0.5 MB per click."""
+    _open(shop)
+    page = _page(shop)
+    cdp = page.context.new_cdp_session(page)
+    names: list[str] = []
+    cdp.on("Runtime.executionContextCreated", lambda payload: names.append(payload["context"].get("name", "")))
+    cdp.send("Runtime.enable")                              # replays the contexts that already exist
+    names.clear()
+    for _ in range(6):
+        assert shop.tool.run({"action": "click", "selector": "#back"}, shop.ctx).ok
+    review_worlds = [n for n in names if n.startswith("hutch-review")]
+    assert len(review_worlds) <= 1, f"each reviewed click created its own JS context: {review_worlds}"

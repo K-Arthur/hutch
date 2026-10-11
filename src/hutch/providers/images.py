@@ -42,8 +42,8 @@ def has_images(messages: list[dict[str, Any]]) -> bool:
 
 
 def prepare_messages(messages: list[dict[str, Any]], *, vision: bool, frames: Optional[FrameStore],
-                     keep_latest: int = DEFAULT_KEEP_LATEST,
-                     max_payload_bytes: int = MAX_PAYLOAD_BYTES) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+                     keep_latest: int = DEFAULT_KEEP_LATEST, max_payload_bytes: int = MAX_PAYLOAD_BYTES,
+                     withheld: str = "") -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Return ``(messages_for_the_provider, report)``. ``messages`` is never modified.
 
     ``report`` is ``{"delivered": [frame ids], "omitted": [{"frame_id", "reason"}]}`` for run events and tests.
@@ -81,6 +81,9 @@ def prepare_messages(messages: list[dict[str, Any]], *, vision: bool, frames: Op
             if ref.frame_id not in live_ids:
                 notes.append(f"[frame {ref.frame_id} omitted: superseded by a newer observation]")
                 report["omitted"].append({"frame_id": ref.frame_id, "reason": "superseded"})
+            elif withheld:
+                notes.append(f"[frame {ref.frame_id} not delivered: {withheld}]")
+                report["omitted"].append({"frame_id": ref.frame_id, "reason": "withheld_by_policy"})
             elif not vision:
                 notes.append(f"[frame {ref.frame_id} not delivered: the selected model cannot receive images; use the "
                              "text observation or semantic browser actions]")

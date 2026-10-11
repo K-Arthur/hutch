@@ -1,0 +1,218 @@
+{
+  "python": "3.13.15",
+  "started": "2026-10-10T17:30:35-0700",
+  "browser": {
+    "surface": "browser",
+    "cycles": 100,
+    "observe": {
+      "n": 100,
+      "median_ms": 38.6,
+      "p90_ms": 46.2,
+      "max_ms": 68.9
+    },
+    "act_verify": {
+      "n": 100,
+      "median_ms": 213.5,
+      "p90_ms": 257.4,
+      "max_ms": 305.3
+    },
+    "rss_mb_samples": [
+      626.9,
+      643.2,
+      645.2,
+      651.5,
+      652.9,
+      654.8,
+      655.5,
+      656.1,
+      656.8,
+      657.8,
+      660.9,
+      661.5,
+      661.9,
+      662.6,
+      663.1,
+      664.5,
+      665.2,
+      665.7,
+      666.2,
+      666.9,
+      667.3
+    ],
+    "rss_split": [
+      {
+        "cycle": 0,
+        "python_mb": 57.6,
+        "driver_mb": 133.1,
+        "browser_mb": 436.2
+      },
+      {
+        "cycle": 5,
+        "python_mb": 57.9,
+        "driver_mb": 139.4,
+        "browser_mb": 445.9
+      },
+      {
+        "cycle": 10,
+        "python_mb": 57.9,
+        "driver_mb": 140.3,
+        "browser_mb": 447.0
+      },
+      {
+        "cycle": 15,
+        "python_mb": 58.0,
+        "driver_mb": 145.3,
+        "browser_mb": 448.3
+      },
+      {
+        "cycle": 20,
+        "python_mb": 58.0,
+        "driver_mb": 145.3,
+        "browser_mb": 449.6
+      },
+      {
+        "cycle": 25,
+        "python_mb": 58.9,
+        "driver_mb": 145.4,
+        "browser_mb": 450.5
+      },
+      {
+        "cycle": 30,
+        "python_mb": 58.9,
+        "driver_mb": 145.5,
+        "browser_mb": 451.1
+      },
+      {
+        "cycle": 35,
+        "python_mb": 59.0,
+        "driver_mb": 145.5,
+        "browser_mb": 451.6
+      },
+      {
+        "cycle": 40,
+        "python_mb": 59.0,
+        "driver_mb": 145.6,
+        "browser_mb": 452.2
+      },
+      {
+        "cycle": 45,
+        "python_mb": 59.0,
+        "driver_mb": 145.7,
+        "browser_mb": 453.1
+      },
+      {
+        "cycle": 50,
+        "python_mb": 59.0,
+        "driver_mb": 148.0,
+        "browser_mb": 453.8
+      },
+      {
+        "cycle": 55,
+        "python_mb": 59.0,
+        "driver_mb": 148.1,
+        "browser_mb": 454.4
+      },
+      {
+        "cycle": 60,
+        "python_mb": 59.0,
+        "driver_mb": 148.1,
+        "browser_mb": 454.8
+      },
+      {
+        "cycle": 65,
+        "python_mb": 59.0,
+        "driver_mb": 148.1,
+        "browser_mb": 455.5
+      },
+      {
+        "cycle": 70,
+        "python_mb": 59.0,
+        "driver_mb": 148.1,
+        "browser_mb": 455.9
+      },
+      {
+        "cycle": 75,
+        "python_mb": 59.1,
+        "driver_mb": 149.0,
+        "browser_mb": 456.4
+      },
+      {
+        "cycle": 80,
+        "python_mb": 59.1,
+        "driver_mb": 149.0,
+        "browser_mb": 457.0
+      },
+      {
+        "cycle": 85,
+        "python_mb": 59.1,
+        "driver_mb": 149.0,
+        "browser_mb": 457.5
+      },
+      {
+        "cycle": 90,
+        "python_mb": 59.1,
+        "driver_mb": 149.1,
+        "browser_mb": 458.0
+      },
+      {
+        "cycle": 95,
+        "python_mb": 59.1,
+        "driver_mb": 149.2,
+        "browser_mb": 458.6
+      },
+      {
+        "cycle": 99,
+        "python_mb": 59.1,
+        "driver_mb": 149.2,
+        "browser_mb": 458.9
+      }
+    ],
+    "frame_store_bytes_max": 652237,
+    "frame_store_final": {
+      "frames": 64,
+      "bytes": 651415
+    }
+  },
+  "desktop": {
+    "surface": "desktop",
+    "cycles": 100,
+    "act_observe_verify": {
+      "n": 100,
+      "median_ms": 617.2,
+      "p90_ms": 771.3,
+      "max_ms": 853.8
+    },
+    "rss_mb_samples": [
+      361.5,
+      361.7,
+      361.7,
+      361.8,
+      360.6,
+      360.6,
+      360.6,
+      360.6,
+      359.4,
+      359.4,
+      359.4,
+      359.4,
+      359.4,
+      359.4,
+      359.4,
+      359.4,
+      358.8,
+      358.8,
+      358.8,
+      358.8,
+      358.8
+    ],
+    "frame_store_bytes_max": 2176527,
+    "frame_store_final": {
+      "frames": 64,
+      "bytes": 2176527
+    },
+    "input_worker_alive": true,
+    "input_worker_pid": 3863705
+  },
+  "elapsed_s": 93.1,
+  "leftover_descendants_at_exit": []
+}

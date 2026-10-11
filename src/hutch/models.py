@@ -236,6 +236,23 @@ def bot_slug_display_name(value: str) -> str:
     return " ".join(_BOT_NAME_ACRONYMS.get(word.casefold(), word[:1].upper() + word[1:]) for word in words)
 
 
+_APP_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$")
+
+
+def normalize_computer_apps(value: list[str]) -> list[str]:
+    """Program *names* only (looked up on PATH at launch): no paths, arguments or shell syntax."""
+    out: list[str] = []
+    for item in value or []:
+        name = str(item).strip()
+        if not _APP_NAME.fullmatch(name):
+            raise ValueError(f"{item!r} is not a program name (letters, digits and . _ + - only; no paths or arguments)")
+        if name not in out:
+            out.append(name)
+    if len(out) > 8:
+        raise ValueError("at most 8 applications can be allowed")
+    return out
+
+
 class Bot(BaseModel):
     id: str = Field(default_factory=lambda: new_id("bot"))
     name: str                         # slug, unique
@@ -257,6 +274,8 @@ class Bot(BaseModel):
     workdir: Optional[str] = None     # an existing user folder; overrides the managed workspace
     local_browser_handoff: bool = False  # show this bot's browser on the Linux desktop for same-session human control
     local_dev_origins: list[str] = Field(default_factory=list, max_length=8)  # exact loopback origins approved for local web-app work (browser only; see netguard.LocalOrigins)
+    computer_apps: list[str] = Field(default_factory=list, max_length=8)   # program names the computer tool may launch
+    observation_to_hosted: bool = False   # may screen/page images be sent to a hosted (non-local) model route
     remote_start_enabled: bool = False   # local-owner opt-in for passkey-paired phone starts; never grants new tools
     paused: bool = False
     pinned: bool = False              # workspace roster preference; does not affect execution
@@ -303,6 +322,11 @@ class Bot(BaseModel):
     def normalize_local_dev_origins(cls, value: list[str]) -> list[str]:
         from .netguard import LocalOrigins
         return list(LocalOrigins.parse(value))        # raises ValueError naming the first bad entry
+
+    @field_validator("computer_apps")
+    @classmethod
+    def normalize_computer_apps(cls, value: list[str]) -> list[str]:
+        return normalize_computer_apps(value)
 
     @field_validator("roster_section")
     @classmethod

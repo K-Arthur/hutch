@@ -59,6 +59,8 @@ state_app = typer.Typer(no_args_is_help=True, help="Snapshot the database and re
 app.add_typer(state_app, name="state")
 service_app = typer.Typer(no_args_is_help=True, help="Install or inspect Hutch's Linux user service.")
 app.add_typer(service_app, name="service")
+computer_app = typer.Typer(no_args_is_help=True, help="Supervised computer use: host readiness.")
+app.add_typer(computer_app, name="computer")
 
 console = Console()
 err = Console(stderr=True)
@@ -1404,6 +1406,28 @@ def doctor(deep: bool = typer.Option(False, "--deep", help="also run each local 
     raise typer.Exit(code=1 if worst(checks) == FAIL else 0)
 
 
+# ------------------------------------------------------------ computer use
+
+@computer_app.command("doctor")
+def computer_doctor(deep: bool = typer.Option(False, "--deep", help="also launch a headless browser in a throwaway profile"),
+                    as_json: bool = typer.Option(False, "--json")) -> None:
+    """Report what this host can do for computer use, one capability at a time, with the step that would fix each.
+
+    Read-only: nothing is captured, no input is sent, no portal session is opened and no consent dialog is triggered."""
+    from .computer.doctor import (DEGRADED, NEEDS_CONSENT, READY, UNAVAILABLE, probe_computer_use, summary)
+    results = probe_computer_use(deep=deep)
+    if as_json:
+        console.print_json(json.dumps({"capabilities": [c.public() for c in results], "summary": summary(results)}))
+        return
+    mark = {READY: "[green]ready        [/green]", NEEDS_CONSENT: "[yellow]needs consent[/yellow]",
+            DEGRADED: "[yellow]degraded     [/yellow]", UNAVAILABLE: "[red]unavailable  [/red]"}
+    for c in results:
+        console.print(f"{mark.get(c.state, '[dim]unknown      [/dim]')} [bold]{c.title}[/bold]: {c.detail}", highlight=False)
+        if c.fix and c.state != READY:
+            console.print(f"                 fix: {c.fix}", highlight=False)
+    console.print("\n" + summary(results)["note"], highlight=False)
+
+
 # --------------------------------------------------------------- user service
 
 @service_app.command("install")
@@ -1678,6 +1702,9 @@ def serve(host: str = typer.Option("127.0.0.1"), port: int = typer.Option(8787),
     # opt into remote access from the shell environment. Only the validated CLI
     # flag below may set it for the server process.
     os.environ.pop("HUTCH_REMOTE_ENABLED", None)
+    # Workers must know the dashboard's own port so a Bot can never be given it as an approved "local development origin"
+    # (that would let an agent's browser operate Hutch's own approval and settings screens).
+    os.environ["HUTCH_DASHBOARD_PORT"] = str(port)
     loopback = _loopback_bind(host)
     if not loopback and not allow_remote:
         err.print("[red]refusing a non-loopback bind without --allow-remote[/red]")

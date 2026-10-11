@@ -126,3 +126,15 @@ def test_the_permit_does_not_cover_a_navigation_with_a_foreign_referrer():
     access.permit_navigation(APP)
     with_referrer = NAV + [("referer", "http://public.example/")]
     assert access.refusal(APP, with_referrer)
+
+
+def test_the_dashboards_own_port_can_be_excluded_from_approved_origins(monkeypatch):
+    from hutch.netguard import dashboard_ports
+    monkeypatch.setenv("HUTCH_DASHBOARD_PORT", "9911")
+    assert dashboard_ports() == {8787, 9911}
+    approved = LocalOrigins.parse(["http://localhost:3000", "http://localhost:9911", "http://127.0.0.1:8787"])
+    kept = approved.without_ports(dashboard_ports())
+    assert list(kept) == ["http://localhost:3000"]
+    access = LocalAccess(kept)
+    assert access.refusal("http://localhost:9911/approvals", [("sec-fetch-site", "same-origin")]) is None  # not judged here
+    assert not kept.allows_url("http://localhost:9911/approvals")
