@@ -286,6 +286,8 @@ class FakeOpenAI(_Server):
             usage = {"prompt_tokens": reply.get("prompt_tokens", tokens_of(messages_text(body.get("messages", [])))),
                      "completion_tokens": reply.get("completion_tokens", tokens_of(content or "x")),
                      "prompt_tokens_details": {"cached_tokens": reply.get("cached_tokens", 0)}}
+            if "cost" in reply:      # OpenRouter reports the charge in usage.cost
+                usage["cost"] = reply["cost"]
             finish = "tool_calls" if calls else ("length" if reply.get("length") else "stop")
             if not body.get("stream"):
                 msg = {"role": "assistant", "content": content or None}

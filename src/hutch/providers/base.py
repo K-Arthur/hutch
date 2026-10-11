@@ -116,6 +116,7 @@ class ChatResult:
     streamed: bool = True
     prompt_truncated: bool = False         # the runtime evaluated fewer prompt tokens than we sent
     context_window: int = 0                # the window the model actually got, when known
+    reported_cost_usd: Optional[float] = None   # provider-reported charge (OpenRouter usage.cost), when present
     notes: list[str] = field(default_factory=list)
     refusal_category: Optional[str] = None
 

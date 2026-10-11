@@ -164,3 +164,55 @@ def test_legacy_run_cap_still_wins_before_a_band(store, config, tmp_path, oai):
         run_it(runtime(provider_factory=factory(oai=oai)), run, ctx, tools)
     assert failure.value.reason == "cost_cap"
     assert not oai.of("/v1/chat/completions")
+
+
+def test_guard_prefers_a_live_quote_then_the_price_file_then_unknown(store, monkeypatch):
+    from datetime import datetime, timezone
+    from decimal import Decimal
+
+    from hutch.models import Bot, Run
+    from hutch.providers.openrouter_pricing import EndpointQuote, ModelQuote
+    from hutch.providers.pricing import PriceBook
+    from hutch.runtime.ladder import SpendGuard, make_rung
+
+    bot = store.create_bot(Bot(name="router-quote-bot", model="openrouter/anthropic/claude-sonnet-4"))
+    run = store.create_run(Run(bot_id=bot.id, prompt="quote"))
+
+    class FakeConn:
+        template = "openrouter"
+        base_url = "https://router.example/api/v1"
+        account_id = "acct-live"
+
+    class FakeConnections:
+        def get(self, provider):
+            return FakeConn() if provider == "openrouter" else None
+
+        def account_policy(self, account_id):
+            return account_id, 0.0, []
+
+    endpoint = EndpointQuote(name="Vendor", provider_name="Vendor",
+                             input_per_million=Decimal("2"), output_per_million=Decimal("10"))
+    live = ModelQuote(model="anthropic/claude-sonnet-4", endpoints=(endpoint,),
+                      fetched_at=datetime(2026, 10, 11, 12, 0, tzinfo=timezone.utc), source="test")
+
+    class FakeService:
+        def quote(self, model):
+            return live
+
+    class NoQuote:
+        def quote(self, model):
+            return None
+
+    guard = SpendGuard(store, bot, run, PriceBook(), FakeConnections())
+    monkeypatch.setattr("hutch.providers.openrouter_pricing.live_pricing", lambda *a, **k: FakeService())
+    quoted = guard.worst_case(make_rung("openrouter/anthropic/claude-sonnet-4", "primary"), 1000, 500)
+    assert quoted.source == "openrouter"
+    assert quoted.usd == pytest.approx(0.007)  # 1000*$2/M + 500*$10/M, rounded up
+
+    monkeypatch.setattr("hutch.providers.openrouter_pricing.live_pricing", lambda *a, **k: NoQuote())
+    priced_spec = PriceBook().rows()[0].model
+    file_quote = guard.worst_case(make_rung(priced_spec, "primary"), 1000, 500)
+    assert file_quote.source == "price_file" and file_quote.usd is not None
+
+    unknown = guard.worst_case(make_rung("openai/gpt-unpriced", "primary"), 1000, 500)
+    assert unknown.source == "unknown" and unknown.usd is None

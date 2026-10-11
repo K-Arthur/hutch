@@ -145,6 +145,24 @@ class SpendGuard:
             return CallQuote(usd=0.0, source="local")
         if rung.provider in self.prices.flat_providers:
             return CallQuote(usd=0.0, source="flat")
+        conn = self.connections.get(rung.provider) if self.connections else None
+        if conn is not None and getattr(conn, "template", "") == "openrouter":
+            # Live endpoint quotes first: a fresh quote beats the reviewed file row, and a stale one is
+            # used only as a labeled fallback. No quote at all falls through to the file (a reviewed
+            # override with provenance) and then to "no basis" — never to an invented zero.
+            from ..providers import openrouter_pricing
+            service = openrouter_pricing.live_pricing(
+                getattr(conn, "base_url", "") or openrouter_pricing.DEFAULT_BASE_URL)
+            live_quote = service.quote(rung.model)
+            if live_quote is not None:
+                live = live_quote.worst_case(
+                    est_prompt_tokens, max_turn_tokens,
+                    eligible=lambda endpoint: (endpoint.supports_tools is None or endpoint.supports_tools)
+                    and (endpoint.context_length == 0 or endpoint.context_length >= est_prompt_tokens))
+                if live is not None:
+                    return CallQuote(usd=to_store_reserved(live), source="openrouter",
+                                     verified_on=live_quote.fetched_at.isoformat(), stale=live_quote.stale,
+                                     endpoints_considered=len(live_quote.endpoints))
         cost = self.prices.cost(rung.provider, rung.model, est_prompt_tokens, max_turn_tokens)
         if cost is None:
             return CallQuote(usd=None, source="unknown")

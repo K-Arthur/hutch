@@ -210,6 +210,10 @@ def _remove_later_conversation_schema(db):
     for column in ("cost_unknown", "quote_source", "quote_verified_on"):
         if column in reservation_columns:
             db.execute(f"ALTER TABLE usage_reservations DROP COLUMN {column}")
+    usage_columns = {row[1] for row in db.execute("PRAGMA table_info(usage)")}
+    for column in ("cost_source", "reported_cost_usd"):
+        if column in usage_columns:
+            db.execute(f"ALTER TABLE usage DROP COLUMN {column}")
     columns = {row[1] for row in db.execute("PRAGMA table_info(messages)")}
     for column in ("workspace_task_result_id", "workspace_task_result_message_id",
                    "workspace_task_result_display_name", "workspace_task_result_content",

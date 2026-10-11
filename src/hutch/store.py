@@ -1379,6 +1379,17 @@ def _migrate_51(db: sqlite3.Connection) -> None:
     db.execute("ALTER TABLE usage_reservations ADD COLUMN quote_verified_on TEXT NOT NULL DEFAULT ''")
 
 
+def _migrate_52(db: sqlite3.Connection) -> None:
+    """SR-2 settlement truth: record where each charge came from and preserve provider-report values.
+
+    ``cost_source`` is 'provider' when the provider reported the charge, 'estimated' when it came from a
+    quoted rate, 'reconciled' for operator reconciliation, and '' for rows written before this column
+    existed. ``reported_cost_usd`` keeps the provider's number even when the billed amount differs.
+    """
+    db.execute("ALTER TABLE usage ADD COLUMN cost_source TEXT NOT NULL DEFAULT ''")
+    db.execute("ALTER TABLE usage ADD COLUMN reported_cost_usd REAL")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -1386,7 +1397,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
-               _migrate_48, _migrate_49, _migrate_50, _migrate_51]
+               _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -7598,12 +7609,18 @@ class Store:
     def add_usage(self, run_id: str, bot_id: str, provider: str, model: str, prompt_tokens: int,
                   completion_tokens: int, cached_tokens: int = 0, cost_usd: float = 0.0, kind: str = "step",
                   account_id: str = "", reservation_id: Optional[str] = None,
-                  expected_fence: Optional[int] = None) -> None:
+                  expected_fence: Optional[int] = None, cost_source: str = "",
+                  reported_cost_usd: Optional[float] = None) -> None:
         from math import isfinite
         prompt_tokens, completion_tokens, cached_tokens = map(int, (prompt_tokens, completion_tokens, cached_tokens))
         cost_usd = float(cost_usd)
         if min(prompt_tokens, completion_tokens, cached_tokens) < 0 or not isfinite(cost_usd) or cost_usd < 0:
             raise ValueError("usage must contain non-negative token counts and a finite non-negative cost")
+        cost_source = str(cost_source or "")[:32]
+        if reported_cost_usd is not None:
+            reported_cost_usd = float(reported_cost_usd)
+            if not isfinite(reported_cost_usd) or reported_cost_usd < 0:
+                raise ValueError("a provider-reported cost must be finite and non-negative")
         now_text = iso(utcnow())
         with self._tx() as db:
             account = account_id or provider
@@ -7633,9 +7650,10 @@ class Store:
                 self._usage_authority(db, run_id, bot_id, expected_fence, required=False)
             db.execute(
                 "INSERT INTO usage (ts, run_id, bot_id, provider, model, prompt_tokens, completion_tokens, "
-                "cached_tokens, cost_usd, kind, account_id, reservation_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "cached_tokens, cost_usd, kind, account_id, reservation_id, cost_source, reported_cost_usd) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (now_text, run_id, bot_id, provider, model, prompt_tokens, completion_tokens, cached_tokens,
-                 cost_usd, kind, account, reservation_id))
+                 cost_usd, kind, account, reservation_id, cost_source, reported_cost_usd))
             if reservation_id:
                 db.execute("UPDATE usage_reservations SET status = 'settled', resolved_at = ?, actual_prompt_tokens = ?, "
                            "actual_completion_tokens = ?, actual_cached_tokens = ?, actual_cost_usd = ?, reason = '' WHERE id = ?",

@@ -339,10 +339,22 @@ class OpenAICompatProvider(Provider):
                 req: ChatRequest, streamed: bool) -> ChatResult:
         details = usage.get("prompt_tokens_details") or {}
         reason = "tool_calls" if tcs else ("length" if finish == "length" else "stop")
+        reported = None
+        raw_cost = usage.get("cost")
+        if raw_cost is not None:
+            try:
+                candidate = float(raw_cost)
+                if math.isfinite(candidate) and candidate >= 0:
+                    reported = candidate
+            except (TypeError, ValueError, OverflowError):
+                reported = None
         res = ChatResult(content=content, tool_calls=tcs, prompt_tokens=int(usage.get("prompt_tokens") or 0),
                          completion_tokens=int(usage.get("completion_tokens") or 0),
                          cached_tokens=int(details.get("cached_tokens") or 0), finish_reason=reason, model=model,
-                         streamed=streamed, context_window=int(req.num_ctx or 0))
+                         streamed=streamed, context_window=int(req.num_ctx or 0),
+                         reported_cost_usd=reported)
+        if reported is not None:
+            res.notes.append("the provider reported this call's charge (usage.cost)")
         if not usage:
             res.notes.append("the server reported no token usage; counts are estimates")
         return res

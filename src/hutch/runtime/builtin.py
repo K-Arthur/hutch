@@ -34,7 +34,7 @@ from ..providers import ChatRequest, Provider, ProviderError, ToolCall
 from ..providers.base import ModelMeta
 from ..providers.pricing import PriceBook
 from ..store import UsageBudgetRefusal, UsagePauseRequired
-from ..money import format_usd
+from ..money import format_usd, parse_usd, quantize
 from ..safety import Decision, Verdict
 from ..tools import Tool, ToolContext
 from .base import RunAborted
@@ -828,12 +828,22 @@ class BuiltinRuntime:
             rate_limited_once = False
             timer.model(time.perf_counter() - t_call)
 
-            # ---- exact accounting (SR-2)
+            # ---- exact accounting (SR-2): provider-reported charge when available, else the quote
             run.steps += 1
             run.tokens += result.prompt_tokens + result.completion_tokens
             run.context_used, run.context_limit = result.prompt_tokens, session.num_ctx or run.context_limit
-            cost = prices.cost(session.rung.provider, session.rung.model, result.prompt_tokens,
-                               result.completion_tokens, result.cached_tokens, result.cache_write_tokens)
+            estimated = prices.cost(session.rung.provider, session.rung.model, result.prompt_tokens,
+                                    result.completion_tokens, result.cached_tokens, result.cache_write_tokens)
+            reported = result.reported_cost_usd
+            if reported is not None:
+                cost = float(quantize(parse_usd(reported)))
+                cost_source = "provider"
+            elif estimated is not None:
+                cost = estimated
+                cost_source = "estimated"
+            else:
+                cost = 0.0
+                cost_source = "unknown"
             for note in result.notes:
                 self._log(ctx, run, "stream_retry" if "without streaming" in note else "note", note)
             if result.content and result.tool_calls:
@@ -846,7 +856,8 @@ class BuiltinRuntime:
                 extra["tok_s"] = round(result.tokens_per_sec, 1)
             finish_step(run, ctx, timer, model=session.rung.spec, prompt_tokens=result.prompt_tokens,
                         completion_tokens=result.completion_tokens, cached_tokens=result.cached_tokens,
-                        cost_usd=cost or 0.0, account_id=account_id, reservation_id=reservation_id,
+                        cost_usd=cost, account_id=account_id, reservation_id=reservation_id,
+                        cost_source=cost_source, reported_cost_usd=reported,
                         prefix=prefix_hash, window=session.num_ctx or 0,
                         finish=result.finish_reason, streamed=result.streamed, **extra)
             # ---- envelope modes (constrained/prompt): the reply is a contract action, never free text
