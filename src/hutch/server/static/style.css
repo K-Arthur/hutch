@@ -1715,7 +1715,17 @@ button.inline-link:hover { color: var(--text); }
 .schedule-overview-next > span, .schedule-overview-next > small { color: var(--text-2); font-size: var(--fs-xs); }
 .schedule-overview-next time, .schedule-overview-next strong { overflow-wrap: anywhere; font-size: var(--fs-sm); font-weight: 650; }
 .schedule-overview-edit { min-height: 44px; white-space: nowrap; }
+.schedule-overview-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--s-2); min-width: 0; }
+.schedule-overview-actions .btn { min-height: 44px; white-space: nowrap; }
 .schedule-overview-more { display: flex; justify-content: center; padding: var(--s-2) 0; }
+.schedule-preview, .schedule-occurrence-panel { margin-top: var(--s-2); }
+.schedule-preview > .hint, .schedule-occurrence-panel h4 { font-size: var(--fs-xs); color: var(--text-2); }
+.schedule-preview ol, .schedule-occurrence-list ol { margin: var(--s-2) 0 0; padding-left: 1.2rem; font-size: var(--fs-sm); }
+.schedule-editor .check { display: flex; align-items: center; gap: var(--s-2); min-height: 36px; }
+.schedule-editor { gap: var(--s-2); }
+.schedule-advanced-toggle { margin-top: var(--s-1); justify-self: start; min-height: 36px; }
+.schedule-advanced { margin: var(--s-2) 0; padding: var(--s-3); background: var(--sunken); border-radius: var(--r-ctl); }
+.schedule-editor .schedule-actions { margin-top: var(--s-1); }
 .schedule-empty-bots { display: grid; justify-items: center; gap: var(--s-2); width: min(100%, 760px); margin-top: var(--s-3); }
 .schedule-empty-bots > summary { display: inline-flex; align-items: center; justify-self: center; gap: var(--s-2); list-style: none; min-height: 44px; cursor: pointer; }
 .schedule-empty-bots > summary .schedule-empty-chevron { flex: none; }
@@ -2499,4 +2509,70 @@ details[open] > summary .summary-row-action .icon { transform: rotate(180deg); }
   #app-top-context:has(.assistant-settings-menu) { flex-wrap: nowrap; align-items: center; }
   #app-top-context:has(.assistant-settings-menu) .ctx-id { width: auto; flex: 1 1 auto; }
   #app-top-context:has(.assistant-settings-menu) .ctx-actions { width: auto; flex: 0 0 auto; margin-left: auto; }
+}
+
+
+/* ── documents: committed generated files ──────────────────────────────────
+   Cards reuse the conversation-file skeleton; the format chip is the non-colour
+   cue, state always pairs a glyph with a word, and preview surfaces label
+   themselves as extracts or approximate renders. */
+
+.document-format {
+  display: inline-block;
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-chip);
+  font-size: var(--fs-xs);
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: var(--text-2);
+  vertical-align: 1px;
+}
+
+.document-attachment { flex-wrap: wrap; }
+
+.document-preview-text {
+  margin: 0;
+  padding: var(--s-3);
+  max-height: min(60vh, 560px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  background: var(--sunken);
+  font: 12px/1.55 var(--mono);
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.document-outline { margin: 0; padding-left: 1.2rem; display: grid; gap: var(--s-1); }
+.document-outline-h1 { font-weight: 700; font-size: var(--fs-md); }
+.document-outline-h2 { font-weight: 650; }
+.document-outline-h3, .document-outline-h4 { color: var(--text-2); }
+.document-outline .document-slide span,
+.document-outline li { overflow-wrap: anywhere; }
+.document-slide { display: grid; gap: 2px; margin-block: var(--s-1); }
+.document-slide span { color: var(--text-2); font-size: var(--fs-sm); }
+
+.document-grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+  margin-block: var(--s-2) var(--s-1);
+}
+.document-grid th, .document-grid td {
+  border: 1px solid var(--line);
+  padding: var(--s-1) var(--s-2);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.document-grid th { background: var(--sunken); font-weight: 650; }
+
+.document-pages { display: grid; gap: var(--s-3); }
+.document-pages img {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  background: white;
 }

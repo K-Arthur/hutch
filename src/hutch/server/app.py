@@ -30,8 +30,10 @@ from zoneinfo import ZoneInfo
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
+from starlette.responses import FileResponse
 from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
+from urllib.parse import quote as _url_quote
 from pydantic import BaseModel, Field, field_validator
 
 from .. import __version__
@@ -42,13 +44,17 @@ from ..google_oauth_config import (GOOGLE_OAUTH_CLIENT_ID_KEY, GOOGLE_OAUTH_CLIE
                                    google_oauth_client_settings, resolve_google_oauth_client_id,
                                    valid_google_oauth_client_id)
 from ..config import get_config
+from ..documents import DocumentIntegrityError, DocumentStorage, DocumentStorageError
+from ..documents.docgen import supported_formats
+from ..documents.docgen.render import (LAYOUT_RENDER_FORMATS, STRUCTURE_PREVIEW_FORMATS,
+                                       soffice_renderer_path)
 from ..durable_changes import SnapshotRequired
 from ..engine import Engine, bot_prompt_for_schedule
 from ..lifecycle import LABELS
 from ..models import (
     ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, BotCreationSource, CatchUpPolicy, CommandRule, Event, EventType,
-    InferenceMode, Limits, MemoryItem, RiskTier, Run, RunStatus, RuntimeKind, Schedule, Task, bot_slug_display_name, iso,
-    utcnow,
+    InferenceMode, Limits, MemoryItem, OverlapPolicy, RiskTier, Run, RunStatus, RuntimeKind, Schedule, Task,
+    TriggerKind, bot_slug_display_name, iso, utcnow,
 )
 from ..store import (ActiveRunConflict, AuthChallengeLimitExceeded, BotConflict, IdempotencyConflict,
                      RevisionConflict, Store)
@@ -67,6 +73,12 @@ _ARTIFACT_NAME_RE = re.compile(r"^[0-9]{3,6}-[a-z0-9_-]{1,40}\.txt$")
 _ARTIFACT_SHA_RE = re.compile(r"^[a-f0-9]{64}$")
 _CONVERSATION_ARTIFACT_CURSOR_RE = re.compile(r"^([1-9][0-9]{0,18}):(tool_output|workspace_file)$")
 _MAX_ARTIFACT_BYTES = 4_000_000
+
+_DOCUMENT_ID_RE = re.compile(r"^doc_[0-9a-f]{16}$")
+_DOCUMENT_PREVIEW_TEXT_CHARS = 200_000
+#: rendered page images are bounded so a huge document can never freeze the chat or the renderer
+_DOCUMENT_PREVIEW_MAX_PAGES = 60
+_DOCUMENT_PREVIEW_PAGE_PX = 1600
 MAX_CONVERSATION_EXPORT_MESSAGES = 10_000
 MAX_CONVERSATION_EXPORT_SOURCE_BYTES = 2 * 1024 * 1024
 MAX_CONVERSATION_EXPORT_BYTES = 16 * 1024 * 1024
@@ -873,6 +885,52 @@ class ArtifactPageResource(BaseModel):
     next_offset: Optional[int] = None
 
 
+class DocumentVersionResource(BaseModel):
+    version: int
+    filename: str
+    mime: str
+    size_bytes: int
+    sha256: str
+    source: Literal["generated", "revised"]
+    generator: str
+    validation_state: Literal["passed", "passed_with_warnings", "failed"]
+    validation_findings: list[dict[str, Any]] = Field(default_factory=list)
+    preview_mode: Literal["pages", "structure", "download_only"]
+    page_count: Optional[int] = None
+    created_at: str
+    download_url: Optional[str] = None
+
+
+class DocumentResource(BaseModel):
+    id: str
+    title: str
+    format: str
+    current_version: int
+    created_at: str
+    bot_id: str
+    conversation_id: str = ""
+    version: DocumentVersionResource
+
+
+class DocumentPageResource(BaseModel):
+    documents: list[DocumentResource]
+    limit: int
+    offset: int
+    next_offset: Optional[int] = None
+
+
+class DocumentFormatReadiness(BaseModel):
+    format: str
+    available: bool
+    generator: str = ""
+    preview_mode: str = "download_only"
+    renderer: str = ""
+
+
+class DocumentsReadinessResource(BaseModel):
+    formats: list[DocumentFormatReadiness]
+
+
 class ConversationArtifactPageResource(BaseModel):
     artifacts: list[ArtifactResource]
     limit: int
@@ -1019,9 +1077,14 @@ class ScheduleResource(BaseModel):
     bot_name: str
     bot_display_name: Optional[str] = None
     name: str
-    cron: str
+    trigger: str = "cron"
+    cron: str = ""
+    interval_seconds: Optional[int] = None
+    anchor_at: Optional[str] = None
     timezone: str
     catch_up: str
+    overlap: str = "queue"
+    enabled: bool = True
     prompt: str = ""
     created_at: str
     paused: bool
@@ -1030,6 +1093,8 @@ class ScheduleResource(BaseModel):
     next_fire: Optional[str] = None
     last_dispatched: Optional[str] = None
     last_skip: Optional[dict] = None
+    blocked: Optional[dict] = None
+    preview: list[dict] = Field(default_factory=list)
 
 
 class ScheduleControlPut(BaseModel):
@@ -1044,9 +1109,14 @@ class ScheduleControlResource(BaseModel):
 
 class SchedulePut(BaseModel):
     name: str = Field(default="Scheduled task", min_length=1, max_length=80)
-    cron: str = Field(min_length=1, max_length=100)
+    trigger: str = Field(default="cron", pattern="^(cron|interval|once)$")
+    cron: str = Field(default="", max_length=100)
+    interval_seconds: Optional[int] = Field(default=None, ge=1, le=31_536_000)
+    anchor_at: Optional[str] = None
     timezone: str = Field(default="UTC", min_length=1, max_length=80)
     catch_up: CatchUpPolicy = CatchUpPolicy.coalesce
+    overlap: str = Field(default="queue", pattern="^(queue|skip|buffer_one)$")
+    enabled: bool = True
     prompt: str = Field(default="", max_length=4000)
 
 
@@ -2363,8 +2433,30 @@ def create_app() -> FastAPI:
     def put_schedule_control(body: ScheduleControlPut) -> dict:
         return store.set_workspace_schedules_paused(body.paused)
 
+    def _schedule_resource(bot: Bot, scheduled: Schedule, *, workspace_paused: bool,
+                           include_preview: bool = False) -> dict:
+        nxt = scheduler.next_fire(bot, schedule=scheduled)
+        preview = []
+        if include_preview:
+            preview = [{"at": p.at.isoformat(), "timezone": p.timezone, "utc_offset": p.utc_offset,
+                        "note": p.note} for p in scheduler.preview(scheduled, limit=8)]
+        return {"id": scheduled.id, "bot_id": bot.id, "bot_name": bot.name,
+                "bot_display_name": bot.display_name, "name": scheduled.name,
+                "trigger": scheduled.trigger.value, "cron": scheduled.cron,
+                "interval_seconds": scheduled.interval_seconds, "anchor_at": scheduled.anchor_at,
+                "timezone": scheduled.timezone, "catch_up": scheduled.catch_up.value,
+                "overlap": scheduled.overlap.value, "enabled": scheduled.enabled,
+                "prompt": scheduled.prompt, "created_at": scheduled.created_at, "paused": bot.paused,
+                "workspace_paused": workspace_paused,
+                "effective_paused": bot.paused or workspace_paused or (not scheduled.enabled),
+                "next_fire": nxt.isoformat() if nxt else None,
+                "last_dispatched": scheduler._last_dispatched(bot, scheduled).isoformat(),
+                "last_skip": scheduler.last_skip(bot, scheduled),
+                "blocked": scheduler.blocked(scheduled), "preview": preview}
+
     @app.get("/api/v1/schedules", response_model=list[ScheduleResource])
-    def list_schedules(bot: Optional[str] = None, limit: int = 100, offset: int = 0) -> list[dict]:
+    def list_schedules(bot: Optional[str] = None, limit: int = 100, offset: int = 0,
+                       preview: bool = False) -> list[dict]:
         bot_id = bot_or_404(bot).id if bot else None
         workspace_paused = store.workspace_schedule_control()["paused"]
         rows = []
@@ -2372,17 +2464,9 @@ def create_app() -> FastAPI:
             if bot_id and bot.id != bot_id:
                 continue
             for scheduled in bot.schedules or ([bot.schedule] if bot.schedule else []):
-                nxt = scheduler.next_fire(bot, schedule=scheduled)
-                rows.append({"id": scheduled.id, "bot_id": bot.id, "bot_name": bot.name,
-                             "bot_display_name": bot.display_name,
-                             "name": scheduled.name, "cron": scheduled.cron, "timezone": scheduled.timezone,
-                             "catch_up": scheduled.catch_up.value, "prompt": scheduled.prompt,
-                             "created_at": scheduled.created_at, "paused": bot.paused,
-                             "workspace_paused": workspace_paused,
-                             "effective_paused": bot.paused or workspace_paused,
-                             "next_fire": nxt.isoformat() if nxt else None,
-                             "last_dispatched": scheduler._last_dispatched(bot, scheduled).isoformat(),
-                             "last_skip": scheduler.last_skip(bot, scheduled)})
+                rows.append(_schedule_resource(
+                    bot, scheduled, workspace_paused=workspace_paused,
+                    include_preview=preview or bool(bot_id)))
         rows.sort(key=lambda item: (item["next_fire"] or "9999", item["bot_display_name"] or item["bot_name"],
                                     item["name"], item["id"]))
         start = max(0, offset)
@@ -2427,15 +2511,25 @@ def create_app() -> FastAPI:
     def put_schedule(ref: str, schedule_id: str, body: SchedulePut) -> dict:
         bot = bot_or_404(ref)
         from croniter import croniter
-        if len(body.cron.split()) != 5 or not croniter.is_valid(body.cron):
-            raise HTTPException(422, "cron must be a valid five-field schedule")
+        try:
+            trigger = TriggerKind(body.trigger)
+            overlap = OverlapPolicy(body.overlap)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        if trigger is TriggerKind.cron:
+            if len(body.cron.split()) != 5 or not croniter.is_valid(body.cron):
+                raise HTTPException(422, "cron must be a valid five-field schedule")
         try:
             ZoneInfo(body.timezone)
         except Exception:
             raise HTTPException(422, "timezone must be a valid IANA time zone") from None
         try:
-            schedule = Schedule(id=schedule_id, name=body.name, cron=body.cron, timezone=body.timezone,
-                                catch_up=body.catch_up, prompt=body.prompt)
+            schedule = Schedule(
+                id=schedule_id, name=body.name, trigger=trigger, cron=body.cron,
+                interval_seconds=body.interval_seconds, anchor_at=body.anchor_at,
+                timezone=body.timezone, catch_up=body.catch_up, overlap=overlap,
+                enabled=body.enabled, prompt=body.prompt,
+            )
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
         try:
@@ -2445,16 +2539,47 @@ def create_app() -> FastAPI:
         if updated is None:
             raise HTTPException(404, f"no such bot: {ref}")
         saved = next(item for item in updated.schedules if item.id == schedule_id)
-        nxt = scheduler.next_fire(updated, schedule=saved)
-        return {"id": saved.id, "bot_id": updated.id, "bot_name": updated.name,
-                "bot_display_name": updated.display_name, "name": saved.name,
-                "cron": saved.cron, "timezone": saved.timezone, "catch_up": saved.catch_up.value,
-                "prompt": saved.prompt, "created_at": saved.created_at, "paused": updated.paused,
-                "workspace_paused": store.workspace_schedule_control()["paused"],
-                "effective_paused": updated.paused or store.workspace_schedule_control()["paused"],
-                "next_fire": nxt.isoformat() if nxt else None,
-                "last_dispatched": scheduler._last_dispatched(updated, saved).isoformat(),
-                "last_skip": scheduler.last_skip(updated, saved)}
+        return _schedule_resource(updated, saved,
+                                  workspace_paused=store.workspace_schedule_control()["paused"],
+                                  include_preview=True)
+
+    @app.post("/api/v1/bots/{ref}/schedules/{schedule_id}/run-now")
+    def run_schedule_now(ref: str, schedule_id: str) -> dict:
+        bot = bot_or_404(ref)
+        scheduled = next((item for item in bot.schedules if item.id == schedule_id), None)
+        if scheduled is None:
+            raise HTTPException(404, f"no such scheduled task: {schedule_id}")
+        marker_before = store.kv_get(f"{schedule_id}:last_fire")
+        run = engine.run_schedule_now(bot, scheduled)
+        marker_after = store.kv_get(f"{schedule_id}:last_fire")
+        if marker_before != marker_after:
+            raise HTTPException(500, "run-now must not advance the schedule marker")
+        return {"run_id": run.id, "schedule_id": schedule_id, "origin": run.origin,
+                "marker_unchanged": True}
+
+    @app.post("/api/v1/bots/{ref}/schedules/{schedule_id}/skip-next", response_model=ScheduleResource)
+    def skip_next_schedule(ref: str, schedule_id: str) -> dict:
+        bot = bot_or_404(ref)
+        scheduled = next((item for item in bot.schedules if item.id == schedule_id), None)
+        if scheduled is None:
+            raise HTTPException(404, f"no such scheduled task: {schedule_id}")
+        scheduler.request_skip_next(scheduled)
+        return _schedule_resource(bot, scheduled,
+                                  workspace_paused=store.workspace_schedule_control()["paused"],
+                                  include_preview=True)
+
+    @app.get("/api/v1/bots/{ref}/schedules/{schedule_id}/occurrences")
+    def list_schedule_occurrences(ref: str, schedule_id: str, limit: int = 50, offset: int = 0) -> list[dict]:
+        bot = bot_or_404(ref)
+        scheduled = next((item for item in bot.schedules if item.id == schedule_id), None)
+        if scheduled is None:
+            with store._lock:
+                identity = store._db.execute(
+                    "SELECT schedule_id FROM schedule_identities WHERE schedule_id = ? AND bot_id = ?",
+                    (schedule_id, bot.id)).fetchone()
+            if identity is None:
+                raise HTTPException(404, f"no such scheduled task: {schedule_id}")
+        return store.list_schedule_occurrences(schedule_id, limit=limit, offset=offset)
 
     @app.delete("/api/v1/bots/{ref}/schedules/{schedule_id}", status_code=204)
     def remove_schedule(ref: str, schedule_id: str) -> Response:
@@ -4000,6 +4125,171 @@ def create_app() -> FastAPI:
         workspace_file = data.get("workspace_file") if isinstance(data.get("workspace_file"), dict) else {}
         is_workspace_file = workspace_file.get("artifact") == artifact_ref
         return verified_artifact_response(run, event, "workspace_file" if is_workspace_file else "tool_output", filename)
+
+
+    # ---------------------------------------------------------------- documents
+
+    def _content_disposition(filename: str) -> str:
+        """ASCII fallback + RFC 5987 UTF-8 name (E13: header encoding divergence)."""
+        clean = filename.replace("\\", " ").replace('"', " ")
+        clean = re.sub(r"[\r\n]+", " ", clean).strip() or "document"
+        fallback = re.sub(r"[^A-Za-z0-9._ -]+", "_", clean).strip(".-_ ") or "document"
+        return f"attachment; filename=\"{fallback}\"; filename*=utf-8''{_url_quote(clean, safe=' ')}"
+
+    def _document_version_resource(doc_id: str, row: dict[str, Any]) -> DocumentVersionResource:
+        return DocumentVersionResource(
+            version=int(row["version"]), filename=str(row["filename"]), mime=str(row["mime"]),
+            size_bytes=int(row["bytes"]), sha256=str(row["sha256"]), source=str(row["source"]),
+            generator=str(row.get("generator", "")), validation_state=str(row["validation_state"]),
+            validation_findings=[f for f in (row.get("validation_findings") or []) if isinstance(f, dict)],
+            preview_mode=str(row["preview_mode"]), page_count=row.get("page_count"),
+            created_at=str(row["created_at"]),
+            download_url=f"/api/v1/documents/{doc_id}/versions/{int(row['version'])}/download")
+
+    def _document_resource(doc: dict[str, Any], version_row: dict[str, Any]) -> DocumentResource:
+        return DocumentResource(
+            id=str(doc["id"]), title=str(doc["title"]), format=str(doc["format"]),
+            current_version=int(doc["current_version"]), created_at=str(doc["created_at"]),
+            bot_id=str(doc["bot_id"]), conversation_id=str(doc.get("conversation_id") or ""),
+            version=_document_version_resource(str(doc["id"]), version_row))
+
+    def _document_or_404(doc_id: str) -> tuple[dict[str, Any], DocumentStorage]:
+        if not _DOCUMENT_ID_RE.fullmatch(doc_id):
+            raise HTTPException(404, "no such document")
+        doc = store.get_document(doc_id)
+        if doc is None:
+            raise HTTPException(404, "no such document")
+        return doc, DocumentStorage(config)
+
+    @app.get("/api/v1/documents", response_model=DocumentPageResource)
+    def list_documents(conversation_id: Optional[str] = None, bot_id: Optional[str] = None,
+                       limit: int = 50, offset: int = 0) -> DocumentPageResource:
+        if not 1 <= limit <= 100 or offset < 0:
+            raise HTTPException(422, "limit must be 1-100; offset must be nonnegative")
+        rows = store.list_documents(conversation_id=conversation_id, bot_id=bot_id,
+                                    limit=limit + 1, offset=offset)
+        has_more = len(rows) > limit
+        items = [_document_resource(row, {"version": row["cur_version"], "filename": row["cur_filename"],
+                                          "mime": row["cur_mime"], "bytes": row["cur_bytes"],
+                                          "sha256": row["cur_sha256"], "source": "generated",
+                                          "validation_state": row["cur_validation"],
+                                          "preview_mode": row["cur_preview"],
+                                          "page_count": row["cur_pages"],
+                                          "created_at": row["cur_created_at"]})
+                 for row in rows[:limit]]
+        return DocumentPageResource(documents=items, limit=limit, offset=offset,
+                                    next_offset=offset + limit if has_more else None)
+
+    @app.get("/api/v1/documents/readiness", response_model=DocumentsReadinessResource)
+    def documents_readiness() -> DocumentsReadinessResource:
+        renderer = soffice_renderer_path()
+        formats = []
+        for fmt in supported_formats():
+            layouts = fmt in LAYOUT_RENDER_FORMATS and renderer is not None
+            formats.append(DocumentFormatReadiness(
+                format=fmt, available=True,
+                generator="deterministic renderer",
+                preview_mode="pages" if (fmt == "pdf" or layouts) else
+                             ("structure" if fmt in STRUCTURE_PREVIEW_FORMATS else "download_only"),
+                renderer="soffice" if layouts else ("pypdfium2" if fmt == "pdf" else "")))
+        return DocumentsReadinessResource(formats=formats)
+
+    @app.get("/api/v1/documents/{doc_id}", response_model=DocumentResource)
+    def get_document(doc_id: str) -> DocumentResource:
+        doc, _ = _document_or_404(doc_id)
+        version_row = store.get_document_version(doc_id, int(doc["current_version"]))
+        if version_row is None:
+            raise HTTPException(409, "the current document version record is missing")
+        return _document_resource(doc, version_row)
+
+    @app.get("/api/v1/documents/{doc_id}/versions")
+    def list_document_versions(doc_id: str) -> dict:
+        doc, _ = _document_or_404(doc_id)
+        versions = store.list_document_versions(doc_id)
+        return {"versions": [_document_version_resource(doc_id, row) for row in versions]}
+
+    @app.get("/api/v1/documents/{doc_id}/versions/{version}/download")
+    def download_document_version(doc_id: str, version: int, request: Request) -> Response:
+        _doc, storage = _document_or_404(doc_id)
+        row = store.get_document_version(doc_id, version) if version >= 1 else None
+        if row is None:
+            raise HTTPException(404, "no such document version")
+        try:
+            data = storage.read_version(str(row["storage_path"]), str(row["sha256"]), int(row["bytes"]))
+        except DocumentIntegrityError as exc:
+            raise HTTPException(409, str(exc)) from None
+        except DocumentStorageError as exc:
+            raise HTTPException(404, str(exc)) from None
+        headers = {
+            "Content-Disposition": _content_disposition(str(row["filename"])),
+            "Cache-Control": "no-store", "ETag": f'"{row["sha256"]}"',
+            "X-Content-Type-Options": "nosniff", "X-Hutch-Artifact-Verified": "sha256",
+        }
+        # Verified single-range support (bounded files; multi-range falls back to 200).
+        range_header = request.headers.get("range", "")
+        match = re.fullmatch(r"bytes=(\d+)-(\d*)", range_header.strip())
+        if match:
+            start = int(match.group(1))
+            end = int(match.group(2)) if match.group(2) else len(data) - 1
+            if start >= len(data) or end < start:
+                raise HTTPException(416, "requested range not satisfiable")
+            end = min(end, len(data) - 1)
+            headers["Content-Range"] = f"bytes {start}-{end}/{len(data)}"
+            return Response(content=data[start:end + 1], status_code=206,
+                            media_type=str(row["mime"]), headers=headers)
+        return Response(content=data, media_type=str(row["mime"]), headers=headers)
+
+    @app.get("/api/v1/documents/{doc_id}/versions/{version}/preview")
+    def document_version_preview(doc_id: str, version: int) -> dict:
+        _doc, storage = _document_or_404(doc_id)
+        row = store.get_document_version(doc_id, version) if version >= 1 else None
+        if row is None:
+            raise HTTPException(404, "no such document version")
+        preview = dict(row.get("preview_data") or {})
+        preview["mode"] = str(row["preview_mode"])
+        if row.get("page_count") is not None:
+            preview["page_count"] = int(row["page_count"])
+        if str(row["preview_mode"]) == "pages":
+            preview["pages_url"] = f"/api/v1/documents/{doc_id}/versions/{version}/pages/"
+        text_like = str(row["mime"]).startswith("text/") or str(row["mime"]) in ("application/json", "application/yaml")
+        if text_like and str(row["preview_mode"]) == "structure":
+            try:
+                data = storage.read_version(str(row["storage_path"]), str(row["sha256"]), int(row["bytes"]))
+            except (DocumentIntegrityError, DocumentStorageError) as exc:
+                preview["text_error"] = str(exc)
+            else:
+                text = data.decode("utf-8", errors="replace").lstrip("\ufeff")
+                if len(text) > _DOCUMENT_PREVIEW_TEXT_CHARS:
+                    text = text[:_DOCUMENT_PREVIEW_TEXT_CHARS]
+                    preview["text_truncated"] = True
+                preview["text"] = text
+        return preview
+
+    @app.get("/api/v1/documents/{doc_id}/versions/{version}/pages/{page}.png")
+    def document_preview_page(doc_id: str, version: int, page: int) -> Response:
+        _doc, storage = _document_or_404(doc_id)
+        row = store.get_document_version(doc_id, version) if version >= 1 else None
+        if row is None:
+            raise HTTPException(404, "no such document version")
+        if str(row["preview_mode"]) != "pages" or not isinstance(page, int) or not 1 <= page <= _DOCUMENT_PREVIEW_MAX_PAGES:
+            raise HTTPException(404, "no rendered preview pages for this version")
+        page_row = store._db.execute(
+            "SELECT preview_data FROM document_versions WHERE document_id = ? AND version = ?",
+            (doc_id, version)).fetchone()
+        pages = ((page_row["preview_data"] or "{}") if page_row else "{}")
+        try:
+            total = int((json.loads(pages or "{}")).get("rendered_pages", 0))
+        except ValueError:
+            total = 0
+        if page > total:
+            raise HTTPException(404, "no such preview page")
+        data = storage.read_preview_png(str(row["storage_path"]), page)
+        if data is None:
+            raise HTTPException(404, "preview page file is missing")
+        digest = hashlib.sha256(data).hexdigest()
+        return Response(content=data, media_type="image/png", headers={
+            "Cache-Control": "private, max-age=31536000, immutable",
+            "ETag": f'"{digest[:32]}"', "X-Content-Type-Options": "nosniff"})
 
     @app.get("/api/runs/{run_id}/events")
     @app.get("/api/v1/tasks/runs/{run_id}/events")

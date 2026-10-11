@@ -195,7 +195,11 @@ def _remove_later_conversation_schema(db):
         db.execute(f"DROP TRIGGER IF EXISTS {trigger}")
     db.execute("DROP INDEX IF EXISTS idx_messages_workspace_task_result")
     db.execute("DROP INDEX IF EXISTS idx_conversations_bot_pin_update")
-    for table in ("workspace_task_continuations", "workspace_task_fact_shares", "workspace_task_checkpoints",
+    db.execute("DROP INDEX IF EXISTS idx_documents_conversation")
+    db.execute("DROP INDEX IF EXISTS idx_documents_bot")
+    db.execute("DROP INDEX IF EXISTS idx_document_versions_run")
+    for table in ("document_versions", "documents",
+                  "workspace_task_continuations", "workspace_task_fact_shares", "workspace_task_checkpoints",
                   "workspace_tasks", "workspace_specialists", "workspace_settings",
                   "conversation_questions", "google_calendar_grants", "memory_fact_shares", "code_handoffs",
                   "task_templates"):

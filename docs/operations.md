@@ -420,3 +420,18 @@ unencrypted plaintext; fact values and review notes can contain personal or sens
 credentials, run events, action receipts, workspace files and artifact bytes. A separate all-Bot memory
 page is deferred; direct settings are the owner-facing inventory for each Bot. Deleting a Bot archives
 its facts and leaves a user-owned workspace intact.
+
+## Generated documents
+
+Documents created through the `create_document` tool are stored under `<state>/documents/` as immutable,
+hash-recorded versions (`<doc id>/vNNN-<sha8>/`). Bounds are engine-enforced: 32 MB per document, 16 documents
+per run, at most 60 rendered preview pages at up to 1600 px, and ZIP bundles capped at 512 entries and 64 MB
+uncompressed. There is no automatic deletion of promoted versions in this release; abandoned staging is
+reconciled at startup after its owning job is gone, and promoted versions without a committed row (a crash
+between promotion and the database write) are deleted because they were never visible. Backups should include
+the `documents/` directory beside `hutch.db`.
+
+PDF page previews render locally with the bundled PDFium binary. Layout previews for DOCX/XLSX/PPTX additionally
+need LibreOffice (`soffice`) installed; each render job gets a fresh LibreOffice profile, a 120-second wall clock
+and an owned process group, and the app degrades to structure previews with an honest state when the binary is
+absent. Run `GET /api/v1/documents/readiness` to see which formats and preview modes are available on this host.

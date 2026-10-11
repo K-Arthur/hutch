@@ -393,6 +393,13 @@ async function openConversationFiles(conversationId, returnFocus) {
       const items = page.artifacts || [];
       list.insertAdjacentHTML(append ? "beforeend" : "afterbegin", items.map(conversationArtifactHtml).join(""));
       count += items.length;
+      if (!append) {
+        const docsPage = await api(`/v1/documents?conversation_id=${encodeURIComponent(conversationId)}&limit=50`);
+        if (!$("#conversation-files-list")) return;
+        const docs = (docsPage.documents || []).map(documentListRowRef).filter(Boolean);
+        list.insertAdjacentHTML("afterbegin", docs.map(documentCardHtml).join(""));
+        count += docs.length;
+      }
       cursor = page.next_cursor || "";
       status.textContent = count ? `${count} ${count === 1 ? "item" : "items"}`
         : "No files or saved tool output in this chat yet.";
@@ -4310,8 +4317,11 @@ function artifactDownloadHtml(runId, result) {
 
 function createdFilesHtml(runId, items) {
   const files = items.filter(it => it.result?.d?.workspace_file).map(it => it.result.d.workspace_file);
-  if (!files.length) return "";
+  const documents = items.map(it => it.result?.d?.document).filter(Boolean)
+    .map(validDocumentRef).filter(Boolean);
+  if (!files.length && !documents.length) return "";
   return `<div class="workspace-file-attachments" role="group" aria-label="Files created in this run">
+    ${documents.map(documentAttachmentHtml).join("")}
     ${files.map(file => {
       const match = /^artifacts\/([0-9]{3,6}-[a-z0-9_-]{1,40}\.txt)$/.exec(String(file.artifact || ""));
       const digest = String(file.sha256 || "");
@@ -4870,10 +4880,22 @@ function scheduleNextTime(row) {
 }
 
 function schedulePauseStatus(row) {
+  if (row.blocked?.reason) return "Needs repair";
+  if (row.enabled === false) return "Draft";
   if (row.workspace_paused && row.paused) return "Paused";
   if (row.workspace_paused) return "Paused for now";
   if (row.paused) return "Paused for this assistant";
   return "On";
+}
+
+function scheduleTriggerLabel(row) {
+  if (row.trigger === "interval" && row.interval_seconds) {
+    const minutes = row.interval_seconds / 60;
+    if (Number.isInteger(minutes)) return `Every ${minutes} minutes`;
+    return `Every ${row.interval_seconds} seconds`;
+  }
+  if (row.trigger === "once") return "One time";
+  return row.cron || "Schedule unavailable";
 }
 
 function paintSchedules() {
@@ -4917,24 +4939,32 @@ function paintSchedules() {
             const botLabel = row.bot_display_name || row.bot_name;
             const scheduleStatus = schedulePauseStatus(row);
             const missedTimeChoice = row.catch_up === "coalesce" ? "Run once for missed times" : "Skip missed times";
-            return `<article class="schedule-overview-row" role="listitem">
+            const overlapChoice = row.overlap === "skip" ? "Skip while busy"
+              : row.overlap === "buffer_one" ? "Keep one waiting" : "Queue while busy";
+            return `<article class="schedule-overview-row" role="listitem" data-schedule-id="${esc(row.id)}">
               <div class="schedule-overview-task">
                 <div class="schedule-overview-bot"><a href="#/chat/${encodeURIComponent(row.bot_name)}">${esc(botLabel)}</a>
                   <span class="tag">${esc(scheduleStatus)}</span></div>
                 <h3>${esc(row.name)}</h3>
                 <details class="schedule-overview-details"><summary>Timing details</summary>
                   <dl class="schedule-overview-timing">
-                    <div><dt>Schedule</dt><dd><code>${esc(row.cron)}</code></dd></div>
+                    <div><dt>Schedule</dt><dd><code>${esc(scheduleTriggerLabel(row))}</code></dd></div>
                     <div><dt>Time zone</dt><dd>${esc(row.timezone)}</dd></div>
                     <div><dt>If a time is missed</dt><dd>${esc(missedTimeChoice)}</dd></div>
+                    <div><dt>If already busy</dt><dd>${esc(overlapChoice)}</dd></div>
                   </dl>
                 </details>
-                ${row.last_skip?.windows ? `<p class="schedule-skip" role="status">Last skipped ${Number(row.last_skip.windows).toLocaleString()} missed window${Number(row.last_skip.windows) === 1 ? "" : "s"}${row.last_skip.at ? ` · ${esc(timeAgo(row.last_skip.at))}` : ""}.</p>` : ""}
+                ${row.blocked?.reason ? `<p class="schedule-skip" role="status">Blocked: ${esc(row.blocked.reason.replaceAll("_", " "))}${row.blocked.detail ? ` (${esc(row.blocked.detail)})` : ""}. Repair the timezone or trigger before it can run.</p>` : ""}
+                ${row.last_skip?.windows ? `<p class="schedule-skip" role="status">Last skipped ${Number(row.last_skip.windows).toLocaleString()} missed window${Number(row.last_skip.windows) === 1 ? "" : "s"}${row.last_skip.reason ? ` · ${esc(String(row.last_skip.reason).replaceAll("_", " "))}` : ""}${row.last_skip.at ? ` · ${esc(timeAgo(row.last_skip.at))}` : ""}.</p>` : ""}
               </div>
               <div class="schedule-overview-next"><span>${row.effective_paused ? "Next scheduled time" : "Next run"}</span>
                 ${row.next_fire ? `<time datetime="${esc(row.next_fire)}">${esc(scheduleNextTime(row))}</time>` : `<strong>Unavailable</strong>`}
               </div>
-              <a class="btn ghost small schedule-overview-edit" href="#/bot/${encodeURIComponent(row.bot_name)}">Edit schedule</a>
+              <div class="schedule-overview-actions">
+                <button class="btn ghost small" type="button" data-schedule-run-now="${esc(row.bot_name)}/${esc(row.id)}">Run now</button>
+                <button class="btn ghost small" type="button" data-schedule-skip-next="${esc(row.bot_name)}/${esc(row.id)}">Skip next</button>
+                <a class="btn ghost small schedule-overview-edit" href="#/bot/${encodeURIComponent(row.bot_name)}">Edit schedule</a>
+              </div>
             </article>`;
           }).join("")}
         </div>
@@ -4978,6 +5008,38 @@ function paintSchedules() {
       toast(`More schedules could not be loaded: ${error.message}`, true);
       if (more.isConnected) { more.disabled = false; more.removeAttribute("aria-busy"); }
     }
+  });
+
+  view.querySelectorAll("[data-schedule-run-now]").forEach(button => {
+    button.addEventListener("click", async () => {
+      const [botName, scheduleId] = button.getAttribute("data-schedule-run-now").split("/");
+      button.setAttribute("aria-busy", "true");
+      try {
+        const result = await api(`/v1/bots/${encodeURIComponent(botName)}/schedules/${encodeURIComponent(scheduleId)}/run-now`, { method: "POST", body: {} });
+        toast("Started a one-off run. The recurring schedule is unchanged.");
+        if (result?.run_id) location.hash = `#/run/${encodeURIComponent(result.run_id)}`;
+      } catch (error) {
+        toast(`Could not run now: ${error.message}`, true);
+      } finally {
+        button.removeAttribute("aria-busy");
+      }
+    });
+  });
+
+  view.querySelectorAll("[data-schedule-skip-next]").forEach(button => {
+    button.addEventListener("click", async () => {
+      const [botName, scheduleId] = button.getAttribute("data-schedule-skip-next").split("/");
+      button.setAttribute("aria-busy", "true");
+      try {
+        await api(`/v1/bots/${encodeURIComponent(botName)}/schedules/${encodeURIComponent(scheduleId)}/skip-next`, { method: "POST", body: {} });
+        toast("The next scheduled occurrence will be skipped.");
+        await renderSchedules();
+      } catch (error) {
+        toast(`Could not skip next: ${error.message}`, true);
+      } finally {
+        button.removeAttribute("aria-busy");
+      }
+    });
   });
 
   // Resource-feed refreshes can repaint this page while a schedule command is
@@ -5349,27 +5411,60 @@ const TOOL_SETTINGS = [
   ["delegate_task", "Delegate a bounded task", "Strict Offline only. Each request asks for approval and uses another run slot; the child receives only its task text."],
 ];
 
+function scheduleBodyFromForm(fd) {
+  const trigger = String(fd.get("trigger") || "cron");
+  const body = {
+    name: String(fd.get("name") || "").trim(),
+    trigger,
+    cron: String(fd.get("cron") || "").trim(),
+    timezone: String(fd.get("timezone") || "UTC").trim(),
+    catch_up: String(fd.get("catch_up") || "coalesce"),
+    overlap: String(fd.get("overlap") || "queue"),
+    enabled: fd.get("enabled") === "on" || fd.get("enabled") === "true",
+    prompt: String(fd.get("schedule_prompt") || fd.get("prompt") || "").trim(),
+  };
+  if (trigger === "interval") {
+    const minutes = Number(fd.get("interval_minutes"));
+    body.interval_seconds = Math.round(minutes * 60);
+    body.cron = "";
+    const anchor = String(fd.get("anchor_at") || "").trim();
+    if (anchor) body.anchor_at = anchor;
+  } else if (trigger === "once") {
+    body.cron = "";
+    body.anchor_at = String(fd.get("anchor_at") || "").trim();
+  }
+  return body;
+}
+
 function scheduleEditorHtml(schedule, index, status = null) {
   const id = String(schedule.id || "");
+  const trigger = schedule.trigger || "cron";
+  const enabled = schedule.enabled !== false;
   let nextFire = "Not calculated";
   if (status?.next_fire) {
     try { nextFire = new Intl.DateTimeFormat(undefined, {dateStyle:"medium", timeStyle:"short", timeZone:schedule.timezone || "UTC"})
       .format(new Date(status.next_fire)); } catch { nextFire = "Next run available"; }
   }
+  const intervalMinutes = schedule.interval_seconds ? String(schedule.interval_seconds / 60) : "65";
+  const summaryTrigger = trigger === "interval"
+    ? `every ${intervalMinutes}m`
+    : trigger === "once" ? "one time" : (schedule.cron || "cron");
   const formId = index === 0 ? "form-schedule" : `form-schedule-${index}`;
+  const preview = Array.isArray(status?.preview) ? status.preview.slice(0, 5) : [];
   return `<details class="schedule-entry" data-schedule-entry ${index === 0 ? "open" : ""}>
     <summary class="schedule-summary">
       <strong>${esc(schedule.name || "Scheduled task")}</strong>
-      <span class="schedule-summary-cron mono">${esc(schedule.cron)} · ${esc(schedule.timezone || "UTC")}</span>
-      <span class="tag">${index === 0 ? "Primary" : `Task ${index + 1}`}</span>
+      <span class="schedule-summary-cron mono">${esc(summaryTrigger)} · ${esc(schedule.timezone || "UTC")}</span>
+      <span class="tag">${enabled ? (index === 0 ? "Primary" : `Task ${index + 1}`) : "Draft"}</span>
     </summary>
     <form id="${formId}" class="form-grid schedule-editor" data-schedule-form data-schedule-id="${esc(id)}">
+      <label class="check"><input type="checkbox" name="enabled" ${enabled ? "checked" : ""}> Enabled for future scheduled runs</label>
       <div class="form-grid row2">
         <label class="field">Task name
           <input type="text" name="name" maxlength="80" value="${esc(schedule.name || "Scheduled task")}" required>
         </label>
-        <label class="field">Cron expression
-          <input type="text" name="cron" value="${esc(schedule.cron || "")}" placeholder="0 9 * * 1" required>
+        <label class="field" data-cron-field ${trigger === "cron" ? "" : "hidden"}>Cron expression
+          <input type="text" name="cron" value="${esc(schedule.cron || "")}" placeholder="0 9 * * 1" ${trigger === "cron" ? "required" : ""}>
         </label>
         <label class="field">Timezone
           <input type="text" name="timezone" value="${esc(schedule.timezone || "UTC")}" required>
@@ -5382,11 +5477,47 @@ function scheduleEditorHtml(schedule, index, status = null) {
         </label>
       </div>
       <label class="field">Task prompt
-        <textarea name="schedule_prompt" rows="3" maxlength="4000" aria-describedby="schedule-prompt-help-${index}">${esc(schedule.prompt || "")}</textarea>
-        <span class="hint" id="schedule-prompt-help-${index}">Leave blank to use this bot’s standing instructions. Each scheduled task runs as a separate attempt.</span>
+        <textarea name="schedule_prompt" rows="2" maxlength="4000" aria-describedby="schedule-prompt-help-${index}">${esc(schedule.prompt || "")}</textarea>
+        <span class="hint" id="schedule-prompt-help-${index}">Leave blank to use this bot’s standing instructions.</span>
       </label>
       <div class="meta-row"><span>Next run</span><span class="mono">${esc(nextFire)}</span></div>
-      ${status?.last_skip ? `<p class="hint schedule-skip" role="status">Last skipped ${esc(status.last_skip.windows)} missed windows.</p>` : ""}
+      ${status?.blocked ? `<p class="hint schedule-skip" role="status">Blocked: ${esc(String(status.blocked.reason || "configuration").replaceAll("_", " "))}.</p>` : ""}
+      ${status?.last_skip ? `<p class="hint schedule-skip" role="status">Last skipped ${esc(status.last_skip.windows)} missed windows${status.last_skip.reason ? ` · ${esc(String(status.last_skip.reason).replaceAll("_", " "))}` : ""}.</p>` : ""}
+      <button class="btn ghost small schedule-advanced-toggle" type="button" data-schedule-advanced-toggle aria-expanded="false">Advanced timing and recovery</button>
+      <div class="schedule-advanced" hidden>
+        <div class="form-grid row2">
+          <label class="field">Trigger
+            <select name="trigger" data-schedule-trigger>
+              <option value="cron" ${trigger === "cron" ? "selected" : ""}>Calendar cron</option>
+              <option value="interval" ${trigger === "interval" ? "selected" : ""}>Fixed interval</option>
+              <option value="once" ${trigger === "once" ? "selected" : ""}>One time</option>
+            </select>
+          </label>
+          <label class="field" data-interval-field ${trigger === "interval" ? "" : "hidden"}>Interval (minutes)
+            <input type="number" name="interval_minutes" min="1" step="1" value="${esc(intervalMinutes)}" ${trigger === "interval" ? "required" : ""}>
+          </label>
+          <label class="field" data-anchor-field ${trigger === "cron" ? "hidden" : ""}>Anchor (ISO UTC)
+            <input type="text" name="anchor_at" value="${esc(schedule.anchor_at || "")}" placeholder="2026-10-07T00:00:00+00:00" ${trigger === "once" ? "required" : ""}>
+          </label>
+          <label class="field">If already busy
+            <select name="overlap">
+              <option value="queue" ${(schedule.overlap || "queue") === "queue" ? "selected" : ""}>Queue</option>
+              <option value="skip" ${schedule.overlap === "skip" ? "selected" : ""}>Skip this occurrence</option>
+              <option value="buffer_one" ${schedule.overlap === "buffer_one" ? "selected" : ""}>Keep one waiting</option>
+            </select>
+          </label>
+        </div>
+        ${preview.length ? `<div class="schedule-preview" aria-label="Upcoming occurrences"><p class="hint">Upcoming occurrences</p><ol>${preview.map(p => `<li><time datetime="${esc(p.at)}">${esc(p.at)}</time> · ${esc(p.timezone)} (${esc(p.utc_offset)})</li>`).join("")}</ol></div>` : ""}
+        <div class="schedule-occurrence-panel" data-occurrence-panel="${esc(id)}" hidden>
+          <h4>Recent occurrences</h4>
+          <div class="schedule-occurrence-list hint">Loading…</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn ghost small" type="button" data-schedule-run-now-bot="${esc(id)}">Run now</button>
+          <button class="btn ghost small" type="button" data-schedule-skip-next-bot="${esc(id)}">Skip next</button>
+          <button class="btn ghost small" type="button" data-show-occurrences="${esc(id)}">History</button>
+        </div>
+      </div>
       <div class="btn-row schedule-actions">
         <button class="btn primary small" type="submit">Save task</button>
         <button class="btn ghost small" type="button" data-remove-schedule="${esc(id)}">Remove task</button>
@@ -5898,14 +6029,18 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   });
   $("#btn-add-schedule").addEventListener("click", () => {
     const form = `<form id="modal-schedule-form" class="form-grid">
+      <label class="check"><input type="checkbox" name="enabled" checked> Enable immediately</label>
       <label class="field">Task name<input name="name" maxlength="80" value="Scheduled task" required></label>
+      <label class="field">Trigger<select name="trigger"><option value="cron">Calendar cron</option><option value="interval">Fixed interval</option></select></label>
       <div class="form-grid row2">
         <label class="field">Cron expression<input name="cron" placeholder="0 9 * * 1" required></label>
+        <label class="field">Interval (minutes)<input type="number" name="interval_minutes" min="1" value="65"></label>
         <label class="field">Timezone<input name="timezone" value="UTC" required></label>
+        <label class="field">If already busy<select name="overlap"><option value="queue">Queue</option><option value="skip">Skip</option><option value="buffer_one">Keep one waiting</option></select></label>
       </div>
       <label class="field">Missed run policy<select name="catch_up"><option value="coalesce">Run once and report missed windows</option><option value="skip">Skip if the last window was missed</option></select></label>
       <label class="field">Task prompt<textarea name="prompt" rows="3" maxlength="4000"></textarea>
-        <span class="hint">Leave blank to use this bot’s standing instructions.</span>
+        <span class="hint">Leave blank to use this bot’s standing instructions. Uncheck Enable to save a draft.</span>
       </label>
     </form>`;
     openModal({ title: "Add a recurring task", bodyHtml: form, confirmText: "Add task", returnFocus: $("#btn-add-schedule"),
@@ -5914,28 +6049,69 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
         const scheduleId = `schedule_${newIdempotencyKey().replace(/[^a-zA-Z0-9_-]/g, "")}`;
         try {
           await api(`/v1/bots/${encodeURIComponent(b.id)}/schedules/${encodeURIComponent(scheduleId)}`, {
-            method: "PUT", body: { name: fd.get("name").trim(), cron: fd.get("cron").trim(),
-              timezone: fd.get("timezone").trim(), catch_up: fd.get("catch_up"), prompt: fd.get("prompt").trim() },
+            method: "PUT", body: scheduleBodyFromForm(fd),
           });
-          toast("Recurring task added.");
+          toast(fd.get("enabled") ? "Recurring task added." : "Draft routine saved (not enabled).");
           renderBotDetail(b.name); refreshRoster();
           return true;
         } catch (err) { toast(`Task not added: ${err.message}`, true); return false; }
       },
     });
   });
+  $$("[data-schedule-advanced-toggle]").forEach(button => button.addEventListener("click", () => {
+    const panel = button.parentElement?.querySelector(".schedule-advanced");
+    if (!panel) return;
+    const open = panel.hidden;
+    panel.hidden = !open;
+    button.setAttribute("aria-expanded", open ? "true" : "false");
+  }));
+  $$("[data-schedule-trigger]").forEach(select => select.addEventListener("change", () => {
+    const form = select.closest("form");
+    if (!form) return;
+    const trigger = select.value;
+    form.querySelectorAll("[data-cron-field]").forEach(el => { el.hidden = trigger !== "cron"; el.querySelector("input")?.toggleAttribute("required", trigger === "cron"); });
+    form.querySelectorAll("[data-interval-field]").forEach(el => { el.hidden = trigger !== "interval"; el.querySelector("input")?.toggleAttribute("required", trigger === "interval"); });
+    form.querySelectorAll("[data-anchor-field]").forEach(el => { el.hidden = trigger === "cron"; el.querySelector("input")?.toggleAttribute("required", trigger === "once"); });
+  }));
   $$('[data-schedule-form]').forEach(form => form.addEventListener("submit", async ev => {
     ev.preventDefault();
     const fd = new FormData(form);
     const scheduleId = form.dataset.scheduleId;
     try {
       await api(`/v1/bots/${encodeURIComponent(b.id)}/schedules/${encodeURIComponent(scheduleId)}`, {
-        method: "PUT", body: { name: fd.get("name").trim(), cron: fd.get("cron").trim(),
-          timezone: fd.get("timezone").trim(), catch_up: fd.get("catch_up"), prompt: fd.get("schedule_prompt").trim() },
+        method: "PUT", body: scheduleBodyFromForm(fd),
       });
-      toast("Scheduled task saved.");
+      toast(fd.get("enabled") === "on" ? "Scheduled task saved." : "Draft saved. Future occurrences stay off until enabled.");
       renderBotDetail(b.name); refreshRoster();
     } catch (err) { toast(`Task not saved: ${err.message}`, true); }
+  }));
+  $$("[data-schedule-run-now-bot]").forEach(button => button.addEventListener("click", async () => {
+    try {
+      const result = await api(`/v1/bots/${encodeURIComponent(b.id)}/schedules/${encodeURIComponent(button.dataset.scheduleRunNowBot)}/run-now`, { method: "POST", body: {} });
+      toast("Started a one-off run. The recurring schedule is unchanged.");
+      if (result?.run_id) location.hash = `#/run/${encodeURIComponent(result.run_id)}`;
+    } catch (err) { toast(`Could not run now: ${err.message}`, true); }
+  }));
+  $$("[data-schedule-skip-next-bot]").forEach(button => button.addEventListener("click", async () => {
+    try {
+      await api(`/v1/bots/${encodeURIComponent(b.id)}/schedules/${encodeURIComponent(button.dataset.scheduleSkipNextBot)}/skip-next`, { method: "POST", body: {} });
+      toast("Next occurrence will be skipped.");
+      renderBotDetail(b.name);
+    } catch (err) { toast(`Could not skip next: ${err.message}`, true); }
+  }));
+  $$("[data-show-occurrences]").forEach(button => button.addEventListener("click", async () => {
+    const scheduleId = button.dataset.showOccurrences;
+    const panel = view.querySelector(`[data-occurrence-panel="${CSS.escape(scheduleId)}"]`);
+    if (!panel) return;
+    panel.hidden = false;
+    const list = panel.querySelector(".schedule-occurrence-list");
+    list.textContent = "Loading…";
+    try {
+      const rows = await api(`/v1/bots/${encodeURIComponent(b.id)}/schedules/${encodeURIComponent(scheduleId)}/occurrences?limit=20`);
+      list.innerHTML = rows.length
+        ? `<ol>${rows.map(row => `<li><time datetime="${esc(row.occurrence)}">${esc(row.occurrence)}</time> · ${esc(row.run_status || "unknown")}${row.missed_windows ? ` · missed ${esc(row.missed_windows)}` : ""} · <a href="#/run/${encodeURIComponent(row.run_id)}">open run</a></li>`).join("")}</ol>`
+        : "No claimed occurrences yet.";
+    } catch (err) { list.textContent = `History unavailable: ${err.message}`; }
   }));
   $$('[data-remove-schedule]').forEach(button => button.addEventListener("click", async () => {
     const schedule = schedules.find(item => item.id === button.dataset.removeSchedule);
@@ -9279,7 +9455,8 @@ function startPhoneApp() {
   phoneRender();
   void phoneRefresh();
   phonePoll = setInterval(() => { if (!document.hidden) void phoneRefresh({ quiet: true }); }, 12_000);
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) void phoneRefresh({ quiet: true }); });
+  
+document.addEventListener("visibilitychange", () => { if (!document.hidden) void phoneRefresh({ quiet: true }); });
   window.addEventListener("online", () => { phoneModel.offline = false; void phoneRefresh(); });
   window.addEventListener("offline", () => { phoneModel.offline = true; phoneRender(); });
   void api("/v1/snapshot?limit=1").then(snapshot => {
@@ -9341,6 +9518,201 @@ document.addEventListener("visibilitychange", () => {
   } else {
     clearTimeout(approvalsTimer);
     approvalsTimer = null;
+  }
+});
+
+/* ------------------------------------------- documents (generated, committed) */
+
+const DOCUMENT_FORMAT_LABELS = {
+  pdf: "PDF", docx: "DOCX", xlsx: "XLSX", pptx: "PPTX",
+  md: "MD", txt: "TXT", csv: "CSV", json: "JSON", yaml: "YAML", zip: "ZIP",
+};
+
+/* Only committed documents with a well-formed id and version get a card; the
+   download URL is built here from validated parts, never taken from event data. */
+function validDocumentRef(ref) {
+  if (!ref || typeof ref !== "object") return null;
+  const id = typeof ref.id === "string" ? ref.id : "";
+  const version = Number(ref.version);
+  if (!/^doc_[0-9a-f]{16}$/.test(id) || !Number.isInteger(version) || version < 1 || version > 999) return null;
+  const bytes = Number(ref.bytes);
+  return {
+    id, version,
+    name: String(ref.name || "document"),
+    title: String(ref.title || ref.name || "Document"),
+    format: String(ref.format || ""),
+    formatLabel: DOCUMENT_FORMAT_LABELS[ref.format] || String(ref.format || "?").toUpperCase(),
+    bytes: Number.isSafeInteger(bytes) && bytes >= 0 ? bytes : null,
+    validationState: String(ref.validation_state || "passed"),
+    findings: Array.isArray(ref.validation_findings) ? ref.validation_findings : [],
+    previewMode: String(ref.preview_mode || "download_only"),
+    created_at: typeof ref.created_at === "string" ? ref.created_at : "",
+  };
+}
+
+function documentListRowRef(row) {
+  if (!row || typeof row !== "object") return null;
+  const v = typeof row.version === "object" && row.version ? row.version : null;
+  return validDocumentRef({
+    id: row.id, version: v ? v.version : row.current_version,
+    name: (v && v.filename) || row.title, title: row.title,
+    format: row.format, bytes: v ? v.size_bytes : null,
+    validation_state: v ? v.validation_state : "passed",
+    preview_mode: v ? v.preview_mode : "download_only",
+    created_at: row.created_at || (v && v.created_at) || "",
+  });
+}
+
+function documentDownloadUrl(ref) {
+  return `/api/v1/documents/${ref.id}/versions/${ref.version}/download`;
+}
+
+function documentStateHtml(ref) {
+  if (ref.validationState === "passed") return `${icon("check")} Verified`;
+  if (ref.validationState === "passed_with_warnings") {
+    return `${icon("eye")} Validated · ${ref.findings.length || "notes"}`;
+  }
+  return `${icon("alert")} Validation failed`;
+}
+
+function documentCardHtml(ref) {
+  const failed = ref.validationState === "failed";
+  const download = failed ? "" :
+    `<a class="btn ghost small" href="${documentDownloadUrl(ref)}" aria-label="Download ${esc(ref.name)}">Download</a>`;
+  return `<article class="document-card conversation-file" data-document-card="${esc(ref.id)}">
+    <div class="conversation-file-main">
+      ${icon("fileText")}
+      <div class="conversation-file-copy">
+        <strong title="${esc(ref.name)}">${esc(ref.name)}</strong>
+        <span><span class="document-format">${esc(ref.formatLabel)}</span> · v${ref.version}${ref.bytes ? ` · ${conversationArtifactSize(ref.bytes)}` : ""} · ${timeAgo(ref.created_at || "")}</span>
+        <span class="conversation-file-state">${documentStateHtml(ref)}</span>
+      </div>
+      <div class="conversation-file-actions">
+        <button class="btn ghost small" type="button" data-doc-preview="${esc(ref.id)}"
+          data-doc-version="${ref.version}" data-doc-name="${esc(ref.name)}"
+          aria-label="Preview ${esc(ref.name)}">Preview</button>
+        <button class="btn ghost small" type="button" data-doc-versions="${esc(ref.id)}"
+          data-doc-name="${esc(ref.name)}" aria-label="Version history for ${esc(ref.name)}">Versions</button>
+        ${download}
+      </div>
+    </div>
+  </article>`;
+}
+
+function documentAttachmentHtml(ref) {
+  const failed = ref.validationState === "failed";
+  const download = failed ? "" :
+    ` <a class="btn ghost small" href="${documentDownloadUrl(ref)}" title="The server verifies this file against its recorded SHA-256 before download">Download ${esc(ref.name)}</a>`;
+  return `<div class="workspace-file-attachment document-attachment">
+    <span class="workspace-file-label"><span class="document-format">${esc(ref.formatLabel)}</span> Document</span>
+    <button class="btn ghost small" type="button" data-doc-preview="${esc(ref.id)}"
+      data-doc-version="${ref.version}" data-doc-name="${esc(ref.name)}"
+      aria-label="Preview ${esc(ref.name)}">Preview</button>
+    <button class="btn ghost small" type="button" data-doc-versions="${esc(ref.id)}"
+      data-doc-name="${esc(ref.name)}" aria-label="Version history for ${esc(ref.name)}">Versions</button>
+    ${download}
+    <span class="workspace-file-meta">v${ref.version}${ref.bytes ? ` · ${conversationArtifactSize(ref.bytes)}` : ""} · ${documentStateHtml(ref)}</span>
+  </div>`;
+}
+
+function documentPreviewBodyHtml(data) {
+  const note = (extra) => `<p class="hint">${esc(extra)}</p>`;
+  if (data.mode === "pages") {
+    const total = Number(data.rendered_pages || 0);
+    if (!total) {
+      return note("No rendered page images are available for this version. The exact file is unchanged and ready to download.");
+    }
+    const base = String(data.pages_url || "");
+    return note("Rendered page images — an approximate render of the exact stored file.") +
+      `<div class="document-pages">${Array.from({ length: Math.min(total, 60) }, (_, i) =>
+        `<img loading="lazy" src="${esc(base)}${i + 1}.png" alt="Page ${i + 1} of ${total} — approximate render">`).join("")}</div>`;
+  }
+  if (data.mode === "structure" && typeof data.text === "string") {
+    const clipped = data.text_truncated ? note("Preview truncated; the download contains the full text.") : "";
+    return clipped + `<pre class="document-preview-text">${esc(data.text)}</pre>`;
+  }
+  if (data.mode === "structure" && data.kind === "outline") {
+    const items = (data.items || []).map(item =>
+      `<li class="document-outline-${esc(item.level || "p")}">${esc(item.text || "")}</li>`).join("");
+    return note("Extracted structure — not the rendered layout.") + `<ul class="document-outline">${items}</ul>`;
+  }
+  if (data.mode === "structure" && data.kind === "grid") {
+    const sheets = (data.sheets || []).map(sheet => {
+      const head = (sheet.sample || [])[0] || [];
+      const rows = (sheet.sample || []).slice(1);
+      return `<h4>${esc(sheet.name || "Sheet")}</h4>
+        <table class="document-grid"><thead><tr>${head.map(cell => `<th>${esc(String(cell ?? ""))}</th>`).join("")}</tr></thead>
+        <tbody>${rows.map(row => `<tr>${row.map(cell => `<td>${esc(String(cell ?? ""))}</td>`).join("")}</tr>`).join("")}</tbody></table>
+        <p class="hint">${Number(sheet.rows || 0).toLocaleString("en-US")} rows total (sample shows the first ${Math.max((sheet.sample || []).length - 1, 0)}); values as stored, without formatting.</p>`;
+    }).join("");
+    return note("Extracted sheet values — not the rendered workbook.") + sheets;
+  }
+  if (data.mode === "structure" && data.kind === "slides") {
+    const slides = (data.items || []).map((slide, i) =>
+      `<li class="document-slide"><strong>Slide ${i + 1}: ${esc(slide.title || "(untitled)")}</strong>
+        <span>${Number(slide.bullet_count || 0)} bullet(s)${slide.has_table ? " · table" : ""}${slide.has_notes ? " · notes" : ""}</span></li>`).join("");
+    return note("Slide outline — not the rendered deck.") + `<ul class="document-outline">${slides}</ul>`;
+  }
+  return note("This version has no in-app preview. The exact file is ready to download; layout previews for office documents become available when LibreOffice is installed on the Hutch host.");
+}
+
+async function openDocumentPreview(docId, version, docName, returnFocus) {
+  openModal({
+    title: `Preview — ${docName || "document"}`,
+    bodyHtml: `<div id="doc-preview-status" class="hint" role="status" aria-live="polite">Loading preview…</div>
+      <div id="doc-preview-body"></div>`,
+    confirmText: "Close", showCancel: false, wide: true, tall: true, returnFocus,
+  });
+  try {
+    const data = await api(`/v1/documents/${encodeURIComponent(docId)}/versions/${version}/preview`);
+    const body = $("#doc-preview-body");
+    const status = $("#doc-preview-status");
+    if (!body) return;
+    body.innerHTML = documentPreviewBodyHtml(data);
+    if (status) status.textContent = `${data.mode === "pages" ? "Rendered pages" : "Extracted preview"}${data.mode === "pages" && data.rendered_pages ? ` · ${data.rendered_pages} page(s)` : ""}`;
+  } catch (err) {
+    const status = $("#doc-preview-status");
+    if (status) status.textContent = `Could not load the preview: ${err.message}. The download is unaffected.`;
+  }
+}
+
+async function openDocumentVersions(docId, docName, returnFocus) {
+  openModal({
+    title: `Versions — ${docName || "document"}`,
+    bodyHtml: `<div id="doc-versions-status" class="hint" role="status" aria-live="polite">Loading versions…</div>
+      <div id="doc-versions-list" class="conversation-files-list"></div>`,
+    confirmText: "Close", showCancel: false, returnFocus,
+  });
+  try {
+    const page = await api(`/v1/documents/${encodeURIComponent(docId)}/versions`);
+    const list = $("#doc-versions-list");
+    const status = $("#doc-versions-status");
+    if (!list) return;
+    const versions = (page.versions || []).filter(v =>
+      /^\/api\/v1\/documents\/doc_[0-9a-f]{16}\/versions\/\d+\/download$/.test(String(v.download_url || "")));
+    list.innerHTML = versions.map(v => `<div class="workspace-file-attachment">
+      <span class="workspace-file-label">v${v.version}</span>
+      <span>${esc(v.filename)}</span>
+      <span class="workspace-file-meta">${conversationArtifactSize(v.size_bytes)} · ${timeAgo(v.created_at)} · ${esc(v.validation_state === "passed" ? "Verified" : v.validation_state === "passed_with_warnings" ? "Validated with notes" : "Validation failed")}</span>
+      ${v.validation_state !== "failed" ? `<a class="btn ghost small" href="${esc(v.download_url)}" aria-label="Download version ${v.version} of ${esc(docName || "document")}">Download</a>` : ""}
+    </div>`).join("") || "";
+    if (status) status.textContent = versions.length ? `${versions.length} version(s); older versions stay downloadable` : "No versions recorded.";
+  } catch (err) {
+    const status = $("#doc-versions-status");
+    if (status) status.textContent = `Could not load versions: ${err.message}`;
+  }
+}
+
+document.addEventListener("click", event => {
+  const preview = event.target.closest("[data-doc-preview]");
+  if (preview) {
+    openDocumentPreview(preview.dataset.docPreview, Number(preview.dataset.docVersion),
+      preview.dataset.docName, preview);
+    return;
+  }
+  const versions = event.target.closest("[data-doc-versions]");
+  if (versions) {
+    openDocumentVersions(versions.dataset.docVersions, versions.dataset.docName, versions);
   }
 });
 

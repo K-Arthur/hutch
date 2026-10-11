@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_browser.py::test_openrouter_models_are_searchable_from_the_chat_picker",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_openrouter_models_are_searchable_from_the_chat_picker",
-  "captured_at": "2026-10-11T00:04:05.992352+00:00",
+  "captured_at": "2026-10-11T02:12:16.676563+00:00",
   "python": "3.13.15",
   "browser": "153.0.8010.12",
   "playwright_version": "1.63.0",

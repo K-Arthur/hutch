@@ -23,6 +23,19 @@ The exact selection is reviewed and saved as background in the Bot's instruction
 permissions are not carried over. The saved context may be included in future model calls.
 Schema v28 stores the owner's selected workspace coordinator. Bot settings can assign the role, the selected Bot opens as the default Studio chat, and the roster labels it. Schema v41 stores the owner's explicit specialist list, initially empty; promotion removes the new coordinator, and task admission checks membership atomically before writing the task/run. The prior coordinator is not auto-authorized. Schema v29 records a reviewed handoff from a completed coordinator turn to one approved specialist: the original request, coordinator draft, user-edited brief and assumptions, specialist identity/settings snapshot, child conversation/run, current status and latest response remain linked in the parent chat. Schema v32 permits an unchecked-by-default, bounded selection of reviewed coordinator facts for that task's untrusted run context; the snapshot is not added to specialist memory. The specialist's own enabled memory and workspace still apply. A changed specialist route, instruction, permission or workspace fails before its worker starts. Schema v30 records a user-selected successful specialist message attached to a coordinator follow-up, bound to the task and source message in the same parent conversation. A 4,000-character immutable snapshot appears in the transcript/export and a JSON-escaped form enters only that run as explicitly untrusted context. Schema v31 adds an ordered journal of selected committed child-run event markers, bounded to the latest 16 per task in the API projection; it stores no event content, prompts, reasoning, action arguments or tool output. The linked child run remains the authority for its capability snapshot and decision records. Schema v34 permits one owner-confirmed fresh attempt from a failed/stopped built-in task only when no action or child run was recorded, the specialist chat has no later work or pending question, the coordinator chat remains active, and the exact capability snapshot is unchanged. The new attempt gets the reviewed brief/constraints and bounded committed assistant text as untrusted progress; it never replays actions, receipts, selected facts, prior tool results or credentials. `outcome_unknown`, external runtimes and process restoration remain unavailable. This remains one explicit handoff at a time, not an autonomous team planner; parent cancellation and live external-provider verification remain incomplete.
 
+Schema v50 adds durable generated documents: a `documents` row carries one stable identity per document and
+`document_versions` rows carry immutable versions with filename, MIME, byte count, SHA-256, storage path,
+provenance (run and generator), validation state and findings, preview mode and the typed source specification.
+Bytes live under `<state>/documents/<doc id>/vNNN-<sha8>/` behind a staging-and-journal commit protocol whose
+crash windows reconcile on startup (a promoted version without a row is invisible, so reconciliation deletes it;
+a row whose bytes changed fails the serve-time hash check instead of serving unverified content). Tools draft
+typed specifications; deterministic renderers in `hutch.documents.docgen` produce and validate bytes; `create_document`,
+`revise_document` (compare-and-swap on the expected version) and `inspect_document` expose the capability behind the
+`documents:create` ask-by-default sticky key with the standard intent/receipt bracketing. Downloads re-verify size and
+hash on every request through `/api/v1/documents/...` routes; previews are derived, bounded assets (PDFium page images
+or extracted structure) and never stand in for the exact file. See `docs/file-formats.md` for the verified capability
+matrix and the research file for the failure classes each defence answers.
+
 hutch is a local-first multi-bot agent platform: one Python process family that stores everything
 in one state directory, drives LLM agents through a policy-gated tool layer, and exposes both a CLI
 and a local web dashboard.
@@ -181,16 +194,17 @@ remain independent.
 
 ### D3 — Scheduling correctness is a feature, not a detail
 
-All timestamps are ISO-8601 UTC-with-offset. Cron math happens in the bot's IANA zone via croniter,
-with a round-trip check that drops DST-gap times (spring-forward) and de-duplicates ambiguous times
-(fall-back) — Vixie-cron semantics. Each task records its own last dispatched window; on wake the
-scheduler counts that task's missed windows and (policy `coalesce`, the default) dispatches one
-catch-up run tagged `missed_windows=N`, or (policy `skip`) records a visible skip marker. Both
-paths are visible in task settings and the schedule API so a silent non-run can never look like
-success. Schema v21 retains schedule identities after removal, preventing an unused or deleted
-task ID from being assigned to a different stream later. The workspace-wide pause is rechecked in
-the same transaction that claims the occurrence and creates its run, closing the stale due-snapshot
-race.
+All timestamps are ISO-8601 UTC-with-offset. Calendar cron math happens in the task's IANA zone via
+croniter, with a round-trip check that drops DST-gap times (spring-forward) and de-duplicates
+ambiguous times (fall-back) — Vixie-cron semantics. Invalid IANA zones never fall back to UTC;
+admission is blocked until repaired. Fixed-rate `interval` triggers keep exact second periods
+(65/90 minutes are not hourly cron approximations). After downtime the scheduler finds the *true*
+newest eligible occurrence (not the last element of a capped prefix); coalesced `missed_windows`
+may be marked uncertain when the count hits the bound. Progress markers advance to the claimed
+occurrence instant. Catch-up `skip` grace scales with the estimated period. Overlap policies
+(`queue` / `skip` / `buffer_one`), skip-next, and run-now (manual, marker-preserving) are first-class.
+Schema v21 retains schedule identities after removal. The workspace-wide pause is rechecked in the
+same transaction that claims the occurrence and creates its run.
 
 ### D4 — Policy before execution, transcripts regardless of outcome
 

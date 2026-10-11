@@ -1,0 +1,70 @@
+{
+  "test": "documents pipeline acceptance capture",
+  "command": ".venv/bin/python docs/realignment/capture_documents.py",
+  "captured_at": "2026-10-11T02:04:53.665626+00:00",
+  "state_dir": "temporary empty directory; no provider calls",
+  "browser": {
+    "chromium": "153.0.8010.12",
+    "playwright": "1.63.0"
+  },
+  "source_sha256": {
+    "src/hutch/documents/storage.py": "04fe2f88956c0dd243a4aeafa6ee671b9e4a95aaa21c9623980c00dc7f1144e3",
+    "src/hutch/documents/docgen/__init__.py": "1b3a2cff4dcb4971adc4a156350ecdc043fbf0992d96b7121e5d279f1f16ef6e",
+    "src/hutch/documents/docgen/texty.py": "484f1fc4000f734b74c6e9adba756ff0a35f6d1ba7a39f4aa9f87a890786afe1",
+    "src/hutch/documents/docgen/docxgen.py": "fb0a6c96cfb87e663903712dc7368750f10adc4ac60edaf9b04d57751f819d4c",
+    "src/hutch/documents/docgen/xlsx.py": "35902af8517d6082b474205bb0bdbcbf741bcfd61b90c66fe3e9ab2d96d0d225",
+    "src/hutch/documents/docgen/pptx.py": "d69458b6883510cf55560ec14fa724798d29c541f07962d955a973800cc66bae",
+    "src/hutch/documents/docgen/pdfdoc.py": "7e3cde1a7c099bee7d3db8e699e731984096e68f182d9ee94b4472e351dcebe0",
+    "src/hutch/documents/docgen/render.py": "c5df9621e13133742ed72609ad497ae82c989848059a86b6e091868270991cbd",
+    "src/hutch/tools/documents.py": "dd9b4b76a0db83a515eaf47fb4eea62497205b2fb6108ede8b507bb5a9a59b65",
+    "src/hutch/server/app.py": "457bb17f7f1c8a615547ea07e6971e98e9f6b08aaf6a58823751f8c4311e99c0",
+    "src/hutch/server/static/app.js": "eb99415728865c80b772b8b76d4932831204b4da437467c6e4c1d3803d9fdefb",
+    "src/hutch/server/static/style.css": "4efd3ec9c19e0b8927f71fd7e1a5d11026be0ca70c6264d2b848cc091f7e244a",
+    "src/hutch/store.py": "cc1331ddd00cc02de78af65238b3d2cba5568461af0beebc6a219a15419c324b"
+  },
+  "documents": {
+    "doc_8eb68845165a2548": {
+      "filename": "field-operations-review.pdf",
+      "bytes": 19622,
+      "sha256": "40cc4c6269fd0dff0b80a20068512e8cf2ffe074afd0be378dd0e06182e68515"
+    },
+    "doc_6c95f69cad74d141": {
+      "filename": "orders-tracker.xlsx",
+      "bytes": 6825,
+      "sha256": "0d3b449d9d9f5f2867e8064f90ccf8d773fbc198f7f051f113d2e2baf17a79e4"
+    },
+    "doc_e553172f3441d2d7": {
+      "filename": "operations-review-deck.pptx",
+      "bytes": 36376,
+      "sha256": "dfa8ed4827d8c258ed5b6335587cd0fce45f3072d2ddfb9a56dcd01286e1386c"
+    },
+    "doc_eb95a8a955feda52": {
+      "filename": "orders-summary.csv",
+      "bytes": 39,
+      "sha256": "bbb7fd4f0a57d25a3ca8ceb068d96a70acfd4e3db50827363effbbe487b9ee7b"
+    }
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "surface": "files",
+      "overflow": 0
+    },
+    {
+      "name": "tablet",
+      "width": 900,
+      "height": 1024,
+      "surface": "files",
+      "overflow": 0
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "surface": "files",
+      "overflow": 0
+    }
+  ]
+}

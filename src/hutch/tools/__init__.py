@@ -10,6 +10,7 @@ from .webfetch import WebFetchTool
 from .delegation import DelegateTaskTool
 from .choice import AskUserChoiceTool
 from .skill import UseSkillTool
+from .documents import CreateDocumentTool, InspectDocumentTool, ReviseDocumentTool
 from .google_calendar import GoogleCalendarCreateEventTool, GoogleCalendarEventsTool
 from .outlook_calendar import OutlookCalendarEventsTool
 from .outlook_calendar_write import OutlookCalendarCreateEventTool
@@ -25,12 +26,16 @@ _CATALOG: dict[str, type[Tool]] = {
     "remember": MemorySaveTool,
     "recall": MemoryRecallTool,
     "web_fetch": WebFetchTool,
+    "create_document": CreateDocumentTool,
+    "revise_document": ReviseDocumentTool,
+    "inspect_document": InspectDocumentTool,
     "delegate_task": DelegateTaskTool,
 }
 
 #: bot-level tool groups that expand to concrete tool names
 GROUPS: dict[str, list[str]] = {
     "files": ["read_file", "list_files", "write_file"],
+    "documents": ["create_document", "revise_document", "inspect_document"],
     "memory": ["remember", "recall"],
     "browser": ["browser"],
 }

@@ -262,6 +262,9 @@ def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, arg
     workspace_file = result.data.get("workspace_file")
     if isinstance(workspace_file, dict):
         data["workspace_file"] = workspace_file
+    document = result.data.get("document")
+    if isinstance(document, dict):
+        data["document"] = document
     if result.data.get("simulated"):
         data["simulated"] = True                                 # Rehearse mode: nothing actually ran
     ctx.emit(Event(run_id=run.id, type=EventType.tool_result, data=data))
