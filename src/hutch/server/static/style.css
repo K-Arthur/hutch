@@ -648,7 +648,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .workflow-panel[hidden] { display: none; }
 .workflow-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3); min-width: 0; }
 .workflow-panel-head > div:first-child { min-width: 0; }
-.workflow-panel-kicker { margin: 0 0 2px; font: 600 var(--fs-2xs)/1.2 var(--mono); letter-spacing: .04em; color: var(--text-3); text-transform: uppercase; }
+.workflow-panel-kicker { margin: 0 0 2px; font: 650 var(--fs-xs)/1.3 var(--sans); color: var(--text-2); }
 .workflow-panel h2 { margin: 0; font-size: var(--fs-md); line-height: 1.3; overflow-wrap: anywhere; }
 .workflow-panel h3 { margin: 0 0 var(--s-2); font-size: var(--fs-sm); }
 .workflow-panel-head .hint { margin: 2px 0 0; overflow-wrap: anywhere; }
@@ -670,6 +670,13 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .workflow-question textarea { box-sizing: border-box; width: 100%; min-height: 64px; resize: vertical; }
 .workflow-question-error, .workflow-panel-error, .workflow-queue-reason { color: var(--warn); overflow-wrap: anywhere; }
 .workflow-panel-error { margin: 0; }
+.workflow-recommendation { display: grid; gap: var(--s-1); min-width: 0; margin: var(--s-2) 0 var(--s-3); padding: var(--s-3); border: 1px solid var(--line-strong); border-radius: var(--r-panel); background: var(--panel); color: var(--text-1); overflow-wrap: anywhere; }
+.workflow-recommendation p { margin: 0; font-size: var(--fs-xs); }
+.workflow-recommendation > div:first-child { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s-2); }
+.workflow-recommendation-status { color: var(--text-2); font-size: var(--fs-2xs) !important; }
+.workflow-recommendation-simpler { color: var(--text-2); }
+.workflow-recommendation-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-1); }
+.workflow-recommendation-actions .btn { min-height: 44px; }
 .workflow-queue-reason { margin: 0; padding: var(--s-2); border-left: 2px solid var(--warn); background: var(--sunken); font-size: var(--fs-xs); }
 
 /* ── conversation: iMessage-style turns, quiet tool activity ──

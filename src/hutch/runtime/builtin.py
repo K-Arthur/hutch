@@ -73,6 +73,12 @@ COORDINATOR_GUIDANCE = """Workspace coordinator task drafting:
 - Keep a one-off task distinct from a Bot's standing role. Do not create or change a persistent Bot through wording alone.
 - A draft is not a dispatch: the operator must review the target and brief in Hutch and explicitly confirm before any specialist run starts."""
 
+WORKFLOW_ROUTING_GUIDANCE = """Workflow routing for this chat:
+- Keep greetings, answers, and one bounded tool step direct. Do not call the selector for ordinary requests.
+- When the request has real fan-out, dependencies, a repeatable reviewed procedure, or an independent check with bounded repair, you may call recommend_workflow during this same turn. Use only true structural signals, and name a saved method only when it actually matches.
+- The tool returns a suggestion in Suggest and never starts work there. In Auto it can start only an activated saved workflow that passes the current reviewed scope. It cannot create a plan or grant action authority.
+- A question, recommendation, or workflow start never approves a consequential action; existing approval controls still apply."""
+
 REHEARSAL_NOTE = ("- This is a REHEARSAL (dry run). Reads run for real. Any tool that would change something does NOT run: it "
                   "replies '[rehearsal] would ...' with the policy's verdict. Treat that as success, carry on, and describe "
                   "what you would do and what would need approval.\n")
@@ -462,6 +468,14 @@ class BuiltinRuntime:
         prev = ladder.current
         ladder.current = rung
         run.model_used = rung.spec
+        # Exact-profile roles follow the model that actually made the next call. A
+        # fallback must not inherit author/selector qualification from the prior route.
+        ctx.model_execution_profile = self._resolve_tool_profile(
+            ctx, ladder, rung, metadata=session.meta, effective_context=session.num_ctx,
+            decoding={"temperature": None, "max_tokens": self._turn_cap(ctx.bot, rung),
+                      "think": ctx.bot.think if ctx.bot.think is not None else False,
+                      "stream": session.stream},
+        ).execution_view()
         self._log(ctx, run, kind, f"{kind}: {prev.spec} -> {rung.spec} ({why})",
                   from_model=prev.spec, to_model=rung.spec, reason=why, hosted=not rung.local)
         return session
@@ -669,6 +683,31 @@ class BuiltinRuntime:
             decoding={"temperature": None, "max_tokens": self._turn_cap(bot, session.rung),
                       "think": bot.think if bot.think is not None else False, "stream": session.stream})
         ctx.model_execution_profile = profile.execution_view()
+        route_mode = "off"
+        if (run.conversation_id and not run.origin.startswith("remote:") and not run.parent_run_id
+                and not run.workflow_step and not run.workflow_context and not run.rehearsal):
+            current_bot = ctx.store.get_bot(ctx.bot.id)
+            saved_policy = ctx.store.get_conversation_workflow_policy(run.conversation_id)
+            override = str(saved_policy["mode"]) if saved_policy else "inherit"
+            route_mode = (getattr(current_bot, "workflow_mode", "suggest") if override == "inherit" else override)
+        if route_mode in ("suggest", "auto"):
+            from ..connections import ConnectionBook
+            from ..workflow import qualify
+
+            selector = qualify.assess(
+                "selector", spec=session.rung.spec, store=ctx.store,
+                connections=ConnectionBook(ctx.config.state_dir),
+                base_url=ladder.base_url_for(session.rung) or None,
+                execution_profile_hash=profile.execution_view().get("fingerprint"),
+            )
+            if selector.allowed:
+                from ..tools.workflow_route import WorkflowRouteTool
+                tools[WorkflowRouteTool.name] = WorkflowRouteTool()
+                base_system += "\n\n" + WORKFLOW_ROUTING_GUIDANCE
+            else:
+                self._log(ctx, run, "workflow_routing",
+                          "chat workflow recommendations are unavailable: " + selector.summary(),
+                          role="selector", model=session.rung.spec, state=selector.state)
         try:
             plan = compile_plan(tools=tools, profile=profile, strategy=requested)
         except ToolProtocolUnavailable as exc:

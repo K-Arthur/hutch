@@ -176,6 +176,140 @@ def test_identical_calls_in_one_response_get_distinct_invocation_indices(store, 
     assert seen == [0, 1]
 
 
+def test_qualified_selector_uses_the_existing_chat_turn_and_persists_a_suggestion(
+        store, config, tmp_path, ollama, monkeypatch):
+    from hutch.workflow import persistence as wstore
+
+    monkeypatch.setenv("OLLAMA_HOST", ollama.url)
+    assistant = Bot(name="selector-chat", model="ollama/fake:8b", tools=["files"], selfcheck=False,
+                    workflow_mode="suggest")
+    store.create_bot(assistant)
+    conversation, _ = store.create_conversation(
+        assistant.id, "Selector chat", idem_key="selector-chat-conversation", request_hash="selector-v1")
+    run = Run(bot_id=assistant.id, prompt="Review these independent projects and verify each result",
+              origin="manual:api", conversation_id=conversation["id"])
+    store.create_run(run)
+    workspace = tmp_path / "selector-workspace"
+    workspace.mkdir()
+    emitted = []
+
+    def emit(event):
+        emitted.append(event)
+        store.append_event(event)
+
+    gate = ApprovalGate(store, assistant, run, PolicyEngine(), emit, poll_seconds=0.05)
+    ctx = ToolContext(bot=assistant, run=run, store=store, policy=gate.policy, gate=gate,
+                      config=config, workspace=workspace, emit=emit)
+    tools = build_tools(assistant.tools, ctx)
+    plan = {
+        "name": "weekly-scan", "inputs": {"root": {"type": "string", "default": "."}},
+        "envelope": {"tools": ["list_files"]},
+        "budget": {"max_nodes": 4, "max_model_calls": 0, "max_fanout": 1},
+        "nodes": [{"kind": "tool", "id": "scan", "tool": "list_files",
+                   "args": {"path": {"ref": "input.root"}}}],
+    }
+    wstore.save_definition(store, name="weekly-scan", plan=plan, source="operator", activate=True)
+    monkeypatch.setattr("hutch.workflow.qualify.assess", lambda *a, **kw: __import__(
+        "types").SimpleNamespace(allowed=True))
+    ollama.script = agent_script([
+        {"tool_calls": [{"name": "recommend_workflow", "arguments": {
+            "signals": {"repeatable_procedure": True, "known_inputs": True},
+            "workflow": "weekly-scan"}}]},
+        {"content": "I can use the reviewed weekly scan method; it is ready for your review."},
+    ])
+
+    run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools)
+
+    sent = ollama.of("/api/chat")
+    assert len(sent) == 2  # the recommendation is part of the normal tool loop, not a classifier call
+    offered = {entry["function"]["name"] for entry in sent[0]["body"]["tools"]}
+    assert "recommend_workflow" in offered
+    result = next(event for event in emitted if event.type is EventType.tool_result
+                  and event.data.get("tool") == "recommend_workflow")
+    assert result.data["workflow_recommendation"]["status"] == "suggested"
+    assert wstore.list_workflow_runs(store, bot_id=assistant.id) == []
+
+
+def test_qualified_auto_selector_starts_saved_workflow_in_the_same_chat_turn(
+        store, config, tmp_path, ollama, monkeypatch):
+    from hutch.workflow import persistence as wstore
+
+    monkeypatch.setenv("OLLAMA_HOST", ollama.url)
+    assistant = Bot(name="selector-auto-chat", model="ollama/fake:8b", tools=["files"], selfcheck=False,
+                    workflow_mode="auto", workflow_limits={
+                        "definitions": ["weekly-scan"], "max_nodes": 10, "max_model_calls": 1,
+                        "max_tokens": 64_000, "max_wall_seconds": 900, "max_fanout": 8,
+                    })
+    store.create_bot(assistant)
+    conversation, _ = store.create_conversation(
+        assistant.id, "Selector Auto", idem_key="selector-auto-conversation", request_hash="selector-auto-v1")
+    run = Run(bot_id=assistant.id, prompt="Review these projects using the weekly scan",
+              origin="manual:api", conversation_id=conversation["id"])
+    store.create_run(run)
+    workspace = tmp_path / "selector-auto-workspace"
+    workspace.mkdir()
+    emitted = []
+
+    def emit(event):
+        emitted.append(event)
+        store.append_event(event)
+
+    gate = ApprovalGate(store, assistant, run, PolicyEngine(), emit, poll_seconds=0.05)
+    ctx = ToolContext(bot=assistant, run=run, store=store, policy=gate.policy, gate=gate,
+                      config=config, workspace=workspace, emit=emit)
+    tools = build_tools(assistant.tools, ctx)
+    plan = {
+        "name": "weekly-scan", "inputs": {"root": {"type": "string", "default": "."}},
+        "envelope": {"tools": ["list_files"]},
+        "budget": {"max_nodes": 4, "max_model_calls": 0, "max_fanout": 1},
+        "nodes": [{"kind": "tool", "id": "scan", "tool": "list_files",
+                   "args": {"path": {"ref": "input.root"}}}],
+    }
+    wstore.save_definition(store, name="weekly-scan", plan=plan, source="operator", activate=True)
+    monkeypatch.setattr("hutch.workflow.qualify.assess", lambda *a, **kw: __import__(
+        "types").SimpleNamespace(allowed=True))
+    ollama.script = agent_script([
+        {"tool_calls": [{"name": "recommend_workflow", "arguments": {
+            "signals": {"repeatable_procedure": True, "known_inputs": True},
+            "workflow": "weekly-scan", "inputs": {"root": "."}}}]},
+        {"content": "Started the reviewed weekly scan inside the configured Auto scope."},
+    ])
+
+    run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools)
+
+    sent = ollama.of("/api/chat")
+    assert len(sent) == 2  # Auto uses the ordinary model/tool turn, without a classifier request
+    started = [event for event in emitted if event.type is EventType.tool_result
+               and event.data.get("tool") == "recommend_workflow"]
+    assert len(started) == 1
+    assert started[0].data["workflow_recommendation"]["status"] == "started"
+    runs = wstore.list_workflow_runs(store, bot_id=assistant.id)
+    assert len(runs) == 1
+    assert runs[0]["conversation_id"] == conversation["id"]
+    assert runs[0]["origin"] == "workflow_auto"
+
+
+def test_unqualified_chat_model_does_not_receive_workflow_selector_tool(
+        store, config, tmp_path, ollama, monkeypatch):
+    monkeypatch.setenv("OLLAMA_HOST", ollama.url)
+    ctx, run, emitted, tools = build(store, config, tmp_path, conversation_id="local-chat")
+    conversation, _ = store.create_conversation(
+        ctx.bot.id, "Local chat", idem_key="unqualified-selector-chat", request_hash="selector-v1")
+    run.conversation_id = conversation["id"]
+    current = store.get_run(run.id)
+    current.conversation_id = conversation["id"]
+    store.update_run(current)
+    run.conversation_id = conversation["id"]
+    ollama.script = agent_script([{"content": "I will handle this directly."}])
+
+    run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools)
+
+    offered = {entry["function"]["name"] for entry in ollama.of("/api/chat")[0]["body"]["tools"]}
+    assert "recommend_workflow" not in offered
+    assert any(event.type is EventType.log and event.data.get("kind") == "workflow_routing"
+               and event.data.get("role") == "selector" for event in emitted)
+
+
 def test_valid_tool_response_records_passive_model_route_capability(store, config, tmp_path, ollama, monkeypatch):
     monkeypatch.setenv("OLLAMA_HOST", ollama.url)
     ollama.script = agent_script([{"tool_calls": [WRITE]},

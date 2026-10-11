@@ -7,14 +7,19 @@ decides **when** saved work is invoked), not a skill (a skill teaches a method t
 and not an MCP server (which exposes operations). The workflow engine owns execution state.
 
 Workflows are optional. New assistants start in **Suggest**; schema v57 preserves the former
-Off behavior for existing assistants whose saved record did not contain a mode. Suggest may
-point out a workflow-shaped route but does not start it. Auto requires an activated saved
-definition, explicit workflow and budget limits, and separate action approval where required.
+Off behavior for existing assistants whose saved record did not contain a mode. When the
+current chat model is selector-qualified for its exact execution profile, Suggest can return
+a compact route card during the ordinary model/tool turn. Simple requests do not get a separate
+classifier call, and Suggest never starts work. Auto can start only an activated saved definition
+inside the Bot's explicit workflow and budget limits; consequential actions still need their own
+approval.
 
-Workflows are in private preview. Today, the owner can start a reviewed saved workflow from
-Studio, the API or CLI. Chat-turn recommendations, chat-based plan creation, automatic launch,
-and scheduled routine links are not connected. The public website’s availability row and FAQ
-describe these same limits; they do not imply a public download or qualified local planner.
+Workflows are in private preview. The owner can start a reviewed saved workflow from Studio,
+the API or CLI. Chat recommendations and Auto saved-workflow launch now use an exact-profile
+selector gate, but neither Qwen3 local profile tested in the bounded campaign qualified, so those
+paths are blocked for the tested checkpoints. Auto does not start a newly generated plan, and
+scheduled routine links are not connected. The public website describes these limits; it does
+not imply a public download or a currently qualified local selector.
 
 ## What a workflow is
 
@@ -40,8 +45,8 @@ Hutch never executes generated code: there is no script sandbox to escape.
 | Mode | What Hutch may do |
 |---|---|
 | `off` | Hutch does not recommend or automatically start a workflow; you can still run a saved workflow yourself |
-| `suggest` | describe a candidate route and its bounds in the conversation; starting it stays your action |
-| `auto` | start a workflow without a fresh confirmation, but only inside the scope you preauthorized in Bot settings |
+| `suggest` | an exact-profile qualified selector may describe a candidate route and its bounds in the conversation; starting it stays your action |
+| `auto` | an exact-profile qualified selector may start a matching activated saved workflow inside the scope you preauthorized in Bot settings |
 
 Set the policy per Bot; saving it starts nothing:
 
@@ -61,7 +66,9 @@ Consequential actions inside a run still use their own approval boundaries - per
 choose a method is never permission to spend, access or mutate.
 
 Auto scope names only existing activated definitions and has explicit limits for nodes, actual
-model requests, tokens, wall time and fan-out. Role checks and the current Bot's tools,
+model requests, tokens, wall time and fan-out. A chat launch is idempotent and rechecks the
+conversation mode, exact selector profile, saved definition, role assignments and scope at the
+point of admission. Required inputs must validate before work is admitted. Role checks and the current Bot's tools,
 integrations and data boundaries are checked again at admission. A conversation-level override
 is an additional, narrower choice; setting Auto for one chat cannot create or widen the Bot-level
 scope. The local-owner-only API is
@@ -69,10 +76,13 @@ scope. The local-owner-only API is
 `Idempotency-Key` and `expected_revision`. `inherit` uses the Bot setting, and stale revisions
 are rejected. Paired phones do not receive planning, policy, probe, amendment or launch controls.
 
-**Status:** the policy, recommendation rules, revisioned per-conversation override, and explicit
-Bot Auto scope checks are implemented and tested. A chat turn that offers a suggested plan or
-starts a scoped Auto workflow is still **not implemented**; today a person starts one explicitly
-with `hutch workflow run` or the API. Changing a conversation policy starts nothing.
+**Status:** the policy, recommendation rules, revisioned per-conversation override, chat route
+tool, and idempotent Auto launch for scoped saved definitions are implemented. The runtime offers
+the tool only when the active model passes the exact-profile selector gate; unqualified models do
+not receive it. Scripted runtime/API regressions and the Studio review-card browser test pass.
+Both local Qwen3 profiles tested on 2026-10-11 failed selector qualification, so live chat routing
+is blocked for those checkpoints. Chat Auto for newly generated plans remains unsupported; changing
+a conversation policy starts nothing.
 
 ## Running a saved workflow
 

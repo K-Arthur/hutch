@@ -5,6 +5,8 @@ Auto only inside a preauthorized scope, and authoring that never starts work.
 """
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from hutch.models import Bot
 from hutch.workflow import routing
 from hutch.workflow.qualify import acknowledge_limited
@@ -175,3 +177,105 @@ def _revision(store, instance) -> str:
     from hutch.workflow.qualify import route_ref
 
     return route_ref(instance.model).revision
+
+
+def _saved_readonly_method(store, *, active=True):
+    from hutch.workflow import persistence as wstore
+
+    plan = {
+        "name": "weekly-scan",
+        "inputs": {"root": {"type": "string", "default": "."}},
+        "envelope": {"tools": ["list_files"]},
+        "budget": {"max_nodes": 4, "max_model_calls": 0, "max_fanout": 1},
+        "nodes": [{"kind": "tool", "id": "scan", "tool": "list_files",
+                   "args": {"path": {"ref": "input.root"}}}],
+    }
+    return wstore.save_definition(store, name=plan["name"], plan=plan, source="operator", activate=active)
+
+
+def _route_context(store, config, assistant, *, conversation_key):
+    from hutch.models import Run
+
+    conversation, _ = store.create_conversation(
+        assistant.id, "Workflow routing", idem_key=conversation_key, request_hash="route-v1")
+    run = Run(bot_id=assistant.id, prompt="Review each project and verify the findings",
+              origin="manual:api", conversation_id=conversation["id"], model_used=assistant.model)
+    ctx = SimpleNamespace(
+        store=store, config=config, bot=assistant, run=run,
+        model_execution_profile={"fingerprint": "exact-test-profile"}, tool_call_index=0,
+    )
+    return ctx, conversation
+
+
+def test_suggest_selector_returns_card_without_admitting_work(store, config, monkeypatch):
+    from hutch.tools.workflow_route import WorkflowRouteTool
+    from hutch.workflow import persistence as wstore
+
+    assistant = bot(store, name="route-suggest-tool", tools=["files"], workflow_mode="suggest")
+    definition = _saved_readonly_method(store)
+    ctx, conversation = _route_context(store, config, assistant, conversation_key="route-suggest-tool")
+    monkeypatch.setattr("hutch.workflow.qualify.assess", lambda *a, **kw:
+                        SimpleNamespace(allowed=True))
+
+    result = WorkflowRouteTool().run({
+        "signals": {"repeatable_procedure": True, "known_inputs": True},
+        "workflow": definition["definition_id"],
+    }, ctx)
+
+    assert result.ok is True
+    assert result.data["workflow_recommendation"]["status"] == "suggested"
+    assert "Nothing was started" in result.output
+    assert wstore.list_workflow_runs(store, bot_id=assistant.id) == []
+    assert conversation["id"] == ctx.run.conversation_id
+
+
+def test_auto_selector_idempotently_starts_only_the_saved_method(store, config, monkeypatch):
+    from hutch.tools.workflow_route import WorkflowRouteTool
+    from hutch.workflow import persistence as wstore
+
+    assistant = bot(store, name="route-auto-tool", tools=["files"], workflow_mode="auto", workflow_limits={
+        "definitions": ["weekly-scan"], "max_nodes": 10, "max_model_calls": 1,
+        "max_tokens": 64_000, "max_wall_seconds": 900, "max_fanout": 8,
+    })
+    definition = _saved_readonly_method(store)
+    ctx, conversation = _route_context(store, config, assistant, conversation_key="route-auto-tool")
+    monkeypatch.setattr("hutch.workflow.qualify.assess", lambda *a, **kw:
+                        SimpleNamespace(allowed=True))
+
+    tool = WorkflowRouteTool()
+    args = {"signals": {"repeatable_procedure": True, "known_inputs": True},
+            "workflow": definition["definition_id"], "inputs": {"root": "."}}
+    first = tool.run(args, ctx)
+    replay = tool.run(args, ctx)
+
+    assert first.ok and first.data["workflow_recommendation"]["status"] == "started"
+    assert replay.ok and replay.data["workflow_recommendation"]["status"] == "started"
+    runs = wstore.list_workflow_runs(store, bot_id=assistant.id)
+    assert len(runs) == 1
+    assert runs[0]["conversation_id"] == conversation["id"]
+    assert runs[0]["origin"] == "workflow_auto"
+
+
+def test_auto_selector_respects_conversation_downgrade(store, config, monkeypatch):
+    from hutch.tools.workflow_route import WorkflowRouteTool
+    from hutch.workflow import persistence as wstore
+
+    assistant = bot(store, name="route-auto-downgrade", tools=["files"], workflow_mode="auto", workflow_limits={
+        "definitions": ["weekly-scan"], "max_nodes": 10, "max_model_calls": 1,
+        "max_tokens": 64_000, "max_wall_seconds": 900, "max_fanout": 8,
+    })
+    definition = _saved_readonly_method(store)
+    ctx, conversation = _route_context(store, config, assistant, conversation_key="route-auto-downgrade")
+    store.set_conversation_workflow_policy(
+        conversation["id"], "suggest", expected_revision=0,
+        idem_key="route-policy-downgrade", request_hash="suggest-v1")
+    monkeypatch.setattr("hutch.workflow.qualify.assess", lambda *a, **kw:
+                        SimpleNamespace(allowed=True))
+
+    result = WorkflowRouteTool().run({
+        "signals": {"repeatable_procedure": True, "known_inputs": True},
+        "workflow": definition["definition_id"],
+    }, ctx)
+
+    assert result.ok and result.data["workflow_recommendation"]["status"] == "suggested"
+    assert wstore.list_workflow_runs(store, bot_id=assistant.id) == []

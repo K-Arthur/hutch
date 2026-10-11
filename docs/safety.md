@@ -481,4 +481,10 @@ script sandbox to escape. The authority rules are the ordinary ones, applied ear
   admitted.
 * **Auto is bounded.** `auto` starts only definitions and budgets the operator preauthorized
   in Bot settings; anything outside that scope is refused with the reason, and consequential
-  actions inside the run still ask.
+  actions inside the run still ask. A chat route card or saved-method launch requires the
+  active turn's exact execution profile to carry selector evidence and rechecks the current
+  conversation policy at invocation. The tool is only exposed to a local-owner chat turn; it
+  is not a classifier, a planner, or an authority grant. Suggest only returns a card. Auto can
+  start an activated saved method, not a newly generated plan. Neither of the two Qwen3 local
+  profiles tested qualified for selector authority, so the tool is withheld from those exact
+  profiles. A route recommendation does not approve consequential actions.

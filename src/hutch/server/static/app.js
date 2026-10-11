@@ -453,11 +453,11 @@ async function refreshWorkflowPanel(botName, conversationId, generation, force =
         <p class="hint">A completed step is not necessarily verified. Only an independent check is labelled Verified.</p>
       </div>
     </details>` : "";
-    const markup = `<header class="workflow-panel-head"><div><p class="workflow-panel-kicker">Workflow activity</p>
+    const markup = selected ? `<header class="workflow-panel-head"><div><p class="workflow-panel-kicker">Workflow activity</p>
       <h2 title="${esc(title)}">${esc(title)}</h2><p class="hint">${esc(status)}${selected?.definition_id ? " · saved workflow" : " · dynamic plan"}</p></div>
       <div class="workflow-panel-actions">${stopButton}<button class="btn ghost small" type="button" data-workflow-action="refresh">Refresh</button></div></header>
-      ${selected ? `<p class="workflow-panel-meta">${esc(nodes.length)} discovered ${nodes.length === 1 ? "instance" : "instances"} · workflow ${esc(selected.id)}</p>${disclosure}` : `<p class="hint">Start a saved workflow here when you choose a reviewed method.</p>`}
-      ${savedList}`;
+      <p class="workflow-panel-meta">${esc(nodes.length)} discovered ${nodes.length === 1 ? "instance" : "instances"} · workflow ${esc(selected.id)}</p>${disclosure}
+      ${savedList}` : savedList;
     if (panel.innerHTML !== markup) {
       panel.innerHTML = markup;
       panel.hidden = false;
@@ -4577,7 +4577,10 @@ function groupToolItems(items) {
     run = [];
   };
   for (const it of items) {
-    if (it.kind === "tool") run.push(it);
+    if (it.kind === "tool" && it.result?.d?.workflow_recommendation) {
+      flush();
+      out.push(it); // keep a workflow card visible even when surrounding tools collapse
+    } else if (it.kind === "tool") run.push(it);
     else { flush(); out.push(it); }
   }
   flush();
@@ -4618,6 +4621,9 @@ function toolLineHtml(item, anchorEvent, runId, includeFileAttachments = true) {
   const verdict = running
     ? '<span class="spin-line" role="status" aria-label="running"></span>'
     : icon(ok ? "check" : "x");
+  const workflowRecommendation = res?.d?.workflow_recommendation;
+  const recommendationCard = workflowRecommendation && workflowRecommendation.route !== "direct"
+    ? workflowRecommendationHtml(workflowRecommendation) : "";
 
   return `<div class="tool-line-wrap">
     <div class="tool-line ${cls}" data-tool-line="${esc(String(idx))}">
@@ -4637,8 +4643,31 @@ function toolLineHtml(item, anchorEvent, runId, includeFileAttachments = true) {
       </div>
       ${res?.d.artifact ? `<div class="tool-artifact-actions" id="tla-${esc(String(idx))}" ${open ? "" : "hidden"}>${artifactDownloadHtml(runId, res.d)}${sourceCardHtml(res.d, runId)}</div>` : ""}
     </div>
+    ${recommendationCard}
     ${includeFileAttachments ? createdFilesHtml(runId, [{ result: res }]) : ""}
   </div>`;
+}
+
+function workflowRecommendationHtml(recommendation) {
+  const route = String(recommendation.route || "workflow").replaceAll("_", " ");
+  const status = recommendation.status === "started" ? "Started within Auto scope"
+    : recommendation.status === "suggested" ? "Suggestion · nothing started" : "Not started";
+  const method = recommendation.suggested_plan_name
+    ? `<p><b>${esc(recommendation.suggested_plan_name)}</b></p>` : "";
+  const runButton = recommendation.status === "suggested" && recommendation.route === "saved_workflow"
+      && recommendation.definition_id
+    ? `<button class="btn primary small" type="button" data-workflow-suggestion-run="${esc(recommendation.definition_id)}">Review &amp; run</button>` : "";
+  const refreshButton = recommendation.status === "started"
+    ? '<button class="btn ghost small" type="button" data-workflow-suggestion-refresh>Refresh workflow activity</button>' : "";
+  const reason = recommendation.why || "A workflow may fit this request.";
+  const simpler = recommendation.simpler
+    ? `<p class="workflow-recommendation-simpler">Simpler option: ${esc(recommendation.simpler)}</p>` : "";
+  return `<section class="workflow-recommendation" aria-label="Workflow recommendation">
+    <div><p class="workflow-panel-kicker">Workflow suggestion · ${esc(route)}</p><p class="workflow-recommendation-status">${esc(status)}</p></div>
+    ${method}<p>${esc(reason)}</p>${simpler}
+    ${recommendation.attempt_run_id ? `<p class="hint">Attempt ${esc(recommendation.attempt_run_id)}</p>` : ""}
+    <div class="workflow-recommendation-actions">${runButton}${refreshButton}</div>
+  </section>`;
 }
 
 /* PF-2 kept the untruncated output on disk; this row is the only door to it. */
@@ -4772,6 +4801,15 @@ function wireFeedInteractions() {
     if (ev.target.closest('[data-receipt-queue]')) { void openNeedsYou(); return; }
     const resume = ev.target.closest("[data-human-resume]");
     if (resume) { void requestHumanResume(resume.dataset.runId, resume.dataset.eventSeq, resume); return; }
+    const suggestedRun = ev.target.closest("[data-workflow-suggestion-run]");
+    if (suggestedRun) {
+      void startSavedWorkflow(suggestedRun.dataset.workflowSuggestionRun, suggestedRun);
+      return;
+    }
+    if (ev.target.closest("[data-workflow-suggestion-refresh]")) {
+      void refreshWorkflowPanel(currentStudioBot, currentConversationId, studioGeneration, true);
+      return;
+    }
     const stop = ev.target.closest("[data-stop-run]");
     if (stop) { requestStop(stop.dataset.stopRun, stop); return; }
     const more = ev.target.closest("[data-show-more]");

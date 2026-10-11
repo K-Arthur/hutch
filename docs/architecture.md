@@ -513,10 +513,15 @@ an activated saved definition and explicit limits for nodes, model requests, tok
 and fan-out. The conversation override cannot widen that Bot-level scope. Policy changes start
 no workflow and the policy route remains owner-local.
 
-Routing (`workflow/routing.py`) is explainable and abstains by default: `off` never proposes
-or starts, `suggest` may describe a candidate route, and `auto` starts only inside the
-Bot's preauthorized definitions and budget caps. Recommendations come from task structure,
-never from message length or model family.
+Routing (`workflow/routing.py`) is explainable and abstains by default. A `recommend_workflow`
+tool is offered only during an eligible local-owner chat turn when the active model's exact
+execution profile has selector authority. It rechecks that profile and the live conversation
+policy when invoked, then uses task structure and explicit signals; no compulsory classifier
+call is added. `off` never proposes or starts; `suggest` returns a review card and never starts;
+`auto` may start only a matching activated saved definition inside the Bot's preauthorized
+definitions and budget caps. Newly generated plans are not auto-started. The current tested
+Qwen3 local profiles have negative selector evidence, so the runtime does not offer this tool
+to those profiles.
 
 Studio projects the selected conversation's saved workflow runs through a compact card: the
 planned structure comes from the immutable compiled revision, discovered instances and
@@ -524,9 +529,11 @@ questions come from durable node/question records, and terminal labels distingui
 from independently verified output. Answers address one displayed question ID; saved runs
 record the conversation they belong to; Stop compares the run revision before changing state.
 Those writes are idempotent. A changed conversation mode is stored separately from the
-assistant default and cannot widen it. The card does not yet call the routing recommendation
-path from a model turn, and a stored Auto policy does not yet auto-launch work. Workflow
-questions and Stop controls are not projected into the paired-phone interface.
+assistant default and cannot widen it. A route-card projection carries the decision, rationale
+and review action into chat; Auto's saved-workflow submission remains idempotent and goes through
+ordinary input, role, scope and approval checks. The routing card and its keyboard review action
+are browser-tested at 1440, 768, 360 and 320 CSS pixels. Workflow questions and Stop controls
+are not projected into the paired-phone interface.
 
 The plan defaults are 40 node instances, 12 actual provider requests, 64,000 reported or
 reserved tokens, 900 seconds, fan-out 8 and two repair rounds. The logical worker default is

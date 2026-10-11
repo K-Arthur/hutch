@@ -296,6 +296,15 @@ def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, arg
     document = result.data.get("document")
     if isinstance(document, dict):
         data["document"] = document
+    workflow_recommendation = result.data.get("workflow_recommendation")
+    if isinstance(workflow_recommendation, dict):
+        # This is a small, typed projection for the chat card. Keep arbitrary tool
+        # return data out of the durable event stream.
+        fields = ("route", "why", "simpler", "bounds", "suggested_plan_name", "policy", "status",
+                  "definition_id", "workflow_run_id", "attempt_run_id")
+        data["workflow_recommendation"] = {
+            key: workflow_recommendation[key] for key in fields if key in workflow_recommendation
+        }
     if result.data.get("simulated"):
         data["simulated"] = True                                 # Rehearse mode: nothing actually ran
     ctx.emit(Event(run_id=run.id, type=EventType.tool_result, data=data))

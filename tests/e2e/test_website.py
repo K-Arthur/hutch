@@ -723,7 +723,9 @@ def test_dynamic_workflow_marketing_is_truthful_and_responsive(browser, site_url
         preview_text = preview.inner_text().lower()
         for phrase in ("private preview", "saved steps, started by you", "planned steps separately from discovered instances",
                        "answer each pending question", "stop while owned work settles",
-                       "completed step is not necessarily verified", "chat recommendations, auto launches"):
+                       "completed step is not necessarily verified", "selector qualification for the exact model profile",
+                       "two local profiles tested did not qualify", "auto does not create new plans",
+                       "routine links are not available yet"):
             assert phrase in preview_text, phrase
         assert page.locator("#workflow .workflow-details").count() == 3
 
@@ -731,13 +733,14 @@ def test_dynamic_workflow_marketing_is_truthful_and_responsive(browser, site_url
         workflow_row = page.locator("#get .availability tbody tr").filter(has_text="Workflows")
         assert workflow_row.count() == 1
         availability = workflow_row.inner_text().lower()
-        for phrase in ("owner-started saved workflows", "chat recommendations", "auto launches",
-                       "routine links", "no local author or selector profile is qualified", "experimental"):
+        for phrase in ("owner-started saved workflows", "chat route cards", "auto starts of activated saved methods",
+                       "selector qualification for the exact model profile", "two local profiles tested did not qualify",
+                       "auto does not create new plans", "routine links are not available yet", "experimental"):
             assert phrase in availability, phrase
 
         faq_expectations = {
-            "How do Suggest and Auto work for workflows?": "chat does not use that scope to launch work yet",
-            "Can a local model design or choose a workflow?": "no local profile is currently qualified",
+            "How do Suggest and Auto work for workflows?": "the two local profiles tested did not qualify",
+            "Can a local model design or choose a workflow?": "neither of the two qwen3 profiles tested qualified",
             "What happens if I stop a workflow or Hutch restarts?": "hutch holds retry for reconciliation",
             "What is the difference between a workflow and a routine?": "connecting a saved workflow to a routine is a separate action",
         }
