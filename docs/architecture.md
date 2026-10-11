@@ -348,8 +348,10 @@ set of habits to avoid. Per-field help identifies the effective source; revision
 stale write (409), reload the latest profile and retain only this form's edits for review. Conversation
 controls use the same conflict recovery. A next-reply choice applies to one message only, stays in that
 browser's conversation-scoped local storage until the next send or removal, and never becomes a durable
-preference. Changing a control makes no model request. Static examples, an explicitly requested live
-preview, and a redacted adapter inspector are still planned; the current form is not a live preview.
+preference. Changing a control makes no model request. Fixed written examples show independent voice and depth
+choices. **Preview this draft** is a separate explicit action that sends a fixed fictional sample and the visible
+candidate style to the configured model; the form keeps the unsaved draft and does not change the saved profile. A
+local-only budget endpoint estimates one response before the preview button becomes available.
 
 Each Bot document carries a response-style profile version; legacy documents without the version are read as
 version 1. A future-version or invalid style is isolated to that assistant: Hutch keeps the original profile
@@ -361,7 +363,7 @@ revision.
 Run purpose is recorded separately from tool authority, and `tool_access=none` requires an explicit tool-free
 purpose. Review-only Bot drafts retain their restricted proposal instructions and one-response rule. A tool-free
 conversational purpose has its own prompt and rejects unexpected provider tool calls without running them; an
-answer-rewrite purpose is separate from both drafts and ordinary conversation.
+answer-rewrite purpose and a persona-preview purpose are separate from both drafts and ordinary conversation.
 The engine uses this purpose only for explicit low-risk banter in an interactive conversation when the contextual
 plan needs no retrieval or action, and no skill, rehearsal, structured output, recipient draft or delegated run is
 active. That path has no tool schemas and skips pending-action context lookup; analytical, current-fact, sensitive,
@@ -377,6 +379,19 @@ Shorter, Go deeper and Less banter actions; pending-choice, failed and non-built
 regression verifies answer targeting, keyboard activation, draft and selection retention, reader scroll retention,
 and 44px touch targets. It uses a mock route with engine work disabled, so it makes no provider call and says
 nothing about provider adherence.
+
+An explicit style preview is admitted through its own idempotency scope and snapshots the draft style with the saved
+profile revision it was based on. Revision checks are repeated in the run-admission transaction so a concurrent save
+cannot quietly make a stale draft appear current. The built-in preview path uses only the fixed sample, neutral
+preview instructions and candidate style; it omits conversation, standing directions, workspace, skills, action
+context and tool schemas. It is limited to one non-streaming request, the lower of 128 tokens or the assistant's
+configured per-turn output limit, and the configured model only; it does not retry, escalate or fall back. A local
+budget endpoint uses a 1,024-token input ceiling and blocks unknown hosted prices and routes without an enforceable
+output cap. The output and run record remain local; a hosted model still receives the fixed prompt and style under its
+normal provider terms. The browser test uses a fixture runtime to verify explicit admission, unchanged saved settings,
+no conversation attachment, responsive layout, focus retention and cancellation. Provider request serialization is
+also tested against a local fake; real model adherence and response quality remain unverified. A redacted adapter
+inspector remains in progress.
 
 At run start the engine resolves the layers once and writes a versioned, write-once plan into the
 run; a retried start reuses the recorded plan, and unreadable or newer state fails the run with a
@@ -398,7 +413,8 @@ chain is covered by fixture and API tests, a real-engine plan-capture test, and 
 at 320, 360, 768 and 1440 CSS pixels plus a 720 × 480 effective viewport for 200% reflow at 1440 × 960.
 Settings evidence is retained in `docs/realignment/artifacts/persona-ui-v2-2026-10-11/`; rewrite-action
 screenshots, a browser trace and request/network checks are in
-`docs/realignment/artifacts/persona-rewrite-ui-2026-10-11/`. Manually inspected screenshots and the exact
+`docs/realignment/artifacts/persona-rewrite-ui-2026-10-11/`; live-preview captures and a trace are in
+`docs/realignment/artifacts/persona-live-preview-2026-10-11/`. Manually inspected screenshots and the exact
 evidence boundaries are recorded in `docs/realignment/persona-ui-visual-review.md`. Browser zoom itself was
 not controllable through the headless test runner, so the 720px case checks the corresponding effective CSS
 viewport rather than claiming a native zoom gesture. Live-model humor, boundary calibration, and provider-side

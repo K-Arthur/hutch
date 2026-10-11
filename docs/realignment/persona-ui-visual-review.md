@@ -86,5 +86,22 @@ three/two-column wide layouts. Chromium 153.0.8010.12 recorded zero page or cons
 inference POSTs. Evidence, source hashes and trace are in `artifacts/persona-static-examples-2026-10-11/`.
 
 The targeted Impeccable detector found three advisory radius/color entries at existing shared stylesheet lines 1368,
-1714 and 2301; none is in the persona diff. This verifies the fixed examples only. It does not verify live model
-preview, adapter propagation or model response adherence.
+1714 and 2301; none is in the persona diff. This verifies the fixed examples only. It does not verify adapter
+propagation or model response adherence.
+
+## Explicit live preview
+
+The live-preview browser regression passed in Chromium 153.0.8010.12 with reduced motion enabled. I inspected
+`preview-desktop.png`, `preview-phone.png`, `preview-zoom-200-effective.png`, and `preview-stopped-desktop.png`.
+The local cost/cap explanation appears before the primary action, the generated text sits in a bounded readable
+panel, and the stopped state remains clear without shifting the neighboring settings. At 360px the copy, quote,
+button, status and result stack in order; the wide capture preserves the existing assistant-settings card and sidebar.
+
+The test checks 320×800, 360×844, 720×480 effective width for 200% reflow at 1440×960, 768×960, and 1440×960.
+All five layouts have zero horizontal overflow and the preview control remains at least 44px tall. Keyboard Enter
+starts the request, focus returns to the same control after the quote refresh, changing style fields makes no preview
+POST, and the explicit stop action leaves the run `stopped`. The captured fixture response and output are not a live
+model evaluation. The browser run recorded no page errors, console errors, failed local responses, external requests,
+or provider calls. Screenshots, source hashes, the request/runtime observations and `trace.zip` are in
+`artifacts/persona-live-preview-2026-10-11/`. Native browser zoom, screen readers, other browser engines, real provider
+receipt and model adherence remain untested.

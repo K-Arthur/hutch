@@ -1,0 +1,165 @@
+{
+  "test": "tests/e2e/test_design_system.py::test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive",
+  "captured_at": "2026-10-11T15:16:28.815925+00:00",
+  "browser": "Chromium 153.0.8010.12",
+  "viewports": [
+    {
+      "viewport": [
+        360,
+        844
+      ],
+      "horizontal_overflow_px": 0,
+      "preview_bounds": {
+        "x": 42,
+        "y": 60.89,
+        "width": 276,
+        "height": 651.48
+      }
+    },
+    {
+      "viewport": [
+        768,
+        960
+      ],
+      "horizontal_overflow_px": 0,
+      "preview_bounds": {
+        "x": 50,
+        "y": 61.48,
+        "width": 668,
+        "height": 378.8
+      }
+    },
+    {
+      "viewport": [
+        1440,
+        960
+      ],
+      "horizontal_overflow_px": 0,
+      "preview_bounds": {
+        "x": 362,
+        "y": 56.48,
+        "width": 632,
+        "height": 378.8
+      }
+    },
+    {
+      "viewport": [
+        320,
+        800
+      ],
+      "horizontal_overflow_px": 0,
+      "preview_bounds": {
+        "x": 42,
+        "y": 61.06,
+        "width": 236,
+        "height": 694.86
+      }
+    },
+    {
+      "viewport": [
+        720,
+        480
+      ],
+      "horizontal_overflow_px": 0,
+      "preview_bounds": {
+        "x": 50,
+        "y": 61.48,
+        "width": 620,
+        "height": 378.8
+      }
+    }
+  ],
+  "preview_post_bodies": [
+    {
+      "style": {
+        "preset": "dry_wit",
+        "depth": "brief",
+        "humor": "playful"
+      },
+      "expected_revision": 0
+    },
+    {
+      "style": {
+        "preset": "dry_wit",
+        "depth": "brief",
+        "humor": "playful"
+      },
+      "expected_revision": 0
+    }
+  ],
+  "runtime_calls": [
+    {
+      "purpose": "persona_preview",
+      "tool_access": "none",
+      "prompt": "Give me a funny, low-effort way to make peace with my houseplants after their tiny protest.",
+      "conversation_id": "",
+      "conversation_context_count": 0,
+      "skills": [],
+      "tools": [],
+      "profile_revision": 0,
+      "style": {
+        "preset": "dry_wit",
+        "depth": "brief",
+        "tone": null,
+        "humor": "playful",
+        "banter": null,
+        "warmth": null,
+        "directness": null,
+        "formality": null,
+        "profanity": null,
+        "format_style": null,
+        "avoid_habits": null
+      },
+      "plan_revision": 0
+    },
+    {
+      "purpose": "persona_preview",
+      "tool_access": "none",
+      "prompt": "Give me a funny, low-effort way to make peace with my houseplants after their tiny protest.",
+      "conversation_id": "",
+      "conversation_context_count": 0,
+      "skills": [],
+      "tools": [],
+      "profile_revision": 0,
+      "style": {
+        "preset": "dry_wit",
+        "depth": "brief",
+        "tone": null,
+        "humor": "playful",
+        "banter": null,
+        "warmth": null,
+        "directness": null,
+        "formality": null,
+        "profanity": null,
+        "format_style": null,
+        "avoid_habits": null
+      },
+      "plan_revision": 0
+    }
+  ],
+  "page_errors": [],
+  "console_errors": [],
+  "external_requests": [],
+  "failed_responses": [],
+  "controls_changed_before_explicit_preview": true,
+  "revision_after_preview": 0,
+  "cancelled_run_status": "stopped",
+  "source_sha256": {
+    "src/hutch/server/pages.py": "7884021b4a97b41a26c49e4337e8f53fe245ff8682c5e820a613a4dc70263826",
+    "src/hutch/server/static/app.js": "943c4446a58dfb9f257c8b396522d41c5612d68dded7a19d6c435399c46e46a6",
+    "src/hutch/server/static/persona.js": "7a57cef29f046eea6cda1ff5c3a4b34842deeba292024edaae138c268ad854d2",
+    "src/hutch/server/static/index.html": "5f7faabcab72c2c2aa459cc143307275a03764ec9c72857d1c9f7d8f2ea5410b",
+    "src/hutch/server/static/style.css": "f2f482ff3c85927fc79767fbb2815a79810be92753635f7391d82d1ec3c01a41",
+    "src/hutch/server/static/brands/openai-white-monoblossom.svg": "b94ea61d860fae6f82f43571f36f17111fcf5d348e8e9cc22ae4b441c7560011",
+    "src/hutch/server/static/brands/anthropic-symbol-ivory.svg": "38fc06d8e9390654cc4e96aa53691e2e78d929667c0034805b6d1b3891ba22dd",
+    "src/hutch/server/static/brands/openrouter-glyph-volt.svg": "0d22462e4f2835a5a5b9000af0a55fc9238e39996100f54706e41ec45b9d1727",
+    "src/hutch/server/static/brands/google-calendar-2026q2.png": "eac7b1d7c78a7c7fb40d74b6d879ba5fe781cbf2cd5f8d7d40f3c28fea73f77e",
+    "src/hutch/server/static/brands/google-gmail-2026q2.png": "ab8e9e880a28e2bc29207a62394aa7d296f435113fcc922819dab629ffbd64e6",
+    "src/hutch/server/static/brands/microsoft-outlook.svg": "4a3b6ab15d36e7c5317f75a83d1781708d68cce4d8b9073a3c82f0af662eaf18",
+    "website/index.html": "cae44861517f80b505843ac618e1bb56801425842867b8bbead8bcfe820aa7ec",
+    "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
+    "website/styles.css": "4e2f4b3e4094cfc3aef1e9b21deaaf472421e607bb416824e63db0197dd0f4bd",
+    "tests/e2e/test_design_system.py": "840166b8264e69956e6e18bc7b4d73ce4321f2bfe0243c3100c0844daf2ae14b"
+  }
+}

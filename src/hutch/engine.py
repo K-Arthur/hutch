@@ -40,6 +40,7 @@ from .models import (
     Bot,
     Event,
     EventType,
+    PersonaStyle,
     Run,
     RunStatus,
     Task,
@@ -145,6 +146,21 @@ class Engine:
                   rehearsal=rehearsal, model_override=model, skill_activation=activation)
         task = Task(bot_id=bot.id, kind="on_demand", prompt=prompt)
         return self.store.submit_run_idempotent(run, task, idem_key=idem_key, request_hash=request_hash)
+
+    def submit_persona_preview_idempotent(self, bot: Bot, style: PersonaStyle, revision: int, *,
+                                          idem_key: str, request_hash: str) -> tuple[Run, bool]:
+        """Admit an isolated one-response style sample under its own retry scope."""
+        from .persona_preview import PREVIEW_PROMPT
+
+        if bot.runtime.value != "builtin":
+            raise ValueError("live response-style preview is supported only by the built-in runtime")
+        run = Run(bot_id=bot.id, prompt=PREVIEW_PROMPT, origin="manual:persona_preview", model_override=bot.model,
+                  execution_purpose="persona_preview", tool_access="none", persona_preview_style=style,
+                  persona_preview_revision=revision)
+        task = Task(bot_id=bot.id, kind="persona_preview", prompt=PREVIEW_PROMPT)
+        return self.store.submit_run_idempotent(
+            run, task, idem_key=idem_key, request_hash=request_hash, scope="api:v1:persona-previews",
+            expected_persona_revision=revision)
 
     def _validated_activation(self, bot: Bot, skills: Optional[list[str]]) -> list[str]:
         """Explicit per-run activation must name skills bound to the Bot and currently usable."""
@@ -528,6 +544,12 @@ class Engine:
         """The credential-free permission/routing policy active when a run starts."""
         from .tools import expand_tools
 
+        if execution_purpose == "persona_preview":
+            if tool_access != "none" or bot.runtime.value != "builtin":
+                raise ValueError("persona previews require the built-in runtime with no tool access")
+            return {"snapshot_version": 1, "execution_purpose": execution_purpose, "tool_access": "none",
+                    "runtime": bot.runtime.value, "model": bot.model, "tools": [], "skills": [],
+                    "memory_enabled": False, "shell_network": False, "browser_handoff": False}
         if tool_access == "none" and execution_purpose == "task":
             raise ValueError("tool-free capability snapshots require an explicit execution purpose")
         fingerprint = lambda value: hashlib.sha256((value or "").encode("utf-8")).hexdigest()
@@ -587,7 +609,7 @@ class Engine:
     def tools_for_run(run: Run, bot: Bot, ctx: ToolContext) -> dict[str, Tool]:
         """Apply run-level restrictions before constructing any action or conversation tool."""
         if run.tool_access == "none":
-            if run.execution_purpose not in {"bot_draft", "conversation", "answer_rewrite"}:
+            if run.execution_purpose not in {"bot_draft", "conversation", "answer_rewrite", "persona_preview"}:
                 raise ValueError("tool-free runs require an explicit execution purpose")
             if bot.runtime.value != "builtin":
                 raise ValueError("tool-free execution purposes require the built-in runtime")
@@ -763,30 +785,41 @@ class Engine:
         except RuntimeError as exc:
             self._fail_unavailable_runtime(run, str(exc))
             return
-        run_dir, workspace, workdir_error = self._prepare_workspace(bot, run)
-        run_dir.mkdir(parents=True, exist_ok=True)
+        if run.execution_purpose == "persona_preview":
+            # A style preview gets an empty per-run directory; never resolve or expose the Bot's workspace.
+            run_dir = self.config.run_dir(bot.name, run.id)
+            workspace = run_dir / "workspace"
+            workspace.mkdir(parents=True, exist_ok=True)
+            workdir_error = None
+        else:
+            run_dir, workspace, workdir_error = self._prepare_workspace(bot, run)
+            run_dir.mkdir(parents=True, exist_ok=True)
         # Resolve this run's skills once, before anything starts: trusted+enabled bindings become
         # the disclosure catalog, operator-selected activation loads bodies, and every exclusion is
         # recorded on the run. An explicitly activated skill that is no longer usable fails the run
         # here rather than running with different instructions than the operator reviewed.
-        from .skills import SkillRegistry
-        try:
-            from .readiness import available_connection_services
-            granted_connections = available_connection_services(self.store, bot)
-            resolved_skills = SkillRegistry(self.config.state_dir).effective_for_bot(
-                bot, activation=list(run.skill_activation), runtime=bot.runtime.value,
-                connections=granted_connections)
-        except Exception as exc:  # noqa: BLE001 - a skill-resolution bug must fail closed, not crash the worker
-            self._fail_skill_unavailable(run, f"skills could not be resolved: {exc}")
-            return
-        if run.skill_activation and resolved_skills.missing_activation:
-            reasons = "; ".join(f"{item['name']} — {item['reason']}" for item in resolved_skills.missing_activation)
-            self._fail_skill_unavailable(run, f"Requested skill activation cannot be honored: {reasons}")
-            return
-        skill_snapshot = (
-            [{"name": s.name, "hash": s.hash, "activated": False} for s in resolved_skills.catalog]
-            + [{"name": s.name, "hash": s.hash, "activated": True} for s in resolved_skills.activated]
-        )
+        if run.execution_purpose == "persona_preview":
+            resolved_skills = None
+            skill_snapshot = []
+        else:
+            from .skills import SkillRegistry
+            try:
+                from .readiness import available_connection_services
+                granted_connections = available_connection_services(self.store, bot)
+                resolved_skills = SkillRegistry(self.config.state_dir).effective_for_bot(
+                    bot, activation=list(run.skill_activation), runtime=bot.runtime.value,
+                    connections=granted_connections)
+            except Exception as exc:  # noqa: BLE001 - a skill-resolution bug must fail closed, not crash the worker
+                self._fail_skill_unavailable(run, f"skills could not be resolved: {exc}")
+                return
+            if run.skill_activation and resolved_skills.missing_activation:
+                reasons = "; ".join(f"{item['name']} — {item['reason']}" for item in resolved_skills.missing_activation)
+                self._fail_skill_unavailable(run, f"Requested skill activation cannot be honored: {reasons}")
+                return
+            skill_snapshot = (
+                [{"name": s.name, "hash": s.hash, "activated": False} for s in resolved_skills.catalog]
+                + [{"name": s.name, "hash": s.hash, "activated": True} for s in resolved_skills.activated]
+            )
         closed = threading.Event()          # set once the run is over: a late worker's events and tool calls are dropped
         degraded: list[str] = []            # audit writes that failed: shown, never silent
 
@@ -813,14 +846,21 @@ class Engine:
             try:
                 if bot.persona_profile_error:
                     raise ValueError(bot.persona_profile_error)
-                conversation_style, conversation_revision = (
-                    self.store.read_conversation_persona(run.conversation_id)
-                    if run.conversation_id else (None, 0))
-                persona_plan = resolve_persona(
-                    agent_preset=bot.persona_preset, agent_override=bot.persona_override,
-                    conversation=conversation_style, turn=run.persona_turn,
-                    revisions={"agent": bot.persona_revision,
-                               **({"conversation": conversation_revision} if run.conversation_id else {})})
+                if run.execution_purpose == "persona_preview":
+                    if run.persona_preview_style is None or run.persona_preview_revision is None:
+                        raise ValueError("the preview candidate or source revision is missing")
+                    persona_plan = resolve_persona(
+                        agent_preset=bot.persona_preset, agent_override=run.persona_preview_style,
+                        revisions={"agent": run.persona_preview_revision})
+                else:
+                    conversation_style, conversation_revision = (
+                        self.store.read_conversation_persona(run.conversation_id)
+                        if run.conversation_id else (None, 0))
+                    persona_plan = resolve_persona(
+                        agent_preset=bot.persona_preset, agent_override=bot.persona_override,
+                        conversation=conversation_style, turn=run.persona_turn,
+                        revisions={"agent": bot.persona_revision,
+                                   **({"conversation": conversation_revision} if run.conversation_id else {})})
                 persona_plan = contextualize_persona(persona_plan, run.prompt,
                                                      conversation_context=run.conversation_context,
                                                      answer_correction=run.rewrite_kind)
@@ -865,20 +905,28 @@ class Engine:
         # remember every process this run starts, so a supervisor that did not spawn it can still end it after a crash
         ctx.procs.on_register = lambda pid, pgid, st, kind, boot: self.store.add_proc(run.id, pid, pgid, st, kind, boot)
         tools = self.tools_for_run(run, bot, ctx)
-        if "delegate_task" in bot.tools and "delegate_task" not in tools:
+        if (run.execution_purpose != "persona_preview" and "delegate_task" in bot.tools
+                and "delegate_task" not in tools):
             emit(Event(run_id=run.id, type=EventType.log,
                        data={"note": "delegate_task is unavailable: it requires a supervised Strict Offline built-in run"}))
-        emit(Event(run_id=run.id, type=EventType.log,
-                   data={"runtime": runtime.kind, "model": bot.model,
-                         "tool_access": run.tool_access,
-                         "execution_purpose": run.execution_purpose,
-                         "inference_mode": bot.inference_mode.value,
-                         "browser_handoff": "local_desktop" if bot.local_browser_handoff else "headless",
-                         "tools": sorted(tools), "limits": bot.limits.model_dump(),
-                         "skill_activation": list(run.skill_activation), "skills": skill_snapshot,
-                         **({"skill_warnings": resolved_skills.warnings} if resolved_skills.warnings else {}),
-                         **({"containment": sandbox.describe(bot)} if "shell" in tools else {}),
-                         **({"rehearsal": True} if run.rehearsal else {})}))
+        if run.execution_purpose == "persona_preview":
+            emit(Event(run_id=run.id, type=EventType.log,
+                       data={"runtime": runtime.kind, "model": bot.model, "tool_access": "none",
+                             "execution_purpose": "persona_preview", "tools": [],
+                             "max_model_requests": 1, "max_output_tokens": 128}))
+        else:
+            emit(Event(run_id=run.id, type=EventType.log,
+                       data={"runtime": runtime.kind, "model": bot.model,
+                             "tool_access": run.tool_access,
+                             "execution_purpose": run.execution_purpose,
+                             "inference_mode": bot.inference_mode.value,
+                             "browser_handoff": "local_desktop" if bot.local_browser_handoff else "headless",
+                             "tools": sorted(tools), "limits": bot.limits.model_dump(),
+                             "skill_activation": list(run.skill_activation), "skills": skill_snapshot,
+                             **({"skill_warnings": resolved_skills.warnings}
+                                if resolved_skills is not None and resolved_skills.warnings else {}),
+                             **({"containment": sandbox.describe(bot)} if "shell" in tools else {}),
+                             **({"rehearsal": True} if run.rehearsal else {})}))
 
         outcome_status, outcome_reason, error = RunStatus.succeeded, "completed", ""
         result: dict[str, object] = {}

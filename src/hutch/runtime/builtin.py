@@ -30,6 +30,8 @@ from ..admission import AdmissionCancelled, AdmissionError, inference_slot
 from ..context import check_prompt, plan_context, prompt_tokens as estimate_prompt_tokens, run_selfcheck
 from ..hardware import Hardware, probe
 from ..models import Event, EventType, Run, RunStatus
+from ..persona_preview import (PREVIEW_MAX_INPUT_TOKENS, PREVIEW_MAX_OUTPUT_TOKENS,
+                               PREVIEW_PROMPT, preview_messages)
 from ..providers import ChatRequest, Provider, ProviderError, ToolCall
 from ..providers.base import ModelMeta
 from ..providers.pricing import PriceBook
@@ -273,7 +275,9 @@ class BuiltinRuntime:
         ctx.emit(Event(run_id=run.id, type=EventType.log, data={"kind": kind, "note": note, **extra}))
 
     @staticmethod
-    def _turn_cap(bot, rung: Rung) -> int:
+    def _turn_cap(bot, rung: Rung, run: Optional[Run] = None) -> int:
+        if run is not None and run.execution_purpose == "persona_preview":
+            return min(bot.limits.max_turn_tokens, PREVIEW_MAX_OUTPUT_TOKENS) if bot.limits.max_turn_tokens else PREVIEW_MAX_OUTPUT_TOKENS
         return bot.limits.max_turn_tokens or (DEFAULT_LOCAL_TURN_TOKENS if rung.local else DEFAULT_HOSTED_TURN_TOKENS)
 
     @staticmethod
@@ -340,7 +344,7 @@ class BuiltinRuntime:
                       estimated=bool(plan.fit and plan.fit.estimated))
         # LM-3: prompt + tools vs the window the model will actually get
         if num_ctx:
-            chk = check_prompt(messages, specs, num_ctx, self._turn_cap(bot, rung))
+            chk = check_prompt(messages, specs, num_ctx, self._turn_cap(bot, rung, run))
             if chk.severity != "ok":
                 self._log(ctx, run, "context", f"{chk.severity}: {chk.message}. {chk.fix}", severity=chk.severity)
             if chk.severity == "fail":
@@ -355,7 +359,8 @@ class BuiltinRuntime:
             ctx.store.kv_set(f"model_load:{rung.model}", json.dumps({"ms": ms, "at": time.time()}))
             self._log(ctx, run, "load", f"loaded {rung.model} into memory in {ms / 1000:.1f}s (cold load)", load_ms=ms)
         # LM-2: prove the window works, once per model build + window
-        if bot.selfcheck and num_ctx and rung.provider == "ollama":
+        if (bot.selfcheck and run.execution_purpose != "persona_preview" and num_ctx
+                and rung.provider == "ollama"):
             key = f"selfcheck:{meta.digest or rung.model}:{rung.model}:{num_ctx}:{meta.template_hash}"
             cached = ctx.store.kv_get(key)
             sc = json.loads(cached) if cached else None
@@ -395,14 +400,16 @@ class BuiltinRuntime:
             endpoint = endpoint or os.environ.get("HUTCH_BASE_URL", "")
         return (rung.provider, rung.provider, "per_token", rung.provider, endpoint, "builtin")
 
-    def _ask_first_hosted(self, ctx: ToolContext, ladder: Ladder, rung: Rung, why: str, est_prompt: int) -> tuple | None:
+    def _ask_first_hosted(self, ctx: ToolContext, run: Run, ladder: Ladder, rung: Rung,
+                          why: str, est_prompt: int) -> tuple | None:
         """Every new hosted billing/destination authority requires per-run outward approval."""
         if rung.local:
             return
         route = self._route_identity(ctx, ladder, rung)
         if route in ladder.authorized_routes:
             return route
-        worst = self._prices_for(ctx).cost(rung.provider, rung.model, est_prompt, self._turn_cap(ctx.bot, rung))
+        worst = self._prices_for(ctx).cost(rung.provider, rung.model, est_prompt,
+                                           self._turn_cap(ctx.bot, rung, run))
         decision = Decision(Verdict.ask, f"call hosted model {rung.spec}", "",
                             rule="ask:hosted-call", risk="medium")
         ctx.gate.decide(
@@ -431,13 +438,13 @@ class BuiltinRuntime:
             return None
         if rung.spec in ladder.blocked or (ladder.hosted_denied and not rung.local):
             return None
-        refusal = guard.refusal(rung, est_prompt, self._turn_cap(ctx.bot, rung))
+        refusal = guard.refusal(rung, est_prompt, self._turn_cap(ctx.bot, rung, run))
         if refusal:
             ladder.blocked.add(rung.spec)
             self._log(ctx, run, kind, f"cannot {kind} to {rung.spec}: {refusal}", blocked=True)
             return None
         try:
-            self._ask_first_hosted(ctx, ladder, rung, why, est_prompt)
+            self._ask_first_hosted(ctx, run, ladder, rung, why, est_prompt)
         except DeniedError as exc:
             ladder.hosted_denied = True
             self._log(ctx, run, kind, f"{kind} to {rung.spec} was not approved: {exc}", blocked=True)
@@ -517,13 +524,13 @@ class BuiltinRuntime:
                                  f"{rung.spec} is not an allowed local model route; no provider request was sent")
             ladder.current = rung
             try:
-                refusal = guard.refusal(rung, est_prompt, self._turn_cap(ctx.bot, rung))
+                refusal = guard.refusal(rung, est_prompt, self._turn_cap(ctx.bot, rung, run))
                 if refusal:
                     capped = ProviderError("other", refusal, provider=rung.provider)
                     capped.cost_cap = True  # type: ignore[attr-defined]
                     raise capped
                 if rung is not ladder.primary:
-                    self._ask_first_hosted(ctx, ladder, rung, "the primary model is unavailable", est_prompt)
+                    self._ask_first_hosted(ctx, run, ladder, rung, "the primary model is unavailable", est_prompt)
                 session = self._bring_online(ctx, run, ladder, rung, messages, specs)
                 self._announce_plan(ctx, run, session, est_prompt)
                 return session
@@ -543,16 +550,19 @@ class BuiltinRuntime:
 
     def _announce_plan(self, ctx, run, session: Session, est_prompt: int) -> None:
         """SR-2: what this run may cost, visible in the transcript before the first model call."""
-        cap = self._turn_cap(ctx.bot, session.rung)
+        is_preview = run.execution_purpose == "persona_preview"
+        cap = self._turn_cap(ctx.bot, session.rung, run)
+        steps = 1 if is_preview else ctx.bot.limits.max_steps
         ceiling = self._prices_for(ctx).estimate_run_ceiling(session.rung.provider, session.rung.model, est_prompt,
-                                                             cap, ctx.bot.limits.max_steps)
+                                                             cap, steps)
         run.context_limit = session.num_ctx or 0
         run.model_used = session.rung.spec
         ctx.store.update_run(run)
         cost_note = (f", estimated up to ${ceiling:.2f}" if ceiling else ", no per-token cost" if session.rung.local
                      else ", price unknown")
+        limit = "1 response" if is_preview else f"{steps} steps"
         self._log(ctx, run, "plan", f"{session.rung.spec}: ~{est_prompt:,} prompt tokens, up to "
-                                    f"{ctx.bot.limits.max_steps} steps{cost_note}",
+                                    f"{limit}{cost_note}",
                   model=session.rung.spec, window=session.num_ctx, worst_case_usd=ceiling, prompt_tokens=est_prompt)
 
     # -------------------------------------------------------------------- loop
@@ -587,7 +597,7 @@ class BuiltinRuntime:
             guard.connections = book  # the reservation follows this reviewed account's current policy
             self._refresh_local_admission(ctx, run, session)
             try:
-                reservation = guard.reserve(session.rung, est_prompt, self._turn_cap(ctx.bot, session.rung))
+                reservation = guard.reserve(session.rung, est_prompt, self._turn_cap(ctx.bot, session.rung, run))
             except UsageBudgetRefusal as exc:
                 reason = str(exc)
                 code = "token_cap" if "token" in reason or "allowance" in reason else "cost_cap"
@@ -608,14 +618,31 @@ class BuiltinRuntime:
 
     def execute(self, run: Run, ctx: ToolContext, tools: dict[str, Tool], stop: Callable[[], bool]) -> str:
         bot = ctx.bot
-        tool_free = run.execution_purpose in {"bot_draft", "conversation", "answer_rewrite"}
+        is_preview = run.execution_purpose == "persona_preview"
+        tool_free = run.execution_purpose in {"bot_draft", "conversation", "answer_rewrite", "persona_preview"}
         if tool_free != (run.tool_access == "none"):
             raise RunAborted("tool_access", "tool access and execution purpose do not form a valid run policy")
         ladder = Ladder(bot)
         prices = self._prices_for(ctx)
+        if is_preview:
+            if (bot.runtime.value != "builtin" or tools or run.prompt != PREVIEW_PROMPT or run.conversation_id
+                    or run.conversation_context or run.skill_activation or run.rehearsal
+                    or run.persona_preview_style is None or run.persona_preview_revision is None
+                    or run.persona_plan is None):
+                raise RunAborted("persona_preview", "the isolated persona preview contract is incomplete")
+            if not prices.has_price(ladder.primary.provider, ladder.primary.model):
+                raise RunAborted("cost_cap", "Hutch cannot show a cost estimate for this model, so no preview was sent")
+            connection = self._connections(ctx).get(ladder.primary.provider)
+            if connection is not None and connection.auth_type == "chatgpt-siws":
+                raise RunAborted("unsupported", "this ChatGPT route has no enforceable output-token cap")
+            # A sample never silently switches models or spends on retries/escalation.
+            ladder.fallbacks = []
+            ladder.escalations = []
         guard = SpendGuard(ctx.store, bot, run, prices, self._connections(ctx))
         requested = "disabled" if run.tool_access == "none" else (getattr(bot, "tool_protocol", "auto") or "auto")
-        if run.execution_purpose == "answer_rewrite":
+        if is_preview:
+            base_system = preview_messages(run.persona_plan)[0]["content"]
+        elif run.execution_purpose == "answer_rewrite":
             base_system = (f"You are {bot.name}, an assistant running on Hutch.\n\n"
                            f"Your purpose: {bot.description or '(none given)'}\n\n"
                            f"Operator instructions:\n{bot.instructions or '(none given)'}\n\n"
@@ -625,7 +652,7 @@ class BuiltinRuntime:
                 base_system += "\n\n" + guidance(run.persona_plan)
         else:
             base_system = self._system_prompt(ctx)
-        if run.execution_purpose not in {"conversation", "answer_rewrite"}:
+        if run.execution_purpose not in {"conversation", "answer_rewrite", "persona_preview"}:
             base_system += ctx.store.action_context(run.id)
         if run.execution_purpose == "bot_draft":
             base_system += DRAFT_ONLY_GUIDANCE
@@ -641,14 +668,19 @@ class BuiltinRuntime:
         except ToolProtocolUnavailable as exc:  # native is always available today
             raise RunAborted("tool_protocol", str(exc)) from exc
         provisional_specs = list(provisional.wire_tools)
-        messages: list[dict[str, Any]] = [{"role": "system", "content": base_system},
-                                          *run.conversation_context,
-                                          {"role": "user", "content": run.prompt}]
+        messages: list[dict[str, Any]] = (preview_messages(run.persona_plan) if is_preview else
+                                          [{"role": "system", "content": base_system},
+                                           *run.conversation_context,
+                                           {"role": "user", "content": run.prompt}])
         mt, tt = estimate_prompt_tokens(messages, provisional_specs)
         est_prompt = mt + tt
+        if is_preview and est_prompt > PREVIEW_MAX_INPUT_TOKENS:
+            raise RunAborted("token_cap", "the fixed preview prompt exceeds its 1,024-token input budget; no model request was sent")
         run.model_used = ladder.primary.spec
 
         session = self._start(ctx, run, ladder, guard, messages, provisional_specs, stop, est_prompt)
+        if is_preview:
+            session.stream = False
 
         # Finalize for the model that actually came online: an unavailable primary must not
         # leave a contract compiled for a different route, and the catalog snapshot is logged
@@ -667,13 +699,17 @@ class BuiltinRuntime:
                 self._log(ctx, run, "tool_protocol", f"{diag.code}: {diag.detail}",
                           severity=diag.severity, tool=diag.tool, field=diag.field)
         specs = list(plan.wire_tools)                                # PF-1 / PF-3: frozen, deterministic, allowed only
+        if is_preview and specs:
+            raise RunAborted("tool_access", "persona previews cannot include provider tool schemas")
         system = base_system + (("\n\n" + plan.prompt_contract) if plan.prompt_contract else "")
         messages[0]["content"] = system
         if plan.strategy != "native" or specs != provisional_specs:
             mt, tt = estimate_prompt_tokens(messages, specs)
             est_prompt = mt + tt
+            if is_preview and est_prompt > PREVIEW_MAX_INPUT_TOKENS:
+                raise RunAborted("token_cap", "the fixed preview prompt exceeds its 1,024-token input budget; no model request was sent")
             if session.num_ctx:
-                chk = check_prompt(messages, specs, session.num_ctx, self._turn_cap(bot, session.rung))
+                chk = check_prompt(messages, specs, session.num_ctx, self._turn_cap(bot, session.rung, run))
                 if chk.severity != "ok":
                     self._log(ctx, run, "context", f"{chk.severity}: {chk.message}. {chk.fix}", severity=chk.severity)
                 if chk.severity == "fail":
@@ -715,12 +751,15 @@ class BuiltinRuntime:
                     "on the new model, or use native mode.")
             if run.execution_purpose == "bot_draft" and run.steps >= 1:
                 raise RunAborted("steps_exceeded", "review-only Bot drafting is limited to one model response")
-            if run.steps >= bot.limits.max_steps:
-                raise RunAborted("steps_exceeded", f"hit max_steps={bot.limits.max_steps}")
+            if is_preview and run.steps >= 1:
+                raise RunAborted("steps_exceeded", "a persona preview is limited to one model response")
+            step_limit = min(bot.limits.max_steps, 1) if is_preview else bot.limits.max_steps
+            if run.steps >= step_limit:
+                raise RunAborted("steps_exceeded", f"hit max_steps={step_limit if is_preview else bot.limits.max_steps}")
             if ctx.store.tokens_today(bot.id) > bot.limits.daily_token_cap:
                 raise RunAborted("token_cap", f"daily cap {bot.limits.daily_token_cap} exceeded")
             guard.connections = self._connections(ctx)
-            refusal = guard.refusal(session.rung, est_prompt, self._turn_cap(bot, session.rung))
+            refusal = guard.refusal(session.rung, est_prompt, self._turn_cap(bot, session.rung, run))
             if refusal:
                 raise RunAborted("cost_cap", refusal)
 
@@ -734,7 +773,8 @@ class BuiltinRuntime:
 
             timer = StepTimer()
             try:
-                route = self._ask_first_hosted(ctx, ladder, session.rung, "the connection authority changed", est_prompt)
+                route = self._ask_first_hosted(ctx, run, ladder, session.rung,
+                                               "the connection authority changed", est_prompt)
                 if route is None:
                     route = self._route_identity(ctx, ladder, session.rung)
                 session.provider = self._provider_for(ctx, ladder, session.rung, expected_route=route)
@@ -744,8 +784,9 @@ class BuiltinRuntime:
                 raise RunAborted(_exit_reason(exc), f"provider connection is no longer usable: {exc}") from exc
             req = ChatRequest(
                 model=session.rung.model, messages=messages, tools=specs, num_ctx=session.num_ctx,
-                max_tokens=self._turn_cap(bot, session.rung), think=bot.think if bot.think is not None else False,
-                stream=session.stream, allow_stream_retry=False,
+                max_tokens=self._turn_cap(bot, session.rung, run), think=False if run.execution_purpose == "persona_preview"
+                else (bot.think if bot.think is not None else False),
+                stream=False if run.execution_purpose == "persona_preview" else session.stream, allow_stream_retry=False,
                 register_cancel=self._register_cancel(ctx), is_cancelled=stop,
                 session_id=run.conversation_id or run.id,
                 structured_output=({"name": f"hutch-action-{plan.plan_hash[:8]}",
@@ -762,6 +803,8 @@ class BuiltinRuntime:
                 if stop():
                     raise RunAborted("stopped", "user requested stop") from exc
                 record_outcome(ctx.store, session.rung.provider, False, f"{exc.kind}: {exc}")
+                if is_preview:
+                    raise RunAborted(_exit_reason(exc), f"preview request failed; Hutch did not retry: {exc}") from exc
                 if plan.strategy == "constrained" and exc.kind == "bad_request":
                     raise RunAborted(
                         "tool_protocol",
@@ -871,6 +914,7 @@ class BuiltinRuntime:
                 label = ("tool-free review-only Bot-draft" if run.execution_purpose == "bot_draft"
                          else "tool-free conversation" if run.execution_purpose == "conversation"
                          else "tool-free answer rewrite" if run.execution_purpose == "answer_rewrite"
+                         else "persona preview" if run.execution_purpose == "persona_preview"
                          else "tool-free run")
                 self._log(ctx, run, "tool_access", f"{label} refused a provider tool call; no tool was executed")
                 raise RunAborted("tool_access", f"This {label} cannot execute tool calls. No action was taken.")
@@ -882,6 +926,8 @@ class BuiltinRuntime:
                         message = "the Bot draft did not fit in one model request; shorten the selected context"
                     elif run.execution_purpose == "answer_rewrite":
                         message = "the selected answer and its original request did not fit in one model request; the answer was not rewritten"
+                    elif run.execution_purpose == "persona_preview":
+                        message = "the fixed persona preview did not fit in one model request; no retry was sent"
                     else:
                         message = "the tool-free conversation reply did not fit in one model request; shorten the context"
                     raise RunAborted("context", message)
@@ -914,7 +960,7 @@ class BuiltinRuntime:
                     # The text above is real and was paid for, but the model was cut off by the per-turn
                     # budget. Keep it visible and refuse to report the run as complete.
                     self._log(ctx, run, "note",
-                              f"the reply hit the per-turn cap of {self._turn_cap(bot, session.rung)} tokens and was cut off")
+                              f"the reply hit the per-turn cap of {self._turn_cap(bot, session.rung, run)} tokens and was cut off")
                     raise RunAborted("length", "the model's answer hit the per-turn token cap before it finished; "
                                                "the partial text is kept in the transcript, but the run is incomplete. "
                                                "Ask for a shorter answer or raise the model's per-turn token cap")
@@ -925,7 +971,7 @@ class BuiltinRuntime:
                 raise RunAborted("cost_cap", f"run spend ${run.cost_usd:.4f} reached its "
                                              f"${bot.limits.max_cost_usd:.2f} cap")
             if result.finish_reason == "length":
-                self._log(ctx, run, "note", f"the reply hit the per-turn cap of {self._turn_cap(bot, session.rung)} tokens")
+                self._log(ctx, run, "note", f"the reply hit the per-turn cap of {self._turn_cap(bot, session.rung, run)} tokens")
 
             # A question is a durable chat checkpoint. Do not run sibling calls
             # from the same provider batch, and do not ask the provider again

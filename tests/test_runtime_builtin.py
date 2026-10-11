@@ -314,6 +314,73 @@ def test_answer_rewrite_refuses_provider_tool_calls_without_execution(store, con
     assert not (ctx.workspace / "out.md").exists()
 
 
+def _persona_preview_run(store, config, tmp_path, *, model="ollama/fake:8b", max_turn_tokens=32):
+    from hutch.models import PersonaStyle
+    from hutch.persona import contextualize_persona, resolve_persona
+    from hutch.persona_preview import PREVIEW_PROMPT
+
+    ctx, run, emitted, _ = build(store, config, tmp_path, model=model, tools=(), prompt=PREVIEW_PROMPT,
+                                 limits=Limits(max_steps=4, max_turn_tokens=max_turn_tokens), instructions="private instructions",
+                                 workdir=str(tmp_path / "private-workspace"), selfcheck=True)
+    style = PersonaStyle(preset="dry_wit", depth="brief", humor="playful")
+    run.execution_purpose = "persona_preview"
+    run.tool_access = "none"
+    run.persona_preview_style = style
+    run.persona_preview_revision = 7
+    run.persona_plan = contextualize_persona(resolve_persona(agent_override=style, revisions={"agent": 7}),
+                                             PREVIEW_PROMPT)
+    ctx.run = ctx.gate.run = run
+    return ctx, run, emitted
+
+
+def test_persona_preview_sends_one_capped_isolated_nonstreaming_request(store, config, tmp_path, ollama,
+                                                                       monkeypatch):
+    from hutch.persona_preview import PREVIEW_PROMPT, PREVIEW_SYSTEM
+
+    monkeypatch.setenv("OLLAMA_HOST", ollama.url)
+    ollama.script = agent_script([{"content": "A leaf offering and a sincere apology should do."}])
+    ctx, run, _ = _persona_preview_run(store, config, tmp_path, max_turn_tokens=32)
+
+    answer = run_it(runtime(provider_factory=factory(ollama)), run, ctx, {})
+    request = ollama.of("/api/chat")[0]["body"]
+    messages = request["messages"]
+
+    assert answer == "A leaf offering and a sincere apology should do."
+    assert len(ollama.of("/api/chat")) == 1
+    assert request["stream"] is False and request.get("think") in (None, False)
+    assert request["options"]["num_predict"] == 32
+    assert request.get("tools", []) == []
+    assert [message["role"] for message in messages] == ["system", "user"]
+    assert messages[-1]["content"] == PREVIEW_PROMPT
+    assert PREVIEW_SYSTEM in messages[0]["content"]
+    assert "private instructions" not in messages[0]["content"]
+    assert "Your purpose: d" not in messages[0]["content"]
+    assert str(ctx.workspace) not in json.dumps(messages)
+    assert run.steps == 1
+
+
+def test_persona_preview_provider_failure_is_terminal_even_when_bot_has_fallbacks(store, config, tmp_path,
+                                                                                    ollama, monkeypatch):
+    monkeypatch.setenv("OLLAMA_HOST", ollama.url)
+    ctx, run, _ = _persona_preview_run(store, config, tmp_path)
+    ctx.bot.fallbacks = ["ollama/tiny:1b"]
+    rt = runtime(provider_factory=factory(ollama))
+    attempts = []
+
+    def unavailable(*args, **kwargs):
+        attempts.append(args[2].rung.spec)
+        from hutch.providers import ProviderError
+        raise ProviderError("unreachable", "simulated provider outage", provider="ollama")
+
+    monkeypatch.setattr(rt, "_attempt", unavailable)
+
+    with pytest.raises(RunAborted, match="preview request failed; Hutch did not retry"):
+        run_it(rt, run, ctx, {})
+
+    assert attempts == ["ollama/fake:8b"]
+    assert ollama.of("/api/chat") == []
+
+
 def test_stored_bot_drafts_without_execution_purpose_keep_their_legacy_mode():
     old = {"bot_id": "bot", "prompt": "draft", "origin": "manual:bot_draft", "tool_access": "none"}
     loaded = Run.model_validate(old)
@@ -335,6 +402,16 @@ def test_stored_bot_drafts_without_execution_purpose_keep_their_legacy_mode():
         Run(bot_id="bot", prompt="hello", execution_purpose="conversation", tool_access="bot")
     with pytest.raises(ValueError, match="explicit tool-free execution purpose"):
         Run(bot_id="bot", prompt="hello", tool_access="none")
+
+    from hutch.models import PersonaStyle
+    with pytest.raises(ValueError, match="candidate style and saved-profile revision"):
+        Run(bot_id="bot", prompt="preview", execution_purpose="persona_preview", tool_access="none")
+    preview = Run(bot_id="bot", prompt="preview", execution_purpose="persona_preview", tool_access="none",
+                  persona_preview_style=PersonaStyle(depth="brief"), persona_preview_revision=3)
+    assert preview.execution_purpose == "persona_preview" and preview.persona_preview_revision == 3
+    with pytest.raises(ValueError, match="cannot carry conversation"):
+        Run(bot_id="bot", prompt="preview", execution_purpose="persona_preview", tool_access="none",
+            persona_preview_style=PersonaStyle(), persona_preview_revision=0, conversation_id="chat")
 
 
 def test_structured_choice_is_conversation_only_and_pauses_the_model_loop(store, config, tmp_path, ollama):

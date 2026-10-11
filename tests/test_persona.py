@@ -417,11 +417,14 @@ def test_bot_persona_api_reports_only_the_affected_assistant_error(persona_clien
     broken = _make_bot(client, name="future-style")
     sibling = _make_bot(client, name="normal-style")
     store = client.app.state.store
-    raw = json.loads(store._db.execute("SELECT doc FROM bots WHERE id = ?", (broken["id"],)).fetchone()["doc"])
-    raw["persona_profile_version"] = PERSONA_PROFILE_VERSION + 10
-    raw["persona_override"] = {"future": "shape"}
-    store._db.execute("UPDATE bots SET doc = ? WHERE id = ?", (json.dumps(raw), broken["id"]))
-    store._db.commit()
+    # The TestClient lifespan owns a dispatcher thread that shares this SQLite connection.
+    # Keep this deliberate corrupt-profile fixture write serialized with background reads.
+    with store._lock:
+        raw = json.loads(store._db.execute("SELECT doc FROM bots WHERE id = ?", (broken["id"],)).fetchone()["doc"])
+        raw["persona_profile_version"] = PERSONA_PROFILE_VERSION + 10
+        raw["persona_override"] = {"future": "shape"}
+        store._db.execute("UPDATE bots SET doc = ? WHERE id = ?", (json.dumps(raw), broken["id"]))
+        store._db.commit()
 
     response = client.get(f"/api/v1/bots/{broken['id']}/persona")
     assert response.status_code == 409
@@ -660,6 +663,82 @@ def test_bot_persona_api_is_revision_aware_and_resets_fields(persona_client):
                          json={"expected_revision": 2},
                          headers={"Idempotency-Key": "persona-save-5"})
     assert empty.status_code == 422
+
+
+def _use_local_preview_model(client, bot_id, monkeypatch):
+    store = client.app.state.store
+    bot = store.get_bot(bot_id)
+    bot.model = "ollama/fake:8b"
+    store.upsert_bot(bot)
+    # The API contract tests inspect admission and persistence; the server's background worker
+    # must not try to contact a model or turn this into a provider integration test.
+    monkeypatch.setattr(client.app.state.engine, "dispatch_pending", lambda: 0)
+    return store, bot
+
+
+def test_persona_preview_budget_is_local_and_submission_is_scoped_idempotent(persona_client, monkeypatch):
+    client = persona_client
+    bot_doc = _make_bot(client, name="style-preview-api")
+    store, _ = _use_local_preview_model(client, bot_doc["id"], monkeypatch)
+
+    before = store._db.execute("SELECT COUNT(*) FROM runs WHERE bot_id = ?", (bot_doc["id"],)).fetchone()[0]
+    quote = client.get(f"/api/v1/bots/{bot_doc['id']}/persona/preview-budget")
+    assert quote.status_code == 200, quote.text
+    assert quote.json()["available"] is True
+    assert quote.json()["budget_kind"] == "local"
+    assert quote.json()["max_model_requests"] == 1 and quote.json()["max_output_tokens"] == 128
+    after = store._db.execute("SELECT COUNT(*) FROM runs WHERE bot_id = ?", (bot_doc["id"],)).fetchone()[0]
+    assert after == before  # viewing the estimate never invokes inference or creates a run
+
+    payload = {"style": {"preset": "dry_wit", "depth": "brief", "humor": "playful"},
+               "expected_revision": 0}
+    first = client.post(f"/api/v1/bots/{bot_doc['id']}/persona/preview-runs", json=payload,
+                        headers={"Idempotency-Key": "preview-run-1"})
+    assert first.status_code == 201, first.text
+    run_id = first.json()["run_id"]
+    run = store.get_run(run_id)
+    assert run.execution_purpose == "persona_preview" and run.tool_access == "none"
+    assert run.persona_preview_style.preset == "dry_wit" and run.persona_preview_revision == 0
+    assert run.conversation_id == "" and run.conversation_context == [] and run.skill_activation == []
+    task = store._db.execute("SELECT kind FROM tasks WHERE id = ?", (run.task_id,)).fetchone()
+    assert task["kind"] == "persona_preview"
+
+    replay = client.post(f"/api/v1/bots/{bot_doc['id']}/persona/preview-runs", json=payload,
+                         headers={"Idempotency-Key": "preview-run-1"})
+    assert replay.status_code == 200 and replay.json()["run_id"] == run_id
+    assert replay.json()["replayed"] is True
+    conflict = client.post(f"/api/v1/bots/{bot_doc['id']}/persona/preview-runs",
+                           json={**payload, "style": {"depth": "detailed"}},
+                           headers={"Idempotency-Key": "preview-run-1"})
+    assert conflict.status_code == 409
+
+    client.patch(f"/api/v1/bots/{bot_doc['id']}/persona",
+                 json={"tone": "warm", "expected_revision": 0},
+                 headers={"Idempotency-Key": "preview-save-after"})
+    stale = client.post(f"/api/v1/bots/{bot_doc['id']}/persona/preview-runs", json=payload,
+                        headers={"Idempotency-Key": "preview-run-stale"})
+    assert stale.status_code == 409 and "revision" in stale.json()["detail"]
+
+
+def test_persona_preview_rechecks_revision_in_the_admission_transaction(persona_client, monkeypatch):
+    client = persona_client
+    bot_doc = _make_bot(client, name="style-preview-race")
+    store, _ = _use_local_preview_model(client, bot_doc["id"], monkeypatch)
+    engine = client.app.state.engine
+    submit = engine.submit_persona_preview_idempotent
+
+    def race_saved_preference(bot, style, revision, **kwargs):
+        store.update_bot_persona(bot.id, {"depth": "brief"}, expected_revision=revision,
+                                 idem_key="preview-race-save", request_hash="preview-race-save")
+        return submit(bot, style, revision, **kwargs)
+
+    monkeypatch.setattr(engine, "submit_persona_preview_idempotent", race_saved_preference)
+    response = client.post(f"/api/v1/bots/{bot_doc['id']}/persona/preview-runs",
+                           json={"style": {"tone": "warm"}, "expected_revision": 0},
+                           headers={"Idempotency-Key": "preview-race-run"})
+    assert response.status_code == 409 and "revision" in response.json()["detail"]
+    count = store._db.execute("SELECT COUNT(*) FROM runs WHERE bot_id = ?", (bot_doc["id"],)).fetchone()[0]
+    assert count == 0
 
 
 def test_conversation_persona_api_and_next_reply_plan(persona_client):

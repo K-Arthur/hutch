@@ -209,13 +209,14 @@ Review follow-ups (status after the profile-compatibility slice):
   under `artifacts/persona-static-examples-2026-10-11/`. Impeccable reported only three unchanged shared-style advisories.
   A low-cost OpenCode review was attempted with `opencode-go/mimo-v2.6-flash`, but stopped while discovering unrelated
   MCP tools before returning code findings; independent review remains outstanding.
-- Remaining acceptance: add explicitly requested live preview on isolated state, and a redacted request/adapter
-  inspector; update marketing claims/screenshots and remaining user-facing docs; verify
+- Remaining acceptance: add a redacted request/adapter inspector; update marketing claims/screenshots and any remaining
+  user-facing docs; verify
   supported-runtime serialized request receipts and image delivery; and run combined offline/browser checks plus
   bounded model evaluation. No separate supported
   Hutch Go connection is configured, so Hutch product-path response quality and model latency are unverified.
-  The device OpenCode CLI did authenticate and run the low-cost MiMo Flash development task; its credential store
-  has not been imported into Hutch. Keep subsequent CLI packets narrow and review every diff.
+  The device OpenCode CLI did authenticate and run the low-cost MiMo Flash development task; a later bounded contract
+  edit did not finish before its cost-limited stop, so implementation continued locally. Its credential store has not
+  been imported into Hutch. Do not repeat that unchanged OpenCode attempt.
 
 - Answer-rewrite API/runtime slice: the versioned conversation endpoint accepts typed Shorter, Go deeper, and Less
   banter requests anchored to a succeeded answer in the same conversation. It snapshots the source request and answer
@@ -248,6 +249,28 @@ Review follow-ups (status after the profile-compatibility slice):
   read the diff but produced no findings before the bounded session was stopped, so independent review remains
   outstanding. This verifies the tested built-in/local workflow; response usefulness and model-quality effects
   remain unverified.
+
+- Explicit live-preview slice: assistant settings now show a local budget quote before the preview button becomes
+  available. The owner may preview the visible unsaved draft with a fixed fictional request; only the built-in runtime
+  accepts it. Hutch records a standalone `persona_preview` run with the candidate style and saved-profile revision,
+  but attaches no conversation, skills, tools or Bot/workspace instructions. Revision is checked again inside atomic
+  run admission. The path uses one non-streaming request, the configured model only, a 1,024-token input estimate and
+  the lower of 128 output tokens or the Bot's configured limit; it does not retry, escalate or fall back. Unknown
+  hosted prices and the ChatGPT plan route without an enforceable response cap are blocked. The API tests cover free
+  local budget lookup, durable idempotent replay, stale-profile rejection and a simulated concurrent-save race.
+  `test_runtime_builtin.py` inspects the fake Ollama request: fixed prompt, no tools, no standing instructions or
+  workspace path, non-streaming, 32-token configured cap, one response; a simulated provider failure stays terminal
+  with no fallback attempt. Focused API/runtime/contract tests passed (**5 passed**). The actual-app Chromium browser
+  test uses a fixture runtime (no live provider) and passed (**1 passed**): changing controls issues no preview POST,
+  the explicit action uses only the draft and revision, saved settings stay unchanged, cancellation ends `stopped`,
+  keyboard focus returns to the preview control, and no page, console, response or network errors were observed.
+  Screenshots/trace at 320, 360, 720×480, 768 and 1440 CSS pixels are in
+  `artifacts/persona-live-preview-2026-10-11/`; I inspected desktop, phone and effective-200%-width captures. All five
+  widths had zero horizontal overflow. The combined persona/runtime suite passed (**136 passed in 61.69s**); the
+  browser test was rerun after adding a duplicate-activation guard that preserves keyboard focus (**1 passed**). The
+  first guard used native disabling and the browser check caught that it dropped focus; the accessible event guard
+  preserves focus and ignores duplicate activation. The live Hutch model result, provider adherence, latency and human
+  scoring remain unverified because no Hutch Go connection is configured. The redacted inspector and marketing update remain.
 
 ## Rollback
 

@@ -728,6 +728,15 @@ class PersonaUpdateRequest(BaseModel):
         return self.model_dump(exclude_unset=True, exclude={"expected_revision"})
 
 
+class PersonaPreviewRequest(BaseModel):
+    """An ephemeral style candidate tied to the saved profile revision it was based on."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    style: PersonaStyle
+    expected_revision: int = Field(ge=0)
+
+
 def _persona_effective(plan: PersonaPlan) -> dict[str, dict[str, Any]]:
     return {field: {"value": getattr(plan, field), "source": plan.sources[field]} for field in PERSONA_FIELDS}
 
@@ -3928,6 +3937,58 @@ def create_app() -> FastAPI:
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
         return _bot_persona_view(updated)
+
+    @app.get("/api/v1/bots/{ref}/persona/preview-budget", response_model=dict)
+    def get_bot_persona_preview_budget(ref: str) -> dict:
+        from ..persona_preview import preview_budget
+
+        return preview_budget(config, store, bot_or_404(ref))
+
+    @app.post("/api/v1/bots/{ref}/persona/preview-runs", response_model=dict)
+    def create_bot_persona_preview(ref: str, body: PersonaPreviewRequest, request: Request,
+                                   response: Response) -> dict:
+        from ..persona_preview import preview_budget
+
+        bot = bot_or_404(ref)
+        key = idempotency_key(request)
+        scope = "api:v1:persona-previews"
+        payload = {"bot_id": bot.id, "style": body.style.model_dump(mode="json"),
+                   "expected_revision": body.expected_revision}
+        digest = request_digest(payload)
+        try:
+            replay = store.replay_submitted_run(key, digest, scope=scope)
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        if replay is not None:
+            response.status_code = 200
+            return {"run_id": replay.id, "status": replay.status.value, "replayed": True,
+                    "profile_revision": replay.persona_preview_revision, "model": replay.model_override}
+
+        if bot.persona_profile_error:
+            raise HTTPException(409, bot.persona_profile_error)
+        if body.expected_revision != bot.persona_revision:
+            raise HTTPException(409, f"response-style settings changed (current revision {bot.persona_revision}); reload them before previewing")
+        quote = preview_budget(config, store, bot)
+        if not quote["available"]:
+            raise HTTPException(422, quote["reason"] or "live response-style preview is unavailable")
+        store.assert_execution_ready()
+        try:
+            run, created = engine.submit_persona_preview_idempotent(
+                bot, body.style, body.expected_revision, idem_key=key, request_hash=digest)
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        except PersonaConflict as exc:
+            raise HTTPException(409, f"response-style settings changed (current revision {exc.current_revision}); reload them before previewing") from None
+        except PermissionError as exc:
+            raise HTTPException(403, str(exc)) from None
+        except KeyError:
+            raise HTTPException(404, f"no such bot: {ref}") from None
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        response.status_code = 201 if created else 200
+        return {"run_id": run.id, "status": run.status.value, "replayed": not created,
+                "profile_revision": run.persona_preview_revision, "model": run.model_override,
+                "budget": quote}
 
     @app.delete("/api/bots/{ref}")
     def delete_bot(ref: str) -> dict:

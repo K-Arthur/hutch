@@ -2046,6 +2046,172 @@ def test_adaptive_persona_controls_round_trip_recover_conflicts_and_stay_local(b
         context.close()
 
 
+def test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive(browser, app_server, monkeypatch):
+    """A static quote is free; only the explicit control starts the isolated one-response preview."""
+    import hutch.engine as engine_module
+    from hutch.runtime import RunAborted
+
+    app_url, app = app_server
+    store = app.state.store
+    bot = store.get_bot("design-system-review")
+    bot.model = "ollama/fake:8b"  # local route gives a $0 quote; no model server is contacted by this fixture
+    store.upsert_bot(bot)
+    out = ROOT / "docs/realignment/artifacts/persona-live-preview-2026-10-11"
+    out.mkdir(parents=True, exist_ok=True)
+    runtime_calls: list[dict[str, object]] = []
+
+    class FixturePreviewRuntime:
+        kind = "fixture-preview"
+
+        def execute(self, run, ctx, tools, stop):
+            from hutch.persona_preview import PREVIEW_PROMPT
+
+            runtime_calls.append({
+                "purpose": run.execution_purpose,
+                "tool_access": run.tool_access,
+                "prompt": run.prompt,
+                "conversation_id": run.conversation_id,
+                "conversation_context_count": len(run.conversation_context),
+                "skills": list(run.skill_activation),
+                "tools": sorted(tools),
+                "profile_revision": run.persona_preview_revision,
+                "style": run.persona_preview_style.model_dump(mode="json"),
+                "plan_revision": run.persona_plan.revisions.get("agent"),
+            })
+            assert run.prompt == PREVIEW_PROMPT
+            for _ in range(40):
+                if stop():
+                    raise RunAborted("stopped", "preview cancelled by the operator")
+                time.sleep(0.025)
+            answer = "Offer a sunny windowsill, a tiny apology, and a plant-sized peace treaty."
+            ctx.emit(Event(run_id=run.id, type=EventType.message,
+                           data={"role": "assistant", "content": answer}))
+            return answer
+
+    monkeypatch.setattr(engine_module, "get_runtime", lambda _bot: FixturePreviewRuntime())
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    page.set_default_timeout(8000)
+    errors: list[str] = []
+    console_errors: list[str] = []
+    external_requests: list[str] = []
+    preview_posts: list[dict[str, object]] = []
+    failed_responses: list[dict[str, object]] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" else None)
+
+    def on_request(request):
+        if request.method == "POST" and "/persona/preview-runs" in request.url:
+            preview_posts.append(json.loads(request.post_data or "{}"))
+
+    page.on("request", on_request)
+    page.on("request", lambda request: external_requests.append(request.url)
+            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+    page.on("response", lambda response: failed_responses.append({"status": response.status, "url": response.url})
+            if response.status >= 400 and urlsplit(response.url).hostname in {"127.0.0.1", "localhost"} else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    trace_saved = False
+    evidence: list[dict[str, object]] = []
+    try:
+        page.goto(f"{app_url}/#/bot/design-system-review", wait_until="domcontentloaded")
+        page.get_by_role("heading", name="Design Partner").wait_for()
+        page.locator("#assistant-more-settings").evaluate("el => { el.open = true; }")
+        form = page.locator("#persona-form-slot .persona-form")
+        preview = form.locator(".persona-live-preview")
+        preview.wait_for()
+        budget = preview.locator("[data-persona-preview-budget]")
+        page.wait_for_function("() => document.querySelector('[data-persona-preview-budget]')?.textContent.includes('local model has no per-token Hutch charge')")
+        assert "one fixed sample" in preview.inner_text()
+        assert "does not send conversation history or standing directions" in preview.inner_text()
+        assert preview.locator("[data-persona-preview-status]").get_attribute("aria-live") == "polite"
+        assert preview.locator("[data-persona-preview-result]").is_hidden()
+        button = preview.locator("[data-persona-preview-run]")
+        assert button.is_enabled() and button.get_attribute("aria-disabled") == "false"
+        assert button.evaluate("el => Math.round(el.getBoundingClientRect().height)") >= 44
+
+        form.locator('[data-persona-field="preset"]').select_option("dry_wit")
+        form.locator('[data-persona-field="depth"]').select_option("brief")
+        form.locator('[data-persona-field="humor"]').select_option("playful")
+        assert button.inner_text() == "Preview this draft"
+        assert preview_posts == [] and runtime_calls == []
+        assert "Unsaved change" in form.locator('[data-persona-origin="preset"]').inner_text()
+        button.focus()
+        page.keyboard.press("Enter")
+        page.wait_for_function("() => document.querySelector('[data-persona-preview-status]')?.textContent.includes('Previewing')")
+        assert button.get_attribute("aria-disabled") == "true"
+        assert page.evaluate("document.activeElement?.matches('[data-persona-preview-run]')") is True
+        page.keyboard.press("Enter")  # aria-disabled repeat activation is ignored without dropping focus
+        page.get_by_text("Offer a sunny windowsill", exact=False).wait_for()
+        page.wait_for_function("() => document.querySelector('[data-persona-preview-status]')?.textContent.includes('Preview complete')")
+        assert page.evaluate("document.activeElement?.matches('[data-persona-preview-run]')") is True
+        assert len(preview_posts) == 1 and len(runtime_calls) == 1
+        assert preview_posts[0] == {"style": {"preset": "dry_wit", "depth": "brief", "humor": "playful"},
+                                   "expected_revision": 0}
+        assert runtime_calls[0]["purpose"] == "persona_preview"
+        assert runtime_calls[0]["tool_access"] == "none" and runtime_calls[0]["tools"] == []
+        assert runtime_calls[0]["conversation_id"] == "" and runtime_calls[0]["conversation_context_count"] == 0
+        assert runtime_calls[0]["skills"] == [] and runtime_calls[0]["profile_revision"] == 0
+        assert runtime_calls[0]["plan_revision"] == 0
+        saved = store.get_bot(bot.id)
+        assert saved.persona_revision == 0 and saved.persona_override is None
+
+        viewports = (("phone", 360, 844), ("tablet", 768, 960), ("desktop", 1440, 960),
+                     ("compact-phone", 320, 800), ("zoom-200-effective", 720, 480))
+        for label, width, height in viewports:
+            page.set_viewport_size({"width": width, "height": height})
+            preview.evaluate("el => el.scrollIntoView({block: 'start'})")
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, "live preview settings", overflow)
+            rect = preview.bounding_box()
+            assert rect and rect["width"] <= width + 1, (label, rect)
+            evidence.append({"viewport": [width, height], "horizontal_overflow_px": overflow,
+                             "preview_bounds": {key: round(value, 2) for key, value in rect.items()}})
+            page.screenshot(path=str(out / f"preview-{label}.png"), animations="disabled")
+
+        button.click()
+        preview.locator("[data-persona-preview-stop]").wait_for(state="visible")
+        preview.locator("[data-persona-preview-stop]").click()
+        page.wait_for_function("() => document.querySelector('[data-persona-preview-status]')?.textContent.includes('Preview stopped')")
+        assert len(preview_posts) == 2
+        latest = store._db.execute("SELECT id, status FROM runs WHERE bot_id = ? ORDER BY created_at DESC LIMIT 1",
+                                   (bot.id,)).fetchone()
+        assert latest and latest["status"] == "stopped"
+        page.set_viewport_size({"width": 1440, "height": 960})
+        preview.evaluate("el => el.scrollIntoView({block: 'start'})")
+        page.screenshot(path=str(out / "preview-stopped-desktop.png"), animations="disabled")
+
+        assert not errors, errors
+        assert not console_errors, console_errors
+        assert not external_requests, external_requests
+        assert not failed_responses, failed_responses
+        context.tracing.stop(path=str(out / "trace.zip"))
+        trace_saved = True
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_design_system.py::test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "browser": f"{browser.browser_type.name.title()} {browser.version}",
+            "viewports": evidence,
+            "preview_post_bodies": preview_posts,
+            "runtime_calls": runtime_calls,
+            "page_errors": errors,
+            "console_errors": console_errors,
+            "external_requests": external_requests,
+            "failed_responses": failed_responses,
+            "controls_changed_before_explicit_preview": True,
+            "revision_after_preview": store.get_bot(bot.id).persona_revision,
+            "cancelled_run_status": latest["status"],
+            "source_sha256": _visual_source_hashes(),
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        if not trace_saved:
+            try:
+                context.tracing.stop(path=str(out / "trace-failed.zip"))
+            except Exception:
+                pass
+        context.close()
+
+
 def test_static_persona_examples_are_labeled_local_and_responsive(browser, app_server):
     """Authored examples explain voice and depth without previewing through a model."""
     app_url, _app = app_server

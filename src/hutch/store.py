@@ -3088,7 +3088,8 @@ class Store:
         self.bus.notify("work", "runs", f"run:{run.id}")
         return run
 
-    def replay_submitted_run(self, idem_key: str, request_hash: str) -> Optional[Run]:
+    def replay_submitted_run(self, idem_key: str, request_hash: str, *,
+                             scope: str = "api:v1:tasks:runs") -> Optional[Run]:
         """Return a previously admitted v1 run, or None when the key is unused.
 
         Call before mutable routing/admission checks so a retry still returns its
@@ -3097,7 +3098,7 @@ class Store:
         first-request race.
         """
         with self._lock:
-            replay = self._idempotency_replay(self._db, "api:v1:tasks:runs", idem_key, request_hash)
+            replay = self._idempotency_replay(self._db, scope, idem_key, request_hash)
             if replay is None:
                 return None
             row = self._db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?",
@@ -3107,11 +3108,11 @@ class Store:
             return self._run(row)
 
     def submit_run_idempotent(self, run: Run, task: Task, *, idem_key: str,
-                              request_hash: str) -> tuple[Run, bool]:
-        """Atomically persist a standalone run, its task, and its v1 retry record."""
+                              request_hash: str, scope: str = "api:v1:tasks:runs",
+                              expected_persona_revision: int | None = None) -> tuple[Run, bool]:
+        """Atomically persist a standalone run, its task, and a scoped retry record."""
         if run.parent_run_id is not None or run.delegation_budget_cost_usd is not None:
             raise ValueError("delegated runs must use submit_delegated_run")
-        scope = "api:v1:tasks:runs"
         run.task_id = task.id
         with self._tx() as db:
             if not self._remote_run_allowed(db, run):
@@ -3123,6 +3124,15 @@ class Store:
                 if row is None:
                     raise RuntimeError("idempotent run response points to missing state")
                 return self._run(row), False
+            if expected_persona_revision is not None:
+                bot_row = db.execute("SELECT doc FROM bots WHERE id = ?", (run.bot_id,)).fetchone()
+                if bot_row is None:
+                    raise KeyError(run.bot_id)
+                bot = Bot.from_store_json(bot_row["doc"])
+                if bot.persona_profile_error:
+                    raise ValueError(bot.persona_profile_error)
+                if bot.persona_revision != expected_persona_revision:
+                    raise PersonaConflict(bot.persona_revision)
             self._assert_execution_ready(db)
             db.execute("INSERT INTO tasks (id, bot_id, kind, prompt, created_at, done, state, run_id) "
                        "VALUES (?, ?, ?, ?, ?, 0, 'queued', ?)",

@@ -68,7 +68,12 @@ grounding needs, sources, recipients, code requirements, requested JSON/file for
 must still include information needed to act safely and correctly. Humor is not newly enabled for a sensitive or
 consequential topic, and an immediate correction or withdrawal of playful consent applies to the current turn. These are
 prompt and routing controls rather than a guarantee that every provider model will follow them; tool policy, approvals and
-output validation remain authoritative. A live preview and human-reviewed model-quality results are not currently available.
+output validation remain authoritative. Live preview is an explicit one-response request on the assistant's configured
+built-in route. Its fixed fictional prompt excludes conversation history, standing directions, workspace and tools; it
+shows a local cost estimate, enforces a 128-token maximum output cap (or the assistant's lower configured cap), and does
+not retry, fall back, or escalate. Hutch blocks it when that cap or a hosted model's price cannot be verified. A preview
+is recorded as a standalone local run and is not saved as a preference. This workflow has been verified with a fixture
+runtime and request-contract tests, but real model quality and provider adherence remain unverified.
 
 Shorter, go-deeper and less-banter rewrites attach to one explicitly selected assistant message. Hutch accepts a target
 only when its source run succeeded and the request and answer are available in the same conversation; pending questions,
@@ -83,8 +88,9 @@ In chat, Shorter, Go deeper and Less banter appear only below a completed answer
 buttons target that answer explicitly and start a new tool-free response; they do not repeat tools or external
 actions. Failed, pending-choice, oversized and non-built-in answers do not offer these controls. Browser checks
 confirm that using a correction preserves the composer draft and selection and keeps the reader's scroll position.
-Changing persona controls alone does not send a request; choosing a correction is an explicit request to the
-configured provider with the bounded source request and answer as untrusted context.
+Changing persona controls alone does not send a request; choosing **Preview this draft** explicitly sends the fixed
+sample and candidate style to the configured model, while choosing a correction explicitly sends the bounded source
+request and answer as untrusted context. Saved feedback sends no request.
 
 Helpful/Needs work feedback is a separate local record for a completed answer. It uses a fixed rating and optional
 fixed reason list, contains no free text, calls no provider, and never changes a saved response style or trains a

@@ -354,17 +354,43 @@
           <button class="btn primary small" type="submit" data-persona-save disabled>Save style</button>
           <span class="hint" data-persona-status role="status" aria-live="polite"></span>
         </div>
+        <section class="persona-live-preview" aria-labelledby="persona-preview-title">
+          <h3 id="persona-preview-title">Live preview</h3>
+          <p class="hint">An explicit preview sends one fixed sample and this draft’s style to the assistant’s configured model. It does not send conversation history or standing directions, and it does not save your changes. Editing these controls alone makes no model request.</p>
+          <p class="persona-preview-prompt"><strong>Fixed sample:</strong> “Give me a funny, low-effort way to make peace with my houseplants after their tiny protest.”</p>
+          <p class="hint persona-preview-budget" data-persona-preview-budget role="status" aria-live="polite">Checking the configured model and limits…</p>
+          <div class="btn-row">
+            <button class="btn ghost small" type="button" data-persona-preview-run disabled>Preview saved style</button>
+            <button class="btn ghost small" type="button" data-persona-preview-stop hidden>Stop preview</button>
+          </div>
+          <p class="hint" data-persona-preview-status role="status" aria-live="polite"></p>
+          <pre class="persona-preview-result" data-persona-preview-result role="region" aria-label="Live preview response" tabindex="0" hidden></pre>
+        </section>
       </form>`;
     const form = q(".persona-form", container);
     const status = q("[data-persona-status]", container);
     const saveBtn = q("[data-persona-save]", container);
     const resetBtn = q("[data-persona-reset]", container);
+    const previewBudgetEl = q("[data-persona-preview-budget]", container);
+    const previewStatus = q("[data-persona-preview-status]", container);
+    const previewResult = q("[data-persona-preview-result]", container);
+    const previewBtn = q("[data-persona-preview-run]", container);
+    const previewStopBtn = q("[data-persona-preview-stop]", container);
     const setStatus = text => { status.textContent = text; };
     let resetAll = false;
+    let previewBudget = null;
+    let activePreviewRun = null;
+    let previewStarting = false;
+    let saving = false;
     const refreshDirty = () => {
       const dirty = resetAll || Object.keys(changesBetween(form, saved)).length > 0;
       saveBtn.disabled = !dirty;
+      previewBtn.textContent = dirty ? "Preview this draft" : "Preview saved style";
       return dirty;
+    };
+    const refreshPreviewAvailability = () => {
+      previewBtn.disabled = !previewBudget?.available || saving;
+      previewBtn.setAttribute("aria-disabled", String(previewStarting || Boolean(activePreviewRun)));
     };
     writeSelects(form, saved);
     writeOrigins(form, state, "Saved for this assistant.");
@@ -385,6 +411,7 @@
       }
       setStatus(refreshDirty() ? "Unsaved changes" : "");
       writeOrigins(form, state, "Saved for this assistant.");
+      refreshPreviewAvailability();
     };
     qa("[data-persona-field], [data-persona-range], [data-persona-habits] input", form)
       .forEach(el => el.addEventListener(el.matches("[data-persona-range]") ? "input" : "change", update));
@@ -394,6 +421,7 @@
       setStatus("All response-style choices will be cleared to inherited.");
       refreshDirty();
       writeOrigins(form, state, "Saved for this assistant.");
+      refreshPreviewAvailability();
     });
     form.addEventListener("submit", async event => {
       event.preventDefault();
@@ -407,6 +435,8 @@
       const restoreFocus = form.contains(focusTarget);
       const focusFallback = focusFallbackSelector(focusTarget);
       saveBtn.disabled = true;
+      saving = true;
+      refreshPreviewAvailability();
       setDisabled(form, true);
       setStatus("Saving…");
       try {
@@ -419,6 +449,7 @@
         writeSelects(form, saved);
         writeOrigins(form, state, "Saved for this assistant.");
         setStatus("Saved.");
+        await loadPreviewBudget();
       } catch (err) {
         if (err.status === 409) {
           try {
@@ -429,6 +460,7 @@
             else restoreDraftChanges(form, draft, changedFields);
             writeOrigins(form, state, "Saved for this assistant.");
             setStatus("This assistant's style changed elsewhere. Your edits are kept — review them and save again.");
+            await loadPreviewBudget();
           } catch (reloadError) {
             setStatus(`This assistant's style changed elsewhere and the latest could not be loaded: ${reloadError.message}`);
           }
@@ -436,8 +468,10 @@
           setStatus(`Not saved: ${err.message}`);
         }
       } finally {
+        saving = false;
         setDisabled(form, false);
         refreshDirty();
+        refreshPreviewAvailability();
         const currentForm = q("#persona-form-slot .persona-form") || q(".persona-form", container);
         let target = focusTarget?.isConnected ? focusTarget : focusFallback && currentForm && q(focusFallback, currentForm);
         if (target?.disabled && target.matches("[data-persona-save]")) target = q("[data-persona-reset]", currentForm);
@@ -445,6 +479,121 @@
           target.focus({ preventScroll: true });
       }
     });
+
+    async function loadPreviewBudget() {
+      const restoreFocus = document.activeElement === previewBtn;
+      previewBudget = null;
+      previewBudgetEl.textContent = "Checking the configured model and limits…";
+      refreshPreviewAvailability();
+      try {
+        previewBudget = await callApi(`/v1/bots/${encodeURIComponent(botName)}/persona/preview-budget`);
+        previewBudgetEl.textContent = previewBudget.available
+          ? `Model: ${previewBudget.model}. ${previewBudget.budget_label} This estimate uses a fixed 1,024-token input ceiling. ${previewBudget.estimate_note}`
+          : `Live preview unavailable: ${previewBudget.reason}`;
+      } catch (err) {
+        previewBudgetEl.textContent = `Could not check the preview budget: ${err.message}`;
+      }
+      refreshPreviewAvailability();
+      if (restoreFocus && !previewBtn.disabled && document.activeElement === document.body)
+        previewBtn.focus({ preventScroll: true });
+    }
+
+    async function pollPreview(runId, after = 0) {
+      let cursor = after;
+      while (activePreviewRun === runId) {
+        try {
+          const snapshot = await callApi(`/v1/tasks/runs/${encodeURIComponent(runId)}/events?after=${cursor}&limit=100`);
+          for (const event of snapshot.events || []) {
+            cursor = Math.max(cursor, Number(event.seq || 0));
+            if (event.type === "message" && event.data?.role === "assistant") {
+              previewResult.textContent = String(event.data.content || "");
+              previewResult.hidden = false;
+            }
+          }
+          const terminal = ["succeeded", "failed", "stopped", "cancelled"].includes(snapshot.status);
+          if (terminal) {
+            activePreviewRun = null;
+            previewStopBtn.hidden = true;
+            previewStatus.textContent = snapshot.status === "succeeded"
+              ? "Preview complete. Your saved response style was not changed."
+              : `Preview ${snapshot.status}. No retry or fallback was sent.`;
+            refreshPreviewAvailability();
+            await loadPreviewBudget();
+            return;
+          }
+        } catch (err) {
+          activePreviewRun = null;
+          previewStopBtn.hidden = true;
+          previewStatus.textContent = `Could not read the preview result: ${err.message}`;
+          refreshPreviewAvailability();
+          return;
+        }
+        await new Promise(resolve => setTimeout(resolve, 700));
+      }
+    }
+
+    previewBtn.addEventListener("click", async () => {
+      // Keep focus on the action while it runs, but ignore repeat activation until it settles.
+      if (!previewBudget?.available || previewStarting || activePreviewRun) return;
+      const sourceRevision = state.revision;
+      // Build the candidate from the visible form controls. Starting from an empty style
+      // normalizes legacy tone/banter fields and omits irrelevant null values from the request.
+      const draftStyle = readScope(form, {});
+      previewResult.textContent = "";
+      previewResult.hidden = true;
+      previewStatus.textContent = "Starting an isolated preview…";
+      previewStarting = true;
+      refreshPreviewAvailability();
+      try {
+        const started = await callApi(`/v1/bots/${encodeURIComponent(botName)}/persona/preview-runs`, {
+          method: "POST", headers: { "Idempotency-Key": newKey() },
+          body: { style: draftStyle, expected_revision: sourceRevision },
+        });
+        previewStarting = false;
+        activePreviewRun = started.run_id;
+        previewStopBtn.hidden = false;
+        previewStatus.textContent = "Previewing the captured style draft. You can keep editing while it runs.";
+        refreshPreviewAvailability();
+        await pollPreview(activePreviewRun);
+      } catch (err) {
+        previewStarting = false;
+        if (err.status === 409) {
+          const draft = captureControls(form);
+          try {
+            state = await callApi(path);
+            saved = state.override || {};
+            writeSelects(form, saved);
+            restoreControls(form, draft);
+            writeOrigins(form, state, "Saved for this assistant.");
+            setStatus("This assistant's style changed elsewhere. Your draft is kept against the latest revision.");
+            await loadPreviewBudget();
+          } catch (reloadError) {
+            previewStatus.textContent = `The saved style changed and could not be reloaded: ${reloadError.message}`;
+          }
+          previewStatus.textContent = "The saved style changed elsewhere. Your draft is still here; review it and preview again.";
+        } else {
+          previewStatus.textContent = `Preview could not start: ${err.message}`;
+        }
+        refreshPreviewAvailability();
+      }
+    });
+
+    previewStopBtn.addEventListener("click", async () => {
+      if (!activePreviewRun) return;
+      previewStopBtn.disabled = true;
+      previewStatus.textContent = "Stopping preview…";
+      try {
+        await callApi(`/v1/tasks/runs/${encodeURIComponent(activePreviewRun)}/stop`, {
+          method: "POST", headers: { "Idempotency-Key": newKey() },
+        });
+      } catch (err) {
+        previewStatus.textContent = `Stop request failed: ${err.message}`;
+      } finally {
+        previewStopBtn.disabled = false;
+      }
+    });
+
+    loadPreviewBudget();
   }
 
   // ------------------------------------------------------------------ chat options: this chat + the next reply
