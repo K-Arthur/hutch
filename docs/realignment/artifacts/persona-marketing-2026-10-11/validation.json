@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-10-11T16:04:02.152937+00:00",
+  "captured_at": "2026-10-11T17:50:36.063724+00:00",
   "test": "tests/e2e/test_website.py::test_adaptive_response_style_marketing_is_labeled_and_fits",
   "browser": "chromium",
   "browser_version": "153.0.8010.12",
@@ -9,51 +9,51 @@
   "requests": [
     [
       "GET",
-      "http://127.0.0.1:40521/"
+      "http://127.0.0.1:51599/"
     ],
     [
       "GET",
-      "http://127.0.0.1:40521/assets/fonts/archivo-latin-var.woff2?v=e3a28ead"
+      "http://127.0.0.1:51599/assets/fonts/archivo-latin-var.woff2?v=e3a28ead"
     ],
     [
       "GET",
-      "http://127.0.0.1:40521/tokens.css?v=5b585bb3"
+      "http://127.0.0.1:51599/tokens.css?v=5b585bb3"
     ],
     [
       "GET",
-      "http://127.0.0.1:40521/app.css?v=8f05fcde"
+      "http://127.0.0.1:51599/app.css?v=8f05fcde"
     ],
     [
       "GET",
-      "http://127.0.0.1:40521/styles.css?v=a4a5286a"
+      "http://127.0.0.1:51599/styles.css?v=a4a5286a"
     ],
     [
       "GET",
-      "http://127.0.0.1:40521/assets/hutch-agent.webp?v=da73ea5e"
+      "http://127.0.0.1:51599/assets/hutch-agent.webp?v=da73ea5e"
     ],
     [
       "GET",
-      "http://127.0.0.1:40521/site.js?v=5905a0e4"
+      "http://127.0.0.1:51599/site.js?v=5905a0e4"
     ],
     [
       "GET",
-      "http://127.0.0.1:40521/assets/fonts/archivo-latin-var.woff2"
+      "http://127.0.0.1:51599/assets/fonts/archivo-latin-var.woff2"
     ],
     [
       "GET",
-      "http://127.0.0.1:40521/assets/captures/setup-desktop.webp?v=7045bf93"
+      "http://127.0.0.1:51599/assets/captures/setup-desktop.webp?v=7045bf93"
     ],
     [
       "GET",
-      "http://127.0.0.1:40521/assets/captures/response-style-desktop.webp?v=95964c33"
+      "http://127.0.0.1:51599/assets/captures/response-style-desktop.webp?v=95964c33"
     ],
     [
       "GET",
-      "http://127.0.0.1:40521/assets/captures/setup-phone.webp?v=d67ddca8"
+      "http://127.0.0.1:51599/assets/captures/setup-phone.webp?v=d67ddca8"
     ],
     [
       "GET",
-      "http://127.0.0.1:40521/assets/captures/response-style-phone.webp?v=3e9fabbc"
+      "http://127.0.0.1:51599/assets/captures/response-style-phone.webp?v=3e9fabbc"
     ]
   ],
   "errors": [],
@@ -100,8 +100,8 @@
     }
   ],
   "source_sha256": {
-    "website/index.html": "a984dd782bb9e8b961765bfeaff0e33638e94a546ac64de219db587673377429",
-    "website/styles.css": "a4a5286aa86f17671b88214ede01d8080be304c844e3d3f977c844790f5f60ac",
+    "website/index.html": "f9815d2a92501178c668deea226f92fffb82bad5605c09a7630f602ecb30e7ff",
+    "website/styles.css": "b1862178cbeb74cc7e6b4a255d753b85acfe580b5437216e95e655c7522fcdce",
     "website/app.css": "8f05fcde86a9fdddbb01002a3c4d4a947e497e249933d7fc4102eb3cdfe8da68",
     "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
     "website/assets/captures/response-style-desktop.webp": "95964c335767c92286cc22d35ad7704430220e5ed30a05828a468056b2bc02cd",

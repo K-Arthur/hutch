@@ -168,3 +168,7 @@ was enabled for capture. Evidence, source hashes and the detector result are und
 The one Impeccable detector pass found two advisory radius values (17px and 26px) in existing shared hero/use-case
 styles; it found no primary issue in the new response-style rules. The app/site-token contrast checks still use the
 declared color pairs. Native browser zoom, physical devices and screen-reader behavior remain untested.
+
+## Marketing boundary-note polish
+
+The Impeccable stop-hook's side-tab finding was a real issue in the response-style boundary note: a bright brand-colored left border made the paragraph read like a generic callout. I removed the border and its inset, then added a short “Style limits” text label to keep the safety boundary easy to scan. The focused Chromium marketing regression passed (**1 passed**) and regenerated inspected captures at 1440, 768, 720×480 effective-width, 360 and 320 CSS pixels; all report zero horizontal overflow. The captured page made only same-origin GET requests and no inference request. No finding was suppressed.
