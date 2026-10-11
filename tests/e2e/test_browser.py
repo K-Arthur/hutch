@@ -603,6 +603,137 @@ def test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports(bro
         context.close()
 
 
+def test_workflow_question_draft_survives_tcp_disconnect_and_reconnect(browser, live):
+    from hutch.workflow import persistence as workflow_store
+
+    base, app = live
+    store = app.state.store
+    bot = Bot(name="workflow-reconnect", display_name="Workflow reconnect fixture", model="mock/demo", tools=[])
+    store.upsert_bot(bot)
+    conversation, _ = store.create_conversation(
+        bot.id, "Reconnect review", idem_key="workflow-reconnect-conversation",
+        request_hash="workflow-reconnect-conversation")
+    workflow_title = "review-findings-after-a-connection-drop"
+    plan = {
+        "name": workflow_title,
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 6, "max_model_calls": 0},
+        "nodes": [{"kind": "ask", "id": "review", "title": "Review findings",
+                   "question": "Which findings should be included?", "options": ["All", "Only verified"],
+                   "timeout_seconds": 600},
+                  {"kind": "transform", "id": "carry_answer", "op": "constant",
+                   "args": {"value": {"ref": "review.answer"}}}],
+    }
+    artifacts = Path(__file__).resolve().parents[2] / (
+        "docs/realignment/artifacts/workflow-studio/workflow-reconnect-2026-10-11")
+    artifacts.mkdir(parents=True, exist_ok=True)
+    saved = page = context = proxy = None
+    errors = []
+    try:
+        saved = browser.new_page(viewport={"width": 1440, "height": 960})
+        created = saved.request.post(f"{base}/api/v1/workflows", data={"name": workflow_title, "plan": plan},
+                                     headers={"Idempotency-Key": "workflow-reconnect-save"})
+        assert created.status == 201, created.text()
+        definition = created.json()
+        launched = saved.request.post(
+            f"{base}/api/v1/workflows/{definition['id']}/runs",
+            data={"bot": bot.name, "conversation_id": conversation["id"], "inputs": {}},
+            headers={"Idempotency-Key": "workflow-reconnect-run"})
+        assert launched.status == 201, launched.text()
+        workflow_id = launched.json()["workflow_run_id"]
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
+            pending = workflow_store.questions(store, workflow_id, status="pending")
+            if pending:
+                break
+            time.sleep(0.05)
+        assert pending
+        question_id = pending[0]["id"]
+
+        proxy = CuttableProxy(urlsplit(base).port)
+        proxied_base = f"http://127.0.0.1:{proxy.port}"
+        context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+        page = context.new_page()
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        context.tracing.start(screenshots=True, snapshots=True, sources=False)
+        page.goto(f"{proxied_base}/#/chat/{bot.name}")
+        panel = page.locator("#workflow-panel")
+        panel.wait_for(state="visible")
+        panel.get_by_text("Waiting · saved workflow", exact=True).wait_for()
+        question_form = panel.locator(f'[data-workflow-question-form][data-question-id="{question_id}"]')
+        question_form.wait_for(state="visible")
+        answer = question_form.locator("textarea[name=answer]")
+        draft = "Keep this answer draft through reconnect."
+        answer.fill(draft)
+        answer.focus()
+        assert answer.evaluate("element => document.activeElement === element")
+        answer.scroll_into_view_if_needed()
+
+        proxy.cut()
+        page.evaluate("() => refreshWorkflowPanel(currentStudioBot, currentConversationId, studioGeneration, true)")
+        panel.locator(".workflow-panel-error").wait_for(state="visible")
+        assert question_form.count() == 1, "failed refresh must retain the pending question card"
+        assert answer.input_value() == draft, "failed refresh must retain the answer draft"
+        assert answer.evaluate("element => document.activeElement === element"), "failed refresh must retain focus"
+        answer.scroll_into_view_if_needed()
+        page.screenshot(path=str(artifacts / "offline-question-draft.png"), full_page=True, animations="disabled")
+
+        proxy.restore()
+        page.evaluate("() => refreshWorkflowPanel(currentStudioBot, currentConversationId, studioGeneration, true)")
+        panel.locator(".workflow-panel-error").wait_for(state="detached")
+        answer = panel.locator(f'[data-workflow-question-form][data-question-id="{question_id}"] textarea[name=answer]')
+        assert answer.input_value() == draft, "successful reconnect refresh must retain the answer draft"
+        assert answer.evaluate("element => document.activeElement === element"), "successful refresh must restore answer focus"
+        answer.scroll_into_view_if_needed()
+        page.screenshot(path=str(artifacts / "reconnected-question-draft.png"), full_page=True, animations="disabled")
+
+        answer.press("Tab")
+        send_answer = panel.get_by_role("button", name="Send answer")
+        assert send_answer.evaluate("element => document.activeElement === element")
+        page.keyboard.press("Enter")
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
+            latest = workflow_store.workflow_run(store, workflow_id)
+            if latest and latest["status"] == "succeeded":
+                break
+            time.sleep(0.05)
+        assert latest and latest["status"] == "succeeded"
+        assert workflow_store.questions(store, workflow_id, status="answered")[0]["id"] == question_id
+        assert not errors, errors
+        context.tracing.stop(path=str(artifacts / "trace.zip"))
+        screenshots = ["offline-question-draft.png", "reconnected-question-draft.png", "trace.zip"]
+        sources = ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                   "src/hutch/server/workflows_api.py", "tests/e2e/test_browser.py")
+        (artifacts / "results.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_workflow_question_draft_survives_tcp_disconnect_and_reconnect",
+            "browser": browser.version, "playwright_version": package_version("playwright"),
+            "viewport": [1440, 960], "tcp_connections_cut": True, "question_id": question_id,
+            "temp_dir_override": os.environ.get("TMPDIR"),
+            "answer_draft_preserved_offline_and_after_reconnect": True,
+            "focus_preserved_offline_and_after_reconnect": True, "question_answered_by_keyboard": True,
+            "workflow_status_after_answer": latest["status"], "provider_calls": 0,
+            "page_errors": errors,
+            "fixture_boundary": "Real SQLite workflow, supervisor, browser and local TCP proxy; saved ask node only, no model/provider calls.",
+            "source_sha256": {name: hashlib.sha256((Path(__file__).resolve().parents[2] / name).read_bytes()).hexdigest()
+                              for name in sources},
+            "visual_artifact_sha256": {name: hashlib.sha256((artifacts / name).read_bytes()).hexdigest()
+                                       for name in screenshots},
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+        }, indent=2) + "\n")
+    finally:
+        if proxy:
+            proxy.close()
+        if context:
+            if context.tracing is not None:
+                try:
+                    context.tracing.stop()
+                except Exception:
+                    pass
+            context.close()
+        if saved:
+            saved.close()
+
+
 def test_workflow_studio_pause_after_active_work_at_all_viewports(browser, live, monkeypatch):
     """A pause request holds the next step while the current owner operation settles."""
     from hutch.workflow.engine import Interpreter

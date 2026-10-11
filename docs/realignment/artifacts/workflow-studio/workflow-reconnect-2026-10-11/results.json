@@ -1,0 +1,31 @@
+{
+  "test": "tests/e2e/test_browser.py::test_workflow_question_draft_survives_tcp_disconnect_and_reconnect",
+  "browser": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "viewport": [
+    1440,
+    960
+  ],
+  "tcp_connections_cut": true,
+  "question_id": "wq_9879bd5cfeb5",
+  "temp_dir_override": "/home/kevina/.codex/worktrees/dynamic-workflows-completion/hutch/.tmp-workflow-reconnect",
+  "answer_draft_preserved_offline_and_after_reconnect": true,
+  "focus_preserved_offline_and_after_reconnect": true,
+  "question_answered_by_keyboard": true,
+  "workflow_status_after_answer": "succeeded",
+  "provider_calls": 0,
+  "page_errors": [],
+  "fixture_boundary": "Real SQLite workflow, supervisor, browser and local TCP proxy; saved ask node only, no model/provider calls.",
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "a93bc8420f568d107c70e257f28a4b5be545fd40f3aabf4cdec1da0402646abf",
+    "src/hutch/server/static/style.css": "174c6bb1c87df9c5d632eaea33c3f1c74dd3dba19c596150d456be9c3a48acd3",
+    "src/hutch/server/workflows_api.py": "9c8b49e976e11900d13614913220c2ee38b2ccf7fbdbbd2b2d4a6f033049718a",
+    "tests/e2e/test_browser.py": "780ee6e5b1bb99c40b8790c262de493681139de7fff4e3c544cfe3b78b03b716"
+  },
+  "visual_artifact_sha256": {
+    "offline-question-draft.png": "3df70fbe244344e3eaafa38fb1381add4b1eaa0403680f092a4465d86846bea0",
+    "reconnected-question-draft.png": "c972a6fd2e3e074aa18aecf5e02b586f97ada742648d7537cc873f7e3a8b5549",
+    "trace.zip": "21a90362442f09a22e090f2363a28ecab69365e3db877f4e4ab28af80919ddfd"
+  },
+  "captured_at": "2026-10-11T21:51:55.685114+00:00"
+}

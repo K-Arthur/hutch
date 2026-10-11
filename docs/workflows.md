@@ -116,6 +116,10 @@ Resume wakes the supervisor; it starts a fresh attempt from durable state rather
 the old process. Stop remains available throughout and clears pause intent as it cancels owned work.
 Live card refreshes keep keyboard focus on the available pause/resume action, and the Studio header
 stacks its title and controls at tablet widths so long workflow names remain readable.
+When a real connection drop interrupts a refresh, Studio keeps the pending question, answer draft,
+and focus visible with a retryable status. A successful refresh restores the draft and focus by
+durable question ID; the owner can then submit by keyboard. The TCP-cut/reconnect browser capture
+is recorded in [workflow reconnect evidence](realignment/artifacts/workflow-studio/workflow-reconnect-2026-10-11/results.json).
 
 The local-owner API uses `POST /api/v1/workflows/runs/{id}/pause` and
 `POST /api/v1/workflows/runs/{id}/resume`. Both require an `Idempotency-Key`,

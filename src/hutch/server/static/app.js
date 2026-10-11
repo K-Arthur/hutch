@@ -417,9 +417,17 @@ async function refreshWorkflowPanel(botName, conversationId, generation, force =
       return;
     }
     const oldDetails = new Map($$("details[data-workflow-disclosure]", panel).map(item => [item.dataset.workflowDisclosure, item.open]));
+    const oldAnswerDrafts = new Map($$("[data-workflow-question-form]", panel).map(form => [
+      form.dataset.questionId,
+      $("textarea[name=answer]", form)?.value || "",
+    ]));
+    const focusedQuestion = panel.contains(document.activeElement)
+      ? document.activeElement.closest("[data-workflow-question-form]")?.dataset.questionId || ""
+      : "";
     const oldFocus = panel.contains(document.activeElement) ? {
       action: document.activeElement.dataset.workflowAction || "",
       id: document.activeElement.dataset.workflowId || document.activeElement.dataset.questionId || "",
+      questionId: focusedQuestion,
       disclosure: document.activeElement.closest("details[data-workflow-disclosure]")?.dataset.workflowDisclosure || "",
       summary: document.activeElement.tagName === "SUMMARY",
     } : null;
@@ -479,6 +487,12 @@ async function refreshWorkflowPanel(botName, conversationId, generation, force =
     if (panel.innerHTML !== markup) {
       panel.innerHTML = markup;
       panel.hidden = false;
+      panel.querySelectorAll("[data-workflow-question-form]").forEach(form => {
+        const answer = $("textarea[name=answer]", form);
+        if (answer && oldAnswerDrafts.has(form.dataset.questionId)) {
+          answer.value = oldAnswerDrafts.get(form.dataset.questionId);
+        }
+      });
       panel.querySelectorAll("[data-workflow-action]").forEach(button => button.addEventListener("click", () => {
         if (button.dataset.workflowAction === "refresh") {
           void refreshWorkflowPanel(botName, conversationId, generation, true);
@@ -500,7 +514,10 @@ async function refreshWorkflowPanel(botName, conversationId, generation, force =
       if (oldFocus) {
         const actionOrder = oldFocus.action === "pause" ? ["resume", "pause", "refresh"]
           : oldFocus.action === "resume" ? ["pause", "resume", "refresh"] : [oldFocus.action];
-        const target = oldFocus.summary && oldFocus.disclosure
+        const target = oldFocus.questionId
+          ? [...panel.querySelectorAll("[data-workflow-question-form]")]
+            .find(form => form.dataset.questionId === oldFocus.questionId)?.querySelector("textarea[name=answer]")
+          : oldFocus.summary && oldFocus.disclosure
           ? panel.querySelector(`details[data-workflow-disclosure="${CSS.escape(oldFocus.disclosure)}"] > summary`)
           : actionOrder.map(action => $$('[data-workflow-action]', panel).find(element =>
             element.dataset.workflowAction === action &&
@@ -512,9 +529,23 @@ async function refreshWorkflowPanel(botName, conversationId, generation, force =
   } catch (error) {
     if (token !== workflowPanelLoadToken || generation !== studioGeneration || conversationId !== currentConversationId) return;
     panel.hidden = false;
-    panel.innerHTML = `<p class="workflow-panel-error" role="status">Workflow activity could not be refreshed: ${esc(error.message)} <button class="btn ghost small" type="button" data-workflow-action="refresh">Try again</button></p>`;
-    panel.querySelector("[data-workflow-action=refresh]")?.addEventListener("click", () =>
-      void refreshWorkflowPanel(botName, conversationId, generation, true));
+    const statusMessage = "Workflow activity could not be refreshed. Existing details are kept; use Refresh to retry.";
+    if (panel.querySelector(".workflow-panel-head")) {
+      let errorNotice = panel.querySelector("[data-workflow-refresh-error]");
+      if (!errorNotice) {
+        errorNotice = document.createElement("p");
+        errorNotice.className = "workflow-panel-error";
+        errorNotice.dataset.workflowRefreshError = "true";
+        errorNotice.setAttribute("role", "status");
+        errorNotice.setAttribute("aria-live", "polite");
+        panel.querySelector(".workflow-panel-head").after(errorNotice);
+      }
+      errorNotice.textContent = statusMessage;
+    } else {
+      panel.innerHTML = `<p class="workflow-panel-error" role="status">${esc(statusMessage)} <button class="btn ghost small" type="button" data-workflow-action="refresh">Try again</button></p>`;
+      panel.querySelector("[data-workflow-action=refresh]")?.addEventListener("click", () =>
+        void refreshWorkflowPanel(botName, conversationId, generation, true));
+    }
   }
 }
 
