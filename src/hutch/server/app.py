@@ -53,7 +53,7 @@ from ..engine import Engine, bot_prompt_for_schedule
 from ..lifecycle import LABELS
 from ..models import (
     ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, BotCreationSource, CatchUpPolicy, CommandRule, Event, EventType,
-    InferenceMode, Limits, MemoryItem, OverlapPolicy, RiskTier, Run, RunStatus, RuntimeKind, Schedule, Task,
+    Escalation, InferenceMode, Limits, MemoryItem, OverlapPolicy, RiskTier, Run, RunStatus, RuntimeKind, Schedule, Task,
     TriggerKind, bot_slug_display_name, iso, utcnow,
 )
 from ..store import (ActiveRunConflict, AuthChallengeLimitExceeded, BotConflict, IdempotencyConflict,
@@ -382,6 +382,9 @@ class BotPatch(BaseModel):
     clear_cron: bool = False
     timezone: Optional[str] = None
     schedule_prompt: Optional[str] = Field(default=None, max_length=4000)
+    fallbacks: Optional[list[str]] = Field(default=None, max_length=8)
+    escalation: Optional[Escalation] = None
+    compaction: Optional[Literal["auto", "off"]] = None
 
     @field_validator("roster_section")
     @classmethod
@@ -3663,6 +3666,25 @@ def create_app() -> FastAPI:
         if body.risk_tier is not None: bot.risk_tier = body.risk_tier
         if body.local_browser_handoff is not None: bot.local_browser_handoff = body.local_browser_handoff
         if body.limits is not None: bot.limits = body.limits
+        if body.fallbacks is not None:
+            cleaned = [str(spec).strip()[:160] for spec in body.fallbacks]
+            from ..providers.registry import validate_spec
+            for spec in cleaned:
+                try:
+                    validate_spec(spec)
+                except ValueError as exc:
+                    raise HTTPException(422, f"invalid fallback model '{spec}': {exc}") from None
+            bot.fallbacks = cleaned
+        if body.escalation is not None:
+            from ..providers.registry import validate_spec
+            for spec in body.escalation.to:
+                try:
+                    validate_spec(spec)
+                except ValueError as exc:
+                    raise HTTPException(422, f"invalid escalation model '{spec}': {exc}") from None
+            bot.escalation = body.escalation
+        if body.compaction is not None:
+            bot.compaction = body.compaction
         if body.tool_limits is not None: bot.tool_limits = _checked_tool_limits(body.tool_limits)
         if body.tool_protocol is not None: bot.tool_protocol = body.tool_protocol
         if body.command_rules is not None: bot.command_rules = _checked_rules(body.command_rules)

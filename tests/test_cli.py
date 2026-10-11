@@ -156,6 +156,29 @@ def test_bot_limit_flags_create_and_update_estimate_controls(state_env):
     assert invalid.exit_code != 0
 
 
+def test_bot_routing_and_compaction_flags_round_trip(state_env):
+    assert runner.invoke(app, ["init"]).exit_code == 0
+    created = runner.invoke(app, ["bot", "create", "router", "--model", "mock/demo"])
+    assert created.exit_code == 0, created.output
+    updated = runner.invoke(app, ["bot", "update", "router",
+                                  "--fallback", "ollama/fake:8b",
+                                  "--fallback", "anthropic/claude-haiku-4-5",
+                                  "--escalate-to", "anthropic/claude-opus-5-5",
+                                  "--compaction", "off"])
+    assert updated.exit_code == 0, updated.output
+    shown = runner.invoke(app, ["bot", "show", "router"])
+    assert '"ollama/fake:8b"' in shown.output and '"anthropic/claude-haiku-4-5"' in shown.output
+    assert '"to"' in shown.output and '"anthropic/claude-opus-5-5"' in shown.output
+    assert '"compaction": "off"' in shown.output
+    cleared = runner.invoke(app, ["bot", "update", "router", "--clear-fallbacks", "--clear-escalation"])
+    assert cleared.exit_code == 0, cleared.output
+    cleared_shown = runner.invoke(app, ["bot", "show", "router"])
+    assert '"ollama/fake:8b"' not in cleared_shown.output
+    assert '"anthropic/claude-opus-5-5"' not in cleared_shown.output
+    invalid = runner.invoke(app, ["bot", "update", "router", "--fallback", "not a spec"])
+    assert invalid.exit_code != 0
+
+
 def test_schedule_task_prompt_create_update_and_clear(state_env):
     assert runner.invoke(app, ["init"]).exit_code == 0
     created = runner.invoke(app, ["bot", "create", "weekly", "--model", "mock/demo",

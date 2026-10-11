@@ -493,6 +493,10 @@ class BuiltinRuntime:
                  est_prompt: int) -> Optional[Session]:
         """A model call failed: escalate on a quality failure, fall back on an availability failure."""
         bot = ctx.bot
+        if exc.kind == "refused":
+            # A provider safety refusal is an answer, not an availability failure: Hutch never routes
+            # around a refusal to obtain compliance, and never silently swaps model or account for it.
+            return None
         if exc.kind == "context":
             esc = ladder.next_escalation()
             if esc and bot.escalation and bot.escalation.on_context_overflow:
@@ -1028,6 +1032,17 @@ class BuiltinRuntime:
                         cost_source=cost_source, reported_cost_usd=reported,
                         prefix=prefix_hash, window=session.num_ctx or 0,
                         finish=result.finish_reason, streamed=result.streamed, **extra)
+            served = result.model or ""
+            if served and served != session.rung.model:
+                self._log(ctx, run, "provider", f"{session.rung.spec} reported serving '{served}'",
+                          requested=session.rung.spec, served=served)
+            if result.refusal_category and not result.tool_calls:
+                self._log(ctx, run, "refusal",
+                          f"{session.rung.spec} declined this request ({result.refusal_category}); "
+                          "no fallback model was tried", category=result.refusal_category)
+                final = result.content or ""
+                ctx.emit(Event(run_id=run.id, type=EventType.message, data={"role": "assistant", "content": final}))
+                return final
             # ---- envelope modes (constrained/prompt): the reply is a contract action, never free text
             if envelope_mode:
                 if result.tool_calls:
