@@ -825,7 +825,7 @@ def bot_estimate(name: str = typer.Argument(...), model: Optional[str] = typer.O
     from .estimate import estimate_run
     store = _store()
     bot = _require_bot(store, name)
-    e = estimate_run(get_config(), store, bot, prompt, model)
+    e = estimate_run(get_config(), store, bot, prompt, model, fetch_quotes=True)
     console.print(f"[bold]{e.spec}[/bold]: ~{e.prompt_tokens:,} prompt tokens, up to {e.steps} steps of {e.turn_tokens:,} tokens each")
     console.print(e.summary)
     if e.kind == "priced" and e.daily_token_cap:

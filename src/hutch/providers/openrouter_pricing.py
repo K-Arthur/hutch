@@ -248,6 +248,11 @@ class OpenRouterPricing:
                 self._inflight.pop(key, None)
             event.set()
 
+    def cached(self, model: str) -> Optional[ModelQuote]:
+        """The last quote already in memory, fresh or stale; never fetches. For listing/pricing displays."""
+        with self._lock:
+            return self._cache.get(model.strip())
+
     def quote(self, model: str, *, allow_stale: bool = True) -> Optional[ModelQuote]:
         """A cached fresh quote, else a refresh; a stale entry is labeled when allowed."""
         key = model.strip()

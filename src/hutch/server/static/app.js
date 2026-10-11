@@ -6470,7 +6470,7 @@ async function renderRunDetail(runId) {
           return `<p class="run-cost-provenance hint">Charges this task: ${provider} provider-reported · ${estimated} estimated${unknown ? ` · ${unknown} with an unknown price` : ""}.</p>`;
         })()}
         ${(r.compactions || []).length ? `<div class="panel compaction-list"><div class="panel-title">Context summaries</div>
-          ${r.compactions.map(c => `<div class="meta-row"><span>#${c.seq} · ${esc(c.status)} · ${fmtTokens(c.before_tokens)} → ${fmtTokens(c.after_tokens)} tokens · ${c.attempts} attempt(s)</span><span class="hint">${esc(String(c.created_at || "").slice(0, 19))}</span></div>`).join("")}
+          ${r.compactions.map(c => `<div class="meta-row"><span>#${c.seq} · ${esc(c.status)} · ${fmtTokens(c.before_tokens)} to ${fmtTokens(c.after_tokens)} tokens · ${c.attempts} attempt(s)</span><span class="hint">${esc(String(c.created_at || "").slice(0, 19))}</span></div>`).join("")}
           <p class="hint">The original messages are unchanged; summaries are bounded, recorded, and use routes already approved for this task.</p></div>` : ""}
         <section class="run-integrity panel" aria-label="Transcript integrity" data-run-integrity-run="${esc(runId)}">
           <div class="run-integrity-copy"><strong>Transcript integrity</strong>

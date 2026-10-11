@@ -38,7 +38,7 @@ def _version_rows(data: bytes, filename: str = "report.pdf", version: int = 1,
 
 
 def test_schema_v50_tables_exist(store: Store):
-    assert SCHEMA_VERSION == 50
+    assert SCHEMA_VERSION >= 50  # the document pipeline's baseline; later migrations only add to it
     names = {row["name"] for row in store._db.execute(
         "SELECT name FROM sqlite_master WHERE type='table'")}
     assert {"documents", "document_versions"} <= names

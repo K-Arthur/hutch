@@ -110,13 +110,17 @@ class Ladder:
 
 
 def resolve_quote(rung: Rung, prices: PriceBook, connections, est_prompt_tokens: int,
-                  max_turn_tokens: int) -> CallQuote:
+                  max_turn_tokens: int, *, fetch: bool = True) -> CallQuote:
     """The price basis admission holds, from the best available source.
 
     Resolution order: local -> flat subscription -> fresh live OpenRouter quote -> stale live quote
     (labeled) -> the reviewed price file (labeled with its verified-on date) -> "no basis". ``usd=None``
     means no basis exists; it is never treated as free, and the applicable budget policy decides whether
     that refuses admission or is recorded as unknown.
+
+    ``fetch=False`` restricts the live source to a quote already cached in this process: listing and
+    other background displays must never make a network request, while admission and an explicitly
+    opened preflight review may refresh it.
     """
     if rung.local:
         return CallQuote(usd=0.0, source="local")
@@ -127,7 +131,7 @@ def resolve_quote(rung: Rung, prices: PriceBook, connections, est_prompt_tokens:
         from ..providers import openrouter_pricing
         service = openrouter_pricing.live_pricing(
             getattr(conn, "base_url", "") or openrouter_pricing.DEFAULT_BASE_URL)
-        live_quote = service.quote(rung.model)
+        live_quote = service.quote(rung.model) if fetch else service.cached(rung.model)
         if live_quote is not None:
             live = live_quote.worst_case(
                 est_prompt_tokens, max_turn_tokens,

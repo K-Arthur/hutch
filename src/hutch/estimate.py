@@ -105,7 +105,8 @@ class RunEstimator:
         self.book = book
         self.prices.flat_providers = book.flat_providers()
 
-    def for_model(self, spec: Optional[str] = None, conversation_id: str = "") -> RunEstimate:
+    def for_model(self, spec: Optional[str] = None, conversation_id: str = "",
+                  fetch_quotes: bool = False) -> RunEstimate:
         spec = spec or self.bot.model
         provider, model = parse_spec(spec)
         lim = self.bot.limits
@@ -113,7 +114,7 @@ class RunEstimator:
         turn = lim.max_turn_tokens or (DEFAULT_LOCAL_TURN_TOKENS if local else DEFAULT_HOSTED_TURN_TOKENS)
         from .runtime.ladder import make_rung, resolve_quote
         rung = make_rung(spec, "primary")
-        quote = resolve_quote(rung, self.prices, self.book, self.prompt_tokens, turn)
+        quote = resolve_quote(rung, self.prices, self.book, self.prompt_tokens, turn, fetch=fetch_quotes)
         file_cost = self.prices.estimate_run_ceiling(provider, model, self.prompt_tokens, turn, lim.max_steps)
         if local:
             kind = "local"
@@ -177,5 +178,6 @@ def quote_base_url(book: ConnectionBook, provider: str) -> str:
 
 
 def estimate_run(config: Any, store: Any, bot: Bot, prompt: str = "", model: Optional[str] = None,
-                 conversation_id: str = "") -> RunEstimate:
-    return RunEstimator(config, store, bot, prompt).for_model(model, conversation_id=conversation_id)
+                 conversation_id: str = "", fetch_quotes: bool = False) -> RunEstimate:
+    return RunEstimator(config, store, bot, prompt).for_model(model, conversation_id=conversation_id,
+                                                             fetch_quotes=fetch_quotes)

@@ -3928,11 +3928,11 @@ def create_app() -> FastAPI:
 
     @app.get("/api/bots/{ref}/estimate")
     def bot_estimate(ref: str, model: Optional[str] = None, prompt: str = "", conversation_id: str = "") -> dict:
-        """Estimate one run's priced usage before it starts; actual provider billing can differ."""
+        """One run's priced usage before it starts; an explicitly opened review may refresh live quotes."""
         from dataclasses import asdict
         from ..estimate import estimate_run
         bot = bot_or_404(ref)
-        e = estimate_run(config, store, bot, prompt, model, conversation_id=conversation_id)
+        e = estimate_run(config, store, bot, prompt, model, conversation_id=conversation_id, fetch_quotes=True)
         return {**asdict(e), "effective_ceiling_usd": e.effective_ceiling_usd, "summary": e.summary}
 
     @app.get("/api/v1/budgets")
