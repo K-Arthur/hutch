@@ -8,7 +8,8 @@ import pytest
 
 from hutch.models import Bot, Run, RunStatus, Task
 from hutch.persona import (APPLICATION_DEFAULT, LAYER_LABELS, PERSONA_VERSION, PersonaPlan, PersonaStyle,
-                           apply_persona_changes, decode_persona_state, encode_persona_state, resolve_persona)
+                           apply_persona_changes, decode_persona_state, encode_persona_state, guidance,
+                           resolve_persona)
 from hutch.store import LeaseLost, PersonaConflict
 
 
@@ -76,6 +77,41 @@ def test_invalid_values_are_rejected():
 
 def test_layer_labels_cover_every_resolution_source():
     assert set(LAYER_LABELS) == {"application", "agent_preset", "agent_override", "conversation", "turn"}
+
+
+# ============================================================ rendering and the local budget
+
+def test_guidance_states_the_style_and_stays_subordinate():
+    plan = resolve_persona(agent_override=PersonaStyle(depth="brief", tone="warm", banter=False))
+    text = guidance(plan)
+    assert "Response style chosen for this run" in text
+    assert "never overrides safety, permissions" in text
+    assert "sensitive topics" in text.lower()
+    assert "do not use playful or joking language" in text.lower()
+
+
+def test_guidance_distinguishes_banter_on_and_off_without_stale_consent():
+    on = guidance(resolve_persona(agent_override=PersonaStyle(banter=True)))
+    off = guidance(resolve_persona(agent_override=PersonaStyle(banter=False)))
+    assert "clearly joking" in on and "clearly joking" not in off
+    assert "judge every turn fresh" in on            # playfulness is re-decided per turn, never carried over
+
+
+def test_style_resolution_and_guidance_stay_under_the_local_budget():
+    """The local p95 target is ≤20 ms; this measures Hutch's own work, never model latency."""
+    import time as _time
+
+    layers = dict(agent_preset=PersonaStyle(depth="thorough", tone="warm"),
+                  agent_override=PersonaStyle(tone="direct", banter=False),
+                  conversation=PersonaStyle(banter=True), turn=PersonaStyle(depth="brief"))
+    samples = []
+    for _ in range(200):
+        start = _time.perf_counter()
+        guidance(resolve_persona(revisions={"agent": 3, "conversation": 2}, **layers))
+        samples.append((_time.perf_counter() - start) * 1000.0)
+    samples.sort()
+    p95 = samples[int(0.95 * len(samples)) - 1]
+    assert p95 <= 20.0, f"local style resolution p95 was {p95:.2f} ms"
 
 
 # ============================================================ durable scopes and the write-once run plan

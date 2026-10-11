@@ -133,6 +133,12 @@ class BuiltinRuntime:
             blocks = [block for block in (catalog_block(resolved), activated_block(resolved)) if block]
             if blocks:
                 prompt = prompt + "\n\n" + "\n\n".join(blocks)
+        plan = getattr(ctx.run, "persona_plan", None)
+        if plan is not None:
+            # The run's write-once style plan is applied here, locally: rendering it costs no model pass
+            # and no style-only inference, and it stays subordinate to the rules above and to skills.
+            from ..persona import guidance
+            prompt = prompt + "\n\n" + guidance(plan)
         return prompt
 
     # --------------------------------------------------------------- helpers

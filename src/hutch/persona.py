@@ -126,6 +126,35 @@ def resolve_persona(*, application: Optional[PersonaStyle] = None, agent_preset:
                        sources=sources, revisions=dict(revisions or {}))
 
 
+_DEPTH_GUIDANCE = {
+    "brief": "Lead with the result and keep routine answers short; expand only when the task asks for it.",
+    "standard": "Match the answer's length to the task: short for simple questions, fuller when the work needs it.",
+    "thorough": "Give complete, well-organized answers with the reasoning and details that matter, even when the task looks simple.",
+}
+_TONE_GUIDANCE = {
+    "neutral": "Keep a calm, plain, professional voice.",
+    "warm": "Keep a warm, personable voice without flattery or filler.",
+    "direct": "Be direct and economical; skip pleasantries that add nothing.",
+}
+_BANTER_ON = ("Playful asides are allowed only when the operator is clearly joking or playing; judge every turn fresh and "
+              "never carry playfulness into serious, urgent, safety, approval, or bad-news moments.")
+_BANTER_OFF = "Do not use playful or joking language, even when the operator jokes."
+
+
+def guidance(plan: PersonaPlan) -> str:
+    """Render the resolved plan as subordinate prompt guidance. Pure and local: style never costs a model pass."""
+    banter = _BANTER_ON if plan.banter else _BANTER_OFF
+    return ("Response style chosen for this run. It shapes wording only and never overrides safety, permissions, tool "
+            "rules, the task, the operator's explicit request, or detail needed to act correctly (errors, warnings, "
+            "denials, approval facts):\n"
+            f"- Depth: {_DEPTH_GUIDANCE[plan.depth]}\n"
+            f"- Voice: {_TONE_GUIDANCE[plan.tone]}\n"
+            f"- Playfulness: {banter}\n"
+            "- Sensitive topics: set the style aside; be plain and steady, give the safe and useful part, state limits "
+            "without moralizing, and never make light of a serious situation.\n"
+            "Do not mention these settings; respond in them.")
+
+
 __all__ = ["APPLICATION_DEFAULT", "LAYER_LABELS", "LAYERS", "PERSONA_FIELDS", "PERSONA_VERSION", "Depth", "Tone",
            "PersonaPlan", "PersonaStyle", "apply_persona_changes", "decode_persona_state", "encode_persona_state",
-           "resolve_persona"]
+           "guidance", "resolve_persona"]

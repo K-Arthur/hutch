@@ -813,3 +813,26 @@ def test_a_normal_final_answer_still_completes(store, config, tmp_path, ollama):
     assert run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools) == "done"
     replies = [e.data["content"] for e in emitted if e.type is EventType.message and e.data.get("role") == "assistant"]
     assert replies == ["done"]
+
+
+# ============================================================ the run's response style reaches the prompt
+
+def test_the_run_plan_reaches_the_system_prompt_as_subordinate_style_guidance(store, config, tmp_path, ollama):
+    from hutch.persona import PersonaStyle, resolve_persona
+
+    ollama.script = agent_script([{"content": "ok"}])
+    ctx, run, emitted, tools = build(store, config, tmp_path, tools=())
+    run.persona_plan = resolve_persona(agent_override=PersonaStyle(depth="brief", tone="warm"))
+    run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools)
+    system = ollama.of("/api/chat")[0]["body"]["messages"][0]
+    assert system["role"] == "system"
+    assert "Response style chosen for this run" in system["content"]
+    assert "never overrides safety, permissions" in system["content"]
+
+
+def test_runs_without_a_plan_get_no_style_block(store, config, tmp_path, ollama):
+    ollama.script = agent_script([{"content": "ok"}])
+    ctx, run, emitted, tools = build(store, config, tmp_path, tools=())
+    run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools)
+    system = ollama.of("/api/chat")[0]["body"]["messages"][0]
+    assert "Response style chosen for this run" not in system["content"]
