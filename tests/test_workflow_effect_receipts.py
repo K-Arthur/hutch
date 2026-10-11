@@ -2,14 +2,20 @@
 from __future__ import annotations
 
 import hashlib
+import os
+import subprocess
+import sys
+import textwrap
 
 import pytest
 
 from hutch import action_receipts
 from hutch.approvals import ApprovalGate
+from hutch.engine import Engine
 from hutch.models import RunStatus
 from hutch.runtime import steps
 from hutch.safety import PolicyEngine
+from hutch.store import Store
 from hutch.tools.base import Tool, ToolContext, ToolResult
 from hutch.workflow import persistence as wstore
 from hutch.workflow import submit as wfsubmit
@@ -110,6 +116,121 @@ def test_completed_effect_result_replays_without_a_second_dispatch(store, config
                                   "model": "different/model", "browser_profile": None},
                            workflow_identity=ctx.workflow_action_identity)
     assert sink.read_text(encoding="utf-8") == "effect\n"
+
+
+def test_process_crash_after_effect_receipt_reopens_state_without_a_second_dispatch(
+        store, config, tmp_path):
+    """An actual owner process exits after the receipt commits but before node settlement."""
+    bot = make_bot(store, name="effect-real-process-crash", tools=["shell"])
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=_plan())
+    sink = tmp_path / "append-only-process-effects.log"
+    script = textwrap.dedent(r"""
+        import os
+        from pathlib import Path
+
+        from hutch.approvals import ApprovalGate
+        from hutch.config import get_config
+        from hutch.models import RunStatus
+        from hutch.runtime import steps
+        from hutch.safety import PolicyEngine
+        from hutch.store import Store
+        from hutch.tools.base import Tool, ToolContext, ToolResult
+        from hutch.workflow import persistence as wstore
+
+        config = get_config()
+        store = Store(config)
+        bot = store.get_bot(os.environ["HUTCH_EFFECT_BOT"])
+        run = store.get_run(os.environ["HUTCH_EFFECT_RUN"])
+        run = store.claim_run(run.id, "crash-after-effect-process", 300)
+        assert run is not None
+        run = store.transition_run(run.id, RunStatus.running, fence=run.fence)
+        workflow = wstore.workflow_run(store, os.environ["HUTCH_EFFECT_WORKFLOW"])
+        assert workflow is not None
+        assert wstore.claim_workflow_attempt(
+            store, workflow["id"], run.id, owner_fence=run.fence,
+            revision_id=workflow["revision_id"])
+        wstore.open_node(
+            store, workflow["id"], owner_run_id=run.id, owner_fence=run.fence,
+            revision_id=workflow["revision_id"], site_id="effect", instance_key="once",
+            kind="tool", input_value={"command": "fixture-effect"}, input_hash="a" * 64)
+        policy = PolicyEngine(bot.risk_tier, bot.command_rules)
+        gate = ApprovalGate(store, bot, run, policy, lambda _event: None)
+        workspace = config.run_dir(bot.name, run.id) / "workspace"
+        workspace.mkdir(parents=True, exist_ok=True)
+        ctx = ToolContext(bot=bot, run=run, store=store, policy=policy, gate=gate,
+                          config=config, workspace=workspace, emit=lambda _event: None)
+        ctx.workflow_action_identity = {
+            "workflow_run_id": workflow["id"], "revision_id": workflow["revision_id"],
+            "site_id": "effect", "instance_key": "once", "slot": "tool",
+        }
+
+        class AppendOnce(Tool):
+            name = "shell"
+
+            def effect(self, _args, _ctx):
+                return "process"
+
+            def run(self, _args, tool_ctx):
+                if refusal := tool_ctx.begin_effect():
+                    return ToolResult(ok=False, output=refusal)
+                fd = os.open(os.environ["HUTCH_EFFECT_SINK"],
+                             os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+                try:
+                    os.write(fd, b"effect\n")
+                    os.fsync(fd)
+                finally:
+                    os.close(fd)
+                return ToolResult(ok=True, output="finished",
+                                  data={"receipt": "durable-result"})
+
+        result = steps.call_tool(run, ctx, {"shell": AppendOnce()},
+                                 "shell", {"command": "fixture-effect"})
+        assert result.ok and result.data == {"receipt": "durable-result"}
+        os._exit(73)
+    """)
+    env = os.environ.copy()
+    env.update({
+        "HUTCH_EFFECT_BOT": bot.id,
+        "HUTCH_EFFECT_RUN": submission.attempt_run_id,
+        "HUTCH_EFFECT_WORKFLOW": submission.workflow_run_id,
+        "HUTCH_EFFECT_SINK": str(sink),
+    })
+    child = subprocess.run(
+        [sys.executable, "-c", script], cwd=os.getcwd(),
+        env=env, capture_output=True, text=True, timeout=60, check=False,
+    )
+    assert child.returncode == 73, child.stderr
+    assert sink.read_text(encoding="utf-8") == "effect\n"
+
+    # Close the pre-crash test connection and open the same SQLite state as a new supervisor.
+    store.close()
+    reopened = Store(config)
+    try:
+        with reopened._tx() as db:
+            db.execute("UPDATE runs SET lease_expires_at = datetime('now', '-1 second') WHERE id = ?",
+                       (submission.attempt_run_id,))
+        engine = Engine(config, reopened)
+        recovered = engine.recover_orphans()
+        old_attempt = reopened.get_run(submission.attempt_run_id)
+        assert any(item.id == submission.attempt_run_id for item in recovered)
+        assert old_attempt.status is RunStatus.failed
+        assert old_attempt.exit_reason == "interrupted"
+        [receipt] = reopened.list_actions(old_attempt.id)
+        assert reopened.get_action(receipt["id"])["status"] == "done"
+
+        continuation = wstore.admit_workflow_continuation(reopened, submission.workflow_run_id)
+        assert continuation is not None
+        second, workflow = _owner(reopened, submission.workflow_run_id, continuation.id, "owner-after-restart")
+        ctx, tools = _context(reopened, config, reopened.get_bot(bot.id), second, workflow, sink)
+        replay = steps.call_tool(second, ctx, tools, "shell", {"command": "fixture-effect"})
+
+        assert replay.ok is True
+        assert replay.output == "finished"
+        assert replay.data == {"receipt": "durable-result"}
+        assert sink.read_text(encoding="utf-8") == "effect\n"
+        assert len(reopened.list_actions(unresolved=False)) == 1
+    finally:
+        reopened.close()
 
 
 def test_uncertain_effect_requires_reconciliation_before_retry(store, config):
