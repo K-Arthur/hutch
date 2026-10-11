@@ -28,6 +28,7 @@ SITE = ROOT / "website"
 VISUAL_SOURCE_FILES = (
     "src/hutch/server/pages.py",
     "src/hutch/server/static/app.js",
+    "src/hutch/server/static/persona.js",
     "src/hutch/server/static/index.html",
     "src/hutch/server/static/style.css",
     "src/hutch/server/static/brands/openai-white-monoblossom.svg",
@@ -1770,4 +1771,276 @@ def test_connection_and_assistant_settings_share_disclosure_axes(browser, app_se
             context.tracing.stop(path=str(out / "trace-failed.zip"))
         except Exception:
             pass
+        context.close()
+
+
+def test_adaptive_persona_controls_round_trip_recover_conflicts_and_stay_local(browser, app_server):
+    """Version 2 style controls preserve scope, reset semantics, and local-only preview behavior."""
+    app_url, app = app_server
+    store = app.state.store
+    bot = store.get_bot("design-system-review")
+    conversation, _ = store.create_conversation(
+        bot.id, "Persona controls", idem_key="persona-controls-conversation", request_hash="persona-controls"
+    )
+    out = ROOT / "docs/realignment/artifacts/persona-ui-v2-2026-10-11"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    page.set_default_timeout(8000)
+    errors: list[str] = []
+    inference_requests: list[str] = []
+    console_errors: list[str] = []
+    external_requests: list[str] = []
+    failed_responses: list[dict[str, object]] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" else None)
+    page.on("request", lambda request: inference_requests.append(request.url)
+            if request.method == "POST" and ("/messages" in request.url or "/runs" in request.url) else None)
+    page.on("request", lambda request: external_requests.append(request.url)
+            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+    page.on("response", lambda response: failed_responses.append({"status": response.status, "url": response.url})
+            if response.status >= 400 and urlsplit(response.url).hostname in {"127.0.0.1", "localhost"} else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    trace_saved = False
+    # A native browser zoom shortcut is unavailable in this runner. 720x480 is the effective CSS
+    # viewport for 1440x960 at 200% and exercises the same responsive layout breakpoints.
+    viewports = (("phone", 360, 844), ("tablet", 768, 960), ("desktop", 1440, 960),
+                 ("compact-phone", 320, 800), ("zoom-200-effective", 720, 480))
+    evidence = {"settings": [], "chat": []}
+
+    def get_persona(path: str):
+        response = page.request.get(f"{app_url}/api/v1/{path}")
+        assert response.ok, response.text()
+        return response.json()
+
+    try:
+        page.goto(f"{app_url}/#/bot/design-system-review", wait_until="domcontentloaded")
+        page.get_by_role("heading", name="Design Partner").wait_for()
+        page.locator("#assistant-more-settings").evaluate("el => { el.open = true; }")
+        form = page.locator("#persona-form-slot .persona-form")
+        form.wait_for()
+        assert form.locator('[data-persona-field="preset"]').input_value() == "inherit"
+        assert form.locator('[data-persona-field="depth"]').input_value() == "inherit"
+        assert form.locator('[data-persona-field="humor"]').input_value() == "inherit"
+        assert "Hutch default: Neutral voice" in form.locator('[data-persona-origin="preset"]').inner_text()
+        assert page.get_by_role("heading", name="Optional customization").is_visible()
+        assert form.get_by_role("slider", name="Warmth value").get_attribute("min") == "0"
+        assert form.get_by_role("slider", name="Warmth value").get_attribute("max") == "100"
+        assert form.locator("[data-persona-habits-inherit]").get_attribute("type") == "checkbox"
+
+        form.locator('[data-persona-field="preset"]').select_option("warm")
+        form.locator('[data-persona-field="depth"]').select_option("brief")
+        form.locator('[data-persona-field="humor"]').select_option("off")
+        form.locator('[data-persona-field="warmth"]').select_option("custom")
+        warmth = form.locator('[data-persona-range="warmth"]')
+        assert not warmth.is_disabled(), "choosing a custom value enables the slider"
+        warmth.evaluate("el => { el.value = '0'; el.dispatchEvent(new Event('input', {bubbles:true})); el.dispatchEvent(new Event('change', {bubbles:true})); }")
+        form.locator('[data-persona-field="profanity"]').select_option("mirror")
+        form.locator('[data-persona-field="format_style"]').select_option("bullets")
+        form.locator("[data-persona-habits-inherit]").uncheck()
+        form.locator('[data-persona-habit][value="overpraise"]').check()
+        form.locator('[data-persona-habit][value="emojis"]').check()
+        assert form.locator('[data-persona-save]').is_enabled()
+        assert not inference_requests, inference_requests
+        form.locator('[data-persona-save]').click()
+        page.get_by_text("Saved.", exact=True).wait_for()
+        saved = get_persona("bots/design-system-review/persona")
+        assert saved["revision"] == 1
+        assert {key: saved["override"][key] for key in ("preset", "depth", "humor", "warmth", "profanity", "format_style")} == {
+            "preset": "warm", "depth": "brief", "humor": "off", "warmth": 0,
+            "profanity": "mirror", "format_style": "bullets",
+        }
+        assert set(saved["override"]["avoid_habits"]) == {"overpraise", "emojis"}
+
+        # An independent write advances the revision after this form loaded. The first save must keep its draft.
+        store.update_bot_persona(bot.id, {"directness": 100}, expected_revision=1,
+                                 idem_key="persona-controls-competing-write", request_hash="persona-controls-competing")
+        form.locator('[data-persona-field="depth"]').select_option("detailed")
+        form.locator('[data-persona-save]').click()
+        page.get_by_text("changed elsewhere", exact=False).wait_for()
+        assert form.locator('[data-persona-field="depth"]').input_value() == "detailed"
+        assert form.locator('[data-persona-save]').is_enabled()
+        assert "Unsaved change" in form.locator('[data-persona-origin="depth"]').inner_text()
+        form.locator('[data-persona-save]').click()
+        page.get_by_text("Saved.", exact=True).wait_for()
+        recovered = get_persona("bots/design-system-review/persona")
+        assert recovered["revision"] == 3 and recovered["override"]["depth"] == "detailed"
+        assert recovered["override"]["directness"] == 100
+
+        # Inspect persisted choices at all required widths before the final reset.
+        for label, width, height in viewports:
+            page.set_viewport_size({"width": width, "height": height})
+            page.goto(f"{app_url}/#/bot/design-system-review", wait_until="domcontentloaded")
+            page.locator("#assistant-more-settings").evaluate("el => { el.open = true; }")
+            page.locator("#persona-form-slot .persona-form").wait_for()
+            page.locator("main#view > .page-scroll").evaluate("el => el.scrollTo(0, 0)")
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, "settings", overflow)
+            page.screenshot(path=str(out / f"settings-{label}.png"), animations="disabled")
+            page.locator("#persona-form-title").evaluate("el => el.scrollIntoView({block: 'start'})")
+            page.screenshot(path=str(out / f"settings-controls-{label}.png"), animations="disabled")
+            evidence["settings"].append({"viewport": [width, height], "horizontal_overflow_px": overflow})
+
+        page.set_viewport_size({"width": 360, "height": 844})
+        page.goto(f"{app_url}/#/bot/design-system-review", wait_until="domcontentloaded")
+        page.locator("#assistant-more-settings").evaluate("el => { el.open = true; }")
+        page.locator("#persona-form-slot .persona-form").wait_for()
+        page.locator("#persona-customize-title").evaluate("el => el.scrollIntoView({block: 'start'})")
+        page.screenshot(path=str(out / "settings-custom-phone.png"), animations="disabled")
+
+        reset_form = page.locator("#persona-form-slot .persona-form")
+        reset_form.locator("[data-persona-reset]").click()
+        reset_form.locator('[data-persona-save]').click()
+        page.get_by_text("Saved.", exact=True).wait_for()
+        reset = get_persona("bots/design-system-review/persona")
+        assert reset["override"]["preset"] is None and reset["override"]["humor"] is None
+        assert reset["override"]["depth"] is None and reset["override"]["avoid_habits"] is None
+        assert reset["effective"]["humor"] == {"value": "subtle", "source": "application"}
+
+        page.set_viewport_size({"width": 1440, "height": 960})
+        page.goto(f"{app_url}/#/chat/design-system-review", wait_until="domcontentloaded")
+        page.locator("#chat-form").wait_for()
+        outer = page.locator("#studio-conversation-actions")
+        if not outer.evaluate("el => el.open"):
+            page.locator("#studio-conversation-options").click()
+        page.wait_for_function("() => document.querySelector('#studio-conversation-actions')?.open === true")
+        page.locator("#persona-chat-options summary").click()
+        page.wait_for_function("() => document.querySelector('#persona-chat-options')?.open === true")
+        chat_options = page.locator("#persona-chat-options")
+        conversation_scope = chat_options.locator("[data-persona-scope='conversation']")
+        conversation_scope.locator('[data-persona-field="preset"]').select_option("dry_wit")
+        conversation_scope.locator('[data-persona-field="depth"]').select_option("detailed")
+        save_conversation = chat_options.locator("[data-persona-conversation-save]")
+        assert save_conversation.is_enabled()
+        save_conversation.focus()
+        assert save_conversation.evaluate("el => el === document.activeElement")
+        page.keyboard.press("Enter")
+        page.wait_for_function("() => document.querySelector('#persona-chat-options [data-persona-conversation-status]')?.textContent === 'Saved for this conversation.'")
+        conversation_state = get_persona(f"conversations/{conversation['id']}/persona")
+        assert conversation_state["override"]["preset"] == "dry_wit"
+        assert conversation_state["override"]["depth"] == "detailed"
+        reset_conversation = chat_options.locator("[data-persona-conversation-reset]")
+        assert reset_conversation.evaluate("el => el === document.activeElement"), "focus moves to the available next action when Save becomes disabled"
+
+        # A second client updates humor while this form is open. Retrying a depth edit must retain that update.
+        store.update_conversation_persona(conversation["id"], {"humor": "off"}, expected_revision=1,
+                                          idem_key="persona-controls-concurrent-chat", request_hash="persona-controls-chat")
+        conversation_scope.locator('[data-persona-field="depth"]').select_option("brief")
+        save_conversation.focus()
+        page.keyboard.press("Enter")
+        page.get_by_text("Style changed elsewhere", exact=False).wait_for()
+        assert conversation_scope.locator('[data-persona-field="depth"]').input_value() == "brief"
+        assert conversation_scope.locator('[data-persona-field="humor"]').input_value() == "off"
+        assert "Unsaved change" in conversation_scope.locator('[data-persona-origin="depth"]').inner_text()
+        save_conversation.click()
+        page.wait_for_function("() => document.querySelector('#persona-chat-options [data-persona-conversation-status]')?.textContent === 'Saved for this conversation.'")
+        recovered_conversation = get_persona(f"conversations/{conversation['id']}/persona")
+        assert recovered_conversation["revision"] == 3
+        assert recovered_conversation["override"]["depth"] == "brief"
+        assert recovered_conversation["override"]["humor"] == "off"
+
+        turn_scope = chat_options.locator("[data-persona-scope='turn']")
+        turn_scope.locator('[data-persona-field="preset"]').select_option("direct")
+        turn_scope.locator('[data-persona-field="depth"]').select_option("brief")
+        chip = page.locator("#persona-turn-slot .persona-turn-chip")
+        assert chip.is_visible() and "Direct" in chip.inner_text() and "Brief" in chip.inner_text()
+        stored_turn = page.evaluate("key => JSON.parse(localStorage.getItem(key))",
+                                    f"hutch-persona-turn:{conversation['id']}")
+        assert stored_turn == {"preset": "direct", "depth": "brief"}
+        assert not inference_requests, inference_requests
+
+        for label, width, height in viewports:
+            page.set_viewport_size({"width": width, "height": height})
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, "chat", overflow)
+            panel = page.locator("#studio-conversation-actions .conversation-actions-panel").bounding_box()
+            assert panel and panel["x"] >= 0 and panel["x"] + panel["width"] <= width + 1, (label, panel)
+            scrollable = page.locator("#studio-conversation-actions .conversation-actions-panel").evaluate(
+                "el => el.scrollHeight > el.clientHeight")
+            assert scrollable, (label, "long response-style panel must remain scrollable")
+            page.locator("#studio-conversation-actions .conversation-actions-panel").evaluate("el => el.scrollTo(0, 0)")
+            page.screenshot(path=str(out / f"chat-{label}.png"), animations="disabled")
+            evidence["chat"].append({"viewport": [width, height], "horizontal_overflow_px": overflow,
+                                     "panel_bounds": {key: round(value, 2) for key, value in panel.items()}})
+
+        # Keyboard access and text-spacing tolerance on the tightest target viewport.
+        page.set_viewport_size({"width": 320, "height": 800})
+        summary = chat_options.locator("summary")
+        summary.focus()
+        page.keyboard.press("Space")
+        assert not chat_options.evaluate("el => el.open")
+        page.keyboard.press("Space")
+        assert chat_options.evaluate("el => el.open")
+        page.evaluate("""() => { const style = document.createElement('style'); style.id = 'persona-text-spacing-check';
+          style.textContent = '* { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; } p, li { margin-bottom: 2em !important; }';
+          document.head.append(style); }""")
+        spacing_overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert spacing_overflow <= 1, ("320px with text spacing", spacing_overflow)
+        page.locator("#studio-conversation-actions .conversation-actions-panel").evaluate("el => el.scrollTo(0, 0)")
+        page.screenshot(path=str(out / "chat-compact-text-spacing.png"), animations="disabled")
+        assert not errors, errors
+        unexpected_console_errors = [message for message in console_errors if "409 (Conflict)" not in message]
+        assert not unexpected_console_errors, unexpected_console_errors
+        assert [item["status"] for item in failed_responses] == [409, 409], failed_responses
+        assert not external_requests, external_requests
+        assert not inference_requests, inference_requests
+        contrast = page.evaluate("""() => {
+          const node = document.querySelector('#persona-chat-options .hint');
+          const style = getComputedStyle(node);
+          const panel = node.closest('.conversation-actions-panel');
+          const linear = value => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4;
+          const bgRgb = getComputedStyle(panel).backgroundColor.match(/[\\d.]+/g).slice(0, 3).map(Number);
+          const bg = bgRgb.map(value => linear(value / 255));
+          const oklab = style.color.match(/oklab\\(\\s*([\\d.-]+)\\s+([\\d.-]+)\\s+([\\d.-]+)(?:\\s*\\/\\s*([\\d.-]+))?\\s*\\)/);
+          let fg, alpha = 1;
+          if (oklab) {
+            const [L, a, b] = oklab.slice(1, 4).map(Number); alpha = oklab[4] === undefined ? 1 : Number(oklab[4]);
+            const l_ = L + .3963377774 * a + .2158037573 * b;
+            const m_ = L - .1055613458 * a - .0638541728 * b;
+            const s_ = L - .0894841775 * a - 1.2914855480 * b;
+            const [l, m, s] = [l_ ** 3, m_ ** 3, s_ ** 3];
+            fg = [4.0767416621*l - 3.3077115913*m + .2309699292*s,
+              -1.2684380046*l + 2.6097574011*m - .3413193965*s,
+              -.0041960863*l - .7034186147*m + 1.7076147010*s];
+          } else {
+            const rgb = style.color.match(/[\\d.]+/g).slice(0, 3).map(Number);
+            fg = rgb.map(value => linear(value / 255));
+          }
+          const composite = fg.map((value, index) => alpha * value + (1 - alpha) * bg[index]);
+          const lum = rgb => rgb.reduce((sum, value, index) => sum + value * [.2126, .7152, .0722][index], 0);
+          const a = lum(composite), b = lum(bg);
+          return {ratio: (Math.max(a, b) + .05) / (Math.min(a, b) + .05), foreground: style.color,
+            background: getComputedStyle(panel).backgroundColor, alpha};
+        }""")
+        assert contrast["ratio"] >= 4.5, ("hint text contrast", contrast)
+        context.tracing.stop(path=str(out / "trace.zip"))
+        trace_saved = True
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_design_system.py::test_adaptive_persona_controls_round_trip_recover_conflicts_and_stay_local",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_adaptive_persona_controls_round_trip_recover_conflicts_and_stay_local",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "browser": f"{browser.browser_type.name.title()} {browser.version}",
+            "playwright": package_version("playwright"),
+            "viewports": evidence,
+            "states": ["inherited settings", "saved bounded preferences", "revision conflict and draft recovery",
+                       "reset to inherited", "saved conversation style", "local next-reply style", "keyboard disclosure",
+                       "320px text-spacing tolerance"],
+            "page_errors": errors,
+            "console_errors": console_errors,
+            "failed_responses": failed_responses,
+            "external_requests": external_requests,
+            "inference_requests": inference_requests,
+            "provider_calls": 0,
+            "reduced_motion": "reduce",
+            "reduced_motion_media_query": page.evaluate("matchMedia('(prefers-reduced-motion: reduce)').matches"),
+            "hint_text_contrast": contrast,
+            "source_sha256": _visual_source_hashes(),
+            "visual_review": "Manually inspected; see docs/realignment/persona-ui-visual-review.md. Native browser zoom was unavailable; 720x480 checks the 200% effective CSS viewport for 1440x960.",
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        if not trace_saved:
+            try:
+                context.tracing.stop(path=str(out / "trace-failed.zip"))
+            except Exception:
+                pass
         context.close()

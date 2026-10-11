@@ -102,13 +102,15 @@ def apply_persona_changes(current: Optional[PersonaStyle], changes: dict[str, An
         raise ValueError(f"unknown response-style fields: {sorted(unknown)}")
     values = (current or PersonaStyle()).model_dump()
     values.update(changes)
-    # A newly selected named preset replaces legacy tone/joking values that older forms may have saved.
-    # New explicit tone/humor values in the same request remain independent overrides.
-    if changes.get("preset") is not None and "preset" in changes:
+    # An explicit v2 preset replaces the old voice alias at this scope. A v2 humor choice replaces the old
+    # joking alias. This lets newer controls reset old values without losing them during an unrelated edit.
+    if "preset" in changes:
         if "tone" not in changes:
             values["tone"] = None
         if "banter" not in changes and "humor" not in changes:
             values["banter"] = None
+    if "humor" in changes and "banter" not in changes:
+        values["banter"] = None
     return PersonaStyle.model_validate(values)
 
 

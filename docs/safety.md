@@ -55,6 +55,21 @@ a bot preserves its managed workspace, and database snapshots do not include man
 
 The realignment ledger records which behavior is tested, which is only documented, and which requires live provider or device access.
 
+## Response style does not set authority
+
+Response-style preferences are stored with Hutch's local assistant and conversation state. A next-reply override is held
+in the current browser's local storage and is removed after its message is submitted or the owner clears it. When a run
+starts, Hutch snapshots the resolved style into that run; changing settings later does not rewrite an in-flight prompt.
+The style snapshot can appear in the normal run record. When a message is sent to a hosted provider, its response-style
+instructions are part of the provider request and follow that provider route's data-handling terms.
+
+Presets and customization affect wording only. They cannot enable tools, skip approvals, change risk tier, spend limits,
+grounding needs, sources, recipients, code requirements, requested JSON/file formats, or action review. A shorter answer
+must still include information needed to act safely and correctly. Humor is not newly enabled for a sensitive or
+consequential topic, and an immediate correction or withdrawal of playful consent applies to the current turn. These are
+prompt and routing controls rather than a guarantee that every provider model will follow them; tool policy, approvals and
+output validation remain authoritative. A live preview and human-reviewed model-quality results are not currently available.
+
 Worker review requests, wait state and inline review events commit together. Canonical decision
 summaries override stale transcript asks after a worker crash. Schema v11 resource replay
 contains identifiers rather than message, argument or secret content; clients fetch current

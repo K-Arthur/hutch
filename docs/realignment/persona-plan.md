@@ -107,7 +107,7 @@ Review follow-ups (status after the profile-compatibility slice):
 | Snapshotting | mid-run changes never alter the in-flight turn; no stale consent reuse |
 | Context preservation | newest user corrections and material facts survive context budgeting |
 | Completion honesty | truncated/no-tool/empty answers cannot present as final success |
-| UI | validated controls with scope/origin/inheritance/reset; 360/768/1440 verification; unsaved and conflict states visible |
+| UI | validated controls with scope/origin/inheritance/reset; 320/360/720-effective/768/1440 verification; unsaved and conflict states visible |
 | Evidence honesty | unrun live-model checks are labeled; deterministic tests are never presented as live evidence |
 
 ## Integration notes
@@ -158,16 +158,26 @@ Review follow-ups (status after the profile-compatibility slice):
   Off/Subtle/Playful humor, and bounded customization while preserving v1 `tone`/`banter` and `thorough` values.
   Preset selection clears only same-scope legacy tone/joking values when no explicit v2 override accompanies it.
   Focused checks passed: persona contract/API/runtime **33 passed**, runtime and general API **124 passed**, and
-  Bot workdir/store **42 passed**. The existing compact form still needs its v2 controls.
+  Bot workdir/store **42 passed**.
+- UI slice: assistant settings now present the v2 preset/depth/humor controls plus bounded optional wording
+  preferences. Conversation controls save with revision-conflict recovery; next-reply controls remain
+  browser-local and affect only the next send. The real-app Chromium regression exercises save/reset, dirty
+  state, keyboard save, concurrent assistant and conversation edits, next-reply isolation, and zero
+  model/network calls on control changes. Screenshots and Playwright trace are retained under
+  `artifacts/persona-ui-v2-2026-10-11/`; detailed manual inspection is in `persona-ui-visual-review.md`.
+  It covers 320/360/768/1440 CSS pixels and a 720 × 480 effective layout viewport representing 200% reflow
+  at 1440 × 960; the browser runner could not apply native browser zoom. Focused persona/builtin-runtime checks
+  passed (**100 tests**) and the browser regression passed (**1 test**). Live examples and the inspector are
+  not part of this UI slice.
 - The combined offline suite at `04b5722` completed with **1,989 passed, 2 failed** in 525.57 s. The Unix
   socket test failed only because the long test temp path exceeded `AF_UNIX` path length; rerunning with a short
   cache root made it pass. The other failure, `test_the_shell_cannot_see_the_real_home_or_any_folder_outside_the_workspace`, also failed on clean
   integration commit `8a63585` with the same observed `/home` visibility and is therefore an inherited sandbox
   environment failure, not a persona change. No assertions were weakened. The existing `/tmp` contents were not
   removed or altered.
-- Remaining acceptance: implement versioned profile/preset/depth/humor behavior with legacy compatibility;
-  add contextual intent/routing and answer-scoped corrections; extend the UI, static examples, optional live
-  preview, inspector, marketing and support/privacy/safety docs; add committed actual-app browser regressions;
+- Remaining acceptance: add contextual intent/routing, answer-scoped corrections, feedback, isolated live
+  preview and redacted inspector; update marketing claims/screenshots and remaining user-facing docs; add
+  response-plan, correction and refusal regressions; update the supported-runtime capability evidence;
   run combined offline/browser checks and bounded model evaluation. No separate supported Hutch Go connection
   is configured, so Hutch product-path response quality and model latency are unverified. The device OpenCode
   CLI did authenticate and run the low-cost MiMo Flash development task; its credential store has not been

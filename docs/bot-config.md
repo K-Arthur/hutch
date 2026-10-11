@@ -65,6 +65,8 @@ response is marked `Cache-Control: no-store`.
 | `name` | slug | — | lowercase `[a-z0-9-]`, unique; names the workspace dir too |
 | `description` | str | "" | one-liner shown in dashboards |
 | `instructions` | str | "" | standing system-prompt guidance, prepended every run |
+| `persona_profile_version` | int | current version | version of the saved response-style profile; unversioned legacy profiles are read as version 1, while invalid/future profiles are isolated to that bot |
+| `persona_override` | sparse object | inherited | owner's saved wording preferences for this bot; see [response style](architecture.md#response-style-persona). It never grants tools or changes task, safety, evidence or output requirements |
 | `model` | provider/model | none | choose a configured real route before creating or running a bot |
 | `preset` | task profile? | null | optional configured focus (`router`, `research`, `extraction`, `coding`, `planner`, or `vision`); tunes local context/residency without selecting a model or provider |
 | `inference_mode` | enum | `hybrid` | `hybrid` permits local and hosted routes; `local` restricts model routes to classified local providers while tools may still use the network; experimental `offline` requires fresh host-verified Linux network/PID namespaces, loopback model routes through Hutch's private Unix-socket broker, and strict shell containment when shell is enabled. |

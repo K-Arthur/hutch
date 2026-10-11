@@ -342,10 +342,14 @@ format choice; and a fixed list of habits to avoid rather than arbitrary prompt 
 
 Unset fields inherit by precedence — current turn, then conversation, then the owner's saved style
 for the assistant, then its shipped preset, then Hutch's default — and an explicit "Inherited" clears
-a saved value back to that chain. Saves are revision-guarded: a stale save is refused (409) and the
-person's edits stay on screen for review instead of being merged silently. A next-reply choice applies
-to one message only and never becomes a durable preference. The compact form currently retains its
-v1 controls while the version 2 controls are added in the interface slice.
+a saved value back to that chain. Assistant settings expose preset, depth and humor selectors plus
+bounded optional customization for warmth, directness, formality, profanity, answer format and a fixed
+set of habits to avoid. Per-field help identifies the effective source; revision-guarded saves refuse a
+stale write (409), reload the latest profile and retain only this form's edits for review. Conversation
+controls use the same conflict recovery. A next-reply choice applies to one message only, stays in that
+browser's conversation-scoped local storage until the next send or removal, and never becomes a durable
+preference. Changing a control makes no model request. Static examples, an explicitly requested live
+preview, and a redacted adapter inspector are still planned; the current form is not a live preview.
 
 Each Bot document carries a response-style profile version; legacy documents without the version are read as
 version 1. A future-version or invalid style is isolated to that assistant: Hutch keeps the original profile
@@ -361,9 +365,14 @@ into its system prompt locally — no extra model call is spent on style — and
 subordinate wording: it never overrides safety, permissions, tool rules, the task, explicit operator
 requests or detail needed to act correctly, keeps sensitive topics plain and steady, and lets
 playfulness apply only to turns that are themselves clearly playful, re-decided each turn. The
-chain is covered by fixture and API tests, a real-engine plan-capture test, and a bounded real
-browser run at phone/tablet/desktop widths (`docs/realignment/artifacts/persona-ui-2026-10-11/`);
-live-model humor and boundary calibration remain unverified.
+chain is covered by fixture and API tests, a real-engine plan-capture test, and a real-app browser
+regression at 320, 360, 768 and 1440 CSS pixels plus a 720 × 480 effective viewport for 200% reflow
+at 1440 × 960. Screenshots, browser trace and response/network checks are retained in
+`docs/realignment/artifacts/persona-ui-v2-2026-10-11/`; manually inspected screenshots and the exact
+evidence boundary are recorded in `docs/realignment/persona-ui-visual-review.md`. Browser zoom itself
+was not controllable through the headless test runner, so the 720px case checks the corresponding
+effective CSS viewport rather than claiming a native zoom gesture. Live-model humor and boundary
+calibration remain unverified.
 
 ## What is deliberately NOT here (yet)
 

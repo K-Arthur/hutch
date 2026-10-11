@@ -1,0 +1,167 @@
+{
+  "test": "tests/e2e/test_design_system.py::test_adaptive_persona_controls_round_trip_recover_conflicts_and_stay_local",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_adaptive_persona_controls_round_trip_recover_conflicts_and_stay_local",
+  "captured_at": "2026-10-11T13:04:36.098265+00:00",
+  "browser": "Chromium 153.0.8010.12",
+  "playwright": "1.63.0",
+  "viewports": {
+    "settings": [
+      {
+        "viewport": [
+          360,
+          844
+        ],
+        "horizontal_overflow_px": 0
+      },
+      {
+        "viewport": [
+          768,
+          960
+        ],
+        "horizontal_overflow_px": 0
+      },
+      {
+        "viewport": [
+          1440,
+          960
+        ],
+        "horizontal_overflow_px": 0
+      },
+      {
+        "viewport": [
+          320,
+          800
+        ],
+        "horizontal_overflow_px": 0
+      },
+      {
+        "viewport": [
+          720,
+          480
+        ],
+        "horizontal_overflow_px": 0
+      }
+    ],
+    "chat": [
+      {
+        "viewport": [
+          360,
+          844
+        ],
+        "horizontal_overflow_px": 0,
+        "panel_bounds": {
+          "x": 84,
+          "y": 107.14,
+          "width": 252,
+          "height": 520
+        }
+      },
+      {
+        "viewport": [
+          768,
+          960
+        ],
+        "horizontal_overflow_px": 0,
+        "panel_bounds": {
+          "x": 492,
+          "y": 107.14,
+          "width": 252,
+          "height": 520
+        }
+      },
+      {
+        "viewport": [
+          1440,
+          960
+        ],
+        "horizontal_overflow_px": 0,
+        "panel_bounds": {
+          "x": 1152,
+          "y": 53.5,
+          "width": 252,
+          "height": 520
+        }
+      },
+      {
+        "viewport": [
+          320,
+          800
+        ],
+        "horizontal_overflow_px": 0,
+        "panel_bounds": {
+          "x": 44,
+          "y": 107.14,
+          "width": 252,
+          "height": 512
+        }
+      },
+      {
+        "viewport": [
+          720,
+          480
+        ],
+        "horizontal_overflow_px": 0,
+        "panel_bounds": {
+          "x": 444,
+          "y": 107.14,
+          "width": 252,
+          "height": 307.19
+        }
+      }
+    ]
+  },
+  "states": [
+    "inherited settings",
+    "saved bounded preferences",
+    "revision conflict and draft recovery",
+    "reset to inherited",
+    "saved conversation style",
+    "local next-reply style",
+    "keyboard disclosure",
+    "320px text-spacing tolerance"
+  ],
+  "page_errors": [],
+  "console_errors": [
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)"
+  ],
+  "failed_responses": [
+    {
+      "status": 409,
+      "url": "http://127.0.0.1:39065/api/v1/bots/design-system-review/persona"
+    },
+    {
+      "status": 409,
+      "url": "http://127.0.0.1:39065/api/v1/conversations/conv_b3b7d37c0fc4/persona"
+    }
+  ],
+  "external_requests": [],
+  "inference_requests": [],
+  "provider_calls": 0,
+  "reduced_motion": "reduce",
+  "reduced_motion_media_query": true,
+  "hint_text_contrast": {
+    "ratio": 9.799994163647598,
+    "foreground": "oklab(0.965543 -0.00216612 -0.00761336 / 0.57)",
+    "background": "rgb(16, 22, 31)",
+    "alpha": 0.57
+  },
+  "source_sha256": {
+    "src/hutch/server/pages.py": "7884021b4a97b41a26c49e4337e8f53fe245ff8682c5e820a613a4dc70263826",
+    "src/hutch/server/static/app.js": "8dcb57a3ad86da05bdfc681238f966e096483e5f767145da75fdd1f3a890ce6d",
+    "src/hutch/server/static/persona.js": "7699bfc4ab212e8d170fddf35e96d9f2d18f702c85dd98bd9911ae82c156827d",
+    "src/hutch/server/static/index.html": "5f7faabcab72c2c2aa459cc143307275a03764ec9c72857d1c9f7d8f2ea5410b",
+    "src/hutch/server/static/style.css": "22197075a70702597748825b8e40118b13c9e9597e195566b26d4983a7a9cef7",
+    "src/hutch/server/static/brands/openai-white-monoblossom.svg": "b94ea61d860fae6f82f43571f36f17111fcf5d348e8e9cc22ae4b441c7560011",
+    "src/hutch/server/static/brands/anthropic-symbol-ivory.svg": "38fc06d8e9390654cc4e96aa53691e2e78d929667c0034805b6d1b3891ba22dd",
+    "src/hutch/server/static/brands/openrouter-glyph-volt.svg": "0d22462e4f2835a5a5b9000af0a55fc9238e39996100f54706e41ec45b9d1727",
+    "src/hutch/server/static/brands/google-calendar-2026q2.png": "eac7b1d7c78a7c7fb40d74b6d879ba5fe781cbf2cd5f8d7d40f3c28fea73f77e",
+    "src/hutch/server/static/brands/google-gmail-2026q2.png": "ab8e9e880a28e2bc29207a62394aa7d296f435113fcc922819dab629ffbd64e6",
+    "src/hutch/server/static/brands/microsoft-outlook.svg": "4a3b6ab15d36e7c5317f75a83d1781708d68cce4d8b9073a3c82f0af662eaf18",
+    "website/index.html": "cae44861517f80b505843ac618e1bb56801425842867b8bbead8bcfe820aa7ec",
+    "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
+    "website/styles.css": "4e2f4b3e4094cfc3aef1e9b21deaaf472421e607bb416824e63db0197dd0f4bd",
+    "tests/e2e/test_design_system.py": "3f63238f1a103c60166f4c09d58ddd55107af5724ecbd17c4807c8324387c3f9"
+  },
+  "visual_review": "Manually inspected; see docs/realignment/persona-ui-visual-review.md. Native browser zoom was unavailable; 720x480 checks the 200% effective CSS viewport for 1440x960."
+}
