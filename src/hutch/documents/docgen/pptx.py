@@ -381,7 +381,8 @@ def _gen_pptx(spec: dict[str, Any]) -> GeneratedDocument:
         _build_slide(prs, slide_spec, no, font, findings)
     buffer = io.BytesIO()
     prs.save(buffer)
-    data = buffer.getvalue()
+    from .zippack import normalize_ooxml_zip
+    data = normalize_ooxml_zip(buffer.getvalue())
     _validate_reopened(data, slides)
     return GeneratedDocument(
         data=data,

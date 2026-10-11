@@ -11,6 +11,7 @@ from .delegation import DelegateTaskTool
 from .choice import AskUserChoiceTool
 from .documents import CreateDocumentTool, InspectDocumentTool, ReviseDocumentTool
 from .skill import UseSkillTool
+from .live import InspectMediaTool, LiveSearchTool
 from .google_calendar import GoogleCalendarCreateEventTool, GoogleCalendarEventsTool
 from .outlook_calendar import OutlookCalendarEventsTool
 from .outlook_calendar_write import OutlookCalendarCreateEventTool
@@ -30,6 +31,8 @@ _CATALOG: dict[str, type[Tool]] = {
     "revise_document": ReviseDocumentTool,
     "inspect_document": InspectDocumentTool,
     "delegate_task": DelegateTaskTool,
+    "live_search": LiveSearchTool,
+    "inspect_media": InspectMediaTool,
 }
 
 #: bot-level tool groups that expand to concrete tool names
@@ -38,6 +41,7 @@ GROUPS: dict[str, list[str]] = {
     "documents": ["create_document", "revise_document", "inspect_document"],
     "memory": ["remember", "recall"],
     "browser": ["browser"],
+    "grounding": ["live_search", "inspect_media"],
 }
 
 ALL_TOOL_NAMES = sorted(_CATALOG) + ["browser"]
@@ -71,7 +75,7 @@ def build_tools(names: list[str], ctx: ToolContext, *, memory_enabled: bool | No
         # cannot create additional host-network requests from this worker. A
         # Google Calendar read is an external account request too.
         expanded = [name for name in expanded if name not in {
-            "web_fetch", "browser", "google_calendar_events", "google_calendar_create_event",
+            "web_fetch", "browser", "live_search", "google_calendar_events", "google_calendar_create_event",
             "outlook_calendar_events", "outlook_calendar_create_event", "outlook_mail_search"}]
     for name in expanded:
         if name == "delegate_task" and (ctx is None or ctx.delegation_submit is None):

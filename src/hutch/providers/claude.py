@@ -53,7 +53,25 @@ def to_claude_messages(messages: list[dict[str, Any]]) -> tuple[str, list[dict[s
         if role == "system":
             system_parts.append(m.get("content") or "")
         elif role == "user":
-            out.append({"role": "user", "content": m.get("content") or ""})
+            content = m.get("content")
+            if isinstance(content, list):
+                # grounding media parts: OpenAI-style text/image_url -> Anthropic blocks
+                blocks = []
+                for part in content:
+                    if not isinstance(part, dict):
+                        continue
+                    if part.get("type") == "text":
+                        blocks.append({"type": "text", "text": part.get("text", "")})
+                    elif part.get("type") == "image_url":
+                        url = (part.get("image_url") or {}).get("url", "")
+                        if isinstance(url, str) and url.startswith("data:") and "," in url:
+                            header, data = url.split(",", 1)
+                            media_type = header[5:].split(";", 1)[0] or "image/jpeg"
+                            blocks.append({"type": "image", "source": {"type": "base64",
+                                                                       "media_type": media_type, "data": data}})
+                out.append({"role": "user", "content": blocks or [{"type": "text", "text": ""}]})
+            else:
+                out.append({"role": "user", "content": content or ""})
         elif role == "assistant":
             blocks: list[dict[str, Any]] = []
             if m.get("content"):
@@ -85,6 +103,8 @@ def to_claude_tools(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 class ClaudeProvider(Provider):
     name = "anthropic"
+    #: messages API accepts base64 image blocks (converted in to_claude_messages)
+    supports_media_input = True
 
     def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None,
                  provider_name: str = "anthropic", headers: Optional[dict[str, str]] = None,

@@ -48,12 +48,32 @@ def to_ollama_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
         elif role == "tool":
             out.append({"role": "tool", "content": m.get("content") or "", "tool_name": m.get("name", "")})
         else:
-            out.append({"role": role, "content": m.get("content") or ""})
+            content = m.get("content")
+            if isinstance(content, list):
+                # grounding media parts: native chat carries images as a base64 array
+                texts, images = [], []
+                for part in content:
+                    if not isinstance(part, dict):
+                        continue
+                    if part.get("type") == "text":
+                        texts.append(part.get("text", ""))
+                    elif part.get("type") == "image_url":
+                        url = (part.get("image_url") or {}).get("url", "")
+                        if isinstance(url, str) and url.startswith("data:") and "," in url:
+                            images.append(url.split(",", 1)[1])
+                message: dict[str, Any] = {"role": role, "content": "\n".join(texts)}
+                if images:
+                    message["images"] = images
+                out.append(message)
+            else:
+                out.append({"role": role, "content": content or ""})
     return out
 
 
 class OllamaProvider(Provider):
     name = "ollama"
+    #: native chat accepts base64 image arrays on user messages (converted in to_ollama_messages)
+    supports_media_input = True
 
     def __init__(self, base_url: str = DEFAULT_BASE_URL):
         from .registry import reject_endpoint_credentials

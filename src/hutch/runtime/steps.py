@@ -267,6 +267,10 @@ def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, arg
         data["document"] = document
     if result.data.get("simulated"):
         data["simulated"] = True                                 # Rehearse mode: nothing actually ran
+    if result.data.get("investigation_id"):
+        data["investigation_id"] = str(result.data["investigation_id"])[:64]
+    if result.data.get("media_id"):
+        data["media_id"] = str(result.data["media_id"])[:64]
     ctx.emit(Event(run_id=run.id, type=EventType.tool_result, data=data))
     return result
 

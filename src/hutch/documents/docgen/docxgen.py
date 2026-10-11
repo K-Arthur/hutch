@@ -275,7 +275,8 @@ def _gen_docx(spec: dict[str, Any]) -> GeneratedDocument:
         document.save(buffer)
     except ValueError as exc:
         raise DocumentGenerationError(f"the docx library refused the content: {exc}") from None
-    data = buffer.getvalue()
+    from .zippack import normalize_ooxml_zip
+    data = normalize_ooxml_zip(buffer.getvalue())
     _validate_structure(data, paragraphs, tables)
     findings = [{"code": "docx_table_page_split",
                  "detail": f"table {position} has more than {TABLE_PAGE_SPLIT_ROWS} rows "

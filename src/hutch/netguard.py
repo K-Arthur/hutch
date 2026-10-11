@@ -186,6 +186,9 @@ class Fetched:
     redirects: list[str] = field(default_factory=list)
     truncated: bool = False
     address: str = ""
+    #: the raw, already size-bounded response body (b"\0" default keeps test fixtures that
+    #: construct Fetched by hand working); media acquisition needs bytes, not decoded text
+    body: bytes = b""
 
     @property
     def ok(self) -> bool:
@@ -249,7 +252,7 @@ def safe_get(url: str, *, timeout: float = 20.0, max_redirects: int = MAX_REDIRE
             continue
         return Fetched(status=status, reason=reason_phrase, headers=rheaders,
                        text=_decode(body, rheaders.get("content-type", "")), url=current,
-                       redirects=redirects, truncated=truncated, address=ip)
+                       redirects=redirects, truncated=truncated, address=ip, body=body)
     raise NetGuardError(f"too many redirects (more than {max_redirects})")
 
 
