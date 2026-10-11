@@ -31,6 +31,14 @@ that proves them; anything not run is listed as unverified in §8.
 * **Integrated-tree suite before this slice**: `pytest tests --ignore=tests/e2e`
   → **2383 passed, 9 skipped** (10:59, disk-backed basetemp; an earlier run under
   a full `/tmp` tmpfs was correctly discarded as corrupted by ENOSPC).
+* **Final suite on the frozen slice**: **2408 passed, 6 skipped, 1 failure**
+  (15:39). The single failure is
+  `test_code_handoff.py::test_interactive_process_keeps_terminal_and_owns_a_separate_group`,
+  the interactive-PTY test the workflow lane already documented as failing under
+  concurrent-suite load and passing in isolation; re-confirmed passing in
+  isolation here (`1 passed in 9.45s`). The skip count dropped from 9 to 6
+  because the Strict Offline probe fix (§5.4) made its end-to-end test run for
+  real.
 * **Browser**: Playwright 1.63 / Chromium from `~/.cache/ms-playwright`.
 * **Measured on this host** (10 warm calls after one cold start, contained kernel):
   cold start including first execution **0.40 s** (budget ≤ 2.5 s), warm
