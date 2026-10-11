@@ -141,6 +141,10 @@ class WorkflowAmendmentPreviewRequest(BaseModel):
     inputs: Optional[dict[str, Any]] = None
 
 
+class WorkflowAmendmentAdoptRequest(WorkflowAmendmentPreviewRequest):
+    cancel_pending_questions: bool = False
+
+
 class WorkflowAmendmentFieldChange(BaseModel):
     field: str
     old: Any = None
@@ -206,6 +210,41 @@ class WorkflowAmendmentPreviewResource(BaseModel):
         description="The candidate passes current authority and budget checks; this is not adoption readiness.",
     )
     quiescence: WorkflowAmendmentQuiescenceResource
+
+
+class WorkflowAmendmentAdoptResource(BaseModel):
+    workflow_run_id: str
+    history_id: str
+    previous_revision_id: str
+    revision_id: str
+    attempt_run_id: str
+    plan_hash: str
+    cancelled_question_ids: list[str] = Field(default_factory=list)
+    preview: WorkflowAmendmentPreviewResource
+
+
+class WorkflowAmendmentHistorySummary(BaseModel):
+    id: str
+    previous_revision_id: str
+    adopted_revision_id: str
+    previous_attempt_run_id: str
+    previous_status: str
+    previous_plan_hash: str
+    adopted_plan_hash: str
+    created_at: str
+
+
+class WorkflowAmendmentHistoryPage(BaseModel):
+    items: list[WorkflowAmendmentHistorySummary]
+    limit: int
+    offset: int
+
+
+class WorkflowAmendmentHistoryDetail(WorkflowAmendmentHistorySummary):
+    preview: WorkflowAmendmentPreviewResource
+    nodes: list[WorkflowNodeResource] = Field(default_factory=list)
+    questions: list[WorkflowQuestionResource] = Field(default_factory=list)
+    result: dict[str, Any] = Field(default_factory=dict)
 
 
 class WorkflowSubmissionResource(BaseModel):
@@ -698,6 +737,76 @@ def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key:
             raise HTTPException(422, {"code": "plan_invalid",
                                       "diagnostics": [d.render() for d in exc.diagnostics]}) from None
         return WorkflowAmendmentPreviewResource(**preview)
+
+    @app.post("/api/v1/workflows/runs/{wf_id}/amendments/adopt",
+              response_model=WorkflowAmendmentAdoptResource)
+    def adopt_workflow_amendment(
+            wf_id: str, payload: WorkflowAmendmentAdoptRequest,
+            request: Request) -> WorkflowAmendmentAdoptResource:
+        """Adopt only while parked; active children and processes are never killed here."""
+        from ..workflow import amendments
+
+        _plan_size(payload.plan)
+        key, digest = _idempotency(request, payload.model_dump())
+        scope = f"api:v1:workflow-amendments:{wf_id}"
+        replay = store.idempotency_replay(scope, key, digest)
+        if replay is not None:
+            return WorkflowAmendmentAdoptResource(**replay)
+        try:
+            result = amendments.adopt(
+                store, workflow_run_id=wf_id, plan=payload.plan,
+                expected_revision_id=payload.expected_revision_id,
+                expected_generation=payload.expected_generation,
+                inputs=payload.inputs,
+                cancel_pending_questions=payload.cancel_pending_questions,
+                idem_key=key, request_hash=digest)
+        except KeyError:
+            raise HTTPException(404, "no such workflow run") from None
+        except amendments.AmendmentConflict as exc:
+            raise HTTPException(409, {"code": "amendment_revision_conflict", "message": str(exc)}) from None
+        except wfsubmit.PlanInputError as exc:
+            raise HTTPException(422, {"code": "amendment_inputs", "message": str(exc)}) from None
+        except PlanInvalid as exc:
+            raise HTTPException(422, {"code": "plan_invalid",
+                                      "diagnostics": [d.render() for d in exc.diagnostics]}) from None
+        except wfsubmit.PlanNotSubmittable as exc:
+            raise HTTPException(409, {"code": "amendment_not_eligible", "message": str(exc)}) from None
+        except wstore.AmendmentSnapshotLimit as exc:
+            raise HTTPException(413, {"code": "amendment_history_too_large", "message": str(exc)}) from None
+        except ValueError as exc:
+            raise HTTPException(409, {"code": "amendment_not_quiescent", "message": str(exc)}) from None
+        engine.store.bus.notify("work")
+        return WorkflowAmendmentAdoptResource(**result)
+
+    @app.get("/api/v1/workflows/runs/{wf_id}/amendments",
+             response_model=WorkflowAmendmentHistoryPage)
+    def list_workflow_amendments(wf_id: str, limit: int = 50, offset: int = 0) -> WorkflowAmendmentHistoryPage:
+        if wstore.workflow_run(store, wf_id) is None:
+            raise HTTPException(404, "no such workflow run")
+        try:
+            items = wstore.amendment_history_summaries(store, wf_id, limit=limit, offset=offset)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        return WorkflowAmendmentHistoryPage(items=[WorkflowAmendmentHistorySummary(**item) for item in items],
+                                            limit=limit, offset=offset)
+
+    @app.get("/api/v1/workflows/runs/{wf_id}/amendments/{amendment_id}",
+             response_model=WorkflowAmendmentHistoryDetail)
+    def get_workflow_amendment(wf_id: str, amendment_id: str) -> WorkflowAmendmentHistoryDetail:
+        item = wstore.amendment_history_detail(store, wf_id, amendment_id)
+        if item is None:
+            raise HTTPException(404, "no such workflow amendment")
+        return WorkflowAmendmentHistoryDetail(
+            id=str(item["id"]), previous_revision_id=str(item["previous_revision_id"]),
+            adopted_revision_id=str(item["adopted_revision_id"]),
+            previous_attempt_run_id=str(item["previous_attempt_run_id"]),
+            previous_status=str(item["previous_status"]),
+            previous_plan_hash=str(item["previous_plan_hash"]),
+            adopted_plan_hash=str(item["adopted_plan_hash"]), created_at=str(item["created_at"]),
+            preview=WorkflowAmendmentPreviewResource(**item["preview"]),
+            nodes=[_node_resource(row) for row in item["nodes"]],
+            questions=[_question_resource(row) for row in item["questions"]],
+            result=item["result"])
 
     @app.post("/api/v1/workflows/runs/{wf_id}/stop", response_model=WorkflowRunResource)
     def stop_workflow_run(wf_id: str, payload: WorkflowStopRequest, request: Request) -> WorkflowRunResource:

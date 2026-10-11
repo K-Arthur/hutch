@@ -496,7 +496,16 @@ inputs, capability envelope, node semantics and dependencies, and only when ever
 result is also safe to reuse. Tools, agents, verification, publication, questions and control or
 container results are invalidated because the runtime does not yet snapshot enough binding,
 evidence or nested-output provenance to prove they remain applicable. A preview neither saves
-the candidate nor mutates a run; adoption and revision-history preservation remain unimplemented.
+the candidate nor mutates a run; adoption and history inspection use separate routes.
+
+`workflow_amendment_history` (schema v58) snapshots the prior graph, question records and terminal
+result categories before adoption retires invalidated node rows. Adoption is a separate,
+idempotent local-owner command that succeeds only after an attempt is parked and its child tree
+and recorded processes are gone. Pending questions require an explicit cancellation choice. The
+revision update and question/node archival are one transaction; changing the revision fences any
+late callback from the prior attempt. The supervisor then admits a normal continuation under the
+new revision, retaining only preview-approved pure-transform rows. Adoption currently refuses
+live children rather than killing them; active-work draining and Studio controls are still open.
 
 Roles are gated by evidence, not by a model name: `workflow/qualify.py` resolves the same
 route identity the runtime records observations under (`route_identity.route_tuple`). Runtime

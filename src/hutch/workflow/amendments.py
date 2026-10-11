@@ -12,11 +12,45 @@ from typing import Any
 
 from . import persistence as wstore
 from .compile import CompiledNode, compile_plan
-from .submit import PlanNotSubmittable, check_authority, validate_inputs
+from .submit import PlanNotSubmittable, check_authority, step_budget, validate_inputs
 
 
 class AmendmentConflict(ValueError):
     """The preview was based on a stale workflow revision or owner generation."""
+
+
+def adopt(store: Any, *, workflow_run_id: str, plan: dict[str, Any],
+          expected_revision_id: str, expected_generation: str,
+          inputs: dict[str, Any] | None, cancel_pending_questions: bool,
+          idem_key: str, request_hash: str) -> dict[str, Any]:
+    """Adopt one reviewed candidate while its current workflow is safely parked."""
+    candidate = compile_plan(plan)
+    current_preview = preview(
+        store, workflow_run_id=workflow_run_id, plan=plan,
+        expected_revision_id=expected_revision_id, expected_generation=expected_generation,
+        inputs=inputs)
+    if not current_preview["eligible"]:
+        raise PlanNotSubmittable("the candidate is not eligible: "
+                                 + "; ".join(current_preview["blocked_reasons"]))
+    workflow = wstore.workflow_run(store, workflow_run_id)
+    if workflow is None:
+        raise KeyError(workflow_run_id)
+
+    def authorize() -> list[dict[str, Any]]:
+        bot = store.get_bot(str(workflow["bot_id"]))
+        if bot is None:
+            raise PlanNotSubmittable("the workflow's assistant is unavailable")
+        return check_authority(candidate, bot, store=store)
+
+    return wstore.adopt_workflow_amendment(
+        store, wf_id=workflow_run_id, expected_revision_id=expected_revision_id,
+        expected_generation=expected_generation,
+        plan=candidate.plan.model_dump(by_alias=True, exclude_none=True, mode="json"),
+        plan_hash=candidate.plan_hash,
+        inputs=current_preview["candidate_inputs"],
+        budget=step_budget(candidate), preview=current_preview,
+        cancel_pending_questions=cancel_pending_questions,
+        authorize=authorize, idem_key=idem_key, request_hash=request_hash)
 
 
 def _canonical(value: Any) -> str:

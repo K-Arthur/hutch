@@ -274,7 +274,7 @@ attempt can run.
 * **No scheduling of workflows yet.** A routine decides *when* saved work runs; wiring a
   routine to a saved workflow is a separate, explicit act that is not implemented, so a
   workflow cannot currently run unattended on a schedule.
-* **Amendment preview exists; adoption is not implemented.** The local-owner API
+* **Amendment preview and a constrained adoption API exist.** The local-owner API
   `POST /api/v1/workflows/runs/{id}/amendments/preview` takes an expected immutable revision,
   the current attempt ID as an opaque generation token, a candidate plan and optional new input
   snapshot. It returns a field/site diff, current authority verdicts, budget limits, quiescence
@@ -284,5 +284,13 @@ attempt can run.
   when inputs, capability envelope, node semantics and dependencies remain unchanged, and every
   upstream result is also safe to reuse. Tool, model, verification, publication, question and
   control/container results are invalidated because binding/evidence or nested-output provenance
-  is not yet sufficient to prove reuse. A preview also refuses a wider root budget. There is no
-  adoption control yet; to change a method, save a new revision and start a new workflow run.
+  is not yet sufficient to prove reuse. A preview also refuses a wider root budget.
+  `POST /api/v1/workflows/runs/{id}/amendments/adopt` requires an idempotency key and the same
+  revision/generation compare. It only adopts a parked run after child work and owned processes
+  have settled. Active children are never killed by adoption. Pending human questions require the
+  explicit `cancel_pending_questions` choice; old question IDs and result records are archived
+  before continuation. The old owner is fenced by the new revision, and any subsequent ask gets a
+  fresh identity. `GET /api/v1/workflows/runs/{id}/amendments` lists adoption history and
+  `GET /api/v1/workflows/runs/{id}/amendments/{history_id}` exposes the archived graph/results.
+  Live-run draining, Studio adoption controls, terminal-run amendment, and safe reuse beyond pure
+  transforms remain unavailable.

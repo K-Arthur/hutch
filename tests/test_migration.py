@@ -21,7 +21,7 @@ from hutch.models import RunStatus
 from hutch.store import (SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migrate_27, _migrate_28,
                          _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33, _migrate_34, _migrate_45,
                          _migrate_35, _migrate_37, _migrate_40, _migrate_41, _migrate_46, _migrate_47,
-                         _migrate_48, _migrate_57)
+                         _migrate_48, _migrate_57, _migrate_58)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "state_v4.db.fixture"
 BRIEFING, SWEEPER = "bot_7eef563ee683", "bot_611a4b96d543"
@@ -47,6 +47,32 @@ def test_v57_preserves_existing_workflow_mode_and_adds_revisioned_conversation_p
         with pytest.raises(sqlite3.IntegrityError):
             db.execute("INSERT INTO conversation_workflow_policies VALUES ('conversation-a', 'unknown', 2, 'now')")
         assert SCHEMA_VERSION >= 57
+    finally:
+        db.close()
+
+
+def test_v58_amendment_history_preserves_revision_links_and_is_idempotent():
+    db = sqlite3.connect(":memory:")
+    try:
+        db.execute("PRAGMA foreign_keys=ON")
+        db.execute("CREATE TABLE workflow_runs (id TEXT PRIMARY KEY)")
+        db.execute("CREATE TABLE workflow_revisions (id TEXT PRIMARY KEY)")
+        db.execute("INSERT INTO workflow_runs VALUES ('wrun-a')")
+        db.execute("INSERT INTO workflow_revisions VALUES ('wrev-before')")
+        db.execute("INSERT INTO workflow_revisions VALUES ('wrev-after')")
+
+        _migrate_58(db)
+        _migrate_58(db)
+        db.execute("""INSERT INTO workflow_amendment_history
+                      (id, workflow_run_id, previous_revision_id, adopted_revision_id,
+                       previous_attempt_run_id, previous_status, previous_plan_hash,
+                       adopted_plan_hash, preview_json, nodes_json, questions_json, result_json, created_at)
+                      VALUES ('wamend-a', 'wrun-a', 'wrev-before', 'wrev-after', 'run-a', 'waiting',
+                              'before', 'after', '{}', '[]', '[]', '{}', 'now')""")
+        assert db.execute("SELECT COUNT(*) FROM workflow_amendment_history").fetchone()[0] == 1
+        with pytest.raises(sqlite3.IntegrityError):
+            db.execute("DELETE FROM workflow_revisions WHERE id='wrev-before'")
+        assert SCHEMA_VERSION >= 58
     finally:
         db.close()
 
@@ -730,7 +756,7 @@ def _prepare_historical_workflow_schema(config, *, version: int, qualification: 
         pytest.param(52, True, True, False, id="workflow-v52-tables"),
     ],
 )
-def test_historical_schema_51_and_52_variants_converge_on_schema_57(
+def test_historical_schema_51_and_52_variants_converge_on_schema_58(
     config, version, qualification, workflow_tables, question_guards,
 ):
     _prepare_historical_workflow_schema(
@@ -740,12 +766,12 @@ def test_historical_schema_51_and_52_variants_converge_on_schema_57(
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == 57
+        assert upgraded.schema_version == SCHEMA_VERSION
         names = {row[0] for row in upgraded._db.execute(
             "SELECT name FROM sqlite_master WHERE type IN ('table', 'trigger', 'index')")}
         assert "workflow_role_qualifications" in names
         assert {"workflow_definitions", "workflow_revisions", "workflow_runs",
-                "workflow_nodes", "workflow_questions"} <= names
+                "workflow_nodes", "workflow_questions", "workflow_amendment_history"} <= names
         assert {"messages_pending_question_result_insert", "messages_pending_question_result_update",
                 "idx_runs_conversation_created"} <= names
         if qualification:
@@ -756,7 +782,7 @@ def test_historical_schema_51_and_52_variants_converge_on_schema_57(
         upgraded.close()
 
 
-def test_interrupted_schema_56_to_57_conversation_policy_migration_rolls_back_and_retries(config, monkeypatch):
+def test_interrupted_schema_56_to_58_migrations_roll_back_and_retry(config, monkeypatch):
     from hutch import store as store_module
     from hutch.models import Bot
 
@@ -769,17 +795,18 @@ def test_interrupted_schema_56_to_57_conversation_policy_migration_rolls_back_an
     try:
         db.execute("UPDATE bots SET doc=json_remove(doc, '$.workflow_mode') WHERE id=?", (bot.id,))
         db.execute("DROP TABLE conversation_workflow_policies")
+        db.execute("DROP TABLE workflow_amendment_history")
         db.execute("PRAGMA user_version = 56")
         db.commit()
     finally:
         db.close()
 
     def interrupt(_db):
-        raise RuntimeError("injected v57 conversation policy migration interruption")
+        raise RuntimeError("injected v58 amendment history migration interruption")
 
     with monkeypatch.context() as patch:
         patch.setattr(store_module, "_MIGRATIONS", [*store_module._MIGRATIONS[:-1], interrupt])
-        with pytest.raises(RuntimeError, match="injected v57 conversation policy migration interruption"):
+        with pytest.raises(RuntimeError, match="injected v58 amendment history migration interruption"):
             Store(config)
 
     db = sqlite3.connect(config.db_path)
@@ -789,15 +816,19 @@ def test_interrupted_schema_56_to_57_conversation_policy_migration_rolls_back_an
         assert "workflow_mode" not in doc
         assert db.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
                           "AND name='conversation_workflow_policies'").fetchone() is None
+        assert db.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
+                          "AND name='workflow_amendment_history'").fetchone() is None
     finally:
         db.close()
     assert config.db_path.with_suffix(".db.bak-v56").exists()
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == 57
+        assert upgraded.schema_version == 58
         assert upgraded.get_bot(bot.name).workflow_mode == "off"
         assert upgraded.get_conversation_workflow_policy(conversation["id"]) is None
+        assert upgraded._db.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
+                                    "AND name='workflow_amendment_history'").fetchone() is not None
     finally:
         upgraded.close()
 
@@ -835,7 +866,7 @@ def test_interrupted_historical_upgrade_rolls_back_and_keeps_backup(config, monk
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == 57
+        assert upgraded.schema_version == SCHEMA_VERSION
     finally:
         upgraded.close()
 
@@ -890,7 +921,7 @@ def test_interrupted_schema_53_to_54_upgrade_rolls_back_and_retries(config, monk
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == 57
+        assert upgraded.schema_version == SCHEMA_VERSION
         action_columns = {row[1] for row in upgraded._db.execute("PRAGMA table_info(tool_actions)")}
         question_columns = {row[1] for row in upgraded._db.execute("PRAGMA table_info(workflow_questions)")}
         assert {"workflow_identity", "workflow_fingerprint", "result_json"} <= action_columns
@@ -940,7 +971,7 @@ def test_interrupted_schema_54_to_55_usage_migration_rolls_back_and_retries(conf
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == 57
+        assert upgraded.schema_version == SCHEMA_VERSION
         columns = {row[1] for row in upgraded._db.execute("PRAGMA table_info(usage_reservations)")}
         assert {"workflow_run_id", "request_started_at"} <= columns
     finally:
@@ -984,7 +1015,7 @@ def test_interrupted_schema_55_to_56_probe_migration_rolls_back_and_retries(conf
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == 57
+        assert upgraded.schema_version == SCHEMA_VERSION
         names = {row[0] for row in upgraded._db.execute(
             "SELECT name FROM sqlite_master WHERE type='table'")}
         assert {"workflow_probe_campaigns", "workflow_probe_runs", "workflow_probe_requests"} <= names

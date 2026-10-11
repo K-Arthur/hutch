@@ -483,7 +483,10 @@ script sandbox to escape. The authority rules are the ordinary ones, applied ear
   attempt-generation token, rechecks candidate authority, and explains which recorded nodes
   are safe deterministic reuse candidates. It never saves a revision or starts work. Effects,
   model steps, verification, publication and questions are invalidated when their historical
-  bindings or evidence cannot be proved; adoption is not yet exposed.
+  bindings or evidence cannot be proved. Adoption is an explicit idempotent local-owner command;
+  it only proceeds after the workflow is parked and owned child work has settled. It never kills
+  live children. Pending questions are cancelled only when the request explicitly asks for that,
+  and the old graph/results are archived before the old revision is fenced.
 * **Auto is bounded.** `auto` starts only definitions and budgets the operator preauthorized
   in Bot settings; anything outside that scope is refused with the reason, and consequential
   actions inside the run still ask. A chat route card or saved-method launch requires the

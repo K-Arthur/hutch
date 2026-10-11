@@ -39,6 +39,11 @@ WORKFLOW_STATES = ("pending", "running", "waiting", "succeeded", "failed", "stop
 
 MAX_NODES_PER_RUN = 4_000
 MAX_LEDGER_KEYS = 64
+MAX_AMENDMENT_SNAPSHOT_BYTES = 8 * 1024 * 1024
+
+
+class AmendmentSnapshotLimit(ValueError):
+    """Historical result state exceeds the bounded amendment archive size."""
 
 
 def migrate(db: sqlite3.Connection) -> None:
@@ -149,6 +154,27 @@ def migrate_usage_reservations(db: sqlite3.Connection) -> None:
                "WHERE workflow_run_id != ''")
 
 
+def migrate_amendment_history(db: sqlite3.Connection) -> None:
+    """Preserve the exact node/question/result snapshot retired by an amendment."""
+    db.execute("""CREATE TABLE IF NOT EXISTS workflow_amendment_history (
+        id TEXT PRIMARY KEY,
+        workflow_run_id TEXT NOT NULL REFERENCES workflow_runs(id),
+        previous_revision_id TEXT NOT NULL REFERENCES workflow_revisions(id),
+        adopted_revision_id TEXT NOT NULL REFERENCES workflow_revisions(id),
+        previous_attempt_run_id TEXT NOT NULL,
+        previous_status TEXT NOT NULL,
+        previous_plan_hash TEXT NOT NULL,
+        adopted_plan_hash TEXT NOT NULL,
+        preview_json TEXT NOT NULL CHECK(json_valid(preview_json)),
+        nodes_json TEXT NOT NULL CHECK(json_valid(nodes_json)),
+        questions_json TEXT NOT NULL CHECK(json_valid(questions_json)),
+        result_json TEXT NOT NULL CHECK(json_valid(result_json)),
+        created_at TEXT NOT NULL
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_workflow_amendment_history_run "
+               "ON workflow_amendment_history(workflow_run_id, created_at)")
+
+
 # --------------------------------------------------------------------------- helpers
 
 def _json(value: Any, *, cap: int = 256 * 1024) -> str:
@@ -253,6 +279,221 @@ def latest_revision(store: Any, definition_id: str) -> Optional[dict[str, Any]]:
             "SELECT id FROM workflow_revisions WHERE definition_id = ? ORDER BY revision DESC LIMIT 1",
             (definition_id,)).fetchone()
     return revision(store, str(row["id"])) if row else None
+
+
+def amendment_history_summaries(store: Any, wf_id: str, *, limit: int = 50,
+                                offset: int = 0) -> list[dict[str, Any]]:
+    if not 1 <= limit <= 200 or offset < 0:
+        raise ValueError("amendment history pagination is out of range")
+    with store._lock:
+        rows = store._db.execute(
+            """SELECT id, previous_revision_id, adopted_revision_id, previous_attempt_run_id,
+                      previous_status, previous_plan_hash, adopted_plan_hash, created_at
+                 FROM workflow_amendment_history WHERE workflow_run_id = ?
+                 ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?""",
+            (wf_id, limit, offset)).fetchall()
+    return [dict(row) for row in rows]
+
+
+def amendment_history_detail(store: Any, wf_id: str, amendment_id: str) -> Optional[dict[str, Any]]:
+    with store._lock:
+        row = store._db.execute(
+            "SELECT * FROM workflow_amendment_history WHERE workflow_run_id = ? AND id = ?",
+            (wf_id, amendment_id)).fetchone()
+    if row is None:
+        return None
+    item = dict(row)
+    for field in ("preview_json", "nodes_json", "questions_json", "result_json"):
+        item[field.removesuffix("_json")] = json.loads(item.pop(field) or "{}")
+    return item
+
+
+def _workflow_execution_tree_quiet(db: sqlite3.Connection, attempt_id: str) -> bool:
+    """Prove no child work or owned process remains; human questions are checked separately."""
+    from ..store import _TERMINAL_VALUES
+
+    marks = ",".join("?" for _ in _TERMINAL_VALUES)
+    tree = """WITH RECURSIVE tree(id) AS (
+                 SELECT ? UNION ALL SELECT r.id FROM runs r JOIN tree t ON r.parent_run_id = t.id
+             )"""
+    active_child = db.execute(
+        f"""{tree} SELECT 1 FROM tree t JOIN runs r ON r.id = t.id
+            WHERE r.id != ? AND r.status NOT IN ({marks}) LIMIT 1""",
+        (attempt_id, attempt_id, *_TERMINAL_VALUES)).fetchone()
+    if active_child:
+        return False
+    owned_process = db.execute(
+        f"""{tree} SELECT 1 FROM tree t JOIN run_procs rp ON rp.run_id = t.id
+            WHERE rp.ended_at IS NULL AND rp.detached_at IS NULL LIMIT 1""",
+        (attempt_id,)).fetchone()
+    return owned_process is None
+
+
+def adopt_workflow_amendment(store: Any, *, wf_id: str, expected_revision_id: str,
+                             expected_generation: str, plan: dict[str, Any], plan_hash: str,
+                             inputs: dict[str, Any], budget: dict[str, Any],
+                             preview: dict[str, Any], cancel_pending_questions: bool,
+                             authorize: Any, idem_key: str, request_hash: str) -> dict[str, Any]:
+    """Atomically adopt a new revision on a parked, quiescent workflow instance.
+
+    Active model/tool children are never killed by adoption. Pending human questions are
+    cancelled only when the owner explicitly requests it; all prior node/question/result
+    state is archived before invalidated rows are removed for the next continuation.
+    """
+    scope = f"api:v1:workflow-amendments:{wf_id}"
+    now = iso(utcnow())
+    response: dict[str, Any]
+    with store._tx() as db:
+        store._assert_execution_ready(db)
+        replay = store._idempotency_replay(db, scope, idem_key, request_hash)
+        if replay is not None:
+            return replay
+
+        row = db.execute("SELECT * FROM workflow_runs WHERE id = ?", (wf_id,)).fetchone()
+        if row is None:
+            raise KeyError(wf_id)
+        if str(row["revision_id"]) != expected_revision_id:
+            raise ValueError("the workflow revision changed; refresh before adopting an amendment")
+        if str(row["attempt_run_id"]) != expected_generation:
+            raise ValueError("the workflow generation changed; refresh before adopting an amendment")
+        if str(row["status"]) != "waiting" or int(row["stop_requested"]):
+            raise ValueError("amendment adoption requires a parked workflow with no stop in progress")
+        if not row["definition_id"]:
+            raise ValueError("the workflow run has no saved definition to attach the adopted revision to")
+
+        attempt = db.execute("SELECT status, cancel_requested, lease_owner FROM runs WHERE id = ?",
+                             (expected_generation,)).fetchone()
+        if (attempt is None or str(attempt["status"]) != "waiting_workflow"
+                or int(attempt["cancel_requested"]) or attempt["lease_owner"]):
+            raise ValueError("the current workflow attempt has not released its process and owner lease")
+        if not _workflow_execution_tree_quiet(db, expected_generation):
+            raise ValueError("amendment adoption cannot proceed while child work or an owned process is active")
+
+        questions_before = db.execute(
+            "SELECT * FROM workflow_questions WHERE workflow_run_id = ? ORDER BY asked_at, id",
+            (wf_id,)).fetchall()
+        pending = [dict(question) for question in questions_before if str(question["status"]) == "pending"]
+        pending_ids = [str(question["id"]) for question in pending]
+        if pending_ids and not cancel_pending_questions:
+            raise ValueError(f"adoption would cancel pending questions {pending_ids}; set cancel_pending_questions=true")
+        pending_ask_sites = {(str(question["site_id"]), str(question["instance_key"]))
+                             for question in pending}
+        active_nodes = db.execute(
+            """SELECT site_id, instance_key, kind, status FROM workflow_nodes
+               WHERE workflow_run_id = ? AND status IN ('pending','running','waiting')""",
+            (wf_id,)).fetchall()
+        blockers = [dict(node) for node in active_nodes
+                    if str(node["status"]) != "waiting"
+                    or str(node["kind"]) != "ask"
+                    or (str(node["site_id"]), str(node["instance_key"])) not in pending_ask_sites]
+        if blockers:
+            raise ValueError("amendment adoption cannot proceed while workflow nodes are active")
+        if pending_ids:
+            db.execute("UPDATE workflow_questions SET status = 'cancelled' "
+                       "WHERE workflow_run_id = ? AND status = 'pending'", (wf_id,))
+            questions_before = db.execute(
+                "SELECT * FROM workflow_questions WHERE workflow_run_id = ? ORDER BY asked_at, id",
+                (wf_id,)).fetchall()
+
+        active_questions = {str(question["id"]) for question in questions_before
+                            if str(question["status"]) == "pending"}
+        if active_questions:
+            raise ValueError("a workflow question became pending while adopting the amendment")
+
+        node_rows = db.execute("SELECT * FROM workflow_nodes WHERE workflow_run_id = ? ORDER BY id",
+                               (wf_id,)).fetchall()
+        node_snapshot = [_row_to_node(node) for node in node_rows]
+        question_snapshot = [_question_row(question) for question in questions_before]
+        prior_result = json.loads(str(row["result_json"] or "{}"))
+        preview_copy = dict(preview)
+        preview_copy["roles"] = authorize()
+        preview_copy["eligible"] = True
+        preview_copy["quiescence"] = {
+            "workflow_status": str(row["status"]),
+            "active_nodes": [{"site_id": str(node["site_id"]),
+                              "instance_key": str(node["instance_key"]),
+                              "status": str(node["status"])} for node in active_nodes],
+            "pending_question_ids": pending_ids,
+            "required": True,
+        }
+        encoded = {
+            "preview": _json(preview_copy),
+            "nodes": _json(node_snapshot),
+            "questions": _json(question_snapshot),
+            "result": _json(prior_result),
+        }
+        snapshot_size = sum(len(value.encode("utf-8")) for value in encoded.values())
+        if snapshot_size > MAX_AMENDMENT_SNAPSHOT_BYTES:
+            raise AmendmentSnapshotLimit(
+                f"historical workflow snapshot is {snapshot_size} bytes; the adoption limit is "
+                f"{MAX_AMENDMENT_SNAPSHOT_BYTES} bytes")
+
+        definition_id = str(row["definition_id"])
+        definition = db.execute("SELECT id FROM workflow_definitions WHERE id = ?",
+                                (definition_id,)).fetchone()
+        if definition is None:
+            raise ValueError("the workflow definition was removed; the revision cannot be adopted")
+        revision_number = int(db.execute(
+            "SELECT COALESCE(MAX(revision), 0) + 1 FROM workflow_revisions WHERE definition_id = ?",
+            (definition_id,)).fetchone()[0])
+        revision_id = new_id("wrev")
+        history_id = new_id("wamend")
+        db.execute("""INSERT INTO workflow_revisions
+                      (id, definition_id, revision, plan_hash, plan_json, note, created_by, created_at)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (revision_id, definition_id, revision_number, plan_hash, _json(plan),
+                    "Adopted from a parked workflow run", "local-owner", now))
+        db.execute("UPDATE workflow_definitions SET updated_at = ? WHERE id = ?",
+                   (now, definition_id))
+        db.execute("""INSERT INTO workflow_amendment_history
+                      (id, workflow_run_id, previous_revision_id, adopted_revision_id,
+                       previous_attempt_run_id, previous_status, previous_plan_hash, adopted_plan_hash,
+                       preview_json, nodes_json, questions_json, result_json, created_at)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (history_id, wf_id, expected_revision_id, revision_id, expected_generation,
+                    str(row["status"]), str(row["plan_hash"]), plan_hash, encoded["preview"],
+                    encoded["nodes"], encoded["questions"], encoded["result"], now))
+
+        reusable = {(str(item["site_id"]), str(item["instance_key"])) for item in preview.get("reuse", [])}
+        for node in node_rows:
+            key = (str(node["site_id"]), str(node["instance_key"]))
+            if key not in reusable:
+                db.execute("DELETE FROM workflow_nodes WHERE id = ?", (int(node["id"]),))
+        db.execute("DELETE FROM workflow_questions WHERE workflow_run_id = ?", (wf_id,))
+
+        # The preview has already refused wider ceilings; min() keeps the root ledger's
+        # remaining allowances bounded even if a future caller bypasses that check.
+        effective_budget = dict(budget)
+        prior_budget = json.loads(str(row["budget_json"] or "{}"))
+        for key in ("max_nodes", "max_model_calls", "max_tokens", "max_wall_seconds",
+                    "max_fanout", "max_repairs", "max_steps_per_node", "max_step_seconds"):
+            if isinstance(prior_budget.get(key), int) and isinstance(effective_budget.get(key), int):
+                effective_budget[key] = min(int(prior_budget[key]), int(effective_budget[key]))
+        cur = db.execute(
+            """UPDATE workflow_runs SET revision_id = ?, plan_hash = ?, inputs_json = ?, budget_json = ?,
+                      status = 'waiting', reason = ?, result_json = '{}', finished_at = NULL, updated_at = ?
+               WHERE id = ? AND revision_id = ? AND attempt_run_id = ? AND status = 'waiting'
+                 AND stop_requested = 0""",
+            (revision_id, plan_hash, _json(inputs), _json(effective_budget),
+             "amendment adopted; waiting for a fresh continuation", now,
+             wf_id, expected_revision_id, expected_generation))
+        if cur.rowcount != 1:
+            raise ValueError("workflow state changed while adopting the amendment")
+
+        response = {
+            "workflow_run_id": wf_id,
+            "history_id": history_id,
+            "previous_revision_id": expected_revision_id,
+            "revision_id": revision_id,
+            "attempt_run_id": expected_generation,
+            "plan_hash": plan_hash,
+            "cancelled_question_ids": pending_ids,
+            "preview": preview_copy,
+        }
+        db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) "
+                   "VALUES (?, ?, ?, ?, ?)", (scope, idem_key, request_hash, _json(response), now))
+    store.bus.notify("work", "runs", "workflows", f"workflow:{wf_id}")
+    return response
 
 
 # ------------------------------------------------------------------------ runs

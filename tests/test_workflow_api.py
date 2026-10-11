@@ -6,6 +6,7 @@ identity.
 """
 from __future__ import annotations
 
+import json
 import time
 
 import pytest
@@ -422,6 +423,173 @@ def test_amendment_preview_does_not_reuse_results_derived_from_effects_or_eviden
     assert {row["site_id"] for row in body["invalidate"]} == {"scan", "count", "report", "check"}
     assert next(row for row in body["invalidate"] if row["site_id"] == "count")["reason"] == \
         "dependency_result_not_reusable"
+
+
+def test_amendment_adoption_archives_and_cancels_old_question_then_continues(client, monkeypatch):
+    from hutch.workflow import persistence as workflow_store
+
+    bot = make_bot(client, name="amendment-adoption-bot")
+    old_plan = {
+        "name": "amendment-adoption",
+        "inputs": {"seed": {"type": "string", "default": "stable"}},
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 5, "max_model_calls": 0},
+        "nodes": [
+            {"kind": "transform", "id": "stable", "op": "constant",
+             "args": {"value": {"ref": "input.seed"}}},
+            {"kind": "ask", "id": "confirm", "question": "Use the original method?",
+             "options": ["yes", "no"], "timeout_seconds": 300},
+        ],
+    }
+    submitted = client.post("/api/v1/workflows/plans", headers=KEY,
+                            json={"plan": old_plan, "bot": bot["name"],
+                                  "definition_name": "amendment-adoption"})
+    assert submitted.status_code == 201, submitted.text
+    workflow_id = submitted.json()["workflow_run_id"]
+
+    deadline = time.monotonic() + 15
+    detail = None
+    while time.monotonic() < deadline:
+        detail = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+        if any(question["status"] == "pending" for question in detail["questions"]):
+            break
+        time.sleep(0.1)
+    assert detail is not None
+    old_question = next(question for question in detail["questions"] if question["status"] == "pending")
+    old_workflow = detail["workflow"]
+    candidate = json.loads(json.dumps(old_plan))
+    candidate["nodes"][1]["question"] = "Use the revised method?"
+    body = {"expected_revision_id": old_workflow["revision_id"],
+            "expected_generation": old_workflow["attempt_run_id"], "plan": candidate}
+    url = f"/api/v1/workflows/runs/{workflow_id}/amendments/adopt"
+
+    refused = client.post(url, headers={"Idempotency-Key": "adoption-requires-question-choice"}, json=body)
+    assert refused.status_code == 409, refused.text
+    assert "cancel_pending_questions=true" in refused.json()["detail"]["message"]
+
+    confirmed_body = {**body, "cancel_pending_questions": True}
+    with monkeypatch.context() as patch:
+        patch.setattr(workflow_store, "MAX_AMENDMENT_SNAPSHOT_BYTES", 1)
+        oversized = client.post(url, headers={"Idempotency-Key": "adoption-snapshot-limit"},
+                                json=confirmed_body)
+        assert oversized.status_code == 413, oversized.text
+        unchanged = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+        assert unchanged["workflow"]["revision_id"] == old_workflow["revision_id"]
+        assert any(question["id"] == old_question["id"] and question["status"] == "pending"
+                   for question in unchanged["questions"])
+
+    adopted = client.post(url, headers={"Idempotency-Key": "adoption-cancel-old-question"},
+                          json=confirmed_body)
+    assert adopted.status_code == 200, adopted.text
+    result = adopted.json()
+    assert result["previous_revision_id"] == old_workflow["revision_id"]
+    assert result["revision_id"] != old_workflow["revision_id"]
+    assert result["attempt_run_id"] == old_workflow["attempt_run_id"]
+    assert result["cancelled_question_ids"] == [old_question["id"]]
+    assert [row["site_id"] for row in result["preview"]["reuse"]] == ["stable"]
+
+    from hutch.lifecycle import LeaseLost
+    stale_run = client.app.state.store.get_run(old_workflow["attempt_run_id"])
+    with pytest.raises(LeaseLost):
+        workflow_store.settle_node(
+            client.app.state.store, workflow_id, "stable", "once",
+            owner_run_id=stale_run.id, owner_fence=stale_run.fence,
+            revision_id=old_workflow["revision_id"], status="succeeded", result="stable")
+
+    replay = client.post(url, headers={"Idempotency-Key": "adoption-cancel-old-question"}, json=confirmed_body)
+    assert replay.status_code == 200 and replay.json() == result
+    stale = client.post(url, headers={"Idempotency-Key": "adoption-old-generation"}, json=body)
+    assert stale.status_code == 409
+    assert client.get(f"/api/v1/workflows/runs/{workflow_id}/amendments").json()["items"][0]["id"] == result["history_id"]
+
+    history = client.get(f"/api/v1/workflows/runs/{workflow_id}/amendments/{result['history_id']}")
+    assert history.status_code == 200, history.text
+    archived_question = next(question for question in history.json()["questions"]
+                             if question["id"] == old_question["id"])
+    assert archived_question["status"] == "cancelled"
+    archived_node = next(node for node in history.json()["nodes"] if node["site_id"] == "stable")
+    assert archived_node["result"] == "stable"
+    assert client.post(f"/api/v1/workflows/questions/{old_question['id']}/answer", headers=KEY,
+                       json={"answer": "yes"}).status_code == 404
+
+    deadline = time.monotonic() + 15
+    continued = None
+    while time.monotonic() < deadline:
+        continued = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+        if any(question["question"] == "Use the revised method?"
+               and question["status"] == "pending" for question in continued["questions"]):
+            break
+        time.sleep(0.1)
+    assert continued is not None
+    new_question = next(question for question in continued["questions"]
+                        if question["question"] == "Use the revised method?"
+                        and question["status"] == "pending")
+    assert new_question["id"] != old_question["id"]
+    assert continued["workflow"]["attempt_run_id"] != old_workflow["attempt_run_id"]
+    assert continued["plan"]["nodes"][1]["question"] == "Use the revised method?"
+
+
+def test_amendment_adoption_refuses_active_child_without_cancelling_question(client):
+    bot = make_bot(client, name="amendment-active-child-bot")
+    ask_plan = {
+        "name": "amendment-active-child",
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 5, "max_model_calls": 0},
+        "nodes": [{"kind": "ask", "id": "confirm", "question": "Continue?",
+                   "options": ["yes", "no"], "timeout_seconds": 300}],
+    }
+    submitted = client.post("/api/v1/workflows/plans", headers=KEY,
+                            json={"plan": ask_plan, "bot": bot["name"],
+                                  "definition_name": "amendment-active-child"})
+    assert submitted.status_code == 201, submitted.text
+    workflow_id = submitted.json()["workflow_run_id"]
+    deadline = time.monotonic() + 15
+    detail = None
+    while time.monotonic() < deadline:
+        detail = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+        if any(question["status"] == "pending" for question in detail["questions"]):
+            break
+        time.sleep(0.1)
+    assert detail is not None
+    old_question = next(question for question in detail["questions"] if question["status"] == "pending")
+    current = detail["workflow"]
+    candidate = json.loads(json.dumps(ask_plan))
+    candidate["nodes"][0]["question"] = "Continue with the revised method?"
+
+    store = client.app.state.store
+    fake_child_id = "run_amendment_active_child_fixture"
+    fake_task_id = "task_amendment_active_child_fixture"
+    with store._tx() as db:
+        db.execute("""INSERT INTO tasks (id, bot_id, kind, prompt, created_at, done)
+                      VALUES (?, ?, 'step', 'active child fixture', ?, 0)""",
+                   (fake_task_id, bot["id"], time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())))
+        db.execute("""INSERT INTO runs (id, bot_id, task_id, doc, status, created_at,
+                                          parent_run_id, kind)
+                      VALUES (?, ?, ?, '{}', 'running', ?, ?, 'step')""",
+                   (fake_child_id, bot["id"], fake_task_id,
+                    time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), current["attempt_run_id"]))
+
+    response = client.post(
+        f"/api/v1/workflows/runs/{workflow_id}/amendments/adopt",
+        headers={"Idempotency-Key": "adoption-refuses-live-child"},
+        json={"expected_revision_id": current["revision_id"],
+              "expected_generation": current["attempt_run_id"], "plan": candidate,
+              "cancel_pending_questions": True},
+    )
+    assert response.status_code == 409, response.text
+    assert "child work or an owned process is active" in response.json()["detail"]["message"]
+    after = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+    assert after["workflow"]["revision_id"] == current["revision_id"]
+    assert any(question["id"] == old_question["id"] and question["status"] == "pending"
+               for question in after["questions"])
+    assert client.get(f"/api/v1/workflows/runs/{workflow_id}/amendments").json()["items"] == []
+
+    with store._tx() as db:
+        db.execute("DELETE FROM runs WHERE id = ?", (fake_child_id,))
+        db.execute("DELETE FROM tasks WHERE id = ?", (fake_task_id,))
+    client.post(f"/api/v1/workflows/runs/{workflow_id}/stop",
+                headers={"Idempotency-Key": "cleanup-amendment-active-child-fixture"},
+                json={"expected_revision_id": current["revision_id"]})
 
 
 def test_qualification_routes_are_scoped_and_revocable(client):
