@@ -360,14 +360,20 @@ revision.
 
 Run purpose is recorded separately from tool authority, and `tool_access=none` requires an explicit tool-free
 purpose. Review-only Bot drafts retain their restricted proposal instructions and one-response rule. A tool-free
-conversational purpose has its own prompt and rejects unexpected provider tool calls without running them; the task
-path and normal capability policy remain separate.
+conversational purpose has its own prompt and rejects unexpected provider tool calls without running them; an
+answer-rewrite purpose is separate from both drafts and ordinary conversation.
 The engine uses this purpose only for explicit low-risk banter in an interactive conversation when the contextual
 plan needs no retrieval or action, and no skill, rehearsal, structured output, recipient draft or delegated run is
 active. That path has no tool schemas and skips pending-action context lookup; analytical, current-fact, sensitive,
 personal-context and output-constrained requests keep the normal task route. Availability recovery remains governed
 by the provider ladder, so this describes the ordinary one-response path rather than a promise of exactly one network
-attempt.
+attempt. Answer rewrites require a typed correction (`shorter`, `go_deeper`, or `less_banter`) and a selected
+assistant message from a succeeded run in the same conversation. The store snapshots that answer with its original
+user request as untrusted, bounded reference data; oversized, pending, failed, missing and cross-conversation targets
+are rejected. The rewrite purpose is available only to the built-in runtime, exposes no tool schemas, skips action
+context and workspace paths, and refuses any provider tool call. It preserves the original request's safety cues and
+output contract, and does not repeat tools or external actions. This API/runtime path is fixture-tested; the chat
+controls and provider-side adherence still require verification.
 
 At run start the engine resolves the layers once and writes a versioned, write-once plan into the
 run; a retried start reuses the recorded plan, and unreadable or newer state fails the run with a
@@ -381,9 +387,10 @@ output contract, bounded diagnostic labels, and the saved-profile revisions. Cla
 at most 8,000 characters from the current request and whether a prior assistant response exists;
 diagnostic labels never copy request text and put sensitive/action cues first. Low-risk eligibility preserves
 the selected preset's discretion, while the prompt still asks the model to use humor only when the request
-itself is clearly playful. This is deterministic guidance, not a provider-enforced guarantee or a
-tool/retrieval router. Corrections can shape the current response plan only when conversation context
-exists; answer-scoped rewrite behavior is still being implemented. The
+itself is clearly playful. This is deterministic guidance, not a provider-enforced guarantee. Regular corrections can
+shape the current response plan when conversation context exists; typed answer rewrites also resolve against their
+explicit selected request, including when the answer is older than the recent context window. The rewrite route keeps
+existing citations and contracts as references and never performs new retrieval. The
 chain is covered by fixture and API tests, a real-engine plan-capture test, and a real-app browser
 regression at 320, 360, 768 and 1440 CSS pixels plus a 720 × 480 effective viewport for 200% reflow
 at 1440 × 960. Screenshots, browser trace and response/network checks are retained in

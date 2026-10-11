@@ -587,7 +587,7 @@ class Engine:
     def tools_for_run(run: Run, bot: Bot, ctx: ToolContext) -> dict[str, Tool]:
         """Apply run-level restrictions before constructing any action or conversation tool."""
         if run.tool_access == "none":
-            if run.execution_purpose not in {"bot_draft", "conversation"}:
+            if run.execution_purpose not in {"bot_draft", "conversation", "answer_rewrite"}:
                 raise ValueError("tool-free runs require an explicit execution purpose")
             if bot.runtime.value != "builtin":
                 raise ValueError("tool-free execution purposes require the built-in runtime")
@@ -822,7 +822,8 @@ class Engine:
                     revisions={"agent": bot.persona_revision,
                                **({"conversation": conversation_revision} if run.conversation_id else {})})
                 persona_plan = contextualize_persona(persona_plan, run.prompt,
-                                                     conversation_context=run.conversation_context)
+                                                     conversation_context=run.conversation_context,
+                                                     answer_correction=run.rewrite_kind)
                 if self._eligible_for_tool_free_conversation(run, persona_plan):
                     run.execution_purpose = "conversation"
                     run.tool_access = "none"

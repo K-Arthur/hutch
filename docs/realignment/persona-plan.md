@@ -203,13 +203,20 @@ Review follow-ups (status after the profile-compatibility slice):
   integration commit `8a63585` with the same observed `/home` visibility and is therefore an inherited sandbox
   environment failure, not a persona change. No assertions were weakened. The existing `/tmp` contents were not
   removed or altered.
-- Remaining acceptance: perform answer-scoped corrections without rerunning tools or external actions; add feedback,
+- Remaining acceptance: expose answer-scoped corrections in chat UI without rerunning tools or external actions; add feedback,
   isolated live preview and
   redacted inspector; update marketing claims/screenshots and remaining user-facing docs; verify supported-runtime
   request receipts; and run combined offline/browser checks plus bounded model evaluation. No separate supported
   Hutch Go connection is configured, so Hutch product-path response quality and model latency are unverified.
   The device OpenCode CLI did authenticate and run the low-cost MiMo Flash development task; its credential store
   has not been imported into Hutch. Keep subsequent CLI packets narrow and review every diff.
+
+- Answer-rewrite API/runtime slice: the versioned conversation endpoint accepts typed Shorter, Go deeper, and Less
+  banter requests anchored to a succeeded answer in the same conversation. It snapshots the source request and answer
+  as bounded untrusted context; rejects stale, failed, oversized, unanswered-question, missing and cross-chat targets;
+  resolves source safety/output cues; and executes with no tool schemas, workspace path or action context. The tool-free
+  runtime refuses provider tool calls. Final focused persona/runtime/conversation verification passed (**155 tests**).
+  The UI controls, full offline/browser suites, real-app browser capture and live provider adherence remain outstanding.
 
 ## Rollback
 

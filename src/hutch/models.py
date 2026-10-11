@@ -509,7 +509,8 @@ class Run(BaseModel):
     skill_snapshot: list[dict] = Field(default_factory=list)   # effective skills recorded when this run started
     persona_turn: Optional[PersonaStyle] = None   # one-turn response style chosen with this message; never becomes durable
     persona_plan: Optional[PersonaPlan] = None    # resolved style snapshot, written once when the run starts
-    execution_purpose: Literal["task", "bot_draft", "conversation"] = "task"
+    execution_purpose: Literal["task", "bot_draft", "conversation", "answer_rewrite"] = "task"
+    rewrite_kind: Optional[Literal["shorter", "go_deeper", "less_banter"]] = None
     tool_access: Literal["bot", "none"] = "bot"  # per-run capability ceiling, independent of execution purpose
     conversation_id: str = ""          # canonical conversation this run belongs to, if submitted through /api/v1
     conversation_context: list[dict[str, str]] = Field(default_factory=list, exclude=True)
@@ -536,10 +537,12 @@ class Run(BaseModel):
 
     @model_validator(mode="after")
     def _tool_free_purposes_have_no_tools(self) -> "Run":
-        if self.execution_purpose in {"bot_draft", "conversation"} and self.tool_access != "none":
+        if self.execution_purpose in {"bot_draft", "conversation", "answer_rewrite"} and self.tool_access != "none":
             raise ValueError(f"{self.execution_purpose} runs must have tool_access='none'")
         if self.execution_purpose == "task" and self.tool_access == "none":
             raise ValueError("tool_access='none' requires an explicit tool-free execution purpose")
+        if (self.execution_purpose == "answer_rewrite") != (self.rewrite_kind is not None):
+            raise ValueError("answer rewrite runs require one typed rewrite kind, and other runs cannot carry one")
         return self
 
     @field_validator("parent_run_id")

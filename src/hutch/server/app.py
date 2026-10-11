@@ -650,12 +650,13 @@ class ConversationTitleRequest(BaseModel):
 
 
 class ConversationMessageRequest(BaseModel):
-    prompt: str = Field(min_length=1, max_length=20_000)
+    prompt: Optional[str] = Field(default=None, min_length=1, max_length=20_000)
     rehearse: bool = False
     model: Optional[str] = None
     skills: list[str] = Field(default_factory=list, max_length=MAX_SKILLS_PER_BOT)
     persona: Optional[PersonaStyle] = None    # a one-turn response style for this reply only; never persisted
     reply_to_message_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
+    correction: Optional[Literal["shorter", "go_deeper", "less_banter"]] = None
     workspace_task_result_id: Optional[str] = Field(default=None, min_length=1, max_length=100)
     workspace_task_result_message_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
 
@@ -2878,6 +2879,26 @@ def create_app() -> FastAPI:
             raise HTTPException(403, "phone starts use the Bot's locally configured model and policy")
         if is_paired_phone(request) and body.skills:
             raise HTTPException(403, "skill activation is a local owner action")
+        if body.correction and bot.runtime.value != "builtin":
+            raise HTTPException(409, "answer rewrites are currently supported only by the built-in runtime")
+        if body.correction and (body.rehearse or body.skills or body.workspace_task_result_id
+                                or body.workspace_task_result_message_id):
+            raise HTTPException(422, "answer rewrites cannot combine rehearsal, selected skills, or task references")
+        correction_prompts = {
+            "shorter": "Make this answer shorter.",
+            "go_deeper": "Go deeper on this answer.",
+            "less_banter": "Rewrite this answer with less banter.",
+        }
+        if body.correction:
+            prompt = correction_prompts[body.correction]
+            if body.prompt and body.prompt.strip() != prompt:
+                raise HTTPException(422, "the correction prompt must match its selected answer action")
+            if body.reply_to_message_id is None:
+                raise HTTPException(422, "answer rewrites must select the assistant answer to revise")
+        else:
+            prompt = body.prompt or ""
+            if not prompt.strip():
+                raise HTTPException(422, "a message prompt is required")
         # A restore hold governs the whole executor. Report it before model
         # setup or request-specific checks so a stale/unavailable route cannot
         # obscure the operator review that is currently required.
@@ -2890,6 +2911,7 @@ def create_app() -> FastAPI:
         key = idempotency_key(request)
         request_body = body.model_dump(exclude={"reply_to_message_id", "workspace_task_result_id",
                                                 "workspace_task_result_message_id"})
+        request_body["prompt"] = prompt
         if body.reply_to_message_id is not None:
             request_body["reply_to_message_id"] = body.reply_to_message_id
         if body.workspace_task_result_id is not None:
@@ -2903,14 +2925,17 @@ def create_app() -> FastAPI:
         if body.skills:
             from ..skills import SkillRegistry
             activation = SkillRegistry(config.state_dir).validate_activation(bot, list(body.skills))
-        run = Run(bot_id=bot.id, prompt=body.prompt, origin=origin, rehearsal=body.rehearse,
+        run = Run(bot_id=bot.id, prompt=prompt, origin=origin, rehearsal=body.rehearse,
                   model_override="" if model == bot.model else model, skill_activation=activation,
-                  persona_turn=body.persona)
-        task = Task(bot_id=bot.id, kind="on_demand", prompt=body.prompt)
+                  persona_turn=body.persona,
+                  execution_purpose="answer_rewrite" if body.correction else "task",
+                  tool_access="none" if body.correction else "bot", rewrite_kind=body.correction)
+        task = Task(bot_id=bot.id, kind="on_demand", prompt=prompt)
         try:
             run_id, created = store.submit_conversation_message(
-                conversation_id, body.prompt, run, task, idem_key=key, request_hash=digest,
+                conversation_id, prompt, run, task, idem_key=key, request_hash=digest,
                 reply_to_message_id=body.reply_to_message_id,
+                rewrite_kind=body.correction,
                 workspace_task_result_id=body.workspace_task_result_id,
                 workspace_task_result_message_id=body.workspace_task_result_message_id)
         except IdempotencyConflict as exc:

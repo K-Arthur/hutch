@@ -260,6 +260,60 @@ def test_tool_free_conversation_rejects_provider_tool_calls_without_execution(st
     assert not (ctx.workspace / "out.md").exists()
 
 
+def test_answer_rewrite_is_one_tool_free_response_without_workspace_or_action_context(
+        store, config, tmp_path, ollama, monkeypatch):
+    from hutch.engine import Engine
+    from hutch.persona import contextualize_persona, resolve_persona
+
+    ctx, run, _, _ = build(store, config, tmp_path, tools=("files", "browser", "memory"))
+    run.execution_purpose = "answer_rewrite"
+    run.tool_access = "none"
+    run.rewrite_kind = "go_deeper"
+    run.prompt = "Go deeper on this answer."
+    source = '{"message_id":"old","original_request":"Return valid JSON with citations.","answer":"{\\"value\\":1}"}'
+    reference = "[Answer-specific rewrite reference.]\n<answer_rewrite_reference_json>\n" + source + "\n</answer_rewrite_reference_json>"
+    run.conversation_context = [{"role": "user", "content": reference}]
+    run.persona_plan = contextualize_persona(resolve_persona(), "Go deeper on this answer.",
+        conversation_context=run.conversation_context, answer_correction=run.rewrite_kind)
+    tools = Engine.tools_for_run(run, ctx.bot, ctx)
+    action_context_reads = []
+    monkeypatch.setattr(ctx.store, "action_context",
+                        lambda run_id: action_context_reads.append(run_id) or "\nACTION_CONTEXT")
+    ollama.script = agent_script([{"content": '{"value":1,"citations":["https://example.test"]}'}])
+
+    answer = run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools)
+    request = ollama.of("/api/chat")[0]["body"]
+    system = request["messages"][0]["content"]
+    assert answer == '{"value":1,"citations":["https://example.test"]}'
+    assert len(ollama.of("/api/chat")) == 1
+    assert request.get("tools", []) == []
+    assert "tool-free rewrite of one completed answer" in system
+    assert "Preserve the original meaning, evidence, source citations" in system
+    assert "ACTION_CONTEXT" not in system and action_context_reads == []
+    assert str(ctx.workspace) not in system
+    assert reference in request["messages"][-2]["content"]
+    assert "Go deeper on this answer." == request["messages"][-1]["content"]
+    assert run.persona_plan.output_contract == "json"
+    assert run.persona_plan.humor_eligible is False
+
+
+def test_answer_rewrite_refuses_provider_tool_calls_without_execution(store, config, tmp_path, ollama):
+    from hutch.engine import Engine
+
+    ctx, run, _, _ = build(store, config, tmp_path, tools=("files", "browser"))
+    run.execution_purpose = "answer_rewrite"
+    run.tool_access = "none"
+    run.rewrite_kind = "shorter"
+    tools = Engine.tools_for_run(run, ctx.bot, ctx)
+    ollama.script = agent_script([{"tool_calls": [WRITE]}])
+
+    with pytest.raises(RunAborted, match="tool-free answer rewrite"):
+        run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools)
+
+    assert ollama.of("/api/chat")[0]["body"].get("tools", []) == []
+    assert not (ctx.workspace / "out.md").exists()
+
+
 def test_stored_bot_drafts_without_execution_purpose_keep_their_legacy_mode():
     old = {"bot_id": "bot", "prompt": "draft", "origin": "manual:bot_draft", "tool_access": "none"}
     loaded = Run.model_validate(old)
@@ -267,6 +321,15 @@ def test_stored_bot_drafts_without_execution_purpose_keep_their_legacy_mode():
 
     ordinary = Run.model_validate({"bot_id": "bot", "prompt": "hello", "origin": "manual:api"})
     assert ordinary.execution_purpose == "task"
+
+    rewrite = Run(bot_id="bot", prompt="Make this answer shorter.", execution_purpose="answer_rewrite",
+                  rewrite_kind="shorter", tool_access="none")
+    assert rewrite.execution_purpose == "answer_rewrite" and rewrite.rewrite_kind == "shorter"
+    with pytest.raises(ValueError, match="answer_rewrite runs must have tool_access"):
+        Run(bot_id="bot", prompt="Make this answer shorter.", execution_purpose="answer_rewrite",
+            rewrite_kind="shorter")
+    with pytest.raises(ValueError, match="require one typed rewrite kind"):
+        Run(bot_id="bot", prompt="Make this answer shorter.", execution_purpose="answer_rewrite", tool_access="none")
 
     with pytest.raises(ValueError, match="tool_access='none'"):
         Run(bot_id="bot", prompt="hello", execution_purpose="conversation", tool_access="bot")

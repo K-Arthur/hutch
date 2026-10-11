@@ -70,6 +70,15 @@ consequential topic, and an immediate correction or withdrawal of playful consen
 prompt and routing controls rather than a guarantee that every provider model will follow them; tool policy, approvals and
 output validation remain authoritative. A live preview and human-reviewed model-quality results are not currently available.
 
+Shorter, go-deeper and less-banter rewrites attach to one explicitly selected assistant message. Hutch accepts a target
+only when its source run succeeded and the request and answer are available in the same conversation; pending questions,
+failed runs, oversized answers and cross-conversation references are rejected. The bounded source request and answer are
+sent as untrusted data to the configured provider for the rewrite. The rewrite uses the built-in tool-free runtime,
+omits workspace and pending-action context, rejects provider tool calls, and cannot repeat an external action. It is a
+new provider request, so hosted-provider retention terms still apply. A rewrite changes only the new reply text: it does
+not undo the source run's effects or turn a prior statement into fresh evidence. Its prompt guidance asks the model to
+preserve citations, uncertainty, caveats and output contracts, but live provider adherence remains unverified.
+
 Worker review requests, wait state and inline review events commit together. Canonical decision
 summaries override stale transcript asks after a worker crash. Schema v11 resource replay
 contains identifiers rather than message, argument or secret content; clients fetch current

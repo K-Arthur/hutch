@@ -310,20 +310,39 @@ _WORKSPACE_REFERENCE_RE = re.compile(
 
 
 def contextualize_persona(plan: PersonaPlan, prompt: str, *,
-                          conversation_context: Optional[list[dict[str, str]]] = None) -> PersonaPlan:
+                          conversation_context: Optional[list[dict[str, str]]] = None,
+                          answer_correction: Optional[Literal["shorter", "go_deeper", "less_banter"]] = None
+                          ) -> PersonaPlan:
     """Add a bounded, local response plan from the current request without persisting preference inference."""
     raw = prompt if isinstance(prompt, str) else ""
+    if answer_correction is not None:
+        for item in conversation_context or []:
+            if not isinstance(item, dict) or item.get("role") != "user":
+                continue
+            marker = "<answer_rewrite_reference_json>\n"
+            _, found, remainder = str(item.get("content", "")).partition(marker)
+            if not found:
+                continue
+            payload, _, _ = remainder.partition("\n</answer_rewrite_reference_json>")
+            try:
+                selected = json.loads(payload)
+            except (TypeError, ValueError):
+                continue
+            source_request = selected.get("original_request") if isinstance(selected, dict) else None
+            if isinstance(source_request, str):
+                raw += "\n" + source_request
+            break
     # Bound local inspection cost for very long prompts while retaining their beginning and end.
     text = raw if len(raw) <= 8_000 else raw[:3_999] + "\n" + raw[-4_000:]
-    current = text.strip()
+    current = (prompt if isinstance(prompt, str) else "").strip()
     context_available = any(
         isinstance(item, dict) and item.get("role") == "assistant" and bool(item.get("content"))
         for item in (conversation_context or [])
     )
-    shorter = bool(_SHORTER_RE.search(current)) and context_available
-    deeper = bool(_DEEPER_RE.search(current)) and context_available
+    shorter = answer_correction == "shorter" or (bool(_SHORTER_RE.search(current)) and context_available)
+    deeper = answer_correction == "go_deeper" or (bool(_DEEPER_RE.search(current)) and context_available)
     less_humor_request = bool(_LESS_HUMOR_RE.search(current))
-    less_humor = less_humor_request and context_available
+    less_humor = answer_correction == "less_banter" or (less_humor_request and context_available)
     explicit_correction = shorter or deeper or less_humor
 
     high_stakes = bool(_HIGH_STAKES_RE.search(text))
@@ -363,13 +382,13 @@ def contextualize_persona(plan: PersonaPlan, prompt: str, *,
     grounding: list[GroundingNeed] = []
     if references_context or references_personal_context or explicit_correction:
         grounding.append("conversation")
-    if current_facts:
+    if current_facts and not explicit_correction:
         grounding.append("current_facts")
-    elif external_sources:
+    elif external_sources and not explicit_correction:
         grounding.append("external_sources")
-    if coding or workspace_reference:
+    if (coding or workspace_reference) and not explicit_correction:
         grounding.append("workspace")
-    if external_action:
+    if external_action and not explicit_correction:
         grounding.append("tool_execution")
 
     output_contract: OutputContract = "freeform"

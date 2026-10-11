@@ -21,13 +21,18 @@
   diagnostic reasons. Low-risk eligibility preserves preset discretion, while humor guidance still requires a
   clearly playful request. This plan currently informs prompt guidance; routing and answer-scoped rewrite behavior
   are still in progress, and live provider adherence remains unverified.
-- Separate run purpose (`task`, `bot_draft`, or `conversation`) from tool authority. Existing stored review-only
+- Separate run purpose (`task`, `bot_draft`, `conversation`, or `answer_rewrite`) from tool authority. Existing stored review-only
   drafts keep their Bot-draft guidance and one-response limit; a tool-free conversation has a short conversation
   instruction, no tool schemas, and refuses provider tool calls without execution. Automatic routing into that
   purpose is limited to explicit, low-risk banter in an interactive chat when the response plan has no grounding
   need, selected skill, structured output, rehearsal, or delegation. That route omits tool schemas and action-context
   lookup; analytical, current-fact, sensitive, personal-context, and output-constrained requests retain the task path.
   Mismatched purpose/tool-access pairs fail closed.
+- Add a typed answer-correction API for Shorter, Go deeper, and Less banter. Each rewrite must target a succeeded
+  assistant answer in the same conversation; Hutch snapshots its original request and answer as bounded untrusted
+  context, resolves the original safety/output cues, and runs through a dedicated built-in tool-free purpose that
+  omits action/workspace context and refuses provider tool calls. API/runtime tests pass; the conversation controls
+  and live provider adherence are still unverified.
 - Extend assistant settings with the independent v2 selectors and bounded customization beside standing
   directions. Conversation controls save scoped preferences with conflict recovery; next-reply controls stay
   local until one send. Browser regressions cover persistence, reset, concurrent edits, focus, keyboard,

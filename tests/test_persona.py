@@ -222,6 +222,41 @@ def test_contextual_plan_applies_only_exact_current_answer_corrections(prompt, e
     assert plan.grounding_needs == ["conversation"]
 
 
+@pytest.mark.parametrize(
+    ("correction", "expected_depth"),
+    [("shorter", "brief"), ("go_deeper", "detailed"), ("less_banter", "standard")],
+)
+def test_typed_answer_corrections_apply_to_the_selected_request_even_when_it_is_old(correction, expected_depth):
+    selected = json.dumps({"message_id": "older-answer", "original_request":
+                           "For my debt negotiation, return valid JSON with citations.",
+                           "answer": '{"summary":"Review the cited terms.","citations":[]}'}).replace("<", "\\u003c").replace(">", "\\u003e")
+    context = [{"role": "user", "content": "[Answer-specific rewrite reference.]\n"
+                "<answer_rewrite_reference_json>\n" + selected + "\n</answer_rewrite_reference_json>"}]
+    prompt = {"shorter": "Make this answer shorter.", "go_deeper": "Go deeper on this answer.",
+              "less_banter": "Rewrite this answer with less banter."}[correction]
+    plan = contextualize_persona(resolve_persona(agent_override=PersonaStyle(depth="standard", humor="playful")),
+                                 prompt, conversation_context=context, answer_correction=correction)
+    assert plan.intent == "high_stakes"
+    assert plan.resolved_depth == expected_depth
+    assert plan.humor_eligible is False
+    assert plan.grounding_needs == ["conversation"]
+    assert plan.output_contract == "json"
+    assert "answer_correction" in plan.diagnostic_reasons
+
+
+def test_answer_rewrite_preserves_code_contract_without_requesting_workspace_retrieval():
+    selected = json.dumps({"message_id": "code-answer", "original_request":
+                           "Write a Python function for this file and return the code.",
+                           "answer": "```python\ndef example():\n    return 1\n```"})
+    context = [{"role": "user", "content": "<answer_rewrite_reference_json>\n" + selected +
+                "\n</answer_rewrite_reference_json>"}]
+    plan = contextualize_persona(resolve_persona(), "Make this answer shorter.",
+                                 conversation_context=context, answer_correction="shorter")
+    assert plan.output_contract == "code"
+    assert plan.grounding_needs == ["conversation"]
+    assert plan.humor_eligible is False
+
+
 def test_correction_words_without_a_referenced_answer_do_not_become_durable_preferences():
     plan = contextualize_persona(resolve_persona(), "Please make future replies shorter.")
     assert plan.intent == "general"
