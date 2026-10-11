@@ -833,6 +833,115 @@ def test_bounded_map_exposes_one_question_per_item_up_to_concurrency_after_resta
         question["id"] for question in pending_by_label.values()}
 
 
+@pytest.mark.parametrize("answer_order", [("region", "capacity"), ("capacity", "region")])
+def test_bounded_map_collects_independent_questions_within_an_item_after_restart(
+        store, config, answer_order):
+    bot = make_bot(store, name="nested-map-questions")
+    engine = Engine(config, store)
+    plan = {
+        "name": "one-map-item-two-questions",
+        "inputs": {"settings": {"type": "array", "max_items": 1}},
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 8, "max_model_calls": 0, "max_fanout": 1},
+        "nodes": [
+            {"kind": "map", "id": "review", "over": {"ref": "input.settings"},
+             "item_key": "key", "concurrency": 1, "max_items": 1, "body": [
+                 {"kind": "ask", "id": "region", "inputs": {"label": {"ref": "item.label"}},
+                  "question": "Which region for {{label}}?", "timeout_seconds": 600},
+                 {"kind": "ask", "id": "capacity", "inputs": {"label": {"ref": "item.label"}},
+                  "question": "How many users for {{label}}?", "timeout_seconds": 600},
+                 {"kind": "transform", "id": "summary", "op": "to_json",
+                  "args": {"value": [{"ref": "review.region.answer"},
+                                      {"ref": "review.capacity.answer"}]}}
+             ]},
+        ],
+    }
+    submission = wfsubmit.submit_workflow(
+        store, bot=bot, plan=plan,
+        inputs={"settings": [{"key": "alpha", "label": "Alpha"}]})
+    drive(engine, store, submission.attempt_run_id)
+
+    pending = wstore.questions(store, submission.workflow_run_id, status="pending")
+    assert len(pending) == 2
+    assert {question["site_id"] for question in pending} == {"review.region", "review.capacity"}
+    assert {question["instance_key"] for question in pending} == {"item:alpha"}
+    assert {node["site_id"] for node in wstore.nodes(store, submission.workflow_run_id)} == {
+        "review.region", "review.capacity"}
+    assert {node["status"] for node in wstore.nodes(store, submission.workflow_run_id)} == {"waiting"}
+
+    questions_by_site = {question["site_id"].removeprefix("review."): question for question in pending}
+    answers = {"region": "west", "capacity": "120"}
+    first_site, second_site = answer_order
+    generation = wstore.workflow_run(store, submission.workflow_run_id)["attempt_run_id"]
+    assert wfsubmit.answer(store, questions_by_site[first_site]["id"], answers[first_site]) == "won"
+    drive(engine, store, submission.attempt_run_id)
+    still_waiting = wstore.workflow_run(store, submission.workflow_run_id)
+    assert still_waiting["attempt_run_id"] == generation
+    assert still_waiting["reason"] == "waiting for 1 answer(s)"
+    assert len(wstore.questions(store, submission.workflow_run_id, status="pending")) == 1
+    assert not any(node["site_id"] == "review.summary"
+                   for node in wstore.nodes(store, submission.workflow_run_id))
+
+    store.close()
+    store = Store(config)
+    engine = Engine(config, store)
+    assert wfsubmit.answer(store, questions_by_site[second_site]["id"], answers[second_site]) == "won"
+    drive(engine, store, submission.attempt_run_id)
+    final = wfsubmit.status(store, submission.workflow_run_id)
+    assert final["workflow"]["status"] == "succeeded"
+    settled_asks = {node["site_id"]: node for node in final["nodes"]
+                    if node["site_id"] in {"review.region", "review.capacity"}}
+    assert {node["status"] for node in settled_asks.values()} == {"succeeded"}
+    assert {site.removeprefix("review."): node["result"]["answer"]
+            for site, node in settled_asks.items()} == answers
+    assert next(node for node in final["nodes"] if node["site_id"] == "review.summary")["status"] == "succeeded"
+
+
+def test_bounded_map_holds_dependent_question_until_its_answer_arrives(store, config):
+    bot = make_bot(store, name="dependent-map-questions")
+    engine = Engine(config, store)
+    plan = {
+        "name": "dependent-map-questions",
+        "inputs": {"settings": {"type": "array", "max_items": 1}},
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 8, "max_model_calls": 0, "max_fanout": 1},
+        "nodes": [
+            {"kind": "map", "id": "review", "over": {"ref": "input.settings"},
+             "item_key": "key", "concurrency": 1, "max_items": 1, "body": [
+                 {"kind": "ask", "id": "region", "question": "Which region should be used?",
+                  "timeout_seconds": 600},
+                 {"kind": "ask", "id": "capacity", "inputs": {
+                     "region": {"ref": "review.region.answer"}},
+                  "question": "How many users in {{region}}?", "timeout_seconds": 600}
+             ]},
+        ],
+    }
+    submission = wfsubmit.submit_workflow(
+        store, bot=bot, plan=plan,
+        inputs={"settings": [{"key": "alpha"}]})
+    drive(engine, store, submission.attempt_run_id)
+    first = wstore.questions(store, submission.workflow_run_id, status="pending")
+    assert len(first) == 1 and first[0]["site_id"] == "review.region"
+    assert first[0]["question"] == "Which region should be used?"
+
+    assert wfsubmit.answer(store, first[0]["id"], "west") == "won"
+    drive(engine, store, submission.attempt_run_id)
+    second = wstore.questions(store, submission.workflow_run_id, status="pending")
+    assert len(second) == 1 and second[0]["site_id"] == "review.capacity"
+    assert second[0]["question"] == "How many users in west?"
+    records = {node["site_id"]: node for node in wstore.nodes(store, submission.workflow_run_id)}
+    assert records["review.region"]["status"] == "succeeded"
+    assert records["review.capacity"]["status"] == "waiting"
+
+    assert wfsubmit.answer(store, second[0]["id"], "120") == "won"
+    drive(engine, store, submission.attempt_run_id)
+    final = wfsubmit.status(store, submission.workflow_run_id)
+    assert final["workflow"]["status"] == "succeeded"
+    records = {node["site_id"]: node for node in final["nodes"]}
+    assert records["review.region"]["result"]["answer"] == "west"
+    assert records["review.capacity"]["result"]["answer"] == "120"
+
+
 def test_stopping_a_parked_workflow_finishes_after_cleanup_and_cancels_questions(store, config):
     bot = make_bot(store, name="stop-parked")
     engine = Engine(config, store)

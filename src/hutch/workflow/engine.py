@@ -435,14 +435,15 @@ class Interpreter:
             keys.append(key)
             if keys.count(key) > 1:
                 raise WorkflowFailed(cnode.site_id, f"duplicate item key {key!r}; item keys must be unique")
+            item_prefix = ""
+            interrupted = False
             try:
                 with self._within(f"item:{key}"):
-                    value = self._walk(body, item_scope)
+                    item_prefix = self._instance_key
+                    value = self._walk(body, item_scope, collect_independent_questions=True)
             except _Wait:
-                unsettled += 1
-                if unsettled >= max(1, node.concurrency):
-                    raise
-                continue
+                interrupted = True
+                value = None
             except WorkflowFailed as exc:
                 if node.on_item_failure == "skip":
                     skipped.append(key)
@@ -450,6 +451,18 @@ class Interpreter:
                                                "note": f"item skipped: {exc}"})
                     continue
                 raise
+            pending_for_item = bool(item_prefix) and any(
+                question["status"] == "pending"
+                and (question["instance_key"] == item_prefix
+                     or question["instance_key"].startswith(f"{item_prefix}|"))
+                for question in self.questions.values())
+            if interrupted and not pending_for_item:
+                raise _Wait()
+            if pending_for_item:
+                unsettled += 1
+                if unsettled >= max(1, node.concurrency):
+                    raise _Wait()
+                continue
             items.append(value)
         if unsettled:
             raise _Wait()

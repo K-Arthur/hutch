@@ -297,9 +297,10 @@ For independent top-level questions, later questions are also committed in that 
 together in Studio and paired-phone **Needs you**. Non-ask work and questions that depend on an
 unanswered question or deferred node stay held until the pending questions are answered. Each
 answer resolves only its durable question ID and grants no action authority. A bounded map can
-surface one pending ask per item up to its declared concurrency; items are visited in stable order,
-not dispatched in parallel. Multiple asks inside one item, and asks in a branch or repeat, still
-wait at the first unanswered ask. Hutch opens a durable ask-node record before publishing a question,
+surface independent asks from each of up to its declared number of unresolved items; asks within an
+item are collected together, while items are visited in stable order and are not dispatched in
+parallel. An ask that depends on an unanswered ask, or an ask inside a branch or repeat, waits at the
+first unresolved question. Hutch opens a durable ask-node record before publishing a question,
 then commits the question and node's `waiting` state together. An answer settles that same node with
 its answer result; Stop cancels it together with the pending question. Studio counts question-backed
 instances separately from the immutable planned structure, including during the short transition
