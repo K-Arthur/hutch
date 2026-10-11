@@ -321,12 +321,14 @@
       return;
     }
     let saved = state.override || {};
+    const adaptiveEnabled = state.enabled !== false;
     container.innerHTML = `
       <form class="panel form-grid persona-form" aria-labelledby="persona-form-title">
         <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${GLYPH}</span>
           <span id="persona-form-title">Response style</span></div>
         <p class="hint">Choose a voice, answer depth, and humor independently. Style changes wording only; tools,
         permissions, evidence, and requested formats stay unchanged.</p>
+        <p class="hint persona-disabled-notice" data-persona-disabled role="status" ${adaptiveEnabled ? "hidden" : ""}>Adaptive response style is disabled by local configuration. Saved preferences are preserved.</p>
         <div class="form-grid row2 persona-fields">${fieldsHtml("persona", CHAT_FIELDS)}</div>
         <details class="persona-examples" data-persona-examples>
           <summary>See written examples</summary>
@@ -400,12 +402,12 @@
     let previewInspectorState = { scope: "", savedRevision: null, planVersion: null, receipt: null, step: null };
     const refreshDirty = () => {
       const dirty = resetAll || Object.keys(changesBetween(form, saved)).length > 0;
-      saveBtn.disabled = !dirty;
+      saveBtn.disabled = !adaptiveEnabled || !dirty;
       previewBtn.textContent = dirty ? "Preview this draft" : "Preview saved style";
       return dirty;
     };
     const refreshPreviewAvailability = () => {
-      previewBtn.disabled = !previewBudget?.available || saving;
+      previewBtn.disabled = !adaptiveEnabled || !previewBudget?.available || saving;
       previewBtn.setAttribute("aria-disabled", String(previewStarting || Boolean(activePreviewRun)));
     };
     const resetPreviewInspector = () => {
@@ -458,6 +460,7 @@
     writeOrigins(form, state, "Saved for this assistant.");
     refreshDirty();
     const update = event => {
+      if (!adaptiveEnabled) return;
       const key = event.currentTarget.dataset.personaRange;
       if (key) q(`[data-persona-value="${key}"]`, form).value = `${event.currentTarget.value}/100`;
       const field = event.currentTarget.dataset.personaField;
@@ -478,6 +481,7 @@
     qa("[data-persona-field], [data-persona-range], [data-persona-habits] input", form)
       .forEach(el => el.addEventListener(el.matches("[data-persona-range]") ? "input" : "change", update));
     resetBtn.addEventListener("click", () => {
+      if (!adaptiveEnabled) return;
       resetFields(form, [...CHAT_FIELDS, ...CUSTOM_FIELDS, "avoid_habits"]);
       resetAll = true;
       setStatus("All response-style choices will be cleared to inherited.");
@@ -487,6 +491,7 @@
     });
     form.addEventListener("submit", async event => {
       event.preventDefault();
+      if (!adaptiveEnabled) return;
       const changes = changesBetween(form, saved);
       if (resetAll) { changes.tone = null; changes.banter = null; }
       if (!Object.keys(changes).length) return;
@@ -543,6 +548,13 @@
     });
 
     async function loadPreviewBudget() {
+      if (!adaptiveEnabled) {
+        previewBudgetEl.textContent = "Live preview is disabled by local configuration. Saved preferences are preserved.";
+        previewBudget = { available: false, reason: "Adaptive response style is disabled by local configuration." };
+        resetBtn.disabled = true;
+        refreshPreviewAvailability();
+        return;
+      }
       const restoreFocus = document.activeElement === previewBtn;
       previewBudget = null;
       previewBudgetEl.textContent = "Checking the configured model and limits…";
@@ -610,7 +622,7 @@
 
     previewBtn.addEventListener("click", async () => {
       // Keep focus on the action while it runs, but ignore repeat activation until it settles.
-      if (!previewBudget?.available || previewStarting || activePreviewRun) return;
+      if (!adaptiveEnabled || !previewBudget?.available || previewStarting || activePreviewRun) return;
       const sourceRevision = state.revision;
       // Build the candidate from the visible form controls. Starting from an empty style
       // normalizes legacy tone/banter fields and omits irrelevant null values from the request.
@@ -670,6 +682,10 @@
       }
     });
 
+    if (!adaptiveEnabled) {
+      setDisabled(form, true);
+      resetBtn.disabled = true;
+    }
     loadPreviewBudget();
   }
 
@@ -775,6 +791,9 @@
       const state = conversationStates.get(conversationId);
       if (!state) return;
       writeSelects(conversationScope, state.override || {});
+      const enabled = state.enabled !== false;
+      setDisabled(conversationScope, !enabled);
+      conversationStatus.textContent = enabled ? "" : "Adaptive response style is disabled by local configuration. Saved preferences are preserved.";
       writeOrigins(conversationScope, state, "Saved for this conversation.");
       refreshConversationDirty();
     };
@@ -782,19 +801,22 @@
       const state = conversationStates.get(conversationId);
       const pending = pendingStyle(conversationId) || {};
       writeSelects(turnScope, pending);
+      setDisabled(turnScope, state?.enabled === false);
       writeOrigins(turnScope, { override: pending, effective: state?.effective, labels: state?.labels },
                    "For the next reply only.");
     };
     const refreshConversationDirty = () => {
       const state = conversationStates.get(conversationId);
+      const enabled = state?.enabled !== false;
       const dirty = resetConversation || (state && Object.keys(changesBetween(conversationScope, state.override || {})).length > 0);
-      conversationSave.disabled = busy || !dirty;
+      conversationSave.disabled = !enabled || busy || !dirty;
       const overrides = state?.override || {};
-      conversationReset.disabled = busy || !Object.values(overrides).some(value => value !== null && value !== undefined);
+      conversationReset.disabled = !enabled || busy || !Object.values(overrides).some(value => value !== null && value !== undefined);
       return Boolean(dirty);
     };
     const updateConversationDraft = event => {
       if (busy) return;
+      if (conversationStates.get(conversationId)?.enabled === false) return;
       const key = event.currentTarget.dataset.personaRange;
       if (key) q(`[data-persona-value="${key}"]`, conversationScope).value = `${event.currentTarget.value}/100`;
       const state = conversationStates.get(conversationId);
@@ -804,6 +826,7 @@
     qa("[data-persona-field], [data-persona-range]", conversationScope)
       .forEach(el => el.addEventListener(el.matches("[data-persona-range]") ? "input" : "change", updateConversationDraft));
     conversationReset.addEventListener("click", () => {
+      if (conversationStates.get(conversationId)?.enabled === false) return;
       resetFields(conversationScope, CHAT_FIELDS);
       resetConversation = true;
       conversationStatus.textContent = "Conversation choices will be cleared to inherited.";
@@ -813,7 +836,7 @@
     conversationSave.addEventListener("click", async () => {
       if (busy) return;
       const state = conversationStates.get(conversationId);
-      if (!state) return;
+      if (!state || state.enabled === false) return;
       const changes = changesBetween(conversationScope, state.override || {});
       if (resetConversation) { changes.tone = null; changes.banter = null; }
       if (!Object.keys(changes).length) return;
@@ -869,6 +892,7 @@
       }
     });
     qa("[data-persona-field], [data-persona-range]", turnScope).forEach(el => el.addEventListener("change", event => {
+      if (conversationStates.get(conversationId)?.enabled === false) return;
       const key = event.currentTarget.dataset.personaRange;
       if (key) q(`[data-persona-value="${key}"]`, turnScope).value = `${event.currentTarget.value}/100`;
       setPendingStyle(conversationId, readScope(turnScope, pendingStyle(conversationId) || {}));
@@ -878,6 +902,7 @@
     await loadState();
     renderConversation();
     renderTurn();
+    emit(conversationId);
     const listener = () => renderTurn();
     subscribe(conversationId, listener);
     activeOptions = { conversationId, listener };
@@ -922,7 +947,7 @@
     const text = q("[data-persona-turn-text]", container);
     const render = () => {
       const summary = summarize(pendingStyle(conversationId));
-      chip.hidden = !summary;
+      chip.hidden = conversationStates.get(conversationId)?.enabled === false || !summary;
       text.textContent = summary;
     };
     q("[data-persona-turn-clear]", container).addEventListener("click", () => setPendingStyle(conversationId, null));

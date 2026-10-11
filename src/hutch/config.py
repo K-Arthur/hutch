@@ -26,6 +26,7 @@ class hutchConfig:
     """Paths and defaults for one hutch installation."""
 
     state_dir: Path
+    adaptive_persona_enabled: bool = True
 
     @property
     def db_path(self) -> Path:
@@ -119,4 +120,12 @@ class hutchConfig:
 
 def get_config() -> hutchConfig:
     override = os.environ.get("HUTCH_STATE_DIR")
-    return hutchConfig(state_dir=Path(override) if override else _default_state_dir())
+    raw_persona_flag = os.environ.get("HUTCH_ENABLE_ADAPTIVE_PERSONA", "1").strip().lower()
+    if raw_persona_flag in {"1", "true", "yes", "on"}:
+        adaptive_persona_enabled = True
+    elif raw_persona_flag in {"0", "false", "no", "off"}:
+        adaptive_persona_enabled = False
+    else:
+        raise ValueError("HUTCH_ENABLE_ADAPTIVE_PERSONA must be one of 1/true/yes/on or 0/false/no/off")
+    return hutchConfig(state_dir=Path(override) if override else _default_state_dir(),
+                       adaptive_persona_enabled=adaptive_persona_enabled)

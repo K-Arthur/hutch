@@ -28,6 +28,9 @@ lineages (Bot tools plus skills; skill and document tool imports; both changelog
 artifacts resolve to local main's canonical set. Deliverable: adaptive persona, proportional depth, fast banter and
 calibrated sensitivity through configuration → runtime → visible response. Plan/research:
 `docs/realignment/persona-plan.md`, `docs/realignment/persona-research-ledger.md`. Sibling worktrees are not edited; no push.
+The local rollback gate `HUTCH_ENABLE_ADAPTIVE_PERSONA=0` now preserves stored profiles while disabling new plan
+resolution and style-only writes; runtime/API behavior and responsive actual-app states are recorded in
+`artifacts/persona-rollback-ui-2026-10-11/` and the plan's Runtime evaluation checkpoint.
 
 ## Current slices
 

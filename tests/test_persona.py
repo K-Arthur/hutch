@@ -126,6 +126,29 @@ def test_layer_labels_cover_every_resolution_source():
     assert set(LAYER_LABELS) == {"application", "agent_preset", "agent_override", "conversation", "turn"}
 
 
+@pytest.mark.parametrize(("raw", "expected"), [
+    ("1", True), ("true", True), ("yes", True), ("on", True),
+    ("0", False), ("false", False), ("no", False), ("off", False),
+])
+def test_adaptive_persona_feature_flag_parses_explicit_values(monkeypatch, tmp_path, raw, expected):
+    from hutch.config import get_config
+
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("HUTCH_ENABLE_ADAPTIVE_PERSONA", raw)
+    assert get_config().adaptive_persona_enabled is expected
+
+
+def test_adaptive_persona_feature_flag_defaults_on_and_rejects_invalid_values(monkeypatch, tmp_path):
+    from hutch.config import get_config
+
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.delenv("HUTCH_ENABLE_ADAPTIVE_PERSONA", raising=False)
+    assert get_config().adaptive_persona_enabled is True
+    monkeypatch.setenv("HUTCH_ENABLE_ADAPTIVE_PERSONA", "sometimes")
+    with pytest.raises(ValueError, match="HUTCH_ENABLE_ADAPTIVE_PERSONA"):
+        get_config()
+
+
 # ============================================================ rendering and the local budget
 
 def test_guidance_states_the_style_and_stays_subordinate():
@@ -595,6 +618,75 @@ def test_engine_captures_the_resolved_persona_plan_at_start(store, config, monke
     assert store.run_capability_snapshot(run.id)["tools"] == []
 
 
+def test_disabled_adaptive_persona_preserves_normal_route_and_does_not_capture_new_style(store, config, monkeypatch):
+    from dataclasses import replace
+    import hutch.engine as engine_module
+    from hutch.engine import Engine
+
+    observed = {}
+
+    class Runtime:
+        kind = "fixture"
+
+        def execute(self, run, ctx, tools, stop):
+            observed.update(execution_purpose=run.execution_purpose, tool_access=run.tool_access,
+                            plan=run.persona_plan, tools=sorted(tools))
+            return "ok"
+
+    monkeypatch.setattr(engine_module, "get_runtime", lambda _: Runtime())
+    bot = store.create_bot(Bot(name="persona-disabled", model="mock/demo", tools=["files"]))
+    store.update_bot_persona(bot.id, {"preset": "dry_wit", "depth": "brief"}, expected_revision=0,
+                              idem_key="disabled-style", request_hash="disabled-style")
+    conversation, _ = store.create_conversation(bot.id, "disabled", idem_key="disabled-chat",
+                                                 request_hash="disabled-chat")
+    store.update_conversation_persona(conversation["id"], {"depth": "brief"}, expected_revision=0,
+                                      idem_key="disabled-conv", request_hash="disabled-conv")
+    prompt = "Tell me a silly pun about a database."
+    run = Run(bot_id=bot.id, prompt=prompt, origin="manual:api", conversation_id=conversation["id"],
+              persona_turn=PersonaStyle(depth="brief"))
+    store.submit_conversation_message(conversation["id"], prompt, run, Task(bot_id=bot.id, prompt=prompt),
+                                      idem_key="disabled-run", request_hash="disabled-run")
+
+    Engine(replace(config, adaptive_persona_enabled=False), store).dispatch_pending()
+    stored = _wait_terminal(store, run.id)
+    assert stored.status is RunStatus.succeeded, stored.reason
+    assert stored.persona_plan is None and observed["plan"] is None
+    assert stored.execution_purpose == observed["execution_purpose"] == "task"
+    assert stored.tool_access == observed["tool_access"] == "bot"
+    assert observed["tools"] and "list_files" in observed["tools"]
+
+
+def test_disabled_adaptive_persona_reuses_an_existing_write_once_plan(store, config, monkeypatch):
+    from dataclasses import replace
+    import hutch.engine as engine_module
+    from hutch.engine import Engine
+
+    expected = contextualize_persona(resolve_persona(agent_override=PersonaStyle(depth="brief", humor="off")),
+                                     "Tell me a silly pun about a database.")
+    observed = {}
+
+    class Runtime:
+        kind = "fixture"
+
+        def execute(self, run, ctx, tools, stop):
+            observed["plan"] = run.persona_plan
+            return "ok"
+
+    monkeypatch.setattr(engine_module, "get_runtime", lambda _: Runtime())
+    bot = store.create_bot(Bot(name="persona-recovery-disabled", model="mock/demo", tools=[]))
+    conversation, _ = store.create_conversation(bot.id, "recovery", idem_key="recovery-chat",
+                                                 request_hash="recovery-chat")
+    run = Run(bot_id=bot.id, prompt="Tell me a silly pun about a database.", origin="manual:api",
+              conversation_id=conversation["id"], persona_plan=expected)
+    store.submit_conversation_message(conversation["id"], run.prompt, run, Task(bot_id=bot.id, prompt=run.prompt),
+                                      idem_key="recovery-run", request_hash="recovery-run")
+
+    Engine(replace(config, adaptive_persona_enabled=False), store).dispatch_pending()
+    stored = _wait_terminal(store, run.id)
+    assert stored.status is RunStatus.succeeded, stored.reason
+    assert stored.persona_plan == expected and observed["plan"] == expected
+
+
 # ============================================================ API: scoped saves with revision conflicts and reset
 
 @pytest.fixture()
@@ -611,6 +703,93 @@ def _make_bot(client, name="style-api"):
     created = client.post("/api/bots", json={"name": name, "model": "mock/demo", "tools": []})
     assert created.status_code in (200, 201), created.text
     return created.json()
+
+
+def test_adaptive_persona_kill_switch_preserves_profiles_and_blocks_feature_writes(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    from hutch.server.app import create_app
+
+    state_dir = tmp_path / "preserved-state"
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(state_dir))
+    monkeypatch.delenv("HUTCH_ENABLE_ADAPTIVE_PERSONA", raising=False)
+    with TestClient(create_app()) as enabled_client:
+        bot = _make_bot(enabled_client, "persona-kill-switch")
+        bot_id = bot["id"]
+        saved = enabled_client.patch(f"/api/v1/bots/{bot_id}/persona",
+                                     json={"preset": "warm", "depth": "detailed", "humor": "off",
+                                           "expected_revision": 0},
+                                     headers={"Idempotency-Key": "kill-switch-agent-save"})
+        assert saved.status_code == 200, saved.text
+        conversation, _ = enabled_client.app.state.store.create_conversation(
+            bot_id, "preserved conversation", idem_key="kill-switch-chat", request_hash="kill-switch-chat")
+        conversation_id = conversation["id"]
+        saved_conversation = enabled_client.patch(f"/api/v1/conversations/{conversation_id}/persona",
+                                                  json={"depth": "brief", "expected_revision": 0},
+                                                  headers={"Idempotency-Key": "kill-switch-conversation-save"})
+        assert saved_conversation.status_code == 200, saved_conversation.text
+
+    monkeypatch.setenv("HUTCH_ENABLE_ADAPTIVE_PERSONA", "0")
+    with TestClient(create_app()) as disabled_client:
+        roster = disabled_client.get("/api/bots").json()
+        assert next(item for item in roster if item["id"] == bot_id)["adaptive_persona_enabled"] is False
+
+        state = disabled_client.get(f"/api/v1/bots/{bot_id}/persona")
+        assert state.status_code == 200, state.text
+        assert state.json()["enabled"] is False and state.json()["revision"] == 1
+        assert state.json()["override"]["preset"] == "warm"
+        assert state.json()["override"]["depth"] == "detailed"
+        conversation_state = disabled_client.get(f"/api/v1/conversations/{conversation_id}/persona")
+        assert conversation_state.status_code == 200, conversation_state.text
+        assert conversation_state.json()["enabled"] is False and conversation_state.json()["revision"] == 1
+        assert conversation_state.json()["override"]["depth"] == "brief"
+
+        blocked_bot_save = disabled_client.patch(f"/api/v1/bots/{bot_id}/persona",
+                                                 json={"depth": "brief", "expected_revision": 1},
+                                                 headers={"Idempotency-Key": "kill-switch-block-agent"})
+        blocked_conversation_save = disabled_client.patch(
+            f"/api/v1/conversations/{conversation_id}/persona",
+            json={"humor": "playful", "expected_revision": 1},
+            headers={"Idempotency-Key": "kill-switch-block-conversation"})
+        assert blocked_bot_save.status_code == blocked_conversation_save.status_code == 409
+        assert "disabled by local configuration" in blocked_bot_save.json()["detail"]
+        budget = disabled_client.get(f"/api/v1/bots/{bot_id}/persona/preview-budget").json()
+        assert budget["available"] is False and "disabled by local configuration" in budget["reason"]
+        disabled_client.app.state.engine.dispatch_pending = lambda: 0
+        ordinary_message = disabled_client.post(
+            f"/api/v1/conversations/{conversation_id}/messages",
+            json={"prompt": "Tell me a silly pun about a database.", "persona": {"depth": "detailed"}},
+            headers={"Idempotency-Key": "kill-switch-ignore-turn-style"})
+        assert ordinary_message.status_code == 201, ordinary_message.text
+        ordinary_run = disabled_client.app.state.store.get_run(ordinary_message.json()["id"])
+        assert ordinary_run.persona_turn is None and ordinary_run.persona_plan is None
+        assert ordinary_run.execution_purpose == "task"
+        blocked_preview = disabled_client.post(
+            f"/api/v1/bots/{bot_id}/persona/preview-runs",
+            json={"style": {"preset": "direct"}, "expected_revision": 1},
+            headers={"Idempotency-Key": "kill-switch-block-preview"})
+        blocked_feedback = disabled_client.put(
+            f"/api/v1/conversations/{conversation_id}/messages/message-never-existed/persona-feedback",
+            json={"rating": "helpful", "expected_revision": 0},
+            headers={"Idempotency-Key": "kill-switch-block-feedback"})
+        blocked_rewrite = disabled_client.post(
+            f"/api/v1/conversations/{conversation_id}/messages",
+            json={"prompt": "Make this answer shorter.", "correction": "shorter",
+                  "reply_to_message_id": "message-never-existed"},
+            headers={"Idempotency-Key": "kill-switch-block-rewrite"})
+        for blocked in (blocked_preview, blocked_feedback, blocked_rewrite):
+            assert blocked.status_code == 409, blocked.text
+            assert "disabled by local configuration" in blocked.json()["detail"]
+
+    monkeypatch.setenv("HUTCH_ENABLE_ADAPTIVE_PERSONA", "1")
+    with TestClient(create_app()) as reenabled_client:
+        restored = reenabled_client.get(f"/api/v1/bots/{bot_id}/persona").json()
+        assert restored["enabled"] is True and restored["revision"] == 1
+        assert restored["override"]["preset"] == "warm"
+        assert restored["override"]["depth"] == "detailed"
+        restored_conversation = reenabled_client.get(
+            f"/api/v1/conversations/{conversation_id}/persona").json()
+        assert restored_conversation["enabled"] is True and restored_conversation["revision"] == 1
+        assert restored_conversation["override"]["depth"] == "brief"
 
 
 def test_bot_persona_api_is_revision_aware_and_resets_fields(persona_client):

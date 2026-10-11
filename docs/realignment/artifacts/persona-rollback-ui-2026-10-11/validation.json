@@ -1,0 +1,112 @@
+{
+  "test": "tests/e2e/test_design_system.py::test_adaptive_persona_rollback_is_visible_read_only_and_preserves_local_draft",
+  "captured_at": "2026-10-11T18:20:26.652424+00:00",
+  "browser": "Chromium 153.0.8010.12",
+  "settings_viewports": [
+    {
+      "viewport": [
+        360,
+        844
+      ],
+      "horizontal_overflow_px": 0
+    },
+    {
+      "viewport": [
+        768,
+        960
+      ],
+      "horizontal_overflow_px": 0
+    },
+    {
+      "viewport": [
+        1440,
+        960
+      ],
+      "horizontal_overflow_px": 0
+    },
+    {
+      "viewport": [
+        320,
+        800
+      ],
+      "horizontal_overflow_px": 0
+    },
+    {
+      "viewport": [
+        720,
+        480
+      ],
+      "horizontal_overflow_px": 0
+    }
+  ],
+  "viewports": [
+    {
+      "viewport": [
+        360,
+        844
+      ],
+      "horizontal_overflow_px": 0
+    },
+    {
+      "viewport": [
+        768,
+        960
+      ],
+      "horizontal_overflow_px": 0
+    },
+    {
+      "viewport": [
+        1440,
+        960
+      ],
+      "horizontal_overflow_px": 0
+    },
+    {
+      "viewport": [
+        320,
+        800
+      ],
+      "horizontal_overflow_px": 0
+    },
+    {
+      "viewport": [
+        720,
+        480
+      ],
+      "horizontal_overflow_px": 0
+    }
+  ],
+  "states": [
+    "saved assistant and conversation preferences remain visible",
+    "settings read-only",
+    "preview disabled",
+    "conversation and next-reply controls read-only",
+    "local next-reply draft preserved but hidden",
+    "correction and feedback controls hidden"
+  ],
+  "page_errors": [],
+  "console_errors": [],
+  "failed_responses": [],
+  "external_requests": [],
+  "inference_requests": [],
+  "provider_calls": 0,
+  "reduced_motion": "reduce",
+  "source_sha256": {
+    "src/hutch/server/pages.py": "7884021b4a97b41a26c49e4337e8f53fe245ff8682c5e820a613a4dc70263826",
+    "src/hutch/server/static/app.js": "60579b380562a6788d4ce4b689c086f660d727daf5713537bfdb95427b2bc32b",
+    "src/hutch/server/static/persona.js": "02a0d2be01e9491dc828fd80b9608a77c969bdfec002c55f8aeb04efef78dc3a",
+    "src/hutch/server/static/index.html": "4a0a45945ecaf67496fa809894467b1a1d571b5f32a656cd2f45743b93bbef30",
+    "src/hutch/server/static/style.css": "6a679d2f7291d8e289e9fa24f19231c79c11cf1bff3d015a677717e4a603a751",
+    "src/hutch/server/static/brands/openai-white-monoblossom.svg": "b94ea61d860fae6f82f43571f36f17111fcf5d348e8e9cc22ae4b441c7560011",
+    "src/hutch/server/static/brands/anthropic-symbol-ivory.svg": "38fc06d8e9390654cc4e96aa53691e2e78d929667c0034805b6d1b3891ba22dd",
+    "src/hutch/server/static/brands/openrouter-glyph-volt.svg": "0d22462e4f2835a5a5b9000af0a55fc9238e39996100f54706e41ec45b9d1727",
+    "src/hutch/server/static/brands/google-calendar-2026q2.png": "eac7b1d7c78a7c7fb40d74b6d879ba5fe781cbf2cd5f8d7d40f3c28fea73f77e",
+    "src/hutch/server/static/brands/google-gmail-2026q2.png": "ab8e9e880a28e2bc29207a62394aa7d296f435113fcc922819dab629ffbd64e6",
+    "src/hutch/server/static/brands/microsoft-outlook.svg": "4a3b6ab15d36e7c5317f75a83d1781708d68cce4d8b9073a3c82f0af662eaf18",
+    "website/index.html": "f9815d2a92501178c668deea226f92fffb82bad5605c09a7630f602ecb30e7ff",
+    "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
+    "website/styles.css": "b1862178cbeb74cc7e6b4a255d753b85acfe580b5437216e95e655c7522fcdce",
+    "tests/e2e/test_design_system.py": "24c97746cd2dbffd00308c551058a9cdb92da76ce0d7d0be9db0309ae8a1c4a2"
+  },
+  "visual_review": "Screenshots were visually inspected after the browser run."
+}

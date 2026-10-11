@@ -759,11 +759,12 @@ def _persona_effective(plan: PersonaPlan) -> dict[str, dict[str, Any]]:
     return {field: {"value": getattr(plan, field), "source": plan.sources[field]} for field in PERSONA_FIELDS}
 
 
-def _bot_persona_view(bot: Bot) -> dict[str, Any]:
-    if bot.persona_profile_error:
+def _bot_persona_view(bot: Bot, *, enabled: bool = True) -> dict[str, Any]:
+    if bot.persona_profile_error and enabled:
         raise HTTPException(409, bot.persona_profile_error)
     plan = resolve_persona(agent_preset=bot.persona_preset, agent_override=bot.persona_override)
     return {"bot_id": bot.id, "revision": bot.persona_revision, "labels": dict(LAYER_LABELS),
+            "enabled": enabled, "profile_error": bot.persona_profile_error,
             "profile_version": bot.persona_profile_version,
             "override": (bot.persona_override or PersonaStyle()).model_dump(),
             "preset": bot.persona_preset.model_dump() if bot.persona_preset else None,
@@ -772,12 +773,13 @@ def _bot_persona_view(bot: Bot) -> dict[str, Any]:
 
 
 def _conversation_persona_view(conversation_id: str, bot: Optional[Bot], style: Optional[PersonaStyle],
-                               revision: int) -> dict[str, Any]:
-    if bot and bot.persona_profile_error:
+                               revision: int, *, enabled: bool = True) -> dict[str, Any]:
+    if bot and bot.persona_profile_error and enabled:
         raise HTTPException(409, bot.persona_profile_error)
     plan = resolve_persona(agent_preset=bot.persona_preset if bot else None,
                            agent_override=bot.persona_override if bot else None, conversation=style)
     return {"conversation_id": conversation_id, "revision": revision, "labels": dict(LAYER_LABELS),
+            "enabled": enabled, "profile_error": bot.persona_profile_error if bot else None,
             "override": (style or PersonaStyle()).model_dump(),
             "effective": _persona_effective(plan)}
 
@@ -1963,6 +1965,10 @@ def create_app() -> FastAPI:
             if not bot.remote_start_enabled:
                 raise HTTPException(403, "this Bot has not been enabled for phone starts by the local owner")
 
+    def require_adaptive_persona() -> None:
+        if not config.adaptive_persona_enabled:
+            raise HTTPException(409, "Adaptive response style is disabled by local configuration.")
+
     def bot_view(bot: Bot, connections=None, *, agg: dict | None = None) -> dict:
         from ..chatgpt_consent import chatgpt_background_view
         from ..connections import ConnectionBook
@@ -1986,6 +1992,7 @@ def create_app() -> FastAPI:
             sticky_allows = agg["sticky"].get(bot.id, [])
             is_coordinator = agg["coordinator_id"] == bot.id
         bot_data = bot.model_dump(exclude={"background_provider_consents"})
+        bot_data["adaptive_persona_enabled"] = config.adaptive_persona_enabled
         if bot.persona_profile_error:
             bot_data["persona_profile_error"] = bot.persona_profile_error
         if bot.creation_source is not None:
@@ -2032,6 +2039,7 @@ def create_app() -> FastAPI:
         return {
             "id": bot.id, "name": bot.name, "display_name": bot.display_name,
             "description": bot.description, "model": bot.model, "paused": bot.paused,
+            "adaptive_persona_enabled": config.adaptive_persona_enabled,
             **({"persona_profile_error": bot.persona_profile_error} if bot.persona_profile_error else {}),
             "remote_start_enabled": can_start and bot.remote_start_enabled,
             "approval_mode": bot.approval_mode.value,
@@ -3270,6 +3278,7 @@ def create_app() -> FastAPI:
              response_model=PersonaFeedbackResource)
     def update_persona_feedback(conversation_id: str, message_id: str, body: PersonaFeedbackRequest,
                                 request: Request) -> dict:
+        require_adaptive_persona()
         if body.reason is not None and body.rating != "needs_work":
             raise HTTPException(422, "a feedback reason can be set only with the needs_work rating")
         if body.rating is None and body.reason is not None:
@@ -3320,6 +3329,8 @@ def create_app() -> FastAPI:
             raise HTTPException(403, "phone starts use the Bot's locally configured model and policy")
         if is_paired_phone(request) and body.skills:
             raise HTTPException(403, "skill activation is a local owner action")
+        if body.correction:
+            require_adaptive_persona()
         if body.correction and bot.runtime.value != "builtin":
             raise HTTPException(409, "answer rewrites are currently supported only by the built-in runtime")
         if body.correction and (body.rehearse or body.skills or body.workspace_task_result_id
@@ -3368,7 +3379,7 @@ def create_app() -> FastAPI:
             activation = SkillRegistry(config.state_dir).validate_activation(bot, list(body.skills))
         run = Run(bot_id=bot.id, prompt=prompt, origin=origin, rehearsal=body.rehearse,
                   model_override="" if model == bot.model else model, skill_activation=activation,
-                  persona_turn=body.persona,
+                  persona_turn=body.persona if config.adaptive_persona_enabled else None,
                   execution_purpose="answer_rewrite" if body.correction else "task",
                   tool_access="none" if body.correction else "bot", rewrite_kind=body.correction)
         task = Task(bot_id=bot.id, kind="on_demand", prompt=prompt)
@@ -3575,13 +3586,15 @@ def create_app() -> FastAPI:
             style, revision = store.read_conversation_persona(conversation_id)
         except KeyError:
             raise HTTPException(404, f"no such conversation: {conversation_id}") from None
-        return _conversation_persona_view(conversation_id, store.get_bot(conversation["bot_id"]), style, revision)
+        return _conversation_persona_view(conversation_id, store.get_bot(conversation["bot_id"]), style, revision,
+                                         enabled=config.adaptive_persona_enabled)
 
     @app.patch("/api/v1/conversations/{conversation_id}/persona", response_model=dict)
     def update_conversation_persona(conversation_id: str, body: PersonaUpdateRequest, request: Request) -> dict:
         conversation = store.get_conversation(conversation_id)
         if conversation is None:
             raise HTTPException(404, f"no such conversation: {conversation_id}")
+        require_adaptive_persona()
         changes = body.changes()
         if not changes:
             raise HTTPException(422, "include at least one response-style change")
@@ -3599,7 +3612,8 @@ def create_app() -> FastAPI:
             raise HTTPException(404, f"no such conversation: {conversation_id}") from None
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
-        return _conversation_persona_view(conversation_id, store.get_bot(conversation["bot_id"]), style, revision)
+        return _conversation_persona_view(conversation_id, store.get_bot(conversation["bot_id"]), style, revision,
+                                         enabled=config.adaptive_persona_enabled)
 
     @app.patch("/api/v1/conversations/{conversation_id}/title", response_model=ConversationResource)
     def rename_conversation(conversation_id: str, body: ConversationTitleRequest,
@@ -4298,11 +4312,12 @@ def create_app() -> FastAPI:
 
     @app.get("/api/v1/bots/{ref}/persona", response_model=dict)
     def get_bot_persona(ref: str) -> dict:
-        return _bot_persona_view(bot_or_404(ref))
+        return _bot_persona_view(bot_or_404(ref), enabled=config.adaptive_persona_enabled)
 
     @app.patch("/api/v1/bots/{ref}/persona", response_model=dict)
     def update_bot_persona(ref: str, body: PersonaUpdateRequest, request: Request) -> dict:
         bot = bot_or_404(ref)
+        require_adaptive_persona()
         changes = body.changes()
         if not changes:
             raise HTTPException(422, "include at least one response-style change")
@@ -4320,7 +4335,7 @@ def create_app() -> FastAPI:
             raise HTTPException(404, f"no such bot: {ref}") from None
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
-        return _bot_persona_view(updated)
+        return _bot_persona_view(updated, enabled=config.adaptive_persona_enabled)
 
     @app.get("/api/v1/bots/{ref}/persona/preview-budget", response_model=dict)
     def get_bot_persona_preview_budget(ref: str) -> dict:
@@ -4334,6 +4349,7 @@ def create_app() -> FastAPI:
         from ..persona_preview import preview_budget
 
         bot = bot_or_404(ref)
+        require_adaptive_persona()
         key = idempotency_key(request)
         scope = "api:v1:persona-previews"
         payload = {"bot_id": bot.id, "style": body.style.model_dump(mode="json"),

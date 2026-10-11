@@ -425,6 +425,14 @@ not controllable through the headless test runner, so the 720px case checks the 
 viewport rather than claiming a native zoom gesture. Live-model humor, boundary calibration, and provider-side
 request receipt remain unverified.
 
+The local rollback switch `HUTCH_ENABLE_ADAPTIVE_PERSONA=0` disables profile resolution and persona guidance
+for new runs, leaves ordinary task routing and tool authority intact, and rejects persona edits, previews,
+answer rewrites, and feedback. Read endpoints continue to show saved profiles and revisions; the settings UI
+becomes read-only. A write-once plan already attached to a run is reused during recovery even if the operator
+restarts with the feature disabled. No profile or database repair is reverted, so enabling the flag again
+restores saved behavior without migration or data loss. `get_config()` accepts `0/false/no/off` and
+`1/true/yes/on`; it defaults to enabled and rejects other values.
+
 ## Response style and answer feedback
 
 Schema v53 stores one current, versioned feedback record per assistant message. The owner may rate a completed,

@@ -3841,7 +3841,7 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHan
   const feedbackReason = answerFeedback?.reason || "";
   const feedbackPending = !!botMessage && pendingAnswerFeedbackUpdates.has(`${run.conversation_id}:${botMessage.id}`);
   const correctionActions = run.status === "succeeded" && botMessage?.content && botMessage.content.length <= 12_000
-    && !waitingForChoice && sourceBot?.runtime === "builtin"
+    && !waitingForChoice && sourceBot?.runtime === "builtin" && sourceBot?.adaptive_persona_enabled !== false
     ? `<button class="btn ghost small" type="button" data-answer-correction="shorter" data-answer-message="${esc(botMessage.id)}"
           aria-label="Make this answer shorter; tools and external actions will not be repeated" ${correctionBusy ? 'aria-disabled="true" aria-busy="true"' : ""}>${correctionBusyKind === "shorter" ? "Starting…" : "Shorter"}</button>
        <button class="btn ghost small" type="button" data-answer-correction="go_deeper" data-answer-message="${esc(botMessage.id)}"
@@ -3854,7 +3854,7 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHan
   const feedbackReasons = [["accuracy", "Accuracy"], ["relevance", "Relevance"], ["completeness", "Completeness"],
     ["depth", "Depth"], ["tone_or_humor", "Tone or humor"], ["safety", "Safety or boundaries"], ["other", "Other"]];
   const feedbackActions = run.status === "succeeded" && botMessage?.content && botMessage.content.length <= 12_000
-    && !waitingForChoice && sourceBot?.runtime === "builtin"
+    && !waitingForChoice && sourceBot?.runtime === "builtin" && sourceBot?.adaptive_persona_enabled !== false
     ? `<div class="answer-feedback" data-answer-feedback role="group" aria-label="Local answer feedback">
         <span class="answer-feedback-prompt">Was this answer useful?</span>
         <button class="btn ghost small" type="button" data-answer-feedback-rating="helpful"

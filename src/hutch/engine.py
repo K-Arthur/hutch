@@ -335,7 +335,9 @@ class Engine:
         stop that is ignored, and to recover the run at once if the worker dies without finishing it."""
         log_dir = self.config.run_dir(self._bot_name(run), run.id)
         log_dir.mkdir(parents=True, exist_ok=True)
-        env = dict(os.environ, HUTCH_STATE_DIR=str(self.config.state_dir), HUTCH_LEASE_SECONDS=str(self.lease_seconds),
+        env = dict(os.environ, HUTCH_STATE_DIR=str(self.config.state_dir),
+                   HUTCH_ENABLE_ADAPTIVE_PERSONA="1" if self.config.adaptive_persona_enabled else "0",
+                   HUTCH_LEASE_SECONDS=str(self.lease_seconds),
                    HUTCH_EXECUTOR=self.executor, HUTCH_MAX_CONCURRENT=str(self.max_concurrent))
         argv = [sys.executable, "-m", "hutch.worker", run.id, "--owner", self.owner_id, "--fence", str(run.fence)]
         if bot is not None and bot.inference_mode.value == "offline":
@@ -849,7 +851,11 @@ class Engine:
                 run, f"the run's stored response-style plan was written by a newer Hutch "
                      f"(version {persona_plan.version})")
             return
-        if persona_plan is None:
+        if (persona_plan is None and run.execution_purpose == "persona_preview"
+                and not self.config.adaptive_persona_enabled):
+            self._fail_persona_unavailable(run, "adaptive response style is disabled by local configuration")
+            return
+        if persona_plan is None and self.config.adaptive_persona_enabled:
             try:
                 if bot.persona_profile_error:
                     raise ValueError(bot.persona_profile_error)
@@ -886,7 +892,7 @@ class Engine:
                 fields={"started_at": iso(utcnow()), "workspace": str(workspace), "owner": str(os.getpid()),
                         "skill_snapshot": skill_snapshot, "tool_access": run.tool_access,
                         "execution_purpose": run.execution_purpose},
-                persona_plan=persona_plan.model_dump(mode="json"),
+                persona_plan=persona_plan.model_dump(mode="json") if persona_plan is not None else None,
                 capability_snapshot=self.capability_snapshot(bot, run.tool_access, run.execution_purpose)
                 if run.parent_run_id is None else None)
         except (IllegalTransition, LeaseLost, KeyError):

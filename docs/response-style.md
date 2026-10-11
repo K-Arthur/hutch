@@ -20,6 +20,17 @@ The **Helpful** and **Needs work** controls save a rating for that specific answ
 
 Correction and feedback controls are currently limited to completed answers from Hutch's built-in runtime. Pi and OpenCode Bot execution remain disabled; their absence from these controls does not enable either adapter.
 
+## Local rollback
+
+The local operator can disable the adaptive response-style feature at startup with
+`HUTCH_ENABLE_ADAPTIVE_PERSONA=0` (also accepts `false`, `no`, and `off`). The default is enabled; accepted
+enabled values are `1`, `true`, `yes`, and `on`. Restart Hutch after changing the variable. When disabled,
+assistant and conversation profiles remain readable and are not rewritten or deleted. Settings and next-reply
+controls become read-only, the preview budget reports unavailable, and Hutch rejects profile edits, previews,
+answer rewrites, and feedback with a clear conflict response. New runs do not resolve or apply a persona plan,
+and low-risk banter keeps its normal task route. A run that already captured a plan keeps that write-once plan
+if it must recover. Re-enabling the feature restores the saved preferences without a migration or reset.
+
 ## Privacy and limits
 
 Saved assistant and conversation styles, response-plan snapshots, and local answer feedback are held in Hutch's state database. Run snapshots can appear in local run records. A live preview record contains the fixed sample, candidate style and model response; it is not attached to a conversation. The built-in runtime permits one non-streaming response up to the lesser of 128 output tokens or the assistant's configured per-turn limit, and does not fall back, escalate, or retry. Hutch blocks previews when a hosted model has no known Hutch price or when the route cannot enforce the output cap. Local models show no per-token Hutch charge; a flat provider allowance may still count. Hosted cost estimates are local estimates and provider billing can differ. When a hosted model handles a preview, normal reply, or correction, its prompt follows that provider's data-handling terms. A correction makes a provider request; rating feedback does not. Conversation exports include message text and provenance but exclude answer feedback and response-style preferences. Review message text before sharing an export.

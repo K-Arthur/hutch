@@ -2356,6 +2356,151 @@ def test_static_persona_examples_are_labeled_local_and_responsive(browser, app_s
         context.close()
 
 
+def test_adaptive_persona_rollback_is_visible_read_only_and_preserves_local_draft(browser, app_server):
+    """The local rollback gate preserves saved state while disabling style-only controls."""
+    app_url, app = app_server
+    store = app.state.store
+    bot = store.get_bot("design-system-review")
+    store.update_bot_persona(bot.id, {"preset": "warm", "depth": "brief"}, expected_revision=0,
+                             idem_key="persona-rollback-agent", request_hash="persona-rollback-agent")
+    conversation, _ = store.create_conversation(
+        bot.id, "Rollback controls", idem_key="persona-rollback-chat", request_hash="persona-rollback-chat")
+    store.update_conversation_persona(conversation["id"], {"humor": "off"}, expected_revision=0,
+                                      idem_key="persona-rollback-conversation",
+                                      request_hash="persona-rollback-conversation")
+
+    stamp = datetime.now(timezone.utc).isoformat()
+    run = store.create_run(Run(bot_id=bot.id, prompt="Summarize the saved evidence.",
+                               conversation_id=conversation["id"], status=RunStatus.succeeded,
+                               exit_reason="completed", finished_at=stamp))
+    with store._tx() as db:
+        seq = db.execute("SELECT COALESCE(MAX(seq), 0) + 1 FROM messages WHERE conversation_id = ?",
+                         (conversation["id"],)).fetchone()[0]
+        store._insert_conversation_message(db, message_id="persona-rollback-user",
+            conversation_id=conversation["id"], seq=seq, run_id=run.id, role="user",
+            content="Summarize the saved evidence.", created_at=stamp)
+    answer_id = "persona-rollback-answer"
+    store.append_event(Event(run_id=run.id, type=EventType.message,
+        data={"role": "assistant", "content": "The saved evidence remains available.", "message_id": answer_id}))
+    store.flush_events()
+
+    # The server reads this immutable startup config for each request. Mutate only this isolated test app.
+    object.__setattr__(app.state.config, "adaptive_persona_enabled", False)
+    out = ROOT / "docs/realignment/artifacts/persona-rollback-ui-2026-10-11"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    page.set_default_timeout(8000)
+    errors: list[str] = []
+    console_errors: list[str] = []
+    failed_responses: list[dict[str, object]] = []
+    external_requests: list[str] = []
+    inference_requests: list[str] = []
+    viewports = ((360, 844), (768, 960), (1440, 960), (320, 800), (720, 480))
+    evidence: list[dict[str, object]] = []
+    settings_evidence: list[dict[str, object]] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" else None)
+    page.on("response", lambda response: failed_responses.append({"status": response.status, "url": response.url})
+            if response.status >= 400 and urlsplit(response.url).hostname in {"127.0.0.1", "localhost"} else None)
+    page.on("request", lambda request: external_requests.append(request.url)
+            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+    page.on("request", lambda request: inference_requests.append(request.url)
+            if request.method == "POST" and ("/messages" in request.url or "/runs" in request.url) else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    trace_saved = False
+    try:
+        page.goto(f"{app_url}/#/bot/design-system-review", wait_until="domcontentloaded")
+        page.get_by_role("heading", name="Design Partner").wait_for()
+        page.locator("#assistant-more-settings").evaluate("el => { el.open = true; }")
+        form = page.locator("#persona-form-slot .persona-form")
+        form.wait_for()
+        assert form.locator("[data-persona-disabled]").is_visible()
+        assert "Saved preferences are preserved" in form.locator("[data-persona-disabled]").inner_text()
+        assert form.locator('[data-persona-field="preset"]').is_disabled()
+        assert form.locator("[data-persona-save]").is_disabled()
+        assert form.locator("[data-persona-reset]").is_disabled()
+        assert form.locator("[data-persona-preview-run]").is_disabled()
+        assert "disabled by local configuration" in form.locator("[data-persona-preview-budget]").inner_text()
+        assert form.locator('[data-persona-field="depth"]').input_value() == "brief"
+        for width, height in viewports:
+            page.set_viewport_size({"width": width, "height": height})
+            form.locator("#persona-form-title").evaluate("el => el.scrollIntoView({block:'start'})")
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, ("settings", width, height, overflow)
+            page.screenshot(path=str(out / f"settings-disabled-{width}.png"), full_page=True, animations="disabled")
+            settings_evidence.append({"viewport": [width, height], "horizontal_overflow_px": overflow})
+
+        page.evaluate("id => localStorage.setItem(`hutch-persona-turn:${id}`, JSON.stringify({preset:'direct',depth:'detailed'}))",
+                      conversation["id"])
+        page.goto(f"{app_url}/#/chat/design-system-review", wait_until="domcontentloaded")
+        page.locator("#chat-form").wait_for()
+        page.wait_for_function("id => document.querySelector('#conversation-switcher')?.value === id",
+                               arg=conversation["id"])
+        outer = page.locator("#studio-conversation-actions")
+        if not outer.evaluate("el => el.open"):
+            page.locator("#studio-conversation-options").click()
+        page.wait_for_function("() => document.querySelector('#studio-conversation-actions')?.open === true")
+        options = page.locator("#persona-chat-options")
+        options.locator("summary").click()
+        page.wait_for_function("() => document.querySelector('#persona-chat-options')?.open === true")
+        summary = options.locator("summary")
+        summary.focus()
+        page.keyboard.press("Space")
+        assert not options.evaluate("el => el.open")
+        page.keyboard.press("Space")
+        assert options.evaluate("el => el.open")
+        assert "disabled by local configuration" in options.locator("[data-persona-conversation-status]").inner_text()
+        assert options.locator('[data-persona-scope="conversation"] [data-persona-field="humor"]').is_disabled()
+        assert options.locator("[data-persona-conversation-save]").is_disabled()
+        assert options.locator("[data-persona-conversation-reset]").is_disabled()
+        assert options.locator('[data-persona-scope="turn"] [data-persona-field="preset"]').is_disabled()
+        assert page.locator("#persona-turn-slot .persona-turn-chip").is_hidden()
+        assert page.evaluate("id => JSON.parse(localStorage.getItem(`hutch-persona-turn:${id}`))",
+                             conversation["id"]) == {"preset": "direct", "depth": "detailed"}
+        assert page.locator(f'[data-answer-message="{answer_id}"][data-answer-correction]').count() == 0
+        assert page.locator(f'[data-feedback-message="{answer_id}"][data-answer-feedback-rating]').count() == 0
+
+        for width, height in viewports:
+            page.set_viewport_size({"width": width, "height": height})
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (width, height, overflow)
+            page.locator("#studio-conversation-actions .conversation-actions-panel").evaluate(
+                "el => el.scrollTo(0, 0)")
+            page.screenshot(path=str(out / f"chat-disabled-{width}.png"), full_page=True, animations="disabled")
+            evidence.append({"viewport": [width, height], "horizontal_overflow_px": overflow})
+
+        assert not errors, errors
+        assert not console_errors, console_errors
+        assert not failed_responses, failed_responses
+        assert not external_requests, external_requests
+        assert not inference_requests, inference_requests
+        context.tracing.stop(path=str(out / "trace.zip"))
+        trace_saved = True
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_design_system.py::test_adaptive_persona_rollback_is_visible_read_only_and_preserves_local_draft",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "browser": f"{browser.browser_type.name.title()} {browser.version}",
+            "settings_viewports": settings_evidence,
+            "viewports": evidence,
+            "states": ["saved assistant and conversation preferences remain visible", "settings read-only",
+                       "preview disabled", "conversation and next-reply controls read-only",
+                       "local next-reply draft preserved but hidden", "correction and feedback controls hidden"],
+            "page_errors": errors, "console_errors": console_errors, "failed_responses": failed_responses,
+            "external_requests": external_requests, "inference_requests": inference_requests,
+            "provider_calls": 0, "reduced_motion": "reduce", "source_sha256": _visual_source_hashes(),
+            "visual_review": "Screenshots were visually inspected after the browser run.",
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        object.__setattr__(app.state.config, "adaptive_persona_enabled", True)
+        if not trace_saved:
+            try:
+                context.tracing.stop(path=str(out / "trace-failed.zip"))
+            except Exception:
+                pass
+        context.close()
+
+
 def test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runtimes(browser, app_server):
     """Answer corrections stay answer-scoped, tool-free, keyboard reachable, and responsive."""
     app_url, app = app_server

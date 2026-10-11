@@ -95,6 +95,10 @@ Changing persona controls alone does not send a request; choosing **Preview this
 sample and candidate style to the configured model, while choosing a correction explicitly sends the bounded source
 request and answer as untrusted context. Saved feedback sends no request.
 
+The local `HUTCH_ENABLE_ADAPTIVE_PERSONA=0` rollback switch disables new persona plans and style-only writes while
+preserving saved profiles and any plan already captured by a run. It does not change task permissions, approval policy,
+grounding requirements, or stored database repairs; settings become read-only until the operator re-enables the flag.
+
 Helpful/Needs work feedback is a separate local record for a completed answer. It uses a fixed rating and optional
 fixed reason list, contains no free text, calls no provider, and never changes a saved response style or trains a
 model. Revision checks prevent one tab from silently overwriting another. Conversation exports omit this metadata;

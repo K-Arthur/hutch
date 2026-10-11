@@ -46,6 +46,9 @@ def preview_budget(config: Any, store: Any, bot: Any) -> dict[str, Any]:
         "budget_label": "",
         "estimate_note": "The local estimate may differ from provider tokenization and billing.",
     }
+    if not config.adaptive_persona_enabled:
+        result["reason"] = "Adaptive response style is disabled by local configuration."
+        return result
     if bot.persona_profile_error:
         result["reason"] = bot.persona_profile_error
         return result
