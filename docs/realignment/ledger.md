@@ -4228,3 +4228,26 @@ branch. This slice adds 19 µs: `import hutch.tools.workflow_draft` costs 1.468 
 `hutch version` (`python -X importtime`). The fix belongs to the documents/tools lane
 (lazy-import the document generators, or move them out of the tool registry's module-level
 imports); it is recorded here rather than silently inherited.
+
+### Final verification on the committed branch (`workflow/dynamic`, HEAD `0658e14`)
+
+`uv`-installed venv, Python 3.13.15, `pytest -q --ignore=tests/e2e`
+(basetemp on the root filesystem, because the host's `/tmp` is a 12 GB tmpfs at 93% and a
+`--basetemp` under `/home` breaks the sandbox test that asserts a shell cannot see the home
+directory):
+
+* **2047 passed, 2 skipped, 1 failed in 721 s.**
+* The single failure is `tests/test_code_handoff.py::test_interactive_process_keeps_terminal_and_owns_a_separate_group`,
+  a real-PTY test that drives a controlling terminal and expects Ctrl+C to reach the child
+  (`EXIT=-2`). It **passes 3/3 in isolation immediately after** the suite run, and this
+  branch touches neither that test nor `src/hutch/code_handoff.py` (`git diff --stat main..HEAD`
+  shows only `worker.py`, whose change is the workflow-step kind branch). Attributed as a
+  load-sensitive flake in the code-handoff lane, not a regression from this slice; recorded
+  rather than silently ignored.
+* The workflow feature's own suite is **99 passed** (`pytest --collect-only -q tests/test_workflow_*.py`),
+  and the acceptance capture ran the product CLI end to end with every command exiting 0.
+
+Earlier runs on the same tree: the merged base before any workflow code passed the full
+offline suite (**1949 passed, 2 skipped**), and the touched seams passed their focused
+regression subsets (**270 passed**: engine, store, claims, cancel, delegation, approvals,
+API, lifecycle, receipts, action intents; **35 passed**: remote-pairing route inventory).
