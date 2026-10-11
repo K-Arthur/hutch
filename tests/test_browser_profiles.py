@@ -261,6 +261,9 @@ def test_browser_typing_approval_binds_text_destination_and_profile(
         def evaluate_all(self, _script):
             return False
 
+        def count(self):  # a real Playwright Locator reports its match count; the tool refuses ambiguous targets
+            return 1
+
     page = types.SimpleNamespace(url="https://example.com/compose", inner_text=lambda _selector: "Compose message",
                                  frames=[], fill=lambda *a, **kw: fills.append(a),
                                  locator=lambda _selector: Locator())

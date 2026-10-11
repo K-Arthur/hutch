@@ -244,6 +244,28 @@ class BuiltinRuntime:
             cached = _CONN_PROVIDERS[key] = provider_for_connection(book, conn.name, rung.model, resolved_key=credential)
         return cached
 
+    def _request_messages(self, ctx: ToolContext, run: Run, session: "Session",
+                          messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """The messages a provider may see: tool-result frames become real image input only for a route that accepts
+        them, only the newest frame is sent, and no internal reference ever leaves the process."""
+        from ..computer.frames import FrameStore
+        from ..providers.images import has_images, prepare_messages
+        if not has_images(messages):
+            return messages
+        try:
+            vision = bool(session.provider.supports_vision(session.rung.model))
+        except Exception:
+            vision = False
+        prepared, report = prepare_messages(
+            messages, vision=vision, frames=FrameStore(ctx.config.run_dir(ctx.bot.name, run.id)))
+        notable = [o for o in report["omitted"] if o["reason"] != "superseded"]
+        if report["delivered"] or notable:
+            detail = [f"sent {', '.join(report['delivered'])}"] if report["delivered"] else []
+            detail += [f"{o['frame_id']} not sent ({o['reason']})" for o in notable]
+            self._log(ctx, run, "note", "observation images: " + "; ".join(detail),
+                      frames_delivered=report["delivered"], vision=vision)
+        return prepared
+
     @staticmethod
     def _log(ctx: ToolContext, run: Run, kind: str, note: str, **extra: Any) -> None:
         ctx.emit(Event(run_id=run.id, type=EventType.log, data={"kind": kind, "note": note, **extra}))
@@ -607,7 +629,8 @@ class BuiltinRuntime:
             except ProviderError as exc:
                 raise RunAborted(_exit_reason(exc), f"provider connection is no longer usable: {exc}") from exc
             req = ChatRequest(
-                model=session.rung.model, messages=messages, tools=specs, num_ctx=session.num_ctx,
+                model=session.rung.model, messages=self._request_messages(ctx, run, session, messages),
+                tools=specs, num_ctx=session.num_ctx,
                 max_tokens=self._turn_cap(bot, session.rung), think=bot.think if bot.think is not None else False,
                 stream=session.stream, allow_stream_retry=False,
                 register_cancel=self._register_cancel(ctx), is_cancelled=stop,
@@ -776,8 +799,11 @@ class BuiltinRuntime:
                 run.tool_ms += tool_timer.tool_ms
                 if res.data.get("question_pending"):
                     return ""
-                messages.append({"role": "tool", "tool_call_id": tc.id, "name": tc.name,
-                                 "content": res.output or "(empty)"})
+                tool_message = {"role": "tool", "tool_call_id": tc.id, "name": tc.name,
+                                "content": res.output or "(empty)"}
+                if res.data.get("images"):
+                    tool_message["images"] = res.data["images"]   # frame references; bytes are attached per request
+                messages.append(tool_message)
 
             malformed_streak = malformed_streak + 1 if turn_bad else 0
             if loop_hit and loop_strikes >= 2:

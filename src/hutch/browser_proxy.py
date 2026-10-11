@@ -17,7 +17,7 @@ import threading
 from typing import Callable, Optional
 from urllib.parse import urlsplit
 
-from .netguard import NetGuardError, display_url_origin, resolve_public, screen_url
+from .netguard import LocalAccess, LocalOrigins, NetGuardError, display_url_origin, resolve_public, screen_url
 
 MAX_CONNECTIONS = 64
 MAX_HEADER_BYTES = 32 * 1024
@@ -37,8 +37,10 @@ class _ProxyServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     block_on_close = True
     request_queue_size = MAX_CONNECTIONS
 
-    def __init__(self, handler, resolver, connector, on_block):
+    def __init__(self, handler, resolver, connector, on_block, local_access=None):
         self.resolver = resolver
+        self.local_access = local_access or LocalAccess()
+        self.local_origins = self.local_access.origins
         self.connector = connector or (lambda address, port, timeout: socket.create_connection((address, port), timeout))
         self.on_block = on_block
         self.idle_timeout = IDLE_TIMEOUT
@@ -194,13 +196,17 @@ class _ProxyHandler(socketserver.BaseRequestHandler):
             raise ValueError("CONNECT port is outside the valid range")
         host = value.hostname.rstrip(".")
         self.target = f"https://[{host}]:{value.port}" if ":" in host else f"https://{host}:{value.port}"
-        reason = screen_url(self.target)
+        reason = screen_url(self.target)            # tunnels cannot be inspected: no local-development allowance
         if reason:
             raise NetGuardError(reason)
         return host, value.port
 
-    def _open_checked(self, host: str, port: int) -> socket.socket:
-        addresses = resolve_public(host, port, self.server.resolver)
+    def _open_checked(self, host: str, port: int, *, local_ok: bool = False) -> socket.socket:
+        local = self.server.local_origins
+        if local_ok and local and local.allows("http", host, port):
+            addresses = local.addresses(host)        # approved local development origin: loopback literals, no DNS
+        else:
+            addresses = resolve_public(host, port, self.server.resolver)
         failures = []
         for address in addresses:
             try:
@@ -230,7 +236,7 @@ class _ProxyHandler(socketserver.BaseRequestHandler):
         if candidate.lower().startswith("ws://"):
             candidate = "http://" + candidate[5:]
         self.target = candidate
-        reason = screen_url(candidate)
+        reason = screen_url(candidate, self.server.local_origins)
         if reason:
             raise NetGuardError(reason)
         parts = urlsplit(candidate)
@@ -240,7 +246,12 @@ class _ProxyHandler(socketserver.BaseRequestHandler):
         port = parts.port if parts.port is not None else 80
         if not 1 <= port <= 65535:
             raise ValueError("HTTP proxy port is outside the valid range")
-        upstream = self._open_checked(host, port)
+        local_ok = self.server.local_origins.allows("http", host, port)
+        if local_ok:
+            context = self.server.local_access.refusal(candidate, headers)
+            if context:
+                raise NetGuardError(context)
+        upstream = self._open_checked(host, port, local_ok=local_ok)
         path = parts.path or "/"
         if parts.query:
             path += "?" + parts.query
@@ -282,6 +293,7 @@ class _ProxyHandler(socketserver.BaseRequestHandler):
         safe = " ".join(str(reason).split())[:500]
         body = f"Hutch browser egress blocked the request: {safe}\n".encode("utf-8", "replace")
         response = (f"HTTP/1.1 {status} {label}\r\nContent-Type: text/plain; charset=utf-8\r\n"
+                    f"X-Hutch-Egress-Block: 1\r\n"
                     f"Content-Length: {len(body)}\r\nConnection: close\r\n\r\n").encode("ascii")
         try:
             self.request.sendall(response + body)
@@ -294,8 +306,9 @@ class PinnedBrowserProxy:
 
     def __init__(self, *, resolver: Optional[Callable[..., list]] = None,
                  connector: Optional[Callable[[str, int, float], socket.socket]] = None,
-                 on_block: Optional[Callable[[str, str], None]] = None):
-        self._server = _ProxyServer(_ProxyHandler, resolver, connector, on_block)
+                 on_block: Optional[Callable[[str, str], None]] = None,
+                 local_access: Optional[LocalAccess] = None):
+        self._server = _ProxyServer(_ProxyHandler, resolver, connector, on_block, local_access)
         self._thread: Optional[threading.Thread] = None
         self._closed = False
 

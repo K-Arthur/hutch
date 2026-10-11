@@ -244,3 +244,71 @@ def describe(procs: Iterable[Proc]) -> str:
             cmd = ""
         out.append(f"{p.pid} {cmd[:60]}".strip())
     return ", ".join(out)
+
+
+# ------------------------------------------------------------------ a process tree below one known process
+
+
+def cmdline(pid: int) -> list[str]:
+    """The argument vector of ``pid`` ([] if it is gone or unreadable)."""
+    try:
+        raw = (PROC / str(pid) / "cmdline").read_bytes()
+    except OSError:
+        return []
+    return [part.decode("utf-8", "replace") for part in raw.split(b"\0") if part]
+
+
+def children(pid: int, table: Optional[dict[int, Proc]] = None) -> list[Proc]:
+    """Live direct children of ``pid``."""
+    table = table if table is not None else _all()
+    return [p for p in table.values() if p.ppid == pid and _alive(p)]
+
+
+def descendants(pid: int, table: Optional[dict[int, Proc]] = None) -> list[Proc]:
+    """Live descendants of ``pid`` (children, grandchildren, ...), excluding ``pid`` itself."""
+    table = table if table is not None else _all()
+    found: dict[int, Proc] = {}
+    frontier = {pid}
+    while frontier:
+        nxt = {p.pid for p in table.values() if p.ppid in frontier and p.pid not in found and _alive(p)}
+        for child in nxt:
+            found[child] = table[child]
+        frontier = nxt
+    return list(found.values())
+
+
+def end_tree(root: Proc, term_grace: float = 1.0, kill_grace: float = 1.5) -> list[Proc]:
+    """End ``root`` and everything below it, then VERIFY. Returns the processes still alive afterwards (empty = ended).
+
+    Used for a helper this process spawned itself (a browser automation driver) that is not in its own process group, so group
+    signalling would hit the supervisor too. Every signal goes through a pidfd after an identity check, so a recycled pid is
+    never signalled.
+    """
+    expected_boot = boot_id()
+    current = identity(root.pid)
+    if current is None or current.starttime != root.starttime:
+        return []                                        # already gone (or the pid was reused: not ours to signal)
+    victims = {p.pid: p for p in descendants(root.pid)}
+    victims[root.pid] = current
+
+    def survivors() -> list[Proc]:
+        out = []
+        for p in victims.values():
+            now = identity(p.pid)
+            if now is not None and now.starttime == p.starttime and _alive(now):
+                out.append(p)
+        return out
+
+    for sig, grace in ((signal.SIGTERM, term_grace), (signal.SIGKILL, kill_grace)):
+        # descendants first and the root last, so a parent cannot respawn what we just ended
+        for p in sorted(survivors(), key=lambda q: q.pid == root.pid):
+            _signal_exact(p, sig, expected_boot)
+        deadline = time.monotonic() + grace
+        while time.monotonic() < deadline:
+            if not survivors():
+                return []
+            time.sleep(0.02)
+        # descendants started during the grace period are part of the tree too
+        for p in descendants(root.pid):
+            victims.setdefault(p.pid, p)
+    return survivors()

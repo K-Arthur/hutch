@@ -256,6 +256,7 @@ class Bot(BaseModel):
     workspace_mode: Literal["fresh", "managed", "folder"] = "fresh"
     workdir: Optional[str] = None     # an existing user folder; overrides the managed workspace
     local_browser_handoff: bool = False  # show this bot's browser on the Linux desktop for same-session human control
+    local_dev_origins: list[str] = Field(default_factory=list, max_length=8)  # exact loopback origins approved for local web-app work (browser only; see netguard.LocalOrigins)
     remote_start_enabled: bool = False   # local-owner opt-in for passkey-paired phone starts; never grants new tools
     paused: bool = False
     pinned: bool = False              # workspace roster preference; does not affect execution
@@ -296,6 +297,12 @@ class Bot(BaseModel):
         elif self.schedule:
             self.schedules = [self.schedule]
         return self
+
+    @field_validator("local_dev_origins")
+    @classmethod
+    def normalize_local_dev_origins(cls, value: list[str]) -> list[str]:
+        from .netguard import LocalOrigins
+        return list(LocalOrigins.parse(value))        # raises ValueError naming the first bad entry
 
     @field_validator("roster_section")
     @classmethod

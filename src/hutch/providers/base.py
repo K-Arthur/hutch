@@ -236,6 +236,13 @@ class Provider(ABC):
         result.total_ms = result.total_ms or (time.perf_counter() - t0) * 1000.0
         return result
 
+    def supports_vision(self, model: str) -> bool:
+        """Whether ``model`` on this route accepts image input. Conservative: an unverified route is semantic-only.
+
+        "OpenAI-compatible" does not establish image support, so the base class never guesses; adapters answer from a
+        real signal (a documented model family or the runtime's own capability report)."""
+        return False
+
     def health(self) -> Health:  # pragma: no cover - overridden
         return Health(ok=True)
 
