@@ -21,6 +21,7 @@ import platform
 import re
 import sqlite3
 import stat
+import threading
 from pathlib import Path
 from pathlib import PurePosixPath
 from typing import Any, Literal, Optional
@@ -4238,6 +4239,34 @@ def create_app() -> FastAPI:
     def get_investigation_bundle(investigation_id: str) -> dict:
         if not re.fullmatch(r"inv_[0-9a-f]{1,32}", investigation_id):
             raise HTTPException(404, "no such investigation")
+        return _investigation_bundle_response(investigation_id)
+
+    _grounding_refreshing: set[str] = set()
+    _grounding_refresh_lock = threading.Lock()
+
+    @app.post("/api/v1/investigations/{investigation_id}/refresh")
+    def refresh_investigation_endpoint(investigation_id: str) -> dict:
+        """Re-run acquisition as a new evidence window and append a labelled revision.
+
+        Acquisition only: no model call, no new claims. Long-running by nature (bounded by
+        the refresh budget), so a second refresh of the same investigation is refused while
+        the first is in flight instead of stacking duplicate work.
+        """
+        if not re.fullmatch(r"inv_[0-9a-f]{1,32}", investigation_id):
+            raise HTTPException(404, "no such investigation")
+        investigation = store.get_investigation(investigation_id)
+        if investigation is None:
+            raise HTTPException(404, "no such investigation")
+        with _grounding_refresh_lock:
+            if investigation_id in _grounding_refreshing:
+                raise HTTPException(409, "a refresh of this investigation is already running")
+            _grounding_refreshing.add(investigation_id)
+        try:
+            from ..tools.live import refresh_investigation
+            refresh_investigation(store, config.state_dir, investigation)
+        finally:
+            with _grounding_refresh_lock:
+                _grounding_refreshing.discard(investigation_id)
         return _investigation_bundle_response(investigation_id)
 
     @app.get("/api/v1/investigations/{investigation_id}/media/{media_id}/frames/{frame_id}")

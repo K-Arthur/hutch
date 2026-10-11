@@ -144,6 +144,16 @@ receipts strip. The chosen panel keeps the existing dark token set and Archivo d
   schema-downgrade helper; the documents schema pin updated; the sandbox home-containment test
   strengthened to assert real home entries are invisible rather than counting an environment
   dependent error string.
+- Accessibility: the run-detail page with the evidence panel open passes a full axe-core
+  4.10.2 audit with **zero violations** (opt-in via `HUTCH_AXE_CORE`; not vendored), plus
+  always-on browser checks for keyboard toggling (Enter/Space), `:focus-visible`, frame alt
+  text, text-bearing status chips, and reduced-motion handling.
+- Refresh: the panel's **Refresh evidence** action re-runs acquisition as a new window and
+  appends a labelled revision (verified in the API and in a browser click-through); a
+  concurrent refresh is refused with 409. Media region inspection (`x,y,w,h`) is covered by
+  image, refusal, and video-frame tests.
+- The interactive-terminal full-suite failure was reproduced as a timing bound (2 s outer
+  wait under load, passes in isolation) and the wait is now 15 s with identical assertions.
 - Measured scheduler comparison (`benchmarks/grounding_fanout.py`, deterministic fake adapters,
   no network, 5 samples, this machine): serial baseline **2.001 s** vs bounded fan-out
   **0.501 s** for four 0.5 s adapters (≈4.0×). With a 0.6 s wall budget the call returned in

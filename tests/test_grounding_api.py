@@ -97,6 +97,38 @@ def test_frame_route_rejects_paths_outside_the_state_dir(app_client, tmp_path):
     store.close()
 
 
+def test_refresh_runs_a_new_window_and_appends_a_labelled_revision(app_client, tmp_path, monkeypatch):
+    store, inv, media = _seed(tmp_path)
+    from hutch.grounding import acquire as acquire_mod
+
+    def fake_feeds(query, cutoff, budget, clock, cfg, stop):
+        outcome = acquire_mod.AdapterOutcome(adapter="feeds", lane="feeds", query=query, state="ok",
+                                             retained=1, returned=1, freshness="polled")
+        source = acquire_mod.FoundSource(adapter="feeds", lane="feeds", platform="web", kind="feed_item",
+                                         url="https://news.example/follow-up", origin="news.example",
+                                         origin_id="https://news.example/follow-up",
+                                         title="Follow-up: inspections finished",
+                                         excerpt="A later update adds inspection details.",
+                                         retrieved_at="2026-10-11T20:00:00+00:00")
+        return [source], outcome
+
+    monkeypatch.setitem(acquire_mod.ADAPTERS, "feeds", fake_feeds)
+    for name in ("gdelt", "hn", "bluesky", "searxng", "jetstream"):
+        monkeypatch.setitem(acquire_mod.ADAPTERS, name, lambda q, c, b, cl, cf, s, name=name: (
+            [], acquire_mod.AdapterOutcome(adapter=name, lane="?", query=q, state="unavailable",
+                                           detail="not used in this test")))
+    response = app_client.post(f"/api/v1/investigations/{inv['id']}/refresh", json={})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["answers"][-1]["body_json"]["kind"] == "evidence_refresh"
+    assert "new 24h window" in body["answers"][-1]["body_json"]["text"]
+    assert len(body["sources"]) >= 2, "the follow-up source is appended beside the original"
+    assert any(row["url"].endswith("follow-up") for row in body["sources"])
+    assert body["investigation"]["revision"] >= 2, "a refresh is a revision, not a rewrite"
+    # unknown investigations stay 404 rather than creating anything
+    assert app_client.post("/api/v1/investigations/inv_000000000000/refresh", json={}).status_code == 404
+
+
 def test_grounding_config_lists_lanes_without_claiming_connections(app_client):
     body = app_client.get("/api/v1/grounding/config").json()
     assert "news" in body["lanes"] and "social" in body["lanes"]

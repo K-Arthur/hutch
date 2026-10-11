@@ -5297,6 +5297,7 @@ function evidencePanelHtml(bundle) {
     <div class="evidence-head">
       <h2 id="evidence-title">${icon("search")} Evidence</h2>
       <p class="hint">Effective ${esc(asyncState)} · zone ${esc(inv.user_timezone || "UTC")}${inv.horizon_hours ? ` · horizon ${inv.horizon_hours}h` : ""}${coverage.deadline_hit ? " · the deadline stopped remaining sources" : ""}${coverage.truncated ? " · source budget reached" : ""}</p>
+      <button class="btn ghost small evidence-refresh" type="button" data-evidence-refresh>Refresh evidence</button>
     </div>
     <div class="evidence-split">
       <div class="evidence-split-cell"><h3>What was asked</h3><p>${esc(inv.question || "")}</p></div>
@@ -5317,10 +5318,28 @@ function evidencePanelHtml(bundle) {
 async function renderEvidencePanel(runId, events, params) {
   const host = document.querySelector(`[data-evidence-host="${runId}"]`);
   if (!host || !groundingSummary(events).checks) return;
+  const mount = (bundle) => {
+    host.innerHTML = evidencePanelHtml(bundle);
+    const button = host.querySelector("[data-evidence-refresh]");
+    button?.addEventListener("click", async () => {
+      button.disabled = true;
+      button.textContent = "Refreshing…";
+      try {
+        await api(`/v1/investigations/${encodeURIComponent(bundle.investigation.id)}/refresh`,
+                  { method: "POST", body: {} });
+        const updated = await api(`/v1/tasks/runs/${encodeURIComponent(runId)}/investigation`);
+        if (updated && updated.investigation) mount(updated);
+      } catch (err) {
+        button.disabled = false;
+        button.textContent = "Refresh evidence";
+        toast(`Could not refresh evidence: ${err.message}`, true);
+      }
+    });
+  };
   try {
     const bundle = await api(`/v1/tasks/runs/${encodeURIComponent(runId)}/investigation`);
     if (!bundle || !bundle.investigation) return;
-    host.innerHTML = evidencePanelHtml(bundle);
+    mount(bundle);
     if (params && params.get("focus") === "evidence") {
       host.scrollIntoView({ block: "start", behavior: "auto" });
       const first = host.querySelector("details.evidence-block");

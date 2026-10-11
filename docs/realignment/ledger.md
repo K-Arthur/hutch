@@ -45,12 +45,13 @@ chat entry) shows effective as-of, claimed/what-evidence-shows, outcomes and gap
 clusters with exact times, hash-verified frames, and answer revisions; inspected in a real browser
 at 1440/900/360 with zero console errors and no overflow. Offline tests: 83 grounding tests plus
 2 browser regressions. Final full offline suite on the combined tree (including the later main
-merge and all three continuation increments — live Jetstream, scene-change sampling, hard wall
-budget): 2032 passed, 6 skipped, 1 failed — the known load-sensitive TTY race in
-`test_code_handoff.py`, which passes 3/3 in isolation and also failed on the pre-grounding merged
-tree. A genuine DOCX determinism defect found during integration (python-docx ZIP timestamps)
-is repaired and verified byte-identical across a 2.2 s boundary. Evidence:
-`docs/realignment/grounding-evidence.md`, `docs/grounding.md`, artifacts under
+merge and the continuation increments — live Jetstream, scene-change and region sampling, hard
+wall budget, refresh action, accessibility pass): see the fresh run recorded in
+`docs/realignment/grounding-evidence.md`. The last recorded run before the final closures: 2032
+passed, 6 skipped, 1 failed — the known load-sensitive TTY race in `test_code_handoff.py`, whose
+2 s outer wait is now 15 s with identical assertions. A genuine DOCX determinism defect found
+during integration (python-docx ZIP timestamps) is repaired and verified byte-identical across a
+2.2 s boundary. Evidence: `docs/realignment/grounding-evidence.md`, `docs/grounding.md`, artifacts under
 `docs/realignment/artifacts/grounding/`. Not claimed: any live hosted-model media call, a live
 Jetstream connection, physical-device or screen-reader passes, or tuned budget benchmarks.
 

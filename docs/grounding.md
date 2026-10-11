@@ -29,10 +29,17 @@ streams, media, report), the store tables added by schema v51, the `live_search`
 - **Media checks (`inspect_media`)** — bounded fetch or workspace file, SHA-256, safe
   decode (Pillow with a decompression-bomb guard), `ffprobe` metadata, and `ffmpeg` frame
   sampling at claim-relevant moments, detected scene changes (so a brief inserted clip is
-  not stepped over by a uniform grid), and clip boundaries. The exact inspected frame times
-  are recorded, and the intervals and audio that were **not** inspected are stated. Frames
-  are attached to the model only when the selected route accepts images; what actually
-  reached the model is recorded either way.
+  not stepped over by a uniform grid), and clip boundaries. An optional `x,y,w,h` **region**
+  inspects only a claim-relevant area (a sign, plate, or receipt total) with the mapping to
+  original coordinates recorded; out-of-bounds regions are refused, never silently clamped.
+  The exact inspected frame times are recorded, and the intervals and audio that were **not**
+  inspected are stated. Frames are attached to the model only when the selected route accepts
+  images; what actually reached the model is recorded either way.
+- **Refresh, revisions, corrections** — the Evidence panel has a **Refresh evidence** action
+  that re-runs acquisition for the stored question as a *new* window: attempts, source rows
+  (identical identities become new revisions), stream cursors, coverage and a labelled answer
+  revision are appended. It makes no model call and adds no new claims, so an earlier
+  statement is never rewritten; a second refresh while one is running is refused.
 - **C2PA / Content Credentials** — manifest **presence** is detected in JPEG/PNG; when a
   maintained `c2pa` verifier is installed it is used. `absent` is normal (most media has no
   Content Credentials), `present_unverified` is not a truth claim, and no cryptography is
@@ -129,5 +136,7 @@ spaced at one request per 5 s per host. These are defaults in code, not tuning c
 | `partial` with a `CursorTooOld` note | The stored cursor is below the instance's lookback floor | Hutch stopped instead of silently skipping; a new window starts from the live tip |
 | `zero_results` in a stream window | Nothing matched **in that bounded window** | Check the scanned count in the outcome detail; this is a sample, not the network |
 | `zero_results` under a SearXNG time filter | Engines that ignore time filters are disabled by SearXNG | Hutch retried once without the filter; check `detail` and the dropped counts |
+| `region exceeds the … artifact` | Your crop is outside the media's real pixels | Hutch shows the actual dimensions; adjust the rectangle (it never clamps silently) |
+| `409 a refresh … is already running` | Two refresh clicks at once | Wait for the first refresh revision to appear |
 | Frames missing in the panel | Extraction failed, or the media details were collapsed | The model brief and panel state which frames were inspected |
 | The model "saw" no frames | The selected route cannot receive images | The brief says so and the run records what was transmitted |

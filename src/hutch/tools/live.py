@@ -300,6 +300,97 @@ class InspectMediaTool(Tool):
         return {k: (v[:200] if isinstance(v, str) else v) for k, v in args.items()}
 
 
+def refresh_investigation(store, state_dir, investigation: dict[str, Any], *, clock=None, stop=None) -> dict[str, Any]:
+    """Re-run acquisition for a stored investigation as a NEW evidence window.
+
+    Deliberately acquisition-only: no model call, no new claims, no new evidence *links*.
+    Attempts, sources (same identities become new revisions), stream cursors, coverage and a
+    labelled answer revision are appended, so the panel can show what changed without
+    rewriting the earlier statement.
+    """
+    clock = clock or SYSTEM_CLOCK
+    inv_id = investigation["id"]
+    from ..grounding.streams import CursorMismatch
+    try:
+        budget_json = json.loads(investigation.get("budget_json") or "{}")
+    except (TypeError, ValueError):
+        budget_json = {}
+    lanes = tuple(l for l in (budget_json.get("lanes") or ["news", "feeds", "discussion", "social"])
+                  if l in acquire_mod.LANES) or ("news", "feeds")
+    horizon = float(investigation.get("horizon_hours") or DEFAULT_HORIZON_HOURS)
+    cutoff = EvidenceCutoff.from_clock(clock, timezone_name=investigation.get("user_timezone") or "UTC",
+                                       horizon_hours=horizon)
+    cfg = acquire_mod.GroundingConfig.load(state_dir)
+    stored_cursor = store.get_stream_cursor(f"jetstream:{cfg.jetstream_host}")
+    if stored_cursor is not None:
+        try:
+            import dataclasses
+            cfg = dataclasses.replace(cfg, stream_cursors={"jetstream": json.loads(stored_cursor["cursor_json"])})
+        except (TypeError, ValueError, CursorMismatch):
+            pass
+    budget = acquire_mod.AcquireBudget(max_total_sources=int(budget_json.get("max_sources") or 40),
+                                       wall_seconds=60.0)
+    result = acquire_mod.run_search(investigation.get("question") or "", cutoff=cutoff, budget=budget,
+                                    clock=clock, cfg=cfg, lanes=lanes, stop=stop)
+    attempts = [o.to_json() for o in result.outcomes]
+    store.record_query_attempts(inv_id, attempts)
+    for outcome in result.outcomes:
+        if outcome.cursor_json:
+            instance = str(outcome.cursor_json.get("instance") or "unknown")
+            store.save_stream_cursor(f"{outcome.adapter}:{instance}", investigation_id=inv_id,
+                                     cursor_json=outcome.cursor_json, liveness_json=outcome.liveness_json,
+                                     gap_note=outcome.gap_note)
+    stored_rows = store.record_sources(
+        inv_id,
+        [{**s.to_json(), "content_sha256": hashlib.sha256((s.title + s.excerpt).encode("utf-8")).hexdigest()[:32]}
+         for s in result.sources])
+    dedup_items = [s.dedup_item() for s in result.sources]
+    clusters = origin_clusters(dedup_items)
+    stored_by_key: dict[str, dict[str, Any]] = {row["item_key"]: row for row in stored_rows}
+    annotations: dict[str, dict[str, str]] = {}
+    for cluster in clusters:
+        independence = "independent" if cluster.kind == "origin" else "same_origin"
+        for member in cluster.members:
+            row = stored_by_key.get(member.key)
+            if row is not None:
+                annotations[row["id"]] = {"cluster": cluster.cluster_id, "independence": independence}
+    if annotations:
+        store.annotate_sources(inv_id, annotations)
+    try:
+        previous = json.loads(investigation.get("coverage_json") or "{}")
+    except (TypeError, ValueError):
+        previous = {}
+    citations = dict(previous.get("citations") or {})
+    next_number = max([int(h[1:]) for h in citations.values() if isinstance(h, str) and h.startswith("S")
+                       and h[1:].isdigit()] or [0]) + 1
+    for key in CitationIndex.build(result.sources).handles:
+        row = stored_by_key.get(key)
+        if row is not None and row["id"] not in citations:
+            citations[row["id"]] = f"S{next_number}"
+            next_number += 1
+    coverage = {
+        **previous,
+        "adapters": {**(previous.get("adapters") or {}), **{o.adapter: o.state for o in result.outcomes}},
+        "missing": result.missing_ledger(),
+        "sample": filter_sensitivity_summary(dedup_items),
+        "citations": citations,
+        "deadline_hit": result.deadline_hit,
+        "truncated": result.truncated,
+        "refreshed_at": clock.now().isoformat(),
+    }
+    store.update_investigation(inv_id, coverage=coverage)
+    summary = (f"Evidence refresh at {clock.now().isoformat()} (new {horizon:g}h window, "
+               + ", ".join(f"{o.adapter}={o.state}" for o in result.outcomes)
+               + f"): {len(result.sources)} source row(s) recorded; identical identities became new revisions "
+                 "rather than new witnesses.")
+    store.add_answer(inv_id, body_json={"kind": "evidence_refresh", "text": summary},
+                     effective_as_of=cutoff.effective.isoformat(), evidence_cutoff=cutoff.describe(),
+                     coverage_json=coverage)
+    return {"investigation_id": inv_id, "sources": len(result.sources),
+            "outcomes": [o.to_json() for o in result.outcomes],
+            "deadline_hit": result.deadline_hit, "summary": summary}
+
+
 def json_safe(value: Any) -> str:
     try:
         return json.dumps(value, ensure_ascii=False)[:600]
