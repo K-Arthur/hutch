@@ -87,11 +87,17 @@ Workspace actions (Docs brief, Sheets table, Drive placement, Calendar/reminder 
   labeled estimate alignment; Workspace request contracts (tabs, RAW values, reminder
   routing); the OAuth client, Docs/Sheets/Drive flows, reconciliation and the governed
   action-plan engine against a local fake Google API (including a five-step journey where an
-  append targets the spreadsheet a prior step created).
+  append targets the spreadsheet a prior step created); Calendar reminders/updates against
+  the module's injected transport (If-Match conflict, mismatch-uncertain, reset-to-default);
+  server routes for the Workspace connection and hash-verified artifact downloads; the
+  infographic layout inspected as a rendered PNG at 1080x1600.
 * Unexecuted: any real provider call (no Gemini/OpenAI key on this host), any real Google
-  Workspace call (no connected account or OAuth client), Calendar executor wiring, and
-  rendering actual audio a person has listened to. The TTS and Workspace routes must be
-  live-verified before any "listened/verified" claim.
+  Workspace or Calendar call (no connected account or OAuth client), the Connections UI,
+  the audio player/Join-Ask surface, and listening to rendered speech. The TTS and Google
+  routes must be live-verified before any "listened/verified" claim.
+* Contaminated-run note: an intermediate full-suite run overlapped this lane's own edits and
+  reported import-time errors; it is not evidence about the committed tree. The final clean
+  run result is recorded in the session report.
 * Determinism: `deterministic_draft` is a plainly-labeled offline script used for tests and
   strict-offline derivatives; it is not presented as good dialogue.
 * Deliberate non-claims: no UI exists yet; no scheduling/notifications have been configured;
