@@ -1329,6 +1329,7 @@ def _migrate_50(db: sqlite3.Connection) -> None:
         preview_mode TEXT NOT NULL CHECK(preview_mode IN ('pages','structure','download_only')),
         preview_data TEXT NOT NULL DEFAULT '{}',
         page_count INTEGER,
+        source_spec TEXT NOT NULL DEFAULT '{}',
         created_at TEXT NOT NULL,
         PRIMARY KEY (document_id, version)
     )""")
@@ -5960,6 +5961,11 @@ class Store:
             data["preview_data"] = json.loads(data.get("preview_data") or "{}")
         except (TypeError, ValueError):
             data["preview_data"] = {}
+        try:
+            spec = json.loads(data.get("source_spec") or "{}")
+        except (TypeError, ValueError):
+            spec = {}
+        data["source_spec"] = spec if isinstance(spec, dict) else {}
         return data
 
     def create_document(self, *, document_id: str, bot_id: str, conversation_id: Optional[str],
@@ -5974,15 +5980,15 @@ class Store:
             db.execute(
                 "INSERT INTO document_versions (document_id, version, filename, storage_name, mime, bytes, sha256, "
                 "storage_path, source, run_id, event_seq, generator, validation_state, validation_findings, "
-                "preview_mode, preview_data, page_count, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "preview_mode, preview_data, page_count, source_spec, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (document_id, int(version["version"]), version["filename"], version["storage_name"],
                  version["mime"], int(version["bytes"]), version["sha256"], version["storage_path"],
                  version["source"], version.get("run_id"), version.get("event_seq"),
                  version.get("generator", ""), version["validation_state"],
                  _canonical(version.get("findings") or []), version["preview_mode"],
                  _canonical(version.get("preview_data") or {}), version.get("page_count"),
-                 version.get("created_at") or iso(utcnow())))
+                 _canonical(version.get("source_spec") or {}), version.get("created_at") or iso(utcnow())))
 
     def add_document_version(self, document_id: str, expected_version: int,
                              version: dict[str, Any]) -> None:
@@ -5998,15 +6004,15 @@ class Store:
             db.execute(
                 "INSERT INTO document_versions (document_id, version, filename, storage_name, mime, bytes, sha256, "
                 "storage_path, source, run_id, event_seq, generator, validation_state, validation_findings, "
-                "preview_mode, preview_data, page_count, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "preview_mode, preview_data, page_count, source_spec, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (document_id, int(version["version"]), version["filename"], version["storage_name"],
                  version["mime"], int(version["bytes"]), version["sha256"], version["storage_path"],
                  version["source"], version.get("run_id"), version.get("event_seq"),
                  version.get("generator", ""), version["validation_state"],
                  _canonical(version.get("findings") or []), version["preview_mode"],
                  _canonical(version.get("preview_data") or {}), version.get("page_count"),
-                 version.get("created_at") or iso(utcnow())))
+                 _canonical(version.get("source_spec") or {}), version.get("created_at") or iso(utcnow())))
             db.execute("UPDATE documents SET current_version = ? WHERE id = ?",
                        (int(version["version"]), document_id))
 
