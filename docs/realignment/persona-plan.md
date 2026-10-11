@@ -56,6 +56,11 @@ Progress (2026-10-11):
   fail-closed on unreadable or newer state). Evidence: 17 persona tests, updated delegation/migration fixtures,
   and the **full offline suite: 1879 passed, 1 skipped** (log at
   `/tmp/opencode/hutch-persona-integration/offline-suite-sliceB-final.log`); browser suite and live checks remain unrun.
+- `0d91ed8` slice C: the write-once plan is rendered locally and appended to the builtin system prompt as
+  subordinate guidance (wording only; sensitive topics stay plain and steady; playfulness only in clearly
+  playful turns, re-decided every turn). No style-only model pass; measured local resolution + render p95
+  **0.006 ms** (500 samples) against the ≤20 ms target. Evidence: guidance/render tests, prompt-wiring tests
+  with and without a plan, and 146 adjacent runtime/offline/delegation/conversation tests.
 
 ## Acceptance budgets
 
