@@ -4086,10 +4086,10 @@ onto the concurrent head at each milestone (`a2106ec`, `777324a`, `2fff076`; one
 CHANGELOG conflict at `777324a`, resolved by keeping both entry sets), because
 the shared checkout was being actively edited. Local commits `60ca912`…`47befee`
 (sixteen commits; the pre-rebase states are anchored by tags
-`skills-lifecycle-prerebase`, `-prerebase2`, `-prerebase3`). `main` has **not**
-been moved underneath the other session's dirty tree; integration is a
-fast-forward once that tree is quiet
-(`git merge --ff-only <skills worktree HEAD>`).
+`skills-lifecycle-prerebase`, `-prerebase2`, `-prerebase3`). Integration was
+completed on 2026-10-10 18:33 PDT by fast-forwarding `main` to this slice's
+HEAD (`7b79078`); the other session's 75 modified and 10 untracked files had
+zero overlap with this slice's files and were left untouched.
 
 What landed: the complete Agent Skills lifecycle (discover/import -> validate ->
 review/trust by content hash -> install -> assign -> activate -> inspect ->

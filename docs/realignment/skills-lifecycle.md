@@ -180,14 +180,13 @@ The shared checkout `/home/kevina/CodingProjects/hutch` was owned by another act
 further uncommitted edits). This work was developed in `.worktrees/skills-lifecycle` and rebased
 onto the concurrent head at each milestone (`a2106ec`, then `777324a`, finally `2fff076`); the
 `777324a` rebase produced exactly one conflict (both sessions appending to `CHANGELOG.md` under
-Unreleased), resolved by keeping both entry sets. `main` has **not** been advanced underneath that
-session's dirty working tree. Integration is a fast-forward of `main` to this worktree's HEAD once
-the shared checkout is quiet:
+Unreleased), resolved by keeping both entry sets.
 
-```bash
-cd /home/kevina/CodingProjects/hutch
-git merge --ff-only skills-lifecycle/HEAD   # after the active session commits or clears its tree
-```
+**Integration completed 2026-10-10 18:33 PDT:** the shared checkout's uncommitted files (75
+modified, 10 untracked) had **zero overlap** with this slice's changed files, so `main` was
+fast-forwarded to this worktree's HEAD (`git merge --ff-only 7b79078`) without touching the other
+session's work; the integrated checkout re-ran the focused suites (**74 passed**). The other
+session's dirty files and untracked files are preserved exactly as they were.
 
 Local tags anchor the history across rebases: `skills-lifecycle-prerebase` (originals at
 `f2b8b00`), `skills-lifecycle-prerebase2` (pre-`777324a`), `skills-lifecycle-prerebase3`
