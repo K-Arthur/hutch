@@ -4178,3 +4178,27 @@ in `aeb244c` with eleven new regressions. Bounded-corpus measurements
 physical device or screen-reader verification was performed for this slice;
 external runtimes (Pi, OpenCode) report Hutch skills as unsupported and fail
 explicit activation before start.
+
+## Runtime, background execution, monitoring, and durable jobs (2026-10-11)
+
+Ownership: a second session on branch `runtime/monitoring` in `.worktrees/runtime`, based on local `main`
+`55f551b` and merged with `main` `6221cc2` (renumbered migrations: delegation keeps v51, event sources are
+v52, jobs are v53; the downgrade helper learned the new tables). Four commits: `c42da03` service lifecycle,
+`fe38cec` event sources, `af25f36` runtime UI, `de2405a` jobs + document pipeline, `01c8ac1` merge.
+
+What landed, per the ADR-0018 decision (local-first single-owner engine; clients attach; personal headless
+is the same core; multi-tenant rejected as a separate gate): a readiness handshake that binds a start to
+the right state directory and main PID; `hutch service restart` and explicit stop; start-at-login as an
+explicit opt-in; instance identity in `/api/health` and a local-owner `/api/v1/runtime`; the Runtime page
+(approved Route A after the frontend research gate — record in
+[`runtime-ui-research-2026-10-11.md`](runtime-ui-research-2026-10-11.md)); schema-v52 watched sources with
+folder/git/feed adapters, transactional cursors, revision fencing and bounded admission; schema-v53 durable
+jobs with claimed sealed attempts, run-step reconciliation from receipts, and the document pipeline
+(real poppler extraction, real tesseract OCR of an image-only page, FTS5 index generations published only
+when complete, summary artifact with a coverage receipt).
+
+Verification boundary: focused suites (service 23, sources 23+13, jobs 12, doctor/API/routes) pass; the
+real-uvicorn handshake test asserts instance and PID matching; the pipeline test reads a real PDF and OCRs
+a rendered image-only page; browser captures at 1440/900/390/320 were inspected with zero console errors
+and no overflow. The summarize step used the deterministic test runtime — no live model, provider, feed,
+physical device, or systemd install on this host. Full-suite result is recorded in the session report.

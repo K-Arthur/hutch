@@ -79,3 +79,17 @@ core on a chosen always-on host; shared multi-tenant hosting is rejected as a se
   This branch writes v51/v52 and renumbers mechanically if another lane lands first.
 - `store.py` and `server/app.py` are shared; keep edits in new modules where possible.
 - `main` moves; re-read before integrating and re-run the affected suites.
+
+## Status (2026-10-11, branch `runtime/monitoring`)
+
+| Slice | State | Evidence boundary |
+|---|---|---|
+| R0 ADR + plan | Landed in this branch (`docs/adr/0018`, this file) | References R1–R11/F1–F3 verified online; no fabricated precision |
+| R1 service lifecycle | Implemented; focused tests pass | FakeSystemd matrix + real-uvicorn readiness handshake; no unit was installed on this host |
+| R2 runtime identity/status | Implemented; focused tests pass | `/api/health` + `/api/v1/runtime`; paired-phone 403 asserted |
+| R3 event sources | Implemented; focused tests pass | Adapter fixtures (temp dirs, real git repo, local HTTP transport); zero-model quiet path asserted; no live public feed |
+| R4 durable jobs | Implemented; focused tests pass | Restart resume, retry policy, unknown-effect block, definition fence |
+| R5 document pipeline | Implemented; focused tests pass | Real poppler text extraction and real tesseract OCR of an image-only page; summarize step uses the deterministic test runtime (no live model) |
+| R6 runtime UI | Implemented; captures inspected | Desktop/tablet/phone/compact + dialogs + keyboard focus; zero console errors; browser regression |
+| R7 verification | Partial | Full offline suite running; live systemd install/stop/linger, live feeds, physical devices and screen-reader passes remain unverified |
+
