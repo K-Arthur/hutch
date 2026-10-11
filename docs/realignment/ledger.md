@@ -41,8 +41,10 @@ network and says so; SearXNG awaits an operator instance; the Jetstream live rea
 chat entry) shows effective as-of, claimed/what-evidence-shows, outcomes and gaps, independence
 clusters with exact times, hash-verified frames, and answer revisions; inspected in a real browser
 at 1440/900/360 with zero console errors and no overflow. Offline tests: 72 grounding tests plus
-2 browser regressions; the merged tree additionally passed 318 focused tests across touched
-modules. Evidence: `docs/realignment/grounding-evidence.md`, `docs/grounding.md`, artifacts under
+2 browser regressions. Final full offline suite on the combined tree: 2020 passed, 5 skipped,
+2 failed — one load-sensitive TTY race that passes 3/3 in isolation, and one genuine DOCX
+determinism defect (python-docx ZIP timestamps) that is now repaired and verified byte-identical
+across a 2.2 s boundary. Evidence: `docs/realignment/grounding-evidence.md`, `docs/grounding.md`, artifacts under
 `docs/realignment/artifacts/grounding/`. Not claimed: any live hosted-model media call, a live
 Jetstream connection, physical-device or screen-reader passes, or tuned budget benchmarks.
 

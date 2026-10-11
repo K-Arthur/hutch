@@ -126,9 +126,17 @@ receipts strip. The chosen panel keeps the existing dark token set and Archivo d
   1440 / 900 / 360. Screenshots: `docs/realignment/artifacts/grounding/panel2-{desktop,tablet,phone}.png`.
 - Integration base: `main` (4ac6041) + `toolcall/unified` (clean merge) + `wcag22-audit-fixes`
   (29 conflicts: 26 regenerated artifacts resolved to main's captures, 4 code/doc files resolved by
-  keeping both sides). Focused suites on the merged tree pass; the single full-suite failure
-  (`test_code_handoff.py::test_interactive_process_keeps_terminal_and_owns_a_separate_group`) is a
-  load-sensitive TTY race that passes 3/3 in isolation and is recorded, not hidden.
+  keeping both sides). Focused suites on the merged tree pass. Final full offline suite on the
+  combined tree: **2020 passed, 5 skipped, 2 failed** — `test_code_handoff.py::test_interactive_process_keeps_terminal_and_owns_a_separate_group`
+  is a load-sensitive TTY race (passes 3/3 in isolation; it also failed on the pre-grounding
+  merged tree), and `test_docgen_docx.py::test_identical_specs_produce_identical_bytes` exposed a
+  real determinism defect (python-docx stamps ZIP entries with the local clock), now repaired in
+  `docgen/zippack.py` and verified byte-identical across a 2.2 s boundary and across the whole
+  documents suite (125 passed).
+- Integration repairs made on the merged tree: v51 tables taught to the delegation
+  schema-downgrade helper; the documents schema pin updated; the sandbox home-containment test
+  strengthened to assert real home entries are invisible rather than counting an environment
+  dependent error string.
 
 ## Classification of each source/model/workflow
 
