@@ -38,7 +38,7 @@
                 "large": ["qwen3:14b", "qwen3:8b"], "xl": ["qwen3:30b", "qwen3:14b"]}
     },
     "vision": {
-      "title": "Vision", "description": "Look at screenshots or images. Optional: DOM-based browser control needs no vision model.",
+      "title": "Vision", "description": "Tunes local context and residency for vision-capable models, but Hutch chat cannot attach or send images yet. DOM-based browser control needs no vision model.",
       "needs": ["tools", "vision"], "want_ctx": 16384, "min_ctx": 8192,
       "limits": {"max_steps": 16, "timeout_seconds": 900, "daily_token_cap": 200000, "max_turn_tokens": 2048},
       "local": {"tiny": [], "small": [], "medium": ["gemma4:e4b"], "large": ["gemma4:12b", "gemma4:e4b"],

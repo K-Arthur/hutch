@@ -116,3 +116,14 @@ never contains the fixed sample or response text. Chromium 153.0.8010.12 recorde
 responses or external requests; no provider call was made by this fixture. The focused adapter/runtime suite passed 197
 tests and the inspector browser regression passed 1 test. Source hashes match the saved validation record. Native browser
 zoom, screen readers, other browser engines, real provider receipt and model adherence remain untested.
+
+## Image input availability
+
+The composer options menu says that image attachments are unavailable and suggests a text description. I inspected
+`persona-image-input-unsupported/options-desktop.png`, `options-tablet.png`, `options-phone.png` and
+`options-compact-phone.png`. The note remains readable at 320px; the existing options menu scrolls vertically when its
+contents exceed the viewport. The browser regression synthesizes a pasted PNG, confirms the paste is prevented, keeps the
+existing draft, shows a status message, and records zero conversation-message POSTs. At 1440, 768, 360 and 320 CSS pixels,
+page overflow is zero and there are no page errors, console errors, failed responses or external requests. Per-viewport
+screenshots, hashes and Playwright traces are in `artifacts/persona-image-input-unsupported/`. This confirms Hutch's
+current unsupported path; it does not test provider image APIs or add image delivery.

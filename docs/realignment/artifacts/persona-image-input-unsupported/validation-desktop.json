@@ -1,0 +1,23 @@
+{
+  "test": "test_chat_discloses_unsupported_image_input_and_preserves_pasted_image_draft",
+  "browser": "Chromium 153.0.8010.12",
+  "viewport": [
+    1440,
+    960
+  ],
+  "horizontal_overflow_px": 0,
+  "dom_note": "Image attachments aren\u2019t available in chat yet. Describe an image in text instead.",
+  "paste_prevented": true,
+  "draft_preserved": true,
+  "message_posts": [],
+  "page_errors": [],
+  "console_errors": [],
+  "external_requests": [],
+  "failed_responses": [],
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "5182d78a3c4bc9576e10a87bf12384755fde9fa837c9aefcb527b4ae3c1691a8",
+    "src/hutch/server/static/style.css": "831db5076616a46b905c5ed5f268ef3abfca0b16349559d60c5649c8f8249b48",
+    "src/hutch/data/presets.json": "7bc8f8015dd41448bc31c6d8eae0ab607fb990c12360b5568679bfe202a063c6",
+    "tests/e2e/test_browser.py": "a90f9f294c81f701c4e250ab4fa2d1d88a8268f27c0997203054c2f76300dc51"
+  }
+}

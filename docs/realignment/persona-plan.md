@@ -209,9 +209,9 @@ Review follow-ups (status after the profile-compatibility slice):
   under `artifacts/persona-static-examples-2026-10-11/`. Impeccable reported only three unchanged shared-style advisories.
   A low-cost OpenCode review was attempted with `opencode-go/mimo-v2.6-flash`, but stopped while discovering unrelated
   MCP tools before returning code findings; independent review remains outstanding.
-- Remaining acceptance: update marketing claims/screenshots; verify
-  supported-runtime serialized request receipts and image delivery; and run combined offline/browser checks plus
-  bounded model evaluation. No separate supported
+- Remaining acceptance: update marketing claims/screenshots; finish combined offline/browser checks and bounded model
+  evaluation. The adapter-receipt implementation and image-input availability audit are now recorded below. No separate
+  supported
   Hutch Go connection is configured, so Hutch product-path response quality and model latency are unverified.
   The device OpenCode CLI did authenticate and run the low-cost MiMo Flash development task; a later bounded contract
   edit did not finish before its cost-limited stop, so implementation continued locally. A separate, pinned adapter
@@ -287,6 +287,20 @@ Review follow-ups (status after the profile-compatibility slice):
   regression passed (1 test); source hashes match the retained evidence. The serialized receipt proves Hutch's request shape, not
   provider acceptance or model adherence. Local model/provider quality and human scoring remain pending without a separate
   Hutch provider connection.
+
+- Image-input availability slice: source/API inspection found that conversation messages accept a text `prompt`, the
+  built-in runtime creates text-only user messages, and there is no image attachment, upload, or image-content mapping
+  in the chat path. Provider capability rows already reported images as unavailable through Hutch; the local Vision
+  focus description was the conflicting claim and now says it changes context/residency only. The composer options menu
+  names the unsupported state. Pasted image files are prevented from entering the textarea, leave its existing draft
+  untouched, and produce a visible status without a messages POST. The task-focus contract and actual-app browser
+  regression passed together (**5 passed**), with zero page/console/network errors and no provider request. Screenshots,
+  source hashes, viewport measurements and traces for 1440, 768, 360 and 320 CSS pixels are retained under
+  `artifacts/persona-image-input-unsupported/`; I inspected all four captures and found no clipping or horizontal
+  overflow. A separate, unchanged composer-options browser case still fails its existing phone-width queue-time
+  assertion on the current branch and clean local-main commit `63b2712` at the same `1.3s` assertion; its fixture also
+  times out during server teardown after the assertion. No assertion was weakened. The independently scoped image-input
+  regression passes on desktop, tablet, phone and compact phone.
 
 ## Rollback
 

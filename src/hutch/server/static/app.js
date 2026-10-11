@@ -2472,6 +2472,7 @@ async function renderChatStudio(preferredBot = null) {
                   <input class="visually-hidden" id="task-template-file" type="file" accept=".json,application/json">
                   <button class="cmenu-files" id="conversation-files-open" type="button">${icon("folder")} Browse files in this chat</button>
                   <button class="cmenu-files" id="conversation-export-open" type="button">Export conversation as JSON</button>
+                  <p class="hint cmenu-image-note" role="note">Image attachments aren’t available in chat yet. Describe an image in text instead.</p>
                   <div class="cmenu-sep"></div>
                   <label class="cmenu-row"><input type="checkbox" id="rehearse-opt">
                     <span>Rehearse this run<span class="cmenu-sub">simulates writes and commands; model calls and reads still happen</span></span></label>
@@ -3044,6 +3045,13 @@ async function renderChatStudio(preferredBot = null) {
     }
   };
   form.addEventListener("submit", ev => { ev.preventDefault(); submit(); });
+  txt.addEventListener("paste", ev => {
+    const hasImage = Array.from(ev.clipboardData?.items || []).some(item =>
+      item.kind === "file" && /^image\//i.test(item.type || ""));
+    if (!hasImage) return;
+    ev.preventDefault();
+    toast("Image attachments aren’t available in chat yet. Describe the image in text instead.", true);
+  });
   txt.addEventListener("keydown", ev => {
     if (ev.key !== "Enter" || ev.shiftKey) return;
     if (ev.isComposing || ev.keyCode === 229) return;   // never submit mid-IME-composition

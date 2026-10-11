@@ -151,6 +151,7 @@ def test_nothing_fitting_means_hosted_only_with_the_reason_spelled_out():
 
 def test_vision_needs_a_vision_model_and_is_hosted_only_on_small_machines():
     p = load_presets()["vision"]
+    assert "cannot attach or send images yet" in p.description
     assert resolve_preset(p, hw_with(5), {}).local_model is None
     # at 24 GiB the 26B model would be squeezed below the window wanted, so the 12B that fits wins
     assert resolve_preset(p, hw_with(24), {}).local_model == "gemma4:12b"

@@ -7,7 +7,10 @@ verification boundary, and dated policy/API evidence.
 
 “Supported” means Hutch's common wire contract has recorded fixtures. It does not mean that
 every version of a compatible server or every model supports the same tools, context controls,
-usage response, retention, or billing. The matrix separates published protocol fields from what
+usage response, retention, or billing. Hutch chat currently accepts text only: no route in this
+matrix exposes an image attachment or image content mapping, even when the provider protocol or
+model itself supports vision. The optional local `vision` task focus changes context sizing only.
+ The matrix separates published protocol fields from what
 Hutch currently sends. Live providers, models, and paid connections were not used for this review.
 
 | Route | State | Hutch behavior and limit |

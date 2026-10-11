@@ -8959,6 +8959,86 @@ def test_composer_options_rehearsal_and_cancelled_notice(browser, live, width, h
     page.close()
 
 
+@pytest.mark.parametrize("width,height,size", [
+    (1440, 960, "desktop"), (768, 960, "tablet"), (360, 844, "phone"), (320, 800, "compact-phone"),
+])
+def test_chat_discloses_unsupported_image_input_and_preserves_pasted_image_draft(browser, live, width, height, size):
+    import hashlib
+    import json
+    from pathlib import Path
+    base, app = live
+    app.state.store.create_bot(Bot(name=f"image-input-{size}", model="mock/demo", tools=[]))
+    context = browser.new_context(viewport={"width": width, "height": height}, reduced_motion="reduce")
+    page = context.new_page()
+    page_errors = []
+    console_errors = []
+    message_posts = []
+    external_requests = []
+    failed_responses = []
+    page.on("pageerror", lambda error: page_errors.append(str(error)))
+    page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" else None)
+    page.on("request", lambda request: message_posts.append(request.url)
+            if request.method == "POST" and request.url.endswith("/messages") else None)
+    page.on("request", lambda request: external_requests.append(request.url)
+            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+    page.on("response", lambda response: failed_responses.append({"url": response.url, "status": response.status})
+            if response.status >= 400 else None)
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/persona-image-input-unsupported"
+    out.mkdir(parents=True, exist_ok=True)
+    context.tracing.start(screenshots=True, snapshots=True, sources=True)
+    trace_active = True
+    try:
+        page.goto(base + f"/#/chat/image-input-{size}")
+        page.locator("#conversation-switcher").wait_for()
+        page.locator("#composer-menu-btn").click()
+        menu = page.locator("#composer-menu")
+        menu.wait_for(state="visible")
+        note = menu.locator(".cmenu-image-note")
+        assert note.get_attribute("role") == "note"
+        assert note.inner_text() == "Image attachments aren’t available in chat yet. Describe an image in text instead."
+        box = menu.bounding_box()
+        assert box and box["x"] >= 0 and box["x"] + box["width"] <= width + 1
+        assert box["y"] >= 0 and box["y"] + box["height"] <= height + 1
+        assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+        page.screenshot(path=str(out / f"options-{size}.png"), full_page=True, animations="disabled")
+
+        prompt = page.locator("#chat-prompt")
+        draft = "Keep this description while an image cannot be attached"
+        prompt.fill(draft)
+        paste_prevented = prompt.evaluate("""el => {
+          const transfer = new DataTransfer();
+          transfer.items.add(new File(["fixture"], "fixture.png", {type: "image/png"}));
+          const event = new ClipboardEvent("paste", {clipboardData: transfer, bubbles: true, cancelable: true});
+          el.dispatchEvent(event);
+          return event.defaultPrevented;
+        }""")
+        assert paste_prevented and prompt.input_value() == draft
+        assert "Image attachments aren’t available" in page.locator("#toast-root").inner_text()
+        assert message_posts == [], "an unsupported image must not be submitted or trigger model inference"
+        assert not page_errors and not console_errors and not external_requests and not failed_responses
+        context.tracing.stop(path=str(out / f"trace-{size}.zip"))
+        trace_active = False
+        (out / f"validation-{size}.json").write_text(json.dumps({
+            "test": "test_chat_discloses_unsupported_image_input_and_preserves_pasted_image_draft",
+            "browser": f"{browser.browser_type.name.title()} {browser.version}",
+            "viewport": [width, height], "horizontal_overflow_px": page.evaluate("document.documentElement.scrollWidth - innerWidth"),
+            "dom_note": note.inner_text(), "paste_prevented": paste_prevented,
+            "draft_preserved": prompt.input_value() == draft, "message_posts": message_posts,
+            "page_errors": page_errors, "console_errors": console_errors,
+            "external_requests": external_requests, "failed_responses": failed_responses,
+            "source_sha256": {relative: hashlib.sha256((out.parents[3] / relative).read_bytes()).hexdigest()
+                for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                 "src/hutch/data/presets.json", "tests/e2e/test_browser.py")},
+        }, indent=2) + "\n")
+    finally:
+        if trace_active:
+            try:
+                context.tracing.stop(path=str(out / f"trace-{size}-failed.zip"))
+            except Exception:
+                pass
+        context.close()
+
+
 @pytest.mark.parametrize("width,height,size", [(1440,1000,"desktop"),(900,1024,"tablet"),(390,844,"phone")])
 def test_uncertain_action_review_in_chat_preserves_history_and_recovers_lost_response(browser, live, monkeypatch, width, height, size):
     import hashlib

@@ -54,6 +54,9 @@
   acceptance. Local adapter checks cover captured HTTP bodies for Ollama/OpenAI-compatible chat/OpenAI Responses and
   Anthropic's SDK message arguments.
   Real provider quality and adherence remain unverified.
+- Clarify that Hutch chat accepts text only: the local Vision focus adjusts context sizing but does not enable image
+  input. Pasting an image now keeps the user's text draft and explains that images cannot be attached, without posting
+  a run. The supported-runtime matrix records the same limit.
 - Extend assistant settings with the independent v2 selectors and bounded customization beside standing
   directions. Conversation controls save scoped preferences with conflict recovery; next-reply controls stay
   local until one send. Browser regressions cover persistence, reset, concurrent edits, focus, keyboard,
