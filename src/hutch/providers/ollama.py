@@ -24,7 +24,8 @@ import time
 from typing import Any, Optional
 
 from .base import (ChatRequest, ChatResult, Health, ModelMeta, Provider, ProviderError, ToolCall,
-                   Watchdog, abort_response, parse_tool_args, parse_tool_args_state)
+                   Watchdog, abort_response, parse_tool_args, parse_tool_args_state,
+                   record_adapter_receipt)
 
 DEFAULT_BASE_URL = "http://localhost:11434"
 TRUNCATION_RATIO = 0.98
@@ -239,6 +240,7 @@ class OllamaProvider(Provider):
 
     def _complete(self, req: ChatRequest, stream: bool) -> ChatResult:
         body = self._body(req, stream)
+        record_adapter_receipt(req, "ollama-native-chat", body, stream=stream)
         try:
             if stream:
                 return self._chat_stream(req, body)

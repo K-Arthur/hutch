@@ -209,14 +209,15 @@ Review follow-ups (status after the profile-compatibility slice):
   under `artifacts/persona-static-examples-2026-10-11/`. Impeccable reported only three unchanged shared-style advisories.
   A low-cost OpenCode review was attempted with `opencode-go/mimo-v2.6-flash`, but stopped while discovering unrelated
   MCP tools before returning code findings; independent review remains outstanding.
-- Remaining acceptance: add a redacted request/adapter inspector; update marketing claims/screenshots and any remaining
-  user-facing docs; verify
+- Remaining acceptance: update marketing claims/screenshots; verify
   supported-runtime serialized request receipts and image delivery; and run combined offline/browser checks plus
   bounded model evaluation. No separate supported
   Hutch Go connection is configured, so Hutch product-path response quality and model latency are unverified.
   The device OpenCode CLI did authenticate and run the low-cost MiMo Flash development task; a later bounded contract
-  edit did not finish before its cost-limited stop, so implementation continued locally. Its credential store has not
-  been imported into Hutch. Do not repeat that unchanged OpenCode attempt.
+  edit did not finish before its cost-limited stop, so implementation continued locally. A separate, pinned adapter
+  receipt packet read the relevant source but did not return a diff after about two minutes and was stopped; no code
+  or test result was taken from either stopped session. Its credential store has not been imported into Hutch. Keep
+  future packets narrower and do not repeat either unchanged attempt.
 
 - Answer-rewrite API/runtime slice: the versioned conversation endpoint accepts typed Shorter, Go deeper, and Less
   banter requests anchored to a succeeded answer in the same conversation. It snapshots the source request and answer
@@ -270,7 +271,22 @@ Review follow-ups (status after the profile-compatibility slice):
   browser test was rerun after adding a duplicate-activation guard that preserves keyboard focus (**1 passed**). The
   first guard used native disabling and the browser check caught that it dropped focus; the accessible event guard
   preserves focus and ignores duplicate activation. The live Hutch model result, provider adherence, latency and human
-  scoring remain unverified because no Hutch Go connection is configured. The redacted inspector and marketing update remain.
+  scoring remain unverified because no Hutch Go connection is configured.
+
+- Redacted-inspector and adapter-receipt slice: local tests inspect captured HTTP request bodies for Ollama,
+  OpenAI-compatible chat and OpenAI Responses, plus Anthropic SDK message arguments at its adapter boundary; each carries
+  the sample's system style guidance with provider-specific field mapping, and compatibility tests keep Pi/OpenCode
+  harness routes disabled. Preview calls
+  capture only allow-listed adapter/model, request-shape, saved revision and plan-version metadata before provider
+  send;
+  prompt/response text, credentials, account IDs, endpoints and hidden reasoning are excluded. The existing per-step
+  `model_ms`/`queue_ms` are read from run events. Settings now display a collapsed, accessible summary of scope/revision,
+  adapter/model, request shape and measured timing. The actual-app browser test checks redaction, keyboard disclosure,
+  focus, phone reflow, 320px reflow and no horizontal overflow; screenshots and trace are retained in the live-preview
+  artifact directory. The focused adapter/runtime suite passed (197 tests), and the actual-app inspector browser
+  regression passed (1 test); source hashes match the retained evidence. The serialized receipt proves Hutch's request shape, not
+  provider acceptance or model adherence. Local model/provider quality and human scoring remain pending without a separate
+  Hutch provider connection.
 
 ## Rollback
 

@@ -389,9 +389,14 @@ configured per-turn output limit, and the configured model only; it does not ret
 budget endpoint uses a 1,024-token input ceiling and blocks unknown hosted prices and routes without an enforceable
 output cap. The output and run record remain local; a hosted model still receives the fixed prompt and style under its
 normal provider terms. The browser test uses a fixture runtime to verify explicit admission, unchanged saved settings,
-no conversation attachment, responsive layout, focus retention and cancellation. Provider request serialization is
-also tested against a local fake; real model adherence and response quality remain unverified. A redacted adapter
-inspector remains in progress.
+no conversation attachment, responsive layout, focus retention and cancellation. Adapter tests inspect the exact local
+payload boundary for Ollama, OpenAI-compatible chat, OpenAI Responses and Anthropic (the first three through captured
+HTTP bodies, Anthropic through the SDK message arguments); they verify the response-style system guidance reaches each
+adapter without asking a model what it saw. Preview calls opt in to a redacted adapter receipt
+that contains only adapter/model, request roles/counts, serialized output cap, tool-schema and structured-output
+flags, plus the saved-profile revision and measured step timing. Prompt/response text, credentials, account data,
+endpoints and hidden reasoning are omitted. The receipt describes Hutch's serialized request shape before send and
+does not prove provider acceptance. Real model adherence and response quality remain unverified.
 
 At run start the engine resolves the layers once and writes a versioned, write-once plan into the
 run; a retried start reuses the recorded plan, and unreadable or newer state fails the run with a

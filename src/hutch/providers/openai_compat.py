@@ -19,7 +19,7 @@ import time
 from typing import Any, Optional
 
 from .base import (ChatRequest, ChatResult, Health, ModelMeta, Provider, ProviderError, ToolCall,
-                   Watchdog, abort_response, parse_tool_args_state)
+                   Watchdog, abort_response, parse_tool_args_state, record_adapter_receipt)
 
 PRESET_URLS = {
     "openai": "https://api.openai.com/v1",
@@ -243,6 +243,7 @@ class OpenAICompatProvider(Provider):
 
     def _complete(self, req: ChatRequest, stream: bool) -> ChatResult:
         body = self._body(req, stream)
+        record_adapter_receipt(req, "openai-chat-completions", body, stream=stream)
         try:
             if stream:
                 return self._chat_stream(req, body)

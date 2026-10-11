@@ -365,6 +365,16 @@
           </div>
           <p class="hint" data-persona-preview-status role="status" aria-live="polite"></p>
           <pre class="persona-preview-result" data-persona-preview-result role="region" aria-label="Live preview response" tabindex="0" hidden></pre>
+          <details class="persona-preview-inspector" data-persona-preview-inspector hidden>
+            <summary>Redacted request and timing</summary>
+            <p class="hint">This summary contains request shape and run timing only. It omits prompt and response text, credentials, account details, and provider endpoints. Serialization does not prove the provider accepted the request.</p>
+            <dl>
+              <div><dt>Resolved scope and revision</dt><dd data-persona-inspector-scope></dd></div>
+              <div><dt>Adapter and model</dt><dd data-persona-inspector-adapter></dd></div>
+              <div><dt>Serialized request</dt><dd data-persona-inspector-shape></dd></div>
+              <div><dt>Measured latency</dt><dd data-persona-inspector-timing></dd></div>
+            </dl>
+          </details>
         </section>
       </form>`;
     const form = q(".persona-form", container);
@@ -376,12 +386,18 @@
     const previewResult = q("[data-persona-preview-result]", container);
     const previewBtn = q("[data-persona-preview-run]", container);
     const previewStopBtn = q("[data-persona-preview-stop]", container);
+    const previewInspector = q("[data-persona-preview-inspector]", container);
+    const previewInspectorScope = q("[data-persona-inspector-scope]", container);
+    const previewInspectorAdapter = q("[data-persona-inspector-adapter]", container);
+    const previewInspectorShape = q("[data-persona-inspector-shape]", container);
+    const previewInspectorTiming = q("[data-persona-inspector-timing]", container);
     const setStatus = text => { status.textContent = text; };
     let resetAll = false;
     let previewBudget = null;
     let activePreviewRun = null;
     let previewStarting = false;
     let saving = false;
+    let previewInspectorState = { scope: "", savedRevision: null, planVersion: null, receipt: null, step: null };
     const refreshDirty = () => {
       const dirty = resetAll || Object.keys(changesBetween(form, saved)).length > 0;
       saveBtn.disabled = !dirty;
@@ -391,6 +407,52 @@
     const refreshPreviewAvailability = () => {
       previewBtn.disabled = !previewBudget?.available || saving;
       previewBtn.setAttribute("aria-disabled", String(previewStarting || Boolean(activePreviewRun)));
+    };
+    const resetPreviewInspector = () => {
+      previewInspectorState = { scope: "", savedRevision: null, planVersion: null, receipt: null, step: null };
+      previewInspector.open = false;
+      previewInspector.hidden = true;
+    };
+    const renderPreviewInspector = () => {
+      const { scope, savedRevision, planVersion, receipt, step } = previewInspectorState;
+      if (!scope && !receipt && !step) {
+        previewInspector.hidden = true;
+        return;
+      }
+      previewInspector.hidden = false;
+      const revision = Number.isInteger(savedRevision) ? `saved profile r${savedRevision}` : "saved profile revision unavailable";
+      const version = Number.isInteger(planVersion) ? `plan v${planVersion}` : "plan version unavailable";
+      previewInspectorScope.textContent = `${String(scope || "assistant preview").replaceAll("_", " ")} · ${revision} · ${version}`;
+      if (receipt && typeof receipt === "object") {
+        const adapter = String(receipt.adapter || "unknown adapter").slice(0, 64);
+        const model = String(receipt.model || "unknown model").slice(0, 160);
+        const roles = Array.isArray(receipt.message_roles)
+          ? receipt.message_roles.filter(role => ["system", "developer", "user", "assistant", "tool", "function_call", "function_call_output"].includes(role)).slice(0, 12)
+          : [];
+        const count = Number.isInteger(receipt.message_count) ? Math.max(0, receipt.message_count) : "?";
+        const outputCap = Number.isInteger(receipt.output_token_cap) && receipt.output_token_cap > 0
+          ? `output cap ${receipt.output_token_cap}${receipt.output_cap_field ? ` via ${String(receipt.output_cap_field).slice(0, 48)}` : ""}`
+          : "no serialized output cap";
+        const tools = Number.isInteger(receipt.tool_schema_count) ? Math.max(0, receipt.tool_schema_count) : "?";
+        previewInspectorAdapter.textContent = `${adapter} · ${model}`;
+        previewInspectorShape.textContent = [
+          `${count} message${count === 1 ? "" : "s"}${roles.length ? ` (${roles.join(" → ")})` : ""}`,
+          receipt.stream === true ? "streaming" : "non-streaming",
+          outputCap,
+          `${tools} tool schema${tools === 1 ? "" : "s"}`,
+          receipt.system_instructions_present === true ? "system instructions included" : "no system instructions",
+          receipt.structured_output === true ? "structured output attached" : "no structured output",
+        ].join(" · ");
+      } else {
+        previewInspectorAdapter.textContent = "No serialized adapter request was recorded.";
+        previewInspectorShape.textContent = "No request shape is available for this run.";
+      }
+      if (step && Number.isFinite(step.model_ms)) {
+        const queue = Number.isFinite(step.queue_ms) ? Math.max(0, step.queue_ms) : 0;
+        previewInspectorTiming.textContent = `Model round-trip ${Math.max(0, step.model_ms).toFixed(1)} ms · queue ${queue.toFixed(1)} ms`;
+      } else {
+        previewInspectorTiming.textContent = "No completed model-step timing was recorded.";
+      }
     };
     writeSelects(form, saved);
     writeOrigins(form, state, "Saved for this assistant.");
@@ -505,6 +567,20 @@
           const snapshot = await callApi(`/v1/tasks/runs/${encodeURIComponent(runId)}/events?after=${cursor}&limit=100`);
           for (const event of snapshot.events || []) {
             cursor = Math.max(cursor, Number(event.seq || 0));
+            if (event.type === "log" && event.data?.kind === "adapter_receipt") {
+              previewInspectorState = {
+                ...previewInspectorState,
+                scope: String(event.data.scope || "assistant_preview"),
+                savedRevision: Number.isInteger(event.data.saved_profile_revision) ? event.data.saved_profile_revision : null,
+                planVersion: Number.isInteger(event.data.plan_version) ? event.data.plan_version : null,
+                receipt: event.data.receipt && typeof event.data.receipt === "object" ? event.data.receipt : null,
+              };
+              renderPreviewInspector();
+            }
+            if (event.type === "step" && event.data && typeof event.data === "object") {
+              previewInspectorState = { ...previewInspectorState, step: event.data };
+              renderPreviewInspector();
+            }
             if (event.type === "message" && event.data?.role === "assistant") {
               previewResult.textContent = String(event.data.content || "");
               previewResult.hidden = false;
@@ -541,6 +617,7 @@
       const draftStyle = readScope(form, {});
       previewResult.textContent = "";
       previewResult.hidden = true;
+      resetPreviewInspector();
       previewStatus.textContent = "Starting an isolated preview…";
       previewStarting = true;
       refreshPreviewAvailability();

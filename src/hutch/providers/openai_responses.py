@@ -10,7 +10,7 @@ import json
 from typing import Any
 
 from .base import (ChatRequest, ChatResult, ModelMeta, Provider, ProviderError, ToolCall,
-                   Watchdog, abort_response, parse_tool_args_state)
+                   Watchdog, abort_response, parse_tool_args_state, record_adapter_receipt)
 
 API_URL = "https://api.openai.com/v1"
 
@@ -182,6 +182,7 @@ class OpenAIResponsesProvider(Provider):
             raise ProviderError("bad_request", "Sign in with ChatGPT requires streaming; Hutch will not retry it as a non-stream request",
                                 provider="chatgpt")
         body = self._body(req)
+        record_adapter_receipt(req, "openai-responses", body, stream=stream)
         content: list[str] = []
         completed: dict[str, Any] | None = None
         saw_terminal_failure: tuple[str, Any] | None = None

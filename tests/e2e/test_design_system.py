@@ -2079,6 +2079,21 @@ def test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive(br
                 "plan_revision": run.persona_plan.revisions.get("agent"),
             })
             assert run.prompt == PREVIEW_PROMPT
+            ctx.emit(Event(run_id=run.id, type=EventType.log, data={
+                "kind": "adapter_receipt",
+                "scope": "assistant_preview_draft",
+                "saved_profile_revision": run.persona_preview_revision,
+                "plan_version": run.persona_plan.version,
+                "receipt": {
+                    "adapter": "ollama-native-chat", "model": "fake:8b", "stream": False,
+                    "output_token_cap": 128, "output_cap_field": "options.num_predict",
+                    "message_count": 2, "message_roles": ["system", "user"],
+                    "system_instructions_present": True, "tool_schema_count": 0,
+                    "structured_output": False,
+                },
+            }))
+            ctx.emit(Event(run_id=run.id, type=EventType.step,
+                           data={"model_ms": 123.4, "queue_ms": 5.2}))
             for _ in range(40):
                 if stop():
                     raise RunAborted("stopped", "preview cancelled by the operator")
@@ -2119,6 +2134,8 @@ def test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive(br
         form = page.locator("#persona-form-slot .persona-form")
         preview = form.locator(".persona-live-preview")
         preview.wait_for()
+        inspector = preview.locator("[data-persona-preview-inspector]")
+        assert inspector.is_hidden()
         budget = preview.locator("[data-persona-preview-budget]")
         page.wait_for_function("() => document.querySelector('[data-persona-preview-budget]')?.textContent.includes('local model has no per-token Hutch charge')")
         assert "one fixed sample" in preview.inner_text()
@@ -2154,6 +2171,18 @@ def test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive(br
         assert runtime_calls[0]["plan_revision"] == 0
         saved = store.get_bot(bot.id)
         assert saved.persona_revision == 0 and saved.persona_override is None
+        assert inspector.is_visible()
+        summary = inspector.locator("summary")
+        summary.focus()
+        page.keyboard.press("Enter")
+        assert inspector.evaluate("el => el.open") is True
+        inspector_text = inspector.inner_text()
+        assert "assistant preview draft" in inspector_text and "saved profile r0" in inspector_text
+        assert "ollama-native-chat · fake:8b" in inspector_text
+        assert "2 messages (system → user)" in inspector_text
+        assert "output cap 128 via options.num_predict" in inspector_text
+        assert "Model round-trip 123.4 ms · queue 5.2 ms" in inspector_text
+        assert "houseplants" not in inspector_text and "sunny windowsill" not in inspector_text
 
         viewports = (("phone", 360, 844), ("tablet", 768, 960), ("desktop", 1440, 960),
                      ("compact-phone", 320, 800), ("zoom-200-effective", 720, 480))
@@ -2167,6 +2196,22 @@ def test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive(br
             evidence.append({"viewport": [width, height], "horizontal_overflow_px": overflow,
                              "preview_bounds": {key: round(value, 2) for key, value in rect.items()}})
             page.screenshot(path=str(out / f"preview-{label}.png"), animations="disabled")
+        page.set_viewport_size({"width": 360, "height": 844})
+        preview.evaluate("el => el.scrollIntoView({block: 'start'})")
+        assert summary.evaluate("el => Math.round(el.getBoundingClientRect().height)") >= 44
+        inspector.screenshot(path=str(out / "preview-inspector-phone.png"), animations="disabled")
+        spacing_override = page.add_style_tag(content="* { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; } p { margin-block-end: 2em !important; }")
+        for width in (320, 360):
+            page.set_viewport_size({"width": width, "height": 844})
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, ("inspector text-spacing override", width, overflow)
+            rect = inspector.bounding_box()
+            assert rect and rect["width"] <= width + 1
+            evidence.append({"label": "inspector-text-spacing", "viewport": [width, 844],
+                             "horizontal_overflow_px": overflow,
+                             "inspector_bounds": {key: round(value, 2) for key, value in rect.items()}})
+        page.screenshot(path=str(out / "preview-inspector-phone-text-spacing.png"), animations="disabled")
+        spacing_override.evaluate("el => el.remove()")
 
         button.click()
         preview.locator("[data-persona-preview-stop]").wait_for(state="visible")
@@ -2201,6 +2246,7 @@ def test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive(br
             "controls_changed_before_explicit_preview": True,
             "revision_after_preview": store.get_bot(bot.id).persona_revision,
             "cancelled_run_status": latest["status"],
+            "preview_inspector": inspector_text,
             "source_sha256": _visual_source_hashes(),
         }, indent=2) + "\n", encoding="utf-8")
     finally:

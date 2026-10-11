@@ -73,7 +73,10 @@ built-in route. Its fixed fictional prompt excludes conversation history, standi
 shows a local cost estimate, enforces a 128-token maximum output cap (or the assistant's lower configured cap), and does
 not retry, fall back, or escalate. Hutch blocks it when that cap or a hosted model's price cannot be verified. A preview
 is recorded as a standalone local run and is not saved as a preference. This workflow has been verified with a fixture
-runtime and request-contract tests, but real model quality and provider adherence remain unverified.
+runtime and request-contract tests, but real model quality and provider adherence remain unverified. Its redacted
+inspector exposes only resolved preview scope/revision, safe adapter request-shape metadata and measured call/queue time;
+prompt/response content, credentials, account details, endpoints and hidden reasoning are omitted. The adapter record
+means the request was serialized by Hutch; it does not confirm provider receipt or acceptance.
 
 Shorter, go-deeper and less-banter rewrites attach to one explicitly selected assistant message. Hutch accepts a target
 only when its source run succeeded and the request and answer are available in the same conversation; pending questions,

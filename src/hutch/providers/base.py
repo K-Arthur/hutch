@@ -81,6 +81,78 @@ class ChatRequest:
     #: strategy. Attachments: "response_format" (OpenAI-compatible) or "format_field"
     #: (Ollama native). None means no structured-output control is attached.
     structured_output: Optional[dict[str, Any]] = None
+    #: Opt in to a redacted description of the serialized request. Used only by isolated persona previews.
+    capture_adapter_receipt: bool = False
+    adapter_receipt: Optional[dict[str, Any]] = field(default=None, init=False, repr=False)
+
+
+def record_adapter_receipt(req: ChatRequest, adapter: str, serialized: dict[str, Any], *, stream: bool) -> None:
+    """Capture only safe shape metadata from the exact adapter payload before it is sent.
+
+    This opt-in deliberately omits request contents, headers, destinations and credentials. Do not widen the
+    result with arbitrary payload fields; the receipt is made visible in the persona-preview inspector.
+    """
+    if not req.capture_adapter_receipt:
+        return
+
+    raw_messages = serialized.get("messages")
+    if not isinstance(raw_messages, list):
+        raw_messages = serialized.get("input")
+    messages = raw_messages if isinstance(raw_messages, list) else []
+    roles: list[str] = []
+    for message in messages:
+        if not isinstance(message, dict):
+            continue
+        role = message.get("role")
+        if isinstance(role, str) and role in {"system", "developer", "user", "assistant", "tool"}:
+            roles.append(role)
+        elif isinstance(message.get("type"), str) and message["type"] in {"function_call", "function_call_output"}:
+            roles.append(message["type"])
+
+    has_separate_system = bool(serialized.get("system") or serialized.get("instructions"))
+    has_system = has_separate_system or any(role in {"system", "developer"} for role in roles)
+    if has_separate_system and not any(role in {"system", "developer"} for role in roles):
+        roles.insert(0, "system")
+    message_count = len(messages) + int(has_separate_system and not any(
+        isinstance(message, dict) and isinstance(message.get("role"), str)
+        and message.get("role") in {"system", "developer"} for message in messages))
+
+    tool_schemas = serialized.get("tools")
+    tool_count = len(tool_schemas) if isinstance(tool_schemas, list) else 0
+    for message in messages:
+        if isinstance(message, dict) and message.get("type") == "additional_tools":
+            nested = message.get("tools")
+            if isinstance(nested, list):
+                tool_count += len(nested)
+
+    cap_field: str | None = None
+    cap: int | None = None
+    for key in ("max_output_tokens", "max_completion_tokens", "max_tokens"):
+        candidate = serialized.get(key)
+        if isinstance(candidate, int) and not isinstance(candidate, bool) and candidate > 0:
+            cap, cap_field = candidate, key
+            break
+    if cap is None:
+        options = serialized.get("options")
+        candidate = options.get("num_predict") if isinstance(options, dict) else None
+        if isinstance(candidate, int) and not isinstance(candidate, bool) and candidate > 0:
+            cap, cap_field = candidate, "options.num_predict"
+
+    model = serialized.get("model")
+    if not isinstance(model, str) or not model or len(model) > 160 or any(ord(char) < 32 for char in model):
+        model = "unknown"
+    req.adapter_receipt = {
+        "adapter": adapter,
+        "model": model,
+        "stream": bool(stream),
+        "output_token_cap": cap,
+        "output_cap_field": cap_field,
+        "message_count": message_count,
+        "message_roles": roles[:12],
+        "system_instructions_present": has_system,
+        "tool_schema_count": tool_count,
+        "structured_output": "response_format" in serialized or "format" in serialized,
+    }
 
 
 @dataclass

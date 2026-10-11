@@ -105,3 +105,14 @@ model evaluation. The browser run recorded no page errors, console errors, faile
 or provider calls. Screenshots, source hashes, the request/runtime observations and `trace.zip` are in
 `artifacts/persona-live-preview-2026-10-11/`. Native browser zoom, screen readers, other browser engines, real provider
 receipt and model adherence remain untested.
+
+The redacted inspector is a collapsed native disclosure and keeps only scope/revision, request-shape fields and measured
+timing. I opened `preview-desktop.png`, `preview-inspector-phone.png`, and
+`preview-inspector-phone-text-spacing.png`; the wide layout aligns labels and values in two columns, while the phone
+stacks each label above its value and wraps long adapter fields. At 320px, increased letter/word spacing and line height remain inside the viewport; the longer content
+continues through ordinary page scrolling. The copy clearly says the serialized shape does not prove provider acceptance.
+The 44px disclosure target remains keyboard-operable. The fixture values are explicitly synthetic, and the inspector
+never contains the fixed sample or response text. Chromium 153.0.8010.12 recorded zero page/console errors, failed local
+responses or external requests; no provider call was made by this fixture. The focused adapter/runtime suite passed 197
+tests and the inspector browser regression passed 1 test. Source hashes match the saved validation record. Native browser
+zoom, screen readers, other browser engines, real provider receipt and model adherence remain untested.

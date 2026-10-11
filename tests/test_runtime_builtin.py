@@ -339,7 +339,7 @@ def test_persona_preview_sends_one_capped_isolated_nonstreaming_request(store, c
 
     monkeypatch.setenv("OLLAMA_HOST", ollama.url)
     ollama.script = agent_script([{"content": "A leaf offering and a sincere apology should do."}])
-    ctx, run, _ = _persona_preview_run(store, config, tmp_path, max_turn_tokens=32)
+    ctx, run, emitted = _persona_preview_run(store, config, tmp_path, max_turn_tokens=32)
 
     answer = run_it(runtime(provider_factory=factory(ollama)), run, ctx, {})
     request = ollama.of("/api/chat")[0]["body"]
@@ -357,6 +357,20 @@ def test_persona_preview_sends_one_capped_isolated_nonstreaming_request(store, c
     assert "Your purpose: d" not in messages[0]["content"]
     assert str(ctx.workspace) not in json.dumps(messages)
     assert run.steps == 1
+    receipt_event = next(e for e in emitted if e.type is EventType.log and e.data.get("kind") == "adapter_receipt")
+    receipt_data = receipt_event.data
+    assert receipt_data["scope"] == "assistant_preview_draft"
+    assert receipt_data["saved_profile_revision"] == 7
+    assert receipt_data["plan_version"] == run.persona_plan.version
+    assert receipt_data["receipt"] == {
+        "adapter": "ollama-native-chat", "model": "fake:8b", "stream": False,
+        "output_token_cap": 32, "output_cap_field": "options.num_predict",
+        "message_count": 2, "message_roles": ["system", "user"],
+        "system_instructions_present": True, "tool_schema_count": 0, "structured_output": False,
+    }
+    serialized_receipt = json.dumps(receipt_data)
+    assert PREVIEW_PROMPT not in serialized_receipt
+    assert "private instructions" not in serialized_receipt and str(ctx.workspace) not in serialized_receipt
 
 
 def test_persona_preview_provider_failure_is_terminal_even_when_bot_has_fallbacks(store, config, tmp_path,

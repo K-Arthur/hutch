@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_design_system.py::test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive",
-  "captured_at": "2026-10-11T15:16:28.815925+00:00",
+  "captured_at": "2026-10-11T15:32:48.351139+00:00",
   "browser": "Chromium 153.0.8010.12",
   "viewports": [
     {
@@ -14,7 +14,7 @@
         "x": 42,
         "y": 60.89,
         "width": 276,
-        "height": 651.48
+        "height": 1229.77
       }
     },
     {
@@ -27,7 +27,7 @@
         "x": 50,
         "y": 61.48,
         "width": 668,
-        "height": 378.8
+        "height": 702.44
       }
     },
     {
@@ -40,7 +40,7 @@
         "x": 362,
         "y": 56.48,
         "width": 632,
-        "height": 378.8
+        "height": 727.23
       }
     },
     {
@@ -53,7 +53,7 @@
         "x": 42,
         "y": 61.06,
         "width": 236,
-        "height": 694.86
+        "height": 1319.62
       }
     },
     {
@@ -66,7 +66,35 @@
         "x": 50,
         "y": 61.48,
         "width": 620,
-        "height": 378.8
+        "height": 727.23
+      }
+    },
+    {
+      "label": "inspector-text-spacing",
+      "viewport": [
+        320,
+        844
+      ],
+      "horizontal_overflow_px": 0,
+      "inspector_bounds": {
+        "x": 42,
+        "y": 347.5,
+        "width": 236,
+        "height": 762
+      }
+    },
+    {
+      "label": "inspector-text-spacing",
+      "viewport": [
+        360,
+        844
+      ],
+      "horizontal_overflow_px": 0,
+      "inspector_bounds": {
+        "x": 42,
+        "y": 302.5,
+        "width": 276,
+        "height": 648
       }
     }
   ],
@@ -145,12 +173,13 @@
   "controls_changed_before_explicit_preview": true,
   "revision_after_preview": 0,
   "cancelled_run_status": "stopped",
+  "preview_inspector": "Redacted request and timing\n\nThis summary contains request shape and run timing only. It omits prompt and response text, credentials, account details, and provider endpoints. Serialization does not prove the provider accepted the request.\n\nResolved scope and revision\nassistant preview draft \u00b7 saved profile r0 \u00b7 plan v3\nAdapter and model\nollama-native-chat \u00b7 fake:8b\nSerialized request\n2 messages (system \u2192 user) \u00b7 non-streaming \u00b7 output cap 128 via options.num_predict \u00b7 0 tool schemas \u00b7 system instructions included \u00b7 no structured output\nMeasured latency\nModel round-trip 123.4 ms \u00b7 queue 5.2 ms",
   "source_sha256": {
     "src/hutch/server/pages.py": "7884021b4a97b41a26c49e4337e8f53fe245ff8682c5e820a613a4dc70263826",
     "src/hutch/server/static/app.js": "943c4446a58dfb9f257c8b396522d41c5612d68dded7a19d6c435399c46e46a6",
-    "src/hutch/server/static/persona.js": "7a57cef29f046eea6cda1ff5c3a4b34842deeba292024edaae138c268ad854d2",
+    "src/hutch/server/static/persona.js": "b7f078b3c2ca9fab0adcb70f0d24c98129b311e9cb20c8264dde4ff19d7942d4",
     "src/hutch/server/static/index.html": "5f7faabcab72c2c2aa459cc143307275a03764ec9c72857d1c9f7d8f2ea5410b",
-    "src/hutch/server/static/style.css": "f2f482ff3c85927fc79767fbb2815a79810be92753635f7391d82d1ec3c01a41",
+    "src/hutch/server/static/style.css": "831db5076616a46b905c5ed5f268ef3abfca0b16349559d60c5649c8f8249b48",
     "src/hutch/server/static/brands/openai-white-monoblossom.svg": "b94ea61d860fae6f82f43571f36f17111fcf5d348e8e9cc22ae4b441c7560011",
     "src/hutch/server/static/brands/anthropic-symbol-ivory.svg": "38fc06d8e9390654cc4e96aa53691e2e78d929667c0034805b6d1b3891ba22dd",
     "src/hutch/server/static/brands/openrouter-glyph-volt.svg": "0d22462e4f2835a5a5b9000af0a55fc9238e39996100f54706e41ec45b9d1727",
@@ -160,6 +189,6 @@
     "website/index.html": "cae44861517f80b505843ac618e1bb56801425842867b8bbead8bcfe820aa7ec",
     "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
     "website/styles.css": "4e2f4b3e4094cfc3aef1e9b21deaaf472421e607bb416824e63db0197dd0f4bd",
-    "tests/e2e/test_design_system.py": "840166b8264e69956e6e18bc7b4d73ce4321f2bfe0243c3100c0844daf2ae14b"
+    "tests/e2e/test_design_system.py": "57849b29b4d602dbd5849dc5ce280c1737d55e4b1d0fafd4a00b42b8983b06a8"
   }
 }

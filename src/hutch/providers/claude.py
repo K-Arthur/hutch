@@ -23,7 +23,8 @@ from __future__ import annotations
 import os
 from typing import Any, Optional
 
-from .base import ChatRequest, ChatResult, Health, ModelMeta, Provider, ProviderError, ToolCall, abort_response
+from .base import (ChatRequest, ChatResult, Health, ModelMeta, Provider, ProviderError, ToolCall, abort_response,
+                   record_adapter_receipt)
 
 #: models that accept an ``effort`` level (others error if it is sent)
 EFFORT_PREFIXES = ("claude-opus-5", "claude-sonnet-5", "claude-fable", "claude-mythos", "claude-opus-4-8",
@@ -222,6 +223,7 @@ class ClaudeProvider(Provider):
             extra[self.session_header] = req.session_id
         if extra:
             kwargs["extra_headers"] = extra
+        record_adapter_receipt(req, "anthropic-messages", kwargs, stream=stream)
         try:
             if stream:
                 with client.messages.stream(**kwargs) as s:

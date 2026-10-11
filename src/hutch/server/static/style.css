@@ -2636,10 +2636,18 @@ details[open] > summary .summary-row-action .icon { transform: rotate(180deg); }
 .persona-live-preview h3 { font-size: var(--fs-md); line-height: 1.35; }
 .persona-preview-budget { overflow-wrap: anywhere; }
 .persona-preview-result { min-width: 0; max-height: 20rem; overflow: auto; margin: 0; padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--sunken); color: var(--text); font: inherit; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.persona-preview-inspector { min-width: 0; border-top: 1px solid var(--line); }
+.persona-preview-inspector summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; color: var(--text); font-weight: 600; }
+.persona-preview-inspector > p { margin: 0 0 var(--s-2); }
+.persona-preview-inspector dl { display: grid; gap: var(--s-2); margin: 0; min-width: 0; }
+.persona-preview-inspector dl > div { display: grid; grid-template-columns: minmax(9rem, .7fr) minmax(0, 1fr); gap: var(--s-3); min-width: 0; }
+.persona-preview-inspector dt { color: var(--text-2); }
+.persona-preview-inspector dd { margin: 0; min-width: 0; color: var(--text); overflow-wrap: anywhere; }
 .persona-live-preview [hidden] { display: none !important; }
 @media (max-width: 480px) {
   .persona-range-row { grid-template-columns: 108px minmax(60px, 1fr) 44px; gap: var(--s-1); }
   .persona-range-row select { width: 108px !important; }
+  .persona-preview-inspector dl > div { grid-template-columns: minmax(0, 1fr); gap: var(--s-1); }
   .persona-habit-options { grid-template-columns: 1fr; }
   .persona-example-grid, .persona-depth-examples { grid-template-columns: 1fr; }
 }

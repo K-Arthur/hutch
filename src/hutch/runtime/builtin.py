@@ -793,7 +793,8 @@ class BuiltinRuntime:
                                     "schema": _plain_schema(plan.envelope_schema),
                                     "attachment": profile.constrained_attachment or "response_format"}
                                    if plan.strategy == "constrained" and plan.envelope_schema is not None else None),
-                keep_alive="30m" if _keep_resident(ctx, bot) else "10m")
+                keep_alive="30m" if _keep_resident(ctx, bot) else "10m",
+                capture_adapter_receipt=is_preview)
             account_id, _, _ = guard.account_policy(session.rung)
             try:
                 result, reservation_id, t_call, timer.queue_ms = self._attempt(
@@ -833,6 +834,15 @@ class BuiltinRuntime:
                 raise
             except Exception as exc:
                 raise
+            finally:
+                if is_preview and req.adapter_receipt is not None:
+                    self._log(
+                        ctx, run, "adapter_receipt",
+                        "Redacted adapter request shape captured before send; message text and credentials are omitted",
+                        scope="assistant_preview_draft",
+                        saved_profile_revision=run.persona_preview_revision,
+                        plan_version=run.persona_plan.version if run.persona_plan is not None else None,
+                        receipt=req.adapter_receipt)
             rate_limited_once = False
             timer.model(time.perf_counter() - t_call)
 
