@@ -1,0 +1,5084 @@
+{
+ "chat": {
+  "under24": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "brand",
+    "text": "hutch \u2014 open chats",
+    "w": 83,
+    "h": 22,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "w needs",
+    "text": "1 needs you",
+    "w": 81,
+    "h": 16,
+    "label": "desktop-fine"
+   }
+  ],
+  "under44_count": 34,
+  "under44_sample": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "skip-link",
+    "text": "Skip to content",
+    "w": 153,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "sidebar-toggle",
+    "cls": "icon-btn ws-dock",
+    "text": "Collapse sidebar",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Chats",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "needs-you-open",
+    "cls": "attention",
+    "text": "Needs you1",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "More",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Activity",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Scheduled work",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Work history",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "topbar-new-bot",
+    "cls": "icon-btn roster-new",
+    "text": "New assistant",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "bot-search",
+    "cls": "roster-search",
+    "text": "",
+    "w": 247,
+    "h": 38,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Scout",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Ledger",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Scribe",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "ws-foot-link",
+    "text": "Apps & AI",
+    "w": 247,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "prefs-toggle",
+    "cls": "ws-foot-link",
+    "text": "Settings",
+    "w": 103,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "select",
+    "id": "conversation-switcher",
+    "cls": "conversation-select",
+    "text": "Conversation",
+    "w": 169,
+    "h": 34,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-search-messages",
+    "cls": "icon-btn studio-search-button",
+    "text": "Search chats",
+    "w": 40,
+    "h": 40,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "studio-conversation-options",
+    "cls": "icon-btn",
+    "text": "Chat and assistant options",
+    "w": 40,
+    "h": 40,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-new-conversation",
+    "cls": "conversation-action-item",
+    "text": "New conversation",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-rename-conversation",
+    "cls": "conversation-action-item",
+    "text": "Rename conversation",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-pin",
+    "cls": "conversation-action-item",
+    "text": "Pin conversation",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-unread",
+    "cls": "conversation-action-item",
+    "text": "Mark unread",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-section",
+    "cls": "conversation-action-item",
+    "text": "New section",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "conversation-action-item",
+    "text": "More conversation actions",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-template-save",
+    "cls": "conversation-action-item",
+    "text": "Save reusable request",
+    "w": 221,
+    "h": 42,
+    "label": "desktop-fine"
+   }
+  ]
+ },
+ "chat-scribe": {
+  "under24": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "brand",
+    "text": "hutch \u2014 open chats",
+    "w": 83,
+    "h": 22,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "w needs",
+    "text": "1 needs you",
+    "w": 81,
+    "h": 16,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "1 step \u00b7 6ms",
+    "w": 712,
+    "h": 22,
+    "label": "desktop-fine"
+   }
+  ],
+  "under44_count": 38,
+  "under44_sample": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "skip-link",
+    "text": "Skip to content",
+    "w": 153,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "sidebar-toggle",
+    "cls": "icon-btn ws-dock",
+    "text": "Collapse sidebar",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Chats",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "needs-you-open",
+    "cls": "attention",
+    "text": "Needs you1",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "More",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Activity",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Scheduled work",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Work history",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "topbar-new-bot",
+    "cls": "icon-btn roster-new",
+    "text": "New assistant",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "bot-search",
+    "cls": "roster-search",
+    "text": "",
+    "w": 247,
+    "h": 38,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Scout",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Scribe",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Ledger",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "ws-foot-link",
+    "text": "Apps & AI",
+    "w": 247,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "prefs-toggle",
+    "cls": "ws-foot-link",
+    "text": "Settings",
+    "w": 103,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "select",
+    "id": "conversation-switcher",
+    "cls": "conversation-select",
+    "text": "Conversation",
+    "w": 165,
+    "h": 34,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-search-messages",
+    "cls": "icon-btn studio-search-button",
+    "text": "Search chats",
+    "w": 40,
+    "h": 40,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "studio-conversation-options",
+    "cls": "icon-btn",
+    "text": "Chat and assistant options",
+    "w": 40,
+    "h": 40,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-new-conversation",
+    "cls": "conversation-action-item",
+    "text": "New conversation",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-rename-conversation",
+    "cls": "conversation-action-item",
+    "text": "Rename conversation",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-pin",
+    "cls": "conversation-action-item",
+    "text": "Pin conversation",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-unread",
+    "cls": "conversation-action-item",
+    "text": "Mark unread",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-section",
+    "cls": "conversation-action-item",
+    "text": "New section",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "conversation-action-item",
+    "text": "More conversation actions",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-template-save",
+    "cls": "conversation-action-item",
+    "text": "Save reusable request",
+    "w": 221,
+    "h": 42,
+    "label": "desktop-fine"
+   }
+  ]
+ },
+ "conversation": {
+  "under24": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "brand",
+    "text": "hutch \u2014 open chats",
+    "w": 83,
+    "h": 22,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "w needs",
+    "text": "1 needs you",
+    "w": 81,
+    "h": 16,
+    "label": "desktop-fine"
+   }
+  ],
+  "under44_count": 34,
+  "under44_sample": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "skip-link",
+    "text": "Skip to content",
+    "w": 153,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "sidebar-toggle",
+    "cls": "icon-btn ws-dock",
+    "text": "Collapse sidebar",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Chats",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "needs-you-open",
+    "cls": "attention",
+    "text": "Needs you1",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "More",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Activity",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Scheduled work",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Work history",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "topbar-new-bot",
+    "cls": "icon-btn roster-new",
+    "text": "New assistant",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "bot-search",
+    "cls": "roster-search",
+    "text": "",
+    "w": 247,
+    "h": 38,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Scout",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Ledger",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Scribe",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "ws-foot-link",
+    "text": "Apps & AI",
+    "w": 247,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "prefs-toggle",
+    "cls": "ws-foot-link",
+    "text": "Settings",
+    "w": 103,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "select",
+    "id": "conversation-switcher",
+    "cls": "conversation-select",
+    "text": "Conversation",
+    "w": 169,
+    "h": 34,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-search-messages",
+    "cls": "icon-btn studio-search-button",
+    "text": "Search chats",
+    "w": 40,
+    "h": 40,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "studio-conversation-options",
+    "cls": "icon-btn",
+    "text": "Chat and assistant options",
+    "w": 40,
+    "h": 40,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-new-conversation",
+    "cls": "conversation-action-item",
+    "text": "New conversation",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-rename-conversation",
+    "cls": "conversation-action-item",
+    "text": "Rename conversation",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-pin",
+    "cls": "conversation-action-item",
+    "text": "Pin conversation",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-unread",
+    "cls": "conversation-action-item",
+    "text": "Mark unread",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-section",
+    "cls": "conversation-action-item",
+    "text": "New section",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "conversation-action-item",
+    "text": "More conversation actions",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-template-save",
+    "cls": "conversation-action-item",
+    "text": "Save reusable request",
+    "w": 221,
+    "h": 42,
+    "label": "desktop-fine"
+   }
+  ]
+ },
+ "overview": {
+  "under24": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "brand",
+    "text": "hutch \u2014 open chats",
+    "w": 83,
+    "h": 22,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "w needs",
+    "text": "1 needs you",
+    "w": 81,
+    "h": 16,
+    "label": "desktop-fine"
+   }
+  ],
+  "under44_count": 17,
+  "under44_sample": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "skip-link",
+    "text": "Skip to content",
+    "w": 153,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "sidebar-toggle",
+    "cls": "icon-btn ws-dock",
+    "text": "Collapse sidebar",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Chats",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "needs-you-open",
+    "cls": "attention",
+    "text": "Needs you1",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "More",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Activity",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Scheduled work",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Work history",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "topbar-new-bot",
+    "cls": "icon-btn roster-new",
+    "text": "New assistant",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "bot-search",
+    "cls": "roster-search",
+    "text": "",
+    "w": 247,
+    "h": 38,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Scout",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Ledger",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Scribe",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "ws-foot-link",
+    "text": "Apps & AI",
+    "w": 247,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "prefs-toggle",
+    "cls": "ws-foot-link",
+    "text": "Settings",
+    "w": 103,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "attention-review",
+    "cls": "btn ghost small",
+    "text": "Review",
+    "w": 76,
+    "h": 26,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "attention-dismiss",
+    "cls": "icon-btn",
+    "text": "Dismiss reminder",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   }
+  ]
+ },
+ "schedules": {
+  "under24": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "brand",
+    "text": "hutch \u2014 open chats",
+    "w": 83,
+    "h": 22,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "w needs",
+    "text": "1 needs you",
+    "w": 81,
+    "h": 16,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Scribe",
+    "w": 43,
+    "h": 22,
+    "label": "desktop-fine"
+   }
+  ],
+  "under44_count": 20,
+  "under44_sample": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "skip-link",
+    "text": "Skip to content",
+    "w": 153,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "sidebar-toggle",
+    "cls": "icon-btn ws-dock",
+    "text": "Collapse sidebar",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Chats",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "needs-you-open",
+    "cls": "attention",
+    "text": "Needs you1",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "More",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Activity",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Scheduled work",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Work history",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "topbar-new-bot",
+    "cls": "icon-btn roster-new",
+    "text": "New assistant",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "bot-search",
+    "cls": "roster-search",
+    "text": "",
+    "w": 247,
+    "h": 38,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Scout",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Ledger",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Scribe",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "ws-foot-link",
+    "text": "Apps & AI",
+    "w": 247,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "prefs-toggle",
+    "cls": "ws-foot-link",
+    "text": "Settings",
+    "w": 103,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "schedule-control-toggle",
+    "cls": "btn ghost small",
+    "text": "Pause scheduled work",
+    "w": 182,
+    "h": 26,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "Timing details",
+    "w": 86,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "btn ghost small schedule-overview-edit",
+    "text": "Edit schedule",
+    "w": 119,
+    "h": 26,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "attention-review",
+    "cls": "btn ghost small",
+    "text": "Review",
+    "w": 76,
+    "h": 26,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "attention-dismiss",
+    "cls": "icon-btn",
+    "text": "Dismiss reminder",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   }
+  ]
+ },
+ "bots": {
+  "under24": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "brand",
+    "text": "hutch \u2014 open chats",
+    "w": 83,
+    "h": 22,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "w needs",
+    "text": "1 needs you",
+    "w": 81,
+    "h": 16,
+    "label": "desktop-fine"
+   }
+  ],
+  "under44_count": 34,
+  "under44_sample": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "skip-link",
+    "text": "Skip to content",
+    "w": 153,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "sidebar-toggle",
+    "cls": "icon-btn ws-dock",
+    "text": "Collapse sidebar",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Chats",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "needs-you-open",
+    "cls": "attention",
+    "text": "Needs you1",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "More",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Activity",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Scheduled work",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Work history",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "topbar-new-bot",
+    "cls": "icon-btn roster-new",
+    "text": "New assistant",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "bot-search",
+    "cls": "roster-search",
+    "text": "",
+    "w": 247,
+    "h": 38,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Scout",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Ledger",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Scribe",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "ws-foot-link",
+    "text": "Apps & AI",
+    "w": 247,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "prefs-toggle",
+    "cls": "ws-foot-link",
+    "text": "Settings",
+    "w": 103,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "select",
+    "id": "conversation-switcher",
+    "cls": "conversation-select",
+    "text": "Conversation",
+    "w": 169,
+    "h": 34,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-search-messages",
+    "cls": "icon-btn studio-search-button",
+    "text": "Search chats",
+    "w": 40,
+    "h": 40,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "studio-conversation-options",
+    "cls": "icon-btn",
+    "text": "Chat and assistant options",
+    "w": 40,
+    "h": 40,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-new-conversation",
+    "cls": "conversation-action-item",
+    "text": "New conversation",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-rename-conversation",
+    "cls": "conversation-action-item",
+    "text": "Rename conversation",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-pin",
+    "cls": "conversation-action-item",
+    "text": "Pin conversation",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-unread",
+    "cls": "conversation-action-item",
+    "text": "Mark unread",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-section",
+    "cls": "conversation-action-item",
+    "text": "New section",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "conversation-action-item",
+    "text": "More conversation actions",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-template-save",
+    "cls": "conversation-action-item",
+    "text": "Save reusable request",
+    "w": 221,
+    "h": 42,
+    "label": "desktop-fine"
+   }
+  ]
+ },
+ "runs": {
+  "under24": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "brand",
+    "text": "hutch \u2014 open chats",
+    "w": 83,
+    "h": 22,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "w needs",
+    "text": "1 needs you",
+    "w": 81,
+    "h": 16,
+    "label": "desktop-fine"
+   }
+  ],
+  "under44_count": 22,
+  "under44_sample": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "skip-link",
+    "text": "Skip to content",
+    "w": 153,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "sidebar-toggle",
+    "cls": "icon-btn ws-dock",
+    "text": "Collapse sidebar",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Chats",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "needs-you-open",
+    "cls": "attention",
+    "text": "Needs you1",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "More",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Activity",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Scheduled work",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Work history",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "topbar-new-bot",
+    "cls": "icon-btn roster-new",
+    "text": "New assistant",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "bot-search",
+    "cls": "roster-search",
+    "text": "",
+    "w": 247,
+    "h": 38,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Scout",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Ledger",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Scribe",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "ws-foot-link",
+    "text": "Apps & AI",
+    "w": 247,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "prefs-toggle",
+    "cls": "ws-foot-link",
+    "text": "Settings",
+    "w": 103,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "run-search",
+    "cls": "",
+    "text": "",
+    "w": 260,
+    "h": 43,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "active",
+    "text": "All",
+    "w": 42,
+    "h": 28,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "",
+    "text": "Completed",
+    "w": 101,
+    "h": 28,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "",
+    "text": "Didn't finish",
+    "w": 110,
+    "h": 28,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "",
+    "text": "Waiting on you",
+    "w": 130,
+    "h": 28,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "attention-review",
+    "cls": "btn ghost small",
+    "text": "Review",
+    "w": 76,
+    "h": 26,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "attention-dismiss",
+    "cls": "icon-btn",
+    "text": "Dismiss reminder",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   }
+  ]
+ },
+ "approvals": {
+  "under24": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "brand",
+    "text": "hutch \u2014 open chats",
+    "w": 83,
+    "h": 22,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "w needs",
+    "text": "1 needs you",
+    "w": 81,
+    "h": 16,
+    "label": "desktop-fine"
+   }
+  ],
+  "under44_count": 38,
+  "under44_sample": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "skip-link",
+    "text": "Skip to content",
+    "w": 153,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "sidebar-toggle",
+    "cls": "icon-btn ws-dock",
+    "text": "Collapse sidebar",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Chats",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "needs-you-open",
+    "cls": "attention",
+    "text": "Needs you1",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "More",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Activity",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Scheduled work",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Work history",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "topbar-new-bot",
+    "cls": "icon-btn roster-new",
+    "text": "New assistant",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "bot-search",
+    "cls": "roster-search",
+    "text": "",
+    "w": 247,
+    "h": 38,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Scout",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Ledger",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Scribe",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "ws-foot-link",
+    "text": "Apps & AI",
+    "w": 247,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "prefs-toggle",
+    "cls": "ws-foot-link",
+    "text": "Settings",
+    "w": 103,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "select",
+    "id": "conversation-switcher",
+    "cls": "conversation-select",
+    "text": "Conversation",
+    "w": 169,
+    "h": 34,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-search-messages",
+    "cls": "icon-btn studio-search-button",
+    "text": "Search chats",
+    "w": 40,
+    "h": 40,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "studio-conversation-options",
+    "cls": "icon-btn",
+    "text": "Chat and assistant options",
+    "w": 40,
+    "h": 40,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-new-conversation",
+    "cls": "conversation-action-item",
+    "text": "New conversation",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-rename-conversation",
+    "cls": "conversation-action-item",
+    "text": "Rename conversation",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-pin",
+    "cls": "conversation-action-item",
+    "text": "Pin conversation",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-unread",
+    "cls": "conversation-action-item",
+    "text": "Mark unread",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-section",
+    "cls": "conversation-action-item",
+    "text": "New section",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "conversation-action-item",
+    "text": "More conversation actions",
+    "w": 238,
+    "h": 42,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-template-save",
+    "cls": "conversation-action-item",
+    "text": "Save reusable request",
+    "w": 221,
+    "h": 42,
+    "label": "desktop-fine"
+   }
+  ]
+ },
+ "connections": {
+  "under24": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "brand",
+    "text": "hutch \u2014 open chats",
+    "w": 83,
+    "h": 22,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "w needs",
+    "text": "1 needs you",
+    "w": 81,
+    "h": 16,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "google-calendar-event-creation",
+    "cls": "",
+    "text": "",
+    "w": 13,
+    "h": 13,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Review Google's Gmail scope re",
+    "w": 283,
+    "h": 19,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Review restricted-scope verifi",
+    "w": 232,
+    "h": 19,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "inline-link",
+    "text": "Open Google setup",
+    "w": 128,
+    "h": 22,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "/pair",
+    "w": 31,
+    "h": 19,
+    "label": "desktop-fine"
+   }
+  ],
+  "under44_count": 37,
+  "under44_sample": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "skip-link",
+    "text": "Skip to content",
+    "w": 153,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "sidebar-toggle",
+    "cls": "icon-btn ws-dock",
+    "text": "Collapse sidebar",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Chats",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "needs-you-open",
+    "cls": "attention",
+    "text": "Needs you1",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "More",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Activity",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Scheduled work",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Work history",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "topbar-new-bot",
+    "cls": "icon-btn roster-new",
+    "text": "New assistant",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "bot-search",
+    "cls": "roster-search",
+    "text": "",
+    "w": 247,
+    "h": 38,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Scout",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Ledger",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Scribe",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "ws-foot-link",
+    "text": "Apps & AI",
+    "w": 247,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "prefs-toggle",
+    "cls": "ws-foot-link",
+    "text": "Settings",
+    "w": 103,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Review preview limits",
+    "w": 1049,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "btn primary small",
+    "text": "Continue with ChatGPT",
+    "w": 188,
+    "h": 26,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "google-oauth-client-id",
+    "cls": "",
+    "text": "",
+    "w": 1044,
+    "h": 40,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "google-oauth-client-save",
+    "cls": "btn primary small",
+    "text": "Save client ID",
+    "w": 121,
+    "h": 26,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "google-oauth-client-clear",
+    "cls": "btn ghost small",
+    "text": "Clear",
+    "w": 62,
+    "h": 26,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "google-calendar-label",
+    "cls": "",
+    "text": "",
+    "w": 1058,
+    "h": 40,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "google-calendar-connect",
+    "cls": "btn primary small",
+    "text": "Connect Google Calendar",
+    "w": 1058,
+    "h": 26,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "Manage Gmail access",
+    "w": 1070,
+    "h": 25,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "Set up send-only access",
+    "w": 1070,
+    "h": 25,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "Manage Outlook Calendar access",
+    "w": 1070,
+    "h": 25,
+    "label": "desktop-fine"
+   }
+  ]
+ },
+ "bot-settings": {
+  "under24": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "brand",
+    "text": "hutch \u2014 open chats",
+    "w": 83,
+    "h": 22,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "w needs",
+    "text": "1 needs you",
+    "w": 81,
+    "h": 16,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Chats",
+    "w": 37,
+    "h": 19,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 22,
+    "h": 22,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 22,
+    "h": 22,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 22,
+    "h": 22,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 22,
+    "h": 22,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 22,
+    "h": 22,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 22,
+    "h": 22,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 22,
+    "h": 22,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 22,
+    "h": 22,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 22,
+    "h": 22,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "See this assistant\u2019s work hist",
+    "w": 237,
+    "h": 22,
+    "label": "desktop-fine"
+   }
+  ],
+  "under44_count": 49,
+  "under44_sample": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "skip-link",
+    "text": "Skip to content",
+    "w": 153,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "sidebar-toggle",
+    "cls": "icon-btn ws-dock",
+    "text": "Collapse sidebar",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Chats",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "needs-you-open",
+    "cls": "attention",
+    "text": "Needs you1",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "More",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Activity",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Scheduled work",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Work history",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "topbar-new-bot",
+    "cls": "icon-btn roster-new",
+    "text": "New assistant",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "bot-search",
+    "cls": "roster-search",
+    "text": "",
+    "w": 247,
+    "h": 38,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Scout",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Ledger",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Scribe",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "ws-foot-link",
+    "text": "Apps & AI",
+    "w": 247,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "prefs-toggle",
+    "cls": "ws-foot-link",
+    "text": "Settings",
+    "w": 103,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 545,
+    "h": 40,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 545,
+    "h": 40,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "btn primary small",
+    "text": "Save details",
+    "w": 109,
+    "h": 26,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "btn primary small",
+    "text": "Save directions",
+    "w": 132,
+    "h": 26,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "btn-set-workspace-coordinator",
+    "cls": "btn ghost small",
+    "text": "Make this the main assistant",
+    "w": 228,
+    "h": 26,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "btn ghost small idp-shuffle",
+    "text": "Surprise me",
+    "w": 632,
+    "h": 26,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 310,
+    "h": 40,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "btn-runtime-to-builtin",
+    "cls": "btn primary small",
+    "text": "Use Hutch\u2019s built-in runtime",
+    "w": 221,
+    "h": 26,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "select",
+    "id": "",
+    "cls": "",
+    "text": "Hybrid \u00b7 local and hosted rout",
+    "w": 632,
+    "h": 39,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "select",
+    "id": "",
+    "cls": "",
+    "text": "Standard context policy\n      ",
+    "w": 632,
+    "h": 39,
+    "label": "desktop-fine"
+   }
+  ]
+ },
+ "run-detail": {
+  "under24": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "brand",
+    "text": "hutch \u2014 open chats",
+    "w": 83,
+    "h": 22,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "w needs",
+    "text": "1 needs you",
+    "w": 81,
+    "h": 16,
+    "label": "desktop-fine"
+   }
+  ],
+  "under44_count": 18,
+  "under44_sample": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "skip-link",
+    "text": "Skip to content",
+    "w": 153,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "sidebar-toggle",
+    "cls": "icon-btn ws-dock",
+    "text": "Collapse sidebar",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Chats",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "needs-you-open",
+    "cls": "attention",
+    "text": "Needs you1",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "More",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Activity",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Scheduled work",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Work history",
+    "w": 255,
+    "h": 41,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "topbar-new-bot",
+    "cls": "icon-btn roster-new",
+    "text": "New assistant",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "bot-search",
+    "cls": "roster-search",
+    "text": "",
+    "w": 247,
+    "h": 38,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Scout",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Ledger",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "icon-btn roster-options",
+    "text": "Options for Scribe",
+    "w": 32,
+    "h": 50,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "ws-foot-link",
+    "text": "Apps & AI",
+    "w": 247,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "prefs-toggle",
+    "cls": "ws-foot-link",
+    "text": "Settings",
+    "w": 103,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "btn ghost small",
+    "text": "All runs",
+    "w": 103,
+    "h": 26,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "attention-review",
+    "cls": "btn ghost small",
+    "text": "Review",
+    "w": 76,
+    "h": 26,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "attention-dismiss",
+    "cls": "icon-btn",
+    "text": "Dismiss reminder",
+    "w": 32,
+    "h": 32,
+    "label": "desktop-fine"
+   }
+  ]
+ },
+ "login": {
+  "under24": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Pair this device",
+    "w": 88,
+    "h": 17,
+    "label": "desktop-fine"
+   }
+  ],
+  "under44_count": 6,
+  "under44_sample": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "skip",
+    "text": "Skip to content",
+    "w": 133,
+    "h": 37,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "brand",
+    "text": "hutch home",
+    "w": 80,
+    "h": 25,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "passkey-login",
+    "cls": "btn primary",
+    "text": "Unlock with passkey",
+    "w": 163,
+    "h": 36,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "Local owner token",
+    "w": 482,
+    "h": 25,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 482,
+    "h": 39,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "btn primary",
+    "text": "Sign in",
+    "w": 482,
+    "h": 36,
+    "label": "desktop-fine"
+   }
+  ]
+ },
+ "models": {
+  "under24": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "platform.claude.com",
+    "w": 143,
+    "h": 13,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "platform.claude.com",
+    "w": 143,
+    "h": 13,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "platform.claude.com",
+    "w": 143,
+    "h": 13,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "platform.claude.com",
+    "w": 143,
+    "h": 13,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "platform.claude.com",
+    "w": 143,
+    "h": 13,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "developers.openai.com",
+    "w": 158,
+    "h": 13,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "developers.openai.com",
+    "w": 158,
+    "h": 13,
+    "label": "desktop-fine"
+   }
+  ],
+  "under44_count": 19,
+  "under44_sample": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "skip",
+    "text": "Skip to content",
+    "w": 133,
+    "h": 37,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "brand",
+    "text": "hutch home",
+    "w": 80,
+    "h": 25,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Studio",
+    "w": 87,
+    "h": 35,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Overview",
+    "w": 106,
+    "h": 35,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Bots",
+    "w": 75,
+    "h": 35,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Runs",
+    "w": 78,
+    "h": 35,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Approvals1",
+    "w": 136,
+    "h": 35,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "active",
+    "text": "Models",
+    "w": 93,
+    "h": 35,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Usage",
+    "w": 86,
+    "h": 35,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Connections",
+    "w": 126,
+    "h": 35,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "btn danger small",
+    "text": "Stop all",
+    "w": 89,
+    "h": 30,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "Add or correct a price",
+    "w": 1206,
+    "h": 25,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "mono",
+    "text": "",
+    "w": 1206,
+    "h": 39,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 294,
+    "h": 39,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 294,
+    "h": 39,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 294,
+    "h": 39,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 294,
+    "h": 39,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 1206,
+    "h": 39,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "btn",
+    "text": "Save price",
+    "w": 96,
+    "h": 36,
+    "label": "desktop-fine"
+   }
+  ]
+ },
+ "usage": {
+  "under24": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "audit-ledger",
+    "w": 115,
+    "h": 16,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "audit-scout",
+    "w": 106,
+    "h": 16,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "audit-scribe",
+    "w": 115,
+    "h": 16,
+    "label": "desktop-fine"
+   }
+  ],
+  "under44_count": 14,
+  "under44_sample": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "skip",
+    "text": "Skip to content",
+    "w": 133,
+    "h": 37,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "brand",
+    "text": "hutch home",
+    "w": 80,
+    "h": 25,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Studio",
+    "w": 87,
+    "h": 35,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Overview",
+    "w": 106,
+    "h": 35,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Bots",
+    "w": 75,
+    "h": 35,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Runs",
+    "w": 78,
+    "h": 35,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Approvals1",
+    "w": 136,
+    "h": 35,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Models",
+    "w": 93,
+    "h": 35,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "active",
+    "text": "Usage",
+    "w": 86,
+    "h": 35,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Connections",
+    "w": 126,
+    "h": 35,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "btn danger small",
+    "text": "Stop all",
+    "w": 89,
+    "h": 30,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "7 days",
+    "w": 63,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "active",
+    "text": "30 days",
+    "w": 70,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "90 days",
+    "w": 70,
+    "h": 32,
+    "label": "desktop-fine"
+   }
+  ]
+ },
+ "legacy-runs": {
+  "under24": [],
+  "under44_count": 0,
+  "under44_sample": []
+ },
+ "marketing": {
+  "under24": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "View the labelled product capt",
+    "w": 236,
+    "h": 20,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "link link-hover",
+    "text": "See Hutch",
+    "w": 67,
+    "h": 20,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "link link-hover",
+    "text": "How it helps",
+    "w": 81,
+    "h": 20,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "link link-hover",
+    "text": "Your choices",
+    "w": 83,
+    "h": 20,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "link link-hover",
+    "text": "Your say",
+    "w": 55,
+    "h": 20,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "link link-hover",
+    "text": "Examples",
+    "w": 63,
+    "h": 20,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "link link-hover",
+    "text": "Everyday help",
+    "w": 92,
+    "h": 20,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "link link-hover",
+    "text": "Your AI and apps",
+    "w": 112,
+    "h": 20,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "link link-hover",
+    "text": "FAQ",
+    "w": 27,
+    "h": 20,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "link link-hover",
+    "text": "Availability",
+    "w": 71,
+    "h": 20,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "link link-hover",
+    "text": "Back to top",
+    "w": 74,
+    "h": 20,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Back to top",
+    "w": 79,
+    "h": 12,
+    "label": "desktop-fine"
+   }
+  ],
+  "under44_count": 12,
+  "under44_sample": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "flex items-center gap-2.5 text-ink",
+    "text": "hutch home",
+    "w": 99,
+    "h": 28,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "text-ink-2 hover:text-ink",
+    "text": "See Hutch",
+    "w": 84,
+    "h": 28,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "text-ink-2 hover:text-ink",
+    "text": "How it helps",
+    "w": 98,
+    "h": 28,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "text-ink-2 hover:text-ink",
+    "text": "Your choices",
+    "w": 99,
+    "h": 28,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "text-ink-2 hover:text-ink",
+    "text": "Your say",
+    "w": 75,
+    "h": 28,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "text-ink-2 hover:text-ink",
+    "text": "Availability",
+    "w": 91,
+    "h": 28,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "text-ink-2 hover:text-ink",
+    "text": "FAQ",
+    "w": 48,
+    "h": 28,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "btn btn-primary btn-sm",
+    "text": "See the app",
+    "w": 96,
+    "h": 32,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "btn btn-primary",
+    "text": "See the app",
+    "w": 115,
+    "h": 40,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "btn btn-outline",
+    "text": "Check availability",
+    "w": 157,
+    "h": 40,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "btn btn-primary",
+    "text": "Check preview status",
+    "w": 182,
+    "h": 40,
+    "label": "desktop-fine"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "btn btn-outline",
+    "text": "See the app",
+    "w": 115,
+    "h": 40,
+    "label": "desktop-fine"
+   }
+  ]
+ },
+ "chat+coarse": {
+  "under24": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "brand",
+    "text": "hutch \u2014 open chats",
+    "w": 83,
+    "h": 22,
+    "label": "phone-coarse"
+   }
+  ],
+  "under44_count": 27,
+  "under44_sample": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "skip-link",
+    "text": "Skip to content",
+    "w": 153,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Chats",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "needs-you-open",
+    "cls": "attention",
+    "text": "Needs you1",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "More",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Activity",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Scheduled work",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Work history",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "topbar-new-bot",
+    "cls": "icon-btn roster-new",
+    "text": "New assistant",
+    "w": 40,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "bot-search",
+    "cls": "roster-search",
+    "text": "",
+    "w": 275,
+    "h": 38,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "ws-foot-link",
+    "text": "Apps & AI",
+    "w": 275,
+    "h": 36,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "prefs-toggle",
+    "cls": "ws-foot-link",
+    "text": "Settings",
+    "w": 103,
+    "h": 36,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "nav-toggle",
+    "cls": "icon-btn nav-toggle",
+    "text": "Open menu",
+    "w": 40,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "select",
+    "id": "conversation-switcher",
+    "cls": "conversation-select",
+    "text": "Conversation",
+    "w": 210,
+    "h": 34,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "summary",
+    "id": "studio-conversation-options",
+    "cls": "icon-btn",
+    "text": "Chat and assistant options",
+    "w": 40,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-new-conversation",
+    "cls": "conversation-action-item",
+    "text": "New conversation",
+    "w": 238,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-rename-conversation",
+    "cls": "conversation-action-item",
+    "text": "Rename conversation",
+    "w": 238,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-pin",
+    "cls": "conversation-action-item",
+    "text": "Pin conversation",
+    "w": 238,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-unread",
+    "cls": "conversation-action-item",
+    "text": "Mark unread",
+    "w": 238,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-section",
+    "cls": "conversation-action-item",
+    "text": "New section",
+    "w": 238,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "conversation-action-item",
+    "text": "More conversation actions",
+    "w": 238,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-template-save",
+    "cls": "conversation-action-item",
+    "text": "Save reusable request",
+    "w": 221,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-export",
+    "cls": "conversation-action-item",
+    "text": "Export conversation",
+    "w": 221,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-archive-conversation",
+    "cls": "conversation-action-item",
+    "text": "Archive conversation",
+    "w": 221,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "conversation-action-item",
+    "text": "Assistant settings",
+    "w": 238,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "textarea",
+    "id": "chat-prompt",
+    "cls": "composer-textarea",
+    "text": "",
+    "w": 193,
+    "h": 40,
+    "label": "phone-coarse"
+   }
+  ]
+ },
+ "chat-scribe+coarse": {
+  "under24": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "brand",
+    "text": "hutch \u2014 open chats",
+    "w": 83,
+    "h": 22,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "1 step \u00b7 6ms",
+    "w": 366,
+    "h": 22,
+    "label": "phone-coarse"
+   }
+  ],
+  "under44_count": 28,
+  "under44_sample": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "skip-link",
+    "text": "Skip to content",
+    "w": 153,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Chats",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "needs-you-open",
+    "cls": "attention",
+    "text": "Needs you1",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "More",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Activity",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Scheduled work",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Work history",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "topbar-new-bot",
+    "cls": "icon-btn roster-new",
+    "text": "New assistant",
+    "w": 40,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "bot-search",
+    "cls": "roster-search",
+    "text": "",
+    "w": 275,
+    "h": 38,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "ws-foot-link",
+    "text": "Apps & AI",
+    "w": 275,
+    "h": 36,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "prefs-toggle",
+    "cls": "ws-foot-link",
+    "text": "Settings",
+    "w": 103,
+    "h": 36,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "nav-toggle",
+    "cls": "icon-btn nav-toggle",
+    "text": "Open menu",
+    "w": 40,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "select",
+    "id": "conversation-switcher",
+    "cls": "conversation-select",
+    "text": "Conversation",
+    "w": 210,
+    "h": 34,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "summary",
+    "id": "studio-conversation-options",
+    "cls": "icon-btn",
+    "text": "Chat and assistant options",
+    "w": 40,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-new-conversation",
+    "cls": "conversation-action-item",
+    "text": "New conversation",
+    "w": 238,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-rename-conversation",
+    "cls": "conversation-action-item",
+    "text": "Rename conversation",
+    "w": 238,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-pin",
+    "cls": "conversation-action-item",
+    "text": "Pin conversation",
+    "w": 238,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-unread",
+    "cls": "conversation-action-item",
+    "text": "Mark unread",
+    "w": 238,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-section",
+    "cls": "conversation-action-item",
+    "text": "New section",
+    "w": 238,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "conversation-action-item",
+    "text": "More conversation actions",
+    "w": 238,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-template-save",
+    "cls": "conversation-action-item",
+    "text": "Save reusable request",
+    "w": 221,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-export",
+    "cls": "conversation-action-item",
+    "text": "Export conversation",
+    "w": 221,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-archive-conversation",
+    "cls": "conversation-action-item",
+    "text": "Archive conversation",
+    "w": 221,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "conversation-action-item",
+    "text": "Assistant settings",
+    "w": 238,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "tool-line-head",
+    "text": "read_file\n          Meeting no",
+    "w": 366,
+    "h": 42,
+    "label": "phone-coarse"
+   }
+  ]
+ },
+ "overview+coarse": {
+  "under24": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "brand",
+    "text": "hutch \u2014 open chats",
+    "w": 83,
+    "h": 22,
+    "label": "phone-coarse"
+   }
+  ],
+  "under44_count": 13,
+  "under44_sample": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "skip-link",
+    "text": "Skip to content",
+    "w": 153,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Chats",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "needs-you-open",
+    "cls": "attention",
+    "text": "Needs you1",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "More",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Activity",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Scheduled work",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Work history",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "topbar-new-bot",
+    "cls": "icon-btn roster-new",
+    "text": "New assistant",
+    "w": 40,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "bot-search",
+    "cls": "roster-search",
+    "text": "",
+    "w": 275,
+    "h": 38,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "ws-foot-link",
+    "text": "Apps & AI",
+    "w": 275,
+    "h": 36,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "prefs-toggle",
+    "cls": "ws-foot-link",
+    "text": "Settings",
+    "w": 103,
+    "h": 36,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "nav-toggle",
+    "cls": "icon-btn nav-toggle",
+    "text": "Open menu",
+    "w": 40,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "attention-dismiss",
+    "cls": "icon-btn",
+    "text": "Dismiss reminder",
+    "w": 40,
+    "h": 44,
+    "label": "phone-coarse"
+   }
+  ]
+ },
+ "runs+coarse": {
+  "under24": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "brand",
+    "text": "hutch \u2014 open chats",
+    "w": 83,
+    "h": 22,
+    "label": "phone-coarse"
+   }
+  ],
+  "under44_count": 18,
+  "under44_sample": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "skip-link",
+    "text": "Skip to content",
+    "w": 153,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Chats",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "needs-you-open",
+    "cls": "attention",
+    "text": "Needs you1",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "More",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Activity",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Scheduled work",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Work history",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "topbar-new-bot",
+    "cls": "icon-btn roster-new",
+    "text": "New assistant",
+    "w": 40,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "bot-search",
+    "cls": "roster-search",
+    "text": "",
+    "w": 275,
+    "h": 38,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "ws-foot-link",
+    "text": "Apps & AI",
+    "w": 275,
+    "h": 36,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "prefs-toggle",
+    "cls": "ws-foot-link",
+    "text": "Settings",
+    "w": 103,
+    "h": 36,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "nav-toggle",
+    "cls": "icon-btn nav-toggle",
+    "text": "Open menu",
+    "w": 40,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "run-search",
+    "cls": "",
+    "text": "",
+    "w": 358,
+    "h": 43,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "active",
+    "text": "All",
+    "w": 42,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "",
+    "text": "Completed",
+    "w": 101,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "",
+    "text": "Didn't finish",
+    "w": 98,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "",
+    "text": "Waiting on you",
+    "w": 115,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "attention-dismiss",
+    "cls": "icon-btn",
+    "text": "Dismiss reminder",
+    "w": 40,
+    "h": 44,
+    "label": "phone-coarse"
+   }
+  ]
+ },
+ "approvals+coarse": {
+  "under24": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "brand",
+    "text": "hutch \u2014 open chats",
+    "w": 83,
+    "h": 22,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "1 step \u00b7 6ms",
+    "w": 366,
+    "h": 22,
+    "label": "phone-coarse"
+   }
+  ],
+  "under44_count": 30,
+  "under44_sample": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "skip-link",
+    "text": "Skip to content",
+    "w": 153,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Chats",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "needs-you-open",
+    "cls": "attention",
+    "text": "Needs you1",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "More",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Activity",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Scheduled work",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Work history",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "topbar-new-bot",
+    "cls": "icon-btn roster-new",
+    "text": "New assistant",
+    "w": 40,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "bot-search",
+    "cls": "roster-search",
+    "text": "",
+    "w": 275,
+    "h": 38,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "ws-foot-link",
+    "text": "Apps & AI",
+    "w": 275,
+    "h": 36,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "prefs-toggle",
+    "cls": "ws-foot-link",
+    "text": "Settings",
+    "w": 103,
+    "h": 36,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "nav-toggle",
+    "cls": "icon-btn nav-toggle",
+    "text": "Open menu",
+    "w": 40,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "select",
+    "id": "conversation-switcher",
+    "cls": "conversation-select",
+    "text": "Conversation",
+    "w": 210,
+    "h": 34,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "summary",
+    "id": "studio-conversation-options",
+    "cls": "icon-btn",
+    "text": "Chat and assistant options",
+    "w": 40,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-new-conversation",
+    "cls": "conversation-action-item",
+    "text": "New conversation",
+    "w": 238,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-rename-conversation",
+    "cls": "conversation-action-item",
+    "text": "Rename conversation",
+    "w": 238,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-pin",
+    "cls": "conversation-action-item",
+    "text": "Pin conversation",
+    "w": 238,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-unread",
+    "cls": "conversation-action-item",
+    "text": "Mark unread",
+    "w": 238,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-section",
+    "cls": "conversation-action-item",
+    "text": "New section",
+    "w": 238,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "conversation-action-item",
+    "text": "More conversation actions",
+    "w": 238,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-template-save",
+    "cls": "conversation-action-item",
+    "text": "Save reusable request",
+    "w": 221,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-conversation-export",
+    "cls": "conversation-action-item",
+    "text": "Export conversation",
+    "w": 221,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "studio-archive-conversation",
+    "cls": "conversation-action-item",
+    "text": "Archive conversation",
+    "w": 221,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "conversation-action-item",
+    "text": "Assistant settings",
+    "w": 238,
+    "h": 42,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "tool-line-head",
+    "text": "read_file\n          Meeting no",
+    "w": 366,
+    "h": 42,
+    "label": "phone-coarse"
+   }
+  ]
+ },
+ "connections+coarse": {
+  "under24": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "brand",
+    "text": "hutch \u2014 open chats",
+    "w": 83,
+    "h": 22,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Review preview limits",
+    "w": 140,
+    "h": 19,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "google-calendar-event-creation",
+    "cls": "",
+    "text": "",
+    "w": 13,
+    "h": 13,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Review Google's Gmail scope re",
+    "w": 283,
+    "h": 19,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Review restricted-scope verifi",
+    "w": 232,
+    "h": 19,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "inline-link",
+    "text": "Open Google setup",
+    "w": 128,
+    "h": 22,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "/pair",
+    "w": 31,
+    "h": 19,
+    "label": "phone-coarse"
+   }
+  ],
+  "under44_count": 24,
+  "under44_sample": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "skip-link",
+    "text": "Skip to content",
+    "w": 153,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Chats",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "needs-you-open",
+    "cls": "attention",
+    "text": "Needs you1",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "More",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Activity",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Scheduled work",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Work history",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "topbar-new-bot",
+    "cls": "icon-btn roster-new",
+    "text": "New assistant",
+    "w": 40,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "bot-search",
+    "cls": "roster-search",
+    "text": "",
+    "w": 275,
+    "h": 38,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "ws-foot-link",
+    "text": "Apps & AI",
+    "w": 275,
+    "h": 36,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "prefs-toggle",
+    "cls": "ws-foot-link",
+    "text": "Settings",
+    "w": 103,
+    "h": 36,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "nav-toggle",
+    "cls": "icon-btn nav-toggle",
+    "text": "Open menu",
+    "w": 40,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "btn primary small",
+    "text": "Continue with ChatGPT",
+    "w": 188,
+    "h": 26,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "google-oauth-client-id",
+    "cls": "",
+    "text": "",
+    "w": 298,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "google-calendar-label",
+    "cls": "",
+    "text": "",
+    "w": 324,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "Manage Gmail access",
+    "w": 324,
+    "h": 25,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "Set up send-only access",
+    "w": 324,
+    "h": 25,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "Manage Outlook Calendar access",
+    "w": 324,
+    "h": 25,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "outlook-calendar-label",
+    "cls": "",
+    "text": "",
+    "w": 324,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "outlook-calendar-write-label",
+    "cls": "",
+    "text": "",
+    "w": 298,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "Manage Outlook Mail access",
+    "w": 324,
+    "h": 25,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "outlook-mail-label",
+    "cls": "",
+    "text": "",
+    "w": 324,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "outlook-mail-send-label",
+    "cls": "",
+    "text": "",
+    "w": 298,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "attention-dismiss",
+    "cls": "icon-btn",
+    "text": "Dismiss reminder",
+    "w": 40,
+    "h": 44,
+    "label": "phone-coarse"
+   }
+  ]
+ },
+ "bot-settings+coarse": {
+  "under24": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "brand",
+    "text": "hutch \u2014 open chats",
+    "w": 83,
+    "h": 22,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Chats",
+    "w": 37,
+    "h": 19,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 22,
+    "h": 22,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 22,
+    "h": 22,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 22,
+    "h": 22,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 22,
+    "h": 22,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 22,
+    "h": 22,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 22,
+    "h": 22,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 22,
+    "h": 22,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 22,
+    "h": 22,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 22,
+    "h": 22,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "See this assistant\u2019s work hist",
+    "w": 237,
+    "h": 22,
+    "label": "phone-coarse"
+   }
+  ],
+  "under44_count": 46,
+  "under44_sample": [
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "skip-link",
+    "text": "Skip to content",
+    "w": 153,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Chats",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "needs-you-open",
+    "cls": "attention",
+    "text": "Needs you1",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "summary",
+    "id": "",
+    "cls": "",
+    "text": "More",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Activity",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Scheduled work",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "",
+    "text": "Work history",
+    "w": 283,
+    "h": 41,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "topbar-new-bot",
+    "cls": "icon-btn roster-new",
+    "text": "New assistant",
+    "w": 40,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "bot-search",
+    "cls": "roster-search",
+    "text": "",
+    "w": 275,
+    "h": 38,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "a",
+    "id": "",
+    "cls": "ws-foot-link",
+    "text": "Apps & AI",
+    "w": 275,
+    "h": 36,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "prefs-toggle",
+    "cls": "ws-foot-link",
+    "text": "Settings",
+    "w": 103,
+    "h": 36,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "nav-toggle",
+    "cls": "icon-btn nav-toggle",
+    "text": "Open menu",
+    "w": 40,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 324,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 324,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "btn primary small",
+    "text": "Save details",
+    "w": 109,
+    "h": 26,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "btn primary small",
+    "text": "Save directions",
+    "w": 132,
+    "h": 26,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "btn-set-workspace-coordinator",
+    "cls": "btn ghost small",
+    "text": "Make this the main assistant",
+    "w": 228,
+    "h": 26,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "btn ghost small idp-shuffle",
+    "text": "Surprise me",
+    "w": 302,
+    "h": 26,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 302,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "input",
+    "id": "",
+    "cls": "",
+    "text": "",
+    "w": 302,
+    "h": 40,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "btn-runtime-to-builtin",
+    "cls": "btn primary small",
+    "text": "Use Hutch\u2019s built-in runtime",
+    "w": 221,
+    "h": 26,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "select",
+    "id": "",
+    "cls": "",
+    "text": "Hybrid \u00b7 local and hosted rout",
+    "w": 302,
+    "h": 39,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "select",
+    "id": "",
+    "cls": "",
+    "text": "Standard context policy\n      ",
+    "w": 302,
+    "h": 39,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "btn primary small",
+    "text": "Save model settings",
+    "w": 166,
+    "h": 26,
+    "label": "phone-coarse"
+   },
+   {
+    "tag": "button",
+    "id": "",
+    "cls": "btn primary small",
+    "text": "Save tools",
+    "w": 97,
+    "h": 26,
+    "label": "phone-coarse"
+   }
+  ]
+ }
+}

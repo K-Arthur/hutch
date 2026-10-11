@@ -1,0 +1,155 @@
+{
+ "skip_link": {
+  "first_tab": {
+   "cls": "skip-link",
+   "text": "Skip to content",
+   "href": "#view"
+  },
+  "after_activate": {
+   "tag": "BODY",
+   "id": "",
+   "cls": "has-composer"
+  }
+ },
+ "chat_tab_order": [
+  {
+   "tag": "summary",
+   "id": "",
+   "cls": "tpl-gal-summary",
+   "role": "",
+   "name": "Create a helper from an example\n            Optional setup; ",
+   "ariaCurrent": ""
+  },
+  {
+   "tag": "button",
+   "id": "composer-menu-btn",
+   "cls": "composer-util",
+   "role": "",
+   "name": "Message options",
+   "ariaCurrent": ""
+  },
+  {
+   "tag": "textarea",
+   "id": "chat-prompt",
+   "cls": "composer-textarea",
+   "role": "",
+   "name": "",
+   "ariaCurrent": ""
+  },
+  {
+   "tag": "button",
+   "id": "",
+   "cls": "ms-btn",
+   "role": "",
+   "name": "Model: demo. Bot default. Change model.",
+   "ariaCurrent": ""
+  },
+  {
+   "tag": "button",
+   "id": "chat-send",
+   "cls": "composer-send",
+   "role": "",
+   "name": "Send message",
+   "ariaCurrent": ""
+  },
+  {
+   "tag": "button",
+   "id": "attention-review",
+   "cls": "btn ghost small",
+   "role": "",
+   "name": "Review",
+   "ariaCurrent": ""
+  },
+  {
+   "tag": "button",
+   "id": "attention-dismiss",
+   "cls": "icon-btn",
+   "role": "",
+   "name": "Dismiss reminder",
+   "ariaCurrent": ""
+  },
+  {
+   "wrapped": true
+  }
+ ],
+ "model_switcher": {
+  "found_trigger": false
+ },
+ "modal_new_bot": {
+  "trigger_found": true,
+  "dialog_present": {
+   "labelledby": "modal-title",
+   "modal": "true",
+   "label": "Set up your assistant"
+  },
+  "tab_path_14": [
+   "INPUT:setup-display_name",
+   "SUMMARY:",
+   "BUTTON:setup-customize",
+   "BUTTON:modal-cancel",
+   "BUTTON:modal-confirm",
+   "BUTTON:modal-close",
+   "TEXTAREA:setup-purpose",
+   "INPUT:setup-display_name",
+   "SUMMARY:",
+   "BUTTON:setup-customize",
+   "BUTTON:modal-cancel",
+   "BUTTON:modal-confirm",
+   "BUTTON:modal-close",
+   "TEXTAREA:setup-purpose"
+  ],
+  "esc_focus_return": {
+   "tag": "BUTTON",
+   "id": "topbar-new-bot",
+   "ariaExpanded": null
+  },
+  "backdrop_gone": true
+ },
+ "needs_you": {
+  "opener_found": true,
+  "dialog_open": true,
+  "first_focus_in_dialog": {
+   "tag": "BUTTON",
+   "id": "needs-you-close",
+   "cls": "icon-btn"
+  },
+  "esc_closes": true,
+  "focus_after_close": {
+   "tag": "BUTTON",
+   "id": "needs-you-open"
+  }
+ },
+ "route_change": {
+  "active_element_after_nav": {
+   "tag": "INPUT",
+   "id": "bot-search",
+   "cls": "roster-search"
+  },
+  "title_before": "hutch \u2014 your personal assistant",
+  "title_after": "hutch \u2014 your personal assistant",
+  "view_h1": null,
+  "view_focusable": -1
+ },
+ "error_toast": {
+  "role": null,
+  "ariaLive": null,
+  "text": "Audit fixture: something failed",
+  "toast_box": {
+   "w": 280.640625,
+   "h": 47.6875
+  },
+  "close_box": {
+   "w": 16,
+   "h": 16
+  },
+  "parent_live": {
+   "id": "toast-root",
+   "role": "status",
+   "live": "polite"
+  },
+  "first_tab_from_body": {
+   "tag": "BUTTON",
+   "cls": "roster-row"
+  }
+ }
+}

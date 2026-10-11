@@ -1,0 +1,32 @@
+{
+ "F1_skip_link": {
+  "first_tab": "skip-link",
+  "after": "view:MAIN"
+ },
+ "F2_title_runs": "hutch \u2014 Work history",
+ "F2_title_overview": "hutch \u2014 Activity",
+ "F2_focus_after_nav": "H1:Activity",
+ "F3_toast": {
+  "role": "alert",
+  "close": [
+   24,
+   24
+  ]
+ },
+ "F5_pill": 27.6,
+ "M1_tool_summary": 29.6,
+ "M4_404": {
+  "status": 404,
+  "lang": "en",
+  "title": "404 - hutch"
+ },
+ "F4_login_underline": "underline",
+ "axe_chat_violations": [],
+ "M3_describedby_sample": "assistant-name-hint",
+ "M2_btn_small_coarse": 44,
+ "F3_toast_coarse": [
+  44,
+  44
+ ],
+ "M5_review_row_320": "235px"
+}

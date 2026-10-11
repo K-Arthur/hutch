@@ -1,0 +1,378 @@
+{
+ "settings_small_inputs": [
+  {
+   "type": "checkbox",
+   "id": "",
+   "name": "tools",
+   "cls": "",
+   "w": 22,
+   "h": 22,
+   "labelText": "Read workspace filesOpen text files inside this ru",
+   "nativeWidthSet": null,
+   "cssW": "22px"
+  },
+  {
+   "type": "checkbox",
+   "id": "",
+   "name": "tools",
+   "cls": "",
+   "w": 22,
+   "h": 22,
+   "labelText": "List workspace filesSee file names under this run\u2019",
+   "nativeWidthSet": null,
+   "cssW": "22px"
+  },
+  {
+   "type": "checkbox",
+   "id": "",
+   "name": "tools",
+   "cls": "",
+   "w": 22,
+   "h": 22,
+   "labelText": "Write workspace filesCreate or replace files; appr",
+   "nativeWidthSet": null,
+   "cssW": "22px"
+  },
+  {
+   "type": "checkbox",
+   "id": "",
+   "name": "tools",
+   "cls": "",
+   "w": 22,
+   "h": 22,
+   "labelText": "Run shell commandsRun commands inside the configur",
+   "nativeWidthSet": null,
+   "cssW": "22px"
+  },
+  {
+   "type": "checkbox",
+   "id": "",
+   "name": "tools",
+   "cls": "",
+   "w": 22,
+   "h": 22,
+   "labelText": "Fetch public pagesRead public HTTP(S) pages throug",
+   "nativeWidthSet": null,
+   "cssW": "22px"
+  },
+  {
+   "type": "checkbox",
+   "id": "",
+   "name": "tools",
+   "cls": "",
+   "w": 22,
+   "h": 22,
+   "labelText": "Use a browserControl this bot\u2019s isolated browser p",
+   "nativeWidthSet": null,
+   "cssW": "22px"
+  },
+  {
+   "type": "checkbox",
+   "id": "",
+   "name": "tools",
+   "cls": "",
+   "w": 22,
+   "h": 22,
+   "labelText": "Propose reference factsSuggest facts for human rev",
+   "nativeWidthSet": null,
+   "cssW": "22px"
+  },
+  {
+   "type": "checkbox",
+   "id": "",
+   "name": "tools",
+   "cls": "",
+   "w": 22,
+   "h": 22,
+   "labelText": "Recall reviewed factsSearch reviewed facts availab",
+   "nativeWidthSet": null,
+   "cssW": "22px"
+  },
+  {
+   "type": "checkbox",
+   "id": "",
+   "name": "tools",
+   "cls": "",
+   "w": 22,
+   "h": 22,
+   "labelText": "Delegate a bounded taskStrict Offline only. Each r",
+   "nativeWidthSet": null,
+   "cssW": "22px"
+  },
+  {
+   "type": "text",
+   "id": "",
+   "name": "workdir",
+   "cls": "",
+   "w": 0,
+   "h": 0,
+   "labelText": "Existing folder\n              \n              Choos",
+   "nativeWidthSet": null,
+   "cssW": "100%"
+  }
+ ],
+ "tool_summary": {
+  "cls": "",
+  "parentCls": "tool-stream",
+  "w": 712,
+  "h": 22,
+  "pad": "0px"
+ },
+ "overview_heading": {
+  "topContextHtml": "<div class=\"ctx-id\"><h1>Activity</h1></div>",
+  "viewH1": false,
+  "viewFirstHeading": " Needs you 1"
+ },
+ "model_chip": [
+  {
+   "sel": "[aria-haspopup=\"menu\"]",
+   "tag": "BUTTON",
+   "id": "",
+   "cls": "icon-btn roster-options",
+   "text": "",
+   "w": 32,
+   "h": 50
+  },
+  {
+   "sel": "[aria-haspopup=\"menu\"]",
+   "tag": "BUTTON",
+   "id": "",
+   "cls": "icon-btn roster-options",
+   "text": "",
+   "w": 32,
+   "h": 50
+  },
+  {
+   "sel": "[aria-haspopup=\"menu\"]",
+   "tag": "BUTTON",
+   "id": "",
+   "cls": "icon-btn roster-options",
+   "text": "",
+   "w": 32,
+   "h": 50
+  },
+  {
+   "sel": "[aria-haspopup=\"menu\"]",
+   "tag": "BUTTON",
+   "id": "",
+   "cls": "ms-btn",
+   "text": "demo",
+   "w": 86,
+   "h": 30
+  }
+ ],
+ "connections_small_links": [
+  {
+   "cls": "",
+   "text": "Review Google's Gmail scope requirements",
+   "h": 19,
+   "inSentence": true
+  },
+  {
+   "cls": "",
+   "text": "Review restricted-scope verification",
+   "h": 19,
+   "inSentence": true
+  },
+  {
+   "cls": "inline-link",
+   "text": "Open Google setup",
+   "h": 22,
+   "inSentence": true
+  },
+  {
+   "cls": "",
+   "text": "/pair",
+   "h": 19,
+   "inSentence": true
+  }
+ ],
+ "login_pair_link": {
+  "text": "Pair this device",
+  "parentTag": "P",
+  "parentText": "Have a one-time code from your Hutch host? Pair this device.",
+  "color": "rgb(52, 211, 153)",
+  "parentColor": "rgb(125, 142, 164)"
+ },
+ "usage_small_links": [
+  {
+   "text": "audit-ledger",
+   "h": 16,
+   "cls": ""
+  },
+  {
+   "text": "audit-scout",
+   "h": 16,
+   "cls": ""
+  },
+  {
+   "text": "audit-scribe",
+   "h": 16,
+   "cls": ""
+  }
+ ],
+ "models_small_links": [
+  {
+   "text": "platform.claude.com",
+   "h": 13
+  },
+  {
+   "text": "platform.claude.com",
+   "h": 13
+  },
+  {
+   "text": "platform.claude.com",
+   "h": 13
+  },
+  {
+   "text": "platform.claude.com",
+   "h": 13
+  },
+  {
+   "text": "platform.claude.com",
+   "h": 13
+  },
+  {
+   "text": "developers.openai.com",
+   "h": 13
+  },
+  {
+   "text": "developers.openai.com",
+   "h": 13
+  }
+ ],
+ "contrast_chat": {
+  "hint": {
+   "ratio": 6.09,
+   "color": "oklab(0.965543 -0.00216612 -0.00761336 / 0.57)",
+   "bg": "rgb(8, 12, 18)"
+  },
+  "rosterTitle": {
+   "ratio": 6.11,
+   "color": "oklab(0.965543 -0.00216612 -0.00761336 / 0.57)",
+   "bg": "oklab(0.0737344 -0.00143743 -0.00491111)"
+  },
+  "navLink": {
+   "ratio": 1.74,
+   "color": "rgb(240, 244, 249)",
+   "bg": "oklab(0.772937 -0.14692 0.0443151 / 0.09)"
+  },
+  "placeholder": {
+   "ratio": 6.09,
+   "color": "oklab(0.965543 -0.00216612 -0.00761336 / 0.57)",
+   "bg": "rgb(8, 12, 18)"
+  },
+  "chip": null,
+  "summary": {
+   "ratio": 10.16,
+   "color": "oklab(0.965543 -0.00216612 -0.00761336 / 0.74)",
+   "bg": "oklab(0.0737344 -0.00143743 -0.00491111)"
+  },
+  "navSummary": {
+   "ratio": 10.16,
+   "color": "oklab(0.965543 -0.00216612 -0.00761336 / 0.74)",
+   "bg": "oklab(0.0737344 -0.00143743 -0.00491111)"
+  },
+  "footerLink": {
+   "ratio": 6.11,
+   "color": "oklab(0.965543 -0.00216612 -0.00761336 / 0.57)",
+   "bg": "oklab(0.0737344 -0.00143743 -0.00491111)"
+  },
+  "brandName": {
+   "ratio": 18.89,
+   "color": "rgb(240, 244, 249)",
+   "bg": "oklab(0.0737344 -0.00143743 -0.00491111)"
+  },
+  "focusRing": {
+   "outlineColor": "rgb(96, 165, 250)",
+   "bg": "oklab(0.772937 -0.14692 0.0443151 / 0.09)",
+   "ratio": 1.33
+  }
+ },
+ "contrast_marketing": {
+  "muted": {
+   "ratio": 8.88,
+   "color": "rgb(157, 174, 191)",
+   "bg": "oklab(0.127128 -0.00247834 -0.00846744 / 0.95)"
+  },
+  "body": {
+   "ratio": 10.49,
+   "color": "rgb(52, 211, 153)",
+   "bg": "rgb(5, 7, 10)"
+  },
+  "footerNav": {
+   "ratio": 17.74,
+   "color": "rgb(240, 244, 249)",
+   "bg": "rgb(8, 12, 18)"
+  },
+  "h2": {
+   "ratio": 17.74,
+   "color": "rgb(240, 244, 249)",
+   "bg": "rgb(8, 12, 18)"
+  }
+ },
+ "coarse_btn_small": {
+  "matches": true,
+  "smalls": [
+   {
+    "cls": "btn ghost small",
+    "text": "Model defaults for new Bots",
+    "w": 0,
+    "h": 0,
+    "pointerCoarse": true
+   },
+   {
+    "cls": "btn ghost small",
+    "text": "Review",
+    "w": 0,
+    "h": 0,
+    "pointerCoarse": true
+   },
+   {
+    "cls": "btn danger small",
+    "text": "Stop",
+    "w": 0,
+    "h": 0,
+    "pointerCoarse": true
+   },
+   {
+    "cls": "btn ghost small",
+    "text": "Restore details",
+    "w": 0,
+    "h": 0,
+    "pointerCoarse": true
+   },
+   {
+    "cls": "btn ghost small",
+    "text": "Remove",
+    "w": 0,
+    "h": 0,
+    "pointerCoarse": true
+   },
+   {
+    "cls": "btn ghost small",
+    "text": "Remove",
+    "w": 0,
+    "h": 0,
+    "pointerCoarse": true
+   },
+   {
+    "cls": "btn ghost small",
+    "text": "Review",
+    "w": 76,
+    "h": 44,
+    "pointerCoarse": true
+   },
+   {
+    "cls": "btn ghost small",
+    "text": "Enable browser alerts",
+    "w": 0,
+    "h": 0,
+    "pointerCoarse": true
+   }
+  ]
+ },
+ "coarse_btn_small_forced": {
+  "btnSmallHeightCoarse": 26
+ }
+}

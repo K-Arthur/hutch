@@ -1,0 +1,64 @@
+{
+ "chat": [
+  {
+   "selector": ".hint",
+   "color": "oklab(0.965543 -0.00216612 -0.00761336 / 0.57)",
+   "bg": "rgb(8, 12, 18)",
+   "text": "Review here or open the conver"
+  },
+  {
+   "selector": ".roster-title",
+   "color": "oklab(0.965543 -0.00216612 -0.00761336 / 0.57)",
+   "bg": "oklab(0.0737344 -0.00143743 -0.00491111)",
+   "text": "Assistants"
+  },
+  {
+   "selector": ".ws-nav a",
+   "color": "rgb(240, 244, 249)",
+   "bg": "oklab(0.772937 -0.14692 0.0443151 / 0.09)",
+   "text": "Chats"
+  },
+  {
+   "selector": ".roster-search",
+   "color": "rgb(240, 244, 249)",
+   "bg": "rgb(8, 12, 18)",
+   "text": ""
+  },
+  null,
+  null,
+  null,
+  {
+   "selector": ".pill",
+   "color": "rgb(110, 231, 183)",
+   "bg": "rgb(5, 7, 10)",
+   "text": "live"
+  },
+  {
+   "selector": ".brand-name",
+   "color": "rgb(240, 244, 249)",
+   "bg": "oklab(0.0737344 -0.00143743 -0.00491111)",
+   "text": "hutch"
+  },
+  null
+ ],
+ "placeholder": {
+  "color": "oklab(0.965543 -0.00216612 -0.00761336 / 0.57)",
+  "bg": "rgb(8, 12, 18)"
+ },
+ "runs": [
+  {
+   "selector": "a",
+   "color": "rgb(5, 46, 33)",
+   "bg": "rgb(52, 211, 153)"
+  },
+  {
+   "selector": ".hint",
+   "color": "oklab(0.965543 -0.00216612 -0.00761336 / 0.57)",
+   "bg": "rgb(5, 7, 10)"
+  }
+ ],
+ "toast": {
+  "color": "rgb(240, 244, 249)",
+  "bg": "rgb(16, 22, 31)"
+ }
+}
