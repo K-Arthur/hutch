@@ -2898,6 +2898,7 @@ async function renderChatStudio(preferredBot = null) {
       <div class="chat-scroll" id="chat-scroll">
         <div class="feed" id="chat-stream"></div>
       </div>
+      <div class="jump-latest-slot" id="jump-latest-slot" hidden></div>
       <footer class="composer">
         <form id="chat-form" autocomplete="off">
           <div class="composer-box" id="composer-box">
@@ -3820,18 +3821,19 @@ async function renderChatFeed() {
 
   // The reader's place is sacred: follow the bottom only if they were there.
   let jump = $("#jump-latest");
+  const jumpSlot = $("#jump-latest-slot");
   if (!wasNearBottom) {
     if (!jump) {
       jump = document.createElement("button");
       jump.id = "jump-latest"; jump.className = "jump-latest"; jump.type = "button";
       jump.innerHTML = `${icon("down")} Jump to latest`;
-      scroll.appendChild(jump);
-      jump.addEventListener("click", () => { scroll.scrollTop = scroll.scrollHeight; jump.hidden = true; });
+      jump.addEventListener("click", () => { scroll.scrollTop = scroll.scrollHeight; jumpSlot.hidden = true; });
     }
-    jump.hidden = false;
+    jumpSlot.appendChild(jump);
+    jumpSlot.hidden = false;
   } else {
     scroll.scrollTop = scroll.scrollHeight;
-    if (jump) jump.hidden = true;
+    jumpSlot.hidden = true;
   }
 
   wireApprovals();

@@ -126,6 +126,7 @@ def test_chat_suggestion_card_reflows_and_requires_review(browser, live_studio):
             if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     states = []
+    accessibility_states = []
     try:
         sizes = (("desktop", 1440, 960), ("tablet", 768, 1024),
                  ("phone", 360, 800), ("compact-phone", 320, 740))
@@ -169,6 +170,104 @@ def test_chat_suggestion_card_reflows_and_requires_review(browser, live_studio):
                 dialog.locator("#modal-cancel").click()
                 assert action.evaluate("el => el === document.activeElement"), "focus should return to the review action"
 
+        # Exercise WCAG text-spacing overrides on the compact layout rather than
+        # inferring them from the default stylesheet's responsive breakpoints.
+        page.add_style_tag(content="""
+          * { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; }
+          p { margin-block-end: 2em !important; }
+        """)
+        spaced_card = page.locator(".workflow-recommendation")
+        spaced_card.scroll_into_view_if_needed()
+        spaced_bounds = spaced_card.bounding_box()
+        spaced_action_locator = spaced_card.locator("[data-workflow-suggestion-run]")
+        spaced_action_locator.focus()
+        spaced_action = spaced_action_locator.bounding_box()
+        spaced_composer = page.locator(".composer").bounding_box()
+        spaced_slot = page.locator("#jump-latest-slot")
+        spaced_slot_bounds = spaced_slot.bounding_box() if spaced_slot.is_visible() else None
+        spaced_jump = page.locator("#jump-latest")
+        spaced_jump_bounds = spaced_jump.bounding_box() if spaced_jump.is_visible() else None
+        spaced_scroll_bounds = page.locator("#chat-scroll").bounding_box()
+        spaced_scroll_metrics = page.locator("#chat-scroll").evaluate(
+            "el => ({scrollHeight:el.scrollHeight, clientHeight:el.clientHeight, scrollTop:el.scrollTop})")
+        spacing_overflow = page.evaluate(
+            "Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) > innerWidth + 1")
+        assert spaced_bounds and spaced_action and not spacing_overflow
+        assert spaced_bounds["x"] >= 0 and spaced_bounds["x"] + spaced_bounds["width"] <= 321
+        assert spaced_action["height"] >= 44
+        assert spaced_composer and spaced_action["y"] + spaced_action["height"] <= spaced_composer["y"]
+        if spaced_slot_bounds:
+            assert spaced_scroll_bounds and spaced_slot_bounds["y"] >= spaced_scroll_bounds["y"] + spaced_scroll_bounds["height"]
+            assert spaced_slot_bounds["y"] + spaced_slot_bounds["height"] <= spaced_composer["y"]
+        page.screenshot(path=str(EVIDENCE / "suggestion-text-spacing-compact-phone.png"),
+                        animations="disabled")
+        accessibility_states.append({"state": "wcag-text-spacing", "viewport": [320, 740],
+                                     "document_overflow": spacing_overflow,
+                                     "card_bounds": spaced_bounds, "action_bounds": spaced_action,
+                                     "composer_bounds": spaced_composer, "jump_bounds": spaced_jump_bounds,
+                                     "jump_slot_bounds": spaced_slot_bounds,
+                                     "scroll_bounds": spaced_scroll_bounds, "scroll_metrics": spaced_scroll_metrics,
+                                     "text": spaced_card.inner_text()})
+
+        # Forced-colors emulation checks that the content and action remain present
+        # when the browser replaces author colors with the user's system palette.
+        page.emulate_media(forced_colors="active")
+        assert page.evaluate("matchMedia('(forced-colors: active)').matches")
+        forced_card = page.locator(".workflow-recommendation")
+        forced_card.scroll_into_view_if_needed()
+        forced_bounds = forced_card.bounding_box()
+        forced_action_locator = forced_card.locator("[data-workflow-suggestion-run]")
+        forced_action_locator.focus()
+        forced_action = forced_action_locator.bounding_box()
+        forced_composer = page.locator(".composer").bounding_box()
+        forced_jump = page.locator("#jump-latest")
+        forced_jump_bounds = forced_jump.bounding_box() if forced_jump.is_visible() else None
+        forced_slot = page.locator("#jump-latest-slot")
+        forced_slot_bounds = forced_slot.bounding_box() if forced_slot.is_visible() else None
+        forced_scroll_bounds = page.locator("#chat-scroll").bounding_box()
+        forced_scroll_metrics = page.locator("#chat-scroll").evaluate(
+            "el => ({scrollHeight:el.scrollHeight, clientHeight:el.clientHeight, scrollTop:el.scrollTop})")
+        jump_layout = (forced_jump.evaluate("el => ({parentId:el.parentElement?.id, offsetParentId:el.offsetParent?.id, "
+                                              "computedPosition:getComputedStyle(el).position, "
+                                              "bottom:getComputedStyle(el).bottom, rect:el.getBoundingClientRect().toJSON(), "
+                                              "parentRect:el.parentElement.getBoundingClientRect().toJSON()})")
+                       if forced_jump.is_visible() else None)
+        forced_overflow = page.evaluate(
+            "Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) > innerWidth + 1")
+        forced_style = forced_card.evaluate("""el => { const s=getComputedStyle(el); return {
+            color:s.color, backgroundColor:s.backgroundColor, borderColor:s.borderColor,
+            forcedColorAdjust:s.forcedColorAdjust}; }""")
+        assert forced_bounds and forced_action and not forced_overflow
+        assert forced_action["height"] >= 44
+        assert forced_composer and forced_action["y"] + forced_action["height"] <= forced_composer["y"]
+        if forced_slot_bounds:
+            assert forced_scroll_bounds and forced_slot_bounds["y"] >= forced_scroll_bounds["y"] + forced_scroll_bounds["height"]
+            assert forced_slot_bounds["y"] + forced_slot_bounds["height"] <= forced_composer["y"]
+        assert "Review & run" in forced_card.inner_text()
+        page.screenshot(path=str(EVIDENCE / "suggestion-forced-colors-compact-phone.png"),
+                        animations="disabled")
+        accessibility_states.append({"state": "forced-colors-active", "viewport": [320, 740],
+                                     "document_overflow": forced_overflow,
+                                     "card_bounds": forced_bounds, "action_bounds": forced_action,
+                                     "composer_bounds": forced_composer, "jump_bounds": forced_jump_bounds,
+                                     "jump_slot_bounds": forced_slot_bounds,
+                                     "scroll_bounds": forced_scroll_bounds, "scroll_metrics": forced_scroll_metrics,
+                                     "jump_layout": jump_layout,
+                                     "computed_style": forced_style,
+                                     "text": forced_card.inner_text()})
+        page.emulate_media(forced_colors="none")
+        jump_action = {"shown": False, "clicked": False}
+        jump_button = page.locator("#jump-latest")
+        if jump_button.is_visible():
+            jump_action["shown"] = True
+            jump_action["scroll_top_before"] = page.locator("#chat-scroll").evaluate("el => el.scrollTop")
+            jump_button.click()
+            page.wait_for_function("document.querySelector('#jump-latest-slot')?.hidden === true")
+            jump_action["scroll_top_after"] = page.locator("#chat-scroll").evaluate("el => el.scrollTop")
+            jump_action["scroll_max_after"] = page.locator("#chat-scroll").evaluate("el => el.scrollHeight - el.clientHeight")
+            assert abs(jump_action["scroll_top_after"] - jump_action["scroll_max_after"]) <= 1
+            jump_action["clicked"] = True
+
         assert not errors, errors
         assert not failed_requests, failed_requests
         assert not external_requests, external_requests
@@ -180,6 +279,8 @@ def test_chat_suggestion_card_reflows_and_requires_review(browser, live_studio):
             "browser": f"{browser.browser_type.name.title()} {browser.version}",
             "playwright": package_version("playwright"),
             "viewports": states,
+            "accessibility_states": accessibility_states,
+            "jump_latest_interaction": jump_action,
             "interaction": "Enter opens the explicit saved-workflow review dialog; Cancel restores focus; no workflow started",
             "page_errors": errors,
             "failed_requests": failed_requests,

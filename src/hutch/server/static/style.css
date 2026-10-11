@@ -972,15 +972,16 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
 .run-error-label { font: 700 var(--fs-2xs)/1.6 var(--font-ui); letter-spacing: 0.06em; text-transform: uppercase; color: var(--danger); }
 
 /* jump to latest */
+.jump-latest-slot { flex: none; display: flex; justify-content: center; min-width: 0; padding: 0 var(--s-3); }
+.jump-latest-slot[hidden] { display: none; }
 .jump-latest {
-  position: absolute; left: 50%; transform: translateX(-50%); bottom: 10px; z-index: 5;
-  display: inline-flex; align-items: center; gap: 6px;
+  position: static; display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px;
+  max-width: 100%; min-height: 44px; margin: 0 0 var(--s-2); overflow-wrap: anywhere;
   background: var(--overlay); color: var(--text); border: 1px solid var(--line-strong);
   border-radius: var(--r-chip); padding: 7px var(--s-4);
   font: 600 var(--fs-sm)/1 var(--sans); cursor: pointer; box-shadow: var(--sh-2);
 }
 .jump-latest:hover { border-color: var(--line-hi); }
-.jump-latest[hidden] { display: none; }
 
 /* ── composer (named 16px exception) ── */
 .composer { flex: none; padding: 0 var(--s-5) var(--s-5); background: linear-gradient(transparent, var(--bg) 26%); }
