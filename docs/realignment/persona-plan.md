@@ -1,0 +1,89 @@
+# Persona, depth and sensitivity plan (2026-10-11)
+
+Task checkpoint for the adaptive-persona slice: voice, proportional response depth, fast banter and calibrated
+sensitive-topic boundaries delivered through configuration → runtime → visible response. Worktree
+`.worktrees/persona-adaptive`, branch `persona/adaptive`, based on `2872f4f` (the `wcag22-audit-fixes` tip) with
+local `main` `4ac6041` integrated through merge `ab1929e`. Companion evidence: `persona-research-ledger.md`.
+No push, deploy, publication, provider, account or model change is authorized.
+
+## Approved decisions
+
+- **Combined local work (user-approved):** the branch integrates committed local `main` so the document
+  pipeline, ZIP bundles, skills, routines durability and WCAG work sit under one verified tree. Only committed
+  work is integrated; sibling worktrees and the original checkout keep their current state untouched.
+- **Compact form UI (user-approved 2026-10-11 after inspected routes):** a response-style form beside the
+  standing-directions field in assistant settings, plus scoped conversation/next-reply controls in chat
+  options. Hutch's existing identity, tokens and components are fixed; no rebrand.
+- **Scope:** preference precedence current turn → conversation override → user override (per agent) → agent
+  preset → application default, with explicit off/false/zero/reset round-tripping and no automatic durable
+  preference inference.
+
+## Fixed constraints
+
+- Voice, depth, grounding, safety boundaries and tool authority stay independent. No "safety off" mode, no
+  harmful-compliance retries, no concealed model switches, no broad silent rewrites.
+- Versioned typed profiles/preferences/plans. Each turn snapshots behavior at run start; material facts,
+  evidence and output contracts are retained; reevaluation happens per turn, never as stale consent.
+- Clear banter resolves locally where possible; no extra model pass solely for style; target p95 ≤20 ms
+  excluding inference and necessary checks.
+- Preserve existing data, concurrent edits/staging, adaptive context, tools/MCP, routines, artifacts,
+  grounding and modest-device usability; no replacement framework or new dependencies without need.
+
+## Slices
+
+| Slice | Scope | Evidence gate |
+|---|---|---|
+| A. Integration | merge `ab1929e`; combined tree | focused suites pass; full suite/browser classified separately |
+| B. Contracts + persistence | typed versioned persona/preferences/plan records (typed JSON on Bot/Run unless a migration proves necessary); transactional revision-aware writes; explicit scope/reset; write-once plan snapshot at common engine start | contract, migration and conflict tests |
+| C. Runtime | subordinate bounded guidance into the existing builtin prompt before estimation; local banter resolution; completion validation so truncated/empty answers cannot present as final success; tool governance, output contracts and provider parameters unchanged | regressions incl. source-traced newest-context loss and incomplete-final-success |
+| D. UI | approved compact form; temporary vs durable changes; unsaved/conflict states; accessible validation | actual-app browser workflows at 360/768/1440 |
+| E. Verification | targeted then broader combined checks; independent read-only review; measured routing overhead; honest boundary labels | review result and measurements recorded |
+
+## Acceptance budgets
+
+| Check | Budget |
+|---|---|
+| Banter fast path | no extra model pass solely for style; local resolution target p95 ≤20 ms excluding inference/necessary checks |
+| Precedence and reset | deterministic tests for each level and for off/false/zero/reset semantics |
+| Snapshotting | mid-run changes never alter the in-flight turn; no stale consent reuse |
+| Context preservation | newest user corrections and material facts survive context budgeting |
+| Completion honesty | truncated/no-tool/empty answers cannot present as final success |
+| UI | validated controls with scope/origin/inheritance/reset; 360/768/1440 verification; unsaved and conflict states visible |
+| Evidence honesty | unrun live-model checks are labeled; deterministic tests are never presented as live evidence |
+
+## Integration notes
+
+- Merge `ab1929e` integrates local `main` `4ac6041` (556 files, +8,245/−599). Additive conflicts kept both
+  lineages: `Bot` keeps its tool allowlist plus `skills`; the tool registry imports skill and document tools;
+  both changelog entry sets are retained.
+- Conflicting browser capture artifacts resolve to local main's canonical set (`canonical_capture_set: main`
+  in the integration manifest); both complete sets are archived under
+  `/tmp/opencode/hutch-persona-integration/` (local scratch, with `manifest.json` and SHA-256 checksums),
+  outside the repository.
+- Focused combined-tree check: **167 passed** in 25.44 s — `tests/test_skills.py`, `test_skill_runtime.py`,
+  `test_skills_api.py`, `test_schedule_durability.py`, `test_document_store.py`, `test_documents_pipeline.py`,
+  `test_documents_revisions.py`, `test_runtime.py`, `test_conversations.py`, `test_migration.py`; log at
+  `/tmp/opencode/hutch-persona-integration/focused-mergecommit.log`.
+- Inherited whitespace flags from the incoming side (CSV fixtures, one `app.js` line, one `documents.py` EOF
+  blank line) are pre-existing content and were left untouched.
+- Baseline of the actual app before persona work: `/tmp/opencode/hutch-persona-baseline/` (isolated state,
+  Chromium **153.0.8010.12**, 360/768/1440 screenshots, DOM, trace; no model calls). Standing directions
+  already use a textarea; dedicated persona/depth controls do not exist yet.
+- Local `main` is 473 commits ahead of `origin/main` (`8d71f8a`); all work stays local.
+
+## Rollback
+
+- Nothing is pushed or merged into `main`; abandoning the slice means not using the branch, and the original
+  checkout and sibling worktrees are never rewritten.
+- Each slice is its own additive commit; reverting that commit restores prior behavior. Contract or schema
+  changes require tested downgrades before landing.
+- Mid-run snapshotting prevents a bad preference change from corrupting an in-flight turn; verification uses
+  isolated state directories under `/tmp/opencode/`.
+
+## Evidence boundary (at plan time)
+
+- Run: 167 focused tests on the combined tree; isolated actual-app baseline capture; online source and issue
+  inspection (all fetched 2026-10-11).
+- Unrun: full combined offline/browser suites, independent implementation review, any live model call (humor,
+  adherence, boundary calibration), multimodal/long-session/model-change checks. No live model route is
+  authorized; hosted evaluation stays out of scope until one exists.

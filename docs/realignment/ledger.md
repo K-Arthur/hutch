@@ -22,6 +22,13 @@ Sibling worktrees (`computer-use`, `skills-lifecycle`, `ui-*`, `site-mascot`, `r
 re-read. Plan/research: `docs/realignment/routines-plan.md`, `docs/realignment/routines-research-ledger.md`. Milestone
 commits: `87658e2` (core recurrence/lifecycle), follow-up UI/e2e evidence. No second scheduler against live user data; no push.
 
+**Persona lane (2026-10-11):** owned on worktree `.worktrees/persona-adaptive` branch `persona/adaptive` (base `2872f4f`,
+the `wcag22-audit-fixes` tip). Local `main` `4ac6041` is integrated through merge `ab1929e`: additive conflicts keep both
+lineages (Bot tools plus skills; skill and document tool imports; both changelog sets), and conflicting browser capture
+artifacts resolve to local main's canonical set. Deliverable: adaptive persona, proportional depth, fast banter and
+calibrated sensitivity through configuration → runtime → visible response. Plan/research:
+`docs/realignment/persona-plan.md`, `docs/realignment/persona-research-ledger.md`. Sibling worktrees are not edited; no push.
+
 ## Current slices
 
 UI realignment, 2026-10-10: the everyday path now opens with a request, carries that exact
