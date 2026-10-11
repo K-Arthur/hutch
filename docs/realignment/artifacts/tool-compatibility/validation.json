@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_tool_compatibility.py::test_tool_compatibility_reports_evidence_and_saves_the_choice",
   "command": "PYTHONPATH=src pytest -q /home/kevina/CodingProjects/hutch/.worktrees/toolcall/tests/e2e/test_tool_compatibility.py",
-  "captured_at": "2026-10-11T01:14:38.764624+00:00",
+  "captured_at": "2026-10-11T01:22:34.383307+00:00",
   "python": "3.13.15",
   "hutch_version": "0.1.0",
   "browser": "153.0.8010.12",
