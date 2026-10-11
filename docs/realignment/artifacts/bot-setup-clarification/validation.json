@@ -31,10 +31,10 @@
   "clarification_request_count": 2,
   "page_errors": [],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "c69c9f24fb494f4e053df49130adbad5bd773de2d4cdf4c381017e5c3df8024d",
-    "src/hutch/server/static/style.css": "801aca4d48ff562ee7c6dc19598fcb3f9424aaa74f03ee3fd372d11dbee3975e",
-    "src/hutch/server/app.py": "74d3f442664374eea9e3e36bd30c5b6e26b66a122623dfb270dedd2920e5f304",
+    "src/hutch/server/static/app.js": "d9b7e48b5cbe4afc1b73fc90f6e68a22140781ef79f8875cab1ec8f80c43785d",
+    "src/hutch/server/static/style.css": "8047aeae3de203e7caa7487c3a5e59eecdb4ecd14e0b7a8f3b0db4bbe863c9f5",
+    "src/hutch/server/app.py": "9d97a8bd03b1ca8c7bc37718829c4881b2ff59fcc44a8e326921f2cea926c3e5",
     "tests/test_conversations.py": "75ac50e91b90038b5862cb85b83ad07f9dcf030c5102af7a6f114fd71c200445",
-    "tests/e2e/test_browser.py": "8990bfb2b1543de346da2c09593d548d8a56c4d50b48e91c79982cd70fe65ee9"
+    "tests/e2e/test_browser.py": "546a30ee4163cc1f9a4c9bf763d0976da18ed8287246d237d2c692ab7e20772f"
   }
 }

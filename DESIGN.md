@@ -162,15 +162,15 @@ can access or what the machine has actually confirmed.
   shape; do not add a visor, slits, pupils, highlights, or extra marks. Larger
   original 3D character art belongs to marketing; both use the same friendly
   palette and visual family.
-- Provider art follows the provider's current published rules. ChatGPT uses
-  OpenAI's unaltered white Blossom beside its explicit name. Microsoft Outlook,
-  Gmail, and Google Calendar use original service-category glyphs beside their
-  full names unless Hutch confirms the relevant product-icon terms and receives
-  any required permission. Google routes product-icon use through an approval
-  request; Microsoft requires an express license for Outlook
-  product icons.
-  Every mark stays secondary to its exact service name and connection state;
-  category artwork never imitates a provider logo.
+- Provider artwork uses a current, locally bundled mark only when the source
+  and usage context are documented. Keep every mark unaltered and secondary to
+  the full service name and connection state; use a category glyph when no
+  appropriate provider asset is available. Never imply endorsement or a
+  special partnership. Google Workspace assets may identify a connected Google
+  service under Google's deployment guidance; preserve approved artwork and do
+  not make it the page's most prominent element. Use Microsoft Outlook's full
+  color app icon only as a functional access cue, on a neutral field, beside
+  the full “Microsoft Outlook” name. See [brand asset provenance](docs/brand-assets.md).
 - Apps & AI keeps connection choices scannable. On phones, app rows use 40px
   category marks, compact copy, and one 44px action; wider layouts use 48px marks
   in service tiles. Keep complete product names and availability labels visible.
@@ -229,12 +229,11 @@ prose, labels, or marketing.
   proof captions; 12px is the smallest metadata size. Both remain secondary.
 - **Icons:** actions and categories use one local 24×24 outline-vector family,
   with 16/20/24px size roles, a shared current-color stroke, and round joins and
-  caps. Apps & AI presents original calendar, mail, inbox, and cloud glyphs in
-  compact service tiles. ChatGPT uses OpenAI's unaltered white Blossom beside
-  its exact name. Microsoft Outlook, Gmail, and Google Calendar use original
-  category glyphs until product-icon use is permitted. Keep exact service names
-  and states visible; category cues are not provider logos. Provider artwork is
-  bundled locally.
+  caps. Apps & AI uses original category glyphs for generic app groups and
+  official provider artwork for named connections when documented in
+  [brand asset provenance](docs/brand-assets.md). Keep exact service names and
+  states visible. Provider artwork is bundled locally and never fetched at
+  runtime.
 
 ## Layout
 

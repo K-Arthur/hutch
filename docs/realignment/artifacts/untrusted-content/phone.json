@@ -10,9 +10,9 @@
   "page_errors": [],
   "horizontal_overflow": 0,
   "inert_payload": true,
-  "screenshot_sha256": "951cb811a015651348f46688834261d4f692c75815a51a90a59414c1bfe5d7c1",
+  "screenshot_sha256": "9014dd99f848596914ba3e332dd2093b65fe0ec50aaedffa2a0b8db52922ca69",
   "source_sha256": {
-    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
-    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a"
+    "src/hutch/server/static/app.js": "fbe00e52466024a2e59aeb7e6fd6aaf946e50639054ce5185dea5253bf0cbb2c",
+    "src/hutch/server/static/style.css": "21729e037c748d01ad2ca2faf30459e80a441524e62fa8ae058bfa7e0eb92f6b"
   }
 }

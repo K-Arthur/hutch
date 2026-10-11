@@ -47,9 +47,9 @@
   ],
   "page_errors": [],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "dd59577ec8d97a1877b7448644b983b4f6bfa3a44a9df0c74b7d0bc2d13b1570",
-    "src/hutch/server/static/style.css": "625becaca00811feef06b7d7d11df029d2d79ff34fe49b327620247f86ccee3c",
-    "src/hutch/server/app.py": "743ab6fae831bef9bed41f842ac4775b9f1f9cca2e7df177d3f0ceb0934f71f3",
-    "tests/e2e/test_browser.py": "93d9bd9256bacaaf28d70bcb2f96bca3e9b1f05b72ae65ecefec34d5c2d4d5d7"
+    "src/hutch/server/static/app.js": "fbe00e52466024a2e59aeb7e6fd6aaf946e50639054ce5185dea5253bf0cbb2c",
+    "src/hutch/server/static/style.css": "21729e037c748d01ad2ca2faf30459e80a441524e62fa8ae058bfa7e0eb92f6b",
+    "src/hutch/server/app.py": "4c9c1c8629a0d20a66eea708fea41496324ebeb3ea7808cb7f2fc72b019293f8",
+    "tests/e2e/test_browser.py": "a51449f6a94c918d6361253daa45d12b4656c05af3e34c3c2af0ff294be871df"
   }
 }

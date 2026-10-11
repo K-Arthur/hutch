@@ -20,6 +20,36 @@
       "quota_hint": "Usage is capped as monthly dollar amounts with a 5-hour sub-limit of 20% and a weekly sub-limit of 50% (docs, 2026-10-07). The dollar value per token varies by model, so declare your allowance in tokens (a rough proxy) and calibrate it against the OpenCode console.",
       "model_protocol_hint": "The OpenCode docs list some model families (Claude Haiku, MiniMax, Qwen) on the Anthropic Messages endpoint and others (Grok, Muse Spark) on the OpenAI Responses endpoint; models.dev lists them all as OpenAI-compatible. Hutch speaks openai-chat and anthropic; Responses-only models are unsupported. If a model errors on the default, set its protocol: `hutch connections set-protocol opencode-go <model> anthropic`."
     },
+    "openai-api": {
+      "title": "OpenAI API",
+      "protocol": "openai-chat",
+      "base_url": "https://api.openai.com/v1",
+      "api_key_env": "OPENAI_API_KEY",
+      "billing": "per_token",
+      "get_key_url": "https://platform.openai.com/api-keys",
+      "source": "https://developers.openai.com/api/reference/resources/models/methods/list",
+      "models_endpoint": true,
+      "quick_setup": true,
+      "provider_mark": "openai",
+      "setup_description": "Connect an OpenAI API account. This is separate from a ChatGPT sign-in or subscription.",
+      "terms": {"url": "https://openai.com/policies/terms-of-use", "requires_ack": false, "notice": ""},
+      "quota_hint": "OpenAI API usage is billed to the API account. Hutch records provider-reported usage, but configured token allowances are estimates and not provider-enforced currency caps."
+    },
+    "anthropic-api": {
+      "title": "Anthropic API",
+      "protocol": "anthropic",
+      "base_url": "https://api.anthropic.com",
+      "api_key_env": "ANTHROPIC_API_KEY",
+      "billing": "per_token",
+      "get_key_url": "https://console.anthropic.com/settings/keys",
+      "source": "https://platform.claude.com/docs/en/api/models/list",
+      "models_endpoint": true,
+      "quick_setup": true,
+      "provider_mark": "anthropic",
+      "setup_description": "Connect an Anthropic API account. Models are read from this account's live catalog.",
+      "terms": {"url": "https://support.anthropic.com/en/articles/8114521-how-can-i-access-the-anthropic-api", "requires_ack": false, "notice": ""},
+      "quota_hint": "Anthropic API usage is billed to the API account. Hutch records provider-reported usage where available; estimates do not cap provider charges."
+    },
     "chatgpt-plan": {
       "title": "ChatGPT plan (Sign in with ChatGPT preview)",
       "protocol": "openai-responses",
@@ -103,6 +133,9 @@
       "get_key_url": "https://openrouter.ai/settings/keys",
       "source": "https://openrouter.ai/docs/api/api-reference/models/get-models",
       "models_endpoint": true,
+      "quick_setup": true,
+      "provider_mark": "openrouter",
+      "setup_description": "One API key reaches a live catalog from multiple model providers. Model routing and final price can depend on upstream availability.",
       "terms": {"url": "https://openrouter.ai/terms", "requires_ack": false, "notice": ""},
       "quota_hint": "OpenRouter prices vary by model and can change. Hutch shows the provider's catalog price, but currency-limited admission requires a reviewed price row in Settings > Prices. Hutch token allowances are separate estimates.",
       "model_protocol_hint": "OpenRouter model ids come from its authenticated catalog. Chat Completions and tool support vary by model and upstream provider; the catalog does not prove a model will work for every task."

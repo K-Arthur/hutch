@@ -21,7 +21,7 @@ spec:
   risk_tier: supervised
   command_rules: []
   workspace_mode: managed
-  local_browser_handoff: true
+  local_browser_handoff: false
   limits:
     max_steps: 24
     timeout_seconds: 900

@@ -1,11 +1,11 @@
 {
   "test": "tests/e2e/test_website.py::test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_website.py::test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation",
-  "captured_at": "2026-10-10T05:33:37.723986+00:00",
+  "captured_at": "2026-10-11T00:17:29.749053+00:00",
   "python": "3.13.15",
   "browser": "153.0.8010.12",
   "playwright_version": "1.63.0",
-  "index_sha256": "533c091fd92662504e035c883504adcc56667a7e550069b347373d9ca62e36df",
+  "index_sha256": "d35001a2050a3dc2a800b624f6cea6b989adb9cd41a1806ba553948f09d76161",
   "captures": [
     {
       "size": "desktop",
@@ -15,9 +15,9 @@
       ],
       "card": {
         "x": 164,
-        "y": 28.90625,
+        "y": -2787.359375,
         "width": 354.65625,
-        "height": 843.09375
+        "height": 919.5
       },
       "overflow": 0
     },
@@ -28,10 +28,10 @@
         900
       ],
       "model_card": {
-        "x": 164,
-        "y": 259.171875,
-        "width": 354.65625,
-        "height": 380.75
+        "x": 189,
+        "y": 248.671875,
+        "width": 338,
+        "height": 403.25
       },
       "overflow": 0
     },
@@ -43,9 +43,9 @@
       ],
       "card": {
         "x": 24,
-        "y": 309.25,
+        "y": 269.453125,
         "width": 852,
-        "height": 406.359375
+        "height": 485.5625
       },
       "overflow": 0
     },
@@ -56,10 +56,10 @@
         1024
       ],
       "model_card": {
-        "x": 24,
-        "y": 389.6875,
-        "width": 414,
-        "height": 245
+        "x": 49,
+        "y": 344.046875,
+        "width": 389,
+        "height": 335
       },
       "overflow": 0
     },
@@ -71,9 +71,9 @@
       ],
       "card": {
         "x": 16,
-        "y": 31.484375,
+        "y": -37.609375,
         "width": 358,
-        "height": 780.703125
+        "height": 919.5
       },
       "overflow": 0
     },
@@ -84,10 +84,10 @@
         844
       ],
       "model_card": {
-        "x": 16,
-        "y": 287.984375,
-        "width": 358,
-        "height": 267.5
+        "x": 33,
+        "y": 220.9375,
+        "width": 324,
+        "height": 402.5
       },
       "overflow": 0
     }

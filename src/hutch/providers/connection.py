@@ -43,6 +43,7 @@ class ConnectionCheck:
     ok: bool
     detail: str
     models: list[str] = field(default_factory=list)
+    verified: bool = False
 
 
 def check_connection(book: ConnectionBook, name: str) -> ConnectionCheck:
@@ -59,9 +60,9 @@ def check_connection(book: ConnectionBook, name: str) -> ConnectionCheck:
         provider = provider_for_connection(book, name, "probe")
     except ProviderError as exc:
         return ConnectionCheck(False, str(exc))
-    if not conn.models_endpoint or conn.protocol == "anthropic":
+    if not conn.models_endpoint:
         return ConnectionCheck(True, "a key is present, but this endpoint has no model list to authenticate against, "
                                      "so it was not verified. Run a normal bot request to check model behavior through "
-                                     "Hutch's usage and approval controls.")
+                                     "Hutch's usage and approval controls.", verified=False)
     ok, detail, models = provider.probe_models()
-    return ConnectionCheck(ok, detail, models)
+    return ConnectionCheck(ok, detail, models, verified=ok)

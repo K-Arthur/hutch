@@ -1252,6 +1252,8 @@ class ConnectionCreate(BaseModel):
     name: Optional[str] = None
     base_url: Optional[str] = None
     api_key_env: Optional[str] = None
+    api_key: Optional[str] = None
+    discover_models: bool = False
 
 
 class ConnectionAction(BaseModel):
@@ -4248,10 +4250,12 @@ def create_app() -> FastAPI:
 
         book = ConnectionBook(config.state_dir)
         out = []
+        template_rows = book.templates()
         for name, c in book.configured().items():
             used = store.usage_tokens_since(name, c.quota.seconds) if c.quota.tokens else 0
             out.append({
                 "name": name, "title": c.title, "template": c.template, "protocol": c.protocol,
+                "provider_mark": (template_rows.get(c.template) or {}).get("provider_mark", ""),
                 "base_url": c.base_url, "api_key_env": c.api_key_env, "billing": c.billing,
                 "has_key": book.has_key(name), "key_source": book.key_source(name),
                 "auth_type": c.auth_type,
@@ -4264,7 +4268,11 @@ def create_app() -> FastAPI:
             })
         from ..chatgpt_auth import ChatGPTAuthBook, chatgpt_plan_signin_enabled
         templates = [{"key": k, "title": v.get("title", k), "billing": v.get("billing", ""),
-                      "base_url": v.get("base_url", ""), "terms_notice": (v.get("terms") or {}).get("notice", "")}
+                      "base_url": v.get("base_url", ""), "terms_notice": (v.get("terms") or {}).get("notice", ""),
+                      "auth_type": v.get("auth_type", "api_key"),
+                      "get_key_url": v.get("get_key_url", ""), "quick_setup": bool(v.get("quick_setup")),
+                      "provider_mark": v.get("provider_mark", ""),
+                      "setup_description": v.get("setup_description", "")}
                      for k, v in book.templates().items()]
         accounts = ChatGPTAuthBook(config.state_dir).accounts()
         from ..google_calendar import GoogleCalendarBook
@@ -5143,13 +5151,43 @@ def create_app() -> FastAPI:
     @app.post("/api/connections", status_code=201)
     def connection_add_api(body: ConnectionCreate) -> dict:
         from ..connections import ConnectionBook
+        from ..providers.connection import check_connection
 
         book = ConnectionBook(config.state_dir)
+        template = book.templates().get(body.template)
+        if template is None:
+            raise HTTPException(422, "Choose one of the available API-key provider connections.")
+        api_key = body.api_key.strip() if body.api_key is not None else ""
+        if body.api_key is not None and not api_key:
+            raise HTTPException(422, "The API key was empty. No connection was added.")
+        if len(api_key.encode("utf-8")) > 4096:
+            raise HTTPException(413, "The API key is longer than Hutch allows (4 KiB). No connection was added.")
+        requested_name = (body.name or "").strip()
+        name = requested_name or body.template
+        generated_suffix = 0
+        if not requested_name:
+            generated_suffix = 2
+            while name in book.names():
+                name = f"{body.template}-{generated_suffix}"
+                generated_suffix += 1
         try:
-            c = book.add(body.template, body.name or None,
-                         base_url=body.base_url or None, api_key_env=body.api_key_env or None)
+            overrides: dict[str, Any] = {"base_url": body.base_url or None,
+                                         "api_key_env": body.api_key_env or None}
+            if generated_suffix > 2:
+                overrides["title"] = f"{template.get('title', body.template)} {generated_suffix - 1}"
+            c = book.add(body.template, name, **overrides)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
+        if api_key:
+            book.set_key(c.name, api_key, prefer_stored=True)
+        if api_key or body.discover_models:
+            result = check_connection(book, c.name)
+            detail = result.detail[:500]
+            secret = book.key(c.name) or ""
+            if secret:
+                detail = detail.replace(secret, "[redacted]")
+            return {"added": c.name, "discovery": {"ok": result.ok, "verified": result.verified,
+                                                       "model_count": len(result.models), "detail": detail}}
         return {"added": c.name}
 
     @app.post("/api/connections/{name}/{action}")
@@ -5163,9 +5201,12 @@ def create_app() -> FastAPI:
         if action == "set-key":
             if book.get(name).auth_type != "api_key":
                 raise HTTPException(422, "This connection uses a sign-in account. Manage it from Connections instead of setting an API key.")
-            if not (body.key or "").strip():
+            key = (body.key or "").strip()
+            if not key:
                 raise HTTPException(422, "The key was empty.")
-            book.set_key(name, body.key.strip())      # written 0600; never echoed back
+            if len(key.encode("utf-8")) > 4096:
+                raise HTTPException(413, "The API key is longer than Hutch allows (4 KiB).")
+            book.set_key(name, key, prefer_stored=True)      # written 0600; never echoed back
             return {"ok": True, "detail": f"Key stored for {name}."}
         if action == "clear-key":
             if book.get(name).auth_type != "api_key":

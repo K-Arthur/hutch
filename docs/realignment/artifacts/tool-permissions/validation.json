@@ -15,15 +15,15 @@
         960
       ],
       "panel": [
-        714,
-        441
+        632,
+        453
       ],
       "delegate": [
         22,
         22
       ],
       "deleteAction": [
-        118,
+        154,
         26
       ],
       "visible": true
@@ -39,7 +39,7 @@
         1024
       ],
       "panel": [
-        834,
+        800,
         412
       ],
       "delegate": [
@@ -47,7 +47,7 @@
         22
       ],
       "deleteAction": [
-        118,
+        154,
         26
       ],
       "visible": true
@@ -63,7 +63,7 @@
         844
       ],
       "panel": [
-        324,
+        302,
         757
       ],
       "delegate": [
@@ -84,14 +84,14 @@
       ],
       "saveVisible": true,
       "delegateEnabled": true,
-      "scrollTop": 1980
+      "scrollTop": 2437
     }
   ],
   "scenario": "synthetic Settings form; enable the delegated task tool and persist the explicit opt-in",
   "page_errors": [],
   "source_sha256": {
-    "app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
-    "style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
-    "app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7"
+    "app.js": "f9ec5cedf21cf04db04f98d69c658a987bf026e6cf46ee97e354246ab7c1ce4d",
+    "style.css": "580461addb6a236c7e6786b0ca81c68a80d8cd08f8cfefd7a95be565ad7a0ea9",
+    "app.py": "9d97a8bd03b1ca8c7bc37718829c4881b2ff59fcc44a8e326921f2cea926c3e5"
   }
 }

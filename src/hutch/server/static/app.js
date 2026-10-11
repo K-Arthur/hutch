@@ -230,7 +230,7 @@ function conversationArtifactHtml(item) {
     ? conversationArtifactSize(item.size_bytes) : item.size_bytes ? conversationArtifactSize(item.size_bytes)
     : item.chars ? `${Number(item.chars).toLocaleString("en-US")} characters` : "";
   const sharedWith = Array.isArray(item.shared_with) ? item.shared_with : [];
-  const sharedWithHtml = sharedWith.length ? `<div class="conversation-file-grants" aria-label="Active shares">
+  const sharedWithHtml = sharedWith.length ? `<div class="conversation-file-grants" role="group" aria-label="Active shares">
     ${sharedWith.map(target => `<div class="conversation-file-grant">
       <span>Shared with ${esc(target.target_conversation_title || "another chat")}</span>
       <button class="btn ghost small" type="button" data-artifact-unshare="${esc(target.id)}"
@@ -268,7 +268,7 @@ async function showConversationArtifactShare(article, item, currentId) {
   if (!region.hidden) { region.hidden = true; region.innerHTML = ""; return; }
   region.hidden = false;
   region.innerHTML = `<label class="field">Share with another chat
-      <input class="artifact-share-search" type="search" placeholder="Find a chat" autocomplete="off">
+      <input class="artifact-share-search" type="search" placeholder="Find a chat" autocomplete="off" enterkeyhint="search">
       <select class="artifact-share-target" aria-label="Destination chat" disabled><option value="">Choose a chat…</option></select>
     </label>
     <p class="hint artifact-share-note">This adds a verified file reference to that chat’s Files list. It does not copy the file into its workspace or add the contents to its model context.</p>
@@ -491,6 +491,7 @@ function toast(msg, isError = false) {
   const root = $("#toast-root");
   const el = document.createElement("div");
   el.className = "toast" + (isError ? " error" : "");
+  if (isError) el.setAttribute("role", "alert");
   el.innerHTML = `<span class="toast-msg">${esc(msg)}</span>
     <button class="toast-close" aria-label="Dismiss notification">${icon("x")}</button>`;
   const dismiss = () => el.remove();
@@ -640,12 +641,36 @@ function icon(name, cls = "") {
   return `<svg class="icon ${esc(cls)}" data-icon="${esc(name)}" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${ICON_PATHS[name] || ""}</svg>`;
 }
 
-// Provider marks are used only beside the named service they represent. The
-// ChatGPT mark follows OpenAI's terms; other services use original Hutch
-// category glyphs unless their current brand terms permit a specific mark.
+const BRAND_MARK_FILES = {
+  openai: "openai-white-monoblossom.svg",
+  anthropic: "anthropic-symbol-ivory.svg",
+  openrouter: "openrouter-glyph-volt.svg",
+  calendar: "google-calendar-2026q2.png",
+  gmail: "google-gmail-2026q2.png",
+  outlook: "microsoft-outlook.svg",
+};
+const TEMPLATE_MARKS = {
+  "openai-api": "openai",
+  "anthropic-api": "anthropic",
+  "openrouter": "openrouter",
+  "chatgpt-plan": "openai",
+};
+
+function providerLogo(mark, size = "") {
+  const file = BRAND_MARK_FILES[mark];
+  if (!file) return "";
+  return `<span class="provider-logo provider-logo-${esc(mark)} ${size ? `provider-logo-${esc(size)}` : ""}" aria-hidden="true"><img src="/static/brands/${esc(file)}" alt=""></span>`;
+}
+
+function providerLogoForTemplate(template, size = "") {
+  return providerLogo(TEMPLATE_MARKS[template] || "", size);
+}
+
+// Brand marks stay local and retain their original colours and proportions.
 function serviceMark(kind) {
-  if (kind === "chatgpt") {
-    return '<span class="service-mark service-mark-chatgpt" data-service-category="chatgpt" aria-hidden="true"><img src="/static/brands/openai-white-monoblossom.svg" alt=""></span>';
+  const brand = kind === "chatgpt" ? "openai" : kind;
+  if (BRAND_MARK_FILES[brand]) {
+    return `<span class="service-mark service-mark-${esc(kind)}" data-service-category="${esc(kind)}" aria-hidden="true">${providerLogo(brand)}</span>`;
   }
   const serviceIcons = {
     calendar: "calendar",
@@ -1190,7 +1215,7 @@ function openConversationSearch(trigger) {
     bodyHtml: `<form class="message-search" id="message-search-form" role="search">
       <div class="message-search-controls">
         <label class="field message-search-query" for="message-search-query">Search messages
-          <input id="message-search-query" type="search" maxlength="256" autocomplete="off" spellcheck="false"
+          <input id="message-search-query" type="search" maxlength="256" autocomplete="off" spellcheck="false" enterkeyhint="search"
             aria-describedby="message-search-scope" placeholder="Search words or a phrase" />
         </label>
         <label class="field message-search-bot-filter" for="message-search-bot">Bot
@@ -1199,7 +1224,7 @@ function openConversationSearch(trigger) {
       </div>
       <p class="hint message-search-scope" id="message-search-scope">Search covers active chats. Archived and imported history stays out of results.</p>
       <p class="message-search-status" id="message-search-status" role="status" aria-live="polite">Type at least two characters to search.</p>
-      <div class="message-search-results" id="message-search-results" aria-label="Search results"></div>
+      <div class="message-search-results" id="message-search-results" role="group" aria-label="Search results"></div>
     </form>`,
   });
   const form = $("#message-search-form");
@@ -1277,8 +1302,28 @@ function openConversationSearch(trigger) {
   });
 }
 
-async function route() {
+const ROUTE_TITLES = { chat: "Chats", overview: "Activity", schedules: "Scheduled work",
+  runs: "Work history", bots: "Assistants", connections: "Apps & AI", approvals: "Needs you" };
+
+function routeTitle(hash) {
+  if (hash.startsWith("#/conversation/")) return "Conversation";
+  if (hash.startsWith("#/approvals")) return "Needs you";
+  const bot = hash.match(/^#\/(?:chat|bot)\/([^/?]+)/);
+  if (bot) return decodeURIComponent(bot[1]);
+  const run = hash.match(/^#\/run\/([^/?]+)/);
+  if (run) return `Run ${run[1].slice(4, 16)}`;
+  const nav = routes.find(([re]) => re.test(hash))?.[2];
+  return ROUTE_TITLES[nav] || "hutch";
+}
+
+async function route(announce = false) {
   const hash = location.hash || "#/chat";
+  if (!hash.startsWith("#/")) {
+    /* Plain fragment targets (the skip link's #view) are not views: leave the
+       hash alone so the browser moves focus to the target element. */
+    closeWorkspace();
+    return;
+  }
   updateRosterCurrentItem();
   document.body.classList.toggle("has-composer", hash.startsWith("#/chat"));
   stopRunSubs();
@@ -1298,6 +1343,16 @@ async function route() {
       if (["overview", "schedules", "runs", "bots"].includes(nav)) $("#monitor-nav").open = true;
       try { await handler(m); }
       catch (err) { view.innerHTML = errorState(err); }
+      if (announce) {
+        document.title = `hutch — ${routeTitle(hash)}`;
+        /* Replacing #view orphans keyboard focus to body; handlers that place
+           focus deliberately keep it. Only rescue the orphaned case. */
+        if (!document.activeElement || document.activeElement === document.body) {
+          const heading = topContext?.querySelector("h1");
+          if (heading) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); }
+          else { view.tabIndex = -1; view.focus({ preventScroll: true }); }
+        }
+      }
       void refreshBadge();
       return;
     }
@@ -1316,7 +1371,7 @@ function errorState(err) {
 
 function setTopContext(html) { if (topContext) topContext.innerHTML = html; }
 
-window.addEventListener("hashchange", route);
+window.addEventListener("hashchange", () => route(true));
 
 /* -------------------------------------------------- roster + attention */
 
@@ -2122,7 +2177,7 @@ async function openSavedTaskTemplateLibrary({ returnFocus, onUse }) {
     title: "Saved requests",
     bodyHtml: `<p class="hint">Choose a request to place it in this chat’s draft. Nothing is sent until you review and send it.</p>
       <label class="field" for="saved-task-template-search">Find a saved request
-        <input id="saved-task-template-search" type="search" autocomplete="off" placeholder="Search by name or request">
+        <input id="saved-task-template-search" type="search" autocomplete="off" placeholder="Search by name or request" enterkeyhint="search">
       </label>
       <div class="saved-request-list" id="saved-task-template-list" role="list" aria-label="Saved requests"></div>`,
     confirmText: "Done", showCancel: false, wide: true, returnFocus,
@@ -2389,7 +2444,7 @@ async function renderChatStudio(preferredBot = null) {
             <div class="composer-row">
               <div class="cmenu-wrap">
                 <button class="composer-util" type="button" id="composer-menu-btn" aria-label="Message options" aria-haspopup="dialog" aria-expanded="false" aria-controls="composer-menu">${icon("plus")}</button>
-                <div class="cmenu" id="composer-menu" role="dialog" aria-label="Message options" hidden>
+                <div class="cmenu" id="composer-menu" role="dialog" aria-modal="false" aria-label="Message options" hidden>
                   <p class="cmenu-h">Start from a suggestion</p>
                   <div class="quick-prompts" id="quick-prompts">
                     <button type="button" data-quick="Sort this week's downloads and move invoices into folders">${icon("folder")} Sort downloads</button>
@@ -2414,7 +2469,7 @@ async function renderChatStudio(preferredBot = null) {
                 </div>
               </div>
               <label class="visually-hidden" for="chat-prompt">Message ${esc(bot.display_name || bot.name)}</label>
-              <textarea class="composer-textarea" id="chat-prompt" rows="1" placeholder="Message…" aria-describedby="chat-help"></textarea>
+              <textarea class="composer-textarea" id="chat-prompt" rows="1" placeholder="Message…" aria-describedby="chat-help" enterkeyhint="send"></textarea>
               <div class="composer-actions">
                 <span class="model-switch-slot" id="model-switch-slot"></span>
                 <button class="composer-send" id="chat-send" type="submit" aria-label="Send message">${icon("up")}</button>
@@ -4960,7 +5015,7 @@ async function renderBots() {
   view.innerHTML = `
     <div class="page-scroll"><div class="container">
       ${bots.length ? `
-      <div class="fleet-filters"><label class="field">Find an assistant<input id="fleet-search" type="search" placeholder="Search by name or task"></label>
+      <div class="fleet-filters"><label class="field">Find an assistant<input id="fleet-search" type="search" placeholder="Search by name or task" enterkeyhint="search"></label>
         <label class="field">Show<select id="fleet-state"><option value="all">All assistants</option><option value="needs">Need your attention</option><option value="active">Working now</option><option value="paused">Paused</option></select></label></div>
       <p class="hint" id="fleet-count" role="status"></p>
       <div class="bot-grid">
@@ -5047,7 +5102,7 @@ async function renderRuns(query = "") {
       <p class="runs-intro">See what your assistants have done. Open any task to review the full conversation and decisions.</p>
       <div class="runs-filter-bar">
         <label class="visually-hidden" for="run-search">Find a task or assistant</label>
-        <input type="search" id="run-search" placeholder="Find a task or assistant…" value="${esc(runsState.q)}">
+        <input type="search" id="run-search" placeholder="Find a task or assistant…" value="${esc(runsState.q)}" enterkeyhint="search">
         <div class="runs-filter-pills" role="group" aria-label="Filter past work">
           ${["all", "succeeded", "failed", "waiting_approval"].map(f => `
             <button class="${runsState.status === f ? "active" : ""}" data-filter="${f}" aria-pressed="${runsState.status === f}">
@@ -5264,7 +5319,7 @@ async function refreshApprovals() {
     wireApprovals();
     updateTtls();
   } catch (err) {
-    if (!needsYouDialog.open) return;
+    if (err?.name === "AbortError" || !needsYouDialog.open || gen !== approvalsOwner.gen) return;
     error.hidden = false;
     error.innerHTML = `<p>Could not refresh requests: ${esc(err.message)}. Displayed requests may be outdated.</p><button class="btn ghost small" id="needs-you-retry">Retry</button>`;
     $("#needs-you-retry").addEventListener("click", () => void refreshApprovals());
@@ -5422,7 +5477,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
               ? `<p class="error" role="alert">The roster could not be loaded: ${esc(specialistRosterError)}. Reload this page before changing it.</p>`
               : specialistRoster?.bots.length
                 ? `${specialistRoster.bots.length > 8 ? `<label class="field">Filter specialist Bots
-                      <input type="search" id="workspace-specialist-filter" aria-controls="workspace-specialist-options" placeholder="Name or address">
+                      <input type="search" id="workspace-specialist-filter" aria-controls="workspace-specialist-options" placeholder="Name or address" enterkeyhint="search">
                     </label><p id="workspace-specialist-filter-status" class="hint" role="status">${specialistRoster.bots.length} Bots available.</p>` : ""}
                   <fieldset class="workspace-specialist-list" id="workspace-specialist-options">
                     <legend class="sr-only">Bots the coordinator may assign new tasks to</legend>
@@ -5446,8 +5501,8 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
           <div><h2 class="panel-title">About this assistant</h2><p class="hint">Give it a name and a little direction. You can change the details whenever you like.</p></div>
         </div>
         <label class="field">Assistant name
-          <input type="text" name="display_name" maxlength="80" value="${esc(b.display_name || b.name)}" required>
-          <span class="hint">Shown in your chats and assistant list.</span>
+          <input type="text" name="display_name" maxlength="80" value="${esc(b.display_name || b.name)}" required aria-describedby="assistant-name-hint">
+          <span class="hint" id="assistant-name-hint">Shown in your chats and assistant list.</span>
         </label>
         <label class="field">What it helps with
           <input type="text" name="description" value="${esc(b.description || "")}" placeholder="For example, helps me stay on top of email">
@@ -5492,8 +5547,8 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("zap")}</span>AI service and model</div>
             <div class="form-grid row2">
               <label class="field">Default model
-                <input type="text" name="model" value="${esc(b.model || "")}">
-                <span class="hint">Hybrid allows local and hosted routes; Local blocks hosted models but keeps tools online. Offline requires a host that verifies worker network isolation.</span>
+                <input type="text" name="model" value="${esc(b.model || "")}" aria-describedby="default-model-hint">
+                <span class="hint" id="default-model-hint">Hybrid allows local and hosted routes; Local blocks hosted models but keeps tools online. Offline requires a host that verifies worker network isolation.</span>
               </label>
               <label class="field">Execution runtime
                 <input type="text" disabled value="${esc(runtimeUnavailable ? `${runtimeName} (unavailable)` : runtimeName)}">
@@ -5593,8 +5648,8 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
               <span class="hint" id="workspace-mode-help">Fresh starts each run in a new folder. Managed reuses one private folder for this bot’s runs and chats. Folder uses the existing path below. Changing modes never moves or deletes files; deleting a bot keeps its managed folder.</span>
             </label>
             <label class="field workspace-folder-field" id="workspace-folder-field" ${b.workspace_mode === "folder" ? "" : "hidden"}>Existing folder
-              <input type="text" name="workdir" value="${esc(b.workdir || "")}" placeholder="absolute path, for example ~/Projects/report" ${b.workspace_mode === "folder" ? "required" : ""}>
-              <span class="hint">Choose a folder that already exists. System folders, your whole home, and Hutch’s private state are refused.</span>
+              <input type="text" name="workdir" value="${esc(b.workdir || "")}" placeholder="absolute path, for example ~/Projects/report" ${b.workspace_mode === "folder" ? "required" : ""} aria-describedby="workdir-folder-hint">
+              <span class="hint" id="workdir-folder-hint">Choose a folder that already exists. System folders, your whole home, and Hutch’s private state are refused.</span>
             </label>
             <label class="field browser-handoff-field">Local browser handoff
               <select name="local_browser_handoff" aria-describedby="browser-handoff-help">
@@ -6392,9 +6447,9 @@ async function renderConnections() {
       chatgptAccounts.some(account => account.connected && account.plan_usage) ? "connected"
         : data.chatgpt_enabled ? "preview" : "unavailable", "chatgpt",
       data.chatgpt_enabled ? "See sign-in options" : "Check availability"),
-    tile("hosted", "Other reply services", "Choose a service you already use or one running on this computer.",
+    tile("hosted", "AI model providers", "Connect OpenAI API, Anthropic, OpenRouter, or another model service.",
       conns.length ? `${conns.length} service${conns.length === 1 ? "" : "s"}` : "Not set up yet",
-      conns.length ? "connected" : "setup", "models", conns.length ? "Manage services" : "See options"),
+      conns.length ? "connected" : "setup", "models", conns.length ? "Add or manage providers" : "Connect a provider"),
   ].join("");
   view.innerHTML = `
     <div class="page-scroll"><div class="container">
@@ -6598,12 +6653,13 @@ async function renderConnections() {
             </div>`).join("")}</div>` : `<p class="hint">No active paired devices.</p>`}
       </details>
       <div class="custom-service-heading">
-        <div><h3>Custom reply services</h3><p class="hint">For another service you already use or an AI running on this computer.</p></div>
-        <button class="btn ghost small" id="btn-add-conn" type="button">${icon("plus")} Add a custom service</button>
+        <div><h3>Connected model services</h3><p class="hint">Manage model accounts, allowances and advanced endpoints.</p></div>
+        <button class="btn ghost small" id="btn-add-conn" type="button">${icon("plus")} Connect a provider</button>
       </div>
       ${conns.length ? conns.map(c => `
         <div class="panel conn-card" data-conn="${esc(c.name)}">
-          <div class="bot-head">
+          <div class="bot-head conn-provider-heading">
+            ${providerLogoForTemplate(c.template) || `<span class="service-mark service-mark-hosted" aria-hidden="true">${icon("cloud")}</span>`}
             <span class="bot-name">${esc(c.title || c.name)}</span>
             <span class="tag mono">${esc(c.protocol)}</span>
             <span class="tag ${c.billing === "per_token" ? "info" : ""}">${esc(c.billing === "per_token" ? "per token" : "flat rate")}</span>
@@ -7499,31 +7555,132 @@ async function renderConnections() {
 
   $("#btn-add-conn")?.addEventListener("click", () => {
     const tpls = data.templates || [];
+    const keyProviders = tpls.filter(template => (template.auth_type || "api_key") === "api_key");
+    const quickProviders = keyProviders.filter(template => template.quick_setup && BRAND_MARK_FILES[template.provider_mark]);
+    const advancedProviders = keyProviders.filter(template => !template.quick_setup);
+    const quickChoice = template => `
+      <button class="provider-choice" type="button" data-quick-provider="${esc(template.key)}" aria-pressed="false">
+        ${providerLogo(template.provider_mark)}
+        <span class="provider-choice-copy"><strong>${esc(template.title || template.key)}</strong>
+          <small>${template.billing === "per_token" ? "API usage billing" : esc(template.billing || "Provider account")}</small></span>
+      </button>`;
     openModal({
-      title: "Add a custom service",
+      title: "Connect an AI provider",
+      wide: true,
       bodyHtml: `
-        <form id="conn-form" class="form-grid">
-          <label class="field">Template
-            <select name="template">${tpls.map(t => `<option value="${esc(t.key)}">${esc(t.title || t.key)} — ${esc(t.billing)}</option>`).join("")}</select>
-          </label>
-          <label class="field">Service name (optional)
-            <input type="text" name="name" placeholder="my-plan">
-          </label>
-          <label class="field">Base URL override (optional)
-            <input type="text" name="base_url" placeholder="https://…">
-          </label>
+        <form id="conn-form" class="provider-connect-form">
+          <fieldset class="provider-choice-fieldset">
+            <legend>Choose a provider</legend>
+            <div class="provider-choice-grid" role="group" aria-label="Popular model providers">
+              ${quickProviders.map(quickChoice).join("")}
+            </div>
+          </fieldset>
+          <p class="provider-selection-detail hint" id="provider-selection-detail" role="status" aria-live="polite">Choose one provider. OpenAI API keys use API billing; ChatGPT sign-in is a separate option above.</p>
+          <div class="provider-key-row">
+            <label class="field" for="provider-api-key">API key
+              <input id="provider-api-key" name="api_key" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="Paste the key from your provider" aria-describedby="provider-key-help">
+            </label>
+            <button class="btn ghost small provider-key-reveal" id="provider-key-reveal" type="button" aria-pressed="false" aria-controls="provider-api-key">Show</button>
+          </div>
+          <div class="provider-key-help-row">
+            <p class="hint" id="provider-key-help">Saved in a private file on this Hutch and sent only to the selected provider. It is never shown again or placed in browser storage.</p>
+            <a id="provider-key-link" href="#" target="_blank" rel="noopener noreferrer" hidden>Get an API key</a>
+          </div>
+          <p class="provider-discovery-note">Hutch checks the provider's live model list without sending a chat. Names and prices can change; a listed model's actual chat and tool support is confirmed only by a normal run.</p>
+          <details class="provider-advanced" id="provider-advanced">
+            <summary>More providers and endpoint settings</summary>
+            <div class="provider-advanced-body">
+              <label class="field" for="provider-advanced-template">Provider or service
+                <select id="provider-advanced-template" name="advanced_template">
+                  <option value="">Choose an additional service…</option>
+                  ${advancedProviders.map(t => `<option value="${esc(t.key)}">${esc(t.title || t.key)} · ${esc(t.billing.replaceAll("_", " "))}</option>`).join("")}
+                </select>
+              </label>
+              <label class="field">Connection name (optional)<input type="text" name="name" maxlength="41" placeholder="Choose one automatically"></label>
+              <label class="field">Custom endpoint (optional)<input type="url" name="base_url" placeholder="Leave blank for the provider's endpoint" autocomplete="url"></label>
+              <p class="hint">Use endpoint overrides only when your service documents OpenAI Chat Completions or Anthropic Messages compatibility. Hutch will not silently switch providers if this one fails.</p>
+            </div>
+          </details>
         </form>`,
-      confirmText: "Add",
+      confirmText: "Connect and find models",
       onConfirm: async () => {
-        const fd = new FormData($("#conn-form"));
+        const form = $("#conn-form");
+        const fd = new FormData(form);
+        const selectedQuick = $$("[data-quick-provider]", form).find(button => button.getAttribute("aria-pressed") === "true")?.dataset.quickProvider || "";
+        const selectedAdvanced = $("#provider-advanced-template", form).value;
+        const template = selectedAdvanced || selectedQuick;
+        const apiKey = String(fd.get("api_key") || "").trim();
+        if (!template) { toast("Choose a provider to continue.", true); return false; }
+        if (!apiKey) { toast("Paste the provider API key to connect.", true); return false; }
         try {
-          await api("/connections", { method: "POST", body: {
-            template: fd.get("template"), name: fd.get("name").trim() || null, base_url: fd.get("base_url").trim() || null } });
-          toast("Connection added. Now give it a key.");
-          renderConnections();
+          const result = await api("/connections", { method: "POST", body: {
+            template,
+            name: selectedAdvanced ? String(fd.get("name") || "").trim() || null : null,
+            base_url: selectedAdvanced ? String(fd.get("base_url") || "").trim() || null : null,
+            api_key: apiKey || null,
+            discover_models: true,
+          } });
+          const discovery = result.discovery;
+          if (discovery?.verified && discovery.ok) {
+            toast(`Connected. Found ${discovery.model_count} model IDs; choose one from the model menu.`);
+          } else if (discovery) {
+            toast(`Connection saved, but the model list could not be verified: ${discovery.detail}`, true);
+          } else {
+            toast("Connection saved. Add an API key or check the provider configuration to discover models.");
+          }
+          void renderConnections();
           return true;
         } catch (err) { toast(err.message, true); return false; }
       },
+    });
+    const updateProviderSummary = template => {
+      const detail = $("#provider-selection-detail");
+      const link = $("#provider-key-link");
+      const keyLabel = $("label[for='provider-api-key']");
+      if (!template) {
+        detail.textContent = "Choose one provider. OpenAI API keys use API billing; ChatGPT sign-in is a separate option above.";
+        link.hidden = true;
+        link.removeAttribute("href");
+        return;
+      }
+      const billing = template.billing === "per_token" ? "Usage is billed by the provider; Hutch allowances are estimates." :
+        template.billing === "subscription" ? "This route uses the provider's subscription terms; Hutch still records usage." :
+          "Review the provider's billing terms before connecting.";
+      detail.textContent = `${template.setup_description || "Connect this provider with its own API key."} ${billing}`;
+      const providerTitle = template.title || "Provider";
+      const providerName = providerTitle.replace(/\s+API$/i, "");
+      keyLabel.childNodes[0].textContent = `${providerName} API key `;
+      if (template.get_key_url && /^https:\/\//i.test(template.get_key_url)) {
+        link.href = template.get_key_url;
+        link.textContent = `Get an API key from ${providerName}`;
+        link.hidden = false;
+      } else {
+        link.hidden = true;
+        link.removeAttribute("href");
+      }
+    };
+    const quickButtons = $$('[data-quick-provider]');
+    quickButtons.forEach(button => button.addEventListener("click", () => {
+      quickButtons.forEach(item => {
+        const selected = item === button;
+        item.setAttribute("aria-pressed", String(selected));
+      });
+      $("#provider-advanced-template").value = "";
+      const selected = quickProviders.find(template => template.key === button.dataset.quickProvider);
+      updateProviderSummary(selected);
+    }));
+    // Provider choice is the first decision; keep initial keyboard focus there.
+    (quickButtons[0] || $("#provider-advanced-template"))?.focus();
+    $("#provider-advanced-template")?.addEventListener("change", event => {
+      quickButtons.forEach(button => button.setAttribute("aria-pressed", "false"));
+      updateProviderSummary(advancedProviders.find(template => template.key === event.target.value));
+    });
+    $("#provider-key-reveal")?.addEventListener("click", event => {
+      const input = $("#provider-api-key");
+      const reveal = event.currentTarget.getAttribute("aria-pressed") !== "true";
+      input.type = reveal ? "text" : "password";
+      event.currentTarget.setAttribute("aria-pressed", String(reveal));
+      event.currentTarget.textContent = reveal ? "Hide" : "Show";
     });
   });
 

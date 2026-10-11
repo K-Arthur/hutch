@@ -1,6 +1,6 @@
 {
   "test": "tests/e2e/test_browser.py::test_bot_message_reply_is_keyboard_accessible_editable_and_persisted",
-  "captured_at": "2026-10-10T21:37:43.114126+00:00",
+  "captured_at": "2026-10-11T00:15:09.685298+00:00",
   "browser": "chromium",
   "version": "153.0.8010.12",
   "playwright": "1.63.0",
@@ -15,9 +15,9 @@
   "draft_reference_restored_after_reload": true,
   "reply_target": "reply-fixture-answer",
   "source_sha256": {
-    "src/hutch/server/static/app.js": "55bd1c7866259f16030efaaacbd83370598541c13a4b8984dfc7c56d2f75b5b6",
-    "src/hutch/server/static/style.css": "3ae5621d363327e193ee1bef0196fd533283007b2cf9a2f85e1d109b6fc91deb",
-    "src/hutch/server/app.py": "743ab6fae831bef9bed41f842ac4775b9f1f9cca2e7df177d3f0ceb0934f71f3",
-    "src/hutch/store.py": "922dd5eed149ccfa371fb13e8a6c453b346a2a4183e11a6afbda0d6073d6b53a"
+    "src/hutch/server/static/app.js": "fbe00e52466024a2e59aeb7e6fd6aaf946e50639054ce5185dea5253bf0cbb2c",
+    "src/hutch/server/static/style.css": "21729e037c748d01ad2ca2faf30459e80a441524e62fa8ae058bfa7e0eb92f6b",
+    "src/hutch/server/app.py": "4c9c1c8629a0d20a66eea708fea41496324ebeb3ea7808cb7f2fc72b019293f8",
+    "src/hutch/store.py": "fb8e8f9861a4e01044b8f49002005597e83947ab4d728b3a022e6e1bc59d0fdb"
   }
 }

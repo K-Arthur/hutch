@@ -1,0 +1,59 @@
+{
+  "test": "tests/e2e/test_website.py::test_home_loads_real_assets_and_truthful_availability",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "external_requests": [],
+  "page_errors": [],
+  "provider_calls": 0,
+  "viewports": [
+    {
+      "name": "desktop",
+      "size": [
+        1440,
+        900
+      ],
+      "card": {
+        "x": 921.328125,
+        "y": 299.640625,
+        "width": 354.65625,
+        "height": 300.984375
+      },
+      "overflow": 0
+    },
+    {
+      "name": "tablet",
+      "size": [
+        900,
+        1024
+      ],
+      "card": {
+        "x": 24,
+        "y": 401.640625,
+        "width": 852,
+        "height": 221.59375
+      },
+      "overflow": 0
+    },
+    {
+      "name": "phone",
+      "size": [
+        390,
+        844
+      ],
+      "card": {
+        "x": 16,
+        "y": 290.5625,
+        "width": 358,
+        "height": 263.1875
+      },
+      "overflow": 0
+    }
+  ],
+  "source_sha256": "d35001a2050a3dc2a800b624f6cea6b989adb9cd41a1806ba553948f09d76161",
+  "verified": [
+    "local saved-request library is described",
+    "reuse fills a draft without sending",
+    "responsive marketing card has no horizontal overflow"
+  ]
+}

@@ -93,6 +93,7 @@ class Connection:
     auth_type: str = "api_key"
     auth_account_id: str = ""
     output_token_limit_enforced: bool = True
+    prefer_stored_key: bool = False
 
     def endpoint_for(self, model: str) -> tuple[str, str]:
         """(protocol, base url) for one model: plans may serve different models over different protocols."""
@@ -212,7 +213,8 @@ class ConnectionBook:
             models_endpoint=bool(merged.get("models_endpoint", True)), quota_hint=merged.get("quota_hint", ""),
             model_protocol_hint=merged.get("model_protocol_hint", ""), auth_type=auth_type,
             auth_account_id=str(merged.get("auth_account_id", "")),
-            output_token_limit_enforced=bool(merged.get("output_token_limit_enforced", True)))
+            output_token_limit_enforced=bool(merged.get("output_token_limit_enforced", True)),
+            prefer_stored_key=merged.get("prefer_stored_key") is True)
 
     def _write(self, rows: dict[str, Any]) -> None:
         self.state_dir.mkdir(parents=True, exist_ok=True)
@@ -266,6 +268,11 @@ class ConnectionBook:
                 return ChatGPTAuthBook(self.state_dir).access_token(conn.auth_account_id)
             except ChatGPTAuthError:
                 return None
+        if conn.prefer_stored_key:
+            try:
+                return self.key_file(name).read_text().strip() or None
+            except OSError:
+                return None
         if conn.api_key_env and os.environ.get(conn.api_key_env):
             return os.environ[conn.api_key_env].strip()
         f = self.key_file(name)
@@ -278,6 +285,8 @@ class ConnectionBook:
         conn = self._conns.get(name)
         if conn and conn.auth_type == "chatgpt-siws":
             return "Sign in with ChatGPT" if self.has_key(name) else "ChatGPT account needs sign-in or plan-use permission"
+        if conn and conn.prefer_stored_key:
+            return "private key file on this Hutch" if self.has_key(name) else "stored key unavailable"
         if conn and conn.api_key_env and os.environ.get(conn.api_key_env):
             return f"environment variable {conn.api_key_env}"
         if self.key_file(name).exists():
@@ -292,6 +301,9 @@ class ConnectionBook:
         if conn.auth_type == "chatgpt-siws":
             from .chatgpt_auth import ChatGPTAuthBook
             return ChatGPTAuthBook(self.state_dir).has_plan_usage(conn.auth_account_id)
+        if conn.prefer_stored_key:
+            f = self.key_file(name)
+            return f.is_file() and f.stat().st_size > 0
         if conn.api_key_env and os.environ.get(conn.api_key_env):
             return True
         return self.key_file(name).is_file() and self.key_file(name).stat().st_size > 0
@@ -312,7 +324,7 @@ class ConnectionBook:
         title = "ChatGPT plan" + (f" ({email})" if email and len(email) <= 320 else "")
         return self.add("chatgpt-plan", name, title=title, account_id=name, auth_account_id=auth_account_id)
 
-    def set_key(self, name: str, value: str) -> None:
+    def set_key(self, name: str, value: str, *, prefer_stored: bool = False) -> None:
         if name not in self._conns:
             raise KeyError(name)
         if self._conns[name].auth_type != "api_key":
@@ -324,12 +336,17 @@ class ConnectionBook:
         with os.fdopen(fd, "w") as fh:
             fh.write(value.strip() + "\n")
         os.chmod(f, 0o600)
+        if prefer_stored and not self._conns[name].prefer_stored_key:
+            self.update(name, prefer_stored_key=True)
 
     def clear_key(self, name: str) -> None:
         try:
             self.key_file(name).unlink()
         except OSError:
             pass
+        conn = self._conns.get(name)
+        if conn and conn.prefer_stored_key:
+            self.update(name, prefer_stored_key=False)
 
     # ------------------------------------------------------------ mutation
 

@@ -31,6 +31,11 @@ VISUAL_SOURCE_FILES = (
     "src/hutch/server/static/index.html",
     "src/hutch/server/static/style.css",
     "src/hutch/server/static/brands/openai-white-monoblossom.svg",
+    "src/hutch/server/static/brands/anthropic-symbol-ivory.svg",
+    "src/hutch/server/static/brands/openrouter-glyph-volt.svg",
+    "src/hutch/server/static/brands/google-calendar-2026q2.png",
+    "src/hutch/server/static/brands/google-gmail-2026q2.png",
+    "src/hutch/server/static/brands/microsoft-outlook.svg",
     "website/index.html",
     "website/site.js",
     "website/styles.css",
@@ -573,9 +578,11 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
                 button_box = setup_button.bounding_box()
                 assert button_box and 0 <= button_box["y"] and button_box["y"] + button_box["height"] <= height, button_box
             welcome_marks = page.locator(".welcome-app-mark .service-mark")
-            assert welcome_marks.locator("svg").evaluate_all(
-                "els => els.map(el => el.dataset.icon)"
-            ) == ["calendar", "mail"]
+            assert welcome_marks.locator("img[src='/static/brands/google-calendar-2026q2.png']").count() == 1
+            assert welcome_marks.locator("img[src='/static/brands/google-gmail-2026q2.png']").count() == 1
+            assert welcome_marks.locator("img").evaluate_all(
+                "els => els.every(el => el.complete && el.naturalWidth > 0)"
+            )
             assert welcome_marks.evaluate_all(
                 "els => els.map(el => el.dataset.serviceCategory)"
             ) == ["calendar", "gmail", "chatgpt"]
@@ -638,11 +645,12 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
             cards = page.locator(".service-tile")
             assert cards.count() == 5
             assert page.locator(".service-tile .service-mark img[src='/static/brands/openai-white-monoblossom.svg']").count() == 1
-            assert page.locator(".service-tile .service-mark svg").count() == 4
+            assert page.locator(".service-tile .service-mark img").count() == 4
+            assert page.locator(".service-tile .service-mark img").evaluate_all(
+                "els => els.every(img => img.complete && img.naturalWidth > 0 && new URL(img.src).origin === location.origin)"
+            )
             service_icons = page.locator(".service-tile .service-mark svg")
-            assert service_icons.evaluate_all("els => els.map(el => el.dataset.icon)") == [
-                "calendar", "mail", "inbox", "cloud"
-            ]
+            assert service_icons.evaluate_all("els => els.map(el => el.dataset.icon)") == ["cloud"]
             assert service_icons.evaluate_all("els => els.every(el => !el.querySelector('text') && el.getAttribute('stroke') === 'currentColor')")
             assert page.locator(".service-tile .service-mark").evaluate_all(
                 "els => els.map(el => el.dataset.serviceCategory)"
@@ -652,7 +660,7 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
             restricted_scope = page.get_by_text("gmail.readonly", exact=True).all()
             assert not any(item.is_visible() for item in restricted_scope), label
             tile_labels = cards.locator("h3").all_text_contents()
-            assert tile_labels == ["Google Calendar", "Gmail", "Microsoft Outlook", "ChatGPT", "Other reply services"]
+            assert tile_labels == ["Google Calendar", "Gmail", "Microsoft Outlook", "ChatGPT", "AI model providers"]
             icon_widths = page.locator(".service-mark").evaluate_all("els => els.map(el => Math.round(el.getBoundingClientRect().width))")
             expected_mark_width = 40 if width <= 640 else 48
             assert icon_widths == [expected_mark_width] * 5, (label, icon_widths)
@@ -679,9 +687,9 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
         page.locator("#connection-google-calendar").scroll_into_view_if_needed()
         page.screenshot(path=str(out / "google-calendar-access-desktop.png"), animations="disabled")
         page.goto(f"{app_url}/#/connections")
-        page.locator(".service-tile").filter(has_text="Other reply services").get_by_role("button", name="See options").click()
+        page.locator(".service-tile").filter(has_text="AI model providers").get_by_role("button", name="Connect a provider").click()
         assert page.locator("#connection-management").evaluate("el => el.open")
-        assert page.get_by_role("heading", name="Add a custom service").is_visible()
+        assert page.get_by_role("heading", name="Connect an AI provider").is_visible()
         page.locator("#modal-close").click()
         assert not external_requests, external_requests
         assert not errors, errors
@@ -727,7 +735,7 @@ def test_assistant_settings_keep_everyday_edits_up_front(browser, app_server):
         for label, width, height in viewports:
             page.set_viewport_size({"width": width, "height": height})
             page.goto(f"{app_url}/#/bot/design-system-review")
-            page.get_by_role("heading", name="Design Partner settings").wait_for()
+            page.get_by_role("heading", name="Design Partner").wait_for()
             assert page.get_by_role("heading", name="About this assistant").is_visible()
             assert page.get_by_label("Assistant name").is_visible()
             assert page.get_by_label("What it helps with").is_visible()
@@ -1226,9 +1234,8 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                 if surface_name == "connections":
                     chatgpt_mark = page.locator(".service-mark-chatgpt img")
                     assert chatgpt_mark.get_attribute("src") == "/static/brands/openai-white-monoblossom.svg"
-                    outlook_mark = page.locator(".service-mark-outlook svg[data-icon='inbox']")
+                    outlook_mark = page.locator(".service-mark-outlook img[src='/static/brands/microsoft-outlook.svg']")
                     assert outlook_mark.is_visible()
-                    assert page.locator(".service-mark-outlook img").count() == 0
                     assert page.get_by_role("heading", name="Microsoft Outlook", exact=True).is_visible()
                 if surface_name == "bot-settings":
                     page.wait_for_function(
@@ -1474,4 +1481,126 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                 context.tracing.stop(path=str(out / "trace-failed.zip"))
             except Exception:
                 pass
+    context.close()
+
+
+def test_model_provider_connect_flow_is_compact_and_responsive(browser, app_server):
+    """The everyday key flow stays short; provider catalogs remain a server-owned capability."""
+    app_url, _app = app_server
+    out = ROOT / "docs/realignment/artifacts/model-provider-quick-connect-2026-10-10"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(reduced_motion="reduce")
+    page = context.new_page()
+    errors: list[str] = []
+    external_requests: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external_requests.append(request.url)
+            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    dimensions = (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844))
+    evidence = []
+    payloads: list[dict] = []
+    try:
+        for label, width, height in dimensions:
+            page.set_viewport_size({"width": width, "height": height})
+            page.goto(f"{app_url}/#/connections")
+            page.get_by_role("heading", name="Apps & AI").wait_for()
+            card = page.locator(".service-tile").filter(has_text="AI model providers")
+            card.get_by_role("button", name="Connect a provider").click()
+            dialog = page.get_by_role("dialog", name="Connect an AI provider")
+            dialog.wait_for()
+            choices = dialog.locator("[data-quick-provider]")
+            assert choices.evaluate_all("els => els.map(el => el.dataset.quickProvider)") == [
+                "openai-api", "anthropic-api", "openrouter"
+            ]
+            assert choices.evaluate_all(
+                "els => els.every(el => el.querySelector('img')?.complete && el.querySelector('img')?.naturalWidth > 0)"
+            )
+            assert page.evaluate("document.activeElement.matches('[data-quick-provider]')"), "initial focus should land on provider choice"
+            assert not dialog.locator("#provider-advanced-template option").evaluate_all(
+                "els => els.some(option => option.value === 'chatgpt-plan')"
+            )
+            assert dialog.locator("#provider-advanced").evaluate("el => !el.open"), "advanced settings stay collapsed"
+
+            page.locator('[data-quick-provider="openai-api"]').click()
+            key = page.locator("#provider-api-key")
+            assert key.get_attribute("type") == "password"
+            assert "billed by the provider" in page.locator("#provider-selection-detail").inner_text()
+            assert page.locator("#provider-key-link").get_attribute("href") == "https://platform.openai.com/api-keys"
+            page.screenshot(path=str(out / f"connect-{label}.png"), animations="disabled")
+
+            if label == "phone":
+                page.locator("#provider-advanced summary").click()
+                assert page.locator("#provider-advanced").evaluate("el => el.open")
+                options = page.locator("#provider-advanced-template option").evaluate_all(
+                    "els => els.map(option => option.value).filter(Boolean)"
+                )
+                assert "custom-openai" in options and "chatgpt-plan" not in options
+                assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+                page.screenshot(path=str(out / "connect-phone-advanced.png"), animations="disabled")
+                page.locator("#provider-advanced summary").click()
+                assert not page.locator("#provider-advanced").evaluate("el => el.open")
+
+            page.get_by_role("button", name="Close dialog").click()
+            assert page.locator("#modal-root").inner_text() == ""
+
+            evidence.append({"surface": label, "viewport": [width, height],
+                             "document_overflow": page.evaluate("document.documentElement.scrollWidth - innerWidth")})
+
+        page.set_viewport_size({"width": 1440, "height": 960})
+        page.locator(".service-tile").filter(has_text="AI model providers").get_by_role(
+            "button", name="Connect a provider"
+        ).click()
+        page.locator('[data-quick-provider="openai-api"]').click()
+        key_value = "fixture-only-provider-key"
+        key = page.locator("#provider-api-key")
+        key.fill(key_value)
+        page.get_by_role("button", name="Show", exact=True).click()
+        assert key.get_attribute("type") == "text"
+        page.get_by_role("button", name="Hide", exact=True).click()
+        assert key.get_attribute("type") == "password"
+        assert page.evaluate("JSON.stringify([localStorage, sessionStorage])").find(key_value) == -1
+
+        def mock_connect(route):
+            if route.request.method == "POST":
+                payloads.append(route.request.post_data_json)
+                route.fulfill(status=201, content_type="application/json", body=json.dumps({
+                    "added": "openai-api",
+                    "discovery": {"ok": True, "verified": True, "model_count": 2,
+                                  "detail": "authenticated; 2 model(s) available"},
+                }))
+            else:
+                route.continue_()
+
+        page.route("**/api/connections", mock_connect)
+        page.get_by_role("button", name="Connect and find models").click()
+        page.get_by_text("Connected. Found 2 model IDs; choose one from the model menu.", exact=True).wait_for()
+        assert len(payloads) == 1 and payloads[0]["template"] == "openai-api"
+        assert payloads[0]["api_key"] == key_value and payloads[0]["discover_models"] is True
+        assert key_value not in page.evaluate("JSON.stringify([localStorage, sessionStorage])")
+        page.screenshot(path=str(out / "connected-desktop.png"), animations="disabled")
+        assert not external_requests, external_requests
+        assert not errors, errors
+        trace_path = out / "trace.zip"
+        context.tracing.stop(path=str(trace_path))
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_design_system.py::test_model_provider_connect_flow_is_compact_and_responsive",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_model_provider_connect_flow_is_compact_and_responsive",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "python": platform.python_version(),
+            "browser": f"{browser.browser_type.name.title()} {browser.version}",
+            "playwright": package_version("playwright"),
+            "viewports": evidence,
+            "states": ["provider setup at desktop/tablet/phone", "advanced phone fields", "masked API key", "simulated catalog success"],
+            "external_requests": external_requests,
+            "live_provider_calls": 0,
+            "provider_api": "UI response was intercepted; server integration is covered by tests/test_connections.py",
+            "reduced_motion": "reduce",
+            "source_sha256": _visual_source_hashes(),
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "trace-failed.zip"))
+        except Exception:
+            pass
         context.close()

@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-10-10T05:33:54.278330+00:00",
+  "captured_at": "2026-10-11T00:17:47.307318+00:00",
   "browser": "chromium",
   "version": "153.0.8010.12",
   "viewport": [
@@ -10,12 +10,12 @@
   "page_errors": [],
   "horizontal_overflow": 0,
   "source_sha256": {
-    "website/index.html": "533c091fd92662504e035c883504adcc56667a7e550069b347373d9ca62e36df",
-    "website/styles.css": "7e24188f26d2cf5d75e236d0c9cd8041bd660e826d68afa75a12d6a406f3adc7",
-    "website/site.js": "9a446ad76a657e55e2021bbf5aa033e7ef80593218ca02a4caf89e4ca8cc2e1b",
-    "website/app.css": "5009ae3e06b5c2146796ab3e6fef70a4b9e0b70ba38438992d08b93af1b138d6",
+    "website/index.html": "d35001a2050a3dc2a800b624f6cea6b989adb9cd41a1806ba553948f09d76161",
+    "website/styles.css": "4e2f4b3e4094cfc3aef1e9b21deaaf472421e607bb416824e63db0197dd0f4bd",
+    "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
+    "website/app.css": "0d79350069472ad3e7bc3879896ebb0c1c221d53a58232312e8d3013e333af89",
     "website/tokens.css": "5b585bb3e3513f5f5084de0110003862387c061b1f8b7257dcd8cc9d9153a9a0",
-    "website/assets/captures/setup-desktop.webp": "409dc9f4c16c3939739e2db6e36e36db598a0622ccebddbeeeb7c6b9084d4284",
-    "website/assets/captures/setup-phone.webp": "2383d1e22a7c32429a38ffd901cedc0e21fc77d92c0961a08c3a64547a6df3e7"
+    "website/assets/captures/setup-desktop.webp": "2a384dee24759b788bea27725952e96b512825eb74b5dba4039ed3531610baa0",
+    "website/assets/captures/setup-phone.webp": "0d9d17e9f6856c733e23b7989e55c1eca67216f5ba731bd0200b24f44a39bac2"
   }
 }

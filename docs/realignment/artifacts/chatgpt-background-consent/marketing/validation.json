@@ -19,8 +19,8 @@
   },
   "external_requests": [],
   "page_errors": [],
-  "source_sha256": "f839a4b54a218debd35f759570f766f5d66b7c1355bb3d84d8c329c5d0dba6a8",
-  "styles_sha256": "5fad30e38ec34405dc5158127771a55bde8f6f5902fc56c5de09ce7201644a52",
+  "source_sha256": "d35001a2050a3dc2a800b624f6cea6b989adb9cd41a1806ba553948f09d76161",
+  "styles_sha256": "4e2f4b3e4094cfc3aef1e9b21deaaf472421e607bb416824e63db0197dd0f4bd",
   "coding_handoff_screenshots": [
     "marketing-coding-handoff-faq-desktop.png",
     "marketing-coding-handoff-faq-tablet.png",
