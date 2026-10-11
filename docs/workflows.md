@@ -138,10 +138,15 @@ with a bounded number of rounds.
   by writing into the Bot's shared workspace.
 * `stop` is durable: it cancels the owned work and prevents any continuation.
 
-Recovery currently reuses settled node records and only offers continuation after the prior
-attempt is terminal or has no unreaped process. Stable effect receipts across the crash window
-between an external effect and node settlement are still being completed. Until that guarantee
-is implemented, avoid workflows that depend on retry-safe non-idempotent effects.
+When a workflow needs a person or a child step, Hutch parks the orchestration attempt durably
+and releases its run slot. The workflow remains visible as waiting, not successful. An answer
+or settled child lets the supervisor admit a fresh attempt; settled node records are reused.
+Stopping a parked workflow cancels its pending questions and owned child work, and it remains
+visible until cleanup is verified.
+
+Stable effect receipts across the crash window between an external effect and node settlement
+are still being completed. Until that guarantee is implemented, avoid workflows that depend
+on retry-safe non-idempotent effects.
 
 ## What is not implemented yet
 

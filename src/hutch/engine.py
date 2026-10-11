@@ -369,7 +369,7 @@ class Engine:
                 elif waited > CANCEL_GRACE_SECONDS + 5.0:
                     self._signal_group(proc, signal.SIGKILL)
         cur = self.store.get_run(run.id)
-        if cur is not None and cur.status not in TERMINAL_STATUSES:
+        if cur is not None and cur.status not in (TERMINAL_STATUSES | {RunStatus.waiting_workflow}):
             self._recover_one(cur, extra_error=f"worker exited with code {proc.returncode} before the run finished",
                               owner_exited=True)
         elif cur is not None:
@@ -964,11 +964,17 @@ class Engine:
             exc: RunAborted = result["aborted"]  # type: ignore[assignment]
             error = exc.detail or exc.reason
             outcome_reason = exc.reason
-            outcome_status = RunStatus.stopped if exc.reason == "stopped" else RunStatus.failed
+            outcome_status = (RunStatus.waiting_workflow if exc.reason == "workflow_wait" else
+                              RunStatus.stopped if exc.reason == "stopped" else RunStatus.failed)
             if timed_out and exc.reason == "stopped":
                 outcome_status, outcome_reason, error = RunStatus.failed, "timeout", timeout_msg
-            emit(Event(run_id=run.id, type=EventType.error,
-                       data={"error": f"run aborted ({outcome_reason}): {error}"}))
+            if outcome_status is RunStatus.waiting_workflow:
+                emit(Event(run_id=run.id, type=EventType.log,
+                           data={"workflow": "parked", "reason": error,
+                                 "capacity_released_after_cleanup": True}))
+            else:
+                emit(Event(run_id=run.id, type=EventType.error,
+                           data={"error": f"run aborted ({outcome_reason}): {error}"}))
         elif "crashed" in result:
             outcome_status, outcome_reason = RunStatus.failed, "error"
             error = f"{result['crashed']}\n{result.get('traceback', '')}"
@@ -1048,7 +1054,8 @@ class Engine:
                 pass
             try:
                 self.store.transition_run(run.id, outcome_status, fence=run.fence, exit_reason=outcome_reason, error=error,
-                                          event=data, cancel_wins=True)
+                                          event=data, cancel_wins=True,
+                                          fields={"reason": error} if outcome_status is RunStatus.waiting_workflow else None)
             except (LeaseLost, IllegalTransition, KeyError):
                 pass                    # recovery already decided this run's outcome; the owner does not overwrite it
             self.store.flush_events()
@@ -1231,7 +1238,9 @@ class Engine:
             previous_id = str(candidate.get("attempt_run_id") or "")
             previous = self.store.get_run(previous_id) if previous_id else None
             if previous is not None and previous.cancel_requested:
-                wfstore.update_workflow_run(self.store, wf_id, status="stopped", reason="a stop was requested",
+                terminal = "outcome_unknown" if previous.status is RunStatus.outcome_unknown else "stopped"
+                wfstore.update_workflow_run(self.store, wf_id, status=terminal,
+                                            reason=(previous.error or "a stop was requested")[:500],
                                             finished=True)
                 continue
             if self.store.get_bot(str(candidate["bot_id"])) is None:
@@ -1251,6 +1260,9 @@ class Engine:
         """One beat: recover, expire approvals, claim schedules, drain work and bound change replay."""
         self.recover_orphans()
         expire_stale_approvals(self.store, self.config.default_approval_ttl_seconds)
+        from .workflow import persistence as wfstore
+        wfstore.expire_questions(self.store, limit=200)
+        wfstore.finalize_stopped_workflows(self.store)
         created = self.scheduler_claims()
         self.continue_workflow_runs()
         self.dispatch_pending()

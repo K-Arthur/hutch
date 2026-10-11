@@ -12,7 +12,7 @@ import time
 import pytest
 
 from hutch.engine import Engine
-from hutch.models import ACTIVE_STATUSES, Bot, Task
+from hutch.models import ACTIVE_STATUSES, Bot, Run, RunStatus, Task
 from hutch.store import Store
 from hutch.workflow import persistence as wstore
 from hutch.workflow import submit as wfsubmit
@@ -29,14 +29,36 @@ def make_bot(store: Store, **overrides) -> Bot:
 
 def drive(engine: Engine, store: Store, attempt_run_id: str, timeout: float = 30.0) -> None:
     """The same watch loop the CLI uses: dispatch while work is outstanding."""
+    workflow_id = store.get_run(attempt_run_id).workflow_run_id
+    current_attempt = attempt_run_id
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        engine.dispatch_pending()
-        run = store.get_run(attempt_run_id)
-        if run is None or run.status not in ACTIVE_STATUSES:
+        engine.tick()
+        workflow = wstore.workflow_run(store, workflow_id)
+        if workflow is not None and workflow["status"] in ("succeeded", "failed", "stopped", "outcome_unknown"):
             return
+        if workflow is not None and workflow["attempt_run_id"] != current_attempt:
+            current_attempt = workflow["attempt_run_id"]
+        run = store.get_run(current_attempt)
+        if run is None or (run.status not in ACTIVE_STATUSES and run.status.value != "waiting_workflow"):
+            engine.tick()
+        if run is not None and run.status.value == "waiting_workflow":
+            if wstore.questions(store, workflow_id, status="pending"):
+                return
         time.sleep(0.05)
     raise AssertionError("the workflow did not settle in time")
+
+
+def claim_workflow_owner(store: Store, wf_id: str, attempt_id: str, *, owner: str = "test-workflow-owner"):
+    run = store.claim_run(attempt_id, owner, 60)
+    assert run is not None
+    run = store.transition_run(run.id, RunStatus.running, fence=run.fence)
+    workflow = wstore.workflow_run(store, wf_id)
+    assert workflow is not None
+    assert wstore.claim_workflow_attempt(store, wf_id, attempt_id,
+                                         owner_fence=run.fence,
+                                         revision_id=workflow["revision_id"])
+    return run, workflow
 
 
 def deterministic_plan(**overrides) -> dict:
@@ -126,14 +148,63 @@ def test_stale_workflow_attempt_cannot_replace_the_current_owner(store):
     bot = make_bot(store)
     submission = wfsubmit.submit_workflow(store, bot=bot, plan=deterministic_plan())
     old_attempt = submission.attempt_run_id
-    assert wstore.claim_workflow_attempt(store, submission.workflow_run_id, old_attempt)
+    claim_workflow_owner(store, submission.workflow_run_id, old_attempt)
 
     with store._tx() as db:
         db.execute("UPDATE workflow_runs SET attempt_run_id='replacement-attempt' WHERE id=?",
                    (submission.workflow_run_id,))
 
-    assert not wstore.claim_workflow_attempt(store, submission.workflow_run_id, old_attempt)
+    workflow = wstore.workflow_run(store, submission.workflow_run_id)
+    assert workflow is not None
+    assert not wstore.claim_workflow_attempt(store, submission.workflow_run_id, old_attempt,
+                                             owner_fence=store.get_run(old_attempt).fence,
+                                             revision_id=workflow["revision_id"])
     assert wstore.workflow_run(store, submission.workflow_run_id)["attempt_run_id"] == "replacement-attempt"
+
+
+def test_stale_or_expired_workflow_owner_cannot_mutate_node_or_question(store):
+    from hutch.lifecycle import LeaseLost
+
+    bot = make_bot(store)
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=deterministic_plan())
+    owner, workflow = claim_workflow_owner(store, submission.workflow_run_id,
+                                           submission.attempt_run_id)
+    owner_args = {"owner_run_id": owner.id, "owner_fence": owner.fence,
+                  "revision_id": workflow["revision_id"]}
+
+    # Replacing the workflow generation immediately fences the still-running old attempt.
+    with store._tx() as db:
+        db.execute("UPDATE workflow_runs SET attempt_run_id='new-generation' WHERE id=?",
+                   (submission.workflow_run_id,))
+    with pytest.raises(LeaseLost):
+        wstore.open_node(store, submission.workflow_run_id, **owner_args, site_id="scan",
+                         instance_key="once", kind="tool", input_value={}, input_hash="0" * 64)
+    with pytest.raises(LeaseLost):
+        wstore.create_question(store, wf_id=submission.workflow_run_id, **owner_args,
+                               site_id="ask", instance_key="once", question="Continue?",
+                               options=["yes", "no"], expires_at="2999-01-01T00:00:00+00:00")
+    with pytest.raises(LeaseLost):
+        wstore.settle_node(store, submission.workflow_run_id, "scan", "once", **owner_args,
+                           status="succeeded", result={"data": []})
+
+    # Restore the generation only to prove that an expired lease itself blocks a write.
+    with store._tx() as db:
+        db.execute("UPDATE workflow_runs SET attempt_run_id=? WHERE id=?",
+                   (owner.id, submission.workflow_run_id))
+    with pytest.raises(LeaseLost):
+        wstore.open_node(store, submission.workflow_run_id,
+                         **{**owner_args, "revision_id": "wrong-revision"}, site_id="scan",
+                         instance_key="once", kind="tool", input_value={}, input_hash="0" * 64)
+    with pytest.raises(LeaseLost):
+        wstore.open_node(store, submission.workflow_run_id,
+                         **{**owner_args, "owner_fence": owner.fence + 1}, site_id="scan",
+                         instance_key="once", kind="tool", input_value={}, input_hash="0" * 64)
+    with store._tx() as db:
+        db.execute("UPDATE runs SET lease_expires_at='2000-01-01T00:00:00+00:00' WHERE id=?",
+                   (owner.id,))
+    with pytest.raises(LeaseLost):
+        wstore.open_node(store, submission.workflow_run_id, **owner_args, site_id="scan",
+                         instance_key="once", kind="tool", input_value={}, input_hash="0" * 64)
 
 
 def test_failed_node_fails_the_workflow_with_a_reason(store, config):
@@ -336,12 +407,44 @@ def test_question_waits_and_is_answered_by_its_own_id(store, config):
         time.sleep(0.05)
     assert question is not None and question["question"] == "Proceed with the report?"
     assert wfsubmit.status(store, submission.workflow_run_id)["workflow"]["status"] == "waiting"
+    parked = store.get_run(submission.attempt_run_id)
+    assert parked.status is RunStatus.waiting_workflow and not parked.terminal
+    assert parked.lease_owner == ""
+    other = make_bot(store, name="other-bot")
+    unrelated = Run(bot_id=other.id, prompt="unrelated work")
+    store.submit_run(unrelated, Task(bot_id=other.id, kind="on_demand", prompt=unrelated.prompt))
+    assert store.claim_run(unrelated.id, "other-owner", 60, max_live=1) is not None
     assert wfsubmit.answer(store, question["id"], "yes") == "won"
     drive(engine, store, submission.attempt_run_id)
     view = wfsubmit.status(store, submission.workflow_run_id)
     assert view["workflow"]["status"] == "succeeded"
+    assert view["workflow"]["attempt_run_id"] != submission.attempt_run_id
     nodes = {node["site_id"]: node for node in view["nodes"]}
     assert nodes["after"]["result"] == "yes"
+
+
+def test_stopping_a_parked_workflow_finishes_after_cleanup_and_cancels_questions(store, config):
+    bot = make_bot(store, name="stop-parked")
+    engine = Engine(config, store)
+    plan = {"name": "stop-parked", "envelope": {"tools": []},
+            "budget": {"max_nodes": 5, "max_model_calls": 0},
+            "nodes": [{"kind": "ask", "id": "confirm", "question": "Proceed?",
+                       "timeout_seconds": 300}]}
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=plan)
+    deadline = time.monotonic() + 15
+    while time.monotonic() < deadline and not wstore.questions(
+            store, submission.workflow_run_id, status="pending"):
+        engine.tick()
+        time.sleep(0.05)
+    assert wstore.questions(store, submission.workflow_run_id, status="pending")
+    assert store.get_run(submission.attempt_run_id).status is RunStatus.waiting_workflow
+
+    wstore.request_workflow_stop(store, submission.workflow_run_id)
+    engine.tick()
+    view = wfsubmit.status(store, submission.workflow_run_id)
+    assert view["workflow"]["status"] == "stopped"
+    assert all(question["status"] == "cancelled" for question in view["questions"])
+    assert store.get_run(submission.attempt_run_id).status is RunStatus.stopped
 
 
 def test_saved_definition_runs_without_any_planning_call(store, config):

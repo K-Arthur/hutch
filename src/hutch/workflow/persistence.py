@@ -27,7 +27,8 @@ import json
 import sqlite3
 from typing import Any, Iterable, Optional
 
-from ..models import Run, Task, iso, new_id, utcnow
+from ..lifecycle import IllegalTransition, LeaseLost, TERMINAL
+from ..models import Run, RunStatus, Task, iso, new_id, utcnow
 
 #: Node instance states.
 NODE_STATES = ("pending", "running", "waiting", "succeeded", "failed", "skipped", "cancelled")
@@ -310,12 +311,42 @@ def list_workflow_runs(store: Any, *, bot_id: str = "", limit: int = 50, offset:
     return [_row_to_workflow(row) for row in rows]
 
 
+def _assert_workflow_owner(db: sqlite3.Connection, store: Any, *, wf_id: str,
+                           revision_id: str, attempt_run_id: str, owner_fence: int,
+                           allow_cancelling: bool = False,
+                           allow_stopping: bool = False) -> sqlite3.Row:
+    """Prove the current workflow generation and ordinary-run lease in one transaction."""
+    from ..lifecycle import LeaseLost
+    from ..models import RunStatus
+    from ..store import _RUN_COLS
+
+    workflow = db.execute("SELECT revision_id, attempt_run_id, status, stop_requested "
+                          "FROM workflow_runs WHERE id = ?", (wf_id,)).fetchone()
+    if (workflow is None or str(workflow["revision_id"]) != revision_id
+            or str(workflow["attempt_run_id"]) != attempt_run_id
+            or (int(workflow["stop_requested"]) and not allow_stopping)):
+        raise LeaseLost(attempt_run_id, "workflow attempt or revision is no longer current")
+    if str(workflow["status"]) not in ("pending", "running", "waiting"):
+        raise LeaseLost(attempt_run_id, "workflow instance is already settled")
+    row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (attempt_run_id,)).fetchone()
+    store._check_lease(row, attempt_run_id, owner_fence)
+    status = RunStatus(row["status"])
+    allowed = {RunStatus.running}
+    if allow_cancelling:
+        allowed.add(RunStatus.cancelling)
+    if status not in allowed or (int(row["cancel_requested"]) and not allow_cancelling):
+        raise LeaseLost(attempt_run_id, "workflow attempt is not an active owner")
+    return row
+
+
 def update_workflow_run(store: Any, wf_id: str, *, attempt_run_id: Optional[str] = None,
+                        owner_fence: Optional[int] = None, revision_id: Optional[str] = None,
+                        allow_cancelling: bool = False, allow_stopping: bool = False,
                         status: Optional[str] = None, reason: Optional[str] = None,
                         ledger: Optional[dict[str, Any]] = None, result: Optional[dict[str, Any]] = None,
                         stop_requested: Optional[bool] = None,
                         finished: bool = False) -> bool:
-    """Owner-scoped update. When ``attempt_run_id`` is given the row must still name it."""
+    """Update workflow state, proving attempt, revision and current run lease when owner-scoped."""
     if status is not None and status not in WORKFLOW_STATES:
         raise ValueError(f"unknown workflow state {status!r}")
     sets: list[str] = ["updated_at = ?"]
@@ -346,6 +377,13 @@ def update_workflow_run(store: Any, wf_id: str, *, attempt_run_id: Optional[str]
         where += " AND attempt_run_id = ?"
         args.append(attempt_run_id)
     with store._tx() as db:
+        if attempt_run_id is not None:
+            if owner_fence is None or revision_id is None:
+                raise ValueError("owner-scoped workflow updates require a fence and revision")
+            _assert_workflow_owner(db, store, wf_id=wf_id, revision_id=revision_id,
+                                   attempt_run_id=attempt_run_id, owner_fence=owner_fence,
+                                   allow_cancelling=allow_cancelling,
+                                   allow_stopping=allow_stopping)
         cur = db.execute(f"UPDATE workflow_runs SET {', '.join(sets)} WHERE {where}", args)
         changed = cur.rowcount == 1
     if changed:
@@ -353,18 +391,26 @@ def update_workflow_run(store: Any, wf_id: str, *, attempt_run_id: Optional[str]
     return changed
 
 
-def claim_workflow_attempt(store: Any, wf_id: str, attempt_run_id: str) -> bool:
+def claim_workflow_attempt(store: Any, wf_id: str, attempt_run_id: str, *,
+                           owner_fence: int, revision_id: str) -> bool:
     """Confirm the already-admitted attempt is still the instance's current owner.
 
     Attempt replacement happens atomically during continuation admission. A late process
     from the prior generation must never bind itself over the new attempt.
     """
+    from ..lifecycle import LeaseLost
+
     with store._tx() as db:
+        try:
+            _assert_workflow_owner(db, store, wf_id=wf_id, revision_id=revision_id,
+                                   attempt_run_id=attempt_run_id, owner_fence=owner_fence)
+        except LeaseLost:
+            return False
         cur = db.execute(
             """UPDATE workflow_runs SET status = 'running', reason = '', updated_at = ?
-               WHERE id = ? AND attempt_run_id = ? AND stop_requested = 0
+               WHERE id = ? AND attempt_run_id = ? AND revision_id = ? AND stop_requested = 0
                  AND status IN ('pending','running','waiting')""",
-            (iso(utcnow()), wf_id, attempt_run_id))
+            (iso(utcnow()), wf_id, attempt_run_id, revision_id))
         return cur.rowcount == 1
 
 
@@ -378,6 +424,7 @@ def request_workflow_stop(store: Any, wf_id: str) -> dict[str, Any]:
     update_workflow_run(store, wf_id, status=None, stop_requested=True)
     if attempt:
         store.request_cancel_tree(attempt)
+    cancel_questions(store, wf_id)
     store.bus.notify("work", "workflows", f"workflow:{wf_id}")
     return {"workflow_run_id": wf_id, "attempt_run_id": attempt, "stop_requested": True}
 
@@ -396,22 +443,54 @@ def workflow_runs_needing_attempt(store: Any, *, limit: int = 4,
     if not 1 <= limit <= 50:
         raise ValueError("continuation limit is out of range")
     cutoff = iso(utcnow() - timedelta(seconds=max(0.0, quiet_seconds)))
-    marks = ",".join("?" for _ in _TERMINAL_VALUES)
     with store._lock:
         rows = store._db.execute(
-            f"""SELECT w.* FROM workflow_runs w
-                WHERE w.status IN ('pending','running','waiting') AND w.stop_requested = 0
-                  AND (
-                    (w.attempt_run_id != '' AND EXISTS (
-                        SELECT 1 FROM runs r WHERE r.id = w.attempt_run_id AND r.cancel_requested = 1))
-                    OR (w.updated_at <= ? AND (w.attempt_run_id = '' OR EXISTS (
-                        SELECT 1 FROM runs r WHERE r.id = w.attempt_run_id
-                          AND r.status IN ({marks}) AND r.cancel_requested = 0
-                          AND NOT EXISTS (SELECT 1 FROM run_procs rp WHERE rp.run_id = r.id
-                                          AND rp.ended_at IS NULL AND rp.detached_at IS NULL)))))
-                ORDER BY w.updated_at LIMIT ?""",
-            (cutoff, *_TERMINAL_VALUES, limit)).fetchall()
-    return [_row_to_workflow(row) for row in rows]
+            """SELECT w.* FROM workflow_runs w
+               WHERE w.status IN ('pending','running','waiting') AND w.stop_requested = 0
+               ORDER BY w.updated_at LIMIT 500""").fetchall()
+        ready: list[sqlite3.Row] = []
+        terminal = set(_TERMINAL_VALUES)
+        for workflow in rows:
+            attempt_id = str(workflow["attempt_run_id"] or "")
+            previous = store._db.execute(
+                "SELECT status, cancel_requested FROM runs WHERE id = ?", (attempt_id,)).fetchone()
+            if previous is None:
+                if str(workflow["updated_at"]) <= cutoff:
+                    ready.append(workflow)
+            elif (str(previous["status"]) in terminal
+                  and (str(workflow["updated_at"]) <= cutoff or
+                       str(previous["status"]) == "stopped")):
+                if _workflow_branch_ready(store._db, str(workflow["id"]), attempt_id):
+                    ready.append(workflow)
+            elif (str(previous["status"]) == "waiting_workflow"
+                  and str(workflow["status"]) == "waiting"
+                  and _workflow_branch_ready(store._db, str(workflow["id"]), attempt_id)):
+                ready.append(workflow)
+        return [_row_to_workflow(row) for row in ready[:limit]]
+
+
+def _workflow_branch_ready(db: sqlite3.Connection, wf_id: str, attempt_id: str) -> bool:
+    """No person question, child run, or owned process is left before a fresh pass."""
+    if db.execute("SELECT 1 FROM workflow_questions WHERE workflow_run_id = ? AND status = 'pending' LIMIT 1",
+                  (wf_id,)).fetchone():
+        return False
+    from ..store import _TERMINAL_VALUES
+
+    marks = ",".join("?" for _ in _TERMINAL_VALUES)
+    branch = """WITH RECURSIVE tree(id) AS (
+                   SELECT ? UNION ALL SELECT r.id FROM runs r JOIN tree t ON r.parent_run_id = t.id
+               )"""
+    active_child = db.execute(
+        f"""{branch} SELECT 1 FROM tree t JOIN runs r ON r.id = t.id
+            WHERE r.id != ? AND r.status NOT IN ({marks}) LIMIT 1""",
+        (attempt_id, attempt_id, *_TERMINAL_VALUES)).fetchone()
+    if active_child:
+        return False
+    owned_process = db.execute(
+        f"""{branch} SELECT 1 FROM tree t JOIN run_procs rp ON rp.run_id = t.id
+            WHERE rp.ended_at IS NULL AND rp.detached_at IS NULL LIMIT 1""",
+        (attempt_id,)).fetchone()
+    return owned_process is None
 
 
 def admit_workflow_continuation(store: Any, wf_id: str) -> Optional[Run]:
@@ -435,7 +514,14 @@ def admit_workflow_continuation(store: Any, wf_id: str) -> Optional[Run]:
         if previous is not None:
             if int(previous["cancel_requested"]):
                 return None
-            if str(previous["status"]) not in _TERMINAL_VALUES:
+            previous_status = str(previous["status"])
+            if previous_status == "waiting_workflow":
+                if str(row["status"]) != "waiting" or not _workflow_branch_ready(
+                        db, wf_id, str(row["attempt_run_id"])):
+                    return None
+            elif previous_status not in _TERMINAL_VALUES:
+                return None
+            elif not _workflow_branch_ready(db, wf_id, str(row["attempt_run_id"])):
                 return None
         revision = db.execute("SELECT plan_json FROM workflow_revisions WHERE id = ?",
                               (str(row["revision_id"]),)).fetchone()
@@ -487,7 +573,8 @@ def node(store: Any, wf_id: str, site_id: str, instance_key: str) -> Optional[di
     return _row_to_node(row) if row else None
 
 
-def open_node(store: Any, wf_id: str, *, site_id: str, instance_key: str, kind: str,
+def open_node(store: Any, wf_id: str, *, owner_run_id: str, owner_fence: int, revision_id: str,
+              site_id: str, instance_key: str, kind: str,
               input_value: Any, input_hash: str, attempt: int = 1) -> dict[str, Any]:
     """Insert or re-open one node instance. Re-opening the same identity is idempotent.
 
@@ -498,6 +585,8 @@ def open_node(store: Any, wf_id: str, *, site_id: str, instance_key: str, kind: 
     payload = _json(input_value)
     now = iso(utcnow())
     with store._tx() as db:
+        _assert_workflow_owner(db, store, wf_id=wf_id, revision_id=revision_id,
+                               attempt_run_id=owner_run_id, owner_fence=owner_fence)
         count = db.execute("SELECT COUNT(*) AS n FROM workflow_nodes WHERE workflow_run_id = ?",
                            (wf_id,)).fetchone()["n"]
         if int(count) >= MAX_NODES_PER_RUN:
@@ -522,11 +611,14 @@ def open_node(store: Any, wf_id: str, *, site_id: str, instance_key: str, kind: 
 
 
 def settle_node(store: Any, wf_id: str, site_id: str, instance_key: str, *,
+                owner_run_id: str, owner_fence: int, revision_id: str,
                 status: str, result: Any = None, error: str = "", run_id: Optional[str] = None,
                 input_hash: str = "") -> None:
     if status not in ("succeeded", "failed", "skipped", "cancelled"):
         raise ValueError("a settled node needs a terminal status")
     with store._tx() as db:
+        _assert_workflow_owner(db, store, wf_id=wf_id, revision_id=revision_id,
+                               attempt_run_id=owner_run_id, owner_fence=owner_fence)
         cur = db.execute("""UPDATE workflow_nodes SET status = ?, result_json = ?, error_json = ?,
                                run_id = COALESCE(?, run_id), finished_at = ?,
                                input_hash = CASE WHEN ? != '' THEN ? ELSE input_hash END
@@ -604,10 +696,13 @@ def step_run_result(store: Any, run_id: str) -> dict[str, Any]:
 
 # ------------------------------------------------------------------- questions
 
-def create_question(store: Any, *, wf_id: str, site_id: str, instance_key: str, question: str,
+def create_question(store: Any, *, wf_id: str, owner_run_id: str, owner_fence: int, revision_id: str,
+                    site_id: str, instance_key: str, question: str,
                     options: Iterable[str], expires_at: str) -> dict[str, Any]:
     qid = new_id("wq")
     with store._tx() as db:
+        _assert_workflow_owner(db, store, wf_id=wf_id, revision_id=revision_id,
+                               attempt_run_id=owner_run_id, owner_fence=owner_fence)
         db.execute("""INSERT INTO workflow_questions (id, workflow_run_id, site_id, instance_key,
                         question, options_json, status, asked_at, expires_at)
                       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)
@@ -686,3 +781,56 @@ def cancel_questions(store: Any, wf_id: str) -> int:
     if cur.rowcount:
         store.bus.notify("workflows", f"workflow:{wf_id}")
     return int(cur.rowcount)
+
+
+def finalize_stopped_workflows(store: Any, *, limit: int = 50) -> int:
+    """Finish cancellation only after the attempt tree has terminal states and verified cleanup."""
+    with store._lock:
+        workflows = store._db.execute(
+            "SELECT id, attempt_run_id, stop_requested FROM workflow_runs "
+            "WHERE status IN ('pending','running','waiting') ORDER BY updated_at LIMIT ?", (limit,)
+        ).fetchall()
+    changed = 0
+    terminal_values = {status.value for status in TERMINAL}
+    for workflow in workflows:
+        wf_id, attempt_id = str(workflow["id"]), str(workflow["attempt_run_id"] or "")
+        run = store.get_run(attempt_id) if attempt_id else None
+        if run is None or run.status.value not in terminal_values | {"cancelling"}:
+            continue
+        if not bool(workflow["stop_requested"]) and not run.cancel_requested:
+            continue
+        cancel_questions(store, wf_id)
+        if run.status.value == "cancelling":
+            if run.lease_owner:
+                continue
+            with store._lock:
+                if not _workflow_branch_ready(store._db, wf_id, attempt_id):
+                    continue
+            try:
+                run = store.transition_run(
+                    run.id, RunStatus.stopped,
+                    exit_reason="stopped", error="stopped after owned workflow processes were verified gone",
+                    event={"reason": "stopped", "cleanup_verified": True})
+            except (IllegalTransition, LeaseLost, KeyError):
+                continue
+        if run.status.value not in terminal_values:
+            continue
+        with store._lock:
+            if not _workflow_branch_ready(store._db, wf_id, attempt_id):
+                continue
+        outcome = run.status.value if run.status.value in ("stopped", "failed", "outcome_unknown") else "stopped"
+        nodes_now = nodes(store, wf_id)
+        counts: dict[str, int] = {}
+        for item in nodes_now:
+            counts[item["status"]] = counts.get(item["status"], 0) + 1
+        artifacts: list[dict[str, Any]] = []
+        for item in nodes_now:
+            if item["status"] == "succeeded" and isinstance(item.get("result"), dict):
+                artifacts.extend(ref for ref in (item["result"].get("artifacts") or [])
+                                 if isinstance(ref, dict))
+        result = {"counts": counts, "artifacts": artifacts}
+        if update_workflow_run(store, wf_id, status=outcome,
+                               reason=(run.error or run.exit_reason or "stopped")[:500],
+                               result=result, finished=True):
+            changed += 1
+    return changed

@@ -122,7 +122,7 @@ def test_workflow_cli_run_and_status_answer_a_question(config, tmp_path):
         question = None
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline:
-            engine.dispatch_pending()
+            engine.tick()
             pending = wstore.questions(store, wf_id, status="pending")
             if pending:
                 question = pending[0]
@@ -141,9 +141,10 @@ def test_workflow_cli_run_and_status_answer_a_question(config, tmp_path):
 
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline:
-            engine.dispatch_pending()
-            run = store.get_run(wstore.workflow_run(store, wf_id)["attempt_run_id"])
-            if run is not None and run.status not in ACTIVE_STATUSES:
+            engine.tick()
+            workflow = wstore.workflow_run(store, wf_id)
+            if workflow is not None and workflow["status"] in (
+                    "succeeded", "failed", "stopped", "outcome_unknown"):
                 break
             time.sleep(0.05)
     finally:

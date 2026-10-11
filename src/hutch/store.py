@@ -1419,7 +1419,8 @@ _RUN_COMPUTED = {"status_label", "terminal", "needs_person"}
 _RUN_COLS = ("doc, status, fence, lease_owner, lease_expires_at, cancel_requested, pgid, conversation_id, "
              "conversation_context, parent_run_id, delegation_budget_cost_usd, capability_snapshot_json")
 _TERMINAL_VALUES = tuple(sorted(st.value for st in TERMINAL))
-_LIVE_VALUES = tuple(sorted(st.value for st in ACTIVE_STATUSES if st is not RunStatus.pending))
+_LIVE_VALUES = tuple(sorted(st.value for st in ACTIVE_STATUSES
+                            if st not in (RunStatus.pending, RunStatus.waiting_workflow)))
 #: fields only the owner writes while a run is claimed: merged into the document in one statement (no read-modify-write)
 _PROGRESS_FIELDS = {"steps", "tokens", "workspace", "started_at", "prompt_tokens", "completion_tokens", "cached_tokens",
                     "cost_usd", "model_ms", "queue_ms", "tool_ms", "overhead_ms", "context_used", "context_limit", "model_used",
@@ -1633,7 +1634,7 @@ class Store:
                 raise ValueError('restored database integrity failed; preserve and inspect the copy')
             validate_history(self)
             if db.execute("SELECT 1 FROM runs WHERE status IN ('pending','running','loading_model','waiting_approval',"
-                          "'waiting_human','waiting_resources','recovering','cancelling') LIMIT 1").fetchone():
+                          "'waiting_human','waiting_resources','waiting_workflow','recovering','cancelling') LIMIT 1").fetchone():
                 raise ValueError('unexpected runnable work appeared during restore review; preserve and inspect the copy')
             db.execute('UPDATE state_restores SET activated_at = ?, activation_evidence = ? WHERE id = ? AND activated_at IS NULL',
                        (iso(utcnow()), evidence, restore_id))
@@ -5248,7 +5249,7 @@ class Store:
             raise LeaseLost(run_id, f"fence {fence} is stale (current {row['fence']})")
         if fence is not None and cur not in TERMINAL:
             self._check_lease(row, run_id, fence)
-        if cancel_wins and to in (RunStatus.failed, RunStatus.succeeded) and row["cancel_requested"]:
+        if cancel_wins and to in (RunStatus.failed, RunStatus.succeeded, RunStatus.waiting_workflow) and row["cancel_requested"]:
             to, exit_reason, error = RunStatus.stopped, "stopped", "stopped after owned processes were verified gone"
             event = {**(event or {}), "reason": "stopped", "error": error}
         if cur not in TERMINAL and to in TERMINAL:
@@ -5301,6 +5302,8 @@ class Store:
             args.append(snapshot_to_write)
         if terminal:
             sets += ", lease_owner = '', lease_expires_at = NULL, sealed = 1"
+        elif to is RunStatus.waiting_workflow:
+            sets += ", lease_owner = '', lease_expires_at = NULL"
         db.execute(f"UPDATE runs SET {sets} WHERE id = ?", (*args, run_id))
         if terminal:
             # A terminal run cannot leave an actionable approval behind. Resolve

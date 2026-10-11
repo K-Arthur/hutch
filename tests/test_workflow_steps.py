@@ -51,9 +51,9 @@ def agent_plan(**overrides) -> dict:
     return plan
 
 
-def test_agent_node_runs_as_a_child_step_with_its_own_transcript(store, config, ollama):
+def test_agent_node_releases_its_slot_while_its_child_step_runs(store, config, ollama):
     bot = make_bot(store, name="step-bot", model="ollama/tiny:1b", tools=["files"], selfcheck=False)
-    engine = Engine(config, store)
+    engine = Engine(config, store, max_concurrent=1)
     submission = wfsubmit.submit_workflow(store, bot=bot, plan=agent_plan(),
                                           definition_name="agent-step")
     drive(engine, store, submission.attempt_run_id, timeout=90)

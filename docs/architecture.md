@@ -454,6 +454,15 @@ and keeps one workflow per Bot; step runs share their attempt's global slot and 
 by the workflow's own logical concurrency. `admission.py` is unchanged and remains the
 model-call limiter, so a waiting workflow node never holds an inference seat.
 
+When an attempt waits for a person or a child step, it transitions to `waiting_workflow`:
+the run remains visible and nonterminal, while its lease and capacity are released. The
+supervisor creates a new attempt after the pending question is answered or all children and
+owned processes are verified settled. Node and question creation/settlement verifies the
+current workflow revision, attempt, run fence and lease in the same database transaction.
+The process worker permits a child step to remain under its matching parked workflow attempt;
+a stop or replacement still fences that child. Stable effect receipts across a crash after
+an external effect but before node settlement are a separate, unfinished guarantee.
+
 Roles are gated by evidence, not by a model name: `workflow/qualify.py` resolves the same
 route identity the runtime records observations under (`route_identity.route_tuple`), so a
 changed connection, endpoint, protocol, template, quantization or backend invalidates a

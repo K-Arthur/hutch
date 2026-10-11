@@ -106,6 +106,7 @@ class Interpreter:
         self.tools = tools
         self.budget = budget
         self.wf_id = str(workflow["id"])
+        self.revision_id = str(workflow["revision_id"])
         self.nodes: dict[tuple[str, str], dict[str, Any]] = {}
         self.questions: dict[tuple[str, str], dict[str, Any]] = {}
         self.scope: dict[str, Any] = {}
@@ -312,9 +313,7 @@ class Interpreter:
             self._spend(cnode.site_id, "nodes")
             rendered = self._render(node.question, self._resolve_inputs(node, scope))
             expires = _expiry(node.timeout_seconds)
-            wstore.create_question(self.store, wf_id=self.wf_id, site_id=cnode.site_id,
-                                   instance_key=key, question=rendered,
-                                   options=node.options, expires_at=expires)
+            self._persist_question(cnode.site_id, key, rendered, node.options, expires)
             self._emit(EventType.human_needed, {"node": cnode.site_id, "kind": "question",
                                                 "instance": key, "question": rendered,
                                                 "options": list(node.options),
@@ -534,8 +533,8 @@ class Interpreter:
         self._ensure_open(cnode, memo_key, "verify", {"check": index, "of": instance})
         outcome = self._run_command(cnode, check)
         try:
-            wstore.settle_node(self.store, self.wf_id, cnode.site_id, memo_key,
-                               status="succeeded" if outcome.get("ok") else "failed", result=outcome)
+            self._persist_settle(cnode.site_id, memo_key,
+                                 status="succeeded" if outcome.get("ok") else "failed", result=outcome)
         except ValueError:
             pass
         self.nodes[(cnode.site_id, memo_key)] = {
@@ -566,9 +565,7 @@ class Interpreter:
         if question is None:
             expires = _expiry(check.timeout_seconds)
             prompt = f"{check.prompt} (answer yes or no)"
-            wstore.create_question(self.store, wf_id=self.wf_id, site_id=cnode.site_id,
-                                   instance_key=key, question=prompt, options=["yes", "no"],
-                                   expires_at=expires)
+            self._persist_question(cnode.site_id, key, prompt, ["yes", "no"], expires)
             self._emit(EventType.human_needed, {"node": cnode.site_id, "kind": "human_check",
                                                 "question": prompt, "expires_at": expires})
             raise _Wait()
@@ -699,8 +696,8 @@ class Interpreter:
                 idem_key=f"{cnode.site_id}:{instance_key}:{run.workflow_step['instruction_hash'][:16]}",
                 request_hash=run.workflow_step["instruction_hash"])
         except (ValueError, KeyError, RuntimeError) as exc:
-            wstore.settle_node(self.store, self.wf_id, cnode.site_id, instance_key,
-                               status="failed", error=f"step admission refused: {exc}")
+            self._persist_settle(cnode.site_id, instance_key,
+                                 status="failed", error=f"step admission refused: {exc}")
             raise WorkflowFailed(cnode.site_id, f"step admission refused: {exc}") from None
         if inserted:
             self.store.bus.notify("work")
@@ -716,24 +713,23 @@ class Interpreter:
                 reason += f" ({step['exit_reason']})"
             if step.get("error"):
                 reason += f": {str(step['error'])[:300]}"
-            wstore.settle_node(self.store, self.wf_id, cnode.site_id, instance_key,
-                               status="failed", error=reason, run_id=None)
+            self._persist_settle(cnode.site_id, instance_key,
+                                 status="failed", error=reason, run_id=None)
             raise WorkflowFailed(cnode.site_id, reason)
         value: Any = {"text": text[:MAX_RESULT_BYTES]}
         if output_schema is not None:
             parsed, problems = _parse_structured(text, output_schema)
             if problems:
-                wstore.settle_node(self.store, self.wf_id, cnode.site_id, instance_key,
-                                   status="failed",
-                                   error="the step's answer did not satisfy its output contract: " + problems,
-                                   run_id=None)
+                self._persist_settle(
+                    cnode.site_id, instance_key, status="failed",
+                    error="the step's answer did not satisfy its output contract: " + problems,
+                    run_id=None)
                 raise WorkflowFailed(cnode.site_id,
                                      "the step's answer did not satisfy its output contract: " + problems)
             value["output"] = parsed
         value["steps"] = step.get("steps")
         value["tokens"] = step.get("tokens")
-        wstore.settle_node(self.store, self.wf_id, cnode.site_id, instance_key, status="succeeded",
-                           result=value)
+        self._persist_settle(cnode.site_id, instance_key, status="succeeded", result=value)
         self._emit(EventType.step, {"node": cnode.site_id, "instance": instance_key,
                                     "kind": "step", "phase": "succeeded",
                                     "summary": str(text)[:300]})
@@ -782,7 +778,9 @@ class Interpreter:
         if limit is not None and used > int(limit):
             raise WorkflowFailed(site_id, f"the workflow's {limit_key} budget is exhausted ({limit})")
         self.ledger[key] = used
-        wstore.update_workflow_run(self.store, self.wf_id, attempt_run_id=self.run.id, ledger=self.ledger)
+        wstore.update_workflow_run(self.store, self.wf_id, attempt_run_id=self.run.id,
+                                   owner_fence=self.run.fence, revision_id=self.revision_id,
+                                   ledger=self.ledger)
 
     def _record_container(self, cnode: CompiledNode, result: Any) -> None:
         """Record a bounded construct's own aggregate, so the plan view shows real state."""
@@ -794,8 +792,7 @@ class Interpreter:
             record = self.nodes[key]
         if record["status"] in ("running", "waiting"):
             try:
-                wstore.settle_node(self.store, self.wf_id, cnode.site_id, key[1],
-                                   status="succeeded", result=result)
+                self._persist_settle(cnode.site_id, key[1], status="succeeded", result=result)
             except ValueError:
                 pass
             record["status"] = "succeeded"
@@ -805,9 +802,10 @@ class Interpreter:
                      input_value: Any) -> None:
         """Write the node record before the node does anything (crash-safe identity)."""
         try:
-            wstore.open_node(self.store, self.wf_id, site_id=cnode.site_id,
-                             instance_key=instance_key, kind=kind, input_value=input_value,
-                             input_hash=_hash(input_value))
+            wstore.open_node(self.store, self.wf_id, owner_run_id=self.run.id,
+                             owner_fence=self.run.fence, revision_id=self.revision_id,
+                             site_id=cnode.site_id, instance_key=instance_key, kind=kind,
+                             input_value=input_value, input_hash=_hash(input_value))
         except ValueError as exc:
             raise WorkflowFailed(cnode.site_id, str(exc)) from None
         self.nodes[(cnode.site_id, instance_key)] = {
@@ -816,8 +814,8 @@ class Interpreter:
 
     def _settle(self, cnode: CompiledNode, instance_key: str, status: str, result: Any, error: str) -> None:
         try:
-            wstore.settle_node(self.store, self.wf_id, cnode.site_id, instance_key,
-                               status=status, result=result, error=error)
+            self._persist_settle(cnode.site_id, instance_key,
+                                 status=status, result=result, error=error)
         except ValueError:
             # Another owner settled it first (a stale interpreter pass); the record wins.
             pass
@@ -830,8 +828,8 @@ class Interpreter:
         if record is not None:
             return
         self._ensure_open(cnode, instance_key, cnode.node.kind, {"skipped": reason})
-        wstore.settle_node(self.store, self.wf_id, cnode.site_id, instance_key,
-                           status="skipped", result={}, error=reason)
+        self._persist_settle(cnode.site_id, instance_key,
+                             status="skipped", result={}, error=reason)
         self.nodes[(cnode.site_id, instance_key)] = {
             "site_id": cnode.site_id, "instance_key": instance_key, "status": "skipped",
             "result": {}, "error": {"reason": reason}}
@@ -841,6 +839,20 @@ class Interpreter:
             self.ctx.emit(Event(run_id=self.run.id, type=kind, data=data))
         except Exception:  # noqa: BLE001 - a transcript write must never stop the workflow
             pass
+
+    def _persist_settle(self, site_id: str, instance_key: str, **values: Any) -> None:
+        wstore.settle_node(
+            self.store, self.wf_id, site_id, instance_key,
+            owner_run_id=self.run.id, owner_fence=self.run.fence, revision_id=self.revision_id,
+            **values)
+
+    def _persist_question(self, site_id: str, instance_key: str, question: str,
+                          options: Any, expires_at: str) -> dict[str, Any]:
+        return wstore.create_question(
+            self.store, wf_id=self.wf_id, owner_run_id=self.run.id,
+            owner_fence=self.run.fence, revision_id=self.revision_id,
+            site_id=site_id, instance_key=instance_key, question=question,
+            options=options, expires_at=expires_at)
 
     def _summary(self, value: Any) -> str:
         return _canonical(value)[:200]

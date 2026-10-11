@@ -390,11 +390,21 @@ def test_a_crash_between_opening_a_node_and_admitting_its_step_recovers(store, c
     }
     submission = wfsubmit.submit_workflow(store, bot=bot, plan=plan, definition_name="recover-step")
     # Simulate the crash window: the node record exists, the step run never did.
-    wstore.open_node(store, submission.workflow_run_id, site_id="answer", instance_key="once",
-                     kind="step", input_value={"instruction": "Answer.", "inputs": {}},
-                     input_hash="0" * 64)
     from hutch.models import RunStatus
 
+    owner = store.claim_run(submission.attempt_run_id, "test-workflow-owner", 60)
+    assert owner is not None
+    owner = store.transition_run(owner.id, RunStatus.running, fence=owner.fence)
+    workflow = wstore.workflow_run(store, submission.workflow_run_id)
+    assert workflow is not None
+    assert wstore.claim_workflow_attempt(store, submission.workflow_run_id, owner.id,
+                                         owner_fence=owner.fence,
+                                         revision_id=workflow["revision_id"])
+    wstore.open_node(store, submission.workflow_run_id, site_id="answer", instance_key="once",
+                     owner_run_id=owner.id, owner_fence=owner.fence,
+                     revision_id=workflow["revision_id"],
+                     kind="step", input_value={"instruction": "Answer.", "inputs": {}},
+                     input_hash="0" * 64)
     store.transition_run(submission.attempt_run_id, RunStatus.failed, exit_reason="interrupted")
     continuation = wstore.admit_workflow_continuation(store, submission.workflow_run_id)
     assert continuation is not None

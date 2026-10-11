@@ -108,11 +108,27 @@ def main(argv: list[str] | None = None) -> int:
         signal_worker.start()
         if run.parent_run_id is not None:
             def watch_parent() -> None:
-                # A child must not outlive the parent worker that is awaiting it. This
-                # also covers a hard parent crash, where no in-process cancel hook runs.
-                while not signal_finished.wait(0.25):
+                # A child must not outlive the parent worker that is awaiting it. A
+                # workflow parent deliberately parks while its step runs, so that
+                # matching, current workflow step remains authorized during that wait.
+                def parent_authorized() -> bool:
                     parent = store.get_run(run.parent_run_id)
-                    if (parent is None or parent.status is not RunStatus.running or parent.cancel_requested):
+                    if parent is None or parent.cancel_requested:
+                        return False
+                    if parent.status is RunStatus.running:
+                        return True
+                    if (kind != "step" or parent.status is not RunStatus.waiting_workflow
+                            or not run.workflow_run_id or parent.workflow_run_id != run.workflow_run_id):
+                        return False
+                    from .workflow.persistence import workflow_run
+
+                    workflow = workflow_run(store, run.workflow_run_id)
+                    return bool(workflow and workflow["status"] == "waiting"
+                                and workflow["attempt_run_id"] == parent.id
+                                and not workflow["stop_requested"])
+
+                while not signal_finished.wait(0.25):
+                    if not parent_authorized():
                         engine.stop_run(run.id)
                         return
 

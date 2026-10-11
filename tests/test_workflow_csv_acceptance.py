@@ -182,15 +182,19 @@ def test_the_same_plan_handles_a_clean_export_without_bad_rows(store, config):
                                           inputs={"csv": clean},
                                           definition_name="expense-audit")
     deadline = time.monotonic() + 60
+    pending = []
     while time.monotonic() < deadline:
-        engine.dispatch_pending()
+        engine.tick()
         pending = wstore.questions(store, submission.workflow_run_id, status="pending")
         if pending:
-            wfsubmit.answer(store, pending[0]["id"], "yes")
-        run = store.get_run(submission.attempt_run_id)
-        if run is not None and run.status not in ACTIVE_STATUSES:
+            break
+        workflow = wstore.workflow_run(store, submission.workflow_run_id)
+        if workflow and workflow["status"] in {"succeeded", "failed", "stopped", "outcome_unknown"}:
             break
         time.sleep(0.05)
+    assert pending, "the clean-export workflow should reach its human check"
+    assert wfsubmit.answer(store, pending[0]["id"], "yes") == "won"
+    drive(engine, store, submission.attempt_run_id, timeout=60)
     view = wfsubmit.status(store, submission.workflow_run_id)
     # The declared minimums were written for the messy sample; the plan stops honestly
     # instead of pretending a two-row file passed an audit designed for hundreds.
