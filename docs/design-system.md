@@ -206,6 +206,16 @@ local-host access, or fixture-only states in public flows.
 - Use the 4px spacing rhythm, preserving compact field groups and clear space
   between separate sections. Share alignment edges across repeated cards and
   page headings.
+- Repeated settings rows and collapsible sections use the shared disclosure-row
+  skeleton (`.summary-row` / `.summary-row-sm` in `style.css`): one grid of
+  icon slot, copy, and trailing action, so peer rows keep identical left
+  edges, copy sizes, and action placement, and a summary's padding matches the
+  panel content it opens. Skins (borders, fills, radius) stay with the
+  surface. Never nest a disclosure inside a disclosure — depth is capped at
+  two levels (screen → disclosure → flat content), and a separate connection
+  with its own sign-in is a peer of the access it relates to, never its child.
+  A fallback-less `var()` reference must resolve to a defined token; the
+  stylesheet token guard fails the build when it does not.
 - Use real buttons, links, labels, headings, and landmarks. Keep keyboard focus
   visible, target 44px touch comfort for primary phone actions, and honor reduced
   motion. Use full-page or local scrolling deliberately; do not mask overflow.

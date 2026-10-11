@@ -205,6 +205,19 @@ CATEGORIES = ["Research", "Sales", "Product", "Marketing", "Analytics", "Support
               "Engineering", "Personal"]
 
 
+def instantiate(key: str, name: str) -> Bot:
+    """Create a fresh Bot from a template with its own identity.
+
+    ``TEMPLATES`` entries are process-wide singletons; every copy must receive a new immutable
+    Bot ID, or a second Bot created from the same template collides with the first.
+    """
+    from .models import new_id
+    bot = TEMPLATES[key].model_copy(deep=True)
+    bot.id = new_id("bot")
+    bot.name, bot.template = name, key
+    return bot
+
+
 def gallery() -> list[tuple[str, list[TemplateInfo]]]:
     """Templates grouped by category, in a stable order."""
     out = []
