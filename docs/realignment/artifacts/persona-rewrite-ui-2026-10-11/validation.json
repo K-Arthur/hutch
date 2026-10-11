@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_design_system.py::test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runtimes",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runtimes",
-  "captured_at": "2026-10-11T17:39:39.377744+00:00",
+  "captured_at": "2026-10-11T18:04:06.533598+00:00",
   "browser": "Chromium 153.0.8010.12",
   "playwright": "1.63.0",
   "viewports": [
@@ -494,7 +494,7 @@
   "external_requests": [],
   "correction_requests": [
     {
-      "url": "http://127.0.0.1:33387/api/v1/conversations/conv_001e5e281c93/messages",
+      "url": "http://127.0.0.1:36143/api/v1/conversations/conv_9ae4544a34b5/messages",
       "body": {
         "prompt": "Make this answer shorter.",
         "correction": "shorter",
@@ -518,9 +518,9 @@
     "src/hutch/server/static/brands/google-calendar-2026q2.png": "eac7b1d7c78a7c7fb40d74b6d879ba5fe781cbf2cd5f8d7d40f3c28fea73f77e",
     "src/hutch/server/static/brands/google-gmail-2026q2.png": "ab8e9e880a28e2bc29207a62394aa7d296f435113fcc922819dab629ffbd64e6",
     "src/hutch/server/static/brands/microsoft-outlook.svg": "4a3b6ab15d36e7c5317f75a83d1781708d68cce4d8b9073a3c82f0af662eaf18",
-    "website/index.html": "a984dd782bb9e8b961765bfeaff0e33638e94a546ac64de219db587673377429",
+    "website/index.html": "f9815d2a92501178c668deea226f92fffb82bad5605c09a7630f602ecb30e7ff",
     "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
-    "website/styles.css": "a4a5286aa86f17671b88214ede01d8080be304c844e3d3f977c844790f5f60ac",
+    "website/styles.css": "b1862178cbeb74cc7e6b4a255d753b85acfe580b5437216e95e655c7522fcdce",
     "tests/e2e/test_design_system.py": "a3c5ca808929251f2551f08a6cb9c760a3b1c1e3f59151d3033402e2a2de5503"
   },
   "visual_review": "Screenshots are stored alongside this record and manually inspected after the browser run."

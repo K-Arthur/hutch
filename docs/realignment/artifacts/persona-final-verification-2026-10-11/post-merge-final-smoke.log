@@ -1,0 +1,6 @@
+Post-merge source checkpoint: 5011bab
+Command: TMPDIR=/var/tmp .venv/bin/python -m pytest -q tests/test_migration.py tests/e2e/test_design_system.py::test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive tests/e2e/test_design_system.py::test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runtimes tests/e2e/test_delegation_clarification.py::test_specialist_question_is_answered_from_the_task_card tests/e2e/test_wcag_fixes.py::test_workflow_pill_meets_target_minimum tests/e2e/test_runtime_page.py
+Result: 38 passed in 22.15s (32 migration tests and 6 focused browser tests)
+Post-merge benchmark smoke: 16 samples, 4 warmups; target met (p95 0.078036 ms). Output was sent to /dev/null.
+Recorded 500-sample benchmark artifact: schema valid; p95 0.070031 ms, target 20 ms, zero model calls.
+Temporary storage: /tmp was full; no shared temporary files were removed.

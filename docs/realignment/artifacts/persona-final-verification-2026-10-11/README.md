@@ -29,6 +29,13 @@ After fast-forwarding integrated commit `a111ffb` into local `main`, a final cle
 (32 migration tests and 6 focused browser tests in 22.21 s). The captured output is `post-merge-smoke.log`. This
 targeted post-merge check does not change the full browser-suite status above.
 
+After the final benchmark and design-triage commits were fast-forwarded, the same 38-test post-merge smoke passed again
+in **22.15 s** using `TMPDIR=/var/tmp`; see `post-merge-final-smoke.log`. The run refreshed the live-preview and
+answer-rewrite fixture screenshots, validation records and traces. Their desktop/phone and tablet/compact-phone
+captures were inspected; the records show zero horizontal overflow across their 320, 360, 720, 768 and 1440 CSS-pixel
+checks, no page or console errors, no external requests, and no provider calls. The regenerated persona evidence was
+retained; unrelated delegation captures were restored to their committed state.
+
 The stalled full run's workspace-mode settings case was isolated with `TMPDIR=/var/tmp`. On the integrated tree, all four
 viewport variants failed after 30 seconds at the same wait for the “Workspace Helper settings” heading (4 failed in
 128.38 s). At integration-base commit `63b2712`, the desktop variant failed at that same locator (1 failed, 3 deselected

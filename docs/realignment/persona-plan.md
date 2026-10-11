@@ -373,12 +373,13 @@ Review follow-ups (status after the profile-compatibility slice):
 
 - `scripts/measure_persona_resolution.py` now reproduces the local routing benchmark. Run `09850b2` used 500 samples after 100 warmups over eight synthetic scenario classes on Python 3.13.15 / Linux x86_64 / AMD Ryzen 3 5300U (8 logical CPUs, 22.78 GiB reported RAM). `resolve_persona` + `contextualize_persona` + `guidance` measured **0.060859 ms p50 / 0.070031 ms nearest-rank p95 / 0.099014 ms max**, below the 20 ms local target. The source and result are `scripts/measure_persona_resolution.py` and `artifacts/persona-runtime-evaluation-2026-10-11/local-routing-latency.json`. This excludes provider, retrieval, network, streaming and end-to-end response latency.
 - Live model evaluations remain pending. A dedicated Hutch instance uses a private temporary state directory and the supported local Sign in with ChatGPT flow; the visible browser is waiting at OpenAI sign-in for the user to complete authentication and approve the requested plan-use permission. No model response has been sent. If connected, the evaluation is capped at 12 responses and uses only synthetic prompts; no API key or OpenCode credential is used.
+- Final local merge checkpoint: the clean `main` at `eca93aa` fast-forwarded through `5011bab`. The post-merge migration and focused-browser smoke passed **38 tests in 22.15 s** (32 migration tests and 6 browser tests); the captured result is `artifacts/persona-final-verification-2026-10-11/post-merge-final-smoke.log`. The new benchmark script passed compilation and a 16-sample post-merge smoke; the committed 500-sample result passed its schema/target check. `/tmp` was full during the temporary-output attempt, so the rerun wrote no temporary file and did not clear shared temp data. The full integrated browser suite and live provider quality remain unverified as described above.
 
 ## Rollback
 
-- Nothing is pushed or deployed. The authorized fast-forward from local `main` `63b2712` to integrated commit `a111ffb`
-  is complete, and the main worktree was clean after its post-merge smoke check. The original checkout and sibling
-  worktrees were not rewritten.
+- Nothing is pushed or deployed. The feature branch was fast-forwarded into local `main` after the clean integration
+  checkpoint; the final migration/browser smoke is recorded above. The original checkout and sibling worktrees were
+  not rewritten.
 - Each slice is its own additive commit; reverting that commit restores prior behavior. Contract or schema
   changes require tested downgrades before landing.
 - Mid-run snapshotting prevents a bad preference change from corrupting an in-flight turn; verification uses
