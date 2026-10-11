@@ -57,6 +57,8 @@ during integration (python-docx ZIP timestamps) is repaired and verified byte-id
 2.2 s boundary. Evidence: `docs/realignment/grounding-evidence.md`, `docs/grounding.md`, artifacts under
 `docs/realignment/artifacts/grounding/`. Schema collision resolved: this branch's grounding tables and main's pending-question guards each claimed schema v51 independently. The merged history keeps v51 = grounding tables and v52 = guards plus an idempotent ensure-grounding reconciliation, so a database stamped v51 by either unmerged branch upgrades to a complete v52; `test_v51_reconciliation_upgrades_a_database_from_either_branch` covers both directions.
 
+Related robustness fixes surfaced by the certification runs: `OfflineBrokerSet` now honors `TMPDIR` instead of hardcoding `/tmp` (a full shared tmpfs broke Strict Offline with ENOSPC), and `spawn_interactive` resets SIGINT to its default for the handed-off interactive CLI (a SIGINT-ignoring launcher such as a backgrounded shell previously made Ctrl-C silently unreachable).
+
 Not claimed: any live hosted-model media call, a live
 Jetstream connection, physical-device or screen-reader passes, or tuned budget benchmarks.
 
