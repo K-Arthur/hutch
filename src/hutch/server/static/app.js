@@ -4264,6 +4264,7 @@ function toolLineHtml(item, anchorEvent, runId, includeFileAttachments = true) {
         ${res ? toolOutputHtml(res.d.output) : '<div class="tool-line-section"><span class="tool-line-label">Output</span>pending…</div>'}
       </div>
       ${res?.d.artifact ? `<div class="tool-artifact-actions" id="tla-${esc(String(idx))}" ${open ? "" : "hidden"}>${artifactDownloadHtml(runId, res.d)}${sourceCardHtml(res.d, runId)}</div>` : ""}
+      ${hutchWidgetsFeedItemHtml(res ? res.d : null, { runId })}
     </div>
     ${includeFileAttachments ? createdFilesHtml(runId, [{ result: res }]) : ""}
   </div>`;
@@ -9696,5 +9697,28 @@ document.addEventListener("click", event => {
     openDocumentVersions(versions.dataset.docVersions, versions.dataset.docName, versions);
   }
 });
+
+/* ------------------------------------------- typed output blocks (widgets lane)
+   A tool can attach validated output blocks to its result event:
+   data.blocks (canonical dicts) + data.block_errors (labeled rejections), per
+   docs/research/outputs-block-contract-2026-10-10.md. This hook is the ONLY
+   touchpoint between the feed renderer and widgets.js: toolLineHtml calls it
+   with the result data and it returns the widget-card HTML, or "" when
+   widgets.js is unavailable or the result carries no blocks. widgets.js owns
+   all interactivity through its own document-level delegation and re-reads its
+   UI state from localStorage keyed by block id, so the wholesale feed
+   re-render stays safe. A rejected or unrenderable block always shows its
+   text_fallback and the error — the diagnostic is never erased. */
+function hutchWidgetsFeedItemHtml(data, helpers) {
+  const widgets = window.HutchWidgets;
+  if (!widgets || typeof widgets.blocksHtml !== "function") return "";
+  try {
+    return widgets.blocksHtml(data ? data.blocks : null, data ? data.block_errors : null,
+      { runId: helpers ? helpers.runId : "" }) || "";
+  } catch (err) {
+    console.error("widget block render failed", err);
+    return "";
+  }
+}
 
 void bootstrapHutchApp();
