@@ -13,6 +13,7 @@ from hutch import action_receipts
 from hutch.approvals import ApprovalGate
 from hutch.engine import Engine
 from hutch.models import RunStatus
+from hutch.runtime.base import RunAborted
 from hutch.runtime import steps
 from hutch.safety import PolicyEngine
 from hutch.store import Store
@@ -118,9 +119,11 @@ def test_completed_effect_result_replays_without_a_second_dispatch(store, config
     assert sink.read_text(encoding="utf-8") == "effect\n"
 
 
-def test_process_crash_after_effect_receipt_reopens_state_without_a_second_dispatch(
-        store, config, tmp_path):
-    """An actual owner process exits after the receipt commits but before node settlement."""
+@pytest.mark.parametrize("crash_before_receipt", [False, True],
+                         ids=["after-receipt-before-node-settlement", "after-effect-before-receipt"])
+def test_process_crash_around_effect_receipt_never_repeats_the_sink_effect(
+        store, config, tmp_path, crash_before_receipt):
+    """A process exit on either side of receipt commit never silently repeats the sink effect."""
     bot = make_bot(store, name="effect-real-process-crash", tools=["shell"])
     submission = wfsubmit.submit_workflow(store, bot=bot, plan=_plan())
     sink = tmp_path / "append-only-process-effects.log"
@@ -139,6 +142,7 @@ def test_process_crash_after_effect_receipt_reopens_state_without_a_second_dispa
 
         config = get_config()
         store = Store(config)
+        exit_before_receipt = os.environ.get("HUTCH_EXIT_BEFORE_RECEIPT") == "1"
         bot = store.get_bot(os.environ["HUTCH_EFFECT_BOT"])
         run = store.get_run(os.environ["HUTCH_EFFECT_RUN"])
         run = store.claim_run(run.id, "crash-after-effect-process", 300)
@@ -180,6 +184,8 @@ def test_process_crash_after_effect_receipt_reopens_state_without_a_second_dispa
                     os.fsync(fd)
                 finally:
                     os.close(fd)
+                if exit_before_receipt:
+                    os._exit(74)
                 return ToolResult(ok=True, output="finished",
                                   data={"receipt": "durable-result"})
 
@@ -194,12 +200,13 @@ def test_process_crash_after_effect_receipt_reopens_state_without_a_second_dispa
         "HUTCH_EFFECT_RUN": submission.attempt_run_id,
         "HUTCH_EFFECT_WORKFLOW": submission.workflow_run_id,
         "HUTCH_EFFECT_SINK": str(sink),
+        "HUTCH_EXIT_BEFORE_RECEIPT": "1" if crash_before_receipt else "0",
     })
     child = subprocess.run(
         [sys.executable, "-c", script], cwd=os.getcwd(),
         env=env, capture_output=True, text=True, timeout=60, check=False,
     )
-    assert child.returncode == 73, child.stderr
+    assert child.returncode == (74 if crash_before_receipt else 73), child.stderr
     assert sink.read_text(encoding="utf-8") == "effect\n"
 
     # Close the pre-crash test connection and open the same SQLite state as a new supervisor.
@@ -213,20 +220,29 @@ def test_process_crash_after_effect_receipt_reopens_state_without_a_second_dispa
         recovered = engine.recover_orphans()
         old_attempt = reopened.get_run(submission.attempt_run_id)
         assert any(item.id == submission.attempt_run_id for item in recovered)
-        assert old_attempt.status is RunStatus.failed
-        assert old_attempt.exit_reason == "interrupted"
         [receipt] = reopened.list_actions(old_attempt.id)
-        assert reopened.get_action(receipt["id"])["status"] == "done"
-
+        action = reopened.get_action(receipt["id"])
         continuation = wstore.admit_workflow_continuation(reopened, submission.workflow_run_id)
         assert continuation is not None
-        second, workflow = _owner(reopened, submission.workflow_run_id, continuation.id, "owner-after-restart")
+        second, workflow = _owner(reopened, submission.workflow_run_id, continuation.id,
+                                  "owner-after-restart")
         ctx, tools = _context(reopened, config, reopened.get_bot(bot.id), second, workflow, sink)
-        replay = steps.call_tool(second, ctx, tools, "shell", {"command": "fixture-effect"})
 
-        assert replay.ok is True
-        assert replay.output == "finished"
-        assert replay.data == {"receipt": "durable-result"}
+        if crash_before_receipt:
+            assert old_attempt.status is RunStatus.outcome_unknown
+            assert action["status"] in ("started", "unknown")
+            with pytest.raises(RunAborted, match="reconcile it before retrying") as caught:
+                steps.call_tool(second, ctx, tools, "shell", {"command": "fixture-effect"})
+            assert caught.value.reason == "outcome_unknown"
+        else:
+            assert old_attempt.status is RunStatus.failed
+            assert old_attempt.exit_reason == "interrupted"
+            assert action["status"] == "done"
+            replay = steps.call_tool(second, ctx, tools, "shell", {"command": "fixture-effect"})
+            assert replay.ok is True
+            assert replay.output == "finished"
+            assert replay.data == {"receipt": "durable-result"}
+
         assert sink.read_text(encoding="utf-8") == "effect\n"
         assert len(reopened.list_actions(unresolved=False)) == 1
     finally:
