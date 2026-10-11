@@ -107,18 +107,23 @@ One design-system browser test (`test_assistant_settings_keep_everyday_edits_up_
 the base commit `a2106ec` **without this slice's commits** (reproduced in a clean worktree at
 `a2106ec`); it is pre-existing and not introduced here.
 
-The full browser suite on the final revision reports 25 failures and 8 teardown errors that are
-**pre-existing at the base commit**: a clean worktree at `a2106ec` (no slice commits) run with the
-same selection produced the identical failure set (verified by diffing both pytest `lastfailed`
-caches — zero difference). The clearest mechanism found:
-`test_composer_options_rehearsal_and_cancelled_notice` asserts `inner_text()` of `.run-queue-time`,
-but commit `8059efd` moved that element inside a collapsed `<details id="run-technical-details">`,
-where Chromium's `innerText` is empty; the element itself renders the correct `1.3s` text and the
-run API carries `queue_ms=1250` (verified with a standalone DOM probe). The other failures cluster
-in the same recently refactored surfaces (workspace modes, browser handoff, fact review, tool
-permissions, coordinator, duplication) and are outside this slice's diff. This slice's own browser
-files (`test_skills_browser.py` 6 tests, `test_skills_soak.py`) passed within the same full-suite
-run; the offline suite (1685 tests) is fully green.
+The full browser suite on the final revision (rebased onto `777324a`) reports **28 failures and 8
+teardown errors, with 169 passed**. Every one of the 28 is pre-existing at the current base:
+
+* 25 exactly match the failure set at `a2106ec` (verified by diffing pytest `lastfailed` caches
+  between a clean worktree at `a2106ec` and this one — zero difference).
+* `test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports` and
+  `test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences` fail at `777324a`
+  without this slice's commits (direct run in a clean worktree).
+* `test_browser_hands_off_when_a_wait_reveals_a_sensitive_field` fails at `777324a` alone in
+  isolation too (order/timing-sensitive; `browser.py` and the test are byte-identical to base).
+
+The clearest mechanism among them: `test_composer_options_rehearsal_and_cancelled_notice` asserts
+`inner_text()` of `.run-queue-time`, but commit `8059efd` moved that element inside a collapsed
+`<details id="run-technical-details">`, where Chromium's `innerText` is empty; the element itself
+renders the correct `1.3s` text and the run API carries `queue_ms=1250` (verified with a standalone
+DOM probe). This slice's own browser files (`test_skills_browser.py` 6 tests, `test_skills_soak.py`)
+passed within the same full-suite run; the offline suite (1685 tests) is fully green.
 
 ### Bounded-corpus measurements (200 installed skills, 100 Bots, 20 bound, 3 activated)
 
