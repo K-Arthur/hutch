@@ -49,6 +49,13 @@ Progress (2026-10-11):
 - Combined focused check on this tree: **246 passed** in 138.71 s (skills, routines durability, documents,
   runtime, builtin runtime, conversations, migration, delegation); log at
   `/tmp/opencode/hutch-persona-integration/focused-slices.log`. Full suite, browser suite and live checks remain unrun.
+- `20958e3` slice B: versioned sparse response-style contracts (`src/hutch/persona.py`) with precedence
+  resolution and per-field provenance; typed Bot/Run fields; a conversation `persona` column (schema v51);
+  revision-guarded, idempotent saves with explicit reset; `GET/PATCH /api/v1/.../persona` resources; a one-turn
+  `persona` on message submit; and a write-once resolved plan captured at run start (reused on retries,
+  fail-closed on unreadable or newer state). Evidence: 17 persona tests, updated delegation/migration fixtures,
+  and the **full offline suite: 1879 passed, 1 skipped** (log at
+  `/tmp/opencode/hutch-persona-integration/offline-suite-sliceB-final.log`); browser suite and live checks remain unrun.
 
 ## Acceptance budgets
 
