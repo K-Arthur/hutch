@@ -1,14 +1,14 @@
 {
   "test": "tests/e2e/test_browser.py::test_workflow_studio_lists_and_resolves_every_pending_question",
-  "captured_at": "2026-10-11T22:42:16.118778+00:00",
+  "captured_at": "2026-10-11T23:01:17.488326+00:00",
   "browser": "chromium",
   "browser_version": "153.0.8010.12",
   "playwright": "1.63.0",
-  "scenario": "Two independent durable questions shown together, one answered while the other remains pending, then completion",
+  "scenario": "Two mapped ask instances are exposed together; answering one preserves the other, updates the wait reason and focuses the remaining answer; both answers settle four discovered nodes.",
   "workflow_status": "succeeded",
   "question_ids": [
-    "wq_7f6ee8d9a917",
-    "wq_8f0b03f7cf22"
+    "wq_877599cbb50c",
+    "wq_af4b64de1184"
   ],
   "trace": [
     {
@@ -20,6 +20,7 @@
       "pending_question_forms": 2,
       "horizontal_overflow_px": 0,
       "second_answer_button_height_px": 26,
+      "question_backed_discovered_instances": 2,
       "second_question_id_visible_in_scroll_panel": true
     },
     {
@@ -31,6 +32,7 @@
       "pending_question_forms": 2,
       "horizontal_overflow_px": 0,
       "second_answer_button_height_px": 44,
+      "question_backed_discovered_instances": 2,
       "second_question_id_visible_in_scroll_panel": true
     },
     {
@@ -42,6 +44,7 @@
       "pending_question_forms": 2,
       "horizontal_overflow_px": 0,
       "second_answer_button_height_px": 44,
+      "question_backed_discovered_instances": 2,
       "second_question_id_visible_in_scroll_panel": true
     },
     {
@@ -53,13 +56,22 @@
       "pending_question_forms": 2,
       "horizontal_overflow_px": 0,
       "second_answer_button_height_px": 44,
+      "question_backed_discovered_instances": 2,
       "second_question_id_visible_in_scroll_panel": true
+    },
+    {
+      "state": "one-answer-received",
+      "discovered_instances": [
+        "Answer received",
+        "Waiting"
+      ],
+      "pending_question_forms": 1
     },
     {
       "state": "answers-submitted",
       "answer_order": [
-        "wq_7f6ee8d9a917",
-        "wq_8f0b03f7cf22"
+        "wq_877599cbb50c",
+        "wq_af4b64de1184"
       ],
       "workflow_status": "succeeded",
       "page_errors": []
@@ -67,36 +79,73 @@
   ],
   "page_errors": [],
   "source_sha256": {
-    "src/hutch/workflow/engine.py": "6797cdaa55b60ebc152a0502fe9bd90dc9278effa85ec0414cc3d4ed5e5f4752",
-    "src/hutch/server/static/app.js": "8a124987bab741ffca4381d694422a22d854fbb734aa73309e89758f98860883",
+    "src/hutch/workflow/engine.py": "ac9c716df55ea795baa88cb1c85a4fdf1e60d148c8c46fb4dfcbf6393fd99be2",
+    "src/hutch/workflow/persistence.py": "928a54cee424d0547241532fd05bbf8371ffdf319e3f4e3ca5809bd58dcc8e36",
+    "src/hutch/server/workflows_api.py": "64199f3a358c99fb7e2908787b6bb7b555f64ad9d0ff53ff3c43fc04e6b11a07",
+    "src/hutch/server/static/app.js": "1995d58504779c52ef9db42072c3c06f95dd42b823ad3e6aecc91a1452e5418d",
     "src/hutch/server/static/style.css": "4eb5625f7b73a86bf28245323ccbbc6abd3f3e5c075cc510dabc73ba6c947afc",
-    "tests/e2e/test_browser.py": "ff80966690ef8a9aba89c1a27a8463dcb061b81106ce13cdda27aa4827441673",
-    "tests/test_workflow_engine.py": "8a278cc1252aef0a410823c416af8301008f5e9ff8dad63799f69f76ee8a32f1",
-    "tests/test_workflow_api.py": "3db5a1a86f5bec9c241e761f48a6a9440b33261a44f088e978d53542274217cb",
-    "tests/test_remote_pairing.py": "d523ef47e8c58a0bf7349d16bb268847c0bae245022a626ab35d003c06821d85"
+    "tests/test_workflow_engine.py": "1f3065f11bbe0ec6a25d36b74dbf62dff199b1af27bd0d9c5313fdf252b589f1",
+    "tests/test_workflow_api.py": "5bc9c364c45d117b55f9b882c3002f289bb0cb0401fc378958fb8c758691601c",
+    "tests/test_remote_pairing.py": "d523ef47e8c58a0bf7349d16bb268847c0bae245022a626ab35d003c06821d85",
+    "tests/test_workflow_effect_receipts.py": "8a6ea2fc7384ce5723421f4189bf87c6774c2d6c210fc721291ce328adaac37a",
+    "tests/e2e/test_browser.py": "a661faaee364ec1a7f8d13d1ab15dacad9b22d2293f2e638c14ca6ecf3251665"
   },
-  "verification": [
-    {
-      "command": "TMPDIR=/var/tmp/pytest-of-kevina .venv/bin/pytest -q tests/test_workflow_engine.py tests/test_workflow_api.py tests/test_remote_pairing.py tests/test_workflow_effect_receipts.py --basetemp=/var/tmp/hutch-multi-question-focused-20261011-serial",
-      "result": "111 passed in 64.31s"
+  "terminal_discovered_instances": {
+    "count": 4,
+    "statuses": {
+      "review.confirm item:first": "succeeded",
+      "review.confirm item:second": "succeeded",
+      "review": "succeeded",
+      "combine": "succeeded"
     },
-    {
-      "command": "TMPDIR=/var/tmp/pytest-of-kevina .venv/bin/pytest -q tests/test_workflow_api.py::test_amendment_adoption_archives_and_cancels_old_question_then_continues --basetemp=/var/tmp/hutch-amendment-pause-fenced-20261011",
-      "result": "1 passed in 2.28s"
+    "label": "Completed (not verified)"
+  },
+  "partial_answer_state": {
+    "pending_question_forms": 1,
+    "discovered_statuses": [
+      "Answer received",
+      "Waiting"
+    ],
+    "workflow_reason": "waiting for 1 answer(s)",
+    "focus_moves_to_remaining_question": true
+  },
+  "verification": {
+    "focused_command": "TMPDIR=/var/tmp/pytest-of-kevina .venv/bin/pytest -q tests/test_workflow_engine.py tests/test_workflow_api.py tests/test_remote_pairing.py tests/test_workflow_effect_receipts.py --basetemp=/var/tmp/hutch-map-questions-final-20261011c",
+    "focused_result": "113 passed in 56.86s",
+    "browser_command": "TMPDIR=/var/tmp/pytest-of-kevina .venv/bin/pytest -q tests/e2e/test_browser.py::test_workflow_studio_lists_and_resolves_every_pending_question --basetemp=/var/tmp/hutch-studio-map-instances-final-20261011e",
+    "browser_result": "1 passed in 7.14s",
+    "static_checks": "py_compile for changed Python sources/tests, node --check src/hutch/server/static/app.js, and git diff --check passed",
+    "browser_errors": [],
+    "provider_calls": 0
+  },
+  "visual_validation": {
+    "browser": "153.0.8010.12",
+    "viewports_css_px": {
+      "desktop": [
+        1440,
+        960
+      ],
+      "tablet": [
+        768,
+        1024
+      ],
+      "phone": [
+        360,
+        800
+      ],
+      "compact_phone": [
+        320,
+        800
+      ]
     },
-    {
-      "command": "TMPDIR=/var/tmp/pytest-of-kevina .venv/bin/pytest -q tests/e2e/test_browser.py::test_workflow_studio_lists_and_resolves_every_pending_question --basetemp=/var/tmp/hutch-multi-question-e2e-final-20261011",
-      "result": "1 passed in 6.29s"
+    "horizontal_overflow_px": {
+      "desktop": 0,
+      "tablet": 0,
+      "phone": 0,
+      "compact_phone": 0
     },
-    {
-      "command": "git diff --check && node --check src/hutch/server/static/app.js && .venv/bin/python -m py_compile src/hutch/workflow/engine.py tests/test_workflow_api.py tests/test_workflow_engine.py tests/test_remote_pairing.py tests/e2e/test_browser.py",
-      "result": "passed"
-    }
-  ],
-  "provider_calls": 0,
-  "visual_review": {
-    "file": "visual-review.md",
-    "opened_screenshots": [
+    "phone_answer_target_min_height_px": 44,
+    "opened_captures": [
       "waiting-desktop.png",
       "waiting-tablet.png",
       "waiting-phone.png",
@@ -105,34 +154,37 @@
       "second-question-tablet.png",
       "second-question-phone.png",
       "second-question-compact-phone.png",
+      "discovered-desktop.png",
+      "discovered-tablet.png",
+      "discovered-phone.png",
+      "discovered-compact-phone.png",
+      "partial-answer-phone.png",
+      "partial-discovered-phone.png",
+      "discovered-complete-phone.png",
       "answered-phone.png"
     ],
-    "horizontal_overflow_px": 0,
-    "phone_answer_action_min_height_px": 44,
-    "keyboard_focus_after_partial_answer": "remaining question textarea",
-    "limitations": [
-      "bounded card scroll means only the first question is initially visible",
-      "actual browser zoom and screen-reader behavior not tested",
-      "nested asks and question/approval ordering not covered"
-    ]
+    "actual_browser_zoom": "unverified; CDP Browser.setZoomLevel is unsupported by this headless Chromium build",
+    "visual_observation": "The Studio card uses a bounded internal scroll; at 320px the pending forms are reached by scrolling, and the instance list is separately captured. After a partial answer the durable reason tracks the one remaining answer."
   },
+  "resolved_test_expectation": "Two previous API assertions expected questions to have no node rows. They now assert the paired ask node stays waiting through a paused partial answer and records its answer result after resume.",
   "artifact_sha256": {
-    "answered-phone.png": "c087aee09749a468b09168f0aa86cf5ad893d867de3bb55cbc0a911dc7277fa8",
-    "second-question-compact-phone.png": "b9de6f016c2562f3d1b665b6ff0ba1fc582c9d50c7cc61c1bb78bd255425f0fe",
-    "second-question-desktop.png": "6d0581ff28ced957553e9a84ee58ad4cc33f4a6b7a3bfba35d9a0b0727ca2dea",
-    "second-question-phone.png": "708b85eaebe608b41668bc07dc90c4a097a04d373b82191bea17dc895da5b071",
-    "second-question-tablet.png": "c533d85550051e290d60a9eba09f6ee34e506776beee39e8a6b2fe4c487b3448",
-    "waiting-compact-phone.png": "81f87834ee3630693dcd2e1287e415ad6d091abc269197f1bf6299c0b92b9b47",
-    "waiting-desktop.png": "b0a564ddc01a3a18927de276901367da030c07025145160f5a4c4b55cbf8ac31",
-    "waiting-phone.png": "68a5cc0e34c12183cfb95bc30eabd7c3c345f8a6a268d030f96863c975965646",
-    "waiting-tablet.png": "5909a53826c1d0439e88794870e0b466d51c2c521fe044b01337f6e48ab6628a",
-    "trace.zip": "262eeba8ab5347069c61c981bfd090cca4dde138cd6a15691d086fb788a64865"
-  },
-  "test_investigations": [
-    {
-      "initial_parallel_rerun": "110 passed, 1 failed in 64.09s; test_amendment_adoption_archives_and_cancels_old_question_then_continues attempted pause after question publication but before the supervisor parked the attempt, receiving the expected 409 for that transient state.",
-      "classification": "test polling race; the test assumed a pending question meant the run was already parked.",
-      "resolution": "poll now waits for workflow status waiting and attempt status waiting_workflow before amendment adoption; isolated regression passed in 2.28s, followed by the full 111-test focused set passing in 64.31s."
-    }
-  ]
+    "answered-phone.png": "ebe8e7d29cda7286a83746596bb3af6366966c958ed315329492c1fd4e26a07b",
+    "discovered-compact-phone.png": "981d62a8a6c37c76c55dbb0b0bfa8a18563d6c8fbd269d9b071404577e7f714e",
+    "discovered-complete-phone.png": "7e8e97a6d88d5279e928e05418cdde8f80b67689e6a1df3869d06c772dae39d3",
+    "discovered-desktop.png": "1301cc331993800afc7023286494a30fa6921798104b189ea324aee815162f5c",
+    "discovered-phone.png": "e8935c20516d2e2a0cc5dbf4485434dc1f5a65cc5bcccfde05bcaaa1a201bb45",
+    "discovered-tablet.png": "09dee3e3c5f37d6bbed0d4707858c4541351cabac7da6f86829f4999d428cd3e",
+    "partial-answer-phone.png": "00303774135502e78b2a46c3c754c5f8a2a98a8e86f69ed2725f318f2f80f1c8",
+    "partial-discovered-phone.png": "280bbf64ab59a1c515cc9cdc52816cc6c4ead4ccfe18b68800958dbbbb046c74",
+    "second-question-compact-phone.png": "4fbaf4c4b9f6d878633445a7a148ffa951982c51eb10b7f1286e2e5fb7ba27aa",
+    "second-question-desktop.png": "9dceb856e80d22092ae8e447c2397b81d961aace194aa082ddf0f90e5d4c29f4",
+    "second-question-phone.png": "04f273ec4d1fc4fa8ae3cc2479651f90ecf2725f8c472fdd020bfc7f95529612",
+    "second-question-tablet.png": "f86e008d52ada5e285f2f153602af231c94b85207995ae00b034695a1d3b4975",
+    "trace.zip": "cae7e94bdeb2f946703c65e5e84125cbcf162b20b0de668fd3cb550dde8433fc",
+    "visual-review.md": "f2429e548c4d82901b68b185f4f2fdadfd7c480c3620527cd6527f9578c8ceaa",
+    "waiting-compact-phone.png": "9049568effdde900c97a2ea3aec3902cd1beae7f9ebca5b668a75b32acfb01d2",
+    "waiting-desktop.png": "3977de1ab98920d5184f642796a791f96e46ba1c1add5a32fb2a75119c3975cb",
+    "waiting-phone.png": "222f7fe9ac2ee332c4821c4dc5758b6cce5439ee30efe68ce9229074d4e05677",
+    "waiting-tablet.png": "806f08e54343217d59da0e0844b252c5621ea74281650045bcc562798ecc2703"
+  }
 }

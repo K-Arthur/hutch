@@ -657,7 +657,9 @@ do not add a migration.
   nothing), `POST /api/v1/workflows/plans` (submit an inline plan),
   `POST /api/v1/workflows/{ref}/runs` (run the latest revision with no planning call),
   `GET /api/v1/workflows/runs` and `GET /api/v1/workflows/runs/{id}` (instance + attempt +
-  node records + questions + the committed structure),
+  node records + questions + the committed structure). Each question includes `revision_id` and
+  `attempt_run_id`; Studio scopes pending prompts and question-backed discovered instances to that
+  current pair, so an old attempt cannot reappear as actionable work,
   `POST /api/v1/workflows/runs/{id}/stop`,
   `POST /api/v1/workflows/questions/{question_id}/answer` (bound to that one question id),
   and `GET/POST/DELETE /api/v1/workflows/qualifications` (role evidence; an operator

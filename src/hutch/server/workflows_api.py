@@ -113,6 +113,8 @@ class WorkflowQuestionResource(BaseModel):
     question: str
     options: list[str] = Field(default_factory=list)
     status: str
+    revision_id: str = ""
+    attempt_run_id: str = ""
     answer: str = ""
     asked_at: str
     expires_at: str
@@ -466,7 +468,8 @@ def _question_resource(row: dict[str, Any]) -> WorkflowQuestionResource:
     return WorkflowQuestionResource(
         id=str(row["id"]), site_id=str(row["site_id"]), instance_key=str(row["instance_key"]),
         question=str(row["question"]), options=list(row.get("options") or []),
-        status=str(row["status"]), answer=str(row.get("answer") or ""),
+        status=str(row["status"]), revision_id=str(row.get("revision_id") or ""),
+        attempt_run_id=str(row.get("attempt_run_id") or ""), answer=str(row.get("answer") or ""),
         asked_at=str(row["asked_at"]), expires_at=str(row["expires_at"]),
         answered_at=row.get("answered_at"))
 

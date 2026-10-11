@@ -488,8 +488,17 @@ current workflow revision, attempt, run fence and lease in the same database tra
 The interpreter may collect independent top-level `ask` nodes during one pass, publishing each
 under its own durable ID before parking. It holds later work and dependent asks until the current
 questions are answered. Studio and paired-phone review project every active question; an answer
-is scoped to its ID and does not grant action authority. Asks nested in bounded constructs still
-park serially at the first wait.
+is scoped to its ID and does not grant action authority. The owner API returns each question's
+revision and attempt identity. Studio derives a waiting ask instance from that record until a node
+settles, counts it separately from the planned graph, and ignores question records from an older
+revision or attempt. Each question is paired transactionally with a durable `ask` node: creation
+commits both the question and `waiting` node state; answer settlement records the answer result on
+that node; Stop cancels both records together. This makes pending asks visible in discovered
+instances and preserves their terminal outputs. Answer acceptance also updates the durable wait
+reason to the remaining question count (or the paused/resume state), so the queue explanation cannot
+lag the **Needs you** count. A bounded map can expose one pending ask per item up to its declared
+concurrency while it visits items in stable order; it does not dispatch those items in parallel.
+Multiple asks within one item and asks in a branch or repeat remain serial.
 The process worker permits a child step to remain under its matching parked workflow attempt;
 a stop or replacement still fences that child. Stable effect receipts across a crash after
 an external effect but before node settlement use a stable identity derived from workflow

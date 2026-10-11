@@ -376,22 +376,32 @@ class Interpreter:
         record = self.nodes.get((cnode.site_id, key))
         if record is not None and record["status"] == "succeeded":
             return record["result"]
+        if record is not None and record["status"] in ("failed", "cancelled"):
+            raise WorkflowFailed(cnode.site_id, record["error"].get("reason") or "question failed")
         question = self.questions.get((cnode.site_id, key))
+        rendered = self._render(node.question, self._resolve_inputs(node, scope))
+        identity = {"question": rendered, "options": list(node.options)}
+        if record is None:
+            self._start_node(cnode, key, "ask", identity)
+        elif record.get("input_hash") != _hash(identity):
+            raise WorkflowFailed(cnode.site_id, "the persisted question inputs changed during continuation")
+
         if question is None:
-            with self.store._lock:
-                if wstore.workflow_pause_requested(self.store, self.wf_id):
-                    raise _Wait()
-                self._spend(cnode.site_id, "nodes")
-                rendered = self._render(node.question, self._resolve_inputs(node, scope))
-                expires = _expiry(node.timeout_seconds)
-                question = self._persist_question(cnode.site_id, key, rendered, node.options, expires)
-                self.questions[(cnode.site_id, key)] = question
+            expires = _expiry(node.timeout_seconds)
+            question = self._persist_question(cnode.site_id, key, rendered, node.options, expires)
+            self.questions[(cnode.site_id, key)] = question
             self._emit(EventType.human_needed, {"node": cnode.site_id, "kind": "question",
                                                 "instance": key, "question": rendered,
                                                 "options": list(node.options),
                                                 "expires_at": expires})
             raise _Wait()
         if question["status"] == "pending":
+            # Older interrupted runs may have a question without its node record. Re-assert
+            # the paired waiting state atomically, while keeping the existing question ID.
+            if record is None or record.get("status") != "waiting":
+                question = self._persist_question(cnode.site_id, key, rendered, node.options,
+                                                  str(question["expires_at"]))
+                self.questions[(cnode.site_id, key)] = question
             raise _Wait()
         if question["status"] == "answered":
             result = {"answer": question["answer"], "question_id": question["id"]}

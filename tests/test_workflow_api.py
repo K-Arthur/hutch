@@ -412,9 +412,11 @@ def test_pause_holds_an_answered_wait_and_resume_continues_the_same_workflow(cli
     time.sleep(2.25)
     held = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
     assert held["workflow"]["pause_requested"] is True
+    assert held["workflow"]["reason"] == "paused by owner; answers received; waiting for resume"
     assert held["workflow"]["attempt_run_id"] == attempt_id
     assert held["attempt"]["status"] == "waiting_workflow"
-    assert {node["site_id"] for node in held["nodes"]} == set()
+    assert {node["site_id"] for node in held["nodes"]} == {"confirm"}
+    assert held["nodes"][0]["status"] == "waiting"
 
     resume_url = f"/api/v1/workflows/runs/{workflow_id}/resume"
     resumed = client.post(resume_url, headers={"Idempotency-Key": "wf-resume-once"}, json=pause_body)
@@ -434,8 +436,10 @@ def test_pause_holds_an_answered_wait_and_resume_continues_the_same_workflow(cli
     assert finished is not None and finished["workflow"]["status"] == "succeeded", finished
     assert finished["workflow"]["pause_requested"] is False
     assert finished["workflow"]["attempt_run_id"] != attempt_id
-    assert {node["site_id"] for node in finished["nodes"]} == {"carry_answer"}
+    assert {node["site_id"] for node in finished["nodes"]} == {"confirm", "carry_answer"}
     assert next(item for item in finished["questions"] if item["id"] == question["id"])["status"] == "answered"
+    assert next(node for node in finished["nodes"] if node["site_id"] == "confirm")["result"] == {
+        "answer": "verified", "question_id": question["id"]}
     assert next(node for node in finished["nodes"] if node["site_id"] == "carry_answer")["result"] == "verified"
 
     stop_plan = {**ask_plan, "name": "stop-clears-pause", "nodes": ask_plan["nodes"][:1]}
@@ -598,7 +602,8 @@ def test_recovery_parks_a_lost_active_attempt_when_pause_is_requested(client):
     assert held and held["workflow"]["attempt_run_id"] != old_generation, held
     assert held["workflow"]["status"] == "waiting", held
     assert held["attempt"]["status"] == "waiting_workflow", held
-    assert {node["site_id"] for node in held["nodes"]} == set()
+    assert {node["site_id"] for node in held["nodes"]} == {"confirm"}
+    assert held["nodes"][0]["status"] == "waiting"
 
     resume_body = {"expected_revision_id": held["workflow"]["revision_id"],
                    "expected_generation": held["workflow"]["attempt_run_id"]}
@@ -613,7 +618,8 @@ def test_recovery_parks_a_lost_active_attempt_when_pause_is_requested(client):
             break
         time.sleep(0.05)
     assert finished is not None and finished["workflow"]["status"] == "succeeded", finished
-    assert {node["site_id"] for node in finished["nodes"]} == {"after"}
+    assert {node["site_id"] for node in finished["nodes"]} == {"confirm", "after"}
+    assert next(node for node in finished["nodes"] if node["site_id"] == "confirm")["result"]["answer"] == "yes"
 
 
 def test_stop_is_durable_and_idempotent(client):

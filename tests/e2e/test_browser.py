@@ -370,15 +370,16 @@ def test_workflow_studio_lists_and_resolves_every_pending_question(browser, live
     title = "review-two-independent-settings"
     plan = {
         "name": title,
-        "envelope": {"tools": []},
+        "inputs": {"settings": {"type": "array", "max_items": 2}},
+        "envelope": {"tools": [], "max_parallel_steps": 2},
         "budget": {"max_nodes": 8, "max_model_calls": 0},
         "nodes": [
-            {"kind": "ask", "id": "first", "title": "First setting",
-             "question": "Which first setting should be used?", "timeout_seconds": 600},
-            {"kind": "ask", "id": "second", "title": "Second setting",
-             "question": "Which second setting should be used?", "timeout_seconds": 600},
+            {"kind": "map", "id": "review", "over": {"ref": "input.settings"},
+             "item_key": "key", "concurrency": 2, "max_items": 2, "body": [
+                 {"kind": "ask", "id": "confirm", "inputs": {"label": {"ref": "item.label"}},
+                  "question": "How should {{label}} be configured?", "timeout_seconds": 600}]},
             {"kind": "transform", "id": "combine", "op": "to_json",
-             "args": {"value": [{"ref": "first.answer"}, {"ref": "second.answer"}]}},
+             "args": {"value": {"ref": "review.items"}}},
         ],
     }
     out = Path(__file__).resolve().parents[2] / \
@@ -397,7 +398,9 @@ def test_workflow_studio_lists_and_resolves_every_pending_question(browser, live
         definition = saved.json()
         launched = page.request.post(
             f"{base}/api/v1/workflows/{definition['id']}/runs",
-            data={"bot": bot.name, "conversation_id": conversation["id"], "inputs": {}},
+            data={"bot": bot.name, "conversation_id": conversation["id"],
+                  "inputs": {"settings": [{"key": "first", "label": "First setting"},
+                                          {"key": "second", "label": "Second setting"}]}},
             headers={"Idempotency-Key": "workflow-multi-question-launch"})
         assert launched.status == 201, launched.text()
         workflow_id = launched.json()["workflow_run_id"]
@@ -410,7 +413,17 @@ def test_workflow_studio_lists_and_resolves_every_pending_question(browser, live
             if len(pending_questions) == 2 and attempt is not None and attempt.status is RunStatus.waiting_workflow:
                 break
             time.sleep(0.05)
-        assert {question["site_id"] for question in pending_questions} == {"first", "second"}
+        assert {question["site_id"] for question in pending_questions} == {"review.confirm"}
+        assert len({question["instance_key"] for question in pending_questions}) == 2
+
+        authoritative = page.request.get(f"{base}/api/v1/workflows/runs/{workflow_id}")
+        assert authoritative.status == 200, authoritative.text()
+        workflow_detail = authoritative.json()
+        question_projection = {question["id"]: question for question in workflow_detail["questions"]}
+        for question in pending_questions:
+            projected = question_projection[question["id"]]
+            assert projected["revision_id"] == workflow_detail["workflow"]["revision_id"]
+            assert projected["attempt_run_id"] == workflow_detail["workflow"]["attempt_run_id"]
 
         page.goto(f"{base}/#/chat/{bot.name}")
         panel = page.locator("#workflow-panel")
@@ -422,8 +435,14 @@ def test_workflow_studio_lists_and_resolves_every_pending_question(browser, live
         assert forms.count() == 2
         assert {forms.nth(index).get_attribute("data-question-id") for index in range(2)} == {
             question["id"] for question in pending_questions}
-        assert panel.get_by_text("Which first setting should be used?", exact=True).count() == 1
-        assert panel.get_by_text("Which second setting should be used?", exact=True).count() == 1
+        assert "2 discovered instances" in panel.locator(".workflow-panel-meta").inner_text()
+        discovered = panel.locator('[aria-label="Discovered workflow instances"] li')
+        assert discovered.count() == 2
+        assert {discovered.nth(index).inner_text().splitlines()[1] for index in range(2)} == {
+            question["instance_key"] for question in pending_questions}
+        assert all("Waiting" in discovered.nth(index).inner_text() for index in range(2))
+        assert panel.get_by_text("How should First setting be configured?", exact=True).count() == 1
+        assert panel.get_by_text("How should Second setting be configured?", exact=True).count() == 1
 
         sizes = [("desktop", 1440, 960), ("tablet", 768, 1024),
                  ("phone", 360, 800), ("compact-phone", 320, 800)]
@@ -459,10 +478,23 @@ def test_workflow_studio_lists_and_resolves_every_pending_question(browser, live
                 assert answer_button_bounds["height"] >= 44, (label, answer_button_bounds)
             page.screenshot(path=str(out / f"second-question-{label}.png"),
                             full_page=True, animations="disabled")
+            panel.evaluate("""element => {
+              const list = element.querySelector('[aria-label="Discovered workflow instances"]');
+              const top = list.getBoundingClientRect().top - element.getBoundingClientRect().top + element.scrollTop;
+              element.scrollTo({top: Math.max(0, top - 48), behavior: 'instant'});
+            }""")
+            instance_rows = panel.locator('[aria-label="Discovered workflow instances"] li')
+            assert instance_rows.count() == 2
+            assert all(question["instance_key"] in instance_rows.nth(index).inner_text()
+                       for index, question in enumerate(sorted(pending_questions,
+                                                               key=lambda item: item["instance_key"])))
+            page.screenshot(path=str(out / f"discovered-{label}.png"),
+                            full_page=True, animations="disabled")
             panel.evaluate("element => element.scrollTo({top: 0, behavior: 'instant'})")
             trace.append({"viewport": label, "size": [width, height], "pending_question_forms": 2,
                           "horizontal_overflow_px": overflow,
                           "second_answer_button_height_px": answer_button_bounds["height"],
+                          "question_backed_discovered_instances": instance_rows.count(),
                           "second_question_id_visible_in_scroll_panel": True})
 
         first = panel.locator(f'[data-question-id="{pending_questions[0]["id"]}"]')
@@ -474,6 +506,26 @@ def test_workflow_studio_lists_and_resolves_every_pending_question(browser, live
         panel.locator(f'[data-question-id="{pending_questions[1]["id"]}"]').wait_for(state="visible")
         assert panel.locator("[data-workflow-question-form]").count() == 1
         panel.get_by_text("1 pending question", exact=True).wait_for()
+        panel.get_by_text("Current reason: waiting for 1 answer(s)", exact=True).wait_for()
+        assert "2 discovered instances" in panel.locator(".workflow-panel-meta").inner_text()
+        partial_rows = panel.locator('[aria-label="Discovered workflow instances"] li')
+        assert partial_rows.count() == 2
+        assert {partial_rows.nth(index).inner_text().splitlines()[-1] for index in range(2)} == {
+            "Answer received", "Waiting"}
+        page.set_viewport_size({"width": 360, "height": 800})
+        page.screenshot(path=str(out / "partial-answer-phone.png"), full_page=True,
+                        animations="disabled")
+        panel.evaluate("""element => {
+          const list = element.querySelector('[aria-label="Discovered workflow instances"]');
+          const top = list.getBoundingClientRect().top - element.getBoundingClientRect().top + element.scrollTop;
+          element.scrollTo({top: Math.max(0, top - 48), behavior: 'instant'});
+        }""")
+        page.screenshot(path=str(out / "partial-discovered-phone.png"), full_page=True,
+                        animations="disabled")
+        panel.evaluate("element => element.scrollTo({top: 0, behavior: 'instant'})")
+        trace.append({"state": "one-answer-received", "discovered_instances": [
+            partial_rows.nth(index).inner_text().splitlines()[-1] for index in range(2)],
+            "pending_question_forms": 1})
         page.wait_for_function(
             """questionId => document.activeElement?.closest('[data-workflow-question-form]')?.dataset.questionId === questionId""",
             arg=pending_questions[1]["id"])
@@ -490,11 +542,27 @@ def test_workflow_studio_lists_and_resolves_every_pending_question(browser, live
                 break
             time.sleep(0.05)
         assert workflow_store.workflow_run(store, workflow_id)["status"] == "succeeded"
+        page.get_by_role("button", name="Refresh").click()
+        page.wait_for_function("document.querySelector('#workflow-panel .workflow-panel-head')?.innerText.includes('Finished')")
+        assert "4 discovered instances" in panel.locator(".workflow-panel-meta").inner_text()
+        completed_rows = panel.locator('[aria-label="Discovered workflow instances"] li')
+        assert completed_rows.count() == 4
+        assert all("Completed" in completed_rows.nth(index).inner_text() for index in range(4))
+        completed_question_rows = [completed_rows.nth(index).inner_text() for index in range(4)
+                                   if "review.confirm" in completed_rows.nth(index).inner_text()]
+        assert len(completed_question_rows) == 2
+        assert all("Completed" in row for row in completed_question_rows)
         assert not errors, errors
         trace.append({"state": "answers-submitted", "answer_order": [
             pending_questions[0]["id"], pending_questions[1]["id"]], "workflow_status": "succeeded",
             "page_errors": errors})
         page.set_viewport_size({"width": 360, "height": 800})
+        panel.evaluate("""element => {
+          const list = element.querySelector('[aria-label="Discovered workflow instances"]');
+          const top = list.getBoundingClientRect().top - element.getBoundingClientRect().top + element.scrollTop;
+          element.scrollTo({top: Math.max(0, top - 48), behavior: 'instant'});
+        }""")
+        page.screenshot(path=str(out / "discovered-complete-phone.png"), full_page=True, animations="disabled")
         panel.evaluate("element => element.scrollTo({top: 0, behavior: 'instant'})")
         page.screenshot(path=str(out / "answered-phone.png"), full_page=True, animations="disabled")
         (out / "results.json").write_text(json.dumps({

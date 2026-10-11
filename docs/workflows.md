@@ -296,8 +296,16 @@ the supervisor admit a fresh attempt; settled node records are reused.
 For independent top-level questions, later questions are also committed in that pass and shown
 together in Studio and paired-phone **Needs you**. Non-ask work and questions that depend on an
 unanswered question or deferred node stay held until the pending questions are answered. Each
-answer resolves only its durable question ID and grants no action authority. Asks nested inside
-bounded constructs remain serial and stop at the first wait; collecting those is not yet supported.
+answer resolves only its durable question ID and grants no action authority. A bounded map can
+surface one pending ask per item up to its declared concurrency; items are visited in stable order,
+not dispatched in parallel. Multiple asks inside one item, and asks in a branch or repeat, still
+wait at the first unanswered ask. Hutch opens a durable ask-node record before publishing a question,
+then commits the question and node's `waiting` state together. An answer settles that same node with
+its answer result; Stop cancels it together with the pending question. Studio counts question-backed
+instances separately from the immutable planned structure, including during the short transition
+before the node result is projected. Accepting an answer refreshes the durable waiting reason to the
+remaining question count; after the final answer it says continuation is pending, or waiting for owner
+resume when the run is paused.
 Stopping a parked workflow cancels its pending questions and owned child work, and it remains
 visible until cleanup is verified.
 Automatic continuation is reserved for attempts recovered as interrupted and canonical

@@ -382,6 +382,9 @@ function workflowDisplayTitle(value) {
 }
 
 function workflowNodeLabel(node) {
+  if (node.question_status === "answered" && node.status !== "succeeded") return "Answer received";
+  if (node.question_status === "expired") return "Question expired";
+  if (node.question_status === "cancelled") return "Cancelled";
   if (node.status === "succeeded") {
     if (node.result && typeof node.result === "object" && node.result.verified === true) return "Verified";
     if (node.result && typeof node.result === "object" && node.result.verified === false) return "Completed · not verified";
@@ -438,6 +441,25 @@ async function refreshWorkflowPanel(botName, conversationId, generation, force =
     const plan = detail?.plan || {};
     const structure = detail?.structure || [];
     const nodes = detail?.nodes || [];
+    const currentQuestions = (detail?.questions || []).filter(question =>
+      question.revision_id === selected?.revision_id && question.attempt_run_id === selected?.attempt_run_id);
+    const pendingQuestions = currentQuestions.filter(question => question.status === "pending");
+    const questionByIdentity = new Map(currentQuestions.map(question =>
+      [JSON.stringify([question.site_id, question.instance_key]), question]));
+    const questionNodeStatus = { pending: "waiting", answered: "waiting", expired: "failed", cancelled: "cancelled" };
+    const projectedNodes = nodes.map(node => {
+      const question = questionByIdentity.get(JSON.stringify([node.site_id, node.instance_key]));
+      return question && !["succeeded", "failed", "skipped", "cancelled"].includes(node.status)
+        ? { ...node, question_status: question.status } : node;
+    });
+    const nodeIdentities = new Set(projectedNodes.map(node => JSON.stringify([node.site_id, node.instance_key])));
+    const questionNodes = currentQuestions.filter(question =>
+      !nodeIdentities.has(JSON.stringify([question.site_id, question.instance_key]))
+    ).map(question => ({
+      site_id: question.site_id, instance_key: question.instance_key, kind: "ask",
+      status: questionNodeStatus[question.status] || "unknown", question_status: question.status,
+    }));
+    const discoveredNodes = [...projectedNodes, ...questionNodes];
     const title = workflowDisplayTitle(plan.name || "Workflow run");
     const stopButton = selected && ["pending", "running", "waiting"].includes(selected.status)
       ? `<button class="btn danger small" type="button" data-workflow-action="stop" data-workflow-id="${esc(selected.id)}" data-revision-id="${esc(selected.revision_id)}">${icon("stop")} Stop workflow</button>` : "";
@@ -448,14 +470,13 @@ async function refreshWorkflowPanel(botName, conversationId, generation, force =
       ? `<button class="btn ghost small" type="button" data-workflow-action="pause" data-workflow-id="${esc(selected.id)}">${detail.pause_after_work_available ? "Pause after current work" : "Pause workflow"}</button>` : "";
     const resumeButton = selected && detail?.resume_available && hutchSession?.principal === "owner"
       ? `<button class="btn ghost small" type="button" data-workflow-action="resume" data-workflow-id="${esc(selected.id)}">Resume workflow</button>` : "";
-    const liveList = nodes.length ? `<ol class="workflow-step-list" aria-label="Discovered workflow instances">${nodes.map(node => {
+    const liveList = discoveredNodes.length ? `<ol class="workflow-step-list" aria-label="Discovered workflow instances">${discoveredNodes.map(node => {
       const label = structure.find(item => item.site_id === node.site_id)?.title || node.site_id;
       return `<li><span class="workflow-step-copy"><b title="${esc(label)}">${esc(label)}</b><span>${esc(node.instance_key)}</span></span><span class="workflow-step-status">${esc(workflowNodeLabel(node))}</span></li>`;
     }).join("")}</ol>` : `<p class="hint">No step instances have been created yet.</p>`;
     const plannedList = structure.length ? `<ol class="workflow-step-list workflow-planned-list" aria-label="Planned workflow structure">${structure.map(item =>
       `<li><span class="workflow-step-copy"><b title="${esc(item.title || item.site_id)}">${esc(item.title || item.site_id)}</b><span>${esc(item.kind || "step")}</span></span><span class="workflow-step-status">Planned</span></li>`
     ).join("")}</ol>` : `<p class="hint">This saved method has no compiled step outline.</p>`;
-    const pendingQuestions = (detail?.questions || []).filter(question => question.status === "pending");
     const pendingQuestionLabel = `${pendingQuestions.length} pending question${pendingQuestions.length === 1 ? "" : "s"}`;
     const questionMarkup = pendingQuestions.map(question => `<form class="workflow-question" data-workflow-question-form data-question-id="${esc(question.id)}">
       <p><b>Question ${esc(question.id)}</b></p><p>${esc(question.question)}</p>
@@ -483,7 +504,7 @@ async function refreshWorkflowPanel(botName, conversationId, generation, force =
       <h2 title="${esc(title)}">${esc(title)}</h2><p class="hint">${esc(status)}${selected?.definition_id ? " · saved workflow" : " · dynamic plan"}</p>
       ${selected.pause_requested && !detail?.resume_available ? `<p class="hint">Current work will settle before the next step is held.</p>` : ""}</div>
       <div class="workflow-panel-actions">${amendButton}${pauseButton}${resumeButton}${stopButton}<button class="btn ghost small" type="button" data-workflow-action="refresh">Refresh</button></div></header>
-      <p class="workflow-panel-meta">${esc(nodes.length)} discovered ${nodes.length === 1 ? "instance" : "instances"} · workflow ${esc(selected.id)}</p>${disclosure}
+      <p class="workflow-panel-meta">${esc(discoveredNodes.length)} discovered ${discoveredNodes.length === 1 ? "instance" : "instances"} · workflow ${esc(selected.id)}</p>${disclosure}
       ${savedList}` : savedList;
     if (panel.innerHTML !== markup) {
       panel.innerHTML = markup;

@@ -1259,6 +1259,14 @@ def create_question(store: Any, *, wf_id: str, owner_run_id: str, owner_fence: i
         row = db.execute("SELECT * FROM workflow_questions WHERE workflow_run_id = ? AND site_id = ? "
                          "AND instance_key = ?", (wf_id, site_id, instance_key)).fetchone()
         if row is not None and str(row["status"]) == "pending":
+            node_cur = db.execute(
+                """UPDATE workflow_nodes SET status = 'waiting'
+                   WHERE workflow_run_id = ? AND site_id = ? AND instance_key = ? AND kind = 'ask'
+                     AND status IN ('running','waiting')""",
+                (wf_id, site_id, instance_key),
+            )
+            if node_cur.rowcount != 1:
+                raise ValueError("workflow question could not attach to its current ask node")
             pending_count = int(db.execute(
                 """SELECT COUNT(*) FROM workflow_questions
                    WHERE workflow_run_id = ? AND revision_id = ? AND attempt_run_id = ?
@@ -1338,6 +1346,40 @@ def answer_question(store: Any, qid: str, answer: str) -> str:
                                AND w.status IN ('running','waiting') AND w.stop_requested = 0)""",
             (answer, now, qid, now))
         if cur.rowcount == 1:
+            question = db.execute(
+                "SELECT workflow_run_id, revision_id, attempt_run_id FROM workflow_questions WHERE id = ?",
+                (qid,),
+            ).fetchone()
+            if question is not None:
+                workflow = db.execute(
+                    """SELECT pause_requested FROM workflow_runs
+                       WHERE id = ? AND revision_id = ? AND attempt_run_id = ?
+                         AND status IN ('running','waiting') AND stop_requested = 0""",
+                    (str(question["workflow_run_id"]), str(question["revision_id"]),
+                     str(question["attempt_run_id"])),
+                ).fetchone()
+                if workflow is not None:
+                    pending_count = int(db.execute(
+                        """SELECT COUNT(*) FROM workflow_questions
+                           WHERE workflow_run_id = ? AND revision_id = ? AND attempt_run_id = ?
+                             AND status = 'pending'""",
+                        (str(question["workflow_run_id"]), str(question["revision_id"]),
+                         str(question["attempt_run_id"])),
+                    ).fetchone()[0])
+                    if int(workflow["pause_requested"]):
+                        reason = (f"paused by owner; waiting for {pending_count} answer(s)"
+                                  if pending_count else
+                                  "paused by owner; answers received; waiting for resume")
+                    else:
+                        reason = (f"waiting for {pending_count} answer(s)" if pending_count else
+                                  "answers received; continuation pending")
+                    db.execute(
+                        """UPDATE workflow_runs SET reason = ?, updated_at = ?
+                           WHERE id = ? AND revision_id = ? AND attempt_run_id = ?
+                             AND status IN ('running','waiting') AND stop_requested = 0""",
+                        (reason, now, str(question["workflow_run_id"]), str(question["revision_id"]),
+                         str(question["attempt_run_id"])),
+                    )
             return "won"
         row = db.execute("SELECT status, expires_at FROM workflow_questions WHERE id = ?", (qid,)).fetchone()
         if row is None:
@@ -1363,6 +1405,18 @@ def expire_questions(store: Any, *, now: Optional[str] = None, limit: int = 200)
 
 def cancel_questions(store: Any, wf_id: str) -> int:
     with store._tx() as db:
+        pending = db.execute(
+            "SELECT site_id, instance_key FROM workflow_questions "
+            "WHERE workflow_run_id = ? AND status = 'pending'", (wf_id,)
+        ).fetchall()
+        for question in pending:
+            db.execute(
+                """UPDATE workflow_nodes SET status = 'cancelled', error_json = ?, finished_at = ?
+                   WHERE workflow_run_id = ? AND site_id = ? AND instance_key = ? AND kind = 'ask'
+                     AND status IN ('running','waiting')""",
+                (_json({"reason": "workflow stopped before an answer arrived"}), iso(utcnow()),
+                 wf_id, str(question["site_id"]), str(question["instance_key"])),
+            )
         cur = db.execute("UPDATE workflow_questions SET status = 'cancelled' WHERE workflow_run_id = ? "
                          "AND status = 'pending'", (wf_id,))
     if cur.rowcount:

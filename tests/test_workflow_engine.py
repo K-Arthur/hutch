@@ -748,6 +748,91 @@ def test_independent_questions_are_all_exposed_and_answerable_in_both_orders_aft
     assert json.loads(combined) == ["alpha", "beta"]
 
 
+@pytest.mark.parametrize("answer_order", [("alpha", "beta"), ("beta", "alpha")])
+def test_bounded_map_exposes_one_question_per_item_up_to_concurrency_after_restart(
+        store, config, answer_order):
+    bot = make_bot(store, name="map-questions")
+    engine = Engine(config, store)
+    plan = {
+        "name": "map-item-questions",
+        "inputs": {"settings": {"type": "array", "max_items": 2}},
+        "envelope": {"tools": [], "max_parallel_steps": 2},
+        "budget": {"max_nodes": 12, "max_model_calls": 0, "max_fanout": 2},
+        "nodes": [
+            {"kind": "map", "id": "review", "over": {"ref": "input.settings"},
+             "item_key": "key", "concurrency": 2, "max_items": 2, "body": [
+                 {"kind": "ask", "id": "confirm", "inputs": {"label": {"ref": "item.label"}},
+                  "question": "How should {{label}} be configured?", "timeout_seconds": 600}]},
+            {"kind": "transform", "id": "combined", "op": "to_json",
+             "args": {"value": {"ref": "review.items"}}},
+        ],
+    }
+    submission = wfsubmit.submit_workflow(
+        store, bot=bot, plan=plan,
+        inputs={"settings": [{"key": "alpha", "label": "Alpha"},
+                             {"key": "beta", "label": "Beta"}]})
+    drive(engine, store, submission.attempt_run_id)
+
+    pending = wstore.questions(store, submission.workflow_run_id, status="pending")
+    assert len(pending) == 2
+    assert {question["site_id"] for question in pending} == {"review.confirm"}
+    assert {question["question"] for question in pending} == {
+        "How should Alpha be configured?", "How should Beta be configured?"}
+    assert len({question["instance_key"] for question in pending}) == 2
+    assert {question["id"] for question in wstore.pending_questions_for_review(store)} == {
+        question["id"] for question in pending}
+    ask_nodes = [node for node in wstore.nodes(store, submission.workflow_run_id)
+                 if node["site_id"] == "review.confirm"]
+    assert len(ask_nodes) == 2
+    assert {node["status"] for node in ask_nodes} == {"waiting"}
+
+    pending_by_label = {question["question"].split()[2].lower(): question for question in pending}
+    answers = {"alpha": "compact", "beta": "extended"}
+    first_label, second_label = answer_order
+    generation = wstore.workflow_run(store, submission.workflow_run_id)["attempt_run_id"]
+    first_question = pending_by_label[first_label]
+    assert wfsubmit.answer(store, first_question["id"], answers[first_label]) == "won"
+    drive(engine, store, submission.attempt_run_id)
+
+    still_waiting = wstore.workflow_run(store, submission.workflow_run_id)
+    remaining = wstore.questions(store, submission.workflow_run_id, status="pending")
+    assert still_waiting["attempt_run_id"] == generation
+    assert still_waiting["status"] == "waiting"
+    assert still_waiting["reason"] == "waiting for 1 answer(s)"
+    assert len(remaining) == 1
+    assert remaining[0]["id"] != first_question["id"]
+    ask_nodes = [node for node in wstore.nodes(store, submission.workflow_run_id)
+                 if node["site_id"] == "review.confirm"]
+    assert {node["status"] for node in ask_nodes} == {"waiting"}
+    assert wstore.question(store, first_question["id"])["status"] == "answered"
+    assert not any(node["site_id"] == "combined"
+                   for node in wstore.nodes(store, submission.workflow_run_id))
+
+    store.close()
+    store = Store(config)
+    engine = Engine(config, store)
+    after_restart = wstore.questions(store, submission.workflow_run_id, status="pending")
+    assert [question["id"] for question in after_restart] == [remaining[0]["id"]]
+    second_question = pending_by_label[second_label]
+    assert second_question["id"] == remaining[0]["id"]
+    assert wfsubmit.answer(store, second_question["id"], answers[second_label]) == "won"
+    drive(engine, store, submission.attempt_run_id)
+
+    final = wfsubmit.status(store, submission.workflow_run_id)
+    assert final["workflow"]["status"] == "succeeded"
+    combined = json.loads(next(node for node in final["nodes"]
+                               if node["site_id"] == "combined")["result"])
+    by_question = {item["question_id"]: item["answer"] for item in combined}
+    assert by_question == {question["id"]: answers[label]
+                           for label, question in pending_by_label.items()}
+    settled_asks = [node for node in final["nodes"] if node["site_id"] == "review.confirm"]
+    assert len(settled_asks) == 2
+    assert {node["status"] for node in settled_asks} == {"succeeded"}
+    assert {node["result"]["answer"] for node in settled_asks} == {"compact", "extended"}
+    assert {node["result"]["question_id"] for node in settled_asks} == {
+        question["id"] for question in pending_by_label.values()}
+
+
 def test_stopping_a_parked_workflow_finishes_after_cleanup_and_cancels_questions(store, config):
     bot = make_bot(store, name="stop-parked")
     engine = Engine(config, store)
@@ -772,6 +857,8 @@ def test_stopping_a_parked_workflow_finishes_after_cleanup_and_cancels_questions
     view = wfsubmit.status(store, submission.workflow_run_id)
     assert view["workflow"]["status"] == "stopped"
     assert all(question["status"] == "cancelled" for question in view["questions"])
+    ask_node = next(node for node in view["nodes"] if node["site_id"] == "confirm")
+    assert ask_node["status"] == "cancelled"
     assert wfsubmit.answer(store, view["questions"][0]["id"], "yes") == "already"
     assert store.get_run(submission.attempt_run_id).status is RunStatus.stopped
 
