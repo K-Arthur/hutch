@@ -2,7 +2,7 @@
 
 This is the API other lanes code against. Implementation: `src/hutch/outputblocks.py`
 (validated by `tests/test_outputblocks.py`), plumbing in `runtime.steps.call_tool`
-(`tests/test_steps_blocks.py`), storage in schema v51 (`tests/test_outputs_store.py`).
+(`tests/test_steps_blocks.py`), storage in schema v54 (`tests/test_outputs_store.py`).
 Golden fixtures: `tests/fixtures/blocks/*.json`. Failure research behind every rule:
 `docs/research/outputs-failures-2026-10-10.md`.
 

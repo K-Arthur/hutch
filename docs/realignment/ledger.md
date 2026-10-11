@@ -4168,3 +4168,58 @@ in `aeb244c` with eleven new regressions. Bounded-corpus measurements
 physical device or screen-reader verification was performed for this slice;
 external runtimes (Pi, OpenCode) report Hutch skills as unsupported and fail
 explicit activation before start.
+
+## Untrusted execution, injection containment, scoped consent (2026-10-11)
+
+Ownership: implemented by a dedicated security session on branch
+`security/containment` (worktree `.worktrees/security`) as the integrator for
+the lanes it needed. Base: local `main` (`55f551b`), then `cost/guardrails`
+(kept at schema v51/v52), `grounding/evidence` (renumbered to **v53**) and
+`outputs/unified` (renumbered to **v54**) merged with the migration collisions
+resolved in the merge commits. The still-active `workflow/dynamic`,
+`mcp/s0-integration`, `synthesis/grounded` and `persona/adaptive` lanes were
+deliberately not merged. An earlier full-suite run was discarded as corrupted
+because `/tmp` (a 12 GiB tmpfs) was full; the authoritative run used a
+disk-backed basetemp.
+
+What was audited (source, not docs): the bwrap shell/kernel containment and its
+entry points, the offline worker's credential-redacted mounts, `approvals.py` /
+`action_receipts.py` / store transactions, `netguard.py` / `browser_proxy.py`,
+the ingestion paths (`web_fetch`, `live_search`, `inspect_media`, uploads), the
+widget/rich-view rendering, and the dashboard's CSP/Origin/Host boundary.
+Corroborated rather than repeated: exact-effect consent for Python already
+carries the full source and a fingerprint over it; `safe_get` pins DNS;
+`browser_proxy` pins CONNECT/WebSocket independently; action receipts are
+sealed and immutable.
+
+What landed (three real defects fixed with regressions):
+1. Envelope framing in the prompt/constrained protocol could be forged by tool
+   output containing `</tool_result>`, a second opening tag, or `[tool-contract]`;
+   the delimiters are now escaped as visible text.
+2. The SVG media sanitizer rejected scripts/handlers/external hrefs but not
+   external CSS `url(...)`/`@import` fetches; those are now rejected, with
+   internal `url(#id)` and plain CSS still accepted.
+3. The strict CSP applied only to remote/paired sessions; it now applies to the
+   local dashboard too, with the SPA's single inline handler replaced by a
+   delegated listener.
+
+New evidence suites: `tests/test_native_containment.py` (real bwrap kernels:
+host/state/DB/other-workspace sentinel reads denied, TCP4/TCP6/DNS/Unix-socket
+egress denied against owned never-connected listeners, workspace-only writes
+with private `/tmp`, PID-namespace visibility, detached-descendant teardown,
+strict argv/backend identity), `tests/test_hostile_planner_enforcement.py`
+(a deterministic malicious planner meets hard denials, unknown-tool and
+malformed-argument refusals and fail-closed Python with zero effects),
+`tests/test_ingest_assessment.py` (flag-not-rewrite preservation, multilingual,
+invisible controls, bounded scanning, web_fetch disclosure), plus the consent
+exactness test and the local-CSP test.
+
+Verification: integrated-tree non-e2e suite **2383 passed, 9 skipped** before
+the slice; focused suites for the slice green after it; browser journeys
+(dashboard polish, inline approval, stale two-device approval) pass under the
+strict local CSP. The failing `test_tool_permissions_are_clear_and_save…`
+journey is pre-existing at the integration base (present in the base run's
+failed-node set), not caused by this slice. No live model, vision route, paid
+API, or third-party service was used; no Pyodide/Wasm execution path exists in
+the product. Full audit, research mapping ([R1–R11], [F1–F4]) and the residual
+risk list are in [`../research/security-containment-2026-10-11.md`](../research/security-containment-2026-10-11.md).

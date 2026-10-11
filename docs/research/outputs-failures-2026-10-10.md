@@ -1,7 +1,7 @@
 # Typed conversation outputs — failure research and text-to-output audit (2026-10-10)
 
 Foundation-slice research for the typed output-block contract (`src/hutch/outputblocks.py`,
-schema v51). Part A is an evidence ledger of first-hand failure reports in other apps that
+schema v54). Part A is an evidence ledger of first-hand failure reports in other apps that
 this feature must not repeat; part B audits Hutch's current text-to-output path with
 `path:line` findings.
 
@@ -114,7 +114,7 @@ knowledge among users of these products and the ask explicitly calls it out.
 | Reported vs confirmed | Widely reported by users; never officially documented per-session TTL behavior. Reported symptoms: files uploaded earlier become inaccessible mid-conversation, DataFrame state vanishes between messages, the model "loses the ability to run code" in one specific chat, and the recovery is always "start a new session" — discovered only after the loss. |
 | Resolution | Unresolved class behavior; vendors treat it as product lifecycle, not a bug. |
 | Hutch applicability | High for the code-execution lane: Hutch will own a real workspace directory per conversation, so silent expiry would be a data-loss bug Hutch created, not inherited. |
-| Design response in this codebase | `workspace_sessions` (schema v51, `src/hutch/store.py:1350-1398`) makes environment lifecycle durable state: one row per conversation with `generation` (monotonic environment generation, CHECK ≥ 1), `status` ('active'/'expired'/'terminated', CHECK-constrained), `env_fingerprint`, `workspace_dir`. Transitions are guarded in `Store.transition_workspace_session` (`src/hutch/store.py:7671`) by optimistic concurrency on `generation` (stale callers get `RevisionConflict`, never a clobber), and `code_receipt.execution.environment_generation` (`src/hutch/outputblocks.py:135`) binds every receipt to the generation that produced it — so "which environment did this run in" is queryable, and a stale receipt is detectable instead of silently wrong. |
+| Design response in this codebase | `workspace_sessions` (schema v54, `src/hutch/store.py:1350-1398`) makes environment lifecycle durable state: one row per conversation with `generation` (monotonic environment generation, CHECK ≥ 1), `status` ('active'/'expired'/'terminated', CHECK-constrained), `env_fingerprint`, `workspace_dir`. Transitions are guarded in `Store.transition_workspace_session` (`src/hutch/store.py:7671`) by optimistic concurrency on `generation` (stale callers get `RevisionConflict`, never a clobber), and `code_receipt.execution.environment_generation` (`src/hutch/outputblocks.py:135`) binds every receipt to the generation that produced it — so "which environment did this run in" is queryable, and a stale receipt is detectable instead of silently wrong. |
 | Regression test | T-OUTPUTS-7 — `tests/test_outputs_store.py::test_workspace_session_upsert_and_generation_guard`, `::test_the_downgrade_helper_knows_v51_and_reopening_recreates_the_tables`. |
 
 ### A.8 Search for further first-hand reports

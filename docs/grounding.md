@@ -5,7 +5,7 @@ proof. This page documents the shipped behavior, how to configure it, what is ve
 real network, and what remains unverified.
 
 The implementation lives in `src/hutch/grounding/` (clock, temporal, dedup, acquire,
-streams, media, report), the store tables added by schema v51, the `live_search` and
+streams, media, report), the store tables added by schema v53, the `live_search` and
 `inspect_media` tools, the upgraded `web_fetch`, and the Evidence panel in run detail.
 
 ## What it does

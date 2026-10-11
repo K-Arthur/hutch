@@ -404,6 +404,34 @@ same rule: everything fetched is evidence, never authority.
   collapse into one origin cluster so repetition never becomes corroboration, and findings
   keep a scoped label ("insufficient evidence" included) rather than a universal verdict.
 
+## Contained code execution and untrusted-content assessment
+
+`run_python` executes model-generated Python only inside a per-conversation bubblewrap
+kernel: workspace-only writes, a read-only interpreter/venv/source tree, no network (fresh
+network and PID namespaces), bounded CPU/memory/processes/files/wall-time/output, and no
+uncontained fallback — if the host cannot provide the strict profile the tool refuses and
+says why. The same containment class covers the shell tool when a bot requests it. Every
+cell returns a hash-bound receipt of the exact executed source and its environment
+generation; a decision shown different source cannot approve a cell.
+
+Externally fetched text passes a bounded, deterministic assessment before a model sees it:
+instruction-shaped passages (several languages), system-prompt requests, role
+impersonation, forged tool framing, credential access/exfiltration asks, secrecy and
+approval-bypass phrasing, fetch/decode-and-execute pipelines and invisible Unicode controls
+are flagged in a host-authored note; hidden HTML comments are removed from the visible text
+and assessed separately. Nothing is deleted or rewritten — a security paper, a tutorial
+command, and quoted attack text remain fully readable, because they are data that the
+broker's authorization never consults.
+
+The local dashboard carries the same strict Content-Security-Policy as paired sessions
+(`default-src 'self'`, `script-src 'self'`, `connect-src 'self'`, no framing), and stored
+media is served hash-verified, type-sanitized (scripts, handlers, external references and
+external CSS fetches rejected) and isolated from the app's privileged origin.
+
+The audit, adversarial test map, research references and the honest list of unverified
+surfaces (live-model susceptibility, vision-model instruction injection, future Wasm paths)
+are in [`research/security-containment-2026-10-11.md`](research/security-containment-2026-10-11.md).
+
 ## Honest limits (read this)
 
 - **External runtimes** (`pi`, `opencode`) are disabled. They cannot currently satisfy Hutch's process ownership, approval,
