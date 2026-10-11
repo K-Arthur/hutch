@@ -868,6 +868,9 @@ def bot_update(
     inference_mode: Optional[InferenceMode] = typer.Option(
         None, "--inference-mode", help="hybrid | local (local model routes; tools may use network) | offline (host-verified)"),
     tools: Optional[str] = typer.Option(None, "--tools", help=f"replace tool list; comma list, valid: {','.join(ALL_TOOL_NAMES)}"),
+    tool_protocol: Optional[Literal["auto", "native", "constrained", "prompt", "disabled"]] = typer.Option(
+        None, "--tool-protocol",
+        help="tool calling mode: auto (provider-native) | native | constrained (backend JSON schema) | prompt | disabled"),
     instructions: Optional[str] = typer.Option(None, "--instructions"),
     description: Optional[str] = typer.Option(None, "--description"),
     approval: Optional[ApprovalMode] = typer.Option(None, "--approvals"),
@@ -927,6 +930,7 @@ def bot_update(
             err.print(f"[red]unknown tools:[/red] {', '.join(unknown)} — valid: {', '.join(ALL_TOOL_NAMES)}")
             raise typer.Exit(code=1)
         bot.tools = tool_list
+    if tool_protocol is not None: bot.tool_protocol = tool_protocol
     if instructions is not None: bot.instructions = instructions
     if description is not None: bot.description = description
     if approval is not None: bot.approval_mode = approval

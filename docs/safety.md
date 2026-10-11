@@ -359,6 +359,26 @@ and not production-certified. Hutch can only execute while its host is awake and
 PTY/desktop controls, and remote computer input are unavailable. Local browser handoff is experimental and needs a Linux display plus
 the optional Playwright browser. The marketing site cannot reach Hutch on localhost.
 
+## The tool-call validation boundary
+
+Every tool call, however the model produced it (provider-native protocol, backend-constrained
+JSON schema, or the explicitly chosen prompt contract), arrives through one governed path:
+
+- A call must decode strictly (no duplicate keys, `NaN`/`Infinity`, trailing text, or an empty
+  argument body for a tool that declares required fields), name a registered tool exactly, and
+  validate against that tool's full registered argument schema. Malformed, unknown, ambiguous,
+  or schema-invalid calls are never executed; the model receives one precise repair prompt.
+- Grammar constraints and structured-output modes improve the shape of generated JSON. They
+  are not permissions, not evidence that the model understood the task, and they do not replace
+  the deny/ask/allow rules or approvals below.
+- Model output that merely *looks* like a tool call in ordinary text is never executed; a
+  protocol-mismatch diagnostic is recorded instead.
+- Tool results are returned as data. Neither a result nor a quoted example can become an
+  executable call.
+- Choosing a fallback mode cannot widen a Bot's tools, account, or permissions. `constrained`
+  and `prompt` are per-Bot choices; no run silently downgrades a strict workflow, switches
+  model, or changes accounts to make a call succeed.
+
 ## Honest limits (read this)
 
 - **External runtimes** (`pi`, `opencode`) are disabled. They cannot currently satisfy Hutch's process ownership, approval,
