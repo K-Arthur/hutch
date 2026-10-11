@@ -446,7 +446,8 @@ class BuiltinRuntime:
                 return self._switch(ctx, run, ladder, guard, nxt, str(exc), "fallback", messages, specs, est_prompt)
         return None
 
-    def _resolve_tool_profile(self, ctx: ToolContext, ladder: Ladder, rung: Rung) -> ModelCapabilityProfile:
+    def _resolve_tool_profile(self, ctx: ToolContext, ladder: Ladder, rung: Rung,
+                              revision: str = "") -> ModelCapabilityProfile:
         """Resolve the exact route's tool-calling profile; passive observations are inputs, not authority."""
         book = self._connections(ctx)
         conn = book.get(rung.provider)
@@ -460,13 +461,20 @@ class BuiltinRuntime:
             endpoint = ladder.base_url_for(rung) or ""
             if rung.provider == "ollama":
                 endpoint = endpoint or os.environ.get("OLLAMA_HOST") or ""
+            if not endpoint:
+                from ..providers.openai_compat import PRESET_URLS
+                endpoint = PRESET_URLS.get(rung.provider, "")
+            if rung.provider == "anthropic":
+                endpoint = endpoint or os.environ.get("ANTHROPIC_BASE_URL") or "https://api.anthropic.com"
+            elif rung.provider == "openai-compatible":
+                endpoint = endpoint or os.environ.get("HUTCH_BASE_URL", "")
         observations: list[dict] = []
         try:
             observations = list(ctx.store.list_model_capability_observations(limit=20))
         except Exception:
             observations = []
         return resolve_profile(provider=rung.provider, endpoint=endpoint, model=rung.model,
-                               observations=observations)
+                               revision=revision, observations=observations)
 
     # ---------------------------------------------------------------- startup
 
@@ -577,7 +585,30 @@ class BuiltinRuntime:
         prices = self._prices_for(ctx)
         guard = SpendGuard(ctx.store, bot, run, prices, self._connections(ctx))
         requested = "disabled" if run.tool_access == "none" else (getattr(bot, "tool_protocol", "auto") or "auto")
-        profile = self._resolve_tool_profile(ctx, ladder, ladder.primary)
+        base_system = self._system_prompt(ctx) + ctx.store.action_context(run.id)
+        if run.tool_access == "none":
+            base_system += DRAFT_ONLY_GUIDANCE
+        # Provisional native specs keep today's context pre-check and prompt estimate; the
+        # real plan is finalized once a model has actually come online.
+        provisional_profile = self._resolve_tool_profile(ctx, ladder, ladder.primary)
+        try:
+            provisional = compile_plan(tools=tools, profile=provisional_profile, strategy="native")
+        except ToolProtocolUnavailable as exc:  # native is always available today
+            raise RunAborted("tool_protocol", str(exc)) from exc
+        provisional_specs = list(provisional.wire_tools)
+        messages: list[dict[str, Any]] = [{"role": "system", "content": base_system},
+                                          *run.conversation_context,
+                                          {"role": "user", "content": run.prompt}]
+        mt, tt = estimate_prompt_tokens(messages, provisional_specs)
+        est_prompt = mt + tt
+        run.model_used = ladder.primary.spec
+
+        session = self._start(ctx, run, ladder, guard, messages, provisional_specs, stop, est_prompt)
+
+        # Finalize for the model that actually came online: an unavailable primary must not
+        # leave a contract compiled for a different route, and the catalog snapshot is logged
+        # before the first turn.
+        profile = self._resolve_tool_profile(ctx, ladder, session.rung, revision=_session_revision(session))
         try:
             plan = compile_plan(tools=tools, profile=profile, strategy=requested)
         except ToolProtocolUnavailable as exc:
@@ -590,18 +621,22 @@ class BuiltinRuntime:
             if diag.severity != "info":
                 self._log(ctx, run, "tool_protocol", f"{diag.code}: {diag.detail}",
                           severity=diag.severity, tool=diag.tool, field=diag.field)
-        system = self._system_prompt(ctx) + ctx.store.action_context(run.id)
-        if run.tool_access == "none":
-            system += DRAFT_ONLY_GUIDANCE
-        if plan.prompt_contract:
-            system += "\n\n" + plan.prompt_contract
         specs = list(plan.wire_tools)                                # PF-1 / PF-3: frozen, deterministic, allowed only
-        envelope_mode = plan.strategy in ("constrained", "prompt")
-        contract_repairs = 0
+        system = base_system + (("\n\n" + plan.prompt_contract) if plan.prompt_contract else "")
+        messages[0]["content"] = system
+        if plan.strategy != "native" or specs != provisional_specs:
+            mt, tt = estimate_prompt_tokens(messages, specs)
+            est_prompt = mt + tt
+            if session.num_ctx:
+                chk = check_prompt(messages, specs, session.num_ctx, self._turn_cap(bot, session.rung))
+                if chk.severity != "ok":
+                    self._log(ctx, run, "context", f"{chk.severity}: {chk.message}. {chk.fix}", severity=chk.severity)
+                if chk.severity == "fail":
+                    raise RunAborted("context", f"{chk.message}. {chk.fix}")
         prefix_hash = hashlib.sha256((system + json.dumps(specs, sort_keys=True)).encode()).hexdigest()[:12]
-        messages: list[dict[str, Any]] = [{"role": "system", "content": system},
-                                          *run.conversation_context,
-                                          {"role": "user", "content": run.prompt}]
+        envelope_mode = plan.strategy in ("constrained", "prompt")
+        planned_rung_spec = session.rung.spec
+        contract_repairs = 0
 
         def append_tool_result(call_name: str, call_id: str, content: str) -> None:
             """Add one result in the shape the active protocol replays.
@@ -618,11 +653,6 @@ class BuiltinRuntime:
             else:
                 messages.append({"role": "tool", "tool_call_id": call_id, "name": call_name, "content": content})
 
-        mt, tt = estimate_prompt_tokens(messages, specs)
-        est_prompt = mt + tt
-        run.model_used = ladder.primary.spec
-
-        session = self._start(ctx, run, ladder, guard, messages, specs, stop, est_prompt)
         loop = LoopDetector()
         malformed_streak = loop_strikes = 0
         rate_limited_once = False
@@ -632,6 +662,12 @@ class BuiltinRuntime:
         while True:
             if stop():
                 raise RunAborted("stopped", "user requested stop")
+            if envelope_mode and session.rung.spec != planned_rung_spec:
+                raise RunAborted(
+                    "tool_protocol",
+                    f"the hutch-action contract was compiled for {planned_rung_spec} and the run moved to "
+                    f"{session.rung.spec}; Hutch will not translate an in-flight tool contract. Start a new run "
+                    "on the new model, or use native mode.")
             if run.tool_access == "none" and run.steps >= 1:
                 raise RunAborted("steps_exceeded", "review-only Bot drafting is limited to one model response")
             if run.steps >= bot.limits.max_steps:
@@ -667,6 +703,10 @@ class BuiltinRuntime:
                 stream=session.stream, allow_stream_retry=False,
                 register_cancel=self._register_cancel(ctx), is_cancelled=stop,
                 session_id=run.conversation_id or run.id,
+                structured_output=({"name": f"hutch-action-{plan.plan_hash[:8]}",
+                                    "schema": _plain_schema(plan.envelope_schema),
+                                    "attachment": profile.constrained_attachment or "response_format"}
+                                   if plan.strategy == "constrained" and plan.envelope_schema is not None else None),
                 keep_alive="30m" if _keep_resident(ctx, bot) else "10m")
             account_id, _, _ = guard.account_policy(session.rung)
             try:
@@ -677,6 +717,12 @@ class BuiltinRuntime:
                 if stop():
                     raise RunAborted("stopped", "user requested stop") from exc
                 record_outcome(ctx.store, session.rung.provider, False, f"{exc.kind}: {exc}")
+                if plan.strategy == "constrained" and exc.kind == "bad_request":
+                    raise RunAborted(
+                        "tool_protocol",
+                        "the endpoint rejected the constrained JSON-schema control "
+                        f"({exc}). Choose native or prompt mode for this route, or configure the server's "
+                        "structured-output support.") from exc
                 if exc.streaming_related and session.stream and not stream_retried:
                     stream_retried = True
                     session.stream = False
@@ -935,6 +981,30 @@ def _exit_reason(exc: ProviderError) -> str:
     if getattr(exc, "cost_cap", False):
         return "cost_cap"
     return {"context": "context", "refused": "refused"}.get(exc.kind, "error")
+
+
+def _plain_schema(value: Any) -> Any:
+    """Thaw any frozen mapping/sequence so a request body stays plain JSON."""
+
+    def thaw(item: Any) -> Any:
+        if isinstance(item, dict):
+            return {key: thaw(child) for key, child in item.items()}
+        if isinstance(item, (list, tuple)):
+            return [thaw(child) for child in item]
+        if hasattr(item, "items") and not isinstance(item, (str, bytes, bytearray)):
+            return {key: thaw(child) for key, child in item.items()}
+        return item
+
+    return thaw(value)
+
+
+def _session_revision(session: Session) -> str:
+    """A build/template fingerprint when the runtime reports one (Ollama digest + template)."""
+    meta = session.meta
+    if meta is None:
+        return ""
+    parts = [getattr(meta, "digest", "") or "", getattr(meta, "template_hash", "") or ""]
+    return ":".join(p for p in parts if p)
 
 
 def _normalize_call_ids(run: Run, calls: list) -> dict[str, str]:

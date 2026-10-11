@@ -407,6 +407,8 @@ def test_constrained_mode_runs_the_same_canonical_tools_over_the_action_contract
     assert len(bodies) == 2
     assert not bodies[0].get("tools"), "no native tool protocol is sent in constrained mode"
     assert "hutch-action-v1" in bodies[0]["messages"][0]["content"]
+    assert "format" in bodies[0] and "oneOf" in bodies[0]["format"], \
+        "the constrained strategy must attach the envelope schema to the backend"
     # the tool result travels as a bounded, clearly-delimited user message, not a tool role
     assert any(m["role"] == "user" and '<tool_result tool="list_files">' in m["content"]
                for m in bodies[1]["messages"])
@@ -461,6 +463,16 @@ def test_disabled_mode_offers_no_tools_and_cannot_execute_one(store, config, tmp
     body = ollama.of("/api/chat")[0]["body"]
     assert not body.get("tools")
     assert not [e for e in emitted if e.type is EventType.tool_result]
+
+
+def test_a_rejected_constrained_schema_fails_clearly_instead_of_downgrading(store, config, tmp_path, oai):
+    oai.force_status = (400, {"error": {"message": "response_format is not supported by this model"}}, {})
+    ctx, run, emitted, tools = build(store, config, tmp_path, model="openai/gpt-4o-mini",
+                                     tool_protocol="constrained")
+    with pytest.raises(RunAborted) as e:
+        run_it(runtime(provider_factory=factory(oai=oai)), run, ctx, tools)
+    assert e.value.reason == "tool_protocol" and "rejected the constrained" in e.value.detail
+    assert len(oai.of("/v1/chat/completions")) == 1, "no silent retry or mode switch"
 
 
 def test_endless_malformed_calls_without_an_escalation_target_stop_the_run(store, config, tmp_path, ollama):

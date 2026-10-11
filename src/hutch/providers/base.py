@@ -77,6 +77,10 @@ class ChatRequest:
     #: True once the user pressed Stop. A cancelled call must never be "recovered" by the streaming retry
     is_cancelled: Callable[[], bool] = lambda: False
     session_id: str = ""                   # stable per conversation; standalone runs use their own id
+    #: Backend-native schema constraint ({name, schema, attachment}) for the constrained
+    #: strategy. Attachments: "response_format" (OpenAI-compatible) or "format_field"
+    #: (Ollama native). None means no structured-output control is attached.
+    structured_output: Optional[dict[str, Any]] = None
 
 
 @dataclass

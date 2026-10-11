@@ -194,6 +194,25 @@ def test_full_response_refusal_and_content_filter_are_typed_not_answers():
     assert exc.value.kind == "refused"
 
 
+def test_structured_output_attachment_points_are_per_protocol():
+    from hutch.providers.ollama import OllamaProvider
+    compat = OpenAICompatProvider("http://localhost:8080/v1", "", "llamacpp")
+    structured = {"name": "hutch-action-1", "schema": {"type": "object"}, "attachment": "response_format"}
+    body = compat._body(ChatRequest(model="m", messages=[], structured_output=structured), False)
+    assert body["response_format"] == {"type": "json_schema",
+                                       "json_schema": {"name": "hutch-action-1", "schema": {"type": "object"},
+                                                       "strict": False}}
+    assert "response_format" not in compat._body(ChatRequest(model="m", messages=[]), False)
+    assert "response_format" not in compat._body(
+        ChatRequest(model="m", messages=[], structured_output={**structured, "attachment": "format_field"}), False)
+    native = OllamaProvider("http://127.0.0.1:9")
+    obody = native._body(ChatRequest(model="m", messages=[], num_ctx=8192,
+                                     structured_output={"attachment": "format_field", "schema": {"type": "object"}}),
+                         False)
+    assert obody["format"] == {"type": "object"}
+    assert "format" not in native._body(ChatRequest(model="m", messages=[], num_ctx=8192), False)
+
+
 def test_transcript_normalization_is_equivalent_streamed_and_not(oai):
     """The same provider script yields identical calls whether streamed or not."""
     from hutch.providers import ChatRequest as CR

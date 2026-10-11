@@ -53,6 +53,14 @@ def test_health_and_stats(client):
     assert stats["bots"] == 0 and stats["pending_approvals"] == 0
 
 
+def test_tool_protocol_is_a_validated_bot_setting(client):
+    bot = make_bot(client, "protocol-bot")
+    assert bot["tool_protocol"] == "auto"
+    res = client.patch("/api/bots/protocol-bot", json={"tool_protocol": "constrained"})
+    assert res.status_code == 200 and res.json()["tool_protocol"] == "constrained"
+    assert client.patch("/api/bots/protocol-bot", json={"tool_protocol": "yolo"}).status_code == 422
+
+
 def test_task_focus_presets_are_real_bot_settings_with_safe_validation(client):
     presets = client.get("/api/v1/task-presets")
     assert presets.status_code == 200, presets.text

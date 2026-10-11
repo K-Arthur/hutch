@@ -373,6 +373,7 @@ class BotPatch(BaseModel):
     workdir: Optional[str] = None          # "" clears it
     limits: Optional[Limits] = None
     tool_limits: Optional[dict[str, int]] = None   # per-tool output caps in chars (PF-2); "" clears a tool
+    tool_protocol: Optional[Literal["auto", "native", "constrained", "prompt", "disabled"]] = None
     paused: Optional[bool] = None
     cron: Optional[str] = None
     clear_cron: bool = False
@@ -3585,6 +3586,7 @@ def create_app() -> FastAPI:
         if body.local_browser_handoff is not None: bot.local_browser_handoff = body.local_browser_handoff
         if body.limits is not None: bot.limits = body.limits
         if body.tool_limits is not None: bot.tool_limits = _checked_tool_limits(body.tool_limits)
+        if body.tool_protocol is not None: bot.tool_protocol = body.tool_protocol
         if body.command_rules is not None: bot.command_rules = _checked_rules(body.command_rules)
         if body.workdir is not None: bot.workdir = _checked_workdir(body.workdir) if body.workdir else None
         if body.workspace_mode is not None:

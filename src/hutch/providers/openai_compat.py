@@ -221,6 +221,16 @@ class OpenAICompatProvider(Provider):
         body: dict[str, Any] = {"model": req.model, "messages": req.messages, "stream": stream}
         if req.tools:
             body["tools"] = req.tools
+        structured = req.structured_output or {}
+        if structured and structured.get("attachment") == "response_format" and structured.get("schema"):
+            body["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": str(structured.get("name") or "hutch_action")[:64],
+                    "schema": structured["schema"],
+                    "strict": False,
+                },
+            }
         if req.max_tokens:
             # OpenAI's official host uses max_completion_tokens; compatible endpoints generally use max_tokens.
             # Match the authority exactly so a proxy path or lookalike hostname cannot select the OpenAI dialect.

@@ -228,6 +228,11 @@ class OllamaProvider(Provider):
                                 "stream": stream, "options": options, "keep_alive": req.keep_alive}
         if req.tools:
             body["tools"] = req.tools
+        structured = req.structured_output or {}
+        if structured and structured.get("attachment") == "format_field" and structured.get("schema"):
+            # Ollama structured outputs: `format` takes the JSON Schema directly. Cloud
+            # models do not support this, which the capability profile already encodes.
+            body["format"] = structured["schema"]
         if req.think is not None and "thinking" in self.capabilities(req.model):
             body["think"] = bool(req.think)
         return body
