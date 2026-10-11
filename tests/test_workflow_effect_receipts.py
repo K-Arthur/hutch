@@ -234,6 +234,18 @@ def test_process_crash_around_effect_receipt_never_repeats_the_sink_effect(
             with pytest.raises(RunAborted, match="reconcile it before retrying") as caught:
                 steps.call_tool(second, ctx, tools, "shell", {"command": "fixture-effect"})
             assert caught.value.reason == "outcome_unknown"
+            reconciled, created = reopened.reconcile_action(
+                receipt["id"], intent_hash=action["intent_hash"], outcome="confirmed_done",
+                evidence="After restart, the independent append-only sink contains the matching effect",
+                by="operator", idem_key="post-restart-confirmed-done",
+                request_hash="confirmed-done-after-restart")
+            assert created and reconciled["reconciliation"]["outcome"] == "confirmed_done"
+            # Reconciliation records observed truth; it cannot invent the missing tool result
+            # or authorize a second dispatch for the same workflow operation.
+            ctx, tools = _context(reopened, config, reopened.get_bot(bot.id), second, workflow, sink)
+            with pytest.raises(RunAborted, match="reconcile it before retrying") as caught:
+                steps.call_tool(second, ctx, tools, "shell", {"command": "fixture-effect"})
+            assert caught.value.reason == "outcome_unknown"
         else:
             assert old_attempt.status is RunStatus.failed
             assert old_attempt.exit_reason == "interrupted"
