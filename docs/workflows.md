@@ -299,7 +299,8 @@ unanswered question or deferred node stay held until the pending questions are a
 answer resolves only its durable question ID and grants no action authority. **Needs you** shows
 each question ID and action approval ID on its own review card; resolving one request leaves the
 other pending requests intact. When multiple actions await review, approving either card leaves the
-other approval pending with its own ID until it receives a separate decision. A bounded map can
+other approval pending with its own ID until it receives a separate decision. The Allow once and Deny
+controls reference the card's action and approval ID in their accessible descriptions. A bounded map can
 surface independent asks from each of up to its declared number of unresolved items; asks within an
 item are collected together, while items are visited in stable order and are not dispatched in
 parallel. An ask that depends on an unanswered ask, or an ask inside a branch or repeat, waits at the

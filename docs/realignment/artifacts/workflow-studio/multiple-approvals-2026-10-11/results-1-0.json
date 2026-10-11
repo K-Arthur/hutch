@@ -1,18 +1,19 @@
 {
   "test": "tests/e2e/test_browser.py::test_paired_phone_keeps_multiple_approvals_independently_pending",
   "decision_order": [
-    "apr_f8ecbcfaf21e",
-    "apr_891e3d01dd8b"
+    "apr_a73516282210",
+    "apr_0eb1a2f7b03d"
   ],
-  "captured_at": "2026-10-11T23:27:47.659285+00:00",
+  "captured_at": "2026-10-11T23:31:38.234205+00:00",
   "browser": "chromium",
   "browser_version": "153.0.8010.12",
   "playwright": "1.63.0",
   "approval_ids": [
-    "apr_891e3d01dd8b",
-    "apr_f8ecbcfaf21e"
+    "apr_0eb1a2f7b03d",
+    "apr_a73516282210"
   ],
-  "pending_after_first_decision": "apr_891e3d01dd8b",
+  "approval_controls_reference_action_and_id_in_aria_description": true,
+  "pending_after_first_decision": "apr_0eb1a2f7b03d",
   "final_approval_statuses": [
     "approved",
     "approved"
@@ -31,14 +32,14 @@
   "compact_phone_action_min_height_px": 48,
   "page_errors": [],
   "artifact_sha256": {
-    "approvals-1-0-390.png": "d0415b6a887a3f47f469e42686afc170099afc5f1037a2b7f742431e0d62b9b3",
-    "approvals-1-0-320.png": "8138206a83c586d538ecb31a1c7a1e5e0ca3b13c9d2eaaf23bb1b2bc52577072",
-    "approvals-1-0-trace.zip": "62227825b2a6296fa2386ab17ee0d018517708b4f207cf5bbbe078cff1f80845"
+    "approvals-1-0-390.png": "06c67a50c203b09da325e0087f449f95249f7485f1f2a7cd31dc906d413489bb",
+    "approvals-1-0-320.png": "703a8cc253202a0cefb3940db9659e1470141c3b06bd8f7b66ad194c024c4ad3",
+    "approvals-1-0-trace.zip": "2a313d4edd7daefd2c670b918c4aedc15530ecade5bd69239f69520a5b254ddb"
   },
   "source_sha256": {
-    "src/hutch/server/static/app.js": "19bbc96be1ef20a8515327f44952334e9aaa0168698da240f48718bfa41551d6",
+    "src/hutch/server/static/app.js": "c49040c4ca9f1cc1043dc47b0da96c95431890ca81fc65b28090ed34695bc570",
     "src/hutch/server/static/style.css": "4eb5625f7b73a86bf28245323ccbbc6abd3f3e5c075cc510dabc73ba6c947afc",
     "src/hutch/server/workflows_api.py": "64199f3a358c99fb7e2908787b6bb7b555f64ad9d0ff53ff3c43fc04e6b11a07",
-    "tests/e2e/test_browser.py": "197cd09450890e35ebf02280fc3bdc8d79917eb132bf43fff89ec018e821a23a"
+    "tests/e2e/test_browser.py": "c8071cf87edeb21516ad0d9999885c4dcd26ec085db1785e230864e9c3034e65"
   }
 }

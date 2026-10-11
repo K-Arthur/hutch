@@ -388,6 +388,11 @@ def test_paired_phone_reviews_the_exact_approval_once(browser, live):
         assert card.locator("pre").is_visible()
         button = card.get_by_role("button", name="Allow once")
         assert button.get_attribute("data-action-hash") == approval.action_hash
+        describedby = button.get_attribute("aria-describedby").split()
+        description = " ".join(page.locator(f'[id="{element_id}"]').inner_text() for element_id in describedby)
+        assert approval.action in description and approval.id in description
+        assert page.get_by_role("button", name="Allow once",
+                                description=re.compile(re.escape(approval.action) + r".*" + re.escape(approval.id))).is_visible()
         with page.expect_response(lambda response: response.url.endswith(
                 f"/api/v1/actions/approvals/{approval.id}/approve")) as response_info:
             button.click()
@@ -608,6 +613,16 @@ def test_paired_phone_keeps_multiple_approvals_independently_pending(
             )
             assert card.get_by_text(approval.id, exact=True).is_visible()
             assert card.get_by_role("heading", name=approval.action).is_visible()
+            for name in ("Allow once", "Deny"):
+                button = card.get_by_role("button", name=name)
+                describedby = button.get_attribute("aria-describedby").split()
+                description = " ".join(page.locator(f'[id="{element_id}"]').inner_text()
+                                       for element_id in describedby)
+                assert approval.action in description and approval.id in description
+                assert card.get_by_role(
+                    "button", name=name,
+                    description=re.compile(re.escape(approval.action) + r".*" + re.escape(approval.id)),
+                ).is_visible()
         page.screenshot(path=str(artifacts / capture_names[0]), full_page=True, animations="disabled")
 
         page.set_viewport_size({"width": 320, "height": 780})
@@ -653,6 +668,7 @@ def test_paired_phone_keeps_multiple_approvals_independently_pending(
         "browser": browser.browser_type.name, "browser_version": browser.version,
         "playwright": package_version("playwright"),
         "approval_ids": [approval.id for approval in approvals],
+        "approval_controls_reference_action_and_id_in_aria_description": True,
         "pending_after_first_decision": approvals[decision_order[1]].id,
         "final_approval_statuses": [store.get_approval(approval.id).status.value for approval in approvals],
         "viewports_css_px": {"phone": [390, 844], "compact_phone": [320, 780]},
@@ -9764,6 +9780,16 @@ def test_inline_chat_approval_is_one_click_and_preserves_conversation(browser, l
     approval_id = card.get_attribute("data-approval-card")
     assert card.get_by_text(approval_id, exact=True).is_visible()
     assert card.get_attribute("data-action-hash")
+    for selector, name in (("[data-approve=\"1\"]", "Allow once"),
+                           ("[data-approve=\"0\"]", "Deny")):
+        button = card.locator(selector)
+        description_ids = button.get_attribute("aria-describedby").split()
+        description = " ".join(page.locator(f'[id="{element_id}"]').inner_text()
+                               for element_id in description_ids)
+        assert approval_id in description and "write report" in description
+        assert card.get_by_role(
+            "button", name=name, description=re.compile(r"write report.*" + re.escape(approval_id)),
+        ).is_visible()
     thread = card.locator("xpath=ancestor::article[@data-run-id]")
     assert thread.locator(".msg.you").count() == 1
     assert thread.locator(".msg.you").bounding_box()["y"] < thread.locator(".msg.agent").bounding_box()["y"]
