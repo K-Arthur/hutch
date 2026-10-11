@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import struct
 import zlib
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -66,6 +67,89 @@ def test_a_run_that_never_used_a_surface_reports_inactive(config):
     run = store.create_run(Run(bot_id=bot.id, prompt="hello", status=RunStatus.running))
     body = TestClient(app).get(f"/api/v1/tasks/runs/{run.id}/computer").json()
     assert body["active"] is False and body["frame"] is None
+
+
+def test_step_control_is_opt_in_authenticated_exclusive_and_revocable(seeded):
+    from hutch.computer.human import HumanSession
+    from hutch.computer.control import ControlLease, ControlOwner
+    client, store, run, bot, frames, ref = seeded
+    command = {"action": "takeover", "surface": "desktop", "viewer": "first-viewer-12345"}
+    endpoint = f"/api/v1/tasks/runs/{run.id}/computer/control"
+    assert client.post(endpoint, json=command).status_code == 403
+    bot.remote_computer_access = "control"
+    store.upsert_bot(bot)
+    ctx = SimpleNamespace(store=store, config=store.config, bot=bot, run=run, on_finish=[], cancel_hooks=[])
+    channel = HumanSession(ctx, "desktop", ControlLease("private"), lambda: (frames.load(ref), {}), lambda *args: None)
+    try:
+        response = client.post(endpoint, json=command)
+        assert response.status_code == 200, response.text
+        grant = response.json()
+        assert grant["control"]["owner"] == "human" and grant["control_token"]
+        assert client.post(endpoint, json={**command, "viewer": "second-viewer-12345"}).status_code == 409
+        heartbeat = {**command, "action": "heartbeat", "control_token": grant["control_token"], "generation": grant["generation"]}
+        assert client.post(endpoint, json=heartbeat).status_code == 200
+        assert client.post(endpoint, json={**heartbeat, "viewer": "second-viewer-12345"}).status_code == 403
+        assert client.post(f"/api/runs/{run.id}/resume").status_code == 409
+        bot.remote_computer_access = "off"
+        store.upsert_bot(bot)
+        assert client.post(endpoint, json=heartbeat).status_code == 403
+        with pytest.raises(Exception, match="revoked"):
+            channel.command("owner:local:first-viewer-12345", heartbeat)
+        assert channel.lease.snapshot().owner is ControlOwner.paused
+    finally:
+        channel.close()
+
+
+def test_human_command_body_is_bounded_and_secret_arguments_are_not_echoed(seeded):
+    client, _, run, _, _, _ = seeded
+    endpoint = f"/api/v1/tasks/runs/{run.id}/computer/control"
+    assert client.post(endpoint, content=b"x" * 16_385, headers={"Content-Type": "application/json"}).status_code == 413
+    response = client.post(endpoint, json={"action": "type", "surface": "desktop", "viewer": "test-viewer-123456",
+                                          "text": "SENTINEL" * 300})
+    assert response.status_code == 422 and "SENTINEL" not in response.text
+
+
+def test_paired_computer_view_input_csrf_and_session_revocation_are_distinct(seeded, monkeypatch):
+    import time
+    from hutch.computer.human import HumanSession
+    from hutch.computer.control import ControlLease, ControlOwner
+    from hutch.server.security import SESSION_COOKIE
+    from tests.test_remote_pairing import _enroll_test_passkey, _phone_headers
+    _, store, run, bot, frames, ref = seeded
+    monkeypatch.setenv("HUTCH_REMOTE_ENABLED", "1")
+    monkeypatch.setenv("HUTCH_ALLOWED_HOSTS", "hutch.example")
+    app = create_app()
+    client = TestClient(app, base_url="https://hutch.example")
+    state = f"/api/v1/tasks/runs/{run.id}/computer"
+    endpoint = state + "/control"
+    command = {"action": "takeover", "surface": "desktop", "viewer": "paired-viewer-12345"}
+    assert client.get(state, headers=_phone_headers()).status_code == 401
+    session = _enroll_test_passkey(store, store.create_pairing_code())
+    client.cookies.set(SESSION_COOKIE, session["session_token"])
+    assert client.get(state, headers=_phone_headers()).status_code == 403
+    bot.remote_computer_access = "view"
+    store.upsert_bot(bot)
+    assert client.get(state, headers=_phone_headers()).status_code == 200
+    assert client.get(f"/api/v1/tasks/runs/{run.id}/frames/{ref.frame_id}", headers=_phone_headers()).status_code == 200
+    csrf = store.auth_csrf_token(session["session_token"], session["session_id"])
+    headers = _phone_headers({"X-Hutch-CSRF": csrf})
+    assert client.post(endpoint, json=command, headers=headers).status_code == 403
+    bot.remote_computer_access = "control"
+    store.upsert_bot(bot)
+    ctx = SimpleNamespace(store=store, config=store.config, bot=bot, run=run, on_finish=[], cancel_hooks=[])
+    channel = HumanSession(ctx, "desktop", ControlLease("private"), lambda: (frames.load(ref), {}), lambda *args: None)
+    try:
+        assert client.post(endpoint, json=command, headers=_phone_headers()).status_code == 403
+        response = client.post(endpoint, json=command, headers=headers)
+        assert response.status_code == 200, response.text
+        store.revoke_auth_session(session["session_token"])
+        assert client.post(endpoint, json={**command, "action": "heartbeat", "control_token": response.json()["control_token"], "generation": response.json()["generation"]}, headers=headers).status_code == 401
+        deadline = time.monotonic() + 2
+        while channel.lease.snapshot().owner is ControlOwner.human and time.monotonic() < deadline:
+            time.sleep(0.02)
+        assert channel.lease.snapshot().owner is ControlOwner.paused
+    finally:
+        channel.close()
 
 
 def test_the_frame_route_serves_verified_bytes_with_safe_headers(seeded):

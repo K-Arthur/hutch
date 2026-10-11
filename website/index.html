@@ -295,8 +295,8 @@
         <article class="card feature border border-line bg-surface">
           <div class="card-body">
             <span class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.8" width="10" height="18.4" rx="2.4"/><path d="M11 18.4h2"/></svg></span>
-            <h3 class="card-title">Remote</h3>
-            <p>The responsive dashboard supports experimental HTTPS-paired sessions. A person can take over the same visible Linux browser to enter passwords and one-time codes or complete CAPTCHA; Hutch does not type secrets or solve challenges. Resume checks the live page without reloading it. Phone browser handoff is unavailable.</p>
+            <h3 class="card-title">Supervised computer use</h3>
+            <p>See captured frames, stop a task or take explicit step control of its owned browser or private Linux desktop. Paired devices need separate viewing and input permissions over your existing private HTTPS connection. Native apps have workspace-only user files and no network. Human text and frames stay out of the AI’s history.</p>
           </div>
         </article>
         <article class="card feature border border-line bg-surface">
@@ -457,8 +457,8 @@
               <span>A reviewed task can open the user's OpenCode CLI in a pinned worktree. Run <code>hutch code login</code> once to connect a provider in a private Hutch-managed profile; this does not copy the regular OpenCode profile. Provider usage and approved shell commands remain outside Hutch's budgets and sandbox. OpenCode and Pi are unavailable as Hutch-managed Bot runtimes.</span>
             </li>
             <li>
-              <b>Phone supervision is not remote access.</b>
-              <span>The phone dashboard supports experimental paired control, but cannot take over the browser. On Linux desktop, a person can enter passwords, codes and CAPTCHA responses in the same visible browser; Hutch never types credentials or bypasses challenges.</span>
+              <b>Computer control needs explicit permission.</b>
+              <span>Experimental step control uses bounded still frames, clicks, text and keys in an owned browser or disposable KWin Wayland desktop. It pauses when supervision is lost and requires a fresh frame before input. Conventional browser secret fields are masked in the human preview; detection is best effort. Viewport emulation and native input were tested locally; physical phones, live remote networks and arbitrary GUI grounding remain unverified. Hutch does not solve CAPTCHA or bypass challenges.</span>
             </li>
             <li>
               <b>Delegation has a narrow boundary.</b>
@@ -537,7 +537,8 @@
               <tr><td class="av-k">Public access</td><td class="av-v">Private source; no anonymous download or public release</td><td><span class="ev"><span class="dot dot-warn" aria-hidden="true"></span>Unavailable</span></td></tr>
               <tr><td class="av-k">Supported</td><td class="av-v">Linux executor, local SQLite state and fixture-tested lifecycle/control flows; actual runs need a configured model route</td><td><span class="ev"><span class="dot dot-ok" aria-hidden="true"></span>Supported</span></td></tr>
               <tr><td class="av-k">Experimental</td><td class="av-v">Hosted/local models; OpenCode Go API-key handoff; reviewed OpenCode CLI coding tasks on Linux in pinned worktrees (separate sign-in/usage, command approvals outside Hutch); ChatGPT sign-in preview (eligibility unconfirmed); Google Calendar lookup plus owner-configured guest-free event creation after per-event approval (Google account scope is broader; consent unverified); Outlook Calendar lookup and optional guest-free event creation on one selected calendar, with exact approval each time (Microsoft consent is account-wide and unverified); read-only Outlook Mail previews; private Gmail search (owner OAuth and loopback Local routes only; public release awaits Google scope verification and any required security assessment); host-gated Offline; reviewed child tasks; HTTPS pairing; Linux credential/CAPTCHA handoff; fixture-tested DNS pinning. Browser field detection, public destinations and live provider checks remain unverified</td><td><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></td></tr>
-              <tr><td class="av-k">Unavailable</td><td class="av-v">macOS/Windows executor, phone browser handoff, authenticated PTY/desktop control and OpenCode/Pi as Hutch-managed Bot runtimes</td><td><span class="ev"><span class="dot dot-warn" aria-hidden="true"></span>Unavailable</span></td></tr>
+              <tr><td class="av-k">Computer sessions</td><td class="av-v">Experimental owned Chromium and contained native apps in disposable KWin Wayland; explicit authenticated web step control. Real browser/editor outcomes and responsive previews tested locally; physical phone and live multimodal model quality unverified</td><td><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></td></tr>
+              <tr><td class="av-k">Unavailable</td><td class="av-v">macOS/Windows executor, existing-personal-desktop control, authenticated PTY, clipboard/drag transfer and OpenCode/Pi as Hutch-managed Bot runtimes</td><td><span class="ev"><span class="dot dot-warn" aria-hidden="true"></span>Unavailable</span></td></tr>
               <tr><td class="av-k">Data movement</td><td class="av-v">Prompts go to the selected hosted endpoint; network tools also contact their configured destinations</td><td><span class="ev">Per configuration</span></td></tr>
             </tbody>
           </table>

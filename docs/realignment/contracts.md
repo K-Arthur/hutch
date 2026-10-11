@@ -451,7 +451,7 @@ capability and local per-Bot `remote_start_enabled`, set with `hutch bot update 
 tool, workspace, approval policy or other execution override. The server checks current authority before replay/admission and again
 before queued work is claimed. Credential revocation or disabling remote start cancels unclaimed remote work; claimed work remains
 visible and requires explicit Stop. Device management, Bot configuration, provider connections, schedules, secrets, artifact/export
-routes, and computer interaction are unavailable to paired phones.
+routes remain unavailable to paired phones. Computer frame viewing requires explicit per-Bot view/control permission and Monitor; step input requires control permission plus Review and a viewer-bound ephemeral lease.
 
 The transport boundary requires HTTPS, exact Host and Origin checks, SameSite cookies, a session-bound CSRF token and a custom
 browser-request header. Owner bearer tokens are rejected remotely. Hutch disables Uvicorn proxy-header rewriting; only an exact
@@ -462,7 +462,7 @@ An uncertain command keeps its original idempotency key and is not silently resu
 
 Automated ASGI, route-inventory, database, browser-fixture, and real-Uvicorn HTTPS tests cover these boundaries. Physical iOS Safari
 and Android Chrome, live Tailscale Serve, LAN certificate renewal, and network isolation have not been validated; this remains
-experimental and is not a production remote-support claim. Remote WebSockets, computer input, and browser handoff remain unavailable.
+experimental and is not a production remote-support claim. Remote WebSockets and PTY remain unavailable. Bounded HTTP computer step input is locally verified with a real process worker; physical phones and live networks remain unverified.
 
 ## Navigation and approval review
 

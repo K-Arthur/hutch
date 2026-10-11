@@ -137,7 +137,11 @@ def _wait_for_human(ctx, reason: str, url: str = "", handoff: str = "") -> None:
     if lease is not None:
         lease.take_over("waiting for a person: " + reason[:120])
     with _DRIVER_SLOT.released(_cancelled_probe(ctx)):
-        ctx.gate.wait_for_human(reason, url, handoff=handoff)
+        if getattr(ctx, "computer_sessions", []):
+            from ..computer.human import pump
+            ctx.gate.wait_for_human(reason, url, handoff=handoff, service=lambda: pump(ctx))
+        else:
+            ctx.gate.wait_for_human(reason, url, handoff=handoff)
     if lease is not None:
         lease.hand_back("the person resumed the run")
         # The action in progress re-reads the live page after this point; give it the new generation.
@@ -660,13 +664,52 @@ class BrowserTool(Tool):
                            data={"kind": "computer_control", "surface": "browser", **snap.public()}))
 
         self._lease = ControlLease(f"{run_id}:browser", on_change=announce)
+        ctx.computer_leases = getattr(ctx, "computer_leases", []) + [self._lease]
         self._lease.action_ticket = None
         if run_id:
             _LEASES[run_id] = self._lease
+        if getattr(ctx.bot, "remote_computer_access", "off") == "control":
+            from ..computer.human import HumanSession
+            self._human = HumanSession(ctx, "browser", self._lease, self._human_capture, self._human_dispatch)
         return self._browser
+
+    def _human_identity(self):
+        page = self._tabs.get(self._active_tab)
+        if page is None or page.is_closed():
+            raise BrowserUnavailable("the controlled tab is no longer open")
+        return page, {"tab": self._active_tab, "url": page.url, "viewport": page.viewport_size,
+                      "geometry": page.evaluate("() => [innerWidth, innerHeight, devicePixelRatio, scrollX, scrollY]")}
+
+    def _human_capture(self):
+        with _DRIVER_SLOT.acquire():
+            page, identity = self._human_identity()
+            # Human-only pixels are never stored in the run. Conventional sensitive fields are masked too.
+            masks = [frame.locator('input[type="password"], input[autocomplete="one-time-code"], input[autocomplete="cc-number"], input[autocomplete="cc-csc"]') for frame in page.frames]
+            return page.screenshot(type="png", scale="css", mask=masks), identity
+
+    def _human_dispatch(self, command, expected, check):
+        with _DRIVER_SLOT.acquire():
+            page, identity = self._human_identity()
+            if identity != expected:
+                from ..computer.human import HumanError
+                raise HumanError("tab, URL or geometry changed; capture again before input")
+            check()
+            if command["action"] == "click":
+                page.mouse.click(command["x"], command["y"])
+            elif command["action"] == "type":
+                page.keyboard.insert_text(command["text"])
+            elif command["action"] == "key":
+                key = command["keys"].lower().replace("ctrl+", "Control+").replace("shift+", "Shift+")
+                parts = key.split("+")
+                parts[-1] = {"enter": "Enter", "escape": "Escape", "tab": "Tab", "backspace": "Backspace",
+                             "delete": "Delete", "left": "ArrowLeft", "right": "ArrowRight", "up": "ArrowUp",
+                             "down": "ArrowDown", "home": "Home", "end": "End"}.get(parts[-1], parts[-1])
+                page.keyboard.press("+".join(parts))
 
     def _teardown(self):
         errors = []
+        if getattr(self, "_human", None) is not None:
+            self._human.close()
         stopped = self._stopped
         run_ids = [rid for rid, lease in _LEASES.items() if lease is self._lease]
         for rid in run_ids:
@@ -1111,7 +1154,7 @@ class BrowserTool(Tool):
 
         current_url = getattr(page, "url", "")
         origin = display_url_origin(current_url) or "the current page"
-        if ctx.headless or not ctx.bot.local_browser_handoff:
+        if (ctx.headless or not ctx.bot.local_browser_handoff) and getattr(ctx.bot, "remote_computer_access", "off") != "control":
             completed = f" The {completed_action} already happened; check the site before deciding whether to try again." if completed_action else ""
             return ToolResult(
                 False,
@@ -1141,7 +1184,7 @@ class BrowserTool(Tool):
     def _sensitive_entry_result(page, ctx: ToolContext) -> ToolResult:
         current_url = getattr(page, "url", "")
         origin = display_url_origin(current_url) or "the current page"
-        if ctx.headless or not ctx.bot.local_browser_handoff:
+        if (ctx.headless or not ctx.bot.local_browser_handoff) and getattr(ctx.bot, "remote_computer_access", "off") != "control":
             return ToolResult(
                 ok=False,
                 output=("error: Hutch did not enter or save that value. This field appears to contain a password, "
@@ -1263,7 +1306,7 @@ class BrowserTool(Tool):
             title = page.title()
             sensitive_fields = self._page_has_sensitive_fields(page)
             if sensitive_fields:
-                if ctx.headless or not ctx.bot.local_browser_handoff:
+                if (ctx.headless or not ctx.bot.local_browser_handoff) and getattr(ctx.bot, "remote_computer_access", "off") != "control":
                     return ToolResult(
                         ok=False,
                         output=("error: the page contains a password or other sensitive field, but this run has no visible "

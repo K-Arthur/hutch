@@ -276,6 +276,7 @@ class Bot(BaseModel):
     local_dev_origins: list[str] = Field(default_factory=list, max_length=8)  # exact loopback origins approved for local web-app work (browser only; see netguard.LocalOrigins)
     computer_apps: list[str] = Field(default_factory=list, max_length=8)   # program names the computer tool may launch
     observation_to_hosted: bool = False   # may screen/page images be sent to a hosted (non-local) model route
+    remote_computer_access: Literal["off", "view", "control"] = "off"  # viewing and step input are separate owner opt-ins
     remote_start_enabled: bool = False   # local-owner opt-in for passkey-paired phone starts; never grants new tools
     paused: bool = False
     pinned: bool = False              # workspace roster preference; does not affect execution

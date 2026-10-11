@@ -189,6 +189,7 @@ class ComputerTool(Tool):
                                data={"kind": "computer_control", "surface": "desktop", **snap.public()}))
 
         self._lease = ControlLease(f"{run_id}:desktop", on_change=announce)
+        ctx.computer_leases = getattr(ctx, "computer_leases", []) + [self._lease]
         self._session = DesktopSession(
             session_id=f"{run_id}:desktop", capture=desktop.capture_png, input_backend=eis,
             frames=FrameStore(ctx.config.run_dir(ctx.bot.name, run_id)), lease=self._lease,
@@ -197,6 +198,21 @@ class ComputerTool(Tool):
                          "applications": apps, "keyboard_layout": "us (assumed)"})
         ctx.on_finish.append(lambda: self._shutdown(ctx))
         ctx.cancel_hooks.append(self._emergency_stop)
+        if getattr(ctx.bot, "remote_computer_access", "off") == "control":
+            from ..computer.human import HumanSession, HumanError
+            def capture():
+                return desktop.capture_png(), {"session": self._lease.session_id, "width": desktop.width, "height": desktop.height}
+            def dispatch(command, identity, check):
+                if identity != {"session": self._lease.session_id, "width": desktop.width, "height": desktop.height} or not desktop.alive():
+                    raise HumanError("the desktop identity changed; capture again")
+                check()
+                if command["action"] == "click":
+                    eis.click(command["x"], command["y"])
+                elif command["action"] == "type":
+                    eis.type_text(command["text"])
+                elif command["action"] == "key":
+                    eis.chord(command["keys"].lower())
+            self._human = HumanSession(ctx, "desktop", self._lease, capture, dispatch)
         return self._session
 
     def _launch(self, args: dict[str, Any], ctx: ToolContext, session: DesktopSession) -> ToolResult:
@@ -272,6 +288,8 @@ class ComputerTool(Tool):
                 pass
 
     def _shutdown(self, ctx: Optional[ToolContext] = None) -> None:
+        if getattr(self, "_human", None) is not None:
+            self._human.close()
         session, self._session = self._session, None
         eis, self._input = self._input, None
         desktop, self._desktop = self._desktop, None

@@ -88,7 +88,8 @@ response is marked `Cache-Control: no-store`.
 | `local_browser_handoff` | bool | false | open this bot's browser as a visible Linux desktop window; a login wait holds one Hutch handoff/profile lease until the user resumes. Requires a live Linux display and Playwright Chromium; does not enable phone control. |
 | `local_dev_origins` | list | `[]` | exact `http://localhost:PORT` / loopback origins the browser may open for local web-app work (at most 8; no LAN or metadata addresses; Hutch's own dashboard is refused). See [computer-use.md](computer-use.md). |
 | `computer_apps` | list | `[]` | program names the `computer` tool may launch in its isolated desktop (names only; no paths or arguments). Empty means the tool cannot start a session. |
-| `observation_to_hosted` | bool | false | allow screen or page **images** to be sent to a hosted (non-loopback) model route; local routes are unaffected. |
+| `observation_to_hosted` | bool | false | allow computer page text, labels and supported images to reach a hosted route. Private local observation history blocks hosted fallback. |
+| `remote_computer_access` | enum | `off` | `off`, `view`, `control`: paired viewing requires Monitor; bounded human input also requires Review and one ephemeral controller. Save locally, then start a new built-in run. Revocation pauses active human control. |
 | `risk_tier` | enum | `supervised` | `readonly` · `supervised` · `trusted`: what happens to medium-risk actions ([safety.md](safety.md)) |
 | `command_rules` | list | `[]` | `{match, verdict}` per-command `allow`/`ask`/`deny` globs ([safety.md](safety.md)) |
 | `sandbox` | enum | `strict` for new bots | `strict` uses Linux bubblewrap for shell commands and fails closed if unavailable; `off` runs shell commands without OS containment |
@@ -109,7 +110,7 @@ not include the files they reference. See [Operations](operations.md#database-mi
 
 Enable or disable the local browser handoff with `hutch bot update <name> --local-browser-handoff` or
 `--no-local-browser-handoff`. Headless remains the default. If a run reaches a login challenge without
-the option, it reports that no person can interact with the headless browser and does not enter a fake
+the option or explicit `remote_computer_access: control`, it reports that no person can interact with the headless browser and does not enter a fake
 human-wait state. When enabled, the same visible browser stays open while the run is paused; Hutch
 rechecks the challenge after Resume and keeps waiting if it remains.
 

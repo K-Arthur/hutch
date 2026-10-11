@@ -125,6 +125,7 @@ def test_computer_settings_round_trip_and_readiness_at_each_width(browser, live,
         form.get_by_label("Local web apps").fill("http://localhost:3000\nhttp://127.0.0.1:5000")
         form.get_by_label("Allowed desktop applications").fill("kwrite")
         form.get_by_label("Allow observations to hosted AI").check()
+        form.get_by_label("Computer access from paired devices").select_option("control")
         form.get_by_role("button", name="Save computer access").click()
         page.wait_for_function("() => document.querySelector('#form-computer input[name=observation_to_hosted]')?.checked")
         deadline = time.monotonic() + 5
@@ -133,10 +134,12 @@ def test_computer_settings_round_trip_and_readiness_at_each_width(browser, live,
         saved = app.state.store.get_bot(bot.id)
         assert set(saved.local_dev_origins) == {"http://localhost:3000", "http://127.0.0.1:5000"}
         assert saved.computer_apps == ["kwrite"] and saved.observation_to_hosted
+        assert saved.remote_computer_access == "control"
         page.reload()
         page.locator("#assistant-more-settings > summary").click()
         form = page.locator("#form-computer")
         assert form.get_by_label("Allow observations to hosted AI").is_checked()
+        assert form.get_by_label("Computer access from paired devices").input_value() == "control"
         form.get_by_role("button", name="Check host readiness").click()
         page.wait_for_function("() => {const el=document.querySelector('#computer-readiness'); return el && el.textContent && !el.textContent.includes('Checking');}")
         assert "undefined" not in page.locator("#computer-readiness").inner_text()
@@ -185,7 +188,7 @@ def test_a_person_in_control_is_stated_and_resume_reuses_the_existing_control(br
     page = _open(browser, base, run, 1440, 900)
     try:
         panel = page.locator("[data-computer-panel]")
-        assert "You are in control" in panel.inner_text()
+        assert "Human control" in panel.inner_text()
         resume = panel.locator("[data-human-resume]")
         assert resume.is_visible() and int(resume.get_attribute("data-event-seq")) > 0
         assert resume.get_attribute("data-run-id") == run.id

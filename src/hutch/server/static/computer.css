@@ -78,3 +78,14 @@
 .computer-capabilities li { margin-block: 12px; overflow-wrap: anywhere; }
 .computer-capabilities p { margin-block: 4px; color: var(--text-2); }
 #form-computer .btn { min-height: 44px; }
+.computer-remote { border-top: 1px solid var(--line); padding-top: 16px; display: grid; gap: 12px; }
+.computer-remote label { display: grid; gap: 8px; }
+.computer-remote textarea { width: 100%; min-width: 0; }
+.computer-remote :is(textarea, select) { scroll-margin-block: 150px 60px; }
+.computer-remote .btn { min-height: 44px; }
+.computer-human-preview { width: 100%; padding: 8px; border: 2px solid var(--line); background: var(--bg); border-radius: var(--r-ctl); }
+.computer-human-preview.is-controlling { border-color: var(--accent); cursor: crosshair; touch-action: manipulation; }
+.computer-human-img { display: block; width: 100%; height: auto; }
+.computer-control-bar { position: sticky; top: 80px; z-index: 4; display: flex; align-items: center; gap: 12px; padding: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-ctl); }
+.computer-control-bar p { margin: 0; flex: 1; }
+.computer-control-bar .btn { flex: none; }

@@ -94,6 +94,10 @@ REMOTE_ROUTE_CAPABILITIES: dict[tuple[str, str], Optional[str]] = {
     ("GET", "/api/v1/tasks/runs/{run_id}"): "monitor",
     ("GET", "/api/v1/tasks/runs/{run_id}/events"): "monitor",
     ("GET", "/api/v1/tasks/runs/{run_id}/stream"): "monitor",
+    ("GET", "/api/v1/tasks/runs/{run_id}/computer"): "monitor",
+    ("GET", "/api/v1/tasks/runs/{run_id}/frames/{frame_id}"): "monitor",
+    ("GET", "/api/v1/tasks/runs/{run_id}/computer/human-frame"): "review",
+    ("POST", "/api/v1/tasks/runs/{run_id}/computer/control"): "review",
     ("GET", "/api/v1/actions/approvals"): "review",
     ("GET", "/api/v1/actions/approvals/{approval_id}"): "review",
     ("GET", "/api/v1/snapshot"): "monitor",
@@ -105,6 +109,20 @@ REMOTE_ROUTE_CAPABILITIES: dict[tuple[str, str], Optional[str]] = {
     ("POST", "/api/v1/tasks/runs"): "start",
     ("POST", "/api/v1/search/messages"): "monitor",
 }
+
+class ComputerControlRequest(BaseModel):
+    action: Literal["takeover", "capture", "click", "type", "key", "heartbeat", "pause", "resume"]
+    surface: Literal["browser", "desktop"]
+    viewer: str = Field(min_length=16, max_length=80)
+    control_token: str = Field(default="", max_length=80)
+    generation: Optional[int] = Field(default=None, ge=1)
+    sequence: Optional[int] = Field(default=None, ge=1)
+    frame_id: str = Field(default="", max_length=32)
+    x: Optional[float] = None
+    y: Optional[float] = None
+    text: Optional[str] = Field(default=None, max_length=2000)
+    keys: str = Field(default="", max_length=40)
+
 
 PUBLIC_REMOTE_ROUTES = {("GET", "/login"), ("POST", "/login"), ("GET", "/pair"),
                         ("POST", "/api/v1/pairing/exchange"),
@@ -199,6 +217,7 @@ class BotCreate(BaseModel):
     local_dev_origins: list[str] = Field(default_factory=list, max_length=8)
     computer_apps: list[str] = Field(default_factory=list, max_length=8)
     observation_to_hosted: bool = False
+    remote_computer_access: Literal["off", "view", "control"] = "off"
     workdir: Optional[str] = None
     limits: Optional[Limits] = None
     source_conversation_id: Optional[str] = Field(default=None, max_length=100)
@@ -367,6 +386,7 @@ class BotPatch(BaseModel):
     local_dev_origins: Optional[list[str]] = Field(default=None, max_length=8)
     computer_apps: Optional[list[str]] = Field(default=None, max_length=8)
     observation_to_hosted: Optional[bool] = None
+    remote_computer_access: Optional[Literal["off", "view", "control"]] = None
     workdir: Optional[str] = None          # "" clears it
     limits: Optional[Limits] = None
     tool_limits: Optional[dict[str, int]] = None   # per-tool output caps in chars (PF-2); "" clears a tool
@@ -3285,6 +3305,7 @@ def create_app() -> FastAPI:
         bot.local_dev_origins = _checked_local_origins(body.local_dev_origins)
         bot.computer_apps = _checked_computer_apps(body.computer_apps)
         bot.observation_to_hosted = body.observation_to_hosted
+        bot.remote_computer_access = body.remote_computer_access
         bot.creation_source = creation_source
         bot.creation_context_sources = list(creation_context_sources or [])
         bot.command_rules = _checked_rules(body.command_rules)
@@ -3522,6 +3543,7 @@ def create_app() -> FastAPI:
         if body.local_dev_origins is not None: bot.local_dev_origins = _checked_local_origins(body.local_dev_origins)
         if body.computer_apps is not None: bot.computer_apps = _checked_computer_apps(body.computer_apps)
         if body.observation_to_hosted is not None: bot.observation_to_hosted = body.observation_to_hosted
+        if body.remote_computer_access is not None: bot.remote_computer_access = body.remote_computer_access
         if body.limits is not None: bot.limits = body.limits
         if body.tool_limits is not None: bot.tool_limits = _checked_tool_limits(body.tool_limits)
         if body.command_rules is not None: bot.command_rules = _checked_rules(body.command_rules)
@@ -4028,14 +4050,69 @@ def create_app() -> FastAPI:
 
     _FRAME_ID = re.compile(r"^f\d{6}$")
 
+    def computer_permission(run, request, *, control=False):
+        bot = store.get_bot(run.bot_id)
+        principal = getattr(request.state, "hutch_principal", None) or {}
+        paired = principal.get("kind") == "paired"
+        access = getattr(bot, "remote_computer_access", "off") if bot else "off"
+        if (control and access != "control") or (paired and access == "off"):
+            raise HTTPException(403, "the owner has not enabled this computer viewing/control permission")
+        return bot
+
+    def human_channel(run_id, surface, request):
+        from ..computer.human import sessions
+        run = run_or_404(run_id)
+        computer_permission(run, request, control=True)
+        if run.status.value not in {"running", "waiting_human", "waiting_approval"}:
+            raise HTTPException(409, "this run has no active computer control")
+        channel = next((s for s in sessions(config, run_id, fence=run.fence) if s.surface == surface), None)
+        if channel is None or channel.ctx.run.fence != run.fence:
+            raise HTTPException(409, "the computer worker is not available; no input was sent")
+        return channel
+
+    def human_viewer(request, viewer):
+        if not re.fullmatch(r"[a-zA-Z0-9_-]{16,80}", viewer or ""):
+            raise HTTPException(422, "a per-tab viewer identifier is required")
+        principal = getattr(request.state, "hutch_principal", None) or {}
+        return f"{principal.get('kind', 'owner')}:{principal.get('session_id', 'local')}:{viewer}"
+
+    @app.post("/api/v1/tasks/runs/{run_id}/computer/control")
+    def computer_control(run_id: str, body: ComputerControlRequest, request: Request):
+        from ..computer.human import HumanError
+        channel = human_channel(run_id, body.surface, request)
+        viewer = human_viewer(request, body.viewer)
+        try:
+            if body.action == "takeover":
+                principal = getattr(request.state, "hutch_principal", None) or {}
+                token = request.cookies.get(SESSION_COOKIE, "")
+                return channel.takeover(viewer, auth_session=token if principal.get("kind") == "paired" else "")
+            return channel.command(viewer, body.model_dump())
+        except HumanError as exc:
+            raise HTTPException(exc.status, str(exc)) from None
+
+    @app.get("/api/v1/tasks/runs/{run_id}/computer/human-frame")
+    def human_frame(run_id: str, request: Request, surface: Literal["browser", "desktop"], viewer: str,
+                    generation: int, frame_id: str):
+        from ..computer.human import HumanError
+        channel = human_channel(run_id, surface, request)
+        try:
+            pixels = channel.pixels(human_viewer(request, viewer), request.headers.get("x-hutch-control", ""), generation, frame_id)
+        except HumanError as exc:
+            raise HTTPException(exc.status, str(exc)) from None
+        return Response(pixels, media_type="image/png", headers={"Cache-Control": "no-store, private",
+                        "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'none'; sandbox"})
+
     @app.get("/api/v1/tasks/runs/{run_id}/computer")
-    def run_computer_state(run_id: str) -> dict:
+    def run_computer_state(run_id: str, request: Request) -> dict:
         """What the computer-session panel shows: who controls the surface, the environment, and the latest frame.
 
         Derived only from the run's recorded events, so it cannot claim more than was recorded: a frame is described by
         when it was captured, never as "live"."""
         from ..models import iso, utcnow
         run = run_or_404(run_id)
+        computer_permission(run, request)
+        from ..computer.human import sessions
+        human_sessions = [s.public() for s in sessions(config, run_id, fence=run.fence)]
         events = store.tail_events(run_id, 400)                   # newest 400, oldest first
         control = None
         surface = None
@@ -4062,8 +4139,12 @@ def create_app() -> FastAPI:
             elif ev.type is EventType.human_needed:
                 human_seq = ev.seq
         waiting = run.status.value == "waiting_human"
-        active = frame is not None or control is not None
+        active = frame is not None or control is not None or bool(human_sessions)
         env = (observation or {}).get("environment") if isinstance(observation, dict) else None
+        active_channel = next((s for s in human_sessions if s["surface"] == surface), human_sessions[0] if human_sessions else None)
+        if active_channel:
+            control = active_channel["control"]
+            surface = active_channel["surface"]
         return {
             "active": active,
             "run_status": run.status.value,
@@ -4075,16 +4156,17 @@ def create_app() -> FastAPI:
                        "page": (observation or {}).get("surface")} if frame else None),
             "history": history[-6:],
             "human_needed_seq": human_seq if waiting else 0,
-            "remote_control": False,
-            "remote_control_note": ("Remote clicking and typing are not available in this build. You can supervise, "
-                                    "approve, stop and resume from here."),
+            "human_sessions": human_sessions,
+            "remote_control": bool(human_sessions) and getattr(store.get_bot(run.bot_id), "remote_computer_access", "off") == "control",
+            "remote_control_note": ("Step control is enabled for this private session. Touches send input only after Take control. Hidden tabs or lost supervision pause control." if human_sessions else "Remote clicking and typing are not available for this session. Enable computer step control in the assistant settings before starting its run."),
             "now": iso(utcnow()),
         }
 
     @app.get("/api/v1/tasks/runs/{run_id}/frames/{frame_id}")
-    def run_frame(run_id: str, frame_id: str) -> Response:
+    def run_frame(run_id: str, frame_id: str, request: Request) -> Response:
         """One observation frame, only if the run recorded it, and only after size + SHA-256 verification."""
         run = run_or_404(run_id)
+        computer_permission(run, request)
         if not _FRAME_ID.fullmatch(frame_id):
             raise HTTPException(404, "no such frame")
         event = store.frame_event(run.id, frame_id)
@@ -4197,12 +4279,19 @@ def create_app() -> FastAPI:
 
     @app.post("/api/runs/{run_id}/resume")
     def resume_run(run_id: str) -> dict:
-        run_or_404(run_id)
+        from ..computer.human import sessions
+        run = run_or_404(run_id)
+        if any(s.public()["controller_present"] for s in sessions(config, run_id, fence=run.fence)):
+            raise HTTPException(409, "hand control back through the computer panel first")
         store.resume_run(run_id)
         return {"resumed": run_id}
 
     @app.post("/api/v1/tasks/runs/{run_id}/resume", response_model=dict)
     def resume_run_v1(run_id: str, body: ResumeRunRequest, request: Request) -> dict:
+        from ..computer.human import sessions
+        run = run_or_404(run_id)
+        if any(s.public()["controller_present"] for s in sessions(config, run_id, fence=run.fence)):
+            raise HTTPException(409, "hand control back through the computer panel first")
         key = idempotency_key(request)
         digest = request_digest({"command": "human-resume", "run_id": run_id,
                                  "human_event_seq": body.human_event_seq})

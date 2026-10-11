@@ -114,8 +114,8 @@ the existing current-event checks. A pairing made with `hutch pairing create --a
 must also enable each Bot with `hutch bot update NAME --remote-start`. Phone starts use the Bot's saved model, tools, workspace and
 approval policy. A Bot's pause controls scheduled tasks; an explicit on-demand phone start remains available when both Start gates
 are enabled. Revoking the credential or disabling remote starts cancels unclaimed phone work; already claimed runs remain visible and
-need an explicit Stop. Device pairing, per-Bot settings, schedules, credentials, provider connections, and all computer interaction
-remain local-owner tasks. Uncertain phone command responses require status reconciliation; Retry reuses the original idempotency key.
+need an explicit Stop. Device pairing, per-Bot settings, schedules, credentials, provider connections, and computer permission settings
+remain local-owner tasks. Authorized Review sessions can take bounded human step control when explicitly enabled per Bot; see [computer use](computer-use.md#human-step-control). Uncertain phone command responses require status reconciliation; Retry reuses the original idempotency key.
 
 ### Pre-enable acceptance gate
 
@@ -152,7 +152,7 @@ Do not configure a broad proxy range. Never trust a browser-supplied forwarding 
 
 This feature has automated ASGI, route, database, browser-fixture and real-Uvicorn HTTPS coverage. iOS Safari, Android Chrome, live
 Tailscale Serve, LAN certificate renewal, and live network isolation have not been validated in this environment; remote access is
-not production-certified. The host must remain awake and connected. Remote browser handoff, PTY, and computer input are unavailable.
+not production-certified. The host must remain awake and connected. Bounded computer step control is locally verified; physical-phone and live-network input remain unverified. PTY is unavailable.
 
 Local same-session browser handoff is experimental and opt-in per bot; it needs a Linux display and the optional Playwright browser.
 Enable **Let me take over this bot’s browser** in the bot setup or settings. When Hutch pauses, read the shown origin and reason,
@@ -161,7 +161,7 @@ Resume beside the current wait event in that conversation. Hutch resumes the sam
 and checks that the challenge is gone. If the checkpoint remains, Hutch stays paused. Do not paste passwords or verification codes into
 chat; Hutch never types them or solves/bypasses CAPTCHA. Ordinary form entries still require action review, and page screenshots are
 blocked while a conventional sensitive field is visible. Custom widgets may not be detected. This flow is local Linux desktop only;
-phone handoff, remote browser control, authenticated PTY and physical desktop input are not implemented. A headed live third-party
+bounded headless/remote step control needs separate permission. Authenticated PTY and personal-desktop input are not implemented; physical phones remain unverified. A headed live third-party
 challenge has not been tested.
 
 ## Database migration and restore

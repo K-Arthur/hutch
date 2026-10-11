@@ -617,6 +617,9 @@ class BuiltinRuntime:
         while True:
             if stop():
                 raise RunAborted("stopped", "user requested stop")
+            from ..computer.human import service as service_computer, plan_fence, plan_changed
+            service_computer(ctx)
+            control_fence = plan_fence(ctx)
             if run.tool_access == "none" and run.steps >= 1:
                 raise RunAborted("steps_exceeded", "review-only Bot drafting is limited to one model response")
             if run.steps >= bot.limits.max_steps:
@@ -709,6 +712,10 @@ class BuiltinRuntime:
                         cost_usd=cost or 0.0, account_id=account_id, reservation_id=reservation_id,
                         prefix=prefix_hash, window=session.num_ctx or 0,
                         finish=result.finish_reason, streamed=result.streamed, **extra)
+            if service_computer(ctx) or plan_changed(ctx, control_fence):
+                messages.append({"role": "user", "content": "A person operated the computer session. Your previous "
+                                 "plan was discarded. Observe fresh state before choosing any action."})
+                continue
             if run.tool_access == "none" and result.tool_calls:
                 self._log(ctx, run, "tool_access", "review-only draft run refused a provider tool call; no tool was executed")
                 raise RunAborted("tool_access", "This tool-free review-only run cannot execute tool calls. No action was taken.")
@@ -772,6 +779,9 @@ class BuiltinRuntime:
                 for tc in result.tool_calls]})
             turn_bad = loop_hit = False
             for tc in result.tool_calls:
+                if service_computer(ctx) or plan_changed(ctx, control_fence):
+                    raise RunAborted("control_changed", "A person intervened during a tool batch. Its remaining "
+                                     "actions were discarded; inspect the session before starting a fresh run.")
                 tool = tools.get(tc.name)
                 args, problems = tc.arguments, []
                 if tool is None:

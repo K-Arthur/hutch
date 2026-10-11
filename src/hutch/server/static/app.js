@@ -3108,7 +3108,10 @@ function scheduleFeedRender() {
   renderTimer = setTimeout(() => {
     renderTimer = null;
     void singleFlight(feedRenderFlight, async () => {
-      if (feedMode === "run" && currentRunId) await renderRunDetail(currentRunId);
+      if (feedMode === "run" && currentRunId) {
+        // Preserve the private controller's form, focus and token while the session panel polls ownership separately.
+        if (!window.HutchComputer?.hasControl(currentRunId)) await renderRunDetail(currentRunId);
+      }
       else await renderChatFeed();
     });
   }, 250);
@@ -5631,6 +5634,12 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             <label class="tool-option"><input type="checkbox" name="observation_to_hosted" ${b.observation_to_hosted ? "checked" : ""}>
               <span class="tool-option-copy"><b>Allow observations to hosted AI</b><small>Page text, labels and screenshots may leave this machine through this assistant’s chosen AI service. Sensitive-field detection is best effort. Leave off for private sessions; local model routes can still receive observations.</small></span>
             </label>
+            <label class="field">Computer access from paired devices
+              <select name="remote_computer_access" aria-describedby="remote-computer-help">
+                ${[["off", "Off"], ["view", "View captured frames"], ["control", "View and take step control"]].map(([value, label]) => `<option value="${value}" ${(b.remote_computer_access || "off") === value ? "selected" : ""}>${label}</option>`).join("")}
+              </select>
+              <span class="hint" id="remote-computer-help">Uses the existing private, authenticated phone connection. View needs Monitor permission; input needs Review permission and an explicit takeover. No new listener is opened. Lost or hidden viewers pause control. New runs use this choice.</span>
+            </label>
             <div class="btn-row"><button class="btn primary small" type="submit">Save computer access</button><button class="btn ghost small" type="button" id="computer-doctor">Check host readiness</button></div>
             <p class="hint" id="computer-readiness" role="status"></p><details id="computer-readiness-details" hidden><summary>Capability details and setup steps</summary><ul class="computer-capabilities"></ul></details>
           </form>
@@ -5920,7 +5929,8 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     const fd = new FormData(ev.target);
     patch({ local_dev_origins: String(fd.get("local_dev_origins") || "").split(/\n/).map(s => s.trim()).filter(Boolean),
       computer_apps: String(fd.get("computer_apps") || "").split(",").map(s => s.trim()).filter(Boolean),
-      observation_to_hosted: fd.get("observation_to_hosted") === "on" }, "Computer access saved.");
+      observation_to_hosted: fd.get("observation_to_hosted") === "on",
+      remote_computer_access: fd.get("remote_computer_access") }, "Computer access saved.");
   });
   $("#computer-doctor").addEventListener("click", async ev => {
     const button = ev.currentTarget, status = $("#computer-readiness");
@@ -6102,6 +6112,8 @@ async function renderRunDetail(runId) {
   feedMode = "run";
   const r = await api(`/runs/${runId}`, { signal: routeOwner.abort?.signal });
   if (!stillCurrent()) return;
+  // Control may have started while this refresh awaited the API. Recheck before replacing any controller DOM.
+  if (window.HutchComputer?.hasControl(runId)) return;
   currentStudioBot = r.bot_name;
   currentRunId = runId;
   setTopContext(`
@@ -6169,7 +6181,7 @@ async function renderRunDetail(runId) {
   const block = await runBlockHtml(runId);
   if (!stillCurrent() || !stream.isConnected) return;
   stream.insertAdjacentHTML("beforeend", block);
-  window.HutchComputer?.mount(stream, runId);   // computer-session panel; renders only for runs that used a surface
+  window.HutchComputer?.mount(stream, runId, { api });   // owned computer-session panel and human step control
   const verifyButton = $(`[data-verify-run-history]`, stream);
   const savedIntegrity = runIntegrityStates.get(runId);
   if (savedIntegrity) {

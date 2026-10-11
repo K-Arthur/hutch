@@ -20,12 +20,12 @@ machinery as every other tool. This page says what that does and does not give y
 | Native desktop application | the person's **existing** desktop | **not implemented** (would be weaker isolation and needs the portal consent flow) |
 | Portal (ScreenCast/RemoteDesktop) capture and input | consent-gated | probed only (`hutch computer doctor`); **not exercised** |
 | GNOME/Mutter, X11-only, macOS, Windows | | **unsupported / untested** |
-| Remote (phone) *control* of a surface | | **not implemented**; the phone can supervise, approve, stop and resume |
+| Authenticated human step control | owned browser / disposable KWin desktop | **verified locally** through HTTP and viewport emulation; physical phones and live remote networks **unverified** |
 
 ## How a session is bounded
 
 ```
-person ─ enables ─▶ Bot settings (tools, computer_apps, local_dev_origins, observation_to_hosted, approval_mode)
+person ─ enables ─▶ Bot settings (tools, computer_apps, local_dev_origins, observation_to_hosted, remote_computer_access)
 run ──▶ ApprovalGate (hard deny ▸ policy ▸ sticky ▸ ask)         outward actions are never sticky
         │
         ├─ browser tool ── driver slot (released while waiting) ── egress proxy (every hop) + route guard + LocalAccess
@@ -106,13 +106,41 @@ the native scenario verifies the saved file on disk.
 | --- | --- | --- |
 | Run stop → browser | cancel hook ends the Playwright driver's process tree from outside the owning thread | 1.1–1.3 s to unblock a call hung in navigation (3 runs) |
 | Run stop → desktop | session fenced, input worker killed, compositor/bus/apps killed | 0.06 s to all processes ended |
-| Human wait (login/CAPTCHA) | run parks in `waiting_human`; the driver slot is released; control is the person's; resume revalidates the live page and requires a fresh observation | verified with real input in a disposable Wayland session (`tests/e2e/test_computer_handoff_native.py`); local visible browser only |
+| Human wait (login/CAPTCHA) | run parks in `waiting_human`; driver slot is released; explicit handback revalidates the page | real visible-browser Wayland input and HTTP step input to a headless login fixture; no third-party challenge or physical-phone claim |
 | Takeover racing an approved action | the action's ticket is stale and is not dispatched | tested (200-iteration race, plus a real approved click) |
 | Hand back | new generation; coordinates require a fresh observation | tested |
 
-Honest limits: there is **no remote (phone) control surface**. A headless browser has no human view; the run says so
-instead of waiting for a window that does not exist. Emergency stop is bound to the run's cancel path, not to a hardware
-key. A stop leaves the run's outcome for the interrupted action `unknown`.
+Without local handoff or explicit step-control permission, a headless login fails clearly. Emergency stop is bound to the
+run's independent cancellation path; there is no hardware hotkey. An interrupted action can have outcome `unknown`.
+
+## Human step control
+
+In **Assistant settings → Customize how it works → Computer access**, choose `Off`, `View captured frames` or
+`View and take step control` (`remote_computer_access`, default `off`). Save, then start a new built-in run: changing an
+active run cannot create a missing channel. The local owner controls settings. Paired devices additionally need Monitor
+for viewing and Review for input, an unrevoked passkey session and its CSRF token. Use the existing explicitly configured
+[private HTTPS deployment](operations.md#phone-supervision-over-private-https); this feature creates no TCP listener or relay.
+
+1. Open the run panel and select its owned browser or private desktop. **Take control** fences automation immediately.
+2. **Refresh human frame**, inspect the timestamp, and touch inside the image for one left click. Image bounds, aspect
+   ratio, surface identity and geometry are checked. Scroll outside the image to move the supervision page.
+3. Use the separate text and key controls for the focused app. Enter can submit a form; check focus first. Text is limited
+   to 2,000 characters. Drag, held keys, clipboard, arbitrary chords and PTY are unavailable.
+4. **Hand back to Hutch** explicitly resumes. It discards old plans, including a takeover/handback that completed during
+   inference. New coordinate actions require fresh observation. **Pause control** fences both sides; **Stop run** ends it.
+
+Only one viewer controls each surface. Tokens stay in the page's memory, are bound to its authenticated identity and
+generation, and disappear on reload/restart. Hidden pages/pagehide request a pause; an independent host watchdog pauses
+within the 15-second lease plus a one-second polling interval if heartbeats or permission disappear. No input queue replays
+after reconnect. Frames expire for input after 10 seconds; commands run at most five times per second, queue four at most,
+and must start within seven seconds. HTTP acknowledgement waits eight seconds. A lost response is uncertain: inspect
+before retrying; an identical retained sequence never dispatches twice. Handback refuses pending input.
+
+Human frames and text use the worker's owning thread and private in-memory channel, reached through an owner-only Linux Unix socket. They are never model observations,
+run events or retained screenshots. Conventional browser passwords/OTP/payment fields are masked in the human preview;
+custom widgets and native windows are **not reliably redacted**. Avoid credential material in native sessions. The transport
+accepts at most 16 KiB per command. Slow or failed capture disables input until a fresh frame is available. Physical user
+intervention in another display is not detected; use the explicitly owned session, rather than a shared personal desktop.
 
 ## Approved local development origins
 
@@ -134,9 +162,11 @@ hutch computer doctor --deep     # also launches a headless browser in a throwaw
 GET /api/v1/computer/readiness   # same data for the UI
 ```
 
-Isolated desktop prerequisites: `kwin_wayland`, `dbus-daemon`, `busctl`, `spectacle` (capture through KWin), `libei`, and a
+Isolated desktop prerequisites: `kwin_wayland`, `dbus-daemon`, `busctl`, `spectacle` (capture through KWin), `libei`,
+`bwrap`, `systemd-run`, `prlimit`, user namespace support and a
 Python with PyGObject for the input worker (`/usr/bin/python3` is found automatically; override with `HUTCH_GI_PYTHON`).
-Bot settings: `computer_apps` (program **names** only, resolved on `PATH`), `local_dev_origins`, `observation_to_hosted`.
+Bot settings: `computer_apps` (program **names** only, resolved on `PATH`), `local_dev_origins`, `observation_to_hosted`,
+`remote_computer_access`.
 Add `computer` to the Bot's tools to enable the tool; nothing is on by default.
 
 ## Privacy and retention
@@ -158,6 +188,16 @@ profile. Redaction is best-effort, not a guarantee; sensitive sessions should no
 | "N elements match" | use an id/`data-testid` selector from the candidate list |
 | frame shows "no longer retained" | the bounded store evicted it; observe again |
 | browser tab blocked "internal name" | the origin is not in `local_dev_origins`, or is Hutch's own dashboard |
+| another viewer controls the surface | ask that viewer to pause; after disconnect wait for lease expiry, then explicitly take control |
+| stale frame / changed generation / lost acknowledgement | refresh and inspect; never blindly retry a submit |
+| no Take control button | enable step control locally, start a new built-in run, check device Review permission and active channel |
+
+## Upgrade and rollback
+
+The added Bot setting has a backward-compatible default `off`; old saved configurations grant no remote input. Authority,
+human pixels and input queues are not durable. On process restart, old tokens cannot resume a session. Stop active runs and
+verify cleanup before rollback. Keep revoked device sessions and generation fences revoked; restoring a database requires
+the existing restore review. Do not downgrade into the former shared browser or uncontained native-app paths.
 
 ## Measured on the reference host
 

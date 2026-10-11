@@ -84,3 +84,48 @@ An earlier 54-pass/one-failure batch exposed a test assumption that its workspac
 disk-backed TMPDIR legitimately creates empty mount ancestors. The assertion accounts for that location and retains the
 outside-file canary check. Native dialog/reopened/menu captures, settings at 360/1440, and the 768 panel were opened and
 inspected. These are disposable Wayland and viewport-emulation results; physical phone/model validation remains open.
+
+## Human step input, worker boundary and website milestone
+
+The authenticated route now fences one viewer per surface and queues bounded commands to the owning driver thread.
+Human pixels/text remain ephemeral, absent from transcripts and model requests. Browser conventional password/OTP/card
+fields are masked in the private preview, with custom/native fields explicitly outside that guarantee. The controller has
+a 15-second heartbeat lease, a 10-second input-frame lifetime, four pending commands, 5 Hz input, seven-second dispatch
+deadline and eight-second acknowledgement wait. Identical retained sequences return their result without redispatch;
+out-of-order or changed commands are rejected. Pause/revocation/restart discard queues and private pixels.
+
+Review caught an integration gap: in-process tests initially proved HTTP input but normal run workers are separate
+processes. We read [Python's socket contract](https://docs.python.org/3.13/library/socket.html) before adding a bounded,
+owner-only Linux pathname socket, same-UID peer checks, four RPC handlers and no TCP listener. The worker alone touches
+Playwright/native objects. The attempted Linux man-page web fetch was unavailable; no unsupported contract is claimed.
+The corrected real-process test passed in **8.39 s**: a normal built-in process worker using a scripted local protocol
+server opened a real headless login, received clicks/text/Tab/Enter from the actual Hutch web panel, reached the app's
+conditional receipt endpoint, explicitly handed back and finished. No real model weights or physical phone were used.
+
+Focused human/API/responsive tests passed **20 in 37.18 s**; API paired auth/Monitor versus Review/CSRF/revocation passed
+**9 in 8.46 s**. The stricter login and panel fixtures passed **13 in 32.04 s**. Human/runtime/site checks passed **56 in
+60.05 s**. These are overlapping checks, not an additive scenario count. Before correction: one tablet raw-click scenario
+failed after supervision-page scrolling; it now uses explicit Tab/Enter and requires actual password entry. One website
+test failed at all widths because its separate limitations disclosure was closed; it now opens both actual disclosures.
+One lifecycle batch failed an immediate assertion before the second viewer's HTTP error arrived; it now waits for the
+visible committed result. The first process-worker attempt used the test server's thread executor; the test now explicitly
+requires the production process executor and a distinct worker PGID, with no in-process registry entry.
+
+Review also fixed late queued input, handback during in-flight input, a complete takeover/handback during inference, late
+HTTP grants after page backgrounding, stale-frame UI input and a misleading owner label/duplicate Resume control. The
+independent watchdog runs without the driver pump. Public content cannot authorize these transitions.
+
+Actual 360/768/1440 still-frame input, real KWrite human edit/save, landscape and 320-pixel reflow, two viewer exclusivity
+and an injected `pagehide` pause are verified locally. This is **viewport emulation and lifecycle fault injection**, not
+physical iOS/Android suspension. Fresh screenshots include `phone-control-*`, `site-computer-*`, limitations and settings
+in `artifacts/computer-use-2026-10-11`. Website cards/limitations at all three widths and the 768 phone view were opened
+and inspected; console/network/overflow evidence is in the adjacent website JSON. Marketing stays scoped to implemented
+experimental capability and explicitly names physical-phone/live-network/model-grounding gaps. No site was published.
+
+Combined human/API/pairing/CAS/native-input/doctor/panel/site verification: **96 passed in 102.98 s**. Subsequent visual
+inspection found landscape focus partly covered by the sticky status. The status is now concise, capture time sits beside
+the preview, and text/key focus is brought into view. A stricter follow-up exposed an in-flight run refresh replacing a newly
+acquired controller: it now rechecks authority after its API wait and before DOM replacement. The earlier follow-up had
+**14 passing checks and one failure**; corrected phone/panel checks passed **15 in 57.08 s**. Updated landscape, 320-pixel
+reflow and the real process-worker signed-in preview were opened and inspected. Focus is visibly unobscured and Stop stays
+reachable. These results do not replace the separate remaining file-transfer/resource/package obligations.

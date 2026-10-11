@@ -326,19 +326,12 @@ def _browser_engine(h: _Host, deep: bool) -> Capability:
 
 
 def _remote_takeover() -> Capability:
-    try:
-        from ..tools.browser import local_handoff_status
-        ok, reason = local_handoff_status()
-    except Exception as exc:  # pragma: no cover - import problems are reported, not raised
-        ok, reason = False, str(exc)
-    if ok:
-        return Capability("human_takeover", "Human takeover", DEGRADED,
-                          "A visible local browser can be handed to a person on this desktop. There is no remote "
-                          "(phone) control surface: a phone can supervise, approve, stop and resume, not operate.",
-                          evidence="local_handoff_status")
-    return Capability("human_takeover", "Human takeover", UNAVAILABLE,
-                      f"{reason} There is no remote (phone) control surface yet.",
-                      "Enable Local browser handoff on a Linux desktop session.", evidence="local_handoff_status")
+    return Capability("human_takeover", "Human step control", DEGRADED,
+                      "Bounded human frames and step input are available for owned Chromium and private KWin sessions. "
+                      "Per-assistant computer access defaults off; paired viewing needs Monitor, input needs Review and "
+                      "an explicit controller lease. Physical phones and live remote networks remain unverified.",
+                      "Enable Computer access in assistant settings, then start a new supported run. Use the existing "
+                      "private HTTPS/passkey deployment; this feature opens no listener.", evidence="local Chromium/KWin input tests; viewport emulation")
 
 
 def probe_computer_use(*, deep: bool = False, env: Optional[Mapping[str, str]] = None, run: Optional[Runner] = None,

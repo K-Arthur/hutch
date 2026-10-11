@@ -216,6 +216,8 @@ class ToolContext:
     delegation_submit: Optional[Callable[[str, str, str], ToolResult]] = None  # supervised, strict-offline child admission
     skills: Optional[Any] = None      # skills.ResolvedSkills for this run; the engine resolves it once at start
     private_computer_history: bool = False   # local observations make a later hosted fallback unsafe without consent
+    computer_sessions: list[Any] = field(default_factory=list)  # owner-thread human step channels; never exported to a planner
+    computer_leases: list[Any] = field(default_factory=list)  # also track local handoffs while inference is in flight
 
     def begin_effect(self) -> Optional[str]:
         """Call right BEFORE performing a lasting effect, after policy and approval have said yes. Records the intent

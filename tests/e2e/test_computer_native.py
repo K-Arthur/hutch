@@ -219,6 +219,40 @@ def test_native_app_namespace_cannot_read_outside_workspace_or_reach_host_loopba
         assert json.loads((workspace / "containment.json").read_text()) == {"outside": False, "network": False}
 
 
+def test_human_step_input_edits_and_saves_the_real_native_application_without_model_observation(native):
+    from tests.test_computer_human import _call
+    native.ctx.bot.remote_computer_access = "control"
+    launched = native.tool.run({"action": "launch", "app": "kwrite"}, native.ctx)
+    assert launched.ok, launched.output
+    channel = native.tool._human
+    grant = channel.takeover("native-human")
+    sequence = 0
+    frame = {}
+    def command(action, **args):
+        nonlocal sequence, frame
+        sequence += 1
+        time.sleep(0.21)
+        result = _call(channel, "native-human", {"action": action, "sequence": sequence,
+                       "control_token": grant["control_token"], "generation": grant["generation"],
+                       "frame_id": frame.get("frame_id", ""), **args})
+        assert isinstance(result, dict), str(result)
+        frame = result["frame"]
+        return result
+    command("capture")
+    command("click", x=430, y=367)
+    command("click", x=640, y=400)
+    command("type", text="HUMAN-PRIVATE-NATIVE-NOTE")
+    command("key", keys="ctrl+s")
+    target = native.workspace / "human-native.txt"
+    command("type", text=str(target))
+    command("key", keys="enter")
+    assert _wait_for(lambda: target.exists() and target.read_text().strip() == "HUMAN-PRIVATE-NATIVE-NOTE")
+    assert "HUMAN-PRIVATE-NATIVE-NOTE" not in str([e.model_dump() for e in native.events])
+    channel.command("native-human", {"action": "resume", "control_token": grant["control_token"], "generation": grant["generation"]})
+    stale = native.tool.run({"action": "click", "frame_id": _frame(launched), "x": 640, "y": 400}, native.ctx)
+    assert not stale.ok and "observe again" in stale.output
+
+
 def test_mixed_workflow_terminal_generates_a_file_the_desktop_app_edits_and_saves(store, config, tmp_path):
     """A real shell command produces the file; the editor opens that exact workspace path; the saved bytes are the proof.
 

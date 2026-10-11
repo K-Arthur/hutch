@@ -250,9 +250,9 @@ redacted from event/receipt records. Native HTML form submissions show a bounded
 the approval to a page-side digest of current form state, including secret values that never leave the page. A changed form refuses
 to submit; selected file uploads and forms without secure digest support fail closed. A visible sensitive field blocks screenshots.
 Human password/CAPTCHA/MFA steps pause in the same live profile; Resume checks the page without reloading it. Field detection is heuristic, the Linux desktop handoff is
-  experimental, and no real challenge or computer-input handoff is verified. Paired-phone supervision now supports status/transcript
+  experimental; controlled login and real native input are verified in disposable sessions, with no live third-party challenge claim. Paired-phone supervision now supports status/transcript
   viewing, approval review, Stop/Resume, and locally enabled starts through passkeys and an explicit route capability inventory; live
-  mobile/network validation remains open. Remote computer input and live/non-HTTP browser egress validation remain open. HTTP(S)/WebSocket browser connections use a locally tested DNS-pinning proxy. SQLite access is serialized by an RLock in `Store`, and migration startup is additionally serialized across
+  mobile/network validation remains open. Bounded HTTP human step input is locally verified; physical-phone, live-network and non-HTTP browser egress validation remain open. HTTP(S)/WebSocket browser connections use a locally tested DNS-pinning proxy. SQLite access is serialized by an RLock in `Store`, and migration startup is additionally serialized across
 processes. Schema v9 stores canonical conversations, user/assistant messages, run links and revocable device sessions; old runs are imported one per legacy
 conversation to avoid guessing continuity. Versioned conversation writes and run admission are idempotent and transactional. The
 builtin runtime receives a capped snapshot of earlier messages; Studio uses the versioned conversation endpoints. Versioned stop and
@@ -317,14 +317,13 @@ memory, workspace or permissions. Required response fields and limits are valida
 
 ## What is deliberately NOT here (yet)
 
-Vector retrieval, webhook triggers, multi-user roles, bounded agent-to-agent collaboration, a cross-run artifact library, remote
-browser handoff, authenticated PTY/physical desktop controls and Windows/macOS support — tracked in `docs/roadmap.md`.
+Vector retrieval, webhook triggers, multi-user roles, bounded agent-to-agent collaboration, a cross-run artifact library, authenticated PTY/personal-desktop controls and Windows/macOS support — tracked in `docs/roadmap.md`.
 Remote phone supervision is optional and remains disabled unless `hutch serve --allow-remote` is explicitly launched. It uses one-use
 enrollment, passkey credentials, bounded sessions, a deny-by-default route inventory and per-Bot local Start opt-in. Direct remote
 access requires a private interface and trusted HTTPS certificate; a proxy requires exact proxy IP and public-host allowlists. The
 recommended Tailscale path forwards Serve to a loopback Hutch listener and still requires Hutch passkey authentication. These boundaries
 have automated local and real-Uvicorn HTTPS coverage, but not live tunnel, private-network, iOS/Android, or certificate-renewal
-validation. No production remote-support claim exists. Remote computer control and phone browser handoff remain unavailable. The Linux shell has optional,
+validation. No production remote-support claim exists. Bounded human step control uses an owner-only Linux Unix socket to a private worker-thread queue, ephemeral viewer/generation tokens and an independent expiry/revocation watchdog. Human frames/text are excluded from planner history. HTTP threads fence control but never touch Playwright/native objects. Physical-phone and live-network input remain unverified. The Linux shell has optional,
 fail-closed bubblewrap containment; it is not a VM and does not contain every tool or the browser.
 
 The conversation-first shell keeps the bot roster and configuration ownership in one place.

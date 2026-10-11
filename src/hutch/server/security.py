@@ -213,7 +213,10 @@ class SecurityMiddleware:
         passkey_verify = scope.get("path") in {
             "/api/v1/passkeys/registration/verify", "/api/v1/passkeys/login/verify",
         }
-        if passkey_verify:
+        computer_input = scope.get("path", "").startswith("/api/v1/tasks/runs/") and scope.get("path", "").endswith("/computer/control")
+        body_limit = 16_384 if computer_input else MAX_PASSKEY_VERIFY_BODY_BYTES
+        body_label = "computer command" if computer_input else "passkey credential"
+        if passkey_verify or computer_input:
             lengths = self._header_values(scope, b"content-length")
             if len(lengths) > 1:
                 await PlainTextResponse("hutch: invalid passkey request length.", status_code=400)(scope, receive, send)
@@ -227,8 +230,8 @@ class SecurityMiddleware:
                 if content_length < 0:
                     await PlainTextResponse("hutch: invalid passkey request length.", status_code=400)(scope, receive, send)
                     return
-                if content_length > MAX_PASSKEY_VERIFY_BODY_BYTES:
-                    await PlainTextResponse("hutch: passkey credential payload is too large.", status_code=413)(
+                if content_length > body_limit:
+                    await PlainTextResponse(f"hutch: {body_label} payload is too large.", status_code=413)(
                         scope, receive, send)
                     return
         if scope.get("path") in ("/auth/callback", "/api/v1/connections/google-calendar/callback",
@@ -370,7 +373,7 @@ class SecurityMiddleware:
                     security_headers[b"content-security-policy"] = (
                         b"default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; "
                         b"form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
-                        b"img-src 'self' data:; connect-src 'self'")
+                        b"img-src 'self' data: blob:; connect-src 'self'")
                     security_headers[b"cache-control"] = b"private, no-store"
                     security_headers[b"pragma"] = b"no-cache"
                 for key, value in security_headers.items():
@@ -384,7 +387,7 @@ class SecurityMiddleware:
             await send(message)
 
         app_receive = receive
-        if passkey_verify:
+        if passkey_verify or computer_input:
             received_bytes = 0
 
             async def receive_limited():
@@ -392,7 +395,7 @@ class SecurityMiddleware:
                 message = await receive()
                 if message.get("type") == "http.request":
                     received_bytes += len(message.get("body", b""))
-                    if received_bytes > MAX_PASSKEY_VERIFY_BODY_BYTES:
+                    if received_bytes > body_limit:
                         raise RequestBodyTooLarge
                 return message
 
@@ -400,7 +403,7 @@ class SecurityMiddleware:
         try:
             await self.app(scope, app_receive, send_with_security_headers)
         except RequestBodyTooLarge:
-            await PlainTextResponse("hutch: passkey credential payload is too large.", status_code=413)(
+            await PlainTextResponse(f"hutch: {body_label} payload is too large.", status_code=413)(
                 scope, receive, send_with_security_headers)
         return
 

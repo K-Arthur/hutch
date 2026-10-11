@@ -1,0 +1,21 @@
+{
+  "environment": "Chromium viewport emulation",
+  "rotations": [
+    [
+      360,
+      780
+    ],
+    [
+      780,
+      360
+    ],
+    [
+      320,
+      900
+    ]
+  ],
+  "two_viewer_exclusivity": true,
+  "pagehide": "injected lifecycle event; host paused",
+  "typed_history": "no input in this scenario",
+  "accessibility": "- region \"Human step control\":\n  - combobox \"Surface to control\":\n    - option \"Owned browser\" [selected]\n  - status: Control paused. Take control again to continue.\n  - button \"Stop run\"\n  - button \"Take control\"\n  - button \"Refresh human frame\" [disabled]\n  - button \"Pause control\" [disabled]\n  - button \"Hand back to Hutch\" [disabled]\n  - button \"Human preview. Click or touch to send a left click only in control mode.\" [disabled]:\n    - img \"Private human frame; never sent to the AI\"\n  - paragraph: Take control, then refresh the private preview before input.\n  - text: Human text entry\n  - textbox \"Text to type in the controlled app\":\n    - /placeholder: Text for the focused control\n  - button \"Type in focused control\" [disabled]\n  - combobox \"Key to send\":\n    - option \"enter\" [selected]\n    - option \"escape\"\n    - option \"tab\"\n    - option \"backspace\"\n    - option \"ctrl+a\"\n    - option \"ctrl+s\"\n    - option \"ctrl+o\"\n  - button \"Send key\" [disabled]\n  - paragraph: \"Scroll outside the preview to move this page. Each touch sends one click; drag, clipboard and held keys are unavailable. Enter can submit a form: check the focused control first. No text is saved in Hutch's run history.\""
+}
