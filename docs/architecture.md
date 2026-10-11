@@ -484,6 +484,11 @@ without dispatch; uncertain receipts refuse a retry until an operator records th
 was not applied. Workflow questions also carry revision/attempt identity, so old answers
 cannot change a stopped or replaced instance.
 
+Workflow Stop commits cancellation intent for the orchestration attempt and every existing
+descendant before any run transitions or process signals. A queued, unclaimed step is stopped
+before dispatch, and child admission that races afterward sees the cancelled parent and fails.
+Active attempts and children remain nonterminal until their own supervisors verify cleanup.
+
 Dynamic-plan submissions may be bound to a chat by `conversation_id`. The API verifies that the
 conversation exists and belongs to the selected assistant before admission, and stores the ID
 on the workflow instance. Studio then projects the run only into its owning chat. This prevents

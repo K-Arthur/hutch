@@ -266,6 +266,10 @@ slot. The workflow remains visible as waiting, not successful. An answer or sett
 the supervisor admit a fresh attempt; settled node records are reused.
 Stopping a parked workflow cancels its pending questions and owned child work, and it remains
 visible until cleanup is verified.
+Stop commits cancellation fences for the attempt and its descendants before transitioning any
+run. An owned step that is still queued and unclaimed becomes stopped without dispatch; a racing
+late step admission sees the fenced parent and is refused. The orchestration attempt remains
+nonterminal until its own cleanup path settles.
 Stopping while a model step is active also cancels the step run. The process-executor
 regression verifies that both the step and orchestration attempt settle as stopped, and that
 their owned process records are closed before the workflow becomes terminal.

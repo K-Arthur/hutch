@@ -420,6 +420,61 @@ def test_workflow_step_shares_the_only_global_run_slot_with_its_attempt(store):
     store.request_cancel_tree(chat.id)
 
 
+def test_stopping_workflow_stops_queued_step_and_blocks_late_admission(store):
+    """Stop must cancel queued owned work and commit its descendant fence first."""
+    bot = make_bot(store, name="stop-queued-workflow-step", model="mock/demo", tools=["files"])
+    submission = wfsubmit.submit_workflow(
+        store, bot=bot, plan=deterministic_plan(), definition_name="stop-queued-workflow-step")
+    attempt = store.claim_run(submission.attempt_run_id, "stop-workflow-owner", 60)
+    assert attempt is not None
+    attempt = store.transition_run(attempt.id, RunStatus.running, fence=attempt.fence)
+    workflow = wstore.workflow_run(store, submission.workflow_run_id)
+    assert workflow is not None
+    assert wstore.claim_workflow_attempt(
+        store, workflow["id"], attempt.id, owner_fence=attempt.fence,
+        revision_id=workflow["revision_id"])
+    wstore.open_node(store, workflow["id"], owner_run_id=attempt.id,
+                     owner_fence=attempt.fence, revision_id=workflow["revision_id"],
+                     site_id="answer", instance_key="once", kind="agent",
+                     input_value={"instruction": "Answer."}, input_hash="sha256:stop-queued")
+
+    def make_step(prompt: str):
+        run = Run(bot_id=bot.id, prompt=prompt)
+        run.workflow_step = {
+            "workflow_run_id": workflow["id"], "revision_id": workflow["revision_id"],
+            "parent_fence": attempt.fence, "site_id": "answer", "instance_key": "once",
+            "role": "worker", "tools": [], "model": "mock/demo",
+        }
+        task = Task(bot_id=bot.id, kind="step", prompt=prompt)
+        return run, task
+
+    queued, task = make_step("queued step")
+    queued, created = wstore.submit_step_run(
+        store, workflow_run_id=workflow["id"], site_id="answer", instance_key="once",
+        run=queued, task=task, parent_run_id=attempt.id, parent_fence=attempt.fence,
+        idem_key="stop-queued-step", request_hash="stop-queued-step")
+    assert created and queued.status.value == "pending" and not queued.lease_owner
+
+    stopped = wfsubmit.stop_workflow(store, workflow["id"],
+                                     expected_revision_id=workflow["revision_id"])
+    assert stopped["stop_requested"] is True
+    current = store.get_run(attempt.id)
+    cancelled = store.get_run(queued.id)
+    assert current is not None and current.status.value == "cancelling"
+    assert cancelled is not None and cancelled.status.value == "stopped"
+    assert cancelled.cancel_requested is True
+    assert wstore.workflow_run(store, workflow["id"])["status"] == "running"
+
+    late, late_task = make_step("late step")
+    with pytest.raises(ValueError, match="orchestration attempt is not running"):
+        wstore.submit_step_run(
+            store, workflow_run_id=workflow["id"], site_id="answer", instance_key="once",
+            run=late, task=late_task, parent_run_id=attempt.id, parent_fence=attempt.fence,
+            idem_key="stop-late-step", request_hash="stop-late-step")
+    assert store.get_run(late.id) is None
+    store.transition_run(attempt.id, RunStatus.stopped, fence=attempt.fence)
+
+
 def test_a_crash_between_opening_a_node_and_admitting_its_step_recovers(store, config, ollama):
     """A node record with no run is re-admitted by the continuation instead of stalling."""
     bot = make_bot(store, name="recover-bot", model="ollama/tiny:1b", tools=["files"], selfcheck=False)

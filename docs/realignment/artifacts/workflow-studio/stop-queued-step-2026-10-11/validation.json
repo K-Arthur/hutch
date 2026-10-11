@@ -1,0 +1,39 @@
+{
+  "test": "tests/test_workflow_regressions.py::test_stopping_workflow_stops_queued_step_and_blocks_late_admission",
+  "command": "TMPDIR=/var/tmp uv run pytest tests/test_claims.py tests/test_state_snapshot.py tests/test_workflow_engine.py tests/test_workflow_regressions.py tests/test_delegation.py::test_delegated_child_claim_can_share_only_its_parent_capacity tests/test_capacity_procs.py -q",
+  "result": {
+    "passed": 97,
+    "failed": 0,
+    "duration_seconds": 58.22
+  },
+  "focused_confirmation": {
+    "command": "TMPDIR=/var/tmp uv run pytest tests/test_workflow_regressions.py::test_stopping_workflow_stops_queued_step_and_blocks_late_admission -q",
+    "passed": 1,
+    "failed": 0,
+    "duration_seconds": 1.13
+  },
+  "captured_at": "2026-10-11T19:50:46.383896+00:00",
+  "python": "3.13.15",
+  "pytest": "9.1.1",
+  "hutch_version": "0.1.0",
+  "base_commit": "d88a6d30985d090077d62b29aed8b4b23c2c6627",
+  "provider_calls": 0,
+  "external_effects": 0,
+  "asserted_states": [
+    "Stop sets durable cancellation intent on the workflow attempt and its owned descendant before changing run status.",
+    "The owned step is pending and unclaimed before Stop, then transitions to stopped without dispatch.",
+    "The orchestration attempt moves to cancelling and the workflow remains running/nonterminal pending its own cleanup.",
+    "A new child admission after Stop is rejected and creates no run row.",
+    "Separate real-process coverage verifies active child/process cleanup before terminal Stop."
+  ],
+  "visual_evidence": "No UI changed in this Stop-fencing slice; responsive owner and paired-phone workflow captures remain in the committed pause-resume and phone evidence directories.",
+  "source_sha256": {
+    "src/hutch/store.py": "21c898ac684957c61f89c8423a6eea343ac9b9c5d942578f7310c0811cad5267",
+    "src/hutch/workflow/persistence.py": "bb295261dd880ac95cbbce4caf0ccf561b2ae621385c9770e4c77dacd2afcac9",
+    "tests/test_workflow_regressions.py": "646be401d55f5eb5899fdb2f0ce2e0ca83707967933b4a8d73f01ad770527656",
+    "docs/workflows.md": "32d65b812114c5adc364f6e8bf555a6de4ff92571cf48aed1e7917815303936f",
+    "docs/architecture.md": "cad5889f6248d36e97847a7ed16af26a67cfc1fb0adb24544a5dc9cd2d08750e",
+    "docs/realignment/dynamic-workflows.md": "147c995b6dcc2f95d879a00c093fe77283bd14b18d5ca0273c639f7baf13f25a",
+    "CHANGELOG.md": "2d9bd8372f1e373b004f3d70654175dbd6a2ccd185c843cb6ce5b2edaa03e82b"
+  }
+}
