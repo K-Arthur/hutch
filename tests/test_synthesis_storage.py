@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from hutch.store import SCHEMA_VERSION, Store, _migrate_52
+from hutch.store import SCHEMA_VERSION, Store, _migrate_52, _migrate_53
 from hutch.synthesis.storage import (
     SynthesisIntegrityError,
     SynthesisStorage,
@@ -103,13 +103,16 @@ def test_names_and_mime(config):
 # schema + store
 
 
-def test_migration_52_is_idempotent_and_current():
-    assert SCHEMA_VERSION == 52
+def test_migrations_52_and_53_are_idempotent_and_present():
+    assert SCHEMA_VERSION >= 53
     db = sqlite3.connect(":memory:")
     _migrate_52(db)
     _migrate_52(db)
+    _migrate_53(db)
+    _migrate_53(db)
     names = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-    assert {"syn_sources", "syn_manifests", "syn_manifest_revisions", "syn_artifacts", "syn_effects"} <= names
+    assert {"syn_sources", "syn_manifests", "syn_manifest_revisions", "syn_artifacts",
+            "syn_effects", "syn_plans"} <= names
     db.close()
 
 
