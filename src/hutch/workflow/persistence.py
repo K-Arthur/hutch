@@ -373,7 +373,10 @@ def adopt_workflow_amendment(store: Any, *, wf_id: str, expected_revision_id: st
             raise ValueError("the workflow revision changed; refresh before adopting an amendment")
         if str(row["attempt_run_id"]) != expected_generation:
             raise ValueError("the workflow generation changed; refresh before adopting an amendment")
-        if str(row["status"]) != "waiting" or int(row["stop_requested"]):
+        workflow_status = str(row["status"])
+        if workflow_status in ("succeeded", "failed", "stopped", "outcome_unknown"):
+            raise ValueError("terminal workflow amendments are unsupported; start a new run from the saved workflow")
+        if workflow_status != "waiting" or int(row["stop_requested"]):
             raise ValueError("amendment adoption requires a parked workflow with no stop in progress")
         if not row["definition_id"]:
             raise ValueError("the workflow run has no saved definition to attach the adopted revision to")

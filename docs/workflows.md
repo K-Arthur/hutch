@@ -309,5 +309,6 @@ attempt can run.
   The owner-local Studio card offers a declarative plan/input editor, read-only preview with
   authority, budget, quiescence, diff and reuse sections, and an explicit adoption action. It
   requires a pending-question cancellation checkbox when relevant, and falls back to the composer
-  for focus while the new revision is running. Live-run draining, terminal-run amendment, and safe
-  reuse beyond pure transforms remain unavailable.
+  for focus while the new revision is running. Live-run draining and safe reuse beyond pure
+  transforms remain unavailable. Terminal-run amendment adoption is intentionally unsupported:
+  the API returns 409 and leaves the terminal result intact; start a new run from the saved definition.

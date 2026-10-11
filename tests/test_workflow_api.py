@@ -293,6 +293,46 @@ def test_amendment_preview_shows_dependency_invalidation_and_safe_reuse_without_
     assert client.get(f"/api/v1/workflows/runs/{workflow_id}").json()["workflow"]["revision_id"] == detail["workflow"]["revision_id"]
 
 
+def test_terminal_workflow_amendment_refusal_is_explicit_and_preserves_result(client):
+    bot = make_bot(client, name="terminal-amendment-bot")
+    original = _amendment_plan()
+    submitted = client.post("/api/v1/workflows/plans", headers=KEY,
+                            json={"plan": original, "bot": bot["name"],
+                                  "definition_name": "terminal-amendment"})
+    assert submitted.status_code == 201, submitted.text
+    workflow_id = submitted.json()["workflow_run_id"]
+    finished = _wait_for_workflow(client, workflow_id)
+    assert finished["workflow"]["status"] == "succeeded", finished
+    before = finished["workflow"]
+
+    candidate = _amendment_plan()
+    candidate["nodes"][0]["args"]["value"] = "a revised source"
+    preview = client.post(f"/api/v1/workflows/runs/{workflow_id}/amendments/preview", json={
+        "expected_revision_id": before["revision_id"],
+        "expected_generation": before["attempt_run_id"],
+        "plan": candidate,
+    })
+    assert preview.status_code == 200, preview.text
+    assert preview.json()["eligible"] is True  # Plan authority/budget is distinct from adoption support.
+    assert preview.json()["quiescence"]["workflow_status"] == "succeeded"
+
+    response = client.post(
+        f"/api/v1/workflows/runs/{workflow_id}/amendments/adopt",
+        headers={"Idempotency-Key": "terminal-amendment-refused"},
+        json={"expected_revision_id": before["revision_id"],
+              "expected_generation": before["attempt_run_id"], "plan": candidate},
+    )
+    assert response.status_code == 409, response.text
+    assert "terminal workflow amendments are unsupported" in response.json()["detail"]["message"]
+
+    after = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+    assert after["workflow"]["status"] == "succeeded"
+    assert after["workflow"]["revision_id"] == before["revision_id"]
+    assert after["workflow"]["attempt_run_id"] == before["attempt_run_id"]
+    assert after["workflow"]["result"] == before["result"]
+    assert client.get(f"/api/v1/workflows/runs/{workflow_id}/amendments").json()["items"] == []
+
+
 def test_amendment_preview_fences_stale_revision_and_generation_and_invalidates_changed_inputs(client):
     bot = make_bot(client, name="amendment-fence-bot")
     submitted = client.post("/api/v1/workflows/plans", headers=KEY,
