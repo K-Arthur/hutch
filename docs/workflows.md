@@ -144,9 +144,11 @@ or settled child lets the supervisor admit a fresh attempt; settled node records
 Stopping a parked workflow cancels its pending questions and owned child work, and it remains
 visible until cleanup is verified.
 
-Stable effect receipts across the crash window between an external effect and node settlement
-are still being completed. Until that guarantee is implemented, avoid workflows that depend
-on retry-safe non-idempotent effects.
+Effect receipts use a stable workflow revision/site/instance/slot identity. If a process
+crashes after an effect is recorded but before its node settles, Hutch reuses the stored result
+without dispatching the effect again. If the receipt is uncertain, Hutch blocks retry until
+the action is reconciled; an operator's “not applied” finding is required before another
+attempt can run.
 
 ## What is not implemented yet
 

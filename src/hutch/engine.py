@@ -965,6 +965,7 @@ class Engine:
             error = exc.detail or exc.reason
             outcome_reason = exc.reason
             outcome_status = (RunStatus.waiting_workflow if exc.reason == "workflow_wait" else
+                              RunStatus.outcome_unknown if exc.reason == "outcome_unknown" else
                               RunStatus.stopped if exc.reason == "stopped" else RunStatus.failed)
             if timed_out and exc.reason == "stopped":
                 outcome_status, outcome_reason, error = RunStatus.failed, "timeout", timeout_msg

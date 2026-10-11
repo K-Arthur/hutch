@@ -444,6 +444,7 @@ def test_stopping_a_parked_workflow_finishes_after_cleanup_and_cancels_questions
     view = wfsubmit.status(store, submission.workflow_run_id)
     assert view["workflow"]["status"] == "stopped"
     assert all(question["status"] == "cancelled" for question in view["questions"])
+    assert wfsubmit.answer(store, view["questions"][0]["id"], "yes") == "already"
     assert store.get_run(submission.attempt_run_id).status is RunStatus.stopped
 
 

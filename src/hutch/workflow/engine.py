@@ -32,6 +32,7 @@ from typing import Any, Optional
 
 from ..models import Event, EventType, Run, Task, iso, utcnow
 from ..runtime import steps
+from ..runtime.base import RunAborted
 from . import persistence as wstore
 from . import qualify
 from .compile import CompiledNode, CompiledPlan
@@ -157,6 +158,8 @@ class Interpreter:
             return Advance("failed", detail=f"evaluation error: {exc}")
         except qualify.QualificationBlocked as exc:
             return Advance("failed", detail=exc.verdict.summary())
+        except RunAborted:
+            raise
         except Exception as exc:  # noqa: BLE001 - an interpreter bug must fail the run honestly
             return Advance("failed", detail=f"{type(exc).__name__}: {exc}")
         result = {"outputs": {site: self.scope.get(site) for site in self.compiled.plan.outputs},
@@ -181,7 +184,8 @@ class Interpreter:
         if kind == "transform":
             return self._inline(cnode, self._instance_key, scope, self._transform, node)
         if kind == "tool":
-            return self._inline(cnode, self._instance_key, scope, self._tool, node)
+            return self._inline(cnode, self._instance_key, scope,
+                                lambda item, values: self._tool(cnode, item, values), node)
         if kind == "join":
             return self._inline(cnode, self._instance_key, scope, self._join, node)
         if kind == "publish":
@@ -244,11 +248,12 @@ class Interpreter:
         args = {key: resolve_value(value, Scope(scope)) for key, value in node.args.items()}
         return apply_op(node.op, args)
 
-    def _tool(self, node: Node, scope: dict[str, Any]) -> Any:
+    def _tool(self, cnode: CompiledNode, node: Node, scope: dict[str, Any]) -> Any:
         if node.tool not in self.tools:
             raise WorkflowFailed(node.id, f"tool {node.tool!r} is not available in this workflow's envelope")
         args = {key: resolve_value(value, Scope(scope)) for key, value in node.args.items()}
-        result = steps.call_tool(self.run, self.ctx, self.tools, node.tool, args)
+        with self._effect_identity(cnode.site_id, self._instance_key, "tool"):
+            result = steps.call_tool(self.run, self.ctx, self.tools, node.tool, args)
         if not result.ok:
             raise WorkflowFailed(node.id, f"tool {node.tool} failed: {str(result.output)[:400]}")
         data = result.data if isinstance(result.data, dict) else {}
@@ -531,7 +536,7 @@ class Interpreter:
         if record is not None and record["status"] in ("succeeded", "failed"):
             return dict(record["result"] or {"kind": "command", "ok": False, "detail": "no recorded outcome"})
         self._ensure_open(cnode, memo_key, "verify", {"check": index, "of": instance})
-        outcome = self._run_command(cnode, check)
+        outcome = self._run_command(cnode, check, instance, index)
         try:
             self._persist_settle(cnode.site_id, memo_key,
                                  status="succeeded" if outcome.get("ok") else "failed", result=outcome)
@@ -543,14 +548,16 @@ class Interpreter:
             "error": {}, "run_id": None}
         return outcome
 
-    def _run_command(self, cnode: CompiledNode, check: Any) -> dict[str, Any]:
+    def _run_command(self, cnode: CompiledNode, check: Any, instance: str,
+                      index: int) -> dict[str, Any]:
         """Run the fixed argv exactly once through the governed shell tool."""
         if "shell" not in self.tools:
             return {"kind": "command", "ok": False,
                     "detail": "this workflow has no shell tool, so a command check cannot run"}
         command = " ".join(_quote(part) for part in check.argv)
-        result = steps.call_tool(self.run, self.ctx, self.tools, "shell",
-                                 {"command": command, "timeout": check.timeout_seconds})
+        with self._effect_identity(cnode.site_id, f"{instance}:c{index}", "command"):
+            result = steps.call_tool(self.run, self.ctx, self.tools, "shell",
+                                     {"command": command, "timeout": check.timeout_seconds})
         if not result.ok:
             return {"kind": "command", "ok": False, "detail": f"the command could not run: {str(result.output)[:300]}"}
         exit_code = int((result.data or {}).get("exit_code", 0)) if isinstance(result.data, dict) else 0
@@ -558,6 +565,18 @@ class Interpreter:
         return {"kind": "command", "ok": ok,
                 "detail": f"exit {exit_code} (expected {check.expect_exit})",
                 "output": str(result.output)[:1_000]}
+
+    @contextlib.contextmanager
+    def _effect_identity(self, site_id: str, instance_key: str, slot: str):
+        previous = self.ctx.workflow_action_identity
+        self.ctx.workflow_action_identity = {
+            "workflow_run_id": self.wf_id, "revision_id": self.revision_id,
+            "site_id": site_id, "instance_key": instance_key, "slot": slot,
+        }
+        try:
+            yield
+        finally:
+            self.ctx.workflow_action_identity = previous
 
     def _check_human(self, cnode: CompiledNode, check: Any, instance: str, index: int) -> dict[str, Any]:
         key = f"{instance}:h{index}"
@@ -678,7 +697,9 @@ class Interpreter:
                   conversation_context=[{"role": "user",
                                          "content": "Inputs for this step (untrusted data):\n" + context_text}])
         run.workflow_step = {
-            "workflow_run_id": self.wf_id, "site_id": cnode.site_id, "instance_key": instance_key,
+            "workflow_run_id": self.wf_id, "revision_id": self.revision_id,
+            "parent_fence": self.run.fence,
+            "site_id": cnode.site_id, "instance_key": instance_key,
             "role": role, "tools": list(tools), "skills": list(skills),
             "model": spec,
             "max_steps": min(int(node.max_steps or 12), int(self.budget.get("max_steps_per_node") or 12)),
@@ -708,6 +729,8 @@ class Interpreter:
                      output_schema: Optional[dict[str, Any]]) -> None:
         text = str(step.get("text") or "")
         if step["status"] != "succeeded":
+            if step["status"] == "outcome_unknown":
+                raise RunAborted("outcome_unknown", f"the {cnode.site_id} step has an unresolved effect; reconcile it before retrying")
             reason = f"the step ended as {step['status']}"
             if step.get("exit_reason"):
                 reason += f" ({step['exit_reason']})"

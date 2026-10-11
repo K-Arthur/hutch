@@ -643,7 +643,7 @@ of source content and 16 MiB serialized JSON. Oversize returns 413 with guidance
 fact/history/share resources; records are never silently truncated. This is an export of Bot memory,
 not a database backup or permanent-delete facility.
 
-## Dynamic workflows (schema v53, owner-only v1 routes)
+## Dynamic workflows (schema v54, owner-only v1 routes)
 
 Workflows are **saved methods, not schedules**: a definition is inert until it is run, and
 running it never grants a schedule, a wider permission or a permanent background process.
@@ -676,6 +676,9 @@ running it never grants a schedule, a wider permission or a permanent background
   inference admission is unchanged and remains the model-call limiter.
 * Durability: node records, questions and budgets live in SQLite. A crashed attempt is
   continued by a new attempt that skips every settled node; a stopped or cancelled instance
-  is never continued. Attempts themselves still never resume mid-flight (ADR-0003).
+  is never continued. Attempts themselves still never resume mid-flight (ADR-0003). Questions
+  carry the current revision and attempt; workflow actions carry a stable revision/site/instance/
+  slot identity, replay completed results without dispatch, and block uncertain retries until
+  an operator reconciles them as not applied.
 * Remote: the workflow routes are owner-only (unmapped in the remote capability inventory),
   so a paired phone cannot start, stop or answer a workflow in this revision.

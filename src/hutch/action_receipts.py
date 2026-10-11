@@ -12,6 +12,54 @@ class ActionConflict(ValueError):
     pass
 
 
+class ActionReplay(Exception):
+    """A completed workflow effect has a durable result that can be reused without dispatch."""
+
+    def __init__(self, result: dict):
+        self.result = result
+        super().__init__("the completed workflow effect receipt was reused; no effect was dispatched")
+
+
+class ActionUnresolved(ActionConflict):
+    """A workflow effect may have happened and must be reconciled before any retry."""
+
+
+def migrate_workflow_identity(db: sqlite3.Connection) -> None:
+    """Add stable per-workflow effect identities, replay results, and question generations."""
+    action_columns = {str(row[1]) for row in db.execute("PRAGMA table_info(tool_actions)")}
+    for name, declaration in (
+        ("workflow_identity", "TEXT NOT NULL DEFAULT ''"),
+        ("workflow_fingerprint", "TEXT NOT NULL DEFAULT ''"),
+        ("result_json", "TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(result_json))"),
+    ):
+        if name not in action_columns:
+            db.execute(f"ALTER TABLE tool_actions ADD COLUMN {name} {declaration}")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_actions_workflow_identity "
+               "ON tool_actions(workflow_identity, started_at, id) WHERE workflow_identity != ''")
+    # Replace the earlier trigger definitions so these new intent fields stay immutable and
+    # the replay payload can only be sealed alongside the original started receipt.
+    db.execute("DROP TRIGGER IF EXISTS action_intent_immutable")
+    db.execute("DROP TRIGGER IF EXISTS action_receipt_sealed")
+    db.execute("""CREATE TRIGGER action_intent_immutable BEFORE UPDATE OF
+        id, run_id, tool, idem_key, effect, summary, started_at, intent_json, intent_hash,
+        effect_key, legacy, workflow_identity, workflow_fingerprint
+        ON tool_actions BEGIN SELECT RAISE(ABORT, 'action intent is immutable'); END""")
+    db.execute("""CREATE TRIGGER action_receipt_sealed BEFORE UPDATE OF status, result_digest, result_json, finished_at
+        ON tool_actions WHEN OLD.status != 'started' OR NEW.status NOT IN ('done', 'failed', 'unknown')
+        OR (NEW.status IN ('done', 'failed') AND EXISTS(SELECT 1 FROM runs WHERE id = OLD.run_id AND sealed = 1))
+        BEGIN SELECT RAISE(ABORT, 'action receipt is sealed'); END""")
+
+    question_columns = {str(row[1]) for row in db.execute("PRAGMA table_info(workflow_questions)")}
+    for name, declaration in (("revision_id", "TEXT NOT NULL DEFAULT ''"),
+                              ("attempt_run_id", "TEXT NOT NULL DEFAULT ''")):
+        if name not in question_columns:
+            db.execute(f"ALTER TABLE workflow_questions ADD COLUMN {name} {declaration}")
+    db.execute("UPDATE workflow_questions SET revision_id = COALESCE((SELECT revision_id FROM workflow_runs "
+               "WHERE workflow_runs.id = workflow_questions.workflow_run_id), '') WHERE revision_id = ''")
+    db.execute("UPDATE workflow_questions SET attempt_run_id = COALESCE((SELECT attempt_run_id FROM workflow_runs "
+               "WHERE workflow_runs.id = workflow_questions.workflow_run_id), '') WHERE attempt_run_id = ''")
+
+
 def canonical(value) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
 
@@ -60,6 +108,7 @@ def migrate(db: sqlite3.Connection) -> None:
 def view(row) -> dict:
     result = dict(row)
     raw = result.pop("intent_json")
+    result.pop("result_json", None)  # replay payloads are private runtime state, not action-detail API data
     result["intent"] = json.loads(raw)
     result["intent_valid"] = digest(raw) == result["intent_hash"]
     result["legacy"] = result["intent"].get("schema") != 1 or result["intent"].get("arguments") is None

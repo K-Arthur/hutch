@@ -460,9 +460,10 @@ script sandbox to escape. The authority rules are the ordinary ones, applied ear
 * **Every effect goes through the same seams.** Tool calls use the canonical dispatcher with
   intent/receipt bracketing; artifacts exist only as committed events with a recorded hash
   and are re-hashed on read-back; approvals are bound to the actor, run, node, arguments and
-  expiry and are re-validated at effect time. Stable receipt identity across replacement of
-  a workflow attempt is not yet complete; until it is, avoid non-idempotent effects in a
-  workflow that may need crash recovery.
+  expiry and are re-validated at effect time. A workflow effect receipt is keyed by revision,
+  node site, instance and action slot: completed receipts replay their stored result without a
+  second dispatch, while uncertain receipts block until reconciliation confirms the effect
+  was not applied.
 * **Questions are not approvals.** An answer to a workflow question clarifies data. It never
   authorizes a side effect, and an unanswered question is never treated as consent - it
   expires and the plan's declared `on_fail`/timeout behaviour applies.

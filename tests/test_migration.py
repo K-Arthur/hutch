@@ -707,7 +707,7 @@ def _prepare_historical_workflow_schema(config, *, version: int, qualification: 
         pytest.param(52, True, True, False, id="workflow-v52-tables"),
     ],
 )
-def test_historical_schema_51_and_52_variants_converge_on_schema_53(
+def test_historical_schema_51_and_52_variants_converge_on_schema_54(
     config, version, qualification, workflow_tables, question_guards,
 ):
     _prepare_historical_workflow_schema(
@@ -717,7 +717,7 @@ def test_historical_schema_51_and_52_variants_converge_on_schema_53(
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == 53
+        assert upgraded.schema_version == 54
         names = {row[0] for row in upgraded._db.execute(
             "SELECT name FROM sqlite_master WHERE type IN ('table', 'trigger', 'index')")}
         assert "workflow_role_qualifications" in names
@@ -733,7 +733,7 @@ def test_historical_schema_51_and_52_variants_converge_on_schema_53(
         upgraded.close()
 
 
-def test_interrupted_schema_53_upgrade_rolls_back_and_keeps_backup(config, monkeypatch):
+def test_interrupted_historical_upgrade_rolls_back_and_keeps_backup(config, monkeypatch):
     from hutch import store as store_module
 
     _prepare_historical_workflow_schema(
@@ -766,6 +766,64 @@ def test_interrupted_schema_53_upgrade_rolls_back_and_keeps_backup(config, monke
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == 53
+        assert upgraded.schema_version == 54
+    finally:
+        upgraded.close()
+
+
+def test_interrupted_schema_53_to_54_upgrade_rolls_back_and_retries(config, monkeypatch):
+    from hutch import store as store_module
+
+    # Start from the merged v53 physical shape, including both historical v51 additions,
+    # then remove only the v54 columns so the final upgrade is exercised directly.
+    current = Store(config)
+    current.close()
+    db = sqlite3.connect(config.db_path)
+    try:
+        db.execute("DROP INDEX IF EXISTS idx_actions_workflow_identity")
+        db.execute("DROP TRIGGER IF EXISTS action_intent_immutable")
+        db.execute("DROP TRIGGER IF EXISTS action_receipt_sealed")
+        for column in ("result_json", "workflow_fingerprint", "workflow_identity"):
+            db.execute(f"ALTER TABLE tool_actions DROP COLUMN {column}")
+        for column in ("attempt_run_id", "revision_id"):
+            db.execute(f"ALTER TABLE workflow_questions DROP COLUMN {column}")
+        db.execute("PRAGMA user_version = 53")
+        db.commit()
+    finally:
+        db.close()
+
+    def interrupt(_db):
+        raise RuntimeError("injected v54 receipt migration interruption")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(store_module, "_MIGRATIONS",
+                      [*store_module._MIGRATIONS[:-1], interrupt])
+        with pytest.raises(RuntimeError, match="injected v54 receipt migration interruption"):
+            Store(config)
+
+    db = sqlite3.connect(config.db_path)
+    try:
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 53
+        action_columns = {row[1] for row in db.execute("PRAGMA table_info(tool_actions)")}
+        question_columns = {row[1] for row in db.execute("PRAGMA table_info(workflow_questions)")}
+        assert not {"workflow_identity", "workflow_fingerprint", "result_json"} & action_columns
+        assert not {"revision_id", "attempt_run_id"} & question_columns
+    finally:
+        db.close()
+    backup = config.db_path.with_suffix(".db.bak-v53")
+    assert backup.exists()
+    backup_db = sqlite3.connect(backup)
+    try:
+        assert backup_db.execute("PRAGMA user_version").fetchone()[0] == 53
+    finally:
+        backup_db.close()
+
+    upgraded = Store(config)
+    try:
+        assert upgraded.schema_version == 54
+        action_columns = {row[1] for row in upgraded._db.execute("PRAGMA table_info(tool_actions)")}
+        question_columns = {row[1] for row in upgraded._db.execute("PRAGMA table_info(workflow_questions)")}
+        assert {"workflow_identity", "workflow_fingerprint", "result_json"} <= action_columns
+        assert {"revision_id", "attempt_run_id"} <= question_columns
     finally:
         upgraded.close()

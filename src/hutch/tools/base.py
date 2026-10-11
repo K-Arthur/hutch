@@ -213,6 +213,7 @@ class ToolContext:
     dry_run: bool = False             # Rehearse mode: mutating actions are simulated, reads still run
     closed: bool = False              # the run is over: a worker that outlived it must not start another action
     receipt: Optional[Callable[[], Optional[str]]] = None   # set per call by the runtime: records the intent (see begin_effect)
+    workflow_action_identity: Optional[dict[str, str]] = None  # stable site/instance/slot for workflow effect receipts
     delegation_submit: Optional[Callable[[str, str, str], ToolResult]] = None  # supervised, strict-offline child admission
     tool_call_index: Optional[int] = None   # position of this call inside the model response, set by the built-in loop
     skills: Optional[Any] = None      # skills.ResolvedSkills for this run; the engine resolves it once at start

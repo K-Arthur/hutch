@@ -1403,6 +1403,11 @@ def _migrate_53(db: sqlite3.Connection) -> None:
     persistence.migrate(db)
 
 
+def _migrate_54(db: sqlite3.Connection) -> None:
+    """Bind workflow questions to their revision/attempt and make effect receipts reusable by stable identity."""
+    action_receipts.migrate_workflow_identity(db)
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -1410,7 +1415,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
-               _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53]
+               _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53, _migrate_54]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -5670,13 +5675,25 @@ class Store:
 
     def begin_action(self, run_id: str, tool: str, idem_key: str, effect: str, summary: str = "",
                      fence: Optional[int] = None, *, arguments: Optional[dict] = None,
-                     authority: Optional[dict] = None, scope: Optional[dict] = None) -> str:
+                     authority: Optional[dict] = None, scope: Optional[dict] = None,
+                     workflow_identity: Optional[dict[str, str]] = None) -> str:
         """Commit immutable effect intent before authorization to act; claimed runs require their fence."""
         from .models import new_id
         if any(value is not None and not isinstance(value, dict) for value in (arguments, authority, scope)):
             raise ValueError("action arguments, authority and scope must be JSON objects")
         arguments, authority, scope = (action_receipts.freeze(value) if value is not None else None
                                        for value in (arguments, authority, scope))
+        workflow_key = workflow_fingerprint = ""
+        workflow_payload = None
+        if workflow_identity is not None:
+            if not isinstance(workflow_identity, dict) or set(workflow_identity) != {
+                    "workflow_run_id", "revision_id", "site_id", "instance_key", "slot"}:
+                raise ValueError("workflow action identity must name its workflow revision, site, instance and slot")
+            if any(not isinstance(value, str) or not value or len(value) > 256
+                   for value in workflow_identity.values()):
+                raise ValueError("workflow action identity fields must be non-empty bounded strings")
+            workflow_payload = action_receipts.freeze(workflow_identity)
+            workflow_key = action_receipts.digest(action_receipts.canonical(workflow_payload))
         action_id = new_id("act")
         with self._tx() as db:
             row = db.execute(f"SELECT bot_id, {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
@@ -5705,6 +5722,40 @@ class Store:
                 repeat_scope["workspace"] = (scope or {}).get("workspace", "")
             effect_key = action_receipts.digest(action_receipts.canonical(
                 {"tool": tool, "effect": effect, "arguments": arguments, "scope": repeat_scope})) if arguments is not None else ""
+            if workflow_payload is not None:
+                self._assert_workflow_action_owner(db, run_id, row, workflow_payload)
+                stable_scope = {key: value for key, value in (scope or {}).items() if key != "workspace"}
+                stable_authority = None
+                if authority:
+                    stable_authority = {key: authority.get(key) for key in
+                                        ("tool", "detail", "rule", "outward", "action_hash")}
+                workflow_fingerprint = action_receipts.digest(action_receipts.canonical({
+                    "bot_id": row["bot_id"], "identity": workflow_payload, "tool": tool, "effect": effect,
+                    "arguments": arguments, "authority": stable_authority, "scope": stable_scope,
+                }))
+                previous = db.execute("SELECT a.id, a.status, a.workflow_fingerprint, a.result_json, x.outcome "
+                    "FROM tool_actions a LEFT JOIN action_reconciliations x ON x.action_id = a.id "
+                    "WHERE a.workflow_identity = ? ORDER BY a.started_at DESC, a.id DESC LIMIT 1",
+                    (workflow_key,)).fetchone()
+                if previous is not None:
+                    if str(previous["workflow_fingerprint"]) != workflow_fingerprint:
+                        raise action_receipts.ActionConflict(
+                            "this workflow effect identity was reused with changed operation semantics")
+                    status = str(previous["status"])
+                    if status in ("done", "failed"):
+                        try:
+                            result = json.loads(str(previous["result_json"] or "{}"))
+                        except (TypeError, json.JSONDecodeError):
+                            result = None
+                        if (not isinstance(result, dict) or not isinstance(result.get("ok"), bool)
+                                or not isinstance(result.get("output"), str)
+                                or not isinstance(result.get("data", {}), dict)):
+                            raise action_receipts.ActionUnresolved(
+                                "the effect completed but its replay result is unavailable; inspect the recorded action")
+                        raise action_receipts.ActionReplay(result)
+                    if str(previous["outcome"] or "") != "not_applied":
+                        raise action_receipts.ActionUnresolved(
+                            f"workflow action {previous['id']} may already have happened; reconcile it before retrying")
             if row["conversation_id"]:
                 previous = db.execute("SELECT a.id FROM tool_actions a JOIN runs r ON r.id = a.run_id "
                     "WHERE r.conversation_id = ? AND r.sealed = 1 AND a.status IN ('started', 'unknown') "
@@ -5716,16 +5767,63 @@ class Store:
                         f"unreconciled action {previous[0]} may already have happened; record its outcome before repeating")
             intent = {"schema": 1, "run_id": run_id, "bot_id": row["bot_id"], "fence": row["fence"],
                       "tool": tool, "effect": effect, "arguments": arguments, "authority": authority,
-                      "scope": scope, "effect_key": effect_key}
+                      "scope": scope, "effect_key": effect_key,
+                      "workflow_identity": workflow_payload}
             raw = action_receipts.canonical(intent)
             if len(raw.encode()) > action_receipts.MAX_INTENT_BYTES:
                 raise ValueError("action intent exceeds 4 MiB; reduce the requested arguments")
             db.execute("INSERT INTO tool_actions "
-                "(id, run_id, tool, idem_key, effect, summary, status, started_at, intent_json, intent_hash, effect_key, legacy) "
-                "VALUES (?, ?, ?, ?, ?, ?, 'started', ?, ?, ?, ?, ?)",
+                "(id, run_id, tool, idem_key, effect, summary, status, started_at, intent_json, intent_hash, effect_key, legacy, "
+                "workflow_identity, workflow_fingerprint) "
+                "VALUES (?, ?, ?, ?, ?, ?, 'started', ?, ?, ?, ?, ?, ?, ?)",
                 (action_id, run_id, tool, idem_key, effect, summary[:500], iso(utcnow()), raw,
-                 action_receipts.digest(raw), effect_key, int(arguments is None)))
+                 action_receipts.digest(raw), effect_key, int(arguments is None), workflow_key, workflow_fingerprint))
         return action_id
+
+    @staticmethod
+    def _assert_workflow_action_owner(db: sqlite3.Connection, run_id: str, row: sqlite3.Row,
+                                      identity: dict[str, str]) -> None:
+        """Require an action identity to belong to this run's current workflow generation."""
+        workflow_id = identity["workflow_run_id"]
+        workflow = db.execute("SELECT revision_id, attempt_run_id, status, stop_requested FROM workflow_runs "
+                              "WHERE id = ?", (workflow_id,)).fetchone()
+        if (workflow is None or str(workflow["revision_id"]) != identity["revision_id"]
+                or int(workflow["stop_requested"]) or str(workflow["status"]) not in ("running", "waiting")):
+            raise LeaseLost(run_id, "workflow action is no longer in the current revision")
+        node = db.execute("SELECT status FROM workflow_nodes WHERE workflow_run_id = ? AND site_id = ? "
+                          "AND instance_key = ?", (workflow_id, identity["site_id"], identity["instance_key"])).fetchone()
+        if node is None or str(node["status"]) != "running":
+            raise LeaseLost(run_id, "workflow action is not attached to a running node instance")
+        try:
+            run_doc = json.loads(str(row["doc"]))
+        except (TypeError, json.JSONDecodeError):
+            raise LeaseLost(run_id, "workflow action run metadata is unavailable") from None
+        if str(run_doc.get("workflow_run_id") or "") != workflow_id:
+            raise LeaseLost(run_id, "workflow action identity does not belong to this run")
+        kind = db.execute("SELECT kind, parent_run_id FROM runs WHERE id = ?", (run_id,)).fetchone()
+        if kind is None:
+            raise LeaseLost(run_id, "workflow action run disappeared")
+        if str(kind["kind"]) == "workflow":
+            if (str(workflow["attempt_run_id"]) != run_id or str(workflow["status"]) != "running"):
+                raise LeaseLost(run_id, "workflow action attempt is no longer current")
+            return
+        if str(kind["kind"]) != "step":
+            raise LeaseLost(run_id, "only workflow and step runs may use workflow action identities")
+        step = run_doc.get("workflow_step")
+        if (not isinstance(step, dict) or str(step.get("workflow_run_id") or "") != workflow_id
+                or str(step.get("revision_id") or "") != identity["revision_id"]
+                or str(step.get("site_id") or "") != identity["site_id"]
+                or str(step.get("instance_key") or "") != identity["instance_key"]
+                or str(workflow["attempt_run_id"]) != str(kind["parent_run_id"] or "")):
+            raise LeaseLost(run_id, "workflow step action identity does not match its current parent")
+        parent = db.execute("SELECT fence, status, cancel_requested FROM runs WHERE id = ?",
+                            (str(kind["parent_run_id"]),)).fetchone()
+        if (parent is None or int(parent["fence"]) != int(step.get("parent_fence", -1))
+                or int(parent["cancel_requested"])
+                or str(parent["status"]) not in ("running", "waiting_workflow")):
+            raise LeaseLost(run_id, "workflow step's parent attempt is no longer current")
+        if str(parent["status"]) == "waiting_workflow" and str(workflow["status"]) != "waiting":
+            raise LeaseLost(run_id, "parked workflow step is not authorized by the waiting instance")
 
     @staticmethod
     def _action_owner(row, run_id, fence):
@@ -5737,9 +5835,13 @@ class Store:
             Store._check_lease(row, run_id, fence)
 
     def finish_action(self, action_id: str, status: str, result_digest: str = "", *,
+                      result: Optional[dict[str, Any]] = None,
                       expected_fence: Optional[int] = None) -> None:
         if status not in ("done", "failed"):
             raise ValueError("a worker receipt must report done or failed")
+        result_json = action_receipts.canonical(result if result is not None else {})
+        if len(result_json.encode("utf-8")) > action_receipts.MAX_INTENT_BYTES:
+            raise ValueError("action result exceeds the 4 MiB persistence limit")
         with self._tx() as db:
             action = db.execute("SELECT run_id, status FROM tool_actions WHERE id = ?", (action_id,)).fetchone()
             if action is None:
@@ -5748,8 +5850,9 @@ class Store:
             self._action_owner(row, action["run_id"], expected_fence)
             if RunStatus(row["status"]) in TERMINAL or action["status"] != "started":
                 raise LeaseLost(action["run_id"], "receipt is sealed or uncertain; reconcile instead of overwriting it")
-            db.execute("UPDATE tool_actions SET status = ?, finished_at = ?, result_digest = ? WHERE id = ? AND status = 'started'",
-                       (status, iso(utcnow()), result_digest[:128], action_id))
+            db.execute("UPDATE tool_actions SET status = ?, finished_at = ?, result_digest = ?, result_json = ? "
+                       "WHERE id = ? AND status = 'started'",
+                       (status, iso(utcnow()), result_digest[:128], result_json, action_id))
 
     def actions_in_doubt(self, run_id: str) -> list[dict[str, Any]]:
         with self._lock:

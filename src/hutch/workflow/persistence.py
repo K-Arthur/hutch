@@ -1,6 +1,7 @@
 """Durable state for dynamic workflows.
 
-Migration schema v53 adds workflow tables and one ``runs`` column; every write here
+Migration schema v53 adds workflow tables and one ``runs`` column; schema v54 adds
+effect-receipt identities and workflow-question generation fields. Every write here
 goes through the owning :class:`hutch.store.Store` transaction and lock, so workflow
 state is in the same SQLite file, the same durability rules and the same resource
 outbox as the rest of Hutch.
@@ -704,11 +705,11 @@ def create_question(store: Any, *, wf_id: str, owner_run_id: str, owner_fence: i
         _assert_workflow_owner(db, store, wf_id=wf_id, revision_id=revision_id,
                                attempt_run_id=owner_run_id, owner_fence=owner_fence)
         db.execute("""INSERT INTO workflow_questions (id, workflow_run_id, site_id, instance_key,
-                        question, options_json, status, asked_at, expires_at)
-                      VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+                        question, options_json, status, asked_at, expires_at, revision_id, attempt_run_id)
+                      VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)
                       ON CONFLICT(workflow_run_id, site_id, instance_key) DO NOTHING""",
                    (qid, wf_id, site_id, instance_key, question[:2000],
-                    _json(list(options)[:20]), iso(utcnow()), expires_at))
+                    _json(list(options)[:20]), iso(utcnow()), expires_at, revision_id, owner_run_id))
         row = db.execute("SELECT * FROM workflow_questions WHERE workflow_run_id = ? AND site_id = ? "
                          "AND instance_key = ?", (wf_id, site_id, instance_key)).fetchone()
     store.bus.notify("workflows", f"workflow:{wf_id}")
@@ -748,7 +749,12 @@ def answer_question(store: Any, qid: str, answer: str) -> str:
     with store._tx() as db:
         cur = db.execute(
             """UPDATE workflow_questions SET status = 'answered', answer = ?, answered_at = ?
-               WHERE id = ? AND status = 'pending' AND expires_at >= ?""",
+               WHERE id = ? AND status = 'pending' AND expires_at >= ?
+                 AND EXISTS (SELECT 1 FROM workflow_runs w
+                             WHERE w.id = workflow_questions.workflow_run_id
+                               AND w.revision_id = workflow_questions.revision_id
+                               AND w.attempt_run_id = workflow_questions.attempt_run_id
+                               AND w.status IN ('running','waiting') AND w.stop_requested = 0)""",
             (answer, now, qid, now))
         if cur.rowcount == 1:
             return "won"

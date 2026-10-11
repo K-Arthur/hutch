@@ -418,7 +418,7 @@ events through the same ownership check. Failed admission rolls back both withou
 the buffer. Expired execution cannot receive a new approval or standing grant; decisions still
 resolve once through compare-and-swap, and full-request rewrites are refused.
 
-## Dynamic workflows (schema v53)
+## Dynamic workflows (schema v54)
 
 A workflow is a **saved, validated plan**, not generated code. The plan schema, the bounded
 evaluator and the compiler live in `src/hutch/workflow/`; `plan` is strict data, `expr`
@@ -461,7 +461,11 @@ owned processes are verified settled. Node and question creation/settlement veri
 current workflow revision, attempt, run fence and lease in the same database transaction.
 The process worker permits a child step to remain under its matching parked workflow attempt;
 a stop or replacement still fences that child. Stable effect receipts across a crash after
-an external effect but before node settlement are a separate, unfinished guarantee.
+an external effect but before node settlement use a stable identity derived from workflow
+revision, site, instance and action slot. Completed receipts replay their bounded result
+without dispatch; uncertain receipts refuse a retry until an operator records that the effect
+was not applied. Workflow questions also carry revision/attempt identity, so old answers
+cannot change a stopped or replaced instance.
 
 Roles are gated by evidence, not by a model name: `workflow/qualify.py` resolves the same
 route identity the runtime records observations under (`route_identity.route_tuple`), so a

@@ -25,6 +25,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Optional
 
 from ..lifecycle import LeaseLost
+from .. import action_receipts
 from ..action_receipts import freeze
 from ..models import Event, EventType, Run
 from ..tools import Tool, ToolContext
@@ -161,14 +162,27 @@ def _run_with_receipt(tool: Tool, name: str, args: dict[str, Any], ctx: ToolCont
 
     The tool calls ``ctx.begin_effect()`` after policy and approval, immediately before it acts; that writes the intent and
     refuses (fail closed) if it cannot be recorded or this worker no longer owns the run. After the tool returns the receipt is
-    written. If the process dies between the two, the row stays ``started``: recovery reports an unknown outcome and the action
-    is never replayed. Local keys do not make a remote effect exactly-once, and the UI says so."""
+    written. If the process dies between the two, the row stays ``started`` and recovery reports an unknown outcome. Workflow
+    calls also carry a stable revision/site/instance/slot identity: a completed receipt reuses its stored result without another
+    dispatch, while an uncertain receipt blocks retry until reconciliation confirms it was not applied. This does not make a
+    remote system exactly-once; it prevents Hutch from silently dispatching the same workflow effect twice."""
     effect = "" if ctx.dry_run else tool.effect(args, ctx)
     if not effect:
         return tool.run(args, ctx)
     recorded = args if receipt_args is None else receipt_args
     key = hashlib.sha256(f"{run.id}|{name}|{json.dumps(recorded, sort_keys=True, default=str)}".encode()).hexdigest()[:24]
-    began: dict[str, str] = {}
+    began: dict[str, Any] = {}
+    workflow_identity = ctx.workflow_action_identity
+    if workflow_identity is None and isinstance(run.workflow_step, dict):
+        step = run.workflow_step
+        if all(isinstance(step.get(key), str) and step.get(key) for key in
+               ("workflow_run_id", "revision_id", "site_id", "instance_key")):
+            call_index = ctx.tool_call_index if isinstance(ctx.tool_call_index, int) else 0
+            workflow_identity = {
+                "workflow_run_id": step["workflow_run_id"], "revision_id": step["revision_id"],
+                "site_id": step["site_id"], "instance_key": step["instance_key"],
+                "slot": f"turn:{max(0, run.steps)}:call:{max(0, call_index)}:{name}",
+            }
     ctx.gate.last_authorization = None
 
     def begin() -> Optional[str]:
@@ -176,7 +190,15 @@ def _run_with_receipt(tool: Tool, name: str, args: dict[str, Any], ctx: ToolCont
             began["id"] = ctx.store.begin_action(run.id, name, key, effect, _summary(name, recorded), fence=run.fence,
                 arguments=recorded, authority=ctx.gate.last_authorization,
                 scope={"workspace": str(ctx.workspace.resolve()), "model": run.model_used or ctx.bot.model,
-                       "browser_profile": ctx.bot.id if effect == "web" else None})
+                       "browser_profile": ctx.bot.id if effect == "web" else None},
+                workflow_identity=workflow_identity)
+        except action_receipts.ActionReplay as replay:
+            began["replay"] = replay.result
+            return "the workflow already recorded this completed effect; no new effect was started"
+        except action_receipts.ActionUnresolved as exc:
+            ctx.closed = True
+            from .base import RunAborted
+            raise RunAborted("outcome_unknown", str(exc)) from exc
         except LeaseLost as exc:
             ctx.closed = True          # we no longer own this run: nothing more may start from this worker
             return f"{exc}; the action was not started"
@@ -188,6 +210,10 @@ def _run_with_receipt(tool: Tool, name: str, args: dict[str, Any], ctx: ToolCont
     result = None
     try:
         result = tool.run(args, ctx)
+        if "replay" in began:
+            replay = began["replay"]
+            return ToolResult(ok=bool(replay["ok"]), output=str(replay["output"]),
+                              data=dict(replay.get("data") or {}))
         return result
     finally:
         ctx.receipt = None
@@ -198,9 +224,11 @@ def _run_with_receipt(tool: Tool, name: str, args: dict[str, Any], ctx: ToolCont
             ctx.closed = True
         elif "id" in began:              # actions that never began have nothing to receipt
             try:
+                result_payload = {"ok": bool(result.ok), "output": result.output,
+                                  "data": result.data if isinstance(result.data, dict) else {}}
                 ctx.store.finish_action(began["id"], "done" if result.ok else "failed",
-                                        hashlib.sha256(result.output.encode(errors="replace")).hexdigest()[:16],
-                                        expected_fence=run.fence)
+                                        hashlib.sha256(action_receipts.canonical(result_payload).encode()).hexdigest()[:16],
+                                        expected_fence=run.fence, result=result_payload)
             except Exception as exc:
                 # The effect may have completed, but we cannot report a saved
                 # receipt or let another tool begin after losing audit storage.

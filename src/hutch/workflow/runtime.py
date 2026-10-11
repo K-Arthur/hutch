@@ -77,7 +77,13 @@ def run_attempt(engine: Any, ctx: Any, run: Run, tools: dict[str, Any], stop: An
             raise RunAborted("stopped", "a stop was requested for this workflow")
         interp.workflow = fresh
 
-        advance: Advance = interp.advance()
+        try:
+            advance: Advance = interp.advance()
+        except RunAborted as exc:
+            if exc.reason == "outcome_unknown":
+                _settle(store, wf_id, run, revision_id=revision_id,
+                        status="outcome_unknown", reason=exc.detail or str(exc))
+            raise
         if advance.kind == "wait":
             pending = [q for q in wstore.questions(store, wf_id, status="pending")]
             reason = f"waiting for {len(pending)} answer(s)" if pending else "waiting for child workflow work"
