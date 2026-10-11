@@ -129,8 +129,10 @@ for each role, only against a loopback Ollama 0.40.3 endpoint and an installed Q
 with a complete identity profile. It uses 4,096 context, the normal local 2,048-token turn cap,
 streaming with thinking disabled, and verifies after every response that exactly one model is
 resident with no VRAM use. It checks current memory headroom before each request and does not
-start a load when the candidate no longer fits. It sends no tools, user data, or hosted
-fallback. Its durable campaign ledger caps all runs together at 80 requests, 60,000
+start a load when the candidate no longer fits. Each request stores the measured RAM,
+resident-model bytes, fit estimate and effective context before and after inference; these
+snapshots describe this machine at that moment and are not a general hardware guarantee. It
+sends no tools, user data, or hosted fallback. Its durable campaign ledger caps all runs together at 80 requests, 60,000
 estimated/reported tokens and two hours;
 an uncertain dispatch keeps its reservation and blocks another probe until reconciled. A
 timeout or incomplete sample is inconclusive and never grants authority. A complete failed

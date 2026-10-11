@@ -212,13 +212,12 @@ def _loopback(endpoint: str) -> bool:
         return False
 
 
-def _check_cpu_headroom(metadata: Any, resident: list[dict[str, Any]]) -> None:
-    """Recheck current CPU memory headroom without counting an unrelated GPU budget."""
+def _cpu_memory_snapshot(metadata: Any, resident: list[dict[str, Any]]) -> dict[str, Any]:
+    """Capture memory and context fit separately from model-role capability evidence."""
     observed = probe_hardware(with_runtimes=False)
-    if observed.ram_total_gb <= 0 or observed.ram_available_gb <= 0:
-        raise ValueError("available system memory could not be measured or is exhausted; no probe request was sent")
     cpu = Hardware(os=observed.os, arch=observed.arch, cpu=observed.cpu, cores=observed.cores,
                    ram_total_gb=observed.ram_total_gb, ram_available_gb=observed.ram_available_gb)
+    loaded_size = loaded_vram = 0
     if resident:
         # The model is already charged against MemAvailable; credit only its measured
         # CPU-resident bytes before testing another turn, as normal local admission does.
@@ -228,8 +227,31 @@ def _check_cpu_headroom(metadata: Any, resident: list[dict[str, Any]]) -> None:
             cpu.ram_available_gb = min(cpu.ram_total_gb,
                                        cpu.ram_available_gb + max(0.0, loaded_size - loaded_vram) / 1024 ** 3)
     plan = plan_context(metadata, cpu, CONTEXT_TOKENS, CONTEXT_TOKENS, local=True)
-    if plan.blocked or plan.num_ctx != CONTEXT_TOKENS:
+    fit = plan.fit
+    return {
+        "ram_total_gib": round(observed.ram_total_gb, 3),
+        "ram_available_gib": round(observed.ram_available_gb, 3),
+        "admission_available_gib": round(cpu.ram_available_gb, 3),
+        "cpu_model_budget_gib": round(cpu.budget_gb, 3),
+        "resident_model_count": len(resident),
+        "resident_model_size_bytes": int(loaded_size or 0),
+        "resident_model_vram_bytes": int(loaded_vram or 0),
+        "requested_context_tokens": CONTEXT_TOKENS,
+        "effective_context_tokens": plan.num_ctx,
+        "fit_status": fit.status if fit else "unknown",
+        "fit_estimated": fit.estimated if fit else True,
+        "fit_reason": fit.reason[:180] if fit else plan.note[:180],
+    }
+
+
+def _check_cpu_headroom(metadata: Any, resident: list[dict[str, Any]]) -> dict[str, Any]:
+    """Fail closed unless current system RAM can admit the requested CPU context."""
+    snapshot = _cpu_memory_snapshot(metadata, resident)
+    if snapshot["ram_total_gib"] <= 0 or snapshot["ram_available_gib"] <= 0:
+        raise ValueError("available system memory could not be measured or is exhausted; no probe request was sent")
+    if snapshot["fit_status"] == "wont_fit" or snapshot["effective_context_tokens"] != CONTEXT_TOKENS:
         raise ValueError("the 4,096-token CPU profile no longer fits current memory headroom; no probe request was sent")
+    return snapshot
 
 
 def inspect_probe_profile(*, spec: str, endpoint: str, provider: Provider,
@@ -344,6 +366,7 @@ def run_probe_suite(store: Any, *, spec: str, role: str, endpoint: str, provider
         if resident and int(resident[0].get("size_vram", 0) or 0) > 0:
             inconclusive_reason = "the resident candidate is using VRAM; it was left untouched and no request was sent"
             break
+        memory_before: dict[str, Any]
         try:
             current_metadata = provider.show(model)
             if current_metadata is None:
@@ -352,7 +375,7 @@ def run_probe_suite(store: Any, *, spec: str, role: str, endpoint: str, provider
                     current_metadata.tokenizer_hash) != (metadata.digest, metadata.quant,
                                                          metadata.template_hash, metadata.tokenizer_hash):
                 raise ValueError("the qualification model identity changed; no request was sent")
-            _check_cpu_headroom(current_metadata, resident)
+            memory_before = _check_cpu_headroom(current_metadata, resident)
         except Exception as exc:
             inconclusive_reason = str(exc)[:500]
             break
@@ -380,13 +403,18 @@ def run_probe_suite(store: Any, *, spec: str, role: str, endpoint: str, provider
                                     "status": "inconclusive", "reason": reason,
                                     "prompt_sha256": prompt_digest, "response_sha256": "",
                                     "elapsed_ms": round((time.monotonic() - request_started) * 1000, 1),
-                                    "tokens": request_row["reserved_tokens"]})
+                                    "tokens": request_row["reserved_tokens"],
+                                    "memory_before": memory_before, "memory_after": None})
             inconclusive_reason = reason
             break
         response_text = str(response.content or "")
         response_digest = hashlib.sha256(response_text.encode("utf-8")).hexdigest()
         ok, reason = case.validate(response_text)
         resident = provider.ps()
+        try:
+            memory_after = _cpu_memory_snapshot(current_metadata, resident)
+        except Exception as exc:
+            memory_after = {"measurement_error": type(exc).__name__}
         if len(resident) != 1 or (resident and int(resident[0].get("size_vram", 0) or 0) != 0):
             ok = False
             reason = "the inference request did not remain on one CPU-resident model"
@@ -404,7 +432,8 @@ def run_probe_suite(store: Any, *, spec: str, role: str, endpoint: str, provider
                                 "elapsed_ms": round((time.monotonic() - request_started) * 1000, 1),
                                 "prompt_tokens": int(response.prompt_tokens or 0),
                                 "completion_tokens": int(response.completion_tokens or 0),
-                                "tokens_accounted": reported or request_row["reserved_tokens"]})
+                                "tokens_accounted": reported or request_row["reserved_tokens"],
+                                "memory_before": memory_before, "memory_after": memory_after})
 
     if inconclusive_reason:
         status = "inconclusive"

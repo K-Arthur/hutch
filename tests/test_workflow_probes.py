@@ -105,6 +105,10 @@ def test_passing_probe_qualifies_only_the_exact_profile_after_all_four_checks(st
         assert result.execution_profile["decoding"] == {
             "temperature": None, "max_tokens": 2048, "think": False, "stream": True}
         assert store.workflow_probe_run(result.id)["scope"]["inference_placement"] == "cpu"
+        assert all(item["memory_before"]["effective_context_tokens"] == 4096
+                   and item["memory_before"]["ram_available_gib"] > 0
+                   and item["memory_after"]["resident_model_vram_bytes"] == 0
+                   for item in result.requests)
         exact = assess("author", spec=f"ollama/{model}", store=store,
                        base_url=server.url,
                        execution_profile_hash=result.execution_profile["fingerprint"])
