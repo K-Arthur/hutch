@@ -102,6 +102,21 @@ Workspace actions (Docs brief, Sheets table, Drive placement, Calendar/reminder 
 * tts: one segment ≤ 1,500 chars; retry ≤ 2 per segment; no regeneration of unchanged segments.
 * artifacts: audio ≤ 128 MB; script json ≤ 4 MB; infographic SVG ≤ 8 MB; per-run synthesis ≤ 512 MB.
 
+## Next slice notes (2026-10-12)
+
+* **Calendar executor (S5d)** needs a reviewed extension of `google_calendar.py`, not a
+  duplicate: the existing write path is deliberately guest-free create-only with strict
+  read-back. The mission's reminder scenarios need (a) relative reminder overrides on
+  create and on an existing event, and (b) event updates with the same verification
+  discipline and outcome-unknown semantics. Add them as new methods with tests against that
+  module's injected-transport harness, then bind `event_create`/`routine_config` plan steps
+  through `gsuite/executors.py`.
+* **Connections API/UI** for the Workspace OAuth callback (`/api/v1/connections/google-workspace/…`)
+  and **artifact download routes** for rendered audio/transcripts (hash-verified, conversation-
+  scoped) are the remaining server work before the acceptance journey can run in the app.
+* **UI** (source selector, coverage, audio player with Join/Ask, infographic view, action
+  drawer) starts with the mandatory Figma Community research and a 3–4 route review.
+
 ## Verification commands
 
 `uv run --frozen pytest -q tests/test_synthesis_model.py tests/test_synthesis_ingest.py` on this
