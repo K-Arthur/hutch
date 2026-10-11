@@ -1,0 +1,116 @@
+{
+  "test": "ADR-0017 S0 base re-verification: §2.1–§2.3 seam claims against the merged integration base, plus failing regression skeletons and preflight evidence",
+  "command": "uv run --with pytest --with pytest-asyncio --with hypothesis --with anthropic python -m pytest --collect-only -q",
+  "captured_at": "2026-10-11T09:14:56+0000",
+  "base": {
+    "worktree": ".worktrees/mcp-s0",
+    "branch": "mcp/s0-integration",
+    "head": "37911b979ff91ee6c5c7f8a2ed8e51c4e460d6af",
+    "head_subject": "Merge branch 'wcag22-audit-fixes' into mcp/s0-integration",
+    "note": "37911b9 merges 2872f4f (the wcag22-audit-fixes tip the ADR verified against) with 6fc6f38, which carries main's f053e3a 'Merge branch toolcall/unified' — the new src/hutch/toolcalling/ package lands across the mapped seams"
+  },
+  "counts": {
+    "claims_reverified": 64,
+    "holds": 37,
+    "drifted": 27,
+    "unverifiable": 0
+  },
+  "meaning_changing_drifts": [
+    "_CATALOG is now 11 tools, not eight — the merge added create_document/revise_document/inspect_document and a 'documents' GROUP (tools/__init__.py:21-43)",
+    "per-run tool specs are no longer [tools[n].spec() for ...] — they come from compile_plan/wire_tools via toolcalling.compiler, which snapshots Tool.parameters directly (builtin.py:631)",
+    "inbound strict-JSON decode and canonical validation now delegate to toolcalling.strictjson/toolcalling.validate (toolrepair.py:81, providers/base.py:167), and a second envelope/contract repair regime bounded at 4 exists beside the native one-retry path"
+  ],
+  "checks": [
+    "64 §2.1–§2.3 seam claims re-verified against the merged tree; every drift carries a corrected citation with semantics intact (docs/realignment/artifacts/mcp-s0-2026-10-11/drift-report.md)",
+    "full collection re-run this session: `uv run --with pytest --with pytest-asyncio --with hypothesis --with anthropic python -m pytest --collect-only -q` → 1966 tests collected in 2.94s, 0 errors (the evidence's 1,960 on the merged base + the 6 new skeleton tests; grep for pytest error-summary lines returned nothing)",
+    "skeleton file collects cleanly: `pytest --collect-only -q tests/test_integration_contract_regressions.py` → '6 tests collected in 1.00s', each @pytest.mark.xfail(strict=True, reason=\"ADR-0017 S<n>\") — S6×3, S5×1, S7×2 (grep -c verified)",
+    "spot-verified this session: _CATALOG has 11 tools at tools/__init__.py:21-33 with 'documents' GROUP at :36-41 and ALL_TOOL_NAMES at :43; specs = list(plan.wire_tools) with the PF-1/PF-3 comment at builtin.py:631 and sha256 prefix hash at :643; toolrepair.py:81 imports toolcalling.validate.validate_call; providers/base.py:167 imports toolcalling.strictjson.loads_strict",
+    "spot-verified this session: tools/memory.py:46 MemoryRecallTool with FTS5 wording at :50, MAX_MEMORY_CHARS=6_000 at :12; offline.py:24-25 MAX_REQUEST_BYTES=64MiB / MAX_BROKER_CONNECTIONS=8; sandbox.py:96 bwrap --unshare-all",
+    "ADR-0017 citations verified at the primary checkout (docs/adr/0017-governed-mcp-integration-plane-and-context-scaffolding.md): §2.4 reconciliation + naming decision at :79-80, §3.2 budget-parameter block at :137-139, §3.3 must-consume rule at :154, S0 slice mandate incl. this skeleton file and strict-xfail rule at :202",
+    "toolcalling package import/resolution smoke test (prior session, sanctioned uv run path): resolve_profile(provider='ollama', endpoint='http://localhost:11434', model='qwen3:8b') → key 'ollama/local', protocol 'ollama-native', fingerprint f319406d8de1b591, strategy_eligibility all-True; envelope decode_action('{\"action\":\"call\",\"tool\":\"x\",\"arguments\":{\"a\":1}}') → kind='call'",
+    "NOT run: T-FULL-REGRESSION (tests.md:93) — this ask named no check to run and the lane is read-only verification; S0's mandated base-tree suite run remains a separate, blocking-on-owner step per ADR-0017 §5 S0 (:202)"
+  ],
+  "test_collection": {
+    "command": "uv run --with pytest --with pytest-asyncio --with hypothesis --with anthropic python -m pytest --collect-only -q",
+    "collected": 1966,
+    "errors": 0,
+    "duration_seconds": 2.94,
+    "note": "1,960 on the merged base before the skeletons file (prior session); +6 = tests/test_integration_contract_regressions.py. Bare `uv run pytest` / `uv run python -m pytest` fail in this worktree (.venv lacks the dev group); the --with overlay is ephemeral, no repo writes"
+  },
+  "skeletons": {
+    "file": "tests/test_integration_contract_regressions.py",
+    "lines": 485,
+    "tests": 6,
+    "collected": "6 tests collected in 1.00s",
+    "xfail_strict_markers": {
+      "ADR-0017 S6": 3,
+      "ADR-0017 S5": 1,
+      "ADR-0017 S7": 2
+    },
+    "failure_modes": [
+      "tool bindings survive compaction (opencode#40901 → S6)",
+      "last user request retained verbatim (claude-code#22376 → S6)",
+      "stale skill invocations not re-executed (claude-code#40193 → S6)",
+      "tool-catalog/manifest context size bounded (opencode#35376 → S5)",
+      "auth recovery re-reads persisted state (notebooklm-py#2161 → S7)",
+      "no success without a live probe/read-back (false-sync → S7)"
+    ]
+  },
+  "t_full_regression": "not run — see checks; recorded honestly per ADR-0017 §5 S0",
+  "files": [
+    "docs/realignment/artifacts/mcp-s0-2026-10-11/validation.json",
+    "docs/realignment/artifacts/mcp-s0-2026-10-11/drift-report.md",
+    "docs/realignment/artifacts/mcp-s0-2026-10-11/reconciliation.md",
+    "tests/test_integration_contract_regressions.py"
+  ],
+  "source_sha256": {
+    "src/hutch/engine.py": "64a622562d237b0069ad7342ce945d58502b379a34b5722929c32ee3b5db40a7",
+    "src/hutch/cli.py": "4a7cd7e039428198917faa26dc5a5c8eeaf028d5ad3c45b12a9b976cffa47d4d",
+    "src/hutch/lifecycle.py": "1d409e97da1512773dea9358c4c1d768db0de0a34479c965ea55550680c0428e",
+    "src/hutch/store.py": "cc1331ddd00cc02de78af65238b3d2cba5568461af0beebc6a219a15419c324b",
+    "src/hutch/procguard.py": "e9f76eb3fe2b20dce30711002f88f088e156b6ee16617ffb78142a78a6ca3e87",
+    "src/hutch/durable_changes.py": "aeb3b8c50ad6f7f00c0f9871cc6b6f8379d4f7f9406f916b39a639ae3f3f8fcc",
+    "src/hutch/server/sse.py": "a42eb4769d0986cdeceebf0d6be3c48ae11f5c40d22787fe913197f9cfc63b66",
+    "src/hutch/server/app.py": "d62676524ea3b9f911add7a3448c96d3a68ad593e8b03ca15bc89f27cd92dda7",
+    "src/hutch/server/static/app.js": "c5a56f666a50796897fc20df8c8f5908d0b3577ecc380fe4ca7d8c8c890b4362",
+    "src/hutch/server/static/model-switcher.js": "4add0f6530e573fb5fbb4d2494b3863f5409840eff68a369538b053d29da5121",
+    "src/hutch/tools/__init__.py": "d75d4d3280c98d37a03688e6682f845b7772e6850a8a76e18cfb6123394b2049",
+    "src/hutch/tools/base.py": "6cf7dd44e0c7e1f334ceb4e79f24d555e7e9caf7d0004fda84694ef61c77ac85",
+    "src/hutch/tools/shell.py": "6f10558c38c00ec723a0eca85536d44858a17bbc253932598d93a6218b6b319d",
+    "src/hutch/tools/memory.py": "00247eed030470320648e6c82e9eb548c7a89b847577f5418b20a672a7099310",
+    "src/hutch/approvals.py": "8ace7b2913a3f35350b57fef485427458f75286a3a9ad89daca9494b5cf2f759",
+    "src/hutch/runtime/steps.py": "66c77adbb1dce3b1ad20eff80e4bc9a49f3d189cada5e9688da59b15ea5af4a1",
+    "src/hutch/runtime/builtin.py": "8a4d7ce1c8fc0d6592759bea1c1bb1320333f82f59cf96cf52ec69550459b254",
+    "src/hutch/runtime/toolrepair.py": "26a9e5ee0963fd8c02b746323b3af72a0cbd1b131f1ef7d6e07e04876948022c",
+    "src/hutch/runtime/ladder.py": "406c579a728582622a773b702cbddeaed3645943c1ba068b38ab2c3f9c912e03",
+    "src/hutch/runtime/opencode.py": "46cf3c0647d7229e5c7c032b1b875f2e68af2079f4ece9bd08f156282254f5c9",
+    "src/hutch/runtime/pi.py": "981f6ff6d20f3ce22a4688c7a218215a4396e129eceb9ce6198335b1fc21fd05",
+    "src/hutch/runtime/opencode_protocol.py": "ca9be7a69bc93b7a60c5a3a7f4d9490f77725d17b0dd78cbdbf3cbf4279ff7dc",
+    "src/hutch/runtime/pi_protocol.py": "07766045051ab9176359862a5e174c98bbe29737d874be4205559f29281d14b4",
+    "src/hutch/offline.py": "7dc7812de24ddc4a5cffcdea24088ce355289f7bc8342cc7f892e35925f0094c",
+    "src/hutch/sandbox.py": "b4e0d922dd7d6ab9ebea1ce450c663ad423ea209f794a0941448e0157a7a715b",
+    "src/hutch/providers/base.py": "98b2a6b95b1b299d82a134fa03a65cd012c8d35438cb7bb014a22340e0f79354",
+    "src/hutch/providers/claude.py": "58d9dc279af69640dec445586a764e4996895b2f875530cfd3d04ca77590532d",
+    "src/hutch/providers/ollama.py": "d981d87d3aac2e75a706a9899805e9122e025b91be285faf08bb8812a0ea527c",
+    "src/hutch/providers/openai_compat.py": "73490b7a9d60558880b61bef5c772e6df25a850f9bb607251947744976ac6bbd",
+    "src/hutch/providers/openai_responses.py": "c426df262271188514bdb2618743786b66ddfa29b975142dec3e181548af1eb6",
+    "src/hutch/fact_memory.py": "5411f8369a842f3c9bfcbaf09e700f97ebb48aab96b6c5e46015fe97a71b1e59",
+    "src/hutch/context.py": "9fcbaf51df102974fdeb724cd9718f2e5fc5f388c52a3c11fd61a7ce7db4f6c8",
+    "src/hutch/estimate.py": "ba72d3c304f6573b1bd858f3d91e721a0397e559bb65853840b05d7f9302bbe6",
+    "src/hutch/connections.py": "95ba7c083d34de24084009ee9c88af3b2b026a9f2168e9d5c018d7d9102184fe",
+    "src/hutch/modelchoices.py": "4dcbef9eafbd8f739c17e49a119342d909fcbfcc0835f78ec867cbb3b186a5d7",
+    "src/hutch/toolcalling/__init__.py": "13713b77d453a78b9709cd2a4ceb82a389d070c0d15e33c476dd07eee0a2b8a8",
+    "src/hutch/toolcalling/contracts.py": "7af4bc3fdb7b1be58cc5818aae20ccd13d3c9724752ae22add914bd0e68bf0dc",
+    "src/hutch/toolcalling/profiles.py": "f5fd34addf185cb95a40f2ef7ba4e87a54d827d97a7c5c405076907f1d8ee136",
+    "src/hutch/toolcalling/compiler.py": "4c58944193c0831967ee8a4121231d837e661bf4cf7c1d043e8ca66134b65e37",
+    "src/hutch/toolcalling/envelope.py": "ce49062bdb29a9bd2eaf58c1144479b8045f37ca4956373bec9b6e5a3da568b6",
+    "src/hutch/toolcalling/schemas.py": "9e951e13403c14c02a9d2953c901d78ae28ee792fcec1dbded4dcdb508167100",
+    "src/hutch/toolcalling/validate.py": "c915a01247d5c62aa842265ee4c094f1e1f4c84721a3a8f7ee1d5de99806beab",
+    "src/hutch/toolcalling/strictjson.py": "5a113ec108b47f0bcaa313f27e3d6f44c17de3b42f6e3222daf99151bdbcd683",
+    "src/hutch/toolcalling/streamassembly.py": "226742fc4f3d555098efabb5c899844a36d4332b8027f11719f30f5d23afa145",
+    "tests/fakes.py": "5af5a539c0b2c126a5c115af2405d1e773301f86de885d160b2e8af3668dfba8",
+    "tests/test_studio_shell.py": "b77ce1f39e17788b511009a2aa52d4874f3b5c0fc38b64bb65243c7a7c299127",
+    "tests/test_integration_contract_regressions.py": "51f21bae99ced55e2c6afad982286ed31ead723122870a5d505c608c3523f5b4",
+    "docs/adr/0007-external-runtimes.md": "22108c2a515108bea25395a4dfcfc58a7924372a5f5a8c9a3c968e05502d06ec"
+  }
+}
