@@ -280,8 +280,8 @@ def register_pages(app: FastAPI) -> None:
         template = form.get("template")
         if template and template not in TEMPLATES:
             return go("/bots/new", error=f"Unknown template '{template}'.")
-        bot = TEMPLATES[template].model_copy(deep=True) if template else Bot(name=name)
-        bot.name, bot.template = name, template or None
+        from ..templates import instantiate
+        bot = instantiate(template, name) if template else Bot(name=name)
         bot.description = form.get("description") or bot.description
         from ..modelchoices import ModelNotUsable, validate_override
         try:
