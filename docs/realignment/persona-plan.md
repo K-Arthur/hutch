@@ -61,6 +61,13 @@ Progress (2026-10-11):
   playful turns, re-decided every turn). No style-only model pass; measured local resolution + render p95
   **0.006 ms** (500 samples) against the ≤20 ms target. Evidence: guidance/render tests, prompt-wiring tests
   with and without a plan, and 146 adjacent runtime/offline/delegation/conversation tests.
+- `38974d5` slice D: the approved compact form in assistant settings (beside the standing directions) and
+  scoped this-conversation / next-reply controls in chat options, with per-field origins, explicit reset,
+  unsaved state, and revision-aware saves that keep the person's edits on conflict. Real-app verification:
+  **15/15 browser checks** (Chromium 153.0.8010.12, no model route, no model calls, no page errors) with
+  screenshots at 360/768/1440 and a trace in `docs/realignment/artifacts/persona-ui-2026-10-11/`
+  (reproducible via `docs/realignment/capture_persona_ui.py`); static-asset guards and persona suites pass
+  (59 tests). The full browser e2e suite and live-model checks remain unrun.
 
 ## Acceptance budgets
 
