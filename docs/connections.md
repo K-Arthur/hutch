@@ -265,10 +265,19 @@ configured OpenRouter endpoint. When you open the model picker, Hutch loads the
 for matching results. The catalog request does not generate a response or
 spend model tokens. OpenRouter's own model ids, names, reported prices and
 context values can change. Hutch shows those values as catalog information,
-not as a verified quote; currency-limited admission still needs a reviewed
-price row in Settings > Prices. Tool support varies by model and upstream
-provider, so a catalog entry does not prove a model will work for every task.
-Live OpenRouter account and model requests have not been tested here.
+not as a guarantee of upstream availability. Paid-call admission separately
+reads public per-model endpoint metadata with a five-minute freshness window.
+Under a strict USD ceiling, stale or missing metadata, an unknown price
+dimension, or no endpoint that fits the request blocks admission; other paths
+may use clearly labeled stale metadata or a reviewed Settings > Prices row.
+Reservations cover the highest eligible endpoint estimate, including published
+long-context tiers and possible cache-write prices. They are estimates, not an
+external billing cap. Hutch requests OpenRouter's `usage.include=true` and
+retains `usage.cost` when reported. An alias or preset without a defensible
+strict quote is refused. Tool support varies by model and upstream provider,
+so a catalog entry does not prove a model will work for every task. Public
+model and endpoint metadata GETs were checked on 2026-10-11 without an
+inference key; no account request or paid model generation was performed.
 
 ## Connect a model provider in one step
 
@@ -287,7 +296,10 @@ catalog details and prices are provider-reported and can change; OpenRouter may
 route to a different upstream model under its own fallback rules. Hutch records
 the model returned by the provider and does not silently select a different
 Hutch connection. Review each provider's billing and routing controls. Catalog
-prices are not Hutch's reviewed pricebook and cannot enforce currency caps.
+prices are not billing guarantees. For a strict USD ceiling, Hutch requires a
+fresh endpoint-aware estimate and refuses when it cannot bound the route. The
+reservation remains an estimate; provider-side controls are still needed for a
+provider-enforced limit.
 
 Pasted keys are written to a private file on this Hutch with owner-only
 permissions; they are never returned to the browser or stored in browser

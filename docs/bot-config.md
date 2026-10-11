@@ -142,6 +142,27 @@ There is no production mock model route. Existing records that contain `mock/*` 
 for migration and audit, but attempts fail before starting an action with `model_unavailable`.
 The deterministic test scenario runtime lives under `tests/` and is not included in built wheels.
 
+### Manual task-role routes
+
+The built-in Studio lets an operator configure an exact `provider/model` route for each of seven task roles: `banter`,
+`classification`, `extraction`, `summarization`, `synthesis_research`, `code_analysis`, and `verification`. Blank routes use the Bot's
+saved model. In chat, selecting a role applies its configured route to one message; an explicit composer model override has
+precedence, and the selected role is retained in the run record. The route goes through the normal availability, privacy,
+context-fit, budget and hosted-route authorization checks. It is not capability certification. This manual feature does not
+run a classifier or automatically choose a role.
+
+```bash
+hutch bot update helper \
+  --task-route banter=ollama/qwen3:8b \
+  --task-route code_analysis=ollama/qwen3-coder:14b
+hutch bot update helper --task-route code_analysis=   # clear only that mapping
+hutch bot update helper --clear-task-routes           # clear all mappings
+```
+
+Unavailable configured routes are not silently replaced: selecting one is refused with the connection/setup reason.
+Strict Offline rejects any hosted role route, just as it rejects hosted fallbacks and escalation. The route mappings are
+saved through `PATCH /api/bots/<name>` as `task_routes` and can be inspected with the Bot resource.
+
 Pi and OpenCode executor records also remain readable, but those external executors are unavailable
 until Hutch can own their processes, broker permissions and reserve provider budgets. Settings can
 move an idle legacy bot to Hutch's built-in runtime after its saved model route is usable. This
@@ -265,9 +286,10 @@ not silently join the host network. Check [operations](operations.md) for requir
 | `timeout_seconds` | 900 | wall clock; the run is killed and marked failed (`timeout`) |
 | `daily_token_cap` | 200,000 | per-bot local-day budget; measured provider usage plus active/uncertain request reservations; the next request is refused if its estimate would pass the cap (`token_cap`) |
 
-Hosted currency limits reserve a local price-based estimate before the request. They require a matching price record, and a capped route with
-unknown pricing is refused. Provider billing can differ from Hutch's prompt-size estimate. See [Connections](connections.md) for shared
-provider-account caps and reservation reconciliation.
+Hosted currency limits reserve a cost estimate before the request. Strict OpenRouter ceilings require fresh endpoint metadata and refuse
+when no safe estimate is available; other providers use the reviewed local pricebook. Warn, pause-for-approval and ceiling are separate
+controls. Provider billing and tokenization can differ from Hutch's estimate, so this is not an external billing guarantee. See
+[Connections](connections.md) for shared provider-account caps and reservation reconciliation.
 
 In the assistant settings page, task time is entered in minutes for easier
 reading; Hutch converts it to the same `timeout_seconds` field used by YAML,
