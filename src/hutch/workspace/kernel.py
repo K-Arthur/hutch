@@ -22,6 +22,9 @@ It speaks the JSON-line protocol v1 from :mod:`hutch.workspace.protocol`:
   in-child when ``hutch.outputblocks`` is importable (the read-only venv
   makes it importable); invalid emissions degrade to a visible text block —
   a diagnostic is never swallowed (outputs-failures A.4);
+* ``inspect_csv(path)`` is injected and is the same bounded CSV disclosure the
+  upload report route serves (``hutch.workspace.csvprobe``), so the model's
+  in-kernel view of a uploaded file cannot disagree with the UI's;
 * files a cell newly created under the workspace are hashed and reported in
   the bounded ``produced_files`` list; ``hutch_workspace_pending_files()``
   exposes the same convention to the code itself;
@@ -59,6 +62,8 @@ import time
 import ast
 from datetime import datetime, timezone
 from typing import Any, Callable
+
+from . import csvprobe as _csvprobe
 
 from . import protocol
 from .protocol import (
@@ -205,6 +210,7 @@ class Kernel:
         }
         ns["emit_block"] = self.emit_block
         ns["hutch_workspace_pending_files"] = self.hutch_workspace_pending_files
+        ns["inspect_csv"] = _csvprobe.probe_csv_path
         return ns
 
     # ------------------------------------------------- injected cell helpers

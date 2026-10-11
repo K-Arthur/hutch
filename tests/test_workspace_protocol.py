@@ -189,6 +189,20 @@ def test_persistent_namespace_and_reset_ns(tmp_path):
     assert response["error"]["type"] == "NameError"
 
 
+def test_inspect_csv_is_injected_and_matches_the_upload_report(tmp_path):
+    kernel, _ = bare_kernel(tmp_path)
+    csv_file = tmp_path / "readings.csv"
+    csv_file.write_text("a,a\n1,2\n3\n", encoding="utf-8")
+    run_exec(kernel,
+             "report = inspect_csv(%r)\n"
+             "(report['duplicate_columns'], report['malformed_rows']['count'])" % str(csv_file))
+    # The response above must be a clean result; assert via a second exec reading it back.
+    response = run_exec(kernel, "(report['duplicate_columns'], report['malformed_rows']['count'])",
+                        request_id="wx_csv")
+    assert response["receipt"]["status"] == "ok"
+    assert response["result_repr"] == "(['a'], 1)"
+
+
 def test_stdout_stderr_captured_and_result_auto_repr(tmp_path):
     kernel, _ = bare_kernel(tmp_path)
     response = run_exec(kernel, "print('to stdout')\nimport sys\nprint('to stderr', file=sys.stderr)\n'value'")
