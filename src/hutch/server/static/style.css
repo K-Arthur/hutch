@@ -2427,8 +2427,8 @@ details[open] > summary .summary-row-action .icon { transform: rotate(180deg); }
 .assistant-usage-copy small { font-size: var(--fs-xs); }
 .assistant-usage-action { font-size: var(--fs-xs); }
 .assistant-usage-details[open] > summary { border-bottom: 1px solid var(--line); }
-.assistant-usage-form { padding: 14px; }
-.assistant-usage-today { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 14px 12px;
+.assistant-usage-form { padding: var(--s-2) var(--s-4) var(--s-3); }
+.assistant-usage-today { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: var(--s-2) var(--s-4) var(--s-3);
   border-top: 1px solid var(--line); color: var(--text-2); font-size: var(--fs-xs); }
 .assistant-usage-today strong { color: var(--text); font-weight: 600; }
 .settings-panel-title { display: flex; align-items: center; gap: 10px; }
@@ -2439,12 +2439,12 @@ details[open] > summary .summary-row-action .icon { transform: rotate(180deg); }
   .assistant-settings-page { padding-top: 12px; }
   .assistant-settings-basics { margin-bottom: 12px; }
   .assistant-usage-details > summary { --summary-slot: 30px; padding: var(--s-2) 10px; }
-  .assistant-usage-form { padding: 12px; }
-  .assistant-usage-today { padding: 9px 12px 11px; }
+  .assistant-usage-form { padding: var(--s-2) 10px var(--s-3); }
+  .assistant-usage-today { padding: var(--s-2) 10px var(--s-3); }
   .assistant-more-settings > summary { --summary-slot: 36px; min-height: 60px; padding: var(--s-2); }
   .assistant-settings-summary-icon { width: 34px; height: 34px; }
   .assistant-more-settings > summary .summary-row-action { grid-column: 2; }
-  .assistant-more-settings .detail-grid { padding: 10px; }
+  .assistant-more-settings .detail-grid { padding: var(--s-2); }
 }
 
 /* Keep the assistant-creation action beside its title on phones. */

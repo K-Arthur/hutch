@@ -1594,7 +1594,174 @@ def test_model_provider_connect_flow_is_compact_and_responsive(browser, app_serv
             "states": ["provider setup at desktop/tablet/phone", "advanced phone fields", "masked API key", "simulated catalog success"],
             "external_requests": external_requests,
             "live_provider_calls": 0,
-            "provider_api": "UI response was intercepted; server integration is covered by tests/test_connections.py",
+            "reduced_motion": "reduce",
+            "source_sha256": _visual_source_hashes(),
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "trace-failed.zip"))
+        except Exception:
+            pass
+        context.close()
+
+
+def test_connection_and_assistant_settings_share_disclosure_axes(browser, app_server):
+    """Settings disclosures share one skeleton: peers stay peers.
+
+    The Apps & AI connection cards must not nest one disclosure inside another
+    (a separate connection with its own sign-in is a peer of the access it
+    relates to, never its child), every in-card disclosure summary must share
+    the same padding and minimum height, and the assistant-settings rows must
+    align their copy with the panel content beside them. Guards the
+    .summary-row skeleton introduced in October 2026 against silent drift.
+    """
+    app_url, _app = app_server
+    out = ROOT / "docs/realignment/artifacts/settings-disclosure-axes-2026-10-10"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(reduced_motion="reduce")
+    page = context.new_page()
+    errors: list[str] = []
+    external_requests: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external_requests.append(request.url)
+            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    dimensions = (
+        ("desktop", 1440, 960), ("short-desktop", 1280, 720), ("tablet", 900, 1024),
+        ("phone", 390, 844), ("compact-phone", 320, 740),
+    )
+    evidence = []
+    try:
+        for label, width, height in dimensions:
+            page.set_viewport_size({"width": width, "height": height})
+            page.goto(f"{app_url}/#/connections")
+            page.get_by_role("heading", name="Apps & AI").wait_for()
+            page.locator("#connection-management > summary").click()
+            page.locator("#outlook-calendar-access > summary").click()
+            page.wait_for_timeout(150)
+
+            trees = page.evaluate("""() => {
+              const rows = [];
+              document.querySelectorAll('.connection-management-content details').forEach(d => {
+                let depth = 0, node = d.parentElement;
+                while (node && !node.classList.contains('connection-management-content')) {
+                  if (node.tagName === 'DETAILS') depth += 1;
+                  node = node.parentElement;
+                }
+                rows.push({id: d.id, depth});
+              });
+              return rows;
+            }""")
+            nested = [row for row in trees if row["depth"] > 0]
+            assert not nested, (label, "disclosures nested inside disclosures", nested)
+
+            siblings = page.evaluate("""() => {
+              const pairs = [];
+              for (const [readId, peerId] of [
+                ['outlook-calendar-access', 'outlook-calendar-write-access'],
+                ['outlook-mail-access', 'outlook-mail-send-access'],
+                ['google-mail-access', 'google-mail-send-access'],
+              ]) {
+                const read = document.getElementById(readId);
+                const peer = document.getElementById(peerId);
+                pairs.push({pair: `${readId}+${peerId}`, sameDepth: !!read && !!peer && read.parentElement === peer.parentElement});
+              }
+              return pairs;
+            }""")
+            broken = [pair for pair in siblings if not pair["sameDepth"]]
+            assert not broken, (label, "peer connections are not siblings", broken)
+
+            axes = page.evaluate("""() => {
+              const summaries = [...document.querySelectorAll('.connection-management-content details > summary')];
+              const samples = summaries.map(el => {
+                const box = el.getBoundingClientRect();
+                const style = getComputedStyle(el);
+                return {left: box.left, pad: style.paddingLeft, minH: style.minHeight, h: box.height};
+              });
+              const byKey = key => [...new Set(samples.map(s => s[key]))];
+              return {count: samples.length, pads: byKey('pad'), minHs: byKey('minH'),
+                      smallTargets: samples.filter(s => s.h < 24).length};
+            }""")
+            assert axes["count"] >= 7, (label, "expected the in-card disclosures to render", axes)
+            assert len(axes["pads"]) == 1, (label, "in-card summaries share one left padding", axes["pads"])
+            assert len(axes["minHs"]) == 1, (label, "in-card summaries share one min-height", axes["minHs"])
+            assert axes["smallTargets"] == 0, (label, "summary rows below a 24px target", axes)
+
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, "connections overflow", overflow)
+            if label in {"desktop", "phone"}:
+                page.screenshot(path=str(out / f"apps-ai-{label}.png"), full_page=True, animations="disabled")
+
+            page.goto(f"{app_url}/#/bot/design-system-review")
+            page.get_by_role("heading", name="Design Partner").wait_for()
+            more = page.locator("#assistant-more-settings > summary")
+            more.click()
+            page.wait_for_timeout(150)
+            usage = page.locator("#assistant-usage-limits > summary")
+            usage.click()
+            page.wait_for_timeout(150)
+            alignment = page.evaluate("""() => {
+              const padLeft = el => getComputedStyle(el.querySelector(':scope > summary')).paddingLeft;
+              const more = document.querySelector('#assistant-more-settings');
+              const grid = more.querySelector('.detail-grid');
+              const usage = document.querySelector('#assistant-usage-limits');
+              const usageForm = document.querySelector('#form-limits');
+              return {
+                moreSummaryVsGrid: more.querySelector(':scope > summary').getBoundingClientRect().left
+                  - grid.getBoundingClientRect().left,
+                morePadVsGrid: parseInt(padLeft(more)) - parseInt(getComputedStyle(grid).paddingLeft),
+                usageSummaryVsForm: usage.querySelector(':scope > summary').getBoundingClientRect().left
+                  - usageForm.getBoundingClientRect().left,
+                usagePadVsForm: parseInt(padLeft(usage)) - parseInt(getComputedStyle(usageForm).paddingLeft),
+              };
+            }""")
+            assert abs(alignment["moreSummaryVsGrid"]) <= 1, (label, "more-settings summary shares the panel edge", alignment)
+            assert abs(alignment["morePadVsGrid"]) <= 1, (label, "more-settings summary padding matches panel content", alignment)
+            assert abs(alignment["usageSummaryVsForm"]) <= 1, (label, "usage summary shares its panel edge", alignment)
+            assert abs(alignment["usagePadVsForm"]) <= 1, (label, "usage summary padding matches its form", alignment)
+            if label in {"desktop", "phone"}:
+                page.screenshot(path=str(out / f"assistant-settings-{label}.png"), full_page=True, animations="disabled")
+
+            evidence.append({"surface": label, "viewport": [width, height],
+                             "document_overflow": overflow, "in_card_summaries": axes["count"]})
+
+        page.set_viewport_size({"width": 1440, "height": 960})
+        page.goto(f"{app_url}/#/connections")
+        page.get_by_role("heading", name="Apps & AI").wait_for()
+        page.locator("#connection-management > summary").click()
+        page.locator("#outlook-calendar-access > summary").click()
+        page.evaluate("document.querySelector('#outlook-calendar-write-access > summary').focus()")
+        page.keyboard.press("Enter")
+        page.wait_for_timeout(150)
+        assert page.locator("#outlook-calendar-write-access").evaluate("el => el.open"), (
+            "keyboard Enter must toggle the peer disclosure")
+        page.keyboard.press("Enter")
+        page.wait_for_timeout(150)
+        assert not page.locator("#outlook-calendar-write-access").evaluate("el => el.open")
+
+        page.locator(".service-tile").filter(has_text="AI model providers").get_by_role(
+            "button", name="Connect a provider").click()
+        key_height = page.locator("#provider-api-key").evaluate("el => el.getBoundingClientRect().height")
+        assert key_height >= 44, ("provider key input joins the 44px touch scale", key_height)
+        page.get_by_role("button", name="Close dialog").click()
+
+        assert not external_requests, external_requests
+        assert not errors, errors
+        trace_path = out / "trace.zip"
+        context.tracing.stop(path=str(trace_path))
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_design_system.py::test_connection_and_assistant_settings_share_disclosure_axes",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_connection_and_assistant_settings_share_disclosure_axes",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "python": platform.python_version(),
+            "browser": f"{browser.browser_type.name.title()} {browser.version}",
+            "playwright": package_version("playwright"),
+            "viewports": evidence,
+            "states": ["More account settings expanded", "Outlook Calendar access expanded",
+                       "assistant settings expanded with usage limits open",
+                       "keyboard toggled peer disclosure", "connect modal control height"],
+            "external_requests": external_requests,
+            "provider_calls": 0,
             "reduced_motion": "reduce",
             "source_sha256": _visual_source_hashes(),
         }, indent=2) + "\n", encoding="utf-8")
