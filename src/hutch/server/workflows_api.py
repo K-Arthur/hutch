@@ -3,9 +3,8 @@
 Registered from ``create_app`` like the page sub-registrars, so the JSON surface keeps one
 app factory while this module keeps the workflow resource in one place. Every route is
 ``/api/v1`` and owner-only by default (the startup route inventory leaves unmapped routes
-local), every command needs an ``Idempotency-Key``, and nothing here executes a plan: the
-validate route compiles and checks authority without admitting, dispatching or reading
-anything live.
+local); mutations need an ``Idempotency-Key``. Validation and amendment preview are
+read-only: they compile and check authority without admitting work.
 """
 from __future__ import annotations
 
@@ -131,6 +130,82 @@ class WorkflowRunDetail(BaseModel):
     questions: list[WorkflowQuestionResource] = Field(default_factory=list)
     plan: Optional[dict[str, Any]] = None
     structure: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class WorkflowAmendmentPreviewRequest(BaseModel):
+    expected_revision_id: str = Field(min_length=1, max_length=100)
+    # The active orchestration attempt ID is the opaque generation token; replacement
+    # after recovery makes a preview captured by an older owner stale.
+    expected_generation: str = Field(min_length=1, max_length=100)
+    plan: dict[str, Any]
+    inputs: Optional[dict[str, Any]] = None
+
+
+class WorkflowAmendmentFieldChange(BaseModel):
+    field: str
+    old: Any = None
+    new: Any = None
+
+
+class WorkflowAmendmentNodeDiff(BaseModel):
+    site_id: str
+    change: Literal["added", "removed", "changed"]
+    fields: list[WorkflowAmendmentFieldChange] = Field(default_factory=list)
+    dependencies_changed: Optional[bool] = None
+
+
+class WorkflowAmendmentNodeState(BaseModel):
+    site_id: str
+    instance_key: str
+    status: str
+
+
+class WorkflowAmendmentReuseResource(WorkflowAmendmentNodeState):
+    input_hash: str
+
+
+class WorkflowAmendmentInvalidationResource(WorkflowAmendmentNodeState):
+    reason: str
+
+
+class WorkflowAmendmentBudgetResource(BaseModel):
+    current: Optional[int] = None
+    proposed: Optional[int] = None
+    effective_if_adopted: Optional[int] = None
+    used: Optional[int] = None
+    remaining_now: Optional[int] = None
+
+
+class WorkflowAmendmentQuiescenceResource(BaseModel):
+    workflow_status: str
+    active_nodes: list[WorkflowAmendmentNodeState] = Field(default_factory=list)
+    pending_question_ids: list[str] = Field(default_factory=list)
+    required: bool = False
+
+
+class WorkflowAmendmentPreviewResource(BaseModel):
+    workflow_run_id: str
+    current_revision_id: str
+    current_generation: str
+    current_plan_hash: str
+    candidate_plan_hash: str
+    candidate_inputs: dict[str, Any] = Field(default_factory=dict)
+    plan_changed: bool = False
+    changed_fields: list[WorkflowAmendmentFieldChange] = Field(default_factory=list)
+    nodes: list[WorkflowAmendmentNodeDiff] = Field(default_factory=list)
+    added_sites: list[str] = Field(default_factory=list)
+    removed_sites: list[str] = Field(default_factory=list)
+    changed_sites: list[str] = Field(default_factory=list)
+    reuse: list[WorkflowAmendmentReuseResource] = Field(default_factory=list)
+    invalidate: list[WorkflowAmendmentInvalidationResource] = Field(default_factory=list)
+    budgets: dict[str, WorkflowAmendmentBudgetResource] = Field(default_factory=dict)
+    roles: list[dict[str, Any]] = Field(default_factory=list)
+    blocked_reasons: list[str] = Field(default_factory=list)
+    eligible: bool = Field(
+        default=False,
+        description="The candidate passes current authority and budget checks; this is not adoption readiness.",
+    )
+    quiescence: WorkflowAmendmentQuiescenceResource
 
 
 class WorkflowSubmissionResource(BaseModel):
@@ -597,6 +672,32 @@ def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key:
             nodes=[_node_resource(node) for node in view["nodes"]],
             questions=[_question_resource(question) for question in view["questions"]],
             plan=plan, structure=_structure(plan) if plan else [])
+
+    @app.post("/api/v1/workflows/runs/{wf_id}/amendments/preview",
+              response_model=WorkflowAmendmentPreviewResource)
+    def preview_workflow_amendment(
+            wf_id: str, payload: WorkflowAmendmentPreviewRequest) -> WorkflowAmendmentPreviewResource:
+        """Compile a proposed revision and expose conservative reuse/invalidation decisions."""
+        from ..workflow import amendments
+
+        _plan_size(payload.plan)
+        try:
+            preview = amendments.preview(
+                store, workflow_run_id=wf_id, plan=payload.plan,
+                expected_revision_id=payload.expected_revision_id,
+                expected_generation=payload.expected_generation,
+                inputs=payload.inputs,
+            )
+        except KeyError:
+            raise HTTPException(404, "no such workflow run") from None
+        except amendments.AmendmentConflict as exc:
+            raise HTTPException(409, {"code": "amendment_revision_conflict", "message": str(exc)}) from None
+        except wfsubmit.PlanInputError as exc:
+            raise HTTPException(422, {"code": "amendment_inputs", "message": str(exc)}) from None
+        except PlanInvalid as exc:
+            raise HTTPException(422, {"code": "plan_invalid",
+                                      "diagnostics": [d.render() for d in exc.diagnostics]}) from None
+        return WorkflowAmendmentPreviewResource(**preview)
 
     @app.post("/api/v1/workflows/runs/{wf_id}/stop", response_model=WorkflowRunResource)
     def stop_workflow_run(wf_id: str, payload: WorkflowStopRequest, request: Request) -> WorkflowRunResource:

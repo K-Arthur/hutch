@@ -261,10 +261,11 @@ attempt can run.
   revisioned Off/Suggest/Auto override; Auto is unavailable until the assistant has an
   activated definition and explicit limits. These controls do not run a planner or start work
   when you change policy.
-* **Chat-turn recommendations and automatic launches are not connected yet.** Suggest currently
-  stores the preference; Hutch does not yet recommend a workflow from a model turn or create a
-  plan there. Auto policy storage and scope validation exist, but chat does not use Auto to
-  launch work.
+* **Chat routing is implemented behind an exact-profile selector gate.** During the ordinary
+  chat model/tool turn, an eligible selector can return a review-only suggestion or start a
+  matching activated saved workflow under Auto. The two local Qwen3 profiles tested failed
+  selector qualification, so neither receives the selector. Auto does not create a new plan;
+  a qualified selector profile has not been verified locally.
 * **No paired-phone workflow monitor or review controls yet.** The workflow card and its
   questions are owner-local. Phone supervision still covers ordinary run monitoring/review;
   workflow question, approval and Stop projections have not been added there.
@@ -273,6 +274,15 @@ attempt can run.
 * **No scheduling of workflows yet.** A routine decides *when* saved work runs; wiring a
   routine to a saved workflow is a separate, explicit act that is not implemented, so a
   workflow cannot currently run unattended on a schedule.
-* **No amendment of a running instance.** A crashed attempt is continued and reuses its
-  settled nodes, but changing the plan of a live instance (a revision diff and adoption) is
-  not implemented; edit the definition and run the new revision instead.
+* **Amendment preview exists; adoption is not implemented.** The local-owner API
+  `POST /api/v1/workflows/runs/{id}/amendments/preview` takes an expected immutable revision,
+  the current attempt ID as an opaque generation token, a candidate plan and optional new input
+  snapshot. It returns a field/site diff, current authority verdicts, budget limits, quiescence
+  facts, and per-instance reuse or invalidation reasons without saving a revision or mutating
+  the run. Its `eligible` flag covers authority and budget checks only; it does not signal that
+  the run is quiescent or that adoption is available. Reuse is limited to settled pure transforms
+  when inputs, capability envelope, node semantics and dependencies remain unchanged, and every
+  upstream result is also safe to reuse. Tool, model, verification, publication, question and
+  control/container results are invalidated because binding/evidence or nested-output provenance
+  is not yet sufficient to prove reuse. A preview also refuses a wider root budget. There is no
+  adoption control yet; to change a method, save a new revision and start a new workflow run.

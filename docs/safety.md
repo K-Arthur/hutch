@@ -479,6 +479,11 @@ script sandbox to escape. The authority rules are the ordinary ones, applied ear
 * **Stop is real.** `hutch workflow stop` records a durable stop, cancels the owned attempt
   tree (including step runs and their tools) and prevents any continuation from being
   admitted.
+* **Amendment preview is read-only.** It compares an expected plan revision and current
+  attempt-generation token, rechecks candidate authority, and explains which recorded nodes
+  are safe deterministic reuse candidates. It never saves a revision or starts work. Effects,
+  model steps, verification, publication and questions are invalidated when their historical
+  bindings or evidence cannot be proved; adoption is not yet exposed.
 * **Auto is bounded.** `auto` starts only definitions and budgets the operator preauthorized
   in Bot settings; anything outside that scope is refused with the reason, and consequential
   actions inside the run still ask. A chat route card or saved-method launch requires the

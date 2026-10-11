@@ -488,6 +488,16 @@ which remains the source of the value. `all_settled` joins can continue past the
 named failed or skipped targets and return an incomplete aggregate. `first_success` is rejected
 until execution can race branches and cancel and drain discarded work safely.
 
+The owner-only amendment-preview route is read-only. It compares a compiled candidate against
+the run's immutable revision and the active attempt ID (the opaque generation token), then
+returns field/site changes, refreshed role checks, budgets, quiescence state and per-instance
+reuse/invalidation reasons. It currently reuses only settled pure transforms with unchanged
+inputs, capability envelope, node semantics and dependencies, and only when every upstream
+result is also safe to reuse. Tools, agents, verification, publication, questions and control or
+container results are invalidated because the runtime does not yet snapshot enough binding,
+evidence or nested-output provenance to prove they remain applicable. A preview neither saves
+the candidate nor mutates a run; adoption and revision-history preservation remain unimplemented.
+
 Roles are gated by evidence, not by a model name: `workflow/qualify.py` resolves the same
 route identity the runtime records observations under (`route_identity.route_tuple`). Runtime
 tool profiles fingerprint backend/version, checkpoint digest, quantization, full template and

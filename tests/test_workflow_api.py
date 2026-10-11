@@ -225,6 +225,205 @@ def test_stop_is_durable_and_idempotent(client):
                        json=body).status_code == 404
 
 
+def _amendment_plan() -> dict:
+    return {
+        "name": "amendment-preview",
+        "inputs": {"seed": {"type": "string", "default": "original"}},
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 20, "max_model_calls": 0},
+        "nodes": [
+            {"kind": "transform", "id": "source", "op": "constant",
+             "args": {"value": {"ref": "input.seed"}}},
+            {"kind": "transform", "id": "derived", "op": "to_json",
+             "args": {"value": {"ref": "source"}}},
+            {"kind": "transform", "id": "independent", "op": "constant",
+             "args": {"value": 42}},
+        ],
+    }
+
+
+def _wait_for_workflow(client, workflow_id: str) -> dict:
+    deadline = time.monotonic() + 20
+    while time.monotonic() < deadline:
+        detail = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+        if detail["workflow"]["status"] in ("succeeded", "failed", "stopped"):
+            return detail
+        time.sleep(0.05)
+    raise AssertionError(f"workflow {workflow_id} did not settle")
+
+
+def test_amendment_preview_shows_dependency_invalidation_and_safe_reuse_without_mutation(client):
+    bot = make_bot(client, name="amendment-preview-bot")
+    base_plan = _amendment_plan()
+    submitted = client.post("/api/v1/workflows/plans", headers=KEY,
+                            json={"plan": base_plan, "bot": bot["name"],
+                                  "definition_name": "amendment-preview"})
+    assert submitted.status_code == 201, submitted.text
+    workflow_id = submitted.json()["workflow_run_id"]
+    detail = _wait_for_workflow(client, workflow_id)
+    assert detail["workflow"]["status"] == "succeeded", detail
+    before_runs = client.get("/api/v1/workflows/runs").json()["items"]
+    before_revisions = client.get("/api/v1/workflows/amendment-preview").json()["revision"]
+
+    candidate = _amendment_plan()
+    candidate["nodes"][0]["args"]["value"] = "revised source"
+    preview = client.post(f"/api/v1/workflows/runs/{workflow_id}/amendments/preview", json={
+        "expected_revision_id": detail["workflow"]["revision_id"],
+        "expected_generation": detail["workflow"]["attempt_run_id"],
+        "plan": candidate,
+    })
+    assert preview.status_code == 200, preview.text
+    body = preview.json()
+    assert body["eligible"] is True
+    assert body["plan_changed"] is True
+    assert body["changed_sites"] == ["source"]
+    assert body["added_sites"] == body["removed_sites"] == []
+    assert {row["site_id"] for row in body["reuse"]} == {"independent"}
+    assert {row["site_id"] for row in body["invalidate"]} == {"source", "derived"}
+    assert body["quiescence"]["required"] is False
+    source_diff = next(row for row in body["nodes"] if row["site_id"] == "source")
+    assert source_diff["change"] == "changed"
+    assert source_diff["fields"] == [{"field": "args", "old": {"value": {"ref": "input.seed"}},
+                                       "new": {"value": "revised source"}}]
+
+    after_runs = client.get("/api/v1/workflows/runs").json()["items"]
+    assert [item["revision_id"] for item in after_runs] == [item["revision_id"] for item in before_runs]
+    assert client.get("/api/v1/workflows/amendment-preview").json()["revision"] == before_revisions
+    assert client.get(f"/api/v1/workflows/runs/{workflow_id}").json()["workflow"]["revision_id"] == detail["workflow"]["revision_id"]
+
+
+def test_amendment_preview_fences_stale_revision_and_generation_and_invalidates_changed_inputs(client):
+    bot = make_bot(client, name="amendment-fence-bot")
+    submitted = client.post("/api/v1/workflows/plans", headers=KEY,
+                            json={"plan": _amendment_plan(), "bot": bot["name"],
+                                  "definition_name": "amendment-fence", "inputs": {"seed": "original"}})
+    assert submitted.status_code == 201, submitted.text
+    workflow_id = submitted.json()["workflow_run_id"]
+    detail = _wait_for_workflow(client, workflow_id)
+    current = detail["workflow"]
+    url = f"/api/v1/workflows/runs/{workflow_id}/amendments/preview"
+
+    stale_revision = client.post(url, json={
+        "expected_revision_id": "stale-revision", "expected_generation": current["attempt_run_id"],
+        "plan": _amendment_plan(),
+    })
+    assert stale_revision.status_code == 409
+    stale_generation = client.post(url, json={
+        "expected_revision_id": current["revision_id"], "expected_generation": "stale-generation",
+        "plan": _amendment_plan(),
+    })
+    assert stale_generation.status_code == 409
+
+    changed_inputs = client.post(url, json={
+        "expected_revision_id": current["revision_id"], "expected_generation": current["attempt_run_id"],
+        "plan": _amendment_plan(), "inputs": {"seed": "changed input"},
+    })
+    assert changed_inputs.status_code == 200, changed_inputs.text
+    result = changed_inputs.json()
+    assert result["plan_changed"] is False
+    assert result["candidate_inputs"] == {"seed": "changed input"}
+    assert {row["reason"] for row in result["invalidate"]} == {"inputs_changed"}
+    assert result["reuse"] == []
+
+
+def test_amendment_preview_refreshes_authority_and_refuses_budget_widening(client):
+    bot = make_bot(client, name="amendment-authority-bot")
+    submitted = client.post("/api/v1/workflows/plans", headers=KEY,
+                            json={"plan": _amendment_plan(), "bot": bot["name"],
+                                  "definition_name": "amendment-authority"})
+    assert submitted.status_code == 201, submitted.text
+    workflow_id = submitted.json()["workflow_run_id"]
+    detail = _wait_for_workflow(client, workflow_id)
+    current = detail["workflow"]
+    url = f"/api/v1/workflows/runs/{workflow_id}/amendments/preview"
+
+    broader = _amendment_plan()
+    broader["envelope"]["tools"] = ["shell"]
+    authority = client.post(url, json={
+        "expected_revision_id": current["revision_id"], "expected_generation": current["attempt_run_id"],
+        "plan": broader,
+    })
+    assert authority.status_code == 200, authority.text
+    assert authority.json()["eligible"] is False
+    assert "tools the Bot does not allow" in authority.json()["blocked_reasons"][0]
+
+    wider_budget = _amendment_plan()
+    wider_budget["budget"]["max_nodes"] = 30
+    budget = client.post(url, json={
+        "expected_revision_id": current["revision_id"], "expected_generation": current["attempt_run_id"],
+        "plan": wider_budget,
+    })
+    assert budget.status_code == 200, budget.text
+    assert budget.json()["eligible"] is False
+    assert budget.json()["budgets"]["max_nodes"]["effective_if_adopted"] == 20
+    assert any("cannot increase the root max_nodes allowance" in reason
+               for reason in budget.json()["blocked_reasons"])
+
+
+def test_amendment_preview_includes_pending_question_id_and_requires_quiescence(client):
+    bot = make_bot(client, name="amendment-pending-question-bot")
+    ask_plan = {
+        "name": "amendment-pending-question",
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 5, "max_model_calls": 0},
+        "nodes": [
+            {"kind": "ask", "id": "confirm_first", "question": "Ready to publish?",
+             "options": ["yes", "no"], "timeout_seconds": 300},
+        ],
+    }
+    submitted = client.post("/api/v1/workflows/plans", headers=KEY,
+                            json={"plan": ask_plan, "bot": bot["name"],
+                                  "definition_name": "amendment-pending-question"})
+    assert submitted.status_code == 201, submitted.text
+    workflow_id = submitted.json()["workflow_run_id"]
+
+    deadline = time.monotonic() + 15
+    detail = None
+    while time.monotonic() < deadline:
+        detail = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+        if any(question["status"] == "pending" for question in detail["questions"]):
+            break
+        time.sleep(0.1)
+    assert detail is not None
+    pending = [question for question in detail["questions"] if question["status"] == "pending"]
+    assert len(pending) == 1, detail
+
+    preview = client.post(f"/api/v1/workflows/runs/{workflow_id}/amendments/preview", json={
+        "expected_revision_id": detail["workflow"]["revision_id"],
+        "expected_generation": detail["workflow"]["attempt_run_id"],
+        "plan": ask_plan,
+    })
+    assert preview.status_code == 200, preview.text
+    body = preview.json()
+    assert body["eligible"] is True  # Authority/budget eligibility is separate from adoption readiness.
+    assert body["quiescence"]["required"] is True
+    assert set(body["quiescence"]["pending_question_ids"]) == {question["id"] for question in pending}
+    assert all(row["reason"] == "not_settled" for row in body["invalidate"])
+
+
+def test_amendment_preview_does_not_reuse_results_derived_from_effects_or_evidence(client):
+    bot = make_bot(client, name="amendment-effect-dependency-bot")
+    submitted = client.post("/api/v1/workflows/plans", headers=KEY,
+                            json={"plan": plan(), "bot": bot["name"],
+                                  "definition_name": "amendment-effect-dependency"})
+    assert submitted.status_code == 201, submitted.text
+    workflow_id = submitted.json()["workflow_run_id"]
+    detail = _wait_for_workflow(client, workflow_id)
+    assert detail["workflow"]["status"] == "succeeded", detail
+
+    preview = client.post(f"/api/v1/workflows/runs/{workflow_id}/amendments/preview", json={
+        "expected_revision_id": detail["workflow"]["revision_id"],
+        "expected_generation": detail["workflow"]["attempt_run_id"],
+        "plan": plan(),
+    })
+    assert preview.status_code == 200, preview.text
+    body = preview.json()
+    assert body["reuse"] == []
+    assert {row["site_id"] for row in body["invalidate"]} == {"scan", "count", "report", "check"}
+    assert next(row for row in body["invalidate"] if row["site_id"] == "count")["reason"] == \
+        "dependency_result_not_reusable"
+
+
 def test_qualification_routes_are_scoped_and_revocable(client):
     bot = make_bot(client, name="wf-real-route", model="ollama/qwen3:4b")
     assessed = client.get("/api/v1/workflows/qualifications/assess",
