@@ -26,6 +26,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass, field
@@ -205,18 +206,63 @@ def _sample_frame(source: Path, at_ms: int, out_path: Path) -> dict[str, Any]:
         return {"at_ms": at_ms, "error": "frame extraction timed out (bounded at 40 s)"}
 
 
-def _default_frame_times(duration_ms: int, claim_times: list[int]) -> list[int]:
-    """Claim-relevant times first, then a small boundary-aware spread; deduped and sorted."""
-    times = [int(max(0, t)) for t in claim_times]
+def _scene_change_times(source: Path, *, threshold: float = 0.3, limit: int = 8) -> tuple[list[int], str]:
+    """Scene-change timestamps via ffmpeg's scene score (bounded, out-of-process).
+
+    A uniform sparse grid can step over a brief inserted clip or a hard edit; scene changes
+    are exactly where a claim about footage ("the video shows X") most often breaks. Returns
+    ``(times_ms, note)``; a failure returns an empty list and a note the caller records.
+    """
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        return [], "ffmpeg is not installed so scene changes were not detected"
+    try:
+        result = subprocess.run(
+            [ffmpeg, "-hide_banner", "-loglevel", "info", "-i", str(source),
+             "-vf", f"select='gt(scene,{threshold:.2f})',showinfo", "-an", "-f", "null", "-"],
+            capture_output=True, timeout=FFMPEG_TIMEOUT, text=True)
+        times: list[int] = []
+        for match in re.finditer(r"pts_time:(\d+(?:\.\d+)?)", result.stderr or ""):
+            value = int(float(match.group(1)) * 1000)
+            if value >= 0 and value not in times:
+                times.append(value)
+        times = times[:limit]
+        return times, (f"scene detection (threshold {threshold:.2f}) found {len(times)} change(s)"
+                       if times else "no scene changes above the detection threshold were found; "
+                                     "brief edits below it can still be missed")
+    except subprocess.TimeoutExpired:
+        return [], "scene detection timed out (bounded at 40 s)"
+    except OSError as exc:
+        return [], f"scene detection failed: {type(exc).__name__}"
+
+
+def _default_frame_times(duration_ms: int, claim_times: list[int], scene_times: Optional[list[int]] = None,
+                         *, merge_window_ms: int = 150) -> tuple[list[int], dict[str, int]]:
+    """Claim-relevant times first, then scene changes, then a boundary-aware spread.
+
+    Near-duplicate times (within ``merge_window_ms``) collapse to one frame. The plan is
+    returned with counts per source so the brief can state what drove the sampling.
+    """
+    scene_times = scene_times or []
+    ordered: list[int] = []
+    for group, label in ((claim_times, "claim"), (scene_times, "scene")):
+        for value in sorted(int(max(0, t)) for t in group):
+            if all(abs(value - existing) > merge_window_ms for existing in ordered):
+                ordered.append(value)
+    spread: list[int] = []
     if duration_ms > 0:
         spread = [0, int(duration_ms * 0.25), int(duration_ms * 0.5), int(duration_ms * 0.75),
                   max(0, duration_ms - 200)]
-        times.extend(spread)
-    unique: list[int] = []
-    for value in sorted(times):
-        if value not in unique:
-            unique.append(value)
-    return unique[:MAX_FRAMES]
+    for value in spread:
+        if all(abs(value - existing) > merge_window_ms for existing in ordered):
+            ordered.append(value)
+    ordered = sorted(ordered)[:MAX_FRAMES]
+    counts = {
+        "claim": sum(1 for t in ordered if any(abs(t - c) <= merge_window_ms for c in claim_times)),
+        "scene": sum(1 for t in ordered if any(abs(t - s) <= merge_window_ms for s in scene_times)),
+        "boundary_spread": len(ordered),
+    }
+    return ordered, counts
 
 
 def inspect_media(source: str, *, store_dir: Path, media_id: str, clock: Clock,
@@ -292,7 +338,9 @@ def inspect_media(source: str, *, store_dir: Path, media_id: str, clock: Clock,
                                                      "edited and does not establish when the depicted event occurred")
         duration_s = float(probe.get("duration_s") or 0.0)
         if kind == "video" and probe.get("available") and duration_s > 0:
-            times = _default_frame_times(int(duration_s * 1000), claim_times_ms)[:max_frames]
+            scene_times, scene_note = _scene_change_times(original_path)
+            times, plan_counts = _default_frame_times(int(duration_s * 1000), claim_times_ms, scene_times)
+            times = times[:max_frames]
             for at_ms in times:
                 frame = _sample_frame(original_path, at_ms, bundle_dir / "frames" / f"{at_ms:08d}.jpg")
                 bundle.frames.append(frame)
@@ -305,8 +353,12 @@ def inspect_media(source: str, *, store_dir: Path, media_id: str, clock: Clock,
                     "were not inspected (no audio track analysis in this slice)")
             bundle.observations.append({
                 "kind": "sampling_plan", "text":
-                    f"claim-relevant times {sorted(claim_times_ms)} plus a boundary-aware spread over "
-                    f"{duration_s:.1f}s; frames are separate derivatives of the stored original"})
+                    f"claim-relevant times {sorted(claim_times_ms)}, scene changes {scene_times}, plus a boundary-aware "
+                    f"spread over {duration_s:.1f}s (plan: {plan_counts['claim']} claim / "
+                    f"{plan_counts['scene']} scene / {plan_counts['boundary_spread']} total); frames are separate "
+                    f"derivatives of the stored original"})
+            if not scene_times:
+                bundle.observations.append({"kind": "limitation", "text": scene_note})
         elif kind == "video":
             bundle.limitations.append(f"video frames were not sampled: {probe.get('error') or 'no duration'}")
         else:

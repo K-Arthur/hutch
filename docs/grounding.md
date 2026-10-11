@@ -28,10 +28,11 @@ streams, media, report), the store tables added by schema v51, the `live_search`
   reposts and syndicated headlines are grouped into one origin cluster.
 - **Media checks (`inspect_media`)** — bounded fetch or workspace file, SHA-256, safe
   decode (Pillow with a decompression-bomb guard), `ffprobe` metadata, and `ffmpeg` frame
-  sampling at claim-relevant and boundary times. The exact inspected frame times are
-  recorded, and the intervals and audio that were **not** inspected are stated. Frames are
-  attached to the model only when the selected route accepts images; what actually reached
-  the model is recorded either way.
+  sampling at claim-relevant moments, detected scene changes (so a brief inserted clip is
+  not stepped over by a uniform grid), and clip boundaries. The exact inspected frame times
+  are recorded, and the intervals and audio that were **not** inspected are stated. Frames
+  are attached to the model only when the selected route accepts images; what actually
+  reached the model is recorded either way.
 - **C2PA / Content Credentials** — manifest **presence** is detected in JPEG/PNG; when a
   maintained `c2pa` verifier is installed it is used. `absent` is normal (most media has no
   Content Credentials), `present_unverified` is not a truth claim, and no cryptography is

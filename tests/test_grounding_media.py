@@ -83,6 +83,28 @@ def test_video_frames_are_sampled_at_boundaries_and_claim_times(tmp_path):
     assert any(o["kind"] == "sampling_plan" for o in bundle.observations)
 
 
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg not installed")
+def test_hard_cut_is_sampled_even_when_it_misses_the_uniform_grid(tmp_path):
+    """The grid at 25/50/75% of a 2 s clip is 500/1000/1500 ms; a cut at 1300 ms is 200 ms
+    from the nearest grid point — scene detection must catch it anyway."""
+    import subprocess
+    video = tmp_path / "cut.mp4"
+    subprocess.run([
+        "ffmpeg", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", "color=c=red:s=160x120:d=1.3:r=10",
+        "-f", "lavfi", "-i", "color=c=blue:s=160x120:d=0.7:r=10",
+        "-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0", "-pix_fmt", "yuv420p", str(video)],
+        check=True, timeout=60)
+    bundle = media_mod.inspect_media(str(video), store_dir=tmp_path / "store", media_id="media_cut",
+                                     clock=CLOCK, workspace=tmp_path)
+    times = [f["at_ms"] for f in bundle.frames if f.get("path")]
+    assert times, bundle.limitations
+    assert min(abs(t - 1300) for t in times) <= 250, f"no frame near the hard cut: {times}"
+    assert len(times) <= media_mod.MAX_FRAMES
+    plan = next(o for o in bundle.observations if o["kind"] == "sampling_plan")
+    assert "scene changes" in plan["text"]
+
+
 def test_reverse_image_search_is_unsupported_not_simulated():
     status = media_mod.reverse_image_search_status()
     assert status["state"] == "unsupported" and "permission" in status["detail"]
