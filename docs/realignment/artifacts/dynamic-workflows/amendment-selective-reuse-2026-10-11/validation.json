@@ -21,6 +21,17 @@
       "status": "passed"
     }
   ],
+  "browser_evidence": {
+    "command": "TMPDIR=/var/tmp HUTCH_WORKFLOW_AMENDMENT_ARTIFACTS=docs/realignment/artifacts/workflow-studio/amendment-selective-reuse-2026-10-11 .venv/bin/pytest -q tests/e2e/test_browser.py::test_workflow_amendment_preview_adoption_is_explicit_and_responsive --basetemp=/var/tmp/hutch-workflow-amendment-selective-reuse-20261011",
+    "result": "1 passed in 5.96s; Chromium 153.0.8010.12, Playwright 1.63.0; no page errors, failed requests or provider calls",
+    "captures_and_visual_review": "docs/realignment/artifacts/workflow-studio/amendment-selective-reuse-2026-10-11/visual-review.md",
+    "viewports_css_px": [[1440, 960], [768, 1024], [360, 800], [320, 740]],
+    "opened_preview_captures": true,
+    "horizontal_overflow_px": [0, 0, 0, 0],
+    "adoption_target_height_px": [44, 44, 44, 44],
+    "project_visual_scores": {"aesthetic": 8.7, "functionality": 9.5, "regression_health": 9.0, "combined": 9.1},
+    "limitations": ["No screen-reader, browser zoom, text-spacing, forced-colors, offline reconnect, physical phone or paired-phone workflow check in this capture.", "The 320px cancellation label fits 0.2px above the fixed footer; the visual review flags that clearance for polish."]
+  },
   "regressions": {
     "preview_changed_input": "source is inputs_changed; derived is dependency_result_not_reusable; independent is reusable",
     "adopt_and_resume": "source and derived execute a second time; independent executes only once; the new question waits under the amended revision",
@@ -35,7 +46,7 @@
     "Only settled top-level unconditional pure transforms can be reused. Nested transforms, transforms with conditions, tool/model/evidence results and control/container outputs remain conservative.",
     "Selective affected-branch draining is not implemented; adoption still requires the workflow to be parked and quiet.",
     "The digest adds work proportional to the resolved argument size; no comparative large-document throughput benchmark was run in this slice.",
-    "No UI changed in this slice, so no new browser screenshot was captured. Existing Studio amendment visuals and interactions retain their separately linked evidence."
+    "The runtime/API change did not change UI source. The existing Studio journey was revalidated in Chromium and its four responsive preview captures were opened; its visual review notes the compact-phone footer clearance."
   ],
   "runtime": {
     "python": "3.13.15",
@@ -48,7 +59,7 @@
     "tests/test_workflow_api.py": "91dd6aa0277dfb0ae824ef4850ec58fd5a46355ac38103278c2e08c3cdd5ae3e",
     "docs/workflows.md": "a07d8d3335a2a7959efe479f1af2c7aef8807f534dd4d5456204f29a8830e567",
     "docs/architecture.md": "52bff93aaa44d06231009bdd288765b2ba3ae8cf1852b2462eadf65598b51560",
-    "docs/realignment/dynamic-workflows.md": "20e9879024d35a635f41d8871009b2bd9128467ee3afeb5013183732b6f50457",
+    "docs/realignment/dynamic-workflows.md": "13d73ccf13639e92b4b7bfce1c337b47ffb43d09b08e9b99cafbf776793190ec",
     "CHANGELOG.md": "1a7d09283f07f4733d40248c90a1b12131c33ff57deb8bdd2e4ac3e49054045e"
   }
 }
