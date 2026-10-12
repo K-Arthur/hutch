@@ -1532,6 +1532,8 @@ _PROGRESS_FIELDS = {"steps", "tokens", "workspace", "started_at", "prompt_tokens
 
 EVENT_BATCH_MAX = 256
 EVENT_PENDING_MAX = 10_000
+EVENT_RETRY_BASE_SECONDS = 0.05
+EVENT_RETRY_MAX_SECONDS = 2.0
 MAX_WORKSPACE_TASK_FACTS = 8
 MAX_WORKSPACE_TASK_FACT_CHARS = 6_000
 MAX_AUTH_CHALLENGES_PER_FLOW = 16
@@ -6604,6 +6606,7 @@ class Store:
                         seq=next_seq + offset, run_id=run_id, role="assistant", content=e.data["content"], created_at=e.ts)
 
     def _writer_loop(self) -> None:
+        consecutive_failures = 0
         while True:
             with self._buf_cv:
                 while not self._pending and not self._closing:
@@ -6633,7 +6636,15 @@ class Store:
                     self._inflight = 0
                     self._buf_cv.notify_all()
             if committed is not None:
+                consecutive_failures = 0
                 self.bus.notify(*{f"run:{e.run_id}" for e in committed}, "events")
+            else:
+                # Preserve failed batches, but avoid a tight retry loop when storage is
+                # persistently unavailable. A successful commit resets the delay.
+                delay = min(EVENT_RETRY_BASE_SECONDS * (2 ** min(consecutive_failures, 16)),
+                            EVENT_RETRY_MAX_SECONDS)
+                consecutive_failures += 1
+                time.sleep(delay)
 
     def _commit_batch(self, batch: list[Event]) -> Optional[list[Event]]:
         """Commit a batch: per run, assign sequence and hash from the database tail, in one transaction. Events for a run that a

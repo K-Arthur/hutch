@@ -95,6 +95,33 @@ def test_non_lock_database_failure_requeues_event_batch_without_acknowledging_it
     assert store.dropped_events == 0
 
 
+def test_repeated_storage_failures_back_off_without_acknowledging_events(store, monkeypatch):
+    run = _run(store)
+    transaction = store._tx
+    attempts: list[float] = []
+
+    def fail_four_commits():
+        attempts.append(time.monotonic())
+        if len(attempts) <= 4:
+            raise sqlite3.IntegrityError("injected persistent storage failure")
+        return transaction()
+
+    monkeypatch.setattr(store, "_tx", fail_four_commits)
+    store.append_event(Event(run_id=run.id, type=EventType.log, data={"durable": "after-retry"}))
+    store.flush_events(timeout=5)
+
+    assert len(attempts) == 5
+    intervals = [later - earlier for earlier, later in zip(attempts, attempts[1:])]
+    assert intervals[0] >= 0.04
+    assert intervals[1] >= 0.08
+    assert intervals[2] >= 0.16
+    assert intervals[3] >= 0.32
+    events = store.list_events(run.id)
+    assert [event.data for event in events] == [{"durable": "after-retry"}]
+    assert store.verify_chain(run.id)["ok"]
+    assert store.dropped_events == 0
+
+
 def test_seq_is_contiguous_per_run_and_independent_between_runs(store):
     a, b = _run(store), None
     bot2 = store.create_bot(Bot(name="other"))
