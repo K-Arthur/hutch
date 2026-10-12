@@ -585,6 +585,43 @@ def test_provider_calls_without_ids_get_unique_ids_and_correlated_results(store,
     assert len(set(all_ids)) == 2 and len(all_ids) == 3
 
 
+def test_openai_streamed_tool_result_is_consumed_and_repeated_call_stops(store, config, tmp_path, oai):
+    """The native protocol must replay results by id and refuse an endless identical call."""
+    oai.script = lambda _body: {"tool_calls": [{"name": "probe", "arguments": {}}]}
+    ctx, run, emitted, tools = build(store, config, tmp_path, model="openai/gpt-4o-mini")
+    seen: list[int] = []
+    tools["probe"] = _RecordingProbe(seen)
+
+    with pytest.raises(RunAborted) as error:
+        run_it(runtime(provider_factory=factory(oai=oai)), run, ctx, tools)
+
+    assert error.value.reason == "loop"
+    assert seen == [0, 0], "the third identical call and later repeats must not execute"
+    successful = [e for e in emitted if e.type is EventType.tool_result
+                  and e.data.get("tool") == "probe" and e.data.get("ok")]
+    blocked = [e for e in emitted if e.type is EventType.tool_result
+               and e.data.get("tool") == "probe" and not e.data.get("ok")]
+    assert len(successful) == 2 and len(blocked) >= 2
+    assert all("NOT run again" in str(event.data.get("output", "")) for event in blocked)
+
+    requests = oai.of("/v1/chat/completions")
+    assert len(requests) == 4
+    assert all(request["body"].get("stream") is True for request in requests)
+    for request in requests[1:]:
+        messages = request["body"]["messages"]
+        assistant_calls = [call for message in messages if message.get("role") == "assistant"
+                           for call in message.get("tool_calls") or []]
+        results = {message.get("tool_call_id"): message.get("content")
+                   for message in messages if message.get("role") == "tool"}
+        assert assistant_calls
+        for call in assistant_calls:
+            assert call.get("id") and call["id"] in results
+        assert "probe ran" in results.values()
+    final_messages = requests[-1]["body"]["messages"]
+    assert any("NOT run again" in str(message.get("content", "")) for message in final_messages
+               if message.get("role") == "tool")
+
+
 def test_constrained_mode_runs_the_same_canonical_tools_over_the_action_contract(store, config, tmp_path, ollama):
     replies = [
         {"content": json.dumps({"action": "call", "tool": "list_files", "arguments": {"path": "."}})},
