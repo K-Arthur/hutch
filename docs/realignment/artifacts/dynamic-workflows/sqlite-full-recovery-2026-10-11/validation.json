@@ -3,7 +3,7 @@
   "base_commit": "6c198a123ce22bc2bf98850e71adba7c7ac2b6fa",
   "branch": "codex/dynamic-workflows-completion",
   "runtime": {
-    "python": "3.14.7",
+    "python": "3.13.15",
     "pytest": "pytest 9.1.1"
   },
   "runs": [
