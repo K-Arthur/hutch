@@ -12,6 +12,7 @@ from typing import Any
 
 from . import persistence as wstore
 from .compile import CompiledNode, compile_plan
+from .expr import Scope, resolve_value
 from .submit import PlanNotSubmittable, check_authority, step_budget, validate_inputs
 
 
@@ -127,13 +128,12 @@ def preview(store: Any, *, workflow_run_id: str, plan: dict[str, Any],
     changed_sites = sorted(site for site in set(old_sites) & set(new_sites)
                            if old_signatures[site] != new_signatures[site])
 
-    # An input value or capability-envelope change can affect otherwise identical code.
-    # Until per-node integration bindings and evidence are fully snapshotted, neither is
-    # considered safe for result reuse.
+    # Input changes invalidate work whose resolved inputs changed. Integration and
+    # capability changes remain conservative for non-transform nodes because their
+    # execution bindings and evidence are not snapshotted per node.
     inputs_changed = _canonical(saved_inputs) != _canonical(effective_inputs)
     envelope_changed = _canonical(current.plan.envelope.model_dump(mode="json")) != _canonical(
         candidate.plan.envelope.model_dump(mode="json"))
-    globally_invalidated = inputs_changed or envelope_changed
     global_reason = "inputs_changed" if inputs_changed else "envelope_changed" if envelope_changed else ""
 
     invalid_sites = set(added_sites) | set(removed_sites) | set(changed_sites)
@@ -178,14 +178,15 @@ def preview(store: Any, *, workflow_run_id: str, plan: dict[str, Any],
     rows = wstore.nodes(store, workflow_run_id)
     unsafe_sites = set(invalid_sites)
     base_reasons: dict[tuple[str, str], str] = {}
+    rows_by_key = {(str(row.get("site_id") or ""), str(row.get("instance_key") or "")): row
+                   for row in rows}
     for row in rows:
         site = str(row.get("site_id") or "")
         status = str(row.get("status") or "")
         instance_key = str(row.get("instance_key") or "")
+        compiled = new_sites.get(site)
         reason = ""
-        if globally_invalidated:
-            reason = global_reason
-        elif site not in new_sites:
+        if compiled is None:
             reason = "site_removed"
         elif site in invalid_sites:
             reason = "node_or_dependency_changed"
@@ -195,17 +196,62 @@ def preview(store: Any, *, workflow_run_id: str, plan: dict[str, Any],
             reason = "terminal_result_not_reusable"
         elif not str(row.get("input_hash") or ""):
             reason = "resolved_inputs_not_recorded"
-        elif new_sites[site].kind in evidence_sensitive:
+        elif global_reason and compiled.kind != "transform":
+            reason = global_reason
+        elif compiled.kind in evidence_sensitive:
             # Current storage does not preserve the route/account/evidence snapshot needed
             # to prove these results remain applicable to a new revision.
             reason = "execution_binding_or_evidence_not_snapshotted"
-        elif new_sites[site].kind != "transform":
+        elif compiled.kind != "transform":
             # Until control/container result provenance is recorded, it may include child
             # outputs whose own route, effect, or evidence bindings cannot be reused.
             reason = "result_semantics_not_snapshotted"
+        elif global_reason and (compiled.body_of or instance_key != "once"
+                                or compiled.node.when is not None):
+            reason = global_reason
         if reason:
             base_reasons[(site, instance_key)] = reason
             unsafe_sites.add(site)
+
+    # Replay candidate values in declaration order, but expose a prior result to later
+    # transforms only after proving that exact result reusable. This prevents an input
+    # change upstream from being hidden by resolving against stale values.
+    reusable_transform_sites: set[str] = set()
+    candidate_scope: dict[str, Any] = {"input": effective_inputs}
+    for compiled in candidate.top_level():
+        site = compiled.site_id
+        key = (site, "once")
+        row = rows_by_key.get(key)
+        if compiled.kind != "transform" or compiled.body_of or compiled.node.when is not None:
+            continue
+        if row is None or key in base_reasons:
+            continue
+        dependencies = set(compiled.deps) | set(compiled.control_deps)
+        if dependencies - reusable_transform_sites:
+            base_reasons[key] = "dependency_result_not_reusable"
+            unsafe_sites.add(site)
+            continue
+        try:
+            resolved_args = {name: resolve_value(value, Scope(candidate_scope))
+                             for name, value in compiled.node.args.items()}
+        except (ValueError, TypeError):
+            base_reasons[key] = "resolved_inputs_not_recorded"
+            unsafe_sites.add(site)
+            continue
+        identity = {"resolved_args_sha256": _digest(resolved_args)}
+        recorded_identity = row.get("input")
+        if recorded_identity != identity:
+            reason = ("inputs_changed" if isinstance(recorded_identity, dict)
+                      and "resolved_args_sha256" in recorded_identity else "resolved_inputs_not_recorded")
+            base_reasons[key] = reason
+            unsafe_sites.add(site)
+            continue
+        if str(row.get("input_hash") or "") != _digest(identity):
+            base_reasons[key] = "resolved_inputs_not_recorded"
+            unsafe_sites.add(site)
+            continue
+        reusable_transform_sites.add(site)
+        candidate_scope[site] = row.get("result")
 
     # A result is not reusable when any dependency (or a nested child/parent result) is
     # unsafe to reuse, even if the dependent node itself is a deterministic transform.

@@ -8,9 +8,11 @@ owner-linked routine scheduling for activated immutable revisions, and current p
 marketing copy verified)**.
 Chat routing is implemented behind an exact-profile selector gate, but both local candidates
 tested failed selector qualification; new-plan Auto, selective affected-branch amendment draining,
-live provider workflow runs and several recovery/integration cases remain open. Terminal-run
-amendment adoption is explicitly unsupported: the API directs owners to start a fresh saved run
-and preserves the terminal result.
+live provider workflow runs and several recovery/integration cases remain open. Amendment
+preview/adoption now reuses only settled top-level pure transforms whose resolved-argument
+digest and safe dependencies match the candidate; the API and resumed-run path have regressions.
+Terminal-run amendment adoption is explicitly unsupported: the API directs owners to start a
+fresh saved run and preserves the terminal result.
 Studio amendment controls and paired-phone monitor/review are implemented. No local candidate
 passed author or selector qualification. User guide:
 [`docs/workflows.md`](../workflows.md).
@@ -105,7 +107,7 @@ executed).
 | Skills and delegation identity | Implemented on local main and retained in the integration | `skills.py`, `use_skill`, run snapshots, fail-closed activation; `tool_call_index` preserves distinct repeated delegation calls |
 | MCP | **Proposed only** (ADR-0017) | no client/server anywhere |
 | Chat and Studio workflow controls | Partially implemented | selected-conversation card, planned/discovered steps, durable question answers, saved run, revision/generation/idempotency-checked safe-boundary Pause/Resume, Stop and policy picker; no usable local selector passed its live evidence gate |
-| Amendment, workflow schedule connection, paired-phone workflow supervision | Amendment preview/adoption and redacted phone monitor/review are implemented; pause state is monitored but pause/resume remains local-owner-only; activated workflow revisions can be pinned to existing routines with validated inputs | amendment and pause/resume API/Studio plus `tests/test_workflow_api.py`; routine-link API/scheduler/browser regressions and [`artifacts/scheduled-workflow-link-2026-10-11/`](artifacts/scheduled-workflow-link-2026-10-11/); paired phone API/E2E evidence in [`artifacts/workflow-studio/phone/`](artifacts/workflow-studio/phone/); live provider execution remains unverified |
+| Amendment, workflow schedule connection, paired-phone workflow supervision | Amendment preview/adoption reuses settled top-level pure transforms only when the resolved-argument digest and dependency results match; affected-branch draining remains open. Redacted phone monitor/review are implemented; pause state is monitored but pause/resume remains local-owner-only; activated workflow revisions can be pinned to existing routines with validated inputs | `test_amendment_adoption_reuses_only_transforms_with_matching_resolved_inputs` and other amendment API tests; [`artifacts/dynamic-workflows/amendment-selective-reuse-2026-10-11/validation.json`](artifacts/dynamic-workflows/amendment-selective-reuse-2026-10-11/validation.json); routine-link API/scheduler/browser regressions and [`artifacts/scheduled-workflow-link-2026-10-11/`](artifacts/scheduled-workflow-link-2026-10-11/); paired phone API/E2E evidence in [`artifacts/workflow-studio/phone/`](artifacts/workflow-studio/phone/); live provider execution remains unverified |
 | Marketing claims | Existing “How it helps” journey retained and revised with the routine-link evidence | routine availability, activation/link/enable separation, exact revision pinning and live-provider limit are asserted and captured in the marketing browser test; do not claim a qualified local selector |
 
 ## 4. Design contract (approved 2026-10-11: Route 1, declarative plans)

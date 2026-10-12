@@ -426,9 +426,11 @@ attempt can run.
   snapshot. It returns a field/site diff, current authority verdicts, budget limits, quiescence
   facts, and per-instance reuse or invalidation reasons without saving a revision or mutating
   the run. Its `eligible` flag covers authority and budget checks only; the preview separately reports
-  whether the attempt released its owner lease and whether its owned child/process tree is quiet. Reuse is limited to settled pure transforms
-  when inputs, capability envelope, node semantics and dependencies remain unchanged, and every
-  upstream result is also safe to reuse. Tool, model, verification, publication, question and
+  whether the attempt released its owner lease and whether its owned child/process tree is quiet. Reuse is limited to settled, unconditional top-level pure transforms
+  whose resolved-argument digest matches the candidate inputs and whose dependency results are
+  also safe to reuse. Unrelated input changes can preserve independent transforms; changed
+  transforms and their downstream dependents are invalidated. Rows written before this digest
+  was recorded are invalidated. Tool, model, verification, publication, question and
   control/container results are invalidated because binding/evidence or nested-output provenance
   is not yet sufficient to prove reuse. A preview also refuses a wider root budget.
   `POST /api/v1/workflows/runs/{id}/amendments/adopt` requires an idempotency key and the same

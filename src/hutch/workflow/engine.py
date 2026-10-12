@@ -393,7 +393,18 @@ class Interpreter:
             return record["result"]
         if record is not None and record["status"] in ("failed", "cancelled"):
             raise WorkflowFailed(cnode.site_id, record["error"].get("reason") or "node failed")
-        input_value = self._resolve_inputs(node, scope)
+        if node.kind == "transform":
+            # Persist only a digest of the resolved arguments. The value itself may hold
+            # a large document or CSV; the digest is enough for amendment reuse checks.
+            try:
+                input_value = {"resolved_args_sha256": _hash(self._transform_args(node, scope))}
+            except EvalError:
+                # Keep the existing node lifecycle for a missing reference: open and
+                # settle it as a failed transform so callers receive its site-specific
+                # WorkflowFailed reason instead of an interpreter-level evaluation error.
+                input_value = self._resolve_inputs(node, scope)
+        else:
+            input_value = self._resolve_inputs(node, scope)
         if record is None:
             self._start_node(cnode, instance_key, node.kind, input_value)
             self._emit(EventType.step, {"node": cnode.site_id, "instance": instance_key,
@@ -419,8 +430,11 @@ class Interpreter:
     def _transform(self, node: Node, scope: dict[str, Any]) -> Any:
         from .ops import apply_op
 
-        args = {key: resolve_value(value, Scope(scope)) for key, value in node.args.items()}
-        return apply_op(node.op, args)
+        return apply_op(node.op, self._transform_args(node, scope))
+
+    @staticmethod
+    def _transform_args(node: Node, scope: dict[str, Any]) -> dict[str, Any]:
+        return {key: resolve_value(value, Scope(scope)) for key, value in node.args.items()}
 
     def _tool(self, cnode: CompiledNode, node: Node, scope: dict[str, Any]) -> Any:
         if node.tool not in self.tools:

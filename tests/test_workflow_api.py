@@ -778,8 +778,104 @@ def test_amendment_preview_fences_stale_revision_and_generation_and_invalidates_
     result = changed_inputs.json()
     assert result["plan_changed"] is False
     assert result["candidate_inputs"] == {"seed": "changed input"}
-    assert {row["reason"] for row in result["invalidate"]} == {"inputs_changed"}
-    assert result["reuse"] == []
+    assert {(row["site_id"], row["reason"]) for row in result["invalidate"]} == {
+        ("source", "inputs_changed"), ("derived", "dependency_result_not_reusable")}
+    assert [row["site_id"] for row in result["reuse"]] == ["independent"]
+
+
+def test_amendment_adoption_reuses_only_transforms_with_matching_resolved_inputs(client, monkeypatch):
+    from hutch.workflow.engine import Interpreter
+    from hutch.workflow import persistence as workflow_store
+
+    calls: dict[str, int] = {}
+    original_transform = Interpreter._transform
+
+    def count_transform(self, node, scope):
+        calls[node.id] = calls.get(node.id, 0) + 1
+        return original_transform(self, node, scope)
+
+    monkeypatch.setattr(Interpreter, "_transform", count_transform)
+    bot = make_bot(client, name="amendment-selective-reuse-bot")
+    plan = {
+        "name": "amendment-selective-reuse",
+        "inputs": {"seed": {"type": "string", "default": "original"}},
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 10, "max_model_calls": 0},
+        "nodes": [
+            {"kind": "transform", "id": "source", "op": "constant",
+             "args": {"value": {"ref": "input.seed"}}},
+            {"kind": "transform", "id": "derived", "op": "to_json",
+             "args": {"value": {"ref": "source"}}},
+            {"kind": "transform", "id": "independent", "op": "constant",
+             "args": {"value": 42}},
+            {"kind": "ask", "id": "review", "question": "Continue with this result?",
+             "options": ["yes", "no"], "timeout_seconds": 300},
+        ],
+    }
+    submitted = client.post("/api/v1/workflows/plans", headers=KEY,
+                            json={"plan": plan, "bot": bot["name"],
+                                  "definition_name": "amendment-selective-reuse",
+                                  "inputs": {"seed": "original"}})
+    assert submitted.status_code == 201, submitted.text
+    workflow_id = submitted.json()["workflow_run_id"]
+
+    deadline = time.monotonic() + 15
+    detail = None
+    while time.monotonic() < deadline:
+        detail = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+        if (any(question["status"] == "pending" for question in detail["questions"])
+                and detail["workflow"]["status"] == "waiting"
+                and (detail.get("attempt") or {}).get("status") == "waiting_workflow"):
+            break
+        time.sleep(0.05)
+    assert detail is not None
+    assert calls == {"source": 1, "derived": 1, "independent": 1}
+    persisted_source = workflow_store.node(client.app.state.store, workflow_id, "source", "once")
+    digest_input = persisted_source["input"]
+    assert set(digest_input) == {"resolved_args_sha256"}
+    assert len(digest_input["resolved_args_sha256"]) == 64
+    assert "original" not in json.dumps(digest_input)
+    current = detail["workflow"]
+    fence = {"expected_revision_id": current["revision_id"],
+             "expected_generation": current["attempt_run_id"]}
+    paused = client.post(f"/api/v1/workflows/runs/{workflow_id}/pause",
+                         headers={"Idempotency-Key": "selective-reuse-pause"}, json=fence)
+    assert paused.status_code == 200 and paused.json()["parked"] is True
+
+    changed_inputs = {"seed": "changed"}
+    preview = client.post(f"/api/v1/workflows/runs/{workflow_id}/amendments/preview", json={
+        **fence, "plan": plan, "inputs": changed_inputs,
+    })
+    assert preview.status_code == 200, preview.text
+    preview_body = preview.json()
+    assert [row["site_id"] for row in preview_body["reuse"]] == ["independent"]
+    assert {(row["site_id"], row["reason"]) for row in preview_body["invalidate"]} == {
+        ("source", "inputs_changed"),
+        ("derived", "dependency_result_not_reusable"),
+        ("review", "not_settled"),
+    }
+
+    adopted = client.post(f"/api/v1/workflows/runs/{workflow_id}/amendments/adopt",
+                          headers={"Idempotency-Key": "selective-reuse-adopt"}, json={
+                              **fence, "plan": plan, "inputs": changed_inputs,
+                              "cancel_pending_questions": True,
+                          })
+    assert adopted.status_code == 200, adopted.text
+    assert [row["site_id"] for row in adopted.json()["preview"]["reuse"]] == ["independent"]
+
+    deadline = time.monotonic() + 15
+    continued = None
+    while time.monotonic() < deadline:
+        continued = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+        if any(question["question"] == "Continue with this result?"
+               and question["status"] == "pending" for question in continued["questions"]):
+            break
+        time.sleep(0.05)
+    assert continued is not None
+    assert calls == {"source": 2, "derived": 2, "independent": 1}
+    assert next(node for node in continued["nodes"] if node["site_id"] == "source")["result"] == "changed"
+    assert next(node for node in continued["nodes"] if node["site_id"] == "derived")["result"] == '"changed"'
+    assert next(node for node in continued["nodes"] if node["site_id"] == "independent")["result"] == 42
 
 
 def test_amendment_preview_invalidates_reordered_map_inputs_without_reusing_item_results(client):

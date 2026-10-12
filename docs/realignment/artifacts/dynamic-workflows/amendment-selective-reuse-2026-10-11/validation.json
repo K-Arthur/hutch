@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-11",
+  "scope": "Selective pure-transform reuse during workflow amendment",
+  "baseline_commit": "11f33a77dbe164c55415a7ccf668848da8f39642",
+  "before_change": "An input snapshot change invalidated every settled node. Transform rows recorded the generic node input bundle, which did not identify the resolved operation arguments.",
+  "after_change": "Top-level unconditional transforms persist only a SHA-256 digest of resolved arguments. Amendment preview simulates candidate scope using only already-proven reusable results; it preserves a transform only when its digest and dependency results match, and invalidates the changed node plus dependent transforms.",
+  "test_results": [
+    {
+      "command": ".venv/bin/pytest -q tests/test_workflow_api.py tests/test_workflow_engine.py",
+      "result": "79 passed in 45.77s",
+      "status": "passed"
+    },
+    {
+      "command": ".venv/bin/pytest -q tests/test_workflow_api.py::test_amendment_adoption_reuses_only_transforms_with_matching_resolved_inputs",
+      "result": "1 passed in 2.20s",
+      "status": "passed"
+    },
+    {
+      "command": ".venv/bin/python -m compileall -q src/hutch/workflow/engine.py src/hutch/workflow/amendments.py tests/test_workflow_api.py && git diff --check",
+      "result": "passed",
+      "status": "passed"
+    }
+  ],
+  "regressions": {
+    "preview_changed_input": "source is inputs_changed; derived is dependency_result_not_reusable; independent is reusable",
+    "adopt_and_resume": "source and derived execute a second time; independent executes only once; the new question waits under the amended revision",
+    "storage": "the source node input record contains a 64-character resolved_args_sha256 value and does not contain the resolved input string",
+    "map_reordering": "keyed map instances remain invalidated when their input order changes",
+    "missing_reference": "failed transforms retain their site-specific failure reason"
+  },
+  "initial_integration_failures": [
+    "The first broad run exposed changed invalidation reasons for map expansions and a site-less missing-reference error. Both behaviors were restored, then the 79-test combined suite passed."
+  ],
+  "limitations": [
+    "Only settled top-level unconditional pure transforms can be reused. Nested transforms, transforms with conditions, tool/model/evidence results and control/container outputs remain conservative.",
+    "Selective affected-branch draining is not implemented; adoption still requires the workflow to be parked and quiet.",
+    "The digest adds work proportional to the resolved argument size; no comparative large-document throughput benchmark was run in this slice.",
+    "No UI changed in this slice, so no new browser screenshot was captured. Existing Studio amendment visuals and interactions retain their separately linked evidence."
+  ],
+  "runtime": {
+    "python": "3.13.15",
+    "pytest": "9.1.1",
+    "transport": "FastAPI TestClient with local SQLite state; no external requests"
+  },
+  "source_sha256": {
+    "src/hutch/workflow/engine.py": "d0610f01a206d1b257d9e7cdf083a49ea99fb8891fc176e49f1c0500e0008996",
+    "src/hutch/workflow/amendments.py": "7987675952f21df9981ab6565f360eb9b81d4e28f1de08ae8aa2cd7107061d48",
+    "tests/test_workflow_api.py": "91dd6aa0277dfb0ae824ef4850ec58fd5a46355ac38103278c2e08c3cdd5ae3e",
+    "docs/workflows.md": "a07d8d3335a2a7959efe479f1af2c7aef8807f534dd4d5456204f29a8830e567",
+    "docs/architecture.md": "52bff93aaa44d06231009bdd288765b2ba3ae8cf1852b2462eadf65598b51560",
+    "docs/realignment/dynamic-workflows.md": "20e9879024d35a635f41d8871009b2bd9128467ee3afeb5013183732b6f50457",
+    "CHANGELOG.md": "1a7d09283f07f4733d40248c90a1b12131c33ff57deb8bdd2e4ac3e49054045e"
+  }
+}

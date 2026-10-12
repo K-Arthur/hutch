@@ -556,12 +556,15 @@ can use the workflow's declared `max_parallel_steps` bound.
 The owner-only amendment-preview route is read-only. It compares a compiled candidate against
 the run's immutable revision and the active attempt ID (the opaque generation token), then
 returns field/site changes, refreshed role checks, budgets, parked-attempt and owned child/process quiescence, and per-instance
-reuse/invalidation reasons. It currently reuses only settled pure transforms with unchanged
-inputs, capability envelope, node semantics and dependencies, and only when every upstream
-result is also safe to reuse. Tools, agents, verification, publication, questions and control or
-container results are invalidated because the runtime does not yet snapshot enough binding,
-evidence or nested-output provenance to prove they remain applicable. A preview neither saves
-the candidate nor mutates a run; adoption and history inspection use separate routes.
+reuse/invalidation reasons. It reuses only settled, unconditional, top-level pure transforms
+whose resolved-argument digest matches the candidate inputs, and only when every dependency
+result is also safe to reuse. An unrelated input change can preserve an independent transform,
+while a changed transform and its downstream dependents are invalidated. Rows written before
+resolved-argument digests were recorded are invalidated. Tools, agents, verification,
+publication, questions and control or container results are invalidated because the runtime
+does not yet snapshot enough binding, evidence or nested-output provenance to prove they remain
+applicable. A preview neither saves the candidate nor mutates a run; adoption and history
+inspection use separate routes.
 
 `workflow_amendment_history` (schema v58) snapshots the prior graph, question records and terminal
 result categories before adoption retires invalidated node rows. Adoption is a separate,
