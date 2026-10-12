@@ -450,6 +450,9 @@ invocation, and a reordered collection produces the same keys because map identi
 from the declared `item_key`. A settled node record is reused; it is never re-executed. An
 orchestration attempt that crashes is continued by a **new** attempt that skips settled
 records - attempts themselves still never resume mid-flight (ADR-0003).
+Node results preserve their JSON type through SQLite and run-detail projection, including
+`null`, booleans, zero, empty strings, arrays and objects; only an omitted result uses the
+empty-object default.
 
 Routines use the existing elected schedule supervisor. A schedule may explicitly pin an
 activated workflow definition, one immutable revision, and a validated input object in its

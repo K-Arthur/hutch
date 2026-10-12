@@ -322,6 +322,8 @@ Declared top-level outputs are grouped as `verified`, `partial`, `skipped`, `fai
 a nested field does not certify the whole output. Incomplete maps and joins remain `partial`
 even when a schema check passes. Outcome groups identify durable node records; their values
 remain in those records, so large artifacts are not duplicated into the summary.
+Run detail returns each node's recorded JSON value without coercing `null` or other falsy
+values to an empty object.
 
 ## Bounds, waiting and stopping
 

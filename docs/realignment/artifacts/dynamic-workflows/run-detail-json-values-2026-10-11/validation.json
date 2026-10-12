@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-11",
+  "scope": "Lossless dynamic-workflow node-result persistence and run detail",
+  "baseline_commit": "f568fb66082f0488aa4c4033b13b5dc931e5099a",
+  "before_change": "Workflow detail projected false, zero, arrays and empty strings correctly, but settle_node replaced an explicit JSON null result with an empty object before storage. The old API test inserted rows directly and therefore missed the production persistence defect.",
+  "after_change": "settle_node distinguishes an omitted result from an explicit null. Real transform execution persists and the API projects false, zero, arrays, null and empty strings without coercion; omitted results retain the empty-object default.",
+  "test_results": [
+    {
+      "command": ".venv/bin/pytest -q tests/test_workflow_api.py::test_run_detail_preserves_scalar_array_null_and_falsy_node_values",
+      "result": "5 passed in 3.43s",
+      "status": "passed"
+    },
+    {
+      "command": ".venv/bin/pytest -q tests/test_workflow_api.py tests/test_workflow_engine.py",
+      "result": "79 passed in 46.56s",
+      "status": "passed"
+    },
+    {
+      "command": ".venv/bin/python -m compileall -q src/hutch/workflow/persistence.py tests/test_workflow_api.py",
+      "result": "passed",
+      "status": "passed"
+    }
+  ],
+  "red_regression": "Before the persistence change, real transform execution failed only the null case: the run-detail endpoint returned {} instead of null. The fixture was corrected to use valid plan site IDs before this behavioral failure was recorded.",
+  "migration": "none",
+  "visual_validation": "No UI source changed. The current Studio amendment surface has separate opened responsive captures, scorecard and E2E evidence at docs/realignment/artifacts/workflow-studio/amendment-selective-reuse-2026-10-11/.",
+  "runtime": {
+    "python": "3.13.15",
+    "pytest": "9.1.1",
+    "transport": "FastAPI TestClient, real workflow supervisor and isolated SQLite state; no external requests"
+  },
+  "source_sha256": {
+    "src/hutch/workflow/persistence.py": "6fb7dbb85e41ff5389e85f6be78d5e9aef6bfee39e63d47391ddb76cc1c955ae",
+    "tests/test_workflow_api.py": "ee91a23d97f59e8332724c499655791a2f479ca9385fa6f56a65a52966d1a59c",
+    "docs/workflows.md": "1595b06205029610fd6d223361eca703b22358b10b84a36dabc8a33712209ff6",
+    "docs/architecture.md": "813893a63172adb8c52b5cc353d0b72a8f67d44d07e51975e4fe7752e0145cf5",
+    "docs/realignment/dynamic-workflows.md": "c4b7fff7e886097a5db41aca537213129926c9a5e7903ed47051df18ae02b24f",
+    "CHANGELOG.md": "1e138a68df49901a2ec4fc75a2b9e4627262871c8aac2b05740a10d891a792e4"
+  }
+}

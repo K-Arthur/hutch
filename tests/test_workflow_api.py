@@ -271,29 +271,32 @@ def test_dynamic_plan_submission_is_bound_to_its_conversation(client):
 
 
 @pytest.mark.parametrize(
-    ("value", "encoded", "site_id"),
-    [(False, "false", "value-false"), (0, "0", "value-zero"),
-     ([], "[]", "value-array"), (None, "null", "value-null"), ("", '""', "value-empty")],
+    ("value", "site_id"),
+    [(False, "value_false"), (0, "value_zero"),
+     ([], "value_array"), (None, "value_null"), ("", "value_empty")],
 )
-def test_run_detail_preserves_scalar_array_null_and_falsy_node_values(client, value, encoded, site_id):
+def test_run_detail_preserves_scalar_array_null_and_falsy_node_values(client, value, site_id):
     bot = make_bot(client, name="wf-lossless-api-bot")
+    value_plan = {
+        "name": "lossless-values",
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 2, "max_model_calls": 0},
+        "nodes": [{"kind": "transform", "id": site_id, "op": "constant",
+                   "args": {"value": value}}],
+    }
     submitted = client.post("/api/v1/workflows/plans", headers=KEY,
-                            json={"plan": plan(), "bot": bot["name"],
+                            json={"plan": value_plan, "bot": bot["name"],
                                   "definition_name": "lossless-values"})
     assert submitted.status_code == 201, submitted.text
     workflow_id = submitted.json()["workflow_run_id"]
-    store = client.app.state.store
-    with store._tx() as db:
-        db.execute("""INSERT INTO workflow_nodes
-                      (workflow_run_id, site_id, instance_key, kind, status, result_json, error_json)
-                      VALUES (?, ?, 'once', 'transform', 'succeeded', ?, ?)""",
-                   (workflow_id, site_id, encoded, encoded))
+    settled = _wait_for_workflow(client, workflow_id)
+    assert settled["workflow"]["status"] == "succeeded", settled
 
     detail = client.get(f"/api/v1/workflows/runs/{workflow_id}")
     assert detail.status_code == 200, detail.text
     node = next(row for row in detail.json()["nodes"] if row["site_id"] == site_id)
     assert node["result"] == value
-    assert node["error"] == value
+    assert node["error"] == {}
 
 
 def test_commands_require_an_idempotency_key(client):

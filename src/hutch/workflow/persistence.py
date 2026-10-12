@@ -42,6 +42,7 @@ MAX_LEDGER_KEYS = 64
 MAX_AMENDMENT_SNAPSHOT_BYTES = 8 * 1024 * 1024
 MAX_AUTOMATIC_WORKFLOW_RECOVERIES = 2
 RECOVERABLE_WORKFLOW_EXIT_REASONS = frozenset({"interrupted", "event_delivery_failed"})
+_UNSET_RESULT = object()
 
 
 def is_recoverable_workflow_attempt(status: str, exit_reason: str) -> bool:
@@ -1194,7 +1195,7 @@ def open_node(store: Any, wf_id: str, *, owner_run_id: str, owner_fence: int, re
 
 def settle_node(store: Any, wf_id: str, site_id: str, instance_key: str, *,
                 owner_run_id: str, owner_fence: int, revision_id: str,
-                status: str, result: Any = None, error: str = "", run_id: Optional[str] = None,
+                status: str, result: Any = _UNSET_RESULT, error: str = "", run_id: Optional[str] = None,
                 input_hash: str = "") -> None:
     if status not in ("succeeded", "failed", "skipped", "cancelled"):
         raise ValueError("a settled node needs a terminal status")
@@ -1206,7 +1207,7 @@ def settle_node(store: Any, wf_id: str, site_id: str, instance_key: str, *,
                                input_hash = CASE WHEN ? != '' THEN ? ELSE input_hash END
                             WHERE workflow_run_id = ? AND site_id = ? AND instance_key = ?
                               AND status NOT IN ('succeeded','failed','skipped','cancelled')""",
-                         (status, _json(result if result is not None else {}),
+                         (status, _json({} if result is _UNSET_RESULT else result),
                           _json({"reason": error} if error else {}), run_id, iso(utcnow()),
                           input_hash, input_hash, wf_id, site_id, instance_key))
         if cur.rowcount != 1:
