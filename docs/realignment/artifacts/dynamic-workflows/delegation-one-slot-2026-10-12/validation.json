@@ -1,0 +1,22 @@
+{
+  "captured_at_utc": "2026-10-12T04:01:22Z",
+  "base_commit": "ef263e4133180125ecc9034c4b85e422568220e3",
+  "command": "TMPDIR=/var/tmp .venv/bin/pytest -q tests/test_delegation.py::test_delegated_child_claim_can_share_only_its_parent_capacity tests/test_delegation.py::test_delegated_child_can_share_the_only_global_slot tests/test_delegation.py::test_strict_offline_delegation_runs_as_child_after_explicit_approval tests/test_delegation.py::test_nested_delegation_stops_at_its_depth_limit_even_with_one_slot tests/test_durable_changes.py::test_upgrade_v10_preserves_state_and_initializes_fresh_change_history --basetemp=/var/tmp/hutch-delegation-evidence",
+  "outcome": "passed",
+  "summary": "5 passed in 35.38s",
+  "scope": [
+    "one-slot delegated claim shares waiting ancestors logical capacity",
+    "unrelated work remains blocked at max_live=1",
+    "real supervised Strict Offline approval -> child -> parent journey with max_concurrent=1",
+    "nested delegation depth remains capped at two",
+    "historical pre-v60 migration fixture and current upgrade"
+  ],
+  "model_quality": "scripted FakeOllama replies; verifies process lifecycle and request accounting only, not model quality",
+  "source_sha256": {
+    "src/hutch/engine.py": "4433ab005a15572d78165526b793d401f9af8682e9dafdc2e8d134611437e1e3",
+    "src/hutch/store.py": "2de599e363244d8468c71e390b1597735d375cd0cf13c71869d092db19b28095",
+    "tests/test_delegation.py": "388f9c460b01c0b2edde0e5fe499f77d17adb9b0aaf8fa6a78a7c1fcf4f80fd8",
+    "tests/test_durable_changes.py": "8094b36723c4467388f2793ee9513b6d7b2503c5f12769be719b1b9d80e4bf77",
+    "docs/realignment/artifacts/dynamic-workflows/delegation-one-slot-2026-10-12/pytest-output.txt": "63e33c34d07995b9be1d36c917093417341cf29302177264f4fc62b0f79d51ce"
+  }
+}

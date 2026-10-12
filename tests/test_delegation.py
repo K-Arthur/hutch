@@ -474,6 +474,20 @@ def test_delegated_child_claim_can_share_only_its_parent_capacity(store):
     assert store.claim_run(other.id, "other-bot-owner", 60, max_live=3) is None
 
 
+def test_delegated_child_can_share_the_only_global_slot(store):
+    _, parent = _running_parent(store)
+    child, _ = _child(store, parent, key="one-slot-child")
+
+    claimed = store.claim_run(child.id, "one-slot-child-owner", 60, max_live=1)
+
+    assert claimed is not None
+    assert claimed.parent_run_id == parent.id
+    other_bot = store.create_bot(Bot(name="one-slot-unrelated", model="mock/demo", tools=[]))
+    unrelated = store.submit_run(Run(bot_id=other_bot.id, prompt="unrelated"),
+                                 Task(bot_id=other_bot.id, prompt="unrelated"))
+    assert store.claim_run(unrelated.id, "one-slot-unrelated-owner", 60, max_live=1) is None
+
+
 def test_supervised_delegation_admits_private_child_and_returns_verified_result(store, config):
     bot = store.create_bot(Bot(name="offline-supervisor", model="ollama/qwen3:8b",
                                base_url="http://127.0.0.1:11434", inference_mode=InferenceMode.offline,
@@ -552,7 +566,7 @@ def test_strict_offline_delegation_runs_as_child_after_explicit_approval(store, 
     root = Run(bot_id=bot.id, prompt="Coordinate the task.",
                conversation_context=[{"role": "user", "content": "PRIVATE ROOT HISTORY"}])
     root = store.submit_run(root, Task(bot_id=bot.id, prompt=root.prompt))
-    engine = Engine(config, store, max_concurrent=2, executor="process", light=True,
+    engine = Engine(config, store, max_concurrent=1, executor="process", light=True,
                     owner_id="delegation-process-e2e")
     stop_dispatch = threading.Event()
 
@@ -623,7 +637,7 @@ def test_strict_offline_delegation_runs_as_child_after_explicit_approval(store, 
         fake.close()
 
 
-def test_nested_delegation_requires_a_slot_for_each_live_ancestor(store, config):
+def test_nested_delegation_stops_at_its_depth_limit_even_with_one_slot(store, config):
     bot = store.create_bot(Bot(name="nested-offline", model="ollama/qwen3:8b",
                                base_url="http://127.0.0.1:11434", inference_mode=InferenceMode.offline,
                                tools=["delegate_task"]))
@@ -634,11 +648,15 @@ def test_nested_delegation_requires_a_slot_for_each_live_ancestor(store, config)
     child, _ = _child(store, root, key="nested-parent")
     child_claim = store.claim_run(child.id, "child-owner", 60, max_live=3)
     parent = store.transition_run(child.id, RunStatus.running, fence=child_claim.fence)
-    engine = Engine(config, store, max_concurrent=2, executor="process", owner_id="two-slots", light=True)
-    ctx = type("Context", (), {"bot": bot, "run": parent, "store": store})()
+    grandchild, _ = _child(store, parent, key="nested-grandchild")
+    grandchild_claim = store.claim_run(grandchild.id, "grandchild-owner", 60, max_live=1)
+    assert grandchild_claim is not None
+    grandchild = store.transition_run(grandchild.id, RunStatus.running, fence=grandchild_claim.fence)
+    engine = Engine(config, store, max_concurrent=1, executor="process", owner_id="one-slot", light=True)
+    ctx = type("Context", (), {"bot": bot, "run": grandchild, "store": store})()
     result = engine._run_delegated_task(ctx, "a bounded task", "step-1", "sha256:task", 10**9)
-    assert not result.ok and "needs at least 3 global run slots" in result.output
-    assert not any(run.parent_run_id == parent.id for run in store.list_runs())
+    assert not result.ok and "delegation depth limit is two" in result.output
+    assert not any(run.parent_run_id == grandchild.id for run in store.list_runs())
 
 
 def test_direct_child_worker_fails_before_runtime_or_tools_start(store, config, monkeypatch):

@@ -162,8 +162,17 @@ class Engine:
             self._reap_threads()
             self.store.release_expired_claims()
             active = self.store.active_runs()
+            # A delegated child is submitted from a parent's blocking tool call. While
+            # that child is live, the parent is orchestration waiting for its result,
+            # not an inference request: keeping the parent's local-model reservation
+            # would deadlock the child on the same single-request Ollama slot.
+            waiting_parents = {
+                str(run.parent_run_id) for run in active
+                if run.parent_run_id and self.store.run_kind(run.id) == "attempt"
+            }
             local_model_busy = any(
                 self._local_model_spec(run) is not None
+                and run.id not in waiting_parents
                 and run.status is not RunStatus.waiting_workflow
                 and (run.status is not RunStatus.pending or bool(run.lease_owner))
                 for run in active
@@ -180,7 +189,12 @@ class Engine:
                 local_model = self._local_model_spec(run)
                 if local_model is not None and local_model_busy:
                     continue
-                if len(self._threads) >= self.max_concurrent:
+                # The blocking parent process remains supervised, but it yields its
+                # logical run slot while a durable delegated child row is active.
+                # This makes one-slot hosts usable without letting unrelated queued
+                # work take the child's place.
+                occupied = sum(1 for run_id in self._threads if run_id not in waiting_parents)
+                if occupied >= self.max_concurrent:
                     break
                 bot = self.store.get_bot(run.bot_id)
                 if bot is None:
@@ -707,9 +721,6 @@ class Engine:
         depth = self.store.delegation_depth(ctx.run.id)
         if depth >= 2:
             return ToolResult(ok=False, output="delegation depth limit is two")
-        if self.max_concurrent < depth + 2:
-            return ToolResult(ok=False, output=(f"delegation at depth {depth + 1} needs at least "
-                                                f"{depth + 2} global run slots; current limit is {self.max_concurrent}"))
 
         workflow_context = (ctx.workflow_action_identity
                             or ctx.run.workflow_step

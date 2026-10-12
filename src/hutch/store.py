@@ -1537,6 +1537,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53, _migrate_54,
                _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59, _migrate_60]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
+EVENT_OUTBOX_SCHEMA_VERSION = 60
 
 #: computed fields of ``Run`` are for API output only and are never persisted
 _RUN_COMPUTED = {"status_label", "terminal", "needs_person"}
@@ -5065,8 +5066,9 @@ class Store:
         One statement decides: the run is still pending and unclaimed (or its claimant's lease lapsed), no stop was requested,
         no other run of the SAME bot in the SAME lane is live or freshly claimed (the per-bot single-instance rule, now
         enforced across processes), and - if ``max_live`` is given - fewer than that many runs are live overall.
-        A child may share its bot's slot with its parent and siblings in the same delegation branch;
-        unrelated work for that bot remains mutually exclusive.
+        A delegated child shares its waiting ancestors' logical slots while it runs; after the
+        child settles, the parent resumes and occupies a slot again. Unrelated work for the same
+        bot remains mutually exclusive.
 
         Workflow lanes (schema v53): an orchestration attempt (``kind='workflow'``) and its step runs
         (``kind='step'``) form one lane, separate from interactive work, so a workflow may progress while
@@ -5101,10 +5103,18 @@ class Store:
                 "c.id = runs.parent_run_id AND EXISTS (SELECT 1 FROM runs p "
                 "WHERE p.id = runs.parent_run_id AND p.kind = 'workflow' AND " + parent_occupying + ")"
             )
+            shared_delegation_ancestors = (
+                "EXISTS (SELECT 1 FROM tasks delegation_task "
+                "WHERE delegation_task.run_id = runs.id AND delegation_task.kind = 'delegated') "
+                "AND runs.parent_run_id IS NOT NULL AND "
+                "c.id IN (runs.parent_run_id, "
+                "(SELECT parent_run_id FROM runs p WHERE p.id = runs.parent_run_id))"
+            )
             cap = (" AND (SELECT COUNT(*) FROM runs c WHERE " + occupying +
                    " AND NOT (c.kind = 'step' AND c.parent_run_id IS NOT NULL AND EXISTS ("
                    "SELECT 1 FROM runs p WHERE p.id = c.parent_run_id AND p.kind = 'workflow' AND "
-                   + parent_occupying + ")) AND NOT (" + shared_workflow_parent + ")) < ?")
+                   + parent_occupying + ")) AND NOT (" + shared_workflow_parent + ") AND NOT (" +
+                   shared_delegation_ancestors + ")) < ?")
         sql = (
             "UPDATE runs SET lease_owner = ?, lease_expires_at = ?, heartbeat_at = ?, fence = fence + 1 "
             "WHERE id = ? AND status = 'pending' AND cancel_requested = 0 "
@@ -6552,6 +6562,17 @@ class Store:
     def _restore_event_outbox(self) -> list[Event]:
         """Rehydrate events left in SQLite when a process died before canonical commit."""
         with self._lock:
+            table = self._db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'event_outbox'"
+            ).fetchone()
+            if table is None:
+                version = int(self._db.execute("PRAGMA user_version").fetchone()[0])
+                if version < EVENT_OUTBOX_SCHEMA_VERSION:
+                    # Tests and maintenance tools may intentionally open a historical
+                    # schema before applying its next migration. Normal Store startup
+                    # upgrades to the current schema before reaching this reader.
+                    return []
+                raise RuntimeError(f"schema v{version} is missing its event_outbox table")
             rows = self._db.execute(
                 "SELECT event_key, run_id, ts, type, data, owner_fence "
                 "FROM event_outbox ORDER BY outbox_seq").fetchall()
