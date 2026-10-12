@@ -1,0 +1,36 @@
+{
+  "validated_at_utc": "2026-10-12T01:32:55.083611+00:00",
+  "base_commit": "6c198a123ce22bc2bf98850e71adba7c7ac2b6fa",
+  "branch": "codex/dynamic-workflows-completion",
+  "runtime": {
+    "python": "3.14.7",
+    "pytest": "pytest 9.1.1"
+  },
+  "runs": [
+    {
+      "command": "TMPDIR=/var/tmp/pytest-of-kevina .venv/bin/pytest -q tests/test_store_events.py::test_sqlite_full_event_write_is_retained_until_capacity_returns",
+      "result": "1 passed in 2.92s"
+    },
+    {
+      "command": "TMPDIR=/var/tmp/pytest-of-kevina .venv/bin/pytest -q tests/test_workflow_engine.py tests/test_store_events.py",
+      "result": "63 passed in 29.95s"
+    }
+  ],
+  "regression": {
+    "test": "tests/test_store_events.py::test_sqlite_full_event_write_is_retained_until_capacity_returns",
+    "storage_mechanism": "Disposable SQLite database; insert a 4 MiB pressure row, cap max_page_count at the current page count with zero free pages, then attempt to commit a 2 MiB event payload.",
+    "observed_failure": "SQLite raises SQLITE_FULL (database or disk is full); flush_events times out instead of acknowledging the event, and the failed batch returns to the pending queue.",
+    "recovery": "Delete the pressure row and its table, then the retained event commits exactly once; event chain verifies and dropped_events remains zero.",
+    "limits": [
+      "This uses SQLite page-capacity pressure, not an OS-level full filesystem or physical disk-full condition.",
+      "The pending batch is process memory; this does not verify recovery if the process exits before it is committed."
+    ]
+  },
+  "sha256": {
+    "src/hutch/store.py": "f429c09b3650c1c4485dbec7c05a02c2a24a733147b5b4f594e67bf2b9fbd2fc",
+    "tests/test_store_events.py": "53a2e646b55f710942a02122826d4c850f1bac34de6e4ebabf18ef7dbcd32100",
+    "docs/realignment/dynamic-workflows.md": "5d7db5fe93e00864c061b8e6ef8663ea184937b59f232c570fd59533dbaf93d7",
+    "CHANGELOG.md": "f21fff27136bcedf09fc68bb050e256daad473e0df439edd549e876bc7ff2b65",
+    "pytest-output.txt": "be2c40f35c9d2ead23d3d79ca1ecd8ecc3aef6a9cfdccfcf3f7673ddd2e37eb5"
+  }
+}

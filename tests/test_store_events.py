@@ -122,6 +122,42 @@ def test_repeated_storage_failures_back_off_without_acknowledging_events(store, 
     assert store.dropped_events == 0
 
 
+def test_sqlite_full_event_write_is_retained_until_capacity_returns(store, capsys):
+    run = _run(store)
+    with store._tx() as db:
+        db.execute("CREATE TABLE storage_pressure (payload BLOB NOT NULL)")
+        db.execute("INSERT INTO storage_pressure(payload) VALUES (zeroblob(?))", (4 * 1024 * 1024,))
+        page_count = db.execute("PRAGMA page_count").fetchone()[0]
+        free_pages = db.execute("PRAGMA freelist_count").fetchone()[0]
+        db.execute(f"PRAGMA max_page_count = {page_count}")
+
+    assert free_pages == 0
+    store.append_event(Event(run_id=run.id, type=EventType.log, data={"payload": "x" * 2_000_000}))
+    with pytest.raises(RuntimeError, match="canonical events remain uncommitted"):
+        store.flush_events(timeout=1.2)
+
+    deadline = time.monotonic() + 5
+    with store._buf_cv:
+        while not store._pending or store._inflight:
+            remaining = deadline - time.monotonic()
+            assert remaining > 0, "SQLite full failure did not return the event batch to the queue"
+            store._buf_cv.wait(timeout=min(remaining, 0.05))
+    assert "database or disk is full" in capsys.readouterr().err
+    with store._lock:
+        assert store._db.execute("SELECT COUNT(*) FROM events WHERE run_id = ?", (run.id,)).fetchone()[0] == 0
+
+    with store._tx() as db:
+        db.execute("DELETE FROM storage_pressure")
+        db.execute("DROP TABLE storage_pressure")
+    store.flush_events(timeout=5)
+
+    events = store.list_events(run.id)
+    assert len(events) == 1
+    assert events[0].data == {"payload": "x" * 2_000_000}
+    assert store.verify_chain(run.id)["ok"]
+    assert store.dropped_events == 0
+
+
 def test_seq_is_contiguous_per_run_and_independent_between_runs(store):
     a, b = _run(store), None
     bot2 = store.create_bot(Bot(name="other"))
