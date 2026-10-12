@@ -140,13 +140,15 @@ def check_authority(compiled: CompiledPlan, bot: Bot, *, store: Any = None) -> l
                 f"this plan requires local-model-only execution, but these routes are not local: "
                 f"{hosted}. Choose a local route for the Bot, or change the plan's network policy.")
     verdicts: list[dict[str, Any]] = []
+    connections = qualify.connections_for_store(store)
     for entry in compiled.nodes:
         node = entry.node
         if node.kind != "agent":
             continue
         spec = bot.model if node.model in ("", "$bot", "$default") else node.model
         verdict = qualify.assess("worker" if node.role != "verifier" else "verifier",
-                                 spec=spec, store=store, base_url=bot.base_url or None,
+                                 spec=spec, store=store, connections=connections,
+                                 base_url=bot.base_url or None,
                                  requires_tools=bool(node.tools),
                                  requires_structured_output=node.output_schema is not None)
         verdicts.append({"node": entry.site_id, **verdict.as_dict()})

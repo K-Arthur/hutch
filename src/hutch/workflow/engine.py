@@ -1031,12 +1031,20 @@ class Interpreter:
                                  f"the rendered instruction is {len(prompt)} characters; keep it under {MAX_STEP_PROMPT}")
         context_text = _canonical(inputs)[:MAX_STEP_CONTEXT]
         spec = self._model_spec(model)
+        connections = qualify.connections_for_store(self.store)
         verdict = qualify.assess("verifier" if role == "verifier" else "worker", spec=spec,
-                                 store=self.store, base_url=self.ctx.bot.base_url or None,
+                                 store=self.store, connections=connections,
+                                 base_url=self.ctx.bot.base_url or None,
                                  requires_tools=bool(tools),
                                  requires_structured_output=output_schema is not None)
         if not verdict.allowed:
             raise WorkflowFailed(cnode.site_id, f"role blocked: {verdict.summary()}")
+        max_steps = min(int(node.max_steps or 12), int(self.budget.get("max_steps_per_node") or 12))
+        timeout_seconds = min(600, int(self.budget.get("max_step_seconds") or 600))
+        binding_fingerprint = qualify.step_binding_fingerprint(
+            self.ctx.bot, spec=spec, role=role, tools=tools, skills=skills,
+            output_schema=output_schema or None, max_steps=max_steps,
+            timeout_seconds=timeout_seconds, connections=connections)
         self._check_model_request_budget(cnode.site_id)
         run = Run(bot_id=self.run.bot_id, prompt=prompt, model_override=spec if model not in ("$bot", "$default") else "",
                   conversation_id=self.run.conversation_id,
@@ -1048,9 +1056,10 @@ class Interpreter:
             "site_id": cnode.site_id, "instance_key": instance_key,
             "role": role, "tools": list(tools), "skills": list(skills),
             "model": spec,
-            "max_steps": min(int(node.max_steps or 12), int(self.budget.get("max_steps_per_node") or 12)),
-            "timeout_seconds": min(600, int(self.budget.get("max_step_seconds") or 600)),
+            "max_steps": max_steps,
+            "timeout_seconds": timeout_seconds,
             "output_schema": output_schema or None,
+            "binding_fingerprint": binding_fingerprint,
             "instruction_hash": _hash({"instruction": instruction, "inputs": inputs}),
             "role_state": verdict.state,
         }

@@ -3128,6 +3128,170 @@ def test_workflow_amendment_preview_adoption_is_explicit_and_responsive(browser,
         page.close()
 
 
+def test_workflow_amendment_carry_preview_is_clear_and_responsive(browser, live, monkeypatch):
+    import hutch.engine as engine_module
+    from hutch.workflow import persistence as workflow_store
+    from hutch.workflow import submit as workflow_submit
+
+    entered = threading.Event()
+    release = threading.Event()
+
+    class ControlledRuntime:
+        kind = "amendment-carry-visual-test"
+
+        def execute(self, run, ctx, tools, stop):
+            entered.set()
+            assert release.wait(30), "the browser test did not release its controlled step"
+            content = "carried worker result"
+            ctx.emit(Event(run_id=run.id, type=EventType.message,
+                           data={"role": "assistant", "content": content}))
+            return content
+
+    monkeypatch.setattr(engine_module, "get_runtime", lambda _bot: ControlledRuntime())
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key-unused-by-controlled-runtime")
+    base, app = live
+    store = app.state.store
+    bot = store.create_bot(Bot(name="workflow-amendment-carry-visual", display_name="Carry preview fixture",
+                               model="openai/gpt-4o-mini", tools=[]))
+    conversation, _ = store.create_conversation(
+        bot.id, "Review a workflow amendment", idem_key="workflow-amendment-carry-conversation",
+        request_hash="workflow-amendment-carry-conversation")
+    plan = {
+        "name": "amendment-carry-visual",
+        "inputs": {"topic": {"type": "string", "default": "stable topic"}},
+        "envelope": {"tools": [], "models": ["openai/gpt-4o-mini"]},
+        "budget": {"max_nodes": 5, "max_model_calls": 2, "max_wall_seconds": 60},
+        "nodes": [{"kind": "agent", "id": "work", "role": "worker", "model": "$bot",
+                   "instruction": "Review {{topic}}.", "inputs": {"topic": {"ref": "input.topic"}},
+                   "tools": []}],
+    }
+    saved = workflow_store.save_definition(store, name=plan["name"], plan=plan,
+                                           source="operator", activate=False)
+    submission = workflow_submit.submit_saved(
+        store, bot=bot, definition=saved["definition_id"], inputs={}, origin="api",
+        idem_key="workflow-amendment-carry-submit", request_hash="workflow-amendment-carry-submit",
+        auto=False, conversation_id=conversation["id"])
+    workflow_id = submission.workflow_run_id
+    artifacts_override = os.environ.get("HUTCH_WORKFLOW_AMENDMENT_CARRY_ARTIFACTS")
+    artifacts = (Path(artifacts_override) if artifacts_override else
+                 Path(__file__).resolve().parents[2] /
+                 "docs/realignment/artifacts/workflow-studio/amendment-carry-active-step-2026-10-11")
+    artifacts.mkdir(parents=True, exist_ok=True)
+    page = browser.new_page(viewport={"width": 1440, "height": 960}, device_scale_factor=1,
+                            reduced_motion="reduce")
+    page.set_default_timeout(5000)
+    errors: list[str] = []
+    failed_requests: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("requestfailed", lambda request: failed_requests.append(request.url))
+    page.context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    viewports = []
+    try:
+        assert entered.wait(10), "the controlled worker did not start"
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            detail = workflow_store.workflow_run(store, workflow_id)
+            attempt = store.get_run(str(detail["attempt_run_id"])) if detail else None
+            if detail and detail["status"] == "waiting" and attempt and attempt.status.value == "waiting_workflow":
+                break
+            time.sleep(0.05)
+        else:
+            raise AssertionError("the workflow did not park with its worker child active")
+
+        page.goto(f"{base}/#/chat/{bot.name}", wait_until="domcontentloaded")
+        panel = page.locator("#workflow-panel")
+        panel.get_by_role("button", name="Amend parked run").wait_for()
+        panel.get_by_role("button", name="Amend parked run").click()
+        dialog = page.locator('.modal-card[role="dialog"]')
+        dialog.wait_for(state="visible")
+        candidate = json.loads(json.dumps(plan))
+        candidate["nodes"].append({"kind": "transform", "id": "after", "op": "constant",
+                                   "args": {"value": "added after review"}})
+        dialog.locator("#workflow-amendment-plan").fill(json.dumps(candidate, indent=2))
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/api/v1/workflows/runs/{workflow_id}/amendments/preview")) as preview_info:
+            dialog.get_by_role("button", name="Preview candidate").click()
+        response = preview_info.value
+        assert response.status == 200, response.text()
+        quiescence = response.json()["quiescence"]
+        assert quiescence["owned_work_quiet"] is False
+        assert quiescence["owned_work_carryable"] is True
+        assert [item["site_id"] for item in quiescence["carry_active_nodes"]] == ["work"]
+        carried_node = quiescence["carry_active_nodes"][0]
+        assert carried_node["model"] == "openai/gpt-4o-mini" and carried_node["role"] == "worker"
+        dialog.locator(".workflow-amendment-preview").wait_for()
+        dialog_text = dialog.inner_text()
+        assert "original contract" in dialog_text and "new revision starts after it settles" in dialog_text, dialog_text
+        assert "worker on openai/gpt-4o-mini" in dialog_text, dialog_text
+        assert "Unchanged work to carry" in dialog_text, dialog_text
+        adopt_button = dialog.get_by_role("button", name="Adopt amendment")
+        assert adopt_button.is_enabled()
+
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 768, 1024),
+                                     ("phone", 360, 800), ("compact-phone", 320, 740)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.wait_for_timeout(80)
+            overflow = page.evaluate(
+                "Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth")
+            assert overflow <= 1, f"{label} has horizontal overflow: {overflow}px"
+            bounds = dialog.bounding_box()
+            assert bounds and bounds["x"] >= 0 and bounds["x"] + bounds["width"] <= width + 1
+            dialog.locator(".modal-body").evaluate("element => { element.scrollTop = 0; }")
+            page.wait_for_timeout(40)
+            page.screenshot(path=str(artifacts / f"carry-preview-{label}.png"),
+                            full_page=True, animations="disabled")
+            carry_summary = dialog.locator(".workflow-amendment-preview summary").filter(
+                has_text="Unchanged work to carry")
+            carry_summary.scroll_into_view_if_needed()
+            carry_reason = dialog.locator(".workflow-amendment-preview li").filter(
+                has_text="unchanged top-level tool-free worker contract")
+            carry_reason.scroll_into_view_if_needed()
+            reason_bounds = carry_reason.bounding_box()
+            footer_bounds = dialog.locator(".modal-footer").bounding_box()
+            assert reason_bounds and footer_bounds
+            assert reason_bounds["y"] + reason_bounds["height"] <= footer_bounds["y"] + 1, (
+                f"{label} carried-step explanation is obscured by the fixed footer")
+            page.screenshot(path=str(artifacts / f"carry-review-{label}.png"),
+                            full_page=True, animations="disabled")
+            target = adopt_button.bounding_box()
+            assert target and target["height"] >= 44, f"{label} adopt target is too small"
+            viewports.append({"label": label, "size": [width, height], "dialog_bounds": bounds,
+                              "horizontal_overflow_px": overflow,
+                              "adopt_target_height": target["height"],
+                              "carried_step_reason_bounds": reason_bounds,
+                              "fixed_footer_bounds": footer_bounds})
+        assert not errors, errors
+        assert not failed_requests, failed_requests
+        page.context.tracing.stop(path=str(artifacts / "trace.zip"))
+        source_paths = ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                        "src/hutch/server/workflows_api.py", "src/hutch/workflow/amendments.py",
+                        "src/hutch/workflow/persistence.py", "tests/e2e/test_browser.py")
+        visual_artifacts = {file.name: hashlib.sha256(file.read_bytes()).hexdigest()
+                            for file in artifacts.iterdir() if file.suffix in {".png", ".zip"}}
+        (artifacts / "results.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_workflow_amendment_carry_preview_is_clear_and_responsive",
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright_version": package_version("playwright"), "viewports": viewports,
+            "workflow_id": workflow_id,
+            "carried_node": carried_node,
+            "quiescence": {key: quiescence[key] for key in
+                           ("attempt_parked", "owned_work_quiet", "owned_work_carryable")},
+            "interaction": "live tool-free worker remained active while the owner inspected a later-node amendment; carry contract and adoption readiness were visible",
+            "view_state": "owner-local amendment editor shows the read-only candidate diff and one live, unchanged, tool-free worker child; adoption is enabled while that exact child remains under its original run contract",
+            "page_errors": errors, "failed_requests": failed_requests, "provider_calls": 0,
+            "source_sha256": {relative: hashlib.sha256((artifacts.parents[4] / relative).read_bytes()).hexdigest()
+                              for relative in source_paths},
+            "visual_artifact_sha256": visual_artifacts,
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        release.set()
+        try:
+            page.context.tracing.stop()
+        except Exception:
+            pass
+        page.close()
+
+
 def test_model_capability_observations_show_unknown_and_latest_evidence(browser, live):
     base, _app = live
     out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/model-capabilities"

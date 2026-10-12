@@ -436,9 +436,19 @@ attempt can run.
   control/container results are invalidated because binding/evidence or nested-output provenance
   is not yet sufficient to prove reuse. A preview also refuses a wider root budget.
   `POST /api/v1/workflows/runs/{id}/amendments/adopt` requires an idempotency key and the same
-  revision/generation compare. It only adopts a parked run after child work and owned processes
-  have settled. For a running workflow, the owner can request Pause after current work, then adopt
-  after the Studio reports **Paused**. A preview made while work is active is read-only and is not adoption authorization; preview again after the run parks so settled results, authority and quiescence are current. Active children are never killed by pause or adoption.
+  revision/generation compare. It adopts a parked run after ordinary child work and owned processes
+  have settled. One narrow carry case is allowed: an unchanged, top-level, unconditional, tool-free
+  worker may keep its exact child run when the amendment only appends later work and preserves its
+  inputs, dependencies, authority, bindings and budgets. The preview names that child run and the
+  transaction rechecks its node, well-formed parent fence and original contract; malformed ownership
+  metadata makes the child ineligible for carry. The old child is not stopped or
+  re-dispatched; the supervisor waits for it to settle before starting the new revision, which then
+  consumes its recorded result. Changed or reordered work, tools/skills, maps, conditions, altered
+  inputs/envelopes/budgets, or any unrelated active child still block adoption. For other running
+  workflows, the owner can request Pause after current work, then adopt after the Studio reports
+  **Paused**. A preview made while work is active is read-only and is not adoption authorization;
+  refresh it so results, authority and quiescence are current. Active children are never killed by
+  pause or adoption.
   Adopting a revision clears pause intent and continues under the new revision. Pending human questions require the
   explicit `cancel_pending_questions` choice; old question IDs and result records are archived
   before continuation. The old owner is fenced by the new revision, and any subsequent ask gets a
@@ -447,6 +457,7 @@ attempt can run.
   The owner-local Studio card offers a declarative plan/input editor, read-only preview with
   authority, budget, quiescence, diff and reuse sections, and an explicit adoption action. It
   requires a pending-question cancellation checkbox when relevant, and falls back to the composer
-  for focus while the new revision is running. Live-run draining and safe reuse beyond pure
-  transforms remain unavailable. Terminal-run amendment adoption is intentionally unsupported:
+  for focus while the new revision is running. The preview lists carried worker contracts
+  separately from completed reusable results. General live-run draining and reuse of other node
+  types remain unavailable. Terminal-run amendment adoption is intentionally unsupported:
   the API returns 409 and leaves the terminal result intact; start a new run from the saved definition.

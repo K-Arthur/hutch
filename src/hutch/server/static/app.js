@@ -580,8 +580,11 @@ function workflowAmendmentPreviewMarkup(preview, detail) {
   const allowedQuestionNodes = new Set((detail?.questions || [])
     .filter(question => question.status === "pending")
     .map(question => `${question.site_id}\u0000${question.instance_key}`));
+  const carryNodes = preview.quiescence?.carry_active_nodes || [];
+  const allowedCarryNodes = new Set(carryNodes.map(node => `${node.site_id}\u0000${node.instance_key}`));
   const blockingActive = (preview.quiescence?.active_nodes || []).filter(node =>
-    node.status !== "waiting" || !allowedQuestionNodes.has(`${node.site_id}\u0000${node.instance_key}`));
+    !allowedCarryNodes.has(`${node.site_id}\u0000${node.instance_key}`)
+    && (node.status !== "waiting" || !allowedQuestionNodes.has(`${node.site_id}\u0000${node.instance_key}`)));
   const pendingIds = preview.quiescence?.pending_question_ids || [];
   const changes = (preview.nodes || []).map(node => {
     const fields = (node.fields || []).map(change =>
@@ -598,17 +601,21 @@ function workflowAmendmentPreviewMarkup(preview, detail) {
     `<li><b>${esc(name)}</b>: current ${esc(budget.current ?? "unset")}, proposed ${esc(budget.proposed ?? "unset")}, effective ${esc(budget.effective_if_adopted ?? "unset")}</li>`).join("");
   const roles = (preview.roles || []).map(role =>
     `<li><b>${esc(role.node || role.role || "Model role")}</b> · ${esc(role.state || (role.allowed ? "allowed" : "blocked"))}${role.profile ? ` · ${esc(role.profile)}` : ""}</li>`).join("");
+  const carried = carryNodes.map(node =>
+    `<li><b>${esc(node.site_id)}</b> · ${esc(node.role || "worker")} on ${esc(node.model || "recorded model")} · ${esc(node.status)} · <code>${esc(node.run_id)}</code><br><span class="hint">${esc(node.reason || "unchanged tool-free worker contract")}</span></li>`).join("");
   const blocked = preview.blocked_reasons || [];
   const canAdopt = workflowAmendmentCanAdopt(preview, detail);
   const readiness = preview.quiescence?.workflow_status !== "waiting"
     ? "This run is no longer parked. Refresh it before adopting an amendment."
     : !preview.quiescence?.attempt_parked
       ? "The orchestration attempt has not released its owner lease yet. Refresh after it parks."
-      : !preview.quiescence?.owned_work_quiet
-        ? "Owned child work or a process is still active. Refresh after cleanup completes."
+      : !preview.quiescence?.owned_work_quiet && !preview.quiescence?.owned_work_carryable
+        ? "Owned child work or a process is still active and cannot be carried. Refresh after cleanup completes."
     : blockingActive.length
       ? `Owned work must settle first: ${blockingActive.map(node => `${node.site_id} (${node.status})`).join(", ")}.`
-      : "The run is parked and no other active step is recorded.";
+      : carryNodes.length
+        ? "The unchanged tool-free step keeps its original contract; the new revision continues after that step settles."
+        : "The run is parked and no other active step is recorded.";
   return `<section class="workflow-amendment-preview" aria-label="Amendment preview">
     <h4>Read-only preview</h4>
     <p class="${preview.eligible ? "" : "workflow-amendment-blocked"}" role="status">${preview.eligible ? "Candidate passes current authority and budget checks." : "Candidate is blocked."}</p>
@@ -619,6 +626,7 @@ function workflowAmendmentPreviewMarkup(preview, detail) {
     <details open><summary>Step changes · ${(preview.nodes || []).length}</summary><ul>${changes || "<li>No step structure changes.</li>"}</ul></details>
     <details><summary>Reusable completed results · ${(preview.reuse || []).length}</summary><ul>${reused || "<li>No results are reusable.</li>"}</ul></details>
     <details open><summary>Results to invalidate · ${(preview.invalidate || []).length}</summary><ul>${invalidated || "<li>No prior results need invalidation.</li>"}</ul></details>
+    ${carryNodes.length ? `<details open><summary>Unchanged work to carry · ${carryNodes.length}</summary><p>The active step keeps its original model and execution contract. The new revision starts after it settles.</p><ul>${carried}</ul></details>` : ""}
     <details><summary>Effective budgets</summary><ul>${budgets}</ul></details>
     <details><summary>Model roles checked · ${(preview.roles || []).length}</summary><ul>${roles || "<li>No model role is required.</li>"}</ul></details>
     ${pendingIds.length ? `<div class="workflow-amendment-questions"><p>Pending questions that adoption would cancel:</p><ul>${pendingIds.map(id => `<li><code>${esc(id)}</code></li>`).join("")}</ul>
@@ -634,10 +642,14 @@ function workflowAmendmentCanAdopt(preview, detail) {
   const allowedQuestionNodes = new Set((detail?.questions || [])
     .filter(question => question.status === "pending")
     .map(question => `${question.site_id}\u0000${question.instance_key}`));
+  const carryNodes = preview.quiescence?.carry_active_nodes || [];
+  const allowedCarryNodes = new Set(carryNodes.map(node => `${node.site_id}\u0000${node.instance_key}`));
   const blockingActive = (preview.quiescence?.active_nodes || []).some(node =>
-    node.status !== "waiting" || !allowedQuestionNodes.has(`${node.site_id}\u0000${node.instance_key}`));
+    !allowedCarryNodes.has(`${node.site_id}\u0000${node.instance_key}`)
+    && (node.status !== "waiting" || !allowedQuestionNodes.has(`${node.site_id}\u0000${node.instance_key}`)));
   return preview.eligible && preview.quiescence?.workflow_status === "waiting"
-    && preview.quiescence?.attempt_parked === true && preview.quiescence?.owned_work_quiet === true
+    && preview.quiescence?.attempt_parked === true
+    && (preview.quiescence?.owned_work_quiet === true || preview.quiescence?.owned_work_carryable === true)
     && !blockingActive;
 }
 

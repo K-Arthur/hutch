@@ -1099,6 +1099,138 @@ def test_active_amendment_waits_for_safe_pause_then_adopts_from_fresh_preview(cl
         release.set()
 
 
+def test_amendment_adopts_while_unchanged_tool_free_top_level_step_finishes(client, monkeypatch):
+    import hutch.engine as engine_module
+    from hutch.models import Event, EventType
+
+    entered = threading.Event()
+    release = threading.Event()
+    starts: list[str] = []
+
+    class ControlledRuntime:
+        kind = "amendment-carry-test"
+
+        def execute(self, run, ctx, tools, stop):
+            starts.append(run.id)
+            entered.set()
+            assert release.wait(10), "the test did not release the unchanged step"
+            content = "finished under the original step contract"
+            ctx.emit(Event(run_id=run.id, type=EventType.message,
+                           data={"role": "assistant", "content": content}))
+            return content
+
+    monkeypatch.setattr(engine_module, "get_runtime", lambda _bot: ControlledRuntime())
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key-unused-by-controlled-runtime")
+    bot = make_bot(client, name="amendment-carry-active-bot",
+                   model="openai/gpt-4o-mini", tools=[])
+    original = {
+        "name": "amendment-carry-active",
+        "inputs": {"topic": {"type": "string", "default": "stable topic"}},
+        "envelope": {"tools": [], "models": ["openai/gpt-4o-mini"]},
+        "budget": {"max_nodes": 5, "max_model_calls": 2, "max_wall_seconds": 60},
+        "nodes": [{"kind": "agent", "id": "work", "role": "worker",
+                   "model": "$bot", "instruction": "Review {{topic}}.",
+                   "inputs": {"topic": {"ref": "input.topic"}}, "tools": []}],
+    }
+    candidate = json.loads(json.dumps(original))
+    candidate["nodes"].append({"kind": "transform", "id": "after",
+                               "op": "constant", "args": {"value": "added after review"}})
+    submitted = client.post("/api/v1/workflows/plans", headers=KEY,
+                            json={"plan": original, "bot": bot["name"],
+                                  "definition_name": "amendment-carry-active"})
+    assert submitted.status_code == 201, submitted.text
+    workflow_id = submitted.json()["workflow_run_id"]
+    preview_url = f"/api/v1/workflows/runs/{workflow_id}/amendments/preview"
+    adopt_url = f"/api/v1/workflows/runs/{workflow_id}/amendments/adopt"
+
+    try:
+        assert entered.wait(10), "the tool-free step did not start"
+        active = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+        assert active["workflow"]["status"] == "waiting", active
+        assert active["attempt"]["status"] == "waiting_workflow", active
+        request = {"expected_revision_id": active["workflow"]["revision_id"],
+                   "expected_generation": active["workflow"]["attempt_run_id"]}
+        changed_candidate = json.loads(json.dumps(candidate))
+        changed_candidate["nodes"][0]["instruction"] = "Review an amended instruction."
+        blocked = client.post(preview_url, json={**request, "plan": changed_candidate})
+        assert blocked.status_code == 200, blocked.text
+        blocked_quiescence = blocked.json()["quiescence"]
+        assert blocked_quiescence["owned_work_quiet"] is False
+        assert blocked_quiescence["owned_work_carryable"] is False
+        assert blocked_quiescence["carry_active_nodes"] == []
+
+        preview = client.post(preview_url, json={**request, "plan": candidate})
+        assert preview.status_code == 200, preview.text
+        projection = preview.json()["quiescence"]
+        assert projection["attempt_parked"] is True
+        assert projection["owned_work_quiet"] is False
+        assert [node["site_id"] for node in projection["carry_active_nodes"]] == ["work"]
+
+        # Corrupt persisted ownership metadata is an ordinary non-carryable state. It
+        # must not break preview or allow a stale child to cross the amendment fence.
+        app_store = client.app.state.store
+        original_get_run = app_store.get_run
+        child_run_id = next(node["run_id"] for node in active["nodes"] if node["site_id"] == "work")
+
+        def malformed_parent_fence(run_id):
+            run = original_get_run(run_id)
+            if run_id == child_run_id and run is not None:
+                run.workflow_step = {**run.workflow_step, "parent_fence": []}
+            return run
+
+        with monkeypatch.context() as patcher:
+            patcher.setattr(app_store, "get_run", malformed_parent_fence)
+            malformed = client.post(preview_url, json={**request, "plan": candidate})
+        assert malformed.status_code == 200, malformed.text
+        assert malformed.json()["quiescence"]["owned_work_carryable"] is False
+        assert malformed.json()["quiescence"]["carry_active_nodes"] == []
+
+        from hutch.workflow import persistence as workflow_store
+        original_adopt = workflow_store.adopt_workflow_amendment
+
+        def change_binding_after_preview(store, **kwargs):
+            original_bot = store.get_bot(bot["id"])
+            store.upsert_bot(original_bot.model_copy(update={"num_ctx": 4096}))
+            try:
+                return original_adopt(store, **kwargs)
+            finally:
+                store.upsert_bot(original_bot)
+
+        with monkeypatch.context() as patcher:
+            patcher.setattr(workflow_store, "adopt_workflow_amendment", change_binding_after_preview)
+            stale_binding = client.post(
+                adopt_url, headers={"Idempotency-Key": "carry-active-step-stale-binding"},
+                json={**request, "plan": candidate})
+        assert stale_binding.status_code == 409, stale_binding.text
+        assert "execution binding changed" in stale_binding.json()["detail"]["message"]
+        assert client.get(f"/api/v1/workflows/runs/{workflow_id}").json()["workflow"]["revision_id"] == request["expected_revision_id"]
+
+        adopted = client.post(adopt_url, headers={"Idempotency-Key": "carry-active-step-amendment"},
+                              json={**request, "plan": candidate})
+        assert adopted.status_code == 200, adopted.text
+        assert [node["site_id"] for node in adopted.json()["preview"]["quiescence"]["carry_active_nodes"]] == ["work"]
+        after_adoption = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+        assert after_adoption["workflow"]["revision_id"] == adopted.json()["revision_id"]
+        assert after_adoption["workflow"]["status"] == "waiting"
+
+        release.set()
+        deadline = time.monotonic() + 15
+        finished = None
+        while time.monotonic() < deadline:
+            finished = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+            if finished["workflow"]["status"] in ("succeeded", "failed", "stopped", "outcome_unknown"):
+                break
+            time.sleep(0.05)
+        assert finished and finished["workflow"]["status"] == "succeeded", finished
+        assert starts and len(starts) == 1, "the carried child must not be dispatched twice"
+        nodes = {node["site_id"]: node for node in finished["nodes"]}
+        assert nodes["work"]["status"] == "succeeded"
+        assert nodes["work"]["result"]["text"] == "finished under the original step contract"
+        assert nodes["after"]["result"] == "added after review"
+    finally:
+        release.set()
+
+
 def test_amendment_preview_does_not_reuse_results_derived_from_effects_or_evidence(client):
     bot = make_bot(client, name="amendment-effect-dependency-bot")
     submitted = client.post("/api/v1/workflows/plans", headers=KEY,
@@ -1294,7 +1426,7 @@ def test_amendment_adoption_refuses_active_child_without_cancelling_question(cli
               "cancel_pending_questions": True},
     )
     assert response.status_code == 409, response.text
-    assert "child work or an owned process is active" in response.json()["detail"]["message"]
+    assert "unapproved child work or a process is active" in response.json()["detail"]["message"]
     after = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
     assert after["workflow"]["revision_id"] == current["revision_id"]
     assert any(question["id"] == old_question["id"] and question["status"] == "pending"

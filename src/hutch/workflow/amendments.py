@@ -11,6 +11,7 @@ import json
 from typing import Any
 
 from . import persistence as wstore
+from . import qualify
 from .compile import CompiledNode, compile_plan
 from .expr import Scope, resolve_value
 from .submit import PlanNotSubmittable, check_authority, step_budget, validate_inputs
@@ -41,7 +42,31 @@ def adopt(store: Any, *, workflow_run_id: str, plan: dict[str, Any],
         bot = store.get_bot(str(workflow["bot_id"]))
         if bot is None:
             raise PlanNotSubmittable("the workflow's assistant is unavailable")
-        return check_authority(candidate, bot, store=store)
+        roles = check_authority(candidate, bot, store=store)
+        connections = qualify.connections_for_store(store)
+        for item in current_preview["quiescence"].get("carry_active_nodes", []):
+            compiled_node = candidate.by_site.get(str(item.get("site_id") or ""))
+            if compiled_node is None:
+                raise PlanNotSubmittable("a carried worker is absent from the reviewed candidate")
+            spec = (str(bot.model) if compiled_node.node.model in ("", "$bot", "$default")
+                    else str(compiled_node.node.model))
+            budget = step_budget(candidate)
+            max_steps = min(int(compiled_node.node.max_steps or 12),
+                            int(budget.get("max_steps_per_node") or 12))
+            timeout_seconds = min(600, int(budget.get("max_step_seconds") or 600))
+            fingerprint = qualify.step_binding_fingerprint(
+                bot, spec=spec, role=compiled_node.node.role, tools=[], skills=[],
+                output_schema=compiled_node.node.output_schema or None,
+                max_steps=max_steps, timeout_seconds=timeout_seconds,
+                connections=connections)
+            verdict = qualify.assess(
+                "worker", spec=spec, store=store, connections=connections,
+                base_url=getattr(bot, "base_url", None) or None,
+                requires_structured_output=compiled_node.node.output_schema is not None)
+            if (not verdict.allowed or fingerprint != item.get("binding_fingerprint")
+                    or verdict.state != item.get("role_state")):
+                raise PlanNotSubmittable("a carried worker's current model authority or execution binding changed")
+        return roles
 
     return wstore.adopt_workflow_amendment(
         store, wf_id=workflow_run_id, expected_revision_id=expected_revision_id,
@@ -80,6 +105,107 @@ def _node_signature(node: CompiledNode) -> str:
 def _field_diff(old: dict[str, Any], new: dict[str, Any]) -> list[dict[str, Any]]:
     return [{"field": key, "old": old.get(key), "new": new.get(key)}
             for key in sorted(set(old) | set(new)) if old.get(key) != new.get(key)]
+
+
+def _carryable_active_worker(store: Any, *, workflow: dict[str, Any],
+                             revision_id: str, generation_id: str,
+                             row: dict[str, Any], compiled: CompiledNode,
+                             candidate_scope: dict[str, Any],
+                             reusable_transform_sites: set[str],
+                             invalid_sites: set[str], inputs_changed: bool,
+                             envelope_changed: bool, budget_changed: bool,
+                             append_only: bool, old_order: list[str],
+                             new_order: list[str], bot: Any
+                             ) -> dict[str, Any] | None:
+    """Prove one in-flight worker step is unchanged and safe to drain after adoption."""
+    site = str(row.get("site_id") or "")
+    instance_key = str(row.get("instance_key") or "")
+    if (compiled.kind != "agent" or compiled.body_of or instance_key != "once"
+            or compiled.node.when is not None or compiled.node.role != "worker"
+            or compiled.node.tools or compiled.node.skills
+            or row.get("kind") != "step" or row.get("status") not in ("running", "waiting")
+            or site in invalid_sites or inputs_changed or envelope_changed or budget_changed
+            or not append_only):
+        return None
+    dependencies = set(compiled.deps) | set(compiled.control_deps)
+    if dependencies - reusable_transform_sites:
+        return None
+    try:
+        old_index = old_order.index(site)
+        new_index = new_order.index(site)
+    except ValueError:
+        return None
+    if (old_index != new_index or old_order[:old_index] != new_order[:new_index]
+            or new_order[:len(old_order)] != old_order):
+        return None
+
+    try:
+        resolved_inputs = {name: resolve_value(value, Scope(candidate_scope))
+                           for name, value in compiled.node.inputs.items()}
+    except (TypeError, ValueError):
+        return None
+    expected_input = {
+        "instruction": compiled.node.instruction,
+        "inputs": resolved_inputs,
+        "output_schema": compiled.node.output_schema,
+        "role": compiled.node.role,
+    }
+    if (row.get("input") != expected_input
+            or str(row.get("input_hash") or "") != _digest(expected_input)):
+        return None
+
+    run_id = str(row.get("run_id") or "")
+    child = store.get_run(run_id) if run_id else None
+    attempt = store.get_run(generation_id)
+    contract = child.workflow_step if child is not None else None
+    parent_fence = contract.get("parent_fence") if isinstance(contract, dict) else None
+    # Persisted run documents are a trust boundary. A malformed or legacy fence must
+    # make the carry proof fail closed, not turn an amendment preview into a 500.
+    if type(parent_fence) is not int:
+        return None
+    if (child is None or child.parent_run_id != generation_id or attempt is None
+            or store.run_kind(run_id) != "step" or not isinstance(contract, dict)
+            or contract.get("workflow_run_id") != str(workflow["id"])
+            or contract.get("revision_id") != revision_id
+            or contract.get("site_id") != site
+            or contract.get("instance_key") != instance_key
+            or parent_fence != attempt.fence
+            or contract.get("tools") != [] or contract.get("skills") != []):
+        return None
+
+    spec = (str(bot.model) if compiled.node.model in ("", "$bot", "$default")
+            else str(compiled.node.model))
+    max_steps = min(int(compiled.node.max_steps or 12),
+                    int((workflow.get("budget") or {}).get("max_steps_per_node") or 12))
+    timeout_seconds = min(600, int((workflow.get("budget") or {}).get("max_step_seconds") or 600))
+    connections = qualify.connections_for_store(store)
+    binding_fingerprint = qualify.step_binding_fingerprint(
+        bot, spec=spec, role=compiled.node.role, tools=[], skills=[],
+        output_schema=compiled.node.output_schema or None,
+        max_steps=max_steps, timeout_seconds=timeout_seconds,
+        connections=connections)
+    instruction_hash = _digest({"instruction": compiled.node.instruction, "inputs": resolved_inputs})
+    verdict = qualify.assess("worker", spec=spec, store=store,
+                             connections=connections,
+                             base_url=getattr(bot, "base_url", None) or None,
+                             requires_structured_output=compiled.node.output_schema is not None)
+    if (not verdict.allowed or contract.get("role_state") != verdict.state
+            or contract.get("model") != spec or contract.get("role") != compiled.node.role
+            or contract.get("output_schema") != (compiled.node.output_schema or None)
+            or contract.get("max_steps") != max_steps
+            or contract.get("timeout_seconds") != timeout_seconds
+            or contract.get("binding_fingerprint") != binding_fingerprint
+            or contract.get("instruction_hash") != instruction_hash):
+        return None
+    return {"site_id": site, "instance_key": instance_key,
+            "status": str(row.get("status") or ""), "run_id": run_id,
+            "input_hash": str(row.get("input_hash") or ""),
+            "model": spec, "role": compiled.node.role, "role_state": verdict.state,
+            "binding_fingerprint": binding_fingerprint,
+            "instruction_hash": instruction_hash,
+            "output_schema": compiled.node.output_schema or None,
+            "max_steps": max_steps, "timeout_seconds": timeout_seconds,
+            "reason": "unchanged top-level tool-free worker contract"}
 
 
 def preview(store: Any, *, workflow_run_id: str, plan: dict[str, Any],
@@ -267,11 +393,46 @@ def preview(store: Any, *, workflow_run_id: str, plan: dict[str, Any],
                 unsafe_sites.add(site)
         changed = len(unsafe_sites) != before
 
+    active_rows = [row for row in rows
+                   if str(row.get("status") or "") in ("pending", "running", "waiting")]
+    old_budget = dict(workflow.get("budget") or {})
+    budget_changed = _canonical(old_budget) != _canonical(step_budget(candidate))
+    old_order = [node.site_id for node in current.top_level()]
+    new_order = [node.site_id for node in candidate.top_level()]
+    append_only = (not removed_sites and not changed_sites
+                   and new_order[:len(old_order)] == old_order
+                   and set(added_sites).issubset(new_order[len(old_order):]))
+    carried: list[dict[str, Any]] = []
+    if bot is not None:
+        for row in active_rows:
+            site = str(row.get("site_id") or "")
+            compiled = new_sites.get(site)
+            if compiled is None:
+                continue
+            carry = _carryable_active_worker(
+                store, workflow=workflow, revision_id=revision_id,
+                generation_id=generation_id, row=row, compiled=compiled,
+                candidate_scope=candidate_scope,
+                reusable_transform_sites=reusable_transform_sites,
+                invalid_sites=invalid_sites, inputs_changed=inputs_changed,
+                envelope_changed=envelope_changed, budget_changed=budget_changed,
+                append_only=append_only, old_order=old_order,
+                new_order=new_order, bot=bot)
+            if carry is not None:
+                carried.append(carry)
+    # This slice carries one live worker only. Parallel races and fan-out stay on the
+    # ordinary quiet-drain path until each multi-child shape has its own evidence.
+    if len(carried) != 1:
+        carried = []
+    carry_keys = {(item["site_id"], item["instance_key"]) for item in carried}
+
     for row in rows:
         site = str(row.get("site_id") or "")
         instance_key = str(row.get("instance_key") or "")
         status = str(row.get("status") or "")
         reason = base_reasons.get((site, instance_key), "")
+        if (site, instance_key) in carry_keys:
+            continue
         if not reason and site in unsafe_sites:
             reason = "dependency_result_not_reusable"
         if reason:
@@ -284,12 +445,13 @@ def preview(store: Any, *, workflow_run_id: str, plan: dict[str, Any],
     active_nodes = [{"site_id": str(row.get("site_id") or ""),
                      "instance_key": str(row.get("instance_key") or ""),
                      "status": str(row.get("status") or "")}
-                    for row in rows if str(row.get("status") or "") in ("pending", "running", "waiting")]
+                    for row in active_rows]
     pending_questions = [str(row["id"]) for row in wstore.questions(store, workflow_run_id)
                          if row.get("status") == "pending"]
-    attempt_quiescence = wstore.workflow_attempt_quiescence(store, generation_id)
+    attempt_quiescence = wstore.workflow_attempt_quiescence(
+        store, generation_id, carry_run_ids={str(item["run_id"]) for item in carried})
+    attempt_quiescence["carry_active_nodes"] = carried
     budgets = {}
-    old_budget = dict(workflow.get("budget") or {})
     new_budget = candidate.plan.budget.model_dump(mode="json")
     for key, proposed in new_budget.items():
         current_limit = old_budget.get(key)

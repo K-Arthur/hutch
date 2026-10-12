@@ -34,6 +34,8 @@ Rules that matter and are enforced here:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import hashlib
+import json
 from typing import Any, Optional
 
 from ..providers import parse_spec
@@ -109,6 +111,62 @@ def route_ref(spec: str, *, base_url: Optional[str] = None, connections: Any = N
                     local=bool(is_local_route(provider, model)),
                     endpoint=str(route[4]), account_id=str(route[1]),
                     revision=route_revision(route))
+
+
+def connections_for_store(store: Any) -> Any:
+    """Load the current named model routes for an ordinary Store, if available."""
+    config = getattr(store, "config", None)
+    state_dir = getattr(config, "state_dir", None)
+    if state_dir is None:
+        return None
+    from ..connections import ConnectionBook
+
+    return ConnectionBook(state_dir)
+
+
+def step_binding_fingerprint(bot: Any, *, spec: str, role: str, tools: list[str],
+                             skills: list[str], output_schema: Optional[dict[str, Any]],
+                             max_steps: int, timeout_seconds: int,
+                             connections: Any = None) -> str:
+    """Fingerprint the effective, owner-reviewed contract of one worker step.
+
+    This is used only to decide whether an already-running, tool-free step can be carried
+    across an amendment. It is not qualification evidence: role qualification is still
+    checked independently at admission and continuation.
+    """
+    route = route_ref(spec, base_url=getattr(bot, "base_url", None) or None,
+                      connections=connections)
+    fallbacks = list(getattr(bot, "fallbacks", []) or [])
+    fallback_revisions = [route_ref(str(fallback),
+                                    base_url=getattr(bot, "base_url", None) or None,
+                                    connections=connections).revision
+                          for fallback in fallbacks]
+    limits = getattr(bot, "limits", None)
+    escalation = getattr(bot, "escalation", None)
+    payload = {
+        "route_revision": route.revision,
+        "spec": spec,
+        "role": role,
+        "tools": list(tools),
+        "skills": list(skills),
+        "output_schema": output_schema,
+        "max_steps": int(max_steps),
+        "timeout_seconds": int(timeout_seconds),
+        "runtime": getattr(getattr(bot, "runtime", None), "value", getattr(bot, "runtime", None)),
+        "inference_mode": getattr(getattr(bot, "inference_mode", None), "value",
+                                   getattr(bot, "inference_mode", None)),
+        "tool_protocol": getattr(bot, "tool_protocol", "auto"),
+        "num_ctx": getattr(bot, "num_ctx", None),
+        "think": getattr(bot, "think", None),
+        "selfcheck": bool(getattr(bot, "selfcheck", False)),
+        "fallbacks": fallbacks,
+        "fallback_route_revisions": fallback_revisions,
+        "limits": limits.model_dump(mode="json") if hasattr(limits, "model_dump") else {},
+        "escalation": escalation.model_dump(mode="json") if hasattr(escalation, "model_dump") else None,
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"),
+                         ensure_ascii=False, default=str)
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
 def _records(store: Any, route: RouteRef, role: str) -> list[dict[str, Any]]:

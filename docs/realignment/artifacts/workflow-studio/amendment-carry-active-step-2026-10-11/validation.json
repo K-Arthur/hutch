@@ -1,0 +1,78 @@
+{
+  "milestone": "A3: narrowly scoped selective amendment carry",
+  "status": "verified with a one-child carry limit",
+  "environment": {
+    "python": "3.14.7",
+    "browser": "Chromium 153.0.8010.12",
+    "playwright": "1.63.0",
+    "provider_calls": 0,
+    "live_model_calls": 0
+  },
+  "checks": [
+    {
+      "command": "TMPDIR=/var/tmp .venv/bin/pytest -q tests/test_workflow_api.py tests/test_workflow_engine.py tests/test_workflow_regressions.py --basetemp=/var/tmp/hutch-workflow-carry-suite-fence-final",
+      "result": "passed",
+      "tests": 104,
+      "duration_seconds": 67.98,
+      "scope_note": "Final affected API/interpreter module selection, including one-child carry limits, malformed-fence fail-closed behavior, active binding race, changed-work and orphan-child blockers, and transform reuse."
+    },
+    {
+      "command": "TMPDIR=/var/tmp HUTCH_WORKFLOW_AMENDMENT_CARRY_ARTIFACTS=docs/realignment/artifacts/workflow-studio/amendment-carry-active-step-2026-10-11 .venv/bin/pytest -q tests/e2e/test_browser.py::test_workflow_amendment_carry_preview_is_clear_and_responsive --basetemp=/var/tmp/hutch-carry-browser-fence-final",
+      "result": "passed",
+      "tests": 1,
+      "duration_seconds": 5.41,
+      "scope_note": "Real SQLite store, production supervisor/API and owner Studio at 1440, 768, 360 and 320 CSS pixels; controlled in-process worker; no provider calls. All four refreshed captures were opened for visual review."
+    },
+    {
+      "command": "node --check src/hutch/server/static/app.js && python -m compileall -q src/hutch",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    },
+    {
+      "command": "python scripts/audit_emoji.py",
+      "result": "passed",
+      "detail": "Clean; 795 files scanned with 9 waivers."
+    },
+    {
+      "command": "python scripts/build_site_tokens.py --check",
+      "result": "passed",
+      "detail": "100 tokens, both surfaces current, contrast verified."
+    },
+    {
+      "command": "Verify results.json source and visual-artifact SHA-256 entries",
+      "result": "passed",
+      "source_files": 6,
+      "visual_artifacts": 9,
+      "hash_mismatches": 0
+    }
+  ],
+  "verified_contract": {
+    "carry_shape": "exactly one unchanged top-level unconditional tool-free worker child",
+    "candidate_shape": "all prior nodes and order are unchanged; candidate only appends top-level work",
+    "rechecked": [
+      "workflow revision and generation",
+      "node identity, status, run ID and stored input digest",
+      "child parent, run kind, original parent fence and step contract",
+      "model, role, qualification state, execution binding fingerprint, instruction hash, output schema and per-step limits",
+      "current assistant authority and execution binding inside the adoption transaction",
+      "absence of every other active child or owned process"
+    ],
+    "continuation": "old child remains under its original attempt; supervisor waits for child/process cleanup; fresh revision settles the retained node from the child result without dispatching it again"
+  },
+  "unsupported_or_unverified": [
+    "parallel carry, first-success race carry, maps, nested branches, tool/skill-bearing steps, changed or reordered work, and any candidate that changes prior inputs, envelope or budget",
+    "process-executor child cleanup ordering under carry; this acceptance uses a controlled in-process runtime",
+    "physical phone, screen-reader, actual zoom, text-spacing, forced-colors, offline reconnect and paired-phone visual journeys",
+    "live provider execution and local-model author/selector qualification",
+    "broad repository offline and browser suites were not rerun for this milestone"
+  ],
+  "artifact_index": {
+    "browser_results": "results.json",
+    "visual_review": "visual-review.md",
+    "trace": "trace.zip",
+    "screenshots": "carry-preview-*.png and carry-review-*.png"
+  }
+}

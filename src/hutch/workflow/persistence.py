@@ -25,6 +25,7 @@ process, lease + fence, honest terminal states, and no mid-flight resume.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 from typing import Any, Iterable, Optional
@@ -373,21 +374,65 @@ def _workflow_execution_tree_quiet(db: sqlite3.Connection, attempt_id: str) -> b
     return owned_process is None
 
 
-def workflow_attempt_quiescence(store: Any, attempt_id: str) -> dict[str, Any]:
+def _workflow_execution_tree_quiet_except(db: sqlite3.Connection, attempt_id: str,
+                                          carry_run_ids: set[str]) -> bool:
+    """Allow live work only inside explicitly proven, unchanged step subtrees."""
+    if not carry_run_ids:
+        return _workflow_execution_tree_quiet(db, attempt_id)
+    if len(carry_run_ids) > 16:
+        return False
+    carry_marks = ",".join("?" for _ in carry_run_ids)
+    carry_values = tuple(sorted(carry_run_ids))
+    roots = db.execute(
+        f"SELECT COUNT(*) FROM runs WHERE parent_run_id = ? AND id IN ({carry_marks})",
+        (attempt_id, *carry_values)).fetchone()
+    if roots is None or int(roots[0]) != len(carry_run_ids):
+        return False
+    from ..store import _TERMINAL_VALUES
+
+    terminal_marks = ",".join("?" for _ in _TERMINAL_VALUES)
+    tree = f"""WITH RECURSIVE tree(id) AS (
+                 SELECT ? UNION ALL SELECT r.id FROM runs r JOIN tree t ON r.parent_run_id = t.id
+             ), carried(id) AS (
+                 SELECT id FROM runs WHERE parent_run_id = ? AND id IN ({carry_marks})
+             )"""
+    active_outside_carry = db.execute(
+        f"""{tree} SELECT 1 FROM tree t JOIN runs r ON r.id = t.id
+            WHERE r.id != ? AND r.status NOT IN ({terminal_marks})
+              AND r.id NOT IN (SELECT id FROM carried) LIMIT 1""",
+        (attempt_id, attempt_id, *carry_values, attempt_id, *_TERMINAL_VALUES)).fetchone()
+    if active_outside_carry:
+        return False
+    process_outside_carry = db.execute(
+        f"""{tree} SELECT 1 FROM tree t JOIN run_procs rp ON rp.run_id = t.id
+            WHERE rp.ended_at IS NULL AND rp.detached_at IS NULL
+              AND rp.run_id NOT IN (SELECT id FROM carried) LIMIT 1""",
+        (attempt_id, attempt_id, *carry_values)).fetchone()
+    return process_outside_carry is None
+
+
+def workflow_attempt_quiescence(store: Any, attempt_id: str, *,
+                                carry_run_ids: set[str] | None = None) -> dict[str, Any]:
     """Return a read-only snapshot of attempt parking and its owned child/process tree."""
     if not attempt_id:
-        return {"attempt_status": "", "attempt_parked": False, "owned_work_quiet": False}
+        return {"attempt_status": "", "attempt_parked": False,
+                "owned_work_quiet": False, "owned_work_carryable": False}
     with store._lock:
         attempt = store._db.execute(
             "SELECT status, cancel_requested, lease_owner FROM runs WHERE id = ?", (attempt_id,)
         ).fetchone()
         if attempt is None:
-            return {"attempt_status": "", "attempt_parked": False, "owned_work_quiet": False}
+            return {"attempt_status": "", "attempt_parked": False,
+                    "owned_work_quiet": False, "owned_work_carryable": False}
         status = str(attempt["status"])
         parked = (status == "waiting_workflow" and not int(attempt["cancel_requested"] or 0)
                   and not str(attempt["lease_owner"] or ""))
+        quiet = _workflow_execution_tree_quiet(store._db, attempt_id)
+        carry_ids = set(carry_run_ids or ())
+        carryable = bool(carry_ids and not quiet
+                         and _workflow_execution_tree_quiet_except(store._db, attempt_id, carry_ids))
         return {"attempt_status": status, "attempt_parked": parked,
-                "owned_work_quiet": _workflow_execution_tree_quiet(store._db, attempt_id)}
+                "owned_work_quiet": quiet, "owned_work_carryable": carryable}
 
 
 def workflow_pause_requested(store: Any, wf_id: str) -> bool:
@@ -430,11 +475,13 @@ def adopt_workflow_amendment(store: Any, *, wf_id: str, expected_revision_id: st
                              inputs: dict[str, Any], budget: dict[str, Any],
                              preview: dict[str, Any], cancel_pending_questions: bool,
                              authorize: Any, idem_key: str, request_hash: str) -> dict[str, Any]:
-    """Atomically adopt a new revision on a parked, quiescent workflow instance.
+    """Atomically adopt a new revision on a parked, quiet or narrowly carryable instance.
 
     Active model/tool children are never killed by adoption. Pending human questions are
-    cancelled only when the owner explicitly requests it; all prior node/question/result
-    state is archived before invalidated rows are removed for the next continuation.
+    cancelled only when the owner explicitly requests it. One preview-proven, unchanged,
+    top-level tool-free worker may remain under its original child run while every other
+    child/process must be quiet; all prior node/question/result state is archived before
+    invalidated rows are removed for the next continuation.
     """
     scope = f"api:v1:workflow-amendments:{wf_id}"
     now = iso(utcnow())
@@ -460,13 +507,85 @@ def adopt_workflow_amendment(store: Any, *, wf_id: str, expected_revision_id: st
         if not row["definition_id"]:
             raise ValueError("the workflow run has no saved definition to attach the adopted revision to")
 
-        attempt = db.execute("SELECT status, cancel_requested, lease_owner FROM runs WHERE id = ?",
+        if (str(preview.get("current_revision_id") or "") != expected_revision_id
+                or str(preview.get("current_generation") or "") != expected_generation
+                or str(preview.get("candidate_plan_hash") or "") != plan_hash):
+            raise ValueError("the amendment preview no longer matches this revision, generation, and plan")
+        carry_entries = preview.get("quiescence", {}).get("carry_active_nodes", [])
+        if not isinstance(carry_entries, list) or len(carry_entries) > 16:
+            raise ValueError("the amendment preview contains an invalid carried-step set")
+        carry_by_key: dict[tuple[str, str], dict[str, Any]] = {}
+        carry_run_ids: set[str] = set()
+        for item in carry_entries:
+            if not isinstance(item, dict):
+                raise ValueError("the amendment preview contains an invalid carried step")
+            key = (str(item.get("site_id") or ""), str(item.get("instance_key") or ""))
+            run_id = str(item.get("run_id") or "")
+            if not all(key) or not run_id or key in carry_by_key or run_id in carry_run_ids:
+                raise ValueError("the amendment preview contains duplicate or incomplete carried steps")
+            carry_by_key[key] = item
+            carry_run_ids.add(run_id)
+
+        attempt = db.execute("SELECT status, cancel_requested, lease_owner, fence FROM runs WHERE id = ?",
                              (expected_generation,)).fetchone()
         if (attempt is None or str(attempt["status"]) != "waiting_workflow"
                 or int(attempt["cancel_requested"]) or attempt["lease_owner"]):
             raise ValueError("the current workflow attempt has not released its process and owner lease")
-        if not _workflow_execution_tree_quiet(db, expected_generation):
-            raise ValueError("amendment adoption cannot proceed while child work or an owned process is active")
+        if (not _workflow_execution_tree_quiet_except(db, expected_generation, carry_run_ids)):
+            raise ValueError("amendment adoption cannot proceed while unapproved child work or a process is active")
+
+        # Recheck each previewed carry against the live node and child document while the
+        # adoption transaction holds the workflow lock. Preview data alone never grants
+        # authority to keep an arbitrary child attached to the next revision.
+        for (site_id, instance_key), item in carry_by_key.items():
+            node = db.execute(
+                "SELECT kind, status, run_id, input_hash, input_json FROM workflow_nodes "
+                "WHERE workflow_run_id = ? AND site_id = ? AND instance_key = ?",
+                (wf_id, site_id, instance_key)).fetchone()
+            try:
+                stored_input = json.loads(str(node["input_json"] or "{}")) if node is not None else None
+                stored_input_hash = hashlib.sha256(json.dumps(
+                    stored_input, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+                    default=str).encode("utf-8")).hexdigest()
+            except (TypeError, ValueError):
+                stored_input_hash = ""
+            run_id = str(item["run_id"])
+            child = db.execute("SELECT parent_run_id, kind, doc FROM runs WHERE id = ?",
+                               (run_id,)).fetchone()
+            if (node is None or str(node["kind"]) != "step"
+                    or str(node["status"]) != str(item.get("status") or "")
+                    or str(node["status"]) not in ("running", "waiting")
+                    or str(node["run_id"] or "") != run_id
+                    or str(node["input_hash"] or "") != str(item.get("input_hash") or "")
+                    or stored_input_hash != str(item.get("input_hash") or "")
+                    or child is None or str(child["parent_run_id"] or "") != expected_generation
+                    or str(child["kind"] or "") != "step"):
+                raise ValueError("a carried step changed after preview; refresh before adopting")
+            try:
+                child_doc = json.loads(str(child["doc"] or "{}"))
+            except (TypeError, ValueError):
+                child_doc = {}
+            contract = child_doc.get("workflow_step") if isinstance(child_doc, dict) else None
+            try:
+                child_fence = int(contract.get("parent_fence", -1)) if isinstance(contract, dict) else -1
+            except (TypeError, ValueError):
+                child_fence = -1
+            if (not isinstance(contract, dict)
+                    or contract.get("workflow_run_id") != wf_id
+                    or contract.get("revision_id") != expected_revision_id
+                    or contract.get("site_id") != site_id
+                    or contract.get("instance_key") != instance_key
+                    or child_fence != int(attempt["fence"])
+                    or contract.get("model") != item.get("model")
+                    or contract.get("role") != item.get("role")
+                    or contract.get("role_state") != item.get("role_state")
+                    or contract.get("binding_fingerprint") != item.get("binding_fingerprint")
+                    or contract.get("instruction_hash") != item.get("instruction_hash")
+                    or contract.get("output_schema") != item.get("output_schema")
+                    or contract.get("max_steps") != item.get("max_steps")
+                    or contract.get("timeout_seconds") != item.get("timeout_seconds")
+                    or contract.get("tools") != [] or contract.get("skills") != []):
+                raise ValueError("a carried step's original execution contract no longer matches")
 
         questions_before = db.execute(
             "SELECT * FROM workflow_questions WHERE workflow_run_id = ? ORDER BY asked_at, id",
@@ -482,9 +601,10 @@ def adopt_workflow_amendment(store: Any, *, wf_id: str, expected_revision_id: st
                WHERE workflow_run_id = ? AND status IN ('pending','running','waiting')""",
             (wf_id,)).fetchall()
         blockers = [dict(node) for node in active_nodes
-                    if str(node["status"]) != "waiting"
-                    or str(node["kind"]) != "ask"
-                    or (str(node["site_id"]), str(node["instance_key"])) not in pending_ask_sites]
+                    if ((str(node["site_id"]), str(node["instance_key"])) not in carry_by_key
+                        and (str(node["status"]) != "waiting"
+                             or str(node["kind"]) != "ask"
+                             or (str(node["site_id"]), str(node["instance_key"])) not in pending_ask_sites))]
         if blockers:
             raise ValueError("amendment adoption cannot proceed while workflow nodes are active")
         if pending_ids:
@@ -507,11 +627,14 @@ def adopt_workflow_amendment(store: Any, *, wf_id: str, expected_revision_id: st
         preview_copy = dict(preview)
         preview_copy["roles"] = authorize()
         preview_copy["eligible"] = True
+        owned_quiet = _workflow_execution_tree_quiet(db, expected_generation)
         preview_copy["quiescence"] = {
             "workflow_status": str(row["status"]),
             "attempt_status": "waiting_workflow",
             "attempt_parked": True,
-            "owned_work_quiet": True,
+            "owned_work_quiet": owned_quiet,
+            "owned_work_carryable": bool(carry_run_ids and not owned_quiet),
+            "carry_active_nodes": carry_entries,
             "active_nodes": [{"site_id": str(node["site_id"]),
                               "instance_key": str(node["instance_key"]),
                               "status": str(node["status"])} for node in active_nodes],
@@ -557,6 +680,7 @@ def adopt_workflow_amendment(store: Any, *, wf_id: str, expected_revision_id: st
                     encoded["nodes"], encoded["questions"], encoded["result"], now))
 
         reusable = {(str(item["site_id"]), str(item["instance_key"])) for item in preview.get("reuse", [])}
+        reusable.update(carry_by_key)
         for node in node_rows:
             key = (str(node["site_id"]), str(node["instance_key"]))
             if key not in reusable:

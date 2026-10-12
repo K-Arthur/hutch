@@ -563,7 +563,15 @@ reuse/invalidation reasons. It reuses only settled, unconditional, top-level pur
 whose resolved-argument digest matches the candidate inputs, and only when every dependency
 result is also safe to reuse. An unrelated input change can preserve an independent transform,
 while a changed transform and its downstream dependents are invalidated. Rows written before
-resolved-argument digests were recorded are invalidated. Tools, agents, verification,
+resolved-argument digests were recorded are invalidated. One active-work carry case is separately
+supported: an unchanged, top-level, unconditional, tool-free worker can retain its existing child
+run when a candidate only appends later work and keeps its input, dependency, authority, execution
+binding and budget contract. Adoption verifies the child identity and parent fence in the same
+transaction; malformed or legacy ownership fences fail closed. The old child drains under its
+original attempt, and the supervisor waits for cleanup
+before the new revision consumes its result. Changed or reordered work, tools, skills, maps,
+conditions, changed inputs/envelopes/budgets, and unlisted active children remain blockers. Tools,
+other agents, verification,
 publication, questions and control or container results are invalidated because the runtime
 does not yet snapshot enough binding, evidence or nested-output provenance to prove they remain
 applicable. A preview neither saves the candidate nor mutates a run; adoption and history
@@ -571,12 +579,13 @@ inspection use separate routes.
 
 `workflow_amendment_history` (schema v58) snapshots the prior graph, question records and terminal
 result categories before adoption retires invalidated node rows. Adoption is a separate,
-idempotent local-owner command that succeeds only after an attempt is parked and its child tree
-and recorded processes are gone. Pending questions require an explicit cancellation choice. The
+idempotent local-owner command that succeeds only after an attempt is parked and either its child
+tree is quiet or every remaining live child/process is inside the previewed carried worker run.
+Pending questions require an explicit cancellation choice. The
 revision update and question/node archival are one transaction; changing the revision fences any
 late callback from the prior attempt. The supervisor then admits a normal continuation under the
-new revision, retaining only preview-approved pure-transform rows. Adoption currently refuses
-live children rather than killing them. The owner-local Studio exposes a declarative plan editor,
+new revision, retaining preview-approved pure-transform rows and any narrowly carried worker
+record. Adoption never kills live children. The owner-local Studio exposes a declarative plan editor,
 read-only preview, reuse/invalidation and budget sections, explicit pending-question cancellation,
 and an idempotent adopt action. Paired-phone sessions do not receive these controls.
 

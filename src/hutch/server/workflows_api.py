@@ -244,6 +244,20 @@ class WorkflowAmendmentInvalidationResource(WorkflowAmendmentNodeState):
     reason: str
 
 
+class WorkflowAmendmentCarryResource(WorkflowAmendmentNodeState):
+    run_id: str
+    input_hash: str
+    model: str
+    role: str
+    role_state: str
+    binding_fingerprint: str
+    instruction_hash: str
+    output_schema: Optional[dict[str, Any]] = None
+    max_steps: int
+    timeout_seconds: int
+    reason: str = ""
+
+
 class WorkflowAmendmentBudgetResource(BaseModel):
     current: Optional[int] = None
     proposed: Optional[int] = None
@@ -257,7 +271,9 @@ class WorkflowAmendmentQuiescenceResource(BaseModel):
     attempt_status: str = ""
     attempt_parked: bool = False
     owned_work_quiet: bool = False
+    owned_work_carryable: bool = False
     active_nodes: list[WorkflowAmendmentNodeState] = Field(default_factory=list)
+    carry_active_nodes: list[WorkflowAmendmentCarryResource] = Field(default_factory=list)
     pending_question_ids: list[str] = Field(default_factory=list)
     required: bool = False
 
