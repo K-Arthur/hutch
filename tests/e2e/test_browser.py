@@ -163,7 +163,7 @@ def test_delegated_wait_status_is_responsive_and_reviewable(browser, live, monke
     artifacts.mkdir(parents=True, exist_ok=True)
     page_errors, failed_requests = [], []
     context = browser.new_context(viewport={"width": 1440, "height": 1000}, device_scale_factor=1,
-                                 has_touch=True)
+                                 has_touch=True, reduced_motion="reduce")
     page = context.new_page()
     context.tracing.start(screenshots=True, snapshots=True, sources=True)
     page.on("pageerror", lambda error: page_errors.append(str(error)))
@@ -173,7 +173,12 @@ def test_delegated_wait_status_is_responsive_and_reviewable(browser, live, monke
     local_views = {}
     try:
         page.goto(f"{base}/#/run/{root.id}")
-        status = page.locator(".status.waiting_child")
+        reduced_motion = page.evaluate("""() => ({
+          matched: matchMedia('(prefers-reduced-motion: reduce)').matches,
+          fast_duration: getComputedStyle(document.documentElement).getPropertyValue('--dur-fast').trim()
+        })""")
+        assert reduced_motion["matched"] and reduced_motion["fast_duration"] == "0ms"
+        status = page.locator(".status.waiting_child:visible")
         status.first.wait_for()
         stop = page.locator("#stop-this-run")
         stop.wait_for()
@@ -200,6 +205,46 @@ def test_delegated_wait_status_is_responsive_and_reviewable(browser, live, monke
             local_views[label] = {"viewport": {"width": width, "height": height},
                                   "document_width": metrics["scroll"], "client_width": metrics["client"],
                                   "screenshot": path.name}
+        spacing_override = page.add_style_tag(content="""
+          * { line-height: 1.5 !important; letter-spacing: .12em !important;
+              word-spacing: .16em !important; }
+          p { margin-block-end: 2em !important; }
+        """)
+        spacing_metrics = page.evaluate("() => ({client: document.documentElement.clientWidth, "
+                                           "scroll: document.documentElement.scrollWidth})")
+        assert spacing_metrics["scroll"] <= spacing_metrics["client"] + 1, spacing_metrics
+        assert status.first.is_visible() and stop.is_enabled()
+        spacing_stop_box = stop.bounding_box()
+        assert spacing_stop_box and spacing_stop_box["width"] >= 44 and spacing_stop_box["height"] >= 44
+        page.screenshot(path=str(artifacts / "text-spacing-320.png"), full_page=True)
+        spacing_override.evaluate("el => el.remove()")
+        page.emulate_media(forced_colors="active")
+        forced_colors = page.evaluate("matchMedia('(forced-colors: active)').matches")
+        assert forced_colors
+        forced_status_style = status.first.evaluate("""el => {
+          const style = getComputedStyle(el);
+          const canvasProbe = document.createElement('span');
+          canvasProbe.style.cssText = 'position:fixed;color:CanvasText;background-color:Canvas';
+          document.body.append(canvasProbe);
+          const canvasColor = getComputedStyle(canvasProbe).backgroundColor;
+          canvasProbe.remove();
+          const rgb = value => value.match(/[\\d.]+/g).slice(0, 3).map(Number);
+          const luminance = value => value.map(channel => {
+            channel /= 255;
+            return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+          }).reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+          const [foreground, background] = [luminance(rgb(style.color)), luminance(rgb(canvasColor))]
+            .sort((a, b) => b - a);
+          return {color: style.color, canvas: canvasColor,
+                  contrast: (foreground + 0.05) / (background + 0.05)};
+        }""")
+        assert forced_status_style["contrast"] >= 4.5, forced_status_style
+        forced_metrics = page.evaluate("() => ({client: document.documentElement.clientWidth, "
+                                         "scroll: document.documentElement.scrollWidth})")
+        assert forced_metrics["scroll"] <= forced_metrics["client"] + 1, forced_metrics
+        assert status.first.is_visible() and stop.is_enabled()
+        page.screenshot(path=str(artifacts / "forced-colors-320.png"), full_page=True)
+        page.emulate_media(forced_colors="none")
         owner_stop_box = stop.bounding_box()
         assert owner_stop_box and owner_stop_box["width"] >= 44 and owner_stop_box["height"] >= 44
         stop.focus()
@@ -219,7 +264,7 @@ def test_delegated_wait_status_is_responsive_and_reviewable(browser, live, monke
     session = store.authenticate_session(paired["session_token"])
     assert "review" in session["capabilities"]
     phone_context = browser.new_context(viewport={"width": 320, "height": 844}, device_scale_factor=1,
-                                       has_touch=True)
+                                       has_touch=True, reduced_motion="reduce")
     phone = phone_context.new_page()
     try:
         phone_context.add_cookies([{"name": "hutch_session", "value": paired["session_token"], "url": base}])
@@ -256,6 +301,17 @@ def test_delegated_wait_status_is_responsive_and_reviewable(browser, live, monke
                     "child_status": child.status.value, "provider_calls": 0},
         "owner_views": local_views,
         "owner_wait_status_style": waiting_style,
+        "reduced_motion": {"requested": "reduce", **reduced_motion},
+        "text_spacing_override": {"line_height": 1.5, "letter_spacing_em": 0.12,
+                                  "word_spacing_em": 0.16, "paragraph_spacing_em": 2,
+                                  "document_width": spacing_metrics["scroll"],
+                                  "client_width": spacing_metrics["client"],
+                                  "stop_target_css_px": {"width": spacing_stop_box["width"],
+                                                         "height": spacing_stop_box["height"]}},
+        "forced_colors": {"requested": "active", "matched": forced_colors,
+                           "waiting_status": forced_status_style,
+                           "document_width": forced_metrics["scroll"],
+                           "client_width": forced_metrics["client"]},
         "owner_stop_target_css_px": {"width": owner_stop_box["width"], "height": owner_stop_box["height"]},
         "paired_review_view": {"viewport": {"width": 320, "height": 844},
                                 "document_width": phone_metrics["scroll"],

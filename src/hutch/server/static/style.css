@@ -1971,6 +1971,7 @@ button.inline-link:hover { color: var(--text); }
   .card, .panel, .modal-card, .toast, .approval-card-chat, .approval-card,
   .bot-card, .ov-col, .table-wrap, .composer-box, .run-error, .feed-pill,
   .chip, .status, .tag, .pill, .roster-search { border: 1px solid CanvasText; forced-color-adjust: none; }
+  .status { color: CanvasText; background-color: Canvas; forced-color-adjust: auto; }
   .btn.primary, button.primary { background: ButtonFace; color: ButtonText; border-color: ButtonText; }
   .thread .bubble, .answer, .typing { border: 1px solid CanvasText; }
   .tool-group-items { background: transparent; }
