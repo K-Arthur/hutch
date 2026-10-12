@@ -792,6 +792,51 @@ def test_dynamic_workflow_marketing_is_truthful_and_responsive(browser, site_url
             captures.append({"name": label, "viewport": [width, height], "workflow_preview": box,
                              "availability_row": row_box, "horizontal_overflow_px": overflow})
 
+        # Exercise the new workflow teaser under the WCAG text-spacing override and
+        # system high-contrast colors. These are separate states from the normal
+        # responsive captures above so their visual evidence stays inspectable.
+        page.set_viewport_size({"width": 320, "height": 800})
+        page.add_style_tag(content=(
+            "* { letter-spacing: .12em !important; word-spacing: .16em !important; "
+            "line-height: 1.5 !important; } "
+            "p { margin-bottom: 2em !important; }"
+        ))
+        preview.scroll_into_view_if_needed()
+        preview.evaluate("element => window.scrollBy(0, element.getBoundingClientRect().top - 70)")
+        spacing_box = preview.bounding_box()
+        spacing_overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert spacing_box and spacing_box["x"] >= 0 and spacing_box["x"] + spacing_box["width"] <= 321
+        assert spacing_overflow <= 1, spacing_overflow
+        page.screenshot(path=str(out / "workflow-text-spacing-start-compact-phone.png"), animations="disabled")
+        preview_link = preview.locator(".workflow-preview-link")
+        preview_link.focus()
+        page.keyboard.press("Tab")
+        page.keyboard.press("Shift+Tab")
+        assert preview_link.evaluate("el => document.activeElement === el")
+        assert preview_link.evaluate("el => getComputedStyle(el).outlineStyle !== 'none'")
+        link_box = preview_link.bounding_box()
+        assert link_box and link_box["height"] >= 44 and 0 <= link_box["y"] < 800
+        page.screenshot(path=str(out / "workflow-text-spacing-focus-compact-phone.png"), animations="disabled")
+
+        page.emulate_media(forced_colors="active")
+        preview.scroll_into_view_if_needed()
+        preview.evaluate("element => window.scrollBy(0, element.getBoundingClientRect().top - 70)")
+        page.screenshot(path=str(out / "workflow-forced-colors-start-compact-phone.png"), animations="disabled")
+        preview_link.focus()
+        page.keyboard.press("Tab")
+        page.keyboard.press("Shift+Tab")
+        forced_outline = preview_link.evaluate("el => getComputedStyle(el).outlineStyle")
+        assert forced_outline != "none", forced_outline
+        forced_link_box = preview_link.bounding_box()
+        assert forced_link_box and forced_link_box["height"] >= 44 and 0 <= forced_link_box["y"] < 800
+        page.screenshot(path=str(out / "workflow-forced-colors-focus-compact-phone.png"), animations="disabled")
+        captures.append({"name": "compact-phone-text-spacing", "viewport": [320, 800],
+                         "workflow_preview": spacing_box, "workflow_link": link_box,
+                         "horizontal_overflow_px": spacing_overflow})
+        captures.append({"name": "compact-phone-forced-colors", "viewport": [320, 800],
+                         "workflow_link": forced_link_box, "outline_style": forced_outline,
+                         "horizontal_overflow_px": page.evaluate("document.documentElement.scrollWidth - innerWidth")})
+
         assert external == [], external
         assert not errors, errors
         context.tracing.stop(path=str(out / "trace.zip"))
@@ -799,10 +844,12 @@ def test_dynamic_workflow_marketing_is_truthful_and_responsive(browser, site_url
                   for file in out.iterdir() if file.suffix in {".png", ".zip"}}
         (out / "results.json").write_text(json.dumps({
             "test": "tests/e2e/test_website.py::test_dynamic_workflow_marketing_is_truthful_and_responsive",
-            "command": "uv run pytest tests/e2e/test_website.py::test_dynamic_workflow_marketing_is_truthful_and_responsive -q",
+            "command": "TMPDIR=/var/tmp .venv/bin/pytest -q tests/e2e/test_website.py::test_local_asset_urls_use_current_content_hashes tests/e2e/test_website.py::test_dynamic_workflow_marketing_is_truthful_and_responsive --basetemp=/var/tmp/hutch-marketing-a11y-review",
             "captured_at": datetime.now(timezone.utc).isoformat(),
             "browser": browser.browser_type.name, "browser_version": browser.version,
             "playwright_version": package_version("playwright"), "reduced_motion": "reduce",
+            "accessibility_states": {"text_spacing": "WCAG 1.4.12 user override injected",
+                                     "forced_colors": "active", "keyboard_focus": "workflow FAQ link"},
             "workflow_preview_word_count": workflow_copy_words,
             "provider_calls": 0, "external_requests": external, "page_errors": errors,
             "viewports": captures, "source_sha256": source_hashes,

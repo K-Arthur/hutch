@@ -356,6 +356,14 @@ requested** while owned work remains and **Paused** after it settles, expose mon
 and show no owner Pause/Resume controls. The website's existing “How it helps” flow, private-preview status,
 availability row and FAQ retain the verified product limitations.
 
+The marketing visual pass now also covers the 320px workflow card under WCAG
+text-spacing overrides and browser-emulated forced colors. Keyboard Tab/Shift+Tab
+reaches the FAQ action with visible focus; this exposed a 40px compact-phone
+target, which was raised to 44px and rechecked. Opened before/after focus captures,
+measured bounds, zero-overflow results and hashes are in
+[`marketing/`](artifacts/dynamic-workflows/marketing/). Actual browser zoom,
+operating-system contrast settings and screen-reader output remain unverified.
+
 Opened Studio screenshots, Playwright traces, bounds, source/artifact hashes and visual notes are
 in [`pause-resume-2026-10-11/`](artifacts/workflow-studio/pause-resume-2026-10-11/); the active-run
 set is separately indexed by `active-pause-results.json`. Opened website captures and hashes are in
