@@ -19,6 +19,7 @@ are swallowed. "Succeeded" currently means "the model stopped calling tools".
 | `running` | Working | owner is executing |
 | `waiting_approval` | Waiting for you | an approval request is pending |
 | `waiting_human` | Needs you | login / CAPTCHA / MFA / inaccessible UI |
+| `waiting_child` | Waiting for delegated work | parent continuation is durable while its child tree runs; no parent worker is active |
 | `waiting_resources` *(new)* | Waiting for a free slot or quota | resource admission or an allowance reset |
 | `recovering` *(new)* | Recovering | lease expired; recovery decides the outcome |
 | `cancelling` *(new)* | Stopping | cancel requested; not yet verified stopped |
@@ -81,10 +82,14 @@ When a lease expires:
   original statuses, receipts and transcript hashes remain unchanged. Legacy arguments are
   explicitly unknown. See [ADR-0014](0014-immutable-action-review.md).
 
-Hutch never resumes a run in the middle. New messages can start new attempts in their canonical
-conversation. Matching uncertain effects in that same conversation require reconciliation before
-repetition. Builtin execution reads bounded current receipt guidance, without raw arguments or
-operator evidence. These notes supplement the transactional guard and grant no permission.
+Hutch does not resume work after a lost process or from an arbitrary checkpoint. The sole in-run
+continuation is a supervised `delegate_task` parent parked at a tool-call boundary: it stores the
+exact messages and call identity, releases its worker, and is admitted again only after the child
+tree settles and the saved execution contract still matches. New messages can start new attempts in
+their canonical conversation. Matching uncertain effects in that same conversation require
+reconciliation before repetition. Builtin execution reads bounded current receipt guidance, without
+raw arguments or operator evidence. These notes supplement the transactional guard and grant no
+permission.
 
 ### Succeeded versus verified
 

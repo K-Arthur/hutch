@@ -418,6 +418,7 @@ a:hover { text-decoration: underline; }
 .workflow .w:hover { text-decoration: none; }
 .workflow .wdot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
 .workflow .working { color: var(--brand-hi); }
+.workflow .waiting { color: var(--warn); }
 .workflow .queued { color: var(--text-3); }
 .workflow .needs { color: var(--warn); }
 .workflow .needs:hover { text-decoration: underline; }
@@ -500,6 +501,7 @@ button.small, a.small { min-height: 26px; font-size: var(--fs-sm); padding: 0 va
 .status.succeeded, .chip.ok { color: var(--text-2); border-color: var(--line-strong); background: transparent; }
 .status.succeeded::before, .chip.ok::before { background: var(--brand-deep); }
 .status.running, .chip.warn.live { color: var(--brand-hi); border-color: var(--brand-line); background: var(--brand-wash); }
+.status.waiting_child { color: var(--warn); border-color: rgba(251, 191, 36, 0.4); background: transparent; }
 .status.waiting_for_answer { color: var(--brand-hi); border-color: var(--brand-line); background: var(--brand-wash); }
 .status.failed, .chip.danger { color: var(--danger); border-color: rgba(248, 113, 113, 0.4); background: transparent; }
 .status.waiting_approval { color: var(--warn); border-color: rgba(251, 191, 36, 0.4); background: transparent; }
@@ -2167,6 +2169,7 @@ body.paired-phone > :not(#phone-root) { display: none !important; }
 .phone-section-title { font-size: var(--fs-lg); }
 .phone-list { display: grid; gap: 10px; }
 .phone-card { min-width: 0; padding: 15px; background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--r-panel); }
+.phone-run-detail .phone-card > .btn { min-height: 48px; }
 .phone-card h1 { margin: 11px 0 5px; font-size: var(--fs-2xl); overflow-wrap: anywhere; }
 .phone-card h2 { margin: 12px 0 5px; font-size: var(--fs-lg); overflow-wrap: anywhere; }
 .phone-card p { margin-top: 7px; }

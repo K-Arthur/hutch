@@ -307,7 +307,12 @@ def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, arg
         }
     if result.data.get("simulated"):
         data["simulated"] = True                                 # Rehearse mode: nothing actually ran
-    ctx.emit(Event(run_id=run.id, type=EventType.tool_result, data=data))
+    if result.data.get("child_wait_pending"):
+        ctx.emit(Event(run_id=run.id, type=EventType.log,
+                       data={"delegation": "waiting", "child_run_id": result.data.get("child_run_id"),
+                             "status": result.data.get("status", "pending")}))
+    else:
+        ctx.emit(Event(run_id=run.id, type=EventType.tool_result, data=data))
     return result
 
 

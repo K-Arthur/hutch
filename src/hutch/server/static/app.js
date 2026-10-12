@@ -11,7 +11,7 @@ const view = $("#view");
 const topContext = $("#app-top-context");
 
 const ACTIVE = new Set(["pending", "loading_model", "running", "waiting_approval", "waiting_human",
-  "waiting_resources", "recovering", "cancelling"]);
+  "waiting_resources", "waiting_child", "recovering", "cancelling"]);
 const DEFAULT_STATUS_INFO = {
   pending: { label: "Queued", terminal: false },
   loading_model: { label: "Loading the model", terminal: false },
@@ -19,6 +19,7 @@ const DEFAULT_STATUS_INFO = {
   waiting_approval: { label: "Waiting for you", terminal: false },
   waiting_human: { label: "Needs you", terminal: false },
   waiting_resources: { label: "Waiting for a free slot or quota", terminal: false },
+  waiting_child: { label: "Waiting for delegated work", terminal: false },
   recovering: { label: "Cleaning up", terminal: false },
   cancelling: { label: "Stopping", terminal: false },
   succeeded: { label: "Done", terminal: true },
@@ -2471,8 +2472,10 @@ function renderWorkflow(stats) {
   const el = $("#workflow");
   if (!el) return;
   const parts = [];
-  const r = stats.active_runs || 0, q = stats.queued_tasks || 0, p = stats.pending_approvals || 0;
+  const r = stats.working_runs || 0, w = stats.waiting_runs || 0;
+  const q = stats.queued_tasks || 0, p = stats.pending_approvals || 0;
   if (r) parts.push(`<span class="w working"><span class="wdot"></span>${r} working</span>`);
+  if (w) parts.push(`<span class="w waiting"><span class="wdot"></span>${w} waiting</span>`);
   if (q) parts.push(`<span class="w queued"><span class="wdot"></span>${q} queued</span>`);
   if (p) parts.push(`<a class="w needs" href="#/approvals"><span class="wdot"></span>${p} need${p === 1 ? "s" : ""} you</a>`);
   el.innerHTML = parts.join("");
@@ -10235,7 +10238,7 @@ function phoneRender() {
   const canReview = (hutchSession?.capabilities || []).includes("review");
   const canStart = (hutchSession?.capabilities || []).includes("start");
   const active = new Set(["pending", "loading_model", "running", "waiting_approval", "waiting_human",
-    "waiting_resources", "recovering", "cancelling"]);
+    "waiting_resources", "waiting_child", "recovering", "cancelling"]);
   const activeWorkflow = new Set(["pending", "running", "waiting"]);
   const selected = phoneModel.selectedRun;
   const selectedWorkflow = phoneModel.selectedWorkflow;
@@ -10295,7 +10298,10 @@ function phoneRender() {
       </article><h2 class="phone-section-title">Progress</h2>
       ${events.length ? `<ol class="phone-transcript">${events.map(e => {
         const d = e.data || {};
-        const content = d.content ?? d.text ?? d.command ?? d.message ?? JSON.stringify(d, null, 2);
+        const statusLabel = typeof d.status === "string"
+          ? (statusInfo[d.status]?.label || d.status.replaceAll("_", " ")) : null;
+        const content = e.type === "status" && statusLabel
+          ? statusLabel : (d.content ?? d.text ?? d.command ?? d.message ?? JSON.stringify(d, null, 2));
         return `<li><span>${esc(String(e.type || "event").replaceAll("_", " "))} · ${esc(phoneTimestamp(e.ts))}</span><pre>${esc(String(content).slice(0, 6000))}${String(content).length > 6000 ? "\\n… clipped for phone display" : ""}</pre></li>`;
       }).join("")}</ol>` : `<p class="phone-empty">No transcript events have arrived yet.</p>`}
       ${selected.events_truncated ? `<p class="phone-sub">Showing the latest transcript window. Open Hutch on its host to inspect older history.</p>` : ""}</section>`;
@@ -10329,7 +10335,7 @@ function phonePendingCommandMarkup() {
 
 function phoneAttachRunStream() {
   const run = phoneModel.selectedRun;
-  if (!phoneRoot || !run || !["pending", "loading_model", "running", "waiting_approval", "waiting_human", "waiting_resources", "recovering", "cancelling"].includes(run.status)) {
+  if (!phoneRoot || !run || !["pending", "loading_model", "running", "waiting_approval", "waiting_human", "waiting_resources", "waiting_child", "recovering", "cancelling"].includes(run.status)) {
     if (phoneRunStream) phoneRunStream.close();
     phoneRunStream = null;
     phoneRunStreamId = null;

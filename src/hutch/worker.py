@@ -117,6 +117,9 @@ def main(argv: list[str] | None = None) -> int:
                         return False
                     if parent.status is RunStatus.running:
                         return True
+                    if (kind != "step" and parent.status is RunStatus.waiting_child
+                            and store.child_wait_authorizes(parent.id, run.id)):
+                        return True
                     if (kind != "step" or parent.status is not RunStatus.waiting_workflow
                             or not run.workflow_run_id or parent.workflow_run_id != run.workflow_run_id):
                         return False

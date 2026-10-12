@@ -19,6 +19,7 @@ from __future__ import annotations
 import hashlib
 import os
 import socket
+import stat
 import tempfile
 import threading
 import time
@@ -95,6 +96,20 @@ class Bus:
 
 def _sock_dir(state_dir: Path) -> Path:
     """Short path (AF_UNIX limits paths to ~104 bytes) unique to one state directory."""
+    configured = os.environ.get("HUTCH_WAKE_DIR")
+    if configured:
+        d = Path(configured)
+        try:
+            info = d.lstat()
+        except OSError as exc:
+            raise RuntimeError(f"configured Hutch wake directory is unavailable: {exc}") from exc
+        if not stat.S_ISDIR(info.st_mode) or stat.S_ISLNK(info.st_mode):
+            raise RuntimeError("configured Hutch wake path must be a real directory")
+        if hasattr(os, "getuid") and info.st_uid != os.getuid():
+            raise RuntimeError("configured Hutch wake directory is not owned by this user")
+        if info.st_mode & 0o077:
+            raise RuntimeError("configured Hutch wake directory must be private to this user")
+        return d
     tag = hashlib.sha1(str(state_dir.resolve()).encode()).hexdigest()[:8]
     runtime = os.environ.get("XDG_RUNTIME_DIR")
     base = Path(runtime) if runtime and os.access(runtime, os.W_OK) else Path(tempfile.gettempdir())
@@ -171,9 +186,17 @@ class WakeHub:
             return []
 
     def ping(self, topics: Iterable[str]) -> None:
-        """Nudge other processes. Costs one directory listing per second when nobody listens."""
+        """Nudge other processes, promptly for approval and human-review decisions.
+
+        Low-priority notifications throttle peer discovery when no listener is
+        known. A decision can arrive just after a worker begins listening, so
+        review topics always refresh that discovery instead of waiting for the
+        waiter's safety poll.
+        """
+        topics = tuple(topics)
         now = time.monotonic()
-        if not self._has_peers and now - self._peers_checked < 1.0:
+        urgent = any(topic.startswith(("approval:", "human:")) for topic in topics)
+        if not urgent and not self._has_peers and now - self._peers_checked < 1.0:
             return
         self._peers_checked = now
         peers = self._peers()

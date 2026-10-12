@@ -168,6 +168,11 @@ def explain_run(store, run: Run, engine: Any = None, bot: Optional[Bot] = None) 
             cause=run.reason or "The workflow is waiting for a child step or an answer.",
             fix="Hutch released the worker slot. A fresh attempt starts when every outstanding step and question settles.",
             href=f"/runs/{run.id}", link_text="Open the workflow", kind="wait")
+    if st is RunStatus.waiting_child:
+        return Wait(
+            cause=run.reason or "The delegated child is working on its bounded task.",
+            fix="Hutch released the parent worker. The same conversation resumes after child work and cleanup finish.",
+            href=f"/runs/{run.id}", link_text="Open the run", kind="wait")
     return None
 
 

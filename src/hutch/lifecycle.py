@@ -17,7 +17,7 @@ P = RunStatus
 TERMINAL: frozenset[RunStatus] = frozenset({P.succeeded, P.failed, P.stopped, P.outcome_unknown, P.skipped})
 
 #: active and owned by somebody (everything active except a queued run)
-LIVE: frozenset[RunStatus] = frozenset(ACTIVE_STATUSES) - {P.pending, P.waiting_workflow}
+LIVE: frozenset[RunStatus] = frozenset(ACTIVE_STATUSES) - {P.pending, P.waiting_workflow, P.waiting_child}
 
 _END = {P.failed, P.stopped, P.outcome_unknown}      # how any live run may be ended by recovery or a stop
 
@@ -27,11 +27,12 @@ TRANSITIONS: dict[RunStatus, frozenset[RunStatus]] = {
     P.waiting_resources: frozenset({P.pending, P.loading_model, P.running, P.cancelling, P.recovering} | _END),
     P.loading_model: frozenset({P.running, P.waiting_resources, P.waiting_approval, P.cancelling, P.recovering} | _END),
     P.running: frozenset({P.loading_model, P.waiting_approval, P.waiting_human, P.waiting_resources,
-                          P.waiting_workflow, P.succeeded,
+                          P.waiting_workflow, P.waiting_child, P.succeeded,
                           P.cancelling, P.recovering} | _END),
     P.waiting_approval: frozenset({P.running, P.loading_model, P.waiting_human, P.cancelling, P.recovering} | _END),
     P.waiting_human: frozenset({P.running, P.waiting_approval, P.cancelling, P.recovering} | _END),
     P.waiting_workflow: frozenset({P.cancelling} | _END),
+    P.waiting_child: frozenset({P.pending, P.cancelling} | _END),
     P.recovering: frozenset({P.cancelling} | _END),
     P.cancelling: frozenset({P.recovering} | _END),
     P.succeeded: frozenset(),
@@ -50,6 +51,7 @@ LABELS: dict[RunStatus, str] = {
     P.waiting_human: "Needs you",
     P.waiting_resources: "Waiting for a free slot or quota",
     P.waiting_workflow: "Workflow parked",
+    P.waiting_child: "Waiting for delegated work",
     P.recovering: "Cleaning up",
     P.cancelling: "Stopping",
     P.succeeded: "Done",

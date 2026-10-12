@@ -31,6 +31,21 @@ file snapshots stay attributed to the child run. The parent model receives only 
 child files into the parent's workspace or prompt; the operator can inspect the child run's files in Studio. A human can separately
 use the existing explicit artifact-reference flow to share a verified artifact with another conversation.
 
+When the child is still active, the parent saves the exact delegated call and message history in a fenced continuation, enters
+**Waiting for delegated work**, and exits its worker process. The supervisor admits the child after the parent's process cleanup
+is verified, then requeues the same parent run only after the child tree settles. The continuation retains the original deadline
+and run budget; it does not start another child or mark the parent successful. Stop cancels the child tree and keeps the parent
+waiting until owned processes are verified gone. This process handoff is covered by a local Strict Offline fixture; live model
+quality and installed-model inference remain unverified.
+
+The owner header distinguishes **working**, **waiting**, and **queued** counts. `/api/stats` keeps
+`active_runs` as the legacy total and adds `working_runs` and `waiting_runs` so a parked parent is
+not presented as consuming a worker slot. The paired review view keeps the delegated status and
+Stop action available, and renders status events as plain labels rather than raw event objects.
+Responsive captures and the exact source/artifact hashes are recorded in
+[`delegation-wait-20261011`](artifacts/delegation-wait-20261011/visual-review.md); these are local
+mock-runtime UI checks, not live-model or physical-phone validation.
+
 The separate, experimental coordinator-to-specialist handoff is not this same-Bot `delegate_task` path. Its review screen can
 optionally include up to eight current, owner-reviewed facts from the coordinator Bot or the exact coordinator chat (6,000
 serialized characters maximum). Nothing is selected by default. The exact values, revisions and scopes are stored with that task

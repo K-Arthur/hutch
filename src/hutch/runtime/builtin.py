@@ -739,6 +739,9 @@ class BuiltinRuntime:
                 if chk.severity == "fail":
                     raise RunAborted("context", f"{chk.message}. {chk.fix}")
         prefix_hash = hashlib.sha256((system + json.dumps(specs, sort_keys=True)).encode()).hexdigest()[:12]
+        profile_hash = hashlib.sha256(json.dumps(profile.execution_view(), sort_keys=True,
+                                                  separators=(",", ":"), default=str).encode()).hexdigest()
+        system_hash = hashlib.sha256(system.encode("utf-8")).hexdigest()
         envelope_mode = plan.strategy in ("constrained", "prompt")
         planned_rung_spec = session.rung.spec
         contract_repairs = 0
@@ -757,6 +760,45 @@ class BuiltinRuntime:
                                  "content": f'<tool_result tool="{call_name}">\n{bounded}\n</tool_result>'})
             else:
                 messages.append({"role": "tool", "tool_call_id": call_id, "name": call_name, "content": content})
+
+        continuation = ctx.store.mark_child_wait_resuming(run.id, run.fence)
+        if continuation is not None:
+            payload = continuation.get("payload")
+            if (not isinstance(payload, dict) or payload.get("version") != 1
+                    or continuation.get("child_run_id") != payload.get("child_run_id")
+                    or payload.get("plan_hash") != plan.plan_hash
+                    or payload.get("profile_hash") != profile_hash
+                    or payload.get("system_hash") != system_hash
+                    or payload.get("model") != session.rung.spec
+                    or not isinstance(payload.get("messages"), list)
+                    or not isinstance(payload.get("tool_call"), dict)
+                    or ctx.delegation_resume is None):
+                raise RunAborted("continuation_stale",
+                                 "the delegated continuation no longer matches this run's exact model and tool contract")
+            messages = payload["messages"]
+            call = payload["tool_call"]
+            if (not isinstance(call.get("name"), str) or not isinstance(call.get("id"), str)
+                    or call.get("name") != "delegate_task"):
+                raise RunAborted("continuation_invalid", "the delegated continuation does not contain the expected call")
+            child_result = ctx.delegation_resume(str(continuation["child_run_id"]))
+            if child_result.data.get("child_wait_pending"):
+                payload["deadline_epoch"] = child_result.data.get("deadline_epoch", payload.get("deadline_epoch"))
+                raise RunAborted("child_wait", "delegated child work is still settling",
+                                 continuation={"child_run_id": continuation["child_run_id"], "payload": payload})
+            if child_result.data.get("outcome_unknown"):
+                ctx.store.complete_child_wait(run.id, run.fence)
+                raise RunAborted("outcome_unknown", child_result.output)
+            append_tool_result(call["name"], call["id"], child_result.output or "(empty)")
+            ctx.emit(Event(run_id=run.id, type=EventType.tool_result,
+                           data={"tool": call["name"], "ok": child_result.ok,
+                                 "output": (child_result.output or "(empty)")[:2_000],
+                                 "child_run_id": continuation["child_run_id"], "resumed": True}))
+            try:
+                ctx.store.flush_events()
+                ctx.store.complete_child_wait(run.id, run.fence)
+            except Exception as exc:
+                raise RunAborted("event_delivery_failed",
+                                 f"the delegated result could not be durably recorded: {type(exc).__name__}: {exc}") from exc
 
         loop = LoopDetector()
         malformed_streak = loop_strikes = 0
@@ -996,6 +1038,23 @@ class BuiltinRuntime:
                      "function": {"name": tc.name,
                                   "arguments": tc.raw if (tc.parse_error and tc.raw) else json.dumps(tc.arguments)}}
                     for tc in result.tool_calls]})
+            delegation_calls = [
+                tc for tc in result.tool_calls
+                if ((plan.resolve_name(tc.name).name if plan.resolve_name(tc.name) else tc.name) == "delegate_task")
+            ]
+            if delegation_calls and len(result.tool_calls) > 1:
+                note = ("delegate_task must be the only call in a provider response so Hutch can park and resume "
+                        "the exact conversation safely; no call from this response was run")
+                self._log(ctx, run, "delegation", note, ok=False)
+                for tc in result.tool_calls:
+                    resolved = plan.resolve_name(tc.name) if plan is not None else None
+                    name = resolved.name if resolved is not None else tc.name
+                    ctx.emit(Event(run_id=run.id, type=EventType.tool_call,
+                                   data={"tool": name, "args": {"rejected": True}}))
+                    ctx.emit(Event(run_id=run.id, type=EventType.tool_result,
+                                   data={"tool": name, "ok": False, "output": f"rejected: {note}"}))
+                    append_tool_result(name, tc.id, note)
+                continue
             turn_bad = loop_hit = False
             for call_index, tc in enumerate(result.tool_calls):
                 # The application, not the provider, owns each call's position in the response:
@@ -1059,6 +1118,23 @@ class BuiltinRuntime:
                 tool_timer = StepTimer()
                 res = call_tool(run, ctx, tools, canonical_name, args, tool_timer)
                 run.tool_ms += tool_timer.tool_ms
+                if res.data.get("child_wait_pending"):
+                    continuation_payload = {
+                        "version": 1,
+                        "child_run_id": str(res.data.get("child_run_id") or ""),
+                        "deadline_epoch": res.data.get("deadline_epoch"),
+                        "messages": messages,
+                        "tool_call": {"id": tc.id, "name": canonical_name, "arguments": args},
+                        "plan_hash": plan.plan_hash,
+                        "profile_hash": profile_hash,
+                        "system_hash": system_hash,
+                        "model": session.rung.spec,
+                        "strategy": plan.strategy,
+                        "protocol": plan.protocol,
+                    }
+                    raise RunAborted("child_wait", "delegated child work is running",
+                                     continuation={"child_run_id": continuation_payload["child_run_id"],
+                                                   "payload": continuation_payload})
                 if res.data.get("question_pending"):
                     return ""
                 append_tool_result(canonical_name, tc.id, res.output or "(empty)")

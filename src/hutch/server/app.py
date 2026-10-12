@@ -4711,6 +4711,13 @@ def create_app() -> FastAPI:
     def stats() -> dict:
         bots = store.list_bots()
         active = store.active_runs()
+        working_statuses = {
+            RunStatus.loading_model, RunStatus.running, RunStatus.recovering, RunStatus.cancelling,
+        }
+        waiting_statuses = {
+            RunStatus.waiting_approval, RunStatus.waiting_human, RunStatus.waiting_resources,
+            RunStatus.waiting_workflow, RunStatus.waiting_child,
+        }
         pending = store.pending_approvals()
         budgets = store.bot_budgets_today()
         budget_rows = [budgets.get(b.id, (0, 0, 0.0, 0.0)) for b in bots]
@@ -4718,6 +4725,11 @@ def create_app() -> FastAPI:
         return {
             "bots": len(bots), "paused": sum(1 for b in bots if b.paused),
             "active_runs": len(active), "pending_approvals": len(pending),
+            # Keep active_runs as the legacy all-live count. The header gets
+            # these mutually exclusive buckets so parked and queued work are
+            # not presented as consuming execution capacity.
+            "working_runs": sum(1 for run in active if run.status in working_statuses),
+            "waiting_runs": sum(1 for run in active if run.status in waiting_statuses),
             "unresolved_actions": store.count_unresolved_actions(),
             "execution_held": bool((report := store.restoration_status()) and report['execution_held']),
             "queued_tasks": len(store.pending_tasks()),

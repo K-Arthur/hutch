@@ -11,10 +11,11 @@ from ..tools import Tool, ToolContext
 class RunAborted(Exception):
     """The run must stop (limit hit, user stop, runtime failure)."""
 
-    def __init__(self, reason: str, detail: str = ""):
+    def __init__(self, reason: str, detail: str = "", *, continuation: dict | None = None):
         super().__init__(detail or reason)
         self.reason = reason
         self.detail = detail
+        self.continuation = continuation
 
 
 class AgentRuntime(Protocol):

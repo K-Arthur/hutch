@@ -54,6 +54,7 @@ class RunStatus(str, Enum):
     waiting_human = "waiting_human"        # login / CAPTCHA wall: a person must act
     waiting_resources = "waiting_resources"  # a free model slot, memory, or an allowance reset
     waiting_workflow = "waiting_workflow"  # durable workflow wait; no worker or run capacity is held
+    waiting_child = "waiting_child"        # durable delegated child wait; no parent worker capacity is held
     recovering = "recovering"              # the owner was lost; recovery is deciding the outcome
     cancelling = "cancelling"              # a stop was requested and is not yet verified complete
     succeeded = "succeeded"
@@ -67,7 +68,7 @@ class RunStatus(str, Enum):
 ACTIVE_STATUSES = (
     RunStatus.pending, RunStatus.loading_model, RunStatus.running,
     RunStatus.waiting_approval, RunStatus.waiting_human, RunStatus.waiting_resources,
-    RunStatus.waiting_workflow, RunStatus.recovering, RunStatus.cancelling,
+    RunStatus.waiting_workflow, RunStatus.waiting_child, RunStatus.recovering, RunStatus.cancelling,
 )
 
 

@@ -215,6 +215,7 @@ class ToolContext:
     receipt: Optional[Callable[[], Optional[str]]] = None   # set per call by the runtime: records the intent (see begin_effect)
     workflow_action_identity: Optional[dict[str, str]] = None  # stable site/instance/slot for workflow effect receipts
     delegation_submit: Optional[Callable[[str, str, str], ToolResult]] = None  # supervised, strict-offline child admission
+    delegation_resume: Optional[Callable[[str], ToolResult]] = None  # read a completed child after a durable parent wait
     tool_call_index: Optional[int] = None   # position of this call inside the model response, set by the built-in loop
     skills: Optional[Any] = None      # skills.ResolvedSkills for this run; the engine resolves it once at start
     model_execution_profile: Optional[dict[str, Any]] = None  # exact profile for the active provider turn, if reported

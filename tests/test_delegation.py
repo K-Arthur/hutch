@@ -477,6 +477,8 @@ def test_delegated_child_claim_can_share_only_its_parent_capacity(store):
 def test_delegated_child_can_share_the_only_global_slot(store):
     _, parent = _running_parent(store)
     child, _ = _child(store, parent, key="one-slot-child")
+    store.transition_run(parent.id, RunStatus.waiting_child, fence=parent.fence,
+                         child_wait=(child.id, {"version": 1, "messages": [], "tool_call": {}}))
 
     claimed = store.claim_run(child.id, "one-slot-child-owner", 60, max_live=1)
 
@@ -531,7 +533,9 @@ def test_supervised_delegation_admits_private_child_and_returns_verified_result(
     result = engine._run_delegated_task(ctx, "Inspect the supplied file and summarize its risks.",
                                         "step-1-test", "sha256:task", time.monotonic() + 5)
     fixture.join(5)
-    assert result.ok and "Reviewed result from isolated child." in result.output
+    assert result.data["child_wait_pending"] and result.data["child_run_id"]
+    completed = engine._delegated_child_result(result.data["child_run_id"])
+    assert completed.ok and "Reviewed result from isolated child." in completed.output
     child = next(run for run in store.list_runs() if run.parent_run_id == root.id)
     assert child.delegation_budget_cost_usd == 1.0
     assert child.conversation_context == []
@@ -557,6 +561,7 @@ def test_strict_offline_delegation_runs_as_child_after_explicit_approval(store, 
         {"content": "Child result: the requested summary is verified."},
         {"content": "Parent result includes the verified child summary."},
     ])
+    fake.chat_delay = 0.75
     bot = store.create_bot(Bot(
         name="offline-delegation-e2e", model="ollama/fake:1b", base_url=fake.url,
         inference_mode=InferenceMode.offline, sandbox="strict", tools=["delegate_task"],
@@ -572,7 +577,7 @@ def test_strict_offline_delegation_runs_as_child_after_explicit_approval(store, 
 
     def dispatch_children():
         while not stop_dispatch.is_set():
-            engine.dispatch_pending()
+            engine.tick()
             stop_dispatch.wait(0.02)
 
     dispatcher = threading.Thread(target=dispatch_children, name="delegation-test-dispatcher")
@@ -595,8 +600,21 @@ def test_strict_offline_delegation_runs_as_child_after_explicit_approval(store, 
         request = pending[0]
         assert request.run_id == root.id and request.tool == "delegate_task"
         assert request.outward and request.detail["task"] == "Return a short independent summary of the supplied task."
+        assert list(store.hub.dir.glob("*.sock")), "worker listener must be visible before approval is published"
         resolved = resolve_approval(store, request.id, True, by="fixture-reviewer")
         assert resolved.status.value == "approved"
+
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline:
+            current = store.get_run(root.id)
+            children = [run for run in store.list_runs() if run.parent_run_id == root.id]
+            if (current is not None and current.status is RunStatus.waiting_child and children
+                    and children[0].status in (RunStatus.pending, RunStatus.running)):
+                break
+            time.sleep(0.02)
+        assert store.get_run(root.id).status is RunStatus.waiting_child
+        assert children and children[0].status in (RunStatus.pending, RunStatus.running)
+        assert store.live_procs(root.id) == [], "the parked parent worker must exit before child inference continues"
 
         deadline = time.monotonic() + 45
         while time.monotonic() < deadline:
@@ -646,9 +664,13 @@ def test_nested_delegation_stops_at_its_depth_limit_even_with_one_slot(store, co
     root = store.transition_run(root_run.id, RunStatus.running, fence=root_claim.fence,
                                 capability_snapshot=Engine.capability_snapshot(bot))
     child, _ = _child(store, root, key="nested-parent")
+    store.transition_run(root.id, RunStatus.waiting_child, fence=root.fence,
+                         child_wait=(child.id, {"version": 1, "messages": [], "tool_call": {}}))
     child_claim = store.claim_run(child.id, "child-owner", 60, max_live=3)
     parent = store.transition_run(child.id, RunStatus.running, fence=child_claim.fence)
     grandchild, _ = _child(store, parent, key="nested-grandchild")
+    store.transition_run(parent.id, RunStatus.waiting_child, fence=parent.fence,
+                         child_wait=(grandchild.id, {"version": 1, "messages": [], "tool_call": {}}))
     grandchild_claim = store.claim_run(grandchild.id, "grandchild-owner", 60, max_live=1)
     assert grandchild_claim is not None
     grandchild = store.transition_run(grandchild.id, RunStatus.running, fence=grandchild_claim.fence)
@@ -1098,7 +1120,9 @@ def test_delegated_child_question_is_not_reported_as_success(store, config):
                                             "sha256:choice", time.monotonic() + 5)
     finally:
         fixture.join(5)
-    assert result.ok is False
-    assert result.data.get("needs_input") is True
-    assert "question" in result.output.lower()
-    assert "completed" not in result.output.lower()
+    assert result.data["child_wait_pending"] and result.data["child_run_id"]
+    completed = engine._delegated_child_result(result.data["child_run_id"])
+    assert completed.ok is False
+    assert completed.data.get("needs_input") is True
+    assert "question" in completed.output.lower()
+    assert "completed" not in completed.output.lower()

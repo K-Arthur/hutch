@@ -462,3 +462,22 @@ def test_cross_process_hub_delivers_between_two_stores(tmp_path, monkeypatch):
     assert server.bus.version("approvals") != seen
     server.close()
     cli.close()
+
+
+def test_review_wakeup_discovers_a_recently_started_listener(tmp_path, monkeypatch):
+    """An approval decision must bypass the no-peer discovery throttle."""
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    config = get_config()
+    sender, worker = Store(config), Store(config)
+    sender.bus.notify("background")  # caches that no worker is listening
+    worker.ensure_listening()
+    seen = worker.bus.version("approval:review-1")
+    sender.bus.notify("approval:review-1")
+    deadline = time.monotonic() + 2
+    while worker.bus.version("approval:review-1") == seen and time.monotonic() < deadline:
+        time.sleep(0.01)
+    try:
+        assert worker.bus.version("approval:review-1") != seen
+    finally:
+        sender.close()
+        worker.close()

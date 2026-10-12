@@ -1527,6 +1527,22 @@ def _migrate_60(db: sqlite3.Connection) -> None:
     db.execute("CREATE INDEX IF NOT EXISTS idx_event_outbox_run_seq ON event_outbox(run_id, outbox_seq)")
 
 
+def _migrate_61(db: sqlite3.Connection) -> None:
+    """Persist restartable delegated-parent waits without keeping a worker lease alive."""
+    db.execute("""CREATE TABLE IF NOT EXISTS delegated_wait_continuations (
+        run_id TEXT PRIMARY KEY REFERENCES runs(id) ON DELETE CASCADE,
+        child_run_id TEXT NOT NULL REFERENCES runs(id),
+        owner_fence INTEGER NOT NULL CHECK(owner_fence >= 0),
+        state TEXT NOT NULL CHECK(state IN ('waiting','ready','resuming','cancelled','complete')),
+        cancel_reason TEXT NOT NULL DEFAULT '' CHECK(cancel_reason IN ('','stopped','timeout')),
+        payload TEXT NOT NULL CHECK(json_valid(payload)),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_delegated_wait_child_state "
+               "ON delegated_wait_continuations(child_run_id, state)")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -1535,7 +1551,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
                _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53, _migrate_54,
-               _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59, _migrate_60]
+               _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59, _migrate_60, _migrate_61]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 EVENT_OUTBOX_SCHEMA_VERSION = 60
 
@@ -1546,7 +1562,9 @@ _RUN_COLS = ("doc, status, fence, lease_owner, lease_expires_at, cancel_requeste
              "conversation_context, parent_run_id, delegation_budget_cost_usd, capability_snapshot_json")
 _TERMINAL_VALUES = tuple(sorted(st.value for st in TERMINAL))
 _LIVE_VALUES = tuple(sorted(st.value for st in ACTIVE_STATUSES
-                            if st not in (RunStatus.pending, RunStatus.waiting_workflow)))
+                            if st not in (RunStatus.pending, RunStatus.waiting_workflow, RunStatus.waiting_child)))
+_PEER_LIVE_VALUES = tuple(sorted(st.value for st in ACTIVE_STATUSES
+                                 if st not in (RunStatus.pending, RunStatus.waiting_workflow)))
 #: fields only the owner writes while a run is claimed: merged into the document in one statement (no read-modify-write)
 _PROGRESS_FIELDS = {"steps", "tokens", "workspace", "started_at", "prompt_tokens", "completion_tokens", "cached_tokens",
                     "cost_usd", "model_ms", "queue_ms", "tool_ms", "overhead_ms", "context_used", "context_limit", "model_used",
@@ -1766,7 +1784,7 @@ class Store:
                 raise ValueError('restored database integrity failed; preserve and inspect the copy')
             validate_history(self)
             if db.execute("SELECT 1 FROM runs WHERE status IN ('pending','running','loading_model','waiting_approval',"
-                          "'waiting_human','waiting_resources','waiting_workflow','recovering','cancelling') LIMIT 1").fetchone():
+                          "'waiting_human','waiting_resources','waiting_workflow','waiting_child','recovering','cancelling') LIMIT 1").fetchone():
                 raise ValueError('unexpected runnable work appeared during restore review; preserve and inspect the copy')
             db.execute('UPDATE state_restores SET activated_at = ?, activation_evidence = ? WHERE id = ? AND activated_at IS NULL',
                        (iso(utcnow()), evidence, restore_id))
@@ -5068,7 +5086,9 @@ class Store:
         enforced across processes), and - if ``max_live`` is given - fewer than that many runs are live overall.
         A delegated child shares its waiting ancestors' logical slots while it runs; after the
         child settles, the parent resumes and occupies a slot again. Unrelated work for the same
-        bot remains mutually exclusive.
+        bot remains mutually exclusive. A delegated child can be claimed only after its parent
+        has committed the matching continuation and the parent worker's recorded processes are
+        confirmed gone.
 
         Workflow lanes (schema v53): an orchestration attempt (``kind='workflow'``) and its step runs
         (``kind='step'``) form one lane, separate from interactive work, so a workflow may progress while
@@ -5079,19 +5099,18 @@ class Store:
         """
         now = now or utcnow()
         stamp, expires = iso(now), iso(now + timedelta(seconds=lease_seconds))
-        marks = ",".join("?" for _ in _LIVE_VALUES)
-
         # Capacity includes: live statuses, leased pending (starting), and any run that still
         # has unreaped recorded processes — even if its status already became terminal. A timed-out
         # wrapper must not free a slot while owned descendants can still act.
-        def _occupying(alias: str) -> str:
-            return ("(" + alias + ".status IN (" + marks + ") OR "
+        def _occupying(alias: str, live_values: tuple[str, ...] = _LIVE_VALUES) -> str:
+            status_marks = ",".join("?" for _ in live_values)
+            return ("(" + alias + ".status IN (" + status_marks + ") OR "
                     "(" + alias + ".status = 'pending' AND " + alias + ".lease_owner != '' AND " + alias + ".lease_expires_at >= ?) OR "
                     "EXISTS (SELECT 1 FROM run_procs rp WHERE rp.run_id = " + alias + ".id "
                     "AND rp.ended_at IS NULL AND rp.detached_at IS NULL))")
 
         occupying = _occupying("c")
-        peer_occupying = _occupying("o")
+        peer_occupying = _occupying("o", _PEER_LIVE_VALUES)
         parent_occupying = _occupying("p")
         # A successful claim leaves a run in `pending` while its supervisor starts the
         # worker. That reservation already consumes a global slot, even though it is not
@@ -5108,7 +5127,10 @@ class Store:
                 "WHERE delegation_task.run_id = runs.id AND delegation_task.kind = 'delegated') "
                 "AND runs.parent_run_id IS NOT NULL AND "
                 "c.id IN (runs.parent_run_id, "
-                "(SELECT parent_run_id FROM runs p WHERE p.id = runs.parent_run_id))"
+                "(SELECT parent_run_id FROM runs p WHERE p.id = runs.parent_run_id)) "
+                "AND c.status IN ('waiting_child','waiting_workflow') "
+                "AND NOT EXISTS (SELECT 1 FROM run_procs parked_proc WHERE parked_proc.run_id = c.id "
+                "AND parked_proc.ended_at IS NULL AND parked_proc.detached_at IS NULL)"
             )
             cap = (" AND (SELECT COUNT(*) FROM runs c WHERE " + occupying +
                    " AND NOT (c.kind = 'step' AND c.parent_run_id IS NOT NULL AND EXISTS ("
@@ -5119,6 +5141,14 @@ class Store:
             "UPDATE runs SET lease_owner = ?, lease_expires_at = ?, heartbeat_at = ?, fence = fence + 1 "
             "WHERE id = ? AND status = 'pending' AND cancel_requested = 0 "
             "AND (lease_owner = '' OR lease_expires_at IS NULL OR lease_expires_at < ?) "
+            "AND (NOT EXISTS (SELECT 1 FROM tasks dt WHERE dt.run_id = runs.id AND dt.kind = 'delegated') OR "
+            "NOT EXISTS (SELECT 1 FROM run_procs active_parent_proc WHERE active_parent_proc.run_id=runs.parent_run_id "
+            "AND active_parent_proc.ended_at IS NULL AND active_parent_proc.detached_at IS NULL) OR "
+            "EXISTS (SELECT 1 FROM delegated_wait_continuations d JOIN runs p ON p.id=d.run_id "
+            "WHERE d.run_id=runs.parent_run_id AND d.child_run_id=runs.id AND d.state='waiting' "
+            "AND p.status='waiting_child' AND p.cancel_requested=0 AND NOT EXISTS ("
+            "SELECT 1 FROM run_procs pr WHERE pr.run_id=p.id AND pr.ended_at IS NULL "
+            "AND pr.detached_at IS NULL))) "
             "AND NOT EXISTS (SELECT 1 FROM runs o WHERE o.bot_id = runs.bot_id AND o.id != runs.id AND "
             "((o.kind IN ('workflow','step')) = (runs.kind IN ('workflow','step'))) AND "
             + peer_occupying + " "
@@ -5126,7 +5156,7 @@ class Store:
             "(SELECT parent_run_id FROM runs p WHERE p.id = runs.parent_run_id)) "
             "OR o.parent_run_id = runs.parent_run_id)))"
             + cap)
-        args: list[Any] = [owner, expires, stamp, run_id, stamp, *_LIVE_VALUES, stamp]
+        args: list[Any] = [owner, expires, stamp, run_id, stamp, *_PEER_LIVE_VALUES, stamp]
         if max_live:
             # A step shares both the parent workflow's slot and its capacity reservation.
             # Exclude that parent for this candidate's capacity check, while retaining it
@@ -5671,7 +5701,8 @@ class Store:
     def transition_run(self, run_id: str, to: RunStatus, *, fence: Optional[int] = None, exit_reason: Optional[str] = None,
                        error: Optional[str] = None, event: Optional[dict[str, Any]] = None, bump_fence: bool = False,
                        fields: Optional[dict[str, Any]] = None, cancel_wins: bool = False,
-                       capability_snapshot: Optional[dict[str, Any]] = None) -> Run:
+                       capability_snapshot: Optional[dict[str, Any]] = None,
+                       child_wait: Optional[tuple[str, dict[str, Any]]] = None) -> Run:
         """Move a run to ``to`` - the ONLY way status changes for a claimed run (ADR-0003).
 
         In one transaction: the fence is checked (``LeaseLost``), the move is checked against the lifecycle table
@@ -5686,6 +5717,19 @@ class Store:
             snapshot_json = _canonical(capability_snapshot)
             if len(snapshot_json.encode("utf-8")) > 64 * 1024:
                 raise ValueError("run capability snapshot exceeds 64 KiB")
+        child_wait_json = None
+        if child_wait is not None:
+            if to is not RunStatus.waiting_child:
+                raise ValueError("a delegated continuation can only be saved while parking a child wait")
+            child_id, payload = child_wait
+            if not child_id or not isinstance(payload, dict):
+                raise ValueError("a delegated continuation needs a child run and JSON object payload")
+            try:
+                child_wait_json = _canonical(payload)
+            except (TypeError, ValueError, RecursionError) as exc:
+                raise ValueError(f"the delegated continuation is not valid JSON: {exc}") from exc
+            if len(child_wait_json.encode("utf-8")) > 2 * 1024 * 1024:
+                raise ValueError("the delegated continuation exceeds 2 MiB")
         with self._buf_cv:                                       # lock order: event buffer, then database (as append_event)
             # A reader that sees the new status must also see every event that came before it. Wait out the writer's in-flight
             # batch, then commit this run's still-buffered events in the SAME transaction as the status change.
@@ -5698,6 +5742,32 @@ class Store:
                 # buffered events, including stale events that are deliberately
                 # discarded by the owner-fence check.
                 self._delete_event_outbox(db, mine)
+                if child_wait is not None:
+                    parent = db.execute("SELECT status, fence, lease_owner, lease_expires_at, cancel_requested "
+                                        "FROM runs WHERE id = ?", (run_id,)).fetchone()
+                    child = db.execute("SELECT r.parent_run_id, r.bot_id, r.status, t.kind "
+                                       "FROM runs r LEFT JOIN tasks t ON t.run_id = r.id WHERE r.id = ?",
+                                       (child_wait[0],)).fetchone()
+                    if (parent is None or parent["status"] != RunStatus.running.value
+                            or parent["fence"] != fence or not parent["lease_owner"]
+                            or not parent["lease_expires_at"] or parent["lease_expires_at"] <= iso(utcnow())
+                            or parent["cancel_requested"]):
+                        raise LeaseLost(run_id, "parent is no longer authorized to park for delegated work")
+                    if (child is None or child["parent_run_id"] != run_id or child["bot_id"] is None
+                            or child["kind"] != "delegated"):
+                        raise ValueError("the delegated child is not owned by this parent")
+                    prior = db.execute("SELECT state FROM delegated_wait_continuations WHERE run_id = ?",
+                                       (run_id,)).fetchone()
+                    if prior is not None and prior["state"] not in ("complete", "cancelled"):
+                        raise ValueError("this parent already has an unresolved delegated continuation")
+                    db.execute("""INSERT INTO delegated_wait_continuations
+                        (run_id, child_run_id, owner_fence, state, cancel_reason, payload, created_at, updated_at)
+                        VALUES (?, ?, ?, 'waiting', '', ?, ?, ?)
+                        ON CONFLICT(run_id) DO UPDATE SET child_run_id=excluded.child_run_id,
+                          owner_fence=excluded.owner_fence, state='waiting', cancel_reason='',
+                          payload=excluded.payload, created_at=excluded.created_at, updated_at=excluded.updated_at""",
+                               (run_id, child_wait[0], int(parent["fence"]), child_wait_json,
+                                iso(utcnow()), iso(utcnow())))
                 row, emitted = self._apply_transition(db, run_id, to, fence, exit_reason, error, event, bump_fence, fields,
                                                       earlier=kept, cancel_wins=cancel_wins,
                                                       capability_snapshot_json=snapshot_json)
@@ -5718,6 +5788,191 @@ class Store:
             self.bus.notify("work", "runs", f"run:{run_id}", "events", "usage")
         if run.status in TERMINAL:
             self.bus.notify("approvals", f"approval:wake:{run_id}")
+        return run
+
+    def child_wait_continuation(self, run_id: str, *, expected_fence: Optional[int] = None) -> Optional[dict[str, Any]]:
+        """Read the single delegated-call checkpoint; an optional fence requires the current running owner."""
+        with self._lock:
+            if expected_fence is not None:
+                owner = self._db.execute("SELECT status, fence, lease_owner, lease_expires_at "
+                                         "FROM runs WHERE id = ?", (run_id,)).fetchone()
+                if (owner is None or owner["status"] != RunStatus.running.value
+                        or owner["fence"] != expected_fence or not owner["lease_owner"]
+                        or not owner["lease_expires_at"] or owner["lease_expires_at"] <= iso(utcnow())):
+                    raise LeaseLost(run_id, "delegated continuation read requires the current run owner")
+            row = self._db.execute("SELECT child_run_id, owner_fence, state, cancel_reason, payload, created_at, updated_at "
+                                   "FROM delegated_wait_continuations WHERE run_id = ?", (run_id,)).fetchone()
+        if row is None:
+            return None
+        payload = json.loads(row["payload"])
+        if not isinstance(payload, dict):
+            raise RuntimeError("delegated continuation payload is not a JSON object")
+        return {**dict(row), "payload": payload}
+
+    def mark_child_wait_resuming(self, run_id: str, fence: int) -> Optional[dict[str, Any]]:
+        """Fence a continuation to the newly claimed parent before it replays the child result."""
+        with self._tx() as db:
+            owner = db.execute("SELECT status, fence, lease_owner, lease_expires_at FROM runs WHERE id = ?",
+                               (run_id,)).fetchone()
+            if (owner is None or owner["status"] != RunStatus.running.value or owner["fence"] != fence
+                    or not owner["lease_owner"] or not owner["lease_expires_at"]
+                    or owner["lease_expires_at"] <= iso(utcnow())):
+                raise LeaseLost(run_id, "delegated continuation resume requires the current run owner")
+            row = db.execute("SELECT child_run_id, owner_fence, state, cancel_reason, payload, created_at, updated_at "
+                             "FROM delegated_wait_continuations WHERE run_id = ?", (run_id,)).fetchone()
+            if row is None or row["state"] not in ("ready", "resuming"):
+                return None
+            db.execute("UPDATE delegated_wait_continuations SET state='resuming', updated_at=? "
+                       "WHERE run_id=? AND state IN ('ready','resuming')", (iso(utcnow()), run_id))
+        payload = json.loads(row["payload"])
+        if not isinstance(payload, dict):
+            raise RuntimeError("delegated continuation payload is not a JSON object")
+        return {**dict(row), "state": "resuming", "payload": payload}
+
+    def complete_child_wait(self, run_id: str, fence: int) -> bool:
+        """Mark a restored child result consumed by the current parent owner."""
+        now = iso(utcnow())
+        with self._tx() as db:
+            owner = db.execute("SELECT status, fence, lease_owner, lease_expires_at FROM runs WHERE id = ?",
+                               (run_id,)).fetchone()
+            if (owner is None or owner["status"] != RunStatus.running.value or owner["fence"] != fence
+                    or not owner["lease_owner"] or not owner["lease_expires_at"]
+                    or owner["lease_expires_at"] <= now):
+                raise LeaseLost(run_id, "delegated continuation settlement requires the current run owner")
+            return db.execute("UPDATE delegated_wait_continuations SET state='complete', updated_at=? "
+                              "WHERE run_id=? AND state='resuming'", (now, run_id)).rowcount == 1
+
+    def child_wait_authorizes(self, parent_run_id: str, child_run_id: str) -> bool:
+        """Whether a direct delegated child may continue while its parent has released its worker lease."""
+        with self._lock:
+            row = self._db.execute("""SELECT 1 FROM runs p JOIN delegated_wait_continuations c ON c.run_id=p.id
+                WHERE p.id=? AND p.status='waiting_child' AND p.cancel_requested=0
+                  AND c.child_run_id=? AND c.state='waiting'""", (parent_run_id, child_run_id)).fetchone()
+        return row is not None
+
+    def waiting_child_runs(self) -> list[tuple[Run, dict[str, Any]]]:
+        with self._lock:
+            rows = self._db.execute(f"""SELECT {_RUN_COLS}, c.child_run_id, c.owner_fence, c.state,
+                    c.cancel_reason, c.payload, c.created_at AS continuation_created_at,
+                    c.updated_at AS continuation_updated_at
+                FROM runs r JOIN delegated_wait_continuations c ON c.run_id=r.id
+                WHERE r.status IN ('waiting_child','cancelling') AND c.state='waiting'
+                ORDER BY r.created_at, r.id""").fetchall()
+        out = []
+        for row in rows:
+            payload = json.loads(row["payload"])
+            if not isinstance(payload, dict):
+                raise RuntimeError("delegated continuation payload is not a JSON object")
+            run = self._run(row)
+            out.append((run, {"child_run_id": row["child_run_id"], "owner_fence": row["owner_fence"],
+                              "state": row["state"], "cancel_reason": row["cancel_reason"],
+                              "payload": payload, "created_at": row["continuation_created_at"],
+                              "updated_at": row["continuation_updated_at"]}))
+        return out
+
+    def mark_child_wait_cancel_reason(self, run_id: str, reason: str) -> bool:
+        if reason not in ("stopped", "timeout"):
+            raise ValueError("delegated wait cancellation reason must be stopped or timeout")
+        with self._tx() as db:
+            return db.execute("UPDATE delegated_wait_continuations SET cancel_reason=?, updated_at=? "
+                              "WHERE run_id=? AND state='waiting' AND cancel_reason=''",
+                              (reason, iso(utcnow()), run_id)).rowcount == 1
+
+    def promote_child_wait(self, run_id: str) -> Optional[Run]:
+        """Requeue a parked parent only after the child tree is terminal and all its processes are closed."""
+        now = iso(utcnow())
+        with self._tx() as db:
+            parent = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id=?", (run_id,)).fetchone()
+            checkpoint = db.execute("SELECT child_run_id, state FROM delegated_wait_continuations WHERE run_id=?",
+                                    (run_id,)).fetchone()
+            if (parent is None or parent["status"] != RunStatus.waiting_child.value
+                    or parent["cancel_requested"] or checkpoint is None or checkpoint["state"] != "waiting"):
+                return None
+            parent_proc = db.execute("SELECT 1 FROM run_procs WHERE run_id=? AND ended_at IS NULL "
+                                     "AND detached_at IS NULL LIMIT 1", (run_id,)).fetchone()
+            if parent_proc:
+                return None
+            tree = db.execute("""WITH RECURSIVE tree(id, path) AS (
+                                  SELECT ?, ',' || ? || ','
+                                  UNION ALL
+                                  SELECT r.id, t.path || r.id || ',' FROM runs r JOIN tree t ON r.parent_run_id=t.id
+                                  WHERE instr(t.path, ',' || r.id || ',')=0
+                                    ) SELECT r.status FROM runs r JOIN tree t ON t.id=r.id""",
+                              (checkpoint["child_run_id"], checkpoint["child_run_id"])).fetchall()
+            active_values = tuple(status.value for status in ACTIVE_STATUSES)
+            if any(str(row["status"]) in active_values for row in tree):
+                return None
+            live_proc = db.execute("""WITH RECURSIVE tree(id, path) AS (
+                                      SELECT ?, ',' || ? || ','
+                                      UNION ALL
+                                      SELECT r.id, t.path || r.id || ',' FROM runs r JOIN tree t ON r.parent_run_id=t.id
+                                      WHERE instr(t.path, ',' || r.id || ',')=0
+                                    ) SELECT 1 FROM run_procs p JOIN tree t ON t.id=p.run_id
+                                      WHERE p.ended_at IS NULL AND p.detached_at IS NULL LIMIT 1""",
+                                    (checkpoint["child_run_id"], checkpoint["child_run_id"])).fetchone()
+            if live_proc:
+                return None
+            db.execute("UPDATE delegated_wait_continuations SET state='ready', updated_at=? "
+                       "WHERE run_id=? AND state='waiting'", (now, run_id))
+            row, emitted = self._apply_transition(db, run_id, RunStatus.pending, None, None, None,
+                {"reason": "delegated child finished; parent continuation queued"}, True,
+                {"owner": "", "pgid": 0})
+            db.execute("UPDATE tasks SET state='queued' WHERE run_id=? AND done=0", (run_id,))
+        if emitted is not None:
+            self._fan_out(emitted)
+        run = self._run(row)
+        self._run_status[run_id] = run.status.value
+        self.bus.notify("work", "runs", f"run:{run_id}", "events")
+        return run
+
+    def finalize_child_wait_cancel(self, run_id: str) -> Optional[Run]:
+        """Finish a stopped/timed-out parked parent only after every descendant is terminal and cleaned up."""
+        with self._tx() as db:
+            parent = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id=?", (run_id,)).fetchone()
+            checkpoint = db.execute("SELECT child_run_id, state, cancel_reason FROM delegated_wait_continuations "
+                                    "WHERE run_id=?", (run_id,)).fetchone()
+            if (parent is None or parent["status"] != RunStatus.cancelling.value or checkpoint is None
+                    or checkpoint["state"] != "waiting"):
+                return None
+            parent_proc = db.execute("SELECT 1 FROM run_procs WHERE run_id=? AND ended_at IS NULL "
+                                     "AND detached_at IS NULL LIMIT 1", (run_id,)).fetchone()
+            if parent_proc:
+                return None
+            tree = db.execute("""WITH RECURSIVE tree(id, path) AS (
+                                  SELECT ?, ',' || ? || ','
+                                  UNION ALL
+                                  SELECT r.id, t.path || r.id || ',' FROM runs r JOIN tree t ON r.parent_run_id=t.id
+                                  WHERE instr(t.path, ',' || r.id || ',')=0
+                                ) SELECT r.id, r.status FROM runs r JOIN tree t ON t.id=r.id""",
+                              (checkpoint["child_run_id"], checkpoint["child_run_id"])).fetchall()
+            active_values = tuple(status.value for status in ACTIVE_STATUSES)
+            if any(str(row["status"]) in active_values for row in tree):
+                return None
+            ids = [str(row["id"]) for row in tree]
+            marks = ",".join("?" for _ in ids)
+            live_proc = db.execute(f"SELECT 1 FROM run_procs WHERE run_id IN ({marks}) "
+                                   "AND ended_at IS NULL AND detached_at IS NULL LIMIT 1", ids).fetchone()
+            if live_proc:
+                return None
+            unknown = any(str(row["status"]) == RunStatus.outcome_unknown.value for row in tree)
+            reason = str(checkpoint["cancel_reason"] or ("stopped" if parent["cancel_requested"] else "timeout"))
+            target = RunStatus.outcome_unknown if unknown else RunStatus.failed if reason == "timeout" else RunStatus.stopped
+            error = ("delegated child work has an unresolved action outcome" if unknown else
+                     "parent timed out while waiting for delegated work" if reason == "timeout" else
+                     "stopped after delegated child cleanup was verified")
+            db.execute("UPDATE delegated_wait_continuations SET state='cancelled', updated_at=? WHERE run_id=?",
+                       (iso(utcnow()), run_id))
+            row, emitted = self._apply_transition(db, run_id, target, None,
+                "interrupted" if unknown else reason, error,
+                {"reason": "delegated_wait_cancelled", "child_run_id": checkpoint["child_run_id"],
+                 "error": error}, False, {"reason": error})
+        if emitted is not None:
+            self._fan_out(emitted)
+        run = self._run(row)
+        self._run_status[run_id] = run.status.value
+        with self._buf_cv:
+            self._sealed.add(run_id)
+        self.bus.notify("work", "runs", f"run:{run_id}", "events", "approvals")
         return run
 
     def _apply_transition(self, db: sqlite3.Connection, run_id: str, to: RunStatus, fence: Optional[int],
@@ -5780,6 +6035,9 @@ class Store:
             patch["error"] = (error or "")[:2_000]
         elif exit_reason is not None:
             patch["exit_reason"] = exit_reason
+        if to is RunStatus.waiting_child:
+            patch["owner"] = ""
+            patch["pgid"] = 0
         sets, args = "status = ?, doc = json_patch(doc, ?), fence = ?", [to.value, json.dumps(patch, default=str),
                                                                         row["fence"] + (1 if bump_fence else 0)]
         if snapshot_to_write is not None:
@@ -5789,6 +6047,10 @@ class Store:
             sets += ", lease_owner = '', lease_expires_at = NULL, sealed = 1"
         elif to is RunStatus.waiting_workflow:
             sets += ", lease_owner = '', lease_expires_at = NULL"
+        elif to is RunStatus.waiting_child:
+            sets += ", lease_owner = '', lease_expires_at = NULL, pgid = 0"
+            # A parked run no longer owns its worker identity. The process table
+            # remains authoritative until its supervisor verifies exit and closes it.
         db.execute(f"UPDATE runs SET {sets} WHERE id = ?", (*args, run_id))
         if terminal:
             # A terminal run cannot leave an actionable approval behind. Resolve
@@ -5890,6 +6152,10 @@ class Store:
                 patch = _canonical({"status": "expired", "resolved_at": now, "decided_by": "stopped"})
                 db.execute(f"UPDATE approvals SET status = 'expired', doc = json_patch(doc, ?) "
                            f"WHERE status = 'pending' AND run_id IN ({id_marks})", (patch, *ids))
+                db.execute(f"UPDATE delegated_wait_continuations SET "
+                           "cancel_reason=CASE WHEN cancel_reason='' THEN 'stopped' ELSE cancel_reason END, "
+                           f"updated_at=? WHERE run_id IN ({id_marks}) AND state='waiting'",
+                           (now, *ids))
                 if idem_key is not None:
                     db.execute("INSERT INTO idempotency_keys(scope, key, request_hash, response_json, created_at) "
                                "VALUES (?, ?, ?, ?, ?)",

@@ -136,6 +136,145 @@ def test_paired_phone_uses_supervision_view_and_hides_data_after_revocation(brow
         page.close()
 
 
+def test_delegated_wait_status_is_responsive_and_reviewable(browser, live, monkeypatch):
+    """Capture the parked-parent state in the local app and the paired review view."""
+    base, app = live
+    store, engine = app.state.store, app.state.engine
+    monkeypatch.setattr(engine, "tick", lambda: None)
+    bot = store.create_bot(Bot(name="delegated-wait-visual", model="mock/demo", tools=["delegate_task"]))
+    root = store.create_run(Run(bot_id=bot.id, prompt="Coordinate a bounded child task."))
+    claimed = store.claim_run(root.id, "delegated-wait-visual-owner", 60)
+    assert claimed is not None
+    root = store.transition_run(root.id, RunStatus.running, fence=claimed.fence,
+                                capability_snapshot=engine.capability_snapshot(bot))
+    child, inserted = store.submit_delegated_run(
+        parent_run_id=root.id, parent_fence=root.fence,
+        run=Run(bot_id=bot.id, prompt="Inspect the bounded area."),
+        task=Task(bot_id=bot.id, kind="delegated", prompt="Inspect the bounded area."),
+        idem_key="visual-child", request_hash="visual-child-v1")
+    assert inserted
+    root = store.transition_run(
+        root.id, RunStatus.waiting_child, fence=root.fence,
+        child_wait=(child.id, {"version": 1, "messages": [], "tool_call": {
+            "id": "call-visual", "name": "delegate_task", "arguments": {"task": child.prompt}}}),
+        event={"reason": "delegated child is working"})
+
+    artifacts = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/delegation-wait-20261011"
+    artifacts.mkdir(parents=True, exist_ok=True)
+    page_errors, failed_requests = [], []
+    context = browser.new_context(viewport={"width": 1440, "height": 1000}, device_scale_factor=1,
+                                 has_touch=True)
+    page = context.new_page()
+    context.tracing.start(screenshots=True, snapshots=True, sources=True)
+    page.on("pageerror", lambda error: page_errors.append(str(error)))
+    page.on("console", lambda message: page_errors.append(message.text) if message.type == "error" else None)
+    page.on("requestfailed", lambda request: failed_requests.append({"url": request.url,
+                                                                      "failure": request.failure}))
+    local_views = {}
+    try:
+        page.goto(f"{base}/#/run/{root.id}")
+        status = page.locator(".status.waiting_child")
+        status.first.wait_for()
+        stop = page.locator("#stop-this-run")
+        stop.wait_for()
+        assert status.first.inner_text() == "Waiting for delegated work"
+        assert stop.is_enabled()
+        waiting_style = status.first.evaluate("""el => {
+          const style = getComputedStyle(el);
+          return {color: style.color, borderColor: style.borderColor};
+        }""")
+        assert waiting_style["color"] == "rgb(251, 191, 36)"
+        header_status = page.locator("#workflow")
+        header_status.get_by_text("1 waiting", exact=True).wait_for()
+        header_status.get_by_text("1 queued", exact=True).wait_for()
+        assert header_status.get_by_text("working", exact=False).count() == 0
+        for width, height, label in ((1440, 1000, "desktop-1440"), (768, 1024, "tablet-768"),
+                                     (360, 800, "phone-360"), (320, 800, "compact-320")):
+            page.set_viewport_size({"width": width, "height": height})
+            page.wait_for_timeout(120)
+            metrics = page.evaluate("() => ({client: document.documentElement.clientWidth, "
+                                     "scroll: document.documentElement.scrollWidth})")
+            assert metrics["scroll"] <= metrics["client"] + 1, (width, metrics)
+            path = artifacts / f"{label}.png"
+            page.screenshot(path=str(path), full_page=True)
+            local_views[label] = {"viewport": {"width": width, "height": height},
+                                  "document_width": metrics["scroll"], "client_width": metrics["client"],
+                                  "screenshot": path.name}
+        owner_stop_box = stop.bounding_box()
+        assert owner_stop_box and owner_stop_box["width"] >= 44 and owner_stop_box["height"] >= 44
+        stop.focus()
+        assert page.evaluate("el => document.activeElement === el", stop.element_handle())
+    finally:
+        try:
+            context.tracing.stop(path=str(artifacts / "trace.zip"))
+        finally:
+            context.close()
+
+    enrollment, outcome = store.exchange_pairing_code(store.create_pairing_code(), "Delegation review", "browser-test")
+    assert outcome == "ok" and enrollment
+    paired = store.finish_passkey_enrollment(enrollment["token"], {
+        "credential_id": secrets.token_bytes(24), "public_key": b"delegated-wait-review-key", "sign_count": 0,
+        "backup_eligible": True, "backed_up": True, "user_handle": store.webauthn_user_handle(),
+    })
+    session = store.authenticate_session(paired["session_token"])
+    assert "review" in session["capabilities"]
+    phone_context = browser.new_context(viewport={"width": 320, "height": 844}, device_scale_factor=1,
+                                       has_touch=True)
+    phone = phone_context.new_page()
+    try:
+        phone_context.add_cookies([{"name": "hutch_session", "value": paired["session_token"], "url": base}])
+        phone.goto(base + "/")
+        phone.locator("#phone-root .phone-brand").wait_for()
+        phone.get_by_role("button", name="Runs").click()
+        phone.locator(f'[data-phone-run="{root.id}"]').click()
+        phone.locator(".phone-run-detail").wait_for()
+        phone.locator(".phone-run-detail .phone-status").get_by_text(
+            "Waiting for delegated work", exact=True).wait_for()
+        phone_progress = phone.locator(".phone-transcript")
+        phone_progress.get_by_text("Waiting for delegated work", exact=True).wait_for()
+        assert "reason" not in phone_progress.inner_text()
+        phone_stop = phone.get_by_role("button", name="Stop run")
+        phone_stop.wait_for()
+        phone_stop_box = phone_stop.bounding_box()
+        assert phone_stop_box and phone_stop_box["width"] >= 44 and phone_stop_box["height"] >= 44
+        phone_stop.focus()
+        assert phone.evaluate("el => document.activeElement === el", phone_stop.element_handle())
+        phone_metrics = phone.evaluate("() => ({client: document.documentElement.clientWidth, "
+                                       "scroll: document.documentElement.scrollWidth})")
+        assert phone_metrics["scroll"] <= phone_metrics["client"] + 1, phone_metrics
+        phone.screenshot(path=str(artifacts / "paired-review-320.png"), full_page=True)
+    finally:
+        phone_context.close()
+
+    source_paths = [Path(__file__), Path(__file__).resolve().parents[2] / "src/hutch/server/static/app.js",
+                    Path(__file__).resolve().parents[2] / "src/hutch/server/static/style.css"]
+    artifact_paths = sorted(path for path in artifacts.iterdir() if path.is_file() and path.name != "validation.json")
+    validation = {
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "browser": {"name": browser.browser_type.name, "version": browser.version},
+        "fixture": {"run_id": root.id, "status": root.status.value, "child_run_id": child.id,
+                    "child_status": child.status.value, "provider_calls": 0},
+        "owner_views": local_views,
+        "owner_wait_status_style": waiting_style,
+        "owner_stop_target_css_px": {"width": owner_stop_box["width"], "height": owner_stop_box["height"]},
+        "paired_review_view": {"viewport": {"width": 320, "height": 844},
+                                "document_width": phone_metrics["scroll"],
+                                "client_width": phone_metrics["client"],
+                                "stop_target_css_px": {"width": phone_stop_box["width"],
+                                                       "height": phone_stop_box["height"]},
+                                "stop_action_available": True},
+        "console_errors": page_errors,
+        "failed_requests": failed_requests,
+        "source_sha256": {str(path.relative_to(Path(__file__).resolve().parents[2])):
+                          hashlib.sha256(path.read_bytes()).hexdigest() for path in source_paths},
+        "artifact_sha256": {path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+                            for path in artifact_paths},
+    }
+    (artifacts / "validation.json").write_text(json.dumps(validation, indent=2) + "\n", encoding="utf-8")
+    assert page_errors == []
+    assert failed_requests == []
+
+
 def test_paired_phone_monitors_and_reviews_redacted_workflows(browser, live):
     """Exercise real workflow rows through phone list, question answer, and durable Stop."""
     from hutch.workflow import persistence as wstore
