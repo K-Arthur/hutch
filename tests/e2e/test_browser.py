@@ -11188,6 +11188,157 @@ def test_uncertain_action_review_in_chat_preserves_history_and_recovers_lost_res
         context.close()
 
 
+def test_workflow_owned_uncertain_effect_is_reviewable_without_rewriting_workflow(browser, live, monkeypatch):
+    """A workflow receipt reaches the owner review UI without granting another action."""
+    import hashlib
+    import json
+    from pathlib import Path
+
+    from hutch.workflow import persistence as wstore
+    from hutch.workflow import submit as workflow_submit
+    from hutch.workflow.runtime import _settle as settle_workflow
+
+    base, app = live
+    store = app.state.store
+    monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+    bot = store.create_bot(Bot(name="workflow-effect-review", model="mock/demo", tools=["shell"]))
+    conversation, _ = store.create_conversation(
+        bot.id, "Workflow effect review", idem_key="workflow-review-conversation",
+        request_hash="workflow-review-conversation-v1")
+    plan = {
+        "name": "uncertain-report-publish",
+        "envelope": {"tools": ["shell"]},
+        "budget": {"max_nodes": 4, "max_model_calls": 0},
+        "nodes": [{"kind": "tool", "id": "publish", "tool": "shell",
+                   "args": {"command": "publish report"}}],
+    }
+    submitted = workflow_submit.submit_workflow(
+        store, bot=bot, plan=plan, definition_name=plan["name"],
+        conversation_id=conversation["id"])
+    attempt = store.claim_run(submitted.attempt_run_id, "workflow-review-fixture", 60)
+    assert attempt is not None
+    attempt = store.transition_run(attempt.id, RunStatus.running, fence=attempt.fence)
+    workflow = wstore.workflow_run(store, submitted.workflow_run_id)
+    assert workflow is not None
+    assert wstore.claim_workflow_attempt(
+        store, workflow["id"], attempt_run_id=attempt.id,
+        owner_fence=attempt.fence, revision_id=workflow["revision_id"])
+    wstore.open_node(
+        store, workflow["id"], owner_run_id=attempt.id, owner_fence=attempt.fence,
+        revision_id=workflow["revision_id"], site_id="publish", instance_key="once",
+        kind="tool", input_value={"command": "publish report"}, input_hash="c" * 64)
+    action_id = store.begin_action(
+        attempt.id, "shell", "workflow-effect-before-response", "process", "Publish the checked report",
+        fence=attempt.fence, arguments={"command": "publish report"},
+        authority={"source": "fixture", "detail": {"reviewed": True}},
+        scope={"workspace": "isolated-review-fixture"},
+        workflow_identity={"workflow_run_id": workflow["id"], "revision_id": workflow["revision_id"],
+                           "site_id": "publish", "instance_key": "once", "slot": "tool"})
+    # This browser fixture creates the durable uncertain state directly. Process-crash
+    # behavior and duplicate-effect prevention are independently tested with a real sink.
+    settle_workflow(store, workflow["id"], attempt, revision_id=workflow["revision_id"],
+                    status="outcome_unknown", reason="the effect response was not recorded",
+                    output_sites=["publish"])
+    attempt = store.transition_run(
+        attempt.id, RunStatus.outcome_unknown, fence=attempt.fence,
+        exit_reason="outcome_unknown", error="the effect response was not recorded")
+    assert store.get_action(action_id)["status"] == "unknown"
+    assert wstore.workflow_run(store, workflow["id"])["status"] == "outcome_unknown"
+    sealed_chain = store.verify_chain(attempt.id)
+
+    artifacts = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workflow-effect-review-20261012"
+    artifacts.mkdir(parents=True, exist_ok=True)
+    errors, failed_requests = [], []
+    context = browser.new_context(viewport={"width": 1440, "height": 1000}, reduced_motion="reduce")
+    page = context.new_page()
+    context.tracing.start(screenshots=True, snapshots=True, sources=True)
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
+    page.on("requestfailed", lambda request: failed_requests.append({"url": request.url,
+                                                                       "failure": request.failure}))
+    try:
+        page.goto(f"{base}/#/run/{attempt.id}")
+        run_card = page.locator(f'[data-run-id="{attempt.id}"]')
+        receipt = run_card.locator(f'[data-receipt-card="{action_id}"]')
+        receipt.wait_for()
+        assert "Action outcome needs review" in receipt.inner_text()
+        assert "may already have happened" in receipt.inner_text()
+        page.screenshot(path=str(artifacts / "desktop-unresolved.png"), full_page=True)
+
+        page.reload()
+        receipt.wait_for()
+        page.locator("#needs-you-open").click()
+        queued_receipt = page.locator(f'#needs-you [data-receipt-card="{action_id}"]')
+        queued_receipt.wait_for()
+        assert "Publish the checked report" in queued_receipt.inner_text()
+        page.screenshot(path=str(artifacts / "desktop-needs-you.png"), full_page=True)
+        review_button = queued_receipt.get_by_role("button", name="Review action outcome", exact=True)
+        review_button.focus()
+        page.keyboard.press("Enter")
+        page.locator("#receipt-outcome").wait_for()
+        page.locator(".modal-card details summary").first.click()
+        saved_details = page.locator(".receipt-json").inner_text()
+        assert workflow["id"] in saved_details and '"site_id": "publish"' in saved_details
+        assert "Check the file, account or service involved" in page.locator(".modal-card").inner_text()
+        page.screenshot(path=str(artifacts / "desktop-review-dialog.png"), full_page=True)
+        page.locator("#receipt-outcome").select_option("not_applied")
+        page.locator("#receipt-evidence").fill(
+            "Checked the isolated effect sink after the run ended; no publish record exists.")
+        page.locator("#modal-confirm").click()
+        page.locator(".modal-card").wait_for(state="detached")
+        page.get_by_role("button", name="View recorded outcome", exact=True).wait_for()
+
+        report = store.get_action(action_id)
+        assert report["status"] == "unknown"
+        assert report["reconciliation"]["outcome"] == "not_applied"
+        assert store.get_run(attempt.id).status is RunStatus.outcome_unknown
+        assert wstore.workflow_run(store, workflow["id"])["status"] == "outcome_unknown"
+        assert store.verify_chain(attempt.id) == sealed_chain
+        reviewed_receipt = run_card.locator(f'[data-receipt-card="{action_id}"]')
+        assert "No effect found · human report" in reviewed_receipt.inner_text()
+
+        page.set_viewport_size({"width": 390, "height": 844})
+        page.wait_for_timeout(120)
+        phone_metrics = page.evaluate("() => ({client: document.documentElement.clientWidth, "
+                                       "scroll: document.documentElement.scrollWidth})")
+        assert phone_metrics["scroll"] <= phone_metrics["client"] + 1, phone_metrics
+        page.screenshot(path=str(artifacts / "phone-reviewed.png"), full_page=True)
+    finally:
+        context.tracing.stop(path=str(artifacts / "trace.zip"))
+        context.close()
+
+    root = Path(__file__).resolve().parents[2]
+    source_paths = [root / path for path in (
+        "tests/e2e/test_browser.py", "src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+        "src/hutch/server/app.py", "src/hutch/store.py", "src/hutch/workflow/runtime.py",
+        "src/hutch/workflow/persistence.py")]
+    artifact_paths = [artifacts / name for name in (
+        "desktop-unresolved.png", "desktop-needs-you.png", "desktop-review-dialog.png",
+        "phone-reviewed.png", "trace.zip")]
+    validation = {
+        "test": "tests/e2e/test_browser.py::test_workflow_owned_uncertain_effect_is_reviewable_without_rewriting_workflow",
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "browser": {"name": browser.browser_type.name, "version": browser.version},
+        "fixture": {"workflow_run_id": workflow["id"], "revision_id": workflow["revision_id"],
+                    "attempt_run_id": attempt.id, "attempt_status": attempt.status.value,
+                    "node": "publish", "action_id": action_id, "external_effect_calls": 0},
+        "human_review": {"outcome": report["reconciliation"]["outcome"],
+                         "workflow_status_unchanged": True, "run_status_unchanged": True,
+                         "transcript_chain_unchanged": True},
+        "phone_view": {"viewport": [390, 844], "client_width": phone_metrics["client"],
+                       "document_width": phone_metrics["scroll"]},
+        "console_errors": errors,
+        "failed_requests": failed_requests,
+        "source_sha256": {str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
+                          for path in source_paths},
+        "artifact_sha256": {path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+                            for path in artifact_paths},
+    }
+    (artifacts / "validation.json").write_text(json.dumps(validation, indent=2) + "\n", encoding="utf-8")
+    assert errors == []
+    assert failed_requests == []
+
+
 @pytest.mark.parametrize('width,height,size', [(1440,1000,'desktop'),(900,1024,'tablet'),(390,844,'phone')])
 def test_scoped_fact_review_revision_conflict_and_memory_off(browser, live, width, height, size):
     import hashlib

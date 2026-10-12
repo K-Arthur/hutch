@@ -1,0 +1,49 @@
+{
+  "test": "tests/e2e/test_browser.py::test_workflow_owned_uncertain_effect_is_reviewable_without_rewriting_workflow",
+  "captured_at": "2026-10-12T05:39:31.006338+00:00",
+  "browser": {
+    "name": "chromium",
+    "version": "153.0.8010.12"
+  },
+  "fixture": {
+    "workflow_run_id": "wrun_505420203231",
+    "revision_id": "wrev_d3afe107bc2d",
+    "attempt_run_id": "run_f47e2ee2b03a",
+    "attempt_status": "outcome_unknown",
+    "node": "publish",
+    "action_id": "act_2d1b206012ad",
+    "external_effect_calls": 0
+  },
+  "human_review": {
+    "outcome": "not_applied",
+    "workflow_status_unchanged": true,
+    "run_status_unchanged": true,
+    "transcript_chain_unchanged": true
+  },
+  "phone_view": {
+    "viewport": [
+      390,
+      844
+    ],
+    "client_width": 390,
+    "document_width": 390
+  },
+  "console_errors": [],
+  "failed_requests": [],
+  "source_sha256": {
+    "tests/e2e/test_browser.py": "80b9a4795390533b7672f010f0acc13a1eb0bcbb783e383fb2252f9f4190ded9",
+    "src/hutch/server/static/app.js": "46d20982de8a508e8e382514631e18a784062df33befadb87c11bb75147ab78e",
+    "src/hutch/server/static/style.css": "61d78a424c663debc9ba828bc93654045410e51e6d25b384b37bb02522e58fbb",
+    "src/hutch/server/app.py": "6c3490d3c31c093a23dbffe3418c83687b3c8d39169666a4460ff5c8ec6ed7b6",
+    "src/hutch/store.py": "34299588758989899e3534ffcd3f3001b2611208be52502a64823e4d8052db17",
+    "src/hutch/workflow/runtime.py": "3d245e698486b1137c9376da37f2fbdbcea99012efdd356795368e4cd6bb301b",
+    "src/hutch/workflow/persistence.py": "5a84b26e8745b52caaa26dfcee6dd023ab1c8626a8317eeb185e4575ae17d155"
+  },
+  "artifact_sha256": {
+    "desktop-unresolved.png": "ecabc4ba1596cbd48460befaf5ebca7410efec2a4faab778a3246201cece53b0",
+    "desktop-needs-you.png": "0b48c787de4aeb07acb09a660add95e64fe840d571db63aa2114e5959fe875aa",
+    "desktop-review-dialog.png": "78bf4beaffabbbadab383a275a13243397cf00d9b6e63ad75e9521fb76fe7b7f",
+    "phone-reviewed.png": "12c653015d5c68144eef851369356c764ad5a035f200d3d1e2533a406d446d2d",
+    "trace.zip": "154f87b78833fee1fffd3f097f028f06ed185400afa3893c8dfada4a0cce6045"
+  }
+}
