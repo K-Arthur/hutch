@@ -782,6 +782,45 @@ def test_amendment_preview_fences_stale_revision_and_generation_and_invalidates_
     assert result["reuse"] == []
 
 
+def test_amendment_preview_invalidates_reordered_map_inputs_without_reusing_item_results(client):
+    bot = make_bot(client, name="amendment-reordered-map-bot")
+    plan = {
+        "name": "amendment-reordered-map",
+        "inputs": {"items": {"type": "array"}},
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 20, "max_model_calls": 0, "max_fanout": 4},
+        "nodes": [{"kind": "map", "id": "each", "over": {"ref": "input.items"},
+                   "item_key": "id", "max_items": 4, "body": [
+                       {"kind": "transform", "id": "value", "op": "pluck",
+                        "args": {"value": {"ref": "item"}, "path": "value"}}]}],
+    }
+    submitted = client.post("/api/v1/workflows/plans", headers=KEY,
+                            json={"plan": plan, "bot": bot["name"],
+                                  "definition_name": "amendment-reordered-map",
+                                  "inputs": {"items": [{"id": "alpha", "value": 1},
+                                                        {"id": "beta", "value": 2}]}})
+    assert submitted.status_code == 201, submitted.text
+    workflow_id = submitted.json()["workflow_run_id"]
+    finished = _wait_for_workflow(client, workflow_id)
+    assert finished["workflow"]["status"] == "succeeded", finished
+
+    preview = client.post(f"/api/v1/workflows/runs/{workflow_id}/amendments/preview", json={
+        "expected_revision_id": finished["workflow"]["revision_id"],
+        "expected_generation": finished["workflow"]["attempt_run_id"],
+        "plan": plan,
+        "inputs": {"items": [{"id": "beta", "value": 2},
+                              {"id": "alpha", "value": 1}]},
+    })
+    assert preview.status_code == 200, preview.text
+    body = preview.json()
+    assert body["eligible"] is True
+    assert body["changed_sites"] == []
+    assert body["reuse"] == []
+    assert {(row["site_id"], row["instance_key"]) for row in body["invalidate"]} == {
+        ("each", "once"), ("each.value", "item:alpha"), ("each.value", "item:beta")}
+    assert {row["reason"] for row in body["invalidate"]} == {"inputs_changed"}
+
+
 def test_amendment_preview_refreshes_authority_and_refuses_budget_widening(client):
     bot = make_bot(client, name="amendment-authority-bot")
     submitted = client.post("/api/v1/workflows/plans", headers=KEY,

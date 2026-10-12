@@ -70,6 +70,10 @@ fail the expansion before the first body can make a partial change. An empty exp
 with zero items and `complete: true`. The regressions are
 `test_map_rejects_duplicate_item_keys_before_running_any_body` and
 `test_empty_map_is_a_complete_zero_item_expansion` in `tests/test_workflow_engine.py`.
+Stable keys preserve item identity during ordinary map execution, while amendment preview
+invalidates prior results whenever the input bundle changes, including when the same keyed items
+are reordered. This conservative rule is checked by
+`test_amendment_preview_invalidates_reordered_map_inputs_without_reusing_item_results`.
 
 ## Modes: off, suggest, auto
 
