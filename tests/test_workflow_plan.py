@@ -216,16 +216,37 @@ def test_repair_target_is_validated_and_single_check_targets_remain_compatible()
     assert "REPAIR_TARGET" in codes(info.value)
 
 
-def test_first_success_join_requires_a_cancellation_capable_scheduler():
-    raw = {"name": "first-success", "nodes": [
-        {"kind": "transform", "id": "left", "op": "constant", "args": {"value": 1}},
-        {"kind": "transform", "id": "right", "op": "constant", "args": {"value": 2}},
-        {"kind": "join", "id": "joined", "of": ["left", "right"],
-         "policy": "first_success"},
-    ]}
+def test_first_success_join_accepts_bounded_independent_agents_and_rejects_effects():
+    raw = {"name": "first-success",
+           "envelope": {"tools": [], "max_parallel_steps": 2},
+           "budget": {"max_model_calls": 2},
+           "nodes": [
+               {"kind": "agent", "id": "left", "instruction": "Evaluate the first option."},
+               {"kind": "agent", "id": "right", "instruction": "Evaluate the second option."},
+               {"kind": "join", "id": "joined", "of": ["left", "right"],
+                "policy": "first_success"},
+           ]}
+    compiled = compile_ok(raw)
+    assert compiled.by_site["joined"].node.policy == "first_success"
+
+    raw["nodes"][0]["tools"] = ["shell"]
     with pytest.raises(wf_compile.PlanInvalid) as info:
         compile_ok(raw)
-    assert "JOIN_FIRST_SUCCESS_UNSUPPORTED" in codes(info.value)
+    assert "JOIN_FIRST_SUCCESS_EFFECTS" in codes(info.value)
+
+    raw["nodes"][0]["tools"] = []
+    raw["nodes"].insert(1, {"kind": "transform", "id": "between", "op": "constant",
+                            "args": {"value": "not part of the race"}})
+    with pytest.raises(wf_compile.PlanInvalid) as info:
+        compile_ok(raw)
+    assert "JOIN_FIRST_SUCCESS_SCOPE" in codes(info.value)
+
+    raw["nodes"].pop(1)
+    raw["nodes"].append({"kind": "transform", "id": "after", "op": "constant",
+                         "args": {"value": {"ref": "left"}}})
+    with pytest.raises(wf_compile.PlanInvalid) as info:
+        compile_ok(raw)
+    assert "JOIN_FIRST_SUCCESS_REFERENCE" in codes(info.value)
 
 
 def test_join_rejects_duplicate_targets():

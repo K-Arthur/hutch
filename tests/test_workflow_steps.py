@@ -88,6 +88,220 @@ def test_agent_node_releases_its_slot_while_its_child_step_runs(store, config, o
     assert view["workflow"]["ledger"].get("model_calls", 0) == 2
 
 
+@pytest.mark.parametrize("model,expected_winner,expected_parallel", [
+    ("openai/gpt-4o-mini", "fast", 2),
+    ("ollama/qwen3:4b", "slow", 1),
+    ("openai/gpt-4o-mini", "slow", 2),  # the faster child violates its output contract
+])
+def test_first_success_join_selects_first_acceptable_result_and_drains_discarded_child(
+        store, config, monkeypatch, model, expected_winner, expected_parallel):
+    import hutch.engine as engine_module
+    from hutch.models import Event, EventType
+    from hutch.runtime.base import RunAborted
+    from threading import Lock
+
+    starts: list[str] = []
+    active = 0
+    maximum_active = 0
+    stats_lock = Lock()
+
+    class ControlledRuntime:
+        kind = "controlled-test"
+
+        def execute(self, run, ctx, tools, stop):
+            nonlocal active, maximum_active
+            prompt = run.prompt.lower()
+            candidate = "slow" if "slow candidate" in prompt else "fast"
+            content = f"{candidate} result"
+            with stats_lock:
+                starts.append(candidate)
+                active += 1
+                maximum_active = max(maximum_active, active)
+            try:
+                delay = 0.5 if model.startswith("ollama/") else 2.0
+                if candidate == "fast":
+                    delay = 0.1
+                deadline = time.monotonic() + delay
+                while time.monotonic() < deadline:
+                    if stop():
+                        raise RunAborted("stopped", "first_success discarded this candidate")
+                    time.sleep(0.01)
+                ctx.emit(Event(run_id=run.id, type=EventType.message,
+                               data={"role": "assistant", "content": content}))
+                return content
+            finally:
+                with stats_lock:
+                    active -= 1
+
+    monkeypatch.setattr(engine_module, "get_runtime", lambda bot: ControlledRuntime())
+    bot = make_bot(store, name="first-success", model=model, tools=[])
+    engine = Engine(config, store, max_concurrent=3)
+    plan = {
+        "name": "first-success",
+        "envelope": {"tools": [], "models": [model], "max_parallel_steps": 2},
+        "budget": {"max_nodes": 10, "max_model_calls": 2, "max_wall_seconds": 60},
+        "nodes": [
+            {"kind": "agent", "id": "slow", "instruction": "Answer as the slow candidate."},
+            {"kind": "agent", "id": "fast", "instruction": "Answer as the fast candidate.",
+             **({"output_schema": {"type": "object", "required": ["accepted"],
+                                   "properties": {"accepted": {"type": "boolean"}},
+                                   "additionalProperties": False}
+                } if expected_winner == "slow" and model.startswith("openai/") else {})},
+            {"kind": "join", "id": "chosen", "of": ["slow", "fast"],
+             "policy": "first_success"},
+        ],
+    }
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=plan)
+
+    drive(engine, store, submission.attempt_run_id, timeout=30)
+
+    view = wfsubmit.status(store, submission.workflow_run_id)
+    assert view["workflow"]["status"] == "succeeded", view["workflow"]["reason"]
+    joined = next(node for node in view["nodes"] if node["site_id"] == "chosen")
+    assert joined["result"]["winner"] == expected_winner
+    assert joined["result"]["items"] == {
+        expected_winner: {"text": f"{expected_winner} result", "steps": 0, "tokens": 0}}
+    assert joined["result"]["drained"] is True
+    nodes = {node["site_id"]: node for node in view["nodes"]}
+    invalid_fast = expected_winner == "slow" and model.startswith("openai/")
+    if invalid_fast:
+        assert nodes["fast"]["status"] == "failed"
+        assert "output contract" in nodes["fast"]["error"]["reason"]
+        rejected_run = store.get_run(nodes["fast"]["run_id"])
+        assert rejected_run is not None and rejected_run.status.value == "succeeded"
+    else:
+        loser = "fast" if expected_winner == "slow" else "slow"
+        assert nodes[loser]["status"] == "cancelled"
+        discarded_run = store.get_run(nodes[loser]["run_id"])
+        assert discarded_run is not None and discarded_run.status.value == "stopped"
+        assert not store.live_procs(discarded_run.id)
+    assert maximum_active == expected_parallel
+    if expected_parallel == 1:
+        assert starts == ["slow"]
+    else:
+        assert set(starts) == {"slow", "fast"}
+
+
+def test_first_success_restart_reuses_winner_and_retries_loser_cancellation(
+        store, config, monkeypatch):
+    import hutch.engine as engine_module
+    from hutch.models import Event, EventType
+    from hutch.runtime.base import RunAborted
+
+    class RestartRuntime:
+        kind = "restart-test"
+
+        def execute(self, run, ctx, tools, stop):
+            prompt = run.prompt.lower()
+            candidate = "slow" if "slow candidate" in prompt else "fast"
+            deadline = time.monotonic() + (10.0 if candidate == "slow" else 0.1)
+            while time.monotonic() < deadline:
+                if stop():
+                    raise RunAborted("stopped", "the restarted supervisor cancelled this loser")
+                time.sleep(0.01)
+            content = f"{candidate} result"
+            ctx.emit(Event(run_id=run.id, type=EventType.message,
+                           data={"role": "assistant", "content": content}))
+            return content
+
+    monkeypatch.setattr(engine_module, "get_runtime", lambda bot: RestartRuntime())
+    model = "openai/gpt-4o-mini"
+    bot = make_bot(store, name="first-success-restart", model=model, tools=[])
+    first_supervisor = Engine(config, store, max_concurrent=3)
+    plan = {
+        "name": "first-success-restart",
+        "envelope": {"tools": [], "models": [model], "max_parallel_steps": 2},
+        "budget": {"max_nodes": 10, "max_model_calls": 2, "max_wall_seconds": 60},
+        "nodes": [
+            {"kind": "agent", "id": "slow", "instruction": "Answer as the slow candidate."},
+            {"kind": "agent", "id": "fast", "instruction": "Answer as the fast candidate."},
+            {"kind": "join", "id": "chosen", "of": ["slow", "fast"],
+             "policy": "first_success"},
+        ],
+    }
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=plan)
+
+    original_stop_run = first_supervisor.stop_run
+    def simulated_supervisor_crash(*_args, **_kwargs):
+        monkeypatch.setattr(first_supervisor, "stop_run", original_stop_run)
+        raise RuntimeError("simulated restart after winner persistence")
+
+    monkeypatch.setattr(first_supervisor, "stop_run", simulated_supervisor_crash)
+    deadline = time.monotonic() + 15
+    while time.monotonic() < deadline:
+        try:
+            first_supervisor.tick()
+        except RuntimeError as exc:
+            assert "simulated restart" in str(exc)
+            break
+        join_node = next((node for node in wstore.nodes(store, submission.workflow_run_id)
+                          if node["site_id"] == "chosen"), None)
+        if join_node and join_node["status"] == "succeeded" and join_node["result"].get("winner"):
+            # The winner is committed before the stop request; force the next beat to be
+            # handled by a fresh Engine instance below.
+            break
+        time.sleep(0.02)
+
+    join_node = next(node for node in wstore.nodes(store, submission.workflow_run_id)
+                     if node["site_id"] == "chosen")
+    assert join_node["status"] == "succeeded" and join_node["result"]["winner"] == "fast"
+    slow_node = next(node for node in wstore.nodes(store, submission.workflow_run_id)
+                     if node["site_id"] == "slow")
+    slow_run = store.get_run(slow_node["run_id"])
+    assert slow_run is not None and not slow_run.cancel_requested
+
+    restarted = Engine(config, store, max_concurrent=3)
+    drive(restarted, store, submission.attempt_run_id, timeout=30)
+
+    view = wfsubmit.status(store, submission.workflow_run_id)
+    joined = next(node for node in view["nodes"] if node["site_id"] == "chosen")
+    assert view["workflow"]["status"] == "succeeded"
+    assert joined["result"]["winner"] == "fast"
+    assert joined["result"]["drained"] is True
+    nodes = {node["site_id"]: node for node in view["nodes"]}
+    assert nodes["slow"]["status"] == "cancelled"
+    slow_run = store.get_run(nodes["slow"]["run_id"])
+    assert slow_run is not None and slow_run.status.value == "stopped"
+    assert not store.live_procs(slow_run.id)
+
+
+def test_first_success_join_fails_honestly_when_every_candidate_fails(store, config, monkeypatch):
+    import hutch.engine as engine_module
+
+    class FailingRuntime:
+        kind = "failing-test"
+
+        def execute(self, run, ctx, tools, stop):
+            raise RuntimeError("candidate did not produce a result")
+
+    monkeypatch.setattr(engine_module, "get_runtime", lambda bot: FailingRuntime())
+    model = "openai/gpt-4o-mini"
+    bot = make_bot(store, name="first-success-all-fail", model=model, tools=[])
+    engine = Engine(config, store, max_concurrent=3)
+    plan = {
+        "name": "first-success-all-fail",
+        "envelope": {"tools": [], "models": [model], "max_parallel_steps": 2},
+        "budget": {"max_nodes": 10, "max_model_calls": 2, "max_wall_seconds": 60},
+        "nodes": [
+            {"kind": "agent", "id": "left", "instruction": "Try the left candidate."},
+            {"kind": "agent", "id": "right", "instruction": "Try the right candidate."},
+            {"kind": "join", "id": "chosen", "of": ["left", "right"],
+             "policy": "first_success"},
+        ],
+    }
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=plan)
+
+    drive(engine, store, submission.attempt_run_id, timeout=30)
+
+    view = wfsubmit.status(store, submission.workflow_run_id)
+    assert view["workflow"]["status"] == "failed"
+    joined = next(node for node in view["nodes"] if node["site_id"] == "chosen")
+    assert joined["status"] == "failed"
+    assert joined["result"]["accepted"] is False
+    assert joined["result"]["failed"] == ["left", "right"]
+    assert joined["result"]["winner"] == ""
+
+
 def test_stopping_workflow_cancels_active_step_and_drains_its_process(store, config, ollama):
     """Workflow Stop reaches a live model child and waits for verified process cleanup."""
     bot = make_bot(store, name="stop-step-bot", model="ollama/tiny:1b", tools=[], selfcheck=False)

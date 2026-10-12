@@ -162,6 +162,12 @@ class Engine:
             self._reap_threads()
             self.store.release_expired_claims()
             active = self.store.active_runs()
+            local_model_busy = any(
+                self._local_model_spec(run) is not None
+                and run.status is not RunStatus.waiting_workflow
+                and (run.status is not RunStatus.pending or bool(run.lease_owner))
+                for run in active
+            )
             # Delegated rows enter the same global reservation pool. _start_worker reconstructs
             # their immutable parent policy and rejects unsupported routes before any process starts.
             pending = sorted((r for r in active if r.status is RunStatus.pending and not r.lease_owner),
@@ -170,6 +176,9 @@ class Engine:
                 pending = self.slot_filter(pending, active)
             for run in pending:
                 if run.id in self._threads:
+                    continue
+                local_model = self._local_model_spec(run)
+                if local_model is not None and local_model_busy:
                     continue
                 if len(self._threads) >= self.max_concurrent:
                     break
@@ -186,7 +195,23 @@ class Engine:
                     continue          # another process took it, this bot is busy elsewhere, or the global cap is reached
                 if self._start_worker(bot, claimed):
                     started += 1
+                    if local_model is not None:
+                        local_model_busy = True
         return started
+
+    def _local_model_spec(self, run: Run) -> str | None:
+        """Return an Ollama route whose single request slot is not yet qualified for scaling."""
+        if run.kind == "workflow":
+            return None
+        if isinstance(run.workflow_step, dict):
+            spec = str(run.workflow_step.get("model") or "")
+        else:
+            spec = str(run.model_override or "")
+            if not spec:
+                bot = self.store.get_bot(run.bot_id)
+                spec = str(bot.model or "") if bot is not None else ""
+        provider = spec.partition("/")[0].strip().lower()
+        return spec if provider == "ollama" else None
 
     def _start_worker(self, bot: Bot, run: Run) -> bool:
         try:
@@ -1395,6 +1420,23 @@ class Engine:
         expire_stale_approvals(self.store, self.config.default_approval_ttl_seconds)
         from .workflow import persistence as wfstore
         wfstore.expire_questions(self.store, limit=200)
+        # A second pass observes the durable cancellation transition. This lets an
+        # unclaimed queued loser become visibly drained in the same supervisor beat.
+        for _pass in range(2):
+            for race in wfstore.monitor_first_success_races(self.store):
+                request = {"workflow_run_id": race["workflow_run_id"],
+                           "revision_id": race["revision_id"],
+                           "attempt_run_id": race["attempt_run_id"],
+                           "join_site": race["join_site"], "winner": race["winner"]}
+                request_hash = hashlib.sha256(json.dumps(
+                    request, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+                for child_id in race["run_ids"]:
+                    self.stop_run(
+                        str(child_id),
+                        idem_key=(f"workflow-first-success:{race['workflow_run_id']}:"
+                                  f"{race['revision_id']}:{race['attempt_run_id']}:"
+                                  f"{race['join_site']}:{race['winner']}:{child_id}"),
+                        request_hash=request_hash)
         wfstore.finalize_stopped_workflows(self.store)
         created = self.scheduler_claims()
         self.continue_workflow_runs()

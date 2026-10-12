@@ -539,8 +539,15 @@ Terminal workflow results store node-state counts separately from `output_outcom
 latter groups declared outputs by the evidence and completion available (`verified`,
 `partial`, `skipped`, `failed` or `uncertain`); each group points to its durable node record,
 which remains the source of the value. `all_settled` joins can continue past their explicitly
-named failed or skipped targets and return an incomplete aggregate. `first_success` is rejected
-until execution can race branches and cancel and drain discarded work safely.
+named failed or skipped targets and return an incomplete aggregate. Compilation refuses
+effectful or dependent candidates for `first_success`. Its supported shape is a bounded contiguous group of
+independent, top-level, tool-free worker agents. The parked workflow supervisor chooses by
+completed-run timestamp after output-contract validation, persists the winner with revision,
+attempt and fence checks, then cancels the other child runs by a stable idempotency key. A
+continuation is held until the join records that every loser and owned process has drained.
+Invalid outputs and failed or uncertain candidates are retained in the join result. Local
+Ollama runs share one active slot until higher request concurrency is verified; nonlocal routes
+can use the workflow's declared `max_parallel_steps` bound.
 
 The owner-only amendment-preview route is read-only. It compares a compiled candidate against
 the run's immutable revision and the active attempt ID (the opaque generation token), then

@@ -177,6 +177,7 @@ class _Compiler:
         self._walk(self.plan.nodes, scope=set(self.plan.inputs), depth=0, parent=None,
                    body_name="", path="nodes", instance_template=("once",))
         self._check_outputs()
+        self._check_first_success_references()
         self._check_artifacts()
         self._check_budget()
 
@@ -324,9 +325,6 @@ class _Compiler:
             if node.policy == "all_required" and node.require is not None:
                 self.warn("JOIN_REQUIRE_IGNORED", f"{path}.require",
                           "all_required ignores require")
-            if node.policy == "first_success":
-                self.error("JOIN_FIRST_SUCCESS_UNSUPPORTED", f"{path}.policy",
-                           "first_success needs concurrent execution with cancellation and draining; this interpreter is sequential")
             if node.require is not None and node.require > len(node.of):
                 self.error("JOIN_REQUIRE", f"{path}.require",
                            "require exceeds the number of joined nodes")
@@ -506,7 +504,54 @@ class _Compiler:
                            f"the container's own result instead")
                 continue
             joined.add(target)
+        if node.policy == "first_success":
+            self._check_first_success_join(node, joined, path)
         return joined
+
+    def _check_first_success_join(self, node: Node, targets: set[str], path: str) -> None:
+        """Keep cancellable races bounded to independent, tool-free top-level workers."""
+        if not targets:
+            self.error("JOIN_FIRST_SUCCESS_TARGET", f"{path}.of",
+                       "first_success needs at least one valid target")
+            return
+        if node.require not in (None, 1):
+            self.error("JOIN_FIRST_SUCCESS_REQUIRE", f"{path}.require",
+                       "first_success accepts exactly one successful result")
+        if len(targets) > self.plan.envelope.max_parallel_steps:
+            self.error("JOIN_FIRST_SUCCESS_PARALLELISM", f"{path}.of",
+                       "target count exceeds envelope.max_parallel_steps")
+        if self.plan.budget.max_model_calls < len(targets):
+            self.error("JOIN_FIRST_SUCCESS_BUDGET", "budget.max_model_calls",
+                       "must allow at least one request for every first_success candidate")
+
+        candidates = [self.by_site[target] for target in node.of if target in self.by_site]
+        if any(candidate.kind != "agent" for candidate in candidates):
+            self.error("JOIN_FIRST_SUCCESS_TARGET", f"{path}.of",
+                       "first_success targets must be agent nodes")
+            return
+        if any(candidate.node.role != "worker" or candidate.node.tools or candidate.node.skills
+               for candidate in candidates):
+            self.error("JOIN_FIRST_SUCCESS_EFFECTS", f"{path}.of",
+                       "candidates must be tool-free worker nodes without skills")
+        if any(candidate.node.when is not None or candidate.deps or candidate.control_deps
+               for candidate in candidates):
+            self.error("JOIN_FIRST_SUCCESS_SCOPE", f"{path}.of",
+                       "candidates must be unconditional and independent of other workflow nodes")
+
+        if len(candidates) == len(targets):
+            first_order = min(candidate.order for candidate in candidates)
+            between = {candidate.site_id for candidate in self.nodes
+                       if candidate.body_of is None and first_order <= candidate.order < self._order}
+            if between != targets:
+                self.error("JOIN_FIRST_SUCCESS_SCOPE", f"{path}.of",
+                           "independent candidates must appear together immediately before their join")
+
+        for previous in self.nodes:
+            if previous.kind == "join" and previous.node.policy == "first_success":
+                reused = targets & set(previous.node.of)
+                if reused:
+                    self.error("JOIN_FIRST_SUCCESS_REUSE", f"{path}.of",
+                               f"candidate nodes already belong to first_success join {previous.site_id!r}")
 
     def _node_values(self, node: Node) -> Iterable[tuple[str, Any]]:
         yield "args", node.args
@@ -553,6 +598,21 @@ class _Compiler:
             elif self.by_site[head].body_of is not None:
                 self.error("OUTPUT_REF", f"outputs[{index}]",
                            "outputs must name a top-level node")
+
+    def _check_first_success_references(self) -> None:
+        """Require consumers to use the selected join value, never a possible loser."""
+        for join in self.nodes:
+            if join.kind != "join" or join.node.policy != "first_success":
+                continue
+            targets = set(join.node.of)
+            for consumer in self.nodes:
+                if consumer.order > join.order and (targets & (set(consumer.deps) | set(consumer.control_deps))):
+                    self.error("JOIN_FIRST_SUCCESS_REFERENCE", consumer.scope_path,
+                               "use the first_success join result; an individual candidate may be discarded")
+            for index, ref in enumerate(self.plan.outputs):
+                if _ref_head(ref) in targets:
+                    self.error("JOIN_FIRST_SUCCESS_REFERENCE", f"outputs[{index}]",
+                               "publish the first_success join result instead of an individual candidate")
 
     def _check_artifacts(self) -> None:
         primaries = [n.site_id for n in self.nodes

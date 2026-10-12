@@ -1,0 +1,50 @@
+{
+  "base_commit": "0a137068e70d1651a3b098de368dbd7395db2088",
+  "branch": "codex/dynamic-workflows-completion",
+  "coverage": [
+    "bounded candidate admission and first acceptable schema-valid result",
+    "nonlocal parallel execution and conservative single-slot Ollama admission",
+    "durable winner selection, stable loser cancellation and process drain",
+    "supervisor restart after winner persistence before cancellation request",
+    "honest all-candidates-failed result",
+    "compile-time rejection of effects, dependencies and direct candidate references"
+  ],
+  "environment": {
+    "pytest": "pytest 9.1.1",
+    "python": "3.13.15"
+  },
+  "limits": [
+    "The process/runtime tests use controlled scripted responses; they establish Hutch execution and fencing behavior, not live model quality.",
+    "This runtime-only slice does not change the rendered UI, so it has no new screenshot capture; responsive Studio and marketing visual evidence remains in the linked project artifacts."
+  ],
+  "recorded_at_utc": "2026-10-12T02:14:31.993845+00:00",
+  "schema_version": 1,
+  "slice": "bounded first_success joins",
+  "source_sha256": {
+    "docs/architecture.md": "188db105815a9f031354d4971bdb2f83c754d002332af9061dcab1b0459ee83f",
+    "docs/realignment/dynamic-workflows.md": "8b7e08f0a439b47b863718fec18c0df63b04d2cdcdfe340795b5f451ff09c24d",
+    "docs/workflows.md": "d8b08a977bc06052fdb52cf8d613430b2ab81b2d77bbdb3aa798be785b40c082",
+    "src/hutch/engine.py": "8fbeeead6d311b2253658e49c81f7c8b30590304d7149040e2129fc2da6fc772",
+    "src/hutch/workflow/compile.py": "45337f220358278d4a770b9cab9a01b40d65ec79bb2191499dfabfb05d600609",
+    "src/hutch/workflow/engine.py": "073e4c51e22a9f68da847ec681e784e5c9e45b94d1aa29e09ff72848e1819a8c",
+    "src/hutch/workflow/persistence.py": "224fcc770910b792321947c9c7d3b9440dbf641ca8ea194feb04c74912a89c19",
+    "tests/test_workflow_plan.py": "b32fb0ac9d377166f761a125c0748b823fa77f6b62ba08eabcd1ed352c61cffe",
+    "tests/test_workflow_steps.py": "114db945edbe7bf867f7bde925749e6c5bf8adae77e9f3415749c198c6a67583"
+  },
+  "verification": [
+    {
+      "command": "TMPDIR=/var/tmp .venv/bin/pytest -q tests/test_workflow_plan.py tests/test_workflow_engine.py tests/test_workflow_steps.py tests/test_workflow_usage_budget.py tests/test_dispatch_fairness.py tests/test_workflow_regressions.py tests/test_workflow_effect_receipts.py",
+      "duration_seconds": 64.65,
+      "result": "passed",
+      "tests": 113
+    },
+    {
+      "command": ".venv/bin/python -m compileall -q src/hutch/workflow/compile.py src/hutch/workflow/engine.py src/hutch/workflow/persistence.py src/hutch/engine.py",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    }
+  ]
+}

@@ -128,9 +128,15 @@ class Interpreter:
             target for candidate in compiled.nodes if candidate.kind == "join"
             for target in candidate.node.of
         }
+        self.first_success_by_target = {
+            target: (join, tuple(sorted(
+                (compiled.by_site[site] for site in join.node.of), key=lambda item: item.order)))
+            for join in compiled.nodes if join.kind == "join" and join.node.policy == "first_success"
+            for target in join.node.of
+        }
         self.all_settled_targets = {
             target for candidate in compiled.nodes
-            if candidate.kind == "join" and candidate.node.policy == "all_settled"
+            if candidate.kind == "join" and candidate.node.policy in ("all_settled", "first_success")
             for target in candidate.node.of
         }
         self.opened_steps: set[tuple[str, str]] = set()
@@ -217,6 +223,25 @@ class Interpreter:
                 if cnode.site_id in self.join_targets:
                     scope[cnode.site_id] = _JOIN_SKIPPED
                 continue
+            race = self.first_success_by_target.get(cnode.site_id)
+            if race is not None:
+                join, targets = race
+                if cnode.site_id == targets[0].site_id:
+                    self._start_first_success_race(join, targets, scope)
+                join_record = self.nodes.get((join.site_id, self._instance_key))
+                if join_record is not None and join_record["status"] == "succeeded":
+                    result = join_record.get("result") or {}
+                    winner = str(result.get("winner") or "")
+                    scope[cnode.site_id] = ((result.get("items") or {}).get(cnode.site_id)
+                                            if cnode.site_id == winner else _JOIN_SKIPPED)
+                    continue
+                if join_record is not None and join_record["status"] in ("failed", "cancelled"):
+                    saved = join_record.get("result") or {}
+                    reason = join_record.get("error", {}).get("reason") or "no candidate succeeded"
+                    if saved.get("uncertain"):
+                        raise RunAborted("outcome_unknown", str(reason))
+                    raise WorkflowFailed(join.site_id, str(reason))
+                raise _Wait()
             try:
                 value = self._visit(cnode, scope)
             except _Wait:
@@ -237,6 +262,96 @@ class Interpreter:
                 continue
             scope[cnode.site_id] = value
         return value
+
+    def _start_first_success_race(self, join: CompiledNode, targets: tuple[CompiledNode, ...],
+                                  scope: dict[str, Any]) -> None:
+        """Admit every bounded candidate before parking; the supervisor selects and drains."""
+        key = self._instance_key
+        join_record = self.nodes.get((join.site_id, key))
+        if join_record is not None and join_record["status"] == "succeeded":
+            winner = str((join_record.get("result") or {}).get("winner") or "")
+            for target in targets:
+                if target.site_id == winner:
+                    continue
+                record = self.nodes.get((target.site_id, key))
+                if record is None:
+                    self._ensure_open(target, key, "step", {"discarded": True, "winner": winner})
+                    self._persist_settle(target.site_id, key, status="cancelled",
+                                         error=f"discarded after first_success selected {winner}")
+                    self.nodes[(target.site_id, key)].update(
+                        status="cancelled", error={"reason": f"discarded after first_success selected {winner}"})
+                elif record["status"] in ("running", "waiting"):
+                    # A crash can leave an opened candidate node before its child was
+                    # durably inserted. Once a winner is recorded, never re-admit that
+                    # candidate on continuation; it has no run to drain.
+                    run_id = str(record.get("run_id") or "")
+                    child = self.store.get_run(run_id) if run_id else None
+                    if child is None:
+                        reason = f"discarded after first_success selected {winner}"
+                        self._persist_settle(target.site_id, key, status="cancelled", error=reason)
+                        self.nodes[(target.site_id, key)] = {
+                            "site_id": target.site_id, "instance_key": key,
+                            "status": "cancelled", "result": {},
+                            "error": {"reason": reason}, "run_id": None}
+                        continue
+                    try:
+                        self._dispatch_step(target, key, scope, instruction=target.node.instruction,
+                                            model=target.node.model, role=target.node.role, subject=None,
+                                            output_schema=target.node.output_schema, tools=target.node.tools,
+                                            skills=target.node.skills)
+                    except (_Wait, WorkflowFailed):
+                        pass
+            return
+        if join_record is not None and join_record["status"] in ("failed", "cancelled"):
+            saved = join_record.get("result") or {}
+            reason = join_record.get("error", {}).get("reason") or "no candidate succeeded"
+            if saved.get("uncertain"):
+                raise RunAborted("outcome_unknown", str(reason))
+            raise WorkflowFailed(join.site_id, str(reason))
+        if join_record is None:
+            self._start_node(join, key, "join", {"policy": "first_success",
+                                                  "targets": [target.site_id for target in targets]})
+        for target in targets:
+            if wstore.workflow_pause_requested(self.store, self.wf_id):
+                break
+            record = self.nodes.get((target.site_id, key))
+            if record is not None and record["status"] in (
+                    "succeeded", "failed", "skipped", "cancelled"):
+                continue
+            try:
+                self._dispatch_step(target, key, scope, instruction=target.node.instruction,
+                                    model=target.node.model, role=target.node.role, subject=None,
+                                    output_schema=target.node.output_schema, tools=target.node.tools,
+                                    skills=target.node.skills)
+            except _Wait:
+                # One candidate's pending or failed state never prevents its siblings
+                # from being admitted. The supervisor owns winner selection and cleanup.
+                continue
+            except WorkflowFailed as exc:
+                self._record_first_success_candidate_failure(target, key, str(exc))
+        raise _Wait()
+
+    def _record_first_success_candidate_failure(self, cnode: CompiledNode, key: str,
+                                               reason: str) -> None:
+        """Make admission failures durable so a race cannot park forever without children."""
+        current = wstore.node(self.store, self.wf_id, cnode.site_id, key)
+        if current is None:
+            self._start_node(cnode, key, "step", {"first_success": True})
+            current = self.nodes[(cnode.site_id, key)]
+        elif current["status"] in ("succeeded", "failed", "skipped", "cancelled"):
+            self.nodes[(cnode.site_id, key)] = current
+            return
+        try:
+            self._persist_settle(cnode.site_id, key, status="failed", result={}, error=reason)
+        except ValueError:
+            current = wstore.node(self.store, self.wf_id, cnode.site_id, key)
+            if current is None or current["status"] not in ("succeeded", "failed", "skipped", "cancelled"):
+                raise
+            self.nodes[(cnode.site_id, key)] = current
+            return
+        self.nodes[(cnode.site_id, key)] = {
+            "site_id": cnode.site_id, "instance_key": key, "status": "failed",
+            "result": {}, "error": {"reason": reason}, "run_id": None}
 
     def _visit(self, cnode: CompiledNode, scope: dict[str, Any]) -> Any:
         node = cnode.node
@@ -348,8 +463,14 @@ class Interpreter:
             raise WorkflowFailed(node.id,
                                  f"required inputs are missing: {sorted(set(missing + failed + skipped))}")
         if node.policy == "first_success":
-            raise WorkflowFailed(node.id,
-                                 "first_success requires concurrent execution with cancellation and draining")
+            winner = next((target for target in node.of if target in items), "")
+            if not winner:
+                raise WorkflowFailed(node.id, "all first_success candidates failed or were cancelled")
+            return {"complete": len(items) == len(node.of), "policy": node.policy,
+                    "items": {winner: items[winner]}, "winner": winner, "accepted": True,
+                    "missing": missing, "failed": failed, "skipped": skipped,
+                    "settled": len(items) + len(failed) + len(skipped), "required": 1,
+                    "discarded": [], "drained": True}
         required = node.require if node.require is not None else len(node.of)
         complete = len(items) == len(node.of) and not (missing or failed or skipped)
         return {"complete": complete, "policy": node.policy, "items": items,
@@ -946,6 +1067,20 @@ class Interpreter:
         if step["status"] != "succeeded":
             if step["status"] == "outcome_unknown":
                 raise RunAborted("outcome_unknown", f"the {cnode.site_id} step has an unresolved effect; reconcile it before retrying")
+            race = self.first_success_by_target.get(cnode.site_id)
+            if step["status"] in ("stopped", "cancelled") and race is not None:
+                join = race[0]
+                join_record = self.nodes.get((join.site_id, instance_key))
+                winner = str((join_record or {}).get("result", {}).get("winner") or "")
+                if winner and winner != cnode.site_id:
+                    reason = f"discarded after first_success selected {winner}"
+                    self._persist_settle(cnode.site_id, instance_key,
+                                         status="cancelled", error=reason)
+                    self.nodes[(cnode.site_id, instance_key)] = {
+                        "site_id": cnode.site_id, "instance_key": instance_key,
+                        "status": "cancelled", "result": {}, "error": {"reason": reason},
+                        "run_id": None}
+                    raise WorkflowFailed(cnode.site_id, reason)
             reason = f"the step ended as {step['status']}"
             if step.get("exit_reason"):
                 reason += f" ({step['exit_reason']})"

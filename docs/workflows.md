@@ -300,10 +300,21 @@ skipped and missing targets separately. `complete` means every target produced a
 allowed to pass through only when an `all_settled` join names it; unrelated failures still
 fail the workflow. This interpreter currently visits ordinary nodes sequentially.
 
-`first_success` is rejected during compilation. It promises the first acceptable completion
-and requires canceling and draining work that lost the race; selecting the first successful
-node after sequential execution would make a weaker promise. That policy remains unsupported
-until the scheduler can provide those guarantees.
+`first_success` accepts consecutive, independent, top-level worker agents with no tools or
+activated skills. Their count must fit `envelope.max_parallel_steps` and the declared request
+budget. Use the join's value downstream; referencing a candidate directly is rejected because
+that candidate may lose. Hutch accepts the first completed candidate whose step and declared
+output contract succeed, stores the winner before asking the supervisor to cancel the rest, and
+does not continue until the discarded child runs and owned processes have drained. Failed,
+invalid and uncertain candidates remain listed separately on the join result. If all candidates
+fail, the join fails; if none succeeds and any outcome is unknown, the workflow remains
+`outcome_unknown`.
+
+The supervisor currently admits one local Ollama run at a time because this installation has
+not verified higher local inference concurrency. Other configured routes may use the declared
+parallel-step limit. This leaves more latency for local candidate lists, but keeps inference and
+memory use inside the verified resource envelope. Effectful tools, skills, conditional targets,
+dependencies, nested targets and non-agent targets are refused during compilation.
 
 The terminal workflow result keeps node-state `counts` separate from `output_outcomes`.
 Declared top-level outputs are grouped as `verified`, `partial`, `skipped`, `failed`, or

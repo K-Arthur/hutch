@@ -992,6 +992,10 @@ def workflow_runs_needing_attempt(store: Any, *, limit: int = 4,
 
 def _workflow_branch_ready(db: sqlite3.Connection, wf_id: str, attempt_id: str) -> bool:
     """No person question, child run, or owned process is left before a fresh pass."""
+    attempt = db.execute("SELECT status FROM runs WHERE id = ?", (attempt_id,)).fetchone()
+    if (attempt is not None and str(attempt["status"]) == "waiting_workflow"
+            and not _first_success_winners_drained(db, wf_id, attempt_id)):
+        return False
     if db.execute("SELECT 1 FROM workflow_questions WHERE workflow_run_id = ? AND status = 'pending' LIMIT 1",
                   (wf_id,)).fetchone():
         return False
@@ -1012,6 +1016,37 @@ def _workflow_branch_ready(db: sqlite3.Connection, wf_id: str, attempt_id: str) 
             WHERE rp.ended_at IS NULL AND rp.detached_at IS NULL LIMIT 1""",
         (attempt_id,)).fetchone()
     return owned_process is None
+
+
+def _first_success_winners_drained(db: sqlite3.Connection, wf_id: str, attempt_id: str) -> bool:
+    """Keep a parked generation from continuing until every selected race loser drained."""
+    from .compile import compile_plan
+
+    row = db.execute(
+        """SELECT rev.plan_json FROM workflow_runs w
+           JOIN workflow_revisions rev ON rev.id = w.revision_id
+           WHERE w.id = ? AND w.attempt_run_id = ?""", (wf_id, attempt_id)).fetchone()
+    if row is None:
+        return False
+    try:
+        plan = compile_plan(json.loads(str(row["plan_json"])))
+    except (TypeError, ValueError):
+        return False
+    for join in plan.nodes:
+        if join.kind != "join" or join.node.policy != "first_success":
+            continue
+        race = db.execute(
+            "SELECT status, result_json FROM workflow_nodes WHERE workflow_run_id = ? AND site_id = ? "
+            "AND instance_key = 'once'", (wf_id, join.site_id)).fetchone()
+        if race is None or str(race["status"]) != "succeeded":
+            continue
+        try:
+            result = json.loads(str(race["result_json"] or "{}"))
+        except (TypeError, ValueError):
+            return False
+        if result.get("drained") is not True:
+            return False
+    return True
 
 
 def admit_workflow_continuation(store: Any, wf_id: str) -> Optional[Run]:
@@ -1239,6 +1274,332 @@ def step_run_result(store: Any, run_id: str) -> dict[str, Any]:
             break
     return {"status": run.status.value, "text": text, "exit_reason": run.exit_reason,
             "error": run.error, "steps": run.steps, "tokens": run.tokens, "cost_usd": run.cost_usd}
+
+
+def monitor_first_success_races(store: Any) -> list[dict[str, Any]]:
+    """Durably choose completed race winners and return loser runs for fenced Stop.
+
+    Only a parked, current workflow generation is eligible. The decision transaction
+    checks the revision, attempt id, attempt fence, and absence of a live lease before it
+    writes either a candidate result or the join result. Repeated supervisor ticks reuse
+    that result and repeat cancellation requests with the same idempotency identity.
+    """
+    from ..store import _TERMINAL_VALUES
+    from .compile import compile_plan
+
+    with store._lock:
+        workflow_rows = store._db.execute(
+            """SELECT w.id, w.revision_id, w.attempt_run_id, w.pause_requested,
+                      r.fence, rev.plan_json
+               FROM workflow_runs w
+               JOIN workflow_revisions rev ON rev.id = w.revision_id
+               JOIN runs r ON r.id = w.attempt_run_id
+               WHERE w.status = 'waiting' AND w.stop_requested = 0
+                 AND r.status = 'waiting_workflow' AND r.lease_owner = ''
+                 AND r.cancel_requested = 0
+               ORDER BY w.updated_at LIMIT 200""").fetchall()
+
+    cancellations: list[dict[str, Any]] = []
+    for workflow in workflow_rows:
+        if int(workflow["pause_requested"]):
+            continue
+        wf_id = str(workflow["id"])
+        revision_id = str(workflow["revision_id"])
+        attempt_id = str(workflow["attempt_run_id"])
+        attempt_fence = int(workflow["fence"])
+        try:
+            plan = compile_plan(json.loads(str(workflow["plan_json"])))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            # A revision that no longer compiles is not permission to mutate its run.
+            continue
+        joins = [item for item in plan.nodes
+                 if item.kind == "join" and item.node.policy == "first_success"]
+        for join in joins:
+            key = "once"  # first_success candidates are compile-restricted to top level.
+            with store._lock:
+                join_row = store._db.execute(
+                    "SELECT * FROM workflow_nodes WHERE workflow_run_id = ? AND site_id = ? AND instance_key = ?",
+                    (wf_id, join.site_id, key)).fetchone()
+                if join_row is None or str(join_row["status"]) in ("failed", "cancelled"):
+                    continue
+                candidate_rows = store._db.execute(
+                    "SELECT * FROM workflow_nodes WHERE workflow_run_id = ? AND site_id IN (%s) "
+                    "AND instance_key = ?" % ",".join("?" for _ in join.node.of),
+                    (wf_id, *join.node.of, key)).fetchall()
+                by_site = {str(row["site_id"]): row for row in candidate_rows}
+                children = {
+                    site: store._db.execute("SELECT status, doc, cancel_requested FROM runs WHERE id = ?",
+                                            (str(row["run_id"]),)).fetchone()
+                    for site, row in by_site.items() if row["run_id"]
+                }
+            candidate_facts: dict[str, dict[str, Any]] = {}
+            for site in join.node.of:
+                node_row = by_site.get(site)
+                child_row = children.get(site)
+                if node_row is None:
+                    candidate_facts[site] = {"state": "pending", "run_id": None}
+                    continue
+                node_status = str(node_row["status"])
+                if node_status in ("succeeded", "failed", "skipped", "cancelled"):
+                    try:
+                        node_result = json.loads(str(node_row["result_json"] or "{}"))
+                        node_error = json.loads(str(node_row["error_json"] or "{}"))
+                    except (TypeError, ValueError):
+                        node_result, node_error = {}, {}
+                    try:
+                        child_finished_at = (str(json.loads(str(child_row["doc"] or "{}")).get("finished_at") or "")
+                                             if child_row is not None else "")
+                    except (TypeError, ValueError):
+                        child_finished_at = ""
+                    finished_at = child_finished_at or str(node_row["finished_at"] or "")
+                    if node_status == "succeeded":
+                        candidate_facts[site] = {
+                            "state": "succeeded", "result": node_result,
+                            "run_id": str(node_row["run_id"] or ""),
+                            "finished_at": finished_at,
+                        }
+                    elif node_status == "cancelled" or node_status == "skipped":
+                        candidate_facts[site] = {
+                            "state": "cancelled", "reason": str(node_error.get("reason") or "candidate was skipped"),
+                            "run_id": str(node_row["run_id"] or ""),
+                            "finished_at": finished_at,
+                        }
+                    else:
+                        candidate_facts[site] = {
+                            "state": "failed", "reason": str(node_error.get("reason") or "candidate failed"),
+                            "run_id": str(node_row["run_id"] or ""),
+                            "finished_at": finished_at,
+                        }
+                    continue
+                if child_row is None:
+                    candidate_facts[site] = {"state": "pending", "run_id": None}
+                    continue
+                run_id = str(node_row["run_id"])
+                child_status = str(child_row["status"])
+                try:
+                    finished_at = str(json.loads(str(child_row["doc"] or "{}")).get("finished_at") or "")
+                except (TypeError, ValueError):
+                    finished_at = ""
+                fact: dict[str, Any] = {"state": "pending", "run_id": run_id,
+                                        "finished_at": finished_at}
+                if child_status in _TERMINAL_VALUES:
+                    child = store.get_run(run_id)
+                    contract = child.workflow_step if child is not None else None
+                    try:
+                        candidate_parent_fence = int(contract.get("parent_fence", -1)) if isinstance(contract, dict) else -1
+                    except (TypeError, ValueError):
+                        candidate_parent_fence = -1
+                    if (child is None or child.parent_run_id != attempt_id
+                            or not isinstance(contract, dict)
+                            or contract.get("workflow_run_id") != wf_id
+                            or contract.get("revision_id") != revision_id
+                            or candidate_parent_fence != attempt_fence
+                            or contract.get("site_id") != site
+                            or contract.get("instance_key") != key):
+                        fact.update(state="uncertain", reason="the candidate's run identity no longer matches this generation")
+                        candidate_facts[site] = fact
+                        continue
+                    step = step_run_result(store, run_id)
+                    if child_status == "succeeded" and not int(child_row["cancel_requested"]):
+                        text = str(step.get("text") or "")
+                        value: dict[str, Any] = {"text": text[:64 * 1024],
+                                                 "steps": step.get("steps"),
+                                                 "tokens": step.get("tokens")}
+                        output_schema = plan.by_site[site].node.output_schema
+                        if output_schema is not None:
+                            from .engine import _parse_structured
+
+                            parsed, problems = _parse_structured(text, output_schema)
+                            if problems:
+                                fact.update(state="failed", reason=(
+                                    "the step's answer did not satisfy its output contract: " + problems))
+                            else:
+                                value["output"] = parsed
+                                fact.update(state="succeeded", result=value)
+                        else:
+                            fact.update(state="succeeded", result=value)
+                    elif child_status == "outcome_unknown":
+                        fact.update(state="uncertain", reason=(
+                            step.get("error") or step.get("exit_reason") or "the candidate outcome is unknown"))
+                    elif child_status in ("stopped", "cancelled"):
+                        fact.update(state="cancelled", reason="the candidate was stopped before it succeeded")
+                    else:
+                        fact.update(state="failed", reason=(
+                            f"the candidate ended as {child_status}"
+                            + (f" ({step.get('exit_reason')})" if step.get("exit_reason") else "")
+                            + (f": {str(step.get('error'))[:300]}" if step.get("error") else "")))
+                candidate_facts[site] = fact
+
+            existing_result: dict[str, Any] = {}
+            try:
+                existing_result = json.loads(str(join_row["result_json"] or "{}"))
+            except (TypeError, ValueError):
+                existing_result = {}
+            result = dict(existing_result)
+            winner = str(existing_result.get("winner") or "")
+            if str(join_row["status"]) == "succeeded" and winner not in join.node.of:
+                continue
+            if not winner:
+                successes = [site for site in join.node.of
+                             if candidate_facts.get(site, {}).get("state") == "succeeded"]
+                if successes:
+                    winner = min(successes, key=lambda site: (
+                        candidate_facts[site].get("finished_at") or "\uffff", join.node.of.index(site)))
+                elif all(candidate_facts.get(site, {}).get("state") in
+                         ("failed", "cancelled", "uncertain") for site in join.node.of):
+                    failure_result = {
+                        "complete": False, "policy": "first_success", "items": {},
+                        "winner": "", "accepted": False,
+                        "missing": [],
+                        "failed": [site for site in join.node.of
+                                   if candidate_facts[site]["state"] == "failed"],
+                        "uncertain": [site for site in join.node.of
+                                      if candidate_facts[site]["state"] == "uncertain"],
+                        "skipped": [site for site in join.node.of
+                                    if candidate_facts[site]["state"] == "cancelled"],
+                        "settled": len(join.node.of), "required": 1,
+                        "discarded": [], "drained": True,
+                    }
+                    failed_reason = "all first_success candidates failed, were stopped, or had uncertain outcomes"
+                    _settle_first_success_result(
+                        store, wf_id=wf_id, revision_id=revision_id, attempt_id=attempt_id,
+                        attempt_fence=attempt_fence, join=join, key=key, status="failed",
+                        result=failure_result, error=failed_reason, candidate_facts=candidate_facts)
+                    continue
+                else:
+                    continue
+
+                failed = [site for site in join.node.of if candidate_facts[site]["state"] == "failed"]
+                uncertain = [site for site in join.node.of if candidate_facts[site]["state"] == "uncertain"]
+                skipped = [site for site in join.node.of if candidate_facts[site]["state"] == "cancelled"]
+                result = {
+                    "complete": len(successes) == len(join.node.of), "policy": "first_success",
+                    "items": {winner: candidate_facts[winner]["result"]}, "winner": winner,
+                    "accepted": True, "missing": [], "failed": failed,
+                    "uncertain": uncertain, "skipped": skipped,
+                    "settled": len(successes) + len(failed) + len(uncertain) + len(skipped),
+                    "required": 1,
+                    "discarded": [{"site_id": site,
+                                   "run_id": candidate_facts[site].get("run_id"),
+                                   "status": "cancellation_requested"}
+                                  for site in join.node.of if site != winner],
+                    "drained": False,
+                }
+                _settle_first_success_result(
+                    store, wf_id=wf_id, revision_id=revision_id, attempt_id=attempt_id,
+                    attempt_fence=attempt_fence, join=join, key=key, status="succeeded",
+                    result=result, error="", candidate_facts=candidate_facts)
+
+            if winner:
+                cancel_ids: list[str] = []
+                discarded: list[dict[str, Any]] = []
+                drained = True
+                for site in join.node.of:
+                    if site == winner:
+                        continue
+                    fact = candidate_facts.get(site, {})
+                    run_id = fact.get("run_id")
+                    if not run_id:
+                        discarded.append({"site_id": site, "run_id": None, "status": "not_started"})
+                        continue
+                    child = store.get_run(str(run_id))
+                    live_procs = store.live_procs(str(run_id))
+                    child_status = child.status.value if child is not None else "missing"
+                    if child is not None and (not child.terminal or live_procs):
+                        drained = False
+                        if not child.cancel_requested:
+                            cancel_ids.append(str(run_id))
+                        child_status = "cancelling" if child.cancel_requested else "cancellation_requested"
+                    discarded.append({"site_id": site, "run_id": str(run_id),
+                                      "status": child_status,
+                                      "run_status": child.status.value if child is not None else "missing"})
+                result = dict(result or existing_result)
+                result["discarded"] = discarded
+                result["drained"] = drained
+                refreshed = _refresh_first_success_drain(
+                    store, wf_id=wf_id, revision_id=revision_id, attempt_id=attempt_id,
+                    attempt_fence=attempt_fence, join=join, key=key, result=result)
+                if refreshed or cancel_ids:
+                    cancellations.append({"workflow_run_id": wf_id, "revision_id": revision_id,
+                                         "attempt_run_id": attempt_id, "join_site": join.site_id,
+                                         "winner": winner, "run_ids": cancel_ids})
+    return cancellations
+
+
+def _settle_first_success_result(store: Any, *, wf_id: str, revision_id: str,
+                                 attempt_id: str, attempt_fence: int, join: Any, key: str,
+                                 status: str, result: dict[str, Any], error: str,
+                                 candidate_facts: dict[str, dict[str, Any]]) -> bool:
+    """CAS race results while the same parked generation still owns the decision."""
+    now = iso(utcnow())
+    with store._tx() as db:
+        row = db.execute(
+            """SELECT w.status, w.revision_id, w.attempt_run_id, w.stop_requested, w.pause_requested,
+                      r.status AS attempt_status, r.fence, r.lease_owner, r.cancel_requested
+               FROM workflow_runs w JOIN runs r ON r.id = w.attempt_run_id WHERE w.id = ?""",
+            (wf_id,)).fetchone()
+        if (row is None or str(row["status"]) != "waiting" or str(row["revision_id"]) != revision_id
+                or str(row["attempt_run_id"]) != attempt_id or int(row["stop_requested"])
+                or int(row["pause_requested"]) or str(row["attempt_status"]) != "waiting_workflow"
+                or int(row["fence"]) != attempt_fence or str(row["lease_owner"])
+                or int(row["cancel_requested"])):
+            return False
+        for site, fact in candidate_facts.items():
+            candidate = db.execute(
+                "SELECT status, run_id FROM workflow_nodes WHERE workflow_run_id = ? AND site_id = ? AND instance_key = ?",
+                (wf_id, site, key)).fetchone()
+            if candidate is None or not fact.get("run_id") or str(candidate["run_id"] or "") != str(fact["run_id"]):
+                continue
+            new_status = fact.get("state")
+            if new_status not in ("succeeded", "failed", "cancelled", "uncertain"):
+                continue
+            row_status = "failed" if new_status == "uncertain" else str(new_status)
+            node_result = fact.get("result") if new_status == "succeeded" else {
+                "uncertain": True} if new_status == "uncertain" else {}
+            node_error = str(fact.get("reason") or "")
+            db.execute(
+                """UPDATE workflow_nodes SET status = ?, result_json = ?, error_json = ?, finished_at = ?
+                   WHERE workflow_run_id = ? AND site_id = ? AND instance_key = ?
+                     AND status IN ('running','waiting') AND run_id = ?""",
+                (row_status, _json(node_result), _json({"reason": node_error} if node_error else {}), now,
+                 wf_id, site, key, str(fact["run_id"]))
+            )
+        cur = db.execute(
+            """UPDATE workflow_nodes SET status = ?, result_json = ?, error_json = ?, finished_at = ?
+               WHERE workflow_run_id = ? AND site_id = ? AND instance_key = ?
+                 AND status IN ('running','waiting')""",
+            (status, _json(result), _json({"reason": error} if error else {}), now,
+             wf_id, join.site_id, key)
+        )
+        changed = cur.rowcount == 1
+    if changed:
+        store.bus.notify("workflows", f"workflow:{wf_id}")
+    return changed
+
+
+def _refresh_first_success_drain(store: Any, *, wf_id: str, revision_id: str,
+                                 attempt_id: str, attempt_fence: int, join: Any, key: str,
+                                 result: dict[str, Any]) -> bool:
+    with store._tx() as db:
+        row = db.execute(
+            """SELECT w.status, w.revision_id, w.attempt_run_id, w.stop_requested,
+                      r.status AS attempt_status, r.fence, r.lease_owner, r.cancel_requested
+               FROM workflow_runs w JOIN runs r ON r.id = w.attempt_run_id WHERE w.id = ?""",
+            (wf_id,)).fetchone()
+        if (row is None or str(row["status"]) != "waiting" or str(row["revision_id"]) != revision_id
+                or str(row["attempt_run_id"]) != attempt_id or int(row["stop_requested"])
+                or str(row["attempt_status"]) != "waiting_workflow" or int(row["fence"]) != attempt_fence
+                or str(row["lease_owner"]) or int(row["cancel_requested"])):
+            return False
+        cur = db.execute(
+            """UPDATE workflow_nodes SET result_json = ?
+               WHERE workflow_run_id = ? AND site_id = ? AND instance_key = ?
+                 AND status = 'succeeded' AND result_json != ?""",
+            (_json(result), wf_id, join.site_id, key, _json(result)))
+        changed = cur.rowcount == 1
+    if changed:
+        store.bus.notify("workflows", f"workflow:{wf_id}")
+    return changed
 
 
 # ------------------------------------------------------------------- questions
