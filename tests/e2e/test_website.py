@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import http.server
 import json
+import os
 import platform
 import socketserver
 import threading
@@ -705,7 +706,8 @@ def test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_
 
 def test_dynamic_workflow_marketing_is_truthful_and_responsive(browser, site_url):
     context, page, errors = _page(browser, reduced_motion="reduce")
-    out = ROOT / "docs/realignment/artifacts/dynamic-workflows/marketing"
+    out = Path(os.environ.get("HUTCH_DYNAMIC_WORKFLOW_MARKETING_ARTIFACTS",
+                              ROOT / "docs/realignment/artifacts/dynamic-workflows/marketing"))
     out.mkdir(parents=True, exist_ok=True)
     external = []
     page.on("request", lambda request: external.append(request.url)
@@ -721,15 +723,14 @@ def test_dynamic_workflow_marketing_is_truthful_and_responsive(browser, site_url
         preview = page.locator("#workflow .workflow-preview")
         assert preview.count() == 1
         preview_text = preview.inner_text().lower()
-        for phrase in ("private preview", "saved steps, started by you", "planned steps separately from discovered instances",
-                       "answer each pending question", "request a pause while a step is running",
-                       "current work settles before the next step is held", "pause or resume it from the same chat",
-                       "stop while owned work settles",
-                       "completed step is not necessarily verified", "selector qualification for the exact model profile",
-                       "two local profiles tested did not qualify", "auto does not create new plans",
-                       "an owner can link an activated saved method to an existing routine",
-                       "pins that revision and its checked inputs", "enabling the routine stays a separate choice",
-                       "run now launches one copy without moving the next scheduled occurrence"):
+        workflow_copy_words = len(preview_text.split())
+        assert workflow_copy_words <= 100, "the workflow explanation should stay concise"
+        for phrase in ("private preview", "saved steps, started by you", "planned steps stay distinct from discovered instances",
+                       "answer each pending question", "pause lets active work settle before the next step is held",
+                       "resume or stop from chat",
+                       "completed step is not necessarily verified", "a qualified selector for the exact model profile",
+                       "neither tested local profile qualified", "auto does not create new plans",
+                       "an owner can link an activated workflow to a routine", "enabling stays separate"):
             assert phrase in preview_text, phrase
         assert page.locator("#workflow .workflow-details").count() == 3
 
@@ -769,6 +770,7 @@ def test_dynamic_workflow_marketing_is_truthful_and_responsive(browser, site_url
             page.set_viewport_size({"width": width, "height": height})
             page.locator("#workflow").scroll_into_view_if_needed()
             preview.scroll_into_view_if_needed()
+            preview.evaluate("element => window.scrollBy(0, element.getBoundingClientRect().top - 90)")
             page.wait_for_timeout(60)
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert overflow <= 1, (label, overflow)
@@ -801,6 +803,7 @@ def test_dynamic_workflow_marketing_is_truthful_and_responsive(browser, site_url
             "captured_at": datetime.now(timezone.utc).isoformat(),
             "browser": browser.browser_type.name, "browser_version": browser.version,
             "playwright_version": package_version("playwright"), "reduced_motion": "reduce",
+            "workflow_preview_word_count": workflow_copy_words,
             "provider_calls": 0, "external_requests": external, "page_errors": errors,
             "viewports": captures, "source_sha256": source_hashes,
             "visual_artifact_sha256": hashes,

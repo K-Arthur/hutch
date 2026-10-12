@@ -1,0 +1,25 @@
+{
+  "test": "tests/e2e/test_website.py::test_dynamic_workflow_marketing_is_truthful_and_responsive",
+  "command": "TMPDIR=/var/tmp HUTCH_DYNAMIC_WORKFLOW_MARKETING_ARTIFACTS=docs/realignment/artifacts/dynamic-workflows/marketing-verification-2026-10-11 .venv/bin/pytest -q tests/e2e/test_website.py::test_dynamic_workflow_marketing_is_truthful_and_responsive --basetemp=/var/tmp/hutch-dynamic-workflow-marketing-20261011",
+  "result": "passed",
+  "copy_words": 99,
+  "browser": "Chromium 153.0.8010.12",
+  "playwright": "1.63.0",
+  "reduced_motion": "reduce",
+  "provider_calls": 0,
+  "external_requests": [],
+  "page_errors": [],
+  "viewports": [
+    {"name": "desktop", "viewport": [1440, 900], "card_width_px": 1112, "card_height_px": 333.28, "horizontal_overflow_px": 0},
+    {"name": "tablet", "viewport": [768, 1024], "card_width_px": 720, "card_height_px": 404.97, "horizontal_overflow_px": 0},
+    {"name": "phone", "viewport": [360, 800], "card_width_px": 328, "card_height_px": 593.28, "horizontal_overflow_px": 0},
+    {"name": "compact-phone", "viewport": [320, 800], "card_width_px": 288, "card_height_px": 643.67, "horizontal_overflow_px": 0}
+  ],
+  "source_sha256": {
+    "website/index.html": "d85408921178c72806094dce1c14166ac30aec5878f5279a29d181109c4ad4cd",
+    "website/styles.css": "d02c433af1d1a34d88106445af671bde72f7ba0581f6fd17a6ef224b30a081cb",
+    "tests/e2e/test_website.py": "467444f12327c1790adba38073ca81cbe94df30e613c58ec1f03ce28b3df6ca8"
+  },
+  "visual_artifacts": "results.json",
+  "visual_review": "visual-review.md"
+}
