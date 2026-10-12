@@ -323,7 +323,9 @@ horizontal overflow, page error, failed/external request or workflow start. Scre
 trace, exact bounds, computed forced colors and source hashes are in
 [`route-card-a11y-2026-10-11/`](artifacts/workflow-studio/route-card-a11y-2026-10-11/).
 Playwright headless `Control+Equal` did not change `innerWidth` or device pixel ratio;
-actual browser-chrome zoom remains unverified. A visible CUA browser attempt on 2026-10-11 failed before initialization with ENOSPC while /tmp was at 100%; no other process files were removed.
+actual browser-chrome zoom remains unverified. Visible CUA attempts on 2026-10-11 and
+2026-10-12 failed before browser initialization because `/tmp` had no free space (ENOSPC).
+No existing files or unrelated processes were removed to make room.
 
 ### Safe-boundary pause, resume, and conversation binding (2026-10-11)
 
