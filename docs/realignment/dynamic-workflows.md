@@ -271,12 +271,17 @@ process-executor case failed before dispatch. `OfflineBrokerSet` had forced its 
 directory into `/tmp`, ignoring the configured temporary root. The temporary-root fix removes
 that override while retaining the 0700 private directory; the configured-root regression and all
 of `tests/test_offline_mode.py` then passed (37 tests) with `TMPDIR=/var/tmp`. The separately
-failing delegated-offline test also passed (1 test). A complete non-browser rerun in a disposable
-worktree at commit `9f2810b` passed **2,137 tests in 603.70 seconds** using Python 3.13.15 and
-pytest 9.1.1. The earlier complete `pytest -q` invocation was interrupted at 33% after `/tmp` was
-full and is not counted as a completed suite. The passing non-browser output and hashes are
-retained in [`broad-non-browser-2026-10-11/`](artifacts/dynamic-workflows/broad-non-browser-2026-10-11/);
-the complete E2E suite and ten-minute soak remain open.
+failing delegated-offline test also passed (1 test). An earlier complete non-browser rerun in a disposable worktree at commit `9f2810b` passed
+**2,137 tests in 603.70 seconds** using Python 3.13.15 and pytest 9.1.1. A newer full
+non-browser run at `f1562329` completed with **2,186 passed and 2 failed in 640.23 seconds**.
+Both failures were reproduced with the baseline source at `6221cc25`: an external model-catalog
+request/test-fixture failure, and an AF_UNIX path-length failure from the long shared `TMPDIR`;
+the socket test passes with a short temporary root. Complete outputs, commands, baseline
+comparisons, and hashes are retained in
+[`offline-suite-2026-10-11/`](artifacts/dynamic-workflows/offline-suite-2026-10-11/). The earlier
+complete `pytest -q` invocation was interrupted at 33% after `/tmp` was full and is not counted as
+a completed suite. The ten-minute engine soak is covered in the A8 status above; broad browser E2E
+remains non-green.
 
 The amendment browser journey passed against a real SQLite store and supervisor at 1440, 768, 360
 and 320 CSS pixels. Opened screenshots show the candidate diff, the full pending-question

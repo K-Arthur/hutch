@@ -1,0 +1,37 @@
+{
+  "checked_local_date": "2026-10-11",
+  "head": "f1562329",
+  "source_tree": "6b9d518a8a597cd65efee8421e5491a3ff26d680",
+  "python": "3.13.15",
+  "pytest": "9.1.1",
+  "command": "TMPDIR=/var/tmp/pytest-of-kevina <venv>/bin/pytest -q --ignore=tests/e2e",
+  "scope": "Full collected non-browser suite in a disposable detached worktree. Browser E2E is tracked separately and is not green.",
+  "summary": {
+    "passed": 2186,
+    "failed": 2,
+    "duration_seconds": 640.23
+  },
+  "failures": [
+    {
+      "test": "tests/test_model_switcher.py::test_connection_models_known_from_bots_appear_with_their_state",
+      "current_command": "TMPDIR=/var/tmp/p <venv>/bin/pytest -q --tb=short tests/test_model_switcher.py::test_connection_models_known_from_bots_appear_with_their_state",
+      "classification": "Pre-existing external catalog/test-fixture failure unrelated to dynamic workflows. It reproduces against baseline 6221cc25 when PYTHONPATH explicitly selects baseline/src. The test sets OPENCODE_API_KEY=k, but the external catalog call reports only the generic unavailable message; the exact provider error is not retained. Route state remains ready.",
+      "current_output": "model-catalog-current-repro.txt",
+      "main_output": "model-catalog-main-repro.txt"
+    },
+    {
+      "test": "tests/test_offline_mode.py::test_loopback_broker_refuses_a_request_after_close_starts",
+      "classification": "Pre-existing test-environment AF_UNIX path-length failure unrelated to workflow changes. It reproduces against baseline 6221cc25 when PYTHONPATH explicitly selects baseline/src and TMPDIR=/var/tmp/pytest-of-kevina; it passes with a short TMPDIR=/var/tmp/p.",
+      "main_long_path_output": "unix-socket-main-long-path-repro.txt",
+      "short_path_control": "unix-socket-short-path-control.txt"
+    }
+  ],
+  "browser_status": "Separate broad browser suite result remains 181 passed, 25 failed, 8 teardown errors, recorded in broad-e2e-after-b398-2026-10-11. Targeted workflow, amendment, coding-repair and marketing journeys have separate acceptance evidence.",
+  "sha256": {
+    "model-catalog-current-repro.txt": "94418695c9c4ac66e85448a9c709f7761cc67650415b7938fc4536da2b7496fc",
+    "model-catalog-main-repro.txt": "bd158b8fb4a60d0ebc373478f2032be4e569b4c5536446ef56a2191f3cfbd13c",
+    "pytest-output.txt": "4cefda6e8aa8e34faf688b35b505e4842b73eb96bf55628e3c276a691465230c",
+    "unix-socket-main-long-path-repro.txt": "3601ecb044950a26c8a24e256c7bef7ef7f6f9ea2d9aee81e241873888295b2e",
+    "unix-socket-short-path-control.txt": "d40f86cec22ce9eff8b5bcb1061ca911ae5ea7854fd90fa8be313cf1e0e05292"
+  }
+}
