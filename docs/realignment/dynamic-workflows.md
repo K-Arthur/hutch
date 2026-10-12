@@ -172,7 +172,7 @@ download/read-back.
 | Acceptance: messy CSV → verified report | implemented, **verified end to end with the real CLI**, zero model calls | `tests/test_workflow_csv_acceptance.py` (2) asserts the report's own numbers are consistent; `artifacts/dynamic-workflows/validation.json` records every command, the question id the CLI printed, and the copied artifact re-hashed against the engine's digest |
 | Acceptance: multi-module repair → unit tests → inspected result view | implemented, **verified through the real interpreter and process executor with a scripted provider** | `tests/test_workflow_coding_repair_acceptance.py` exercises one bounded repair, root-ledger charging, fresh-attempt continuation, nine writes in the disposable workflow workspace, three `unittest` checks, published artifact read-back and Chromium inspection at 1440/768/360/320 CSS pixels. The full command output, plan, provider fixture, trace, screenshots, source/artifact hashes and review are in [`artifacts/dynamic-workflows/coding-repair/`](artifacts/dynamic-workflows/coding-repair/). The model fixture is not live model quality evidence. |
 | Model-authored plan on a live local route | **blocked for tested profiles** | The bounded Ollama 0.40.3 campaign probed exact Qwen3 1.7B and 4B Q4_K_M profiles. Neither passed every held-out author or selector dimension; worker and verifier roles were not probed. See [`qualification-campaign-2026-10-11.json`](artifacts/dynamic-workflows/qualification-campaign-2026-10-11.json). |
-| Planner/worker role split on one inference slot | **not verified live** | depends on the row above; admission is unchanged and shared |
+| Planner/worker role split on one inference slot | **blocked for tested profiles** | no local candidate qualified for selector authority; the one-request worker path is exercised with scripted responses, not a qualified planner |
 | Studio surface (plan preview, graph, inline questions) | implemented, verified for the saved-run card and chat route suggestion | Studio projects immutable plan structure and durable question/result state; the separate chat suggestion card was opened and keyboard-tested at 1440/768/360/320 CSS pixels. Synthetic route-card states are visually tested separately from the scripted local runtime/API journey. See [`artifacts/workflow-studio/`](artifacts/workflow-studio/) and [`artifacts/dynamic-workflows/chat-router/`](artifacts/dynamic-workflows/chat-router/). |
 | Amendment / replanning of a live instance | **implemented for live, quiesced runs; terminal adoption unsupported** | Preview shows reuse/invalidation and authority changes; adoption waits for affected work to quiesce, binds the current revision/generation and rejects stale callbacks. Terminal history is preserved and the owner starts a fresh run. See [`workflow-studio/amendment/`](artifacts/workflow-studio/amendment/). |
 | MCP facade | **not implemented** | Hutch has no MCP plane (ADR-0017 is proposed only) |
@@ -188,13 +188,13 @@ download/read-back.
 | Bounded worker whose output contract cannot be met | **verified (fails honestly)** | `test_workflow_steps.py::test_agent_step_output_contract_is_enforced_and_fails_honestly` |
 | Worker on an unknown provider | **blocked** | `test_workflow_qualify.py::test_unresolvable_route_is_blocked_with_a_reason` |
 | Worker with tools on a route with negative tool evidence | **blocked** | `qualify.assess` returns `blocked`; no test exercises a real negative-evidence route yet |
-| Verifier on a different route | **implemented** | independence computed; no live multi-route run |
-| Verifier on the producer's route | **advisory only** | `qualify.assess` marks `independent=False`; `agent_review` can never certify |
+| Verifier on a different route | **implemented-but-unverified** | independence is computed, but no live multi-route verification run exists |
+| Verifier on the producer's route | **blocked from independent certification** | `qualify.assess` marks `independent=False`; same-route review can remain advisory but cannot certify |
 | Author / selector without probed evidence | **blocked** | `test_workflow_routing.py::test_authoring_tool_is_refused_without_probed_evidence`, `test_workflow_qualify.py` |
 | Author / selector with positive held-out evidence | **implemented-but-unverified** | Profile-bound qualification and admission paths are tested. The bounded real campaign produced negative author/selector evidence for both exact Qwen3 profiles; no tested profile received production author or selector authority. |
 | Qwen3 1.7B/4B Q4_K_M author or selector | **blocked by negative evidence for these exact profiles** | Both profiles failed held-out role qualification; do not generalize this result to other checkpoints. Worker/verifier quality remains unprobed. |
 | Other local model worker/verifier profiles | **implemented-but-unverified** | No exact-profile worker/verifier qualification result is retained. |
-| Any role on a hosted route | **implemented, unverified, and a data-egress decision** | hosted routes work through the ordinary per-run route authority; `network: local_model_only` refuses them outright |
+| Any role on a hosted route | **implemented-but-unverified; data-egress decision required** | hosted routes work through ordinary per-run route authority; `network: local_model_only` refuses them outright |
 | Pi / OpenCode as a workflow executor | **unsupported** | external runtimes are disabled before process start; a workflow attempt requires the built-in runtime |
 | Code facade / generated scripts | **unsupported by design** | declarative plans only; Node's own docs say `vm` is not a security mechanism |
 | MCP facade | **unsupported** | Hutch has no MCP plane (ADR-0017 proposed only) |
@@ -356,8 +356,9 @@ in [`pause-resume-2026-10-11/`](artifacts/workflow-studio/pause-resume-2026-10-1
 set is separately indexed by `active-pause-results.json`. Opened website captures and hashes are in
 [`marketing/`](artifacts/dynamic-workflows/marketing/). Both site and app browser checks reported no
 page errors or provider calls. Actual browser-chrome zoom and slow-network handling beyond one forced
-TCP cut remain unverified; the full browser suite has recorded results but is still not green, and
-the ten-minute soak remains unverified.
+TCP cut remain unverified; the full browser suite has recorded results but is still not green. A
+600-second deterministic thread-executor soak is recorded in A8; it does not verify live inference,
+the process executor, or broader concurrent provider behavior.
 
 The reconnect journey used a real local SQLite workflow, the supervisor and a TCP proxy that severed
 the browser connection. While offline, the pending question card and focused draft remained usable;
