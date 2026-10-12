@@ -3061,8 +3061,9 @@ def test_workflow_amendment_preview_adoption_is_explicit_and_responsive(browser,
         label_bounds = cancel_label.bounding_box()
         footer_bounds = dialog.locator(".modal-footer").bounding_box()
         assert label_bounds and footer_bounds
-        assert label_bounds["y"] + label_bounds["height"] <= footer_bounds["y"] + 1, (
-            "the complete cancellation choice must remain above the fixed footer"
+        footer_clearance = footer_bounds["y"] - (label_bounds["y"] + label_bounds["height"])
+        assert footer_clearance >= 8, (
+            f"the cancellation choice needs breathing room above the fixed footer; got {footer_clearance:.1f}px"
         )
         page.screenshot(path=str(artifacts / "explicit-cancellation-compact-phone.png"),
                         full_page=True, animations="disabled")

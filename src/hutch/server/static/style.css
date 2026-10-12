@@ -687,7 +687,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .workflow-amendment-preview ul { display: grid; gap: var(--s-1); margin: 0; padding: 0 0 var(--s-2) 1.25rem; }
 .workflow-amendment-preview li span { display: block; color: var(--text-2); overflow-wrap: anywhere; }
 .workflow-amendment-questions { padding: var(--s-2); border-inline-start: 2px solid var(--warn); background: var(--sunken); }
-.workflow-amendment-questions label { display: flex; align-items: flex-start; gap: var(--s-2); font-size: var(--fs-xs); line-height: 1.5; }
+.workflow-amendment-questions label { display: flex; align-items: flex-start; gap: var(--s-2); font-size: var(--fs-xs); line-height: 1.5; scroll-margin-bottom: var(--s-2); }
 .workflow-amendment-questions input { flex: none; width: 18px; height: 18px; margin: 0; }
 .workflow-amendment-error, .workflow-amendment-blocked { color: var(--warn); overflow-wrap: anywhere; }
 .workflow-amendment-error { min-height: 1.35em; margin: 0; font-size: var(--fs-xs); }
