@@ -621,30 +621,42 @@ def test_branch_and_map_execute_with_stable_item_identity(store, config):
     assert nodes["joined"]["result"]["complete"] is True
 
 
-def test_map_rejects_duplicate_item_keys_before_running_any_body(store, config):
-    bot = make_bot(store)
+def test_map_rejects_duplicate_item_keys_before_running_any_body(store, config, monkeypatch):
+    from hutch.tools import files as file_tools
+
+    bot = make_bot(store, name="duplicate-map-key-preflight", risk_tier="trusted")
     engine = Engine(config, store)
     plan = {
         "name": "duplicate-map-key-preflight",
         "inputs": {"items": {"type": "array"}},
-        "envelope": {"tools": []},
+        "envelope": {"tools": ["write_file"]},
         "budget": {"max_nodes": 20, "max_model_calls": 0, "max_fanout": 4},
         "nodes": [{"kind": "map", "id": "each", "over": {"ref": "input.items"},
                    "item_key": "id", "max_items": 4, "body": [
-                       {"kind": "transform", "id": "value", "op": "pluck",
-                        "args": {"value": {"ref": "item"}, "path": "value"}}]}],
+                       {"kind": "tool", "id": "write", "tool": "write_file",
+                        "args": {"path": {"ref": "item.path"},
+                                 "content": {"ref": "item.value"}}}]}],
     }
     submission = wfsubmit.submit_workflow(
         store, bot=bot, plan=plan,
-        inputs={"items": [{"id": "same", "value": "first"},
-                           {"id": "same", "value": "second"}]})
+        inputs={"items": [{"id": "same", "path": "first.txt", "value": "first"},
+                           {"id": "same", "path": "second.txt", "value": "second"}]})
+    effect_calls = []
+    replace_reviewed = file_tools.replace_reviewed
+
+    def record_write(workspace, parts, content, expected, begin_effect):
+        replace_reviewed(workspace, parts, content, expected, begin_effect)
+        effect_calls.append(("/".join(parts), content))
+
+    monkeypatch.setattr(file_tools, "replace_reviewed", record_write)
 
     drive(engine, store, submission.attempt_run_id)
 
     view = wfsubmit.status(store, submission.workflow_run_id)
     assert view["workflow"]["status"] == "failed"
     assert "duplicate item key 'same'" in view["workflow"]["reason"]
-    assert not [node for node in view["nodes"] if node["site_id"] == "each.value"]
+    assert effect_calls == []
+    assert not [node for node in view["nodes"] if node["site_id"] == "each.write"]
 
 
 def test_empty_map_is_a_complete_zero_item_expansion(store, config):
