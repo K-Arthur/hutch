@@ -24,6 +24,13 @@ notes and artifact/source hashes are in [`results.json`](results.json). Opened c
 [`suggestion-compact-phone.png`](suggestion-compact-phone.png), and
 [`suggestion-review-dialog.png`](suggestion-review-dialog.png).
 
+The journey was rerun on 2026-10-12 with Chromium 153.0.8010.12 and Playwright 1.63.0;
+it again passed (1 test in 4.86s) with no page errors, failed requests or external requests.
+At 320×740 it additionally applies the WCAG text-spacing values (line height 1.5, letter
+spacing 0.12em, word spacing 0.16em, paragraph spacing 2em) and emulates forced colors.
+Both states assert zero document overflow, a visible heading, a 44px focused action and
+the action above the fixed composer. The result JSON records current source and artifact hashes.
+
 ## Opened-view observations
 
 - At desktop and tablet widths the suggestion reads as a compact card above the composer;
@@ -44,6 +51,15 @@ notes and artifact/source hashes are in [`results.json`](results.json). Opened c
 - All captures have zero horizontal overflow, and the page emitted no errors or network
   failures. These fixture captures do not prove that a live local selector is qualified;
   both tested Qwen3 profiles failed that gate.
+- Under the text-spacing override the card grows taller than the chat viewport, so the CTA
+  is below the initial fold and partly behind the fixed composer until the user scrolls or
+  tabs to it. Keyboard focus scrolls the full 44px target above the composer; document width
+  remains 320px with no horizontal overflow. This is usable through the scroll region, though
+  the initial view does not show the entire card at once.
+- Forced-colors emulation changes the canvas to white with black text and borders; the card,
+  conversation text and outlined review action remain distinguishable. The browser assertions
+  confirm system foreground colors for user and assistant messages. The capture is Chromium
+  emulation and does not prove behavior on every operating-system high-contrast theme.
 
 ## Scorecard
 
@@ -57,5 +73,6 @@ Scores follow the project's shape-and-background weighting (aesthetic 45%, funct
 | Regression health | 9.0/10 | No overflow, page errors, failed requests or external calls in the focused E2E run. |
 | **Combined** | **8.9/10** | Weighted visual score for this card and dialog only. |
 
-Not covered: real screen readers, forced colors, zoom/text-spacing overrides, offline/reconnect,
-paired-phone surfaces, or live behavior from a qualified selector model.
+Not covered: real screen readers, actual browser zoom, app-wide text-spacing/forced-colors
+coverage, offline/reconnect in this route-card slice, paired-phone surfaces, or live behavior
+from a qualified selector model.
