@@ -1,0 +1,9 @@
+exit=0
+test_success_and_verified_are_complete (test_workflow_metrics.WorkflowMetricsTests.test_success_and_verified_are_complete) ... ok
+test_waiting_states_remain_visible (test_workflow_metrics.WorkflowMetricsTests.test_waiting_states_remain_visible) ... ok
+test_header_uses_real_status_and_keeps_long_title (test_workflow_view.WorkflowViewTests.test_header_uses_real_status_and_keeps_long_title) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.000s
+
+OK

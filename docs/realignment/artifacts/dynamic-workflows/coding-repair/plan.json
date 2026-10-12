@@ -1,0 +1,240 @@
+{
+  "name": "disposable-multi-module-coding-repair",
+  "envelope": {
+    "tools": [
+      "write_file",
+      "shell"
+    ],
+    "models": [
+      "ollama/tiny:1b"
+    ],
+    "max_parallel_steps": 1
+  },
+  "budget": {
+    "max_nodes": 20,
+    "max_model_calls": 2,
+    "max_tokens": 12000,
+    "max_wall_seconds": 300,
+    "max_repairs": 1
+  },
+  "outputs": [
+    "report"
+  ],
+  "nodes": [
+    {
+      "kind": "transform",
+      "id": "starter",
+      "op": "constant",
+      "args": {
+        "value": {
+          "status": "needs_repair",
+          "files": {
+            "metrics": "return len(steps)\n"
+          }
+        }
+      }
+    },
+    {
+      "kind": "verify",
+      "id": "repair",
+      "checks": [
+        {
+          "kind": "schema",
+          "ref": "starter",
+          "schema": {
+            "type": "object",
+            "required": [
+              "status",
+              "files"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ready"
+                ]
+              },
+              "files": {
+                "type": "object",
+                "required": [
+                  "metrics",
+                  "view",
+                  "metrics_tests",
+                  "view_tests",
+                  "index",
+                  "css",
+                  "format",
+                  "app",
+                  "data"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "on_fail": {
+        "action": "repair",
+        "rounds": 1,
+        "adopt": "starter",
+        "instruction": "Repair the multi-module workflow summary and responsive result view. Return the complete set of files in the replacement object."
+      }
+    },
+    {
+      "kind": "tool",
+      "id": "write_0",
+      "tool": "write_file",
+      "args": {
+        "path": "workflow_metrics.py",
+        "content": {
+          "ref": "starter.files.metrics"
+        }
+      }
+    },
+    {
+      "kind": "tool",
+      "id": "write_1",
+      "tool": "write_file",
+      "args": {
+        "path": "workflow_view.py",
+        "content": {
+          "ref": "starter.files.view"
+        }
+      }
+    },
+    {
+      "kind": "tool",
+      "id": "write_2",
+      "tool": "write_file",
+      "args": {
+        "path": "tests/test_workflow_metrics.py",
+        "content": {
+          "ref": "starter.files.metrics_tests"
+        }
+      }
+    },
+    {
+      "kind": "tool",
+      "id": "write_3",
+      "tool": "write_file",
+      "args": {
+        "path": "tests/test_workflow_view.py",
+        "content": {
+          "ref": "starter.files.view_tests"
+        }
+      }
+    },
+    {
+      "kind": "tool",
+      "id": "write_4",
+      "tool": "write_file",
+      "args": {
+        "path": "public/index.html",
+        "content": {
+          "ref": "starter.files.index"
+        }
+      }
+    },
+    {
+      "kind": "tool",
+      "id": "write_5",
+      "tool": "write_file",
+      "args": {
+        "path": "public/app.css",
+        "content": {
+          "ref": "starter.files.css"
+        }
+      }
+    },
+    {
+      "kind": "tool",
+      "id": "write_6",
+      "tool": "write_file",
+      "args": {
+        "path": "public/format.js",
+        "content": {
+          "ref": "starter.files.format"
+        }
+      }
+    },
+    {
+      "kind": "tool",
+      "id": "write_7",
+      "tool": "write_file",
+      "args": {
+        "path": "public/app.js",
+        "content": {
+          "ref": "starter.files.app"
+        }
+      }
+    },
+    {
+      "kind": "tool",
+      "id": "write_8",
+      "tool": "write_file",
+      "args": {
+        "path": "public/data.json",
+        "content": {
+          "ref": "starter.files.data"
+        }
+      }
+    },
+    {
+      "kind": "verify",
+      "id": "tests",
+      "checks": [
+        {
+          "kind": "command",
+          "argv": [
+            "/home/kevina/.codex/worktrees/dynamic-workflows-completion/hutch/.venv/bin/python",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "tests",
+            "-v"
+          ],
+          "expect_exit": 0,
+          "timeout_seconds": 90
+        }
+      ]
+    },
+    {
+      "kind": "publish",
+      "id": "report",
+      "artifacts": [
+        {
+          "name": "coding-repair-test-results",
+          "ref": "tests",
+          "media_type": "application/json",
+          "primary": true
+        }
+      ]
+    },
+    {
+      "kind": "verify",
+      "id": "artifact_check",
+      "checks": [
+        {
+          "kind": "schema",
+          "ref": "report",
+          "schema": {
+            "type": "object",
+            "required": [
+              "artifacts"
+            ],
+            "properties": {
+              "artifacts": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "kind": "artifact",
+          "ref": "report.artifacts[0]"
+        }
+      ]
+    }
+  ]
+}

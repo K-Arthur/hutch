@@ -272,6 +272,15 @@ to the current value fails with a no-progress reason; repair rounds and model re
 the original root budget. This execution path is covered with a scripted local route, but repair
 quality from a live model has not been verified.
 
+For code work, a repair can return file contents that later `write_file` nodes apply inside the
+run workspace, subject to the assistant's file permissions and approval policy. A fixed-argv
+`command` check can then run the test suite through the existing shell policy, and a published test
+record can be read back and hash-checked. The workflow definition itself remains declarative:
+generated Python or JavaScript is not a workflow program, and a model cannot add commands or widen
+the tool envelope during repair. The disposable [multi-module coding repair acceptance](realignment/artifacts/dynamic-workflows/coding-repair/)
+exercises this path with a scripted provider, three real unit tests, a verified report artifact,
+and a browser-inspected result view. It verifies the runtime path, not a live model's coding ability.
+
 ## Joins and output status
 
 `all_required` fails when a named result failed or was skipped. `all_settled` waits until
