@@ -1,0 +1,60 @@
+{
+  "acceptance_id": "A3-DOCUMENT-COVERAGE-01",
+  "captured_at": "2026-10-12T00:05:43.778840+00:00",
+  "test": "tests/test_workflow_document_research_acceptance.py::test_discovered_document_research_publishes_exact_coverage_and_omissions",
+  "test_command": "TMPDIR=/var/tmp/pytest-of-kevina .venv/bin/pytest -q tests/test_workflow_document_research_acceptance.py tests/test_workflow_ops.py tests/test_bounded_file_read.py tests/test_workflow_plan.py tests/test_workflow_engine.py tests/test_workflow_regressions.py tests/test_workflow_steps.py tests/test_workflow_usage_budget.py",
+  "test_result": "........................................................................ [ 57%]\n.....................................................                    [100%]\n125 passed in 62.72s (0:01:02)",
+  "environment": {
+    "python": "3.13.15",
+    "implementation": "CPython",
+    "pytest": "9.1.1"
+  },
+  "execution": {
+    "workflow_status": "succeeded",
+    "output_outcome": "partial",
+    "provider": "FakeOllama scripted local HTTP endpoint; no live model quality was measured",
+    "actual_model_requests": 3,
+    "source_discovery_complete": true,
+    "discovered_paths": [
+      "research/a.md",
+      "research/b.md",
+      "research/c.md"
+    ],
+    "covered_paths": [
+      "research/a.md",
+      "research/c.md"
+    ],
+    "omissions": [
+      {
+        "path": "research/b.md",
+        "reason": "the scripted worker response did not satisfy the closed JSON output schema"
+      }
+    ],
+    "source_quote_check": "Each published quote is an exact substring of that path’s source text.",
+    "artifact_sha256": "ed202dcfc439b970e479ab4ea8be28cb1a97fed7fb97ffc865d043fd8de0b9a9",
+    "artifact": "coverage-partial.json"
+  },
+  "source_fixture_sha256": {
+    "research/a.md": "199e347af1ce2e9cc532ea81c3c8ef310b1d55cb6aa7ff08221d2b3809dbc735",
+    "research/b.md": "982d12ac8fad81de31140a569caa4a539a480b4f9e524949de77ffc4fa0bf1bf",
+    "research/c.md": "2f0c9b4dc0a23b330dfef5c612d5931b3259d89e268366daae411ddd05efce1d"
+  },
+  "source_sha256": {
+    "src/hutch/tools/base.py": "93d8e8f0fd434a68e18a738cfba5f9b5f12eb128c8d72b2d01ad1c9a0ccb275b",
+    "src/hutch/tools/files.py": "a488e3642de65b99dc32f9eb4df119e3a3fded7f72bce9d700aa483cb321501b",
+    "src/hutch/workflow/engine.py": "ddf0dc17e1677cf7cf325500a096eb5450a69892d1174f7f81f27c0c079ab94b",
+    "src/hutch/workflow/ops.py": "a2e5eff9e299519f66bf747894e568a110184558523a6d8b72c2b5a9d9a72f8e",
+    "tests/test_bounded_file_read.py": "4abc664d10aa13934dc0f0a6665564652e9991c457d158fd145f01e5931db9a7",
+    "tests/test_workflow_ops.py": "184f3d0db5fefdfc1081ef3554222cb84d4dd5f387ecbcf9bd27e9775f967d33",
+    "tests/test_workflow_regressions.py": "3601116bb179b7a5a73e596746fc0e04b7e26338e714adfc29006c2111ba96fe",
+    "tests/test_workflow_document_research_acceptance.py": "7ea6a9f5a946da71c1a92e3912880e4f32ed4a13067b2a39c1eeaceed9d34b95",
+    "docs/workflows.md": "f687af3819614de478272717f30bb2aece7c2818105c0a2b2cee762bf5c30fba",
+    "docs/realignment/dynamic-workflows.md": "cf2dbe8ac7f88257fdfb1384621e45ba88d50288012346ef0d5d9df5cc4a3314",
+    "docs/realignment/artifacts/dynamic-workflows/document-research.plan.json": "7ffd420843f9416f755481c070c78c66cec179c8ccfcbd7dccad2f0613a26bd5"
+  },
+  "limitations": [
+    "Scripted provider verifies Hutch orchestration, child admission, schema enforcement, coverage accounting and publication; it does not establish a live model’s research quality.",
+    "Verbatim quote presence establishes traceability, not semantic correctness of a finding.",
+    "No frontend code changed in this slice; Studio and marketing responsive visual evidence is recorded in the workflow and marketing artifacts."
+  ]
+}

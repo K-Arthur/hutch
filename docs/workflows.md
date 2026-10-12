@@ -41,7 +41,29 @@ steps (`agent`), bounded fan-out (`map`/`expand`), branches (`branch`), bounded 
 questions (`ask`) and artifact publication (`publish`).
 
 Because a plan is data it can be validated, diffed, saved, exported, replayed and reviewed.
-Hutch never executes generated code: there is no script sandbox to escape. Deterministic transforms include bounded CSV parsing, grouping and totals; `bar_chart_svg` turns up to 20 finite, nonnegative category values into a self-contained SVG with a title and text description. It rejects invalid or oversized inputs instead of silently omitting categories. Publish it with `image/svg+xml` and verify the saved bytes with an artifact check; this work uses no model request.
+Hutch never executes generated code: there is no script sandbox to escape. Deterministic
+transforms include bounded CSV parsing, grouping and totals; `bar_chart_svg` turns up to 20
+finite, nonnegative category values into a self-contained SVG with a title and text description.
+It rejects invalid or oversized inputs instead of silently omitting categories. Publish it with
+`image/svg+xml` and verify the saved bytes with an artifact check; this work uses no model request.
+
+File discovery is structured as well as readable: `list_files` returns bounded `data.paths`
+and stable `data.entries` (`{"path": ...}`) for `map` nodes. `data.paths_complete` is false
+when the listing or retained structured inventory is clipped; a workflow must carry that flag
+into its result rather than implying a complete scan. `read_file.data.truncated` explicitly
+reports whether source capture was clipped. The `document_coverage` transform combines the
+discovered inventory with successful map reviews and the map's skipped/failure records. It
+reports exact omitted paths, adds an unknown-additional-files omission when discovery was
+incomplete, and counts a source as covered only when the read was not clipped and every supplied
+evidence quote appears verbatim in that source. This checks provenance and coverage, not the
+semantic truth of a model's finding. See the scripted integration plan in
+[`document-research.plan.json`](realignment/artifacts/dynamic-workflows/document-research.plan.json)
+and its acceptance test, which deliberately returns one invalid worker response and publishes a
+partial result with the omitted path intact.
+
+A bounded map that declares `on_item_failure: "skip"` keeps the skipped item keys and a bounded
+`failures` array containing each key and reason. The aggregate remains `complete: false`; callers
+can publish useful successes without hiding which item failed or why.
 
 ## Modes: off, suggest, auto
 

@@ -45,6 +45,7 @@ TRANSFORM_OPS: dict[str, set[str]] = {
     "to_number": {"value"},
     "group_count": {"items", "by"},
     "bar_chart_svg": {"values", "title"},
+    "document_coverage": {"discovered", "reviews", "skipped", "failures", "listing_complete"},
     "join_text": {"items", "separator", "of"},
     "merge": {"values"},
     "to_markdown_table": {"items", "fields"},
@@ -472,6 +473,94 @@ def _op_bar_chart_svg(args: dict[str, Any]) -> str:
     if len(result) > MAX_TEXT:
         raise ValueError("the SVG chart is too large to publish")
     return result
+
+
+def _op_document_coverage(args: dict[str, Any]) -> dict[str, Any]:
+    """Validate discovered-file coverage and verbatim evidence from bounded reviews.
+
+    Quotes must occur in the exact source text, and a clipped source cannot count as
+    covered. This establishes source traceability and coverage, not semantic truth.
+    """
+    discovered = _items(args, "discovered")
+    reviews = _items(args, "reviews")
+    skipped = _items(args, "skipped")
+    failures = _items(args, "failures")
+    listing_complete = _require(args, "listing_complete", (bool,))
+    if any(not isinstance(path, str) or not path for path in discovered):
+        raise ValueError("discovered paths must be non-empty strings")
+    if len(set(discovered)) != len(discovered):
+        raise ValueError("discovered paths must be unique")
+    if any(not isinstance(path, str) or path not in discovered for path in skipped):
+        raise ValueError("skipped paths must be strings from the discovered inventory")
+    if len(set(skipped)) != len(skipped):
+        raise ValueError("skipped paths must be unique")
+
+    failure_reasons: dict[str, str] = {}
+    for failure in failures:
+        if not isinstance(failure, dict):
+            raise ValueError("map failures must be objects with a path key and reason")
+        path, reason = failure.get("key"), failure.get("reason")
+        if not isinstance(path, str) or path not in discovered or not isinstance(reason, str):
+            raise ValueError("map failures must identify a discovered path and text reason")
+        if path in failure_reasons:
+            raise ValueError(f"map failures repeat path {path!r}")
+        failure_reasons[path] = reason[:500]
+    if set(failure_reasons) - set(skipped):
+        raise ValueError("every map failure must also be present in skipped paths")
+
+    by_path: dict[str, dict[str, Any]] = {}
+    for entry in reviews:
+        if not isinstance(entry, dict):
+            raise ValueError("review entries must be objects")
+        path = entry.get("path")
+        if not isinstance(path, str) or path not in discovered:
+            raise ValueError("review entries must identify a discovered path")
+        if path in by_path:
+            raise ValueError(f"review entries repeat path {path!r}")
+        by_path[path] = entry
+
+    covered: list[dict[str, Any]] = []
+    omissions: list[dict[str, Any]] = []
+    for path in discovered:
+        if path in skipped:
+            omissions.append({"path": path,
+                              "reason": failure_reasons.get(path, "the bounded review worker failed")})
+            continue
+        entry = by_path.get(path)
+        if entry is None:
+            omissions.append({"path": path, "reason": "no settled review result was recorded"})
+            continue
+        source = entry.get("source")
+        review = entry.get("review")
+        if not isinstance(source, str) or not isinstance(review, dict):
+            omissions.append({"path": path, "reason": "the source or structured review is missing"})
+            continue
+        if entry.get("source_truncated") is True or entry.get("result_truncated") is True:
+            omissions.append({"path": path, "reason": "the source capture was clipped before review"})
+            continue
+        if review.get("path") != path:
+            omissions.append({"path": path, "reason": "the worker returned a different source path"})
+            continue
+        findings, evidence = review.get("findings"), review.get("evidence")
+        if (not isinstance(findings, list) or any(not isinstance(item, str) or not item.strip()
+                                                  for item in findings)
+                or not isinstance(evidence, list) or not evidence
+                or any(not isinstance(item, str) or not item.strip() or item not in source
+                       for item in evidence)):
+            omissions.append({"path": path,
+                              "reason": "the review lacks a verbatim source quote or valid findings"})
+            continue
+        covered.append({"path": path, "findings": findings, "evidence": evidence})
+
+    if not listing_complete:
+        omissions.append({"path": None,
+                          "reason": "the discovery inventory was incomplete; additional files may be omitted"})
+    return {"complete": listing_complete and not omissions,
+            "discovery_complete": listing_complete,
+            "discovered_count": len(discovered),
+            "covered_count": len(covered),
+            "covered": covered,
+            "omissions": omissions}
 
 
 def _op_join_text(args: dict[str, Any]) -> str:

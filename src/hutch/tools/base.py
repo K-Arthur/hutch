@@ -291,7 +291,8 @@ def read_text_bounded(path: Path, limit: int = MAX_TOOL_OUTPUT) -> tuple[str, di
     except OSError:
         file_bytes = None
     output = "".join(parts)
-    data: dict[str, Any] = {"retained_chars": retained, "limit_chars": limit}
+    data: dict[str, Any] = {"retained_chars": retained, "limit_chars": limit,
+                            "truncated": truncated}
     if file_bytes is not None:
         data["file_bytes"] = file_bytes
     if truncated:

@@ -629,6 +629,9 @@ def test_repeat_join_when_and_skip_are_exercised(store, config):
     assert nodes["joined"]["result"]["complete"] is True
     assert nodes["each"]["result"]["complete"] is False        # one item was skipped
     assert nodes["each"]["result"]["skipped"] == ["b"]  # item keys, as declared
+    assert nodes["each"]["result"]["failures"]
+    assert nodes["each"]["result"]["failures"][0]["key"] == "b"
+    assert "missing" in nodes["each"]["result"]["failures"][0]["reason"]
 
 
 def test_route_scoped_observations_only_match_their_own_revision(store):

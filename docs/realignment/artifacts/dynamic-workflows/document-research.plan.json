@@ -1,0 +1,196 @@
+{
+  "name": "discovered-document-research",
+  "description": "Discover bounded source files, review each one, and publish explicit coverage.",
+  "inputs": {
+    "root": {
+      "type": "string",
+      "default": "research"
+    }
+  },
+  "envelope": {
+    "tools": [
+      "list_files",
+      "read_file"
+    ],
+    "models": [
+      "ollama/tiny:1b"
+    ],
+    "max_parallel_steps": 1
+  },
+  "budget": {
+    "max_nodes": 24,
+    "max_model_calls": 3,
+    "max_tokens": 12000,
+    "max_wall_seconds": 120,
+    "max_fanout": 3,
+    "max_repairs": 0
+  },
+  "nodes": [
+    {
+      "kind": "tool",
+      "id": "discover",
+      "tool": "list_files",
+      "args": {
+        "path": {
+          "ref": "input.root"
+        }
+      }
+    },
+    {
+      "kind": "map",
+      "id": "review_sources",
+      "over": {
+        "ref": "discover.data.entries"
+      },
+      "item_key": "path",
+      "max_items": 3,
+      "concurrency": 1,
+      "on_item_failure": "skip",
+      "body": [
+        {
+          "kind": "tool",
+          "id": "source",
+          "tool": "read_file",
+          "args": {
+            "path": {
+              "ref": "item.path"
+            }
+          }
+        },
+        {
+          "kind": "agent",
+          "id": "review",
+          "role": "worker",
+          "model": "ollama/tiny:1b",
+          "instruction": "Review this source only. Return concise findings and exact evidence quotes from the supplied source.",
+          "inputs": {
+            "path": {
+              "ref": "item.path"
+            },
+            "source": {
+              "ref": "review_sources.source.output"
+            }
+          },
+          "output_schema": {
+            "type": "object",
+            "required": [
+              "path",
+              "findings",
+              "evidence"
+            ],
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "findings": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "tools": [],
+          "max_steps": 1
+        },
+        {
+          "kind": "transform",
+          "id": "bundle",
+          "op": "merge",
+          "args": {
+            "values": [
+              {
+                "path": {
+                  "ref": "item.path"
+                },
+                "source": {
+                  "ref": "review_sources.source.output"
+                },
+                "source_truncated": {
+                  "ref": "review_sources.source.data.truncated"
+                },
+                "result_truncated": {
+                  "ref": "review_sources.source.data.workflow_output_truncated"
+                },
+                "review": {
+                  "ref": "review_sources.review.output"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "transform",
+      "id": "coverage",
+      "op": "document_coverage",
+      "args": {
+        "discovered": {
+          "ref": "discover.data.paths"
+        },
+        "reviews": {
+          "ref": "review_sources.items"
+        },
+        "skipped": {
+          "ref": "review_sources.skipped"
+        },
+        "failures": {
+          "ref": "review_sources.failures"
+        },
+        "listing_complete": {
+          "ref": "discover.data.paths_complete"
+        }
+      }
+    },
+    {
+      "kind": "publish",
+      "id": "deliver",
+      "artifacts": [
+        {
+          "name": "document-coverage",
+          "ref": "coverage",
+          "media_type": "application/json",
+          "primary": true
+        }
+      ]
+    },
+    {
+      "kind": "verify",
+      "id": "check",
+      "checks": [
+        {
+          "kind": "schema",
+          "ref": "coverage.covered_count",
+          "schema": {
+            "type": "integer",
+            "minimum": 2
+          }
+        },
+        {
+          "kind": "schema",
+          "ref": "coverage.omissions",
+          "schema": {
+            "type": "array",
+            "minItems": 1
+          }
+        },
+        {
+          "kind": "artifact",
+          "ref": "deliver.artifacts[0]",
+          "min_bytes": 100
+        }
+      ]
+    }
+  ],
+  "outputs": [
+    "coverage"
+  ]
+}

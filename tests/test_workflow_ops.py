@@ -53,3 +53,55 @@ def test_bar_chart_svg_rejects_a_missing_or_overlong_title():
         apply_op("bar_chart_svg", {"values": {"hardware": 1}, "title": " "})
     with pytest.raises(ValueError, match="title"):
         apply_op("bar_chart_svg", {"values": {"hardware": 1}, "title": "x" * 161})
+
+
+def test_document_coverage_requires_complete_discovery_and_verbatim_source_evidence():
+    result = apply_op("document_coverage", {
+        "discovered": ["a.md", "b.md"],
+        "reviews": [{"path": "a.md", "source": "The service keeps monthly reports.",
+                     "review": {"path": "a.md", "findings": ["Reports are monthly."],
+                                "evidence": ["keeps monthly reports"]}}],
+        "skipped": ["b.md"],
+        "failures": [{"key": "b.md", "reason": "worker output did not satisfy its schema"}],
+        "listing_complete": True,
+    })
+
+    assert result == {
+        "complete": False,
+        "discovery_complete": True,
+        "discovered_count": 2,
+        "covered_count": 1,
+        "covered": [{"path": "a.md", "findings": ["Reports are monthly."],
+                     "evidence": ["keeps monthly reports"]}],
+        "omissions": [{"path": "b.md", "reason": "worker output did not satisfy its schema"}],
+    }
+
+
+def test_document_coverage_rejects_failure_details_hidden_from_the_skipped_paths():
+    with pytest.raises(ValueError, match="also be present in skipped paths"):
+        apply_op("document_coverage", {
+            "discovered": ["a.md"], "reviews": [], "skipped": [],
+            "failures": [{"key": "a.md", "reason": "worker failed"}],
+            "listing_complete": True,
+        })
+
+
+@pytest.mark.parametrize("entry,listing_complete,expected_covered", [
+    ({"path": "a.md", "source": "Report is ready.", "source_truncated": True,
+      "review": {"path": "a.md", "findings": ["Ready."], "evidence": ["Report is ready"]}}, True, 0),
+    ({"path": "a.md", "source": "Report is ready.", "source_truncated": False,
+      "review": {"path": "a.md", "findings": ["Ready."], "evidence": ["This quote is invented"]}}, True, 0),
+    ({"path": "a.md", "source": "Report is ready.", "source_truncated": False,
+      "review": {"path": "wrong.md", "findings": ["Ready."], "evidence": ["Report is ready"]}}, True, 0),
+    ({"path": "a.md", "source": "Report is ready.", "source_truncated": False,
+      "review": {"path": "a.md", "findings": ["Ready."], "evidence": ["Report is ready"]}}, False, 1),
+])
+def test_document_coverage_does_not_certify_incomplete_or_unanchored_sources(
+        entry, listing_complete, expected_covered):
+    result = apply_op("document_coverage", {
+        "discovered": ["a.md"], "reviews": [entry], "skipped": [], "failures": [],
+        "listing_complete": listing_complete,
+    })
+    assert result["complete"] is False
+    assert len(result["covered"]) == expected_covered
+    assert result["omissions"]

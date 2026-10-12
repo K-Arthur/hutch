@@ -315,8 +315,10 @@ class Interpreter:
             result = steps.call_tool(self.run, self.ctx, self.tools, node.tool, args)
         if not result.ok:
             raise WorkflowFailed(node.id, f"tool {node.tool} failed: {str(result.output)[:400]}")
-        data = result.data if isinstance(result.data, dict) else {}
-        return {"ok": True, "output": str(result.output)[:MAX_TOOL_OUTPUT_IN_RESULT],
+        data = dict(result.data) if isinstance(result.data, dict) else {}
+        output = str(result.output)
+        data["workflow_output_truncated"] = len(output) > MAX_TOOL_OUTPUT_IN_RESULT
+        return {"ok": True, "output": output[:MAX_TOOL_OUTPUT_IN_RESULT],
                 "data": _bounded(data, 16 * 1024)}
 
     def _join(self, node: Node, scope: dict[str, Any]) -> Any:
@@ -426,6 +428,7 @@ class Interpreter:
         keys: list[str] = []
         items: list[Any] = []
         skipped: list[str] = []
+        failures: list[dict[str, str]] = []
         unsettled = 0
         for index, item in enumerate(over):
             item_scope = dict(scope)
@@ -447,6 +450,7 @@ class Interpreter:
             except WorkflowFailed as exc:
                 if node.on_item_failure == "skip":
                     skipped.append(key)
+                    failures.append({"key": key, "reason": str(exc)[:500]})
                     self._emit(EventType.log, {"node": cnode.site_id, "item": key,
                                                "note": f"item skipped: {exc}"})
                     continue
@@ -467,7 +471,8 @@ class Interpreter:
         if unsettled:
             raise _Wait()
         complete = not skipped and len(items) == len(over)
-        result = {"keys": keys, "items": items, "skipped": skipped, "complete": complete,
+        result = {"keys": keys, "items": items, "skipped": skipped, "failures": failures,
+                  "complete": complete,
                   "count": len(items), "expected": len(over)}
         self._record_container(cnode, result)
         return result
