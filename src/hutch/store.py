@@ -8,8 +8,9 @@ verifies/appends/fsyncs JSONL files and acknowledges delivery separately;
 resource invalidations provide reconnectable state and visible mirror errors.
 
 Events carry a gap-free per-run ``seq`` (the resume cursor for SSE, UI-3) and a
-hash-chain link (SR-11). The schema is versioned with ``PRAGMA user_version``;
-upgrades back the database up first.
+hash-chain link (SR-11). Accepted asynchronous events are first written to a
+durable outbox, then group-committed to the canonical chain. The schema is
+versioned with ``PRAGMA user_version``; upgrades back the database up first.
 """
 
 from __future__ import annotations
@@ -1506,6 +1507,26 @@ def _migrate_59(db: sqlite3.Connection) -> None:
     persistence.migrate_workflow_pause(db)
 
 
+def _migrate_60(db: sqlite3.Connection) -> None:
+    """Add a durable, idempotent outbox for events waiting on canonical commit."""
+    if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='events'").fetchone():
+        columns = {str(row[1]) for row in db.execute("PRAGMA table_info(events)")}
+        if "event_key" not in columns:
+            db.execute("ALTER TABLE events ADD COLUMN event_key TEXT")
+    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_events_event_key "
+               "ON events(event_key) WHERE event_key IS NOT NULL")
+    db.execute("""CREATE TABLE IF NOT EXISTS event_outbox (
+        outbox_seq INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_key TEXT NOT NULL UNIQUE,
+        run_id TEXT NOT NULL,
+        ts TEXT NOT NULL,
+        type TEXT NOT NULL,
+        data TEXT NOT NULL,
+        owner_fence INTEGER
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_event_outbox_run_seq ON event_outbox(run_id, outbox_seq)")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -1514,7 +1535,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
                _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53, _migrate_54,
-               _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59]
+               _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59, _migrate_60]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -1602,8 +1623,11 @@ class Store:
                 raise
         # ---- batched event writer (one writer thread, group commit)
         self._buf_cv = threading.Condition()
-        self._pending: list[Event] = []
-        self._enqueued = 0
+        self._pending: list[Event] = self._restore_event_outbox() if not maintenance else []
+        # Recovered outbox records were accepted by an earlier process but never
+        # acknowledged by a canonical event commit. Include them in this instance's
+        # flush boundary so readers wait for their recovery too.
+        self._enqueued = len(self._pending)
         self._committed = 0
         self._run_status: dict[str, str] = {}
         #: optional per-run observers; recoverable file delivery has its own queue
@@ -5660,6 +5684,10 @@ class Store:
             mine = [e for e in self._pending if e.run_id == run_id]
             with self._tx() as db:
                 kept = self._worker_events(db, run_id, mine)
+                # The status transition is the canonical commit for this run's
+                # buffered events, including stale events that are deliberately
+                # discarded by the owner-fence check.
+                self._delete_event_outbox(db, mine)
                 row, emitted = self._apply_transition(db, run_id, to, fence, exit_reason, error, event, bump_fence, fields,
                                                       earlier=kept, cancel_wins=cancel_wins,
                                                       capability_snapshot_json=snapshot_json)
@@ -6521,6 +6549,17 @@ class Store:
 
     # ----------------------------------------------------------- events
 
+    def _restore_event_outbox(self) -> list[Event]:
+        """Rehydrate events left in SQLite when a process died before canonical commit."""
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT event_key, run_id, ts, type, data, owner_fence "
+                "FROM event_outbox ORDER BY outbox_seq").fetchall()
+        return [Event(outbox_id=str(row["event_key"]), run_id=str(row["run_id"]),
+                      ts=str(row["ts"]), type=EventType(str(row["type"])),
+                      data=json.loads(str(row["data"])), owner_fence=row["owner_fence"])
+                for row in rows]
+
     def append_event(self, event: Event) -> Event:
         """Queue an event; the single writer commits in batches. Returns immediately, so the agent loop never waits on a disk commit.
 
@@ -6537,6 +6576,17 @@ class Store:
                 return event                  # the run is over: a worker that outlived it cannot extend the transcript
             if len(self._pending) + self._inflight >= EVENT_PENDING_MAX:
                 raise RuntimeError("canonical event queue is full; new events are refused")
+            if event.outbox_id is None:
+                event.outbox_id = uuid.uuid4().hex
+            # Commit the event intent before acknowledging the in-memory enqueue. If
+            # this process exits before the writer batch reaches `events`, the next
+            # Store instance will restore this exact identity from the outbox.
+            with self._tx() as db:
+                db.execute("""INSERT INTO event_outbox
+                    (event_key, run_id, ts, type, data, owner_fence)
+                    VALUES (?, ?, ?, ?, ?, ?)""",
+                    (event.outbox_id, event.run_id, event.ts, event.type.value,
+                     _canonical(event.data), event.owner_fence))
             self._pending.append(event)
             self._enqueued += 1
             self._buf_cv.notify_all()
@@ -6563,19 +6613,52 @@ class Store:
                 self._sink_errors.setdefault(event.run_id, []).append(f"{type(exc).__name__}: {exc}")
 
     @staticmethod
-    def _insert_events(db: sqlite3.Connection, run_id: str, events: list[Event]) -> None:
+    def _delete_event_outbox(db: sqlite3.Connection, events: list[Event]) -> None:
+        keys = [(event.outbox_id,) for event in events if event.outbox_id]
+        if keys:
+            db.executemany("DELETE FROM event_outbox WHERE event_key = ?", keys)
+
+    @staticmethod
+    def _insert_events(db: sqlite3.Connection, run_id: str, events: list[Event]) -> list[Event]:
         """Give ``events`` the next sequence numbers and chain hashes of this run's transcript and insert them. Must run inside
-        the write transaction: the tail it reads cannot change before the commit."""
+        the write transaction: the tail it reads cannot change before the commit. Stable outbox identities make concurrent
+        recovery idempotent, while direct transactional events keep a null event key."""
+        inserted: list[Event] = []
+        seen_keys: dict[str, tuple[str, str, str, str]] = {}
         row = db.execute("SELECT seq, hash FROM events WHERE run_id = ? ORDER BY seq DESC LIMIT 1", (run_id,)).fetchone()
         seq, prev = (row["seq"], row["hash"] or GENESIS) if row else (0, GENESIS)
         rows = []
         for e in events:
+            event_key = e.outbox_id
+            if event_key:
+                payload_identity = (run_id, e.ts, e.type.value, _canonical(e.data))
+                if event_key in seen_keys:
+                    if seen_keys[event_key] != payload_identity:
+                        raise ValueError("one event outbox identity has conflicting payloads")
+                    continue
+                seen_keys[event_key] = payload_identity
+                existing = db.execute(
+                    "SELECT id, run_id, ts, type, data, seq, hash FROM events WHERE event_key = ?",
+                    (event_key,)).fetchone()
+                if existing is not None:
+                    saved_identity = (str(existing["run_id"]), str(existing["ts"]),
+                                      str(existing["type"]), str(existing["data"]))
+                    if saved_identity != payload_identity:
+                        raise ValueError("an event outbox identity conflicts with its canonical event")
+                    e.id, e.seq, e.hash = int(existing["id"]), int(existing["seq"]), str(existing["hash"] or "")
+                    continue
             seq += 1
             data_json = _canonical(e.data)
             e.seq, e.hash = seq, chain_hash(prev, run_id, seq, e.ts, e.type.value, data_json)
             prev = e.hash
-            rows.append((run_id, seq, e.hash, e.ts, e.type.value, data_json))
-        db.executemany("INSERT INTO events (run_id, seq, hash, ts, type, data) VALUES (?, ?, ?, ?, ?, ?)", rows)
+            rows.append((run_id, seq, e.hash, e.ts, e.type.value, data_json, event_key))
+            inserted.append(e)
+        if not rows:
+            Store._delete_event_outbox(db, events)
+            return []
+        db.executemany("INSERT INTO events (run_id, seq, hash, ts, type, data, event_key) "
+                       "VALUES (?, ?, ?, ?, ?, ?, ?)", rows)
+        Store._delete_event_outbox(db, events)
         # Persist one recoverable file-delivery intent per committed event
         # batch, in this transaction. The old row trigger ran a SQL predicate
         # for every event even while a run already had pending delivery. When
@@ -6591,7 +6674,7 @@ class Store:
         # Every event insertion path projects canonical replies in the same transaction.
         # Terminal transitions drain the buffer here rather than through _commit_batch;
         # projecting only in that writer lost replies when completion won the race.
-        replies = [e for e in events if e.type is EventType.message and e.data.get("role") == "assistant"
+        replies = [e for e in inserted if e.type is EventType.message and e.data.get("role") == "assistant"
                    and isinstance(e.data.get("content"), str) and e.data["content"]]
         if replies:
             run = db.execute("SELECT conversation_id FROM runs WHERE id = ?", (run_id,)).fetchone()
@@ -6604,6 +6687,7 @@ class Store:
                         db, message_id=str(e.data.get("message_id") or f"msg_{uuid.uuid4().hex[:12]}"),
                         conversation_id=conversation_id,
                         seq=next_seq + offset, run_id=run_id, role="assistant", content=e.data["content"], created_at=e.ts)
+        return inserted
 
     def _writer_loop(self) -> None:
         consecutive_failures = 0
@@ -6663,11 +6747,13 @@ class Store:
                         row = db.execute("SELECT sealed FROM runs WHERE id = ?", (run_id,)).fetchone()
                         if row is not None and row["sealed"]:
                             dropped += len(evs)
+                            self._delete_event_outbox(db, evs)
                             continue
                         kept = self._worker_events(db, run_id, evs)
                         dropped += len(evs) - len(kept)
-                        self._insert_events(db, run_id, kept)
-                        stored += kept
+                        kept_ids = {id(event) for event in kept}
+                        self._delete_event_outbox(db, [event for event in evs if id(event) not in kept_ids])
+                        stored += self._insert_events(db, run_id, kept)
                 self.dropped_events += dropped
                 for e in stored:                      # committed: observers see them in sequence order
                     self._fan_out(e)
@@ -7141,6 +7227,7 @@ class Store:
                      req.action_hash, req.expires_at))
                 if begin_wait and req.status is ApprovalStatus.pending:
                     kept = self._worker_events(db, req.run_id, mine)
+                    self._delete_event_outbox(db, mine)
                     row, emitted = self._apply_transition(db, req.run_id, RunStatus.waiting_approval,
                         expected_fence, None, None, {"approval_id": req.id}, False, None, earlier=kept)
                     request_event = Event(run_id=req.run_id, type=EventType.approval_request,

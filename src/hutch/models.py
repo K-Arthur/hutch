@@ -512,6 +512,7 @@ class EventType(str, Enum):
 
 class Event(BaseModel):
     id: Optional[int] = None          # database row id; only set on events read back
+    outbox_id: Optional[str] = Field(default=None, exclude=True)  # stable id for crash-safe event delivery
     run_id: str
     seq: int = 0                      # per-run sequence number, 1-based and gap-free (UI-3)
     hash: str = ""                    # hash-chain link to the previous event of this run (SR-11)

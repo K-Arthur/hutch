@@ -195,7 +195,14 @@ challenge has not been tested.
 Before a schema upgrade, Hutch writes `hutch.db.bak-vN` using SQLite's online backup API. The
 current schema version is shown by `hutch doctor`. Keep the matching
 release and pre-upgrade backups. A normal snapshot captures committed database history, including
-WAL pages; event buffers that have not committed yet are outside its scope:
+WAL pages and accepted event outbox entries; application state not yet committed to SQLite is outside
+its scope:
+
+Schema v60 stores accepted event appends in a durable SQLite outbox before returning to the
+producer. The batch writer assigns the canonical sequence and hash, then removes the outbox row in
+the same transaction. On restart, Hutch restores any accepted rows that had not reached the canonical
+event table; they are covered by the database backup and snapshot. An enqueue whose SQLite transaction
+did not commit was not acknowledged to its producer.
 
 Schema v46 adds an empty Outlook Mail send-grant table. Upgrade does not copy existing Mail.Read
 grants into it; Mail.Send always needs a separate sign-in and owner grant. Older releases cannot

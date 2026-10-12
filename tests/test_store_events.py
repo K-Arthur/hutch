@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import os
 import sqlite3
+import subprocess
+import sys
 import threading
 import time
+from pathlib import Path
 
 import pytest
 
@@ -73,8 +77,87 @@ def test_flush_reports_uncommitted_events_and_preserves_them_for_retry(store, mo
     assert store.list_events(run.id)[0].data == {"not_yet_committed": True}
 
 
+def test_queued_event_survives_process_restart_before_canonical_commit(store, config):
+    """An acknowledged queue append must survive loss of the writer process."""
+    run = _run(store)
+    store.close()
+    project = str(Path(__file__).resolve().parents[1])
+    env = os.environ.copy()
+    env["HUTCH_STATE_DIR"] = str(config.state_dir)
+    env["PYTHONPATH"] = os.pathsep.join(
+        part for part in (project, env.get("PYTHONPATH", "")) if part)
+    script = r"""
+import os
+import sys
+import threading
+from hutch.config import get_config
+from hutch.models import Event, EventType
+from hutch.store import Store
+
+Store._writer_loop = lambda self: threading.Event().wait()
+store = Store(get_config())
+store.append_event(Event(run_id=sys.argv[1], type=EventType.log,
+                         data={"recovered": "after-process-restart"}))
+os._exit(0)
+"""
+    subprocess.run([sys.executable, "-c", script, run.id], env=env, check=True, timeout=10)
+
+    recovered = Store(config)
+    try:
+        events = recovered.list_events(run.id)
+        assert [event.data for event in events] == [{"recovered": "after-process-restart"}]
+        assert events[0].seq == 1
+        assert recovered.verify_chain(run.id)["ok"]
+    finally:
+        recovered.close()
+
+
+def test_two_stores_recovering_the_same_outbox_entry_commit_it_once(store, config, monkeypatch):
+    run = _run(store)
+    entered, release = threading.Event(), threading.Event()
+    original_batch = store._commit_batch
+    event = Event(run_id=run.id, type=EventType.log, data={"same": "outbox entry"})
+
+    def hold_batch(batch):
+        entered.set()
+        assert release.wait(5)
+        return original_batch(batch)
+
+    monkeypatch.setattr(store, "_commit_batch", hold_batch)
+    store.append_event(event)
+    assert entered.wait(2)
+
+    recovered = Store(config)
+    try:
+        recovered.flush_events(timeout=2)
+        release.set()
+        store.flush_events(timeout=2)
+        assert recovered.count_events(run.id) == 1
+        assert recovered.verify_chain(run.id)["ok"]
+        assert recovered._db.execute("SELECT COUNT(*) FROM event_outbox").fetchone()[0] == 0
+        conflicting = Event(outbox_id=event.outbox_id, run_id=run.id, ts=event.ts,
+                            type=EventType.log, data={"different": "payload"})
+        with pytest.raises(ValueError, match="event outbox identity conflicts"):
+            with recovered._tx() as db:
+                Store._insert_events(db, run.id, [conflicting])
+    finally:
+        release.set()
+        recovered.close()
+
+
 def test_non_lock_database_failure_requeues_event_batch_without_acknowledging_it(store, monkeypatch):
     run = _run(store)
+    entered, release = threading.Event(), threading.Event()
+    original_batch = store._commit_batch
+
+    def hold_batch(batch):
+        entered.set()
+        assert release.wait(5)
+        return original_batch(batch)
+
+    monkeypatch.setattr(store, "_commit_batch", hold_batch)
+    store.append_event(Event(run_id=run.id, type=EventType.log, data={"retry": True}))
+    assert entered.wait(2)
     transaction = store._tx
     failed = False
 
@@ -86,7 +169,7 @@ def test_non_lock_database_failure_requeues_event_batch_without_acknowledging_it
         return transaction()
 
     monkeypatch.setattr(store, "_tx", fail_once)
-    store.append_event(Event(run_id=run.id, type=EventType.log, data={"retry": True}))
+    release.set()
     store.flush_events(timeout=2)
 
     assert failed
@@ -97,6 +180,17 @@ def test_non_lock_database_failure_requeues_event_batch_without_acknowledging_it
 
 def test_repeated_storage_failures_back_off_without_acknowledging_events(store, monkeypatch):
     run = _run(store)
+    entered, release = threading.Event(), threading.Event()
+    original_batch = store._commit_batch
+
+    def hold_batch(batch):
+        entered.set()
+        assert release.wait(5)
+        return original_batch(batch)
+
+    monkeypatch.setattr(store, "_commit_batch", hold_batch)
+    store.append_event(Event(run_id=run.id, type=EventType.log, data={"durable": "after-retry"}))
+    assert entered.wait(2)
     transaction = store._tx
     attempts: list[float] = []
 
@@ -107,7 +201,7 @@ def test_repeated_storage_failures_back_off_without_acknowledging_events(store, 
         return transaction()
 
     monkeypatch.setattr(store, "_tx", fail_four_commits)
-    store.append_event(Event(run_id=run.id, type=EventType.log, data={"durable": "after-retry"}))
+    release.set()
     store.flush_events(timeout=5)
 
     assert len(attempts) == 5
@@ -124,6 +218,17 @@ def test_repeated_storage_failures_back_off_without_acknowledging_events(store, 
 
 def test_sqlite_full_event_write_is_retained_until_capacity_returns(store, capsys):
     run = _run(store)
+    entered, release = threading.Event(), threading.Event()
+    original_batch = store._commit_batch
+
+    def hold_batch(batch):
+        entered.set()
+        assert release.wait(5)
+        return original_batch(batch)
+
+    store._commit_batch = hold_batch
+    store.append_event(Event(run_id=run.id, type=EventType.log, data={"payload": "x" * 2_000_000}))
+    assert entered.wait(2)
     with store._tx() as db:
         db.execute("CREATE TABLE storage_pressure (payload BLOB NOT NULL)")
         db.execute("INSERT INTO storage_pressure(payload) VALUES (zeroblob(?))", (4 * 1024 * 1024,))
@@ -132,7 +237,7 @@ def test_sqlite_full_event_write_is_retained_until_capacity_returns(store, capsy
         db.execute(f"PRAGMA max_page_count = {page_count}")
 
     assert free_pages == 0
-    store.append_event(Event(run_id=run.id, type=EventType.log, data={"payload": "x" * 2_000_000}))
+    release.set()
     with pytest.raises(RuntimeError, match="canonical events remain uncommitted"):
         store.flush_events(timeout=1.2)
 

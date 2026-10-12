@@ -21,7 +21,7 @@ from hutch.models import RunStatus
 from hutch.store import (SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migrate_27, _migrate_28,
                          _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33, _migrate_34, _migrate_45,
                          _migrate_35, _migrate_37, _migrate_40, _migrate_41, _migrate_46, _migrate_47,
-                         _migrate_48, _migrate_57, _migrate_58, _migrate_59)
+                         _migrate_48, _migrate_57, _migrate_58, _migrate_59, _migrate_60)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "state_v4.db.fixture"
 BRIEFING, SWEEPER = "bot_7eef563ee683", "bot_611a4b96d543"
@@ -90,6 +90,32 @@ def test_v59_workflow_pause_defaults_to_unpaused_and_is_idempotent():
         with pytest.raises(sqlite3.IntegrityError):
             db.execute("UPDATE workflow_runs SET pause_requested=2 WHERE id='wrun-old'")
         assert SCHEMA_VERSION >= 59
+    finally:
+        db.close()
+
+
+def test_v60_event_outbox_adds_idempotent_commit_keys_and_preserves_history():
+    db = sqlite3.connect(":memory:")
+    try:
+        db.execute("""CREATE TABLE events (
+            id INTEGER PRIMARY KEY, run_id TEXT, seq INTEGER, hash TEXT, ts TEXT, type TEXT, data TEXT)""")
+        db.execute("INSERT INTO events VALUES (1, 'run-old', 1, 'hash', 'now', 'log', '{}')")
+        _migrate_60(db)
+        _migrate_60(db)
+        assert db.execute("SELECT event_key FROM events WHERE id=1").fetchone()[0] is None
+        columns = {str(row[1]) for row in db.execute("PRAGMA table_info(event_outbox)")}
+        assert {"outbox_seq", "event_key", "run_id", "ts", "type", "data", "owner_fence"} <= columns
+        db.execute("INSERT INTO events (run_id, seq, hash, ts, type, data, event_key) "
+                   "VALUES ('run-new', 1, 'hash-1', 'now', 'log', '{}', 'event-a')")
+        with pytest.raises(sqlite3.IntegrityError):
+            db.execute("INSERT INTO events (run_id, seq, hash, ts, type, data, event_key) "
+                       "VALUES ('run-new', 2, 'hash-2', 'later', 'log', '{}', 'event-a')")
+        db.execute("INSERT INTO event_outbox (event_key, run_id, ts, type, data) "
+                   "VALUES ('pending-a', 'run-new', 'later', 'log', '{}')")
+        with pytest.raises(sqlite3.IntegrityError):
+            db.execute("INSERT INTO event_outbox (event_key, run_id, ts, type, data) "
+                       "VALUES ('pending-a', 'run-new', 'later', 'log', '{}')")
+        assert SCHEMA_VERSION >= 60
     finally:
         db.close()
 
@@ -820,11 +846,11 @@ def test_interrupted_schema_56_to_current_migrations_roll_back_and_retry(config,
         db.close()
 
     def interrupt(_db):
-        raise RuntimeError("injected v59 workflow pause migration interruption")
+        raise RuntimeError("injected v60 event outbox migration interruption")
 
     with monkeypatch.context() as patch:
         patch.setattr(store_module, "_MIGRATIONS", [*store_module._MIGRATIONS[:-1], interrupt])
-        with pytest.raises(RuntimeError, match="injected v59 workflow pause migration interruption"):
+        with pytest.raises(RuntimeError, match="injected v60 event outbox migration interruption"):
             Store(config)
 
     db = sqlite3.connect(config.db_path)
@@ -848,6 +874,9 @@ def test_interrupted_schema_56_to_current_migrations_roll_back_and_retry(config,
         assert upgraded.get_conversation_workflow_policy(conversation["id"]) is None
         assert upgraded._db.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
                                     "AND name='workflow_amendment_history'").fetchone() is not None
+        assert upgraded._db.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
+                                    "AND name='event_outbox'").fetchone() is not None
+        assert "event_key" in {str(row[1]) for row in upgraded._db.execute("PRAGMA table_info(events)")}
         assert upgraded._db.execute("SELECT pause_requested FROM workflow_runs LIMIT 1").fetchone() is None
     finally:
         upgraded.close()
