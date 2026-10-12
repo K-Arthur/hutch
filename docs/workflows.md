@@ -442,8 +442,13 @@ attempt can run.
   inputs, dependencies, authority, bindings and budgets. The preview names that child run and the
   transaction rechecks its node, well-formed parent fence and original contract; malformed ownership
   metadata makes the child ineligible for carry. The old child is not stopped or
-  re-dispatched; the supervisor waits for it to settle before starting the new revision, which then
-  consumes its recorded result. Changed or reordered work, tools/skills, maps, conditions, altered
+  re-dispatched; the supervisor waits for it to settle and clean up before starting the new revision,
+  which then consumes its recorded result. A process-executor acceptance verifies the live child
+  remains owned while adoption waits, only one local scripted inference request is issued, and no
+  owned process remains after the revised workflow finishes; see
+  [`amendment-process-carry-2026-10-11/validation.json`](realignment/artifacts/dynamic-workflows/amendment-process-carry-2026-10-11/validation.json).
+  The response is scripted and does not establish model quality. Changed or reordered work,
+  tools/skills, maps, conditions, altered
   inputs/envelopes/budgets, or any unrelated active child still block adoption. For other running
   workflows, the owner can request Pause after current work, then adopt after the Studio reports
   **Paused**. A preview made while work is active is read-only and is not adoption authorization;

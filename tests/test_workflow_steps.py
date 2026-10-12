@@ -369,6 +369,97 @@ def test_stopping_workflow_cancels_active_step_and_drains_its_process(store, con
         engine.shutdown()
 
 
+def test_active_amendment_carry_waits_for_process_child_cleanup_before_resume(store, config, ollama):
+    """A carried tool-free worker stays under its old run until the real process drains."""
+    import copy
+    import hashlib
+    import json
+
+    from hutch.workflow import amendments
+
+    bot = make_bot(store, name="amendment-process-carry", model="ollama/tiny:1b",
+                   tools=[], selfcheck=False)
+    engine = Engine(config, store, executor="process", max_concurrent=2)
+    ollama.script = agent_script([{"content": "result from the original worker"}])
+    ollama.stall_once = 5.0
+    original = {
+        "name": "amendment-process-carry",
+        "envelope": {"tools": [], "models": ["ollama/tiny:1b"]},
+        "budget": {"max_nodes": 5, "max_model_calls": 3, "max_wall_seconds": 90},
+        "nodes": [{"kind": "agent", "id": "work", "role": "worker",
+                   "model": "$bot", "instruction": "Answer briefly.", "tools": [],
+                   "max_steps": 2}],
+    }
+    candidate = copy.deepcopy(original)
+    candidate["nodes"].append({"kind": "transform", "id": "after", "op": "constant",
+                               "args": {"value": "new revision continued"}})
+
+    try:
+        submission = wfsubmit.submit_workflow(
+            store, bot=bot, plan=original, definition_name="amendment-process-carry")
+        child_id = ""
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            engine.tick()
+            node = next((item for item in wstore.nodes(store, submission.workflow_run_id)
+                         if item["site_id"] == "work"), None)
+            if node and node.get("run_id"):
+                child = store.get_run(str(node["run_id"]))
+                if (child is not None and child.status.value == "running"
+                        and store.live_procs(child.id) and ollama.of("/api/chat")):
+                    child_id = child.id
+                    break
+            time.sleep(0.05)
+        assert child_id, "the workflow step did not enter the real provider process"
+
+        active = wstore.workflow_run(store, submission.workflow_run_id)
+        assert active is not None and active["status"] == "waiting", active
+        assert active["attempt_run_id"] == submission.attempt_run_id
+        child = store.get_run(child_id)
+        assert child is not None and child.parent_run_id == submission.attempt_run_id
+        assert store.run_kind(child_id) == "step" and store.live_procs(child_id)
+
+        preview = amendments.preview(
+            store, workflow_run_id=submission.workflow_run_id, plan=candidate,
+            expected_revision_id=submission.revision_id,
+            expected_generation=submission.attempt_run_id, inputs={})
+        assert preview["quiescence"]["owned_work_quiet"] is False
+        assert preview["quiescence"]["owned_work_carryable"] is True
+        assert [item["run_id"] for item in preview["quiescence"]["carry_active_nodes"]] == [child_id]
+
+        request_hash = hashlib.sha256(json.dumps(
+            {"workflow": submission.workflow_run_id, "plan": candidate}, sort_keys=True,
+            separators=(",", ":")).encode()).hexdigest()
+        adopted = amendments.adopt(
+            store, workflow_run_id=submission.workflow_run_id, plan=candidate,
+            expected_revision_id=submission.revision_id,
+            expected_generation=submission.attempt_run_id, inputs={},
+            cancel_pending_questions=False, idem_key="process-child-carry-adopt",
+            request_hash=request_hash)
+        assert adopted["revision_id"] != submission.revision_id
+
+        # The fresh revision must remain parked while its original child process owns work.
+        engine.tick()
+        after_adoption = wstore.workflow_run(store, submission.workflow_run_id)
+        assert after_adoption is not None and after_adoption["status"] == "waiting"
+        assert after_adoption["attempt_run_id"] == submission.attempt_run_id
+        assert store.live_procs(child_id), "adoption must not hide or detach the old child process"
+
+        drive(engine, store, submission.attempt_run_id, timeout=90)
+        final = wfsubmit.status(store, submission.workflow_run_id)
+        assert final["workflow"]["status"] == "succeeded", final["workflow"]
+        nodes = {item["site_id"]: item for item in final["nodes"]}
+        assert nodes["work"]["status"] == "succeeded"
+        assert nodes["work"]["result"]["text"] == "result from the original worker"
+        assert nodes["after"]["result"] == "new revision continued"
+        assert len(ollama.of("/api/chat")) == 1, "the carried model step must not be dispatched twice"
+        assert store.get_run(child_id).status.value == "succeeded"
+        assert not store.live_procs(child_id), "the recorded child process must be fully cleaned up"
+        assert not store.live_procs(submission.attempt_run_id)
+    finally:
+        engine.shutdown()
+
+
 def test_agent_step_output_contract_is_enforced_and_fails_honestly(store, config, ollama):
     """A reply that does not satisfy the node's contract fails that node with the reason."""
     bot = make_bot(store, name="contract-bot", model="ollama/tiny:1b", tools=["files"], selfcheck=False)

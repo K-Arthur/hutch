@@ -569,7 +569,10 @@ run when a candidate only appends later work and keeps its input, dependency, au
 binding and budget contract. Adoption verifies the child identity and parent fence in the same
 transaction; malformed or legacy ownership fences fail closed. The old child drains under its
 original attempt, and the supervisor waits for cleanup
-before the new revision consumes its result. Changed or reordered work, tools, skills, maps,
+before the new revision consumes its result. The real process-executor acceptance confirms that
+the old child remains owned while the workflow waits and that no process record remains after the
+new revision consumes its result; its scripted local response does not establish model quality
+([`amendment-process-carry validation`](realignment/artifacts/dynamic-workflows/amendment-process-carry-2026-10-11/validation.json)). Changed or reordered work, tools, skills, maps,
 conditions, changed inputs/envelopes/budgets, and unlisted active children remain blockers. Tools,
 other agents, verification,
 publication, questions and control or container results are invalidated because the runtime
