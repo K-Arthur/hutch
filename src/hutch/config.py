@@ -49,8 +49,30 @@ class hutchConfig:
         return self.bots_dir / bot_name
 
     def bot_profiles_dir(self, bot_name: str) -> Path:
-        """Per-bot persistent browser profiles (logins survive across runs)."""
+        """Legacy name-scoped profile location, retained for manual migration only."""
         return self.bot_dir(bot_name) / "browser-profile"
+
+    def browser_profile_dir(self, bot_id: str) -> Path:
+        """Persistent account state follows immutable bot identity, never a recycled name."""
+        if not re.fullmatch(r"bot_[0-9a-f]{12}", bot_id):
+            raise ValueError("invalid bot identity for browser profile")
+        root = self.state_dir / "browser-profiles"
+        root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        fd = os.open(root, flags)
+        try:
+            for name in (bot_id, "browser-profile"):
+                try:
+                    os.mkdir(name, mode=0o700, dir_fd=fd)
+                except FileExistsError:
+                    pass
+                child = os.open(name, flags, dir_fd=fd)
+                os.close(fd)
+                fd = child
+                os.fchmod(fd, 0o700)
+        finally:
+            os.close(fd)
+        return root / bot_id / "browser-profile"
 
     def run_dir(self, bot_name: str, run_id: str) -> Path:
         return self.bot_dir(bot_name) / "runs" / run_id

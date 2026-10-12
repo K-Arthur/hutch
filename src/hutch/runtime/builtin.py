@@ -270,6 +270,46 @@ class BuiltinRuntime:
             cached = _CONN_PROVIDERS[key] = provider_for_connection(book, conn.name, rung.model, resolved_key=credential)
         return cached
 
+    def _request_messages(self, ctx: ToolContext, run: Run, session: "Session",
+                          messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """The messages a provider may see: tool-result frames become real image input only for a route that accepts
+        them, only the newest frame is sent, and no internal reference ever leaves the process."""
+        from ..computer.frames import FrameStore
+        from ..providers.images import has_observations, prepare_messages
+        if not has_observations(messages):
+            return messages
+        try:
+            vision = bool(session.provider.supports_vision(session.rung.model))
+        except Exception:
+            vision = False
+        withheld = ""
+        try:
+            local_route = bool(session.provider.data_stays_local())
+        except Exception:
+            local_route = False
+        allow_observation = local_route or getattr(ctx.bot, "observation_to_hosted", False)
+        if not allow_observation and getattr(ctx, "private_computer_history", False):
+            # Local model replies can quote observed secrets. Sanitizing only tool results cannot make that
+            # accumulated conversation safe for a hosted fallback.
+            raise RunAborted("observation_policy", "This conversation contains private local computer observations. "
+                             "Hosted fallback is blocked; use a local route or explicitly allow observations.")
+        if local_route and not getattr(ctx.bot, "observation_to_hosted", False):
+            ctx.private_computer_history = True
+        if not allow_observation:
+            # Page text and labels are egress too. This also covers a switch from a local to a hosted route.
+            withheld = ("this assistant has not allowed sending computer observations to a hosted model; "
+                        "ask the owner to review Computer access settings")
+        prepared, report = prepare_messages(
+            messages, vision=vision, frames=FrameStore(ctx.config.run_dir(ctx.bot.name, run.id)), withheld=withheld,
+            allow_observation_text=allow_observation)
+        notable = [o for o in report["omitted"] if o["reason"] != "superseded"]
+        if report["delivered"] or notable:
+            detail = [f"sent {', '.join(report['delivered'])}"] if report["delivered"] else []
+            detail += [f"{o['frame_id']} not sent ({o['reason']})" for o in notable]
+            self._log(ctx, run, "note", "observation images: " + "; ".join(detail),
+                      frames_delivered=report["delivered"], vision=vision)
+        return prepared
+
     @staticmethod
     def _log(ctx: ToolContext, run: Run, kind: str, note: str, **extra: Any) -> None:
         ctx.emit(Event(run_id=run.id, type=EventType.log, data={"kind": kind, "note": note, **extra}))
@@ -719,7 +759,8 @@ class BuiltinRuntime:
         planned_rung_spec = session.rung.spec
         contract_repairs = 0
 
-        def append_tool_result(call_name: str, call_id: str, content: str) -> None:
+        def append_tool_result(call_name: str, call_id: str, content: str, *,
+                               computer_observation: bool = False, images: Any = None) -> None:
             """Add one result in the shape the active protocol replays.
 
             Native mode answers into the provider's own tool/result association. Envelope
@@ -729,10 +770,15 @@ class BuiltinRuntime:
             """
             if envelope_mode:
                 bounded = content if len(content) <= 60_000 else content[:60_000] + "\n… [result clipped for the model]"
-                messages.append({"role": "user",
-                                 "content": f'<tool_result tool="{call_name}">\n{bounded}\n</tool_result>'})
+                message = {"role": "user",
+                           "content": f'<tool_result tool="{call_name}">\n{bounded}\n</tool_result>'}
             else:
-                messages.append({"role": "tool", "tool_call_id": call_id, "name": call_name, "content": content})
+                message = {"role": "tool", "tool_call_id": call_id, "name": call_name, "content": content}
+            if computer_observation:
+                message["computer_observation"] = True
+            if images:
+                message["images"] = images   # frame references; bytes are attached per request
+            messages.append(message)
 
         loop = LoopDetector()
         malformed_streak = loop_strikes = 0
@@ -743,6 +789,9 @@ class BuiltinRuntime:
         while True:
             if stop():
                 raise RunAborted("stopped", "user requested stop")
+            from ..computer.human import service as service_computer, plan_fence, plan_changed
+            service_computer(ctx)
+            control_fence = plan_fence(ctx)
             if envelope_mode and session.rung.spec != planned_rung_spec:
                 raise RunAborted(
                     "tool_protocol",
@@ -783,7 +832,8 @@ class BuiltinRuntime:
             except ProviderError as exc:
                 raise RunAborted(_exit_reason(exc), f"provider connection is no longer usable: {exc}") from exc
             req = ChatRequest(
-                model=session.rung.model, messages=messages, tools=specs, num_ctx=session.num_ctx,
+                model=session.rung.model, messages=self._request_messages(ctx, run, session, messages),
+                tools=specs, num_ctx=session.num_ctx,
                 max_tokens=self._turn_cap(bot, session.rung, run), think=False if run.execution_purpose == "persona_preview"
                 else (bot.think if bot.think is not None else False),
                 stream=False if run.execution_purpose == "persona_preview" else session.stream, allow_stream_retry=False,
@@ -867,6 +917,11 @@ class BuiltinRuntime:
                         cost_usd=cost or 0.0, account_id=account_id, reservation_id=reservation_id,
                         prefix=prefix_hash, window=session.num_ctx or 0,
                         finish=result.finish_reason, streamed=result.streamed, **extra)
+            if service_computer(ctx) or plan_changed(ctx, control_fence):
+                messages.append({"role": "user", "content": "A person operated the computer session. Your previous "
+                                 "plan was discarded. Observe fresh state before choosing any action."})
+                continue
+
             # ---- envelope modes (constrained/prompt): the reply is a contract action, never free text
             if envelope_mode:
                 if result.tool_calls:
@@ -1020,6 +1075,9 @@ class BuiltinRuntime:
                 # The application, not the provider, owns each call's position in the response:
                 # it is the stable half of a delegation invocation identity.
                 ctx.tool_call_index = call_index
+                if service_computer(ctx) or plan_changed(ctx, control_fence):
+                    raise RunAborted("control_changed", "A person intervened during a tool batch. Its remaining "
+                                     "actions were discarded; inspect the session before starting a fresh run.")
                 definition = plan.resolve_name(tc.name) if plan is not None else None
                 canonical_name = definition.name if definition is not None else tc.name
                 tool = tools.get(canonical_name)
@@ -1080,7 +1138,11 @@ class BuiltinRuntime:
                 run.tool_ms += tool_timer.tool_ms
                 if res.data.get("question_pending"):
                     return ""
-                append_tool_result(canonical_name, tc.id, res.output or "(empty)")
+                append_tool_result(
+                    canonical_name, tc.id, res.output or "(empty)",
+                    computer_observation=(canonical_name in ("browser", "computer")
+                                          or bool(res.data.get("observation"))),
+                    images=res.data.get("images"))
 
             malformed_streak = malformed_streak + 1 if turn_bad else 0
             if loop_hit and loop_strikes >= 2:

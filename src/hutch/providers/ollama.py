@@ -48,6 +48,22 @@ def to_ollama_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
             out.append({"role": "assistant", "content": m.get("content") or "", "tool_calls": calls})
         elif role == "tool":
             out.append({"role": "tool", "content": m.get("content") or "", "tool_name": m.get("name", "")})
+        elif isinstance(m.get("content"), list):
+            # OpenAI-shaped parts: text joins, image_url data URIs become Ollama's per-message base64 ``images``.
+            texts, images = [], []
+            for part in m["content"]:
+                if not isinstance(part, dict):
+                    continue
+                if part.get("type") == "text":
+                    texts.append(str(part.get("text", "")))
+                elif part.get("type") == "image_url":
+                    url = str((part.get("image_url") or {}).get("url", ""))
+                    if url.startswith("data:image/") and ";base64," in url:
+                        images.append(url.split(";base64,", 1)[1])
+            message: dict[str, Any] = {"role": role, "content": "\n".join(texts)}
+            if images:
+                message["images"] = images
+            out.append(message)
         else:
             out.append({"role": role, "content": m.get("content") or ""})
     return out
@@ -181,6 +197,18 @@ class OllamaProvider(Provider):
             license=lic[0].strip() if lic else "", size_bytes=_size_from_ps_or_none(self, model))
         self._caps[model] = meta.capabilities
         return meta
+
+    def data_stays_local(self) -> bool:
+        from urllib.parse import urlsplit
+        host = (urlsplit(self.base_url).hostname or "").lower()
+        return host in ("localhost", "127.0.0.1", "::1") or host.endswith(".localhost")
+
+    def supports_vision(self, model: str) -> bool:
+        """Ollama reports ``vision`` in a model's capabilities (``/api/show``); that is the signal, not a name guess."""
+        try:
+            return "vision" in self.capabilities(model)
+        except Exception:
+            return False
 
     def capabilities(self, model: str) -> list[str]:
         if model not in self._caps:

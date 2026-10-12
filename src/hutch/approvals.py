@@ -146,7 +146,7 @@ class ApprovalGate:
         from .models import RunStatus
         self.store.ensure_listening()  # so an approval from another process wakes us immediately
         bus = self.store.bus
-        topics = {f"approval:{req.id}": 0, f"approval:wake:{self.run.id}": 0}
+        topics = {f"approval:{req.id}": 0, f"approval:wake:{self.run.id}": 0, f"human:{self.run.id}": 0}
         deadline = time.monotonic() + self.ttl
         prev_status = prev_status or self.run.status
         if self.run.status is not RunStatus.waiting_approval and not self.store.set_status(self.run, RunStatus.waiting_approval):
@@ -159,6 +159,8 @@ class ApprovalGate:
                 if self.cancelled():
                     self._resolve(req, ApprovalStatus.expired, "stopped")
                     raise DeniedError("run was stopped while awaiting approval")
+                if getattr(self, "computer_service", None) is not None:
+                    self.computer_service()
                 current = self.store.get_approval(req.id)
                 if current is None or current.status is not ApprovalStatus.pending:
                     status = current.status if current else ApprovalStatus.expired
@@ -188,7 +190,7 @@ class ApprovalGate:
         """A stop was requested: in this process (the flag) or in any other (the database)."""
         return self.cancel_requested or self.store.is_cancel_requested(self.run.id)
 
-    def wait_for_human(self, reason: str, url: str = "", handoff: str = "") -> None:
+    def wait_for_human(self, reason: str, url: str = "", handoff: str = "", service=None) -> None:
         """Park the run until a person clears a login / CAPTCHA / 2FA wall (UI-1 "Needs you").
 
         Hutch never attempts these challenges itself. The run shows as ``waiting_human`` with the
@@ -214,13 +216,15 @@ class ApprovalGate:
                     topics[t] = bus.version(t)
                 if self.cancelled():
                     raise DeniedError("run was stopped while waiting for a person")
+                if service is not None:
+                    service()
                 if self.store.consume_resume(self.run.id):
                     self.emit(Event(run_id=self.run.id, type=EventType.human_resumed, data={"url": url}))
                     return
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     raise DeniedError(f"nobody cleared the login wall within {self.ttl}s: {reason}")
-                bus.wait_any(topics, timeout=min(remaining, self.poll_seconds))
+                bus.wait_any(topics, timeout=min(remaining, self.poll_seconds, 1.0 if service else self.poll_seconds))
         finally:
             if self.run.status is RunStatus.waiting_human:
                 self.store.set_status(self.run, prev if prev is not RunStatus.waiting_human else RunStatus.running)

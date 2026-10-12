@@ -1,0 +1,1102 @@
+{
+  "baseline": "2872f4f",
+  "source_milestone": "44258c4",
+  "scope": "Implementation, tests and project documentation; generated screenshots/JSON/trace artifacts are indexed separately in the dated evidence ledger.",
+  "commits": [
+    "2ae1603 Restore owned browser sessions, observation frames and supervised stop",
+    "e5c911b Integrate isolated Wayland desktop, readiness and supervised session panel",
+    "288bda1 Contain native apps and bind computer observation privacy and authority",
+    "eeac48b Add authenticated worker-backed human step control and honest website claims",
+    "bb81f71 Bind browser profiles and reviewed file transfers to actual targets and bytes",
+    "ebb12c0 Fence revoked computer sessions and bound native grants, captures and retained state",
+    "44258c4 Fence native focus and interrupted input; repair contained offline shell probes"
+  ],
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "93c9678b701e8de314ff3c0dfc701e771d57917b65babfe2c1fe8c8323508ed3"
+    },
+    {
+      "path": "benchmarks/computer_use_soak.py",
+      "sha256": "639286baffed1085d4d6a4bc94665e9b3072d148482ab58e836a8bfb42ccf373",
+      "changed_functions": [
+        "_H.do_GET",
+        "_H.log_message",
+        "rss_mb",
+        "tree_pids",
+        "stats",
+        "instrument",
+        "instrument.measured",
+        "handoff",
+        "Gate.decide",
+        "Gate.cancelled",
+        "make_ctx",
+        "soak_browser",
+        "soak_desktop",
+        "main"
+      ]
+    },
+    {
+      "path": "docs/architecture.md",
+      "sha256": "174c2d0de424170b91c88f1acfec4a047a02526d3bf8af87e72dd2e6a4ed7a33"
+    },
+    {
+      "path": "docs/bot-config.md",
+      "sha256": "2c1140834c07e1446eb38ad95e64d426c3046f9a1346c68f07d2317f51d21d3c"
+    },
+    {
+      "path": "docs/computer-use.md",
+      "sha256": "604a1f2b81672bf17dfb43242fd177260b04ec3fc711a378f494b87e75817d0c"
+    },
+    {
+      "path": "docs/operations.md",
+      "sha256": "dd750edcf6f34c1d79f59e326fdc7fc6b545d2dcbcca71a4d5a4d35881b653d5"
+    },
+    {
+      "path": "docs/realignment/contracts.md",
+      "sha256": "d71cd25ad83781b38a89eabf653f395731284e97342ca9b177db01ea86f8beb9"
+    },
+    {
+      "path": "docs/realignment/ledger.md",
+      "sha256": "e6596bfdacc5d81a0e9fdf0314badea764bbc7edd581ce51d1904eacbafd8a40"
+    },
+    {
+      "path": "docs/requirements.md",
+      "sha256": "6759757b822c21c548538714e2afac3c6bd66ed67c79439d1cfcdea653c636d0"
+    },
+    {
+      "path": "docs/research/computer-use-baseline-2026-10-10.md",
+      "sha256": "73fc26debd639dc43b98951feee24083f7b66fa4de18d4700c088295e150d783"
+    },
+    {
+      "path": "docs/research/computer-use-review-2026-10-11.md",
+      "sha256": "b931d2383591d9492a0ad4c7a80300b387d3fe89e5a584e55e6f09a07608360d"
+    },
+    {
+      "path": "docs/roadmap.md",
+      "sha256": "1a07ef59550388716120eef89e21ecdacde64ada6225afc199471592fc1e1a89"
+    },
+    {
+      "path": "docs/safety.md",
+      "sha256": "c5d2a61b3ee8cb5e0a39fe5687e6431bda11344196b4f10a07ea7590edb50421"
+    },
+    {
+      "path": "scripts/verify_computer_wheel.py",
+      "sha256": "4416133e090f7080d128b94019f2783d20c68b17a2660af120162004b22851b7",
+      "changed_functions": [
+        "main",
+        "main.Handler.do_GET",
+        "main.Handler.log_message"
+      ]
+    },
+    {
+      "path": "src/hutch/approvals.py",
+      "sha256": "71a35c3562ac16e40f5f7b61fdd8cc30e98f1bdd41155a119387f01704427157",
+      "changed_functions": [
+        "ApprovalGate._wait",
+        "ApprovalGate.wait_for_human"
+      ]
+    },
+    {
+      "path": "src/hutch/browser_proxy.py",
+      "sha256": "2f28ffb59a84baeaea9f4b3ed224e3aeaee7ee2f92bc442de6363439838e7ce2",
+      "changed_functions": [
+        "_Download.__init__",
+        "_ProxyServer.__init__",
+        "_ProxyHandler._read_header",
+        "_ProxyHandler._open_checked",
+        "_ProxyHandler._forward_http",
+        "_ProxyHandler._error",
+        "PinnedBrowserProxy.__init__",
+        "PinnedBrowserProxy.managed_download"
+      ]
+    },
+    {
+      "path": "src/hutch/cli.py",
+      "sha256": "7940f9fa1f9f3fb534fa8af2027369b3c80c0247066bc0db34fc13e136fbad1e",
+      "changed_functions": [
+        "computer_doctor",
+        "serve"
+      ]
+    },
+    {
+      "path": "src/hutch/computer/__init__.py",
+      "sha256": "d46e52ecf9b69ebad2b733d8d14cb478089da3a748506b6c0ae83184f45e1a5f",
+      "changed_functions": []
+    },
+    {
+      "path": "src/hutch/computer/budgets.py",
+      "sha256": "f9d98abaeb7502e9fcceada16e84c48f25511a9e5cbc929248f052a3bb643cca",
+      "changed_functions": [
+        "profile_usage",
+        "profile_usage.scan",
+        "browser_rss",
+        "BrowserBudget.__init__",
+        "BrowserBudget._run",
+        "BrowserBudget.close"
+      ]
+    },
+    {
+      "path": "src/hutch/computer/control.py",
+      "sha256": "602189faadb46cd054a862b9d1506da0f70d3004df323b129f0e39f1707f7f77",
+      "changed_functions": [
+        "StaleControl.__init__",
+        "Snapshot.public",
+        "ControlLease.__init__",
+        "ControlLease.snapshot",
+        "ControlLease._snapshot_locked",
+        "ControlLease._move",
+        "ControlLease.take_over",
+        "ControlLease.hand_back",
+        "ControlLease.pause",
+        "ControlLease.request_stop",
+        "ControlLease.confirm_stopped",
+        "ControlLease.note_observation",
+        "ControlLease.invalidate_observation",
+        "ControlLease.begin_action",
+        "ControlLease.check",
+        "ControlLease._why_not_locked"
+      ]
+    },
+    {
+      "path": "src/hutch/computer/desktop.py",
+      "sha256": "5428b740d94ef352e655656bedef99c68f5aec3dfb56f84b661216422972f389",
+      "changed_functions": [
+        "InputBackend.click",
+        "InputBackend.pointer_to",
+        "InputBackend.type_text",
+        "InputBackend.chord",
+        "InputBackend.release_all",
+        "InputBackend.emergency_kill",
+        "DesktopSession.__init__",
+        "DesktopSession.observe",
+        "DesktopSession._authorize",
+        "DesktopSession._dispatch",
+        "DesktopSession.click",
+        "DesktopSession.click.act",
+        "DesktopSession.type_text",
+        "DesktopSession.key",
+        "DesktopSession.release_all",
+        "DesktopSession.stop",
+        "_Refusal.__init__",
+        "_Refusal.result"
+      ]
+    },
+    {
+      "path": "src/hutch/computer/doctor.py",
+      "sha256": "cadf085b95b04d27f3fdb06cab8a7abb5d465f417a2689991c0a97ca7f26a480",
+      "changed_functions": [
+        "Capability.public",
+        "_default_runner",
+        "_Host.__init__",
+        "_Host.runtime_dir",
+        "_Host.bus_names",
+        "_Host.library",
+        "_Host.portal_property",
+        "_session",
+        "_compositor",
+        "_portal",
+        "_screencast",
+        "_remotedesktop",
+        "_pipewire",
+        "_libei",
+        "_accessibility",
+        "_clipboard",
+        "_input_tools",
+        "_isolated_compositor",
+        "_browser_engine",
+        "_remote_takeover",
+        "probe_computer_use",
+        "summary",
+        "summary.state",
+        "main"
+      ]
+    },
+    {
+      "path": "src/hutch/computer/frames.py",
+      "sha256": "d81fce217c878f900d85b3e246f3aaaf96635fc9a5f8b94f5cc73ad861439c4b",
+      "changed_functions": [
+        "ImageRef.public",
+        "ImageRef.internal",
+        "ImageRef.from_internal",
+        "image_size",
+        "FrameStore.__init__",
+        "FrameStore._serialized",
+        "FrameStore._ensure_dir",
+        "FrameStore._entries",
+        "FrameStore.save",
+        "FrameStore.load",
+        "FrameStore.usage",
+        "new_frame_store",
+        "validate_frame_id"
+      ]
+    },
+    {
+      "path": "src/hutch/computer/human.py",
+      "sha256": "ea3e0d88311fabc81e5b74ee4d60d509a7bb271a6ebd537b64407536da72d46a",
+      "changed_functions": [
+        "HumanError.__init__",
+        "sessions",
+        "HumanSession.__init__",
+        "HumanSession._watch",
+        "HumanSession._permission_valid",
+        "HumanSession._wake",
+        "HumanSession._forget_locked",
+        "HumanSession._pause_locked",
+        "HumanSession.close",
+        "HumanSession.public",
+        "HumanSession.takeover",
+        "HumanSession._check_locked",
+        "HumanSession.command",
+        "HumanSession.pixels",
+        "HumanSession.pump",
+        "HumanSession.pump.check",
+        "pump",
+        "plan_fence",
+        "plan_changed",
+        "service"
+      ]
+    },
+    {
+      "path": "src/hutch/computer/native/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "changed_functions": []
+    },
+    {
+      "path": "src/hutch/computer/native/eis.py",
+      "sha256": "6910f3f3d7965afd1167d9d4b0bde59285f12246b99c6c6ad421d85d6bd63541",
+      "changed_functions": [
+        "find_gi_python",
+        "keycodes_for_text",
+        "EisInput.__init__",
+        "EisInput.start_in_isolated_session",
+        "EisInput._readline",
+        "EisInput._kill",
+        "EisInput.alive",
+        "EisInput.surface",
+        "EisInput.close",
+        "EisInput.emergency_kill",
+        "EisInput._send",
+        "EisInput.pointer_to",
+        "EisInput.click",
+        "EisInput.key",
+        "EisInput.chord",
+        "EisInput.type_text",
+        "EisInput.release_all"
+      ]
+    },
+    {
+      "path": "src/hutch/computer/native/eis_worker.py",
+      "sha256": "70e862be2ed8bd1933e99573be62b12db07e2cb435adbea31f2edc3c2f9c2f20",
+      "changed_functions": [
+        "_debug",
+        "_out",
+        "_refuse_if_not_isolated",
+        "_KwinSession.__init__",
+        "_KwinSession.close",
+        "_KwinSession.surface",
+        "_KwinSession.surface.call",
+        "_KwinSession.surface.receive",
+        "Ei.__init__",
+        "Worker.__init__",
+        "Worker.pump",
+        "Worker._handle",
+        "Worker.ready",
+        "Worker._frame",
+        "Worker.execute",
+        "Worker.release_all",
+        "main"
+      ]
+    },
+    {
+      "path": "src/hutch/computer/native/virtual.py",
+      "sha256": "8f6c6ed10eea1493197333c4c746ce85a5e53963e336f22c0250156319c5744b",
+      "changed_functions": [
+        "ManagedDesktop.__init__",
+        "ManagedDesktop.available",
+        "ManagedDesktop.__enter__",
+        "ManagedDesktop.__exit__",
+        "ManagedDesktop._spawn",
+        "ManagedDesktop._busctl",
+        "ManagedDesktop._wait",
+        "ManagedDesktop.launch",
+        "ManagedDesktop.capture_png",
+        "ManagedDesktop.kill_all",
+        "ManagedDesktop.alive",
+        "ManagedDesktop.home"
+      ]
+    },
+    {
+      "path": "src/hutch/computer/resources.py",
+      "sha256": "06d6c5e8549507dc24cf410ba965e386e11acbf42de4920eb2005f8af282bd59",
+      "changed_functions": [
+        "authority",
+        "workspace_grant",
+        "workspace_grant.scan"
+      ]
+    },
+    {
+      "path": "src/hutch/computer/transport.py",
+      "sha256": "2500103fd75bca3ef35fe61b2d9cf4ce796b18e3c504bf5eb027a20f855f6eca",
+      "changed_functions": [
+        "_directory",
+        "_name",
+        "_peer",
+        "_read",
+        "_read.exact",
+        "_write",
+        "WorkerBridge.__init__",
+        "WorkerBridge._serve",
+        "WorkerBridge._handle",
+        "WorkerBridge.close",
+        "HumanProxy.__init__",
+        "HumanProxy._rpc",
+        "HumanProxy.public",
+        "HumanProxy.takeover",
+        "HumanProxy.command",
+        "HumanProxy.pixels",
+        "discover"
+      ]
+    },
+    {
+      "path": "src/hutch/config.py",
+      "sha256": "50532df5b7ec93a49fcc449426824f4013f3494b0492dcbd90a914b2844fb72b",
+      "changed_functions": [
+        "hutchConfig.bot_profiles_dir",
+        "hutchConfig.browser_profile_dir"
+      ]
+    },
+    {
+      "path": "src/hutch/models.py",
+      "sha256": "7e98b3a348208ed62fef828f104f418580919826cf3f85f7ba5e1ed3cb0c28fc",
+      "changed_functions": [
+        "normalize_computer_apps",
+        "Bot.normalize_local_dev_origins",
+        "Bot.normalize_computer_apps"
+      ]
+    },
+    {
+      "path": "src/hutch/netguard.py",
+      "sha256": "43e50984e67273c7e85d226150a1e0bee153cc77854e265c0bd6bb62e1b252f1",
+      "changed_functions": [
+        "LocalOrigins.__init__",
+        "LocalOrigins._normalise",
+        "LocalOrigins.parse",
+        "LocalOrigins.lenient",
+        "LocalOrigins.__bool__",
+        "LocalOrigins.__iter__",
+        "LocalOrigins.allows",
+        "LocalOrigins.allows_url",
+        "LocalOrigins.allows_hostport",
+        "LocalOrigins.without_ports",
+        "LocalOrigins.ports",
+        "LocalOrigins.addresses",
+        "dashboard_ports",
+        "LocalAccess.__init__",
+        "LocalAccess.permit_navigation",
+        "LocalAccess.clear_permit",
+        "LocalAccess._permitted",
+        "LocalAccess.refusal",
+        "screen_url",
+        "RequestGuard.__init__",
+        "RequestGuard.check",
+        "RequestGuard._local_context_refusal",
+        "RequestGuard.route_handler",
+        "RequestGuard.route_handler.handle"
+      ]
+    },
+    {
+      "path": "src/hutch/procguard.py",
+      "sha256": "ac51eb27b44140bc92c703cb50e225467bf1c3b7b9c6900cfedb1c03a7a45870",
+      "changed_functions": [
+        "cmdline",
+        "children",
+        "descendants",
+        "end_tree",
+        "end_tree.survivors"
+      ]
+    },
+    {
+      "path": "src/hutch/providers/base.py",
+      "sha256": "ba009a0ea67260fe10648094c3c53d402ffa86b0c9efb4ca4e03cbd807c1e099",
+      "changed_functions": [
+        "Provider.data_stays_local",
+        "Provider.supports_vision"
+      ]
+    },
+    {
+      "path": "src/hutch/providers/claude.py",
+      "sha256": "7e86ac765ce2d6962f3299b2c4175b3843a9f21aa0a7ce4f883310711a5772d4",
+      "changed_functions": [
+        "_claude_user_content",
+        "to_claude_messages",
+        "ClaudeProvider.supports_vision"
+      ]
+    },
+    {
+      "path": "src/hutch/providers/images.py",
+      "sha256": "b64933c2fabba56545971ed9f666b99cddea88adae90da193bb549b0d58887af",
+      "changed_functions": [
+        "_refs",
+        "has_images",
+        "has_observations",
+        "prepare_messages",
+        "prepare_messages.flush"
+      ]
+    },
+    {
+      "path": "src/hutch/providers/ollama.py",
+      "sha256": "97a06447edafeda5684dd32174f91b8870d88ac82cf34b2bfd14723cde0c0a1c",
+      "changed_functions": [
+        "to_ollama_messages",
+        "OllamaProvider.data_stays_local",
+        "OllamaProvider.supports_vision"
+      ]
+    },
+    {
+      "path": "src/hutch/providers/openai_compat.py",
+      "sha256": "f3ddc34b4a275e981208fe720bd89bbd2b80a0478e130be1b42321410366ead9",
+      "changed_functions": [
+        "OpenAICompatProvider.supports_vision"
+      ]
+    },
+    {
+      "path": "src/hutch/runtime/builtin.py",
+      "sha256": "8023258eb3789cae21d0d238badf82b0d6d5f3dd355fec708e49cb6a5358e9bb",
+      "changed_functions": [
+        "BuiltinRuntime._request_messages",
+        "BuiltinRuntime.execute"
+      ]
+    },
+    {
+      "path": "src/hutch/runtime/steps.py",
+      "sha256": "ea06eb34d287536971978006a949ff6b4a5c4b01bd5cad2d4987f5640efa683d",
+      "changed_functions": [
+        "_public_frames",
+        "call_tool"
+      ]
+    },
+    {
+      "path": "src/hutch/safety.py",
+      "sha256": "482a7a91b57da5e73204c707ade78098fe8114a3ca04fb842237e2de715288b6",
+      "changed_functions": [
+        "PolicyEngine.check_computer"
+      ]
+    },
+    {
+      "path": "src/hutch/sandbox.py",
+      "sha256": "3bf32cad4f5de51722400a5d53d857480a5d9c9d94e8a923c3d8234503d77e46",
+      "changed_functions": [
+        "_probe",
+        "shell_argv",
+        "desktop_argv",
+        "_limited_argv"
+      ]
+    },
+    {
+      "path": "src/hutch/server/app.py",
+      "sha256": "6bbec8a47d31364e2e6e86a8d8031dcb6dd900b3ed92958a15552d1a986cc8f1",
+      "changed_functions": [
+        "create_app",
+        "create_app.computer_readiness",
+        "create_app._checked_local_origins",
+        "create_app._checked_computer_apps",
+        "create_app.bot_from_create_request",
+        "create_app.patch_bot",
+        "create_app.computer_permission",
+        "create_app.human_channel",
+        "create_app.human_viewer",
+        "create_app.computer_control",
+        "create_app.human_frame",
+        "create_app.run_computer_state",
+        "create_app.run_frame",
+        "create_app.resume_run",
+        "create_app.resume_run_v1"
+      ]
+    },
+    {
+      "path": "src/hutch/server/security.py",
+      "sha256": "9d1d7cc92c4d61f5edd6dac6a049e0e7c936da7656553a295f7c2b4e53eea99c",
+      "changed_functions": [
+        "SecurityMiddleware.__call__",
+        "SecurityMiddleware.__call__.send_with_security_headers",
+        "SecurityMiddleware.__call__.receive_limited"
+      ]
+    },
+    {
+      "path": "src/hutch/server/static/app.js",
+      "sha256": "5bd4aa3168995408e85c4c6432bed4f5e21f1dc85ffbbd0af6f68a4992b41899"
+    },
+    {
+      "path": "src/hutch/server/static/computer.css",
+      "sha256": "fad1429bf7e7ea76ecd2071e1726bc4c3105ad96744694eec90817fe3eebc6dd"
+    },
+    {
+      "path": "src/hutch/server/static/computer.js",
+      "sha256": "a777c0f18232d39bc334c14990d30f9271209dd17516322b4aae28e3776e0908"
+    },
+    {
+      "path": "src/hutch/server/static/index.html",
+      "sha256": "b5d77b8f42bd23151d7dc2cf6b798737d7294e85695ca24d57ae29091347f377"
+    },
+    {
+      "path": "src/hutch/store.py",
+      "sha256": "9a06300e5236ea4037c4226e1c0c35dae362c5a227e4bc34657d8ef331935807",
+      "changed_functions": [
+        "Store.frame_event"
+      ]
+    },
+    {
+      "path": "src/hutch/tools/__init__.py",
+      "sha256": "13eb8d01f2da9c238ccc063bfa6afb1bb2bf5a16a4bc1b02ce5069f8b62d245f",
+      "changed_functions": [
+        "build_tools"
+      ]
+    },
+    {
+      "path": "src/hutch/tools/base.py",
+      "sha256": "e3c4f85d902b418785986875890d9471e2d94eeca93b1a1c9befb63677421bb4",
+      "changed_functions": []
+    },
+    {
+      "path": "src/hutch/tools/browser.py",
+      "sha256": "92b16f56216928beb1c92a7922152df21a4cf822bbc9343af37929ca904a9fe7",
+      "changed_functions": [
+        "_DriverSlot.__init__",
+        "_DriverSlot._held",
+        "_DriverSlot._take",
+        "_DriverSlot._give",
+        "_DriverSlot.acquire",
+        "_DriverSlot.released",
+        "_slot_limit",
+        "_cancelled_probe",
+        "_lease_for",
+        "_wait_for_human",
+        "_decide",
+        "BrowserTool.__init__",
+        "BrowserTool._is_automation_driver",
+        "BrowserTool._emergency_stop",
+        "BrowserTool._tab_id_of",
+        "BrowserTool._register_page",
+        "BrowserTool._on_new_page",
+        "BrowserTool._is_open",
+        "BrowserTool._current_page",
+        "BrowserTool._annotate_tabs",
+        "BrowserTool._local_origins",
+        "BrowserTool._ensure",
+        "BrowserTool._ensure.announce",
+        "BrowserTool._ensure.budget_stop",
+        "BrowserTool._human_identity",
+        "BrowserTool._human_capture",
+        "BrowserTool._human_dispatch",
+        "BrowserTool._teardown",
+        "BrowserTool.effect",
+        "BrowserTool.recorded_arguments",
+        "BrowserTool._store_frame",
+        "BrowserTool._observe",
+        "BrowserTool._egress_block",
+        "BrowserTool._click_at",
+        "BrowserTool._click_at.refuse",
+        "BrowserTool._fence",
+        "BrowserTool._stale",
+        "BrowserTool._settle",
+        "BrowserTool._resolve_target",
+        "BrowserTool._page_has_sensitive_fields",
+        "BrowserTool._click_review_snapshot",
+        "BrowserTool._await_human_challenge",
+        "BrowserTool._sensitive_entry_result",
+        "BrowserTool._file_key",
+        "BrowserTool._reviewed_files",
+        "BrowserTool._transfer",
+        "BrowserTool._transfer.check",
+        "BrowserTool.run",
+        "BrowserTool._run_locked"
+      ]
+    },
+    {
+      "path": "src/hutch/tools/browser_files.py",
+      "sha256": "aae7df81e813eea66581b0c9b4aa0d13a54e7a34a6e2e80bb201092fcb08d720",
+      "changed_functions": [
+        "text_file",
+        "read_upload",
+        "read_download"
+      ]
+    },
+    {
+      "path": "src/hutch/tools/computer.py",
+      "sha256": "1df0d1268a122826dbea5e7ff76bbd94084c90300cf3640884862207019a5b81",
+      "changed_functions": [
+        "ComputerTool.__init__",
+        "ComputerTool.effect",
+        "ComputerTool.recorded_arguments",
+        "ComputerTool.run",
+        "ComputerTool._run",
+        "ComputerTool._run.before_dispatch",
+        "ComputerTool._result",
+        "ComputerTool._ensure",
+        "ComputerTool._ensure.announce",
+        "ComputerTool._ensure.checked_capture",
+        "ComputerTool._ensure.check_grant",
+        "ComputerTool._ensure.budget_stop",
+        "ComputerTool._ensure.check_native",
+        "ComputerTool._ensure.capture",
+        "ComputerTool._ensure.dispatch",
+        "ComputerTool._launch",
+        "ComputerTool._emergency_stop",
+        "ComputerTool._shutdown"
+      ]
+    },
+    {
+      "path": "tests/e2e/test_computer_browser_real.py",
+      "sha256": "09ea2a3fb86f5bec5a6981643885e3b3511e9076ea1b50a241708ab5575b6f21",
+      "changed_functions": [
+        "_Handler._send",
+        "_Handler.do_GET",
+        "_Handler.do_POST",
+        "_Handler.log_message",
+        "_Gate.__init__",
+        "_Gate.decide",
+        "_Gate.wait_for_human",
+        "_Gate.cancelled",
+        "_Policy.check_url",
+        "_serve",
+        "shop",
+        "shop.resolver",
+        "shop.connector",
+        "_open",
+        "test_duplicate_labels_are_refused_with_candidates_in_a_real_dom",
+        "test_a_scoped_selector_resolves_the_intended_duplicate",
+        "test_a_button_enabled_only_after_typing_is_resolved_against_the_live_dom",
+        "test_a_popup_becomes_the_active_tab_and_the_original_stays_addressable",
+        "test_public_page_cannot_load_subresources_from_the_approved_local_origin",
+        "test_public_redirect_into_the_approved_local_origin_is_refused",
+        "test_an_unapproved_loopback_port_is_still_refused",
+        "test_the_approved_local_app_is_reachable_and_public_names_still_resolve_publicly",
+        "_frames",
+        "test_observe_returns_a_real_bounded_frame_and_a_value_free_element_list",
+        "test_observe_refuses_a_page_with_a_visible_password_field_and_keeps_no_frame",
+        "test_two_observations_get_distinct_ordered_frame_ids",
+        "test_stop_during_a_hung_navigation_unblocks_the_tool_and_ends_the_browser",
+        "test_stop_during_a_hung_navigation_unblocks_the_tool_and_ends_the_browser.agent",
+        "test_using_the_browser_from_another_thread_fails_clearly",
+        "_page",
+        "_observe",
+        "test_click_at_lands_on_the_pixel_the_frame_showed",
+        "test_click_at_refuses_unknown_stale_and_out_of_bounds_frames_without_clicking",
+        "test_a_scroll_between_observation_and_click_makes_the_frame_stale",
+        "test_a_state_changing_action_invalidates_the_observation_for_coordinates",
+        "test_a_takeover_between_approval_and_dispatch_prevents_the_click",
+        "test_a_takeover_between_approval_and_dispatch_prevents_the_click.decide_then_takeover",
+        "test_replacing_the_reviewed_field_at_the_same_url_refuses_typing",
+        "test_replacing_the_reviewed_field_at_the_same_url_refuses_typing.replace_field",
+        "test_typing_and_navigation_report_verified_outcomes",
+        "test_control_changes_are_announced_as_run_events",
+        "test_reviewed_clicks_reuse_one_isolated_world_instead_of_leaking_a_context_each"
+      ]
+    },
+    {
+      "path": "tests/e2e/test_computer_handoff_native.py",
+      "sha256": "eca704046bbd46e3845a1b0842acb391ddaa2783b725700b04221ef2b22750c4",
+      "changed_functions": [
+        "_Handler.do_GET",
+        "_Handler.log_message",
+        "_Gate.__init__",
+        "_Gate.decide",
+        "_Gate.wait_for_human",
+        "_Gate.cancelled",
+        "wall_origin",
+        "test_a_person_completes_a_verification_wall_in_the_visible_browser_then_resumes",
+        "test_a_person_completes_a_verification_wall_in_the_visible_browser_then_resumes.agent"
+      ]
+    },
+    {
+      "path": "tests/e2e/test_computer_isolation.py",
+      "sha256": "701045c61134cf26c2c6b130ac6638cd589b88a1579d322df1b8394623898b0c",
+      "changed_functions": [
+        "_Origin._send",
+        "_Origin.do_GET",
+        "_Origin.log_message",
+        "_Gate.__init__",
+        "_Gate.decide",
+        "_Gate.wait_for_human",
+        "_Gate.cancelled",
+        "origin",
+        "_ctx",
+        "test_two_bots_run_concurrently_in_separate_profiles_and_finish_out_of_order",
+        "test_two_bots_run_concurrently_in_separate_profiles_and_finish_out_of_order.agent_a",
+        "test_two_bots_run_concurrently_in_separate_profiles_and_finish_out_of_order.agent_b",
+        "test_page_instructions_are_data_and_typed_secrets_never_reach_events",
+        "test_profile_survives_rename_but_recycled_name_and_legacy_path_never_share_cookies"
+      ]
+    },
+    {
+      "path": "tests/e2e/test_computer_native.py",
+      "sha256": "13ff0d76f1a9f9e6edde62bc169164ed177787d98f94282a341b4dc8d20c24a7",
+      "changed_functions": [
+        "Gate.__init__",
+        "Gate.decide",
+        "Gate.cancelled",
+        "native",
+        "_frame",
+        "_shot",
+        "_wait_for",
+        "test_native_idle_authority_revocation_stops_private_processes",
+        "test_real_window_geometry_change_refuses_old_coordinates",
+        "test_real_window_geometry_change_refuses_old_coordinates.call",
+        "test_real_window_geometry_change_refuses_old_coordinates.counted",
+        "test_real_takeover_interrupts_a_native_typing_burst_and_releases_keys",
+        "test_real_takeover_interrupts_a_native_typing_burst_and_releases_keys.observed",
+        "test_edit_save_through_a_native_file_dialog_reopen_and_verify",
+        "test_a_menu_opens_and_closes_and_the_screen_change_is_reported",
+        "test_input_is_refused_for_stale_frames_bad_coordinates_and_during_takeover",
+        "test_launch_is_limited_to_allowed_apps_and_workspace_files",
+        "test_emergency_stop_ends_the_whole_desktop_and_nothing_more_runs",
+        "test_a_bot_without_allowed_apps_cannot_start_a_session",
+        "test_native_app_namespace_cannot_read_outside_workspace_or_reach_host_loopback",
+        "test_human_step_input_edits_and_saves_the_real_native_application_without_model_observation",
+        "test_human_step_input_edits_and_saves_the_real_native_application_without_model_observation.command",
+        "test_mixed_workflow_terminal_generates_a_file_the_desktop_app_edits_and_saves"
+      ]
+    },
+    {
+      "path": "tests/e2e/test_computer_panel.py",
+      "sha256": "00cc101177425735ea87410a193da80db5c0cb7a6ccb21aad999907ebe95326c",
+      "changed_functions": [
+        "_png",
+        "_png.chunk",
+        "browser",
+        "live",
+        "_seed",
+        "_open",
+        "_shot",
+        "test_computer_settings_round_trip_and_readiness_at_each_width",
+        "test_panel_shows_environment_owner_and_a_never_live_frame_at_each_width",
+        "test_a_person_in_control_is_stated_and_resume_reuses_the_existing_control",
+        "test_page_and_application_strings_are_untrusted_text_not_markup",
+        "test_an_old_frame_is_labelled_stale_and_a_finished_run_is_labelled_final",
+        "test_an_evicted_frame_says_so_instead_of_showing_a_broken_image"
+      ]
+    },
+    {
+      "path": "tests/e2e/test_computer_phone.py",
+      "sha256": "8c09a92147d334d5f01798b59af85c9ce629c2ca1df74b668dbb51a9d64ebba6",
+      "changed_functions": [
+        "_Page.do_GET",
+        "_Page.log_message",
+        "controlled",
+        "controlled.worker",
+        "controlled.worker.FixtureGate.decide",
+        "_shot",
+        "test_login_control_from_panel_reaches_owned_headless_session_and_hands_back",
+        "test_rotation_reflow_two_viewers_and_pagehide_pause",
+        "test_normal_process_worker_accepts_http_human_input_and_exits_cleanly"
+      ]
+    },
+    {
+      "path": "tests/e2e/test_computer_site.py",
+      "sha256": "813f7f5a9eeea5af1dd9f7152123a9f2010945e059058e5f8bb3bcd030e24c5e",
+      "changed_functions": [
+        "test_supervised_computer_marketing_claims_layout_and_network"
+      ]
+    },
+    {
+      "path": "tests/e2e/test_computer_transfers.py",
+      "sha256": "3c0a5baa2d5a2c60e78683efe82943d5bea1713efbb566460db48200069987bc",
+      "changed_functions": [
+        "test_whole_form_file_limit_refuses_before_hashing_or_transmitting",
+        "App.send",
+        "App.do_GET",
+        "App.do_POST",
+        "App.log_message",
+        "app",
+        "test_real_governed_shell_iframe_upload_receipt_and_download",
+        "test_real_governed_shell_iframe_upload_receipt_and_download.reviewer",
+        "test_real_governed_shell_iframe_upload_receipt_and_download.invoke",
+        "test_bad_download_leaves_no_workspace_file_or_automatic_retry",
+        "test_upload_rejects_changed_source_and_secret_or_linked_paths",
+        "test_upload_rejects_changed_source_and_secret_or_linked_paths.change_after_review",
+        "test_iframe_secret_blocks_observation_and_replaced_frame_cannot_receive_old_review",
+        "test_iframe_secret_blocks_observation_and_replaced_frame_cannot_receive_old_review.replace_frame",
+        "test_changed_account_cookie_invalidates_review_before_input",
+        "test_changed_account_cookie_invalidates_review_before_input.switch_account"
+      ]
+    },
+    {
+      "path": "tests/support/virtual_desktop.py",
+      "sha256": "fa3648abe669752e27133dd6462235c70f5315633dc273870db54f3a0419f44d",
+      "changed_functions": []
+    },
+    {
+      "path": "tests/test_browser_profiles.py",
+      "sha256": "801fa59625bdbdbb5652755cc281b4daafddcdcefeec3f1416f603254879ebee",
+      "changed_functions": [
+        "test_browser_tool_instances_own_distinct_bot_profiles",
+        "test_browser_tool_instances_own_distinct_bot_profiles.ctx",
+        "test_browser_route_setup_failure_closes_process_and_releases_profile_lease",
+        "test_sensitive_browser_entry_is_redacted_and_pauses_for_the_person",
+        "test_browser_typing_approval_binds_text_destination_and_profile",
+        "test_browser_typing_approval_binds_text_destination_and_profile.Locator.count"
+      ]
+    },
+    {
+      "path": "tests/test_computer_api.py",
+      "sha256": "0bbacd96987510e4aa44b8a37322e52bcf5e6c8addca7c7ce8b49661613d363e",
+      "changed_functions": [
+        "_png",
+        "_png.chunk",
+        "seeded",
+        "test_state_describes_control_environment_and_the_latest_frame",
+        "test_latest_pixels_keep_their_surface_and_matching_owner",
+        "test_a_run_that_never_used_a_surface_reports_inactive",
+        "test_step_control_is_opt_in_authenticated_exclusive_and_revocable",
+        "test_human_command_body_is_bounded_and_secret_arguments_are_not_echoed",
+        "test_paired_computer_view_input_csrf_and_session_revocation_are_distinct",
+        "test_the_frame_route_serves_verified_bytes_with_safe_headers",
+        "test_unknown_malformed_foreign_and_tampered_frames_are_not_served",
+        "test_waiting_for_a_person_exposes_the_event_to_resume",
+        "test_a_bot_cannot_be_approved_to_open_hutchs_own_dashboard"
+      ]
+    },
+    {
+      "path": "tests/test_computer_browser_session.py",
+      "sha256": "08754e6ef5ad52264c614d64a39f6c9fa971496fd2538230ebe843a6ef3fdf24",
+      "changed_functions": [
+        "_Policy.check_url",
+        "_Gate.__init__",
+        "_Gate._park",
+        "_Gate.decide",
+        "_Gate.wait_for_human",
+        "_Gate.cancelled",
+        "_Locator.__init__",
+        "_Locator.count",
+        "_Locator.first",
+        "_Locator.nth",
+        "_Locator.scroll_into_view_if_needed",
+        "_Locator.bounding_box",
+        "_Locator.evaluate_all",
+        "_Locator.evaluate",
+        "_Locator.click",
+        "_Page.__init__",
+        "_Page.inner_text",
+        "_Page.title",
+        "_Page.evaluate",
+        "_Page.locator",
+        "_Page.get_by_text",
+        "_Page.goto",
+        "_Context.__init__",
+        "_Context.on",
+        "_tool",
+        "_review_snapshot",
+        "_run_in_thread",
+        "_run_in_thread.target",
+        "test_a_pending_approval_does_not_block_another_bots_browser_action",
+        "test_a_human_wait_does_not_block_another_bots_browser_action",
+        "test_ambiguous_selector_is_refused_not_resolved_to_the_first_match",
+        "test_missing_target_asks_for_a_new_observation_instead_of_guessing",
+        "test_exact_label_match_wins_over_a_substring_match",
+        "test_two_exact_label_matches_are_refused"
+      ]
+    },
+    {
+      "path": "tests/test_computer_control.py",
+      "sha256": "8ab76a0f4ec49f9423f9faff69beb85b5766265c142beb668d970f1bcd623487",
+      "changed_functions": [
+        "test_a_new_session_is_agent_controlled_but_needs_an_observation_for_coordinates",
+        "test_takeover_fences_an_action_that_was_already_in_flight",
+        "test_handing_back_starts_a_new_generation_and_requires_a_fresh_observation",
+        "test_navigation_invalidates_the_observation_not_the_authority",
+        "test_stop_is_terminal_and_blocks_everything",
+        "test_unverified_cleanup_requires_recovery_and_cannot_be_resumed",
+        "test_pause_blocks_and_hand_back_resumes",
+        "test_observers_see_every_transition_and_cannot_break_ownership",
+        "test_a_race_between_takeover_and_dispatch_never_lets_both_win",
+        "test_a_race_between_takeover_and_dispatch_never_lets_both_win.dispatcher"
+      ]
+    },
+    {
+      "path": "tests/test_computer_desktop.py",
+      "sha256": "74683b48b7a811575413a8457f2e4629c88adda70936aba84ae457203cef227a",
+      "changed_functions": [
+        "png",
+        "png.chunk",
+        "FakeInput.__init__",
+        "FakeInput._do",
+        "FakeInput.click",
+        "FakeInput.pointer_to",
+        "FakeInput.type_text",
+        "FakeInput.chord",
+        "FakeInput.release_all",
+        "FakeInput.emergency_kill",
+        "make",
+        "make.capture",
+        "test_observe_stores_a_frame_and_describes_the_screen",
+        "test_input_before_any_observation_is_refused",
+        "test_stale_frame_ids_and_bad_coordinates_are_refused_without_input",
+        "test_a_click_dispatches_once_then_returns_a_fresh_frame_and_reports_visual_change",
+        "test_an_unchanged_screen_is_reported_as_unchanged_not_as_success",
+        "test_native_identity_change_refuses_before_input_and_requires_new_observation",
+        "test_identity_changes_during_capture_never_publish_a_coordinate_frame",
+        "test_a_takeover_between_validation_and_dispatch_prevents_input",
+        "test_a_takeover_between_validation_and_dispatch_prevents_input.check_after_takeover",
+        "test_a_failed_input_channel_is_reported_unknown_and_invalidates_the_frame",
+        "test_stop_fences_then_kills_input_and_nothing_more_runs",
+        "test_long_or_empty_text_is_refused",
+        "test_capture_failure_is_reported_and_blocks_coordinate_use",
+        "test_capture_failure_is_reported_and_blocks_coordinate_use.broken",
+        "test_strict_offline_withholds_the_computer_tool",
+        "test_typed_text_and_keys_are_recorded_without_the_text"
+      ]
+    },
+    {
+      "path": "tests/test_computer_doctor.py",
+      "sha256": "f83deb996491616555de36f8c04df79c7861e2b7afd5341c2a09478d649adabf",
+      "changed_functions": [
+        "fake_run",
+        "fake_run.run",
+        "probe",
+        "test_kde_wayland_reports_each_capability_independently",
+        "test_capture_without_input_is_not_reported_as_control",
+        "test_xwayland_only_is_not_native_wayland",
+        "test_plain_x11_is_degraded_and_headless_is_unavailable",
+        "test_missing_portal_service_and_backend",
+        "test_accessibility_discovery_does_not_claim_an_adapter",
+        "test_other_compositors_and_clipboard_tools_do_not_imply_supported_control",
+        "test_probing_runs_only_read_only_commands",
+        "test_a_crashing_probe_is_reported_not_raised",
+        "test_a_crashing_probe_is_reported_not_raised.boom",
+        "test_cli_prints_json",
+        "test_api_exposes_the_same_probe"
+      ]
+    },
+    {
+      "path": "tests/test_computer_frames_and_images.py",
+      "sha256": "a46440102eafc8f4ed9c82ab8fc723fa505b89e0a0481af048a7e2963c9b6d19",
+      "changed_functions": [
+        "_png",
+        "_png.chunk",
+        "test_png_and_jpeg_dimensions_are_read_from_headers",
+        "test_a_saved_frame_is_private_verified_and_readable",
+        "test_frames_are_bounded_per_image_and_by_edge",
+        "test_the_run_budget_evicts_oldest_frames_but_never_the_newest",
+        "test_tampering_and_substitution_are_detected",
+        "test_symlinked_frames_are_refused",
+        "_tool_msg",
+        "_conversation",
+        "test_messages_without_images_are_passed_through_untouched",
+        "test_only_the_newest_frame_is_delivered_and_older_ones_become_notes",
+        "test_the_image_message_follows_the_whole_tool_result_block",
+        "test_a_text_only_model_gets_an_explicit_note_not_image_bytes",
+        "test_a_missing_or_tampered_frame_degrades_to_a_note",
+        "test_the_request_image_budget_is_enforced"
+      ]
+    },
+    {
+      "path": "tests/test_computer_human.py",
+      "sha256": "0d8e5d54e8b33a0190cd80b9293951df3b32cf75def7f2dbc63c66079a804817",
+      "changed_functions": [
+        "human",
+        "human.dispatch",
+        "_call",
+        "_call.call",
+        "_capture",
+        "test_fresh_frame_only_one_viewer_and_no_old_input_replay",
+        "test_stop_expiry_and_revocation_fence_human_input",
+        "test_wrong_viewer_old_generation_coordinates_and_queue_budget",
+        "test_timed_out_queued_input_never_arrives_later",
+        "test_plan_is_invalid_after_a_complete_takeover_during_inference",
+        "test_handback_cannot_overlap_an_inflight_input",
+        "test_handback_cannot_overlap_an_inflight_input.dispatch",
+        "test_runtime_discards_a_reply_after_takeover_and_handback_during_model_call",
+        "test_runtime_discards_a_reply_after_takeover_and_handback_during_model_call.reply"
+      ]
+    },
+    {
+      "path": "tests/test_computer_image_delivery.py",
+      "sha256": "2c978ec9326c98cd7325e5f1357b2ba5581c572a6b88c44a89bc699764c9ca31",
+      "changed_functions": [
+        "_png",
+        "_png.chunk",
+        "ObserveTool.__init__",
+        "ObserveTool.run",
+        "_tool_script",
+        "_tool_script.script",
+        "_image_blocks",
+        "test_claude_receives_only_the_newest_frame_as_a_real_image_block",
+        "test_tool_result_events_carry_public_frame_refs_without_paths",
+        "vision_ollama",
+        "_ollama_script",
+        "test_a_local_vision_model_gets_the_frame_in_ollamas_images_field",
+        "test_a_text_only_local_model_is_told_instead_of_being_sent_bytes",
+        "test_an_openai_compatible_route_never_receives_image_parts_or_internal_keys",
+        "test_a_hosted_route_receives_no_images_until_the_bot_owner_allows_it"
+      ]
+    },
+    {
+      "path": "tests/test_computer_privacy_authority.py",
+      "sha256": "24f3bf1bc1d6ab9a8c1e72529b909f726c3357400d01f9945c960522975b44d8",
+      "changed_functions": [
+        "test_stop_wins_between_transition_precheck_and_mutation",
+        "test_stop_wins_between_transition_precheck_and_mutation.raced",
+        "test_text_only_observation_is_withheld_without_requiring_an_image",
+        "test_runtime_checks_text_and_image_consent_before_the_official_request",
+        "test_runtime_checks_text_and_image_consent_before_the_official_request.wire",
+        "test_model_name_does_not_infer_vision_for_a_custom_endpoint",
+        "test_private_local_observations_block_hosted_fallback_including_derived_replies"
+      ]
+    },
+    {
+      "path": "tests/test_computer_resources.py",
+      "sha256": "46c77212350f6d72fcbae8e7a3c73ab3b0e0c2563bca729147ee2ef8ba38c223",
+      "changed_functions": [
+        "test_native_picker_cannot_borrow_policy_denied_workspace_material",
+        "test_native_grant_rejects_aliases_and_documents_whole_clean_workspace",
+        "test_native_revocation_wins_after_session_approval_before_compositor_start",
+        "test_native_revocation_wins_after_session_approval_before_compositor_start.Gate.decide",
+        "test_separate_surface_frame_stores_share_a_quota_and_unique_ids",
+        "test_separate_surface_frame_stores_share_a_quota_and_unique_ids.save",
+        "test_profile_budget_does_not_follow_symlinks_and_refuses_oversize",
+        "test_closed_authority_store_fails_closed_without_a_watchdog_thread_crash",
+        "test_failed_ipc_bind_setup_removes_only_its_new_socket_and_closes_descriptors",
+        "test_failed_ipc_bind_setup_removes_only_its_new_socket_and_closes_descriptors.fail_socket_mode"
+      ]
+    },
+    {
+      "path": "tests/test_netguard_local_origins.py",
+      "sha256": "8a44dd402cebe41970b5f66730b692cca807d5ef6da78d2fa4a06b51bc2b768c",
+      "changed_functions": [
+        "test_valid_origins_are_normalised",
+        "test_unsafe_origins_are_rejected",
+        "test_the_list_is_bounded",
+        "test_lenient_runtime_parse_drops_bad_entries_instead_of_widening",
+        "test_screen_url_allows_only_the_exact_origin",
+        "_access",
+        "test_non_local_urls_are_not_judged_here",
+        "test_a_public_page_subresource_or_script_navigation_is_refused",
+        "test_requests_from_the_approved_local_page_are_allowed",
+        "test_a_browser_initiated_navigation_needs_the_tools_permit",
+        "test_a_permit_expires",
+        "test_a_permit_cannot_be_opened_for_a_public_url_and_does_not_unblock_other_hosts",
+        "test_the_permit_does_not_cover_a_navigation_with_a_foreign_referrer",
+        "test_the_dashboards_own_port_can_be_excluded_from_approved_origins"
+      ]
+    },
+    {
+      "path": "tests/test_offline_mode.py",
+      "sha256": "3faf4d0ce14671790693712fa2216e70a27eabd382996b82b857fa5d87358731",
+      "changed_functions": [
+        "test_offline_process_executes_governed_file_shell_read_workflow_without_cloud"
+      ]
+    },
+    {
+      "path": "tests/test_sandbox.py",
+      "sha256": "e33c900cd94af7e9f7f8235afd2c8498ff30569f8f33168442f0409b7d0f24f9",
+      "changed_functions": [
+        "test_the_shell_cannot_see_the_real_home_or_any_folder_outside_the_workspace"
+      ]
+    },
+    {
+      "path": "website/index.html",
+      "sha256": "d982297ea215e4d6cf35021d67db6a9cd948d617e38c5f36ef02dc6628c562e0"
+    }
+  ]
+}

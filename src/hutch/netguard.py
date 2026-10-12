@@ -88,11 +88,206 @@ def _literal_ip(host: str) -> Optional["ipaddress.IPv4Address | ipaddress.IPv6Ad
     return None
 
 
+# ------------------------------------------------------------------ approved local development origins
+
+
+class LocalOrigins:
+    """Exact loopback origins a person approved for local development of a web app.
+
+    This is an *allowance*, not a bypass of the guard: only ``localhost`` / a literal 127.0.0.0/8 address / ``::1`` with an
+    explicit port can ever be listed, so a private LAN address, link-local/metadata address or internal DNS name stays
+    refused whatever is configured. Each entry is a full ``scheme://host:port`` origin; ``localhost`` is mapped to the
+    loopback literals here and is never resolved through DNS. The browser applies a further page-context rule (see
+    ``RequestGuard``): public pages cannot load sub-resources from, or redirect into, an approved local origin.
+    """
+
+    MAX_ENTRIES = 8
+
+    def __init__(self, entries: "frozenset[tuple[str, str, int]] | None" = None):
+        self._entries: frozenset[tuple[str, str, int]] = entries or frozenset()
+
+    @staticmethod
+    def _normalise(value: Any) -> tuple[str, str, int]:
+        if not isinstance(value, str) or not value.strip() or len(value) > 64:
+            raise ValueError("a local development origin must be a short text value such as http://localhost:3000")
+        text = value.strip()
+        try:
+            parts = urlsplit(text)
+            port = parts.port
+        except ValueError:
+            raise ValueError(f"{text!r} is not a valid origin") from None
+        scheme = parts.scheme.lower()
+        if scheme != "http":
+            # https tunnels cannot be inspected by the egress proxy, so request context could not be enforced for them
+            raise ValueError("a local development origin must use http (for example http://localhost:3000)")
+        if parts.username is not None or parts.password is not None or "@" in parts.netloc:
+            raise ValueError("a local development origin cannot contain credentials")
+        if parts.path not in ("", "/") or parts.query or parts.fragment:
+            raise ValueError("a local development origin is scheme://host:port only (no path, query or fragment)")
+        host = (parts.hostname or "").lower()
+        if port is None:
+            raise ValueError("a local development origin needs an explicit port, e.g. http://localhost:3000")
+        if host == "localhost":
+            return scheme, host, port
+        try:
+            literal = ipaddress.ip_address(host)
+        except ValueError:
+            literal = None
+        if literal is None or not literal.is_loopback or (
+                isinstance(literal, ipaddress.IPv6Address) and literal.ipv4_mapped is not None):
+            raise ValueError("only localhost or a loopback address (127.0.0.0/8, ::1) can be a local development origin")
+        return scheme, str(literal), port
+
+    @classmethod
+    def parse(cls, values: Any) -> "LocalOrigins":
+        """Validate configuration. Raises ``ValueError`` naming the first bad entry."""
+        if values in (None, ""):
+            return cls()
+        if isinstance(values, str) or not hasattr(values, "__iter__"):
+            raise ValueError("local development origins must be a list")
+        entries = {cls._normalise(v) for v in values}
+        if len(entries) > cls.MAX_ENTRIES:
+            raise ValueError(f"at most {cls.MAX_ENTRIES} local development origins can be approved")
+        return cls(frozenset(entries))
+
+    @classmethod
+    def lenient(cls, values: Any) -> "LocalOrigins":
+        """Runtime form: invalid stored entries are dropped (fail closed) rather than failing the run."""
+        kept: set[tuple[str, str, int]] = set()
+        for value in values if isinstance(values, (list, tuple, set, frozenset)) else ():
+            try:
+                kept.add(cls._normalise(value))
+            except ValueError:
+                continue
+        return cls(frozenset(sorted(kept)[: cls.MAX_ENTRIES]))
+
+    def __bool__(self) -> bool:
+        return bool(self._entries)
+
+    def __iter__(self):
+        for scheme, host, port in sorted(self._entries):
+            shown = f"[{host}]" if ":" in host else host
+            yield f"{scheme}://{shown}:{port}"
+
+    def allows(self, scheme: str, host: str, port: Optional[int]) -> bool:
+        host = host.lower().strip("[]").rstrip(".")
+        scheme = scheme.lower()
+        if port is None:
+            port = 443 if scheme == "https" else 80
+        return (scheme, host, port) in self._entries
+
+    def allows_url(self, url: str) -> bool:
+        try:
+            parts = urlsplit(url.strip())
+            if parts.username is not None or parts.password is not None:
+                return False
+            return bool(parts.hostname) and self.allows(parts.scheme, parts.hostname, parts.port)
+        except (ValueError, AttributeError):
+            return False
+
+    def allows_hostport(self, host: str, port: int) -> bool:
+        """For CONNECT tunnels, where the scheme is not visible to the proxy."""
+        return any(self.allows(scheme, host, port) for scheme in ("http", "https"))
+
+    def without_ports(self, ports: "set[int]") -> "LocalOrigins":
+        """The same approvals minus any origin on one of ``ports`` (used to exclude Hutch's own dashboard)."""
+        return LocalOrigins(frozenset(e for e in self._entries if e[2] not in ports))
+
+    def ports(self) -> set[int]:
+        return {e[2] for e in self._entries}
+
+    @staticmethod
+    def addresses(host: str) -> list[str]:
+        """Numeric addresses to connect to for an approved host (never a DNS lookup)."""
+        h = host.lower().strip("[]").rstrip(".")
+        return ["127.0.0.1", "::1"] if h == "localhost" else [h]
+
+
+def dashboard_ports() -> "set[int]":
+    """Ports on which Hutch's own dashboard may be listening: the default plus the one ``hutch serve`` exported."""
+    import os
+    ports = {8787}
+    exported = os.environ.get("HUTCH_DASHBOARD_PORT", "").strip()
+    if exported.isdigit():
+        ports.add(int(exported))
+    return ports
+
+
+class LocalAccess:
+    """Runtime enforcement state for approved local development origins (shared by the browser tool and egress proxy).
+
+    The proxy is the only layer that sees every connection, including each redirect hop, but a redirect hop of a
+    browser-initiated navigation carries the same fetch metadata (``Sec-Fetch-Site: none``, no Referer) as the tool's own
+    deliberate navigation. Request context therefore cannot tell them apart; the *tool* can. It opens a short permit for
+    exactly the origin it is navigating to (``permit_navigation``) and closes it when the call returns. A request for an
+    approved local origin is allowed when it comes from an approved local page (same-origin/same-site, or a Referer/Origin
+    that is an approved local origin) or while a permit for that exact origin is open. Everything else, notably a public
+    page's sub-resource, link, script navigation or redirect, is refused.
+    """
+
+    PERMIT_SECONDS = 45.0
+
+    def __init__(self, origins: Optional[LocalOrigins] = None, clock: Optional[Callable[[], float]] = None):
+        import threading
+        import time
+        self.origins = origins or LocalOrigins()
+        self._clock = clock or time.monotonic
+        self._lock = threading.Lock()
+        self._permit: Optional[tuple[tuple[str, str, int], float]] = None
+
+    def permit_navigation(self, url: str) -> bool:
+        """Open a permit for the origin of ``url`` if (and only if) it is an approved local origin."""
+        if not self.origins.allows_url(url):
+            return False
+        parts = urlsplit(url.strip())
+        key = (parts.scheme.lower(), (parts.hostname or "").lower().strip("[]"), parts.port or 80)
+        with self._lock:
+            self._permit = (key, self._clock() + self.PERMIT_SECONDS)
+        return True
+
+    def clear_permit(self) -> None:
+        with self._lock:
+            self._permit = None
+
+    def _permitted(self, url: str) -> bool:
+        with self._lock:
+            permit = self._permit
+        if permit is None or self._clock() > permit[1]:
+            return False
+        parts = urlsplit(url.strip())
+        return (parts.scheme.lower(), (parts.hostname or "").lower().strip("[]"), parts.port or 80) == permit[0]
+
+    def refusal(self, url: str, headers: "list[tuple[str, str]]") -> Optional[str]:
+        """None if a request for ``url`` may proceed from this context, else why not. Non-local URLs are not judged here."""
+        if not self.origins.allows_url(url):
+            return None
+        values: dict[str, str] = {}
+        for name, value in headers:
+            values.setdefault(name.lower(), value.strip())
+        if values.get("sec-fetch-site", "").lower() in ("same-origin", "same-site"):
+            return None
+        for name in ("origin", "referer"):
+            value = values.get(name, "")
+            if value and value.lower() != "null" and self.origins.allows_url(value):
+                return None
+        initiated_by_tool = (values.get("sec-fetch-site", "").lower() == "none"
+                             and values.get("sec-fetch-mode", "").lower() == "navigate"
+                             and values.get("sec-fetch-dest", "").lower() == "document"
+                             and not values.get("referer") and not values.get("origin"))
+        if initiated_by_tool and self._permitted(url):
+            return None
+        return ("an approved local development origin is only reachable from the approved local app "
+                "or by an explicit navigation to it")
+
+
 # ------------------------------------------------------------------ syntax screen
 
 
-def screen_url(url: str) -> Optional[str]:
-    """Why ``url`` must not be fetched, judged without touching the network. None means "not refused by syntax"."""
+def screen_url(url: str, local_origins: Optional[LocalOrigins] = None) -> Optional[str]:
+    """Why ``url`` must not be fetched, judged without touching the network. None means "not refused by syntax".
+
+    ``local_origins`` is the person's explicit allowance for local development (see ``LocalOrigins``); anything not exactly
+    listed there is judged by the normal rules."""
     if not isinstance(url, str) or not url.strip():
         return "empty URL"
     try:
@@ -111,6 +306,8 @@ def screen_url(url: str) -> Optional[str]:
     host = host.lower().rstrip(".")
     if not host:
         return "URL has no host"
+    if local_origins and local_origins.allows(scheme, host, parts.port):
+        return None
     literal = _literal_ip(host)
     if literal is not None:
         reason = blocked_ip_reason(literal)
@@ -265,15 +462,18 @@ class RequestGuard:
     """
 
     def __init__(self, resolver: Optional[Callable[..., list]] = None, ttl: float = 30.0,
-                 clock: Callable[[], float] | None = None):
+                 clock: Callable[[], float] | None = None, local_origins: Optional[LocalOrigins] = None):
         import time
         self._resolver, self._ttl, self._clock = resolver, ttl, clock or time.monotonic
+        self._local = local_origins or LocalOrigins()
         self._cache: dict[tuple[str, int], tuple[float, Optional[str]]] = {}
 
     def check(self, url: str) -> Optional[str]:
         """None if the request may proceed, else the reason it is blocked."""
         if url.startswith(("data:", "blob:", "about:", "chrome-error:")):
             return None                                   # no network involved
+        if self._local.allows_url(url):
+            return None            # an approved local origin: page context is judged by ``_local_context_refusal``
         reason = screen_url(url)
         if reason:
             return reason
@@ -294,10 +494,39 @@ class RequestGuard:
         self._cache[(host, port)] = (now, verdict)
         return verdict
 
+    def _local_context_refusal(self, request) -> Optional[str]:
+        """Why a request to an approved local origin must not proceed from *this* page context; None if it may.
+
+        Approving ``http://localhost:3000`` lets the bot work on that app. It must not let any public page the bot happens to
+        visit read or poke it, so: sub-resource/frame requests count only when the top-level page is itself an approved local
+        origin (or blank). Document navigations are judged at the proxy, which sees redirect hops that route handlers do not.
+        Anything that cannot be established fails closed.
+        """
+        try:
+            navigation = request.is_navigation_request()
+            try:
+                frame = request.frame
+            except Exception:
+                frame = None              # a popup's first navigation is issued before its frame exists
+            if navigation and (frame is None or frame.parent_frame is None):
+                # Redirect hops are not routed by Playwright; only the egress proxy sees them (``LocalAccess``).
+                return None
+            if frame is None:
+                return "the page context for a local development origin could not be verified"
+            top = frame.page.url or ""
+            if top in ("", "about:blank") or self._local.allows_url(top):
+                return None
+            return "an approved local development origin is only reachable from the approved local app"
+        except Exception:
+            return "the page context for a local development origin could not be verified"
+
     def route_handler(self, on_block: Optional[Callable[[str, str], None]] = None):
         """A Playwright ``context.route("**/*", handler)`` callback."""
         def handle(route, request):
-            reason = self.check(request.url)
+            if self._local.allows_url(request.url):
+                reason = self._local_context_refusal(request)
+            else:
+                reason = self.check(request.url)
             if reason is None:
                 route.continue_()
                 return

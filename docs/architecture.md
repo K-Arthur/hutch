@@ -257,16 +257,16 @@ See [ADR-0015](adr/0015-held-database-restoration.md) and [Operations](operation
 
 Each production run has an owned worker process and a supervisor watcher. The worker holds a cancel `Event` and a reference to
 the run's approval gate so `stop` unblocks an approval wait immediately. In-process thread execution is only an explicit
-compatibility/test mode. The browser owns a distinct persistent profile per bot. A cross-process OS file lease prevents two workers
+compatibility/test mode. The browser owns a distinct persistent profile per immutable bot ID, so rename and name reuse cannot select another account. Legacy name profiles are retained but not automatically imported. A cross-process OS file lease prevents two workers
 from opening the same profile; an opted-in local handoff also reserves Hutch's visible-browser lease until that session closes.
 Agent typing into conventional sensitive fields is intercepted before input or durable action creation; browser type values are
 redacted from event/receipt records. Native HTML form submissions show a bounded destination/method/field-label review and bind
 the approval to a page-side digest of current form state, including secret values that never leave the page. A changed form refuses
-to submit; selected file uploads and forms without secure digest support fail closed. A visible sensitive field blocks screenshots.
+to submit; selected files need the separate reviewed upload grant and exact byte/destination match. Unsupported forms fail closed. Cookie-state changes invalidate review without exposing cookies. A visible sensitive field in any child frame blocks screenshots. Managed HTTP text downloads are bounded at the pinned proxy before Chromium or disk; ordinary downloads are disabled. See [computer-use](computer-use.md#profiles-iframe-scope-and-governed-files).
 Human password/CAPTCHA/MFA steps pause in the same live profile; Resume checks the page without reloading it. Field detection is heuristic, the Linux desktop handoff is
-  experimental, and no real challenge or computer-input handoff is verified. Paired-phone supervision now supports status/transcript
+  experimental; controlled login and real native input are verified in disposable sessions, with no live third-party challenge claim. Paired-phone supervision now supports status/transcript
   viewing, approval review, Stop/Resume, and locally enabled starts through passkeys and an explicit route capability inventory; live
-  mobile/network validation remains open. Remote computer input and live/non-HTTP browser egress validation remain open. HTTP(S)/WebSocket browser connections use a locally tested DNS-pinning proxy. SQLite access is serialized by an RLock in `Store`, and migration startup is additionally serialized across
+  mobile/network validation remains open. Bounded HTTP human step input is locally verified; physical-phone, live-network and non-HTTP browser egress validation remain open. HTTP(S)/WebSocket browser connections use a locally tested DNS-pinning proxy. SQLite access is serialized by an RLock in `Store`, and migration startup is additionally serialized across
 processes. Schema v9 stores canonical conversations, user/assistant messages, run links and revocable device sessions; old runs are imported one per legacy
 conversation to avoid guessing continuity. Versioned conversation writes and run admission are idempotent and transactional. The
 builtin runtime receives a capped snapshot of earlier messages; Studio uses the versioned conversation endpoints. Versioned stop and
@@ -445,14 +445,13 @@ See [response-style help](response-style.md) for owner-facing scope and privacy 
 
 ## What is deliberately NOT here (yet)
 
-Vector retrieval, webhook triggers, multi-user roles, bounded agent-to-agent collaboration, a cross-run artifact library, remote
-browser handoff, authenticated PTY/physical desktop controls and Windows/macOS support — tracked in `docs/roadmap.md`.
+Vector retrieval, webhook triggers, multi-user roles, bounded agent-to-agent collaboration, a cross-run artifact library, authenticated PTY/personal-desktop controls and Windows/macOS support — tracked in `docs/roadmap.md`.
 Remote phone supervision is optional and remains disabled unless `hutch serve --allow-remote` is explicitly launched. It uses one-use
 enrollment, passkey credentials, bounded sessions, a deny-by-default route inventory and per-Bot local Start opt-in. Direct remote
 access requires a private interface and trusted HTTPS certificate; a proxy requires exact proxy IP and public-host allowlists. The
 recommended Tailscale path forwards Serve to a loopback Hutch listener and still requires Hutch passkey authentication. These boundaries
 have automated local and real-Uvicorn HTTPS coverage, but not live tunnel, private-network, iOS/Android, or certificate-renewal
-validation. No production remote-support claim exists. Remote computer control and phone browser handoff remain unavailable. The Linux shell has optional,
+validation. No production remote-support claim exists. Bounded human step control uses an owner-only Linux Unix socket to a private worker-thread queue, ephemeral viewer/generation tokens and an independent expiry/revocation watchdog. Human frames/text are excluded from planner history. HTTP threads fence control but never touch Playwright/native objects. Physical-phone and live-network input remain unverified. The Linux shell has optional,
 fail-closed bubblewrap containment; it is not a VM and does not contain every tool or the browser.
 
 The conversation-first shell keeps the bot roster and configuration ownership in one place.
@@ -512,10 +511,14 @@ configuration or dispatch. Each worker has no host TCP interface, a scrubbed env
 read-only empty views over saved connection/key files; a private Unix-socket broker forwards model
 requests only to configured numeric loopback endpoints.
 Hosted routes, external runtimes, browser and web-fetch tools are refused; shell requires
-bubblewrap's private no-network namespace. systemd user scopes enforce resource caps only.
+bubblewrap's private no-network namespace. systemd user scopes enforce resource caps only. A nested
+Offline shell probe and command inherit the outer worker's memory/task scope and add `prlimit` plus
+fresh bubblewrap namespaces; neither can reach the host user bus. This avoids a probe requesting a
+new host scope from inside the isolated worker.
 `GET /api/v1/capabilities` reports whether the current host passes. The current Linux development
-host passes the local probe and a fake Ollama request completed through the broker inside an
-isolated worker. No live local model was available, and Hutch still cannot constrain the separate
+host passes the local probe and a scripted Ollama protocol fixture completed a real file-write →
+contained shell → file-read workflow through the broker inside an isolated process worker. This
+tests transport/tool integration rather than model intelligence. No live local model was available, and Hutch still cannot constrain the separate
 model-server process or prove model provenance. See
 [ADR-0009](adr/0009-local-inference-and-resource-admission.md).
 
@@ -531,3 +534,9 @@ Worker approval admission commits the request and run wait together, draining pr
 events through the same ownership check. Failed admission rolls back both without losing
 the buffer. Expired execution cannot receive a new approval or standing grant; decisions still
 resolve once through compare-and-swap, and full-request rewrites are refused.
+
+The computer resource boundary lives in `computer/resources.py` (fresh authority and whole-clean-workspace grant),
+`computer/budgets.py` (independent sampled limits), `native/virtual.py` (owned capture/app process lifecycle) and
+`computer/frames.py` (cross-instance serialization). Readiness distinguishes implemented isolated KWin prerequisites from
+host portal/library discovery: clipboard/AT-SPI actions and other compositor adapters remain absent. The run-state API
+binds preview pixels to their recorded surface and that surface's owner; another surface's control event cannot relabel it.

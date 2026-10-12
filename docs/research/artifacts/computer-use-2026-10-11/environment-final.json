@@ -1,0 +1,31 @@
+{
+  "python": "3.13.15",
+  "kernel": "7.2.7-1-cachyos",
+  "cpu_count": 8,
+  "hatchling_available": false,
+  "model_probe": {
+    "available": false,
+    "reason": "ConnectError",
+    "endpoint": "loopback Ollama 11434 only"
+  },
+  "memory_total_kib": 23888084,
+  "model_executables": {
+    "ollama": false,
+    "lms": false,
+    "llama-server": false
+  },
+  "ollama_manifests": {
+    "user": "absent",
+    "system": "absent"
+  },
+  "wheel_build": "uv cached offline build/isolated install succeeded; hatchling_available refers to the source venv only",
+  "native_versions": {
+    "kwin": "6.7.5",
+    "kwrite": "26.08.2",
+    "spectacle": "6.7.5",
+    "worker_python": "3.14.7",
+    "PyGObject": "3.58.1",
+    "bubblewrap": "0.13.0",
+    "systemd": "262"
+  }
+}

@@ -1,0 +1,381 @@
+"""Computer tool — operate native desktop applications in an isolated, disposable desktop session.
+
+Environment mode: ``isolated`` only. Hutch starts its own compositor (display, input, session bus) for the run, launches
+applications the bot is allowed to use, observes the screen as bounded frames and acts through validated pointer/keyboard
+commands. The personal desktop is never the target: its input stack is not touched. Controlling the user's existing desktop
+is a deliberately different, weaker-isolation mode that is not offered by this build.
+
+Applications are namespace-contained with workspace-only user files and no network, using the existing resource-limit
+backend. The private compositor and minimal bus are trusted host processes; this is not a virtual machine.
+"""
+
+from __future__ import annotations
+
+import os
+import shutil
+import threading
+import time
+from pathlib import Path
+from typing import Any, Optional
+
+from ..approvals import DeniedError
+from ..computer.control import ControlLease
+from ..computer.desktop import DesktopSession
+from ..computer.frames import FrameStore
+from ..models import Event, EventType
+from ..safety import Decision, Verdict
+from .base import Tool, ToolContext, ToolResult, _schema, rehearsed
+
+_ACTIONS = {
+    "launch": "Start an allowed application in the isolated desktop (optionally opening a file in the workspace).",
+    "observe": "Capture the screen as an image frame; returns a frame_id that input actions must quote.",
+    "click": "Click at pixel (x, y) of the latest frame. Needs that frame_id; refused if it is not the latest.",
+    "type": "Type text into the focused control. Needs the latest frame_id.",
+    "key": "Press a key or chord such as enter, escape, ctrl+s. Needs the latest frame_id.",
+    "wait": "Wait up to 10 seconds, then capture a new frame.",
+    "close": "End the isolated desktop session and everything started in it.",
+}
+_LAUNCH_TIMEOUT_SECONDS = 12.0     # how long a launched window may take to appear and settle
+_LAUNCH_POLL_SECONDS = 0.4
+
+
+class ComputerTool(Tool):
+    name = "computer"
+    description = (
+        "Operate native desktop applications in an isolated desktop session. Workflow: launch an app, observe, then "
+        "act on the latest frame (click/type/key); every action returns a fresh frame. Actions: "
+        + "; ".join(f"{k} — {v}" for k, v in _ACTIONS.items()))
+    parameters = _schema(["action"], {
+        "action": {"type": "string", "enum": list(_ACTIONS)},
+        "app": {"type": "string", "description": "for launch: an allowed application name"},
+        "path": {"type": "string", "description": "for launch: a file inside the workspace to open"},
+        "frame_id": {"type": "string", "description": "for click/type/key: the latest frame_id"},
+        "x": {"type": "number", "description": "for click: horizontal pixel of the frame"},
+        "y": {"type": "number", "description": "for click: vertical pixel of the frame"},
+        "button": {"type": "string", "enum": ["left", "right", "middle"]},
+        "count": {"type": "integer", "description": "for click: 1 or 2 (double click)"},
+        "text": {"type": "string", "description": "for type: text to enter (printable ASCII)"},
+        "keys": {"type": "string", "description": "for key: e.g. enter, ctrl+s, ctrl+shift+z"},
+        "seconds": {"type": "number", "description": "for wait"},
+    })
+
+    def __init__(self, *, desktop_factory=None, input_factory=None):
+        self._desktop_factory = desktop_factory      # test seams; production uses the KWin-backed managers
+        self._input_factory = input_factory
+        self._desktop: Any = None
+        self._session: Optional[DesktopSession] = None
+        self._input: Any = None
+        self._approved = False
+        self._stopped = False
+        self._owner_thread: Optional[int] = None
+        self._lease: Optional[ControlLease] = None
+        self._budget = None
+
+    # ------------------------------------------------------------- recording
+
+    def effect(self, args: dict[str, Any], ctx: ToolContext) -> str:
+        return "process" if (args.get("action") or "") in ("launch", "click", "type", "key") else ""
+
+    def recorded_arguments(self, args: dict[str, Any], ctx: ToolContext) -> dict[str, Any]:
+        action = (args.get("action") or "").strip()
+        if action == "type":
+            text = args.get("text") if isinstance(args.get("text"), str) else ""
+            return {"action": "type", "frame_id": args.get("frame_id", ""), "text": "[redacted]",
+                    "text_chars": len(text)}
+        return {k: args[k] for k in ("action", "app", "path", "frame_id", "x", "y", "button", "count", "keys", "seconds")
+                if k in args}
+
+    # ---------------------------------------------------------------- run
+
+    def run(self, args: dict[str, Any], ctx: ToolContext) -> ToolResult:
+        action = (args.get("action") or "").strip()
+        if action not in _ACTIONS:
+            return ToolResult(False, f"error: unknown action '{action}'")
+        if self._stopped:
+            return ToolResult(False, "error: this run was stopped and its desktop was closed; no further action runs")
+        if action in ("launch", "click", "type", "key") and hasattr(getattr(ctx, "policy", None), "check_computer"):
+            decision = ctx.policy.check_computer(action, str(args.get("app") or ""))
+            if decision.verdict is Verdict.deny:
+                return ToolResult(False, f"error: denied by policy: {decision.reason}", {"outcome": "not_dispatched"})
+        if ctx.dry_run and action in ("launch", "click", "type", "key"):
+            return rehearsed(f"computer {action}")
+        try:
+            return self._run(action, args, ctx)
+        except DeniedError as exc:
+            return ToolResult(False, f"error: {exc}")
+        except Exception as exc:
+            if self._stopped:
+                return ToolResult(False, "error: the run was stopped; the desktop was closed mid-action, so the outcome "
+                                         "of that action is unknown", {"stopped": True, "outcome": "unknown"})
+            return ToolResult(False, f"computer error: {exc}")
+
+    def _run(self, action: str, args: dict[str, Any], ctx: ToolContext) -> ToolResult:
+        if action == "close":
+            self._shutdown(ctx)
+            return ToolResult(True, "the isolated desktop session was closed")
+        if self._owner_thread is not None and self._owner_thread != threading.get_ident():
+            return ToolResult(False, "error: this desktop session belongs to another thread; nothing was done",
+                              {"thread_affinity": True})
+        from ..computer.resources import authority, workspace_grant
+        authority(ctx, "desktop")
+        workspace_grant(ctx)
+        session = self._ensure(ctx)
+        if self._owner_thread is None:
+            self._owner_thread = threading.get_ident()
+        def before_dispatch():
+            authority(ctx, "desktop")
+            workspace_grant(ctx)
+            return ctx.begin_effect()
+        session.before_dispatch = before_dispatch
+
+        if action == "launch":
+            return self._launch(args, ctx, session)
+        if action == "observe":
+            return self._result(session.observe())
+        if action == "wait":
+            time.sleep(min(max(float(args.get("seconds") or 1), 0.0), 10.0))
+            return self._result(session.observe())
+        frame_id = str(args.get("frame_id") or "")
+        if action == "click":
+            count = int(args.get("count") or 1)
+            return self._result(session.click(frame_id, args.get("x"), args.get("y"),
+                                               button=str(args.get("button") or "left"), count=count))
+        if action == "type":
+            return self._result(session.type_text(frame_id, args.get("text") or ""))
+        if action == "key":
+            return self._result(session.key(frame_id, str(args.get("keys") or "")))
+        return ToolResult(False, f"unhandled action {action}")  # pragma: no cover
+
+    @staticmethod
+    def _result(res) -> ToolResult:
+        return ToolResult(res.ok, res.output, dict(res.data))
+
+    # ----------------------------------------------------------- environment
+
+    def _ensure(self, ctx: ToolContext) -> DesktopSession:
+        if self._session is not None:
+            return self._session
+        apps = list(getattr(ctx.bot, "computer_apps", []) or [])
+        if not apps:
+            raise DeniedError("this Bot has no applications allowed for the computer tool; add one in its settings")
+        from ..computer.resources import authority, workspace_grant
+        grant = workspace_grant(ctx)
+        # One approval for the whole session, describing what actually bounds it (and what does not).
+        ctx.gate.decide(
+            "computer", f"operate an isolated desktop session (applications: {', '.join(apps)})",
+            {"environment": "isolated", "applications": apps,
+             "boundary": "separate display/input/bus; apps: workspace-only files, private home, no network, bounded resources",
+             "reads": "page text and frames reach the selected model only under its observation policy",
+             "profile_bot_id": ctx.bot.id, "resource_grant": grant},
+            Decision(Verdict.ask, "start an isolated desktop session", rule="ask:computer-session", risk="medium"),
+            ask_in_auto=True)
+        authority(ctx, "desktop")
+        workspace_grant(ctx)
+        self._approved = True
+
+        from ..computer.native.eis import EisInput
+        from ..computer.native.virtual import DesktopUnavailable, ManagedDesktop
+        desktop = (self._desktop_factory or ManagedDesktop)()
+        try:
+            desktop.__enter__()
+        except DesktopUnavailable as exc:
+            raise DeniedError(f"the isolated desktop could not start: {exc}") from exc
+        self._desktop = desktop
+        for proc in getattr(desktop, "_procs", []):
+            ctx.procs.register(proc, "computer")
+        try:
+            eis = (self._input_factory or EisInput.start_in_isolated_session)(desktop.env)
+        except Exception as exc:
+            self._shutdown(ctx)
+            raise DeniedError(f"input could not be established: {exc}") from exc
+        self._input = eis
+        proc = getattr(eis, "_proc", None)
+        if proc is not None:
+            ctx.procs.register(proc, "computer")
+
+        run_id = getattr(ctx.run, "id", "")
+
+        def announce(snap) -> None:
+            if ctx.emit is not None and run_id:
+                ctx.emit(Event(run_id=run_id, type=EventType.log,
+                               data={"kind": "computer_control", "surface": "desktop", **snap.public()}))
+
+        self._lease = ControlLease(f"{run_id}:desktop", on_change=announce)
+        ctx.computer_leases = getattr(ctx, "computer_leases", []) + [self._lease]
+        self._session = DesktopSession(
+            session_id=f"{run_id}:desktop", capture=lambda: checked_capture(), input_backend=eis,
+            frames=FrameStore(ctx.config.run_dir(ctx.bot.name, run_id)), lease=self._lease,
+            surface_identity=getattr(eis, "surface", None),
+            environment={"mode": "isolated",
+                         "boundary": "apps: workspace-only files, private home, no network, bounded resources; trusted private compositor/bus",
+                         "applications": apps, "keyboard_layout": "us (assumed)"})
+        def checked_capture():
+            authority(ctx, "desktop")
+            workspace_grant(ctx)
+            return desktop.capture_png()
+        ctx.on_finish.append(lambda: self._shutdown(ctx))
+        ctx.cancel_hooks.append(self._emergency_stop)
+        if getattr(desktop, "root", None) is not None:
+            from ..computer.budgets import BrowserBudget
+            from .. import procguard
+            roots = [identity for proc in getattr(desktop, "_procs", [])
+                     if (identity := procguard.identity(proc.pid)) is not None]
+            def check_grant():
+                authority(ctx, "desktop")
+                workspace_grant(ctx)
+            def budget_stop(reason):
+                if self._lease is not None:
+                    self._lease.request_stop(reason)
+                self._emergency_stop()
+            # The compositor/bus roots are stable; contained app trees are sampled separately by this callback.
+            def check_native():
+                check_grant()
+                from ..computer.budgets import browser_rss, MAX_BROWSER_RSS_BYTES
+                identities = [identity for proc in getattr(desktop, "_procs", [])
+                              if (identity := procguard.identity(proc.pid)) is not None]
+                if browser_rss(identities) > MAX_BROWSER_RSS_BYTES:
+                    raise ValueError("desktop process tree exceeds its sampled 1.5 GiB RSS budget")
+            self._budget = BrowserBudget(desktop.root, roots, check_native, budget_stop, surface="desktop")
+        if getattr(ctx.bot, "remote_computer_access", "off") == "control":
+            from ..computer.human import HumanSession, HumanError
+            def capture():
+                for attempt in range(3):
+                    identity = eis.surface()
+                    png = checked_capture()
+                    if identity == eis.surface():
+                        break
+                    if attempt == 2:
+                        raise HumanError("window identity changed during capture; capture again")
+                    time.sleep(.1)
+                return png, {"session": self._lease.session_id, "width": desktop.width, "height": desktop.height, "surface": identity}
+            def dispatch(command, identity, check):
+                if identity != {"session": self._lease.session_id, "width": desktop.width, "height": desktop.height,
+                                "surface": eis.surface()} or not desktop.alive():
+                    raise HumanError("the desktop identity changed; capture again")
+                check()
+                authority(ctx, "desktop")
+                workspace_grant(ctx)
+                previous = eis.before_input
+                sent_before = eis.input_count
+                eis.before_input = check
+                try:
+                    if command["action"] == "click":
+                        eis.click(command["x"], command["y"])
+                    elif command["action"] == "type":
+                        eis.type_text(command["text"])
+                    elif command["action"] == "key":
+                        eis.chord(command["keys"].lower())
+                except Exception:
+                    if eis.input_count != sent_before:
+                        raise HumanError("Native input was interrupted after dispatch; its outcome is unknown. Capture and inspect before sending more input.") from None
+                    raise
+                finally:
+                    eis.before_input = previous
+            self._human = HumanSession(ctx, "desktop", self._lease, capture, dispatch)
+        return self._session
+
+    def _launch(self, args: dict[str, Any], ctx: ToolContext, session: DesktopSession) -> ToolResult:
+        ticket = self._lease.begin_action()
+        app = str(args.get("app") or "").strip()
+        allowed = list(getattr(ctx.bot, "computer_apps", []) or [])
+        if app not in allowed:
+            return ToolResult(False, f"error: '{app}' is not an allowed application; allowed: {allowed}. Nothing was started.")
+        binary = shutil.which(app)
+        if binary is None:
+            return ToolResult(False, f"error: '{app}' is not installed on this host. Nothing was started.")
+        argv = [binary]
+        path = str(args.get("path") or "").strip()
+        if path:
+            from ..safety import PolicyEngine
+            decision = (getattr(ctx, "policy", None) or PolicyEngine()).check_path(path, ctx.workspace, write=False)
+            if decision.verdict is Verdict.deny:
+                return ToolResult(False, f"error: {decision.reason}; nothing was started")
+            workspace = ctx.workspace.resolve()
+            candidate = (workspace / path) if not os.path.isabs(path) else Path(path)
+            resolved = Path(os.path.abspath(candidate))
+            try:
+                resolved.relative_to(workspace)
+            except ValueError:
+                return ToolResult(False, "error: the file is outside this run's workspace; nothing was started.")
+            if resolved.exists() and (resolved.is_symlink() or not resolved.is_file()):
+                return ToolResult(False, "error: only a regular workspace file can be opened; nothing was started.")
+            argv.append(str(resolved))
+        ctx.gate.decide("computer", f"launch {app}" + (f" with {path}" if path else ""),
+                        {"application": app, "path": path, "profile_bot_id": ctx.bot.id},
+                        Decision(Verdict.ask, f"launch {app}", f"computer:launch:{app}", rule="ask:computer-launch",
+                                 risk="medium"))
+        self._lease.check(ticket)
+        from ..computer.resources import authority, workspace_grant
+        authority(ctx, "desktop")
+        workspace_grant(ctx)
+        if (refusal := ctx.begin_effect()):
+            return ToolResult(False, f"error: {refusal}")
+        before = session.observe()                       # what the screen shows before the application exists
+        before_hash = before.image.sha256 if before.ok and before.image else None
+        proc = self._desktop.launch(argv, f"app-{app}", cwd=str(ctx.workspace))
+        ctx.procs.register(proc, "computer")
+        # Wait for the window to appear (the screen differs from before) and then to hold still for two captures, rather
+        # than sleeping a fixed time that is wrong on a loaded host.
+        deadline = time.monotonic() + _LAUNCH_TIMEOUT_SECONDS
+        result, previous_hash, stable = before, before_hash, False
+        while time.monotonic() < deadline and proc.poll() is None:
+            time.sleep(_LAUNCH_POLL_SECONDS)
+            result = session.observe()
+            current = result.image.sha256 if result.ok and result.image else None
+            if current is not None and current != before_hash and current == previous_hash:
+                stable = True
+                break
+            previous_hash = current
+        if proc.poll() is None and not stable:
+            result = session.observe() if not result.ok else result
+        data = dict(result.data)
+        data["launch_settled"] = stable
+        data["launched"] = {"app": app, "pid": proc.pid, "alive": proc.poll() is None}
+        output = f"launched {app}; " + result.output
+        if proc.poll() is not None:
+            output = f"error: {app} exited immediately (code {proc.returncode}); " + result.output
+            return ToolResult(False, output, data)
+        return ToolResult(result.ok, output, data)
+
+    # ------------------------------------------------------------- lifecycle
+
+    def _emergency_stop(self) -> None:
+        """Run-cancel hook on the supervisor thread: fence, end input, end the whole desktop. Model-independent."""
+        self._stopped = True
+        if self._budget is not None:
+            self._budget.closed.set()
+        if self._session is not None:
+            try:
+                self._session.stop()
+            except Exception:
+                pass
+        if self._desktop is not None:
+            try:
+                self._desktop.kill_all()
+            except Exception:
+                pass
+
+    def _shutdown(self, ctx: Optional[ToolContext] = None) -> None:
+        if self._budget is not None:
+            self._budget.close()
+            self._budget = None
+        if getattr(self, "_human", None) is not None:
+            self._human.close()
+        session, self._session = self._session, None
+        eis, self._input = self._input, None
+        desktop, self._desktop = self._desktop, None
+        if session is not None:
+            session.release_all()
+            if self._lease is not None and not self._stopped:
+                self._lease.request_stop("session closed")
+                self._lease.confirm_stopped(0)
+        if eis is not None:
+            try:
+                eis.close()
+            except Exception:
+                pass
+        if desktop is not None:
+            try:
+                desktop.__exit__(None, None, None)
+            except Exception:
+                pass

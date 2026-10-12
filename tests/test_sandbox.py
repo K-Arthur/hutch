@@ -59,7 +59,9 @@ def test_the_shell_cannot_see_the_real_home_or_any_folder_outside_the_workspace(
     home = Path.home()
     res, ws = shell(store, config, tmp_path, f"cat {secret}; ls {home}; ls /home; echo HOME=$HOME")
     assert "TOP-SECRET-CANARY" not in res.output
-    assert res.output.count("No such file or directory") >= 3, res.output
+    # Mounting a workspace beneath HOME creates empty ancestor directories; those are not the host's HOME.
+    expected_missing = 1 if ws.is_relative_to(home) else 3
+    assert res.output.count("No such file or directory") >= expected_missing, res.output
     assert f"HOME={ws}" in res.output
 
 

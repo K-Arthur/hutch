@@ -274,9 +274,9 @@ pattern.
 
 ### Browser actions
 
-`goto` uses URL policy. `click` and ordinary `type` always ask because either can send data or buy something; sticky grants and auto mode cannot cover them. Browser `type` values are redacted from durable events and action receipts, and review binds a process-keyed fingerprint, character count, selector/label, page URL and bot profile. Native HTML form submits are identified in the approval with destination, method, submit label and visible field labels. An isolated Chromium execution world computes a digest over the current form state—including values, checkbox/selection state, submitter and its overrides—without exposing values to the page's own JavaScript hooks, Hutch records or the model. Hutch recomputes it after approval and refuses detected changes before clicking. Form submission fails closed when secure browser hashing is unavailable or the bounded review size is exceeded; selected file uploads are refused because their contents cannot be shown in this review. This last check is not an atomic transaction with the remote website; it does not verify an account identity or certify the behavior of site-specific scripts after the click. Generic browser clicks continue to require outward approval. Each browser-tool instance owns a separate context and persistent profile, with an OS file lease across run workers. HTTP(S)/WebSocket connections pass through the DNS-pinning local proxy; this has only local Chromium fixture coverage and does not confine unrelated browser protocols. Headless is the default. Chromium's implicit local/link-local proxy bypass is disabled, service workers are blocked, and denied request logs retain only the origin.
+`goto` uses URL policy. `click` and ordinary `type` always ask because either can send data or buy something; sticky grants and auto mode cannot cover them. Browser `type` values are redacted from durable events and action receipts, and review binds a process-keyed fingerprint, character count, selector/label, page URL and bot profile. Native HTML form submits are identified in the approval with destination, method, submit label and visible field labels. An isolated Chromium execution world computes a digest over the current form state—including values, checkbox/selection state, submitter and its overrides—without exposing values to the page's own JavaScript hooks, Hutch records or the model. Hutch recomputes it after approval and refuses detected changes before clicking. Form submission fails closed when secure browser hashing is unavailable or the bounded review size is exceeded; selected file uploads are refused unless the separate reviewed upload action froze and verified their exact bytes and destination. The keyed target binding includes URL-scoped cookie state without exposing cookies. Managed text transfers have explicit path/MIME/size/deadline/quota checks; ordinary Chromium downloads are disabled (see [computer-use](computer-use.md#profiles-iframe-scope-and-governed-files)). This last check is not an atomic transaction with the remote website; it does not prove identities stored only in custom site state or certify the behavior of site-specific scripts after the click. Generic browser clicks continue to require outward approval. Each browser-tool instance owns a separate context and persistent profile, with an OS file lease across run workers. HTTP(S)/WebSocket connections pass through the DNS-pinning local proxy; this has only local Chromium fixture coverage and does not confine unrelated browser protocols. Headless is the default. Chromium's implicit local/link-local proxy bypass is disabled, service workers are blocked, and denied request logs retain only the origin.
 
-Sensitive-entry protection blocks agent `type` calls on conventional password, passcode/OTP, verification-code, payment-card, and secret/token fields before browser input or durable action creation. Hutch never supports entering a password or one-time code through chat. Screenshots fail closed while a conventional sensitive field is visible. Detection uses visible labels and common DOM attributes; a custom widget or an unmarked field can evade it, so do not treat the detector as a secret vault. A bot may opt into **Local browser handoff** on a Linux desktop: Hutch opens the same isolated profile in a visible window, holds an exclusive browser-handoff/profile lease, pauses at a detected login/CAPTCHA/MFA or sensitive-field checkpoint, and tells the person to enter credentials or complete the challenge directly in that browser. Hutch does not type secrets or solve/bypass CAPTCHA. The human-needed event records a reason/origin, not the secret. Resume is tied to the current wait event; the browser is not reloaded, and the page is checked again afterward. If the challenge remains, Hutch keeps waiting. Without the setting or a usable display, a headless run returns an actionable failure instead of claiming to wait for a person. This experimental path is local desktop control only; phone handoff, custom-field completeness, screen-reader support, and live third-party challenges are unverified.
+Sensitive-entry protection blocks agent `type` calls on conventional password, passcode/OTP, verification-code, payment-card, and secret/token fields before browser input or durable action creation. Hutch never supports entering a password or one-time code through chat. Screenshots fail closed while a conventional sensitive field is visible. Detection uses visible labels and common DOM attributes; a custom widget or an unmarked field can evade it, so do not treat the detector as a secret vault. A bot may opt into **Local browser handoff** on a Linux desktop: Hutch opens the same isolated profile in a visible window, holds an exclusive browser-handoff/profile lease, pauses at a detected login/CAPTCHA/MFA or sensitive-field checkpoint, and tells the person to enter credentials or complete the challenge directly in that browser. Hutch does not type secrets or solve/bypass CAPTCHA. The human-needed event records a reason/origin, not the secret. Resume is tied to the current wait event; the browser is not reloaded, and the page is checked again afterward. If the challenge remains, Hutch keeps waiting. Without the setting or a usable display, a headless run returns an actionable failure instead of claiming to wait for a person. The local visible-browser path and bounded HTTP step input are verified in disposable fixtures. Physical phones, custom-field completeness, screen-reader support and live third-party challenges remain unverified.
 
 ## Rehearse (dry run)
 
@@ -285,7 +285,7 @@ calls still happen; rehearsal is not a network-disconnected preview. The tools e
 
 - **Reads run for real**: `read_file`, `list_files`, `web_fetch`, browser `goto`/`read`/`wait`, `recall`, and shell commands
   that are provably read-only.
-- **Everything else is only described.** `write_file`, `remember`, browser `click`/`type`/`screenshot` and any shell
+- **Everything else is only described.** `write_file`, `remember`, browser `click`/`type`/`upload`/`download` and any shell
   command that is not read-only reply `[rehearsal] would ...` with the policy's verdict ("would pause for approval", or
   "would be BLOCKED: ..."), and the transcript marks the result **simulated**. A simulated action asks nobody, because
   nothing happens.
@@ -399,14 +399,13 @@ registration/login requires user verification, then grants a separate HttpOnly, 
 eight-hour absolute limit. Synced passkeys are supported, so a
 credential is not proof of one physical phone. Paired phones can monitor status/transcripts, review exact approval requests, allow
 once or deny, stop/resume through current server checks, and start only when both the pairing and local Bot settings grant Start.
-Owner tokens, credentials, schedules, Bot settings, device management, and computer interaction remain local. Route authorization is
+Owner tokens, credentials, schedules, Bot settings, device management, and computer permission settings remain local. Explicit Bot step-control permission and device Review are additionally required for bounded human input. Route authorization is
 deny-by-default; unsafe requests require same-origin checks and a session-bound CSRF token. Private responses are not cacheable, and
 streams check session validity while idle. An uncertain command is reconciled with its original idempotency key before retry.
 
 The local route, passkey/session store boundaries, and actual Uvicorn HTTPS listener have automated coverage. iOS Safari, Android
 Chrome, live Tailscale Serve, LAN certificate renewal, and live network isolation remain unverified; remote operation is experimental
-and not production-certified. Hutch can only execute while its host is awake and connected. Remote browser handoff, authenticated
-PTY/desktop controls, and remote computer input are unavailable. Local browser handoff is experimental and needs a Linux display plus
+and not production-certified. Hutch can only execute while its host is awake and connected. Authenticated bounded computer step control is locally verified; physical-phone and live-network input remain unverified. Authenticated PTY is unavailable. Local browser handoff is experimental and needs a Linux display plus
 the optional Playwright browser. The marketing site cannot reach Hutch on localhost.
 
 ## The tool-call validation boundary
@@ -485,10 +484,37 @@ provider keys, proxy variables, or custom endpoint environment overrides; saved 
 and `keys/` are hidden behind read-only empty mounts while SQLite run state stays available. A private
 per-run Unix-socket broker forwards HTTP only
 to configured numeric loopback model endpoints; browser and web-fetch tools are omitted, and shell
-requires the existing bubblewrap no-network sandbox. systemd scopes apply resource caps only. A
+requires the existing bubblewrap no-network sandbox. Its nested probe/command inherit the outer
+Offline worker's memory/task cgroup, add per-process limits and fresh namespaces, and retain no host
+user-bus access. systemd scopes apply resource caps only. A
 failed capability check refuses both configuration and run start. This Linux development host now
 passes the local TCP/Unix-socket probe, and a fixture provider completed a request from an isolated
 worker; no public destination or live model was contacted. The separately running local model
 service remains outside Hutch's worker boundary and may itself access the network. Hutch does not
 claim that a local model server or model label proves inference provenance. `GET /api/v1/capabilities`
 reports the current host result.
+
+## Computer use (browser and isolated desktop)
+
+The full contract is in [computer-use.md](computer-use.md). The safety-relevant points:
+
+* **Authority.** Every browser and desktop action passes the same `ApprovalGate`; click and type remain outward and never
+  sticky. The `computer` tool requires fresh session consent, even in auto mode; native read-only denials precede custom
+  allows and sticky grants. Native apps require workspace-only mount/PID/network namespaces and resource limits, and have
+  no D-Bus broker. The private compositor/capture/input processes remain trusted host processes, not a VM. Page text, accessibility labels, screenshots and application windows are
+  untrusted data and cannot grant authority; reading one changes no approval, setting or permission.
+* **Control fence.** Who may inject input is tracked with a generation counter; an in-flight action re-checks it immediately
+  before dispatch, so a takeover or stop wins a race. After a stop the interrupted action's outcome is `unknown`.
+* **Egress.** Page text, labels and images reach a hosted route only with the Bot's `observation_to_hosted` setting.
+  Images additionally require a documented model/wire capability. Private local observation history blocks hosted fallback,
+  since later model replies can quote those observations. Approved local development origins are never reachable from a public page, and never
+  include Hutch's own dashboard.
+* **Limits.** Human step control is opt-in and locally verified through HTTP/viewport emulation; physical phones and live networks are unverified; the existing personal desktop
+  is not offered as a target; frames are not redacted (do not point the tool at accounts or secrets).
+
+Computer resource grants are revalidated from saved settings after reviews and before native capture/input or browser
+dispatch. Independent two-second watchdogs stop idle revoked sessions. Native pickers share only the whole reviewed clean
+workspace: known credential paths, links/devices and oversized trees refuse observation/input; this is not a classifier
+for secret content. Browser/native profile/session storage and process-tree RSS have sampled soft limits, with possible
+overshoot; native application scopes retain their hard resource limits. Stop includes owned capture processes, and frame
+IDs/quotas are serialized across browser/native stores. See [the full resource contract](computer-use.md#resource-grants-revocation-and-budgets).

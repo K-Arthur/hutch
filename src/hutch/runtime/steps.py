@@ -210,6 +210,17 @@ def _run_with_receipt(tool: Tool, name: str, args: dict[str, Any], ctx: ToolCont
                                  "verify the destination before repeating it") from exc
 
 
+def _public_frames(images: Any) -> list[dict[str, Any]]:
+    from ..computer.frames import FrameError, ImageRef
+    out: list[dict[str, Any]] = []
+    for item in images if isinstance(images, list) else ():
+        try:
+            out.append(ImageRef.from_internal(item).public())
+        except (FrameError, TypeError):
+            continue
+    return out[:4]
+
+
 def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, args: dict[str, Any],
               timer: Optional[StepTimer] = None, output_chars: int = 2_000) -> ToolResult:
     """Emit the call, run the tool (timed), emit the result. Used by production and test runtimes."""
@@ -265,6 +276,12 @@ def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, arg
     document = result.data.get("document")
     if isinstance(document, dict):
         data["document"] = document
+    if isinstance(result.data.get("transfer"), dict):
+        data["transfer"] = result.data["transfer"]
+    if result.data.get("images"):
+        data["frames"] = _public_frames(result.data["images"])      # ids, hashes and sizes; never run-local paths
+    if result.data.get("observation"):
+        data["observation"] = result.data["observation"]            # the bounded, already-redacted envelope
     if result.data.get("simulated"):
         data["simulated"] = True                                 # Rehearse mode: nothing actually ran
     ctx.emit(Event(run_id=run.id, type=EventType.tool_result, data=data))

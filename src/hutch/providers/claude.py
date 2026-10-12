@@ -21,6 +21,7 @@ Decisions, each from the Claude API guidance:
 from __future__ import annotations
 
 import os
+import re
 from typing import Any, Optional
 
 from .base import (ChatRequest, ChatResult, Health, ModelMeta, Provider, ProviderError, ToolCall, abort_response,
@@ -40,6 +41,27 @@ def _sdk():
     return anthropic
 
 
+_DATA_IMAGE = re.compile(r"data:(image/(?:png|jpeg|gif|webp));base64,([A-Za-z0-9+/=]+)")
+
+
+def _claude_user_content(content: Any) -> Any:
+    """A user message is plain text, or a list of OpenAI-shaped parts; images become Anthropic base64 image blocks."""
+    if not isinstance(content, list):
+        return content or ""
+    blocks: list[dict[str, Any]] = []
+    for part in content:
+        if not isinstance(part, dict):
+            continue
+        if part.get("type") == "text":
+            blocks.append({"type": "text", "text": str(part.get("text", ""))})
+        elif part.get("type") == "image_url":
+            found = _DATA_IMAGE.fullmatch(str((part.get("image_url") or {}).get("url", "")))
+            if found:
+                blocks.append({"type": "image", "source": {"type": "base64", "media_type": found.group(1),
+                                                           "data": found.group(2)}})
+    return blocks or ""
+
+
 def to_claude_messages(messages: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]:
     """Internal (OpenAI-shaped) messages -> (system text, Anthropic messages).
 
@@ -54,7 +76,7 @@ def to_claude_messages(messages: list[dict[str, Any]]) -> tuple[str, list[dict[s
         if role == "system":
             system_parts.append(m.get("content") or "")
         elif role == "user":
-            out.append({"role": "user", "content": m.get("content") or ""})
+            out.append({"role": "user", "content": _claude_user_content(m.get("content"))})
         elif role == "assistant":
             blocks: list[dict[str, Any]] = []
             if m.get("content"):
@@ -117,6 +139,10 @@ class ClaudeProvider(Provider):
                 kw["base_url"] = self.base_url
             self._client = sdk.Anthropic(**kw)
         return self._client
+
+    def supports_vision(self, model: str) -> bool:
+        # Every current Claude model accepts base64 image blocks (Anthropic computer-use / vision documentation).
+        return str(model or "").lower().startswith("claude")
 
     def health(self) -> Health:
         if not self.api_key:

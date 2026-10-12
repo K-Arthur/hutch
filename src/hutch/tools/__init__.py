@@ -38,9 +38,10 @@ GROUPS: dict[str, list[str]] = {
     "documents": ["create_document", "revise_document", "inspect_document"],
     "memory": ["remember", "recall"],
     "browser": ["browser"],
+    "computer": ["computer"],
 }
 
-ALL_TOOL_NAMES = sorted(_CATALOG) + ["browser"]
+ALL_TOOL_NAMES = sorted(_CATALOG) + ["browser", "computer"]
 
 
 def expand_tools(bot_tools: list[str]) -> list[str]:
@@ -70,8 +71,10 @@ def build_tools(names: list[str], ctx: ToolContext, *, memory_enabled: bool | No
         # Model requests use the run-scoped local broker; web and browser tools
         # cannot create additional host-network requests from this worker. A
         # Google Calendar read is an external account request too.
+        # The computer tool launches applications that can make their own network requests, and strict-offline behavior for
+        # an isolated desktop has not been verified: withheld rather than implied.
         expanded = [name for name in expanded if name not in {
-            "web_fetch", "browser", "google_calendar_events", "google_calendar_create_event",
+            "web_fetch", "browser", "computer", "google_calendar_events", "google_calendar_create_event",
             "outlook_calendar_events", "outlook_calendar_create_event", "outlook_mail_search"}]
     for name in expanded:
         if name == "delegate_task" and (ctx is None or ctx.delegation_submit is None):
@@ -81,6 +84,9 @@ def build_tools(names: list[str], ctx: ToolContext, *, memory_enabled: bool | No
         if name == "browser":
             from .browser import BrowserTool
             tools[name] = BrowserTool()
+        elif name == "computer":
+            from .computer import ComputerTool
+            tools[name] = ComputerTool()
         elif name in _CATALOG:
             tools[name] = _CATALOG[name]()
     # Skills are instruction packages resolved for this run, not bot-granted action tools. The

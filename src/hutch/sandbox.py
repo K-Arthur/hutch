@@ -88,23 +88,31 @@ def _probe() -> Status:
     prlimit = shutil.which("prlimit")
     if not prlimit:
         return Status(False, reason="'prlimit' (util-linux) is not installed; strict mode needs it for resource limits")
+    offline_worker = os.environ.get("HUTCH_OFFLINE_RUN") == "1"
+    backend = "bubblewrap+inherited-offline-scope" if offline_worker else "bubblewrap+systemd-user-scope"
     systemd_run = shutil.which("systemd-run")
-    if not systemd_run:
+    if not systemd_run and not offline_worker:
         return Status(False, reason="'systemd-run' is not installed; strict mode needs a delegated cgroup for memory and process limits")
     try:
         ver = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=10).stdout.strip()
         argv = [exe, "--unshare-all", "--ro-bind", "/usr", "/usr", "--proc", "/proc", "--dev", "/dev", *_layout(),
                 "/usr/bin/true" if Path("/usr/bin/true").exists() else "/bin/true"]
-        r = subprocess.run([systemd_run, "--user", "--scope", "--quiet", "--property=MemoryMax=512M",
-                            "--property=TasksMax=64", "--", prlimit, "--as=536870912", "--nofile=128",
-                            "--core=0", "--", *argv], capture_output=True, text=True, timeout=20)
+        # The parent launched Offline inside a memory/task-limited scope and
+        # hid the host bus. Probe nested namespaces with the same inherited
+        # cgroup/per-process limits used by shell_argv; never expose that bus
+        # or ask systemd to launch a command outside the Offline namespace.
+        prefix = [prlimit, "--as=536870912", "--nofile=128", "--core=0", "--"]
+        if not offline_worker:
+            prefix = [systemd_run, "--user", "--scope", "--quiet", "--property=MemoryMax=512M",
+                      "--property=TasksMax=64", "--", *prefix]
+        r = subprocess.run([*prefix, *argv], capture_output=True, text=True, timeout=20)
     except (OSError, subprocess.SubprocessError) as exc:
-        return Status(False, reason=f"could not run bubblewrap: {exc}")
+        return Status(False, backend=backend, reason=f"could not run bubblewrap: {exc}")
     if r.returncode != 0:
         why = (r.stderr or "").strip().splitlines()[-1:] or ["unknown error"]
         hint = " (unprivileged user namespaces may be disabled: sysctl kernel.unprivileged_userns_clone / user.max_user_namespaces)"
-        return Status(False, version=ver, reason=f"bubblewrap cannot create a sandbox here: {why[0]}{hint}")
-    return Status(True, version=ver)
+        return Status(False, backend=backend, version=ver, reason=f"bubblewrap cannot create a sandbox here: {why[0]}{hint}")
+    return Status(True, backend=backend, version=ver)
 
 
 def status(refresh: bool = False) -> Status:
@@ -508,6 +516,43 @@ def shell_argv(command: str, policy: Policy, shell: str = "/bin/bash") -> list[s
              "--clearenv", "--setenv", "PATH", DEFAULT_PATH, "--setenv", "HOME", ws, "--setenv", "LANG", "C.UTF-8",
              "--setenv", "TERM", "dumb", "--setenv", "TMPDIR", "/tmp",
              "--", shell, "-c", command]
+    return _limited_argv(argv, policy)
+
+
+def desktop_argv(command: list[str], policy: Policy, environment: dict[str, str]) -> list[str]:
+    """A workspace-only GUI client of Hutch's private compositor, with no host network or user bus.
+
+    Only the private Wayland socket crosses this boundary; no D-Bus broker is exposed. The compositor remains a trusted
+    host process; this is namespace containment of the application, not a VM or a hostile-compositor boundary.
+    """
+    if environment.get("HUTCH_ISOLATED_SESSION") != "1" or policy.network:
+        raise ValueError("desktop containment requires an owned isolated session and no network")
+    runtime = Path(environment["XDG_RUNTIME_DIR"]).resolve(strict=True)
+    home = Path(environment["HOME"]).resolve(strict=True)
+    display = environment.get("WAYLAND_DISPLAY", "")
+    if not display or Path(display).name != display or home.parent != runtime.parent:
+        raise ValueError("invalid private desktop directories or socket identity")
+    if environment.get("DBUS_SESSION_BUS_ADDRESS") != f"unix:path={runtime / 'bus'}":
+        raise ValueError("desktop must use its own minimal D-Bus session")
+    for sock in (runtime / display,):
+        if not stat.S_ISSOCK(sock.lstat().st_mode):
+            raise ValueError("the private desktop socket is unavailable")
+    ws = str(policy.workspace.resolve(strict=True))
+    argv = [binary(), "--die-with-parent", "--new-session", "--unshare-all",
+            "--ro-bind", "/usr", "/usr", *_layout(), *_etc(False),
+            "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--tmpfs", "/run",
+            "--bind", ws, ws, "--bind", str(home), str(home), "--dir", str(runtime)]
+    for sock in (runtime / display,):
+        argv += ["--ro-bind", str(sock), str(sock)]
+    argv += ["--chdir", ws, "--clearenv"]
+    for key, value in environment.items():
+        argv += ["--setenv", key, value]
+    argv += ["--setenv", "DBUS_SESSION_BUS_ADDRESS", "unix:path=/run/hutch-no-bus",
+             "--setenv", "TMPDIR", "/tmp", "--setenv", "QT_QUICK_BACKEND", "software", "--", *command]
+    return _limited_argv(argv, policy)
+
+
+def _limited_argv(argv: list[str], policy: Policy) -> list[str]:
     limits = [f"--cpu={policy.cpu_seconds}", f"--fsize={policy.fsize_mb * 1024 * 1024}",
               f"--nofile={policy.nofile}", f"--as={policy.memory_mb * 1024 * 1024}", "--core=0"]
     prlimit = shutil.which("prlimit")

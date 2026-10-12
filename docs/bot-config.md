@@ -1,5 +1,12 @@
 # Bot configuration reference
 
+Computer capabilities are opt-in in `tools` (`browser`, `computer`). `computer_apps` accepts up to eight installed program
+names; native apps require the private KWin desktop and namespace/resource containment even if shell containment is off.
+`local_dev_origins` accepts up to eight exact HTTP loopback origins with ports; Hutch's dashboard is refused.
+`observation_to_hosted` defaults off and covers page text, labels and images, independently of action approvals.
+These settings are available under **Customize how it works → Computer access**; saving starts no session. See
+[computer-use.md](computer-use.md) for platform, privacy, readiness, retention and recovery details.
+
 `memory_enabled: false` omits memory tools from new runtime tool lists and refuses recall/proposal
 through existing tool objects after the persisted setting changes. It does not hide saved facts from
 human management or retract prior provider input. `remember` proposes a reference fact within its
@@ -81,6 +88,10 @@ response is marked `Cache-Control: no-store`.
 | `memory_enabled` | bool | true | allow runtime fact proposal/retrieval tools; facts are never automatically injected |
 | `workdir` | path? | null | a folder of yours the bot works in, run after run (see below); null = a fresh empty workspace per run |
 | `local_browser_handoff` | bool | false | open this bot's browser as a visible Linux desktop window; a login wait holds one Hutch handoff/profile lease until the user resumes. Requires a live Linux display and Playwright Chromium; does not enable phone control. |
+| `local_dev_origins` | list | `[]` | exact `http://localhost:PORT` / loopback origins the browser may open for local web-app work (at most 8; no LAN or metadata addresses; Hutch's own dashboard is refused). See [computer-use.md](computer-use.md). |
+| `computer_apps` | list | `[]` | program names the `computer` tool may launch in its isolated desktop (names only; no paths or arguments). Empty means the tool cannot start a session. |
+| `observation_to_hosted` | bool | false | allow computer page text, labels and supported images to reach a hosted route. Private local observation history blocks hosted fallback. |
+| `remote_computer_access` | enum | `off` | `off`, `view`, `control`: paired viewing requires Monitor; bounded human input also requires Review and one ephemeral controller. Save locally, then start a new built-in run. Revocation pauses active human control. |
 | `risk_tier` | enum | `supervised` | `readonly` · `supervised` · `trusted`: what happens to medium-risk actions ([safety.md](safety.md)) |
 | `command_rules` | list | `[]` | `{match, verdict}` per-command `allow`/`ask`/`deny` globs ([safety.md](safety.md)) |
 | `sandbox` | enum | `strict` for new bots | `strict` uses Linux bubblewrap for shell commands and fails closed if unavailable; `off` runs shell commands without OS containment |
@@ -101,7 +112,7 @@ not include the files they reference. See [Operations](operations.md#database-mi
 
 Enable or disable the local browser handoff with `hutch bot update <name> --local-browser-handoff` or
 `--no-local-browser-handoff`. Headless remains the default. If a run reaches a login challenge without
-the option, it reports that no person can interact with the headless browser and does not enter a fake
+the option or explicit `remote_computer_access: control`, it reports that no person can interact with the headless browser and does not enter a fake
 human-wait state. When enabled, the same visible browser stays open while the run is paused; Hutch
 rechecks the challenge after Resume and keeps waiting if it remains.
 
@@ -328,3 +339,12 @@ Available from `hutch bot templates` (`src/hutch/templates.py`); `hutch init` cr
 - **research-briefing** — weekly web research → `report.md`, dedupes via memory (scheduled Mon 09:00 UTC)
 - **repo-sweeper** — on-demand TODO/FIXME sweep of the workspace repo, reports only
 - **tidy-downloads** — sorts workspace files; deliberately `ask` mode so you can watch approvals work
+
+Browser account profiles follow immutable bot IDs, so renaming an assistant retains its persistent login and recycling a
+name cannot borrow it. Legacy name-scoped profiles are left for manual backup/relogin. Browser uploads and downloads use
+separate reviewed, bounded workspace actions; viewing and human step control do not grant a host file chooser. See
+[profiles and governed files](computer-use.md#profiles-iframe-scope-and-governed-files).
+
+Changing computer authority settings during a session fences further GUI input and stops idle sessions via a two-second
+watchdog; start a new authorized run after review. Native review grants the whole clean workspace, subject to known secret
+path/link/depth/entry/byte checks; do not add credentials concurrently. See the [resource contract](computer-use.md#resource-grants-revocation-and-budgets).
