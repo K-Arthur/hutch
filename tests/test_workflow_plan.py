@@ -63,6 +63,15 @@ def test_plan_is_strict_about_unknown_fields():
     assert codes(info.value) == {"PLAN_SCHEMA"}
 
 
+@pytest.mark.parametrize("kind", ["vision", "audio"])
+def test_unsupported_media_node_kinds_are_rejected(kind):
+    raw = minimal()
+    raw["nodes"].insert(0, {"kind": kind, "id": "inspect", "instruction": "Inspect input media"})
+    with pytest.raises(wf_compile.PlanInvalid) as info:
+        compile_ok(raw)
+    assert codes(info.value) == {"PLAN_SCHEMA"}
+
+
 def test_kind_specific_fields_are_rejected_not_ignored():
     raw = minimal()
     raw["nodes"][0]["body"] = [{"kind": "tool", "id": "nested", "tool": "list_files", "args": {}}]

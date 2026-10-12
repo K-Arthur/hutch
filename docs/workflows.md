@@ -235,6 +235,18 @@ hutch workflow qualify research-bot --role worker --reason "local extraction onl
 hutch workflow qualify research-bot --revoke --role worker
 ```
 
+### Image and audio boundary
+
+Dynamic workflows currently define no vision or audio node kinds or media-inspection
+transport. Plans declaring `kind: "vision"` or `kind: "audio"` fail schema validation;
+an image/audio path, filename, metadata record, or thumbnail is only data and does not
+establish that its contents were inspected. Workflow artifact checks verify the recorded
+bytes against size and SHA-256; they do not interpret image, audio, or other media contents.
+Published workflow artifacts are immutable, run-scoped references with a versioned path,
+media-type label, byte count, and digest. Media inspection remains unsupported until a
+reviewed transport can provide explicit inspection coverage and exact artifact-version
+binding.
+
 The built-in probe runner is deliberately narrow: it uses four harmless, held-out JSON cases
 for each role, only against a loopback Ollama 0.40.3 endpoint and an installed Q4_K_M checkpoint
 with a complete identity profile. It uses 4,096 context, the normal local 2,048-token turn cap,

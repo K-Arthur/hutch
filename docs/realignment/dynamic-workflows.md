@@ -197,6 +197,7 @@ download/read-back.
 | Any role on a hosted route | **implemented-but-unverified; data-egress decision required** | hosted routes work through ordinary per-run route authority; `network: local_model_only` refuses them outright |
 | Pi / OpenCode as a workflow executor | **unsupported** | external runtimes are disabled before process start; a workflow attempt requires the built-in runtime |
 | Code facade / generated scripts | **unsupported by design** | declarative plans only; Node's own docs say `vm` is not a security mechanism |
+| Vision/audio-specific workflow nodes or media inspection | **unsupported** | `NodeKind` is a closed literal set; `tests/test_workflow_plan.py::test_unsupported_media_node_kinds_are_rejected` proves `vision` and `audio` fail compilation. A path or thumbnail is not inspection evidence. Artifact checks verify bytes, size and digest only. |
 | MCP facade | **unsupported** | Hutch has no MCP plane (ADR-0017 proposed only) |
 
 ### Residual uncertainty
