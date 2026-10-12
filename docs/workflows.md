@@ -65,6 +65,12 @@ A bounded map that declares `on_item_failure: "skip"` keeps the skipped item key
 `failures` array containing each key and reason. The aggregate remains `complete: false`; callers
 can publish useful successes without hiding which item failed or why.
 
+Before a map runs any item body, Hutch resolves and checks every stable item key. Duplicate keys
+fail the expansion before the first body can make a partial change. An empty expansion completes
+with zero items and `complete: true`. The regressions are
+`test_map_rejects_duplicate_item_keys_before_running_any_body` and
+`test_empty_map_is_a_complete_zero_item_expansion` in `tests/test_workflow_engine.py`.
+
 ## Modes: off, suggest, auto
 
 | Mode | What Hutch may do |

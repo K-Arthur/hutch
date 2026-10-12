@@ -621,6 +621,56 @@ def test_branch_and_map_execute_with_stable_item_identity(store, config):
     assert nodes["joined"]["result"]["complete"] is True
 
 
+def test_map_rejects_duplicate_item_keys_before_running_any_body(store, config):
+    bot = make_bot(store)
+    engine = Engine(config, store)
+    plan = {
+        "name": "duplicate-map-key-preflight",
+        "inputs": {"items": {"type": "array"}},
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 20, "max_model_calls": 0, "max_fanout": 4},
+        "nodes": [{"kind": "map", "id": "each", "over": {"ref": "input.items"},
+                   "item_key": "id", "max_items": 4, "body": [
+                       {"kind": "transform", "id": "value", "op": "pluck",
+                        "args": {"value": {"ref": "item"}, "path": "value"}}]}],
+    }
+    submission = wfsubmit.submit_workflow(
+        store, bot=bot, plan=plan,
+        inputs={"items": [{"id": "same", "value": "first"},
+                           {"id": "same", "value": "second"}]})
+
+    drive(engine, store, submission.attempt_run_id)
+
+    view = wfsubmit.status(store, submission.workflow_run_id)
+    assert view["workflow"]["status"] == "failed"
+    assert "duplicate item key 'same'" in view["workflow"]["reason"]
+    assert not [node for node in view["nodes"] if node["site_id"] == "each.value"]
+
+
+def test_empty_map_is_a_complete_zero_item_expansion(store, config):
+    bot = make_bot(store)
+    engine = Engine(config, store)
+    plan = {
+        "name": "empty-map",
+        "inputs": {"items": {"type": "array"}},
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 20, "max_model_calls": 0, "max_fanout": 4},
+        "nodes": [{"kind": "map", "id": "each", "over": {"ref": "input.items"},
+                   "item_key": "id", "max_items": 4, "body": [
+                       {"kind": "transform", "id": "value", "op": "pluck",
+                        "args": {"value": {"ref": "item"}, "path": "value"}}]}],
+    }
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=plan, inputs={"items": []})
+
+    drive(engine, store, submission.attempt_run_id)
+
+    view = wfsubmit.status(store, submission.workflow_run_id)
+    assert view["workflow"]["status"] == "succeeded", view["workflow"]["reason"]
+    assert {node["site_id"]: node["result"] for node in view["nodes"]} == {
+        "each": {"keys": [], "items": [], "skipped": [], "failures": [],
+                 "complete": True, "count": 0, "expected": 0}}
+
+
 def test_fanout_over_the_cap_fails_loudly(store, config):
     bot = make_bot(store)
     engine = Engine(config, store)

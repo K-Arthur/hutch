@@ -425,19 +425,29 @@ class Interpreter:
                                  f"fan-out over {len(over)} items exceeds the allowed {cap}; "
                                  f"raise max_items/max_fanout deliberately or narrow the input")
         body = self.compiled.children_of(cnode.site_id, "body")
-        keys: list[str] = []
-        items: list[Any] = []
-        skipped: list[str] = []
-        failures: list[dict[str, str]] = []
-        unsettled = 0
+        expanded: list[tuple[str, Any, int]] = []
+        seen_keys: set[str] = set()
+        # Validate the complete expansion envelope before executing any body. A duplicate
+        # identity discovered late must not leave earlier items' effects behind.
         for index, item in enumerate(over):
             item_scope = dict(scope)
             item_scope["item"] = item
             item_scope["index"] = index
             key = _escape_key(self._item_key(node, item, item_scope, index))
-            keys.append(key)
-            if keys.count(key) > 1:
+            if key in seen_keys:
                 raise WorkflowFailed(cnode.site_id, f"duplicate item key {key!r}; item keys must be unique")
+            seen_keys.add(key)
+            expanded.append((key, item, index))
+
+        keys = [key for key, _, _ in expanded]
+        items: list[Any] = []
+        skipped: list[str] = []
+        failures: list[dict[str, str]] = []
+        unsettled = 0
+        for key, item, index in expanded:
+            item_scope = dict(scope)
+            item_scope["item"] = item
+            item_scope["index"] = index
             item_prefix = ""
             interrupted = False
             try:
