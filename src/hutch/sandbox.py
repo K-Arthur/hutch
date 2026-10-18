@@ -229,6 +229,10 @@ def offline_worker_argv(command: list[str], source: dict[str, str], state_dir: s
     if keys_path.is_symlink() or (keys_path.exists() and not keys_path.is_dir()):
         raise RuntimeError("Strict offline cannot safely mask the connection-key directory")
     keys_path.mkdir(mode=0o700, exist_ok=True)
+    chatgpt_path = state_path / "chatgpt"
+    if chatgpt_path.is_symlink() or (chatgpt_path.exists() and not chatgpt_path.is_dir()):
+        raise RuntimeError("Strict offline cannot safely mask the ChatGPT credential directory")
+    chatgpt_path.mkdir(mode=0o700, exist_ok=True)
     redaction_dir = Path(broker_dir) / "state-redaction"
     redaction_dir.mkdir(mode=0o700)
     os.chmod(redaction_dir, 0o700)
@@ -238,10 +242,14 @@ def offline_worker_argv(command: list[str], source: dict[str, str], state_dir: s
     empty_keys = redaction_dir / "keys"
     empty_keys.mkdir(mode=0o500)
     os.chmod(empty_keys, 0o500)
+    empty_chatgpt = redaction_dir / "chatgpt"
+    empty_chatgpt.mkdir(mode=0o500)
+    os.chmod(empty_chatgpt, 0o500)
     prepare_target(state_path)
     argv += ["--bind", str(state_path), str(state_path)]
     argv += ["--ro-bind", str(safe_connections), str(connections_path),
-             "--ro-bind", str(empty_keys), str(keys_path)]
+             "--ro-bind", str(empty_keys), str(keys_path),
+             "--ro-bind", str(empty_chatgpt), str(chatgpt_path)]
     if prefix.exists() and not source_root.is_relative_to(prefix):
         prepare_target(prefix)
         argv += ["--ro-bind", str(prefix), str(prefix)]

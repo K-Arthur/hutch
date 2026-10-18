@@ -480,8 +480,9 @@ endpoint may proxy requests, unknown cloud naming may evade a name-based check, 
 tools retain their own policy. The separate experimental `offline` mode is host-gated. Hutch tests
 a fresh bubblewrap network/PID namespace against loopback and a host-interface TCP listener, while
 confirming a mounted Unix socket is reachable and checking the isolated PID view. Workers receive no
-provider keys, proxy variables, or custom endpoint environment overrides; saved `connections.json`
-and `keys/` are hidden behind read-only empty mounts while SQLite run state stays available. A private
+provider keys, proxy variables, or custom endpoint environment overrides; saved `connections.json`,
+`keys/`, and ChatGPT OAuth account records are hidden behind read-only empty mounts while SQLite run
+state stays available. A private
 per-run Unix-socket broker forwards HTTP only
 to configured numeric loopback model endpoints; browser and web-fetch tools are omitted, and shell
 requires the existing bubblewrap no-network sandbox. Its nested probe/command inherit the outer

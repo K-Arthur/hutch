@@ -22,7 +22,8 @@ Evidence: baseline lead 6, B8, A3; `tests/test_admission.py`, `tests/test_local_
 boundary, not proof about the server handling local inference: a separate Ollama/LM Studio/vLLM
 service may itself proxy traffic or download models. The runtime restricts endpoints to numeric
 loopback, removes web/browser tools and scrubs provider, proxy and custom-endpoint environment
-variables. Saved `connections.json` and `keys/` are overmounted with a read-only empty view; the
+variables. Saved `connections.json`, `keys/`, and ChatGPT OAuth account records are overmounted with
+a read-only empty view; the
 worker retains the shared SQLite state it needs for fenced run updates. Each worker runs in fresh
 bubblewrap namespaces. A private per-run Unix socket is
 the only model egress: the supervisor-side broker fixes the target address to the bot's validated

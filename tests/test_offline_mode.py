@@ -136,9 +136,13 @@ def test_offline_worker_command_uses_network_namespace_and_credential_free_envir
                                  if target == str(state_dir / "connections.json")))
     safe_keys = Path(next(source for source, target in read_only_mounts
                           if target == str(state_dir / "keys")))
+    safe_chatgpt = Path(next(source for source, target in read_only_mounts
+                            if target == str(state_dir / "chatgpt")))
     assert safe_connections.read_text() == '{"connections": {}}\n'
     assert safe_connections != state_dir / "connections.json"
     assert list(safe_keys.iterdir()) == []
+    assert safe_chatgpt != state_dir / "chatgpt"
+    assert list(safe_chatgpt.iterdir()) == []
 
 
 def test_offline_worker_scope_has_full_namespaces_and_uses_a_private_broker_mount():
@@ -193,13 +197,17 @@ def test_offline_worker_cannot_read_saved_provider_credentials(tmp_path):
     (state_dir / "connections.json").write_text(
         '{"connections": {"private": {"api_key_env": "PRIVATE_KEY"}}}\n')
     (state_dir / "keys" / "private.key").write_text("fixture-provider-secret")
+    (state_dir / "chatgpt").mkdir()
+    (state_dir / "chatgpt" / "accounts.json").write_text('{"accounts": {"fixture": {"access_token": "fixture-oauth-secret"}}}\n')
     brokers = OfflineBrokerSet([])
     code = (
         "import json,os,pathlib; "
         "root=pathlib.Path(os.environ['HUTCH_STATE_DIR']); "
         "assert json.loads((root/'connections.json').read_text()) == {'connections': {}}; "
         "assert list((root/'keys').iterdir()) == []; "
-        "assert not (root/'keys'/'private.key').exists(); print('credential files hidden')"
+        "assert not (root/'keys'/'private.key').exists(); "
+        "assert list((root/'chatgpt').iterdir()) == []; "
+        "assert not (root/'chatgpt'/'accounts.json').exists(); print('credential files hidden')"
     )
     env = dict(os.environ, HUTCH_STATE_DIR=str(state_dir), HUTCH_LEASE_SECONDS="30")
     argv = sandbox.offline_worker_argv([sys.executable, "-c", code], env, str(state_dir), 30,
