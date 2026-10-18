@@ -20,10 +20,15 @@ A field at the bottom takes any `provider/model`, for connection models that are
 
 OpenRouter is available as a first-party connection. Opening the composer model picker fetches its 40 most-popular
 text models; typing at least two characters searches OpenRouter's catalog and returns matching entries. The chat
-page itself does not contact OpenRouter to refresh the list. Catalog pricing and context size are shown as reported
-by OpenRouter and are not verified Hutch prices or guarantees of upstream availability. Hutch does not use those
-live catalog prices for currency-limit admission: review and save a row in Settings > Prices first. A model listing
-also does not establish tool-call compatibility; verify task behavior with a normal governed run.
+page itself does not contact OpenRouter to refresh that list. Catalog pricing and context size are reported values,
+not guarantees of upstream availability. Separately, before admission to a paid OpenRouter route, Hutch reads the
+public model-endpoint metadata and uses a five-minute quote; the response is capped at 1 MB, 512 endpoints and 64
+pricing overrides per endpoint, and compressed responses are rejected. Strict USD ceilings refuse when fresh
+metadata or a context/tool-qualified endpoint is unavailable. Strict reservation uses the highest eligible endpoint call estimate,
+including declared higher-price tiers and possible cache-write cost. When no strict ceiling applies, a labeled stale
+quote or reviewed Settings > Prices row may be used. This estimate is not a provider-enforced billing cap. OpenRouter
+requests ask for `usage.include=true` so reported `usage.cost` can be retained when the response includes it. A model
+listing does not establish tool-call compatibility; verify task behavior with a normal governed run.
 
 OpenAI API and other OpenAI-compatible connections discover model IDs from
 their own authenticated `/models` endpoint when the model picker requests
@@ -46,6 +51,15 @@ Rules worth knowing:
   message is accepted; if sending fails, the unsent selection stays available for retry. The pending override is remembered
   only for that conversation in this browser. The Bot's saved model and scheduled runs remain unchanged. Choose **Save as Bot
   default** in the same model menu to update the Bot settings explicitly; later chats and scheduled runs then use that route.
+- **Choose a task role for one message.** In Bot → Model & connection, configure exact `provider/model` routes for banter,
+  classification, extraction, summarization, synthesis/research, code analysis, or verification. In the composer menu,
+  select the role for the next message; Hutch validates and runs that explicit route through normal fit, consent and budget
+  checks. A model-pick override takes precedence for that message. The role selection is recorded on the run and clears
+  after an accepted send. Unmapped roles use the Bot model. Automatic classification is not enabled because a classifier
+  would itself require a priced, reserved, approved call; route quality has not been evaluated on Hutch tasks.
+- **Three routing decisions stay distinct.** Task roles choose a route before generation, fallbacks respond to availability
+  failures, and escalation follows repeated quality failures. A refusal, denied action, budget stop or invalid route cannot
+  be bypassed by another role or quality ladder.
 - **In Hybrid, a hosted pick is your explicit consent for that message.** The "ask before the first hosted call" rule exists
   to stop a *local-first bot* drifting off your machine on its own; it does not fire when you picked the hosted model
   yourself. Local-route mode refuses hosted choices. Estimate-based limits and exact response-usage recording still apply; provider billing can differ from Hutch's estimates.
@@ -55,9 +69,7 @@ Rules worth knowing:
   fix. Bots saved with legacy `pi` or `opencode` runtime values create a visible failed run with an `unsupported` reason; those
   runtimes are disabled before an external process starts.
 
-API: `GET /api/bots/<name>/models` returns `{default, models:[{spec,label,group,state,note,fix,default,hosted,detail}]}` without contacting provider catalogs. The picker explicitly calls `GET /api/bots/<name>/models?discover=1`; an optional `q` filters the OpenRouter catalog;
-`POST /api/bots/<name>/run` takes an optional `"model": "provider/model"` (409 = usable once set up, 422 = malformed
-or unknown).
+API: `GET /api/bots/<name>/models` returns `{default, models:[{spec,label,group,state,note,fix,default,hosted,detail}]}` without contacting provider catalogs. The picker explicitly calls `GET /api/bots/<name>/models?discover=1`; an optional `q` filters the OpenRouter catalog. `PATCH /api/bots/<name>` accepts a `task_routes` object keyed by one of the seven task roles. `POST /api/v1/conversations/<id>/messages` accepts an optional `task_role` plus the existing optional `model`; the explicitly selected `model` takes precedence, and unavailable task routes are refused rather than silently replaced. `POST /api/bots/<name>/estimate` accepts the current draft, selected route, skills and rehearsal setting in its JSON body, then estimates the bounded recent conversation context and selected reply/specialist reference without putting the draft in the URL. Its token and cost figures remain estimates and can change before admission. `POST /api/bots/<name>/run` keeps its existing optional `"model": "provider/model"` override (409 = usable once set up, 422 = malformed or unknown).
 
 ## Workspace defaults for new Bots
 

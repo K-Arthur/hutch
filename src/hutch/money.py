@@ -6,23 +6,23 @@ reservation rounding can drift in either direction. Every money operation in thi
 
 Canonical unit
 --------------
-The ledger unit is the **micro-USD** (``0.000001`` USD, 6 decimal places). Provider billing is published
-and charged at no finer granularity in practice, and six places keep per-call precision for the cheapest
-models while staying readable. Values are quantized to micro-USD:
+The ledger unit is the **nano-USD** (``0.000000001`` USD, 9 decimal places). Provider usage can be smaller
+than a micro-dollar per call; six places silently turned a reported ``$0.0000004`` into zero. Values are
+quantized to nano-USD:
 
 * **reservations round up** (``quantize_up``): admission must never under-estimate the amount it holds;
 * **settlements and reported values round half-up** (``quantize``): an actual charge is recorded as near
-  to its reported value as the ledger unit allows, and a nonzero charge is never recorded as zero;
+  to its reported value as the ledger unit allows;
 * **display never hides a nonzero charge** (``format_usd``): a sub-cent amount shows its leading digits
   instead of ``$0.00``.
 
 Storage boundary
 ----------------
 The SQLite columns are legacy ``REAL`` (float) columns. Every write goes through ``to_store`` (a
-micro-quantized Decimal converted to float) and every read through ``from_store`` (the float converted
-back through its shortest decimal string and re-quantized). Float64 round-trips a 6-decimal value with
-relative error below ``1e-16``; comparisons that mix rewritten legacy rows with fresh Decimal values
-carry ``TOL_USD = 1e-9`` so an exact-boundary case cannot flip on float error alone.
+nano-quantized Decimal converted to float) and every read through ``from_store`` (the float converted
+back through its shortest decimal string and re-quantized). Existing six-decimal ledger values round-trip
+unchanged; new values retain nine decimal places. Comparisons carry ``TOL_USD = 1e-12`` for float
+conversion noise.
 """
 
 from __future__ import annotations
@@ -30,11 +30,12 @@ from __future__ import annotations
 from decimal import Decimal, InvalidOperation, ROUND_CEILING, ROUND_HALF_UP
 from typing import Iterable, Optional, Union
 
-MICRO = Decimal("0.000001")
+MICRO = Decimal("0.000001")  # retained for callers that explicitly need micro-dollar units
+NANO_USD = Decimal("0.000000001")
 ZERO = Decimal("0")
 USD = "USD"
 #: comparison tolerance for values that round-trip through REAL columns
-TOL_USD = Decimal("0.000000001")
+TOL_USD = Decimal("0.000000000001")
 
 NumberLike = Union[int, float, str, Decimal]
 
@@ -65,13 +66,13 @@ def parse_usd(value: NumberLike, *, field: str = "amount") -> Optional[Decimal]:
 
 
 def quantize(value: Decimal) -> Decimal:
-    """Round half-up to micro-USD for values being recorded (actual charges, reported costs)."""
-    return value.quantize(MICRO, rounding=ROUND_HALF_UP)
+    """Round half-up to nano-USD for values being recorded (actual charges, reported costs)."""
+    return value.quantize(NANO_USD, rounding=ROUND_HALF_UP)
 
 
 def quantize_up(value: Decimal) -> Decimal:
-    """Round up to micro-USD for values being held. Admission never under-reserves."""
-    return value.quantize(MICRO, rounding=ROUND_CEILING)
+    """Round up to nano-USD for values being held. Admission never under-reserves."""
+    return value.quantize(NANO_USD, rounding=ROUND_CEILING)
 
 
 def to_store(value: Optional[Decimal]) -> Optional[float]:
@@ -89,7 +90,7 @@ def to_store_reserved(value: Optional[Decimal]) -> Optional[float]:
 
 
 def from_store(value: Optional[float]) -> Decimal:
-    """Read a legacy REAL amount back into Decimal micro-USD (missing/NULL reads as zero)."""
+    """Read a legacy REAL amount back into Decimal nano-USD (missing/NULL reads as zero)."""
     if value is None:
         return ZERO
     return quantize(Decimal(str(value)))
@@ -157,24 +158,24 @@ def format_usd(value: Optional[NumberLike], *, places: Optional[int] = None) -> 
         if amount == ZERO:
             places = 2
         elif amount < Decimal("0.01"):
-            places = 6
+            places = min(9, max(6, -amount.normalize().as_tuple().exponent))
         elif amount < Decimal("1000"):
             places = 4
         else:
             places = 2
     text = f"{amount:.{places}f}"
     if amount != ZERO and Decimal(text) == ZERO:
-        # a real charge must never render as free: fall back to the ledger unit before declaring "< micro"
-        text = f"{amount:.6f}"
+        # A nonzero value below one ledger unit must never render as free.
+        text = f"{amount:.9f}"
         if Decimal(text) == ZERO:
-            return f"<${MICRO:.6f}"
+            return f"<${NANO_USD:.9f}"
     return f"${text}"
 
 
 def micro_units(value: NumberLike, *, reserved: bool = False) -> int:
-    """Exact integer micro-USD units — the fixed-point representation used in tests and future storage."""
+    """Exact integer micro-USD units for integrations that explicitly need six-place values."""
     amount = parse_usd(value)
     if amount is None:
         return 0
-    rounded = quantize_up(amount) if reserved else quantize(amount)
+    rounded = amount.quantize(MICRO, rounding=ROUND_CEILING if reserved else ROUND_HALF_UP)
     return int(rounded / MICRO)

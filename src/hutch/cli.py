@@ -21,6 +21,7 @@ from .models import (
     ApprovalMode,
     Bot,
     CatchUpPolicy,
+    Escalation,
     Limits,
     InferenceMode,
     OverlapPolicy,
@@ -826,7 +827,7 @@ def bot_estimate(name: str = typer.Argument(...), model: Optional[str] = typer.O
     from .estimate import estimate_run
     store = _store()
     bot = _require_bot(store, name)
-    e = estimate_run(get_config(), store, bot, prompt, model)
+    e = estimate_run(get_config(), store, bot, prompt, model, fetch_quotes=True)
     console.print(f"[bold]{e.spec}[/bold]: ~{e.prompt_tokens:,} prompt tokens, up to {e.steps} steps of {e.turn_tokens:,} tokens each")
     console.print(e.summary)
     if e.kind == "priced" and e.daily_token_cap:
@@ -916,6 +917,18 @@ def bot_update(
     daily_token_cap: Optional[int] = typer.Option(None, "--daily-token-cap", min=0),
     max_cost_usd: Optional[float] = typer.Option(None, "--max-cost-usd", min=0),
     daily_cost_cap_usd: Optional[float] = typer.Option(None, "--daily-cost-cap-usd", min=0),
+    fallback: list[str] = typer.Option(
+        [], "--fallback",
+        help="replace the fallback model list; repeat per model, tried in order when the primary is unavailable"),
+    clear_fallbacks: bool = typer.Option(False, "--clear-fallbacks", help="remove configured fallbacks"),
+    escalate_to: list[str] = typer.Option(
+        [], "--escalate-to", help="one-rung-up models for repeated quality failures; repeat in order"),
+    clear_escalation: bool = typer.Option(False, "--clear-escalation", help="remove the quality escalation ladder"),
+    task_route: list[str] = typer.Option(
+        [], "--task-route", help="set a manual task role route as ROLE=provider/model; repeat for more roles"),
+    clear_task_routes: bool = typer.Option(False, "--clear-task-routes", help="remove all manual task-role routes"),
+    compaction: Optional[Literal["ask", "auto", "off"]] = typer.Option(
+        None, "--compaction", help="ask (review hosted summaries first) | auto (explicitly allow) | off (block)"),
 ) -> None:
     """Update bot settings."""
     store = _store()
@@ -994,6 +1007,55 @@ def bot_update(
     }.items() if value is not None}
     if limit_updates:
         bot.limits = Limits.model_validate({**bot.limits.model_dump(), **limit_updates})
+    if clear_fallbacks:
+        bot.fallbacks = []
+    if fallback:
+        cleaned = [spec.strip() for spec in fallback if spec.strip()]
+        from .providers.registry import validate_spec
+        for spec in cleaned:
+            try:
+                validate_spec(spec)
+            except ValueError as exc:
+                err.print(f"[red]invalid fallback model '{spec}': {exc}[/red]")
+                raise typer.Exit(code=1) from None
+        bot.fallbacks = cleaned
+    if clear_escalation:
+        bot.escalation = None
+    if escalate_to:
+        cleaned = [spec.strip() for spec in escalate_to if spec.strip()]
+        from .providers.registry import validate_spec
+        for spec in cleaned:
+            try:
+                validate_spec(spec)
+            except ValueError as exc:
+                err.print(f"[red]invalid escalation model '{spec}': {exc}[/red]")
+                raise typer.Exit(code=1) from None
+        base = bot.escalation.model_dump() if bot.escalation else {}
+        bot.escalation = Escalation(**{**base, "to": cleaned})
+    if clear_task_routes:
+        bot.task_routes = {}
+    if task_route:
+        from .models import TASK_ROLE_VALUES
+        from .providers.registry import validate_spec
+        task_routes = dict(bot.task_routes)
+        for value in task_route:
+            role, sep, spec = value.partition("=")
+            role, spec = role.strip(), spec.strip()
+            if not sep or role not in TASK_ROLE_VALUES:
+                err.print(f"[red]invalid task route '{value}'; use ROLE=provider/model with role in {', '.join(TASK_ROLE_VALUES)}[/red]")
+                raise typer.Exit(code=1)
+            if not spec:
+                task_routes.pop(role, None)
+                continue
+            try:
+                validate_spec(spec)
+            except ValueError as exc:
+                err.print(f"[red]invalid {role} task route '{spec}': {exc}[/red]")
+                raise typer.Exit(code=1) from None
+            task_routes[role] = spec
+        bot.task_routes = task_routes
+    if compaction is not None:
+        bot.compaction = compaction
     if clear_cron:
         if schedule_prompt is not None and len(schedule_prompt) > 4000:
             err.print("[red]--schedule-prompt must be 4000 characters or fewer[/red]")

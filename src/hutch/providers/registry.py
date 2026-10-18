@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import ipaddress
+import re
 from typing import Optional
 from urllib.parse import urlsplit, urlunsplit
 
@@ -65,6 +66,18 @@ def parse_spec(spec: str) -> tuple[str, str]:
     if not sep:
         return "openai-compatible", spec
     return provider.strip().lower(), model.strip()
+
+
+#: provider/model: the provider is a lowercase slug, the model may contain further slashes (OpenRouter ids)
+_SPEC_RE = re.compile(r"^([a-z0-9][a-z0-9._-]{0,40})/([A-Za-z0-9~][A-Za-z0-9._:+/~-]{0,160})$")
+
+
+def validate_spec(spec: str) -> tuple[str, str]:
+    """An explicit provider/model routing spec; an unresolved alias or prose is rejected, never guessed."""
+    match = _SPEC_RE.match(str(spec or "").strip())
+    if not match:
+        raise ValueError("expected an explicit 'provider/model' spec")
+    return match.group(1), match.group(2)
 
 
 def looks_like_ollama(base_url: Optional[str]) -> bool:
@@ -164,6 +177,8 @@ def offline_endpoints_for_bot(bot, *, model_override: str = "") -> list[str]:
     if bot.escalation:
         routes.extend((spec, bot.base_url if parse_spec(spec)[0] == primary_provider else None)
                       for spec in bot.escalation.to)
+    routes.extend((spec, bot.base_url if parse_spec(spec)[0] == primary_provider else None)
+                  for spec in getattr(bot, "task_routes", {}).values())
     if model_override:
         routes.append((model_override, bot.base_url if parse_spec(model_override)[0] == primary_provider else None))
     endpoints = []

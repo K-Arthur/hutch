@@ -66,7 +66,7 @@ def test_no_price_and_no_provider_cost_is_recorded_unknown_not_invented(store, c
     assert run.cost_usd == 0.0
 
 
-def test_provider_cost_is_quantized_half_up_to_micro_usd(store, config, tmp_path):
+def test_provider_cost_is_quantized_half_up_to_nano_usd(store, config, tmp_path):
     from tests.fakes import FakeOpenAI
     oai = FakeOpenAI()
     oai.script = lambda b: {"content": "answer", "prompt_tokens": 10, "completion_tokens": 5,
@@ -78,5 +78,5 @@ def test_provider_cost_is_quantized_half_up_to_micro_usd(store, config, tmp_path
     finally:
         oai.close()
     row = _usage_row(store, run.id)
-    assert row["cost_usd"] == pytest.approx(0.000001)          # half-up at the ledger unit
-    assert row["reported_cost_usd"] == pytest.approx(0.00000055)  # the raw reported value is preserved
+    assert row["cost_usd"] == pytest.approx(0.00000055)          # below one micro-dollar remains nonzero
+    assert row["reported_cost_usd"] == pytest.approx(0.00000055)  # the provider value is preserved

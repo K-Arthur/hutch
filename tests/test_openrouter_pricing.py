@@ -10,6 +10,11 @@ from decimal import Decimal
 import pytest
 
 from hutch.providers.openrouter_pricing import (
+    DEFAULT_TTL_SECONDS,
+    MAX_CACHE_ENTRIES,
+    MAX_ENDPOINTS,
+    MAX_OVERRIDES_PER_ENDPOINT,
+    MAX_RESPONSE_BYTES,
     ModelQuote,
     OpenRouterPricing,
     parse_endpoints_payload,
@@ -53,6 +58,10 @@ def test_cache_and_request_fees_are_included_and_rounded_up():
     cost = quote.worst_case(1000, 200, cached_tokens=200, cache_write_tokens=100,
                             eligible=lambda endpoint: True)
     assert cost == Decimal("0.007535")
+    # Admission does not assume an optimistic cache hit; a cache miss may write the full input at a premium.
+    reserved = quote.worst_case(1000, 200, conservative_tiers=True,
+                                eligible=lambda endpoint: True)
+    assert reserved == Decimal("0.008750")
 
 
 def test_invalid_or_missing_prices_make_an_endpoint_ineligible():
@@ -85,12 +94,15 @@ def test_fresh_quote_is_reused_within_ttl_and_refetched_after():
     service = OpenRouterPricing("https://router.example/api/v1", fetcher=fetcher, clock=lambda: clock[0])
     first = service.quote("acme/model-1")
     assert first is not None and not first.stale
-    clock[0] = NOW + timedelta(minutes=5)
-    assert service.quote("acme/model-1") is first     # cached within the 15-minute TTL
+    assert DEFAULT_TTL_SECONDS == 300
+    clock[0] = NOW + timedelta(minutes=4, seconds=59)
+    assert service.quote("acme/model-1") is first     # cached inside the five-minute quote lifetime
     assert calls == ["acme/model-1"]
-    clock[0] = NOW + timedelta(minutes=16)
+    clock[0] = NOW + timedelta(minutes=5, seconds=1)
     assert service.quote("acme/model-1") is not None
     assert calls == ["acme/model-1", "acme/model-1"]
+    refreshed = service.cached("acme/model-1")
+    assert refreshed and refreshed.snapshot_digest and refreshed.expires_at == refreshed.fetched_at + timedelta(seconds=300)
 
 
 def test_a_failed_refetch_keeps_the_last_quote_labeled_stale():
@@ -146,7 +158,104 @@ def test_degraded_and_context_capped_endpoints_can_be_excluded_by_eligibility():
     assert quote.worst_case(1000, 100, eligible=eligible) == Decimal("0.00033")  # only the 200k one
 
 
+def test_conditional_long_context_override_is_included_in_the_endpoint_quote():
+    row = endpoint("0.000003", "0.000015", name="conditional")
+    row["pricing"]["input_cache_read"] = "0.0000003"
+    row["pricing"]["input_cache_write"] = "0.00000375"
+    row["pricing"]["overrides"] = [{
+        "min_prompt_tokens": 200000,
+        "prompt": "0.000006",
+        "completion": "0.0000225",
+        "input_cache_read": "0.0000006",
+        "input_cache_write": "0.0000075",
+        "input_cache_write_1h": "0.000012",
+    }]
+    quote = parse_endpoints_payload(payload(row), "acme/model-1", fetched_at=NOW)
+    assert quote.worst_case(1000, 100, eligible=lambda endpoint: True) == Decimal("0.0045")
+    assert quote.worst_case(1000, 100, conservative_tiers=True,
+                            eligible=lambda endpoint: True) == Decimal("0.01425")
+    # Above the tier threshold, admission uses the conditional input/output/cache prices and 1h write rate.
+    assert quote.worst_case(250000, 10000, cached_tokens=1000, cache_write_tokens=1000,
+                            conservative_tiers=True, eligible=lambda endpoint: True) == Decimal("3.225")
+
+
+def test_unknown_or_malformed_override_shape_makes_endpoint_ineligible():
+    row = endpoint("0.000003", "0.000015")
+    row["pricing"]["overrides"] = {"prompt": "0.000006"}
+    with pytest.raises(ValueError, match="no endpoint"):
+        parse_endpoints_payload(payload(row), "acme/model-1", fetched_at=NOW)
+
+    row["pricing"]["overrides"] = [{"service_tier": "priority", "prompt": "0.000006"}]
+    with pytest.raises(ValueError, match="no endpoint"):
+        parse_endpoints_payload(payload(row), "acme/model-1", fetched_at=NOW)
+
+
+def test_metadata_cache_has_a_fixed_entry_budget():
+    service = OpenRouterPricing(
+        "https://router.example/api/v1",
+        fetcher=lambda model: payload(endpoint("0.000001", "0.000002"), model=model),
+        clock=lambda: NOW,
+    )
+    for index in range(MAX_CACHE_ENTRIES + 1):
+        assert service.quote(f"acme/model-{index}") is not None
+    assert len(service._cache) == MAX_CACHE_ENTRIES
+    assert "acme/model-0" not in service._cache
+
+
 def test_split_model_id_handles_variants_and_latest_aliases():
     assert split_model_id("anthropic/claude-sonnet-4.5") == ("anthropic", "claude-sonnet-4.5")
     assert split_model_id("~anthropic/claude-sonnet-latest") == ("anthropic", "claude-sonnet-latest")
     assert split_model_id("acme/model-1:nitro") == ("acme", "model-1")
+
+
+def test_metadata_endpoint_and_override_counts_are_bounded():
+    with pytest.raises(ValueError, match="endpoint metadata limit"):
+        parse_endpoints_payload(payload(*(endpoint("0.000001", "0.000002") for _ in range(MAX_ENDPOINTS + 1))),
+                                "acme/model-1", fetched_at=NOW)
+    row = endpoint("0.000001", "0.000002")
+    row["pricing"]["overrides"] = [{"min_prompt_tokens": index, "prompt": "0.000001"}
+                                    for index in range(MAX_OVERRIDES_PER_ENDPOINT + 1)]
+    with pytest.raises(ValueError, match="override.*limit"):
+        parse_endpoints_payload(payload(row), "acme/model-1", fetched_at=NOW)
+
+
+def test_http_metadata_rejects_declared_oversized_body_before_reading(monkeypatch):
+    class Response:
+        status_code = 200
+        headers = {"content-length": str(MAX_RESPONSE_BYTES + 1)}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def iter_bytes(self):
+            raise AssertionError("oversized metadata must be rejected before body reads")
+
+    import httpx
+    monkeypatch.setattr(httpx, "stream", lambda *args, **kwargs: Response())
+    service = OpenRouterPricing("https://router.example/api/v1")
+    with pytest.raises(Exception, match="byte limit"):
+        service._http_fetch("acme/model-1")
+
+
+def test_http_metadata_rejects_compressed_response_before_reading(monkeypatch):
+    class Response:
+        status_code = 200
+        headers = {"content-encoding": "gzip", "content-length": "32"}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def iter_raw(self):
+            raise AssertionError("compressed metadata must be rejected before body reads")
+
+    import httpx
+    monkeypatch.setattr(httpx, "stream", lambda *args, **kwargs: Response())
+    service = OpenRouterPricing("https://router.example/api/v1")
+    with pytest.raises(Exception, match="content encoding"):
+        service._http_fetch("acme/model-1")

@@ -297,7 +297,8 @@ class FakeOpenAI(_Server):
                                           if not isinstance(c.get("arguments"), str) else c["arguments"]},
                                           **({"id": c["id"]} if c.get("id") else {})}
                                          for i, c in enumerate(calls)]
-                return self.send_json(h, {"model": body["model"], "choices": [{"message": msg, "finish_reason": finish}],
+                return self.send_json(h, {"model": reply.get("model", body["model"]),
+                                          "choices": [{"message": msg, "finish_reason": finish}],
                                           "usage": usage})
             self.start_stream(h, "text/event-stream")
             ev = lambda obj: self.chunk(h, f"data: {json.dumps(obj)}\n\n".encode())
@@ -307,9 +308,10 @@ class FakeOpenAI(_Server):
                 h.connection.shutdown(2)
                 return
             half = max(1, len(content) // 2)
+            stream_model = reply.get("model", body["model"])
             if content:
-                ev({"model": body["model"], "choices": [{"delta": {"content": content[:half]}}]})
-                ev({"model": body["model"], "choices": [{"delta": {"content": content[half:]}}]})
+                ev({"model": stream_model, "choices": [{"delta": {"content": content[:half]}}]})
+                ev({"model": stream_model, "choices": [{"delta": {"content": content[half:]}}]})
             for i, c in enumerate(calls):
                 raw = c["arguments"] if isinstance(c.get("arguments"), str) else json.dumps(c.get("arguments", {}))
                 mid = max(1, len(raw) // 2)          # arguments arrive split across chunks, as in the wild

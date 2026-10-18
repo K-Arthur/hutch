@@ -701,7 +701,7 @@ def test_v51_pending_specialist_questions_are_not_attachable_results():
     ``_migrate_54`` re-applies them idempotently so databases stamped by the grounding branch —
     which never saw them — end complete.
     """
-    from hutch.store import _migrate_51
+    from hutch.store import _migrate_51_pending_question_guards
 
     db = sqlite3.connect(":memory:")
     try:
@@ -715,7 +715,7 @@ def test_v51_pending_specialist_questions_are_not_attachable_results():
         db.execute("""CREATE TABLE conversation_questions (
             id TEXT PRIMARY KEY, assistant_message_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending')""")
         db.execute("""CREATE TABLE runs (id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, created_at TEXT NOT NULL)""")
-        _migrate_51(db)
+        _migrate_51_pending_question_guards(db)
         assert db.execute("SELECT 1 FROM sqlite_master WHERE type = 'index' "
                           "AND name = 'idx_runs_conversation_created'").fetchone() is not None
         db.execute("INSERT INTO conversation_questions VALUES ('choice_1', 'msg_question', 'pending')")
@@ -1013,3 +1013,40 @@ def test_v51_startup_upgrade_repairs_both_historical_shapes(tmp_path, persona_co
         assert repeated.get_conversation(conversation["id"])["persona"] == (persona_value if persona_column else "")
     finally:
         repeated.close()
+
+
+def test_v59_cost_followup_migrations_preserve_budget_rows_and_require_compaction_review(config):
+    from hutch.models import Bot
+
+    store = Store(config)
+    bot = store.create_bot(Bot(name="migration-v59-cost", model="mock/demo", compaction="auto", tools=[]))
+    with store._tx() as db:
+        db.execute("INSERT INTO budget_pause_releases(scope_kind, scope_id, route_hash, cycle_key, "
+                   "policy_revision, quote_usd, created_at) VALUES "
+                   "('bot', ?, 'route', 'cycle', 1, 0.5, '2026-10-11T12:00:00+00:00')", (bot.id,))
+    store.close()
+
+    with sqlite3.connect(config.db_path) as db:
+        db.execute("DROP INDEX IF EXISTS idx_run_compactions_run")
+        db.execute("DROP TABLE IF EXISTS run_compactions")
+        for name in ("quote_snapshot_sha256", "quote_expires_at", "quote_endpoints_json",
+                     "quote_currency", "quote_billing_unit", "request_hash"):
+            db.execute(f"ALTER TABLE usage_reservations DROP COLUMN {name}")
+        for name in ("consumed_at", "reservation_id", "request_hash"):
+            db.execute(f"ALTER TABLE budget_pause_releases DROP COLUMN {name}")
+        db.execute("PRAGMA user_version = 59")
+        db.commit()
+
+    upgraded = Store(config)
+    try:
+        assert upgraded.schema_version == SCHEMA_VERSION == 62
+        assert upgraded.get_bot(bot.id).compaction == "ask"
+        columns = {row[1] for row in upgraded._db.execute("PRAGMA table_info(usage_reservations)")}
+        assert {"quote_snapshot_sha256", "quote_expires_at", "quote_endpoints_json", "quote_currency",
+                "quote_billing_unit", "request_hash"} <= columns
+        release = upgraded._db.execute("SELECT consumed_at, reservation_id FROM budget_pause_releases "
+                                       "WHERE scope_id = ?", (bot.id,)).fetchone()
+        assert tuple(release) == ("2026-10-11T12:00:00+00:00", "legacy-consumed")
+        assert upgraded._db.execute("SELECT COUNT(*) FROM run_compactions").fetchone()[0] == 0
+    finally:
+        upgraded.close()

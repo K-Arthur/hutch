@@ -24,10 +24,11 @@ def _bot_run(store: Store, *, conversation_id: str = "") -> tuple[Bot, Run]:
 
 
 def _admit(store: Store, bot: Bot, run: Run, *, cost: float | None = 0.09, source: str = "caller",
-           route_hash: str = "", account: str = "acct-a"):
+           route_hash: str = "", request_hash: str = "", account: str = "acct-a"):
     return store.admit_and_reserve(
         run_id=run.id, bot_id=bot.id, provider="vendor-a", account_id=account, model="model-a",
-        reserved_tokens=100, quote=CallQuote(usd=cost, source=source), route_hash=route_hash)
+        reserved_tokens=100, quote=CallQuote(usd=cost, source=source), route_hash=route_hash,
+        request_hash=request_hash)
 
 
 def _conversation(store: Store, bot: Bot, title: str = "budget chat") -> str:
@@ -95,6 +96,11 @@ def test_policy_validation_rejects_bad_bands_and_missing_scopes(store):
         store.set_budget_policy(scope_kind="run", scope_id="run_missing", ceiling_usd=1.0)
     with pytest.raises(ValueError):
         store.set_budget_policy(scope_kind="bot", scope_id=bot.id, reset="run_lifetime")
+    with pytest.raises(ValueError):
+        store.set_budget_policy(scope_kind="bot", scope_id=bot.id, reset="lifetime")
+    with pytest.raises(ValueError):
+        conversation_id = _conversation(store, bot)
+        store.set_budget_policy(scope_kind="conversation", scope_id=conversation_id, reset="local_day")
 
 
 def test_warn_fires_once_per_cycle_and_rearms_on_policy_change(store):
@@ -131,8 +137,9 @@ def test_pause_requires_a_human_release_and_never_lifts_the_ceiling(store):
     _admit(store, bot, first, cost=0.09)
 
     second = store.create_run(Run(bot_id=bot.id, prompt="policy test"))
+    request_hash = "a" * 64
     with pytest.raises(UsagePauseRequired) as pause:
-        _admit(store, bot, second, cost=0.06, route_hash="route-1")
+        _admit(store, bot, second, cost=0.06, route_hash="route-1", request_hash=request_hash)
     assert pause.value.scope_kind == "bot" and pause.value.pause_usd == 0.10
     # detection writes nothing: no reservation, no warning update
     assert len(store.unresolved_usage_reservations()) == 1
@@ -140,18 +147,34 @@ def test_pause_requires_a_human_release_and_never_lifts_the_ceiling(store):
     # a release for a different route does not lift this route's pause
     store.record_budget_pause_release(scope_kind="bot", scope_id=bot.id, route_hash="route-2",
                                       cycle_key=pause.value.cycle_key,
-                                      policy_revision=pause.value.policy_revision, quote_usd=0.06)
+                                      policy_revision=pause.value.policy_revision, quote_usd=0.06,
+                                      request_hash=request_hash)
     with pytest.raises(UsagePauseRequired):
-        _admit(store, bot, second, cost=0.06, route_hash="route-1")
+        _admit(store, bot, second, cost=0.06, route_hash="route-1", request_hash=request_hash)
 
     store.record_budget_pause_release(scope_kind="bot", scope_id=bot.id, route_hash="route-1",
                                       cycle_key=pause.value.cycle_key,
-                                      policy_revision=pause.value.policy_revision, quote_usd=0.06)
-    _admit(store, bot, second, cost=0.06, route_hash="route-1")
+                                      policy_revision=pause.value.policy_revision, quote_usd=0.06,
+                                      request_hash=request_hash)
+    _admit(store, bot, second, cost=0.06, route_hash="route-1", request_hash=request_hash)
+
+    replay = store.create_run(Run(bot_id=bot.id, prompt="different next call"))
+    with pytest.raises(UsagePauseRequired):
+        _admit(store, bot, replay, cost=0.01, route_hash="route-1", request_hash="b" * 64)
 
     third = store.create_run(Run(bot_id=bot.id, prompt="policy test"))
     with pytest.raises(UsageBudgetRefusal, match=r"\$0\.2000 ceiling"):
         _admit(store, bot, third, cost=0.06, route_hash="route-1")
+
+
+def test_unknown_price_cannot_be_admitted_under_legacy_currency_caps(store):
+    bot, run = _bot_run(store)
+    with pytest.raises(UsageQuoteUnavailable, match="no verified USD price basis"):
+        store.admit_and_reserve(
+            run_id=run.id, bot_id=bot.id, provider="openrouter", account_id="acct-a", model="vendor/model",
+            reserved_tokens=100, quote=CallQuote(usd=None, source="openrouter_unavailable"),
+            max_run_cost_usd=0.15)
+    assert store.unresolved_usage_reservations() == []
 
 
 def test_conversation_ceiling_counts_sibling_runs(store):
@@ -247,6 +270,34 @@ def test_scope_spend_reports_measured_and_held(store):
     assert measured == pytest.approx(0.05) and held == 0.0
     run_measured, run_held = store.scope_spend(scope_kind="run", scope_id=run.id)
     assert run_measured == pytest.approx(0.05) or run_measured == pytest.approx(0.09)
+
+
+def test_preflight_matches_the_admission_window(store):
+    """A ceiling must stop today's paid calls, not every future call because of yesterday's spend."""
+    from datetime import timedelta
+
+    from hutch.models import iso, utcnow
+    from hutch.store import CallQuote
+
+    bot, run = _bot_run(store)
+    store.set_budget_policy(scope_kind="bot", scope_id=bot.id, ceiling_usd=0.10)
+    yesterday = iso(utcnow() - timedelta(days=1))
+    with store._tx() as db:
+        db.execute("INSERT INTO usage (ts, run_id, bot_id, provider, model, prompt_tokens, completion_tokens, "
+                   "cached_tokens, cost_usd, kind, account_id) "
+                   "VALUES (?, ?, ?, 'vendor-a', 'model-a', 10, 5, 0, 5.0, 'step', 'acct-a')",
+                   (yesterday, run.id, bot.id))
+    quote = CallQuote(usd=0.05, source="caller")
+    assert store.budget_admission_block(run_id=run.id, quote=quote) is None
+    _admit(store, bot, run, cost=0.05)  # admission agrees with the preflight
+
+    today = iso(utcnow())
+    with store._tx() as db:
+        db.execute("INSERT INTO usage (ts, run_id, bot_id, provider, model, prompt_tokens, completion_tokens, "
+                   "cached_tokens, cost_usd, kind, account_id) "
+                   "VALUES (?, ?, ?, 'vendor-a', 'model-a', 10, 5, 0, 0.20, 'step', 'acct-a')",
+                   (today, run.id, bot.id))
+    assert store.budget_admission_block(run_id=run.id, quote=quote) is not None
 
 
 def test_migration_creates_policy_tables(store):

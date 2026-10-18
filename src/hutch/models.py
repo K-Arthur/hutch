@@ -241,12 +241,13 @@ class BudgetPolicy(BaseModel):
                 raise ValueError(f"{low_label} threshold must not exceed {high_label}")
         allowed_resets = {
             "run": {"run_lifetime"},
-            "conversation": {"conversation_lifetime", "local_day"},
-            "bot": {"local_day", "rolling_24h", "lifetime"},
-            "account": {"local_day", "rolling_24h", "lifetime"},
+            "conversation": {"conversation_lifetime"},
+            "bot": {"local_day"},
+            "account": {"local_day"},
         }[self.scope_kind]
         if self.reset not in allowed_resets:
-            raise ValueError(f"{self.scope_kind} policies do not support reset '{self.reset}'")
+            raise ValueError(f"{self.scope_kind} policies support {sorted(allowed_resets)}; other reset "
+                             "windows are not enforced yet and are not offered")
         return self
 
     model_config = {"frozen": True}
@@ -272,6 +273,16 @@ class Escalation(BaseModel):
     on_context_overflow: bool = True
 
     model_config = {"frozen": True}
+
+
+TaskRole = Literal[
+    "banter", "classification", "extraction", "summarization",
+    "synthesis_research", "code_analysis", "verification",
+]
+TASK_ROLE_VALUES: tuple[str, ...] = (
+    "banter", "classification", "extraction", "summarization",
+    "synthesis_research", "code_analysis", "verification",
+)
 
 
 class BotCreationSource(BaseModel):
@@ -399,12 +410,14 @@ class Bot(BaseModel):
     preset: Optional[str] = None      # task preset this bot was configured from (LM-7)
     fallbacks: list[str] = Field(default_factory=list)   # tried in order when the model is unavailable (SR-8)
     escalation: Optional[Escalation] = None              # quality ladder (LM-9)
+    task_routes: dict[TaskRole, str] = Field(default_factory=dict)  # explicit per-message role routes; empty means Bot default
     background_provider_consents: list[BackgroundProviderConsent] = Field(default_factory=list)
     risk_tier: RiskTier = RiskTier.supervised            # SR-12
     command_rules: list[CommandRule] = Field(default_factory=list)
     think: Optional[bool] = None      # None = off for small local models, model default for hosted (SR-5)
     selfcheck: bool = True            # prove the context window works before the first run (LM-2)
     num_ctx: Optional[int] = None     # manual context override; None = computed from hardware and preset
+    compaction: Literal["ask", "auto", "off"] = "ask"   # ask before hosted summaries; auto is explicit opt-in (LM-3)
     tool_limits: dict[str, int] = Field(default_factory=dict)   # per-tool output limits in chars (PF-2)
     sandbox: str = Field(default_factory=lambda: _default_sandbox())   # strict | off: OS containment of the shell (ADR-0006)
     shell_network: bool = False       # may commands in the sandbox use the network? (default: no)
@@ -516,6 +529,21 @@ class Bot(BaseModel):
         value = " ".join(value.split())
         return value or None
 
+    @field_validator("task_routes")
+    @classmethod
+    def normalize_task_routes(cls, value: dict[TaskRole, str]) -> dict[TaskRole, str]:
+        if len(value) > 7:
+            raise ValueError("at most seven task-role routes may be configured")
+        normalized: dict[TaskRole, str] = {}
+        for role, spec in value.items():
+            spec = str(spec).strip()
+            if not spec:
+                continue
+            if len(spec) > 200 or any(character.isspace() for character in spec):
+                raise ValueError(f"task route for {role} must be an exact provider/model value")
+            normalized[role] = spec
+        return normalized
+
     def set_schedules(self, schedules: list[Schedule]) -> None:
         """Update the multi-task list and its first-schedule compatibility alias together."""
         if len(schedules) > 100:
@@ -593,6 +621,7 @@ class Run(BaseModel):
     delegation_budget_cost_usd: Optional[float] = None  # immutable shared currency cap inherited by descendants
     rehearsal: bool = False           # dry run: mutating actions are simulated
     model_override: str = ""          # the model picked for THIS message in the chat switcher (bot.model is untouched)
+    task_role: Optional[TaskRole] = None  # explicit chat role used to choose a configured task route
     skill_activation: list[str] = Field(default_factory=list)  # operator-selected skills for this run (validated at submit)
     skill_snapshot: list[dict] = Field(default_factory=list)   # effective skills recorded when this run started
     persona_turn: Optional[PersonaStyle] = None   # one-turn response style chosen with this message; never becomes durable

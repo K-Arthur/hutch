@@ -34,9 +34,9 @@ def test_reservation_rounding_never_under_reserves(value):
 
 
 @given(st.decimals(min_value=0, max_value=10**6, places=12))
-def test_store_roundtrip_preserves_micro_precision(value):
+def test_store_roundtrip_preserves_nano_precision(value):
     recorded = money.quantize(value)
-    assert abs(money.from_store(money.to_store(recorded)) - recorded) <= money.MICRO / 2
+    assert abs(money.from_store(money.to_store(recorded)) - recorded) <= money.NANO_USD / 2
 
 
 def test_per_token_and_per_million_conversions_are_exact():
@@ -76,7 +76,7 @@ def test_format_never_hides_a_nonzero_charge():
     assert money.format_usd(0) == "$0.00"
     assert money.format_usd("0.15") == "$0.1500"
     assert money.format_usd("0.000001") == "$0.000001"
-    assert money.format_usd("0.0000001").startswith("<$0.000001")
+    assert money.format_usd("0.0000001") == "$0.0000001"
     assert money.format_usd(None) == "unknown"
     assert money.format_usd(1234.5) == "$1234.50"
 
@@ -85,6 +85,14 @@ def test_micro_units_are_fixed_point():
     assert money.micro_units("0.15") == 150_000
     assert money.micro_units("0.0000004", reserved=True) == 1
     assert money.micro_units("0.0000004", reserved=False) == 0
+
+
+def test_sub_micro_provider_charge_survives_sqlite_round_trip():
+    charge = Decimal("0.0000004")
+    stored = money.to_store(charge)
+    assert stored != 0
+    assert money.from_store(stored) == charge
+    assert money.format_usd(money.from_store(stored)) == "$0.0000004"
 
 
 def test_sum_usd_skips_unknowns():

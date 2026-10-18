@@ -12,6 +12,11 @@ const topContext = $("#app-top-context");
 
 const ACTIVE = new Set(["pending", "loading_model", "running", "waiting_approval", "waiting_human",
   "waiting_resources", "recovering", "cancelling"]);
+const TASK_ROLE_OPTIONS = [
+  ["banter", "Banter"], ["classification", "Classification"], ["extraction", "Extraction"],
+  ["summarization", "Summarization"], ["synthesis_research", "Synthesis / research"],
+  ["code_analysis", "Code analysis"], ["verification", "Verification"],
+];
 const DEFAULT_STATUS_INFO = {
   pending: { label: "Queued", terminal: false },
   loading_model: { label: "Loading the model", terminal: false },
@@ -578,6 +583,15 @@ function fmtTokens(n) {
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
   if (n >= 1e3) return `${(n / 1e3).toFixed(1)}k`;
   return String(n ?? 0);
+}
+
+function fmtUsd(value) {
+  if (value === null || value === undefined) return "unknown";
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "unknown";
+  return new Intl.NumberFormat(undefined, {
+    style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 9,
+  }).format(amount);
 }
 
 function fmtDur(ms) {
@@ -2478,6 +2492,17 @@ async function renderChatStudio(preferredBot = null) {
                     <button type="button" data-quick="Inspect this repository for TODOs and report findings">${icon("search")} Repo sweep</button>
                   </div>
                   <div class="cmenu-sep"></div>
+                  <label class="cmenu-role-field" for="chat-task-role">Task role for the next message
+                    <select id="chat-task-role" aria-describedby="chat-task-role-help">
+                      <option value="">Default · Bot model</option>
+                      ${TASK_ROLE_OPTIONS.map(([role, label]) => {
+                        const route = detail.task_routes?.[role];
+                        return `<option value="${role}">${label}${route ? ` · ${esc(route)}` : " · Bot model"}</option>`;
+                      }).join("")}
+                    </select>
+                    <span class="cmenu-sub" id="chat-task-role-help">One message only. A configured task route is explicit; automatic classification is not enabled.</span>
+                  </label>
+                  <div class="cmenu-sep"></div>
                   <button class="cmenu-files" id="prompt-template-library-open" type="button">${icon("fileText")} Browse saved requests</button>
                   <button class="cmenu-files" id="prompt-template-import" type="button" aria-controls="task-template-file">Import task-template file</button>
                   <input class="visually-hidden" id="task-template-file" type="file" accept=".json,application/json">
@@ -2496,6 +2521,7 @@ async function renderChatStudio(preferredBot = null) {
                   <div class="cmenu-facts">${budgetMeterHtml(detail)}
                     <span class="mono">${esc(detail.limits?.max_steps ?? "?")} steps max · ${esc((detail.tools || []).join(", ") || "no tools")}</span>
                   </div>
+                  <button class="cmenu-files" id="preflight-open" type="button">Review cost and context before sending</button>
                 </div>
               </div>
               <label class="visually-hidden" for="chat-prompt">Message ${esc(bot.display_name || bot.name)}</label>
@@ -2506,6 +2532,7 @@ async function renderChatStudio(preferredBot = null) {
                 <button class="composer-send" id="chat-send" type="submit" aria-label="Send message">${icon("up")}</button>
               </div>
             </div>
+            <div class="composer-strip task-role-strip" id="task-role-flag" hidden></div>
             <div class="composer-strip" id="rehearse-flag" hidden>${icon("shield")} <b>Rehearsal</b> — writes and commands are simulated; model calls and reads still happen.</div>
           </div>
           <p class="visually-hidden" id="chat-help">Enter sends, Shift+Enter adds a newline. Your draft is kept for this bot if you navigate away.</p>
@@ -2667,10 +2694,27 @@ async function renderChatStudio(preferredBot = null) {
   // wire composer
   const form = $("#chat-form"), txt = $("#chat-prompt"), sendBtn = $("#chat-send");
   const box = $("#composer-box");
-  const switcher = window.hutchModelSwitcher?.mount($("#model-switch-slot"), detail, selectedConversation.id);
+  const switcher = window.hutchModelSwitcher?.mount($("#model-switch-slot"), detail, selectedConversation.id,
+    () => paintTaskRole?.());
   const skillPicker = window.hutchSkills?.mountComposer($("#skill-switch-slot"), detail);
   window.hutchPersona?.mountChatOptions($("#persona-chat-options-slot"), selectedConversation.id);
   window.hutchPersona?.mountComposerChip($("#persona-turn-slot"), selectedConversation.id);
+  const preflightOpen = $("#preflight-open");
+  preflightOpen?.addEventListener("click", async () => {
+    setMenu(false);
+    preflightOpen.disabled = true;
+    try {
+      const html = await preflightHtml(detail, selectedConversation.id,
+        { model: switcher?.selected() || "", taskRole: selectedTaskRole || "",
+          prompt: txt.value.trim(), replyToMessageId: selectedReply?.id || "",
+          workspaceTaskResult: selectedWorkspaceTaskResult || null,
+          skills: skillPicker?.selected() || [], rehearse: !!rehearseOpt?.checked });
+      openModal({ title: "Before this call", bodyHtml: html, confirmText: "Close", showCancel: false,
+                  returnFocus: menuBtn, onConfirm: async () => true });
+    } finally {
+      preflightOpen.disabled = false;
+    }
+  });
   if (selectedConversation.archived) {
     txt.disabled = true;
     txt.placeholder = "This conversation is archived. Start a new one to continue.";
@@ -2679,6 +2723,29 @@ async function renderChatStudio(preferredBot = null) {
 
   const composerConversationId = selectedConversation.id;
   const composerDraftId = `${bot.name}:${composerConversationId}`;
+  const taskRoleSelect = $("#chat-task-role");
+  const taskRoleFlag = $("#task-role-flag");
+  const taskRoleStorageKey = `hutch-task-role-next:${bot.id}:${composerConversationId}`;
+  let selectedTaskRole = storageGet(taskRoleStorageKey) || "";
+  if (!TASK_ROLE_OPTIONS.some(([role]) => role === selectedTaskRole)) selectedTaskRole = "";
+  if (taskRoleSelect) taskRoleSelect.value = selectedTaskRole;
+  const paintTaskRole = () => {
+    if (!taskRoleFlag) return;
+    if (!selectedTaskRole) { taskRoleFlag.hidden = true; taskRoleFlag.textContent = ""; return; }
+    const label = TASK_ROLE_OPTIONS.find(([role]) => role === selectedTaskRole)?.[1] || selectedTaskRole;
+    const assigned = detail.task_routes?.[selectedTaskRole] || "";
+    const override = switcher?.selected() || "";
+    const route = override || assigned || detail.model || "Bot default";
+    taskRoleFlag.hidden = false;
+    taskRoleFlag.textContent = `Next message · ${label} → ${route}${override ? " (one-message model choice takes precedence)" : assigned ? " (configured role route)" : " (Bot default)"}`;
+  };
+  taskRoleSelect?.addEventListener("change", () => {
+    selectedTaskRole = taskRoleSelect.value;
+    if (selectedTaskRole) storageSet(taskRoleStorageKey, selectedTaskRole);
+    else storageRemove(taskRoleStorageKey);
+    paintTaskRole();
+  });
+  paintTaskRole();
   const replyStorageKey = `hutch-reply:${composerDraftId}`;
   const workspaceResultStorageKey = `hutch-workspace-result:${composerDraftId}`;
   let selectedReply = null;
@@ -3014,7 +3081,7 @@ async function renderChatStudio(preferredBot = null) {
     lastPrompt = text;
     try {
       const body = { prompt: text, rehearse: !!rehearseOpt?.checked, model: switcher?.selected() || null,
-                     skills: skillPicker?.selected() || [] };
+                     task_role: selectedTaskRole || null, skills: skillPicker?.selected() || [] };
       if (replySnapshot) body.reply_to_message_id = replySnapshot;
       if (workspaceResultSnapshot) {
         body.workspace_task_result_id = workspaceResultSnapshot.id;
@@ -3028,6 +3095,12 @@ async function renderChatStudio(preferredBot = null) {
       });
       clearMessageIdempotencyKey(composerConversationId, key);
       if (body.model) switcher?.consumeOverride(body.model);
+      if (body.task_role) {
+        selectedTaskRole = "";
+        storageRemove(taskRoleStorageKey);
+        if (taskRoleSelect) taskRoleSelect.value = "";
+        paintTaskRole();
+      }
       if (body.skills.length) skillPicker?.consume();
       if (personaTurn) window.hutchPersona?.consumeNextReply(composerConversationId);
       if (replySnapshot && selectedReply?.id === replySnapshot) setReply(null);
@@ -3230,11 +3303,78 @@ function budgetMeterHtml(bot) {
   const used = bot.tokens_today || 0;
   const pct = cap ? Math.round((used / cap) * 100) : 0;
   const state = pct >= 100 ? "over" : pct >= 70 ? "warn" : "";
+  const spent = Number(bot.cost_measured_today_usd || 0) + Number(bot.cost_reserved_today_usd || 0);
+  const cost = spent > 0 ? ` · ${fmtUsd(spent)} today` : "";
   return `
-    <span class="budget-meter ${state}" title="Daily token budget: ${used} of ${cap}">
+    <span class="budget-meter ${state}" title="Daily token budget: ${used} of ${cap}; recorded cost today (measured + held): ${fmtUsd(spent)}">
       <span class="meter-track"><span class="meter-fill" style="width:${Math.min(pct, 100)}%"></span></span>
-      <span>${fmtTokens(used)} / ${fmtTokens(cap)}</span>
+      <span class="cost">${fmtTokens(used)} / ${fmtTokens(cap)}${cost}</span>
     </span>`;
+}
+
+/* The preflight sheet is the "review before spending" step of SR-2: the route, the price basis
+   admission would hold, the context this request needs, and the applicable scope budget. It is built
+   from the same server-side estimator the runtime uses, so the numbers a person sees are the numbers a
+   reservation would hold; provider billing can still differ and the copy says so. */
+/* Bands are loaded separately from the limits form so a failure to read them cannot blank the page. */
+async function loadBotBudget(bot) {
+  try {
+    const data = await api(`/v1/budgets?scope_kind=bot&scope_id=${encodeURIComponent(bot.id)}`);
+    const policy = data.policy || {};
+    const set = (id, value) => { const el = $(id); if (el) el.value = value === null || value === undefined ? "" : String(value); };
+    set("#band-warn", policy.warn_usd);
+    set("#band-pause", policy.pause_usd);
+    set("#band-ceiling", policy.ceiling_usd);
+    const unknown = $("#band-unknown");
+    if (unknown) unknown.value = policy.unknown_price || "refuse";
+    const extra = $("#assistant-usage-today-extra");
+    if (extra) {
+      const spent = Number(data.spent_usd || 0), held = Number(data.held_usd || 0);
+      extra.textContent = spent || held ? ` · ${fmtUsd(spent)} spent + ${fmtUsd(held)} held today` : "";
+    }
+  } catch { /* the fields simply stay empty; saving them later is still possible */ }
+}
+
+async function preflightHtml(bot, conversationId = "", selection = {}) {
+  try {
+    const body = { conversation_id: conversationId, prompt: selection.prompt || "" };
+    if (selection.model) body.model = selection.model;
+    if (selection.taskRole) body.task_role = selection.taskRole;
+    if (selection.skills?.length) body.skills = selection.skills;
+    if (selection.rehearse) body.rehearse = true;
+    if (selection.replyToMessageId) body.reply_to_message_id = selection.replyToMessageId;
+    if (selection.workspaceTaskResult) {
+      body.workspace_task_result_id = selection.workspaceTaskResult.id;
+      body.workspace_task_result_message_id = selection.workspaceTaskResult.result_message_id;
+    }
+    const e = await api(`/bots/${encodeURIComponent(bot.name)}/estimate`, { method: "POST", body });
+    const money = fmtUsd;
+    const basis = {
+      openrouter: "live OpenRouter endpoint quote", price_file: "your price file",
+      openrouter_unavailable: "fresh OpenRouter quote unavailable",
+      openrouter_no_eligible_endpoint: "no eligible OpenRouter endpoint",
+      local: "local model — no per-token cost", flat: "flat-rate plan", unknown: "unknown — no price basis",
+    }[e.price_source] || e.price_source || "unknown";
+    const bands = [["warn", e.warn_usd], ["pause", e.pause_usd], ["hard stop", e.ceiling_usd]]
+      .filter(([, v]) => v !== null && v !== undefined);
+    const scope = e.budget_scope ? `${e.budget_scope} budget` : "no scope budget set";
+    const hasDraft = !!selection.prompt?.trim();
+    const draftLabel = hasDraft ? "this draft" : "a generic task placeholder because the draft is empty";
+    const taskRoleLabel = TASK_ROLE_OPTIONS.find(([role]) => role === selection.taskRole)?.[1] || "";
+    return `
+      <dl class="preflight-grid">
+        <div><dt>Route</dt><dd class="mono">${esc(e.spec)}</dd></div>
+        ${taskRoleLabel ? `<div><dt>Task role</dt><dd>${esc(taskRoleLabel)}${selection.model ? " · one-message model choice takes precedence" : " · configured route when mapped"}</dd></div>` : ""}
+        <div><dt>Price basis</dt><dd>${esc(basis)}${e.price_verified_on ? ` · fetched ${esc(String(e.price_verified_on).slice(0, 19))}` : ""}${e.price_expires_at ? ` · expires ${esc(String(e.price_expires_at).slice(0, 19))}` : ""}${e.price_stale ? " · stale" : ""}${e.price_endpoint_identities?.length ? ` · maximum of ${e.price_endpoint_identities.length} eligible endpoints` : ""}${e.price_snapshot_sha256 ? ` · quote ${esc(e.price_snapshot_sha256.slice(0, 12))}` : ""}</dd></div>
+        <div><dt>Next call reserve</dt><dd>${money(e.next_call_usd)}${e.next_call_usd === null ? " — no USD price basis; the unknown-price policy and caps govern admission" : ""}</dd></div>
+        <div><dt>Run estimate</dt><dd>${money(e.worst_case_usd)} up to ${e.steps} steps${e.run_cap_usd ? ` · run limit ${money(e.run_cap_usd)}` : ""}</dd></div>
+        <div><dt>Context</dt><dd>${fmtTokens((e.message_tokens || 0) + (e.tool_tokens || 0))} estimated tokens for instructions, tools, selected skills, recent conversation and ${esc(draftLabel)} · window ${e.window_tokens ? fmtTokens(e.window_tokens) : "not reported yet"}</dd></div>
+        <div><dt>Scope spend</dt><dd>${esc(scope)}: ${money(e.budget_measured_usd)} spent + ${money(e.budget_held_usd)} held${bands.length ? ` · ${bands.map(([label, v]) => `${label} ${money(v)}`).join(", ")}` : ""}</dd></div>
+      </dl>
+      <p class="hint">USD and token estimates for ${esc(draftLabel)} and the bounded context preview; context may change before sending, and provider tokenization/billing can differ. OpenRouter may select a different live endpoint. A pause threshold asks you before the call; a hard stop refuses new paid calls.${e.window_note ? ` ${esc(e.window_note)}.` : ""}</p>`;
+  } catch (err) {
+    return `<p class="hint">Could not build the preview: ${esc(err.message)}</p>`;
+  }
 }
 
 /* -------------------------------------------------- live feed (SSE + render) */
@@ -4804,6 +4944,9 @@ setInterval(updateTtls, 1000);
 
 function approvalReasonText(rule, tool) {
   const value = String(rule || "").trim().toLowerCase();
+  if (value === "ask:paid-context-compaction") {
+    return "A paid model call would summarize earlier conversation text. Review its estimated cost and covered context.";
+  }
   if (value.startsWith("rule:")) return "A rule you set asks you to review this action.";
   if (["ask:file-write", "ask-file-write"].includes(value)) {
     return "Changing a file needs your okay.";
@@ -4834,6 +4977,7 @@ function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
   const risk = a.risk || "medium";
   const outward = !!a.outward;
   const detailObject = a.detail && typeof a.detail === "object" ? a.detail : null;
+  const toolLabel = tool === "context_compaction" ? "AI context summary" : tool;
   const formTarget = tool === "browser" && detailObject?.target_kind === "form_submit"
     && detailObject.target && typeof detailObject.target === "object" ? detailObject.target : null;
   const deadline = a.deadline
@@ -4847,8 +4991,20 @@ function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
   const runId = a.run_id || "";
   const contextHref = a.conversation_id ? `#/conversation/${encodeURIComponent(a.conversation_id)}` : `#/run/${encodeURIComponent(runId)}`;
 
+  const summaryRows = tool === "context_compaction" ? [
+    ["Model", detailObject?.model],
+    ["Estimated USD", detailObject?.estimated_cost_usd === null || detailObject?.estimated_cost_usd === undefined
+      ? "unknown" : fmtUsd(detailObject.estimated_cost_usd)],
+    ["Input / output allowance", `${Number(detailObject?.input_tokens_estimate || 0).toLocaleString()} input tokens · ${Number(detailObject?.max_output_tokens || 0).toLocaleString()} output tokens max`],
+    ["Price quote", `${detailObject?.quote_source || "unknown"}${detailObject?.quote_fetched_at ? ` · fetched ${String(detailObject.quote_fetched_at).slice(0, 19)}` : ""}${detailObject?.quote_expires_at ? ` · expires ${String(detailObject.quote_expires_at).slice(0, 19)}` : ""}${detailObject?.quote_stale ? " · stale" : ""}`],
+    ["Eligible endpoints", Array.isArray(detailObject?.eligible_endpoints) && detailObject.eligible_endpoints.length
+      ? `${detailObject.eligible_endpoints.length} considered; reservation uses the highest estimate` : "not reported"],
+    ["Content", detailObject?.content_scope || "earlier conversation context"],
+    ["Original history", detailObject?.original_history_preserved ? "remains unchanged" : "status unavailable"],
+  ].filter(([, value]) => value !== null && value !== undefined) : [];
   const rows = [
-    ["Tool", tool],
+    ["Tool", toolLabel],
+    ...summaryRows,
     formTarget ? ["Destination", formTarget.destination || "unknown destination"] : null,
     formTarget ? ["Request method", String(formTarget.method || "get").toUpperCase()] : null,
     formTarget ? ["Submit control", formTarget.label || "Submit form"] : null,
@@ -4869,7 +5025,7 @@ function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
         <div class="approval-head-left">
           <span class="chip">${icon("shield")} Approval required</span>
           ${botName ? `<b class="approval-bot">${esc(botName)}</b>` : ""}
-          ${tool ? `<span class="tag">${esc(tool)}</span>` : ""}
+          ${toolLabel ? `<span class="tag">${esc(toolLabel)}</span>` : ""}
           <span class="tag ${risk === "high" ? "danger" : ""}">${esc(risk)} risk</span>
           ${outward ? `<span class="tag danger" title="Leaves this machine; always-allow is not offered">leaves machine</span>` : ""}
         </div>
@@ -5111,6 +5267,7 @@ async function renderOverview() {
       google_calendar_create_event: "Google Calendar", outlook_send: "Outlook", outlook_read: "Outlook",
       browser: "Browser", shell: "Computer commands", web_fetch: "Web access",
       read_file: "Workspace files", write_file: "Workspace files", list_files: "Workspace files",
+      context_compaction: "AI context summary",
     };
     return labels[tool] || BOT_SETUP_TOOLS.find(([name]) => name === tool)?.[1]
       || String(tool || "Action").replace(/[_-]+/g, " ").replace(/\b\w/g, letter => letter.toUpperCase());
@@ -5167,7 +5324,7 @@ async function renderOverview() {
         <summary><span>Usage details</span><span>Model tokens and cost</span></summary>
         <div class="ov-stats ov-usage-stats">
           <div class="kpi"><span class="kpi-label">Reported model tokens today</span><span class="kpi-val">${fmt(s.tokens_today)}</span></div>
-          <div class="kpi"><span class="kpi-label">Recorded provider cost today</span><span class="kpi-val">$${Number(s.spend_today || 0).toFixed(2)}</span></div>
+          <div class="kpi"><span class="kpi-label">Recorded provider cost today</span><span class="kpi-val">${fmtUsd(s.spend_today || 0)}</span></div>
         </div>
       </details>
       ${activity}
@@ -6246,6 +6403,32 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
               <summary>Check compatibility for this model route</summary>
               <div id="tool-compat-result" class="settings-list"><p class="hint">Open to check this route’s tool-calling evidence. No model request is made.</p></div>
             </details>
+            <div class="form-grid row2">
+              <label class="field">Fallback models (when the primary is unavailable)
+                <input type="text" name="fallbacks" value="${esc((b.fallbacks || []).join(", "))}" placeholder="provider/model, provider/model">
+              </label>
+              <label class="field">Escalation models (after repeated quality failures)
+                <input type="text" name="escalation" value="${esc((((b.escalation && b.escalation.to) || [])).join(", "))}" placeholder="provider/model">
+              </label>
+            </div>
+            <section class="task-routing-settings" aria-labelledby="task-routing-title">
+              <div class="panel-title" id="task-routing-title">Manual task-role routes</div>
+              <p class="hint">Choose a role for one chat message to use its exact route. Blank roles use the Bot model. Fallbacks still handle availability; escalation still handles repeated quality failures. Automatic classification is not enabled.</p>
+              <div class="form-grid row2">
+                ${TASK_ROLE_OPTIONS.map(([role, label]) => `<label class="field">${label}
+                  <input type="text" data-task-route="${role}" value="${esc(b.task_routes?.[role] || "")}" placeholder="provider/model" autocomplete="off" spellcheck="false">
+                </label>`).join("")}
+              </div>
+              <p class="hint">Use an exact route such as <code>ollama/qwen3:8b</code> or <code>openrouter/author/model-id</code>, never a display label. Hutch validates availability, context fit, spending admission and route permissions when you select it.</p>
+            </section>
+            <label class="field">Context pressure on smaller windows
+              <select name="compaction">
+                <option value="ask" ${(b.compaction || "ask") === "ask" ? "selected" : ""}>Review before hosted summaries (recommended)</option>
+                <option value="auto" ${b.compaction === "auto" ? "selected" : ""}>Allow bounded summaries without a review</option>
+                <option value="off" ${b.compaction === "off" ? "selected" : ""}>Never summarize — stop and ask instead</option>
+              </select>
+              <span class="hint">Paid summaries ask first by default. Auto is an explicit opt-in; every summary remains bounded, budget-checked and recorded, and the original conversation is never rewritten. Local summaries have no metered provider charge.</span>
+            </label>
             <div class="btn-row"><button class="btn primary small" type="submit">Save model settings</button></div>
           </form>
 
@@ -6411,17 +6594,33 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
                     <input type="number" name="max_turn_tokens" min="0" step="1" required value="${esc(limits.max_turn_tokens ?? 0)}">
                   </label>
                   <label class="field">Estimated cost per task (USD)
-                    <input type="number" name="max_cost_usd" min="0" step="0.01" required value="${esc(limits.max_cost_usd ?? 0)}">
+                    <input type="number" name="max_cost_usd" min="0" step="any" required value="${esc(limits.max_cost_usd ?? 0)}">
                   </label>
                   <label class="field">Estimated daily cost (USD)
-                    <input type="number" name="daily_cost_cap_usd" min="0" step="0.01" required value="${esc(limits.daily_cost_cap_usd ?? 0)}">
+                    <input type="number" name="daily_cost_cap_usd" min="0" step="any" required value="${esc(limits.daily_cost_cap_usd ?? 0)}">
+                  </label>
+                  <label class="field">Warn me at (USD)
+                    <input type="number" name="band_warn_usd" id="band-warn" min="0" step="any" placeholder="not set">
+                  </label>
+                  <label class="field">Pause for approval at (USD)
+                    <input type="number" name="band_pause_usd" id="band-pause" min="0" step="any" placeholder="not set">
+                  </label>
+                  <label class="field">Hard stop at (USD)
+                    <input type="number" name="band_ceiling_usd" id="band-ceiling" min="0" step="any" placeholder="not set">
+                  </label>
+                  <label class="field">When a price is unknown
+                    <select name="unknown_price" id="band-unknown">
+                      <option value="refuse">Block the call</option>
+                      <option value="mark">Run it and record the charge as unknown</option>
+                    </select>
                   </label>
                 </div>
-                <p class="hint">Usage and cost figures are estimates, not guaranteed charges. Your AI provider controls final billing; set spending limits there for a hard cap. A value of 0 means no estimate limit.</p>
+                <p class="hint">Usage and cost figures are estimates, not guaranteed charges. Your AI provider controls final billing; set spending limits there for a hard cap. On the six fields above, 0 means no estimate limit. The three bands below are independent: leave a field empty for no limit, or set 0 on the hard stop for no paid spend. Warn only tells you; pause asks you before the crossing call; the hard stop refuses new paid calls.</p>
                 <div class="btn-row"><button class="btn primary small" type="submit">Save limits</button></div>
               </form>
             </details>
-            <div class="assistant-usage-today"><span>Estimated AI use today</span><strong>${fmtTokens(b.tokens_today)} tokens</strong></div>
+            <div class="assistant-usage-today"><span>Estimated AI use today</span><strong>${fmtTokens(b.tokens_today)} tokens</strong>
+              <span class="hint" id="assistant-usage-today-extra"></span></div>
           </div>
 
           <div class="panel">
@@ -6457,6 +6656,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   mountIdentityPicker($("#idp-panel"), b.name, pair => { sigilSet(b.name, pair); refreshRoster(); });
   window.hutchSkills?.mountBotPanel($("#bot-skills-section"), b);
   window.hutchPersona?.mountBotForm($("#persona-form-slot"), b.name);
+  loadBotBudget(b);
   const patch = async (body, msg) => {
     try {
       await api(`/bots/${encodeURIComponent(b.name)}`, { method: "PATCH", body });
@@ -6606,8 +6806,16 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
       toolProtocolSelect.focus();
       return;
     }
+    const parseSpecs = value => String(value || "").split(",").map(part => part.trim()).filter(Boolean);
+    const fallbacks = parseSpecs(fd.get("fallbacks"));
+    const escalationTo = parseSpecs(fd.get("escalation"));
+    const taskRoutes = Object.fromEntries($$("[data-task-route]", ev.target)
+      .map(input => [input.dataset.taskRoute, input.value.trim()]).filter(([, spec]) => spec));
     patch({ model: fd.get("model").trim(), inference_mode: fd.get("inference_mode"),
-      preset: fd.get("preset") || null, tool_protocol: choice }, "Model settings saved.");
+      preset: fd.get("preset") || null, tool_protocol: choice, fallbacks,
+      escalation: { ...(b.escalation || {}), to: escalationTo },
+      task_routes: taskRoutes,
+      compaction: fd.get("compaction") || "ask" }, "Model settings saved.");
   });
   $$('[data-background-provider]').forEach(button => button.addEventListener("click", () => {
     const provider = button.dataset.backgroundProvider;
@@ -6789,13 +6997,22 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     input.required = folder;
     if (folder) input.focus();
   });
-  $("#form-limits").addEventListener("submit", ev => {
+  $("#form-limits").addEventListener("submit", async ev => {
     ev.preventDefault();
     const fd = new FormData(ev.target);
-    const limits = Object.fromEntries([...fd.entries()].filter(([key]) => key !== "timeout_minutes").map(([key, value]) => [key,
+    const limits = Object.fromEntries([...fd.entries()].filter(([key]) => !["timeout_minutes", "band_warn_usd", "band_pause_usd", "band_ceiling_usd", "unknown_price"].includes(key)).map(([key, value]) => [key,
       ["max_cost_usd", "daily_cost_cap_usd"].includes(key) ? Number(value) : Number.parseInt(value, 10)]));
     limits.timeout_seconds = Math.round(Number(fd.get("timeout_minutes")) * 60);
-    patch({ limits }, "Limits saved.");
+    await patch({ limits }, "Limits saved.");
+    try {
+      const band = name => { const raw = fd.get(name); return raw === "" || raw === null ? null : Number(raw); };
+      const policy = await api("/v1/budgets", { method: "PUT", body: {
+        scope_kind: "bot", scope_id: b.id, reset: "local_day",
+        warn_usd: band("band_warn_usd"), pause_usd: band("band_pause_usd"), ceiling_usd: band("band_ceiling_usd"),
+        unknown_price: fd.get("unknown_price") || "refuse",
+      }});
+      toast(policy.ceiling_usd === null ? "Spending bands saved (warn-only and pause are advisory safeguards, not a hard cap)." : "Spending bands saved.");
+    } catch (err) { toast(`Bands not saved: ${err.message}`, true); }
   });
   $("#form-rule").addEventListener("submit", ev => {
     ev.preventDefault();
@@ -6858,7 +7075,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     out.textContent = "estimating…";
     try {
       const e = await api(`/bots/${encodeURIComponent(b.name)}/estimate?prompt=${encodeURIComponent($("#estimate-prompt").value)}`);
-      out.textContent = e.summary || `estimated at $${Number(e.effective_ceiling_usd ?? 0).toFixed(4)} per run; provider billing can differ`;
+      out.textContent = e.summary || `estimated at ${fmtUsd(e.effective_ceiling_usd ?? 0)} per run; provider billing can differ`;
     } catch (err) { out.textContent = err.message; }
   });
   $("#btn-delete-bot").addEventListener("click", async () => {
@@ -6911,9 +7128,28 @@ async function renderRunDetail(runId, params = new URLSearchParams()) {
         <div class="ov-stats">
           <div class="kpi"><span class="kpi-label">Steps</span><span class="kpi-val">${r.steps}</span></div>
           <div class="kpi"><span class="kpi-label">Elapsed</span><span class="kpi-val">${fmtDur(dur)}</span></div>
-          <div class="kpi"><span class="kpi-label">Recorded cost</span><span class="kpi-val">$${(r.cost_usd || 0).toFixed(4)}</span></div>
+          <div class="kpi"><span class="kpi-label">Recorded cost</span><span class="kpi-val">${fmtUsd(r.cost_usd || 0)}</span></div>
           <div class="kpi"><span class="kpi-label">Reported tokens</span><span class="kpi-val">${fmtTokens(r.tokens)}</span></div>
         </div>
+        ${(() => {
+          const used = r.context_used || 0, limit = r.context_limit || 0;
+          const share = limit ? Math.round(used / limit * 100) : 0;
+          const state = limit && share >= 100 ? "over" : limit && share >= 85 ? "warn" : "";
+          const label = limit ? `Context: ${fmtTokens(used)} of ${fmtTokens(limit)} tokens (${share}%)`
+                              : `Context: ${fmtTokens(used)} tokens used — this runtime did not report a window`;
+          return `<p class="context-line ${state}">${label}</p>`;
+        })()}
+        ${(() => {
+          const counted = steps.filter(d => d.cost_source);
+          if (!counted.length) return "";
+          const provider = counted.filter(d => d.cost_source === "provider").length;
+          const estimated = counted.filter(d => d.cost_source === "estimated").length;
+          const unknown = counted.filter(d => d.cost_source === "unknown").length;
+          return `<p class="run-cost-provenance hint">Charges this task: ${provider} provider-reported · ${estimated} estimated${unknown ? ` · ${unknown} with an unknown price` : ""}.</p>`;
+        })()}
+        ${(r.compactions || []).length ? `<div class="panel compaction-list"><div class="panel-title">Context summaries</div>
+          ${r.compactions.map(c => `<div class="meta-row"><span>#${c.seq} · ${esc(c.status)} · ${fmtTokens(c.before_tokens)} to ${fmtTokens(c.after_tokens)} tokens · ${c.attempts} attempt(s)</span><span class="hint">${esc(String(c.created_at || "").slice(0, 19))}</span></div>`).join("")}
+          <p class="hint">The original messages are unchanged; summaries are bounded, recorded, and use routes already approved for this task.</p></div>` : ""}
         <section class="run-integrity panel" aria-label="Transcript integrity" data-run-integrity-run="${esc(runId)}">
           <div class="run-integrity-copy"><strong>Transcript integrity</strong>
             <p class="hint" data-run-integrity-result role="status" aria-live="polite">Not checked for this run.</p>
@@ -9330,7 +9566,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
         <div><dt>Tools</dt><dd>${draft.tools.size ? [...draft.tools].map(displayTool).map(esc).join(", ") : "No tools enabled"}</dd></div>
         <div><dt>Browser handoff</dt><dd>${draft.local_browser_handoff ? "On · human can take over in the visible Linux browser" : "Off"}</dd></div>
         <div><dt>Execution limits</dt><dd>${draft.limits.max_steps} steps · ${draft.limits.timeout_seconds} seconds · ${draft.limits.daily_token_cap.toLocaleString()} estimated tokens per day</dd></div>
-        <div><dt>Model limits</dt><dd>${draft.limits.max_turn_tokens ? `${draft.limits.max_turn_tokens.toLocaleString()} tokens per turn` : "Provider default tokens per turn"} · ${draft.limits.max_cost_usd ? `$${draft.limits.max_cost_usd.toFixed(2)} estimated per run` : "No per-run estimate limit"} · ${draft.limits.daily_cost_cap_usd ? `$${draft.limits.daily_cost_cap_usd.toFixed(2)} estimated per day` : "No daily estimate limit"}</dd></div>
+        <div><dt>Model limits</dt><dd>${draft.limits.max_turn_tokens ? `${draft.limits.max_turn_tokens.toLocaleString()} tokens per turn` : "Provider default tokens per turn"} · ${draft.limits.max_cost_usd ? `${fmtUsd(draft.limits.max_cost_usd)} estimated per run` : "No per-run estimate limit"} · ${draft.limits.daily_cost_cap_usd ? `${fmtUsd(draft.limits.daily_cost_cap_usd)} estimated per day` : "No daily estimate limit"}</dd></div>
         <div><dt>Recurring task</dt><dd>${draft.cron.trim() ? `${esc(draft.cron.trim())} · ${esc(draft.timezone)} · missed windows: ${draft.catch_up === "skip" ? "skip" : "run once"}${draft.schedule_prompt.trim() ? ` · ${esc(draft.schedule_prompt.trim())}` : ""}` : "None"}</dd></div>
         <div><dt>Memory</dt><dd>${draft.memory_enabled ? "Enabled for allowed memory tools" : "Disabled"}</dd></div>
       </dl>
@@ -9481,8 +9717,8 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
             <label class="field" for="setup-limit-timeout_seconds">Time limit (seconds)<input type="number" id="setup-limit-timeout_seconds" min="1" step="1" value="${draft.limits.timeout_seconds}" required></label>
             <label class="field" for="setup-limit-daily_token_cap">Daily estimated tokens<input type="number" id="setup-limit-daily_token_cap" min="0" step="1" value="${draft.limits.daily_token_cap}" required></label>
             <label class="field" for="setup-limit-max_turn_tokens">Tokens per turn<input type="number" id="setup-limit-max_turn_tokens" min="0" step="1" value="${draft.limits.max_turn_tokens}" required></label>
-            <label class="field" for="setup-limit-max_cost_usd">Estimated cost per run (USD)<input type="number" id="setup-limit-max_cost_usd" min="0" step="0.01" value="${draft.limits.max_cost_usd}" required></label>
-            <label class="field" for="setup-limit-daily_cost_cap_usd">Estimated daily cost (USD)<input type="number" id="setup-limit-daily_cost_cap_usd" min="0" step="0.01" value="${draft.limits.daily_cost_cap_usd}" required></label>
+            <label class="field" for="setup-limit-max_cost_usd">Estimated cost per run (USD)<input type="number" id="setup-limit-max_cost_usd" min="0" step="any" value="${draft.limits.max_cost_usd}" required></label>
+            <label class="field" for="setup-limit-daily_cost_cap_usd">Estimated daily cost (USD)<input type="number" id="setup-limit-daily_cost_cap_usd" min="0" step="any" value="${draft.limits.daily_cost_cap_usd}" required></label>
           </div>
           <p class="hint">Token and currency limits use estimates. Provider billing can differ; use provider-side controls for a guaranteed spending limit. 0 means no estimate limit.</p>
         </div>

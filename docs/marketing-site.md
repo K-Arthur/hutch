@@ -38,6 +38,31 @@ protocols lack validated memory admission. Hutch reserves token and price estima
 eligible hosted calls, but provider invoices can differ. Bubblewrap is a Linux namespace sandbox,
 not a VM; migrated bots remain unsandboxed until an operator enables the setting.
 
+## Cost, context and routing claims
+
+The site may say that Hutch offers distinct warning, approval-pause and estimated admission-ceiling controls. It must not call the
+estimate a provider-enforced hard cap. For OpenRouter, a configured strict USD ceiling requires a fresh, endpoint-aware quote; when
+the metadata is stale, unavailable, or contains no qualified priced endpoint, Hutch blocks the call. A non-strict view can show a
+labeled stale quote or reviewed local price. Cost disclosure should say that provider tokenization and billing remain authoritative.
+
+Bot settings support explicit manual mappings from seven task roles to exact `provider/model` routes, selected for one chat message.
+Site copy may describe this as operator-selected routing; it must not imply an automatic quality classifier, a capability guarantee,
+provider pinning, or measured cost savings. Fallback means the selected model is unavailable; escalation means repeated quality
+failures. The app does not silently choose a different Hutch route.
+
+Studio's review sheet may describe the selected route, current draft, bounded recent conversation context, selected skills,
+and spend-policy state.
+The estimate is a preview: conversation state can change before admission, provider tokenization and billing can differ, and an
+OpenRouter route may select another eligible endpoint. Do not present the estimate as an invoice or provider-enforced ceiling.
+The public feature and FAQ copy was checked in Chromium at desktop, tablet and phone sizes. Source site captures and the Studio
+preflight screenshots are under `docs/realignment/artifacts/assistant-first-ui/marketing/` and
+`docs/realignment/artifacts/cost-guardrails-2026-10-11/`; captured viewport, source hash, browser errors and overflow results
+are recorded in their adjacent validation JSON files.
+
+Hosted summaries ask first by default. Owners can explicitly opt into automatic summaries or disable them; every paid summary has its
+own quote and reservation, context-reduction checks are bounded, and original history stays accessible. The page should not promise
+lossless summarization or that an approval wait currently releases the owning run worker.
+
 Workspace copy may say that fresh per-run folders are the default, and that an operator can choose a private Hutch-managed folder per bot
 or a validated existing folder. It must also say that managed folders survive bot deletion and are excluded from database-only backup;
 the site must not imply that files are automatically moved or copied when the setting changes.

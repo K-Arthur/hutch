@@ -18,6 +18,7 @@ import threading
 import hashlib
 import os
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Optional
 
 from ..models import Bot, Run, iso, utcnow
@@ -109,6 +110,77 @@ class Ladder:
         return self.escalations[i + 1] if i + 1 < len(self.escalations) else None
 
 
+def resolve_quote(rung: Rung, prices: PriceBook, connections, est_prompt_tokens: int,
+                  max_turn_tokens: int, *, fetch: bool = True,
+                  require_fresh_openrouter: bool = False) -> CallQuote:
+    """The price basis admission holds, from the best available source.
+
+    Resolution order: local -> flat subscription -> fresh live OpenRouter quote -> labeled stale live quote
+    -> the reviewed price file (labeled with its verified-on date) -> "no basis". A strict OpenRouter
+    ceiling requires a live quote and fails closed when refresh fails; it never falls through to stale or
+    file pricing. ``usd=None``
+    means no basis exists; it is never treated as free, and the applicable budget policy decides whether
+    that refuses admission or is recorded as unknown.
+
+    ``fetch=False`` restricts the live source to a quote already cached in this process: listing and
+    other background displays must never make a network request, while admission and an explicitly
+    opened preflight review may refresh it.
+    """
+    if rung.local:
+        return CallQuote(usd=0.0, source="local")
+    if rung.provider in prices.flat_providers:
+        return CallQuote(usd=0.0, source="flat")
+    conn = connections.get(rung.provider) if connections else None
+    if conn is not None and getattr(conn, "template", "") == "openrouter":
+        from ..providers import openrouter_pricing
+        service = openrouter_pricing.live_pricing(
+            getattr(conn, "base_url", "") or openrouter_pricing.DEFAULT_BASE_URL)
+        live_quote = (service.quote(rung.model, allow_stale=not require_fresh_openrouter)
+                      if fetch else service.cached(rung.model))
+        if (require_fresh_openrouter and
+                (live_quote is None or live_quote.stale or live_quote.expires_at is None
+                 or live_quote.expires_at <= datetime.now(timezone.utc))):
+            return CallQuote(usd=None, source="openrouter_unavailable", stale=True,
+                             snapshot_digest=(live_quote.snapshot_digest if live_quote else ""),
+                             expires_at=(live_quote.expires_at.isoformat() if live_quote and live_quote.expires_at else ""),
+                             currency="USD", billing_unit="USD/call-estimate")
+        if live_quote is not None:
+            eligible = lambda endpoint: (endpoint.status == 0
+                and (endpoint.supports_tools is None or endpoint.supports_tools)
+                and ((endpoint.context_length >= est_prompt_tokens + max_turn_tokens)
+                     if require_fresh_openrouter else
+                     (endpoint.context_length == 0 or endpoint.context_length >= est_prompt_tokens + max_turn_tokens))
+                and (endpoint.max_prompt_tokens == 0 or endpoint.max_prompt_tokens >= est_prompt_tokens)
+                and (endpoint.max_completion_tokens == 0 or endpoint.max_completion_tokens >= max_turn_tokens))
+            live = live_quote.worst_case(
+                est_prompt_tokens, max_turn_tokens,
+                conservative_tiers=True,
+                eligible=eligible)
+            if live is not None:
+                identities = tuple(endpoint.identity or f"{endpoint.provider_name}:{endpoint.name}"
+                                   for endpoint in live_quote.endpoints if eligible(endpoint))
+                return CallQuote(usd=to_store_reserved(live), source="openrouter",
+                                 verified_on=live_quote.fetched_at.isoformat(), stale=live_quote.stale,
+                                 endpoints_considered=len(identities), snapshot_digest=live_quote.snapshot_digest,
+                                 expires_at=(live_quote.expires_at.isoformat() if live_quote.expires_at else ""),
+                                 endpoint_identities=identities, currency="USD", billing_unit="USD/call-estimate")
+            if require_fresh_openrouter:
+                return CallQuote(usd=None, source="openrouter_no_eligible_endpoint", stale=True,
+                                 snapshot_digest=live_quote.snapshot_digest,
+                                 expires_at=(live_quote.expires_at.isoformat() if live_quote.expires_at else ""),
+                                 endpoint_identities=(), currency="USD", billing_unit="USD/call-estimate")
+        elif require_fresh_openrouter:
+            return CallQuote(usd=None, source="openrouter_unavailable", stale=True,
+                             currency="USD", billing_unit="USD/call-estimate")
+    cost = prices.cost(rung.provider, rung.model, est_prompt_tokens, max_turn_tokens)
+    if cost is None:
+        return CallQuote(usd=None, source="unknown")
+    price = prices.lookup(rung.provider, rung.model)
+    return CallQuote(usd=to_store_reserved(parse_usd(cost)), source="price_file",
+                     verified_on=(price.verified_on if price else ""),
+                     stale=(price.stale if price else True))
+
+
 class SpendGuard:
     """Estimate-based admission limits for hosted calls; provider billing can differ from Hutch's estimate."""
 
@@ -135,42 +207,14 @@ class SpendGuard:
         return bool(self.store.budget_policies_for(run_id=self.run.id))
 
     def worst_case(self, rung: Rung, est_prompt_tokens: int, max_turn_tokens: int) -> CallQuote:
-        """The price basis admission will hold, from the best available source.
-
-        Resolution order: local -> flat subscription -> (future: live OpenRouter quote) -> the price
-        file. ``usd=None`` means no basis exists; it is never treated as free, and the budget policy's
-        ``unknown_price`` setting decides whether admission refuses it.
-        """
-        if rung.local:
-            return CallQuote(usd=0.0, source="local")
-        if rung.provider in self.prices.flat_providers:
-            return CallQuote(usd=0.0, source="flat")
-        conn = self.connections.get(rung.provider) if self.connections else None
-        if conn is not None and getattr(conn, "template", "") == "openrouter":
-            # Live endpoint quotes first: a fresh quote beats the reviewed file row, and a stale one is
-            # used only as a labeled fallback. No quote at all falls through to the file (a reviewed
-            # override with provenance) and then to "no basis" — never to an invented zero.
-            from ..providers import openrouter_pricing
-            service = openrouter_pricing.live_pricing(
-                getattr(conn, "base_url", "") or openrouter_pricing.DEFAULT_BASE_URL)
-            live_quote = service.quote(rung.model)
-            if live_quote is not None:
-                live = live_quote.worst_case(
-                    est_prompt_tokens, max_turn_tokens,
-                    eligible=lambda endpoint: (endpoint.supports_tools is None or endpoint.supports_tools)
-                    and (endpoint.context_length == 0 or endpoint.context_length >= est_prompt_tokens))
-                if live is not None:
-                    return CallQuote(usd=to_store_reserved(live), source="openrouter",
-                                     verified_on=live_quote.fetched_at.isoformat(), stale=live_quote.stale,
-                                     endpoints_considered=len(live_quote.endpoints))
-        cost = self.prices.cost(rung.provider, rung.model, est_prompt_tokens, max_turn_tokens)
-        if cost is None:
-            return CallQuote(usd=None, source="unknown")
-        price = self.prices.lookup(rung.provider, rung.model)
-        rounded = to_store_reserved(parse_usd(cost))
-        return CallQuote(usd=rounded, source="price_file",
-                         verified_on=(price.verified_on if price else ""),
-                         stale=(price.stale if price else True))
+        """The price basis admission will hold, from the best available source (see :func:`resolve_quote`)."""
+        account_id, account_cap, _quotas = self.account_policy(rung)
+        policies = self.store.budget_policies_for(run_id=self.run.id, account_id=account_id)
+        strict = (self.bot.limits.max_cost_usd > 0 or self.bot.limits.daily_cost_cap_usd > 0
+                  or account_cap > 0 or self.run.delegation_budget_cost_usd is not None
+                  or any(policy.ceiling_usd is not None for policy in policies.values()))
+        return resolve_quote(rung, self.prices, self.connections, est_prompt_tokens, max_turn_tokens,
+                             require_fresh_openrouter=strict)
 
     def quota_state(self, rung: Rung) -> Optional[tuple[int, int, str]]:
         """(tokens used in the window, declared allowance, window) for a subscription connection, if one is set."""
@@ -188,16 +232,18 @@ class SpendGuard:
         cap, quotas = self.connections.account_policy(conn.account_id)
         return conn.account_id, cap, quotas
 
-    def reserve(self, rung: Rung, est_prompt_tokens: int, max_turn_tokens: int, *, route_hash: str = "") -> Reservation:
+    def reserve(self, rung: Rung, est_prompt_tokens: int, max_turn_tokens: int, *, route_hash: str = "",
+                request_hash: str = "", quote_override: Optional[CallQuote] = None) -> Reservation:
         """Acquire a cross-process reservation before this provider call may start."""
         account_id, account_cap, quotas = self.account_policy(rung)
-        quote = self.worst_case(rung, est_prompt_tokens, max_turn_tokens)
+        quote = quote_override or self.worst_case(rung, est_prompt_tokens, max_turn_tokens)
         return self.store.admit_and_reserve(
             run_id=self.run.id, bot_id=self.bot.id, provider=rung.provider, account_id=account_id,
             model=rung.model, reserved_tokens=est_prompt_tokens + max_turn_tokens, quote=quote,
             daily_token_cap=self.bot.limits.daily_token_cap, max_run_cost_usd=self.bot.limits.max_cost_usd,
             daily_bot_cost_cap_usd=self.bot.limits.daily_cost_cap_usd, expected_fence=self.run.fence,
-            daily_account_cost_cap_usd=account_cap, account_quotas=quotas, route_hash=route_hash)
+            daily_account_cost_cap_usd=account_cap, account_quotas=quotas, route_hash=route_hash,
+            request_hash=request_hash)
 
     def quota_refusal(self, rung: Rung, est_prompt_tokens: int, max_turn_tokens: int) -> Optional[str]:
         """CN-5: stop BEFORE the plan's allowance is spent, not after the vendor cuts you off (or bills overage)."""

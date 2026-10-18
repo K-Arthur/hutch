@@ -1,0 +1,39 @@
+{
+  "test": "tests/e2e/test_browser_budget_controls.py::test_budget_bands_preflight_and_context_are_usable_at_every_width",
+  "journey": "task-role route configured through Bot settings; spending bands save + reload round-trip; one-message role selection and draft/context-aware cost preflight; mock route only",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "provider_calls": 0,
+  "viewports": {
+    "desktop": {
+      "size": [
+        1440,
+        900
+      ],
+      "overflow_px": 0,
+      "page_errors": []
+    },
+    "tablet": {
+      "size": [
+        768,
+        1024
+      ],
+      "overflow_px": 0,
+      "page_errors": []
+    },
+    "phone": {
+      "size": [
+        360,
+        780
+      ],
+      "overflow_px": 0,
+      "page_errors": []
+    }
+  },
+  "source_sha256": {
+    "app.js": "3705b9755658510b81b311b02ebc09d9c013d2fa6f5a26aa74ea37fea61a10a7",
+    "style.css": "bf7e5e130927a2bbc784a54a260dc4ec879d3fa0a2a8dcab30dc57f6c7f4d53a",
+    "website/index.html": "f2acb2adc17a99fd2d17b7207363093c9a575c5d6f80189d34699d84c7052af5"
+  },
+  "note": "Screenshots are the visual evidence; provider billing was not exercised (mock route)."
+}

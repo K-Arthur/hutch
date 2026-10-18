@@ -68,10 +68,13 @@ def test_openai_request_mapping_strips_unimplemented_fields_and_uses_exact_host(
 
 def test_openrouter_uses_its_current_completion_limit_field():
     provider = OpenAICompatProvider("https://openrouter.ai/api/v1", "fixture-key", "openrouter")
-    body = provider._body(ChatRequest(model="anthropic/claude-sonnet-4", messages=[], max_tokens=19), stream=True)
+    request = ChatRequest(model="anthropic/claude-sonnet-4", messages=[], max_tokens=19)
+    body = provider._body(request, stream=True)
     assert body["max_completion_tokens"] == 19
     assert "max_tokens" not in body
     assert body["stream_options"] == {"include_usage": True}
+    assert body["usage"] == {"include": True}
+    assert provider._body(request, stream=False)["usage"] == {"include": True}
 
 
 @pytest.mark.parametrize("url", [

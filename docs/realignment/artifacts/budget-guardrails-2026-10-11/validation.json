@@ -1,0 +1,18 @@
+{
+  "journey": "assistant settings bands save + reload round-trip; composer preflight review sheet; mock route only",
+  "viewports": {
+    "desktop": {
+      "overflow_px": 0,
+      "page_errors": []
+    },
+    "tablet": {
+      "overflow_px": 0,
+      "page_errors": []
+    },
+    "phone": {
+      "overflow_px": 0,
+      "page_errors": []
+    }
+  },
+  "note": "Screenshots are the visual evidence; provider billing was not exercised (mock route)."
+}

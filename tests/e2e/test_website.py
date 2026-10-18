@@ -149,7 +149,10 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     text = page.locator("body").text_content().lower().replace("’", "'")
     for retired in ("deterministic mock", "mock/offline", "scripted gate", "no telemetry"):
         assert retired not in text, retired
-    assert "provider's own billing controls" in text
+    assert "provider-side billing limits" in text
+    assert "can i review cost and context before sending?" in text
+    assert "bounded recent conversation context" in text
+    assert "automatic classification is not enabled" in text
     assert "private" in text and "no anonymous download or public release" in text
     assert "not a virtual machine" in text
     assert "fixture-tested dns pinning" in text and "browser field detection" in text

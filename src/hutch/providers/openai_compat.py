@@ -248,6 +248,10 @@ class OpenAICompatProvider(Provider):
             body["max_completion_tokens" if self._uses_completion_token_field else "max_tokens"] = int(req.max_tokens)
         if req.temperature is not None:
             body["temperature"] = req.temperature
+        if self.name == "openrouter":
+            # OpenRouter only adds its billed `usage.cost` field when this is requested.
+            # Without it, presets/dynamic model routes can have tokens but no dependable settlement.
+            body["usage"] = {"include": True}
         if stream:
             body["stream_options"] = {"include_usage": True}
         return body

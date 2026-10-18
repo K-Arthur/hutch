@@ -188,7 +188,7 @@ def test_guard_prefers_a_live_quote_then_the_price_file_then_unknown(store, monk
             return FakeConn() if provider == "openrouter" else None
 
         def account_policy(self, account_id):
-            return account_id, 0.0, []
+            return 0.0, []  # the ConnectionBook contract: (cap, shared token windows)
 
     endpoint = EndpointQuote(name="Vendor", provider_name="Vendor",
                              input_per_million=Decimal("2"), output_per_million=Decimal("10"))
@@ -196,11 +196,11 @@ def test_guard_prefers_a_live_quote_then_the_price_file_then_unknown(store, monk
                       fetched_at=datetime(2026, 10, 11, 12, 0, tzinfo=timezone.utc), source="test")
 
     class FakeService:
-        def quote(self, model):
+        def quote(self, model, allow_stale=True):
             return live
 
     class NoQuote:
-        def quote(self, model):
+        def quote(self, model, *, allow_stale=True):
             return None
 
     guard = SpendGuard(store, bot, run, PriceBook(), FakeConnections())
@@ -216,3 +216,61 @@ def test_guard_prefers_a_live_quote_then_the_price_file_then_unknown(store, monk
 
     unknown = guard.worst_case(make_rung("openai/gpt-unpriced", "primary"), 1000, 500)
     assert unknown.source == "unknown" and unknown.usd is None
+
+
+def test_strict_openrouter_ceiling_fails_closed_on_stale_quote(store, monkeypatch):
+    from datetime import datetime, timezone
+    from decimal import Decimal
+
+    from hutch.models import Bot, Limits, Run
+    from hutch.providers.openrouter_pricing import EndpointQuote, ModelQuote
+    from hutch.providers.pricing import PriceBook
+    from hutch.runtime.ladder import SpendGuard, make_rung
+
+    bot = store.create_bot(Bot(name="strict-router-bot", model="openrouter/acme/model",
+                               limits=Limits(max_cost_usd=0.15)))
+    run = store.create_run(Run(bot_id=bot.id, prompt="strict quote"))
+
+    class FakeConn:
+        template = "openrouter"
+        base_url = "https://router.example/api/v1"
+        account_id = "acct-strict"
+
+    class FakeConnections:
+        def get(self, provider):
+            return FakeConn() if provider == "openrouter" else None
+
+        def account_policy(self, account_id):
+            return 0.0, []
+
+    endpoint = EndpointQuote(name="Vendor", provider_name="Vendor",
+                             input_per_million=Decimal("2"), output_per_million=Decimal("10"),
+                             context_length=128000, supports_tools=True)
+    stale = ModelQuote(model="acme/model", endpoints=(endpoint,),
+                       fetched_at=datetime(2026, 10, 11, 12, 0, tzinfo=timezone.utc), source="test",
+                       stale=True, snapshot_digest="a" * 64)
+
+    class FakeService:
+        def quote(self, model, *, allow_stale=True):
+            assert allow_stale is False
+            return stale
+
+    monkeypatch.setattr("hutch.providers.openrouter_pricing.live_pricing", lambda *a, **k: FakeService())
+    guard = SpendGuard(store, bot, run, PriceBook(), FakeConnections())
+    quote = guard.worst_case(make_rung("openrouter/acme/model", "primary"), 1000, 500)
+    assert quote.source == "openrouter_unavailable" and quote.usd is None
+    assert quote.snapshot_digest == "a" * 64
+
+    expired = ModelQuote(model="acme/model", endpoints=(endpoint,),
+                         fetched_at=datetime(2020, 1, 1, tzinfo=timezone.utc), source="test",
+                         stale=False, snapshot_digest="b" * 64,
+                         expires_at=datetime(2020, 1, 1, tzinfo=timezone.utc))
+
+    class ExpiredService:
+        def quote(self, model, *, allow_stale=True):
+            assert allow_stale is False
+            return expired
+
+    monkeypatch.setattr("hutch.providers.openrouter_pricing.live_pricing", lambda *a, **k: ExpiredService())
+    expired_quote = guard.worst_case(make_rung("openrouter/acme/model", "primary"), 1000, 500)
+    assert expired_quote.source == "openrouter_unavailable" and expired_quote.usd is None

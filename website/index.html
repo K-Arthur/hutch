@@ -325,7 +325,7 @@
           <div class="card-body">
             <span class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="4.5" width="15" height="15" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M9 1.8v2.7M15 1.8v2.7M9 19.5v2.7M15 19.5v2.7M1.8 9h2.7M1.8 15h2.7M19.5 9h2.7M19.5 15h2.7"/></svg></span>
             <h3 class="card-title">Inference</h3>
-            <p>Hutch supports configured OpenAI, Anthropic, OpenRouter, other OpenAI-compatible and Ollama routes. OpenRouter’s searchable model catalog is loaded from its service when you open model choice; model availability and listed prices can change. In Studio, choose a route for the next message or select <b>Save as Bot default</b> for future chats and scheduled runs. Compatibility depends on the provider and endpoint version; live provider checks have not been performed for this preview.</p>
+            <p>Hutch supports configured OpenAI, Anthropic, OpenRouter, other OpenAI-compatible and Ollama routes. OpenRouter’s searchable model catalog is loaded when you open model choice; model availability and listed prices can change. In Studio, review the selected route, draft context and current spend policy before sending; choose an exact route for one message, assign manual routes to task roles, or select <b>Save as Bot default</b> for future chats and scheduled runs. Strict OpenRouter USD ceilings require fresh endpoint pricing and block when Hutch cannot establish a safe estimate. Estimates are not provider billing guarantees; live inference and model-quality checks have not been performed for this preview.</p>
           </div>
         </article>
         <article class="card feature border border-line bg-surface">
@@ -507,7 +507,7 @@
             </li>
             <li>
               <b>Usage amounts are estimates.</b>
-              <span>Hutch reserves estimated tokens and priced cost before a hosted call. The provider controls actual tokenization and billing.</span>
+              <span>Warnings, approval pauses and estimated admission ceilings are separate controls. Hutch reserves before metered hosted calls; provider tokenization and billing remain authoritative.</span>
             </li>
             <li>
               <b>OpenCode coding tasks are experimental.</b>
@@ -649,6 +649,14 @@
           <div class="collapse-content"><p>Hutch stores its control state locally. A hosted model receives the prompt and context Hutch sends to it; network tools connect to their own destinations. A local model can still use online tools. Review the selected connection and tools before running a task.</p></div>
         </details>
         <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">Can I use different models for different kinds of work?</summary>
+          <div class="collapse-content"><p>Yes. Assign exact provider/model routes to task roles such as summarization, code analysis or verification, then choose a role for one chat message. Hutch checks the selected route's setup, context fit and spending policy before it starts. Fallbacks handle unavailable routes; escalation handles repeated quality failures. Automatic classification is not enabled, and a role name is not a model-quality guarantee.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">Will Hutch summarize my chat automatically?</summary>
+          <div class="collapse-content"><p>Hosted summaries ask first by default and have their own estimate and budget reservation. You can explicitly opt into automatic summaries or turn them off. Hutch keeps the original conversation and stops if a summary does not reduce the context enough.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">What happens when my laptop sleeps on a schedule?</summary>
           <div class="collapse-content"><p>Nothing runs while the machine is off. With the local supervisor running again, configured schedules detect missed windows and either coalesce them into one catch-up run or record a skip, according to the bot&rsquo;s policy.</p></div>
         </details>
@@ -662,7 +670,11 @@
         </details>
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">What does a runaway bot cost me?</summary>
-          <div class="collapse-content"><p>Hutch estimates tokens and priced cost, reserves those estimates before calls, and stops admitting more calls when configured limits would be crossed. The estimate can differ from the provider&rsquo;s invoice; use the provider&rsquo;s own billing controls for an external spending limit. Uncertain calls remain held until reconciled.</p></div>
+          <div class="collapse-content"><p>Set a warning, an approval pause, and an estimated admission ceiling independently. For OpenRouter, a strict USD ceiling requires fresh endpoint pricing; Hutch blocks if it cannot quote an eligible route. Estimates can differ from the provider&rsquo;s invoice and are not an external spending guarantee, so use provider-side billing limits as well. Uncertain charges remain held until reconciled.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">Can I review cost and context before sending?</summary>
+          <div class="collapse-content"><p>Studio can estimate the selected route, your current draft, the bounded recent conversation context and the applicable spend policy before you send. It is a preview: context can change before admission, and providers control final tokenization and billing.</p></div>
         </details>
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">Is it safe to let an agent touch my files?</summary>
