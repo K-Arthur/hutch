@@ -1848,6 +1848,122 @@ def _migrate_57(db: sqlite3.Connection) -> None:
     _ensure_budget_schema(db)
 
 
+
+def _migrate_58(db: sqlite3.Connection) -> None:
+    """Synthesis lane: versioned manifests, source registry, artifacts, effect ledger.
+
+    Design notes that are load-bearing:
+
+    * ``syn_sources`` is keyed by stable identity + revision; re-ingesting identical
+      content returns the existing revision instead of inflating history.
+    * ``syn_manifests.doc`` always holds the *current* revision; every superseded revision
+      stays reachable in ``syn_manifest_revisions`` (retention, not erasure).
+    * ``syn_artifacts`` rows are the only reachable identity for stored bytes; a version
+      directory without a row is garbage collected by storage.reconcile.
+    * ``syn_effects`` is a durable effect journal keyed by idempotency key, so a lost
+      response never becomes a duplicated remote write (docs/sheets/calendar/drive).
+    """
+    db.execute("""CREATE TABLE IF NOT EXISTS syn_sources (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL DEFAULT '',
+        bot_id TEXT NOT NULL DEFAULT '',
+        run_id TEXT NOT NULL DEFAULT '',
+        kind TEXT NOT NULL,
+        identity TEXT NOT NULL,
+        revision INTEGER NOT NULL DEFAULT 1,
+        title TEXT NOT NULL DEFAULT '',
+        author TEXT NOT NULL DEFAULT '',
+        origin TEXT NOT NULL DEFAULT '',
+        origin_cluster TEXT NOT NULL DEFAULT '',
+        content_sha256 TEXT NOT NULL DEFAULT '',
+        doc TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )""")
+    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_syn_sources_identity ON syn_sources(identity, revision)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_syn_sources_conv ON syn_sources(conversation_id, created_at)")
+
+    db.execute("""CREATE TABLE IF NOT EXISTS syn_manifests (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL DEFAULT '',
+        bot_id TEXT NOT NULL DEFAULT '',
+        run_id TEXT NOT NULL DEFAULT '',
+        revision INTEGER NOT NULL DEFAULT 1,
+        status TEXT NOT NULL DEFAULT 'draft',
+        language TEXT NOT NULL DEFAULT 'en',
+        policy TEXT NOT NULL DEFAULT 'source_only',
+        doc TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_syn_manifests_conv ON syn_manifests(conversation_id, created_at)")
+
+    db.execute("""CREATE TABLE IF NOT EXISTS syn_manifest_revisions (
+        manifest_id TEXT NOT NULL REFERENCES syn_manifests(id),
+        revision INTEGER NOT NULL,
+        reason TEXT NOT NULL DEFAULT '',
+        doc TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (manifest_id, revision)
+    )""")
+
+    db.execute("""CREATE TABLE IF NOT EXISTS syn_artifacts (
+        id TEXT PRIMARY KEY,
+        manifest_id TEXT NOT NULL DEFAULT '',
+        kind TEXT NOT NULL,
+        version INTEGER NOT NULL DEFAULT 1,
+        status TEXT NOT NULL DEFAULT 'committed',
+        storage_path TEXT NOT NULL DEFAULT '',
+        storage_name TEXT NOT NULL DEFAULT '',
+        mime TEXT NOT NULL DEFAULT '',
+        bytes INTEGER NOT NULL DEFAULT 0,
+        sha256 TEXT NOT NULL DEFAULT '',
+        meta TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL
+    )""")
+    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_syn_artifacts_version ON syn_artifacts(manifest_id, kind, version)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_syn_artifacts_manifest ON syn_artifacts(manifest_id, created_at)")
+
+    db.execute("""CREATE TABLE IF NOT EXISTS syn_effects (
+        id TEXT PRIMARY KEY,
+        plan_id TEXT NOT NULL DEFAULT '',
+        step_id TEXT NOT NULL DEFAULT '',
+        kind TEXT NOT NULL,
+        idempotency_key TEXT NOT NULL DEFAULT '',
+        request_hash TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL,
+        target_json TEXT NOT NULL DEFAULT '{}',
+        result_json TEXT NOT NULL DEFAULT '{}',
+        remote_id TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )""")
+    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_syn_effects_idem ON syn_effects(idempotency_key) "
+               "WHERE idempotency_key != ''")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_syn_effects_plan ON syn_effects(plan_id, created_at)")
+
+
+def _migrate_59(db: sqlite3.Connection) -> None:
+    """Durable action plans: the inspectable, reviewable unit behind every external write.
+
+    The plan document is the authority for what was reviewed (its ``approval_scope_hash``
+    binds the review); ``syn_effects`` remains the per-step effect journal.
+    """
+    db.execute("""CREATE TABLE IF NOT EXISTS syn_plans (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL DEFAULT '',
+        bot_id TEXT NOT NULL DEFAULT '',
+        run_id TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'draft',
+        approval_scope_hash TEXT NOT NULL DEFAULT '',
+        doc TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_syn_plans_conv ON syn_plans(conversation_id, created_at)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_syn_plans_run ON syn_plans(run_id)")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -1856,8 +1972,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
                _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53, _migrate_54,
-               _migrate_55, _migrate_56, _migrate_57]
-
+               _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -9820,8 +9935,334 @@ class Store:
         return updated
 
 
-#: enumerated states and guarded transitions for the schema-v55 typed-outputs tables
+    # ------------------------------------------------------------------
+    # synthesis lane (schema v58-v59): sources, manifests, artifacts, effects
+    # ------------------------------------------------------------------
 
+    @staticmethod
+    def _synthesis_row(row: sqlite3.Row) -> dict[str, Any]:
+        data = dict(row)
+        for field in ("doc", "meta", "target_json", "result_json"):
+            if field in data:
+                try:
+                    data[field] = json.loads(data.get(field) or "{}")
+                except (TypeError, ValueError):
+                    data[field] = {}
+        return data
+
+    def record_synthesis_source(self, source: dict[str, Any], *, conversation_id: str = "",
+                                bot_id: str = "", run_id: str = "") -> dict[str, Any]:
+        """Register one source revision. Re-ingesting identical content is idempotent:
+        the existing revision is returned instead of inflating history."""
+        identity = str(source.get("identity") or "").strip()[:2000]
+        if not identity:
+            raise ValueError("a synthesis source needs a stable identity")
+        sha = str(source.get("content_sha256") or "")[:64]
+        now = iso(utcnow())
+        with self._lock:
+            if sha:
+                found = self._db.execute(
+                    "SELECT * FROM syn_sources WHERE identity = ? AND content_sha256 = ? "
+                    "ORDER BY revision DESC LIMIT 1", (identity, sha)).fetchone()
+                if found is not None:
+                    return self._synthesis_row(found)
+            previous = self._db.execute(
+                "SELECT MAX(revision) AS rev FROM syn_sources WHERE identity = ?", (identity,)).fetchone()
+            revision = int(previous["rev"] or 0) + 1
+            source_id = str(source.get("id") or f"src_{uuid.uuid4().hex[:16]}")
+            doc = dict(source)
+            doc["id"] = source_id
+            doc["revision"] = revision
+            self._db.execute(
+                "INSERT INTO syn_sources (id, conversation_id, bot_id, run_id, kind, identity, revision, "
+                "title, author, origin, origin_cluster, content_sha256, doc, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (source_id, conversation_id, bot_id, run_id, str(source.get("kind", "web"))[:40],
+                 identity, revision, str(source.get("title", ""))[:1000], str(source.get("author", ""))[:300],
+                 str(source.get("origin", ""))[:300], str(source.get("origin_cluster", ""))[:300],
+                 sha, _canonical(doc), now, now))
+            self._db.commit()
+            stored = self._db.execute("SELECT * FROM syn_sources WHERE id = ?", (source_id,)).fetchone()
+        return self._synthesis_row(stored)
+
+    def get_synthesis_source(self, identity: str, *, revision: Optional[int] = None) -> Optional[dict[str, Any]]:
+        with self._lock:
+            if revision is None:
+                row = self._db.execute(
+                    "SELECT * FROM syn_sources WHERE identity = ? ORDER BY revision DESC LIMIT 1",
+                    (identity[:2000],)).fetchone()
+            else:
+                row = self._db.execute(
+                    "SELECT * FROM syn_sources WHERE identity = ? AND revision = ?",
+                    (identity[:2000], int(revision))).fetchone()
+        return self._synthesis_row(row) if row else None
+
+    def list_synthesis_sources(self, *, conversation_id: Optional[str] = None,
+                               limit: int = 100) -> list[dict[str, Any]]:
+        with self._lock:
+            if conversation_id:
+                rows = self._db.execute(
+                    "SELECT * FROM syn_sources WHERE conversation_id = ? ORDER BY created_at DESC LIMIT ?",
+                    (conversation_id, max(1, min(limit, 500)))).fetchall()
+            else:
+                rows = self._db.execute(
+                    "SELECT * FROM syn_sources ORDER BY created_at DESC LIMIT ?",
+                    (max(1, min(limit, 500)),)).fetchall()
+        return [self._synthesis_row(r) for r in rows]
+
+    def save_synthesis_manifest(self, manifest: dict[str, Any], *, reason: str = "") -> dict[str, Any]:
+        """Persist the manifest's current revision and keep the superseded one reachable."""
+        manifest_id = str(manifest.get("id") or "").strip()
+        if not manifest_id:
+            raise ValueError("a synthesis manifest needs an id")
+        revision = int(manifest.get("revision") or 1)
+        now = iso(utcnow())
+        doc = _canonical(manifest)
+        with self._lock:
+            current = self._db.execute(
+                "SELECT revision FROM syn_manifests WHERE id = ?", (manifest_id,)).fetchone()
+            if current is None:
+                self._db.execute(
+                    "INSERT INTO syn_manifests (id, conversation_id, bot_id, run_id, revision, status, "
+                    "language, policy, doc, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (manifest_id, str(manifest.get("conversation_id", "")), str(manifest.get("bot_id", "")),
+                     str(manifest.get("run_id", "")), revision, str(manifest.get("status", "draft")),
+                     str(manifest.get("language", "en")), str(manifest.get("policy", "source_only")),
+                     doc, now, now))
+                created = True
+            else:
+                created = False
+                if revision >= int(current["revision"]):
+                    self._db.execute(
+                        "UPDATE syn_manifests SET revision = ?, status = ?, language = ?, policy = ?, "
+                        "doc = ?, updated_at = ? WHERE id = ?",
+                        (revision, str(manifest.get("status", "draft")), str(manifest.get("language", "en")),
+                         str(manifest.get("policy", "source_only")), doc, now, manifest_id))
+            self._db.execute(
+                "INSERT OR REPLACE INTO syn_manifest_revisions (manifest_id, revision, reason, doc, created_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (manifest_id, revision, str(reason)[:500], doc, now))
+            self._db.commit()
+            row = self._db.execute("SELECT * FROM syn_manifests WHERE id = ?", (manifest_id,)).fetchone()
+        result = self._synthesis_row(row)
+        result["created"] = created
+        return result
+
+    def get_synthesis_manifest(self, manifest_id: str) -> Optional[dict[str, Any]]:
+        with self._lock:
+            row = self._db.execute("SELECT * FROM syn_manifests WHERE id = ?", (manifest_id,)).fetchone()
+        return self._synthesis_row(row) if row else None
+
+    def get_synthesis_manifest_revision(self, manifest_id: str, revision: int) -> Optional[dict[str, Any]]:
+        with self._lock:
+            row = self._db.execute(
+                "SELECT * FROM syn_manifest_revisions WHERE manifest_id = ? AND revision = ?",
+                (manifest_id, int(revision))).fetchone()
+        return self._synthesis_row(row) if row else None
+
+    def list_synthesis_manifests(self, *, conversation_id: Optional[str] = None,
+                                 limit: int = 50) -> list[dict[str, Any]]:
+        with self._lock:
+            if conversation_id:
+                rows = self._db.execute(
+                    "SELECT * FROM syn_manifests WHERE conversation_id = ? ORDER BY created_at DESC LIMIT ?",
+                    (conversation_id, max(1, min(limit, 200)))).fetchall()
+            else:
+                rows = self._db.execute(
+                    "SELECT * FROM syn_manifests ORDER BY created_at DESC LIMIT ?",
+                    (max(1, min(limit, 200)),)).fetchall()
+        return [self._synthesis_row(r) for r in rows]
+
+    def record_synthesis_artifact(self, *, artifact_id: str, manifest_id: str, kind: str, version: int,
+                                  status: str, storage_path: str, storage_name: str, mime: str,
+                                  bytes_: int, sha256: str, meta: Optional[dict] = None) -> dict[str, Any]:
+        """Insert one immutable artifact row; a duplicate (manifest, kind, version) is refused."""
+        now = iso(utcnow())
+        with self._lock:
+            try:
+                self._db.execute(
+                    "INSERT INTO syn_artifacts (id, manifest_id, kind, version, status, storage_path, "
+                    "storage_name, mime, bytes, sha256, meta, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (artifact_id, manifest_id, kind, int(version), status, storage_path, storage_name,
+                     mime, int(bytes_), sha256, _canonical(meta or {}), now))
+            except sqlite3.IntegrityError as exc:
+                raise ValueError(
+                    f"artifact {kind} v{version} already exists for {manifest_id}") from exc
+            self._db.commit()
+            row = self._db.execute("SELECT * FROM syn_artifacts WHERE id = ?", (artifact_id,)).fetchone()
+        return self._synthesis_row(row)
+
+    def set_synthesis_artifact_status(self, artifact_id: str, status: str,
+                                      *, meta: Optional[dict] = None) -> None:
+        with self._lock:
+            if meta is not None:
+                self._db.execute("UPDATE syn_artifacts SET status = ?, meta = ? WHERE id = ?",
+                                 (status, _canonical(meta), artifact_id))
+            else:
+                self._db.execute("UPDATE syn_artifacts SET status = ? WHERE id = ?", (status, artifact_id))
+            self._db.commit()
+
+    def get_synthesis_artifact(self, artifact_id: str) -> Optional[dict[str, Any]]:
+        with self._lock:
+            row = self._db.execute("SELECT * FROM syn_artifacts WHERE id = ?", (artifact_id,)).fetchone()
+        return self._synthesis_row(row) if row else None
+
+    def find_synthesis_artifact(self, manifest_id: str, kind: str,
+                                version: int) -> Optional[dict[str, Any]]:
+        with self._lock:
+            row = self._db.execute(
+                "SELECT * FROM syn_artifacts WHERE manifest_id = ? AND kind = ? AND version = ?",
+                (manifest_id, kind, int(version))).fetchone()
+        return self._synthesis_row(row) if row else None
+
+    def list_synthesis_artifacts(self, manifest_id: str, *, kind: Optional[str] = None,
+                                 limit: int = 100) -> list[dict[str, Any]]:
+        with self._lock:
+            if kind:
+                rows = self._db.execute(
+                    "SELECT * FROM syn_artifacts WHERE manifest_id = ? AND kind = ? "
+                    "ORDER BY version DESC LIMIT ?", (manifest_id, kind, max(1, min(limit, 500)))).fetchall()
+            else:
+                rows = self._db.execute(
+                    "SELECT * FROM syn_artifacts WHERE manifest_id = ? ORDER BY created_at DESC LIMIT ?",
+                    (manifest_id, max(1, min(limit, 500)))).fetchall()
+        return [self._synthesis_row(r) for r in rows]
+
+    def known_synthesis_version_dirs(self) -> set[str]:
+        """Version directories (``<manifest>/<kind>/vNNN-<sha8>``) that have artifact rows."""
+        with self._lock:
+            rows = self._db.execute("SELECT DISTINCT storage_path FROM syn_artifacts "
+                                    "WHERE storage_path != ''").fetchall()
+        out: set[str] = set()
+        for row in rows:
+            parts = str(row["storage_path"]).split("/")
+            if len(parts) == 4:
+                out.add("/".join(parts[:3]))
+        return out
+
+    def begin_synthesis_effect(self, *, effect_id: str, plan_id: str, step_id: str, kind: str,
+                               idempotency_key: str, request_hash: str, target: Optional[dict] = None) -> dict[str, Any]:
+        """Journal an intended lasting effect before it starts.
+
+        Reusing an idempotency key returns the existing row (with ``created`` False) so the
+        caller reconciles the previous attempt instead of repeating the remote write.
+        """
+        now = iso(utcnow())
+        with self._lock:
+            if idempotency_key:
+                existing = self._db.execute(
+                    "SELECT * FROM syn_effects WHERE idempotency_key = ?", (idempotency_key,)).fetchone()
+                if existing is not None:
+                    result = self._synthesis_row(existing)
+                    if (result.get("request_hash") != request_hash
+                            or result.get("kind") != kind
+                            or result.get("target_json") != (target or {})):
+                        raise ValueError("idempotency key is already bound to a different action")
+                    result["created"] = False
+                    return result
+            self._db.execute(
+                "INSERT INTO syn_effects (id, plan_id, step_id, kind, idempotency_key, request_hash, "
+                "status, target_json, result_json, remote_id, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, 'prepared', ?, '{}', '', ?, ?)",
+                (effect_id, plan_id, step_id, kind, idempotency_key, request_hash,
+                 _canonical(target or {}), now, now))
+            self._db.commit()
+            row = self._db.execute("SELECT * FROM syn_effects WHERE id = ?", (effect_id,)).fetchone()
+        result = self._synthesis_row(row)
+        result["created"] = True
+        return result
+
+    def finish_synthesis_effect(self, effect_id: str, *, status: str, result: Optional[dict] = None,
+                                remote_id: str = "", target: Optional[dict] = None) -> None:
+        now = iso(utcnow())
+        with self._lock:
+            if target is not None:
+                self._db.execute(
+                    "UPDATE syn_effects SET status = ?, result_json = ?, remote_id = ?, target_json = ?, "
+                    "updated_at = ? WHERE id = ?",
+                    (status, _canonical(result or {}), remote_id, _canonical(target), now, effect_id))
+            else:
+                self._db.execute(
+                    "UPDATE syn_effects SET status = ?, result_json = ?, remote_id = ?, updated_at = ? "
+                    "WHERE id = ?",
+                    (status, _canonical(result or {}), remote_id, now, effect_id))
+            self._db.commit()
+
+    def find_synthesis_effect(self, idempotency_key: str) -> Optional[dict[str, Any]]:
+        with self._lock:
+            row = self._db.execute("SELECT * FROM syn_effects WHERE idempotency_key = ?",
+                                   (idempotency_key,)).fetchone()
+        return self._synthesis_row(row) if row else None
+
+    def list_synthesis_effects(self, *, plan_id: Optional[str] = None, limit: int = 100) -> list[dict[str, Any]]:
+        with self._lock:
+            if plan_id:
+                rows = self._db.execute(
+                    "SELECT * FROM syn_effects WHERE plan_id = ? ORDER BY created_at LIMIT ?",
+                    (plan_id, max(1, min(limit, 500)))).fetchall()
+            else:
+                rows = self._db.execute(
+                    "SELECT * FROM syn_effects ORDER BY created_at DESC LIMIT ?",
+                    (max(1, min(limit, 500)),)).fetchall()
+        return [self._synthesis_row(r) for r in rows]
+
+    def save_action_plan(self, plan: dict[str, Any]) -> dict[str, Any]:
+        """Persist the plan document (upsert); the plan id is its identity."""
+        plan_id = str(plan.get("id") or "").strip()
+        if not plan_id:
+            raise ValueError("an action plan needs an id")
+        now = iso(utcnow())
+        doc = _canonical(plan)
+        with self._lock:
+            self._db.execute(
+                "INSERT INTO syn_plans (id, conversation_id, bot_id, run_id, status, "
+                "approval_scope_hash, doc, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(id) DO UPDATE SET status = excluded.status, "
+                "approval_scope_hash = excluded.approval_scope_hash, doc = excluded.doc, "
+                "updated_at = excluded.updated_at",
+                (plan_id, str(plan.get("conversation_id", "")), str(plan.get("bot_id", "")),
+                 str(plan.get("run_id", "")), str(plan.get("status", "draft")),
+                 str(plan.get("approval_scope_hash", "")), doc, now, now))
+            self._db.commit()
+            row = self._db.execute("SELECT * FROM syn_plans WHERE id = ?", (plan_id,)).fetchone()
+        return self._synthesis_row(row)
+
+    def get_action_plan(self, plan_id: str) -> Optional[dict[str, Any]]:
+        with self._lock:
+            row = self._db.execute("SELECT * FROM syn_plans WHERE id = ?", (plan_id,)).fetchone()
+        return self._synthesis_row(row) if row else None
+
+    def list_action_plans(self, *, conversation_id: Optional[str] = None, run_id: Optional[str] = None,
+                          limit: int = 50) -> list[dict[str, Any]]:
+        with self._lock:
+            if conversation_id:
+                rows = self._db.execute(
+                    "SELECT * FROM syn_plans WHERE conversation_id = ? ORDER BY created_at DESC LIMIT ?",
+                    (conversation_id, max(1, min(limit, 200)))).fetchall()
+            elif run_id:
+                rows = self._db.execute(
+                    "SELECT * FROM syn_plans WHERE run_id = ? ORDER BY created_at LIMIT ?",
+                    (run_id, max(1, min(limit, 200)))).fetchall()
+            else:
+                rows = self._db.execute("SELECT * FROM syn_plans ORDER BY created_at DESC LIMIT ?",
+                                        (max(1, min(limit, 200)),)).fetchall()
+        return [self._synthesis_row(r) for r in rows]
+
+    def claim_synthesis_effect_for_retry(self, effect_id: str) -> bool:
+        """Flip a definitively-failed effect back to 'prepared' so one explicit retry runs.
+
+        Uncertain outcomes are deliberately not retryable here: reconciliation must look
+        first. Returns False when the effect is not in a retryable state.
+        """
+        with self._lock:
+            cursor = self._db.execute(
+                "UPDATE syn_effects SET status = 'prepared', updated_at = ? "
+                "WHERE id = ? AND status = 'failed'", (iso(utcnow()), effect_id))
+            self._db.commit()
+            return cursor.rowcount == 1
+
+
+#: enumerated states and guarded transitions for the schema-v55 typed-outputs tables
 _UPLOAD_STATES = frozenset({"ready", "quarantined", "expired", "deleted"})
 _MEDIA_JOB_TERMINAL = frozenset({"succeeded", "failed", "cancelled"})
 _MEDIA_JOB_TRANSITIONS = {

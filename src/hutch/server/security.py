@@ -241,6 +241,7 @@ class SecurityMiddleware:
                         scope, receive, send)
                     return
         if scope.get("path") in ("/auth/callback", "/api/v1/connections/google-calendar/callback",
+                                  "/api/v1/connections/google-workspace/callback",
                                   "/api/v1/connections/google-mail/callback",
                                   "/api/v1/connections/outlook-calendar/callback",
                                   "/api/v1/connections/outlook-calendar-write/callback",

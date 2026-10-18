@@ -45,6 +45,11 @@ class hutchConfig:
         """Durable generated-document store (immutable, content-addressed versions)."""
         return self.state_dir / "documents"
 
+    @property
+    def synthesis_dir(self) -> Path:
+        """Durable synthesis-artifact store (audio, scripts, infographics; content-addressed)."""
+        return self.state_dir / "synthesis"
+
     def bot_dir(self, bot_name: str) -> Path:
         return self.bots_dir / bot_name
 

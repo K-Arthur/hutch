@@ -1501,6 +1501,14 @@ class GoogleCalendarSignInRequest(BaseModel):
     allow_event_creation: bool = False
 
 
+class GoogleWorkspaceSignInRequest(BaseModel):
+    label: str = Field(min_length=1, max_length=80)
+
+
+class GoogleWorkspaceAuthorizationResource(BaseModel):
+    authorization_url: str
+
+
 class GoogleCalendarGrantRequest(BaseModel):
     bot: str = Field(min_length=1, max_length=128)
     account_id: str = Field(min_length=1, max_length=64)
@@ -5920,6 +5928,130 @@ def create_app() -> FastAPI:
         if status == "error":
             response.headers["Location"] = f"/?google_calendar_result=error&detail={quote(detail)}#/connections"
         return response
+
+    @app.get("/api/v1/connections/google-workspace")
+    def google_workspace_connections() -> dict:
+        from dataclasses import asdict
+
+        from ..gsuite.client import GoogleWorkspaceClient
+        from ..gsuite.requests import GOOGLE_WORKSPACE_SCOPES
+        client_id = effective_google_oauth_client_id()
+        book = GoogleWorkspaceClient(config.state_dir, client_id or "unset")
+        return {
+            "configured": valid_google_oauth_client_id(client_id),
+            "secret_store_available": bool(book.secrets.available()),
+            "accounts": [asdict(account) for account in book.accounts()],
+            "scopes": list(GOOGLE_WORKSPACE_SCOPES),
+            "callback_path": GoogleWorkspaceClient.callback_path,
+            "detail": ("Docs, Sheets and per-file Drive access (drive.file); sharing is never "
+                       "requested here and remains a separate action."),
+        }
+
+    @app.post("/api/v1/connections/google-workspace/sign-in",
+              response_model=GoogleWorkspaceAuthorizationResource)
+    def google_workspace_sign_in(request: Request, body: GoogleWorkspaceSignInRequest,
+                                 response: Response) -> dict:
+        from ..gsuite.client import GoogleWorkspaceClient, GoogleWorkspaceError
+        try:
+            book = GoogleWorkspaceClient(config.state_dir, effective_google_oauth_client_id())
+            callback = book.callback_uri(request)
+            result = book.start(body.label, callback)
+        except GoogleWorkspaceError as exc:
+            raise HTTPException(409, str(exc)) from None
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        return {"authorization_url": result.url}
+
+    @app.get("/api/v1/connections/google-workspace/callback", include_in_schema=False)
+    def google_workspace_oauth_callback(request: Request):
+        from ..gsuite.client import GoogleWorkspaceClient, GoogleWorkspaceError
+        status = "connected"
+        detail = ""
+        try:
+            callback = GoogleWorkspaceClient.callback_uri(request)
+            values: dict[str, str] = {}
+            for key in ("state", "code", "error"):
+                entries = request.scope.get("hutch_oauth_query", {}).get(key, [])
+                if len(entries) > 1:
+                    raise GoogleWorkspaceError("Google returned a duplicate sign-in field; start again")
+                values[key] = entries[0] if entries else ""
+            if not values["state"]:
+                raise GoogleWorkspaceError("Google did not return sign-in state; start again")
+            book = GoogleWorkspaceClient(config.state_dir, effective_google_oauth_client_id())
+            if values["error"]:
+                book.cancel(values["state"])
+                raise GoogleWorkspaceError("Google Workspace access was not granted; no account was connected")
+            book.finish(values["state"], values["code"], callback)
+        except GoogleWorkspaceError as exc:
+            status, detail = "error", str(exc)
+        response = RedirectResponse(f"/?google_workspace_result={status}#/connections", status_code=303)
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        if status == "error":
+            response.headers["Location"] = (
+                f"/?google_workspace_result=error&detail={quote(detail)}#/connections")
+        return response
+
+    @app.post("/api/v1/connections/google-workspace/accounts/{account_id}/disconnect")
+    def google_workspace_disconnect(account_id: str) -> dict:
+        from ..gsuite.client import GoogleWorkspaceClient, GoogleWorkspaceError
+        try:
+            book = GoogleWorkspaceClient(config.state_dir, effective_google_oauth_client_id())
+            book.disconnect(account_id)
+        except GoogleWorkspaceError as exc:
+            raise HTTPException(422, str(exc)) from None
+        return {"removed": True,
+                "detail": ("Local access was cleared; Google revocation is attempted, and if "
+                           "Google could not be reached, review connected apps in the account.")}
+
+    @app.get("/api/v1/synthesis/manifests/{manifest_id}")
+    def get_synthesis_manifest(manifest_id: str) -> dict:
+        row = store.get_synthesis_manifest(manifest_id)
+        if row is None:
+            raise HTTPException(404, "no such synthesis manifest")
+        return {
+            "manifest_id": manifest_id,
+            "revision": int(row["revision"]),
+            "status": str(row["status"]),
+            "language": str(row["language"]),
+            "policy": str(row["policy"]),
+            "manifest": row["doc"],
+            "artifacts": store.list_synthesis_artifacts(manifest_id),
+        }
+
+    @app.get("/api/v1/synthesis/artifacts/{artifact_id}/content")
+    def download_synthesis_artifact(artifact_id: str, request: Request) -> Response:
+        from ..synthesis.storage import SynthesisIntegrityError, SynthesisStorage, SynthesisStorageError
+        row = store.get_synthesis_artifact(artifact_id)
+        if row is None:
+            raise HTTPException(404, "no such synthesis artifact")
+        if str(row["status"]) not in ("committed", "validated"):
+            raise HTTPException(409, "this artifact is not in a servable state")
+        storage = SynthesisStorage(config)
+        try:
+            data = storage.read_artifact(str(row["storage_path"]), str(row["sha256"]),
+                                         int(row["bytes"]))
+        except SynthesisIntegrityError as exc:
+            raise HTTPException(409, str(exc)) from None
+        except SynthesisStorageError as exc:
+            raise HTTPException(404, str(exc)) from None
+        headers = {
+            "Content-Disposition": _content_disposition(str(row["storage_name"])),
+            "Cache-Control": "no-store", "ETag": f'"{row["sha256"]}"',
+            "X-Content-Type-Options": "nosniff", "X-Hutch-Artifact-Verified": "sha256",
+        }
+        range_header = request.headers.get("range", "")
+        match = re.fullmatch(r"bytes=(\d+)-(\d*)", range_header.strip())
+        if match:
+            start = int(match.group(1))
+            end = int(match.group(2)) if match.group(2) else len(data) - 1
+            if start >= len(data) or end < start:
+                raise HTTPException(416, "requested range not satisfiable")
+            end = min(end, len(data) - 1)
+            headers["Content-Range"] = f"bytes {start}-{end}/{len(data)}"
+            return Response(content=data[start:end + 1], status_code=206,
+                            media_type=str(row["mime"]), headers=headers)
+        return Response(content=data, media_type=str(row["mime"]), headers=headers)
 
     @app.get("/api/v1/connections/google-mail", response_model=GoogleMailResource)
     def google_mail_connections() -> dict:
