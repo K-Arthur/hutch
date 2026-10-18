@@ -290,7 +290,7 @@ Every number below is a **target to establish with the named measurement** durin
 
 ## 10. Test and acceptance mapping (brief §11 scenarios → concrete tests)
 
-House rules: pure contracts first, then real servers, persistence/process recovery, browser, then available real models [brief §11]. Skips are recorded as unverified, never counted as passed (tests.md:4). "Host" = this machine (Linux, Python 3.13 via `uv run`, Playwright Chromium installed; **no GPU** — tests/fakes.py:8-9 records real-model validation as out of reach).
+House rules: pure contracts first, then real servers, persistence/process recovery, browser, then available real models [brief §11]. Skips are recorded as unverified, never counted as passed (acceptance-test table in `docs/realignment/tests.md`). "Host" = this machine (Linux, Python 3.13 via `uv run`, Playwright Chromium installed; **no GPU** — tests/fakes.py:8-9 records real-model validation as out of reach).
 
 | §11 scenario | Concrete tests (new T-* unless noted) | Host-verifiable? |
 |---|---|---|
@@ -306,7 +306,7 @@ House rules: pure contracts first, then real servers, persistence/process recove
 | Combined everyday task | T-EVERYDAY-COMBINED e2e journey: research (local site) → grounded local report/artifact → optional approved sync → continue after compaction; provenance preserved | Yes with fakes/local sites; hosted legs blocked |
 | Offline and UI resilience | T-OFFLINE-UI-RESILIENCE: local-model/local-artifact flows under blocked networking (extends tests/e2e/test_browser_egress.py); repeated navigation/reconnect, concurrent settings edits, mobile previews — no state loss/resource leaks | Yes (browser installed) |
 
-Per-slice gates additionally run: the exact T-FULL-REGRESSION command in docs/realignment/tests.md (full offline suite; the recorded run in T-FULL-REGRESSION took 872.90 s ≈ 15 min and an earlier rebased-tree record was 550.64 s — machine-dependent, record actuals each gate; no release claim until it passes unmodified beyond the tracked S0 xfails), `uv run python -m benchmarks.run --check` (T-PERF-BUDGET, tests.md:92), token/CSS/a11y static gates, and the named e2e journeys for UI slices with the full artifact set (visual-validation.md bar).
+Per-slice gates additionally run: the exact T-FULL-REGRESSION command in `docs/realignment/tests.md` (full offline suite; the recorded run in T-FULL-REGRESSION took 872.90 s ≈ 15 min and an earlier rebased-tree record was 550.64 s — machine-dependent, record actuals each gate; no release claim until it passes unmodified beyond the tracked S0 xfails), `uv run python -m benchmarks.run --check` (T-PERF-BUDGET row in `docs/realignment/tests.md`), token/CSS/a11y static gates, and the named e2e journeys for UI slices with the full artifact set (visual-validation.md bar).
 
 ## 11. Classification discipline
 
