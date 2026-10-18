@@ -251,3 +251,18 @@ def test_the_engine_records_the_containment_in_the_run_log(store, config, tmp_pa
     run = Engine(config, store).run_blocking(bot, "research the news and write a report")
     logs = [e.data for e in store.list_events(run.id) if e.type.value == "log" and "containment" in e.data]
     assert logs and "OS sandbox" in logs[0]["containment"]
+
+
+def test_the_egress_probe_uses_an_interpreter_inside_its_own_mounts():
+    """The Strict Offline probe mounts only the system tree.
+
+    ``shutil.which("python3")`` finds a venv shim when Hutch runs from its venv,
+    whose target is not mounted — the probe then failed for an interpreter-path
+    reason and Strict Offline reported unavailable. The probe must choose an
+    interpreter that exists inside the mounts it creates.
+    """
+    interpreter = sandbox._mounted_interpreter()
+    if interpreter:
+        assert Path(interpreter).resolve().is_relative_to("/usr")
+    if Path("/usr/bin/python3").exists():
+        assert interpreter, "a system python3 exists and must be chosen"

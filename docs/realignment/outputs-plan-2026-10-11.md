@@ -1,3 +1,7 @@
+> Integration note (2026-10-11, `security/containment`): this plan's references to
+> "schema v51" describe the outputs lane in isolation. On the integrated tree the
+> typed-outputs migration is **v54** (cost v51/v52, grounding v53).
+
 # Unified outputs — lane plan and checkpoint (2026-10-11)
 
 Task: real media generation/editing/playback; a contained native Python workspace with CSV

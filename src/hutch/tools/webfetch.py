@@ -21,6 +21,7 @@ from urllib.parse import urljoin
 
 from ..grounding.clock import SYSTEM_CLOCK
 from ..grounding.temporal import TimestampRole, TimestampValue, parse_iso
+from ..ingest import DEFAULT_SCAN_CHARS, annotation, assess, strip_html_comments
 from ..netguard import NetGuardError, safe_get
 from .base import Tool, ToolContext, ToolResult, _schema, clip
 
@@ -137,8 +138,11 @@ class WebFetchTool(Tool):
             return ToolResult(ok=False, output=f"error fetching {url}: {exc}")
         body = resp.text
         html = "html" in resp.headers.get("content-type", "").lower()
+        comments_removed = 0
+        hidden_comment_text = ""
         if html:
-            body = html_to_text(body)
+            cleaned, hidden_comment_text, comments_removed = strip_html_comments(resp.text)
+            body = html_to_text(cleaned)
         status = f"HTTP {resp.status} {resp.reason}"
         note = "\n[response clipped at the size limit]" if resp.truncated else ""
         clock = getattr(ctx, "clock", None) or SYSTEM_CLOCK
@@ -158,8 +162,18 @@ class WebFetchTool(Tool):
                                 f"precision {value.precision}{', uncertain' if value.uncertain else ''})")
         if html and not metadata.get("dates"):
             header_lines.append("source-declared dates: none found (absence is not evidence about the event time)")
+        # Untrusted-content scan: flag and disclose; never rewrite the payload.
+        findings = assess(body)
+        if hidden_comment_text:
+            findings = sorted(findings + assess(hidden_comment_text, source="html-comment"),
+                              key=lambda f: (f.start, f.rule))
+        scan_note = annotation(findings,
+                               assessed_chars=min(len(body), DEFAULT_SCAN_CHARS),
+                               total_chars=len(body), comments_removed=comments_removed)
         excerpt = body.strip()[:600]
-        text = f"{chr(10).join(header_lines)}\n\n{excerpt}{note}"
+        text = f"{chr(10).join(header_lines)}\n\n{scan_note + chr(10) + chr(10) if scan_note else ''}{excerpt}{note}"
+        security = {"findings": [f.to_json() for f in findings], "comments_removed": comments_removed,
+                    "assessed_chars": min(len(body), DEFAULT_SCAN_CHARS), "total_chars": len(body)}
         try:
             self._record_source(ctx, resp, metadata, excerpt, clock)
         except Exception as exc:  # evidence bookkeeping must never fail the read itself
@@ -170,6 +184,7 @@ class WebFetchTool(Tool):
             data={"url": resp.url, "status": resp.status, "redirects": len(resp.redirects),
                   "canonical_url": metadata.get("canonical_url", ""),
                   "dates": [v.to_json() for v in metadata.get("dates", [])],
+                  "security": security,
                   "evidence": {"recorded": bool(metadata)}},
         )
 

@@ -1380,13 +1380,21 @@ function errorState(err) {
     ${icon("alert", "icon-lg")}
     <p><b>Could not load this view.</b></p>
     <p class="hint">${esc(err.message || err)}</p>
-    <p><a href="#/chat">Back to the studio</a> · <button class="btn ghost small" onclick="route()">Try again</button></p>
+    <p><a href="#/chat">Back to the studio</a> · <button class="btn ghost small" type="button" data-retry-route="1">Try again</button></p>
   </div></div></div>`;
 }
 
 function setTopContext(html) { if (topContext) topContext.innerHTML = html; }
 
 window.addEventListener("hashchange", () => route(true));
+/* Delegated so the strict local CSP can forbid inline handlers: a rebuilt
+   error state needs no re-wiring. */
+document.addEventListener("click", event => {
+  if (event.target.closest?.("[data-retry-route]")) {
+    event.preventDefault();
+    void route();
+  }
+});
 
 /* -------------------------------------------------- roster + attention */
 

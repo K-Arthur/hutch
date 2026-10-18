@@ -309,7 +309,17 @@ class OfflineBrokerSet:
     def __init__(self, endpoints: Iterable[str]):
         # Honor the operator's TMPDIR: a hardcoded /tmp broke Strict Offline wherever /tmp is
         # small, read-only, or full (this host's shared tmpfs filled during a full test run).
-        self._temp = tempfile.TemporaryDirectory(prefix="hutch-o-", dir=tempfile.gettempdir())
+        configured_tmp = os.environ.get("TMPDIR")
+        temp_root = (Path(configured_tmp) if configured_tmp and Path(configured_tmp).is_dir()
+                     and os.access(configured_tmp, os.W_OK | os.X_OK) else Path(tempfile.gettempdir()))
+        try:
+            self._temp = tempfile.TemporaryDirectory(prefix="hutch-o-", dir=str(temp_root))
+        except OSError:
+            # An invalid or concurrently removed TMPDIR must not prevent local work when the
+            # platform's normal temporary directory is still available.
+            if temp_root == Path(tempfile.gettempdir()):
+                raise
+            self._temp = tempfile.TemporaryDirectory(prefix="hutch-o-", dir=tempfile.gettempdir())
         os.chmod(self._temp.name, 0o700)
         self.brokers = []
         self.directory = self._temp.name

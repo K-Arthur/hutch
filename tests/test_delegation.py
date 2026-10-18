@@ -199,11 +199,13 @@ def _remove_later_conversation_schema(db):
     db.execute("DROP INDEX IF EXISTS idx_documents_conversation")
     db.execute("DROP INDEX IF EXISTS idx_documents_bot")
     db.execute("DROP INDEX IF EXISTS idx_document_versions_run")
+    db.execute("DROP INDEX IF EXISTS idx_usage_run")
     db.execute("DROP INDEX IF EXISTS idx_uploads_conversation")
     db.execute("DROP INDEX IF EXISTS idx_media_jobs_run")
     db.execute("DROP INDEX IF EXISTS idx_media_jobs_conversation")
     db.execute("DROP INDEX IF EXISTS idx_runs_conversation_created")
     for table in ("uploads", "media_jobs", "workspace_sessions", "document_versions", "documents",
+                  "budget_pause_releases", "budget_policies",
                   "inv_stream_cursors", "inv_answers", "inv_observations", "inv_media_frames", "inv_media",
                   "inv_evidence", "inv_claims", "inv_sources", "inv_query_attempts", "investigations",
                   "doc_index_fts", "doc_index_chunks", "doc_index_generations",
@@ -213,6 +215,14 @@ def _remove_later_conversation_schema(db):
                   "conversation_questions", "google_calendar_grants", "memory_fact_shares", "code_handoffs",
                   "task_templates"):
         db.execute(f"DROP TABLE IF EXISTS {table}")
+    reservation_columns = {row[1] for row in db.execute("PRAGMA table_info(usage_reservations)")}
+    for column in ("cost_unknown", "quote_source", "quote_verified_on"):
+        if column in reservation_columns:
+            db.execute(f"ALTER TABLE usage_reservations DROP COLUMN {column}")
+    usage_columns = {row[1] for row in db.execute("PRAGMA table_info(usage)")}
+    for column in ("cost_source", "reported_cost_usd"):
+        if column in usage_columns:
+            db.execute(f"ALTER TABLE usage DROP COLUMN {column}")
     columns = {row[1] for row in db.execute("PRAGMA table_info(messages)")}
     for column in ("workspace_task_result_id", "workspace_task_result_message_id",
                    "workspace_task_result_display_name", "workspace_task_result_content",

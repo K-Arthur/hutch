@@ -325,6 +325,7 @@ def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, arg
 def finish_step(run: Run, ctx: ToolContext, timer: StepTimer, *, model: str = "",
                 prompt_tokens: int = 0, completion_tokens: int = 0, cached_tokens: int = 0,
                 cost_usd: float = 0.0, account_id: str = "", reservation_id: Optional[str] = None,
+                cost_source: str = "", reported_cost_usd: Optional[float] = None,
                 **extra: Any) -> None:
     """Fold a step into the run's totals and append its ``step`` event."""
     total_ms = (time.perf_counter() - timer.t0) * 1000.0
@@ -345,11 +346,13 @@ def finish_step(run: Run, ctx: ToolContext, timer: StepTimer, *, model: str = ""
         provider, _, name = (model or run.model_used or "unknown/unknown").partition("/")
         ctx.store.add_usage(run.id, run.bot_id, provider, name or provider, prompt_tokens, completion_tokens,
                             cached_tokens, cost_usd, account_id=account_id, reservation_id=reservation_id,
-                            expected_fence=run.fence)
+                            expected_fence=run.fence, cost_source=cost_source,
+                            reported_cost_usd=reported_cost_usd)
     ctx.emit(Event(run_id=run.id, type=EventType.step, data={
         "n": run.steps, "model": model or run.model_used,
         "prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens,
-        "cached_tokens": cached_tokens, "cost_usd": round(cost_usd, 8),
+        "cached_tokens": cached_tokens, "cost_usd": round(cost_usd, 8), "cost_source": cost_source,
+        "reported_cost_usd": reported_cost_usd,
         "model_ms": round(timer.model_ms, 2), "tool_ms": round(timer.tool_ms, 2), "queue_ms": round(timer.queue_ms, 2),
         "overhead_ms": round(overhead_ms, 3), **extra,
     }))

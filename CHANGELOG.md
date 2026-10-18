@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Harden prompt-injection and content boundaries: untrusted tool results cannot forge envelope framing, hidden HTML comments are assessed separately from visible source text, and stored SVG rejects external CSS fetches. Apply strict CSP to the local dashboard as well as paired sessions, and keep approvals bound to the exact executed effect. Adversarial containment and ingestion regressions cover the retained evidence and fail-closed paths.
+- Add scoped spend guardrails with route-bound approval pauses, ceilings, warning bands and quote provenance. Unknown prices follow the configured refuse/mark policy; provider-reported settlement remains distinct from estimates. The budget migration is additive at schema v57 and converges idempotently across the prior development migration layouts.
+
 - Add validated typed output cards for charts, tables, timelines, comparisons, flowcharts, media, artifacts and code receipts. Blocks carry readable fallbacks and are rendered only from explicit tool data; invalid blocks remain visible as diagnostics. Add durable media jobs and content-addressed, hash-verified media storage with deterministic local renderers and optional OpenAI Images or ComfyUI adapters.
 - Add bounded conversation uploads and disclosures, plus a contained persistent Python workspace with generation-bound sessions and code receipts. Uploads are magic-byte checked, hash-verified at serve time, and registered under an atomic 200-file conversation cap; media and workspace routes remain owner-only.
 - Keep known connection models' billing notes visible when provider catalog discovery is unavailable, and report the discovery problem as supplemental detail.

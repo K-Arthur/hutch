@@ -254,10 +254,23 @@ def sanitize_svg(data: bytes) -> tuple[bytes, list[str]]:
         tag = _local_name(element.tag)
         if tag in _SCRIPT_ELEMENTS:
             problems.append(f"<{tag}> elements are not accepted (script/embedding vector)")
+        if tag == "style":
+            # CSS can fetch: url(...) and @import reach whatever the sheet names.
+            css = _normalize_url("".join(element.itertext()))
+            if "@import" in css:
+                problems.append("<style> uses @import (an external stylesheet reference)")
+            if "url(" in css and any(token in css for token in
+                                     ("http://", "https://", "//", "ftp:", "file:", "data:")):
+                problems.append("<style> carries an external url(...) reference")
         for attr_name, attr_value in element.attrib.items():
             local = _local_name(attr_name)
             if local.startswith("on"):
                 problems.append(f"event-handler attribute '{attr_name}' is not accepted")
+            if local == "style":
+                css = _normalize_url(attr_value)
+                if "url(" in css and any(token in css for token in
+                                         ("http://", "https://", "//", "ftp:", "file:", "data:")):
+                    problems.append("style attribute carries an external url(...) reference")
             if local == "attributename" and attr_value.strip().lower().startswith("on"):
                 problems.append("SMIL animation targeting an event-handler attribute is not accepted")
             normalized = _normalize_url(attr_value)

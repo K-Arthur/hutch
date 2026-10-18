@@ -375,6 +375,14 @@ class SecurityMiddleware:
                     b"permissions-policy": b"camera=(), microphone=(), geolocation=()",
                 }
                 paired_request = bool(principal and principal.get("kind") == "paired")
+                # The CSP is defense in depth on the local surface too: a stored
+                # injection in a page the owner's browser already trusts must not
+                # be able to fetch elsewhere or inline a script. The SPA loads
+                # only external same-origin scripts; inline styles stay allowed.
+                security_headers[b"content-security-policy"] = (
+                    b"default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; "
+                    b"form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+                    b"img-src 'self' data:; connect-src 'self'")
                 if remote_request or paired_request:
                     security_headers[b"content-security-policy"] = (
                         b"default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; "

@@ -53,6 +53,21 @@ def test_health_and_stats(client):
     assert stats["bots"] == 0 and stats["pending_approvals"] == 0
 
 
+def test_the_local_surface_carries_the_strict_csp_too(client):
+    """Mission §11: the local dashboard is protected like the paired one.
+
+    A stored injection in a page the owner's browser already trusts must not
+    reach another origin or inline a script. The SPA loads only same-origin
+    scripts, so the strict policy is compatible with the shipped UI.
+    """
+    response = client.get("/")
+    csp = response.headers["content-security-policy"]
+    assert "default-src 'self'" in csp
+    assert "script-src 'self'" in csp and "connect-src 'self'" in csp
+    assert "frame-ancestors 'none'" in csp and "object-src 'none'" in csp
+    assert "img-src 'self' data:" in csp
+
+
 def test_tool_compatibility_reports_route_evidence_without_a_probe(client):
     make_bot(client, "local-tools-bot", model="ollama/llama3.2")
     report = client.get("/api/v1/tool-compatibility", params={"ref": "local-tools-bot"})

@@ -23,7 +23,7 @@ V51_TABLES = ("uploads", "media_jobs", "workspace_sessions")
 
 
 def test_outputs_migration_precedes_the_additive_grounding_migration():
-    assert SCHEMA_VERSION == 56
+    assert SCHEMA_VERSION >= 57
 
 
 def test_output_table_installer_is_idempotent_and_check_constrained():
@@ -67,7 +67,7 @@ def test_the_downgrade_helper_knows_v55_and_reopening_recreates_the_tables(store
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == SCHEMA_VERSION == 56
+        assert upgraded.schema_version == SCHEMA_VERSION >= 57
         for table in V51_TABLES:
             assert upgraded._db.execute(
                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone()
@@ -94,7 +94,7 @@ def test_historical_output_v51_shape_upgrades_without_losing_uploads(store, conf
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == SCHEMA_VERSION == 56
+        assert upgraded.schema_version == SCHEMA_VERSION >= 57
         assert upgraded.get_upload(upload["id"])["filename"] == "history.csv"
         assert {row[0] for row in upgraded._db.execute(
             "SELECT name FROM sqlite_master WHERE type='table'")} >= set(V51_TABLES)
@@ -112,7 +112,7 @@ def test_v54_to_current_preserves_existing_rows(store, config):
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == SCHEMA_VERSION == 56
+        assert upgraded.schema_version == SCHEMA_VERSION >= 57
         assert upgraded.get_upload(upload["id"])["sha256"] == "e" * 64
     finally:
         upgraded.close()

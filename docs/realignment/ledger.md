@@ -4254,3 +4254,14 @@ real-uvicorn handshake test asserts instance and PID matching; the pipeline test
 a rendered image-only page; browser captures at 1440/900/390/320 were inspected with zero console errors
 and no overflow. The summarize step used the deterministic test runtime — no live model, provider, feed,
 physical device, or systemd install on this host. Full-suite result is recorded in the session report.
+
+## Security and containment integration (2026-10-18)
+
+The `security/containment` branch contributes prompt-envelope escaping, hidden-markup assessment,
+SVG external-fetch rejection, a strict local-dashboard CSP, and exact-effect consent hardening. It also
+contains the initial scoped-budget implementation. Its historical candidate used a different migration
+lineage (budget v51–v52, grounding v53, outputs v54); those numbers are not current. The combined tree
+keeps the mainline migrations through v56 and installs budget state additively at v57 with shape checks
+for branch databases that already contain those tables or columns. Historical branch test counts in
+`docs/research/security-containment-2026-10-11.md` describe that branch candidate only; they do not certify
+this combined tree. Final verification is recorded after all integration slices complete.

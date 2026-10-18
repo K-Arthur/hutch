@@ -13,7 +13,7 @@ write the journal → promote with ``os.replace`` into a fresh per-version direc
 (manifest first, then content) → fsync both directories → insert the SQLite row (the
 CALLER's transaction — this module returns paths and hashes and never opens the
 database) → clear the journal. A crash between promotion and the row insert leaves a
-version that no query can reach, so reconciliation deletes it. Schema v51 has no
+version that no query can reach, so reconciliation deletes it. Schema v54 has no
 media-versions table, so every promoted version carries its own ``manifest.json``
 (mime, sha256, size, kind, dimensions...) and serving re-verifies size + SHA-256
 against it before anyone sees bytes — a row whose bytes went missing fails honestly
@@ -233,7 +233,7 @@ class MediaStorage:
         """Promote staged bytes to an immutable version and record it via ``insert_row``.
 
         ``insert_row`` must persist the identity row (its own transaction — for the
-        v51 schema that is a ``media_jobs`` transition carrying the payload). If it
+        v54 schema that is a ``media_jobs`` transition carrying the payload). If it
         raises, the promotion is rolled back so nothing unverifiable remains.
         ``poster`` optionally promotes a second staged asset (from the SAME staging
         job) into the same version directory; the manifest records its hash so the
@@ -363,7 +363,7 @@ class MediaStorage:
         """Find the promoted version directory for ``(media_id, version)`` without
         following symlinks, and return ``(version dir name, manifest)``.
 
-        Schema v51 has no media-versions table; the manifest written atomically at
+        Schema v54 has no media-versions table; the manifest written atomically at
         commit time is the version's self-description. A directory whose manifest is
         missing or corrupt is treated as absent (it was never fully promoted).
         """

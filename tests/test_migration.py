@@ -687,7 +687,7 @@ def test_v55_grounding_install_preserves_output_rows_and_repeats_startup(config)
     for _ in range(2):
         upgraded = Store(config)
         try:
-            assert upgraded.schema_version == SCHEMA_VERSION == 56
+            assert upgraded.schema_version == SCHEMA_VERSION >= 56
             assert upgraded.get_upload("upl_v55_kept")["conversation_id"] == conversation["id"]
             names = {row["name"] for row in upgraded._db.execute("SELECT name FROM sqlite_master")}
             assert {"investigations", "inv_sources", "uploads"} <= names

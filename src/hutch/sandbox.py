@@ -299,6 +299,28 @@ def _local_non_loopback_addresses() -> dict[int, list[str]]:
     return {family: list(dict.fromkeys(items)) for family, items in addresses.items()}
 
 
+def _mounted_interpreter() -> str:
+    """A Python that exists inside the probe's read-only system mounts.
+
+    ``shutil.which("python3")`` finds the venv shim when Hutch runs from its
+    own venv, but the probe mounts only the system tree; the shim's target is
+    not there, so the probe would fail — and Strict Offline would report
+    unavailable — for an interpreter-path reason unrelated to egress. Prefer
+    an interpreter under ``/usr``, which the probe always mounts.
+    """
+    candidates = (Path("/usr/bin/python3"), Path("/usr/local/bin/python3"),
+                  Path(sys.base_prefix) / "bin" / "python3")
+    for candidate in candidates:
+        try:
+            resolved = candidate.resolve(strict=True)
+        except OSError:
+            continue
+        if resolved.is_relative_to("/usr"):
+            return str(resolved)
+    system = shutil.which("python3", path="/usr/local/bin:/usr/bin:/bin")
+    return system or ""
+
+
 def _probe_offline_egress() -> OfflineStatus:
     """Verify network/PID isolation and that a mounted broker UDS stays reachable.
 
@@ -355,7 +377,10 @@ def _probe_offline_egress() -> OfflineStatus:
                                (family, host_listener.getsockname()[0], port)))
         if not tcp_targets:
             return OfflineStatus(False, reason="no local TCP address family could be tested")
-        with tempfile.TemporaryDirectory(prefix="hutch-probe-", dir="/tmp") as broker_dir:
+        # Honor TMPDIR: on hosts whose /tmp is a small full tmpfs, creating the
+        # probe directory there would fail the egress check for an unrelated reason.
+        probe_root = os.environ.get("TMPDIR") or "/tmp"
+        with tempfile.TemporaryDirectory(prefix="hutch-probe-", dir=probe_root) as broker_dir:
             broker_listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             broker_path = str(Path(broker_dir) / "probe.sock")
             broker_listener.bind(broker_path)
@@ -387,11 +412,14 @@ def _probe_offline_egress() -> OfflineStatus:
                 "pids={int(p) for p in os.listdir('/proc') if p.isdigit()}",
                 "sys.exit(0 if ok and blocked and os.getpid()==2 and pids<={1,2} else 7)",
             ))
+            interpreter = _mounted_interpreter()
+            if not interpreter:
+                return OfflineStatus(False, reason="no system python3 under /usr for the egress probe")
             bwrap = offline_scope_prefix()
             bwrap += ["--ro-bind", "/usr", "/usr", *_layout(), *_etc(network=False),
                       "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--tmpfs", "/run",
                       "--dir", "/run/hutch-offline", "--ro-bind", broker_dir, "/run/hutch-offline",
-                      "--", shutil.which("python3") or sys.executable, "-c", code,
+                      "--", interpreter, "-c", code,
                       "/run/hutch-offline/probe.sock", json.dumps(tcp_targets)]
             isolated = subprocess.run(bwrap, capture_output=True, text=True, timeout=12, check=False)
             broker_thread.join(timeout=1)

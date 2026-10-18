@@ -21,9 +21,10 @@ from dataclasses import dataclass
 from typing import Optional
 
 from ..models import Bot, Run, iso, utcnow
+from ..money import parse_usd, to_store_reserved
 from ..providers import Provider, make_provider, parse_spec
 from ..providers.pricing import PriceBook
-from ..store import UsageBudgetRefusal
+from ..store import CallQuote, Reservation
 
 _PROVIDERS: dict[tuple, Provider] = {}
 _LOCK = threading.Lock()
@@ -118,10 +119,58 @@ class SpendGuard:
     def spent_today(self) -> float:
         return self.store.cost_today(self.bot.id)
 
+    def policies(self, rung: Rung) -> dict:
+        """The configured warn/pause/ceiling bands that apply to a call on this rung."""
+        account_id, _cap, _quotas = self.account_policy(rung)
+        try:
+            return self.store.budget_policies_for(run_id=self.run.id, account_id=account_id)
+        except Exception:
+            return {}
+
     @property
     def has_cost_caps(self) -> bool:
         lim = self.bot.limits
-        return bool(lim.max_cost_usd or lim.daily_cost_cap_usd)
+        if lim.max_cost_usd or lim.daily_cost_cap_usd:
+            return True
+        return bool(self.store.budget_policies_for(run_id=self.run.id))
+
+    def worst_case(self, rung: Rung, est_prompt_tokens: int, max_turn_tokens: int) -> CallQuote:
+        """The price basis admission will hold, from the best available source.
+
+        Resolution order: local -> flat subscription -> (future: live OpenRouter quote) -> the price
+        file. ``usd=None`` means no basis exists; it is never treated as free, and the budget policy's
+        ``unknown_price`` setting decides whether admission refuses it.
+        """
+        if rung.local:
+            return CallQuote(usd=0.0, source="local")
+        if rung.provider in self.prices.flat_providers:
+            return CallQuote(usd=0.0, source="flat")
+        conn = self.connections.get(rung.provider) if self.connections else None
+        if conn is not None and getattr(conn, "template", "") == "openrouter":
+            # Live endpoint quotes first: a fresh quote beats the reviewed file row, and a stale one is
+            # used only as a labeled fallback. No quote at all falls through to the file (a reviewed
+            # override with provenance) and then to "no basis" — never to an invented zero.
+            from ..providers import openrouter_pricing
+            service = openrouter_pricing.live_pricing(
+                getattr(conn, "base_url", "") or openrouter_pricing.DEFAULT_BASE_URL)
+            live_quote = service.quote(rung.model)
+            if live_quote is not None:
+                live = live_quote.worst_case(
+                    est_prompt_tokens, max_turn_tokens,
+                    eligible=lambda endpoint: (endpoint.supports_tools is None or endpoint.supports_tools)
+                    and (endpoint.context_length == 0 or endpoint.context_length >= est_prompt_tokens))
+                if live is not None:
+                    return CallQuote(usd=to_store_reserved(live), source="openrouter",
+                                     verified_on=live_quote.fetched_at.isoformat(), stale=live_quote.stale,
+                                     endpoints_considered=len(live_quote.endpoints))
+        cost = self.prices.cost(rung.provider, rung.model, est_prompt_tokens, max_turn_tokens)
+        if cost is None:
+            return CallQuote(usd=None, source="unknown")
+        price = self.prices.lookup(rung.provider, rung.model)
+        rounded = to_store_reserved(parse_usd(cost))
+        return CallQuote(usd=rounded, source="price_file",
+                         verified_on=(price.verified_on if price else ""),
+                         stale=(price.stale if price else True))
 
     def quota_state(self, rung: Rung) -> Optional[tuple[int, int, str]]:
         """(tokens used in the window, declared allowance, window) for a subscription connection, if one is set."""
@@ -139,19 +188,16 @@ class SpendGuard:
         cap, quotas = self.connections.account_policy(conn.account_id)
         return conn.account_id, cap, quotas
 
-    def reserve(self, rung: Rung, est_prompt_tokens: int, max_turn_tokens: int) -> str:
+    def reserve(self, rung: Rung, est_prompt_tokens: int, max_turn_tokens: int, *, route_hash: str = "") -> Reservation:
         """Acquire a cross-process reservation before this provider call may start."""
         account_id, account_cap, quotas = self.account_policy(rung)
-        worst = self.prices.cost(rung.provider, rung.model, est_prompt_tokens, max_turn_tokens) or 0.0
-        try:
-            return self.store.reserve_usage(
-                run_id=self.run.id, bot_id=self.bot.id, provider=rung.provider, account_id=account_id,
-                model=rung.model, reserved_tokens=est_prompt_tokens + max_turn_tokens, reserved_cost_usd=worst,
-                daily_token_cap=self.bot.limits.daily_token_cap, max_run_cost_usd=self.bot.limits.max_cost_usd,
-                daily_bot_cost_cap_usd=self.bot.limits.daily_cost_cap_usd, expected_fence=self.run.fence,
-                daily_account_cost_cap_usd=account_cap, account_quotas=quotas)
-        except UsageBudgetRefusal:
-            raise
+        quote = self.worst_case(rung, est_prompt_tokens, max_turn_tokens)
+        return self.store.admit_and_reserve(
+            run_id=self.run.id, bot_id=self.bot.id, provider=rung.provider, account_id=account_id,
+            model=rung.model, reserved_tokens=est_prompt_tokens + max_turn_tokens, quote=quote,
+            daily_token_cap=self.bot.limits.daily_token_cap, max_run_cost_usd=self.bot.limits.max_cost_usd,
+            daily_bot_cost_cap_usd=self.bot.limits.daily_cost_cap_usd, expected_fence=self.run.fence,
+            daily_account_cost_cap_usd=account_cap, account_quotas=quotas, route_hash=route_hash)
 
     def quota_refusal(self, rung: Rung, est_prompt_tokens: int, max_turn_tokens: int) -> Optional[str]:
         """CN-5: stop BEFORE the plan's allowance is spent, not after the vendor cuts you off (or bills overage)."""
@@ -191,9 +237,15 @@ class SpendGuard:
         if quota:
             return quota
         if not self.prices.has_price(rung.provider, rung.model):
-            if self.has_cost_caps or account_cap:
+            policies = self.policies(rung)
+            strict = [p for p in policies.values() if p.ceiling_usd is not None or p.unknown_price == "refuse"]
+            if self.bot.limits.max_cost_usd or self.bot.limits.daily_cost_cap_usd or account_cap:
                 return (f"{rung.spec} has no price in prices.json, so Hutch cannot calculate a currency estimate "
                         "for the configured limit; add a row (or remove the limit) to use it")
+            if strict:
+                scope = strict[0]
+                return (f"{rung.spec} has no price basis and the USD budget on {scope.scope_kind} "
+                        f"'{scope.scope_id}' requires one; add a price row or allow unknown prices there")
             return None
         worst = self.prices.cost(rung.provider, rung.model, est_prompt_tokens, max_turn_tokens) or 0.0
         lim = self.bot.limits

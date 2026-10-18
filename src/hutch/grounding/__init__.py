@@ -10,7 +10,7 @@ The package is intentionally a set of small, dependency-free modules:
 * ``media``     bounded media acquisition, frame sampling, C2PA presence, no verdicts
 * ``report``    claim/evidence binding, separate assessment axes, citation-safe briefs
 
-Store tables (schema v51) keep investigations, attempts, source revisions, claims,
+Store tables (schema v53) keep investigations, attempts, source revisions, claims,
 evidence links, media artifacts/observations, answers and stream cursors; the tools in
 ``hutch.tools.live`` and the upgraded ``web_fetch`` write through them.
 """

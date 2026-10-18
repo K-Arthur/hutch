@@ -1,7 +1,7 @@
 """MediaJobService: the honest state machine over ``store.create_media_job`` /
 ``record_upstream_job`` / ``transition_media_job``.
 
-Status vocabulary. The v51 ``media_jobs.status`` CHECK allows exactly
+Status vocabulary. The v54 ``media_jobs.status`` CHECK allows exactly
 ``queued|running|succeeded|failed|cancelled``, so the service maintains its own
 caller-facing vocabulary on top and maps it honestly:
 

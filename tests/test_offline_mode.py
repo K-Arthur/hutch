@@ -185,6 +185,21 @@ def test_loopback_http_provider_uses_broker_from_network_isolated_worker(tmp_pat
         fake.close()
 
 
+def test_broker_sockets_honor_tmpdir_so_a_full_host_tmp_cannot_block_runs(tmp_path, monkeypatch):
+    """ENOSPC on a small /tmp tmpfs must not block local-model broker setup.
+
+    The broker directory is host-side state (mounted into the worker); honor
+    TMPDIR like every other temp consumer so tests and constrained hosts can
+    move it to disk-backed storage.
+    """
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    brokers = OfflineBrokerSet([])
+    try:
+        assert Path(brokers.directory).is_relative_to(tmp_path)
+    finally:
+        brokers.close()
+
+
 def test_offline_worker_cannot_read_saved_provider_credentials(tmp_path):
     import os
     import subprocess
