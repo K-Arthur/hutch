@@ -124,7 +124,9 @@ def _bounded_conversation_context(recent, selected_context=None, *, context_char
     """Apply the exact character and recency bounds used for a new chat run."""
     context: list[dict[str, str]] = []
     remaining = max(0, context_chars - len(selected_context["content"])) if selected_context else context_chars
-    for row in reversed(recent):
+    # Callers select the most recent rows with ORDER BY seq DESC. Spend the
+    # budget from newest to oldest so an old turn cannot evict a correction.
+    for row in recent:
         if remaining <= 0:
             break
         content = str(row["content"])
@@ -134,6 +136,7 @@ def _bounded_conversation_context(recent, selected_context=None, *, context_char
         if content:
             context.append({"role": str(row["role"]), "content": content})
             remaining -= len(content)
+    context.reverse()
     if selected_context:
         context.append(dict(selected_context))
     return context
@@ -7973,7 +7976,10 @@ class Store:
                 for row in rows]
 
     def append_event(self, event: Event) -> Event:
-        """Queue an event; the single writer commits in batches. Returns immediately, so the agent loop never waits on a disk commit.
+        """Persist the event intent before queueing it; the single writer commits canonical events in batches.
+
+        This waits for the small outbox transaction so a successful enqueue survives process exit. The later canonical
+        transcript write remains batched.
 
         ``seq`` and the chain ``hash`` are NOT assigned here: they are assigned at commit time, inside the write transaction, from
         the tail the DATABASE holds. Several processes append to one run's transcript (the worker, the dashboard recording a stop,

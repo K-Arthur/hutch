@@ -22,7 +22,7 @@ from hutch.providers.openai_compat import OpenAICompatProvider
 from hutch.providers.pricing import PriceBook
 from hutch.runtime import RunAborted
 from hutch.runtime.builtin import BuiltinRuntime, reset_connection_cache
-from hutch.runtime.ladder import Rung
+from hutch.runtime.ladder import Ladder, Rung
 from hutch.runtime.ladder import reset_provider_cache
 from hutch.safety import PolicyEngine
 from hutch.tools import build_tools
@@ -110,10 +110,10 @@ def test_workspace_coordinator_gets_scoped_task_brief_guidance(store, config, tm
 
 def test_hosted_window_notice_labels_advertised_context_as_unverified(store, config, tmp_path, monkeypatch):
     ctx, run, emitted, _ = build(store, config, tmp_path, model="openai/gpt-test")
-    monkeypatch.setattr("hutch.modelchoices.advertised_context_length", lambda provider, model: 1024)
+    monkeypatch.setattr("hutch.modelchoices.advertised_context_length", lambda *args: 1024)
 
     BuiltinRuntime()._hosted_window_notice(
-        ctx, run, Rung("openai/gpt-test", "openai", "gpt-test", False, "primary"),
+        ctx, run, Ladder(ctx.bot), Rung("openai/gpt-test", "openai", "gpt-test", False, "primary"),
         [{"role": "system", "content": "x" * 4000}], [])
 
     notice = next(event.data for event in emitted if event.type == EventType.log and event.data.get("kind") == "context")
@@ -126,10 +126,10 @@ def test_hosted_window_notice_labels_advertised_context_as_unverified(store, con
 
 def test_hosted_window_notice_reports_unknown_without_enforcing(store, config, tmp_path, monkeypatch):
     ctx, run, emitted, _ = build(store, config, tmp_path, model="openai/gpt-test")
-    monkeypatch.setattr("hutch.modelchoices.advertised_context_length", lambda provider, model: 0)
+    monkeypatch.setattr("hutch.modelchoices.advertised_context_length", lambda *args: 0)
 
     BuiltinRuntime()._hosted_window_notice(
-        ctx, run, Rung("openai/gpt-test", "openai", "gpt-test", False, "primary"),
+        ctx, run, Ladder(ctx.bot), Rung("openai/gpt-test", "openai", "gpt-test", False, "primary"),
         [{"role": "system", "content": "x" * 4000}], [])
 
     notice = next(event.data for event in emitted if event.type == EventType.log and event.data.get("kind") == "context")
@@ -469,6 +469,7 @@ def test_answer_rewrite_is_one_tool_free_response_without_workspace_or_action_co
     run.conversation_context = [{"role": "user", "content": reference}]
     run.persona_plan = contextualize_persona(resolve_persona(), "Go deeper on this answer.",
         conversation_context=run.conversation_context, answer_correction=run.rewrite_kind)
+    store.update_run(run)  # Mirror the engine's persisted run snapshot before claiming it.
     tools = Engine.tools_for_run(run, ctx.bot, ctx)
     action_context_reads = []
     monkeypatch.setattr(ctx.store, "action_context",
@@ -523,6 +524,7 @@ def _persona_preview_run(store, config, tmp_path, *, model="ollama/fake:8b", max
     run.persona_preview_revision = 7
     run.persona_plan = contextualize_persona(resolve_persona(agent_override=style, revisions={"agent": 7}),
                                              PREVIEW_PROMPT)
+    store.update_run(run)  # Preview runs persist their style snapshot before runtime execution.
     ctx.run = ctx.gate.run = run
     return ctx, run, emitted
 

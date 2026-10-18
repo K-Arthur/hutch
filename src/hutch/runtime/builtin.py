@@ -419,7 +419,7 @@ class BuiltinRuntime:
             raise ProviderError("bad_request", "provider connection changed before startup; no call was sent")
         provider = self._provider_for(ctx, ladder, rung, expected_route=route)
         if not rung.local:
-            self._hosted_window_notice(ctx, run, rung, messages, specs)
+            self._hosted_window_notice(ctx, run, ladder, rung, messages, specs)
             return Session(rung, provider, None, None)
         meta = provider.show(rung.model) if rung.provider == "ollama" else None
         num_ctx: Optional[int] = None
@@ -521,12 +521,16 @@ class BuiltinRuntime:
 
     # -------------------------------------------------------------- switching
 
-    def _hosted_window_notice(self, ctx: ToolContext, run: Run, rung: Rung,
+    def _hosted_window_notice(self, ctx: ToolContext, run: Run, ladder: Ladder, rung: Rung,
                               messages: list[dict], specs: list[dict]) -> None:
         """Report hosted-window estimates honestly without enforcing unverified catalog data."""
         from ..modelchoices import advertised_context_length
 
-        advertised = advertised_context_length(rung.provider, rung.model)
+        book = self._connections(ctx)
+        connection = book.get(rung.provider)
+        endpoint = ladder.base_url_for(rung) or (connection.base_url if connection else "")
+        key_hash = hashlib.sha256((book.key(rung.provider) or "").encode()).hexdigest()
+        advertised = advertised_context_length(rung.provider, rung.model, endpoint, key_hash)
         if not advertised:
             self._log(ctx, run, "context",
                       f"{rung.spec}: effective context unknown — overflow would surface only as a mid-run provider "

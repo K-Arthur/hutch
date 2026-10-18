@@ -37,20 +37,21 @@ OPENROUTER_SEARCH_LIMIT = 80
 OPENROUTER_QUERY_MAX = 80
 _cache: OrderedDict[str, tuple[float, Any]] = OrderedDict()
 
-#: (connection, model id) -> OpenRouter's ADVERTISED catalog context_length (S1's only hosted
+#: (connection, endpoint, key hash, model id) -> OpenRouter's ADVERTISED context_length (S1's only
+#: hosted
 #: window data; "advertised, unverified"). Recorded when a model-menu catalog refresh actually
 #: fetched the row — the run path only reads this cache and never fetches the catalog itself, so
 #: a hosted run still makes no request beyond its own model call
 #: (the discipline pinned at tests/test_model_switcher.py:184).
-_advertised_context: dict[tuple[str, str], int] = {}
+_advertised_context: dict[tuple[str, str, str, str], int] = {}
 
 
-def advertised_context_length(connection: str, model_id: str) -> int:
+def advertised_context_length(connection: str, model_id: str, endpoint: str = "", key_hash: str = "") -> int:
     """The advertised catalog window for a hosted route, or 0 when none was fetched."""
-    return _advertised_context.get((connection, model_id), 0)
+    return _advertised_context.get((connection, endpoint, key_hash, model_id), 0)
 
 
-def _note_advertised_context(connection: str, rows: list[dict[str, Any]]) -> None:
+def _note_advertised_context(connection: str, endpoint: str, key_hash: str, rows: list[dict[str, Any]]) -> None:
     """Record advertised windows from a fetched catalog; rows without one are not recorded."""
     for row in rows:
         if not isinstance(row, dict):
@@ -59,7 +60,7 @@ def _note_advertised_context(connection: str, rows: list[dict[str, Any]]) -> Non
         context_length = row.get("context_length")
         if isinstance(model_id, str) and isinstance(context_length, int) \
                 and not isinstance(context_length, bool) and context_length > 0:
-            _advertised_context[(connection, model_id)] = context_length
+            _advertised_context[(connection, endpoint, key_hash, model_id)] = context_length
 
 
 @dataclass
@@ -189,7 +190,13 @@ def _connection_choices(bot: Bot, store: Any, book: ConnectionBook, extra: set[s
                                ttl=60.0)
                 catalog_by_spec = {f"{name}/{row['id']}": row for row in rows}
                 models.update(catalog_by_spec)
-                _note_advertised_context(name, rows)
+                if not query_key:
+                    # Only a full catalog is authoritative enough to replace this connection's
+                    # advertised windows. Search results are subsets and must not erase them.
+                    scope = (name, c.base_url, key_hash)
+                    for cached_scope in [key for key in _advertised_context if key[:3] == scope]:
+                        del _advertised_context[cached_scope]
+                    _note_advertised_context(name, c.base_url, key_hash, rows)
             except ProviderError:
                 # A catalog outage must not disable a route already selected by the
                 # user; ordinary run admission still checks its key and policy.

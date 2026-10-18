@@ -90,7 +90,8 @@ def test_discovered_document_research_publishes_exact_coverage_and_omissions(
                  / "docs/realignment/artifacts/dynamic-workflows/document-research.plan.json")
     assert json.loads(plan_path.read_text()) == research_plan()
 
-    model = FakeOllama({"tiny:1b": {"params": "1.0B", "size": 800_000_000, "ctx": 8192}})
+    # Keep fake model admission independent of host RAM; these tests verify workflow behavior, not model fit.
+    model = FakeOllama({"tiny:1b": {"params": "1.0B", "size": 100_000_000, "ctx": 8192}})
     model.script = agent_script([
         {"content": json.dumps({"path": "research/a.md",
                                  "findings": ["Monthly reliability reports are published."],

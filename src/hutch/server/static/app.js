@@ -3427,7 +3427,7 @@ async function renderChatStudio(preferredBot = null) {
     const override = switcher?.selected() || "";
     const route = override || assigned || detail.model || "Bot default";
     taskRoleFlag.hidden = false;
-    taskRoleFlag.textContent = `Next message · ${label} → ${route}${override ? " (one-message model choice takes precedence)" : assigned ? " (configured role route)" : " (Bot default)"}`;
+    taskRoleFlag.textContent = `Next message · ${label} via ${route}${override ? " (one-message model choice takes precedence)" : assigned ? " (configured role route)" : " (Bot default)"}`;
   };
   taskRoleSelect?.addEventListener("change", () => {
     selectedTaskRole = taskRoleSelect.value;

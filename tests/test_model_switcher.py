@@ -229,6 +229,53 @@ def test_openrouter_model_catalog_is_fetched_only_on_request_and_searches_with_i
         router.close()
 
 
+def test_openrouter_advertised_windows_are_scoped_to_current_connection(env):
+    import hashlib
+    from hutch import modelchoices as modelchoices_module
+    from hutch.modelchoices import advertised_context_length
+    from tests.fakes import FakeOpenAI
+
+    router = FakeOpenAI()
+    router.require_key = "first-key"
+    router.models = [
+        {"id": "vendor/model", "name": "Model", "context_length": 8192},
+        {"id": "vendor/other", "name": "Other", "context_length": 4096},
+    ]
+    try:
+        book = ConnectionBook(env.config.state_dir)
+        endpoint = router.url + "/v1"
+        book.add("openrouter", base_url=endpoint)
+        book.set_key("openrouter", "first-key")
+        bot = mkbot(env)
+        reset_cache()
+
+        model_choices(env.config, env.store, bot, discover_hosted_models=True)
+        first_hash = hashlib.sha256(b"first-key").hexdigest()
+        assert advertised_context_length("openrouter", "vendor/model", endpoint, first_hash) == 8192
+        assert advertised_context_length("openrouter", "vendor/model", endpoint + "/changed", first_hash) == 0
+
+        # Query subsets cannot clear values learned from the complete catalog.
+        model_choices(env.config, env.store, bot, discover_hosted_models=True, model_query="vendor/other")
+        assert advertised_context_length("openrouter", "vendor/model", endpoint, first_hash) == 8192
+
+        # A failed lookup with a replacement credential cannot reuse the previous credential's value.
+        book.set_key("openrouter", "replacement-key")
+        model_choices(env.config, env.store, bot, discover_hosted_models=True)
+        replacement_hash = hashlib.sha256(b"replacement-key").hexdigest()
+        assert advertised_context_length("openrouter", "vendor/model", endpoint, replacement_hash) == 0
+        assert advertised_context_length("openrouter", "vendor/model", endpoint, first_hash) == 8192
+
+        # A successful full refresh removes rows which the provider no longer lists.
+        book.set_key("openrouter", "first-key")
+        router.models = [{"id": "vendor/other", "name": "Other", "context_length": 4096}]
+        full_catalog_key = f"openrouter-catalog:openrouter:{endpoint}:{first_hash}:"
+        modelchoices_module._cache.pop(full_catalog_key, None)
+        model_choices(env.config, env.store, bot, discover_hosted_models=True)
+        assert advertised_context_length("openrouter", "vendor/model", endpoint, first_hash) == 0
+    finally:
+        router.close()
+
+
 def test_openai_compatible_connection_discovers_its_own_model_catalog(env, monkeypatch):
     from tests.fakes import FakeOpenAI
 

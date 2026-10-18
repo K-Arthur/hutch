@@ -273,7 +273,8 @@ def _sha256(path: Path) -> str:
 def test_disposable_multi_module_repair_runs_tests_and_inspects_ui(store, config, monkeypatch):
     EVIDENCE.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("TMPDIR", "/var/tmp/pytest-of-kevina")
-    provider = FakeOllama({"tiny:1b": {"params": "1.0B", "size": 800_000_000, "ctx": 8192}})
+    # Keep fake model admission independent of host RAM; these tests verify workflow behavior, not model fit.
+    provider = FakeOllama({"tiny:1b": {"params": "1.0B", "size": 100_000_000, "ctx": 8192}})
     provider.script = lambda _body: {"content": json.dumps(REPAIR_OUTPUT, ensure_ascii=False)}
     monkeypatch.setenv("OLLAMA_HOST", provider.url)
     bot = make_bot(store, name="coding-repair-acceptance", model="ollama/tiny:1b",
