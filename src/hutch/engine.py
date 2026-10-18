@@ -272,7 +272,8 @@ class Engine:
                     if snapshot is None:
                         self._fail_workspace_task_policy(run, "The reviewed specialist capability snapshot is missing.")
                         return False
-                    if snapshot != self.capability_snapshot(bot):
+                    if snapshot != self.capability_snapshot(
+                            bot, integration_tools=self.store.integration_tool_names(bot.id)):
                         self._fail_workspace_task_policy(
                             run, "The specialist's model, instructions, permissions or workspace changed after review. "
                             "Review the Bot settings and submit the task again.")
@@ -599,9 +600,10 @@ class Engine:
         return run_dir, workspace, workdir_error
 
     @staticmethod
-    def capability_snapshot(bot: Bot, tool_access: str = "bot", execution_purpose: str = "task") -> dict[str, object]:
+    def capability_snapshot(bot: Bot, tool_access: str = "bot", execution_purpose: str = "task", *,
+                            integration_tools: Optional[list[str]] = None) -> dict[str, object]:
         """The credential-free permission/routing policy active when a run starts."""
-        from .tools import expand_tools
+        from .integrations.catalog import snapshot_tool_names
 
         if execution_purpose == "persona_preview":
             if tool_access != "none" or bot.runtime.value != "builtin":
@@ -613,9 +615,7 @@ class Engine:
             raise ValueError("tool-free capability snapshots require an explicit execution purpose")
         fingerprint = lambda value: hashlib.sha256((value or "").encode("utf-8")).hexdigest()
         offline = bot.inference_mode.value == "offline"
-        tools = [] if tool_access == "none" else expand_tools(bot.tools)
-        if offline:
-            tools = [name for name in tools if name not in {"web_fetch", "browser"}]
+        tools = snapshot_tool_names(bot.tools, offline=offline, tool_access=tool_access)
         snapshot = {
             "snapshot_version": 1,
             "bot_id": bot.id,
@@ -644,6 +644,8 @@ class Engine:
             "selfcheck": bot.selfcheck,
             "num_ctx": bot.num_ctx,
         }
+        if integration_tools and tool_access != "none":
+            snapshot["integration_tools"] = sorted(set(integration_tools))
         if tool_access == "none":
             snapshot["tool_access"] = "none"
             snapshot["execution_purpose"] = execution_purpose
@@ -904,7 +906,8 @@ class Engine:
             if snapshot is None:
                 self._fail_workspace_task_policy(persisted, "The reviewed specialist capability snapshot is missing.")
                 return
-            if snapshot != self.capability_snapshot(bot):
+            if snapshot != self.capability_snapshot(
+                    bot, integration_tools=self.store.integration_tool_names(bot.id)):
                 self._fail_workspace_task_policy(
                     persisted, "The specialist's model, instructions, permissions or workspace changed after review. "
                     "Review the Bot settings and submit the task again.")
@@ -1044,7 +1047,9 @@ class Engine:
                         "skill_snapshot": skill_snapshot, "tool_access": run.tool_access,
                         "execution_purpose": run.execution_purpose},
                 persona_plan=persona_plan.model_dump(mode="json") if persona_plan is not None else None,
-                capability_snapshot=self.capability_snapshot(bot, run.tool_access, run.execution_purpose)
+                capability_snapshot=self.capability_snapshot(
+                    bot, run.tool_access, run.execution_purpose,
+                    integration_tools=self.store.integration_tool_names(bot.id))
                 if run.parent_run_id is None else None)
         except (IllegalTransition, LeaseLost, KeyError):
             self._finish_unstarted(run)

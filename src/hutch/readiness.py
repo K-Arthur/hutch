@@ -18,54 +18,17 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+from .integrations.catalog import (CONNECTION_TOOLS, OFFLINE_WITHHELD_TOOLS,
+                                   available_connection_services, connection_service_granted,
+                                   is_known_tool_name)
 from .models import Bot
 from .skills import CONNECTION_SERVICE_LABELS, SkillError, SkillRegistry  # noqa: F401  (re-exported for callers)
-from .tools import ALL_TOOL_NAMES, GROUPS, expand_tools
-
-#: Tools whose availability depends on a granted external account, and the store reader that proves it.
-_CONNECTION_TOOLS: dict[str, tuple[str, str]] = {
-    "google_calendar_events": ("google-calendar", "a Google Calendar connection granted to this Bot"),
-    "google_calendar_create_event": ("google-calendar-write", "a Google Calendar connection with event-creation consent"),
-    "outlook_calendar_events": ("outlook-calendar", "an Outlook Calendar connection granted to this Bot"),
-    "outlook_calendar_create_event": ("outlook-calendar-write", "an Outlook Calendar write connection granted to this Bot"),
-    "outlook_mail_search": ("outlook-mail", "an Outlook Mail connection granted to this Bot"),
-    "outlook_mail_send": ("outlook-mail-send", "an Outlook Mail send connection granted to this Bot"),
-    "google_mail_search": ("google-mail", "a Gmail search connection (private preview)"),
-    "google_mail_send": ("google-mail-send", "a Gmail send connection granted to this Bot"),
-}
-
-#: service id -> store grant reader. Read-only; absence of the reader means "not granted".
-_CONNECTION_READERS: dict[str, str] = {
-    "outlook-mail": "outlook_mail_grant",
-    "outlook-mail-send": "outlook_mail_send_grant",
-    "outlook-calendar": "outlook_calendar_grant",
-    "outlook-calendar-write": "outlook_calendar_write_grant",
-    "google-calendar": "google_calendar_grant",
-    "google-calendar-write": "google_calendar_grant",
-    "google-mail": "google_mail_grant",
-    "google-mail-send": "google_mail_send_grant",
-}
+from .tools import expand_tools
 
 
 def _grant(store, bot: Bot, service: str) -> bool:
-    reader_name = _CONNECTION_READERS.get(service)
-    reader = getattr(store, reader_name, None) if reader_name else None
-    if not callable(reader):
-        return False
-    try:
-        grant = reader(bot.id)
-    except Exception:  # noqa: BLE001 - a store read must not break the report
-        return False
-    if not grant:
-        return False
-    if service == "google-calendar-write":
-        return bool(grant.get("allow_event_creation")) if isinstance(grant, dict) else bool(grant)
-    return True
-
-
-def available_connection_services(store, bot: Bot) -> set[str]:
-    """The external-account prerequisites this Bot currently satisfies (used by runs and readiness)."""
-    return {service for service in _CONNECTION_READERS if _grant(store, bot, service)}
+    """The reviewed grant row (and any explicit consent field) exists — catalog-derived."""
+    return connection_service_granted(store, bot, service)
 
 
 def _area(area_id: str, label: str, status: str, items: list[dict], note: str = "") -> dict:
@@ -122,13 +85,12 @@ def bot_readiness(store, config, bot: Bot) -> dict:
     enabled = expand_tools(list(bot.tools or []))
     tool_items: list[dict] = []
     for name in enabled:
-        if name not in ALL_TOOL_NAMES and name != "browser" and not any(name in names for names in GROUPS.values()):
+        if not is_known_tool_name(name):
             tool_items.append({"name": name, "status": "missing", "detail": "unknown tool name"})
             continue
         detail = ""
         status = "ok"
-        if offline and name in {"web_fetch", "browser", "google_calendar_events", "google_calendar_create_event",
-                                "outlook_calendar_events", "outlook_calendar_create_event", "outlook_mail_search"}:
+        if offline and name in OFFLINE_WITHHELD_TOOLS:
             status, detail = "warning", "withheld in Strict Offline mode"
         if not bot.memory_enabled and name in {"remember", "recall"}:
             status, detail = "warning", "withheld because memory is disabled for this Bot"
@@ -175,10 +137,10 @@ def bot_readiness(store, config, bot: Bot) -> dict:
     # ------------------------------------------------------------ connections
     connection_items: list[dict] = []
     for name in enabled:
-        requirement = _CONNECTION_TOOLS.get(name)
+        requirement = CONNECTION_TOOLS.get(name)
         if requirement is None:
             continue
-        service, description = requirement
+        service, description = requirement.service, requirement.description
         if _grant(store, bot, service):
             connection_items.append({"name": name, "status": "ok", "detail": f"{CONNECTION_SERVICE_LABELS.get(service, service)} granted for this Bot"})
         else:

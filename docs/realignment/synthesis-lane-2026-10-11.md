@@ -6,7 +6,7 @@ Workspace actions (Docs brief, Sheets table, Drive placement, Calendar/reminder 
 
 ## Coordination (read before editing)
 
-* Base: `grounding/evidence` @ `a28263a` (schema v51, evidence layer). Branch
+* Original lane base: `grounding/evidence` @ `a28263a` (schema v51, evidence layer). This branch-era coordination note is historical; the consolidation ledger records the final `main` ancestry and migration sequence.
   `synthesis/grounded` in `.worktrees/synthesis`. Local commits only; no push.
 * Other lanes are active and untouched by this lane: `.worktrees/grounding` (evidence
   follow-up), `.worktrees/outputs*` (typed blocks v51 collision, Python workspace, media,
@@ -72,7 +72,7 @@ Workspace actions (Docs brief, Sheets table, Drive placement, Calendar/reminder 
 | S4 | Interactive join/answer/resume state machine + UI audio surface | planned (design gate first) |
 | S5a | Workspace request contracts (Docs tabs/revisions, Sheets RAW+append, Drive ids/uploads, Calendar events, reminder routing) | **implemented, local tests green** (17 tests, no I/O) |
 | S5b | Workspace OAuth transport + executors + action plan/effect orchestration | **implemented, local tests green** (10 plan-engine + 8 fake-Google transport tests; live Google unexecuted — no account) |
-| S5c | Tool layer: ingest_source, register_manifest, register_script, render_audio_overview, plan_workspace_action, run_workspace_plan | **implemented, local tests green** (8 tool tests; registered in groups `synthesis`/`workspace`, hidden in Strict Offline for the network tools) |
+| S5c | Tool layer: ingest_source, register_manifest, register_script, render_audio_overview, plan_workspace_action, run_workspace_plan | **implemented, local tests green** (8 tool tests; synthesis tools use `synthesis`, account-backed workspace actions use `workspace_actions` to preserve the existing local-only `workspace` group; network tools are hidden in Strict Offline) |
 | S5d | Calendar: relative reminders on create, conditional (`If-Match`) reminder updates, plan-step executors with grant checks | **implemented, local tests green** (6 client tests + 2 tool tests; live Google unexecuted) |
 | S5e | Connections API for the Workspace OAuth callback + hash-verified artifact download routes | **implemented, local tests green** (3 route tests; fake/local only) |
 | S6 | UI integration (source selector, coverage, format controls, action drawer) | planned (design gate first) |

@@ -3977,7 +3977,9 @@ def create_app() -> FastAPI:
                 source_user_message_id=body.source_user_message_id,
                 source_assistant_message_id=body.source_assistant_message_id,
                 target_bot_id=target.id, task_brief=task_brief, assumptions=assumptions,
-                run=run, task=task, capability_snapshot=Engine.capability_snapshot(target),
+                run=run, task=task,
+                capability_snapshot=Engine.capability_snapshot(
+                    target, integration_tools=store.integration_tool_names(target.id)),
                 idem_key=key, request_hash=digest, memory_fact_ids=body.memory_fact_ids,
             )
         except IdempotencyConflict as exc:
@@ -4087,7 +4089,9 @@ def create_app() -> FastAPI:
         task = Task(bot_id=target.id, kind="on_demand", prompt="")
         try:
             continued_id, created = store.continue_workspace_task(
-                task_id, run=run, task=task, capability_snapshot=Engine.capability_snapshot(target),
+                task_id, run=run, task=task,
+                capability_snapshot=Engine.capability_snapshot(
+                    target, integration_tools=store.integration_tool_names(target.id)),
                 idem_key=key, request_hash=digest)
         except IdempotencyConflict as exc:
             raise HTTPException(409, str(exc)) from None

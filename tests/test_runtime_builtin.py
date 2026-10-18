@@ -22,6 +22,7 @@ from hutch.providers.openai_compat import OpenAICompatProvider
 from hutch.providers.pricing import PriceBook
 from hutch.runtime import RunAborted
 from hutch.runtime.builtin import BuiltinRuntime, reset_connection_cache
+from hutch.runtime.ladder import Rung
 from hutch.runtime.ladder import reset_provider_cache
 from hutch.safety import PolicyEngine
 from hutch.tools import build_tools
@@ -105,6 +106,37 @@ def test_workspace_coordinator_gets_scoped_task_brief_guidance(store, config, tm
     other = store.create_bot(Bot(name="other-coordinator", model="mock/demo", tools=[]))
     store.set_workspace_coordinator(other.id)
     assert "task editor" not in runtime._system_prompt(ctx).lower()
+
+
+def test_hosted_window_notice_labels_advertised_context_as_unverified(store, config, tmp_path, monkeypatch):
+    ctx, run, emitted, _ = build(store, config, tmp_path, model="openai/gpt-test")
+    monkeypatch.setattr("hutch.modelchoices.advertised_context_length", lambda provider, model: 1024)
+
+    BuiltinRuntime()._hosted_window_notice(
+        ctx, run, Rung("openai/gpt-test", "openai", "gpt-test", False, "primary"),
+        [{"role": "system", "content": "x" * 4000}], [])
+
+    notice = next(event.data for event in emitted if event.type == EventType.log and event.data.get("kind") == "context")
+    assert notice["severity"] == "warn"
+    assert notice["hosted_window"] == 1024
+    assert notice["advertised"] is True
+    assert "advertised, unverified" in notice["note"]
+    assert "not enforced yet" in notice["note"]
+
+
+def test_hosted_window_notice_reports_unknown_without_enforcing(store, config, tmp_path, monkeypatch):
+    ctx, run, emitted, _ = build(store, config, tmp_path, model="openai/gpt-test")
+    monkeypatch.setattr("hutch.modelchoices.advertised_context_length", lambda provider, model: 0)
+
+    BuiltinRuntime()._hosted_window_notice(
+        ctx, run, Rung("openai/gpt-test", "openai", "gpt-test", False, "primary"),
+        [{"role": "system", "content": "x" * 4000}], [])
+
+    notice = next(event.data for event in emitted if event.type == EventType.log and event.data.get("kind") == "context")
+    assert notice["severity"] == "warn"
+    assert notice["hosted_window"] == "unknown"
+    assert "effective context unknown" in notice["note"]
+    assert "not enforced yet" in notice["note"]
 
 
 def factory(ollama=None, oai=None, claude=None, lmstudio=None):

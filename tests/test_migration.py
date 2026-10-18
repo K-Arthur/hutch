@@ -22,11 +22,44 @@ from hutch.store import (SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migra
                          _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33, _migrate_34, _migrate_45,
                          _migrate_35, _migrate_37, _migrate_40, _migrate_41, _migrate_46, _migrate_47,
                          _migrate_48, _migrate_51, _migrate_53, _migrate_57, _migrate_58, _migrate_59, _migrate_60,
-                         _migrate_68, _migrate_69, _migrate_70, _migrate_71)
+                         _migrate_68, _migrate_69, _migrate_70, _migrate_71, _migrate_73)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "state_v4.db.fixture"
 BRIEFING, SWEEPER = "bot_7eef563ee683", "bot_611a4b96d543"
 FINISHED_1, FINISHED_2, ORPHAN, QUEUED = "run_582f4cc75ea4", "run_fa7f70664c38", "run_3cefb894fd73", "run_e169d5380ff5"
+
+
+def test_v73_integration_tables_are_empty_disabled_and_idempotent():
+    db = sqlite3.connect(":memory:")
+    db.row_factory = sqlite3.Row
+    db.execute("PRAGMA foreign_keys=ON")
+    try:
+        db.execute("CREATE TABLE bots (id TEXT PRIMARY KEY)")
+        db.execute("INSERT INTO bots VALUES ('bot-a')")
+        _migrate_73(db)
+        _migrate_73(db)
+        assert db.execute("SELECT COUNT(*) FROM integrations").fetchone()[0] == 0
+        assert db.execute("SELECT COUNT(*) FROM integration_tool_grants").fetchone()[0] == 0
+        db.execute("INSERT INTO integrations (integration_id, revision, transport, created_at) "
+                   "VALUES ('notebooklm', 'rev-1', 'in_process', 'now')")
+        with pytest.raises(sqlite3.IntegrityError):
+            db.execute("INSERT INTO integrations (integration_id, revision, transport, created_at) "
+                       "VALUES ('x', 'r', 'carrier_pigeon', 'now')")
+        with pytest.raises(sqlite3.IntegrityError):
+            db.execute("INSERT INTO integrations (integration_id, revision, transport, enabled, created_at) "
+                       "VALUES ('x', 'r', 'mcp_stdio', 2, 'now')")
+        with pytest.raises(sqlite3.IntegrityError, match="FOREIGN KEY"):
+            db.execute("INSERT INTO integration_tool_grants (integration_id, bot_id, server_tool_name, "
+                       "canonical_name, granted_at) VALUES "
+                       "('notebooklm', 'missing-bot', 'search', 'mcp__notebooklm__search', 'now')")
+        db.execute("INSERT INTO integration_tool_grants (integration_id, bot_id, server_tool_name, "
+                   "canonical_name, schema_revision, granted_at) VALUES "
+                   "('notebooklm', 'bot-a', 'search', 'mcp__notebooklm__search', ?, 'now')", ("a" * 64,))
+        db.execute("DELETE FROM bots WHERE id = 'bot-a'")
+        assert db.execute("SELECT COUNT(*) FROM integration_tool_grants").fetchone()[0] == 0
+        assert SCHEMA_VERSION >= 73
+    finally:
+        db.close()
 
 
 def test_v68_preserves_existing_workflow_mode_and_adds_revisioned_conversation_policy():
@@ -1132,7 +1165,9 @@ def test_v59_cost_followup_migrations_preserve_budget_rows_and_require_compactio
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == SCHEMA_VERSION == 72
+        assert upgraded.schema_version == SCHEMA_VERSION == 73
+        assert upgraded._db.execute("SELECT COUNT(*) FROM integrations").fetchone()[0] == 0
+        assert upgraded._db.execute("SELECT COUNT(*) FROM integration_tool_grants").fetchone()[0] == 0
         assert upgraded.get_bot(bot.id).compaction == "ask"
         columns = {row[1] for row in upgraded._db.execute("PRAGMA table_info(usage_reservations)")}
         assert {"quote_snapshot_sha256", "quote_expires_at", "quote_endpoints_json", "quote_currency",

@@ -2200,6 +2200,41 @@ def _migrate_72(db: sqlite3.Connection) -> None:
     db.execute("CREATE INDEX IF NOT EXISTS idx_delegated_wait_child_state "
                "ON delegated_wait_continuations(child_run_id, state)")
 
+
+def _migrate_73(db: sqlite3.Connection) -> None:
+    """Install disabled governed-integration identities and per-Bot tool grants (ADR-0017 S1)."""
+    db.execute("""CREATE TABLE IF NOT EXISTS integrations (
+        integration_id TEXT PRIMARY KEY,
+        revision TEXT NOT NULL,
+        title TEXT NOT NULL DEFAULT '',
+        transport TEXT NOT NULL CHECK(transport IN ('in_process', 'mcp_stdio', 'mcp_http')),
+        credential_id TEXT NOT NULL DEFAULT '',
+        state TEXT NOT NULL DEFAULT 'installed' CHECK(state IN
+            ('installed', 'reachable', 'authenticated', 'capabilities_discovered', 'operation_authorized')),
+        enabled INTEGER NOT NULL DEFAULT 0 CHECK(enabled IN (0, 1)),
+        created_at TEXT NOT NULL
+    )""")
+    db.execute("""CREATE TABLE IF NOT EXISTS integration_tool_grants (
+        integration_id TEXT NOT NULL REFERENCES integrations(integration_id),
+        bot_id TEXT NOT NULL REFERENCES bots(id) ON DELETE CASCADE,
+        server_tool_name TEXT NOT NULL,
+        canonical_name TEXT NOT NULL,
+        schema_revision TEXT NOT NULL DEFAULT '',
+        granted_at TEXT NOT NULL,
+        PRIMARY KEY (integration_id, bot_id, server_tool_name)
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_integration_tool_grants_bot "
+               "ON integration_tool_grants(bot_id, canonical_name)")
+
+
+def _integration_tool_names(db: sqlite3.Connection, bot_id: str) -> list[str]:
+    """Return sorted names for grants on enabled, operation-authorized integrations only."""
+    rows = db.execute("SELECT g.canonical_name FROM integration_tool_grants g "
+                      "JOIN integrations i USING (integration_id) "
+                      "WHERE g.bot_id = ? AND i.enabled = 1 AND i.state = 'operation_authorized' "
+                      "ORDER BY g.canonical_name", (bot_id,)).fetchall()
+    return [str(row["canonical_name"]) for row in rows]
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -2208,7 +2243,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
                _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53, _migrate_54,
-               _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59, _migrate_60, _migrate_61, _migrate_62, _migrate_63, _migrate_64, _migrate_65, _migrate_66, _migrate_67, _migrate_68, _migrate_69, _migrate_70, _migrate_71, _migrate_72]
+               _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59, _migrate_60, _migrate_61, _migrate_62, _migrate_63, _migrate_64, _migrate_65, _migrate_66, _migrate_67, _migrate_68, _migrate_69, _migrate_70, _migrate_71, _migrate_72, _migrate_73]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 EVENT_OUTBOX_SCHEMA_VERSION = 71
 
@@ -3167,6 +3202,14 @@ class Store:
         with self._lock:
             rows = self._db.execute("SELECT doc FROM bots ORDER BY name").fetchall()
         return [Bot.from_store_json(r["doc"]) for r in rows]
+
+    def integration_tool_names(self, bot_ref: str) -> list[str]:
+        """Canonical integration-tool grants for a Bot, sorted and read under the store lock."""
+        bot = self.get_bot(bot_ref)
+        if bot is None:
+            return []
+        with self._lock:
+            return _integration_tool_names(self._db, bot.id)
 
     def workspace_coordinator(self) -> Optional[dict[str, str]]:
         """Return the current named coordinator Bot, if the owner selected one."""

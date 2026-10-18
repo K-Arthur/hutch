@@ -419,6 +419,7 @@ class BuiltinRuntime:
             raise ProviderError("bad_request", "provider connection changed before startup; no call was sent")
         provider = self._provider_for(ctx, ladder, rung, expected_route=route)
         if not rung.local:
+            self._hosted_window_notice(ctx, run, rung, messages, specs)
             return Session(rung, provider, None, None)
         meta = provider.show(rung.model) if rung.provider == "ollama" else None
         num_ctx: Optional[int] = None
@@ -520,12 +521,35 @@ class BuiltinRuntime:
 
     # -------------------------------------------------------------- switching
 
+    def _hosted_window_notice(self, ctx: ToolContext, run: Run, rung: Rung,
+                              messages: list[dict], specs: list[dict]) -> None:
+        """Report hosted-window estimates honestly without enforcing unverified catalog data."""
+        from ..modelchoices import advertised_context_length
+
+        advertised = advertised_context_length(rung.provider, rung.model)
+        if not advertised:
+            self._log(ctx, run, "context",
+                      f"{rung.spec}: effective context unknown — overflow would surface only as a mid-run provider "
+                      "error (no advertised window is recorded for this hosted route; hosted windows are not "
+                      "enforced yet)", severity="warn", hosted_window="unknown")
+            return
+        check = check_prompt(messages, specs, advertised, self._turn_cap(ctx.bot, rung, run))
+        if check.severity == "ok":
+            return
+        self._log(ctx, run, "context",
+                  f"{rung.spec}: {check.message} — window is OpenRouter's advertised catalog context_length "
+                  "(advertised, unverified; hosted windows are not enforced yet)",
+                  severity="warn", hosted_window=advertised, advertised=True,
+                  window_share=round(check.share, 4))
+
     def _route_identity(self, ctx: ToolContext, ladder: Ladder, rung: Rung, *, book: ConnectionBook | None = None) -> tuple:
         """Billing and destination authority, separate from the selected model and secret."""
         from ..route_identity import route_tuple
 
+        from ..providers.registry import resolve_route_endpoint
+        endpoint = resolve_route_endpoint(rung.provider, configured=ladder.base_url_for(rung) or "")
         return route_tuple(provider=rung.provider, model=rung.model,
-                           base_url=ladder.base_url_for(rung),
+                           base_url=endpoint,
                            connections=(book if book is not None else self._connections(ctx)))
 
     def _ask_first_hosted(self, ctx: ToolContext, run: Run, ladder: Ladder, rung: Rung,
@@ -675,16 +699,8 @@ class BuiltinRuntime:
             except Exception:
                 endpoint = ""
         else:
-            endpoint = ladder.base_url_for(rung) or ""
-            if rung.provider == "ollama":
-                endpoint = endpoint or os.environ.get("OLLAMA_HOST") or ""
-            if not endpoint:
-                from ..providers.registry import default_endpoint
-                endpoint = default_endpoint(rung.provider)
-            if rung.provider == "anthropic":
-                endpoint = endpoint or os.environ.get("ANTHROPIC_BASE_URL") or "https://api.anthropic.com"
-            elif rung.provider == "openai-compatible":
-                endpoint = endpoint or os.environ.get("HUTCH_BASE_URL", "")
+            from ..providers.registry import resolve_route_endpoint
+            endpoint = resolve_route_endpoint(rung.provider, configured=ladder.base_url_for(rung) or "")
         observations: list[dict] = []
         try:
             observations = list(ctx.store.list_model_capability_observations(limit=20))

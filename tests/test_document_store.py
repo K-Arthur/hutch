@@ -45,6 +45,9 @@ def test_schema_v50_tables_exist(store: Store):
     assert {"documents", "document_versions"} <= names
     # the grounding evidence layer adds these; its own test lives with the layer
     assert {"investigations", "inv_sources", "inv_stream_cursors"} <= names
+    assert {"integrations", "integration_tool_grants"} <= names
+    assert store._db.execute("SELECT COUNT(*) FROM integrations").fetchone()[0] == 0
+    assert store._db.execute("SELECT COUNT(*) FROM integration_tool_grants").fetchone()[0] == 0
 
 
 def test_create_document_and_versions_roundtrip(store: Store):

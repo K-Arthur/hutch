@@ -122,6 +122,37 @@ def default_endpoint(provider: str) -> str:
     return _OFFLINE_DEFAULTS.get(provider, "")
 
 
+def resolve_route_endpoint(provider: str, configured: str = "", *, connection_endpoint: str = "") -> str:
+    """ONE endpoint-derivation chain for a model rung (ADR-0017 §5 S0 reconciliation).
+
+    ``runtime/builtin._route_identity`` (authorization) and ``_resolve_tool_profile`` (capability
+    evidence) each re-implemented the OLLAMA_HOST / ANTHROPIC_BASE_URL / HUTCH_BASE_URL /
+    preset-default fallbacks. Divergence there would let ``classify_endpoint`` return a different
+    endpoint_class for the same route and silently change the route's capability evidence, so both
+    call sites now derive through this function. A connection's own endpoint (from
+    ``endpoint_for``) is passed in by the caller and always wins; the fallbacks run in one order:
+
+        configured base_url -> OLLAMA_HOST (ollama) -> ANTHROPIC_BASE_URL (anthropic)
+        -> HUTCH_BASE_URL (openai-compatible) -> default_endpoint(provider) -> ""
+
+    Two documented normalizations (the S0 reconciliation, docs/realignment/artifacts/
+    mcp-s0-2026-10-11/reconciliation.md): a connectionless ollama rung now resolves its loopback
+    default instead of "" (route identity is only consumed for hosted rungs, so authorization is
+    unaffected), and ANTHROPIC_BASE_URL is honored before the official default so relocated
+    Anthropic endpoints classify the same way for authorization and capability evidence.
+    """
+    endpoint = connection_endpoint or configured
+    if provider == "ollama":
+        endpoint = endpoint or os.environ.get("OLLAMA_HOST") or ""
+    if provider == "anthropic":
+        endpoint = endpoint or os.environ.get("ANTHROPIC_BASE_URL") or ""
+    elif provider == "openai-compatible":
+        endpoint = endpoint or os.environ.get("HUTCH_BASE_URL", "")
+    if not endpoint:
+        endpoint = default_endpoint(provider)
+    return endpoint
+
+
 def loopback_endpoint(provider: str, url: Optional[str] = None) -> str:
     """Return a loopback-only local model endpoint or reject the route.
 

@@ -37,8 +37,10 @@ def test_catalog_and_groups_expose_the_lane_tools():
         assert name in ALL_TOOL_NAMES
     assert GROUPS["media"] == ["create_media", "render_diagram"]
     assert GROUPS["workspace"] == ["run_python", "reset_workspace"]
+    assert GROUPS["workspace_actions"] == ["plan_workspace_action", "run_workspace_plan"]
     assert set(expand_tools(["media", "workspace"])) == {
         "create_media", "render_diagram", "run_python", "reset_workspace"}
+    assert set(expand_tools(["workspace_actions"])) == {"plan_workspace_action", "run_workspace_plan"}
 
 
 def test_app_mounts_media_and_workspace_routers(tmp_path, monkeypatch):

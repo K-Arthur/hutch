@@ -37,6 +37,30 @@ OPENROUTER_SEARCH_LIMIT = 80
 OPENROUTER_QUERY_MAX = 80
 _cache: OrderedDict[str, tuple[float, Any]] = OrderedDict()
 
+#: (connection, model id) -> OpenRouter's ADVERTISED catalog context_length (S1's only hosted
+#: window data; "advertised, unverified"). Recorded when a model-menu catalog refresh actually
+#: fetched the row — the run path only reads this cache and never fetches the catalog itself, so
+#: a hosted run still makes no request beyond its own model call
+#: (the discipline pinned at tests/test_model_switcher.py:184).
+_advertised_context: dict[tuple[str, str], int] = {}
+
+
+def advertised_context_length(connection: str, model_id: str) -> int:
+    """The advertised catalog window for a hosted route, or 0 when none was fetched."""
+    return _advertised_context.get((connection, model_id), 0)
+
+
+def _note_advertised_context(connection: str, rows: list[dict[str, Any]]) -> None:
+    """Record advertised windows from a fetched catalog; rows without one are not recorded."""
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        model_id = row.get("id")
+        context_length = row.get("context_length")
+        if isinstance(model_id, str) and isinstance(context_length, int) \
+                and not isinstance(context_length, bool) and context_length > 0:
+            _advertised_context[(connection, model_id)] = context_length
+
 
 @dataclass
 class Choice:
@@ -82,6 +106,7 @@ def _cached(key: str, fn, *, ttl: float = _TTL):
 
 def reset_cache() -> None:
     _cache.clear()
+    _advertised_context.clear()
 
 
 def _per_million(price) -> str:
@@ -164,6 +189,7 @@ def _connection_choices(bot: Bot, store: Any, book: ConnectionBook, extra: set[s
                                ttl=60.0)
                 catalog_by_spec = {f"{name}/{row['id']}": row for row in rows}
                 models.update(catalog_by_spec)
+                _note_advertised_context(name, rows)
             except ProviderError:
                 # A catalog outage must not disable a route already selected by the
                 # user; ordinary run admission still checks its key and policy.

@@ -16,11 +16,6 @@ from .python_exec import ResetWorkspaceTool, RunPythonTool
 from .live import InspectMediaTool, LiveSearchTool
 
 from .workflow_draft import DraftWorkflowTool
-from .google_calendar import GoogleCalendarCreateEventTool, GoogleCalendarEventsTool
-from .outlook_calendar import OutlookCalendarEventsTool
-from .outlook_calendar_write import OutlookCalendarCreateEventTool
-from .outlook_mail import OutlookMailSearchTool
-from .google_mail import GoogleMailSearchTool
 from .synthesis import (
     IngestSourceTool,
     RegisterManifestTool,
@@ -66,13 +61,15 @@ GROUPS: dict[str, list[str]] = {
     "documents": ["create_document", "revise_document", "inspect_document"],
     "media": ["create_media", "render_diagram"],
     "workspace": ["run_python", "reset_workspace"],
+    # Keep account-backed workspace actions opt-in. The existing ``workspace`` group
+    # predates these tools and is used by Bots that should only get local scratch access.
+    "workspace_actions": ["plan_workspace_action", "run_workspace_plan"],
     "memory": ["remember", "recall"],
     "browser": ["browser"],
     "computer": ["computer"],
     "grounding": ["live_search", "inspect_media"],
     "synthesis": ["ingest_source", "register_manifest", "register_script",
                   "render_audio_overview", "render_infographic"],
-    "workspace": ["plan_workspace_action", "run_workspace_plan"],
 }
 
 ALL_TOOL_NAMES = sorted(_CATALOG) + ["browser", "computer"]
@@ -107,11 +104,8 @@ def build_tools(names: list[str], ctx: ToolContext, *, memory_enabled: bool | No
         # Google Calendar read is an external account request too.
         # The computer tool launches applications that can make their own network requests, and strict-offline behavior for
         # an isolated desktop has not been verified: withheld rather than implied.
-        expanded = [name for name in expanded if name not in {
-            "web_fetch", "browser", "computer", "google_calendar_events", "google_calendar_create_event",
-            "live_search",
-            "outlook_calendar_events", "outlook_calendar_create_event", "outlook_mail_search",
-            "render_audio_overview", "run_workspace_plan"}]
+        from ..integrations.catalog import OFFLINE_WITHHELD_TOOLS
+        expanded = [name for name in expanded if name not in OFFLINE_WITHHELD_TOOLS]
     for name in expanded:
         if name == "delegate_task" and (ctx is None or ctx.delegation_submit is None):
             continue
@@ -140,52 +134,19 @@ def build_tools(names: list[str], ctx: ToolContext, *, memory_enabled: bool | No
             and not getattr(getattr(ctx, "run", None), "parent_run_id", None)):
         tools["ask_user_choice"] = AskUserChoiceTool()
     if ctx is not None and getattr(getattr(ctx.bot, "inference_mode", None), "value", "") != "offline":
-        grant_reader = getattr(ctx.store, "google_calendar_grant", None)
-        grant = grant_reader(ctx.bot.id) if callable(grant_reader) else None
-        if grant:
-            tools["google_calendar_events"] = GoogleCalendarEventsTool(grant)
-            if grant.get("allow_event_creation"):
-                tools["google_calendar_create_event"] = GoogleCalendarCreateEventTool(grant)
-        outlook_grant_reader = getattr(ctx.store, "outlook_calendar_grant", None)
-        outlook_grant = outlook_grant_reader(ctx.bot.id) if callable(outlook_grant_reader) else None
-        if outlook_grant:
-            tools["outlook_calendar_events"] = OutlookCalendarEventsTool(outlook_grant)
-        outlook_write_grant_reader = getattr(ctx.store, "outlook_calendar_write_grant", None)
-        outlook_write_grant = (outlook_write_grant_reader(ctx.bot.id)
-                               if callable(outlook_write_grant_reader) else None)
-        if outlook_write_grant:
-            tools["outlook_calendar_create_event"] = OutlookCalendarCreateEventTool(outlook_write_grant)
-        outlook_mail_grant_reader = getattr(ctx.store, "outlook_mail_grant", None)
-        outlook_mail_grant = outlook_mail_grant_reader(ctx.bot.id) if callable(outlook_mail_grant_reader) else None
-        if outlook_mail_grant:
-            tools["outlook_mail_search"] = OutlookMailSearchTool(outlook_mail_grant)
-        outlook_mail_send_grant_reader = getattr(ctx.store, "outlook_mail_send_grant", None)
-        outlook_mail_send_grant = (outlook_mail_send_grant_reader(ctx.bot.id)
-                                   if callable(outlook_mail_send_grant_reader) else None)
-        if outlook_mail_send_grant:
-            from .outlook_mail_send import OutlookMailSendTool
-            tools["outlook_mail_send"] = OutlookMailSendTool(outlook_mail_send_grant)
-        google_mail_send_grant_reader = getattr(ctx.store, "google_mail_send_grant", None)
-        google_mail_send_grant = (google_mail_send_grant_reader(ctx.bot.id)
-                                  if callable(google_mail_send_grant_reader) else None)
-        if google_mail_send_grant:
-            from .google_mail_send import GoogleMailSendTool
-            tools["google_mail_send"] = GoogleMailSendTool(google_mail_send_grant)
-    if ctx is not None and getattr(getattr(ctx.bot, "inference_mode", None), "value", "") == "local":
-        # Gmail's restricted data stays with an explicitly loopback-routed
-        # built-in Bot. Also omit the tool if later Bot edits add remote
-        # fallbacks or move its primary endpoint off this machine.
-        from ..google_mail import validate_local_gmail_bot
-        from ..google_calendar import GoogleCalendarError
-        google_mail_grant_reader = getattr(ctx.store, "google_mail_grant", None)
-        google_mail_grant = google_mail_grant_reader(ctx.bot.id) if callable(google_mail_grant_reader) else None
-        try:
-            validate_local_gmail_bot(ctx.bot)
-            gmail_route_is_local = True
-        except GoogleCalendarError:
-            gmail_route_is_local = False
-        if google_mail_grant and gmail_route_is_local:
-            tools["google_mail_search"] = GoogleMailSearchTool(google_mail_grant)
+        local_gmail_ok = False
+        if getattr(getattr(ctx.bot, "inference_mode", None), "value", "") == "local":
+            # Gmail's restricted data stays with a loopback-routed Bot and is rechecked
+            # whenever the run constructs its tool set.
+            from ..google_mail import validate_local_gmail_bot
+            from ..google_calendar import GoogleCalendarError
+            try:
+                validate_local_gmail_bot(ctx.bot)
+                local_gmail_ok = True
+            except GoogleCalendarError:
+                pass
+        from ..integrations.catalog import construct_connection_tools
+        tools.update(construct_connection_tools(ctx.store, ctx.bot, local_gmail_ok=local_gmail_ok))
     return tools
 
 
