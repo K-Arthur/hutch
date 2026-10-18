@@ -1,0 +1,110 @@
+{
+  "test": "tests/e2e/test_website.py::test_dynamic_workflow_marketing_is_truthful_and_responsive",
+  "command": "uv run pytest tests/e2e/test_website.py::test_dynamic_workflow_marketing_is_truthful_and_responsive -q",
+  "captured_at": "2026-10-12T02:48:27.575748+00:00",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "reduced_motion": "reduce",
+  "workflow_preview_word_count": 99,
+  "provider_calls": 0,
+  "external_requests": [],
+  "page_errors": [],
+  "viewports": [
+    {
+      "name": "desktop",
+      "viewport": [
+        1440,
+        900
+      ],
+      "workflow_preview": {
+        "x": 164,
+        "y": 89.671875,
+        "width": 1112,
+        "height": 333.28125
+      },
+      "availability_row": {
+        "x": 189,
+        "y": 281.625,
+        "width": 557.6875,
+        "height": 337
+      },
+      "horizontal_overflow_px": 0
+    },
+    {
+      "name": "tablet",
+      "viewport": [
+        768,
+        1024
+      ],
+      "workflow_preview": {
+        "x": 24,
+        "y": 90.4375,
+        "width": 720,
+        "height": 404.96875
+      },
+      "availability_row": {
+        "x": 49,
+        "y": 392.375,
+        "width": 670,
+        "height": 239.5
+      },
+      "horizontal_overflow_px": 0
+    },
+    {
+      "name": "phone",
+      "viewport": [
+        360,
+        800
+      ],
+      "workflow_preview": {
+        "x": 16,
+        "y": 90.265625,
+        "width": 328,
+        "height": 593.28125
+      },
+      "availability_row": {
+        "x": 33,
+        "y": 173.4375,
+        "width": 294,
+        "height": 454
+      },
+      "horizontal_overflow_px": 0
+    },
+    {
+      "name": "compact-phone",
+      "viewport": [
+        320,
+        800
+      ],
+      "workflow_preview": {
+        "x": 16,
+        "y": 89.640625,
+        "width": 288,
+        "height": 643.671875
+      },
+      "availability_row": {
+        "x": 33,
+        "y": 114.828125,
+        "width": 254,
+        "height": 571
+      },
+      "horizontal_overflow_px": 0
+    }
+  ],
+  "source_sha256": {
+    "website/index.html": "d85408921178c72806094dce1c14166ac30aec5878f5279a29d181109c4ad4cd",
+    "website/styles.css": "d02c433af1d1a34d88106445af671bde72f7ba0581f6fd17a6ef224b30a081cb"
+  },
+  "visual_artifact_sha256": {
+    "availability-compact-phone.png": "66522fda4cbd007e8677252e2391ef3c777f4aaf3ff1890cf80fed25ab87b270",
+    "workflow-phone.png": "2854d814f6d7584a9b179cd46b2ea0bd10f5bcce803b2ed8424a33a1a22e7ac2",
+    "workflow-desktop.png": "5eb9c74f17090d196f1156eaa1e15f1c2d5a1310b561961cdfee11b919cd57e5",
+    "availability-desktop.png": "8b8d40c37641cd04672fc17210a6a43df6da735e618da59001c5e54cf7b8664f",
+    "availability-phone.png": "c8f7723afcfd92ed12911aa7b8e967c7077ae8795d423622a940f6ced1e3f040",
+    "trace.zip": "cf2321a1bbf9b06de0e063e34d70f1efa5496f190b55b6b93ac5ac79d3279f3f",
+    "availability-tablet.png": "f9e36b72351a185eb9214f2cffcd00ec7a04c43a2bfeccfe44a9f87d61f14b18",
+    "workflow-compact-phone.png": "d32fd4184bc0999ca3288133ccdbb412e84bc3ebaec85f4268416a3f474187b5",
+    "workflow-tablet.png": "4ee98fda4be49b98687c4159836f2697b6a688dc8003ea6576bb1c5516e5a69b"
+  }
+}

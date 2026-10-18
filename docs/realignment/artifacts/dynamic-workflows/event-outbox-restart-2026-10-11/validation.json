@@ -1,0 +1,66 @@
+{
+  "base_commit": "b07cf14acdacdbf20f3f4425a92e9b7bcf07f402",
+  "branch": "codex/dynamic-workflows-completion",
+  "environment": {
+    "pytest": "pytest 9.1.1",
+    "python": "3.13.15",
+    "temporary_directory": "/var/tmp"
+  },
+  "failure_hypothesis": {
+    "hutch_response": "Schema v60 persists stable event intent before append acknowledgment, restores pending records after process restart, and commits canonical event plus outbox deletion atomically. A unique event key prevents duplicate recovery across two Store instances and conflicts on payload reuse.",
+    "regression_ids": [
+      "tests/test_store_events.py::test_queued_event_survives_process_restart_before_canonical_commit",
+      "tests/test_store_events.py::test_two_stores_recovering_the_same_outbox_entry_commit_it_once",
+      "tests/test_migration.py::test_v60_event_outbox_adds_idempotent_commit_keys_and_preserves_history"
+    ],
+    "reported_or_reproduced": "Reproduced: an accepted append held only in the process-local queue disappeared after os._exit before the asynchronous writer committed it.",
+    "source_version_date": "Hutch schema before event-outbox migration, observed 2026-10-11"
+  },
+  "observations": [
+    "The serialized event/migration suite passed its existing greater-than-1,000 events/second gate. A first throughput run while three pytest processes shared the host measured 874 and failed; the isolated rerun and later serialized suite passed.",
+    "Historical schema rows remain unchanged; the v60 migration is idempotent. The interrupted 56-to-current migration rolls back and retries with the outbox table and event-key index present.",
+    "The tests cover process termination and SQLite restart, not OS power loss or physical filesystem failure.",
+    "This store-only slice changes no rendered UI and has no new screenshot; responsive Studio and marketing visual captures remain separate evidence."
+  ],
+  "recorded_at_utc": "2026-10-12T02:25:09.049240+00:00",
+  "schema_version": 1,
+  "slice": "crash-safe canonical event outbox",
+  "source_sha256": {
+    "CHANGELOG.md": "cc464de7ce2b4829078032ad6879a58161f6a85d8b91c50d47a1dad9800b7cbe",
+    "docs/architecture.md": "bad4681bd301bd157ff200714c6c5228bb22ba593c77935d32f16b90565f1164",
+    "docs/operations.md": "54a941e3dcbde268762911c35fe3df9067a5afd2d1e272be33b3769bde28c3f8",
+    "docs/realignment/dynamic-workflows.md": "d83f244d9ca9aacb2ad13f8298bce10bc9ea6b331e8cca0b6252c66d087f50e7",
+    "src/hutch/models.py": "769017dc3446a57271f14bb47ba4a9f6db0da1ce9a296a3691e4c926137e6f8e",
+    "src/hutch/store.py": "b2e837b18f6f834faaf220520ff94500eddfdf757563877a2a23be3fc6492b24",
+    "tests/test_migration.py": "af4d0d2053167478e16a3c3dafe94ab1cd64e2202c4937c3be8cffa308b79542",
+    "tests/test_store_events.py": "26f6e4e93df7ba6c93711bf48b067d283e829689075fa372404bb30c3ab54c6d"
+  },
+  "verification": [
+    {
+      "command": "TMPDIR=/var/tmp .venv/bin/pytest -q tests/test_store_events.py tests/test_migration.py",
+      "duration_seconds": 14.22,
+      "result": "passed",
+      "tests": 59
+    },
+    {
+      "command": "TMPDIR=/var/tmp .venv/bin/pytest -q tests/test_conversations.py tests/test_sse_resume.py tests/test_transcript_mirror.py",
+      "duration_seconds": 28.56,
+      "result": "passed",
+      "tests": 49
+    },
+    {
+      "command": "TMPDIR=/var/tmp .venv/bin/pytest -q tests/test_claims.py tests/test_action_intents.py tests/test_workflow_engine.py tests/test_workflow_steps.py",
+      "duration_seconds": 57.51,
+      "result": "passed",
+      "tests": 96
+    },
+    {
+      "command": ".venv/bin/python -m compileall -q src/hutch tests/test_store_events.py tests/test_migration.py",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    }
+  ]
+}

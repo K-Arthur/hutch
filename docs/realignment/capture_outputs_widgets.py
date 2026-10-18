@@ -3,7 +3,7 @@
 Usage (root venv has Playwright; PYTHONPATH points at this worktree's src)::
 
     PYTHONPATH=$PWD/src python docs/realignment/capture_outputs_widgets.py \
-        --state /tmp/hutch-outputs-visual --port 18899 \
+        --state /<local-path-redacted> --port 18899 \
         --out docs/realignment/artifacts/outputs-widgets
 
 Seeds one conversation/run whose tool events come from the REAL tools (contained

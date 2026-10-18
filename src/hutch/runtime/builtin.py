@@ -79,6 +79,12 @@ COORDINATOR_GUIDANCE = """Workspace coordinator task drafting:
 - Keep a one-off task distinct from a Bot's standing role. Do not create or change a persistent Bot through wording alone.
 - A draft is not a dispatch: the operator must review the target and brief in Hutch and explicitly confirm before any specialist run starts."""
 
+WORKFLOW_ROUTING_GUIDANCE = """Workflow routing for this chat:
+- Keep greetings, answers, and one bounded tool step direct. Do not call the selector for ordinary requests.
+- When the request has real fan-out, dependencies, a repeatable reviewed procedure, or an independent check with bounded repair, you may call recommend_workflow during this same turn. Use only true structural signals, and name a saved method only when it actually matches.
+- The tool returns a suggestion in Suggest and never starts work there. In Auto it can start only an activated saved workflow that passes the current reviewed scope. It cannot create a plan or grant action authority.
+- A question, recommendation, or workflow start never approves a consequential action; existing approval controls still apply."""
+
 REHEARSAL_NOTE = ("- This is a REHEARSAL (dry run). Reads run for real. Any tool that would change something does NOT run: it "
                   "replies '[rehearsal] would ...' with the policy's verdict. Treat that as success, carry on, and describe "
                   "what you would do and what would need approval.\n")
@@ -400,12 +406,12 @@ class BuiltinRuntime:
     # ----------------------------------------------------------- bring online
 
     def _bring_online(self, ctx: ToolContext, run: Run, ladder: Ladder, rung: Rung, messages: list[dict],
-                      specs: list[dict]) -> Session:
+                      specs: list[dict], guard: Optional[SpendGuard] = None) -> Session:
         with self._inference(ctx, run, rung):
-            return self._prepare_session(ctx, run, ladder, rung, messages, specs)
+            return self._prepare_session(ctx, run, ladder, rung, messages, specs, guard)
 
     def _prepare_session(self, ctx: ToolContext, run: Run, ladder: Ladder, rung: Rung, messages: list[dict],
-                         specs: list[dict]) -> Session:
+                         specs: list[dict], guard: Optional[SpendGuard] = None) -> Session:
         """Make a rung ready: window, pre-run check, cold load, self-check. Raises ProviderError on failure."""
         bot = ctx.bot
         route = None if rung.local else self._route_identity(ctx, ladder, rung)
@@ -460,7 +466,48 @@ class BuiltinRuntime:
             if sc is None:
                 self._log(ctx, run, "selfcheck", f"checking that {rung.model} really recalls a fact placed at the "
                                                  f"top of a long prompt in a {num_ctx:,}-token window...")
-                res = run_selfcheck(provider, rung.model, num_ctx)
+                request_runner = None
+                if run.workflow_run_id:
+                    if guard is None:
+                        raise RunAborted("usage_reservation", "workflow self-check has no root usage guard")
+
+                    def request_runner(request, estimated_prompt_tokens):
+                        try:
+                            reservation = guard.reserve(rung, estimated_prompt_tokens, request.max_tokens)
+                        except UsageBudgetRefusal as exc:
+                            raise RunAborted("cost_cap", str(exc)) from exc
+                        if not ctx.store.start_usage_request(reservation.id, expected_fence=run.fence):
+                            raise RunAborted("usage_reservation", "workflow self-check reservation was already used")
+                        try:
+                            response = provider.chat(request)
+                        except Exception as exc:
+                            ctx.store.mark_usage_uncertain(
+                                reservation.id, f"workflow self-check outcome is uncertain ({type(exc).__name__})",
+                                expected_fence=run.fence)
+                            raise
+                        if response.prompt_tokens or response.completion_tokens:
+                            account_id, _, _ = guard.account_policy(rung)
+                            cost = guard.prices.cost(rung.provider, rung.model, response.prompt_tokens,
+                                                     response.completion_tokens, response.cached_tokens,
+                                                     response.cache_write_tokens) or 0.0
+                            ctx.store.add_usage(
+                                run.id, run.bot_id, rung.provider, rung.model, response.prompt_tokens,
+                                response.completion_tokens, response.cached_tokens, cost,
+                                kind="workflow_selfcheck", account_id=account_id,
+                                reservation_id=reservation.id, expected_fence=run.fence)
+                            run.prompt_tokens += response.prompt_tokens
+                            run.completion_tokens += response.completion_tokens
+                            run.cached_tokens += response.cached_tokens
+                            run.tokens += response.prompt_tokens + response.completion_tokens
+                            run.cost_usd = round(run.cost_usd + cost, 8)
+                            ctx.store.update_run(run)
+                        else:
+                            ctx.store.mark_usage_uncertain(
+                                reservation.id, "workflow self-check response omitted token usage",
+                                expected_fence=run.fence)
+                        return response
+
+                res = run_selfcheck(provider, rung.model, num_ctx, request_runner=request_runner)
                 sc = res.__dict__
                 if res.ok:
                     ctx.store.kv_set(key, json.dumps(sc))
@@ -475,23 +522,11 @@ class BuiltinRuntime:
 
     def _route_identity(self, ctx: ToolContext, ladder: Ladder, rung: Rung, *, book: ConnectionBook | None = None) -> tuple:
         """Billing and destination authority, separate from the selected model and secret."""
-        conn = (book if book is not None else self._connections(ctx)).get(rung.provider)
-        if conn:
-            protocol, endpoint = conn.endpoint_for(rung.model)
-            revision = hashlib.sha256(json.dumps(asdict(conn), sort_keys=True).encode()).hexdigest()
-            return (conn.name, conn.account_id, conn.billing, protocol, endpoint, revision)
-        from ..providers.openai_compat import PRESET_URLS
-        import os
-        endpoint = ladder.base_url_for(rung)
-        if rung.provider == "ollama":
-            endpoint = endpoint or os.environ.get("OLLAMA_HOST") or PRESET_URLS.get(rung.provider, "")
-        else:
-            endpoint = endpoint or PRESET_URLS.get(rung.provider, "")
-        if rung.provider == "anthropic":
-            endpoint = endpoint or os.environ.get("ANTHROPIC_BASE_URL") or "https://api.anthropic.com"
-        elif rung.provider == "openai-compatible":
-            endpoint = endpoint or os.environ.get("HUTCH_BASE_URL", "")
-        return (rung.provider, rung.provider, "per_token", rung.provider, endpoint, "builtin")
+        from ..route_identity import route_tuple
+
+        return route_tuple(provider=rung.provider, model=rung.model,
+                           base_url=ladder.base_url_for(rung),
+                           connections=(book if book is not None else self._connections(ctx)))
 
     def _ask_first_hosted(self, ctx: ToolContext, run: Run, ladder: Ladder, rung: Rung,
                           why: str, est_prompt: int) -> tuple | None:
@@ -586,7 +621,7 @@ class BuiltinRuntime:
             self._log(ctx, run, kind, f"{kind} to {rung.spec} was not approved: {exc}", blocked=True)
             return None
         try:
-            session = self._bring_online(ctx, run, ladder, rung, messages, specs)
+            session = self._bring_online(ctx, run, ladder, rung, messages, specs, guard)
         except ProviderError as exc:
             ladder.blocked.add(rung.spec)
             self._log(ctx, run, kind, f"{rung.spec} is not usable either: {exc}", blocked=True)
@@ -594,6 +629,14 @@ class BuiltinRuntime:
         prev = ladder.current
         ladder.current = rung
         run.model_used = rung.spec
+        # Exact-profile roles follow the model that actually made the next call. A
+        # fallback must not inherit author/selector qualification from the prior route.
+        ctx.model_execution_profile = self._resolve_tool_profile(
+            ctx, ladder, rung, metadata=session.meta, effective_context=session.num_ctx,
+            decoding={"temperature": None, "max_tokens": self._turn_cap(ctx.bot, rung),
+                      "think": ctx.bot.think if ctx.bot.think is not None else False,
+                      "stream": session.stream},
+        ).execution_view()
         self._log(ctx, run, kind, f"{kind}: {prev.spec} -> {rung.spec} ({why})",
                   from_model=prev.spec, to_model=rung.spec, reason=why, hosted=not rung.local)
         return session
@@ -619,7 +662,9 @@ class BuiltinRuntime:
         return None
 
     def _resolve_tool_profile(self, ctx: ToolContext, ladder: Ladder, rung: Rung,
-                              revision: str = "") -> ModelCapabilityProfile:
+                              *, metadata: Optional[ModelMeta] = None,
+                              effective_context: Optional[int] = None,
+                              decoding: Optional[dict[str, Any]] = None) -> ModelCapabilityProfile:
         """Resolve the exact route's tool-calling profile; passive observations are inputs, not authority."""
         book = self._connections(ctx)
         conn = book.get(rung.provider)
@@ -645,8 +690,12 @@ class BuiltinRuntime:
             observations = list(ctx.store.list_model_capability_observations(limit=20))
         except Exception:
             observations = []
+        route = self._route_identity(ctx, ladder, rung, book=book)
+        route_revision = hashlib.sha256(json.dumps(route, sort_keys=True, separators=(",", ":"),
+                                               default=str).encode()).hexdigest()
         return resolve_profile(provider=rung.provider, endpoint=endpoint, model=rung.model,
-                               revision=revision, observations=observations)
+                               revision=route_revision, observations=observations, metadata=metadata,
+                               effective_context=effective_context, decoding=decoding)
 
     # ---------------------------------------------------------------- startup
 
@@ -679,7 +728,7 @@ class BuiltinRuntime:
                     raise capped
                 if rung is not ladder.primary:
                     self._ask_first_hosted(ctx, run, ladder, rung, "the primary model is unavailable", est_prompt)
-                session = self._bring_online(ctx, run, ladder, rung, messages, specs)
+                session = self._bring_online(ctx, run, ladder, rung, messages, specs, guard)
                 self._announce_plan(ctx, run, session, est_prompt)
                 return session
             except DeniedError as denied:
@@ -778,6 +827,20 @@ class BuiltinRuntime:
                 ctx.store.release_usage_reservation(reservation.id, "run stopped before provider call started",
                                                     expected_fence=run.fence)
                 raise RunAborted("stopped", "user requested stop")
+            try:
+                started = ctx.store.start_usage_request(reservation.id, expected_fence=run.fence)
+            except Exception:
+                # We have not crossed the durable request-start boundary. Release only
+                # when the same owner can prove that the reservation is still pre-send.
+                try:
+                    ctx.store.release_usage_reservation(
+                        reservation.id, "provider dispatch was refused before the request started",
+                        expected_fence=run.fence)
+                except Exception:
+                    pass
+                raise
+            if not started:
+                raise RunAborted("usage_reservation", "this provider reservation was already used; no second request was sent")
             t_call = time.perf_counter()
             try:
                 result = session.provider.chat(req)
@@ -1088,7 +1151,42 @@ class BuiltinRuntime:
         # Finalize for the model that actually came online: an unavailable primary must not
         # leave a contract compiled for a different route, and the catalog snapshot is logged
         # before the first turn.
-        profile = self._resolve_tool_profile(ctx, ladder, session.rung, revision=_session_revision(session))
+        profile = self._resolve_tool_profile(
+            ctx, ladder, session.rung, metadata=session.meta, effective_context=session.num_ctx,
+            decoding={"temperature": None, "max_tokens": self._turn_cap(bot, session.rung),
+                      "think": bot.think if bot.think is not None else False, "stream": session.stream})
+        ctx.model_execution_profile = profile.execution_view()
+        route_mode = "off"
+        if (run.conversation_id and not run.origin.startswith("remote:") and not run.parent_run_id
+                and not run.workflow_step and not run.workflow_context and not run.rehearsal):
+            current_bot = ctx.store.get_bot(ctx.bot.id)
+            try:
+                saved_policy = ctx.store.get_conversation_workflow_policy(run.conversation_id)
+            except KeyError:
+                # Legacy/imported runs may carry a conversation identity before there
+                # is a durable conversation row. They still use the Bot's reviewed
+                # default; only the conversation policy API requires a stored row.
+                saved_policy = None
+            override = str(saved_policy["mode"]) if saved_policy else "inherit"
+            route_mode = (getattr(current_bot, "workflow_mode", "suggest") if override == "inherit" else override)
+        if route_mode in ("suggest", "auto"):
+            from ..connections import ConnectionBook
+            from ..workflow import qualify
+
+            selector = qualify.assess(
+                "selector", spec=session.rung.spec, store=ctx.store,
+                connections=ConnectionBook(ctx.config.state_dir),
+                base_url=ladder.base_url_for(session.rung) or None,
+                execution_profile_hash=profile.execution_view().get("fingerprint"),
+            )
+            if selector.allowed:
+                from ..tools.workflow_route import WorkflowRouteTool
+                tools[WorkflowRouteTool.name] = WorkflowRouteTool()
+                base_system += "\n\n" + WORKFLOW_ROUTING_GUIDANCE
+            else:
+                self._log(ctx, run, "workflow_routing",
+                          "chat workflow recommendations are unavailable: " + selector.summary(),
+                          role="selector", model=session.rung.spec, state=selector.state)
         try:
             plan = compile_plan(tools=tools, profile=profile, strategy=requested)
         except ToolProtocolUnavailable as exc:
@@ -1118,6 +1216,9 @@ class BuiltinRuntime:
                 if chk.severity == "fail":
                     raise RunAborted("context", f"{chk.message}. {chk.fix}")
         prefix_hash = hashlib.sha256((system + json.dumps(specs, sort_keys=True)).encode()).hexdigest()[:12]
+        profile_hash = hashlib.sha256(json.dumps(profile.execution_view(), sort_keys=True,
+                                                  separators=(",", ":"), default=str).encode()).hexdigest()
+        system_hash = hashlib.sha256(system.encode("utf-8")).hexdigest()
         envelope_mode = plan.strategy in ("constrained", "prompt")
         planned_rung_spec = session.rung.spec
         contract_repairs = 0
@@ -1207,6 +1308,45 @@ class BuiltinRuntime:
                                       "prepared": len(attachments), "labels": labels})
             except Exception:
                 pass
+
+        continuation = ctx.store.mark_child_wait_resuming(run.id, run.fence)
+        if continuation is not None:
+            payload = continuation.get("payload")
+            if (not isinstance(payload, dict) or payload.get("version") != 1
+                    or continuation.get("child_run_id") != payload.get("child_run_id")
+                    or payload.get("plan_hash") != plan.plan_hash
+                    or payload.get("profile_hash") != profile_hash
+                    or payload.get("system_hash") != system_hash
+                    or payload.get("model") != session.rung.spec
+                    or not isinstance(payload.get("messages"), list)
+                    or not isinstance(payload.get("tool_call"), dict)
+                    or ctx.delegation_resume is None):
+                raise RunAborted("continuation_stale",
+                                 "the delegated continuation no longer matches this run's exact model and tool contract")
+            messages = payload["messages"]
+            call = payload["tool_call"]
+            if (not isinstance(call.get("name"), str) or not isinstance(call.get("id"), str)
+                    or call.get("name") != "delegate_task"):
+                raise RunAborted("continuation_invalid", "the delegated continuation does not contain the expected call")
+            child_result = ctx.delegation_resume(str(continuation["child_run_id"]))
+            if child_result.data.get("child_wait_pending"):
+                payload["deadline_epoch"] = child_result.data.get("deadline_epoch", payload.get("deadline_epoch"))
+                raise RunAborted("child_wait", "delegated child work is still settling",
+                                 continuation={"child_run_id": continuation["child_run_id"], "payload": payload})
+            if child_result.data.get("outcome_unknown"):
+                ctx.store.complete_child_wait(run.id, run.fence)
+                raise RunAborted("outcome_unknown", child_result.output)
+            append_tool_result(call["name"], call["id"], child_result.output or "(empty)")
+            ctx.emit(Event(run_id=run.id, type=EventType.tool_result,
+                           data={"tool": call["name"], "ok": child_result.ok,
+                                 "output": (child_result.output or "(empty)")[:2_000],
+                                 "child_run_id": continuation["child_run_id"], "resumed": True}))
+            try:
+                ctx.store.flush_events()
+                ctx.store.complete_child_wait(run.id, run.fence)
+            except Exception as exc:
+                raise RunAborted("event_delivery_failed",
+                                 f"the delegated result could not be durably recorded: {type(exc).__name__}: {exc}") from exc
 
         loop = LoopDetector()
         malformed_streak = loop_strikes = 0
@@ -1538,6 +1678,23 @@ class BuiltinRuntime:
                      "function": {"name": tc.name,
                                   "arguments": tc.raw if (tc.parse_error and tc.raw) else json.dumps(tc.arguments)}}
                     for tc in result.tool_calls]})
+            delegation_calls = [
+                tc for tc in result.tool_calls
+                if ((plan.resolve_name(tc.name).name if plan.resolve_name(tc.name) else tc.name) == "delegate_task")
+            ]
+            if delegation_calls and len(result.tool_calls) > 1:
+                note = ("delegate_task must be the only call in a provider response so Hutch can park and resume "
+                        "the exact conversation safely; no call from this response was run")
+                self._log(ctx, run, "delegation", note, ok=False)
+                for tc in result.tool_calls:
+                    resolved = plan.resolve_name(tc.name) if plan is not None else None
+                    name = resolved.name if resolved is not None else tc.name
+                    ctx.emit(Event(run_id=run.id, type=EventType.tool_call,
+                                   data={"tool": name, "args": {"rejected": True}}))
+                    ctx.emit(Event(run_id=run.id, type=EventType.tool_result,
+                                   data={"tool": name, "ok": False, "output": f"rejected: {note}"}))
+                    append_tool_result(name, tc.id, note)
+                continue
             turn_bad = loop_hit = False
             for call_index, tc in enumerate(result.tool_calls):
                 # The application, not the provider, owns each call's position in the response:
@@ -1603,6 +1760,23 @@ class BuiltinRuntime:
                 tool_timer = StepTimer()
                 res = call_tool(run, ctx, tools, canonical_name, args, tool_timer)
                 run.tool_ms += tool_timer.tool_ms
+                if res.data.get("child_wait_pending"):
+                    continuation_payload = {
+                        "version": 1,
+                        "child_run_id": str(res.data.get("child_run_id") or ""),
+                        "deadline_epoch": res.data.get("deadline_epoch"),
+                        "messages": messages,
+                        "tool_call": {"id": tc.id, "name": canonical_name, "arguments": args},
+                        "plan_hash": plan.plan_hash,
+                        "profile_hash": profile_hash,
+                        "system_hash": system_hash,
+                        "model": session.rung.spec,
+                        "strategy": plan.strategy,
+                        "protocol": plan.protocol,
+                    }
+                    raise RunAborted("child_wait", "delegated child work is running",
+                                     continuation={"child_run_id": continuation_payload["child_run_id"],
+                                                   "payload": continuation_payload})
                 if res.data.get("question_pending"):
                     return ""
                 append_tool_result(
@@ -1653,15 +1827,6 @@ def _plain_schema(value: Any) -> Any:
         return item
 
     return thaw(value)
-
-
-def _session_revision(session: Session) -> str:
-    """A build/template fingerprint when the runtime reports one (Ollama digest + template)."""
-    meta = session.meta
-    if meta is None:
-        return ""
-    parts = [getattr(meta, "digest", "") or "", getattr(meta, "template_hash", "") or ""]
-    return ":".join(p for p in parts if p)
 
 
 def _normalize_call_ids(run: Run, calls: list) -> dict[str, str]:

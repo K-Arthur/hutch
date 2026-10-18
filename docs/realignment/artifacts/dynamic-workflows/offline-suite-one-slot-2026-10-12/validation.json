@@ -1,0 +1,61 @@
+{
+  "validated_at_utc": "2026-10-12T04:14:17Z",
+  "commit": "984a9f0a",
+  "branch": "codex/dynamic-workflows-completion",
+  "runtime": {
+    "python": "3.13.15",
+    "pytest": "9.1.1"
+  },
+  "command": "TMPDIR=/var/tmp .venv/bin/pytest -q --ignore=tests/e2e --basetemp=/<local-path-redacted>",
+  "result": {
+    "passed": 2201,
+    "failed": 1,
+    "duration_seconds": 648.85
+  },
+  "failure": {
+    "test": "tests/test_model_switcher.py::test_connection_models_known_from_bots_appear_with_their_state",
+    "classification": "previously reproduced baseline failure; after connection acknowledgement, the OpenCode model catalog is unavailable and the expected flat-rate note is replaced by the retry message"
+  },
+  "isolated_recheck": {
+    "command": "TMPDIR=/<local-path-redacted> .venv/bin/pytest -q tests/test_model_switcher.py::test_connection_models_known_from_bots_appear_with_their_state --basetemp=/<local-path-redacted>",
+    "result": "1 failed in 4.22s",
+    "same_failure": true,
+    "prior_baseline_evidence": "docs/realignment/artifacts/dynamic-workflows/offline-suite-store-backoff-2026-10-12/validation.json and docs/realignment/artifacts/dynamic-workflows/offline-suite-2026-10-11/"
+  },
+  "comparison": {
+    "pre_fix_commit": "ef263e41",
+    "pre_fix_result": "2198 passed, 3 failed in 662.04s",
+    "pre_fix_failures": [
+      "tests/test_delegation.py::test_strict_offline_delegation_runs_as_child_after_explicit_approval",
+      "tests/test_durable_changes.py::test_upgrade_v10_preserves_state_and_initializes_fresh_change_history",
+      "tests/test_model_switcher.py::test_connection_models_known_from_bots_appear_with_their_state"
+    ],
+    "resolved_failures": [
+      "Strict Offline delegated child now admits and completes at max_concurrent=1",
+      "pre-v60 legacy migration fixture no longer queries an outbox table before its migration"
+    ],
+    "remaining_same_baseline_failure": true,
+    "AF_UNIX_long_temp_path_failure": "not reproduced with the short /<local-path-redacted> base"
+  },
+  "focused": {
+    "related_suite": "tests/test_delegation.py tests/test_store_events.py tests/test_durable_changes.py tests/test_claims.py tests/test_capacity_procs.py tests/test_workflow_regressions.py",
+    "result": "128 passed in 90.56s",
+    "one_slot_process_and_migration_selection": "5 passed in 35.38s"
+  },
+  "limits": [
+    "E2E/browser tests were excluded. The recorded broad browser suite remains 181 passed, 25 failed, 8 teardown errors.",
+    "The supervised one-slot test uses scripted FakeOllama responses; it verifies approval, process, capacity and resumption behavior, not model quality.",
+    "One remaining non-browser failure is the previously reproduced model-list baseline failure.",
+    "Trailing whitespace was stripped from display-only traceback/log lines in retained pytest output; test names, assertions, summary counts and failure details are unchanged."
+  ],
+  "sha256": {
+    "src/hutch/engine.py": "4433ab005a15572d78165526b793d401f9af8682e9dafdc2e8d134611437e1e3",
+    "src/hutch/store.py": "2de599e363244d8468c71e390b1597735d375cd0cf13c71869d092db19b28095",
+    "tests/test_delegation.py": "388f9c460b01c0b2edde0e5fe499f77d17adb9b0aaf8fa6a78a7c1fcf4f80fd8",
+    "tests/test_durable_changes.py": "8094b36723c4467388f2793ee9513b6d7b2503c5f12769be719b1b9d80e4bf77",
+    "docs/realignment/dynamic-workflows.md": "d6beea5456c29a34508141f615f97405eb0e27fdec3fa98b56e2387ccae4c554",
+    "CHANGELOG.md": "f5956f72f12d57a78663d357b1b687f26c173229c8adb1a651e89841d9d61338",
+    "docs/realignment/artifacts/dynamic-workflows/offline-suite-one-slot-2026-10-12/pytest-output.txt": "757655af858135b15488ccc1170bb07b7a7d08bd53b2c6f440ee7e353ecd77d2",
+    "docs/realignment/artifacts/dynamic-workflows/offline-suite-one-slot-2026-10-12/pre-fix-suite-output.txt": "90a07a27473261c639f90dc7339461c6f4bc1f7a4182ccff43c9d250c2a25a97"
+  }
+}

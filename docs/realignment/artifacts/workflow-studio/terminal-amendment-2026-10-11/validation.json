@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-11",
+  "scope": "Terminal-run amendment API boundary",
+  "baseline_commit": "fd90a47747db507d3b63f4320c35df57e2f4bd8a",
+  "test": "tests/test_workflow_api.py::test_terminal_workflow_amendment_refusal_is_explicit_and_preserves_result",
+  "command": "TMPDIR=/var/tmp .venv/bin/pytest -q tests/test_workflow_api.py --basetemp=/<local-path-redacted>",
+  "result": "26 passed in 14.36s",
+  "runtime": {
+    "python": "Python 3.13.15",
+    "pytest": "pytest 9.1.1",
+    "transport": "FastAPI TestClient with local SQLite state; no external requests"
+  },
+  "before_change": "The terminal workflow was preserved, but adoption returned only the generic parked-workflow error.",
+  "after_change": "The API returns HTTP 409 with an explicit terminal-workflow unsupported message and directs the owner to start a new run from the saved workflow.",
+  "assertions": {
+    "preview_authority_budget_eligible": true,
+    "preview_workflow_status": "succeeded",
+    "adoption_status_code": 409,
+    "workflow_status_preserved": true,
+    "revision_and_generation_preserved": true,
+    "terminal_result_preserved": true,
+    "amendment_history_empty": true
+  },
+  "decision": "Terminal-run amendment adoption is unsupported. This avoids presenting a terminal result as amendable when current reuse rules cannot safely transfer effect receipts across revisions; start a fresh saved-workflow run instead.",
+  "source_sha256": {
+    "src/hutch/workflow/persistence.py": "51999cfe607c610d4fa169b77710208eabc28bba1902b7ffcb4c85163e62277d",
+    "src/hutch/workflow/amendments.py": "30bcf9a55ce10c12631de429ed3be71a21d6054614d9a54f7c04a2fa8b1827a3",
+    "src/hutch/server/workflows_api.py": "7fc8fd502787b3faedd15f8388e56901a693fafb0dc5fc1501c4ee780c6795af",
+    "tests/test_workflow_api.py": "802692648d186ebb6f2870a881c8e4e62aec421636fc6b4e6fec294e9282f858"
+  }
+}

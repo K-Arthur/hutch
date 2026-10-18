@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-11",
+  "scope": "Workflow Stop while a local model step is active under the process executor",
+  "baseline_commit": "8175711e21938a1df12877f108e2fdeffcb9acda",
+  "test": "tests/test_workflow_steps.py::test_stopping_workflow_cancels_active_step_and_drains_its_process",
+  "module_test": {
+    "command": "TMPDIR=/var/tmp .venv/bin/pytest -q tests/test_workflow_steps.py --basetemp=/<local-path-redacted>",
+    "result": "5 passed in 9.74s"
+  },
+  "targeted_test": {
+    "command": "TMPDIR=/var/tmp .venv/bin/pytest -q tests/test_workflow_steps.py::test_stopping_workflow_cancels_active_step_and_drains_its_process --basetemp=/<local-path-redacted>",
+    "result": "1 passed in 4.75s"
+  },
+  "runtime": {
+    "python": "Python 3.13.15",
+    "pytest": "pytest 9.1.1",
+    "executor": "process"
+  },
+  "provider": {
+    "kind": "FakeOllama",
+    "transport": "local HTTP using Ollama-compatible API",
+    "model_response": "scripted and delayed; no model-quality claim"
+  },
+  "asserted_outcome": {
+    "workflow_status": "stopped",
+    "step_child_status": "stopped",
+    "orchestration_attempt_status": "stopped",
+    "owned_process_records_after_terminal": 0,
+    "pending_questions_after_stop": 0
+  },
+  "limitations": [
+    "This verifies the Hutch supervisor/store/runtime path with a scripted local HTTP server, not real model cancellation behavior.",
+    "It does not exercise production storage failures or broad E2E coverage."
+  ],
+  "source_sha256": {
+    "src/hutch/engine.py": "f03eb92744ab1e3cdd9678be7d371ccbcb6811d96ababbe81788596523656a5c",
+    "src/hutch/workflow/persistence.py": "4a27755dc79af6f01fd68d2eb635fd118fe94cb5ac3b6f8ccebc9ee66eee919a",
+    "src/hutch/workflow/runtime.py": "3d276486c1022d68042da8cfc3708bdd416378c162bd11d8e56f88c2ec71c7a5",
+    "src/hutch/workflow/engine.py": "7adc6d582ed8deea29f36674d546ace6cb24c368247e21b7c727ef68e12eeddc",
+    "tests/test_workflow_steps.py": "10042eb2077f6e46f2ce8efc0751301ed8299497f7a2763d653c5b97a2908a19"
+  }
+}

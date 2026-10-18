@@ -5,7 +5,7 @@
     "description": "Thick colored border on one side of a card — the most recognizable tell of AI-generated UIs. Use a subtler accent or remove it entirely.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "border-left: 3px + border-radius: 4px"
   },
@@ -15,7 +15,7 @@
     "description": "Thick colored border on one side of a card — the most recognizable tell of AI-generated UIs. Use a subtler accent or remove it entirely.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "border-left: 3px + border-radius: 4px"
   },
@@ -25,7 +25,7 @@
     "description": "Thick colored border on one side of a card — the most recognizable tell of AI-generated UIs. Use a subtler accent or remove it entirely.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "border-left: 3px + border-radius: 4px"
   },
@@ -35,7 +35,7 @@
     "description": "Thick colored border on one side of a card — the most recognizable tell of AI-generated UIs. Use a subtler accent or remove it entirely.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "border-left: 3px + border-radius: 4px"
   },
@@ -45,7 +45,7 @@
     "description": "Gradient text is decorative rather than meaningful — a common AI tell, especially on headings and metrics. Use solid colors for text.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "background-clip: text + gradient"
   },
@@ -55,7 +55,7 @@
     "description": "Colored glow shadows — a zero-offset chromatic halo (box- or text-shadow) on any background, or any colored blurred shadow on a dark background — are the default \"cool\" look of AI-generated UIs. Use neutral elevation shadows and subtle, purposeful lighting instead.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "Colored box-shadow glow (#52a8ff) on dark background"
   },
@@ -65,7 +65,7 @@
     "description": "Colored glow shadows — a zero-offset chromatic halo (box- or text-shadow) on any background, or any colored blurred shadow on a dark background — are the default \"cool\" look of AI-generated UIs. Use neutral elevation shadows and subtle, purposeful lighting instead.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "Zero-offset box-shadow glow (#62c073)"
   },
@@ -75,7 +75,7 @@
     "description": "Colored glow shadows — a zero-offset chromatic halo (box- or text-shadow) on any background, or any colored blurred shadow on a dark background — are the default \"cool\" look of AI-generated UIs. Use neutral elevation shadows and subtle, purposeful lighting instead.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "Colored box-shadow glow (#fbbf24) on dark background"
   },
@@ -85,7 +85,7 @@
     "description": "Letter-spacing pulled tighter than the point where characters keep their own shapes costs legibility. Tighten display type optically, not destructively.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "letter-spacing: -0.05em — \"your bots. your machine.\""
   },
@@ -95,7 +95,7 @@
     "description": "Body text below 12px is hard to read, especially on high-DPI screens. Use at least 14px for body content, 16px is ideal.",
     "severity": "warning",
     "category": "quality",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "11.5px body text"
   },
@@ -105,7 +105,7 @@
     "description": "Letter spacing above 0.05em on body text disrupts natural character groupings and slows reading. Reserve wide tracking for short uppercase labels only.",
     "severity": "warning",
     "category": "quality",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "letter-spacing: 0.06em on body text"
   },
@@ -115,7 +115,7 @@
     "description": "Letter spacing above 0.05em on body text disrupts natural character groupings and slows reading. Reserve wide tracking for short uppercase labels only.",
     "severity": "warning",
     "category": "quality",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "letter-spacing: 0.06em on body text"
   },
@@ -125,7 +125,7 @@
     "description": "Letter spacing above 0.05em on body text disrupts natural character groupings and slows reading. Reserve wide tracking for short uppercase labels only.",
     "severity": "warning",
     "category": "quality",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "letter-spacing: 0.07em on body text"
   },
@@ -135,7 +135,7 @@
     "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
     "severity": "warning",
     "category": "quality",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "10.5px functional text \"Runaway spend\" (below 11px floor)"
   },
@@ -145,7 +145,7 @@
     "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
     "severity": "warning",
     "category": "quality",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "10.5px functional text \"Silent failure\" (below 11px floor)"
   },
@@ -155,7 +155,7 @@
     "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
     "severity": "warning",
     "category": "quality",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "10.5px functional text \"Privacy leak\" (below 11px floor)"
   },
@@ -165,7 +165,7 @@
     "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
     "severity": "warning",
     "category": "quality",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "10.5px functional text \"Permission fatigue\" (below 11px floor)"
   },
@@ -175,7 +175,7 @@
     "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
     "severity": "warning",
     "category": "quality",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "10.5px functional text \"Orphaned work\" (below 11px floor)"
   },
@@ -185,7 +185,7 @@
     "description": "Letter spacing above 0.05em on body text disrupts natural character groupings and slows reading. Reserve wide tracking for short uppercase labels only.",
     "severity": "warning",
     "category": "quality",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "letter-spacing: 0.07em on body text"
   },
@@ -195,7 +195,7 @@
     "description": "Letter spacing above 0.05em on body text disrupts natural character groupings and slows reading. Reserve wide tracking for short uppercase labels only.",
     "severity": "warning",
     "category": "quality",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "letter-spacing: 0.07em on body text"
   },
@@ -205,7 +205,7 @@
     "description": "Letter spacing above 0.05em on body text disrupts natural character groupings and slows reading. Reserve wide tracking for short uppercase labels only.",
     "severity": "warning",
     "category": "quality",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "letter-spacing: 0.07em on body text"
   },
@@ -215,7 +215,7 @@
     "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the padding is too low for the font size, and (2) a wrapper with text-bearing children and near-zero padding against a visible boundary (border, outline, or non-transparent background) — children land flush against the boundary line. Add at least 8px (ideally 12–16px) of padding inside bordered, outlined, or colored containers.",
     "severity": "warning",
     "category": "quality",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "<div> \"matrix-wrapper\": children flush against border on all sides (no inset)"
   },
@@ -225,7 +225,7 @@
     "description": "Letter spacing above 0.05em on body text disrupts natural character groupings and slows reading. Reserve wide tracking for short uppercase labels only.",
     "severity": "warning",
     "category": "quality",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "letter-spacing: 0.07em on body text"
   },
@@ -235,7 +235,7 @@
     "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the padding is too low for the font size, and (2) a wrapper with text-bearing children and near-zero padding against a visible boundary (border, outline, or non-transparent background) — children land flush against the boundary line. Add at least 8px (ideally 12–16px) of padding inside bordered, outlined, or colored containers.",
     "severity": "warning",
     "category": "quality",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "<div> \"faq-list\": children flush against border-top on top (no inset)"
   },
@@ -245,7 +245,7 @@
     "description": "A clipping container (overflow hidden or clip) wrapping an absolutely-positioned child cuts off tooltips, menus, and popovers that need to escape. Let the overflow be visible, or move the positioned layer out of the clip.",
     "severity": "warning",
     "category": "quality",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "body clips a positioned child"
   },
@@ -255,7 +255,7 @@
     "description": "A hairline border paired with a wide, diffuse shadow is a recurring generated-UI signature. Commit to one — a defined edge or a soft elevation — rather than both at once.",
     "severity": "advisory",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "1px border + 16px shadow blur",
     "advisory": true
@@ -266,7 +266,7 @@
     "description": "A hairline border paired with a wide, diffuse shadow is a recurring generated-UI signature. Commit to one — a defined edge or a soft elevation — rather than both at once.",
     "severity": "advisory",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "1px border + 24px shadow blur",
     "advisory": true
@@ -277,7 +277,7 @@
     "description": "A hairline border paired with a wide, diffuse shadow is a recurring generated-UI signature. Commit to one — a defined edge or a soft elevation — rather than both at once.",
     "severity": "advisory",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "1px border + 16px shadow blur",
     "advisory": true
@@ -288,7 +288,7 @@
     "description": "Inter, Roboto, Fraunces, Geist, Plus Jakarta Sans, and Space Grotesk are used on so many sites they no longer feel distinctive. Each new wave of AI-generated UIs converges on the same handful of faces. Choose a face that gives your interface personality.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "Primary font: inter"
   },
@@ -298,7 +298,7 @@
     "description": "A tiny tracked uppercase or small-caps label sitting as its own block directly above a heading is banned outright, repeated or not. Generated kickers never earn their place: the heading carries its own weight. Delete the label and let the heading speak; if the words matter, work them into the heading or the body.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "kicker \"POLICY & LINUX SANDBOX\" above h3 \"Policy Engine & Optional OS Containment\""
   },
@@ -308,7 +308,7 @@
     "description": "A tiny tracked uppercase or small-caps label sitting as its own block directly above a heading is banned outright, repeated or not. Generated kickers never earn their place: the heading carries its own weight. Delete the label and let the heading speak; if the words matter, work them into the heading or the body.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "kicker \"DETERMINISTIC SCHEDULING\" above h3 \"Cron that Survives Real Life\""
   },
@@ -318,7 +318,7 @@
     "description": "A tiny tracked uppercase or small-caps label sitting as its own block directly above a heading is banned outright, repeated or not. Generated kickers never earn their place: the heading carries its own weight. Delete the label and let the heading speak; if the words matter, work them into the heading or the body.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "kicker \"HUMAN-IN-THE-LOOP\" above h3 \"Kind Approvals · Fail-Closed\""
   },
@@ -328,7 +328,7 @@
     "description": "A tiny tracked uppercase or small-caps label sitting as its own block directly above a heading is banned outright, repeated or not. Generated kickers never earn their place: the heading carries its own weight. Delete the label and let the heading speak; if the words matter, work them into the heading or the body.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "kicker \"LOCAL SOVEREIGNTY\" above h3 \"Transcripts, Budgets & Model Choices\""
   },
@@ -338,7 +338,7 @@
     "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "Card inside card (div)"
   },
@@ -348,7 +348,7 @@
     "description": "Gradient text is decorative rather than meaningful — a common AI tell, especially on headings and metrics. Use solid colors for text.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "background-clip: text + gradient"
   },
@@ -358,7 +358,7 @@
     "description": "Small pulsing status dots simulate liveness decoratively. Reserve pulse animation for indicators tied to genuinely live, changing data; a static indicator with clear labeling is honest and calmer.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": ".sim-typing span — 5x5px dot with infinite \"typing-bounce\" animation"
   },
@@ -368,7 +368,7 @@
     "description": "Colored glow shadows — a zero-offset chromatic halo (box- or text-shadow) on any background, or any colored blurred shadow on a dark background — are the default \"cool\" look of AI-generated UIs. Use neutral elevation shadows and subtle, purposeful lighting instead.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "file": "/<local-path-redacted>",
     "line": 0,
     "snippet": "Colored box-shadow glow (#10b981) on dark page"
   },
@@ -378,7 +378,7 @@
     "description": "Thick colored border on one side of a card — the most recognizable tell of AI-generated UIs. Use a subtler accent or remove it entirely.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/styles.css",
+    "file": "/<local-path-redacted>",
     "line": 433,
     "snippet": "border-left: 3px solid var(--blue)"
   },
@@ -388,7 +388,7 @@
     "description": "Inter, Roboto, Fraunces, Geist, Plus Jakarta Sans, and Space Grotesk are used on so many sites they no longer feel distinctive. Each new wave of AI-generated UIs converges on the same handful of faces. Choose a face that gives your interface personality.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/styles.css",
+    "file": "/<local-path-redacted>",
     "line": 1228,
     "snippet": "font-family: \"Inter"
   },
@@ -398,7 +398,7 @@
     "description": "Gradient text is decorative rather than meaningful — a common AI tell, especially on headings and metrics. Use solid colors for text.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/styles.css",
+    "file": "/<local-path-redacted>",
     "line": 1115,
     "snippet": "background-clip: text + gradient"
   },
@@ -408,7 +408,7 @@
     "description": "Gradient text is decorative rather than meaningful — a common AI tell, especially on headings and metrics. Use solid colors for text.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/styles.css",
+    "file": "/<local-path-redacted>",
     "line": 1118,
     "snippet": "background-clip: text + gradient"
   },
@@ -418,7 +418,7 @@
     "description": "Bounce and elastic easing feel dated and tacky. Real objects decelerate smoothly — use exponential easing (ease-out-quart/quint/expo) instead.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/styles.css",
+    "file": "/<local-path-redacted>",
     "line": 1383,
     "snippet": "animation: typing-bounce"
   },
@@ -428,7 +428,7 @@
     "description": "Thick colored border on one side of a card — the most recognizable tell of AI-generated UIs. Use a subtler accent or remove it entirely.",
     "severity": "warning",
     "category": "slop",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/src/hutch/server/static/hutch.css",
+    "file": "/<local-path-redacted>",
     "line": 278,
     "snippet": "border-left: 2px solid var(--border-strong)"
   },
@@ -438,7 +438,7 @@
     "description": "Animating width, height, padding, or margin causes layout thrash and janky performance. Use transform and opacity instead, or grid-template-rows for height animations.",
     "severity": "warning",
     "category": "quality",
-    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/src/hutch/server/static/hutch.css",
+    "file": "/<local-path-redacted>",
     "line": 257,
     "snippet": "transition: width"
   }

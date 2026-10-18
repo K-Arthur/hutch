@@ -1,0 +1,154 @@
+{
+  "test": "tests/e2e/test_browser.py::test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports",
+  "command": "uv run pytest tests/e2e/test_browser.py::test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports -q",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "viewports": [
+    {
+      "viewport": "desktop",
+      "size": [
+        1440,
+        960
+      ],
+      "state": "waiting",
+      "horizontal_overflow_px": 0,
+      "panel_bounds": {
+        "x": 476,
+        "y": 68,
+        "width": 760,
+        "height": 345.59
+      },
+      "title_bounds": {
+        "x": 493,
+        "y": 99.89,
+        "width": 318.95,
+        "height": 41.59
+      },
+      "actions_bounds": {
+        "x": 823.95,
+        "y": 81,
+        "width": 395.05,
+        "height": 26
+      }
+    },
+    {
+      "viewport": "tablet",
+      "size": [
+        768,
+        1024
+      ],
+      "state": "waiting",
+      "horizontal_overflow_px": 0,
+      "panel_bounds": {
+        "x": 24,
+        "y": 122.14,
+        "width": 720,
+        "height": 368.62
+      },
+      "title_bounds": {
+        "x": 41,
+        "y": 154.03,
+        "width": 278.95,
+        "height": 41.59
+      },
+      "actions_bounds": {
+        "x": 331.95,
+        "y": 135.14,
+        "width": 395.05,
+        "height": 26
+      }
+    },
+    {
+      "viewport": "phone",
+      "size": [
+        360,
+        800
+      ],
+      "state": "waiting",
+      "horizontal_overflow_px": 0,
+      "panel_bounds": {
+        "x": 24,
+        "y": 122.14,
+        "width": 312,
+        "height": 464
+      },
+      "title_bounds": {
+        "x": 41,
+        "y": 154.03,
+        "width": 278,
+        "height": 41.59
+      },
+      "actions_bounds": {
+        "x": 41,
+        "y": 231.31,
+        "width": 278,
+        "height": 56
+      }
+    },
+    {
+      "viewport": "compact-phone",
+      "size": [
+        320,
+        800
+      ],
+      "state": "waiting",
+      "horizontal_overflow_px": 0,
+      "panel_bounds": {
+        "x": 24,
+        "y": 122.14,
+        "width": 272,
+        "height": 464
+      },
+      "title_bounds": {
+        "x": 41,
+        "y": 154.03,
+        "width": 238,
+        "height": 41.59
+      },
+      "actions_bounds": {
+        "x": 41,
+        "y": 231.31,
+        "width": 238,
+        "height": 56
+      }
+    }
+  ],
+  "question_id": "wq_7c8eded4dec8",
+  "first_workflow_id": "wrun_5e53cba1a241",
+  "stopped_workflow_id": "wrun_9d2a8d076d3d",
+  "policy_override": {
+    "conversation_id": "conv_bc324ddab19b",
+    "mode": "off",
+    "revision": 1,
+    "updated_at": "2026-10-11T16:40:16.399152+00:00"
+  },
+  "keyboard_path": [
+    "focus answer",
+    "Tab to Send answer",
+    "Enter submits"
+  ],
+  "page_errors": [],
+  "provider_calls": 0,
+  "fixture_boundary": "A saved declarative ask workflow uses the real SQLite, supervisor, API and browser path; no model/provider call is made.",
+  "source_sha256": {
+    "src/hutch/models.py": "10d57a7f3c266ef9ae91cfe692c47625dcb35ecab83bba89812b378e08f59a82",
+    "src/hutch/store.py": "6e3857df97dd451d3ff3400c1b945711fab830f71ac50d6eae260069bf0fca39",
+    "src/hutch/workflow/persistence.py": "fd0c73c40c357c1ebf064de9d08fa390777374e6150ccaa495489526e9a26df6",
+    "src/hutch/workflow/submit.py": "a1f3f517635422b1e44c4ffa1d4620c44747f55fbc8a009b76e2fd2b9701f061",
+    "src/hutch/server/workflows_api.py": "787cc4733235472e016c57e2b74f1efa89e735dca536a936d5dc6beddf3b6559",
+    "src/hutch/server/static/app.js": "623c7e8c11d13195c5755bc6a352d1cfec403671a4e6239260a520c90c55e057",
+    "src/hutch/server/static/style.css": "16646ed37e14df9868eac434e386631d5d7d1725385ccab8155aadf106a54d2a"
+  },
+  "visual_artifact_sha256": {
+    "desktop-waiting.png": "430bce93aeb2b4e414ac0ac6adf1ed53ccdadb893bd84223a8b9e410a9cf9271",
+    "desktop-stopped.png": "0c9bcfa117f895d047ca554bf53f6d612d79a1685c505e8251a773afce4be02d",
+    "tablet-waiting.png": "afc3dabbe3287b418afbac28ca525ded344f0f5ec2058084955e935481cd1662",
+    "desktop-policy-off.png": "62f45740b7cfae3c0a695df93ddf674b6384211014d20acbb73487d6a5ff58bc",
+    "phone-waiting.png": "205ec35ce4fe0da355e595789b436260e6b976bcc011b16606a95d1e22207668",
+    "trace.zip": "aeac7d0f75652249de667fd3bb34939407d7a00b2ab65754823675cb98260825",
+    "desktop-finished.png": "91dc296c8b490b52d8b991069e0e7d7f038207e1a874c0c40d21dcbdccd378df",
+    "compact-phone-waiting.png": "8ec6c524f07a4586df0220069c0eee24b2b35f8662145cafa7c18dd3d634102d"
+  },
+  "captured_at": "2026-10-11T16:40:22.381830+00:00"
+}

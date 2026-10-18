@@ -2,7 +2,7 @@ FFF                                                                      [100%]
 =================================== FAILURES ===================================
 _ test_database_snapshot_scope_is_readable_and_has_no_executor_requests[1440-1000-desktop] _
 
-browser = <Browser type=<BrowserType name=firefox executable_path=/tmp/hutch-playwright-browsers/firefox-1543/firefox/firefox> version=155.0>
+browser = <Browser type=<BrowserType name=firefox executable_path=/<local-path-redacted>> version=155.0>
 site_url = 'http://127.0.0.1:50661/', width = 1440, height = 1000
 size = 'desktop'
 
@@ -44,7 +44,7 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
          ^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = PosixPath('/home/kevina/CodingProjects/hutch/.worktrees/realign/website/main.js')
+self = PosixPath('/<local-path-redacted>')
 mode = 'rb', buffering = -1, encoding = None, errors = None, newline = None
 
     def open(self, mode='r', buffering=-1, encoding=None,
@@ -57,7 +57,7 @@ mode = 'rb', buffering = -1, encoding = None, errors = None, newline = None
             encoding = io.text_encoding(encoding)
 >       return io.open(self, mode, buffering, encoding, errors, newline)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       FileNotFoundError: [Errno 2] No such file or directory: '/home/kevina/CodingProjects/hutch/.worktrees/realign/website/main.js'
+E       FileNotFoundError: [Errno 2] No such file or directory: '/<local-path-redacted>'
 
 ../../../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/pathlib/_local.py:537: FileNotFoundError
 ----------------------------- Captured stderr call -----------------------------
@@ -70,7 +70,7 @@ E       FileNotFoundError: [Errno 2] No such file or directory: '/home/kevina/Co
 127.0.0.1 - - [08/Oct/2026 06:48:17] "GET /assets/captures/proof-gate.webp HTTP/1.1" 200 -
 _ test_database_snapshot_scope_is_readable_and_has_no_executor_requests[900-1024-tablet] _
 
-browser = <Browser type=<BrowserType name=firefox executable_path=/tmp/hutch-playwright-browsers/firefox-1543/firefox/firefox> version=155.0>
+browser = <Browser type=<BrowserType name=firefox executable_path=/<local-path-redacted>> version=155.0>
 site_url = 'http://127.0.0.1:50661/', width = 900, height = 1024
 size = 'tablet'
 
@@ -112,7 +112,7 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
          ^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = PosixPath('/home/kevina/CodingProjects/hutch/.worktrees/realign/website/main.js')
+self = PosixPath('/<local-path-redacted>')
 mode = 'rb', buffering = -1, encoding = None, errors = None, newline = None
 
     def open(self, mode='r', buffering=-1, encoding=None,
@@ -125,7 +125,7 @@ mode = 'rb', buffering = -1, encoding = None, errors = None, newline = None
             encoding = io.text_encoding(encoding)
 >       return io.open(self, mode, buffering, encoding, errors, newline)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       FileNotFoundError: [Errno 2] No such file or directory: '/home/kevina/CodingProjects/hutch/.worktrees/realign/website/main.js'
+E       FileNotFoundError: [Errno 2] No such file or directory: '/<local-path-redacted>'
 
 ../../../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/pathlib/_local.py:537: FileNotFoundError
 ----------------------------- Captured stderr call -----------------------------
@@ -139,7 +139,7 @@ E       FileNotFoundError: [Errno 2] No such file or directory: '/home/kevina/Co
 127.0.0.1 - - [08/Oct/2026 06:48:19] "GET /assets/captures/proof-overview.webp HTTP/1.1" 200 -
 _ test_database_snapshot_scope_is_readable_and_has_no_executor_requests[390-844-phone] _
 
-browser = <Browser type=<BrowserType name=firefox executable_path=/tmp/hutch-playwright-browsers/firefox-1543/firefox/firefox> version=155.0>
+browser = <Browser type=<BrowserType name=firefox executable_path=/<local-path-redacted>> version=155.0>
 site_url = 'http://127.0.0.1:50661/', width = 390, height = 844, size = 'phone'
 
     @pytest.mark.parametrize('width,height,size',[(1440,1000,'desktop'),(900,1024,'tablet'),(390,844,'phone')])
@@ -180,7 +180,7 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
          ^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = PosixPath('/home/kevina/CodingProjects/hutch/.worktrees/realign/website/main.js')
+self = PosixPath('/<local-path-redacted>')
 mode = 'rb', buffering = -1, encoding = None, errors = None, newline = None
 
     def open(self, mode='r', buffering=-1, encoding=None,
@@ -193,7 +193,7 @@ mode = 'rb', buffering = -1, encoding = None, errors = None, newline = None
             encoding = io.text_encoding(encoding)
 >       return io.open(self, mode, buffering, encoding, errors, newline)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       FileNotFoundError: [Errno 2] No such file or directory: '/home/kevina/CodingProjects/hutch/.worktrees/realign/website/main.js'
+E       FileNotFoundError: [Errno 2] No such file or directory: '/<local-path-redacted>'
 
 ../../../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/pathlib/_local.py:537: FileNotFoundError
 ----------------------------- Captured stderr call -----------------------------

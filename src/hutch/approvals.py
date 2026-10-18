@@ -130,6 +130,9 @@ class ApprovalGate:
             action_hash=action_fingerprint(tool, detail, "" if outward else decision.sticky_key, outward),
         )
         prev_status = self.run.status
+        # Register cross-process delivery before the durable request becomes
+        # visible. A reviewer can decide as soon as the UI receives it.
+        self.store.ensure_listening()
         self.store.create_approval(req, expected_fence=self.run.fence, begin_wait=True)
         if req.status is ApprovalStatus.expired:
             self.emit(Event(run_id=self.run.id, type=EventType.approval_resolved,

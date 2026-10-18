@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import platform
 import re
 import secrets
@@ -97,8 +98,15 @@ def test_paired_phone_uses_supervision_view_and_hides_data_after_revocation(brow
         "credential_id": secrets.token_bytes(24), "public_key": b"browser-test-key", "sign_count": 0,
         "backup_eligible": True, "backed_up": True, "user_handle": handle,
     })
+    store._db.execute("UPDATE paired_credentials SET capabilities_json='[\"monitor\"]' WHERE id=?",
+                      (paired["id"],))
+    store._db.commit()
+    assert store.authenticate_session(paired["session_token"])["capabilities"] == ["monitor"]
 
     page = browser.new_page(viewport={"width": 390, "height": 844})
+    forbidden_responses = []
+    page.on("response", lambda response: forbidden_responses.append(response.url)
+            if response.status == 403 else None)
     try:
         page.context.add_cookies([{"name": "hutch_session", "value": paired["session_token"], "url": base}])
         page.goto(base + "/")
@@ -107,10 +115,14 @@ def test_paired_phone_uses_supervision_view_and_hides_data_after_revocation(brow
         assert page.locator("body").evaluate("el => el.classList.contains('paired-phone')")
         assert page.locator(".app-shell").is_hidden()
         assert page.locator(".phone-start-form").count() == 0
-        assert "Monitor and review only" in page.locator("#phone-root").inner_text()
+        assert page.locator('.phone-tabs [data-phone-tab="review"]').count() == 0, (
+            f"session={page.evaluate('hutchSession.capabilities')} tabs={page.locator('.phone-tabs').get_attribute('class')}")
+        assert forbidden_responses == []
+        assert "Monitor only" in page.locator("#phone-root").inner_text()
         page.get_by_role("button", name="Runs").click()
         page.locator(f'[data-phone-run="{run.id}"]').click()
         page.locator(".phone-run-detail").wait_for()
+        assert page.locator("[data-phone-stop], [data-phone-resume]").count() == 0
         assert page.locator(".phone-run-detail").get_by_text("Phone transcript fixture marker.").is_visible()
         started_at = page.locator(".phone-run-detail .phone-card .phone-sub").first.inner_text()
         transcript_time = page.locator(".phone-transcript li > span").first.inner_text()
@@ -122,6 +134,408 @@ def test_paired_phone_uses_supervision_view_and_hides_data_after_revocation(brow
         assert "Phone transcript fixture marker." not in page.locator("body").inner_text()
     finally:
         page.close()
+
+
+def test_delegated_wait_status_is_responsive_and_reviewable(browser, live, monkeypatch):
+    """Capture the parked-parent state in the local app and the paired review view."""
+    base, app = live
+    store, engine = app.state.store, app.state.engine
+    monkeypatch.setattr(engine, "tick", lambda: None)
+    bot = store.create_bot(Bot(name="delegated-wait-visual", model="mock/demo", tools=["delegate_task"]))
+    root = store.create_run(Run(bot_id=bot.id, prompt="Coordinate a bounded child task."))
+    claimed = store.claim_run(root.id, "delegated-wait-visual-owner", 60)
+    assert claimed is not None
+    root = store.transition_run(root.id, RunStatus.running, fence=claimed.fence,
+                                capability_snapshot=engine.capability_snapshot(bot))
+    child, inserted = store.submit_delegated_run(
+        parent_run_id=root.id, parent_fence=root.fence,
+        run=Run(bot_id=bot.id, prompt="Inspect the bounded area."),
+        task=Task(bot_id=bot.id, kind="delegated", prompt="Inspect the bounded area."),
+        idem_key="visual-child", request_hash="visual-child-v1")
+    assert inserted
+    root = store.transition_run(
+        root.id, RunStatus.waiting_child, fence=root.fence,
+        child_wait=(child.id, {"version": 1, "messages": [], "tool_call": {
+            "id": "call-visual", "name": "delegate_task", "arguments": {"task": child.prompt}}}),
+        event={"reason": "delegated child is working"})
+
+    artifacts = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/delegation-wait-20261011"
+    artifacts.mkdir(parents=True, exist_ok=True)
+    page_errors, failed_requests = [], []
+    context = browser.new_context(viewport={"width": 1440, "height": 1000}, device_scale_factor=1,
+                                 has_touch=True, reduced_motion="reduce")
+    page = context.new_page()
+    context.tracing.start(screenshots=True, snapshots=True, sources=True)
+    page.on("pageerror", lambda error: page_errors.append(str(error)))
+    page.on("console", lambda message: page_errors.append(message.text) if message.type == "error" else None)
+    page.on("requestfailed", lambda request: failed_requests.append({"url": request.url,
+                                                                      "failure": request.failure}))
+    local_views = {}
+    try:
+        page.goto(f"{base}/#/run/{root.id}")
+        reduced_motion = page.evaluate("""() => ({
+          matched: matchMedia('(prefers-reduced-motion: reduce)').matches,
+          fast_duration: getComputedStyle(document.documentElement).getPropertyValue('--dur-fast').trim()
+        })""")
+        assert reduced_motion["matched"] and reduced_motion["fast_duration"] == "0ms"
+        status = page.locator(".status.waiting_child:visible")
+        status.first.wait_for()
+        stop = page.locator("#stop-this-run")
+        stop.wait_for()
+        assert status.first.inner_text() == "Waiting for delegated work"
+        assert stop.is_enabled()
+        waiting_style = status.first.evaluate("""el => {
+          const style = getComputedStyle(el);
+          return {color: style.color, borderColor: style.borderColor};
+        }""")
+        assert waiting_style["color"] == "rgb(251, 191, 36)"
+        header_status = page.locator("#workflow")
+        header_status.get_by_text("1 waiting", exact=True).wait_for()
+        header_status.get_by_text("1 queued", exact=True).wait_for()
+        assert header_status.get_by_text("working", exact=False).count() == 0
+        for width, height, label in ((1440, 1000, "desktop-1440"), (768, 1024, "tablet-768"),
+                                     (360, 800, "phone-360"), (320, 800, "compact-320")):
+            page.set_viewport_size({"width": width, "height": height})
+            page.wait_for_timeout(120)
+            metrics = page.evaluate("() => ({client: document.documentElement.clientWidth, "
+                                     "scroll: document.documentElement.scrollWidth})")
+            assert metrics["scroll"] <= metrics["client"] + 1, (width, metrics)
+            path = artifacts / f"{label}.png"
+            page.screenshot(path=str(path), full_page=True)
+            local_views[label] = {"viewport": {"width": width, "height": height},
+                                  "document_width": metrics["scroll"], "client_width": metrics["client"],
+                                  "screenshot": path.name}
+        spacing_override = page.add_style_tag(content="""
+          * { line-height: 1.5 !important; letter-spacing: .12em !important;
+              word-spacing: .16em !important; }
+          p { margin-block-end: 2em !important; }
+        """)
+        spacing_metrics = page.evaluate("() => ({client: document.documentElement.clientWidth, "
+                                           "scroll: document.documentElement.scrollWidth})")
+        assert spacing_metrics["scroll"] <= spacing_metrics["client"] + 1, spacing_metrics
+        assert status.first.is_visible() and stop.is_enabled()
+        spacing_stop_box = stop.bounding_box()
+        assert spacing_stop_box and spacing_stop_box["width"] >= 44 and spacing_stop_box["height"] >= 44
+        page.screenshot(path=str(artifacts / "text-spacing-320.png"), full_page=True)
+        spacing_override.evaluate("el => el.remove()")
+        page.emulate_media(forced_colors="active")
+        forced_colors = page.evaluate("matchMedia('(forced-colors: active)').matches")
+        assert forced_colors
+        forced_status_style = status.first.evaluate("""el => {
+          const style = getComputedStyle(el);
+          const canvasProbe = document.createElement('span');
+          canvasProbe.style.cssText = 'position:fixed;color:CanvasText;background-color:Canvas';
+          document.body.append(canvasProbe);
+          const canvasColor = getComputedStyle(canvasProbe).backgroundColor;
+          canvasProbe.remove();
+          const rgb = value => value.match(/[\\d.]+/g).slice(0, 3).map(Number);
+          const luminance = value => value.map(channel => {
+            channel /= 255;
+            return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+          }).reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+          const [foreground, background] = [luminance(rgb(style.color)), luminance(rgb(canvasColor))]
+            .sort((a, b) => b - a);
+          return {color: style.color, canvas: canvasColor,
+                  contrast: (foreground + 0.05) / (background + 0.05)};
+        }""")
+        assert forced_status_style["contrast"] >= 4.5, forced_status_style
+        forced_metrics = page.evaluate("() => ({client: document.documentElement.clientWidth, "
+                                         "scroll: document.documentElement.scrollWidth})")
+        assert forced_metrics["scroll"] <= forced_metrics["client"] + 1, forced_metrics
+        assert status.first.is_visible() and stop.is_enabled()
+        page.screenshot(path=str(artifacts / "forced-colors-320.png"), full_page=True)
+        page.emulate_media(forced_colors="none")
+        owner_stop_box = stop.bounding_box()
+        assert owner_stop_box and owner_stop_box["width"] >= 44 and owner_stop_box["height"] >= 44
+        stop.focus()
+        assert page.evaluate("el => document.activeElement === el", stop.element_handle())
+    finally:
+        try:
+            context.tracing.stop(path=str(artifacts / "trace.zip"))
+        finally:
+            context.close()
+
+    enrollment, outcome = store.exchange_pairing_code(store.create_pairing_code(), "Delegation review", "browser-test")
+    assert outcome == "ok" and enrollment
+    paired = store.finish_passkey_enrollment(enrollment["token"], {
+        "credential_id": secrets.token_bytes(24), "public_key": b"delegated-wait-review-key", "sign_count": 0,
+        "backup_eligible": True, "backed_up": True, "user_handle": store.webauthn_user_handle(),
+    })
+    session = store.authenticate_session(paired["session_token"])
+    assert "review" in session["capabilities"]
+    phone_context = browser.new_context(viewport={"width": 320, "height": 844}, device_scale_factor=1,
+                                       has_touch=True, reduced_motion="reduce")
+    phone = phone_context.new_page()
+    try:
+        phone_context.add_cookies([{"name": "hutch_session", "value": paired["session_token"], "url": base}])
+        phone.goto(base + "/")
+        phone.locator("#phone-root .phone-brand").wait_for()
+        phone.get_by_role("button", name="Runs").click()
+        phone.locator(f'[data-phone-run="{root.id}"]').click()
+        phone.locator(".phone-run-detail").wait_for()
+        phone.locator(".phone-run-detail .phone-status").get_by_text(
+            "Waiting for delegated work", exact=True).wait_for()
+        phone_progress = phone.locator(".phone-transcript")
+        phone_progress.get_by_text("Waiting for delegated work", exact=True).wait_for()
+        assert "reason" not in phone_progress.inner_text()
+        phone_stop = phone.get_by_role("button", name="Stop run")
+        phone_stop.wait_for()
+        phone_stop_box = phone_stop.bounding_box()
+        assert phone_stop_box and phone_stop_box["width"] >= 44 and phone_stop_box["height"] >= 44
+        phone_stop.focus()
+        assert phone.evaluate("el => document.activeElement === el", phone_stop.element_handle())
+        phone_metrics = phone.evaluate("() => ({client: document.documentElement.clientWidth, "
+                                       "scroll: document.documentElement.scrollWidth})")
+        assert phone_metrics["scroll"] <= phone_metrics["client"] + 1, phone_metrics
+        phone.screenshot(path=str(artifacts / "paired-review-320.png"), full_page=True)
+    finally:
+        phone_context.close()
+
+    source_paths = [Path(__file__), Path(__file__).resolve().parents[2] / "src/hutch/server/static/app.js",
+                    Path(__file__).resolve().parents[2] / "src/hutch/server/static/style.css"]
+    artifact_paths = sorted(path for path in artifacts.iterdir() if path.is_file() and path.name != "validation.json")
+    validation = {
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "browser": {"name": browser.browser_type.name, "version": browser.version},
+        "fixture": {"run_id": root.id, "status": root.status.value, "child_run_id": child.id,
+                    "child_status": child.status.value, "provider_calls": 0},
+        "owner_views": local_views,
+        "owner_wait_status_style": waiting_style,
+        "reduced_motion": {"requested": "reduce", **reduced_motion},
+        "text_spacing_override": {"line_height": 1.5, "letter_spacing_em": 0.12,
+                                  "word_spacing_em": 0.16, "paragraph_spacing_em": 2,
+                                  "document_width": spacing_metrics["scroll"],
+                                  "client_width": spacing_metrics["client"],
+                                  "stop_target_css_px": {"width": spacing_stop_box["width"],
+                                                         "height": spacing_stop_box["height"]}},
+        "forced_colors": {"requested": "active", "matched": forced_colors,
+                           "waiting_status": forced_status_style,
+                           "document_width": forced_metrics["scroll"],
+                           "client_width": forced_metrics["client"]},
+        "owner_stop_target_css_px": {"width": owner_stop_box["width"], "height": owner_stop_box["height"]},
+        "paired_review_view": {"viewport": {"width": 320, "height": 844},
+                                "document_width": phone_metrics["scroll"],
+                                "client_width": phone_metrics["client"],
+                                "stop_target_css_px": {"width": phone_stop_box["width"],
+                                                       "height": phone_stop_box["height"]},
+                                "stop_action_available": True},
+        "console_errors": page_errors,
+        "failed_requests": failed_requests,
+        "source_sha256": {str(path.relative_to(Path(__file__).resolve().parents[2])):
+                          hashlib.sha256(path.read_bytes()).hexdigest() for path in source_paths},
+        "artifact_sha256": {path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+                            for path in artifact_paths},
+    }
+    (artifacts / "validation.json").write_text(json.dumps(validation, indent=2) + "\n", encoding="utf-8")
+    assert page_errors == []
+    assert failed_requests == []
+
+
+def test_paired_phone_monitors_and_reviews_redacted_workflows(browser, live):
+    """Exercise real workflow rows through phone list, question answer, and durable Stop."""
+    from hutch.workflow import persistence as wstore
+    from hutch.workflow.submit import submit_workflow
+
+    base, app = live
+    store = app.state.store
+    bot = store.create_bot(Bot(name="phone-workflow-review", display_name="Workflow review fixture",
+                               model="mock/demo", tools=[]))
+    ask_plan = {"name": "phone-review-workflow", "inputs": {"private_note": {"type": "string"}},
+                "envelope": {"tools": []}, "budget": {"max_nodes": 3, "max_model_calls": 0},
+                "nodes": [{"kind": "ask", "id": "confirm", "question": "Continue with the review?",
+                           "options": ["yes", "no"], "timeout_seconds": 300}]}
+    review_workflow = submit_workflow(store, bot=bot, plan=ask_plan,
+                                      inputs={"private_note": "PRIVATE_PHONE_INPUT_SENTINEL"},
+                                      definition_name=ask_plan["name"])
+    stop_plan = {**ask_plan, "name": "phone-stop-workflow"}
+    stop_workflow = submit_workflow(store, bot=bot, plan=stop_plan, inputs={"private_note": "stop secret"},
+                                    definition_name=stop_plan["name"])
+    deadline = time.monotonic() + 20
+    review_question = stop_question = None
+    while time.monotonic() < deadline:
+        review_question = next(iter(wstore.questions(store, review_workflow.workflow_run_id, status="pending")), None)
+        stop_question = next(iter(wstore.questions(store, stop_workflow.workflow_run_id, status="pending")), None)
+        if review_question and stop_question:
+            break
+        time.sleep(0.05)
+    assert review_question and stop_question, "the real workflow supervisor should park both ask nodes"
+    deadline = time.monotonic() + 10
+    parked_attempt = wstore.workflow_attempt_quiescence(store, stop_workflow.attempt_run_id)
+    while time.monotonic() < deadline and not parked_attempt["attempt_parked"]:
+        time.sleep(0.05)
+        parked_attempt = wstore.workflow_attempt_quiescence(store, stop_workflow.attempt_run_id)
+    assert parked_attempt["attempt_parked"]
+    assert wstore.workflow_pause_controls(store, stop_workflow.workflow_run_id)["pause_available"]
+    pause_child = Run(bot_id=bot.id, prompt="phone pause projection child", kind="step")
+    with store._tx() as db:
+        db.execute("INSERT INTO runs (id, bot_id, doc, status, created_at, parent_run_id, kind) "
+                   "VALUES (?, ?, ?, 'waiting_human', ?, ?, 'step')",
+                   (pause_child.id, bot.id, pause_child.model_dump_json(),
+                    datetime.now(timezone.utc).isoformat(), stop_workflow.attempt_run_id))
+    assert not wstore.workflow_attempt_quiescence(
+        store, stop_workflow.attempt_run_id)["owned_work_quiet"]
+    pause_projection = wstore.set_workflow_pause(
+        store, stop_workflow.workflow_run_id, paused=True,
+        expected_revision_id=stop_workflow.revision_id,
+        expected_generation=stop_workflow.attempt_run_id,
+        idem_key="browser-phone-pause-requested", request_hash="browser-phone-pause-requested")
+    assert pause_projection["parked"] is False
+    assert wstore.workflow_pause_controls(store, stop_workflow.workflow_run_id)["pause_ready"] is False
+    wstore.set_workflow_pause(
+        store, review_workflow.workflow_run_id, paused=True,
+        expected_revision_id=review_workflow.revision_id,
+        expected_generation=review_workflow.attempt_run_id,
+        idem_key="phone-workflow-paused-fixture", request_hash="phone-workflow-paused-fixture")
+
+    enrollment, outcome = store.exchange_pairing_code(store.create_pairing_code(), "Workflow review phone", "browser-test")
+    assert outcome == "ok" and enrollment
+    paired = store.finish_passkey_enrollment(enrollment["token"], {
+        "credential_id": secrets.token_bytes(24), "public_key": b"browser-workflow-phone-key", "sign_count": 0,
+        "backup_eligible": True, "backed_up": True, "user_handle": store.webauthn_user_handle(),
+    })
+    artifacts = Path(__file__).parents[2] / "docs/realignment/artifacts/workflow-studio/phone"
+    artifacts.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=1)
+    context.tracing.start(screenshots=True, snapshots=True, sources=True)
+    page = context.new_page()
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    try:
+        context.add_cookies([{"name": "hutch_session", "value": paired["session_token"], "url": base}])
+        page.goto(base + "/")
+        page.locator("#phone-root .phone-brand").wait_for()
+        page.get_by_role("button", name="Workflows").click()
+        page.locator(f'[data-phone-workflow="{review_workflow.workflow_run_id}"]').wait_for()
+        page.locator(f'[data-phone-workflow="{stop_workflow.workflow_run_id}"]').wait_for()
+        page.locator(f'[data-phone-workflow="{review_workflow.workflow_run_id}"]').click()
+        page.locator(".phone-workflow-detail").wait_for()
+        assert page.locator(".phone-planned-steps .phone-step-title").filter(has_text="confirm").is_visible()
+        assert page.locator(".phone-planned-steps .phone-step-status").inner_text() == "Planned"
+        assert "Paused" in page.locator(".phone-workflow-heading").inner_text()
+        assert page.get_by_role("button", name="Pause workflow").count() == 0
+        assert page.get_by_role("button", name="Resume workflow").count() == 0
+        assert "PRIVATE_PHONE_INPUT_SENTINEL" not in page.locator("#phone-root").inner_text()
+        page.screenshot(path=str(artifacts / "workflow-detail-390.png"), full_page=True, animations="disabled")
+
+        page.get_by_role("button", name="Review").click()
+        question_card = page.locator(f'.phone-workflow-answer-form[data-question-id="{review_question["id"]}"]').locator("..")
+        question_card.get_by_text(review_question["id"], exact=False).wait_for()
+        assert "Continue with the review?" in question_card.inner_text()
+        assert "PRIVATE_PHONE_INPUT_SENTINEL" not in question_card.inner_text()
+        for question in (review_question, stop_question):
+            prompt_name = re.compile(
+                rf"Question ID {re.escape(question['id'])}.*Continue with the review\?"
+            )
+            accessible_form = page.get_by_role("form", name=prompt_name)
+            assert accessible_form.count() == 1
+            answer_name = re.compile(
+                rf"Question ID {re.escape(question['id'])}.*Continue with the review\?.*Answer"
+            )
+            answer = accessible_form.get_by_role(
+                "combobox", name=answer_name,
+                description=re.compile(r"Answering this resolves only this question"),
+            )
+            assert answer.count() == 1
+        page.set_viewport_size({"width": 320, "height": 780})
+        question_dimensions_320 = page.evaluate(
+            "({viewport: innerWidth, document: document.documentElement.scrollWidth})")
+        assert question_dimensions_320["document"] <= question_dimensions_320["viewport"]
+        question_answer_heights = page.locator(
+            ".phone-workflow-answer-form button[type=submit]").evaluate_all(
+                "items => items.map(el => Math.round(el.getBoundingClientRect().height))")
+        assert len(question_answer_heights) == 2 and min(question_answer_heights) >= 44
+        page.screenshot(path=str(artifacts / "workflow-questions-320.png"),
+                        full_page=True, animations="disabled")
+        page.set_viewport_size({"width": 390, "height": 844})
+        page.screenshot(path=str(artifacts / "workflow-question-390.png"), full_page=True, animations="disabled")
+        question_card.locator('select[name="answer"]').select_option("yes")
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/api/v1/phone/workflows/questions/{review_question['id']}/answer")) as answered:
+            question_card.get_by_role("button", name="Send answer").click()
+        answer_response = answered.value
+        assert answer_response.status == 200, answer_response.text()
+        assert answer_response.request.headers.get("x-hutch-csrf")
+        assert answer_response.request.headers.get("idempotency-key")
+        assert answer_response.request.post_data_json == {"answer": "yes"}
+        assert answer_response.json()["question_id"] == review_question["id"]
+        assert "yes" not in answer_response.text()
+        assert wstore.workflow_run(store, review_workflow.workflow_run_id)["pause_requested"] is True
+
+        page.reload()
+        page.locator("#phone-root .phone-brand").wait_for()
+        page.get_by_role("button", name="Workflows").click()
+        page.locator(f'[data-phone-workflow="{stop_workflow.workflow_run_id}"]').click()
+        assert "Pause requested" in page.locator(".phone-workflow-heading").inner_text()
+        assert page.get_by_role("button", name="Pause workflow").count() == 0
+        assert page.get_by_role("button", name="Resume workflow").count() == 0
+        page.screenshot(path=str(artifacts / "workflow-pause-requested-390.png"),
+                        full_page=True, animations="disabled")
+        with store._tx() as db:
+            db.execute("UPDATE runs SET status='failed' WHERE id=?", (pause_child.id,))
+        stop_button = page.get_by_role("button", name="Stop workflow")
+        stop_button.wait_for()
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/api/v1/phone/workflows/runs/{stop_workflow.workflow_run_id}/stop")) as stopped:
+            stop_button.click()
+        stop_response = stopped.value
+        assert stop_response.status == 200, stop_response.text()
+        assert stop_response.request.headers.get("x-hutch-csrf")
+        assert stop_response.request.headers.get("idempotency-key")
+        assert stop_response.request.post_data_json == {"expected_revision_id": stop_workflow.revision_id}
+        assert stop_response.json()["stop_requested"] is True
+        wait_for(lambda: wstore.workflow_run(store, stop_workflow.workflow_run_id)["stop_requested"])
+        page.get_by_text("stop requested", exact=False).wait_for()
+        assert page.get_by_role("button", name="Stop workflow").count() == 0
+
+        page.set_viewport_size({"width": 320, "height": 780})
+        page.screenshot(path=str(artifacts / "workflow-detail-320.png"), full_page=True, animations="disabled")
+        dimensions_320 = page.evaluate("({ viewport: innerWidth, document: document.documentElement.scrollWidth, body: document.body.scrollWidth })")
+        assert dimensions_320["document"] <= dimensions_320["viewport"]
+        page.set_viewport_size({"width": 390, "height": 844})
+        target_heights = page.locator(".phone-tabs button, .phone-header-actions .btn, .phone-workflow-detail .btn").evaluate_all(
+            "items => items.map(el => Math.round(el.getBoundingClientRect().height))")
+        assert target_heights and min(target_heights) >= 44
+        store._db.execute("UPDATE paired_credentials SET capabilities_json='[\"monitor\"]' WHERE id=?",
+                          (paired["id"],))
+        store._db.commit()
+        page.locator("[data-phone-refresh]").click()
+        page.locator(".phone-tabs.monitor-only").wait_for()
+        assert page.locator('.phone-tabs [data-phone-tab="review"]').count() == 0
+        assert page.locator(".phone-question-card").count() == 0
+        assert not errors, errors
+    finally:
+        context.tracing.stop(path=str(artifacts / "paired-phone-workflows-trace.zip"))
+        context.close()
+
+    screenshots = ["workflow-detail-390.png", "workflow-question-390.png", "workflow-questions-320.png",
+                   "workflow-detail-320.png", "workflow-pause-requested-390.png"]
+    source_paths = ["src/hutch/server/workflows_api.py", "src/hutch/server/static/app.js",
+                    "src/hutch/server/static/style.css", "tests/e2e/test_browser.py"]
+    hashes = {name: hashlib.sha256((artifacts / name).read_bytes()).hexdigest() for name in screenshots}
+    hashes["paired-phone-workflows-trace.zip"] = hashlib.sha256(
+        (artifacts / "paired-phone-workflows-trace.zip").read_bytes()).hexdigest()
+    hashes["visual-review.md"] = hashlib.sha256((artifacts / "visual-review.md").read_bytes()).hexdigest()
+    (artifacts / "paired-phone-workflows-results.json").write_text(json.dumps({
+        "fixture_boundary": "Real SQLite workflow submission, supervisor ask nodes, phone API, CSRF/idempotency and browser UI; no model request.",
+        "viewports": {"review_and_detail": [390, 844], "reflow": [320, 780]},
+        "reflow_dimensions_320": dimensions_320,
+        "minimum_phone_target_height_px": min(target_heights),
+        "computed_accessibility": {
+            "simultaneous_named_question_forms": 2,
+            "answer_control_names_include_durable_question_ids_and_prompts": True,
+            "authority_boundary_is_associated_as_description": True,
+            "operating_system_screen_reader": "not tested",
+        },
+        "question_reflow_320": question_dimensions_320,
+        "question_answer_min_height_320_px": min(question_answer_heights),
+        "question_answer_status": answer_response.status,
+        "workflow_stop_status": stop_response.status,
+        "page_errors": errors,
+        "screenshots_sha256": hashes,
+        "source_sha256": {name: hashlib.sha256((Path(__file__).parents[2] / name).read_bytes()).hexdigest()
+                          for name in source_paths},
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+    }, indent=2) + "\n")
 
 
 def test_paired_phone_reviews_the_exact_approval_once(browser, live):
@@ -140,8 +554,13 @@ def test_paired_phone_reviews_the_exact_approval_once(browser, live):
         "backup_eligible": True, "backed_up": True, "user_handle": store.webauthn_user_handle(),
     })
 
+    artifacts = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workflow-studio/phone"
+    artifacts.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 390, "height": 844})
     page = context.new_page()
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
         context.add_cookies([{"name": "hutch_session", "value": paired["session_token"], "url": base}])
         page.goto(base + "/")
@@ -150,10 +569,25 @@ def test_paired_phone_reviews_the_exact_approval_once(browser, live):
         card = page.locator(f'.approval-card [data-phone-approve="{approval.id}"]').locator("..").locator("..")
         card.wait_for()
         assert card.get_by_role("heading", name=approval.action).is_visible()
+        assert card.get_by_text(approval.id, exact=True).is_visible()
+        page.screenshot(path=str(artifacts / "phone-approval-390.png"), full_page=True, animations="disabled")
+        page.set_viewport_size({"width": 320, "height": 780})
+        overflow_320 = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow_320 <= 1
+        target_heights_320 = card.locator(".phone-actions button").evaluate_all(
+            "items => items.map(el => Math.round(el.getBoundingClientRect().height))")
+        assert target_heights_320 and min(target_heights_320) >= 44
+        page.screenshot(path=str(artifacts / "phone-approval-320.png"), full_page=True, animations="disabled")
+        page.set_viewport_size({"width": 390, "height": 844})
         card.locator("summary").click()
         assert card.locator("pre").is_visible()
         button = card.get_by_role("button", name="Allow once")
         assert button.get_attribute("data-action-hash") == approval.action_hash
+        describedby = button.get_attribute("aria-describedby").split()
+        description = " ".join(page.locator(f'[id="{element_id}"]').inner_text() for element_id in describedby)
+        assert approval.action in description and approval.id in description
+        assert page.get_by_role("button", name="Allow once",
+                                description=re.compile(re.escape(approval.action) + r".*" + re.escape(approval.id))).is_visible()
         with page.expect_response(lambda response: response.url.endswith(
                 f"/api/v1/actions/approvals/{approval.id}/approve")) as response_info:
             button.click()
@@ -164,7 +598,1242 @@ def test_paired_phone_reviews_the_exact_approval_once(browser, live):
         assert response.request.post_data_json == {"always": False, "action_hash": approval.action_hash}
         wait_for(lambda: store.get_run(run.id).status is RunStatus.succeeded)
         assert store.get_approval(approval.id).status.value == "approved"
+        assert not errors, errors
     finally:
+        context.tracing.stop(path=str(artifacts / "phone-approval-trace.zip"))
+        context.close()
+    artifact_names = ["phone-approval-390.png", "phone-approval-320.png",
+                      "phone-approval-trace.zip", "visual-review.md"]
+    (artifacts / "phone-approval-results.json").write_text(json.dumps({
+        "test": "tests/e2e/test_browser.py::test_paired_phone_reviews_the_exact_approval_once",
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "browser": browser.browser_type.name, "browser_version": browser.version,
+        "playwright": package_version("playwright"), "approval_id": approval.id,
+        "approval_id_visible": True, "decision": store.get_approval(approval.id).status.value,
+        "viewport_css_px": {"phone": [390, 844], "compact_phone": [320, 780]},
+        "compact_phone_overflow_px": overflow_320,
+        "compact_phone_action_min_height_px": min(target_heights_320),
+        "page_errors": errors,
+        "artifact_sha256": {name: hashlib.sha256((artifacts / name).read_bytes()).hexdigest()
+                            for name in artifact_names},
+        "source_sha256": {name: hashlib.sha256((Path(__file__).resolve().parents[2] / name).read_bytes()).hexdigest()
+                          for name in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                       "tests/e2e/test_browser.py")},
+    }, indent=2) + "\n")
+
+
+@pytest.mark.parametrize("decision_order", [("question", "approval"), ("approval", "question")])
+def test_paired_phone_keeps_mixed_question_and_approval_pending_in_either_order(
+        browser, live, decision_order):
+    from hutch.workflow import persistence as wstore
+    from hutch.workflow.submit import submit_workflow
+
+    base, app = live
+    store, engine = app.state.store, app.state.engine
+    bot = store.create_bot(Bot(name="phone-mixed-review", model="mock/demo", tools=["files"],
+                               approval_mode=ApprovalMode.ask))
+    action_run = engine.submit(bot, "write a report")
+    engine.dispatch_pending()
+    wait_for(lambda: store.get_run(action_run.id).status is RunStatus.waiting_approval)
+    approval = store.pending_approvals()[0]
+    question_plan = {
+        "name": "phone-mixed-review-question",
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 2, "max_model_calls": 0},
+        "nodes": [{"kind": "ask", "id": "confirm", "question": "May I continue this workflow?",
+                   "options": ["yes", "no"], "timeout_seconds": 300}],
+    }
+    workflow = submit_workflow(store, bot=bot, plan=question_plan,
+                               definition_name=question_plan["name"])
+    deadline = time.monotonic() + 20
+    pending_question = None
+    while time.monotonic() < deadline:
+        pending_question = next(iter(wstore.questions(
+            store, workflow.workflow_run_id, status="pending")), None)
+        attempt = store.get_run(workflow.attempt_run_id)
+        if pending_question and attempt and attempt.status is RunStatus.waiting_workflow:
+            break
+        time.sleep(0.05)
+    assert pending_question is not None
+
+    enrollment, outcome = store.exchange_pairing_code(
+        store.create_pairing_code(), "Mixed review phone", "browser-test")
+    assert outcome == "ok" and enrollment
+    paired = store.finish_passkey_enrollment(enrollment["token"], {
+        "credential_id": secrets.token_bytes(24), "public_key": b"mixed-review-phone-key", "sign_count": 0,
+        "backup_eligible": True, "backed_up": True, "user_handle": store.webauthn_user_handle(),
+    })
+    artifacts = (Path(__file__).resolve().parents[2]
+                 / "docs/realignment/artifacts/workflow-studio/mixed-review-2026-10-11")
+    artifacts.mkdir(parents=True, exist_ok=True)
+    order_label = "-".join(decision_order)
+    capture_names = [f"needs-you-{order_label}-390.png", f"needs-you-{order_label}-320.png",
+                     f"mixed-review-{order_label}-trace.zip"]
+    context = browser.new_context(viewport={"width": 390, "height": 844})
+    page = context.new_page()
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        context.add_cookies([{"name": "hutch_session", "value": paired["session_token"], "url": base}])
+        page.goto(base + "/")
+        page.locator("#phone-root .phone-brand").wait_for()
+        page.locator('.phone-tabs [data-phone-tab="review"]').click()
+        question_card = page.locator(
+            f'.phone-question-card [data-question-id="{pending_question["id"]}"]').locator("..")
+        approval_card = page.locator(
+            f'.approval-card [data-phone-approve="{approval.id}"]').locator("..").locator("..")
+        question_card.wait_for()
+        approval_card.wait_for()
+        assert page.locator(".phone-question-card").count() == 1
+        assert page.locator(".approval-card").count() == 1
+        assert question_card.get_by_text(pending_question["id"], exact=True).is_visible()
+        assert approval_card.get_by_text(approval.id, exact=True).is_visible()
+        page.screenshot(path=str(artifacts / capture_names[0]), full_page=True, animations="disabled")
+
+        page.set_viewport_size({"width": 320, "height": 780})
+        overflow_320 = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow_320 <= 1
+        button_heights_320 = page.locator(
+            ".phone-list .phone-actions button, .phone-list .phone-workflow-answer-form button"
+        ).evaluate_all("items => items.map(el => Math.round(el.getBoundingClientRect().height))")
+        assert button_heights_320 and min(button_heights_320) >= 44
+        page.screenshot(path=str(artifacts / capture_names[1]), full_page=True, animations="disabled")
+        page.set_viewport_size({"width": 390, "height": 844})
+
+        for decision_index, decision in enumerate(decision_order):
+            if decision == "question":
+                current_question = page.locator(
+                    f'.phone-workflow-answer-form[data-question-id="{pending_question["id"]}"]').locator("..")
+                current_question.locator('select[name="answer"]').select_option("yes")
+                with page.expect_response(lambda response: response.url.endswith(
+                        f"/api/v1/phone/workflows/questions/{pending_question['id']}/answer")) as answered:
+                    current_question.get_by_role("button", name="Send answer").click()
+                assert answered.value.status == 200, answered.value.text()
+                wait_for(lambda: page.locator(".phone-question-card").count() == 0)
+                expected_approval_count = 1 if decision_index == 0 else 0
+                wait_for(lambda: page.locator(".approval-card").count() == expected_approval_count)
+                if expected_approval_count:
+                    assert page.get_by_text(approval.id, exact=True).is_visible()
+            else:
+                allow = page.locator(f'.approval-card [data-phone-approve="{approval.id}"]')
+                with page.expect_response(lambda response: response.url.endswith(
+                        f"/api/v1/actions/approvals/{approval.id}/approve")) as approved:
+                    allow.click()
+                assert approved.value.status == 200, approved.value.text()
+                wait_for(lambda: store.get_run(action_run.id).status is RunStatus.succeeded)
+                wait_for(lambda: page.locator(".approval-card").count() == 0)
+                expected_question_count = 1 if decision_index == 0 else 0
+                wait_for(lambda: page.locator(".phone-question-card").count() == expected_question_count)
+                if expected_question_count:
+                    assert page.get_by_text(pending_question["id"], exact=True).is_visible()
+
+        wait_for(lambda: wstore.workflow_run(store, workflow.workflow_run_id)["status"] == "succeeded")
+        assert store.get_approval(approval.id).status.value == "approved"
+        assert page.locator(".phone-question-card, .approval-card").count() == 0
+        assert not errors, errors
+    finally:
+        context.tracing.stop(path=str(artifacts / capture_names[2]))
+        context.close()
+
+    (artifacts / f"results-{order_label}.json").write_text(json.dumps({
+        "test": "tests/e2e/test_browser.py::test_paired_phone_keeps_mixed_question_and_approval_pending_in_either_order",
+        "decision_order": list(decision_order),
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "browser": browser.browser_type.name, "browser_version": browser.version,
+        "playwright": package_version("playwright"),
+        "workflow_question_id": pending_question["id"], "approval_id": approval.id,
+        "final_workflow_status": wstore.workflow_run(store, workflow.workflow_run_id)["status"],
+        "final_approval_status": store.get_approval(approval.id).status.value,
+        "pending_work_after_first_decision": "the other request remained visible and pending",
+        "viewports_css_px": {"phone": [390, 844], "compact_phone": [320, 780]},
+        "compact_phone_overflow_px": overflow_320,
+        "compact_phone_action_min_height_px": min(button_heights_320),
+        "page_errors": errors,
+        "artifact_sha256": {name: hashlib.sha256((artifacts / name).read_bytes()).hexdigest()
+                            for name in capture_names},
+        "source_sha256": {name: hashlib.sha256((Path(__file__).resolve().parents[2] / name).read_bytes()).hexdigest()
+                          for name in ("src/hutch/server/static/app.js", "src/hutch/server/workflows_api.py",
+                                       "tests/e2e/test_browser.py")},
+    }, indent=2) + "\n")
+
+
+
+@pytest.mark.parametrize("decision_order", [(0, 1), (1, 0)])
+def test_paired_phone_keeps_multiple_approvals_independently_pending(
+        browser, live, decision_order):
+    base, app = live
+    store, engine = app.state.store, app.state.engine
+    approvals = []
+    runs = []
+    for index in range(2):
+        bot = store.create_bot(Bot(name=f"phone-approval-order-{index}", model="mock/demo",
+                                   tools=["files"], approval_mode=ApprovalMode.ask))
+        run = engine.submit(bot, "write a report")
+        runs.append(run)
+        engine.dispatch_pending()
+        wait_for(lambda run_id=run.id: store.get_run(run_id).status is RunStatus.waiting_approval)
+        approval = next(a for a in store.pending_approvals() if a.run_id == run.id)
+        approvals.append(approval)
+
+    enrollment, outcome = store.exchange_pairing_code(
+        store.create_pairing_code(), "Multiple approval phone", "browser-test")
+    assert outcome == "ok" and enrollment
+    paired = store.finish_passkey_enrollment(enrollment["token"], {
+        "credential_id": secrets.token_bytes(24), "public_key": b"multiple-phone-approval-key",
+        "sign_count": 0, "backup_eligible": True, "backed_up": True,
+        "user_handle": store.webauthn_user_handle(),
+    })
+    artifacts = (Path(__file__).resolve().parents[2]
+                 / "docs/realignment/artifacts/workflow-studio/multiple-approvals-2026-10-11")
+    artifacts.mkdir(parents=True, exist_ok=True)
+    order_label = "-".join(str(index) for index in decision_order)
+    capture_names = [f"approvals-{order_label}-390.png", f"approvals-{order_label}-320.png",
+                     f"approvals-{order_label}-trace.zip"]
+    context = browser.new_context(viewport={"width": 390, "height": 844})
+    page = context.new_page()
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        context.add_cookies([{"name": "hutch_session", "value": paired["session_token"], "url": base}])
+        page.goto(base + "/")
+        page.locator("#phone-root .phone-brand").wait_for()
+        page.locator('.phone-tabs [data-phone-tab="review"]').click()
+        cards = page.locator(".approval-card")
+        wait_for(lambda: cards.count() == 2)
+        for approval in approvals:
+            card = page.locator(f'.approval-card [data-phone-approve="{approval.id}"]').locator(
+                "xpath=ancestor::article[contains(@class,'approval-card')]"
+            )
+            assert card.get_by_text(approval.id, exact=True).is_visible()
+            assert card.get_by_role("heading", name=approval.action).is_visible()
+            for name in ("Allow once", "Deny"):
+                button = card.get_by_role("button", name=name)
+                describedby = button.get_attribute("aria-describedby").split()
+                description = " ".join(page.locator(f'[id="{element_id}"]').inner_text()
+                                       for element_id in describedby)
+                assert approval.action in description and approval.id in description
+                assert card.get_by_role(
+                    "button", name=name,
+                    description=re.compile(re.escape(approval.action) + r".*" + re.escape(approval.id)),
+                ).is_visible()
+        page.screenshot(path=str(artifacts / capture_names[0]), full_page=True, animations="disabled")
+
+        page.set_viewport_size({"width": 320, "height": 780})
+        overflow_320 = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow_320 <= 1
+        target_heights_320 = cards.locator(".phone-actions button").evaluate_all(
+            "items => items.map(el => Math.round(el.getBoundingClientRect().height))")
+        assert len(target_heights_320) == 4 and min(target_heights_320) >= 44
+        page.screenshot(path=str(artifacts / capture_names[1]), full_page=True, animations="disabled")
+        page.set_viewport_size({"width": 390, "height": 844})
+
+        for decision_index, approval_index in enumerate(decision_order):
+            approval = approvals[approval_index]
+            button = page.locator(f'.approval-card [data-phone-approve="{approval.id}"]')
+            assert button.is_visible()
+            with page.expect_response(lambda response, aid=approval.id: response.url.endswith(
+                    f"/api/v1/actions/approvals/{aid}/approve")) as response_info:
+                button.click()
+            assert response_info.value.status == 200, response_info.value.text()
+            wait_for(lambda run_id=runs[approval_index].id:
+                     store.get_run(run_id).status is RunStatus.succeeded)
+            expected_card_count = 1 if decision_index == 0 else 0
+            wait_for(lambda expected=expected_card_count: cards.count() == expected)
+            remaining_index = decision_order[decision_index + 1] if decision_index == 0 else None
+            if remaining_index is not None:
+                remaining = approvals[remaining_index]
+                assert store.get_approval(remaining.id).status.value == "pending"
+                assert page.get_by_text(remaining.id, exact=True).is_visible()
+                assert page.locator(f'.approval-card [data-phone-approve="{remaining.id}"]').is_visible()
+            assert store.get_approval(approval.id).status.value == "approved"
+
+        wait_for(lambda: cards.count() == 0)
+        assert all(store.get_approval(approval.id).status.value == "approved" for approval in approvals)
+        assert not errors, errors
+    finally:
+        context.tracing.stop(path=str(artifacts / capture_names[2]))
+        context.close()
+
+    (artifacts / f"results-{order_label}.json").write_text(json.dumps({
+        "test": "tests/e2e/test_browser.py::test_paired_phone_keeps_multiple_approvals_independently_pending",
+        "decision_order": [approvals[index].id for index in decision_order],
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "browser": browser.browser_type.name, "browser_version": browser.version,
+        "playwright": package_version("playwright"),
+        "approval_ids": [approval.id for approval in approvals],
+        "approval_controls_reference_action_and_id_in_aria_description": True,
+        "pending_after_first_decision": approvals[decision_order[1]].id,
+        "final_approval_statuses": [store.get_approval(approval.id).status.value for approval in approvals],
+        "viewports_css_px": {"phone": [390, 844], "compact_phone": [320, 780]},
+        "compact_phone_overflow_px": overflow_320,
+        "compact_phone_action_min_height_px": min(target_heights_320),
+        "page_errors": errors,
+        "artifact_sha256": {name: hashlib.sha256((artifacts / name).read_bytes()).hexdigest()
+                            for name in capture_names},
+        "source_sha256": {name: hashlib.sha256((Path(__file__).resolve().parents[2] / name).read_bytes()).hexdigest()
+                          for name in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                       "src/hutch/server/workflows_api.py", "tests/e2e/test_browser.py")},
+    }, indent=2) + "\n")
+
+def test_workflow_publishes_a_verified_chart_that_renders_in_a_browser(browser, live):
+    import base64
+    from hutch.workflow.submit import status as workflow_status, submit_workflow
+
+    base, app = live
+    store, engine = app.state.store, app.state.engine
+    bot = store.create_bot(Bot(name="workflow-chart-browser", model="mock/demo", tools=[]))
+    plan = {
+        "name": "category-chart-preview",
+        "inputs": {"rows": {"type": "array", "max_items": 8}},
+        "envelope": {"tools": [], "models": []},
+        "budget": {"max_nodes": 4, "max_model_calls": 0, "max_wall_seconds": 60},
+        "nodes": [
+            {"kind": "transform", "id": "counts", "op": "group_count",
+             "args": {"items": {"ref": "input.rows"}, "by": "category"}},
+            {"kind": "transform", "id": "chart", "op": "bar_chart_svg",
+             "args": {"values": {"ref": "counts"}, "title": "Purchases by category"}},
+            {"kind": "publish", "id": "deliver", "artifacts": [
+                {"name": "category-chart", "ref": "chart", "media_type": "image/svg+xml",
+                 "primary": True}]},
+            {"kind": "verify", "id": "verify", "checks": [
+                {"kind": "artifact", "ref": "deliver.artifacts[0]", "min_bytes": 300}]},
+        ],
+        "outputs": ["chart", "deliver"],
+    }
+    submission = submit_workflow(store, bot=bot, plan=plan, inputs={"rows": [
+        {"category": "hardware"}, {"category": "hardware"}, {"category": "services"},
+        {"category": "software"}, {"category": "software"}, {"category": "software"},
+    ]}, definition_name="category-chart-preview")
+    deadline = time.monotonic() + 20
+    view = None
+    while time.monotonic() < deadline:
+        engine.tick()
+        view = workflow_status(store, submission.workflow_run_id)
+        if view["workflow"]["status"] in {"succeeded", "failed", "stopped", "outcome_unknown"}:
+            break
+        time.sleep(0.05)
+    assert view and view["workflow"]["status"] == "succeeded", view
+    nodes = {node["site_id"]: node for node in view["nodes"]}
+    assert nodes["verify"]["result"]["verified"] is True
+    artifact = view["workflow"]["result"]["artifacts"][0]
+    assert artifact["media_type"] == "image/svg+xml"
+
+    artifacts = (Path(__file__).resolve().parents[2]
+                 / "docs/realignment/artifacts/dynamic-workflows/expense-chart")
+    artifacts.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 960, "height": 420})
+    page = context.new_page()
+    errors, external = [], []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external.append(request.url)
+            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost", None} else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        downloaded = page.request.get(
+            f"{base}/api/v1/tasks/runs/{submission.attempt_run_id}/artifacts/"
+            f"{Path(artifact['artifact']).name}")
+        assert downloaded.status == 200
+        assert downloaded.headers.get("x-hutch-artifact-verified") == "sha256"
+        assert downloaded.headers.get("etag", "").strip('"') == artifact["sha256"]
+        svg = downloaded.body().decode("utf-8")
+        assert 'role="img"' in svg and "hardware: 2" in svg and "software: 3" in svg
+        (artifacts / "category-chart.svg").write_text(svg)
+        data_uri = "data:image/svg+xml;base64," + base64.b64encode(svg.encode()).decode("ascii")
+        page.set_content(f'''<!doctype html><html lang="en"><meta charset="utf-8">
+          <style>body{{margin:0;padding:24px;background:#eef2f0;font-family:system-ui,sans-serif}}
+          main{{width:min(100%,760px);margin:auto;padding:20px;background:#fff;border:1px solid #cbd5d0;
+          border-radius:12px}}img{{display:block;max-width:100%;height:auto}}</style>
+          <main><img id="verified-chart" alt="Purchases by category chart" src="{data_uri}"></main>
+          </html>''')
+        page.locator("#verified-chart").evaluate("element => element.decode()")
+        box = page.locator("#verified-chart").bounding_box()
+        assert box and box["width"] == 720 and box["height"] > 100
+        overflow_px = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow_px <= 1
+        page.screenshot(path=str(artifacts / "category-chart-preview.png"), full_page=True,
+                        animations="disabled")
+        assert not errors and not external, {"page_errors": errors, "external_requests": external}
+    finally:
+        context.tracing.stop(path=str(artifacts / "category-chart-trace.zip"))
+        context.close()
+
+    source_paths = ("src/hutch/workflow/ops.py", "src/hutch/workflow/engine.py",
+                    "tests/test_workflow_ops.py", "tests/test_workflow_csv_acceptance.py",
+                    "tests/e2e/test_browser.py")
+    artifact_paths = ("category-chart.svg", "category-chart-preview.png", "category-chart-trace.zip")
+    (artifacts / "results.json").write_text(json.dumps({
+        "test": "tests/e2e/test_browser.py::test_workflow_publishes_a_verified_chart_that_renders_in_a_browser",
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "browser": browser.browser_type.name, "browser_version": browser.version,
+        "playwright": package_version("playwright"), "workflow_id": submission.workflow_run_id,
+        "artifact_sha256": artifact["sha256"], "artifact_bytes": artifact["bytes"],
+        "verification": nodes["verify"]["result"],
+        "rendered_svg_css_px": [box["width"], box["height"]],
+        "horizontal_overflow_px": overflow_px,
+        "page_errors": errors, "external_requests": external,
+        "artifact_file_sha256": {name: hashlib.sha256((artifacts / name).read_bytes()).hexdigest()
+                                  for name in artifact_paths},
+        "source_sha256": {name: hashlib.sha256((Path(__file__).resolve().parents[2] / name).read_bytes()).hexdigest()
+                          for name in source_paths},
+    }, indent=2) + "\n")
+
+
+def test_workflow_studio_lists_and_resolves_every_pending_question(browser, live):
+    import hashlib
+    from datetime import datetime, timezone
+    from pathlib import Path
+
+    from hutch.workflow import persistence as workflow_store
+
+    base, app = live
+    store = app.state.store
+    bot = Bot(name="workflow-multiple-questions", display_name="Multi question fixture",
+              model="mock/demo", tools=[])
+    store.upsert_bot(bot)
+    conversation, _ = store.create_conversation(
+        bot.id, "Workflow question review", idem_key="workflow-multi-question-conversation",
+        request_hash="workflow-multi-question-conversation")
+    title = "review-two-independent-settings"
+    plan = {
+        "name": title,
+        "inputs": {"settings": {"type": "array", "max_items": 2}},
+        "envelope": {"tools": [], "max_parallel_steps": 2},
+        "budget": {"max_nodes": 8, "max_model_calls": 0},
+        "nodes": [
+            {"kind": "map", "id": "review", "over": {"ref": "input.settings"},
+             "item_key": "key", "concurrency": 2, "max_items": 2, "body": [
+                 {"kind": "ask", "id": "confirm", "inputs": {"label": {"ref": "item.label"}},
+                  "question": "How should {{label}} be configured?", "timeout_seconds": 600}]},
+            {"kind": "transform", "id": "combine", "op": "to_json",
+             "args": {"value": {"ref": "review.items"}}},
+        ],
+    }
+    out = Path(__file__).resolve().parents[2] / \
+        "docs/realignment/artifacts/workflow-studio/multiple-questions-2026-10-11"
+    out.mkdir(parents=True, exist_ok=True)
+    page = browser.new_page(viewport={"width": 1440, "height": 960}, device_scale_factor=1)
+    context = page.context
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    trace = []
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        saved = page.request.post(f"{base}/api/v1/workflows", data={"name": title, "plan": plan},
+                                  headers={"Idempotency-Key": "workflow-multi-question-save"})
+        assert saved.status == 201, saved.text()
+        definition = saved.json()
+        launched = page.request.post(
+            f"{base}/api/v1/workflows/{definition['id']}/runs",
+            data={"bot": bot.name, "conversation_id": conversation["id"],
+                  "inputs": {"settings": [{"key": "first", "label": "First setting"},
+                                          {"key": "second", "label": "Second setting"}]}},
+            headers={"Idempotency-Key": "workflow-multi-question-launch"})
+        assert launched.status == 201, launched.text()
+        workflow_id = launched.json()["workflow_run_id"]
+        deadline = time.monotonic() + 20
+        pending_questions = []
+        while time.monotonic() < deadline:
+            pending_questions = workflow_store.questions(store, workflow_id, status="pending")
+            workflow = workflow_store.workflow_run(store, workflow_id)
+            attempt = store.get_run(workflow["attempt_run_id"]) if workflow else None
+            if len(pending_questions) == 2 and attempt is not None and attempt.status is RunStatus.waiting_workflow:
+                break
+            time.sleep(0.05)
+        assert {question["site_id"] for question in pending_questions} == {"review.confirm"}
+        assert len({question["instance_key"] for question in pending_questions}) == 2
+
+        authoritative = page.request.get(f"{base}/api/v1/workflows/runs/{workflow_id}")
+        assert authoritative.status == 200, authoritative.text()
+        workflow_detail = authoritative.json()
+        question_projection = {question["id"]: question for question in workflow_detail["questions"]}
+        for question in pending_questions:
+            projected = question_projection[question["id"]]
+            assert projected["revision_id"] == workflow_detail["workflow"]["revision_id"]
+            assert projected["attempt_run_id"] == workflow_detail["workflow"]["attempt_run_id"]
+
+        page.goto(f"{base}/#/chat/{bot.name}")
+        panel = page.locator("#workflow-panel")
+        panel.wait_for(state="visible")
+        page.get_by_role("heading", name="Review Two Independent Settings").wait_for()
+        panel.get_by_role("heading", name="Needs you").wait_for()
+        panel.get_by_text("2 pending questions", exact=True).wait_for()
+        forms = panel.locator("[data-workflow-question-form]")
+        assert forms.count() == 2
+        assert {forms.nth(index).get_attribute("data-question-id") for index in range(2)} == {
+            question["id"] for question in pending_questions}
+        assert "2 discovered instances" in panel.locator(".workflow-panel-meta").inner_text()
+        discovered = panel.locator('[aria-label="Discovered workflow instances"] li')
+        assert discovered.count() == 2
+        assert {discovered.nth(index).inner_text().splitlines()[1] for index in range(2)} == {
+            question["instance_key"] for question in pending_questions}
+        assert all("Waiting" in discovered.nth(index).inner_text() for index in range(2))
+        assert panel.get_by_text("How should First setting be configured?", exact=True).count() == 1
+        assert panel.get_by_text("How should Second setting be configured?", exact=True).count() == 1
+        for question in pending_questions:
+            prompt = question["question"]
+            question_name = re.compile(
+                rf"Question {re.escape(question['id'])}\s+{re.escape(prompt)}"
+            )
+            accessible_form = panel.get_by_role("form", name=question_name)
+            assert accessible_form.count() == 1
+            answer_name = re.compile(
+                rf"Question {re.escape(question['id'])}\s+{re.escape(prompt)}\s+Your answer"
+            )
+            answer = accessible_form.get_by_role(
+                "textbox",
+                name=answer_name,
+                description=re.compile(r"This answer resolves only this question"),
+            )
+            assert answer.count() == 1
+        trace.append({"state": "computed-accessibility-semantics", "named_forms": len(pending_questions),
+                      "textbox_names_include_question_id_and_prompt": True,
+                      "authority_boundary_is_a_textbox_description": True,
+                      "operating_system_screen_reader": "not tested"})
+
+        sizes = [("desktop", 1440, 960), ("tablet", 768, 1024),
+                 ("phone", 360, 800), ("compact-phone", 320, 800)]
+        for label, width, height in sizes:
+            page.set_viewport_size({"width": width, "height": height})
+            page.wait_for_timeout(80)
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, f"{label} has horizontal overflow: {overflow}px"
+            viewport_forms = panel.locator("[data-workflow-question-form]")
+            assert viewport_forms.count() == 2
+            page.screenshot(path=str(out / f"waiting-{label}.png"),
+                            full_page=True, animations="disabled")
+            panel.evaluate("element => element.querySelectorAll('[data-workflow-question-form]')[1]?.scrollIntoView({block: 'center'})")
+            geometry = page.evaluate("""() => {
+              const panel = document.querySelector('#workflow-panel');
+              const forms = panel?.querySelectorAll('[data-workflow-question-form]') || [];
+              const question = forms[1]?.querySelector('p');
+              const button = forms[1]?.querySelector('[type=submit]');
+              if (!panel || !question || !button) return null;
+              const rect = element => {
+                const box = element.getBoundingClientRect();
+                return {x: box.x, y: box.y, width: box.width, height: box.height};
+              };
+              return {panel: rect(panel), question: rect(question), button: rect(button)};
+            }""")
+            assert geometry
+            panel_bounds, question_bounds = geometry["panel"], geometry["question"]
+            answer_button_bounds = geometry["button"]
+            assert (question_bounds["y"] >= panel_bounds["y"]
+                    and question_bounds["y"] + question_bounds["height"] <= panel_bounds["y"] + panel_bounds["height"] + 1), (
+                        label, panel_bounds, question_bounds)
+            if width <= 820:
+                assert answer_button_bounds["height"] >= 44, (label, answer_button_bounds)
+            page.screenshot(path=str(out / f"second-question-{label}.png"),
+                            full_page=True, animations="disabled")
+            panel.evaluate("""element => {
+              const list = element.querySelector('[aria-label="Discovered workflow instances"]');
+              const top = list.getBoundingClientRect().top - element.getBoundingClientRect().top + element.scrollTop;
+              element.scrollTo({top: Math.max(0, top - 48), behavior: 'instant'});
+            }""")
+            instance_rows = panel.locator('[aria-label="Discovered workflow instances"] li')
+            assert instance_rows.count() == 2
+            assert all(question["instance_key"] in instance_rows.nth(index).inner_text()
+                       for index, question in enumerate(sorted(pending_questions,
+                                                               key=lambda item: item["instance_key"])))
+            page.screenshot(path=str(out / f"discovered-{label}.png"),
+                            full_page=True, animations="disabled")
+            panel.evaluate("element => element.scrollTo({top: 0, behavior: 'instant'})")
+            trace.append({"viewport": label, "size": [width, height], "pending_question_forms": 2,
+                          "horizontal_overflow_px": overflow,
+                          "second_answer_button_height_px": answer_button_bounds["height"],
+                          "question_backed_discovered_instances": instance_rows.count(),
+                          "second_question_id_visible_in_scroll_panel": True})
+
+        first = panel.locator(f'[data-question-id="{pending_questions[0]["id"]}"]')
+        first.locator("textarea[name=answer]").fill("Alpha setting")
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/v1/workflows/questions/{pending_questions[0]['id']}/answer")) as answer_response:
+            first.get_by_role("button", name="Send answer").click()
+        assert answer_response.value.status == 200, answer_response.value.text()
+        panel.locator(f'[data-question-id="{pending_questions[1]["id"]}"]').wait_for(state="visible")
+        assert panel.locator("[data-workflow-question-form]").count() == 1
+        panel.get_by_text("1 pending question", exact=True).wait_for()
+        panel.get_by_text("Current reason: waiting for 1 answer(s)", exact=True).wait_for()
+        assert "2 discovered instances" in panel.locator(".workflow-panel-meta").inner_text()
+        partial_rows = panel.locator('[aria-label="Discovered workflow instances"] li')
+        assert partial_rows.count() == 2
+        assert {partial_rows.nth(index).inner_text().splitlines()[-1] for index in range(2)} == {
+            "Answer received", "Waiting"}
+        page.set_viewport_size({"width": 360, "height": 800})
+        page.screenshot(path=str(out / "partial-answer-phone.png"), full_page=True,
+                        animations="disabled")
+        panel.evaluate("""element => {
+          const list = element.querySelector('[aria-label="Discovered workflow instances"]');
+          const top = list.getBoundingClientRect().top - element.getBoundingClientRect().top + element.scrollTop;
+          element.scrollTo({top: Math.max(0, top - 48), behavior: 'instant'});
+        }""")
+        page.screenshot(path=str(out / "partial-discovered-phone.png"), full_page=True,
+                        animations="disabled")
+        panel.evaluate("element => element.scrollTo({top: 0, behavior: 'instant'})")
+        trace.append({"state": "one-answer-received", "discovered_instances": [
+            partial_rows.nth(index).inner_text().splitlines()[-1] for index in range(2)],
+            "pending_question_forms": 1})
+        page.wait_for_function(
+            """questionId => document.activeElement?.closest('[data-workflow-question-form]')?.dataset.questionId === questionId""",
+            arg=pending_questions[1]["id"])
+        remaining = panel.locator(f'[data-question-id="{pending_questions[1]["id"]}"]')
+        remaining.locator("textarea[name=answer]").fill("Beta setting")
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/v1/workflows/questions/{pending_questions[1]['id']}/answer")) as answer_response:
+            remaining.get_by_role("button", name="Send answer").click()
+        assert answer_response.value.status == 200, answer_response.value.text()
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            current = workflow_store.workflow_run(store, workflow_id)
+            if current and current["status"] == "succeeded":
+                break
+            time.sleep(0.05)
+        assert workflow_store.workflow_run(store, workflow_id)["status"] == "succeeded"
+        page.get_by_role("button", name="Refresh").click()
+        page.wait_for_function("document.querySelector('#workflow-panel .workflow-panel-head')?.innerText.includes('Finished')")
+        assert "4 discovered instances" in panel.locator(".workflow-panel-meta").inner_text()
+        completed_rows = panel.locator('[aria-label="Discovered workflow instances"] li')
+        assert completed_rows.count() == 4
+        assert all("Completed" in completed_rows.nth(index).inner_text() for index in range(4))
+        completed_question_rows = [completed_rows.nth(index).inner_text() for index in range(4)
+                                   if "review.confirm" in completed_rows.nth(index).inner_text()]
+        assert len(completed_question_rows) == 2
+        assert all("Completed" in row for row in completed_question_rows)
+        assert not errors, errors
+        trace.append({"state": "answers-submitted", "answer_order": [
+            pending_questions[0]["id"], pending_questions[1]["id"]], "workflow_status": "succeeded",
+            "page_errors": errors})
+        page.set_viewport_size({"width": 360, "height": 800})
+        panel.evaluate("""element => {
+          const list = element.querySelector('[aria-label="Discovered workflow instances"]');
+          const top = list.getBoundingClientRect().top - element.getBoundingClientRect().top + element.scrollTop;
+          element.scrollTo({top: Math.max(0, top - 48), behavior: 'instant'});
+        }""")
+        page.screenshot(path=str(out / "discovered-complete-phone.png"), full_page=True, animations="disabled")
+        panel.evaluate("element => element.scrollTo({top: 0, behavior: 'instant'})")
+        page.screenshot(path=str(out / "answered-phone.png"), full_page=True, animations="disabled")
+        results_path = out / "results.json"
+        results = {
+            "test": "tests/e2e/test_browser.py::test_workflow_studio_lists_and_resolves_every_pending_question",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright": package_version("playwright"),
+            "scenario": "A bounded map exposes two independent durable questions; answering one preserves the other, then the workflow completes.",
+            "workflow_status": "succeeded", "question_ids": [question["id"] for question in pending_questions],
+            "trace": trace, "page_errors": errors,
+            "map_item_behavior": {
+                "browser_scope": "one independent ask per map item, shown together up to unresolved-item concurrency",
+                "engine_coverage": "same-item independent asks publish together; dependent asks wait for prerequisites",
+                "tests": [
+                    "tests/test_workflow_engine.py::test_bounded_map_collects_independent_questions_within_an_item_after_restart",
+                    "tests/test_workflow_engine.py::test_bounded_map_holds_dependent_question_until_its_answer_arrives",
+                    "tests/test_workflow_engine.py::test_bounded_map_exposes_one_question_per_item_up_to_concurrency_after_restart",
+                ],
+            },
+            "partial_answer_state": {
+                "pending_question_forms": 1,
+                "discovered_statuses": ["Answer received", "Waiting"],
+                "workflow_reason": "waiting for 1 answer(s)",
+                "focus_moves_to_remaining_question": True,
+            },
+            "terminal_discovered_instances": {
+                "count": completed_rows.count(),
+                "rows": [completed_rows.nth(index).inner_text() for index in range(completed_rows.count())],
+                "label": "Completed (not verified)",
+            },
+            "verification": {
+                "browser_result": "passed; this artifact is written only after all browser assertions succeed",
+                "focused_engine_api_phone_effect_result": "116 passed in 59.59s on the preceding behavior slice; this slice changes only accessible names/descriptions and evidence",
+                "static_checks": "Python compilation, JavaScript syntax check, and git diff --check passed",
+                "provider_calls": 0,
+            },
+            "visual_validation": {
+                "viewports_css_px": {"desktop": [1440, 960], "tablet": [768, 1024],
+                                     "phone": [360, 800], "compact_phone": [320, 800]},
+                "horizontal_overflow_px": {item["viewport"]: item["horizontal_overflow_px"]
+                                           for item in trace if "viewport" in item},
+                "phone_answer_target_min_height_px": 44,
+                "opened_captures": ["waiting-desktop.png", "second-question-compact-phone.png"],
+                "actual_browser_zoom": "unverified; this headless Chromium build does not support CDP Browser.setZoomLevel",
+                "visual_observation": "The semantic change does not alter layout. The internal scroll keeps the second question reachable; the 320px view wraps its durable ID and prompt without horizontal overflow.",
+            },
+            "source_sha256": {
+                path: hashlib.sha256((Path(__file__).resolve().parents[2] / path).read_bytes()).hexdigest()
+                for path in (
+                    "src/hutch/workflow/engine.py", "src/hutch/workflow/persistence.py",
+                    "src/hutch/server/workflows_api.py", "src/hutch/server/static/app.js",
+                    "src/hutch/server/static/style.css", "tests/e2e/test_browser.py",
+                    "tests/test_workflow_engine.py", "tests/test_workflow_api.py",
+                    "tests/test_remote_pairing.py", "tests/test_workflow_effect_receipts.py",
+                )
+            },
+        }
+        context.tracing.stop(path=str(out / "trace.zip"))
+        results["artifact_sha256"] = {
+            path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in sorted(out.iterdir()) if path.is_file() and path != results_path
+        }
+        results_path.write_text(json.dumps(results, indent=2) + "\n")
+    finally:
+        if context.tracing:
+            try:
+                context.tracing.stop(path=str(out / "trace.zip"))
+            except Exception:
+                pass
+        context.close()
+
+
+def test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports(browser, live):
+    from hutch.workflow import persistence as workflow_store
+
+    base, app = live
+    store = app.state.store
+    bot = Bot(name="workflow-studio", display_name="Workflow studio fixture", model="mock/demo", tools=[],
+              approval_mode=ApprovalMode.auto)
+    store.upsert_bot(bot)
+    conversation, _ = store.create_conversation(
+        bot.id, "Dynamic workflow review", idem_key="workflow-studio-conversation",
+        request_hash="workflow-studio-conversation")
+    workflow_title = "review-source-findings-with-independent-check"
+    plan = {
+        "name": workflow_title,
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 8, "max_model_calls": 0},
+        "nodes": [{"kind": "ask", "id": "review", "title": "Review findings",
+                   "question": "Which findings should be included?", "options": ["All", "Only verified"],
+                   "timeout_seconds": 600},
+                  {"kind": "transform", "id": "carry_answer", "op": "constant",
+                   "args": {"value": {"ref": "review.answer"}}}],
+    }
+    artifacts = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workflow-studio/pause-resume-2026-10-11"
+    artifacts.mkdir(parents=True, exist_ok=True)
+    page = browser.new_page(viewport={"width": 1440, "height": 960}, device_scale_factor=1)
+    context = page.context
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    trace = []
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        saved = page.request.post(f"{base}/api/v1/workflows", data={"name": workflow_title, "plan": plan},
+                                  headers={"Idempotency-Key": "workflow-studio-save"})
+        assert saved.status == 201, saved.text()
+        definition = saved.json()
+        first = page.request.post(f"{base}/api/v1/workflows/{definition['id']}/runs",
+                                  data={"bot": bot.name, "conversation_id": conversation["id"], "inputs": {}},
+                                  headers={"Idempotency-Key": "workflow-studio-first-run"})
+        assert first.status == 201, first.text()
+        first_workflow_id = first.json()["workflow_run_id"]
+        deadline = time.monotonic() + 20
+        pending_questions = []
+        while time.monotonic() < deadline:
+            pending_questions = workflow_store.questions(store, first_workflow_id, status="pending")
+            if pending_questions:
+                break
+            time.sleep(0.05)
+        assert pending_questions
+
+        page.goto(f"{base}/#/chat/{bot.name}")
+        panel = page.locator("#workflow-panel")
+        panel.wait_for(state="visible")
+        page.get_by_role("heading", name="Review Source Findings With Independent Check").wait_for()
+        panel.get_by_text("Waiting · saved workflow", exact=True).wait_for()
+        panel.get_by_text("Planned structure", exact=True).wait_for()
+        panel.get_by_text("Discovered instances", exact=True).wait_for()
+        question_form = panel.locator("[data-workflow-question-form]")
+        question_form.wait_for(state="visible")
+        question_id = question_form.get_attribute("data-question-id")
+        assert question_id == pending_questions[0]["id"]
+
+        sizes = [("desktop", 1440, 960), ("tablet", 768, 1024), ("phone", 360, 800),
+                 ("compact-phone", 320, 800)]
+        for label, width, height in sizes:
+            page.set_viewport_size({"width": width, "height": height})
+            page.wait_for_timeout(80)
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, f"{label} has horizontal overflow: {overflow}px"
+            page.screenshot(path=str(artifacts / f"{label}-waiting.png"), full_page=True, animations="disabled")
+            card_box = panel.bounding_box()
+            title_locator = panel.locator("h2")
+            actions_locator = panel.locator(".workflow-panel-actions")
+            title_locator.wait_for(state="visible")
+            actions_locator.wait_for(state="visible")
+            # Chat events can trigger a workflow refresh while the page is
+            # resizing. Measure both elements in one browser turn so an atomic
+            # panel replacement cannot split the geometry sample.
+            def panel_header_bounds():
+                return page.evaluate("""() => {
+                  const title = document.querySelector('#workflow-panel h2');
+                  const actions = document.querySelector('#workflow-panel .workflow-panel-actions');
+                  const visible = element => element && element.isConnected &&
+                    element.getClientRects().length && getComputedStyle(element).visibility !== 'hidden';
+                  if (!visible(title) || !visible(actions)) return null;
+                  const bounds = element => {
+                    const rect = element.getBoundingClientRect();
+                    return {x: rect.x, y: rect.y, width: rect.width, height: rect.height};
+                  };
+                  return {title: bounds(title), actions: bounds(actions)};
+                }""")
+
+            header_bounds = wait_for(panel_header_bounds, timeout=5)
+            title_box, actions_box = header_bounds["title"], header_bounds["actions"]
+            assert card_box and card_box["x"] >= 0 and card_box["x"] + card_box["width"] <= width + 1
+            assert title_box and actions_box
+            if width <= 820:
+                assert title_box["width"] >= card_box["width"] * 0.7
+                assert title_box["y"] + title_box["height"] <= actions_box["y"] + 1
+            trace.append({"viewport": label, "size": [width, height], "state": "waiting",
+                          "horizontal_overflow_px": overflow,
+                          "panel_bounds": {key: round(value, 2) for key, value in card_box.items()},
+                          "title_bounds": {key: round(value, 2) for key, value in title_box.items()},
+                          "actions_bounds": {key: round(value, 2) for key, value in actions_box.items()}})
+
+        page.set_viewport_size({"width": 1440, "height": 960})
+        page.wait_for_timeout(80)
+        selected = page.request.get(f"{base}/api/v1/workflows/runs/{first_workflow_id}").json()
+        assert selected["pause_available"] is True
+        pause_body = {"expected_revision_id": selected["workflow"]["revision_id"],
+                      "expected_generation": selected["workflow"]["attempt_run_id"]}
+        pause = panel.get_by_role("button", name="Pause workflow")
+        with page.expect_response(lambda response: response.url.endswith(f"/workflows/runs/{first_workflow_id}/pause")) as pause_response:
+            pause.click()
+        assert pause_response.value.status == 200, pause_response.value.text()
+        assert pause_response.value.request.headers.get("idempotency-key")
+        assert pause_response.value.request.post_data_json == pause_body
+        assert pause_response.value.json()["paused"] is True
+        panel.get_by_text("Paused · saved workflow", exact=True).wait_for()
+        resume_after_pause = panel.get_by_role("button", name="Resume workflow")
+        assert resume_after_pause.count() == 1
+        page.wait_for_function("document.activeElement?.dataset.workflowAction === 'resume'", timeout=2000)
+        assert resume_after_pause.evaluate("element => document.activeElement === element"), page.evaluate(
+            "({tag: document.activeElement?.tagName, id: document.activeElement?.id, "
+            "action: document.activeElement?.dataset.workflowAction, "
+            "workflow: document.activeElement?.dataset.workflowId, "
+            "html: document.activeElement?.outerHTML?.slice(0, 300)})")
+        paused_detail = page.request.get(f"{base}/api/v1/workflows/runs/{first_workflow_id}").json()
+        assert paused_detail["workflow"]["pause_requested"] is True
+        assert paused_detail["resume_available"] is True
+        for label, width, height in sizes:
+            page.set_viewport_size({"width": width, "height": height})
+            page.wait_for_timeout(80)
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, f"{label} paused view has horizontal overflow: {overflow}px"
+            action = panel.locator(".workflow-panel-actions")
+            action.wait_for(state="visible")
+            resume_target = wait_for(lambda: page.evaluate("""() => {
+              const element = document.querySelector('#workflow-panel [data-workflow-action="resume"]');
+              if (!element || !element.isConnected || !element.getClientRects().length ||
+                  getComputedStyle(element).visibility === 'hidden') return null;
+              const rect = element.getBoundingClientRect();
+              return {x: rect.x, y: rect.y, width: rect.width, height: rect.height};
+            }"""), timeout=5)
+            assert resume_target and resume_target["height"] >= (44 if width <= 820 else 24)
+            page.screenshot(path=str(artifacts / f"{label}-paused.png"), full_page=True, animations="disabled")
+            trace.append({"viewport": label, "size": [width, height], "state": "paused",
+                          "horizontal_overflow_px": overflow,
+                          "resume_target": {key: round(value, 2) for key, value in resume_target.items()}})
+        page.set_viewport_size({"width": 1440, "height": 960})
+        page.wait_for_timeout(80)
+
+        question_form = panel.locator("[data-workflow-question-form]")
+        answer_field = question_form.locator("textarea[name=answer]")
+        answer_field.fill("Include only findings with independent evidence.")
+        answer_field.press("Tab")
+        send_answer = question_form.get_by_role("button", name="Send answer")
+        assert send_answer.evaluate("element => document.activeElement === element")
+        page.keyboard.press("Enter")
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            held = page.request.get(f"{base}/api/v1/workflows/runs/{first_workflow_id}").json()
+            if held["questions"][0]["status"] == "answered":
+                break
+            time.sleep(0.05)
+        assert held["workflow"]["pause_requested"] is True
+        assert held["workflow"]["attempt_run_id"] == paused_detail["workflow"]["attempt_run_id"]
+        assert held["attempt"]["status"] == "waiting_workflow"
+        assert "carry_answer" not in {node["site_id"] for node in held["nodes"]}
+        page.wait_for_timeout(2200)
+        still_held = page.request.get(f"{base}/api/v1/workflows/runs/{first_workflow_id}").json()
+        assert still_held["workflow"]["attempt_run_id"] == held["workflow"]["attempt_run_id"]
+        page.screenshot(path=str(artifacts / "desktop-answered-while-paused.png"), full_page=True, animations="disabled")
+
+        resume_button = panel.get_by_role("button", name="Resume workflow")
+        with page.expect_response(lambda response: response.url.endswith(f"/workflows/runs/{first_workflow_id}/resume")) as resume_response:
+            resume_button.click()
+        assert resume_response.value.status == 200, resume_response.value.text()
+        assert resume_response.value.request.headers.get("idempotency-key")
+        assert resume_response.value.request.post_data_json == pause_body
+        assert resume_response.value.json()["paused"] is False
+        page.wait_for_function("document.activeElement?.dataset.workflowAction === 'refresh'", timeout=2000)
+        assert panel.get_by_role("button", name="Refresh").evaluate(
+            "element => document.activeElement === element")
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
+            current = workflow_store.workflow_run(store, first_workflow_id)
+            if current and current["status"] == "succeeded":
+                break
+            time.sleep(0.05)
+        assert workflow_store.workflow_run(store, first_workflow_id)["status"] == "succeeded"
+        panel.get_by_role("button", name="Refresh").click()
+        panel.get_by_text("Finished · saved workflow", exact=True).wait_for()
+        assert panel.evaluate("element => element.scrollTop") == 0
+        assert panel.locator("h2").is_visible()
+        page.wait_for_timeout(300)
+        page.screenshot(path=str(artifacts / "desktop-finished.png"), full_page=True, animations="disabled")
+
+        page.locator("#studio-conversation-options").click()
+        page.locator("#chat-workflow-mode").wait_for(state="visible")
+        assert page.locator("#chat-workflow-mode option[value=auto]").is_disabled()
+        page.locator("#chat-workflow-mode").select_option("off")
+        wait_for(lambda: store.get_conversation_workflow_policy(conversation["id"])["mode"] == "off")
+        assert page.locator("#chat-workflow-mode-help").inner_text().strip()
+        page.screenshot(path=str(artifacts / "desktop-policy-off.png"), full_page=True, animations="disabled")
+        page.keyboard.press("Escape")
+
+        panel.locator("summary", has_text="Saved workflows").click()
+        panel.get_by_role("button", name="Run").click()
+        page.get_by_role("button", name="Start workflow").click()
+        panel.locator("[data-workflow-question-form]").wait_for(state="visible")
+        panel.get_by_role("button", name="Stop workflow").click()
+        deadline = time.monotonic() + 20
+        newest = None
+        while time.monotonic() < deadline:
+            runs = workflow_store.list_workflow_runs(store, bot_id=bot.id, limit=20)
+            newest = next((row for row in runs if row["id"] != first_workflow_id), None)
+            if newest and newest["status"] == "stopped":
+                break
+            time.sleep(0.05)
+        assert newest and newest["status"] == "stopped"
+        panel.get_by_text("Stopped · saved workflow", exact=True).wait_for()
+        assert panel.get_by_role("button", name="Stop workflow").count() == 0
+        page.wait_for_function("document.querySelectorAll('#toast-root .toast').length === 0", timeout=6000)
+        page.screenshot(path=str(artifacts / "desktop-stopped.png"), full_page=True, animations="disabled")
+        assert not errors, errors
+
+        context.tracing.stop(path=str(artifacts / "trace.zip"))
+        sources = ("src/hutch/models.py", "src/hutch/store.py", "src/hutch/workflow/persistence.py",
+                   "src/hutch/workflow/submit.py", "src/hutch/server/workflows_api.py",
+                   "src/hutch/server/static/app.js", "src/hutch/server/static/style.css")
+        images_and_trace = {file.name: hashlib.sha256(file.read_bytes()).hexdigest()
+                            for file in artifacts.iterdir() if file.suffix in {".png", ".zip"}}
+        (artifacts / "results.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports",
+            "command": "uv run pytest tests/e2e/test_browser.py::test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports -q",
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright_version": package_version("playwright"), "viewports": trace,
+            "question_id": question_id, "first_workflow_id": first_workflow_id,
+            "stopped_workflow_id": newest["id"], "policy_override": store.get_conversation_workflow_policy(conversation["id"]),
+            "keyboard_path": ["focus answer", "Tab to Send answer", "Enter submits"],
+            "page_errors": errors, "provider_calls": 0,
+            "fixture_boundary": "A saved declarative ask workflow uses the real SQLite, supervisor, API and browser path; no model/provider call is made.",
+            "source_sha256": {name: hashlib.sha256((Path(__file__).resolve().parents[2] / name).read_bytes()).hexdigest()
+                              for name in sources},
+            "visual_artifact_sha256": images_and_trace,
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+        }, indent=2) + "\n")
+    finally:
+        context.close()
+
+
+def test_workflow_question_draft_survives_tcp_disconnect_and_reconnect(browser, live):
+    from hutch.workflow import persistence as workflow_store
+
+    base, app = live
+    store = app.state.store
+    bot = Bot(name="workflow-reconnect", display_name="Workflow reconnect fixture", model="mock/demo", tools=[])
+    store.upsert_bot(bot)
+    conversation, _ = store.create_conversation(
+        bot.id, "Reconnect review", idem_key="workflow-reconnect-conversation",
+        request_hash="workflow-reconnect-conversation")
+    workflow_title = "review-findings-after-a-connection-drop"
+    plan = {
+        "name": workflow_title,
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 6, "max_model_calls": 0},
+        "nodes": [{"kind": "ask", "id": "review", "title": "Review findings",
+                   "question": "Which findings should be included?", "options": ["All", "Only verified"],
+                   "timeout_seconds": 600},
+                  {"kind": "transform", "id": "carry_answer", "op": "constant",
+                   "args": {"value": {"ref": "review.answer"}}}],
+    }
+    artifacts = Path(__file__).resolve().parents[2] / (
+        "docs/realignment/artifacts/workflow-studio/workflow-reconnect-2026-10-11")
+    artifacts.mkdir(parents=True, exist_ok=True)
+    saved = page = context = proxy = None
+    errors = []
+    try:
+        saved = browser.new_page(viewport={"width": 1440, "height": 960})
+        created = saved.request.post(f"{base}/api/v1/workflows", data={"name": workflow_title, "plan": plan},
+                                     headers={"Idempotency-Key": "workflow-reconnect-save"})
+        assert created.status == 201, created.text()
+        definition = created.json()
+        launched = saved.request.post(
+            f"{base}/api/v1/workflows/{definition['id']}/runs",
+            data={"bot": bot.name, "conversation_id": conversation["id"], "inputs": {}},
+            headers={"Idempotency-Key": "workflow-reconnect-run"})
+        assert launched.status == 201, launched.text()
+        workflow_id = launched.json()["workflow_run_id"]
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
+            pending = workflow_store.questions(store, workflow_id, status="pending")
+            if pending:
+                break
+            time.sleep(0.05)
+        assert pending
+        question_id = pending[0]["id"]
+
+        proxy = CuttableProxy(urlsplit(base).port)
+        proxied_base = f"http://127.0.0.1:{proxy.port}"
+        context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+        page = context.new_page()
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        context.tracing.start(screenshots=True, snapshots=True, sources=False)
+        page.goto(f"{proxied_base}/#/chat/{bot.name}")
+        panel = page.locator("#workflow-panel")
+        panel.wait_for(state="visible")
+        panel.get_by_text("Waiting · saved workflow", exact=True).wait_for()
+        question_form = panel.locator(f'[data-workflow-question-form][data-question-id="{question_id}"]')
+        question_form.wait_for(state="visible")
+        answer = question_form.locator("textarea[name=answer]")
+        draft = "Keep this answer draft through reconnect."
+        answer.fill(draft)
+        answer.focus()
+        assert answer.evaluate("element => document.activeElement === element")
+        answer.scroll_into_view_if_needed()
+
+        proxy.cut()
+        page.evaluate("() => refreshWorkflowPanel(currentStudioBot, currentConversationId, studioGeneration, true)")
+        panel.locator(".workflow-panel-error").wait_for(state="visible")
+        assert question_form.count() == 1, "failed refresh must retain the pending question card"
+        assert answer.input_value() == draft, "failed refresh must retain the answer draft"
+        assert answer.evaluate("element => document.activeElement === element"), "failed refresh must retain focus"
+        answer.scroll_into_view_if_needed()
+        page.screenshot(path=str(artifacts / "offline-question-draft.png"), full_page=True, animations="disabled")
+
+        proxy.restore()
+        page.evaluate("() => refreshWorkflowPanel(currentStudioBot, currentConversationId, studioGeneration, true)")
+        panel.locator(".workflow-panel-error").wait_for(state="detached")
+        answer = panel.locator(f'[data-workflow-question-form][data-question-id="{question_id}"] textarea[name=answer]')
+        assert answer.input_value() == draft, "successful reconnect refresh must retain the answer draft"
+        assert answer.evaluate("element => document.activeElement === element"), "successful refresh must restore answer focus"
+        answer.scroll_into_view_if_needed()
+        page.screenshot(path=str(artifacts / "reconnected-question-draft.png"), full_page=True, animations="disabled")
+
+        answer.press("Tab")
+        send_answer = panel.get_by_role("button", name="Send answer")
+        assert send_answer.evaluate("element => document.activeElement === element")
+        page.keyboard.press("Enter")
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
+            latest = workflow_store.workflow_run(store, workflow_id)
+            if latest and latest["status"] == "succeeded":
+                break
+            time.sleep(0.05)
+        assert latest and latest["status"] == "succeeded"
+        assert workflow_store.questions(store, workflow_id, status="answered")[0]["id"] == question_id
+        assert not errors, errors
+        context.tracing.stop(path=str(artifacts / "trace.zip"))
+        screenshots = ["offline-question-draft.png", "reconnected-question-draft.png", "trace.zip"]
+        sources = ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                   "src/hutch/server/workflows_api.py", "tests/e2e/test_browser.py")
+        (artifacts / "results.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_workflow_question_draft_survives_tcp_disconnect_and_reconnect",
+            "browser": browser.version, "playwright_version": package_version("playwright"),
+            "viewport": [1440, 960], "tcp_connections_cut": True, "question_id": question_id,
+            "temp_dir_override": os.environ.get("TMPDIR"),
+            "answer_draft_preserved_offline_and_after_reconnect": True,
+            "focus_preserved_offline_and_after_reconnect": True, "question_answered_by_keyboard": True,
+            "workflow_status_after_answer": latest["status"], "provider_calls": 0,
+            "page_errors": errors,
+            "fixture_boundary": "Real SQLite workflow, supervisor, browser and local TCP proxy; saved ask node only, no model/provider calls.",
+            "source_sha256": {name: hashlib.sha256((Path(__file__).resolve().parents[2] / name).read_bytes()).hexdigest()
+                              for name in sources},
+            "visual_artifact_sha256": {name: hashlib.sha256((artifacts / name).read_bytes()).hexdigest()
+                                       for name in screenshots},
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+        }, indent=2) + "\n")
+    finally:
+        if proxy:
+            proxy.close()
+        if context:
+            if context.tracing is not None:
+                try:
+                    context.tracing.stop()
+                except Exception:
+                    pass
+            context.close()
+        if saved:
+            saved.close()
+
+
+def test_workflow_studio_pause_after_active_work_at_all_viewports(browser, live, monkeypatch):
+    """A pause request holds the next step while the current owner operation settles."""
+    from hutch.workflow.engine import Interpreter
+    from hutch.workflow import persistence as workflow_store
+
+    base, app = live
+    store = app.state.store
+    entered = threading.Event()
+    release = threading.Event()
+    original_transform = Interpreter._transform
+
+    def slow_transform(self, node, scope):
+        if node.id == "in_flight":
+            entered.set()
+            assert release.wait(45), "browser test did not release the in-flight node"
+        return original_transform(self, node, scope)
+
+    monkeypatch.setattr(Interpreter, "_transform", slow_transform)
+    bot = Bot(name="workflow-active-pause", display_name="Active pause fixture", model="mock/demo", tools=[])
+    store.upsert_bot(bot)
+    conversation, _ = store.create_conversation(
+        bot.id, "Pause at a safe boundary", idem_key="workflow-active-pause-conversation",
+        request_hash="workflow-active-pause-conversation")
+    plan = {
+        "name": "pause-after-the-current-work-settles-at-a-safe-boundary",
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 6, "max_model_calls": 0},
+        "nodes": [
+            {"kind": "transform", "id": "in_flight", "title": "Current calculation",
+             "op": "constant", "args": {"value": "settled"}},
+            {"kind": "transform", "id": "next_step", "title": "Next calculation",
+             "op": "constant", "args": {"value": {"ref": "in_flight"}}},
+        ],
+    }
+    artifacts = Path(__file__).resolve().parents[2] / (
+        "docs/realignment/artifacts/workflow-studio/pause-resume-2026-10-11")
+    artifacts.mkdir(parents=True, exist_ok=True)
+    page = browser.new_page(viewport={"width": 1440, "height": 960}, device_scale_factor=1)
+    context = page.context
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    capture_log = []
+    try:
+        submitted = page.request.post(
+            f"{base}/api/v1/workflows/plans",
+            data={"plan": plan, "bot": bot.name, "conversation_id": conversation["id"]},
+            headers={"Idempotency-Key": "workflow-active-pause-submit"})
+        assert submitted.status == 201, submitted.text()
+        workflow_id = submitted.json()["workflow_run_id"]
+        assert entered.wait(15), "the first transform did not enter its in-flight operation"
+
+        page.goto(f"{base}/#/chat/{bot.name}")
+        panel = page.locator("#workflow-panel")
+        panel.wait_for(state="visible")
+        display_title = "Pause After The Current Work Settles At A Safe Boundary"
+        page.get_by_role("heading", name=display_title).wait_for()
+        panel.get_by_text("Running · saved workflow", exact=True).wait_for()
+        pause_button = panel.get_by_role("button", name="Pause after current work")
+        pause_button.wait_for(state="visible")
+        sizes = [("desktop", 1440, 960), ("tablet", 768, 1024),
+                 ("phone", 360, 800), ("compact-phone", 320, 800)]
+
+        def capture_state(state: str, expected_button: str | None) -> None:
+            for label, width, height in sizes:
+                page.set_viewport_size({"width": width, "height": height})
+                page.wait_for_timeout(80)
+                assert panel.get_by_text(f"{state} · saved workflow", exact=True).is_visible()
+                overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+                assert overflow <= 1, f"{label} {state} view has horizontal overflow: {overflow}px"
+                action = panel.get_by_role("button", name=expected_button) if expected_button else None
+                target_bounds = action.bounding_box() if action else None
+                if action:
+                    assert target_bounds is not None
+                    assert target_bounds["height"] >= (44 if width <= 520 else 24)
+                image_name = f"active-pause-{state.lower().replace(' ', '-')}-{label}.png"
+                page.screenshot(path=str(artifacts / image_name), full_page=True, animations="disabled")
+                capture_log.append({
+                    "viewport": label, "size": [width, height], "state": state.lower().replace(" ", "-"),
+                    "horizontal_overflow_px": overflow,
+                    "control": expected_button,
+                    "control_bounds": ({key: round(value, 2) for key, value in target_bounds.items()}
+                                       if target_bounds else None),
+                })
+
+        capture_state("Running", "Pause after current work")
+        page.set_viewport_size({"width": 1440, "height": 960})
+        active = page.request.get(f"{base}/api/v1/workflows/runs/{workflow_id}").json()
+        assert active["workflow"]["status"] == "running" and active["pause_available"] is True
+        pause_body = {"expected_revision_id": active["workflow"]["revision_id"],
+                      "expected_generation": active["workflow"]["attempt_run_id"]}
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/workflows/runs/{workflow_id}/pause")) as pause_response:
+            pause_button.click()
+        response = pause_response.value
+        assert response.status == 200, response.text()
+        assert response.request.headers.get("idempotency-key")
+        assert response.request.post_data_json == pause_body
+        assert response.json()["paused"] is True and response.json()["parked"] is False
+        panel.get_by_text("Pause requested · saved workflow", exact=True).wait_for()
+        panel.get_by_text("Current work will settle before the next step is held.", exact=True).wait_for()
+        assert panel.get_by_role("button", name="Pause after current work").count() == 0
+        assert panel.get_by_role("button", name="Resume workflow").count() == 0
+        page.wait_for_function("document.activeElement?.dataset.workflowAction === 'refresh'", timeout=2000)
+        assert panel.get_by_role("button", name="Refresh").evaluate(
+            "element => element === document.activeElement")
+        capture_state("Pause requested", None)
+
+        release.set()
+        deadline = time.monotonic() + 20
+        parked = None
+        while time.monotonic() < deadline:
+            parked = page.request.get(f"{base}/api/v1/workflows/runs/{workflow_id}").json()
+            if parked["resume_available"]:
+                break
+            time.sleep(0.05)
+        assert parked and parked["resume_available"] is True, parked
+        assert parked["attempt"]["status"] == "waiting_workflow"
+        assert {node["site_id"] for node in parked["nodes"]} == {"in_flight"}
+        assert next(node for node in parked["nodes"] if node["site_id"] == "in_flight")["result"] == "settled"
+        panel.get_by_role("button", name="Refresh").click()
+        panel.get_by_text("Paused · saved workflow", exact=True).wait_for()
+        capture_state("Paused", "Resume workflow")
+
+        page.set_viewport_size({"width": 1440, "height": 960})
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/workflows/runs/{workflow_id}/resume")) as resume_response:
+            panel.get_by_role("button", name="Resume workflow").click()
+        assert resume_response.value.status == 200, resume_response.value.text()
+        assert resume_response.value.request.headers.get("idempotency-key")
+        assert resume_response.value.json()["paused"] is False
+        deadline = time.monotonic() + 20
+        finished = None
+        while time.monotonic() < deadline:
+            finished = workflow_store.workflow_run(store, workflow_id)
+            if finished and finished["status"] in ("succeeded", "failed", "stopped", "outcome_unknown"):
+                break
+            time.sleep(0.05)
+        assert finished and finished["status"] == "succeeded", finished
+        assert not errors, errors
+        context.tracing.stop(path=str(artifacts / "active-pause-trace.zip"))
+        sources = ("src/hutch/workflow/persistence.py", "src/hutch/workflow/engine.py",
+                   "src/hutch/workflow/runtime.py", "src/hutch/server/workflows_api.py",
+                   "src/hutch/server/static/app.js", "src/hutch/server/static/style.css")
+        images_and_trace = {file.name: hashlib.sha256(file.read_bytes()).hexdigest()
+                            for file in artifacts.iterdir()
+                            if file.name.startswith("active-pause-") and file.suffix in {".png", ".zip"}}
+        (artifacts / "active-pause-results.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_workflow_studio_pause_after_active_work_at_all_viewports",
+            "command": "uv run pytest tests/e2e/test_browser.py::test_workflow_studio_pause_after_active_work_at_all_viewports -q",
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright_version": package_version("playwright"), "viewports": capture_log,
+            "workflow_run_id": workflow_id, "keyboard_path": "Pause action focused Refresh after a deferred pause request.",
+            "page_errors": errors, "provider_calls": 0,
+            "fixture_boundary": "A saved declarative two-transform plan uses the real SQLite store, supervisor, HTTP API, and browser. The first transform blocks on a test event; no model/provider call is made.",
+            "verified_transitions": ["running", "pause requested", "parked after current node settled", "resumed", "succeeded"],
+            "source_sha256": {name: hashlib.sha256((Path(__file__).resolve().parents[2] / name).read_bytes()).hexdigest()
+                              for name in sources},
+            "visual_artifact_sha256": images_and_trace,
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+        }, indent=2) + "\n")
+    finally:
+        release.set()
+        if context.tracing:
+            try:
+                context.tracing.stop(path=str(artifacts / "active-pause-trace.zip"))
+            except Exception:
+                pass
         context.close()
 
 
@@ -1478,6 +3147,536 @@ def test_provider_connections_fit_phone_viewports_and_capture_signin_states(brow
             "connections": ["opencode-go", "chatgpt-plan-preview"],
             "provider_credentials_used": False, "external_auth_completed": False,
         }, indent=2) + "\n")
+    finally:
+        page.close()
+
+
+def test_workflow_amendment_preview_adoption_is_explicit_and_responsive(browser, live):
+    from hutch.workflow import persistence as workflow_store
+    from hutch.workflow import submit as workflow_submit
+
+    base, app = live
+    store = app.state.store
+    bot = store.create_bot(Bot(name="workflow-amendment-studio", display_name="Amendment review fixture",
+                               model="mock/demo", tools=[]))
+    conversation, _ = store.create_conversation(
+        bot.id, "Amend parked workflow", idem_key="workflow-amendment-conversation",
+        request_hash="workflow-amendment-conversation")
+    plan = {
+        "name": "amendable-human-review",
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 8, "max_model_calls": 0},
+        "nodes": [{"kind": "ask", "id": "review", "title": "Review findings",
+                   "question": "Which findings should be included?", "options": ["All", "Only verified"],
+                   "timeout_seconds": 600}],
+    }
+    saved = workflow_store.save_definition(store, name=plan["name"], plan=plan,
+                                           source="operator", activate=False)
+    submission = workflow_submit.submit_saved(
+        store, bot=bot, definition=saved["definition_id"], inputs={}, origin="api",
+        idem_key="workflow-amendment-start", request_hash="workflow-amendment-start",
+        auto=False, conversation_id=conversation["id"])
+    workflow_id = submission.workflow_run_id
+    deadline = time.monotonic() + 20
+    pending_questions = []
+    while time.monotonic() < deadline:
+        pending_questions = workflow_store.questions(store, workflow_id, status="pending")
+        if pending_questions:
+            break
+        time.sleep(0.05)
+    assert pending_questions, "the human-review workflow did not park on its question"
+
+    artifact_override = os.environ.get("HUTCH_WORKFLOW_AMENDMENT_ARTIFACTS")
+    artifacts = (Path(artifact_override) if artifact_override else
+                 Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workflow-studio/amendment")
+    artifacts.mkdir(parents=True, exist_ok=True)
+    page = browser.new_page(viewport={"width": 1440, "height": 960}, device_scale_factor=1)
+    errors: list[str] = []
+    failed_requests: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("requestfailed", lambda request: failed_requests.append(request.url))
+    page.context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    viewports = []
+    try:
+        page.goto(f"{base}/#/chat/{bot.name}", wait_until="domcontentloaded")
+        panel = page.locator("#workflow-panel")
+        panel.get_by_role("button", name="Amend parked run").wait_for()
+        old_question_id = pending_questions[0]["id"]
+        panel.get_by_role("button", name="Amend parked run").click()
+        dialog = page.locator('.modal-card[role="dialog"]')
+        dialog.wait_for(state="visible")
+        assert dialog.get_by_label("Candidate workflow plan").evaluate(
+            "element => document.activeElement === element")
+        candidate = {**plan, "nodes": [{**plan["nodes"][0],
+                                         "question": "Which evidence-backed findings should remain?"}]}
+        dialog.locator("#workflow-amendment-plan").fill(json.dumps(candidate, indent=2))
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/api/v1/workflows/runs/{workflow_id}/amendments/preview")) as preview_info:
+            dialog.get_by_role("button", name="Preview candidate").click()
+        preview_response = preview_info.value
+        assert preview_response.status == 200, preview_response.text()
+        preview_quiescence = preview_response.json()["quiescence"]
+        assert preview_quiescence["attempt_parked"] is True
+        assert preview_quiescence["owned_work_quiet"] is True
+        dialog.get_by_text("Pending questions that adoption would cancel:").wait_for()
+        dialog.get_by_text(old_question_id, exact=True).wait_for()
+        assert "Reusable completed results" in dialog.inner_text()
+        assert "Which evidence-backed findings should remain?" in dialog.inner_text()
+        assert dialog.get_by_role("button", name="Revise candidate").is_visible()
+        assert dialog.get_by_role("button", name="Adopt amendment").is_visible()
+
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 768, 1024),
+                                     ("phone", 360, 800), ("compact-phone", 320, 740)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.wait_for_timeout(80)
+            overflow = page.evaluate("Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth")
+            assert overflow <= 1, f"{label} has horizontal overflow: {overflow}px"
+            bounds = dialog.bounding_box()
+            assert bounds and bounds["x"] >= 0 and bounds["x"] + bounds["width"] <= width + 1
+            dialog.locator(".modal-body").evaluate("element => { element.scrollTop = 0; }")
+            page.wait_for_timeout(40)
+            page.screenshot(path=str(artifacts / f"editor-{label}.png"), full_page=True, animations="disabled")
+            preview_panel = dialog.locator(".workflow-amendment-preview")
+            preview_panel.scroll_into_view_if_needed()
+            page.wait_for_timeout(40)
+            page.screenshot(path=str(artifacts / f"preview-{label}.png"), full_page=True, animations="disabled")
+            adopt_bounds = dialog.get_by_role("button", name="Adopt amendment").bounding_box()
+            assert adopt_bounds and adopt_bounds["height"] >= 44, f"{label} adopt target is too small"
+            viewports.append({"label": label, "size": [width, height], "dialog_bounds": bounds,
+                              "horizontal_overflow_px": overflow,
+                              "adopt_target_height": adopt_bounds["height"]})
+
+        assert dialog.get_by_role("button", name="Adopt amendment").is_disabled()
+        assert workflow_store.workflow_run(store, workflow_id)["revision_id"] == submission.revision_id
+        dialog.get_by_label("I understand these questions will be canceled and archived").check()
+        adopt_button = dialog.get_by_role("button", name="Adopt amendment")
+        assert adopt_button.is_enabled()
+        cancel_label = dialog.locator(".workflow-amendment-questions label")
+        cancel_label.scroll_into_view_if_needed()
+        label_bounds = cancel_label.bounding_box()
+        footer_bounds = dialog.locator(".modal-footer").bounding_box()
+        assert label_bounds and footer_bounds
+        footer_clearance = footer_bounds["y"] - (label_bounds["y"] + label_bounds["height"])
+        assert footer_clearance >= 8, (
+            f"the cancellation choice needs breathing room above the fixed footer; got {footer_clearance:.1f}px"
+        )
+        page.screenshot(path=str(artifacts / "explicit-cancellation-compact-phone.png"),
+                        full_page=True, animations="disabled")
+        adopt_button.focus()
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/api/v1/workflows/runs/{workflow_id}/amendments/adopt")) as response_info:
+            page.keyboard.press("Enter")
+        response = response_info.value
+        assert response.status == 200, response.text()
+        assert response.request.headers.get("idempotency-key")
+        assert response.request.post_data_json["cancel_pending_questions"] is True
+        dialog.wait_for(state="detached")
+
+        deadline = time.monotonic() + 20
+        new_questions = []
+        while time.monotonic() < deadline:
+            new_questions = workflow_store.questions(store, workflow_id, status="pending")
+            if new_questions and new_questions[0]["id"] != old_question_id:
+                break
+            time.sleep(0.05)
+        assert new_questions and new_questions[0]["id"] != old_question_id
+        history = page.request.get(f"{base}/api/v1/workflows/runs/{workflow_id}/amendments")
+        assert history.status == 200, history.text()
+        history_id = history.json()["items"][0]["id"]
+        archived = page.request.get(f"{base}/api/v1/workflows/runs/{workflow_id}/amendments/{history_id}")
+        assert archived.status == 200, archived.text()
+        assert any(question["id"] == old_question_id and question["status"] == "cancelled"
+                   for question in archived.json()["questions"])
+        await_focus = page.evaluate("document.activeElement?.dataset?.workflowAction || ''")
+        assert await_focus == "", "focus should move to the composer while the amended run is active"
+        assert page.locator("#chat-prompt").evaluate("element => document.activeElement === element")
+        panel.get_by_role("button", name="Amend parked run").wait_for()
+        page.locator("#workflow-panel").get_by_text("Waiting · saved workflow", exact=True).wait_for()
+        page.screenshot(path=str(artifacts / "desktop-after-adoption.png"), full_page=True, animations="disabled")
+        assert not errors, errors
+        assert not failed_requests, failed_requests
+        page.context.tracing.stop(path=str(artifacts / "trace.zip"))
+        source_paths = ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                        "src/hutch/server/workflows_api.py", "src/hutch/workflow/amendments.py",
+                        "src/hutch/workflow/persistence.py", "tests/e2e/test_browser.py")
+        visual_artifacts = {file.name: hashlib.sha256(file.read_bytes()).hexdigest()
+                            for file in artifacts.iterdir() if file.suffix in {".png", ".zip"}}
+        (artifacts / "results.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_workflow_amendment_preview_adoption_is_explicit_and_responsive",
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright_version": package_version("playwright"), "viewports": viewports,
+            "workflow_id": workflow_id, "old_question_id": old_question_id,
+            "new_question_id": new_questions[0]["id"], "history_id": history_id,
+            "interaction": "plan edited, field-level diff inspected, adoption stays disabled until explicit question cancellation is checked, adoption submitted with Enter; composer receives focus while continuation runs and the parked amend control returns",
+            "cancellation_choice_bounds": label_bounds,
+            "fixed_footer_bounds": footer_bounds,
+            "page_errors": errors, "failed_requests": failed_requests, "provider_calls": 0,
+            "source_sha256": {relative: hashlib.sha256((artifacts.parents[4] / relative).read_bytes()).hexdigest()
+                              for relative in source_paths},
+            "visual_artifact_sha256": visual_artifacts,
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            page.context.tracing.stop()
+        except Exception:
+            pass
+        page.close()
+
+
+def test_workflow_amendment_carry_preview_is_clear_and_responsive(browser, live, monkeypatch):
+    import hutch.engine as engine_module
+    from hutch.workflow import persistence as workflow_store
+    from hutch.workflow import submit as workflow_submit
+
+    entered = threading.Event()
+    release = threading.Event()
+
+    class ControlledRuntime:
+        kind = "amendment-carry-visual-test"
+
+        def execute(self, run, ctx, tools, stop):
+            entered.set()
+            assert release.wait(30), "the browser test did not release its controlled step"
+            content = "carried worker result"
+            ctx.emit(Event(run_id=run.id, type=EventType.message,
+                           data={"role": "assistant", "content": content}))
+            return content
+
+    monkeypatch.setattr(engine_module, "get_runtime", lambda _bot: ControlledRuntime())
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key-unused-by-controlled-runtime")
+    base, app = live
+    store = app.state.store
+    bot = store.create_bot(Bot(name="workflow-amendment-carry-visual", display_name="Carry preview fixture",
+                               model="openai/gpt-4o-mini", tools=[]))
+    conversation, _ = store.create_conversation(
+        bot.id, "Review a workflow amendment", idem_key="workflow-amendment-carry-conversation",
+        request_hash="workflow-amendment-carry-conversation")
+    plan = {
+        "name": "amendment-carry-visual",
+        "inputs": {"topic": {"type": "string", "default": "stable topic"}},
+        "envelope": {"tools": [], "models": ["openai/gpt-4o-mini"]},
+        "budget": {"max_nodes": 5, "max_model_calls": 2, "max_wall_seconds": 60},
+        "nodes": [{"kind": "agent", "id": "work", "role": "worker", "model": "$bot",
+                   "instruction": "Review {{topic}}.", "inputs": {"topic": {"ref": "input.topic"}},
+                   "tools": []}],
+    }
+    saved = workflow_store.save_definition(store, name=plan["name"], plan=plan,
+                                           source="operator", activate=False)
+    submission = workflow_submit.submit_saved(
+        store, bot=bot, definition=saved["definition_id"], inputs={}, origin="api",
+        idem_key="workflow-amendment-carry-submit", request_hash="workflow-amendment-carry-submit",
+        auto=False, conversation_id=conversation["id"])
+    workflow_id = submission.workflow_run_id
+    artifacts_override = os.environ.get("HUTCH_WORKFLOW_AMENDMENT_CARRY_ARTIFACTS")
+    artifacts = (Path(artifacts_override) if artifacts_override else
+                 Path(__file__).resolve().parents[2] /
+                 "docs/realignment/artifacts/workflow-studio/amendment-carry-active-step-2026-10-11")
+    artifacts.mkdir(parents=True, exist_ok=True)
+    page = browser.new_page(viewport={"width": 1440, "height": 960}, device_scale_factor=1,
+                            reduced_motion="reduce")
+    page.set_default_timeout(5000)
+    errors: list[str] = []
+    failed_requests: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("requestfailed", lambda request: failed_requests.append(request.url))
+    page.context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    viewports = []
+    try:
+        assert entered.wait(10), "the controlled worker did not start"
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            detail = workflow_store.workflow_run(store, workflow_id)
+            attempt = store.get_run(str(detail["attempt_run_id"])) if detail else None
+            if detail and detail["status"] == "waiting" and attempt and attempt.status.value == "waiting_workflow":
+                break
+            time.sleep(0.05)
+        else:
+            raise AssertionError("the workflow did not park with its worker child active")
+
+        page.goto(f"{base}/#/chat/{bot.name}", wait_until="domcontentloaded")
+        panel = page.locator("#workflow-panel")
+        panel.get_by_role("button", name="Amend parked run").wait_for()
+        panel.get_by_role("button", name="Amend parked run").click()
+        dialog = page.locator('.modal-card[role="dialog"]')
+        dialog.wait_for(state="visible")
+        candidate = json.loads(json.dumps(plan))
+        candidate["nodes"].append({"kind": "transform", "id": "after", "op": "constant",
+                                   "args": {"value": "added after review"}})
+        dialog.locator("#workflow-amendment-plan").fill(json.dumps(candidate, indent=2))
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/api/v1/workflows/runs/{workflow_id}/amendments/preview")) as preview_info:
+            dialog.get_by_role("button", name="Preview candidate").click()
+        response = preview_info.value
+        assert response.status == 200, response.text()
+        quiescence = response.json()["quiescence"]
+        assert quiescence["owned_work_quiet"] is False
+        assert quiescence["owned_work_carryable"] is True
+        assert [item["site_id"] for item in quiescence["carry_active_nodes"]] == ["work"]
+        carried_node = quiescence["carry_active_nodes"][0]
+        assert carried_node["model"] == "openai/gpt-4o-mini" and carried_node["role"] == "worker"
+        dialog.locator(".workflow-amendment-preview").wait_for()
+        dialog_text = dialog.inner_text()
+        assert "original contract" in dialog_text and "new revision starts after it settles" in dialog_text, dialog_text
+        assert "worker on openai/gpt-4o-mini" in dialog_text, dialog_text
+        assert "Unchanged work to carry" in dialog_text, dialog_text
+        adopt_button = dialog.get_by_role("button", name="Adopt amendment")
+        assert adopt_button.is_enabled()
+
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 768, 1024),
+                                     ("phone", 360, 800), ("compact-phone", 320, 740)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.wait_for_timeout(80)
+            overflow = page.evaluate(
+                "Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth")
+            assert overflow <= 1, f"{label} has horizontal overflow: {overflow}px"
+            bounds = dialog.bounding_box()
+            assert bounds and bounds["x"] >= 0 and bounds["x"] + bounds["width"] <= width + 1
+            dialog.locator(".modal-body").evaluate("element => { element.scrollTop = 0; }")
+            page.wait_for_timeout(40)
+            page.screenshot(path=str(artifacts / f"carry-preview-{label}.png"),
+                            full_page=True, animations="disabled")
+            carry_summary = dialog.locator(".workflow-amendment-preview summary").filter(
+                has_text="Unchanged work to carry")
+            carry_summary.scroll_into_view_if_needed()
+            carry_reason = dialog.locator(".workflow-amendment-preview li").filter(
+                has_text="unchanged top-level tool-free worker contract")
+            carry_reason.scroll_into_view_if_needed()
+            reason_bounds = carry_reason.bounding_box()
+            footer_bounds = dialog.locator(".modal-footer").bounding_box()
+            assert reason_bounds and footer_bounds
+            assert reason_bounds["y"] + reason_bounds["height"] <= footer_bounds["y"] + 1, (
+                f"{label} carried-step explanation is obscured by the fixed footer")
+            page.screenshot(path=str(artifacts / f"carry-review-{label}.png"),
+                            full_page=True, animations="disabled")
+            target = adopt_button.bounding_box()
+            assert target and target["height"] >= 44, f"{label} adopt target is too small"
+            viewports.append({"label": label, "size": [width, height], "dialog_bounds": bounds,
+                              "horizontal_overflow_px": overflow,
+                              "adopt_target_height": target["height"],
+                              "carried_step_reason_bounds": reason_bounds,
+                              "fixed_footer_bounds": footer_bounds})
+        assert not errors, errors
+        assert not failed_requests, failed_requests
+        page.context.tracing.stop(path=str(artifacts / "trace.zip"))
+        source_paths = ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                        "src/hutch/server/workflows_api.py", "src/hutch/workflow/amendments.py",
+                        "src/hutch/workflow/persistence.py", "tests/e2e/test_browser.py")
+        visual_artifacts = {file.name: hashlib.sha256(file.read_bytes()).hexdigest()
+                            for file in artifacts.iterdir() if file.suffix in {".png", ".zip"}}
+        (artifacts / "results.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_workflow_amendment_carry_preview_is_clear_and_responsive",
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright_version": package_version("playwright"), "viewports": viewports,
+            "workflow_id": workflow_id,
+            "carried_node": carried_node,
+            "quiescence": {key: quiescence[key] for key in
+                           ("attempt_parked", "owned_work_quiet", "owned_work_carryable")},
+            "interaction": "live tool-free worker remained active while the owner inspected a later-node amendment; carry contract and adoption readiness were visible",
+            "view_state": "owner-local amendment editor shows the read-only candidate diff and one live, unchanged, tool-free worker child; adoption is enabled while that exact child remains under its original run contract",
+            "page_errors": errors, "failed_requests": failed_requests, "provider_calls": 0,
+            "source_sha256": {relative: hashlib.sha256((artifacts.parents[4] / relative).read_bytes()).hexdigest()
+                              for relative in source_paths},
+            "visual_artifact_sha256": visual_artifacts,
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        release.set()
+        try:
+            page.context.tracing.stop()
+        except Exception:
+            pass
+        page.close()
+
+
+
+def test_workflow_amendment_drain_control_is_owner_reviewable_and_responsive(browser, live, monkeypatch):
+    """Drive the real owner UI/API path while a tool-free child is active and paused."""
+    import hutch.engine as engine_module
+    from hutch.runtime.base import RunAborted
+    from hutch.workflow import persistence as workflow_store
+    from hutch.workflow import submit as workflow_submit
+
+    entered = threading.Event()
+    started_prompts: list[str] = []
+
+    class ControlledRuntime:
+        kind = "amendment-drain-visual-test"
+
+        def execute(self, run, ctx, tools, stop):
+            started_prompts.append(run.prompt)
+            if "Original review" in run.prompt:
+                entered.set()
+                deadline = time.monotonic() + 20
+                while time.monotonic() < deadline and not stop():
+                    time.sleep(0.01)
+                assert stop(), "the owner UI did not stop the affected tool-free step"
+                raise RunAborted("stopped", "affected tool-free step drained for amendment")
+            content = "finished under the amended instruction"
+            ctx.emit(Event(run_id=run.id, type=EventType.message,
+                           data={"role": "assistant", "content": content}))
+            return content
+
+    monkeypatch.setattr(engine_module, "get_runtime", lambda _bot: ControlledRuntime())
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key-unused-by-controlled-runtime")
+    base, app = live
+    store = app.state.store
+    bot = store.create_bot(Bot(name="workflow-amendment-drain-visual", display_name="Drain preview fixture",
+                               model="openai/gpt-4o-mini", tools=[]))
+    conversation, _ = store.create_conversation(
+        bot.id, "Review an affected workflow step", idem_key="workflow-amendment-drain-conversation",
+        request_hash="workflow-amendment-drain-conversation")
+    plan = {
+        "name": "amendment-drain-visual",
+        "inputs": {"topic": {"type": "string", "default": "stable topic"}},
+        "envelope": {"tools": [], "models": ["openai/gpt-4o-mini"]},
+        "budget": {"max_nodes": 5, "max_model_calls": 4, "max_wall_seconds": 60},
+        "nodes": [{"kind": "agent", "id": "work", "role": "worker", "model": "$bot",
+                   "instruction": "Original review of {{topic}}.",
+                   "inputs": {"topic": {"ref": "input.topic"}}, "tools": []}],
+    }
+    saved = workflow_store.save_definition(store, name=plan["name"], plan=plan,
+                                           source="operator", activate=False)
+    submission = workflow_submit.submit_saved(
+        store, bot=bot, definition=saved["definition_id"], inputs={}, origin="api",
+        idem_key="workflow-amendment-drain-submit", request_hash="workflow-amendment-drain-submit",
+        auto=False, conversation_id=conversation["id"])
+    workflow_id = submission.workflow_run_id
+    repo_root = Path(__file__).resolve().parents[2]
+    artifacts_override = os.environ.get("HUTCH_WORKFLOW_AMENDMENT_DRAIN_ARTIFACTS")
+    artifacts = Path(artifacts_override or "/tmp/hutch-workflow-amendment-drain-artifacts")
+    artifacts.mkdir(parents=True, exist_ok=True)
+    page = browser.new_page(viewport={"width": 1440, "height": 960}, device_scale_factor=1,
+                            reduced_motion="reduce")
+    page.set_default_timeout(5000)
+    errors: list[str] = []
+    failed_requests: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
+    page.on("requestfailed", lambda request: failed_requests.append(request.url))
+    viewports = []
+    try:
+        assert entered.wait(10), "the controlled original worker did not start"
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            current = workflow_store.workflow_run(store, workflow_id)
+            attempt = store.get_run(str(current["attempt_run_id"])) if current else None
+            if current and current["status"] == "waiting" and attempt and attempt.status is RunStatus.waiting_workflow:
+                break
+            time.sleep(0.05)
+        else:
+            raise AssertionError("the workflow did not park with its child active")
+
+        page.goto(f"{base}/#/chat/{bot.name}", wait_until="domcontentloaded")
+        conversation_switcher = page.locator("#conversation-switcher")
+        conversation_switcher.wait_for(state="visible")
+        if conversation_switcher.input_value() != conversation["id"]:
+            conversation_switcher.select_option(conversation["id"])
+        panel = page.locator("#workflow-panel")
+        panel.wait_for(state="visible")
+        pause_button = panel.get_by_role("button", name=re.compile(r"Pause (?:workflow|after current work)"))
+        pause_button.wait_for()
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/api/v1/workflows/runs/{workflow_id}/pause")) as pause_info:
+            pause_button.click()
+        assert pause_info.value.status == 200, pause_info.value.text()
+        panel.get_by_role("button", name="Amend parked run").click()
+        dialog = page.locator('.modal-card[role="dialog"]')
+        dialog.wait_for(state="visible")
+        candidate = json.loads(json.dumps(plan))
+        candidate["nodes"][0]["instruction"] = "Amended review of {{topic}}."
+        candidate["nodes"].append({"kind": "transform", "id": "after", "op": "constant",
+                                   "args": {"value": "after review"}})
+        dialog.locator("#workflow-amendment-plan").fill(json.dumps(candidate, indent=2))
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/api/v1/workflows/runs/{workflow_id}/amendments/preview")) as preview_info:
+            dialog.get_by_role("button", name="Preview candidate").click()
+        preview_response = preview_info.value
+        assert preview_response.status == 200, preview_response.text()
+        preview = preview_response.json()
+        assert preview["quiescence"]["attempt_parked"] is True
+        assert preview["quiescence"]["owned_work_quiet"] is False
+        assert preview["quiescence"]["carry_active_nodes"] == []
+        assert [item["site_id"] for item in preview["quiescence"]["drainable_active_nodes"]] == ["work"]
+        assert dialog.get_by_role("button", name="Stop affected steps").is_visible()
+        assert dialog.get_by_role("button", name="Adoption unavailable").is_disabled()
+        assert "unfinished model response" in dialog.inner_text()
+        assert "tool-free child with no owned descendants" in dialog.inner_text()
+
+        stop_button = dialog.get_by_role("button", name="Stop affected steps")
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 768, 1024),
+                                     ("phone", 360, 800), ("compact-phone", 320, 740)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.wait_for_timeout(80)
+            overflow = page.evaluate(
+                "Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth")
+            assert overflow <= 1, f"{label} has horizontal overflow: {overflow}px"
+            dialog_bounds = dialog.bounding_box()
+            assert dialog_bounds and dialog_bounds["x"] >= 0 and dialog_bounds["x"] + dialog_bounds["width"] <= width + 1
+            stop_button.scroll_into_view_if_needed()
+            target = stop_button.bounding_box()
+            assert target and target["height"] >= 44, f"{label} stop target is too small"
+            page.screenshot(path=str(artifacts / f"drain-preview-{label}.png"),
+                            full_page=True, animations="disabled")
+            viewports.append({"label": label, "size": [width, height], "dialog_bounds": dialog_bounds,
+                              "horizontal_overflow_px": overflow, "stop_target": target})
+
+        stop_button.focus()
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/api/v1/workflows/runs/{workflow_id}/amendments/drain")) as drain_info:
+            page.keyboard.press("Enter")
+        drain_response = drain_info.value
+        assert drain_response.status == 200, drain_response.text()
+        assert drain_response.request.headers.get("idempotency-key")
+        drain_result = drain_response.json()
+        assert [(item["site_id"], item["instance_key"]) for item in drain_result["requested"]] == [("work", "once")]
+        dialog.get_by_text("Stopped affected steps · 1", exact=True).wait_for(timeout=7000)
+        assert "owned processes have drained" in dialog.locator("#workflow-amendment-status").inner_text()
+        assert dialog.get_by_role("button", name="Adopt amendment").is_enabled()
+        page.set_viewport_size({"width": 320, "height": 740})
+        stopped_summary = dialog.get_by_text("Stopped affected steps · 1", exact=True)
+        stopped_summary.scroll_into_view_if_needed()
+        page.screenshot(path=str(artifacts / "drain-complete-compact-phone.png"),
+                        full_page=True, animations="disabled")
+        adopt_button = dialog.get_by_role("button", name="Adopt amendment")
+        adopt_button.focus()
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/api/v1/workflows/runs/{workflow_id}/amendments/adopt")) as adopt_info:
+            page.keyboard.press("Enter")
+        adopt_response = adopt_info.value
+        assert adopt_response.status == 200, adopt_response.text()
+        history_id = adopt_response.json()["history_id"]
+        dialog.wait_for(state="detached")
+
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline:
+            current = workflow_store.workflow_run(store, workflow_id)
+            if current and current["status"] in ("succeeded", "failed", "stopped", "outcome_unknown"):
+                break
+            time.sleep(0.05)
+        assert current and current["status"] == "succeeded", current
+        history = page.request.get(f"{base}/api/v1/workflows/runs/{workflow_id}/amendments/{history_id}")
+        assert history.status == 200, history.text()
+        archived = next(node for node in history.json()["nodes"] if node["site_id"] == "work")
+        assert archived["status"] == "cancelled"
+        assert len(started_prompts) == 2
+        assert not errors, errors
+        assert not failed_requests, failed_requests
+        source_paths = ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                        "src/hutch/server/workflows_api.py", "src/hutch/workflow/amendments.py",
+                        "src/hutch/workflow/persistence.py", "tests/e2e/test_browser.py")
+        visual_artifacts = {file.name: hashlib.sha256(file.read_bytes()).hexdigest()
+                            for file in artifacts.iterdir() if file.suffix == ".png"}
+        (artifacts / "results.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_workflow_amendment_drain_control_is_owner_reviewable_and_responsive",
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright_version": package_version("playwright"), "viewports": viewports,
+            "workflow_id": workflow_id, "drained_run_id": drain_result["requested"][0]["run_id"],
+            "history_id": history_id, "final_status": current["status"],
+            "interaction": "owner paused the live workflow, inspected the changed plan and drainability, keyboard-stopped the tool-free affected child, waited for cleanup, then adopted the revised plan with Enter",
+            "provider_calls": 0, "page_errors": errors, "failed_requests": failed_requests,
+            "source_sha256": {relative: hashlib.sha256((repo_root / relative).read_bytes()).hexdigest()
+                              for relative in source_paths},
+            "visual_artifact_sha256": visual_artifacts,
+        }, indent=2) + "\n", encoding="utf-8")
     finally:
         page.close()
 
@@ -7253,10 +9452,12 @@ def test_multiple_scheduled_tasks_can_be_managed_from_bot_settings(browser, live
             page.evaluate("document.querySelectorAll('details.schedule-entry').forEach(item => item.open = true)")
             page.locator(".page-scroll").evaluate("el => el.scrollTop = 0")
             entry_metrics = []
+            # These editors are vertically scrollable forms; assert viewport reflow,
+            # while the workflow-link journey separately checks that the action is reachable.
             for index, entry in enumerate(page.locator("details.schedule-entry").all()):
                 entry.scroll_into_view_if_needed()
                 box = entry.bounding_box()
-                assert box and box["height"] < height, (label, index, box)
+                assert box and 0 < box["width"] <= width, (label, index, box)
                 entry.screenshot(path=str(out / f"settings-{label}-task-{index + 1}.png"), animations="disabled")
                 entry_metrics.append({"index": index, "height": box["height"], "width": box["width"]})
             metrics = page.evaluate("""() => ({
@@ -7335,6 +9536,142 @@ def test_multiple_scheduled_tasks_can_be_managed_from_bot_settings(browser, live
         if not trace_stopped:
             try:
                 page.context.tracing.stop(path=str(out / "scheduled-tasks-trace.zip"))
+            except Exception:
+                pass
+        page.close()
+
+
+def test_routine_editor_links_an_activated_workflow_accessibly_across_viewports(browser, live):
+    base, app = live
+    from hutch.workflow import persistence as workflow_store
+
+    bot = Bot(name="routine-workflow-visual", display_name="Routine workflow visual fixture",
+              model="mock/demo", tools=[], instructions="A visual fixture with no provider access.",
+              schedules=[Schedule(id="schedule_visual_workflow", name="Weekly evidence report",
+                                  cron="0 9 * * 1", timezone="UTC", enabled=False)])
+    app.state.store.create_bot(bot)
+    plan = {
+        "name": "visual-workflow-verification-method",
+        "budget": {"max_nodes": 3, "max_model_calls": 0},
+        "nodes": [{"kind": "transform", "id": "value", "op": "constant",
+                   "args": {"value": "verified fixture"}}],
+        "outputs": ["value"],
+    }
+    saved = workflow_store.save_definition(app.state.store,
+        name="Weekly evidence report with a deliberately long saved workflow title", plan=plan,
+        activate=True)
+    page = browser.new_page(viewport={"width": 1440, "height": 1000}, reduced_motion="reduce")
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/scheduled-workflow-link-2026-10-11"
+    out.mkdir(parents=True, exist_ok=True)
+    page.context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    trace_stopped = False
+    captures = []
+    try:
+        page.goto(f"{base}/#/bot/{bot.name}")
+        open_assistant_customization(page)
+        form = page.locator("#form-schedule")
+        form.wait_for()
+        selector = form.locator("[data-schedule-workflow-definition]")
+        selector.wait_for()
+        assert selector.locator(f'option[value="{saved["definition_id"]}"]').count() == 1
+
+        # Link by keyboard to verify the selection, exact revision, and input editor work without a mouse.
+        selector.focus()
+        page.keyboard.press("ArrowDown")
+        assert selector.input_value() == saved["definition_id"]
+        assert form.locator('[name="workflow_revision_id"]').input_value() == saved["revision_id"]
+        assert form.locator("[data-workflow-inputs-field]").is_visible()
+        assert saved["revision_id"] in form.locator("[data-workflow-revision-summary]").inner_text()
+        form.locator('[name="name"]').fill("Weekly evidence report")
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/api/v1/bots/{bot.id}/schedules/{bot.schedule.id}")
+                and response.request.method == "PUT") as linked_response:
+            form.get_by_role("button", name="Save task").focus()
+            page.keyboard.press("Enter")
+        assert linked_response.value.status == 200, linked_response.value.text()
+        resource = linked_response.value.json()
+        assert resource["workflow_definition_id"] == saved["definition_id"]
+        assert resource["workflow_revision_id"] == saved["revision_id"]
+        assert resource["enabled"] is False
+        wait_for(lambda: app.state.store.get_bot(bot.id).schedule.workflow_revision_id == saved["revision_id"])
+        page.get_by_role("button", name="Dismiss notification").click()
+
+        sizes = {"desktop-1440": (1440, 1000), "tablet-768": (768, 980),
+                 "phone-360": (360, 844), "reflow-320": (320, 800)}
+        for label, (width, height) in sizes.items():
+            page.set_viewport_size({"width": width, "height": height})
+            entry = page.locator("details.schedule-entry").first
+            entry.evaluate("el => el.open = true")
+            entry.evaluate("el => el.scrollIntoView({block: 'start'})")
+            page.wait_for_timeout(80)
+            metrics = page.evaluate("""() => ({
+                viewport: [innerWidth, innerHeight],
+                document: [document.documentElement.scrollWidth, document.documentElement.scrollHeight],
+                body: [document.body.scrollWidth, document.body.scrollHeight],
+                selected: document.querySelector('[data-schedule-workflow-definition]').value,
+                revision: document.querySelector('[name=workflow_revision_id]').value,
+                saveTarget: (() => { const b = document.querySelector('[data-schedule-form] button[type=submit]');
+                  const r = b.getBoundingClientRect(); return [r.width, r.height]; })()
+            })""")
+            assert metrics["document"][0] - width <= 1, (label, metrics)
+            assert metrics["body"][0] - width <= 1, (label, metrics)
+            assert metrics["selected"] == saved["definition_id"] and metrics["revision"] == saved["revision_id"]
+            assert min(metrics["saveTarget"]) >= 44, (label, metrics)
+            page.screenshot(path=str(out / f"routine-link-{label}.png"),
+                            animations="disabled")
+            entry.screenshot(path=str(out / f"routine-link-{label}-editor.png"), animations="disabled")
+            revision_summary = form.locator("[data-workflow-revision-summary]")
+            revision_summary.scroll_into_view_if_needed()
+            assert revision_summary.is_visible()
+            assert saved["revision_id"] in revision_summary.inner_text()
+            assert "deliberately long saved workflow title" in revision_summary.inner_text()
+            page.screenshot(path=str(out / f"routine-link-{label}-pinned-revision.png"),
+                            animations="disabled")
+            save_button = form.get_by_role("button", name="Save task")
+            save_button.evaluate("el => el.scrollIntoView({block: 'center'})")
+            action_target = save_button.evaluate("el => { const r = el.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; }")
+            assert action_target[1] >= 0 and action_target[1] + action_target[3] <= height, (label, action_target)
+            assert action_target[2] >= 44 and action_target[3] >= 44, (label, action_target)
+            page.screenshot(path=str(out / f"routine-link-{label}-actions.png"), animations="disabled")
+            captures.append({"size": label, **metrics, "save_action": action_target})
+
+        page.context.tracing.stop(path=str(out / "routine-link-trace.zip"))
+        trace_stopped = True
+        assert not errors, errors
+        source_root = Path(__file__).resolve().parents[2]
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_routine_editor_links_an_activated_workflow_accessibly_across_viewports",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_routine_editor_links_an_activated_workflow_accessibly_across_viewports",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "python": platform.python_version(),
+            "hutch_version": package_version("hutch"),
+            "browser": browser.browser_type.name,
+            "browser_version": browser.version,
+            "playwright_version": package_version("playwright"),
+            "scenario": "owner links an activated saved revision to a disabled routine using keyboard selection; no provider call",
+            "captures": captures,
+            "page_errors": errors,
+            "source_sha256": {
+                name: hashlib.sha256((source_root / path).read_bytes()).hexdigest()
+                for name, path in {"app.js": "src/hutch/server/static/app.js",
+                                   "style.css": "src/hutch/server/static/style.css",
+                                   "app.py": "src/hutch/server/app.py",
+                                   "models.py": "src/hutch/models.py"}.items()
+            },
+        }, indent=2) + "\n", encoding="utf-8")
+        (out / "visual-review.md").write_text(
+            "# Routine-to-workflow visual review\n\n"
+            "The schedule editor keeps the routine title and saved-workflow selector readable at desktop, tablet, "
+            "phone, and 320 CSS-pixel reflow widths. Linking remains a visible owner action, the workflow input "
+            "editor appears after selection, and the disabled routine keeps its draft state. The submit target stays "
+            "at least 44 CSS pixels in both dimensions. Screenshots are retained beside this review; no browser "
+            "console errors were observed.\n", encoding="utf-8")
+    finally:
+        if not trace_stopped:
+            try:
+                page.context.tracing.stop(path=str(out / "routine-link-trace.zip"))
             except Exception:
                 pass
         page.close()
@@ -8098,7 +10435,18 @@ def test_inline_chat_approval_is_one_click_and_preserves_conversation(browser, l
     card = page.locator("#chat-stream [data-approval-card]").first
     card.locator('[data-approve="1"]').wait_for()
     approval_id = card.get_attribute("data-approval-card")
+    assert card.get_by_text(approval_id, exact=True).is_visible()
     assert card.get_attribute("data-action-hash")
+    for selector, name in (("[data-approve=\"1\"]", "Allow once"),
+                           ("[data-approve=\"0\"]", "Deny")):
+        button = card.locator(selector)
+        description_ids = button.get_attribute("aria-describedby").split()
+        description = " ".join(page.locator(f'[id="{element_id}"]').inner_text()
+                               for element_id in description_ids)
+        assert approval_id in description and "write report" in description
+        assert card.get_by_role(
+            "button", name=name, description=re.compile(r"write report.*" + re.escape(approval_id)),
+        ).is_visible()
     thread = card.locator("xpath=ancestor::article[@data-run-id]")
     assert thread.locator(".msg.you").count() == 1
     assert thread.locator(".msg.you").bounding_box()["y"] < thread.locator(".msg.agent").bounding_box()["y"]
@@ -9112,6 +11460,157 @@ def test_uncertain_action_review_in_chat_preserves_history_and_recovers_lost_res
     finally:
         context.tracing.stop(path=str(out/f'{size}-trace.zip'))
         context.close()
+
+
+def test_workflow_owned_uncertain_effect_is_reviewable_without_rewriting_workflow(browser, live, monkeypatch):
+    """A workflow receipt reaches the owner review UI without granting another action."""
+    import hashlib
+    import json
+    from pathlib import Path
+
+    from hutch.workflow import persistence as wstore
+    from hutch.workflow import submit as workflow_submit
+    from hutch.workflow.runtime import _settle as settle_workflow
+
+    base, app = live
+    store = app.state.store
+    monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+    bot = store.create_bot(Bot(name="workflow-effect-review", model="mock/demo", tools=["shell"]))
+    conversation, _ = store.create_conversation(
+        bot.id, "Workflow effect review", idem_key="workflow-review-conversation",
+        request_hash="workflow-review-conversation-v1")
+    plan = {
+        "name": "uncertain-report-publish",
+        "envelope": {"tools": ["shell"]},
+        "budget": {"max_nodes": 4, "max_model_calls": 0},
+        "nodes": [{"kind": "tool", "id": "publish", "tool": "shell",
+                   "args": {"command": "publish report"}}],
+    }
+    submitted = workflow_submit.submit_workflow(
+        store, bot=bot, plan=plan, definition_name=plan["name"],
+        conversation_id=conversation["id"])
+    attempt = store.claim_run(submitted.attempt_run_id, "workflow-review-fixture", 60)
+    assert attempt is not None
+    attempt = store.transition_run(attempt.id, RunStatus.running, fence=attempt.fence)
+    workflow = wstore.workflow_run(store, submitted.workflow_run_id)
+    assert workflow is not None
+    assert wstore.claim_workflow_attempt(
+        store, workflow["id"], attempt_run_id=attempt.id,
+        owner_fence=attempt.fence, revision_id=workflow["revision_id"])
+    wstore.open_node(
+        store, workflow["id"], owner_run_id=attempt.id, owner_fence=attempt.fence,
+        revision_id=workflow["revision_id"], site_id="publish", instance_key="once",
+        kind="tool", input_value={"command": "publish report"}, input_hash="c" * 64)
+    action_id = store.begin_action(
+        attempt.id, "shell", "workflow-effect-before-response", "process", "Publish the checked report",
+        fence=attempt.fence, arguments={"command": "publish report"},
+        authority={"source": "fixture", "detail": {"reviewed": True}},
+        scope={"workspace": "isolated-review-fixture"},
+        workflow_identity={"workflow_run_id": workflow["id"], "revision_id": workflow["revision_id"],
+                           "site_id": "publish", "instance_key": "once", "slot": "tool"})
+    # This browser fixture creates the durable uncertain state directly. Process-crash
+    # behavior and duplicate-effect prevention are independently tested with a real sink.
+    settle_workflow(store, workflow["id"], attempt, revision_id=workflow["revision_id"],
+                    status="outcome_unknown", reason="the effect response was not recorded",
+                    output_sites=["publish"])
+    attempt = store.transition_run(
+        attempt.id, RunStatus.outcome_unknown, fence=attempt.fence,
+        exit_reason="outcome_unknown", error="the effect response was not recorded")
+    assert store.get_action(action_id)["status"] == "unknown"
+    assert wstore.workflow_run(store, workflow["id"])["status"] == "outcome_unknown"
+    sealed_chain = store.verify_chain(attempt.id)
+
+    artifacts = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workflow-effect-review-20261012"
+    artifacts.mkdir(parents=True, exist_ok=True)
+    errors, failed_requests = [], []
+    context = browser.new_context(viewport={"width": 1440, "height": 1000}, reduced_motion="reduce")
+    page = context.new_page()
+    context.tracing.start(screenshots=True, snapshots=True, sources=True)
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
+    page.on("requestfailed", lambda request: failed_requests.append({"url": request.url,
+                                                                       "failure": request.failure}))
+    try:
+        page.goto(f"{base}/#/run/{attempt.id}")
+        run_card = page.locator(f'[data-run-id="{attempt.id}"]')
+        receipt = run_card.locator(f'[data-receipt-card="{action_id}"]')
+        receipt.wait_for()
+        assert "Action outcome needs review" in receipt.inner_text()
+        assert "may already have happened" in receipt.inner_text()
+        page.screenshot(path=str(artifacts / "desktop-unresolved.png"), full_page=True)
+
+        page.reload()
+        receipt.wait_for()
+        page.locator("#needs-you-open").click()
+        queued_receipt = page.locator(f'#needs-you [data-receipt-card="{action_id}"]')
+        queued_receipt.wait_for()
+        assert "Publish the checked report" in queued_receipt.inner_text()
+        page.screenshot(path=str(artifacts / "desktop-needs-you.png"), full_page=True)
+        review_button = queued_receipt.get_by_role("button", name="Review action outcome", exact=True)
+        review_button.focus()
+        page.keyboard.press("Enter")
+        page.locator("#receipt-outcome").wait_for()
+        page.locator(".modal-card details summary").first.click()
+        saved_details = page.locator(".receipt-json").inner_text()
+        assert workflow["id"] in saved_details and '"site_id": "publish"' in saved_details
+        assert "Check the file, account or service involved" in page.locator(".modal-card").inner_text()
+        page.screenshot(path=str(artifacts / "desktop-review-dialog.png"), full_page=True)
+        page.locator("#receipt-outcome").select_option("not_applied")
+        page.locator("#receipt-evidence").fill(
+            "Checked the isolated effect sink after the run ended; no publish record exists.")
+        page.locator("#modal-confirm").click()
+        page.locator(".modal-card").wait_for(state="detached")
+        page.get_by_role("button", name="View recorded outcome", exact=True).wait_for()
+
+        report = store.get_action(action_id)
+        assert report["status"] == "unknown"
+        assert report["reconciliation"]["outcome"] == "not_applied"
+        assert store.get_run(attempt.id).status is RunStatus.outcome_unknown
+        assert wstore.workflow_run(store, workflow["id"])["status"] == "outcome_unknown"
+        assert store.verify_chain(attempt.id) == sealed_chain
+        reviewed_receipt = run_card.locator(f'[data-receipt-card="{action_id}"]')
+        assert "No effect found · human report" in reviewed_receipt.inner_text()
+
+        page.set_viewport_size({"width": 390, "height": 844})
+        page.wait_for_timeout(120)
+        phone_metrics = page.evaluate("() => ({client: document.documentElement.clientWidth, "
+                                       "scroll: document.documentElement.scrollWidth})")
+        assert phone_metrics["scroll"] <= phone_metrics["client"] + 1, phone_metrics
+        page.screenshot(path=str(artifacts / "phone-reviewed.png"), full_page=True)
+    finally:
+        context.tracing.stop(path=str(artifacts / "trace.zip"))
+        context.close()
+
+    root = Path(__file__).resolve().parents[2]
+    source_paths = [root / path for path in (
+        "tests/e2e/test_browser.py", "src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+        "src/hutch/server/app.py", "src/hutch/store.py", "src/hutch/workflow/runtime.py",
+        "src/hutch/workflow/persistence.py")]
+    artifact_paths = [artifacts / name for name in (
+        "desktop-unresolved.png", "desktop-needs-you.png", "desktop-review-dialog.png",
+        "phone-reviewed.png", "trace.zip")]
+    validation = {
+        "test": "tests/e2e/test_browser.py::test_workflow_owned_uncertain_effect_is_reviewable_without_rewriting_workflow",
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "browser": {"name": browser.browser_type.name, "version": browser.version},
+        "fixture": {"workflow_run_id": workflow["id"], "revision_id": workflow["revision_id"],
+                    "attempt_run_id": attempt.id, "attempt_status": attempt.status.value,
+                    "node": "publish", "action_id": action_id, "external_effect_calls": 0},
+        "human_review": {"outcome": report["reconciliation"]["outcome"],
+                         "workflow_status_unchanged": True, "run_status_unchanged": True,
+                         "transcript_chain_unchanged": True},
+        "phone_view": {"viewport": [390, 844], "client_width": phone_metrics["client"],
+                       "document_width": phone_metrics["scroll"]},
+        "console_errors": errors,
+        "failed_requests": failed_requests,
+        "source_sha256": {str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
+                          for path in source_paths},
+        "artifact_sha256": {path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+                            for path in artifact_paths},
+    }
+    (artifacts / "validation.json").write_text(json.dumps(validation, indent=2) + "\n", encoding="utf-8")
+    assert errors == []
+    assert failed_requests == []
 
 
 @pytest.mark.parametrize('width,height,size', [(1440,1000,'desktop'),(900,1024,'tablet'),(390,844,'phone')])

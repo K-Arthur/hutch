@@ -1,0 +1,45 @@
+{
+  "test": "tests/e2e/test_browser.py::test_paired_phone_keeps_multiple_approvals_independently_pending",
+  "decision_order": [
+    "apr_3dcb0f3949ef",
+    "apr_056afbd03f48"
+  ],
+  "captured_at": "2026-10-11T23:31:36.741918+00:00",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright": "1.63.0",
+  "approval_ids": [
+    "apr_3dcb0f3949ef",
+    "apr_056afbd03f48"
+  ],
+  "approval_controls_reference_action_and_id_in_aria_description": true,
+  "pending_after_first_decision": "apr_056afbd03f48",
+  "final_approval_statuses": [
+    "approved",
+    "approved"
+  ],
+  "viewports_css_px": {
+    "phone": [
+      390,
+      844
+    ],
+    "compact_phone": [
+      320,
+      780
+    ]
+  },
+  "compact_phone_overflow_px": 0,
+  "compact_phone_action_min_height_px": 48,
+  "page_errors": [],
+  "artifact_sha256": {
+    "approvals-0-1-390.png": "771023cadb859f51faf892456b8516ab6d785bfef510579a16f25b391685d4e7",
+    "approvals-0-1-320.png": "7ea3bba7a12628c2c38e8a96f51e3cdc9aeb2ebfef819534d765a12d715a4b41",
+    "approvals-0-1-trace.zip": "1b9a3d3a3124bbff77d4606f5ad459340a9a48553f46fe25036e1c82b52987fa"
+  },
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "c49040c4ca9f1cc1043dc47b0da96c95431890ca81fc65b28090ed34695bc570",
+    "src/hutch/server/static/style.css": "4eb5625f7b73a86bf28245323ccbbc6abd3f3e5c075cc510dabc73ba6c947afc",
+    "src/hutch/server/workflows_api.py": "64199f3a358c99fb7e2908787b6bb7b555f64ad9d0ff53ff3c43fc04e6b11a07",
+    "tests/e2e/test_browser.py": "c8071cf87edeb21516ad0d9999885c4dcd26ec085db1785e230864e9c3034e65"
+  }
+}

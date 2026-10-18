@@ -137,7 +137,7 @@ passed within the same full-suite run; the offline suite (1685 tests) is fully g
 | Catalog prompt, 20 skills | — | 4,550 chars ≈ 1,137 est. tokens |
 | One activated skill body | — | 751 chars ≈ 187 est. tokens |
 
-Script: `/tmp/opencode/skills-bench.py` (development-only, not committed). No runtime processes or
+Script: `/<local-path-redacted> (development-only, not committed). No runtime processes or
 skill bodies are loaded to render the library; only `use_skill` and explicit activation read bodies.
 
 ## Inspected visual evidence
@@ -175,7 +175,7 @@ browser tests also assert no page errors and (in the soak) no route error states
 
 ## Integration state
 
-The shared checkout `/home/kevina/CodingProjects/hutch` was owned by another active session
+The shared checkout `/<local-path-redacted> was owned by another active session
 (provider/model-switcher and UI work; commits `a2106ec`, `4f3f0c1`, `777324a`, `2fff076`, with
 further uncommitted edits). This work was developed in `.worktrees/skills-lifecycle` and rebased
 onto the concurrent head at each milestone (`a2106ec`, then `777324a`, finally `2fff076`); the

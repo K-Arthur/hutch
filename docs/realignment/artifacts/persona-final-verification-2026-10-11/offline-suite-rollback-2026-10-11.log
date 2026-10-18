@@ -32,7 +32,7 @@ FFF..................................................................... [ 50%]
 _____ test_strict_offline_delegation_runs_as_child_after_explicit_approval _____
 
 store = <hutch.store.Store object at 0x7fa4b903f890>
-config = hutchConfig(state_dir=PosixPath('/var/tmp/pytest-of-kevina/pytest-21/test_strict_offline_delegation0/state'), adaptive...e, default_max_steps=24, default_timeout_seconds=900, default_daily_token_cap=200000, default_approval_ttl_seconds=600)
+config = hutchConfig(state_dir=PosixPath('/<local-path-redacted>'), adaptive...e, default_max_steps=24, default_timeout_seconds=900, default_daily_token_cap=200000, default_approval_ttl_seconds=600)
 
     def test_strict_offline_delegation_runs_as_child_after_explicit_approval(store, config):
         """Exercise approval, child process, private context and result return with a local HTTP fixture."""
@@ -128,7 +128,7 @@ OSError: [Errno 28] No space left on device
 
 During handling of the above exception, another exception occurred:
 
-tmp_path = PosixPath('/var/tmp/pytest-of-kevina/pytest-21/test_loopback_http_provider_us0')
+tmp_path = PosixPath('/<local-path-redacted>')
 monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fa4bde0ee40>
 
     def test_loopback_http_provider_uses_broker_from_network_isolated_worker(tmp_path, monkeypatch):
@@ -164,7 +164,7 @@ src/hutch/sandbox.py:228: in offline_worker_argv
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
-self = PosixPath('/tmp/hutch-o-_1zegyim/state-redaction/connections.json')
+self = PosixPath('/<local-path-redacted>')
 data = '{"connections": {}}\n', encoding = 'utf-8', errors = None
 newline = None
 
@@ -185,7 +185,7 @@ OSError: [Errno 28] No space left on device
 
 During handling of the above exception, another exception occurred:
 
-tmp_path = PosixPath('/var/tmp/pytest-of-kevina/pytest-21/test_offline_worker_cannot_rea0')
+tmp_path = PosixPath('/<local-path-redacted>')
 
     def test_offline_worker_cannot_read_saved_provider_credentials(tmp_path):
         import os
@@ -220,7 +220,7 @@ src/hutch/sandbox.py:228: in offline_worker_argv
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
-self = PosixPath('/tmp/hutch-o-v5u5xwd6/state-redaction/connections.json')
+self = PosixPath('/<local-path-redacted>')
 data = '{"connections": {}}\n', encoding = 'utf-8', errors = None
 newline = None
 
@@ -239,7 +239,7 @@ E       OSError: [Errno 28] No space left on device
 _______ test_process_engine_runs_fake_local_model_inside_offline_worker ________
 
 store = <hutch.store.Store object at 0x7fa4a9f132f0>
-config = hutchConfig(state_dir=PosixPath('/var/tmp/pytest-of-kevina/pytest-21/test_process_engine_runs_fake_0/state'), adaptive...e, default_max_steps=24, default_timeout_seconds=900, default_daily_token_cap=200000, default_approval_ttl_seconds=600)
+config = hutchConfig(state_dir=PosixPath('/<local-path-redacted>'), adaptive...e, default_max_steps=24, default_timeout_seconds=900, default_daily_token_cap=200000, default_approval_ttl_seconds=600)
 
     def test_process_engine_runs_fake_local_model_inside_offline_worker(store, config):
         import time

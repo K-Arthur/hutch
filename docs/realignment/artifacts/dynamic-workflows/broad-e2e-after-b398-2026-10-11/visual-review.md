@@ -1,0 +1,5 @@
+# Studio visual review — 2026-10-11
+
+Opened the real browser captures at 1440×960, 768×1024, 360×800 and 320×800 after the final responsive adjustment. The desktop heading and four controls fit without collision. The first tablet capture squeezed the title beside the action row; the Studio header now stacks at tablet widths, and the retaken 768px view has a full-width readable title, a 44px action row and a visible answer form. At 360px and 320px, actions wrap into two rows, the long title and question wrap within the card, and no horizontal overflow appears. The dark palette, borders and status hierarchy remain consistent with Hutch’s existing chat surface. The workflow panel is internally scrollable when its content exceeds the viewport.
+
+Measured results are in `results.json`; the real SQLite/supervisor/API/browser journey uses a saved ask workflow and makes no provider call. The route-card and specialist-question journeys also passed in the same focused run; the specialist fixture uses its local scripted endpoint.

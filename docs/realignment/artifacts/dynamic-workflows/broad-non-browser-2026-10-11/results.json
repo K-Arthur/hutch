@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-11",
+  "scope": "Complete non-browser pytest suite; tests/e2e excluded.",
+  "command": "TMPDIR=/var/tmp .venv/bin/pytest -q --ignore=tests/e2e --basetemp=/<local-path-redacted>",
+  "source_commit": "9f2810b57ef7f040ae783a7389b6b77209659bd5",
+  "git_tree": "75f717577958ede920a5494ee533ea64af90aa79",
+  "validation_worktree": "Disposable detached worktree at /<local-path-redacted> generated test files did not alter tracked source.",
+  "environment": {
+    "python": "3.13.15",
+    "pytest": "9.1.1",
+    "temporary_root": "/var/tmp"
+  },
+  "result": {
+    "passed": 2137,
+    "failed": 0,
+    "elapsed_seconds": 603.7
+  },
+  "source_sha256": {
+    "src/hutch/offline.py": "08e2ffc87de7fad5843f5dc23902e885d57bfd46cfa75b245318acd989e07b5c"
+  },
+  "log": {
+    "path": "pytest-output.txt",
+    "sha256": "0e1a656dad6a068959dd37deb2ffc032cb2d46b328f6a11aa7013c489cb0efef"
+  },
+  "limits": "This run excludes tests/e2e and does not include the ten-minute soak, visual accessibility checks, or live model-role qualification."
+}

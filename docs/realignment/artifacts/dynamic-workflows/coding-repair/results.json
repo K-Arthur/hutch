@@ -1,0 +1,209 @@
+{
+  "test": "tests/test_workflow_coding_repair_acceptance.py::test_disposable_multi_module_repair_runs_tests_and_inspects_ui",
+  "provider": {
+    "server": "scripted Ollama wire-compatible fixture",
+    "model": "tiny:1b",
+    "calls": 1,
+    "live_model_quality": "unverified"
+  },
+  "workflow": {
+    "status": "succeeded",
+    "initial_attempt_id": "run_043366585440",
+    "final_attempt_id": "run_63430f5e1186",
+    "model_calls": 1,
+    "repairs": 1,
+    "verified_nodes": [
+      "repair",
+      "tests",
+      "artifact_check"
+    ],
+    "output_outcomes": {
+      "failed": [],
+      "partial": [],
+      "skipped": [],
+      "uncertain": [],
+      "verified": [
+        "report"
+      ]
+    }
+  },
+  "test_output": "exit=0\ntest_success_and_verified_are_complete (test_workflow_metrics.WorkflowMetricsTests.test_success_and_verified_are_complete) ... ok\ntest_waiting_states_remain_visible (test_workflow_metrics.WorkflowMetricsTests.test_waiting_states_remain_visible) ... ok\ntest_header_uses_real_status_and_keeps_long_title (test_workflow_view.WorkflowViewTests.test_header_uses_real_status_and_keeps_long_title) ... ok\n\n----------------------------------------------------------------------\nRan 3 tests in 0.000s\n\nOK",
+  "browser": {
+    "name": "chromium",
+    "version": "153.0.8010.12",
+    "playwright": "1.63.0",
+    "reduced_motion": "reduce",
+    "viewports": [
+      {
+        "viewport": "desktop",
+        "size": [
+          1440,
+          1000
+        ],
+        "width": 1440,
+        "scrollWidth": 1440,
+        "bodyScrollWidth": 1440,
+        "titleFont": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", sans-serif",
+        "titleSize": "37.6px",
+        "titleLineHeight": "43.24px",
+        "summaryBounds": {
+          "width": 230.8125,
+          "height": 44.796875
+        },
+        "steps": [
+          {
+            "title": "Collect the regional supplier statements",
+            "width": 880,
+            "height": 59
+          },
+          {
+            "title": "Check formulas against the source totals",
+            "width": 880,
+            "height": 59
+          },
+          {
+            "title": "Publish the reviewed reconciliation summary",
+            "width": 880,
+            "height": 59
+          }
+        ]
+      },
+      {
+        "viewport": "tablet",
+        "size": [
+          768,
+          1024
+        ],
+        "width": 768,
+        "scrollWidth": 768,
+        "bodyScrollWidth": 768,
+        "titleFont": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", sans-serif",
+        "titleSize": "30.72px",
+        "titleLineHeight": "35.328px",
+        "summaryBounds": {
+          "width": 230.8125,
+          "height": 44.796875
+        },
+        "steps": [
+          {
+            "title": "Collect the regional supplier statements",
+            "width": 728,
+            "height": 59
+          },
+          {
+            "title": "Check formulas against the source totals",
+            "width": 728,
+            "height": 59
+          },
+          {
+            "title": "Publish the reviewed reconciliation summary",
+            "width": 728,
+            "height": 59
+          }
+        ]
+      },
+      {
+        "viewport": "phone",
+        "size": [
+          360,
+          800
+        ],
+        "width": 360,
+        "scrollWidth": 360,
+        "bodyScrollWidth": 360,
+        "titleFont": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", sans-serif",
+        "titleSize": "26.4px",
+        "titleLineHeight": "30.36px",
+        "summaryBounds": {
+          "width": 230.8125,
+          "height": 44.796875
+        },
+        "steps": [
+          {
+            "title": "Collect the regional supplier statements",
+            "width": 328,
+            "height": 80
+          },
+          {
+            "title": "Check formulas against the source totals",
+            "width": 328,
+            "height": 80
+          },
+          {
+            "title": "Publish the reviewed reconciliation summary",
+            "width": 328,
+            "height": 80
+          }
+        ]
+      },
+      {
+        "viewport": "reflow-320",
+        "size": [
+          320,
+          800
+        ],
+        "width": 320,
+        "scrollWidth": 320,
+        "bodyScrollWidth": 320,
+        "titleFont": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", sans-serif",
+        "titleSize": "26.4px",
+        "titleLineHeight": "30.36px",
+        "summaryBounds": {
+          "width": 230.8125,
+          "height": 44.796875
+        },
+        "steps": [
+          {
+            "title": "Collect the regional supplier statements",
+            "width": 288,
+            "height": 80
+          },
+          {
+            "title": "Check formulas against the source totals",
+            "width": 288,
+            "height": 80
+          },
+          {
+            "title": "Publish the reviewed reconciliation summary",
+            "width": 288,
+            "height": 104
+          }
+        ]
+      }
+    ],
+    "text_spacing_override": {
+      "width": 320,
+      "scrollWidth": 320,
+      "summaryHeight": 44,
+      "titleHeight": 277.265625
+    },
+    "page_errors": [],
+    "failed_requests": []
+  },
+  "source_sha256": {
+    "test": "de8266cc245f7d6ea74b64d1b24c9603ab6f751029543bf80e6bb69178658351",
+    "workspace_files": {
+      "workflow_metrics.py": "51406991af18f54e9b6a623a63e135163be5e1575f82f0cbaeb408d018172781",
+      "workflow_view.py": "da9025a02561d4a3ec3b9769e364ac84b4d948d3e62b3752ef5ad1443ae1ce26",
+      "tests/test_workflow_metrics.py": "def2a35fed48ea4ade5b0e5fc35cccef6645cf62cd5bec4a207f05afe3e69580",
+      "tests/test_workflow_view.py": "b62d6c2803b517b24632e65635e83654eddecc0e2b77e17b6e447a4db1528c1a",
+      "public/index.html": "8fefdea66188aafff89f199b800f6c2127b8a54ce97323da478423c2be9bda73",
+      "public/app.css": "8e13e608d91cb93a2bbfc19fc2576b2585c35a36f8179e76596616b8d9c0b224",
+      "public/format.js": "01bdd784e7bc7fd51297fe56cafbd9ea3869912c9ae5f466f3153e8cc6086547",
+      "public/app.js": "3c91a634ff99a7ad9090b52d40784af1552053b027ad2bde1be339c3a0a664ca",
+      "public/data.json": "98380ad3fb89ac12da041cae992070f489d45c4acb08227cb6b3b47d116410af"
+    }
+  },
+  "artifact_sha256": {
+    "desktop.png": "589ab6414b683fbd727f602b09722d3f06423b0e2d137665e2b7bc6e067a97ed",
+    "phone.png": "43d1b608105c0afff2935ebdb4d78cd0b9ddf95f4354c0d9a8958fedf3002241",
+    "reflow-320.png": "a6872de4a234119a3b923d748997624ac8ec17ad7df0323d8f02ddf10e00da28",
+    "tablet.png": "d129b7d2fd1613f29776f875dc971195594aaeebfa32fb24554663f035bbc019",
+    "trace.zip": "3c49f0e9e046f72c51a553063adbbb9ab1bd3f8eae8116c6ad24e35fec08a83d"
+  },
+  "limitations": [
+    "The provider response is scripted; this is runtime and integration evidence, not live model quality.",
+    "The generated files are a disposable test fixture, not a supported workflow scripting language.",
+    "Actual browser zoom and screen-reader testing remain open."
+  ]
+}

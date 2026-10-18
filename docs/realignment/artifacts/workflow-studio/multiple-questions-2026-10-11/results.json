@@ -1,0 +1,187 @@
+{
+  "test": "tests/e2e/test_browser.py::test_workflow_studio_lists_and_resolves_every_pending_question",
+  "captured_at": "2026-10-11T23:13:27.144103+00:00",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright": "1.63.0",
+  "scenario": "A bounded map exposes two independent durable questions; answering one preserves the other, then the workflow completes.",
+  "workflow_status": "succeeded",
+  "question_ids": [
+    "wq_7440371a207d",
+    "wq_2d164a7cd36d"
+  ],
+  "trace": [
+    {
+      "state": "computed-accessibility-semantics",
+      "named_forms": 2,
+      "textbox_names_include_question_id_and_prompt": true,
+      "authority_boundary_is_a_textbox_description": true,
+      "operating_system_screen_reader": "not tested"
+    },
+    {
+      "viewport": "desktop",
+      "size": [
+        1440,
+        960
+      ],
+      "pending_question_forms": 2,
+      "horizontal_overflow_px": 0,
+      "second_answer_button_height_px": 26,
+      "question_backed_discovered_instances": 2,
+      "second_question_id_visible_in_scroll_panel": true
+    },
+    {
+      "viewport": "tablet",
+      "size": [
+        768,
+        1024
+      ],
+      "pending_question_forms": 2,
+      "horizontal_overflow_px": 0,
+      "second_answer_button_height_px": 44,
+      "question_backed_discovered_instances": 2,
+      "second_question_id_visible_in_scroll_panel": true
+    },
+    {
+      "viewport": "phone",
+      "size": [
+        360,
+        800
+      ],
+      "pending_question_forms": 2,
+      "horizontal_overflow_px": 0,
+      "second_answer_button_height_px": 44,
+      "question_backed_discovered_instances": 2,
+      "second_question_id_visible_in_scroll_panel": true
+    },
+    {
+      "viewport": "compact-phone",
+      "size": [
+        320,
+        800
+      ],
+      "pending_question_forms": 2,
+      "horizontal_overflow_px": 0,
+      "second_answer_button_height_px": 44,
+      "question_backed_discovered_instances": 2,
+      "second_question_id_visible_in_scroll_panel": true
+    },
+    {
+      "state": "one-answer-received",
+      "discovered_instances": [
+        "Answer received",
+        "Waiting"
+      ],
+      "pending_question_forms": 1
+    },
+    {
+      "state": "answers-submitted",
+      "answer_order": [
+        "wq_7440371a207d",
+        "wq_2d164a7cd36d"
+      ],
+      "workflow_status": "succeeded",
+      "page_errors": []
+    }
+  ],
+  "page_errors": [],
+  "map_item_behavior": {
+    "browser_scope": "one independent ask per map item, shown together up to unresolved-item concurrency",
+    "engine_coverage": "same-item independent asks publish together; dependent asks wait for prerequisites",
+    "tests": [
+      "tests/test_workflow_engine.py::test_bounded_map_collects_independent_questions_within_an_item_after_restart",
+      "tests/test_workflow_engine.py::test_bounded_map_holds_dependent_question_until_its_answer_arrives",
+      "tests/test_workflow_engine.py::test_bounded_map_exposes_one_question_per_item_up_to_concurrency_after_restart"
+    ]
+  },
+  "partial_answer_state": {
+    "pending_question_forms": 1,
+    "discovered_statuses": [
+      "Answer received",
+      "Waiting"
+    ],
+    "workflow_reason": "waiting for 1 answer(s)",
+    "focus_moves_to_remaining_question": true
+  },
+  "terminal_discovered_instances": {
+    "count": 4,
+    "rows": [
+      "review.confirm\nitem:first\nCompleted",
+      "review.confirm\nitem:second\nCompleted",
+      "review\nonce\nCompleted",
+      "combine\nonce\nCompleted"
+    ],
+    "label": "Completed (not verified)"
+  },
+  "verification": {
+    "browser_result": "passed; this artifact is written only after all browser assertions succeed",
+    "focused_engine_api_phone_effect_result": "116 passed in 59.59s on the preceding behavior slice; this slice changes only accessible names/descriptions and evidence",
+    "static_checks": "Python compilation, JavaScript syntax check, and git diff --check passed",
+    "provider_calls": 0
+  },
+  "visual_validation": {
+    "viewports_css_px": {
+      "desktop": [
+        1440,
+        960
+      ],
+      "tablet": [
+        768,
+        1024
+      ],
+      "phone": [
+        360,
+        800
+      ],
+      "compact_phone": [
+        320,
+        800
+      ]
+    },
+    "horizontal_overflow_px": {
+      "desktop": 0,
+      "tablet": 0,
+      "phone": 0,
+      "compact-phone": 0
+    },
+    "phone_answer_target_min_height_px": 44,
+    "opened_captures": [
+      "waiting-desktop.png",
+      "second-question-compact-phone.png"
+    ],
+    "actual_browser_zoom": "unverified; this headless Chromium build does not support CDP Browser.setZoomLevel",
+    "visual_observation": "The semantic change does not alter layout. The internal scroll keeps the second question reachable; the 320px view wraps its durable ID and prompt without horizontal overflow."
+  },
+  "source_sha256": {
+    "src/hutch/workflow/engine.py": "59cbe3825744ade0ae6f11b2e447cffcdc48a8229f677144362b7d5c2b90ed39",
+    "src/hutch/workflow/persistence.py": "928a54cee424d0547241532fd05bbf8371ffdf319e3f4e3ca5809bd58dcc8e36",
+    "src/hutch/server/workflows_api.py": "64199f3a358c99fb7e2908787b6bb7b555f64ad9d0ff53ff3c43fc04e6b11a07",
+    "src/hutch/server/static/app.js": "21fc24edd1c82b4c478ff77cd5b0ea2c95262405fc0d60ae62abc3e442c0d2b3",
+    "src/hutch/server/static/style.css": "4eb5625f7b73a86bf28245323ccbbc6abd3f3e5c075cc510dabc73ba6c947afc",
+    "tests/e2e/test_browser.py": "b0037d0fd4e12e4af08004a06f8aebb1fbc2748175b8cd8aab06cdd30c8a27d9",
+    "tests/test_workflow_engine.py": "358094224a29d8e88d0a29d41860087b66320605b60e47cb3fc648f0e03c40d4",
+    "tests/test_workflow_api.py": "5bc9c364c45d117b55f9b882c3002f289bb0cb0401fc378958fb8c758691601c",
+    "tests/test_remote_pairing.py": "d523ef47e8c58a0bf7349d16bb268847c0bae245022a626ab35d003c06821d85",
+    "tests/test_workflow_effect_receipts.py": "8a6ea2fc7384ce5723421f4189bf87c6774c2d6c210fc721291ce328adaac37a"
+  },
+  "artifact_sha256": {
+    "answered-phone.png": "fc03e88d5b8a7a9b730893953be2670305c7319e2661fcb10757a456d1c6ee08",
+    "discovered-compact-phone.png": "981d62a8a6c37c76c55dbb0b0bfa8a18563d6c8fbd269d9b071404577e7f714e",
+    "discovered-complete-phone.png": "7e8e97a6d88d5279e928e05418cdde8f80b67689e6a1df3869d06c772dae39d3",
+    "discovered-desktop.png": "1301cc331993800afc7023286494a30fa6921798104b189ea324aee815162f5c",
+    "discovered-phone.png": "e8935c20516d2e2a0cc5dbf4485434dc1f5a65cc5bcccfde05bcaaa1a201bb45",
+    "discovered-tablet.png": "09dee3e3c5f37d6bbed0d4707858c4541351cabac7da6f86829f4999d428cd3e",
+    "partial-answer-phone.png": "81425479b5b95d6b24a05f1570308b352aecdbf0a86bab9fee9f55ba6d011e4d",
+    "partial-discovered-phone.png": "280bbf64ab59a1c515cc9cdc52816cc6c4ead4ccfe18b68800958dbbbb046c74",
+    "second-question-compact-phone.png": "145434bc9d7f3bbcc991cd65507a3a8ee42a940e3d1d61b0fdcafda9349a1ca2",
+    "second-question-desktop.png": "f750a817cf973340b472068611b7460c1f469f1bc5217085b8e775573e67d37a",
+    "second-question-phone.png": "bbd50b492e851db8bbc7ae1e9d36dab3a0fc8384a27694500677b75dc1c8590a",
+    "second-question-tablet.png": "9d4c4cb10b63c2e0075bd3ea9c25404ac9e29588f43de3f47ca363f440cf7d08",
+    "trace.zip": "c3a75adfdc87004658f0004f3a5df63800a67bc32b933a8159a2d8527ec0812f",
+    "visual-review.md": "7a0f928ecf0631e5f733142fcab9674e2da97bc682b382986565d7ad1debd4eb",
+    "waiting-compact-phone.png": "f2482d750347c39b18b2b5470d79d1325b4fda4d647d5757e3d7ece94988c814",
+    "waiting-desktop.png": "3a85b03ba3a87220590c3ae4da4ab0e24bccbd46546eaf9bb3c7a5e698633d8d",
+    "waiting-phone.png": "b60a37aa693dec474d33d3ce5815b0104152bb88ebca05a6c65d9ae362d975c6",
+    "waiting-tablet.png": "f3b22e92318a24d1e1c3aa5ec64d5fdfc6127b45447aa284fdd140a1125c5bb8"
+  }
+}

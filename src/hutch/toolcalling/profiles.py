@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping, Optional
 from urllib.parse import urlsplit
 
@@ -74,6 +74,17 @@ class ModelCapabilityProfile:
     notes: tuple[str, ...] = ()
     source: str = "fallback-defaults"      # known-profile | operator-override | observation | fallback-defaults
     observations: tuple[dict[str, Any], ...] = ()
+    backend: str = ""
+    backend_version: str = ""
+    checkpoint_digest: str = ""
+    quantization: str = ""
+    template_hash: str = ""
+    tokenizer_hash: str = ""
+    parser_id: str = ""
+    effective_context: Optional[int] = None
+    decoding: dict[str, Any] = field(default_factory=dict)
+    modalities: tuple[str, ...] = ()
+    modalities_known: bool = False
 
     def fingerprint(self) -> str:
         return hashlib.sha256(canonical_json({
@@ -81,6 +92,7 @@ class ModelCapabilityProfile:
             "endpoint_class": self.endpoint_class, "model": self.model, "revision": self.revision,
             "native": self.native_tools.state, "constrained": self.constrained_schema.state,
             "attachment": self.constrained_attachment, "source": self.source,
+            "execution": self.execution_view()["fingerprint"],
         }).encode()).hexdigest()[:16]
 
     def capabilities_view(self) -> dict[str, Any]:
@@ -104,8 +116,35 @@ class ModelCapabilityProfile:
             "constrained_attachment": self.constrained_attachment,
             "strict_tool_schema": ev(self.strict_tool_schema),
             "multimodal": ev(self.multimodal),
+            "execution_profile": self.execution_view(),
             "notes": list(self.notes),
         }
+
+    def execution_view(self) -> dict[str, Any]:
+        """Credential-free identity of the model build and settings used for execution."""
+        values = {
+            "backend": self.backend or self.provider,
+            "backend_version": self.backend_version,
+            "checkpoint_digest": self.checkpoint_digest,
+            "quantization": self.quantization,
+            "template_hash": self.template_hash,
+            "tokenizer_hash": self.tokenizer_hash,
+            "protocol": self.protocol,
+            "parser_id": self.parser_id,
+            "effective_context": self.effective_context,
+            "decoding": dict(self.decoding),
+            "modalities": list(self.modalities),
+            "modalities_known": self.modalities_known,
+        }
+        missing = [key for key in ("backend", "backend_version", "checkpoint_digest", "quantization",
+                                   "template_hash", "tokenizer_hash", "protocol", "parser_id",
+                                   "effective_context", "decoding") if values[key] in (None, "", {})]
+        if not values["modalities_known"] or not values["modalities"]:
+            missing.append("modalities")
+        values["complete"] = not missing
+        values["missing"] = missing
+        values["fingerprint"] = hashlib.sha256(canonical_json(values).encode()).hexdigest()
+        return values
 
 
 # ------------------------------------------------------------------ route mapping
@@ -282,7 +321,9 @@ def _lookup(provider: str, endpoint_class: str) -> Optional[dict[str, Any]]:
 
 def resolve_profile(*, provider: str, endpoint: str = "", model: str = "", revision: str = "",
                     observations: Iterable[Mapping[str, Any]] = (),
-                    override: Optional[str] = None) -> ModelCapabilityProfile:
+                    override: Optional[str] = None, metadata: Any = None,
+                    backend_version: str = "", effective_context: Optional[int] = None,
+                    decoding: Optional[Mapping[str, Any]] = None) -> ModelCapabilityProfile:
     """Resolve the profile for one exact route + model.
 
     ``observations`` are prior governed-run capability records (the store's passive
@@ -334,6 +375,16 @@ def resolve_profile(*, provider: str, endpoint: str = "", model: str = "", revis
         attachment = ""
 
     key = f"{provider}/{endpoint_class}"
+    parser_id = {"ollama-native": "hutch.ollama-tool-args.strictjson-v1",
+                 "openai-chat": "hutch.openai-tool-args.strictjson-v1",
+                 "openai-responses": "hutch.responses-tool-args.strictjson-v1",
+                 "anthropic-messages": "hutch.anthropic-tool-args.strictjson-v1"}.get(
+                     protocol, f"hutch.{protocol}.strictjson-v1")
+    raw_modalities = getattr(metadata, "capabilities", None) if metadata is not None else None
+    modality_aliases = {"completion": "text", "vision": "image", "audio": "audio",
+                        "video": "video", "embedding": "embedding", "text": "text", "image": "image"}
+    modalities = tuple(sorted({modality_aliases[str(item).lower()] for item in (raw_modalities or [])
+                               if str(item).lower() in modality_aliases}))
     profile = ModelCapabilityProfile(
         key=key, provider=provider, protocol=protocol, endpoint_class=endpoint_class, model=model, revision=revision,
         native_tools=native,
@@ -347,6 +398,17 @@ def resolve_profile(*, provider: str, endpoint: str = "", model: str = "", revis
         notes=tuple((entry or {}).get("notes", ())),
         source="known-profile" if entry else "fallback-defaults",
         observations=tuple(matched_observations),
+        backend=str(getattr(metadata, "backend", "") or provider),
+        backend_version=str(getattr(metadata, "backend_version", "") or backend_version or ""),
+        checkpoint_digest=str(getattr(metadata, "digest", "") or ""),
+        quantization=str(getattr(metadata, "quant", "") or ""),
+        template_hash=str(getattr(metadata, "template_hash", "") or ""),
+        tokenizer_hash=str(getattr(metadata, "tokenizer_hash", "") or ""),
+        parser_id=parser_id,
+        effective_context=int(effective_context) if effective_context else None,
+        decoding=dict(decoding or {}),
+        modalities=modalities,
+        modalities_known=raw_modalities is not None,
     )
     if override:
         if override not in ("auto", "native", "constrained", "prompt", "disabled"):

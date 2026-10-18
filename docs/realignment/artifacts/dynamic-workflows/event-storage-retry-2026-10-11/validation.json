@@ -1,0 +1,41 @@
+{
+  "validated_at_utc": "2026-10-12T01:27:00.232269+00:00",
+  "base_commit": "e496c0aa1d577987196f4231e9f850f0b751acb8",
+  "branch": "codex/dynamic-workflows-completion",
+  "runtime": {
+    "python": "3.13.15",
+    "pytest": "pytest 9.1.1"
+  },
+  "command": "TMPDIR=/<local-path-redacted> .venv/bin/pytest -q tests/test_workflow_engine.py tests/test_store_events.py",
+  "result": "62 passed in 27.90s",
+  "regression": {
+    "test": "tests/test_store_events.py::test_repeated_storage_failures_back_off_without_acknowledging_events",
+    "injected_failures": 4,
+    "minimum_retry_intervals_seconds": [
+      0.04,
+      0.08,
+      0.16,
+      0.32
+    ],
+    "configured_backoff_seconds": {
+      "base": 0.05,
+      "cap": 2.0
+    },
+    "assertions": [
+      "event committed exactly once after recovery",
+      "event hash chain verifies",
+      "dropped event count stays zero"
+    ]
+  },
+  "limits": [
+    "Failures were injected at the Store transaction boundary; this does not reproduce a real disk-full or database outage.",
+    "Pending event batches are in memory and process-restart recovery of an uncommitted batch is not established by this test."
+  ],
+  "sha256": {
+    "src/hutch/store.py": "f429c09b3650c1c4485dbec7c05a02c2a24a733147b5b4f594e67bf2b9fbd2fc",
+    "tests/test_store_events.py": "ee1ba3f4dc444726011a578b4716e08917c4c34391e4b4f430ce7cb0502b5270",
+    "docs/realignment/dynamic-workflows.md": "18be21b3f28c81f4d5ddcc34feafe56f85f3155c0ed6656b68c6a79131f14bf4",
+    "CHANGELOG.md": "b8e1429ba4358a14f6477204be3e0ab5cab1a842ac9e09778a1e70a758e42ffb",
+    "pytest-output.txt": "11b69b67eb5c69add68414ad7787c42e72e4808e089f3717c7854553037951c6"
+  }
+}

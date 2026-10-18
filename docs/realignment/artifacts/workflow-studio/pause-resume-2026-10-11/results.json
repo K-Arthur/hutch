@@ -1,0 +1,232 @@
+{
+  "test": "tests/e2e/test_browser.py::test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports",
+  "command": "uv run pytest tests/e2e/test_browser.py::test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports -q",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "viewports": [
+    {
+      "viewport": "desktop",
+      "size": [
+        1440,
+        960
+      ],
+      "state": "waiting",
+      "horizontal_overflow_px": 0,
+      "panel_bounds": {
+        "x": 476,
+        "y": 68,
+        "width": 760,
+        "height": 345.59
+      },
+      "title_bounds": {
+        "x": 493,
+        "y": 99.89,
+        "width": 177.92,
+        "height": 41.59
+      },
+      "actions_bounds": {
+        "x": 682.92,
+        "y": 81,
+        "width": 536.08,
+        "height": 26
+      }
+    },
+    {
+      "viewport": "tablet",
+      "size": [
+        768,
+        1024
+      ],
+      "state": "waiting",
+      "horizontal_overflow_px": 0,
+      "panel_bounds": {
+        "x": 24,
+        "y": 122.14,
+        "width": 720,
+        "height": 368.62
+      },
+      "title_bounds": {
+        "x": 41,
+        "y": 154.03,
+        "width": 137.92,
+        "height": 83.19
+      },
+      "actions_bounds": {
+        "x": 190.92,
+        "y": 135.14,
+        "width": 536.08,
+        "height": 26
+      }
+    },
+    {
+      "viewport": "phone",
+      "size": [
+        360,
+        800
+      ],
+      "state": "waiting",
+      "horizontal_overflow_px": 0,
+      "panel_bounds": {
+        "x": 24,
+        "y": 122.14,
+        "width": 312,
+        "height": 464
+      },
+      "title_bounds": {
+        "x": 41,
+        "y": 154.03,
+        "width": 278,
+        "height": 41.59
+      },
+      "actions_bounds": {
+        "x": 41,
+        "y": 231.31,
+        "width": 278,
+        "height": 140
+      }
+    },
+    {
+      "viewport": "compact-phone",
+      "size": [
+        320,
+        800
+      ],
+      "state": "waiting",
+      "horizontal_overflow_px": 0,
+      "panel_bounds": {
+        "x": 24,
+        "y": 122.14,
+        "width": 272,
+        "height": 464
+      },
+      "title_bounds": {
+        "x": 41,
+        "y": 154.03,
+        "width": 238,
+        "height": 41.59
+      },
+      "actions_bounds": {
+        "x": 41,
+        "y": 231.31,
+        "width": 238,
+        "height": 140
+      }
+    },
+    {
+      "viewport": "desktop",
+      "size": [
+        1440,
+        960
+      ],
+      "state": "paused",
+      "horizontal_overflow_px": 0,
+      "resume_target": {
+        "x": 829.58,
+        "y": 81,
+        "width": 151.14,
+        "height": 26
+      }
+    },
+    {
+      "viewport": "tablet",
+      "size": [
+        768,
+        1024
+      ],
+      "state": "paused",
+      "horizontal_overflow_px": 0,
+      "resume_target": {
+        "x": 337.58,
+        "y": 135.14,
+        "width": 151.14,
+        "height": 26
+      }
+    },
+    {
+      "viewport": "phone",
+      "size": [
+        360,
+        800
+      ],
+      "state": "paused",
+      "horizontal_overflow_px": 0,
+      "resume_target": {
+        "x": 41,
+        "y": 279.31,
+        "width": 151.14,
+        "height": 44
+      }
+    },
+    {
+      "viewport": "compact-phone",
+      "size": [
+        320,
+        800
+      ],
+      "state": "paused",
+      "horizontal_overflow_px": 0,
+      "resume_target": {
+        "x": 41,
+        "y": 279.31,
+        "width": 151.14,
+        "height": 44
+      }
+    }
+  ],
+  "question_id": "wq_729031cd3910",
+  "first_workflow_id": "wrun_f47a61570d3f",
+  "stopped_workflow_id": "wrun_5c1f2b521772",
+  "policy_override": {
+    "conversation_id": "conv_a87661a6d514",
+    "mode": "off",
+    "revision": 1,
+    "updated_at": "2026-10-11T19:36:49.235447+00:00"
+  },
+  "keyboard_path": [
+    "focus answer",
+    "Tab to Send answer",
+    "Enter submits"
+  ],
+  "page_errors": [],
+  "provider_calls": 0,
+  "fixture_boundary": "A saved declarative ask workflow uses the real SQLite, supervisor, API and browser path; no model/provider call is made.",
+  "source_sha256": {
+    "src/hutch/models.py": "10d57a7f3c266ef9ae91cfe692c47625dcb35ecab83bba89812b378e08f59a82",
+    "src/hutch/store.py": "2b6b0c6dcf81eaf969389e806a8383a3a20c23ef4b0e81532564e48d4de66f87",
+    "src/hutch/workflow/persistence.py": "bb295261dd880ac95cbbce4caf0ccf561b2ae621385c9770e4c77dacd2afcac9",
+    "src/hutch/workflow/submit.py": "a1f3f517635422b1e44c4ffa1d4620c44747f55fbc8a009b76e2fd2b9701f061",
+    "src/hutch/server/workflows_api.py": "9c8b49e976e11900d13614913220c2ee38b2ccf7fbdbbd2b2d4a6f033049718a",
+    "src/hutch/server/static/app.js": "bf5bf28a9e720b2e07b71d0a8dc64d996f30714997fd5c970d022d5cf593b4ba",
+    "src/hutch/server/static/style.css": "52e1ea61a280e8658c2608c9710053cbc235438df4699b66f3333f920ea9c45e"
+  },
+  "visual_artifact_sha256": {
+    "active-pause-trace.zip": "a1009497f91d46b122b02d0534823bb1fec7d2642a568d6b3b28ce990604596c",
+    "desktop-waiting.png": "7ce1630c91df910e41946a0a5d8f5a8fb689be045ed8b2abb0993ea3b3c8527d",
+    "active-pause-pause-requested-tablet.png": "4375c669f9f08c46e27b6df83b7b0b0891fad025c3b6cd42447e7dba2e6d0380",
+    "active-pause-paused-compact-phone.png": "d70a168f9963599941f5c18ece8955e36693be34afe7b0bf609e7d3b366f6084",
+    "desktop-stopped.png": "84694c10bff508385ecc0c4dad3c77ae9ea12b043d39e430bf34dab77fc860f2",
+    "active-pause-pause-requested-phone.png": "078274fb84392c459932d54985e02a59c6df84f0440ba3dd1f11f8ddf5d24db1",
+    "desktop-paused.png": "6f4ad8b55f9dad9c26819f8f9e54bb0c0fdde493630ad8bad2d96c2e3893fde8",
+    "desktop-answered-while-paused.png": "049031089291ce5da59c13819eca76efb9daf5f026cbea31836b6e05849df5b8",
+    "active-pause-paused-tablet.png": "98f827d8c2c1ebd0106cf50316cfc7edbfd9432c2ed15cdbc5bc8b0c1c70ae42",
+    "tablet-waiting.png": "69f3885846f08b67392f312120a601a742a9a8ed0122d9eff398e91181b7f711",
+    "active-pause-running-desktop.png": "5664d7c3ecf436857019038f9157ee46e5495ba661ab41f6e72161187fe305ce",
+    "desktop-policy-off.png": "61201af2c721424375179f62b80d6177f0bb26b5f87b2ab6c8df4b344818727a",
+    "active-pause-running-phone.png": "d50e32a6f44dbb34ccfc07bfae95163a6160fca4280b7baf6cbab7f7e4a3e1b2",
+    "phone-waiting.png": "cd9f49b0a9e84ae70cb2f4d9de9d8ccefd5b54ae81db09477741eb2a4311308a",
+    "active-pause-paused-phone.png": "c7590260eb7484e0f7c92f5d6c5b1613705bc293ff14a82e33e461c7536d48d4",
+    "compact-phone-paused.png": "07d8fc595eb3bd948ab893a06fac3fe3e42652f6f5d10fddeb2cf4825b5b6361",
+    "phone-paused.png": "b07ff32ff13360682a278b9e0ee856c02caf520b038a99426f84de15489338c5",
+    "trace.zip": "03896a7d05148f2412e7d873f172e07d5059dcac63f6bfa83f2f9d22759458f6",
+    "desktop-finished.png": "9ad799e7d73df59b2881e73747993fe67c99c191e8feaa0af95d4ae7d0cc2f86",
+    "compact-phone-waiting.png": "0aafa0488b0d84ffee30c746e4a97cfe0413d6a518741c28a3218eaa47b8e82a",
+    "active-pause-paused-desktop.png": "eefc070369d8b65303c2038c8595d0f074076674796642db73e6bbbb7b2a4ec8",
+    "active-pause-running-tablet.png": "b9d5eca3106f99ecdbaf73ee804375f34c1c66d4755a9b66e317beae216c0bb3",
+    "active-pause-running-compact-phone.png": "7a8d9a1fc4825beeddfe6204b118db33643585271d0987d9547647bddad08285",
+    "active-pause-pause-requested-desktop.png": "f92e351e30cdf3b08f0ea465570f3b02230dbaec9b1658cbe586776925181f56",
+    "tablet-paused.png": "3cc73a8bc15575887a96a0c5db5d44e7be3ca05506dec1d5c8902b1f876a5291",
+    "active-pause-pause-requested-compact-phone.png": "34a5e52087944b646a82be3e1bb5601830a020bee096d2ac3dea8be7def235ac"
+  },
+  "captured_at": "2026-10-11T19:36:54.393317+00:00"
+}

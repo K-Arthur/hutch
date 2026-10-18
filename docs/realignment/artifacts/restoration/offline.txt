@@ -18,7 +18,7 @@
 _________________ test_a_second_run_sees_what_the_first_wrote __________________
 
 eng = (<hutch.engine.Engine object at 0x7f34c38efac0>, <hutch.store.Store object at 0x7f347bea5370>, <tests.fakes.FakeOllama..., default_max_steps=24, default_timeout_seconds=900, default_daily_token_cap=200000, default_approval_ttl_seconds=600))
-tmp_path = PosixPath('/tmp/pytest-of-kevina/pytest-457/test_a_second_run_sees_what_th0')
+tmp_path = PosixPath('/<local-path-redacted>')
 
     def test_a_second_run_sees_what_the_first_wrote(eng, tmp_path):
         folder = tmp_path / "persist"

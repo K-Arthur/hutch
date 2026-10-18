@@ -1,0 +1,154 @@
+{
+  "test": "tests/e2e/test_website.py::test_dynamic_workflow_marketing_is_truthful_and_responsive",
+  "command": "TMPDIR=/var/tmp .venv/bin/pytest -q tests/e2e/test_website.py::test_local_asset_urls_use_current_content_hashes tests/e2e/test_website.py::test_dynamic_workflow_marketing_is_truthful_and_responsive --basetemp=/<local-path-redacted>",
+  "captured_at": "2026-10-12T04:32:36.121212+00:00",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "reduced_motion": "reduce",
+  "accessibility_states": {
+    "text_spacing": "WCAG 1.4.12 user override injected",
+    "forced_colors": "active",
+    "keyboard_focus": "workflow FAQ link"
+  },
+  "workflow_preview_word_count": 99,
+  "provider_calls": 0,
+  "external_requests": [],
+  "page_errors": [],
+  "viewports": [
+    {
+      "name": "desktop",
+      "viewport": [
+        1440,
+        900
+      ],
+      "workflow_preview": {
+        "x": 164,
+        "y": 89.671875,
+        "width": 1112,
+        "height": 333.28125
+      },
+      "availability_row": {
+        "x": 189,
+        "y": 281.625,
+        "width": 557.6875,
+        "height": 337
+      },
+      "horizontal_overflow_px": 0
+    },
+    {
+      "name": "tablet",
+      "viewport": [
+        768,
+        1024
+      ],
+      "workflow_preview": {
+        "x": 24,
+        "y": 90.4375,
+        "width": 720,
+        "height": 404.96875
+      },
+      "availability_row": {
+        "x": 49,
+        "y": 392.375,
+        "width": 670,
+        "height": 239.5
+      },
+      "horizontal_overflow_px": 0
+    },
+    {
+      "name": "phone",
+      "viewport": [
+        360,
+        800
+      ],
+      "workflow_preview": {
+        "x": 16,
+        "y": 90.265625,
+        "width": 328,
+        "height": 597.28125
+      },
+      "availability_row": {
+        "x": 33,
+        "y": 173.4375,
+        "width": 294,
+        "height": 454
+      },
+      "horizontal_overflow_px": 0
+    },
+    {
+      "name": "compact-phone",
+      "viewport": [
+        320,
+        800
+      ],
+      "workflow_preview": {
+        "x": 16,
+        "y": 89.640625,
+        "width": 288,
+        "height": 647.671875
+      },
+      "availability_row": {
+        "x": 33,
+        "y": 114.828125,
+        "width": 254,
+        "height": 571
+      },
+      "horizontal_overflow_px": 0
+    },
+    {
+      "name": "compact-phone-text-spacing",
+      "viewport": [
+        320,
+        800
+      ],
+      "workflow_preview": {
+        "x": 16,
+        "y": 69.609375,
+        "width": 288,
+        "height": 858.5
+      },
+      "workflow_link": {
+        "x": 39,
+        "y": 378.109375,
+        "width": 205.59375,
+        "height": 44
+      },
+      "horizontal_overflow_px": 0
+    },
+    {
+      "name": "compact-phone-forced-colors",
+      "viewport": [
+        320,
+        800
+      ],
+      "workflow_link": {
+        "x": 39,
+        "y": 378.109375,
+        "width": 205.59375,
+        "height": 44
+      },
+      "outline_style": "solid",
+      "horizontal_overflow_px": 0
+    }
+  ],
+  "source_sha256": {
+    "website/index.html": "ddc99eff53895a8c90882cc34da4ff1ac9d5f56571db90e76caa43044481db8a",
+    "website/styles.css": "7dc8e2b58ee1441cd74808a7f9e696bbbd43ac817ff5251c1c3094815be5f1aa"
+  },
+  "visual_artifact_sha256": {
+    "availability-compact-phone.png": "66522fda4cbd007e8677252e2391ef3c777f4aaf3ff1890cf80fed25ab87b270",
+    "workflow-phone.png": "41865709c5018c87dc54e8a1e55305ffd6e023b8ca49b011e9a71b31b4aca67c",
+    "workflow-desktop.png": "242576c051565e64d2e3508d5a2148088f37c64407da31233df168c30413350a",
+    "workflow-text-spacing-start-compact-phone.png": "fc4adf09e1fe868cd1cb0a12918ead55fb93862acf425ec218f26e6b91e3dc5e",
+    "availability-desktop.png": "8b8d40c37641cd04672fc17210a6a43df6da735e618da59001c5e54cf7b8664f",
+    "workflow-forced-colors-start-compact-phone.png": "fd4540a8b5df38435b649fe632f9f42a4885677d93ebbc97aacd183bd691232b",
+    "availability-phone.png": "c8f7723afcfd92ed12911aa7b8e967c7077ae8795d423622a940f6ced1e3f040",
+    "trace.zip": "a4dc1ed6ca174243ec38dea0eb9fc9555dc7af087f76a43cd7ff1ecd4b3e004a",
+    "availability-tablet.png": "f9e36b72351a185eb9214f2cffcd00ec7a04c43a2bfeccfe44a9f87d61f14b18",
+    "workflow-compact-phone.png": "279f917247cbe7457a741020ff5cb9e652ee33d1c94dc721d806207f4bf495db",
+    "workflow-text-spacing-focus-compact-phone.png": "2812c5df94761259838deca8fa053a839126f32cb81649b507ac26b50c9fb7a7",
+    "workflow-tablet.png": "f37b69e50784ff2bf843ac2677d50115067a7e981244590c148eefd1d8c6dbde",
+    "workflow-forced-colors-focus-compact-phone.png": "d3283073c3fcf381ed2fe2e7f33f960fb780a0dfd63e04951a0061bf678c7b89"
+  }
+}

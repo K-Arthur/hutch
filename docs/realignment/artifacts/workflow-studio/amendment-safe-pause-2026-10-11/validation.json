@@ -1,0 +1,33 @@
+{
+  "test": "tests/test_workflow_api.py::test_active_amendment_waits_for_safe_pause_then_adopts_from_fresh_preview",
+  "command": "TMPDIR=/var/tmp uv run pytest tests/test_workflow_api.py tests/test_migration.py tests/test_remote_pairing.py::test_phone_workflow_monitor_and_review_permissions_use_redacted_projections -q",
+  "result": {
+    "passed": 69,
+    "failed": 0,
+    "duration_seconds": 21.88
+  },
+  "captured_at": "2026-10-11T19:42:22.768625+00:00",
+  "python": "3.13.15",
+  "pytest": "9.1.1",
+  "hutch_version": "0.1.0",
+  "base_commit": "5e22f0039728262a3069061ec9cadd7693d8b7cf",
+  "provider_calls": 0,
+  "external_effects": 0,
+  "asserted_states": [
+    "Active preview is read-only and reports a non-parked attempt and unsettled node.",
+    "Adoption during active work returns 409 without changing the current revision or history.",
+    "Owner Pause allows the admitted transform to settle and parks before downstream admission.",
+    "Fresh preview reports a quiet parked attempt and reuse of the settled pure transform.",
+    "Adoption continues under the reviewed revision and returns the amended output."
+  ],
+  "visual_evidence": "No UI code changed in this amendment-only slice. The safe-pause UI captures are retained in ../pause-resume-2026-10-11/; responsive amendment dialog captures and visual review are retained in ../amendment-postfix-2026-10-11/.",
+  "source_sha256": {
+    "src/hutch/workflow/amendments.py": "30bcf9a55ce10c12631de429ed3be71a21d6054614d9a54f7c04a2fa8b1827a3",
+    "src/hutch/workflow/persistence.py": "bb295261dd880ac95cbbce4caf0ccf561b2ae621385c9770e4c77dacd2afcac9",
+    "src/hutch/server/workflows_api.py": "9c8b49e976e11900d13614913220c2ee38b2ccf7fbdbbd2b2d4a6f033049718a",
+    "tests/test_workflow_api.py": "ec172fc5548c9a2777faa10e80ecb2db0932916197de5b81e623df3aaf35d457",
+    "docs/workflows.md": "39eee2cf09f218d4ef06e0bd0b950266ec7b27db2b08a739ecb9ad0a1458d428",
+    "docs/realignment/dynamic-workflows.md": "6430f386ce310abb3df8b7b57168647718c17a355f94a87702628bcbf8a07c3d",
+    "CHANGELOG.md": "02e70913206303746a335dead13fda54f4e31d8679b0adb2433bdd800e1fd490"
+  }
+}

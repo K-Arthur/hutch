@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-11",
+  "scope": "Selective pure-transform reuse during workflow amendment",
+  "baseline_commit": "11f33a77dbe164c55415a7ccf668848da8f39642",
+  "before_change": "An input snapshot change invalidated every settled node. Transform rows recorded the generic node input bundle, which did not identify the resolved operation arguments.",
+  "after_change": "Top-level unconditional transforms persist only a SHA-256 digest of resolved arguments. Amendment preview simulates candidate scope using only already-proven reusable results; it preserves a transform only when its digest and dependency results match, and invalidates the changed node plus dependent transforms.",
+  "test_results": [
+    {
+      "command": ".venv/bin/pytest -q tests/test_workflow_api.py tests/test_workflow_engine.py",
+      "result": "79 passed in 45.77s",
+      "status": "passed"
+    },
+    {
+      "command": ".venv/bin/pytest -q tests/test_workflow_api.py::test_amendment_adoption_reuses_only_transforms_with_matching_resolved_inputs",
+      "result": "1 passed in 2.20s",
+      "status": "passed"
+    },
+    {
+      "command": ".venv/bin/python -m compileall -q src/hutch/workflow/engine.py src/hutch/workflow/amendments.py tests/test_workflow_api.py && git diff --check",
+      "result": "passed",
+      "status": "passed"
+    }
+  ],
+  "browser_evidence": {
+    "command": "TMPDIR=/var/tmp HUTCH_WORKFLOW_AMENDMENT_ARTIFACTS=docs/realignment/artifacts/workflow-studio/amendment-selective-reuse-2026-10-11 .venv/bin/pytest -q tests/e2e/test_browser.py::test_workflow_amendment_preview_adoption_is_explicit_and_responsive --basetemp=/<local-path-redacted>",
+    "result": "1 passed in 5.71s; Chromium 153.0.8010.12, Playwright 1.63.0; no page errors, failed requests or provider calls",
+    "captures_and_visual_review": "docs/realignment/artifacts/workflow-studio/amendment-selective-reuse-2026-10-11/visual-review.md",
+    "viewports_css_px": [[1440, 960], [768, 1024], [360, 800], [320, 740]],
+    "opened_preview_captures": true,
+    "horizontal_overflow_px": [0, 0, 0, 0],
+    "adoption_target_height_px": [44, 44, 44, 44],
+    "project_visual_scores": {"aesthetic": 8.8, "functionality": 9.5, "regression_health": 9.0, "combined": 9.1},
+    "limitations": ["No screen-reader, browser zoom, text-spacing, forced-colors, offline reconnect, physical phone or paired-phone workflow check in this capture.", "The 320px cancellation label has 8.19px clearance after the scroll-margin fix; automated evidence asserts a minimum of 8px."]
+  },
+  "regressions": {
+    "preview_changed_input": "source is inputs_changed; derived is dependency_result_not_reusable; independent is reusable",
+    "adopt_and_resume": "source and derived execute a second time; independent executes only once; the new question waits under the amended revision",
+    "storage": "the source node input record contains a 64-character resolved_args_sha256 value and does not contain the resolved input string",
+    "map_reordering": "keyed map instances remain invalidated when their input order changes",
+    "missing_reference": "failed transforms retain their site-specific failure reason"
+  },
+  "initial_integration_failures": [
+    "The first broad run exposed changed invalidation reasons for map expansions and a site-less missing-reference error. Both behaviors were restored, then the 79-test combined suite passed.",
+    "The first compact-phone footer-clearance assertion failed red at 0.2px. Adding an 8px scroll margin made the same real-browser journey pass with 8.19px measured clearance."
+  ],
+  "limitations": [
+    "Only settled top-level unconditional pure transforms can be reused. Nested transforms, transforms with conditions, tool/model/evidence results and control/container outputs remain conservative.",
+    "Selective affected-branch draining is not implemented; adoption still requires the workflow to be parked and quiet.",
+    "The digest adds work proportional to the resolved argument size; no comparative large-document throughput benchmark was run in this slice.",
+    "The runtime change had no UI source impact; visual validation then identified and fixed a compact-phone footer collision risk through CSS scroll margin. The existing Studio journey was revalidated at four widths and its preview captures were opened."
+  ],
+  "runtime": {
+    "python": "3.13.15",
+    "pytest": "9.1.1",
+    "transport": "FastAPI TestClient with local SQLite state; no external requests"
+  },
+  "source_sha256": {
+    "src/hutch/workflow/engine.py": "d0610f01a206d1b257d9e7cdf083a49ea99fb8891fc176e49f1c0500e0008996",
+    "src/hutch/workflow/amendments.py": "7987675952f21df9981ab6565f360eb9b81d4e28f1de08ae8aa2cd7107061d48",
+    "tests/test_workflow_api.py": "91dd6aa0277dfb0ae824ef4850ec58fd5a46355ac38103278c2e08c3cdd5ae3e",
+    "docs/workflows.md": "a07d8d3335a2a7959efe479f1af2c7aef8807f534dd4d5456204f29a8830e567",
+    "docs/architecture.md": "52bff93aaa44d06231009bdd288765b2ba3ae8cf1852b2462eadf65598b51560",
+    "docs/realignment/dynamic-workflows.md": "13d73ccf13639e92b4b7bfce1c337b47ffb43d09b08e9b99cafbf776793190ec",
+    "CHANGELOG.md": "86ede33948acb447c8c9a89bbeb572b60c7377971df44cbbd32ac54bc1409b5f"
+  }
+}

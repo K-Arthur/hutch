@@ -1,6 +1,6 @@
 """Capture isolated deterministic UI-state fixtures; never reads operator state or writes site assets.
 
-PLAYWRIGHT_BROWSERS_PATH=/tmp/hutch-playwright-browsers .venv/bin/python \
+PLAYWRIGHT_BROWSERS_PATH=/<local-path-redacted> .venv/bin/python \
   docs/realignment/capture_navigation.py
 """
 from __future__ import annotations

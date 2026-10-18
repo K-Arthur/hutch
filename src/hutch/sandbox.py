@@ -173,6 +173,7 @@ def offline_worker_environment(source: dict[str, str], state_dir: str, lease_sec
         "HUTCH_STATE_DIR": state_dir, "HUTCH_LEASE_SECONDS": str(lease_seconds),
         "HUTCH_EXECUTOR": "process", "HUTCH_MAX_CONCURRENT": str(max_concurrent),
         "HUTCH_OFFLINE_BROKER_DIR": "/run/hutch-offline", "HUTCH_OFFLINE_RUN": "1",
+        "HUTCH_WAKE_DIR": source.get("HUTCH_WAKE_DIR", ""),
         "TMPDIR": "/tmp", "TERM": "dumb",
     }
 
@@ -247,6 +248,21 @@ def offline_worker_argv(command: list[str], source: dict[str, str], state_dir: s
     os.chmod(empty_chatgpt, 0o500)
     prepare_target(state_path)
     argv += ["--bind", str(state_path), str(state_path)]
+    wake_dir_value = source.get("HUTCH_WAKE_DIR")
+    if wake_dir_value:
+        wake_dir = Path(wake_dir_value)
+        try:
+            wake_stat = wake_dir.lstat()
+        except OSError as exc:
+            raise RuntimeError(f"Strict Offline cannot mount the worker wake directory: {exc}") from exc
+        if stat.S_ISLNK(wake_stat.st_mode) or not stat.S_ISDIR(wake_stat.st_mode):
+            raise RuntimeError("Strict Offline cannot mount a non-directory worker wake path")
+        if (hasattr(os, "getuid") and wake_stat.st_uid != os.getuid()) or wake_stat.st_mode & 0o077:
+            raise RuntimeError("Strict Offline can mount only Hutch's owner-private wake directory")
+        prepare_target(wake_dir)
+        # /tmp and /run are private inside the worker. Re-expose only Hutch's
+        # owner-only datagram directory so approvals and supervision can wake it.
+        argv += ["--bind", str(wake_dir), str(wake_dir)]
     argv += ["--ro-bind", str(safe_connections), str(connections_path),
              "--ro-bind", str(empty_keys), str(keys_path),
              "--ro-bind", str(empty_chatgpt), str(chatgpt_path)]

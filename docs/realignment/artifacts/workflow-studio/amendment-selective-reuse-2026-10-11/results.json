@@ -1,0 +1,109 @@
+{
+  "test": "tests/e2e/test_browser.py::test_workflow_amendment_preview_adoption_is_explicit_and_responsive",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "viewports": [
+    {
+      "label": "desktop",
+      "size": [
+        1440,
+        960
+      ],
+      "dialog_bounds": {
+        "x": 330,
+        "y": 48,
+        "width": 780,
+        "height": 864
+      },
+      "horizontal_overflow_px": 0,
+      "adopt_target_height": 44
+    },
+    {
+      "label": "tablet",
+      "size": [
+        768,
+        1024
+      ],
+      "dialog_bounds": {
+        "x": 16,
+        "y": 72,
+        "width": 736,
+        "height": 880
+      },
+      "horizontal_overflow_px": 0,
+      "adopt_target_height": 44
+    },
+    {
+      "label": "phone",
+      "size": [
+        360,
+        800
+      ],
+      "dialog_bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 360,
+        "height": 800
+      },
+      "horizontal_overflow_px": 0,
+      "adopt_target_height": 44
+    },
+    {
+      "label": "compact-phone",
+      "size": [
+        320,
+        740
+      ],
+      "dialog_bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 320,
+        "height": 740
+      },
+      "horizontal_overflow_px": 0,
+      "adopt_target_height": 44
+    }
+  ],
+  "workflow_id": "wrun_adc3f6b89fc8",
+  "old_question_id": "wq_87b20c05d722",
+  "new_question_id": "wq_3228b1ad789e",
+  "history_id": "wamend_a49b3169c270",
+  "interaction": "plan edited, field-level diff inspected, adoption stays disabled until explicit question cancellation is checked, adoption submitted with Enter; composer receives focus while continuation runs and the parked amend control returns",
+  "cancellation_choice_bounds": {
+    "x": 40,
+    "y": 623.8125,
+    "width": 242,
+    "height": 39
+  },
+  "fixed_footer_bounds": {
+    "x": 1,
+    "y": 671,
+    "width": 318,
+    "height": 69
+  },
+  "page_errors": [],
+  "failed_requests": [],
+  "provider_calls": 0,
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "c49040c4ca9f1cc1043dc47b0da96c95431890ca81fc65b28090ed34695bc570",
+    "src/hutch/server/static/style.css": "6b1a0b4f3ea3b099bd2ffa7c8c47525f109c27122533ac1c3c60ba0824d65b46",
+    "src/hutch/server/workflows_api.py": "64199f3a358c99fb7e2908787b6bb7b555f64ad9d0ff53ff3c43fc04e6b11a07",
+    "src/hutch/workflow/amendments.py": "7987675952f21df9981ab6565f360eb9b81d4e28f1de08ae8aa2cd7107061d48",
+    "src/hutch/workflow/persistence.py": "224fcc770910b792321947c9c7d3b9440dbf641ca8ea194feb04c74912a89c19",
+    "tests/e2e/test_browser.py": "b1c31a68958f6297369c24cc4a925db35d703c016a0d5a3b4b78012bdb1d57d6"
+  },
+  "visual_artifact_sha256": {
+    "explicit-cancellation-compact-phone.png": "4b0455fd65f4a8d1ebde1559eb3cb548114df891e39f8fc88d382af636bb9f31",
+    "editor-tablet.png": "024e4ff2481bac449592e228c120be9060571a93ac23276c8dbfd5315088e085",
+    "preview-compact-phone.png": "4d2352c8cb72331750c3f41348e4f7e433e7f0cca244cf7fe3915bb4a5665d44",
+    "desktop-after-adoption.png": "830ee7782eca97a94585a4156bc6a7f7354b66d9169b393fba2470a052f946f2",
+    "preview-desktop.png": "17c3a72e3e1574d5f775180786e9981077d0651bc592962c169901cdc61ded4e",
+    "preview-tablet.png": "260aa9d05131853fd39687383ed8f41015901becbb7694baf3f50c562972a175",
+    "editor-compact-phone.png": "20874376aed8e99fc23a5784e02497ba2cf48b1f96a81c641b04c672549d4d77",
+    "trace.zip": "094089462b4ae1e1b0e4a0ab009599b686fe45f981e0f18bf1b955997ad99ae3",
+    "editor-phone.png": "f50b3e3b7e8e1f8f0a82768df72ad2ad063119ffdae67b58a10e54a5ec754cfc",
+    "preview-phone.png": "75aa87ad04d1d80bc66bb1b46dcf72003bd4dfa80258d473f63ad3eb04a43785",
+    "editor-desktop.png": "6db596074379c18a1dbcd9d45d46ec48f152d2ac12edad549dce294d9ffa07e4"
+  }
+}

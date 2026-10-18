@@ -1,0 +1,46 @@
+{
+  "validated_at_utc": "2026-10-12T01:46:42.513942+00:00",
+  "commit": "730f5474bb37722941b6d280fd9acec30de22cc9",
+  "branch": "codex/dynamic-workflows-completion",
+  "runtime": {
+    "python": "3.13.15",
+    "pytest": "pytest 9.1.1"
+  },
+  "command": "TMPDIR=/<local-path-redacted> .venv/bin/pytest -q --ignore=tests/e2e --basetemp=/<local-path-redacted>",
+  "result": {
+    "passed": 2188,
+    "failed": 2,
+    "duration_seconds": 613.4
+  },
+  "failures": [
+    {
+      "test": "tests/test_model_switcher.py::test_connection_models_known_from_bots_appear_with_their_state",
+      "classification": "previously reproduced baseline failure; OpenCode model list returns unavailable note"
+    },
+    {
+      "test": "tests/test_offline_mode.py::test_loopback_broker_refuses_a_request_after_close_starts",
+      "classification": "previously reproduced environment failure; AF_UNIX socket path exceeds platform limit under long temp path"
+    }
+  ],
+  "comparison": {
+    "prior_evidence": "docs/realignment/artifacts/dynamic-workflows/offline-suite-2026-10-11/results.json",
+    "prior_result": "2186 passed, 2 failed",
+    "same_two_failure_names": true,
+    "added_passing_regressions": [
+      "tests/test_store_events.py::test_repeated_storage_failures_back_off_without_acknowledging_events",
+      "tests/test_store_events.py::test_sqlite_full_event_write_is_retained_until_capacity_returns"
+    ]
+  },
+  "limits": [
+    "The E2E/browser suite was excluded. This suite does not close the two recorded baseline/environment failures.",
+    "The retained pytest output has trailing whitespace removed from display-only traceback lines; test names, assertions, counts and failure details are unchanged."
+  ],
+  "sha256": {
+    "src/hutch/store.py": "f429c09b3650c1c4485dbec7c05a02c2a24a733147b5b4f594e67bf2b9fbd2fc",
+    "tests/test_store_events.py": "53a2e646b55f710942a02122826d4c850f1bac34de6e4ebabf18ef7dbcd32100",
+    "tests/test_workflow_engine.py": "5208463859df17b31ce895411184d2ce3d149af509e012609a7813a7d7e1a536",
+    "docs/realignment/dynamic-workflows.md": "af4d30aae94c881673c4138be650c57af88206fc44b8330af6c5b5d30b3cc3e9",
+    "CHANGELOG.md": "31540126deff12b24bfa336bad9e157b7b672aac6c086fb52c0eb8c380eb8b16",
+    "pytest-output.txt": "3e1a07246158469a767a1b3d8a0ee180a182d3d0642a35e55a6d17daf6494ec6"
+  }
+}

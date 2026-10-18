@@ -128,7 +128,35 @@ def runtime(**kw):
 
 
 def run_it(rt, run, ctx, tools, stop=lambda: False):
-    return rt.execute(run, ctx, tools, stop)
+    # Provider dispatch is fenced to a claimed running owner. Most runtime tests use
+    # this helper instead of exercising the scheduler, so give their disposable run
+    # the same lease the real engine would establish before invoking the runtime.
+    current = ctx.store.get_run(run.id)
+    if current is not None and current.status is RunStatus.pending:
+        claimed = ctx.store.claim_run(run.id, f"runtime-test-{run.id}", 120)
+        assert claimed is not None
+        current = ctx.store.transition_run(run.id, RunStatus.running, fence=claimed.fence)
+    if current is not None:
+        for name in ("status", "fence", "lease_owner", "lease_expires_at"):
+            setattr(run, name, getattr(current, name))
+        ctx.run = ctx.gate.run = run
+    try:
+        result = rt.execute(run, ctx, tools, stop)
+        latest = ctx.store.get_run(run.id)
+        if latest is not None and latest.status is RunStatus.running:
+            ctx.store.transition_run(run.id, RunStatus.succeeded, fence=run.fence)
+        return result
+    except RunAborted as exc:
+        latest = ctx.store.get_run(run.id)
+        if latest is not None and latest.status is RunStatus.running:
+            terminal = RunStatus.stopped if exc.reason == "stopped" else RunStatus.failed
+            ctx.store.transition_run(run.id, terminal, fence=run.fence, exit_reason=exc.reason, error=exc.detail)
+        raise
+    finally:
+        latest = ctx.store.get_run(run.id)
+        if latest is not None:
+            for name in Run.model_fields:
+                setattr(run, name, getattr(latest, name))
 
 
 def kinds(emitted, kind):
@@ -146,6 +174,140 @@ def test_identical_calls_in_one_response_get_distinct_invocation_indices(store, 
     ])
     run_it(runtime(), run, ctx, tools)
     assert seen == [0, 1]
+
+
+def test_qualified_selector_uses_the_existing_chat_turn_and_persists_a_suggestion(
+        store, config, tmp_path, ollama, monkeypatch):
+    from hutch.workflow import persistence as wstore
+
+    monkeypatch.setenv("OLLAMA_HOST", ollama.url)
+    assistant = Bot(name="selector-chat", model="ollama/fake:8b", tools=["files"], selfcheck=False,
+                    workflow_mode="suggest")
+    store.create_bot(assistant)
+    conversation, _ = store.create_conversation(
+        assistant.id, "Selector chat", idem_key="selector-chat-conversation", request_hash="selector-v1")
+    run = Run(bot_id=assistant.id, prompt="Review these independent projects and verify each result",
+              origin="manual:api", conversation_id=conversation["id"])
+    store.create_run(run)
+    workspace = tmp_path / "selector-workspace"
+    workspace.mkdir()
+    emitted = []
+
+    def emit(event):
+        emitted.append(event)
+        store.append_event(event)
+
+    gate = ApprovalGate(store, assistant, run, PolicyEngine(), emit, poll_seconds=0.05)
+    ctx = ToolContext(bot=assistant, run=run, store=store, policy=gate.policy, gate=gate,
+                      config=config, workspace=workspace, emit=emit)
+    tools = build_tools(assistant.tools, ctx)
+    plan = {
+        "name": "weekly-scan", "inputs": {"root": {"type": "string", "default": "."}},
+        "envelope": {"tools": ["list_files"]},
+        "budget": {"max_nodes": 4, "max_model_calls": 0, "max_fanout": 1},
+        "nodes": [{"kind": "tool", "id": "scan", "tool": "list_files",
+                   "args": {"path": {"ref": "input.root"}}}],
+    }
+    wstore.save_definition(store, name="weekly-scan", plan=plan, source="operator", activate=True)
+    monkeypatch.setattr("hutch.workflow.qualify.assess", lambda *a, **kw: __import__(
+        "types").SimpleNamespace(allowed=True))
+    ollama.script = agent_script([
+        {"tool_calls": [{"name": "recommend_workflow", "arguments": {
+            "signals": {"repeatable_procedure": True, "known_inputs": True},
+            "workflow": "weekly-scan"}}]},
+        {"content": "I can use the reviewed weekly scan method; it is ready for your review."},
+    ])
+
+    run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools)
+
+    sent = ollama.of("/api/chat")
+    assert len(sent) == 2  # the recommendation is part of the normal tool loop, not a classifier call
+    offered = {entry["function"]["name"] for entry in sent[0]["body"]["tools"]}
+    assert "recommend_workflow" in offered
+    result = next(event for event in emitted if event.type is EventType.tool_result
+                  and event.data.get("tool") == "recommend_workflow")
+    assert result.data["workflow_recommendation"]["status"] == "suggested"
+    assert wstore.list_workflow_runs(store, bot_id=assistant.id) == []
+
+
+def test_qualified_auto_selector_starts_saved_workflow_in_the_same_chat_turn(
+        store, config, tmp_path, ollama, monkeypatch):
+    from hutch.workflow import persistence as wstore
+
+    monkeypatch.setenv("OLLAMA_HOST", ollama.url)
+    assistant = Bot(name="selector-auto-chat", model="ollama/fake:8b", tools=["files"], selfcheck=False,
+                    workflow_mode="auto", workflow_limits={
+                        "definitions": ["weekly-scan"], "max_nodes": 10, "max_model_calls": 1,
+                        "max_tokens": 64_000, "max_wall_seconds": 900, "max_fanout": 8,
+                    })
+    store.create_bot(assistant)
+    conversation, _ = store.create_conversation(
+        assistant.id, "Selector Auto", idem_key="selector-auto-conversation", request_hash="selector-auto-v1")
+    run = Run(bot_id=assistant.id, prompt="Review these projects using the weekly scan",
+              origin="manual:api", conversation_id=conversation["id"])
+    store.create_run(run)
+    workspace = tmp_path / "selector-auto-workspace"
+    workspace.mkdir()
+    emitted = []
+
+    def emit(event):
+        emitted.append(event)
+        store.append_event(event)
+
+    gate = ApprovalGate(store, assistant, run, PolicyEngine(), emit, poll_seconds=0.05)
+    ctx = ToolContext(bot=assistant, run=run, store=store, policy=gate.policy, gate=gate,
+                      config=config, workspace=workspace, emit=emit)
+    tools = build_tools(assistant.tools, ctx)
+    plan = {
+        "name": "weekly-scan", "inputs": {"root": {"type": "string", "default": "."}},
+        "envelope": {"tools": ["list_files"]},
+        "budget": {"max_nodes": 4, "max_model_calls": 0, "max_fanout": 1},
+        "nodes": [{"kind": "tool", "id": "scan", "tool": "list_files",
+                   "args": {"path": {"ref": "input.root"}}}],
+    }
+    wstore.save_definition(store, name="weekly-scan", plan=plan, source="operator", activate=True)
+    monkeypatch.setattr("hutch.workflow.qualify.assess", lambda *a, **kw: __import__(
+        "types").SimpleNamespace(allowed=True))
+    ollama.script = agent_script([
+        {"tool_calls": [{"name": "recommend_workflow", "arguments": {
+            "signals": {"repeatable_procedure": True, "known_inputs": True},
+            "workflow": "weekly-scan", "inputs": {"root": "."}}}]},
+        {"content": "Started the reviewed weekly scan inside the configured Auto scope."},
+    ])
+
+    run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools)
+
+    sent = ollama.of("/api/chat")
+    assert len(sent) == 2  # Auto uses the ordinary model/tool turn, without a classifier request
+    started = [event for event in emitted if event.type is EventType.tool_result
+               and event.data.get("tool") == "recommend_workflow"]
+    assert len(started) == 1
+    assert started[0].data["workflow_recommendation"]["status"] == "started"
+    runs = wstore.list_workflow_runs(store, bot_id=assistant.id)
+    assert len(runs) == 1
+    assert runs[0]["conversation_id"] == conversation["id"]
+    assert runs[0]["origin"] == "workflow_auto"
+
+
+def test_unqualified_chat_model_does_not_receive_workflow_selector_tool(
+        store, config, tmp_path, ollama, monkeypatch):
+    monkeypatch.setenv("OLLAMA_HOST", ollama.url)
+    ctx, run, emitted, tools = build(store, config, tmp_path, conversation_id="local-chat")
+    conversation, _ = store.create_conversation(
+        ctx.bot.id, "Local chat", idem_key="unqualified-selector-chat", request_hash="selector-v1")
+    run.conversation_id = conversation["id"]
+    current = store.get_run(run.id)
+    current.conversation_id = conversation["id"]
+    store.update_run(current)
+    run.conversation_id = conversation["id"]
+    ollama.script = agent_script([{"content": "I will handle this directly."}])
+
+    run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools)
+
+    offered = {entry["function"]["name"] for entry in ollama.of("/api/chat")[0]["body"]["tools"]}
+    assert "recommend_workflow" not in offered
+    assert any(event.type is EventType.log and event.data.get("kind") == "workflow_routing"
+               and event.data.get("role") == "selector" for event in emitted)
 
 
 def test_valid_tool_response_records_passive_model_route_capability(store, config, tmp_path, ollama, monkeypatch):
@@ -629,6 +791,43 @@ def test_provider_calls_without_ids_get_unique_ids_and_correlated_results(store,
                 assert tc["id"] in pending, "every assistant call must be followed by its own result"
                 all_ids.append(tc["id"])
     assert len(set(all_ids)) == 2 and len(all_ids) == 3
+
+
+def test_openai_streamed_tool_result_is_consumed_and_repeated_call_stops(store, config, tmp_path, oai):
+    """The native protocol must replay results by id and refuse an endless identical call."""
+    oai.script = lambda _body: {"tool_calls": [{"name": "probe", "arguments": {}}]}
+    ctx, run, emitted, tools = build(store, config, tmp_path, model="openai/gpt-4o-mini")
+    seen: list[int] = []
+    tools["probe"] = _RecordingProbe(seen)
+
+    with pytest.raises(RunAborted) as error:
+        run_it(runtime(provider_factory=factory(oai=oai)), run, ctx, tools)
+
+    assert error.value.reason == "loop"
+    assert seen == [0, 0], "the third identical call and later repeats must not execute"
+    successful = [e for e in emitted if e.type is EventType.tool_result
+                  and e.data.get("tool") == "probe" and e.data.get("ok")]
+    blocked = [e for e in emitted if e.type is EventType.tool_result
+               and e.data.get("tool") == "probe" and not e.data.get("ok")]
+    assert len(successful) == 2 and len(blocked) >= 2
+    assert all("NOT run again" in str(event.data.get("output", "")) for event in blocked)
+
+    requests = oai.of("/v1/chat/completions")
+    assert len(requests) == 4
+    assert all(request["body"].get("stream") is True for request in requests)
+    for request in requests[1:]:
+        messages = request["body"]["messages"]
+        assistant_calls = [call for message in messages if message.get("role") == "assistant"
+                           for call in message.get("tool_calls") or []]
+        results = {message.get("tool_call_id"): message.get("content")
+                   for message in messages if message.get("role") == "tool"}
+        assert assistant_calls
+        for call in assistant_calls:
+            assert call.get("id") and call["id"] in results
+        assert "probe ran" in results.values()
+    final_messages = requests[-1]["body"]["messages"]
+    assert any("NOT run again" in str(message.get("content", "")) for message in final_messages
+               if message.get("role") == "tool")
 
 
 def test_constrained_mode_runs_the_same_canonical_tools_over_the_action_contract(store, config, tmp_path, ollama):

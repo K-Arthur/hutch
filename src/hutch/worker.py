@@ -56,7 +56,21 @@ def main(argv: list[str] | None = None) -> int:
             engine = Engine(config, store, owner_id=args.owner, light=True)
             engine._finish_unstarted(run)
             return EXIT_MISSING
-        if run.parent_run_id is not None:
+        kind = store.run_kind(run.id)
+        if kind == "step":
+            # A workflow step is *not* a delegated child: its frozen contract (tools, skills,
+            # limits, model) is the authority, and it is re-checked against the Bot here.
+            engine = Engine(config, store, owner_id=args.owner, light=True)
+            try:
+                bot = Engine._step_bot(bot, run)
+            except ValueError as exc:
+                engine._fail_unavailable_child_executor(run, str(exc))
+                latest = store.get_run(run.id)
+                if latest is None or latest.status not in LIVE:
+                    return EXIT_OK
+                print(f"hutch.worker: {args.run_id} could not enforce its step contract: {exc}", file=sys.stderr)
+                return EXIT_NOT_OURS
+        elif run.parent_run_id is not None:
             engine = Engine(config, store, owner_id=args.owner, light=True)
             snapshot = store.run_capability_snapshot(run.id)
             try:
@@ -73,7 +87,7 @@ def main(argv: list[str] | None = None) -> int:
         elif run.model_override:
             bot = bot.model_copy(update={"model": run.model_override})
 
-        engine = engine if run.parent_run_id is not None else Engine(config, store, owner_id=args.owner, light=True)
+        engine = engine if (kind == "step" or run.parent_run_id is not None) else Engine(config, store, owner_id=args.owner, light=True)
         try:
             store.set_pgid(run.id, run.fence, os.getpgrp())
         except LeaseLost:
@@ -94,11 +108,30 @@ def main(argv: list[str] | None = None) -> int:
         signal_worker.start()
         if run.parent_run_id is not None:
             def watch_parent() -> None:
-                # A child must not outlive the parent worker that is awaiting it. This
-                # also covers a hard parent crash, where no in-process cancel hook runs.
-                while not signal_finished.wait(0.25):
+                # A child must not outlive the parent worker that is awaiting it. A
+                # workflow parent deliberately parks while its step runs, so that
+                # matching, current workflow step remains authorized during that wait.
+                def parent_authorized() -> bool:
                     parent = store.get_run(run.parent_run_id)
-                    if (parent is None or parent.status is not RunStatus.running or parent.cancel_requested):
+                    if parent is None or parent.cancel_requested:
+                        return False
+                    if parent.status is RunStatus.running:
+                        return True
+                    if (kind != "step" and parent.status is RunStatus.waiting_child
+                            and store.child_wait_authorizes(parent.id, run.id)):
+                        return True
+                    if (kind != "step" or parent.status is not RunStatus.waiting_workflow
+                            or not run.workflow_run_id or parent.workflow_run_id != run.workflow_run_id):
+                        return False
+                    from .workflow.persistence import workflow_run
+
+                    workflow = workflow_run(store, run.workflow_run_id)
+                    return bool(workflow and workflow["status"] == "waiting"
+                                and workflow["attempt_run_id"] == parent.id
+                                and not workflow["stop_requested"])
+
+                while not signal_finished.wait(0.25):
+                    if not parent_authorized():
                         engine.stop_run(run.id)
                         return
 

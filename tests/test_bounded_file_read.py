@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from hutch.models import ApprovalMode, Bot, Run
@@ -48,6 +49,17 @@ def test_read_file_tool_bounds_capture(tmp_path, store, config):
     assert result.data["retained_chars"] == MAX_TOOL_OUTPUT
 
 
+def test_read_file_tool_marks_a_complete_capture_explicitly(tmp_path, store, config):
+    ctx = _ctx(tmp_path, store, config)
+    (ctx.workspace / "source.md").write_text("small complete source")
+
+    result = FilesReadTool().run({"path": "source.md"}, ctx)
+
+    assert result.ok
+    assert result.output == "small complete source"
+    assert result.data["truncated"] is False
+
+
 def test_list_files_stops_when_budget_exhausted(tmp_path, store, config, monkeypatch):
     import hutch.tools.files as files_mod
     monkeypatch.setattr(files_mod, "MAX_TOOL_OUTPUT", 400)
@@ -59,3 +71,40 @@ def test_list_files_stops_when_budget_exhausted(tmp_path, store, config, monkeyp
     assert result.ok
     assert result.data.get("truncated") is True
     assert result.data["count"] < 50
+    assert result.data["paths_complete"] is False
+    assert len(result.data["entries"]) == len(result.data["paths"])
+
+
+def test_list_files_exposes_stable_bounded_paths_and_marks_metadata_omissions(
+        tmp_path, store, config, monkeypatch):
+    import hutch.tools.files as files_mod
+
+    monkeypatch.setattr(files_mod, "_MAX_DISCOVERY_PATHS", 2)
+    ctx = _ctx(tmp_path, store, config)
+    for name in ("a.md", "b.md", "c.md"):
+        (ctx.workspace / name).write_text(f"source {name}")
+
+    result = FilesListTool().run({}, ctx)
+
+    assert result.ok
+    assert result.data["paths"] == ["a.md", "b.md"]
+    assert result.data["entries"] == [{"path": "a.md"}, {"path": "b.md"}]
+    assert result.data["listed_entries"] == 3
+    assert result.data["paths_complete"] is False
+
+
+def test_list_files_bounds_structured_discovery_without_truncating_its_text_listing(
+        tmp_path, store, config):
+    ctx = _ctx(tmp_path, store, config)
+    for index in range(512):
+        (ctx.workspace / f"{index:04d}.md").write_text("source")
+
+    result = FilesListTool().run({}, ctx)
+
+    assert result.ok
+    assert result.data["count"] == 512
+    assert result.data["listed_entries"] == 512
+    assert len(result.data["paths"]) < 512
+    assert result.data["paths_complete"] is False
+    assert len(json.dumps(result.data, ensure_ascii=False).encode("utf-8")) < 16_000
+    assert result.output.count(".md") == 512

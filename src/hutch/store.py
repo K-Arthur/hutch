@@ -8,8 +8,9 @@ verifies/appends/fsyncs JSONL files and acknowledges delivery separately;
 resource invalidations provide reconnectable state and visible mirror errors.
 
 Events carry a gap-free per-run ``seq`` (the resume cursor for SSE, UI-3) and a
-hash-chain link (SR-11). The schema is versioned with ``PRAGMA user_version``;
-upgrades back the database up first.
+hash-chain link (SR-11). Accepted asynchronous events are first written to a
+durable outbox, then group-committed to the canonical chain. The schema is
+versioned with ``PRAGMA user_version``; upgrades back the database up first.
 """
 
 from __future__ import annotations
@@ -2031,6 +2032,174 @@ def _migrate_62(db: sqlite3.Connection) -> None:
                    "WHERE json_extract(doc, '$.compaction') = 'auto'")
 
 
+def _migrate_63(db: sqlite3.Connection) -> None:
+    """Role-specific workflow qualification evidence, bound to one exact route revision.
+
+    A record is a *decision with a reason*, not a preference: it says a role was probed,
+    limited by an operator, or found unsupported for one provider/model/route revision.
+    Changing the connection, endpoint, template, quantization or backend changes the route
+    revision, so old records simply stop matching instead of silently applying.
+    """
+    db.execute("""CREATE TABLE IF NOT EXISTS workflow_role_qualifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        provider TEXT NOT NULL,
+        model TEXT NOT NULL,
+        route_revision TEXT NOT NULL CHECK(length(route_revision) = 64),
+        role TEXT NOT NULL CHECK(role IN ('selector','author','worker','verifier')),
+        state TEXT NOT NULL CHECK(state IN ('probed','limited','unsupported','stale')),
+        scope TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(scope)),
+        evidence TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(evidence)),
+        reason TEXT NOT NULL DEFAULT '',
+        source TEXT NOT NULL CHECK(source IN ('probe','operator','runtime')),
+        tested_at TEXT NOT NULL,
+        UNIQUE(provider, model, route_revision, role)
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_workflow_role_qualifications_route "
+               "ON workflow_role_qualifications(provider, model, route_revision)")
+
+def _migrate_64(db: sqlite3.Connection) -> None:
+    """Reconcile both historical v51/v52 workflow schema variants, then install workflow state.
+
+    One branch used v51 for role qualifications and v52 for workflow state; another
+    independently used v51 for delegation-question guards. Re-applying these idempotent
+    physical-schema checks makes upgrades from either history converge on the same schema.
+    """
+    _migrate_51(db)
+    _migrate_63(db)
+    from .workflow import persistence
+    persistence.migrate(db)
+
+def _migrate_65(db: sqlite3.Connection) -> None:
+    """Bind workflow questions to their revision/attempt and make effect receipts reusable by stable identity."""
+    action_receipts.migrate_workflow_identity(db)
+
+def _migrate_66(db: sqlite3.Connection) -> None:
+    """Bind usage reservations to workflow roots for crash-safe request/token budgets."""
+    from .workflow import persistence
+    persistence.migrate_usage_reservations(db)
+
+def _migrate_67(db: sqlite3.Connection) -> None:
+    """Bind probed role evidence to an exact execution profile and retain bounded probe ledgers."""
+    columns = {str(row[1]) for row in db.execute("PRAGMA table_info(workflow_role_qualifications)")}
+    if "execution_profile_hash" not in columns:
+        db.execute("ALTER TABLE workflow_role_qualifications ADD COLUMN execution_profile_hash TEXT NOT NULL DEFAULT ''")
+    db.execute("""CREATE TABLE IF NOT EXISTS workflow_probe_campaigns (
+        campaign_id TEXT PRIMARY KEY,
+        created_at TEXT NOT NULL,
+        deadline_at TEXT NOT NULL,
+        request_cap INTEGER NOT NULL CHECK(request_cap BETWEEN 1 AND 80),
+        token_cap INTEGER NOT NULL CHECK(token_cap BETWEEN 1 AND 60000),
+        requests_started INTEGER NOT NULL DEFAULT 0 CHECK(requests_started >= 0),
+        tokens_accounted INTEGER NOT NULL DEFAULT 0 CHECK(tokens_accounted >= 0),
+        state TEXT NOT NULL CHECK(state IN ('active','expired','exhausted','complete')),
+        metadata TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(metadata))
+    )""")
+    db.execute("""CREATE TABLE IF NOT EXISTS workflow_probe_runs (
+        id TEXT PRIMARY KEY,
+        campaign_id TEXT NOT NULL REFERENCES workflow_probe_campaigns(campaign_id),
+        provider TEXT NOT NULL,
+        model TEXT NOT NULL,
+        route_revision TEXT NOT NULL CHECK(length(route_revision) = 64),
+        execution_profile_hash TEXT NOT NULL CHECK(length(execution_profile_hash) = 64),
+        role TEXT NOT NULL CHECK(role IN ('author','selector')),
+        status TEXT NOT NULL CHECK(status IN ('running','passed','failed','inconclusive')),
+        idempotency_scope TEXT NOT NULL DEFAULT '',
+        idempotency_key TEXT NOT NULL DEFAULT '',
+        request_hash TEXT NOT NULL DEFAULT '',
+        scope TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(scope)),
+        evidence TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(evidence)),
+        started_at TEXT NOT NULL,
+        finished_at TEXT
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_workflow_probe_runs_profile "
+               "ON workflow_probe_runs(provider, model, route_revision, execution_profile_hash, role)")
+    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_workflow_probe_runs_idempotency "
+               "ON workflow_probe_runs(idempotency_scope, idempotency_key) WHERE idempotency_key <> ''")
+    db.execute("""CREATE TABLE IF NOT EXISTS workflow_probe_requests (
+        id TEXT PRIMARY KEY,
+        probe_run_id TEXT NOT NULL REFERENCES workflow_probe_runs(id),
+        campaign_id TEXT NOT NULL REFERENCES workflow_probe_campaigns(campaign_id),
+        provider TEXT NOT NULL,
+        model TEXT NOT NULL,
+        route_revision TEXT NOT NULL,
+        execution_profile_hash TEXT NOT NULL,
+        role TEXT NOT NULL,
+        case_id TEXT NOT NULL,
+        dimension TEXT NOT NULL CHECK(dimension IN ('structure','semantic','abstention','authority')),
+        state TEXT NOT NULL CHECK(state IN ('started','settled','uncertain')),
+        outcome TEXT NOT NULL DEFAULT 'inconclusive' CHECK(outcome IN ('passed','failed','inconclusive')),
+        reserved_tokens INTEGER NOT NULL CHECK(reserved_tokens > 0),
+        reported_tokens INTEGER NOT NULL DEFAULT 0 CHECK(reported_tokens >= 0),
+        prompt_digest TEXT NOT NULL,
+        response_digest TEXT NOT NULL DEFAULT '',
+        reason TEXT NOT NULL DEFAULT '',
+        started_at TEXT NOT NULL,
+        settled_at TEXT,
+        UNIQUE(campaign_id, provider, model, route_revision, execution_profile_hash, role, case_id)
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_workflow_probe_requests_run "
+               "ON workflow_probe_requests(probe_run_id, dimension)")
+
+def _migrate_68(db: sqlite3.Connection) -> None:
+    """Preserve old Bot routing while adding revisioned conversation overrides."""
+    # Pydantic's new-Bot default is Suggest. Preserve the historical Off behavior for
+    # already-saved records that predate the field; explicit values (including Off) win.
+    if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='bots'").fetchone():
+        db.execute("""UPDATE bots SET doc = json_set(doc, '$.workflow_mode', 'off')
+                      WHERE json_valid(doc) AND json_type(doc, '$.workflow_mode') IS NULL""")
+    db.execute("""CREATE TABLE IF NOT EXISTS conversation_workflow_policies (
+        conversation_id TEXT PRIMARY KEY REFERENCES conversations(id) ON DELETE CASCADE,
+        mode TEXT NOT NULL CHECK(mode IN ('inherit','off','suggest','auto')),
+        revision INTEGER NOT NULL CHECK(revision >= 1),
+        updated_at TEXT NOT NULL
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_conversation_workflow_policy_updated "
+               "ON conversation_workflow_policies(updated_at)")
+
+def _migrate_69(db: sqlite3.Connection) -> None:
+    """Retain immutable workflow run snapshots when a parked run adopts a new revision."""
+    from .workflow import persistence
+    persistence.migrate_amendment_history(db)
+
+def _migrate_70(db: sqlite3.Connection) -> None:
+    """Persist owner pause requests for parked dynamic workflow instances."""
+    from .workflow import persistence
+    persistence.migrate_workflow_pause(db)
+
+def _migrate_71(db: sqlite3.Connection) -> None:
+    """Add a durable, idempotent outbox for events waiting on canonical commit."""
+    if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='events'").fetchone():
+        columns = {str(row[1]) for row in db.execute("PRAGMA table_info(events)")}
+        if "event_key" not in columns:
+            db.execute("ALTER TABLE events ADD COLUMN event_key TEXT")
+    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_events_event_key "
+               "ON events(event_key) WHERE event_key IS NOT NULL")
+    db.execute("""CREATE TABLE IF NOT EXISTS event_outbox (
+        outbox_seq INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_key TEXT NOT NULL UNIQUE,
+        run_id TEXT NOT NULL,
+        ts TEXT NOT NULL,
+        type TEXT NOT NULL,
+        data TEXT NOT NULL,
+        owner_fence INTEGER
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_event_outbox_run_seq ON event_outbox(run_id, outbox_seq)")
+
+def _migrate_72(db: sqlite3.Connection) -> None:
+    """Persist restartable delegated-parent waits without keeping a worker lease alive."""
+    db.execute("""CREATE TABLE IF NOT EXISTS delegated_wait_continuations (
+        run_id TEXT PRIMARY KEY REFERENCES runs(id) ON DELETE CASCADE,
+        child_run_id TEXT NOT NULL REFERENCES runs(id),
+        owner_fence INTEGER NOT NULL CHECK(owner_fence >= 0),
+        state TEXT NOT NULL CHECK(state IN ('waiting','ready','resuming','cancelled','complete')),
+        cancel_reason TEXT NOT NULL DEFAULT '' CHECK(cancel_reason IN ('','stopped','timeout')),
+        payload TEXT NOT NULL CHECK(json_valid(payload)),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_delegated_wait_child_state "
+               "ON delegated_wait_continuations(child_run_id, state)")
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -2039,8 +2208,9 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
                _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53, _migrate_54,
-               _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59, _migrate_60, _migrate_61, _migrate_62]
+               _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59, _migrate_60, _migrate_61, _migrate_62, _migrate_63, _migrate_64, _migrate_65, _migrate_66, _migrate_67, _migrate_68, _migrate_69, _migrate_70, _migrate_71, _migrate_72]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
+EVENT_OUTBOX_SCHEMA_VERSION = 71
 
 #: computed fields of ``Run`` are for API output only and are never persisted
 _RUN_COMPUTED = {"status_label", "terminal", "needs_person"}
@@ -2048,13 +2218,19 @@ _RUN_COMPUTED = {"status_label", "terminal", "needs_person"}
 _RUN_COLS = ("doc, status, fence, lease_owner, lease_expires_at, cancel_requested, pgid, conversation_id, "
              "conversation_context, parent_run_id, delegation_budget_cost_usd, capability_snapshot_json")
 _TERMINAL_VALUES = tuple(sorted(st.value for st in TERMINAL))
-_LIVE_VALUES = tuple(sorted(st.value for st in ACTIVE_STATUSES if st is not RunStatus.pending))
+_LIVE_VALUES = tuple(sorted(st.value for st in ACTIVE_STATUSES
+                            if st not in (RunStatus.pending, RunStatus.waiting_workflow, RunStatus.waiting_child)))
+_PEER_LIVE_VALUES = tuple(sorted(st.value for st in ACTIVE_STATUSES
+                                 if st not in (RunStatus.pending, RunStatus.waiting_workflow)))
 #: fields only the owner writes while a run is claimed: merged into the document in one statement (no read-modify-write)
 _PROGRESS_FIELDS = {"steps", "tokens", "workspace", "started_at", "prompt_tokens", "completion_tokens", "cached_tokens",
                     "cost_usd", "model_ms", "queue_ms", "tool_ms", "overhead_ms", "context_used", "context_limit", "model_used",
                     "owner", "missed_windows", "reason", "verified", "task_id"}
 
 EVENT_BATCH_MAX = 256
+EVENT_PENDING_MAX = 10_000
+EVENT_RETRY_BASE_SECONDS = 0.05
+EVENT_RETRY_MAX_SECONDS = 2.0
 MAX_WORKSPACE_TASK_FACTS = 8
 MAX_WORKSPACE_TASK_FACT_CHARS = 6_000
 MAX_AUTH_CHALLENGES_PER_FLOW = 16
@@ -2198,8 +2374,11 @@ class Store:
                 raise
         # ---- batched event writer (one writer thread, group commit)
         self._buf_cv = threading.Condition()
-        self._pending: list[Event] = []
-        self._enqueued = 0
+        self._pending: list[Event] = self._restore_event_outbox() if not maintenance else []
+        # Recovered outbox records were accepted by an earlier process but never
+        # acknowledged by a canonical event commit. Include them in this instance's
+        # flush boundary so readers wait for their recovery too.
+        self._enqueued = len(self._pending)
         self._committed = 0
         self._run_status: dict[str, str] = {}
         #: optional per-run observers; recoverable file delivery has its own queue
@@ -2337,7 +2516,7 @@ class Store:
                 raise ValueError('restored database integrity failed; preserve and inspect the copy')
             validate_history(self)
             if db.execute("SELECT 1 FROM runs WHERE status IN ('pending','running','loading_model','waiting_approval',"
-                          "'waiting_human','waiting_resources','recovering','cancelling') LIMIT 1").fetchone():
+                          "'waiting_human','waiting_resources','waiting_workflow','waiting_child','recovering','cancelling') LIMIT 1").fetchone():
                 raise ValueError('unexpected runnable work appeared during restore review; preserve and inspect the copy')
             db.execute('UPDATE state_restores SET activated_at = ?, activation_evidence = ? WHERE id = ? AND activated_at IS NULL',
                        (iso(utcnow()), evidence, restore_id))
@@ -3565,34 +3744,67 @@ class Store:
     def put_schedule(self, bot_id: str, schedule: Schedule) -> Bot | None:
         """Create or replace one recurring task atomically without overwriting sibling streams."""
         with self._tx() as db:
-            row = db.execute("SELECT doc FROM bots WHERE id = ?", (bot_id,)).fetchone()
-            if row is None:
-                return None
-            bot = Bot.from_store_json(row["doc"])
-            schedules = list(bot.schedules or ([bot.schedule] if bot.schedule else []))
-            index = next((i for i, current in enumerate(schedules) if current.id == schedule.id), None)
-            if index is None:
-                identity = db.execute("SELECT bot_id, removed_at FROM schedule_identities WHERE schedule_id = ?",
-                                      (schedule.id,)).fetchone()
-                if identity:
-                    raise ValueError("a removed or previously used scheduled task ID cannot be reused")
+            bot = self._put_schedule_in_transaction(db, bot_id, schedule)
+        if bot is None:
+            return None
+        self.bus.notify("work", "bots")
+        return bot
+
+    def put_schedule_idempotent(self, bot_id: str, schedule: Schedule, *, idem_key: str,
+                                request_hash: str) -> tuple[Bot | None, bool]:
+        """Atomically save a linked routine and its retry receipt.
+
+        The stored Bot snapshot makes a retry stable even if the routine or saved workflow is
+        edited after the original command completed.
+        """
+        if not idem_key or not request_hash:
+            raise ValueError("schedule mutation requires an idempotency key and request hash")
+        scope = f"api:v1:schedules:{bot_id}:{schedule.id}"
+        now = iso(utcnow())
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                bot = Bot.model_validate_json(str(replay["bot_json"]))
+                return bot, False
+            bot = self._put_schedule_in_transaction(db, bot_id, schedule)
+            if bot is None:
+                return None, False
+            db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) "
+                       "VALUES (?, ?, ?, ?, ?)",
+                       (scope, idem_key, request_hash, _canonical({"bot_json": bot.model_dump_json()}), now))
+        self.bus.notify("work", "bots")
+        return bot, True
+
+    @staticmethod
+    def _put_schedule_in_transaction(db: sqlite3.Connection, bot_id: str,
+                                     schedule: Schedule) -> Bot | None:
+        row = db.execute("SELECT doc FROM bots WHERE id = ?", (bot_id,)).fetchone()
+        if row is None:
+            return None
+        bot = Bot.from_store_json(row["doc"])
+        schedules = list(bot.schedules or ([bot.schedule] if bot.schedule else []))
+        index = next((i for i, current in enumerate(schedules) if current.id == schedule.id), None)
+        if index is None:
+            identity = db.execute("SELECT bot_id, removed_at FROM schedule_identities WHERE schedule_id = ?",
+                                  (schedule.id,)).fetchone()
+            if identity:
+                raise ValueError("a removed or previously used scheduled task ID cannot be reused")
+            db.execute("INSERT INTO schedule_identities (schedule_id, bot_id, created_at) VALUES (?, ?, ?)",
+                       (schedule.id, bot_id, schedule.created_at))
+            schedules.append(schedule)
+        else:
+            schedule = schedule.model_copy(update={"created_at": schedules[index].created_at})
+            schedules[index] = schedule
+            identity = db.execute("SELECT bot_id, removed_at FROM schedule_identities WHERE schedule_id = ?",
+                                  (schedule.id,)).fetchone()
+            if identity and (identity["bot_id"] != bot_id or identity["removed_at"]):
+                raise ValueError("scheduled task identity does not belong to this active bot task")
+            if not identity:
                 db.execute("INSERT INTO schedule_identities (schedule_id, bot_id, created_at) VALUES (?, ?, ?)",
                            (schedule.id, bot_id, schedule.created_at))
-                schedules.append(schedule)
-            else:
-                schedule = schedule.model_copy(update={"created_at": schedules[index].created_at})
-                schedules[index] = schedule
-                identity = db.execute("SELECT bot_id, removed_at FROM schedule_identities WHERE schedule_id = ?",
-                                      (schedule.id,)).fetchone()
-                if identity and (identity["bot_id"] != bot_id or identity["removed_at"]):
-                    raise ValueError("scheduled task identity does not belong to this active bot task")
-                if not identity:
-                    db.execute("INSERT INTO schedule_identities (schedule_id, bot_id, created_at) VALUES (?, ?, ?)",
-                               (schedule.id, bot_id, schedule.created_at))
-            bot.set_schedules(schedules)
-            db.execute("UPDATE bots SET name = ?, doc = ? WHERE id = ?",
-                       (bot.name, bot.store_json(), bot_id))
-        self.bus.notify("work", "bots")
+        bot.set_schedules(schedules)
+        db.execute("UPDATE bots SET name = ?, doc = ? WHERE id = ?",
+                   (bot.name, bot.model_dump_json(), bot_id))
         return bot
 
     def list_schedule_occurrences(self, schedule_id: str, *, limit: int = 50,
@@ -3897,7 +4109,7 @@ class Store:
 
             parent = db.execute("SELECT id, bot_id, status, fence, lease_owner, lease_expires_at, cancel_requested, "
                                 "conversation_id, conversation_context, parent_run_id, delegation_budget_cost_usd, "
-                                "capability_snapshot_json "
+                                "capability_snapshot_json, doc "
                                 "FROM runs WHERE id = ?",
                                 (parent_run_id,)).fetchone()
             if parent is None:
@@ -3944,6 +4156,26 @@ class Store:
             run.delegation_budget_cost_usd = delegated_budget
             run.origin = "delegated"
             run.task_id = task.id
+            try:
+                parent_doc = json.loads(str(parent["doc"]))
+            except (TypeError, json.JSONDecodeError):
+                raise ValueError("delegation parent workflow metadata is unavailable") from None
+            parent_workflow_id = str(parent_doc.get("workflow_run_id") or "")
+            if parent_workflow_id:
+                if run.workflow_run_id and run.workflow_run_id != parent_workflow_id:
+                    raise ValueError("delegated child workflow identity does not match its parent")
+                inherited = (run.workflow_context or parent_doc.get("workflow_step")
+                             or parent_doc.get("workflow_context"))
+                if (not isinstance(inherited, dict)
+                        or any(not isinstance(inherited.get(key), str) or not inherited.get(key)
+                               for key in ("workflow_run_id", "revision_id", "site_id", "instance_key"))):
+                    raise ValueError("workflow descendants need a node identity for root-budget accounting")
+                if str(inherited.get("workflow_run_id")) != parent_workflow_id:
+                    raise ValueError("delegated child node identity does not match its workflow")
+                run.workflow_run_id = parent_workflow_id
+                run.workflow_context = dict(inherited)
+            elif run.workflow_context:
+                raise ValueError("a delegated child cannot invent workflow context")
             run.conversation_id = parent["conversation_id"] or ""
             # Delegation shares only its explicit task. Prior user/assistant turns may contain
             # unrelated private context and must not be copied into a child prompt.
@@ -4131,6 +4363,83 @@ class Store:
             row = self._db.execute("SELECT COALESCE(MAX(seq), 0) AS seq FROM messages WHERE conversation_id = ?",
                                    (conversation_id,)).fetchone()
         return int(row["seq"])
+
+    def get_conversation_workflow_policy(self, conversation_id: str) -> Optional[dict[str, Any]]:
+        """Return the durable mode override for a conversation, if one was saved."""
+        with self._lock:
+            row = self._db.execute(
+                "SELECT p.conversation_id, p.mode, p.revision, p.updated_at "
+                "FROM conversation_workflow_policies p "
+                "JOIN conversations c ON c.id = p.conversation_id WHERE c.id = ?",
+                (conversation_id,),
+            ).fetchone()
+            exists = self._db.execute("SELECT 1 FROM conversations WHERE id = ?",
+                                      (conversation_id,)).fetchone()
+        if not exists:
+            raise KeyError(conversation_id)
+        return dict(row) if row else None
+
+    def workflow_auto_policy_snapshot(self, bot_id: str, conversation_id: str) -> tuple[Bot, dict[str, Any]]:
+        """Read the Bot and conversation Auto authority together for atomic admission revalidation."""
+        with self._tx() as db:
+            bot_row = db.execute("SELECT doc FROM bots WHERE id = ?", (bot_id,)).fetchone()
+            conversation = (db.execute("SELECT bot_id FROM conversations WHERE id = ?", (conversation_id,)).fetchone()
+                            if conversation_id else None)
+            if bot_row is None or (conversation_id and
+                                   (conversation is None or str(conversation["bot_id"]) != bot_id)):
+                raise KeyError("the assistant or conversation changed before workflow admission")
+            policy = (db.execute("SELECT mode, revision FROM conversation_workflow_policies "
+                                 "WHERE conversation_id = ?", (conversation_id,)).fetchone()
+                      if conversation_id else None)
+            bot = Bot.from_store_json(str(bot_row["doc"]))
+            expected = {
+                "bot_id": bot_id,
+                "bot_mode": bot.workflow_mode,
+                "workflow_limits": dict(bot.workflow_limits),
+                "conversation_id": conversation_id,
+                "conversation_mode": str(policy["mode"]) if policy else "inherit",
+                "conversation_revision": int(policy["revision"]) if policy else 0,
+            }
+        return bot, expected
+
+    def set_conversation_workflow_policy(self, conversation_id: str, mode: str, *,
+                                         expected_revision: int, idem_key: str,
+                                         request_hash: str) -> tuple[dict[str, Any], bool]:
+        """Save a revisioned workflow-mode override with retry-safe idempotency."""
+        if mode not in ("inherit", "off", "suggest", "auto"):
+            raise ValueError("workflow mode must be inherit, off, suggest, or auto")
+        if expected_revision < 0 or not idem_key or not request_hash:
+            raise ValueError("expected revision and idempotency fields are required")
+        scope = f"api:v1:workflow-conversation:{conversation_id}:policy"
+        now = iso(utcnow())
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                return replay, False
+            if db.execute("SELECT 1 FROM conversations WHERE id = ?", (conversation_id,)).fetchone() is None:
+                raise KeyError(conversation_id)
+            previous = db.execute(
+                "SELECT mode, revision FROM conversation_workflow_policies WHERE conversation_id = ?",
+                (conversation_id,),
+            ).fetchone()
+            revision = int(previous["revision"]) if previous else 0
+            if revision != expected_revision:
+                raise RevisionConflict(
+                    f"workflow policy changed from revision {expected_revision} to {revision}; reload before editing")
+            revision += 1
+            db.execute("""INSERT INTO conversation_workflow_policies
+                          (conversation_id, mode, revision, updated_at) VALUES (?, ?, ?, ?)
+                          ON CONFLICT(conversation_id) DO UPDATE SET mode=excluded.mode,
+                          revision=excluded.revision, updated_at=excluded.updated_at""",
+                       (conversation_id, mode, revision, now))
+            result = {"conversation_id": conversation_id, "mode": mode,
+                      "revision": revision, "updated_at": now}
+            db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) "
+                       "VALUES (?, ?, ?, ?, ?)",
+                       (scope, idem_key, request_hash, _canonical(result), now))
+        self.bus.notify("conversations", f"conversation:{conversation_id}",
+                        f"workflow-policy:{conversation_id}")
+        return result, True
 
     def archive_conversation(self, conversation_id: str, archived: bool, *, idem_key: str,
                              request_hash: str) -> tuple[dict[str, Any], bool]:
@@ -5827,46 +6136,86 @@ class Store:
         """Take ownership of a queued run, atomically. Returns the claimed run (new ``fence``) or None.
 
         One statement decides: the run is still pending and unclaimed (or its claimant's lease lapsed), no stop was requested,
-        no other run of the SAME bot is live or freshly claimed (the per-bot single-instance rule, now enforced across
-        processes), and - if ``max_live`` is given - fewer than that many runs are live overall.
-        A child may share its bot's slot with its parent and siblings in the same delegation branch;
-        unrelated work for that bot remains mutually exclusive.
+        no other run of the SAME bot in the SAME lane is live or freshly claimed (the per-bot single-instance rule, now
+        enforced across processes), and - if ``max_live`` is given - fewer than that many runs are live overall.
+        A delegated child shares its waiting ancestors' logical slots while it runs; after the
+        child settles, the parent resumes and occupies a slot again. Unrelated work for the same
+        bot remains mutually exclusive. A delegated child can be claimed only after its parent
+        has committed the matching continuation and the parent worker's recorded processes are
+        confirmed gone.
+
+        Workflow lanes (schema v53): an orchestration attempt (``kind='workflow'``) and its step runs
+        (``kind='step'``) form one lane, separate from interactive work, so a workflow may progress while
+        the person keeps chatting with the same Bot - and one workflow at a time per Bot, because two
+        attempts are unrelated runs in the same lane. A step run does not add to the global live count:
+        it shares its orchestration attempt's slot, and the workflow's own logical concurrency bound
+        (enforced by the interpreter) is what limits how many steps run at once.
         """
         now = now or utcnow()
         stamp, expires = iso(now), iso(now + timedelta(seconds=lease_seconds))
-        marks = ",".join("?" for _ in _LIVE_VALUES)
         # Capacity includes: live statuses, leased pending (starting), and any run that still
         # has unreaped recorded processes — even if its status already became terminal. A timed-out
         # wrapper must not free a slot while owned descendants can still act.
-        occupying = (
-            "(c.status IN (" + marks + ") OR "
-            "(c.status = 'pending' AND c.lease_owner != '' AND c.lease_expires_at >= ?) OR "
-            "EXISTS (SELECT 1 FROM run_procs rp WHERE rp.run_id = c.id "
-            "AND rp.ended_at IS NULL AND rp.detached_at IS NULL))"
-        )
-        peer_occupying = (
-            "(o.status IN (" + marks + ") OR "
-            "(o.status = 'pending' AND o.lease_owner != '' AND o.lease_expires_at >= ?) OR "
-            "EXISTS (SELECT 1 FROM run_procs rp WHERE rp.run_id = o.id "
-            "AND rp.ended_at IS NULL AND rp.detached_at IS NULL))"
-        )
+        def _occupying(alias: str, live_values: tuple[str, ...] = _LIVE_VALUES) -> str:
+            status_marks = ",".join("?" for _ in live_values)
+            return ("(" + alias + ".status IN (" + status_marks + ") OR "
+                    "(" + alias + ".status = 'pending' AND " + alias + ".lease_owner != '' AND " + alias + ".lease_expires_at >= ?) OR "
+                    "EXISTS (SELECT 1 FROM run_procs rp WHERE rp.run_id = " + alias + ".id "
+                    "AND rp.ended_at IS NULL AND rp.detached_at IS NULL))")
+
+        occupying = _occupying("c")
+        peer_occupying = _occupying("o", _PEER_LIVE_VALUES)
+        parent_occupying = _occupying("p")
         # A successful claim leaves a run in `pending` while its supervisor starts the
         # worker. That reservation already consumes a global slot, even though it is not
-        # yet one of the active execution statuses.
-        cap = (" AND (SELECT COUNT(*) FROM runs c WHERE " + occupying + ") < ?") if max_live else ""
+        # yet one of the active execution statuses. A workflow step shares its attempt's slot.
+        cap = ""
+        if max_live:
+            shared_workflow_parent = (
+                "runs.kind = 'step' AND runs.parent_run_id IS NOT NULL AND "
+                "c.id = runs.parent_run_id AND EXISTS (SELECT 1 FROM runs p "
+                "WHERE p.id = runs.parent_run_id AND p.kind = 'workflow' AND " + parent_occupying + ")"
+            )
+            shared_delegation_ancestors = (
+                "EXISTS (SELECT 1 FROM tasks delegation_task "
+                "WHERE delegation_task.run_id = runs.id AND delegation_task.kind = 'delegated') "
+                "AND runs.parent_run_id IS NOT NULL AND "
+                "c.id IN (runs.parent_run_id, "
+                "(SELECT parent_run_id FROM runs p WHERE p.id = runs.parent_run_id)) "
+                "AND c.status IN ('waiting_child','waiting_workflow') "
+                "AND NOT EXISTS (SELECT 1 FROM run_procs parked_proc WHERE parked_proc.run_id = c.id "
+                "AND parked_proc.ended_at IS NULL AND parked_proc.detached_at IS NULL)"
+            )
+            cap = (" AND (SELECT COUNT(*) FROM runs c WHERE " + occupying +
+                   " AND NOT (c.kind = 'step' AND c.parent_run_id IS NOT NULL AND EXISTS ("
+                   "SELECT 1 FROM runs p WHERE p.id = c.parent_run_id AND p.kind = 'workflow' AND "
+                   + parent_occupying + ")) AND NOT (" + shared_workflow_parent + ") AND NOT (" +
+                   shared_delegation_ancestors + ")) < ?")
         sql = (
             "UPDATE runs SET lease_owner = ?, lease_expires_at = ?, heartbeat_at = ?, fence = fence + 1 "
             "WHERE id = ? AND status = 'pending' AND cancel_requested = 0 "
             "AND (lease_owner = '' OR lease_expires_at IS NULL OR lease_expires_at < ?) "
+            "AND (NOT EXISTS (SELECT 1 FROM tasks dt WHERE dt.run_id = runs.id AND dt.kind = 'delegated') OR "
+            "NOT EXISTS (SELECT 1 FROM run_procs active_parent_proc WHERE active_parent_proc.run_id=runs.parent_run_id "
+            "AND active_parent_proc.ended_at IS NULL AND active_parent_proc.detached_at IS NULL) OR "
+            "EXISTS (SELECT 1 FROM delegated_wait_continuations d JOIN runs p ON p.id=d.run_id "
+            "WHERE d.run_id=runs.parent_run_id AND d.child_run_id=runs.id AND d.state='waiting' "
+            "AND p.status='waiting_child' AND p.cancel_requested=0 AND NOT EXISTS ("
+            "SELECT 1 FROM run_procs pr WHERE pr.run_id=p.id AND pr.ended_at IS NULL "
+            "AND pr.detached_at IS NULL))) "
             "AND NOT EXISTS (SELECT 1 FROM runs o WHERE o.bot_id = runs.bot_id AND o.id != runs.id AND "
+            "((o.kind IN ('workflow','step')) = (runs.kind IN ('workflow','step'))) AND "
             + peer_occupying + " "
             "AND NOT (runs.parent_run_id IS NOT NULL AND (o.id IN (runs.parent_run_id, "
             "(SELECT parent_run_id FROM runs p WHERE p.id = runs.parent_run_id)) "
             "OR o.parent_run_id = runs.parent_run_id)))"
             + cap)
-        args: list[Any] = [owner, expires, stamp, run_id, stamp, *_LIVE_VALUES, stamp]
+        args: list[Any] = [owner, expires, stamp, run_id, stamp, *_PEER_LIVE_VALUES, stamp]
         if max_live:
-            args += [*_LIVE_VALUES, stamp, max_live]
+            # A step shares both the parent workflow's slot and its capacity reservation.
+            # Exclude that parent for this candidate's capacity check, while retaining it
+            # in every unrelated candidate's count.
+            args += [*_LIVE_VALUES, stamp, *_LIVE_VALUES, stamp, *_LIVE_VALUES, stamp, max_live]
         with self._tx() as db:
             if self._execution_hold(db):
                 return None
@@ -6085,6 +6434,324 @@ class Store:
                     WHERE id > ? ORDER BY id LIMIT ?""", (after_id or 0, limit + 1)).fetchall()
         return [dict(row) for row in rows]
 
+    def model_capability_observations_for(self, provider: str, model: str, limit: int = 20) -> list[dict[str, Any]]:
+        """Recent governed observations for one provider/model, newest first."""
+        if not 1 <= limit <= 100:
+            raise ValueError("observation limit is out of range")
+        with self._lock:
+            rows = self._db.execute(
+                """SELECT id, run_id, provider, account_id, model, route_revision, capability,
+                          source_tool, observed_at FROM model_capability_observations
+                   WHERE provider = ? AND model = ? ORDER BY id DESC LIMIT ?""",
+                (provider, model, limit)).fetchall()
+        return [dict(row) for row in rows]
+
+    def record_role_qualification(self, *, provider: str, model: str, route_revision: str, role: str,
+                                  state: str, scope: Optional[dict[str, Any]] = None,
+                                  evidence: Optional[dict[str, Any]] = None, reason: str = "",
+                                  source: str) -> None:
+        """Upsert one role qualification. Records are evidence, never a permission grant."""
+        from .workflow.qualify import ROLES
+
+        if role not in ROLES or role == "executor":
+            raise ValueError(f"unsupported qualification role {role!r}")
+        if state not in ("limited", "unsupported", "stale"):
+            raise ValueError(f"unsupported qualification state {state!r}")
+        if source not in ("probe", "operator", "runtime"):
+            raise ValueError(f"unsupported qualification source {source!r}")
+        if (not isinstance(route_revision, str) or len(route_revision) != 64
+                or any(char not in "0123456789abcdef" for char in route_revision)):
+            raise ValueError("route revision must be a lowercase SHA-256 digest")
+        for value, name, cap in ((provider, "provider", 256), (model, "model", 256)):
+            if not isinstance(value, str) or not value or len(value) > cap:
+                raise ValueError(f"qualification {name} is invalid")
+        if len(reason) > 500:
+            raise ValueError("qualification reason is too long")
+        scope_json = json.dumps(scope or {}, sort_keys=True, default=str)
+        evidence_json = json.dumps(evidence or {}, sort_keys=True, default=str)
+        if len(scope_json) > 8_192 or len(evidence_json) > 8_192:
+            raise ValueError("qualification scope or evidence is too large")
+        with self._tx() as db:
+            db.execute("""INSERT INTO workflow_role_qualifications
+                (provider, model, route_revision, role, state, scope, evidence, reason, source, tested_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(provider, model, route_revision, role) DO UPDATE SET
+                    state = excluded.state, scope = excluded.scope, evidence = excluded.evidence,
+                    reason = excluded.reason, source = excluded.source, tested_at = excluded.tested_at""",
+                (provider, model, route_revision, role, state, scope_json, evidence_json,
+                 reason, source, iso(utcnow())))
+
+    def create_workflow_probe_run(self, *, campaign_id: str, provider: str, model: str,
+                                  route_revision: str, execution_profile_hash: str, role: str,
+                                  scope: dict[str, Any], idempotency_scope: str = "",
+                                  idempotency_key: str = "", request_hash: str = "") -> dict[str, Any]:
+        """Open one held-out probe run inside the single durable two-hour campaign."""
+        if (not isinstance(campaign_id, str) or not re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,79}", campaign_id)):
+            raise ValueError("campaign id must be a short lowercase identifier")
+        if role not in ("author", "selector"):
+            raise ValueError("only author and selector probes are supported")
+        for value, label in ((route_revision, "route revision"), (execution_profile_hash, "execution profile")):
+            if (not isinstance(value, str) or len(value) != 64
+                    or any(character not in "0123456789abcdef" for character in value)):
+                raise ValueError(f"{label} must be a lowercase SHA-256 digest")
+        for value, label in ((provider, "provider"), (model, "model")):
+            if not isinstance(value, str) or not value or len(value) > 256:
+                raise ValueError(f"{label} is invalid")
+        scope_json = json.dumps(scope, sort_keys=True, separators=(",", ":"), default=str)
+        if len(scope_json) > 8_192:
+            raise ValueError("probe scope is too large")
+        if idempotency_key:
+            if not idempotency_scope or not re.fullmatch(r"[a-f0-9]{64}", request_hash):
+                raise ValueError("probe idempotency requires a scope and lowercase SHA-256 request hash")
+        now = utcnow()
+        now_text = iso(now)
+        deadline_text = iso(now + timedelta(hours=2))
+        run_id = uuid.uuid4().hex
+        with self._tx() as db:
+            db.execute("""INSERT OR IGNORE INTO workflow_probe_campaigns
+                (campaign_id, created_at, deadline_at, request_cap, token_cap, state, metadata)
+                VALUES (?, ?, ?, 80, 60000, 'active', '{}')""", (campaign_id, now_text, deadline_text))
+            campaign = db.execute("SELECT * FROM workflow_probe_campaigns WHERE campaign_id = ?",
+                                  (campaign_id,)).fetchone()
+            if campaign is None:
+                raise RuntimeError("probe campaign could not be created")
+            if int(campaign["request_cap"]) != 80 or int(campaign["token_cap"]) != 60000:
+                raise ValueError("probe campaign limits do not match the authorized ceiling")
+            if idempotency_key:
+                previous = db.execute("SELECT * FROM workflow_probe_runs WHERE idempotency_scope = ? "
+                                      "AND idempotency_key = ?", (idempotency_scope, idempotency_key)).fetchone()
+                if previous is not None:
+                    if previous["request_hash"] != request_hash:
+                        raise ValueError("this idempotency key was used for a different qualification probe")
+                    return {**dict(campaign), "probe_run_id": previous["id"], "replayed": True}
+            if campaign["state"] == "active" and str(campaign["deadline_at"]) <= now_text:
+                db.execute("UPDATE workflow_probe_campaigns SET state = 'expired' WHERE campaign_id = ?",
+                           (campaign_id,))
+                campaign = db.execute("SELECT * FROM workflow_probe_campaigns WHERE campaign_id = ?",
+                                      (campaign_id,)).fetchone()
+            if campaign["state"] != "active":
+                raise ValueError(f"probe campaign is {campaign['state']}")
+            db.execute("""INSERT INTO workflow_probe_runs
+                (id, campaign_id, provider, model, route_revision, execution_profile_hash, role,
+                 status, idempotency_scope, idempotency_key, request_hash, scope, started_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'running', ?, ?, ?, ?, ?)""",
+                       (run_id, campaign_id, provider, model, route_revision, execution_profile_hash,
+                        role, idempotency_scope, idempotency_key, request_hash, scope_json, now_text))
+            return {**dict(campaign), "probe_run_id": run_id}
+
+    def start_workflow_probe_request(self, *, probe_run_id: str, case_id: str, dimension: str,
+                                     prompt_digest: str, reserved_tokens: int) -> Optional[dict[str, Any]]:
+        """Durably consume one request/token allowance immediately before provider dispatch."""
+        if dimension not in ("structure", "semantic", "abstention", "authority"):
+            raise ValueError("unknown probe dimension")
+        if (not isinstance(reserved_tokens, int) or isinstance(reserved_tokens, bool)
+                or not 1 <= reserved_tokens <= 60000):
+            raise ValueError("probe token reservation is out of range")
+        if not isinstance(prompt_digest, str) or not re.fullmatch(r"[0-9a-f]{64}", prompt_digest):
+            raise ValueError("probe prompt digest must be lowercase SHA-256")
+        now_text = iso(utcnow())
+        request_id = uuid.uuid4().hex
+        with self._tx() as db:
+            probe = db.execute("""SELECT r.*, c.state AS campaign_state, c.deadline_at,
+                       c.request_cap, c.token_cap, c.requests_started, c.tokens_accounted
+                FROM workflow_probe_runs r JOIN workflow_probe_campaigns c ON c.campaign_id = r.campaign_id
+                WHERE r.id = ?""", (probe_run_id,)).fetchone()
+            if probe is None or probe["status"] != "running":
+                raise ValueError("probe run is missing or no longer active")
+            if probe["campaign_state"] != "active" or str(probe["deadline_at"]) <= now_text:
+                db.execute("UPDATE workflow_probe_campaigns SET state = 'expired' WHERE campaign_id = ? "
+                           "AND state = 'active'", (probe["campaign_id"],))
+                return None
+            inflight = db.execute("SELECT id FROM workflow_probe_requests "
+                                  "WHERE state IN ('started','uncertain') LIMIT 1").fetchone()
+            if inflight is not None:
+                # The local qualification runtime admits one request globally. An uncertain
+                # call remains held until an owner reconciles the endpoint/run state.
+                return None
+            if int(probe["requests_started"]) >= int(probe["request_cap"]):
+                db.execute("UPDATE workflow_probe_campaigns SET state = 'exhausted' WHERE campaign_id = ?",
+                           (probe["campaign_id"],))
+                return None
+            if int(probe["tokens_accounted"]) + reserved_tokens > int(probe["token_cap"]):
+                db.execute("UPDATE workflow_probe_campaigns SET state = 'exhausted' WHERE campaign_id = ?",
+                           (probe["campaign_id"],))
+                return None
+            try:
+                db.execute("""INSERT INTO workflow_probe_requests
+                    (id, probe_run_id, campaign_id, provider, model, route_revision,
+                     execution_profile_hash, role, case_id, dimension, state, reserved_tokens,
+                     prompt_digest, started_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'started', ?, ?, ?)""",
+                           (request_id, probe_run_id, probe["campaign_id"], probe["provider"], probe["model"],
+                            probe["route_revision"], probe["execution_profile_hash"], probe["role"], case_id,
+                            dimension, reserved_tokens, prompt_digest, now_text))
+            except sqlite3.IntegrityError:
+                # A case already crossed the dispatch boundary in this campaign. Never replay it.
+                return None
+            db.execute("""UPDATE workflow_probe_campaigns SET
+                requests_started = requests_started + 1, tokens_accounted = tokens_accounted + ?
+                WHERE campaign_id = ?""", (reserved_tokens, probe["campaign_id"]))
+            return {"id": request_id, "reserved_tokens": reserved_tokens,
+                    "requests_started": int(probe["requests_started"]) + 1,
+                    "tokens_accounted": int(probe["tokens_accounted"]) + reserved_tokens}
+
+    def settle_workflow_probe_request(self, *, request_id: str, outcome: str,
+                                      reported_tokens: int = 0, response_digest: str = "",
+                                      reason: str = "", uncertain: bool = False) -> bool:
+        """Settle or retain a request. Uncertain dispatches keep their full reservation held."""
+        if outcome not in ("passed", "failed", "inconclusive"):
+            raise ValueError("invalid probe outcome")
+        if (not isinstance(reported_tokens, int) or isinstance(reported_tokens, bool)
+                or reported_tokens < 0 or reported_tokens > 60000):
+            raise ValueError("reported probe tokens are out of range")
+        if response_digest and not re.fullmatch(r"[0-9a-f]{64}", response_digest):
+            raise ValueError("response digest must be lowercase SHA-256")
+        if len(reason) > 500:
+            raise ValueError("probe result reason is too long")
+        with self._tx() as db:
+            row = db.execute("SELECT * FROM workflow_probe_requests WHERE id = ?", (request_id,)).fetchone()
+            if row is None:
+                raise KeyError(request_id)
+            if row["state"] != "started":
+                return False
+            now_text = iso(utcnow())
+            if uncertain:
+                db.execute("UPDATE workflow_probe_requests SET state = 'uncertain', outcome = 'inconclusive', "
+                           "reason = ?, settled_at = ? WHERE id = ? AND state = 'started'",
+                           (reason, now_text, request_id))
+                return True
+            accounted = reported_tokens if reported_tokens > 0 else int(row["reserved_tokens"])
+            campaign = db.execute("SELECT tokens_accounted, token_cap FROM workflow_probe_campaigns "
+                                  "WHERE campaign_id = ?", (row["campaign_id"],)).fetchone()
+            total = int(campaign["tokens_accounted"]) - int(row["reserved_tokens"]) + accounted
+            within_cap = total <= int(campaign["token_cap"])
+            db.execute("UPDATE workflow_probe_campaigns SET tokens_accounted = ?, "
+                       "state = CASE WHEN ? THEN state ELSE 'exhausted' END WHERE campaign_id = ?",
+                       (total, 1 if within_cap else 0, row["campaign_id"]))
+            if not within_cap:
+                outcome = "inconclusive"
+                reason = "reported token usage exceeded the reserved campaign allowance"
+            db.execute("""UPDATE workflow_probe_requests SET state = 'settled', outcome = ?,
+                reported_tokens = ?, response_digest = ?, reason = ?, settled_at = ?
+                WHERE id = ? AND state = 'started'""",
+                       (outcome, reported_tokens, response_digest, reason, now_text, request_id))
+            return within_cap
+
+    def finish_workflow_probe_run(self, *, probe_run_id: str, status: str,
+                                  evidence: dict[str, Any], reason: str = "") -> dict[str, Any]:
+        """Persist the suite result; only four passing held-out dimensions write authority evidence."""
+        if status not in ("passed", "failed", "inconclusive"):
+            raise ValueError("invalid probe-run status")
+        if len(reason) > 500:
+            raise ValueError("probe-run reason is too long")
+        evidence_json = json.dumps(evidence, sort_keys=True, separators=(",", ":"), default=str)
+        if len(evidence_json) > 8_192:
+            raise ValueError("probe-run evidence is too large")
+        with self._tx() as db:
+            run = db.execute("SELECT * FROM workflow_probe_runs WHERE id = ?", (probe_run_id,)).fetchone()
+            if run is None:
+                raise KeyError(probe_run_id)
+            if run["status"] != "running":
+                return dict(run)
+            attempts = db.execute("SELECT dimension, state, outcome FROM workflow_probe_requests "
+                                  "WHERE probe_run_id = ?", (probe_run_id,)).fetchall()
+            dimensions = {str(row["dimension"]) for row in attempts}
+            all_passed = (dimensions == {"structure", "semantic", "abstention", "authority"}
+                          and len(attempts) == 4
+                          and all(row["state"] == "settled" and row["outcome"] == "passed" for row in attempts)
+                          and evidence.get("suite_version") == "hutch-role-qualification-v1"
+                          and evidence.get("held_out") is True
+                          and evidence.get("profile_complete") is True)
+            if status == "passed" and not all_passed:
+                raise ValueError("a probe cannot pass without four passing held-out dimensions and a complete profile")
+            final_status = status
+            now_text = iso(utcnow())
+            db.execute("UPDATE workflow_probe_runs SET status = ?, evidence = ?, finished_at = ? WHERE id = ?",
+                       (final_status, evidence_json, now_text, probe_run_id))
+            if status in ("passed", "failed"):
+                qualification_state = "probed" if status == "passed" else "unsupported"
+                qualification_reason = reason or ("all four held-out qualification dimensions passed"
+                                                   if status == "passed" else "a mandatory held-out dimension failed")
+                scope_json = str(run["scope"])
+                db.execute("""INSERT INTO workflow_role_qualifications
+                    (provider, model, route_revision, role, state, scope, evidence, reason, source, tested_at,
+                     execution_profile_hash)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'probe', ?, ?)
+                    ON CONFLICT(provider, model, route_revision, role) DO UPDATE SET
+                        state = excluded.state, scope = excluded.scope, evidence = excluded.evidence,
+                        reason = excluded.reason, source = excluded.source, tested_at = excluded.tested_at,
+                        execution_profile_hash = excluded.execution_profile_hash""",
+                           (run["provider"], run["model"], run["route_revision"], run["role"],
+                            qualification_state, scope_json, evidence_json, qualification_reason,
+                            now_text, run["execution_profile_hash"]))
+            return dict(run) | {"status": final_status, "evidence": json.loads(evidence_json),
+                                "finished_at": now_text}
+
+    def workflow_probe_campaign(self, campaign_id: str) -> Optional[dict[str, Any]]:
+        with self._lock:
+            row = self._db.execute("SELECT * FROM workflow_probe_campaigns WHERE campaign_id = ?",
+                                   (campaign_id,)).fetchone()
+        return dict(row) if row else None
+
+    def workflow_probe_run(self, probe_run_id: str) -> Optional[dict[str, Any]]:
+        with self._lock:
+            run = self._db.execute("SELECT * FROM workflow_probe_runs WHERE id = ?", (probe_run_id,)).fetchone()
+            if run is None:
+                return None
+            requests = self._db.execute("SELECT * FROM workflow_probe_requests WHERE probe_run_id = ? "
+                                        "ORDER BY started_at, id", (probe_run_id,)).fetchall()
+        item = dict(run)
+        item["scope"] = json.loads(item.get("scope") or "{}")
+        item["evidence"] = json.loads(item.get("evidence") or "{}")
+        item["requests"] = [dict(row) for row in requests]
+        return item
+
+    def role_qualifications(self, provider: str, model: str,
+                            route_revision: Optional[str] = None) -> list[dict[str, Any]]:
+        with self._lock:
+            if route_revision:
+                rows = self._db.execute(
+                    """SELECT provider, model, route_revision, role, state, scope, evidence, reason,
+                              source, tested_at, execution_profile_hash FROM workflow_role_qualifications
+                       WHERE provider = ? AND model = ? AND route_revision = ?
+                       ORDER BY role""", (provider, model, route_revision)).fetchall()
+            else:
+                rows = self._db.execute(
+                    """SELECT provider, model, route_revision, role, state, scope, evidence, reason,
+                              source, tested_at, execution_profile_hash FROM workflow_role_qualifications
+                       WHERE provider = ? AND model = ? ORDER BY tested_at DESC""",
+                    (provider, model)).fetchall()
+        out = []
+        for row in rows:
+            item = dict(row)
+            item["scope"] = json.loads(item.get("scope") or "{}")
+            item["evidence"] = json.loads(item.get("evidence") or "{}")
+            out.append(item)
+        return out
+
+    def list_role_qualifications(self, *, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
+        if not 1 <= limit <= 200 or offset < 0:
+            raise ValueError("qualification pagination is out of range")
+        with self._lock:
+            rows = self._db.execute(
+                """SELECT provider, model, route_revision, role, state, scope, evidence, reason,
+                          source, tested_at, execution_profile_hash FROM workflow_role_qualifications
+                   ORDER BY tested_at DESC, id DESC LIMIT ? OFFSET ?""", (limit, offset)).fetchall()
+        out = []
+        for row in rows:
+            item = dict(row)
+            item["scope"] = json.loads(item.get("scope") or "{}")
+            item["evidence"] = json.loads(item.get("evidence") or "{}")
+            out.append(item)
+        return out
+
+    def delete_role_qualifications(self, provider: str, model: str, route_revision: str, role: str) -> int:
+        with self._tx() as db:
+            cur = db.execute("""DELETE FROM workflow_role_qualifications
+                WHERE provider = ? AND model = ? AND route_revision = ? AND role = ?""",
+                (provider, model, route_revision, role))
+            return int(cur.rowcount)
+
     def _notify_run(self, run: Run) -> None:
         # `work` wakes the scheduler loop; only a status transition changes what it should do,
         # so per-step accounting updates must not make an idle loop spin.
@@ -6098,7 +6765,8 @@ class Store:
                        error: Optional[str] = None, event: Optional[dict[str, Any]] = None, bump_fence: bool = False,
                        fields: Optional[dict[str, Any]] = None, cancel_wins: bool = False,
                        capability_snapshot: Optional[dict[str, Any]] = None,
-                       persona_plan: Optional[dict[str, Any]] = None) -> Run:
+                       persona_plan: Optional[dict[str, Any]] = None,
+                       child_wait: Optional[tuple[str, dict[str, Any]]] = None) -> Run:
         """Move a run to ``to`` - the ONLY way status changes for a claimed run (ADR-0003).
 
         In one transaction: the fence is checked (``LeaseLost``), the move is checked against the lifecycle table
@@ -6120,6 +6788,19 @@ class Store:
             persona_plan_json = _canonical(persona_plan)
             if len(persona_plan_json.encode("utf-8")) > 16 * 1024:
                 raise ValueError("the persona plan exceeds 16 KiB")
+        child_wait_json = None
+        if child_wait is not None:
+            if to is not RunStatus.waiting_child:
+                raise ValueError("a delegated continuation can only be saved while parking a child wait")
+            child_id, payload = child_wait
+            if not child_id or not isinstance(payload, dict):
+                raise ValueError("a delegated continuation needs a child run and JSON object payload")
+            try:
+                child_wait_json = _canonical(payload)
+            except (TypeError, ValueError, RecursionError) as exc:
+                raise ValueError(f"the delegated continuation is not valid JSON: {exc}") from exc
+            if len(child_wait_json.encode("utf-8")) > 2 * 1024 * 1024:
+                raise ValueError("the delegated continuation exceeds 2 MiB")
         with self._buf_cv:                                       # lock order: event buffer, then database (as append_event)
             # A reader that sees the new status must also see every event that came before it. Wait out the writer's in-flight
             # batch, then commit this run's still-buffered events in the SAME transaction as the status change.
@@ -6128,6 +6809,36 @@ class Store:
             mine = [e for e in self._pending if e.run_id == run_id]
             with self._tx() as db:
                 kept = self._worker_events(db, run_id, mine)
+                # The status transition is the canonical commit for this run's
+                # buffered events, including stale events that are deliberately
+                # discarded by the owner-fence check.
+                self._delete_event_outbox(db, mine)
+                if child_wait is not None:
+                    parent = db.execute("SELECT status, fence, lease_owner, lease_expires_at, cancel_requested "
+                                        "FROM runs WHERE id = ?", (run_id,)).fetchone()
+                    child = db.execute("SELECT r.parent_run_id, r.bot_id, r.status, t.kind "
+                                       "FROM runs r LEFT JOIN tasks t ON t.run_id = r.id WHERE r.id = ?",
+                                       (child_wait[0],)).fetchone()
+                    if (parent is None or parent["status"] != RunStatus.running.value
+                            or parent["fence"] != fence or not parent["lease_owner"]
+                            or not parent["lease_expires_at"] or parent["lease_expires_at"] <= iso(utcnow())
+                            or parent["cancel_requested"]):
+                        raise LeaseLost(run_id, "parent is no longer authorized to park for delegated work")
+                    if (child is None or child["parent_run_id"] != run_id or child["bot_id"] is None
+                            or child["kind"] != "delegated"):
+                        raise ValueError("the delegated child is not owned by this parent")
+                    prior = db.execute("SELECT state FROM delegated_wait_continuations WHERE run_id = ?",
+                                       (run_id,)).fetchone()
+                    if prior is not None and prior["state"] not in ("complete", "cancelled"):
+                        raise ValueError("this parent already has an unresolved delegated continuation")
+                    db.execute("""INSERT INTO delegated_wait_continuations
+                        (run_id, child_run_id, owner_fence, state, cancel_reason, payload, created_at, updated_at)
+                        VALUES (?, ?, ?, 'waiting', '', ?, ?, ?)
+                        ON CONFLICT(run_id) DO UPDATE SET child_run_id=excluded.child_run_id,
+                          owner_fence=excluded.owner_fence, state='waiting', cancel_reason='',
+                          payload=excluded.payload, created_at=excluded.created_at, updated_at=excluded.updated_at""",
+                               (run_id, child_wait[0], int(parent["fence"]), child_wait_json,
+                                iso(utcnow()), iso(utcnow())))
                 row, emitted = self._apply_transition(db, run_id, to, fence, exit_reason, error, event, bump_fence, fields,
                                                       earlier=kept, cancel_wins=cancel_wins,
                                                       capability_snapshot_json=snapshot_json,
@@ -6151,6 +6862,191 @@ class Store:
             self.bus.notify("approvals", f"approval:wake:{run_id}")
         return run
 
+    def child_wait_continuation(self, run_id: str, *, expected_fence: Optional[int] = None) -> Optional[dict[str, Any]]:
+        """Read the single delegated-call checkpoint; an optional fence requires the current running owner."""
+        with self._lock:
+            if expected_fence is not None:
+                owner = self._db.execute("SELECT status, fence, lease_owner, lease_expires_at "
+                                         "FROM runs WHERE id = ?", (run_id,)).fetchone()
+                if (owner is None or owner["status"] != RunStatus.running.value
+                        or owner["fence"] != expected_fence or not owner["lease_owner"]
+                        or not owner["lease_expires_at"] or owner["lease_expires_at"] <= iso(utcnow())):
+                    raise LeaseLost(run_id, "delegated continuation read requires the current run owner")
+            row = self._db.execute("SELECT child_run_id, owner_fence, state, cancel_reason, payload, created_at, updated_at "
+                                   "FROM delegated_wait_continuations WHERE run_id = ?", (run_id,)).fetchone()
+        if row is None:
+            return None
+        payload = json.loads(row["payload"])
+        if not isinstance(payload, dict):
+            raise RuntimeError("delegated continuation payload is not a JSON object")
+        return {**dict(row), "payload": payload}
+
+    def mark_child_wait_resuming(self, run_id: str, fence: int) -> Optional[dict[str, Any]]:
+        """Fence a continuation to the newly claimed parent before it replays the child result."""
+        with self._tx() as db:
+            owner = db.execute("SELECT status, fence, lease_owner, lease_expires_at FROM runs WHERE id = ?",
+                               (run_id,)).fetchone()
+            if (owner is None or owner["status"] != RunStatus.running.value or owner["fence"] != fence
+                    or not owner["lease_owner"] or not owner["lease_expires_at"]
+                    or owner["lease_expires_at"] <= iso(utcnow())):
+                raise LeaseLost(run_id, "delegated continuation resume requires the current run owner")
+            row = db.execute("SELECT child_run_id, owner_fence, state, cancel_reason, payload, created_at, updated_at "
+                             "FROM delegated_wait_continuations WHERE run_id = ?", (run_id,)).fetchone()
+            if row is None or row["state"] not in ("ready", "resuming"):
+                return None
+            db.execute("UPDATE delegated_wait_continuations SET state='resuming', updated_at=? "
+                       "WHERE run_id=? AND state IN ('ready','resuming')", (iso(utcnow()), run_id))
+        payload = json.loads(row["payload"])
+        if not isinstance(payload, dict):
+            raise RuntimeError("delegated continuation payload is not a JSON object")
+        return {**dict(row), "state": "resuming", "payload": payload}
+
+    def complete_child_wait(self, run_id: str, fence: int) -> bool:
+        """Mark a restored child result consumed by the current parent owner."""
+        now = iso(utcnow())
+        with self._tx() as db:
+            owner = db.execute("SELECT status, fence, lease_owner, lease_expires_at FROM runs WHERE id = ?",
+                               (run_id,)).fetchone()
+            if (owner is None or owner["status"] != RunStatus.running.value or owner["fence"] != fence
+                    or not owner["lease_owner"] or not owner["lease_expires_at"]
+                    or owner["lease_expires_at"] <= now):
+                raise LeaseLost(run_id, "delegated continuation settlement requires the current run owner")
+            return db.execute("UPDATE delegated_wait_continuations SET state='complete', updated_at=? "
+                              "WHERE run_id=? AND state='resuming'", (now, run_id)).rowcount == 1
+
+    def child_wait_authorizes(self, parent_run_id: str, child_run_id: str) -> bool:
+        """Whether a direct delegated child may continue while its parent has released its worker lease."""
+        with self._lock:
+            row = self._db.execute("""SELECT 1 FROM runs p JOIN delegated_wait_continuations c ON c.run_id=p.id
+                WHERE p.id=? AND p.status='waiting_child' AND p.cancel_requested=0
+                  AND c.child_run_id=? AND c.state='waiting'""", (parent_run_id, child_run_id)).fetchone()
+        return row is not None
+
+    def waiting_child_runs(self) -> list[tuple[Run, dict[str, Any]]]:
+        with self._lock:
+            rows = self._db.execute(f"""SELECT {_RUN_COLS}, c.child_run_id, c.owner_fence, c.state,
+                    c.cancel_reason, c.payload, c.created_at AS continuation_created_at,
+                    c.updated_at AS continuation_updated_at
+                FROM runs r JOIN delegated_wait_continuations c ON c.run_id=r.id
+                WHERE r.status IN ('waiting_child','cancelling') AND c.state='waiting'
+                ORDER BY r.created_at, r.id""").fetchall()
+        out = []
+        for row in rows:
+            payload = json.loads(row["payload"])
+            if not isinstance(payload, dict):
+                raise RuntimeError("delegated continuation payload is not a JSON object")
+            run = self._run(row)
+            out.append((run, {"child_run_id": row["child_run_id"], "owner_fence": row["owner_fence"],
+                              "state": row["state"], "cancel_reason": row["cancel_reason"],
+                              "payload": payload, "created_at": row["continuation_created_at"],
+                              "updated_at": row["continuation_updated_at"]}))
+        return out
+
+    def mark_child_wait_cancel_reason(self, run_id: str, reason: str) -> bool:
+        if reason not in ("stopped", "timeout"):
+            raise ValueError("delegated wait cancellation reason must be stopped or timeout")
+        with self._tx() as db:
+            return db.execute("UPDATE delegated_wait_continuations SET cancel_reason=?, updated_at=? "
+                              "WHERE run_id=? AND state='waiting' AND cancel_reason=''",
+                              (reason, iso(utcnow()), run_id)).rowcount == 1
+
+    def promote_child_wait(self, run_id: str) -> Optional[Run]:
+        """Requeue a parked parent only after the child tree is terminal and all its processes are closed."""
+        now = iso(utcnow())
+        with self._tx() as db:
+            parent = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id=?", (run_id,)).fetchone()
+            checkpoint = db.execute("SELECT child_run_id, state FROM delegated_wait_continuations WHERE run_id=?",
+                                    (run_id,)).fetchone()
+            if (parent is None or parent["status"] != RunStatus.waiting_child.value
+                    or parent["cancel_requested"] or checkpoint is None or checkpoint["state"] != "waiting"):
+                return None
+            parent_proc = db.execute("SELECT 1 FROM run_procs WHERE run_id=? AND ended_at IS NULL "
+                                     "AND detached_at IS NULL LIMIT 1", (run_id,)).fetchone()
+            if parent_proc:
+                return None
+            tree = db.execute("""WITH RECURSIVE tree(id, path) AS (
+                                  SELECT ?, ',' || ? || ','
+                                  UNION ALL
+                                  SELECT r.id, t.path || r.id || ',' FROM runs r JOIN tree t ON r.parent_run_id=t.id
+                                  WHERE instr(t.path, ',' || r.id || ',')=0
+                                    ) SELECT r.status FROM runs r JOIN tree t ON t.id=r.id""",
+                              (checkpoint["child_run_id"], checkpoint["child_run_id"])).fetchall()
+            active_values = tuple(status.value for status in ACTIVE_STATUSES)
+            if any(str(row["status"]) in active_values for row in tree):
+                return None
+            live_proc = db.execute("""WITH RECURSIVE tree(id, path) AS (
+                                      SELECT ?, ',' || ? || ','
+                                      UNION ALL
+                                      SELECT r.id, t.path || r.id || ',' FROM runs r JOIN tree t ON r.parent_run_id=t.id
+                                      WHERE instr(t.path, ',' || r.id || ',')=0
+                                    ) SELECT 1 FROM run_procs p JOIN tree t ON t.id=p.run_id
+                                      WHERE p.ended_at IS NULL AND p.detached_at IS NULL LIMIT 1""",
+                                    (checkpoint["child_run_id"], checkpoint["child_run_id"])).fetchone()
+            if live_proc:
+                return None
+            db.execute("UPDATE delegated_wait_continuations SET state='ready', updated_at=? "
+                       "WHERE run_id=? AND state='waiting'", (now, run_id))
+            row, emitted = self._apply_transition(db, run_id, RunStatus.pending, None, None, None,
+                {"reason": "delegated child finished; parent continuation queued"}, True,
+                {"owner": "", "pgid": 0})
+            db.execute("UPDATE tasks SET state='queued' WHERE run_id=? AND done=0", (run_id,))
+        if emitted is not None:
+            self._fan_out(emitted)
+        run = self._run(row)
+        self._run_status[run_id] = run.status.value
+        self.bus.notify("work", "runs", f"run:{run_id}", "events")
+        return run
+
+    def finalize_child_wait_cancel(self, run_id: str) -> Optional[Run]:
+        """Finish a stopped/timed-out parked parent only after every descendant is terminal and cleaned up."""
+        with self._tx() as db:
+            parent = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id=?", (run_id,)).fetchone()
+            checkpoint = db.execute("SELECT child_run_id, state, cancel_reason FROM delegated_wait_continuations "
+                                    "WHERE run_id=?", (run_id,)).fetchone()
+            if (parent is None or parent["status"] != RunStatus.cancelling.value or checkpoint is None
+                    or checkpoint["state"] != "waiting"):
+                return None
+            parent_proc = db.execute("SELECT 1 FROM run_procs WHERE run_id=? AND ended_at IS NULL "
+                                     "AND detached_at IS NULL LIMIT 1", (run_id,)).fetchone()
+            if parent_proc:
+                return None
+            tree = db.execute("""WITH RECURSIVE tree(id, path) AS (
+                                  SELECT ?, ',' || ? || ','
+                                  UNION ALL
+                                  SELECT r.id, t.path || r.id || ',' FROM runs r JOIN tree t ON r.parent_run_id=t.id
+                                  WHERE instr(t.path, ',' || r.id || ',')=0
+                                ) SELECT r.id, r.status FROM runs r JOIN tree t ON t.id=r.id""",
+                              (checkpoint["child_run_id"], checkpoint["child_run_id"])).fetchall()
+            active_values = tuple(status.value for status in ACTIVE_STATUSES)
+            if any(str(row["status"]) in active_values for row in tree):
+                return None
+            ids = [str(row["id"]) for row in tree]
+            marks = ",".join("?" for _ in ids)
+            live_proc = db.execute(f"SELECT 1 FROM run_procs WHERE run_id IN ({marks}) "
+                                   "AND ended_at IS NULL AND detached_at IS NULL LIMIT 1", ids).fetchone()
+            if live_proc:
+                return None
+            unknown = any(str(row["status"]) == RunStatus.outcome_unknown.value for row in tree)
+            reason = str(checkpoint["cancel_reason"] or ("stopped" if parent["cancel_requested"] else "timeout"))
+            target = RunStatus.outcome_unknown if unknown else RunStatus.failed if reason == "timeout" else RunStatus.stopped
+            error = ("delegated child work has an unresolved action outcome" if unknown else
+                     "parent timed out while waiting for delegated work" if reason == "timeout" else
+                     "stopped after delegated child cleanup was verified")
+            db.execute("UPDATE delegated_wait_continuations SET state='cancelled', updated_at=? WHERE run_id=?",
+                       (iso(utcnow()), run_id))
+            row, emitted = self._apply_transition(db, run_id, target, None,
+                "interrupted" if unknown else reason, error,
+                {"reason": "delegated_wait_cancelled", "child_run_id": checkpoint["child_run_id"],
+                 "error": error}, False, {"reason": error})
+        if emitted is not None:
+            self._fan_out(emitted)
+        run = self._run(row)
+        self._run_status[run_id] = run.status.value
+        with self._buf_cv:
+            self._sealed.add(run_id)
+        self.bus.notify("work", "runs", f"run:{run_id}", "events", "approvals")
+        return run
+
     def _apply_transition(self, db: sqlite3.Connection, run_id: str, to: RunStatus, fence: Optional[int],
                           exit_reason: Optional[str], error: Optional[str], event: Optional[dict[str, Any]],
                           bump_fence: bool, fields: Optional[dict[str, Any]],
@@ -6166,7 +7062,7 @@ class Store:
             raise LeaseLost(run_id, f"fence {fence} is stale (current {row['fence']})")
         if fence is not None and cur not in TERMINAL:
             self._check_lease(row, run_id, fence)
-        if cancel_wins and to in (RunStatus.failed, RunStatus.succeeded) and row["cancel_requested"]:
+        if cancel_wins and to in (RunStatus.failed, RunStatus.succeeded, RunStatus.waiting_workflow) and row["cancel_requested"]:
             to, exit_reason, error = RunStatus.stopped, "stopped", "stopped after owned processes were verified gone"
             event = {**(event or {}), "reason": "stopped", "error": error}
         if cur not in TERMINAL and to in TERMINAL:
@@ -6221,6 +7117,9 @@ class Store:
             patch["error"] = (error or "")[:2_000]
         elif exit_reason is not None:
             patch["exit_reason"] = exit_reason
+        if to is RunStatus.waiting_child:
+            patch["owner"] = ""
+            patch["pgid"] = 0
         sets, args = "status = ?, doc = json_patch(doc, ?), fence = ?", [to.value, json.dumps(patch, default=str),
                                                                         row["fence"] + (1 if bump_fence else 0)]
         if snapshot_to_write is not None:
@@ -6228,6 +7127,12 @@ class Store:
             args.append(snapshot_to_write)
         if terminal:
             sets += ", lease_owner = '', lease_expires_at = NULL, sealed = 1"
+        elif to is RunStatus.waiting_workflow:
+            sets += ", lease_owner = '', lease_expires_at = NULL"
+        elif to is RunStatus.waiting_child:
+            sets += ", lease_owner = '', lease_expires_at = NULL, pgid = 0"
+            # A parked run no longer owns its worker identity. The process table
+            # remains authoritative until its supervisor verifies exit and closes it.
         db.execute(f"UPDATE runs SET {sets} WHERE id = ?", (*args, run_id))
         if terminal:
             # A terminal run cannot leave an actionable approval behind. Resolve
@@ -6239,11 +7144,20 @@ class Store:
                                          "decided_by": decided_by})
             db.execute("UPDATE approvals SET status = 'expired', doc = json_patch(doc, ?) "
                        "WHERE run_id = ? AND status = 'pending'", (approval_patch, run_id))
-            # A crash can leave a reservation between admission and usage settlement. With no live caller to
-            # verify the outcome, keep it held until an operator reconciles the provider record.
-            db.execute("UPDATE usage_reservations SET status = 'uncertain', reason = "
-                       "CASE WHEN reason = '' THEN 'run ended before provider usage was settled' ELSE reason END "
-                       "WHERE run_id = ? AND status = 'reserved'", (run_id,))
+            # A pre-dispatch reservation is provably not a provider request. Once the
+            # request-start marker is durable, a crash leaves an uncertain charge that
+            # remains held until explicit reconciliation.
+            db.execute("UPDATE usage_reservations SET "
+                       "status = CASE WHEN request_started_at IS NULL THEN 'released' ELSE 'uncertain' END, "
+                       "resolved_at = CASE WHEN request_started_at IS NULL THEN ? ELSE NULL END, "
+                       "reason = CASE WHEN request_started_at IS NULL THEN 'run ended before provider dispatch' "
+                       "WHEN reason = '' THEN 'run ended before provider usage was settled' ELSE reason END "
+                       "WHERE run_id = ? AND status = 'reserved'", (terminal_at, run_id))
+            workflow_ids = [str(item[0]) for item in db.execute(
+                "SELECT DISTINCT workflow_run_id FROM usage_reservations "
+                "WHERE run_id = ? AND workflow_run_id != ''", (run_id,))]
+            for workflow_id in workflow_ids:
+                self._sync_workflow_usage_ledger(db, workflow_id)
             task_state = {RunStatus.succeeded: "done", RunStatus.skipped: "cancelled",
                           RunStatus.stopped: "cancelled"}.get(to, "failed")
             db.execute("UPDATE tasks SET state = ?, done = 1 WHERE run_id = ? OR id = ?",
@@ -6320,6 +7234,10 @@ class Store:
                 patch = _canonical({"status": "expired", "resolved_at": now, "decided_by": "stopped"})
                 db.execute(f"UPDATE approvals SET status = 'expired', doc = json_patch(doc, ?) "
                            f"WHERE status = 'pending' AND run_id IN ({id_marks})", (patch, *ids))
+                db.execute(f"UPDATE delegated_wait_continuations SET "
+                           "cancel_reason=CASE WHEN cancel_reason='' THEN 'stopped' ELSE cancel_reason END, "
+                           f"updated_at=? WHERE run_id IN ({id_marks}) AND state='waiting'",
+                           (now, *ids))
                 if idem_key is not None:
                     db.execute("INSERT INTO idempotency_keys(scope, key, request_hash, response_json, created_at) "
                                "VALUES (?, ?, ?, ?, ?)",
@@ -6364,6 +7282,17 @@ class Store:
         with self._lock:
             row = self._db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
         return self._run(row) if row else None
+
+    def run_kind(self, run_id: str) -> str:
+        """Which executor owns this run: ``attempt`` | ``workflow`` | ``step`` (schema v53)."""
+        with self._lock:
+            row = self._db.execute("SELECT kind FROM runs WHERE id = ?", (run_id,)).fetchone()
+        return str(row["kind"]) if row else "attempt"
+
+    def idempotency_replay(self, scope: str, key: str, request_hash: str) -> Optional[dict[str, Any]]:
+        """Read-only replay lookup for a versioned command (raises on a reused key)."""
+        with self._lock:
+            return self._idempotency_replay(self._db, scope, key, request_hash)
 
     def list_runs(self, bot_id: Optional[str] = None, limit: int = 50) -> list[Run]:
         q = f"SELECT {_RUN_COLS} FROM runs"
@@ -6583,13 +7512,25 @@ class Store:
 
     def begin_action(self, run_id: str, tool: str, idem_key: str, effect: str, summary: str = "",
                      fence: Optional[int] = None, *, arguments: Optional[dict] = None,
-                     authority: Optional[dict] = None, scope: Optional[dict] = None) -> str:
+                     authority: Optional[dict] = None, scope: Optional[dict] = None,
+                     workflow_identity: Optional[dict[str, str]] = None) -> str:
         """Commit immutable effect intent before authorization to act; claimed runs require their fence."""
         from .models import new_id
         if any(value is not None and not isinstance(value, dict) for value in (arguments, authority, scope)):
             raise ValueError("action arguments, authority and scope must be JSON objects")
         arguments, authority, scope = (action_receipts.freeze(value) if value is not None else None
                                        for value in (arguments, authority, scope))
+        workflow_key = workflow_fingerprint = ""
+        workflow_payload = None
+        if workflow_identity is not None:
+            if not isinstance(workflow_identity, dict) or set(workflow_identity) != {
+                    "workflow_run_id", "revision_id", "site_id", "instance_key", "slot"}:
+                raise ValueError("workflow action identity must name its workflow revision, site, instance and slot")
+            if any(not isinstance(value, str) or not value or len(value) > 256
+                   for value in workflow_identity.values()):
+                raise ValueError("workflow action identity fields must be non-empty bounded strings")
+            workflow_payload = action_receipts.freeze(workflow_identity)
+            workflow_key = action_receipts.digest(action_receipts.canonical(workflow_payload))
         action_id = new_id("act")
         with self._tx() as db:
             row = db.execute(f"SELECT bot_id, {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
@@ -6599,6 +7540,54 @@ class Store:
             st = RunStatus(row["status"])
             if st in TERMINAL | {RunStatus.cancelling, RunStatus.recovering} or row["cancel_requested"]:
                 raise LeaseLost(run_id, f"the run is {st.value}; no new action may start")
+            previous_workflow_action = None
+            if workflow_payload is not None:
+                self._assert_workflow_action_owner(db, run_id, row, workflow_payload)
+                previous_workflow_action = db.execute(
+                    "SELECT a.id, a.status, a.intent_json, a.intent_hash, a.result_json "
+                    "FROM tool_actions a WHERE a.workflow_identity = ? "
+                    "ORDER BY a.started_at DESC, a.id DESC LIMIT 1", (workflow_key,)).fetchone()
+                if previous_workflow_action is not None and str(previous_workflow_action["status"]) in ("done", "failed"):
+                    # A completed receipt is evidence that this exact workflow operation already ran.
+                    # Reuse its result by stable operation identity; current-attempt workspace state,
+                    # revisions and authorization hashes may differ after recovery. No effect is
+                    # authorized or dispatched here. The current workflow owner and action arguments
+                    # still have to match, and the tool's current policy gate runs before this point.
+                    raw_intent = str(previous_workflow_action["intent_json"] or "")
+                    if action_receipts.digest(raw_intent) != str(previous_workflow_action["intent_hash"] or ""):
+                        raise action_receipts.ActionUnresolved(
+                            "the completed workflow effect intent failed its integrity check; inspect the recorded action")
+                    try:
+                        old_intent = json.loads(raw_intent)
+                        old_identity = old_intent.get("workflow_identity")
+                        old_scope = old_intent.get("scope")
+                        old_result = json.loads(str(previous_workflow_action["result_json"] or "{}"))
+                    except (TypeError, json.JSONDecodeError, AttributeError):
+                        old_intent, old_identity, old_scope, old_result = {}, None, None, None
+                    stable_old_scope = ({key: value for key, value in old_scope.items() if key != "workspace"}
+                                        if isinstance(old_scope, dict) else None)
+                    stable_current_scope = {key: value for key, value in (scope or {}).items()
+                                            if key != "workspace"}
+                    operation_matches = (
+                        isinstance(old_intent, dict)
+                        and str(old_intent.get("bot_id") or "") == str(row["bot_id"])
+                        and str(old_intent.get("tool") or "") == tool
+                        and str(old_intent.get("effect") or "") == effect
+                        and action_receipts.canonical(old_intent.get("arguments")) == action_receipts.canonical(arguments)
+                        and stable_old_scope is not None
+                        and action_receipts.canonical(stable_old_scope) == action_receipts.canonical(stable_current_scope)
+                        and isinstance(old_identity, dict)
+                        and action_receipts.canonical(old_identity) == action_receipts.canonical(workflow_payload)
+                    )
+                    if not operation_matches:
+                        raise action_receipts.ActionConflict(
+                            "this workflow effect identity was reused with changed operation semantics")
+                    if (not isinstance(old_result, dict) or not isinstance(old_result.get("ok"), bool)
+                            or not isinstance(old_result.get("output"), str)
+                            or not isinstance(old_result.get("data", {}), dict)):
+                        raise action_receipts.ActionUnresolved(
+                            "the effect completed but its replay result is unavailable; inspect the recorded action")
+                    raise action_receipts.ActionReplay(old_result)
             if authority and authority.get("approval_id"):
                 approval = db.execute("SELECT doc, status, action_hash, expires_at FROM approvals WHERE id = ?",
                                       (authority["approval_id"],)).fetchone()
@@ -6618,6 +7607,39 @@ class Store:
                 repeat_scope["workspace"] = (scope or {}).get("workspace", "")
             effect_key = action_receipts.digest(action_receipts.canonical(
                 {"tool": tool, "effect": effect, "arguments": arguments, "scope": repeat_scope})) if arguments is not None else ""
+            if workflow_payload is not None:
+                stable_scope = {key: value for key, value in (scope or {}).items() if key != "workspace"}
+                stable_authority = None
+                if authority:
+                    stable_authority = {key: authority.get(key) for key in
+                                        ("tool", "detail", "rule", "outward", "action_hash")}
+                workflow_fingerprint = action_receipts.digest(action_receipts.canonical({
+                    "bot_id": row["bot_id"], "identity": workflow_payload, "tool": tool, "effect": effect,
+                    "arguments": arguments, "authority": stable_authority, "scope": stable_scope,
+                }))
+                previous = db.execute("SELECT a.id, a.status, a.workflow_fingerprint, a.result_json, x.outcome "
+                    "FROM tool_actions a LEFT JOIN action_reconciliations x ON x.action_id = a.id "
+                    "WHERE a.workflow_identity = ? ORDER BY a.started_at DESC, a.id DESC LIMIT 1",
+                    (workflow_key,)).fetchone()
+                if previous is not None:
+                    if str(previous["workflow_fingerprint"]) != workflow_fingerprint:
+                        raise action_receipts.ActionConflict(
+                            "this workflow effect identity was reused with changed operation semantics")
+                    status = str(previous["status"])
+                    if status in ("done", "failed"):
+                        try:
+                            result = json.loads(str(previous["result_json"] or "{}"))
+                        except (TypeError, json.JSONDecodeError):
+                            result = None
+                        if (not isinstance(result, dict) or not isinstance(result.get("ok"), bool)
+                                or not isinstance(result.get("output"), str)
+                                or not isinstance(result.get("data", {}), dict)):
+                            raise action_receipts.ActionUnresolved(
+                                "the effect completed but its replay result is unavailable; inspect the recorded action")
+                        raise action_receipts.ActionReplay(result)
+                    if str(previous["outcome"] or "") != "not_applied":
+                        raise action_receipts.ActionUnresolved(
+                            f"workflow action {previous['id']} may already have happened; reconcile it before retrying")
             if row["conversation_id"]:
                 previous = db.execute("SELECT a.id FROM tool_actions a JOIN runs r ON r.id = a.run_id "
                     "WHERE r.conversation_id = ? AND r.sealed = 1 AND a.status IN ('started', 'unknown') "
@@ -6629,16 +7651,106 @@ class Store:
                         f"unreconciled action {previous[0]} may already have happened; record its outcome before repeating")
             intent = {"schema": 1, "run_id": run_id, "bot_id": row["bot_id"], "fence": row["fence"],
                       "tool": tool, "effect": effect, "arguments": arguments, "authority": authority,
-                      "scope": scope, "effect_key": effect_key}
+                      "scope": scope, "effect_key": effect_key,
+                      "workflow_identity": workflow_payload}
             raw = action_receipts.canonical(intent)
             if len(raw.encode()) > action_receipts.MAX_INTENT_BYTES:
                 raise ValueError("action intent exceeds 4 MiB; reduce the requested arguments")
             db.execute("INSERT INTO tool_actions "
-                "(id, run_id, tool, idem_key, effect, summary, status, started_at, intent_json, intent_hash, effect_key, legacy) "
-                "VALUES (?, ?, ?, ?, ?, ?, 'started', ?, ?, ?, ?, ?)",
+                "(id, run_id, tool, idem_key, effect, summary, status, started_at, intent_json, intent_hash, effect_key, legacy, "
+                "workflow_identity, workflow_fingerprint) "
+                "VALUES (?, ?, ?, ?, ?, ?, 'started', ?, ?, ?, ?, ?, ?, ?)",
                 (action_id, run_id, tool, idem_key, effect, summary[:500], iso(utcnow()), raw,
-                 action_receipts.digest(raw), effect_key, int(arguments is None)))
+                 action_receipts.digest(raw), effect_key, int(arguments is None), workflow_key, workflow_fingerprint))
         return action_id
+
+    @staticmethod
+    def _assert_workflow_action_owner(db: sqlite3.Connection, run_id: str, row: sqlite3.Row,
+                                      identity: dict[str, str]) -> None:
+        """Require an action identity to belong to this run's current workflow generation."""
+        workflow_id = identity["workflow_run_id"]
+        workflow = db.execute("SELECT revision_id, attempt_run_id, status, stop_requested FROM workflow_runs "
+                              "WHERE id = ?", (workflow_id,)).fetchone()
+        if (workflow is None or str(workflow["revision_id"]) != identity["revision_id"]
+                or int(workflow["stop_requested"]) or str(workflow["status"]) not in ("running", "waiting")):
+            raise LeaseLost(run_id, "workflow action is no longer in the current revision")
+        node = db.execute("SELECT status FROM workflow_nodes WHERE workflow_run_id = ? AND site_id = ? "
+                          "AND instance_key = ?", (workflow_id, identity["site_id"], identity["instance_key"])).fetchone()
+        if node is None or str(node["status"]) != "running":
+            raise LeaseLost(run_id, "workflow action is not attached to a running node instance")
+        try:
+            run_doc = json.loads(str(row["doc"]))
+        except (TypeError, json.JSONDecodeError):
+            raise LeaseLost(run_id, "workflow action run metadata is unavailable") from None
+        if str(run_doc.get("workflow_run_id") or "") != workflow_id:
+            raise LeaseLost(run_id, "workflow action identity does not belong to this run")
+        kind = db.execute("SELECT kind, parent_run_id FROM runs WHERE id = ?", (run_id,)).fetchone()
+        if kind is None:
+            raise LeaseLost(run_id, "workflow action run disappeared")
+        if str(kind["kind"]) == "attempt" and kind["parent_run_id"]:
+            Store._assert_workflow_descendant_owner(db, run_id, run_doc, str(kind["parent_run_id"]), identity)
+            return
+        if str(kind["kind"]) == "workflow":
+            if (str(workflow["attempt_run_id"]) != run_id or str(workflow["status"]) != "running"):
+                raise LeaseLost(run_id, "workflow action attempt is no longer current")
+            return
+        if str(kind["kind"]) != "step":
+            raise LeaseLost(run_id, "only workflow and step runs may use workflow action identities")
+        step = run_doc.get("workflow_step")
+        if (not isinstance(step, dict) or str(step.get("workflow_run_id") or "") != workflow_id
+                or str(step.get("revision_id") or "") != identity["revision_id"]
+                or str(step.get("site_id") or "") != identity["site_id"]
+                or str(step.get("instance_key") or "") != identity["instance_key"]
+                or str(workflow["attempt_run_id"]) != str(kind["parent_run_id"] or "")):
+            raise LeaseLost(run_id, "workflow step action identity does not match its current parent")
+        parent = db.execute("SELECT fence, status, cancel_requested FROM runs WHERE id = ?",
+                            (str(kind["parent_run_id"]),)).fetchone()
+        if (parent is None or int(parent["fence"]) != int(step.get("parent_fence", -1))
+                or int(parent["cancel_requested"])
+                or str(parent["status"]) not in ("running", "waiting_workflow")):
+            raise LeaseLost(run_id, "workflow step's parent attempt is no longer current")
+        if str(parent["status"]) == "waiting_workflow" and str(workflow["status"]) != "waiting":
+            raise LeaseLost(run_id, "parked workflow step is not authorized by the waiting instance")
+
+    @staticmethod
+    def _assert_workflow_descendant_owner(db: sqlite3.Connection, run_id: str, run_doc: dict[str, Any],
+                                          parent_run_id: str, identity: dict[str, str]) -> None:
+        """Fence delegated descendants to the current workflow node and live parent chain."""
+        from .lifecycle import LeaseLost
+
+        context = run_doc.get("workflow_context")
+        keys = ("workflow_run_id", "revision_id", "site_id", "instance_key")
+        if (not isinstance(context, dict)
+                or any(not isinstance(context.get(key), str) or not context.get(key) for key in keys)
+                or any(str(context.get(key)) != identity[key] for key in keys)):
+            raise LeaseLost(run_id, "delegated workflow child has no matching inherited node identity")
+        workflow_id = identity["workflow_run_id"]
+        ancestor_id = parent_run_id
+        seen: set[str] = set()
+        while ancestor_id and ancestor_id not in seen:
+            seen.add(ancestor_id)
+            ancestor = db.execute(f"SELECT bot_id, {_RUN_COLS} FROM runs WHERE id = ?",
+                                  (ancestor_id,)).fetchone()
+            if ancestor is None:
+                break
+            ancestor_kind = db.execute("SELECT kind, parent_run_id FROM runs WHERE id = ?",
+                                       (ancestor_id,)).fetchone()
+            if ancestor_kind is None:
+                break
+            if (str(ancestor["status"]) not in (RunStatus.running.value, RunStatus.waiting_workflow.value)
+                    or int(ancestor["cancel_requested"])):
+                raise LeaseLost(run_id, "a delegated workflow ancestor is no longer active")
+            try:
+                ancestor_doc = json.loads(str(ancestor["doc"]))
+            except (TypeError, json.JSONDecodeError):
+                raise LeaseLost(run_id, "delegated workflow ancestry is unavailable") from None
+            if str(ancestor_doc.get("workflow_run_id") or "") != workflow_id:
+                raise LeaseLost(run_id, "delegated workflow ancestry changed instances")
+            if str(ancestor_kind["kind"]) in ("workflow", "step"):
+                Store._assert_workflow_action_owner(db, ancestor_id, ancestor, identity)
+                return
+            ancestor_id = str(ancestor_kind["parent_run_id"] or "")
+        raise LeaseLost(run_id, "delegated workflow request has no current workflow owner")
 
     @staticmethod
     def _action_owner(row, run_id, fence):
@@ -6650,9 +7762,13 @@ class Store:
             Store._check_lease(row, run_id, fence)
 
     def finish_action(self, action_id: str, status: str, result_digest: str = "", *,
+                      result: Optional[dict[str, Any]] = None,
                       expected_fence: Optional[int] = None) -> None:
         if status not in ("done", "failed"):
             raise ValueError("a worker receipt must report done or failed")
+        result_json = action_receipts.canonical(result if result is not None else {})
+        if len(result_json.encode("utf-8")) > action_receipts.MAX_INTENT_BYTES:
+            raise ValueError("action result exceeds the 4 MiB persistence limit")
         with self._tx() as db:
             action = db.execute("SELECT run_id, status FROM tool_actions WHERE id = ?", (action_id,)).fetchone()
             if action is None:
@@ -6661,8 +7777,9 @@ class Store:
             self._action_owner(row, action["run_id"], expected_fence)
             if RunStatus(row["status"]) in TERMINAL or action["status"] != "started":
                 raise LeaseLost(action["run_id"], "receipt is sealed or uncertain; reconcile instead of overwriting it")
-            db.execute("UPDATE tool_actions SET status = ?, finished_at = ?, result_digest = ? WHERE id = ? AND status = 'started'",
-                       (status, iso(utcnow()), result_digest[:128], action_id))
+            db.execute("UPDATE tool_actions SET status = ?, finished_at = ?, result_digest = ?, result_json = ? "
+                       "WHERE id = ? AND status = 'started'",
+                       (status, iso(utcnow()), result_digest[:128], result_json, action_id))
 
     def actions_in_doubt(self, run_id: str) -> list[dict[str, Any]]:
         with self._lock:
@@ -6790,6 +7907,28 @@ class Store:
 
     # ----------------------------------------------------------- events
 
+    def _restore_event_outbox(self) -> list[Event]:
+        """Rehydrate events left in SQLite when a process died before canonical commit."""
+        with self._lock:
+            table = self._db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'event_outbox'"
+            ).fetchone()
+            if table is None:
+                version = int(self._db.execute("PRAGMA user_version").fetchone()[0])
+                if version < EVENT_OUTBOX_SCHEMA_VERSION:
+                    # Tests and maintenance tools may intentionally open a historical
+                    # schema before applying its next migration. Normal Store startup
+                    # upgrades to the current schema before reaching this reader.
+                    return []
+                raise RuntimeError(f"schema v{version} is missing its event_outbox table")
+            rows = self._db.execute(
+                "SELECT event_key, run_id, ts, type, data, owner_fence "
+                "FROM event_outbox ORDER BY outbox_seq").fetchall()
+        return [Event(outbox_id=str(row["event_key"]), run_id=str(row["run_id"]),
+                      ts=str(row["ts"]), type=EventType(str(row["type"])),
+                      data=json.loads(str(row["data"])), owner_fence=row["owner_fence"])
+                for row in rows]
+
     def append_event(self, event: Event) -> Event:
         """Queue an event; the single writer commits in batches. Returns immediately, so the agent loop never waits on a disk commit.
 
@@ -6804,6 +7943,19 @@ class Store:
                 raise RuntimeError("Hutch state is closing; new events are refused")
             if event.run_id in self._sealed:
                 return event                  # the run is over: a worker that outlived it cannot extend the transcript
+            if len(self._pending) + self._inflight >= EVENT_PENDING_MAX:
+                raise RuntimeError("canonical event queue is full; new events are refused")
+            if event.outbox_id is None:
+                event.outbox_id = uuid.uuid4().hex
+            # Commit the event intent before acknowledging the in-memory enqueue. If
+            # this process exits before the writer batch reaches `events`, the next
+            # Store instance will restore this exact identity from the outbox.
+            with self._tx() as db:
+                db.execute("""INSERT INTO event_outbox
+                    (event_key, run_id, ts, type, data, owner_fence)
+                    VALUES (?, ?, ?, ?, ?, ?)""",
+                    (event.outbox_id, event.run_id, event.ts, event.type.value,
+                     _canonical(event.data), event.owner_fence))
             self._pending.append(event)
             self._enqueued += 1
             self._buf_cv.notify_all()
@@ -6830,19 +7982,52 @@ class Store:
                 self._sink_errors.setdefault(event.run_id, []).append(f"{type(exc).__name__}: {exc}")
 
     @staticmethod
-    def _insert_events(db: sqlite3.Connection, run_id: str, events: list[Event]) -> None:
+    def _delete_event_outbox(db: sqlite3.Connection, events: list[Event]) -> None:
+        keys = [(event.outbox_id,) for event in events if event.outbox_id]
+        if keys:
+            db.executemany("DELETE FROM event_outbox WHERE event_key = ?", keys)
+
+    @staticmethod
+    def _insert_events(db: sqlite3.Connection, run_id: str, events: list[Event]) -> list[Event]:
         """Give ``events`` the next sequence numbers and chain hashes of this run's transcript and insert them. Must run inside
-        the write transaction: the tail it reads cannot change before the commit."""
+        the write transaction: the tail it reads cannot change before the commit. Stable outbox identities make concurrent
+        recovery idempotent, while direct transactional events keep a null event key."""
+        inserted: list[Event] = []
+        seen_keys: dict[str, tuple[str, str, str, str]] = {}
         row = db.execute("SELECT seq, hash FROM events WHERE run_id = ? ORDER BY seq DESC LIMIT 1", (run_id,)).fetchone()
         seq, prev = (row["seq"], row["hash"] or GENESIS) if row else (0, GENESIS)
         rows = []
         for e in events:
+            event_key = e.outbox_id
+            if event_key:
+                payload_identity = (run_id, e.ts, e.type.value, _canonical(e.data))
+                if event_key in seen_keys:
+                    if seen_keys[event_key] != payload_identity:
+                        raise ValueError("one event outbox identity has conflicting payloads")
+                    continue
+                seen_keys[event_key] = payload_identity
+                existing = db.execute(
+                    "SELECT id, run_id, ts, type, data, seq, hash FROM events WHERE event_key = ?",
+                    (event_key,)).fetchone()
+                if existing is not None:
+                    saved_identity = (str(existing["run_id"]), str(existing["ts"]),
+                                      str(existing["type"]), str(existing["data"]))
+                    if saved_identity != payload_identity:
+                        raise ValueError("an event outbox identity conflicts with its canonical event")
+                    e.id, e.seq, e.hash = int(existing["id"]), int(existing["seq"]), str(existing["hash"] or "")
+                    continue
             seq += 1
             data_json = _canonical(e.data)
             e.seq, e.hash = seq, chain_hash(prev, run_id, seq, e.ts, e.type.value, data_json)
             prev = e.hash
-            rows.append((run_id, seq, e.hash, e.ts, e.type.value, data_json))
-        db.executemany("INSERT INTO events (run_id, seq, hash, ts, type, data) VALUES (?, ?, ?, ?, ?, ?)", rows)
+            rows.append((run_id, seq, e.hash, e.ts, e.type.value, data_json, event_key))
+            inserted.append(e)
+        if not rows:
+            Store._delete_event_outbox(db, events)
+            return []
+        db.executemany("INSERT INTO events (run_id, seq, hash, ts, type, data, event_key) "
+                       "VALUES (?, ?, ?, ?, ?, ?, ?)", rows)
+        Store._delete_event_outbox(db, events)
         # Persist one recoverable file-delivery intent per committed event
         # batch, in this transaction. The old row trigger ran a SQL predicate
         # for every event even while a run already had pending delivery. When
@@ -6858,7 +8043,7 @@ class Store:
         # Every event insertion path projects canonical replies in the same transaction.
         # Terminal transitions drain the buffer here rather than through _commit_batch;
         # projecting only in that writer lost replies when completion won the race.
-        replies = [e for e in events if e.type is EventType.message and e.data.get("role") == "assistant"
+        replies = [e for e in inserted if e.type is EventType.message and e.data.get("role") == "assistant"
                    and isinstance(e.data.get("content"), str) and e.data["content"]]
         if replies:
             run = db.execute("SELECT conversation_id FROM runs WHERE id = ?", (run_id,)).fetchone()
@@ -6871,8 +8056,10 @@ class Store:
                         db, message_id=str(e.data.get("message_id") or f"msg_{uuid.uuid4().hex[:12]}"),
                         conversation_id=conversation_id,
                         seq=next_seq + offset, run_id=run_id, role="assistant", content=e.data["content"], created_at=e.ts)
+        return inserted
 
     def _writer_loop(self) -> None:
+        consecutive_failures = 0
         while True:
             with self._buf_cv:
                 while not self._pending and not self._closing:
@@ -6892,17 +8079,27 @@ class Store:
                     continue  # a status transition drained the buffer while we waited
                 batch, self._pending = self._pending, []
                 self._inflight = len(batch)
-            kept: list[Event] = []
+            committed: Optional[list[Event]] = None
             try:
-                kept = self._commit_batch(batch)
+                committed = self._commit_batch(batch)
             finally:
                 with self._buf_cv:
-                    self._committed += len(batch)
+                    if committed is not None:
+                        self._committed += len(batch)
                     self._inflight = 0
                     self._buf_cv.notify_all()
-            self.bus.notify(*{f"run:{e.run_id}" for e in kept}, "events")
+            if committed is not None:
+                consecutive_failures = 0
+                self.bus.notify(*{f"run:{e.run_id}" for e in committed}, "events")
+            else:
+                # Preserve failed batches, but avoid a tight retry loop when storage is
+                # persistently unavailable. A successful commit resets the delay.
+                delay = min(EVENT_RETRY_BASE_SECONDS * (2 ** min(consecutive_failures, 16)),
+                            EVENT_RETRY_MAX_SECONDS)
+                consecutive_failures += 1
+                time.sleep(delay)
 
-    def _commit_batch(self, batch: list[Event]) -> list[Event]:
+    def _commit_batch(self, batch: list[Event]) -> Optional[list[Event]]:
         """Commit a batch: per run, assign sequence and hash from the database tail, in one transaction. Events for a run that a
         transition already ended (a zombie worker's late writes, possibly from another process) are dropped here, at the
         database, and counted. Returns the events that were stored."""
@@ -6919,11 +8116,13 @@ class Store:
                         row = db.execute("SELECT sealed FROM runs WHERE id = ?", (run_id,)).fetchone()
                         if row is not None and row["sealed"]:
                             dropped += len(evs)
+                            self._delete_event_outbox(db, evs)
                             continue
                         kept = self._worker_events(db, run_id, evs)
                         dropped += len(evs) - len(kept)
-                        self._insert_events(db, run_id, kept)
-                        stored += kept
+                        kept_ids = {id(event) for event in kept}
+                        self._delete_event_outbox(db, [event for event in evs if id(event) not in kept_ids])
+                        stored += self._insert_events(db, run_id, kept)
                 self.dropped_events += dropped
                 for e in stored:                      # committed: observers see them in sequence order
                     self._fan_out(e)
@@ -6931,18 +8130,18 @@ class Store:
             except sqlite3.OperationalError as exc:  # another process held the write lock past busy_timeout
                 last = exc
                 time.sleep(0.05 * (attempt + 1))
-        # Not silent and not lost if it can be avoided: put them back for the next cycle, up to a bound.
+            except Exception as exc:
+                # An unexpected database/serialization failure is not a commit. Preserve
+                # the batch and let flush_events surface the missing acknowledgement.
+                last = exc
+                break
+        # Keep the batch queued for retry. append_event enforces the same bound across
+        # pending and in-flight events, so a failed commit must never turn into a drop.
         import sys
         with self._buf_cv:
-            if len(self._pending) + len(batch) <= 10_000:
-                self._pending = batch + self._pending
-                self._enqueued += 0
-                self._committed -= len(batch)         # they are not committed after all
-                print(f"hutch: {len(batch)} events could not be written ({last}); retrying", file=sys.stderr)
-                return []
-        self.dropped_events += len(batch)
-        print(f"hutch: DROPPED {len(batch)} events after repeated DB errors: {last}", file=sys.stderr)
-        return []
+            self._pending = batch + self._pending
+            print(f"hutch: {len(batch)} events could not be written ({last}); retrying", file=sys.stderr)
+        return None
 
     @staticmethod
     def _worker_events(db: sqlite3.Connection, run_id: str, events: list[Event]) -> list[Event]:
@@ -7409,6 +8608,7 @@ class Store:
                      req.action_hash, req.expires_at))
                 if begin_wait and req.status is ApprovalStatus.pending:
                     kept = self._worker_events(db, req.run_id, mine)
+                    self._delete_event_outbox(db, mine)
                     row, emitted = self._apply_transition(db, req.run_id, RunStatus.waiting_approval,
                         expected_fence, None, None, {"approval_id": req.id}, False, None, earlier=kept)
                     request_event = Event(run_id=req.run_id, type=EventType.approval_request,
@@ -8063,6 +9263,99 @@ class Store:
 
     # -------------------------------------------------------------- usage
 
+    @staticmethod
+    def _workflow_usage_scope(db: sqlite3.Connection, run_id: str,
+                              run_row: sqlite3.Row, run_doc: dict[str, Any]) -> Optional[dict[str, Any]]:
+        """Validate a model request against the active root workflow generation, if any."""
+        from .lifecycle import LeaseLost
+
+        workflow_id = str(run_doc.get("workflow_run_id") or "")
+        if not workflow_id:
+            return None
+        workflow = db.execute("SELECT revision_id, attempt_run_id, status, stop_requested, budget_json, ledger_json "
+                              "FROM workflow_runs WHERE id = ?", (workflow_id,)).fetchone()
+        if (workflow is None or int(workflow["stop_requested"])
+                or str(workflow["status"]) not in ("running", "waiting")):
+            raise LeaseLost(run_id, "workflow model request is no longer admitted")
+        kind = db.execute("SELECT kind, parent_run_id FROM runs WHERE id = ?", (run_id,)).fetchone()
+        if kind is None:
+            raise LeaseLost(run_id, "workflow model request run disappeared")
+        if str(kind["kind"]) == "workflow":
+            if (str(workflow["attempt_run_id"]) != run_id or str(workflow["status"]) != "running"
+                    or RunStatus(run_row["status"]) is not RunStatus.running):
+                raise LeaseLost(run_id, "workflow model request attempt is no longer current")
+        elif str(kind["kind"]) == "step":
+            step = run_doc.get("workflow_step")
+            if not isinstance(step, dict):
+                raise LeaseLost(run_id, "workflow model request has no frozen node identity")
+            identity = {
+                "workflow_run_id": workflow_id,
+                "revision_id": str(step.get("revision_id") or ""),
+                "site_id": str(step.get("site_id") or ""),
+                "instance_key": str(step.get("instance_key") or ""),
+                "slot": "model-request",
+            }
+            Store._assert_workflow_action_owner(db, run_id, run_row, identity)
+        elif str(kind["kind"]) == "attempt" and kind["parent_run_id"]:
+            context = run_doc.get("workflow_context")
+            if (not isinstance(context, dict)
+                    or any(not isinstance(context.get(key), str) or not context.get(key)
+                           for key in ("workflow_run_id", "revision_id", "site_id", "instance_key"))
+                    or str(context.get("workflow_run_id")) != workflow_id):
+                raise LeaseLost(run_id, "delegated workflow request has no inherited node identity")
+            identity = {key: str(context[key]) for key in
+                        ("workflow_run_id", "revision_id", "site_id", "instance_key")}
+            identity["slot"] = str(context.get("slot") or "model-request")
+            Store._assert_workflow_action_owner(db, run_id, run_row, identity)
+        else:
+            raise LeaseLost(run_id, "only the workflow owner, a step, or its delegated descendants may reserve model usage")
+        try:
+            budget = json.loads(str(workflow["budget_json"] or "{}"))
+            ledger = json.loads(str(workflow["ledger_json"] or "{}"))
+        except (TypeError, json.JSONDecodeError):
+            raise LeaseLost(run_id, "workflow budget record is unavailable") from None
+        if not isinstance(budget, dict) or not isinstance(ledger, dict):
+            raise LeaseLost(run_id, "workflow budget record is malformed")
+        return {"id": workflow_id, "revision_id": str(workflow["revision_id"]),
+                "attempt_run_id": str(workflow["attempt_run_id"]), "budget": budget, "ledger": ledger}
+
+    @staticmethod
+    def _workflow_usage_totals(db: sqlite3.Connection, workflow_id: str, *, held: bool) -> tuple[int, int]:
+        """Return request and token commitments (or started usage) for the whole workflow tree."""
+        if held:
+            request_condition = "request_started_at IS NOT NULL OR status IN ('reserved','uncertain','settled')"
+            token_condition = "status IN ('reserved','uncertain') OR request_started_at IS NOT NULL"
+        else:
+            request_condition = "request_started_at IS NOT NULL"
+            token_condition = "request_started_at IS NOT NULL"
+        row = db.execute(
+            f"""SELECT COUNT(*) AS calls,
+                       COALESCE(SUM(CASE
+                         WHEN status = 'settled' AND actual_prompt_tokens IS NOT NULL
+                              AND actual_completion_tokens IS NOT NULL
+                           THEN actual_prompt_tokens + actual_completion_tokens
+                         WHEN {token_condition} THEN reserved_tokens ELSE 0 END), 0) AS tokens
+                FROM usage_reservations WHERE workflow_run_id = ? AND ({request_condition})""",
+            (workflow_id,)).fetchone()
+        return int(row["calls"] or 0), int(row["tokens"] or 0)
+
+    @staticmethod
+    def _sync_workflow_usage_ledger(db: sqlite3.Connection, workflow_id: str) -> None:
+        row = db.execute("SELECT ledger_json FROM workflow_runs WHERE id = ?", (workflow_id,)).fetchone()
+        if row is None:
+            return
+        try:
+            ledger = json.loads(str(row["ledger_json"] or "{}"))
+        except (TypeError, json.JSONDecodeError):
+            return
+        if not isinstance(ledger, dict):
+            return
+        calls, tokens = Store._workflow_usage_totals(db, workflow_id, held=False)
+        ledger["model_calls"] = calls
+        ledger["model_tokens"] = tokens
+        db.execute("UPDATE workflow_runs SET ledger_json = ?, updated_at = ? WHERE id = ?",
+                   (json.dumps(ledger, sort_keys=True, ensure_ascii=False), iso(utcnow()), workflow_id))
+
     def admit_and_reserve(self, *, run_id: str, bot_id: str, provider: str, account_id: str, model: str,
                           reserved_tokens: int, quote: CallQuote, daily_token_cap: int = 0,
                           max_run_cost_usd: float = 0.0, daily_bot_cost_cap_usd: float = 0.0,
@@ -8131,6 +9424,7 @@ class Store:
                     "a currency limit is active, but this call has no verified USD price basis; "
                     "no paid request was sent")
             legacy_run = json.loads(run_doc_row["doc"])
+            workflow_scope = self._workflow_usage_scope(db, run_id, run_doc_row, legacy_run)
             ledger_run_cost, _ = totals(
                 "SELECT SUM(cost_usd) AS cost, SUM(prompt_tokens + completion_tokens) AS tokens "
                 "FROM usage WHERE run_id = ?", (run_id,))
@@ -8186,6 +9480,20 @@ class Store:
                     raise UsageBudgetRefusal(
                         f"the next call could pass this delegated run tree's ${float(tree_cap):.2f} cap; "
                         f"${tree_total:.4f} is spent or reserved")
+
+            if workflow_scope is not None:
+                used_calls, used_tokens = self._workflow_usage_totals(
+                    db, workflow_scope["id"], held=True)
+                call_limit = int(workflow_scope["budget"].get("max_model_calls", 12))
+                token_limit = int(workflow_scope["budget"].get("max_tokens", 64_000))
+                if used_calls + 1 > call_limit:
+                    raise UsageBudgetRefusal(
+                        f"the workflow's max_model_calls budget is exhausted ({call_limit} actual requests; "
+                        f"{used_calls} used or reserved)")
+                if used_tokens + reserved_tokens > token_limit:
+                    raise UsageBudgetRefusal(
+                        f"the next model request could pass the workflow's max_tokens budget "
+                        f"({used_tokens:,} used or reserved + {reserved_tokens:,} estimated; limit {token_limit:,})")
 
             bot_ledger_spent, bot_ledger_tokens = totals(
                 "SELECT SUM(cost_usd) AS cost, SUM(prompt_tokens + completion_tokens) AS tokens FROM usage "
@@ -8251,14 +9559,15 @@ class Store:
             db.execute("INSERT INTO usage_reservations (id, run_id, bot_id, provider, account_id, model, "
                        "reserved_tokens, reserved_cost_usd, status, created_at, cost_unknown, quote_source, "
                        "quote_verified_on, quote_snapshot_sha256, quote_expires_at, quote_endpoints_json, "
-                       "quote_currency, quote_billing_unit, request_hash) "
-                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'reserved', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                       "quote_currency, quote_billing_unit, request_hash, workflow_run_id) "
+                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'reserved', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" ,
                        (reservation_id, run_id, bot_id, provider, account_id, model, reserved_tokens,
                         reserved_cost_usd, now_text, cost_unknown, str(quote.source)[:64],
                         str(quote.verified_on)[:64], str(quote.snapshot_digest)[:64],
                         str(quote.expires_at)[:64],
                         json.dumps(list(quote.endpoint_identities[:128]), ensure_ascii=False, separators=(",", ":")),
-                        str(quote.currency)[:8], str(quote.billing_unit)[:32], request_hash))
+                        str(quote.currency)[:8], str(quote.billing_unit)[:32], request_hash,
+                        workflow_scope["id"] if workflow_scope else ""))
         self.bus.notify("usage")
         return Reservation(reservation_id, tuple(warnings))
 
@@ -8631,12 +9940,44 @@ class Store:
                                     (run_id,)).fetchall()
         return [dict(row) for row in rows]
 
+    def start_usage_request(self, reservation_id: str, *, expected_fence: Optional[int] = None) -> bool:
+        """Mark the point immediately before provider dispatch; a reservation can start only once."""
+        now_text = iso(utcnow())
+        with self._tx() as db:
+            reservation = db.execute("SELECT run_id, bot_id, status, workflow_run_id, request_started_at "
+                                     "FROM usage_reservations WHERE id = ?", (reservation_id,)).fetchone()
+            if reservation is None:
+                raise KeyError(reservation_id)
+            run_row = self._usage_authority(db, reservation["run_id"], reservation["bot_id"], expected_fence)
+            if reservation["request_started_at"]:
+                return False
+            if reservation["status"] != "reserved":
+                raise LeaseLost(reservation["run_id"], "the provider reservation is no longer startable")
+            if (RunStatus(run_row["status"]) is not RunStatus.running or int(run_row["cancel_requested"])):
+                raise LeaseLost(reservation["run_id"], "the run is stopping; the provider request was not started")
+            try:
+                run_doc = json.loads(str(run_row["doc"]))
+            except (TypeError, json.JSONDecodeError):
+                raise LeaseLost(reservation["run_id"], "provider run metadata is unavailable") from None
+            scope = self._workflow_usage_scope(db, reservation["run_id"], run_row, run_doc)
+            if scope is not None and scope["id"] != str(reservation["workflow_run_id"] or ""):
+                raise LeaseLost(reservation["run_id"], "provider reservation belongs to another workflow")
+            cur = db.execute("UPDATE usage_reservations SET request_started_at = ? "
+                              "WHERE id = ? AND status = 'reserved' AND request_started_at IS NULL",
+                              (now_text, reservation_id))
+            if cur.rowcount != 1:
+                return False
+            if scope is not None:
+                self._sync_workflow_usage_ledger(db, scope["id"])
+        self.bus.notify("usage", *( [f"workflow:{scope['id']}"] if scope else []))
+        return True
+
     def _usage_authority(self, db: sqlite3.Connection, run_id: str, bot_id: Optional[str],
-                         expected_fence: Optional[int], *, required: bool = True) -> None:
+                         expected_fence: Optional[int], *, required: bool = True) -> Optional[sqlite3.Row]:
         row = db.execute(f"SELECT bot_id, {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
         if row is None:
             if not required and expected_fence is None:
-                return  # compatibility import/diagnostic accounting, not worker settlement
+                return None  # compatibility import/diagnostic accounting, not worker settlement
             raise ValueError("usage must refer to an existing run")
         if bot_id is not None and row["bot_id"] != bot_id:
             raise ValueError("usage must belong to the run's bot")
@@ -8646,16 +9987,22 @@ class Store:
             raise LeaseLost(run_id, "a worker fence is required for usage mutations")
         if expected_fence is not None:
             self._check_lease(row, run_id, expected_fence)
+        return row
 
     def mark_usage_uncertain(self, reservation_id: str, reason: str, *, expected_fence: Optional[int] = None) -> bool:
         with self._tx() as db:
-            row = db.execute("SELECT run_id, bot_id FROM usage_reservations WHERE id = ?", (reservation_id,)).fetchone()
+            row = db.execute("SELECT run_id, bot_id, workflow_run_id FROM usage_reservations WHERE id = ?",
+                             (reservation_id,)).fetchone()
             if row is None:
                 raise KeyError(reservation_id)
             self._usage_authority(db, row["run_id"], row["bot_id"], expected_fence)
-            cur = db.execute("UPDATE usage_reservations SET status = 'uncertain', reason = ? "
+            cur = db.execute("UPDATE usage_reservations SET status = 'uncertain', "
+                             "request_started_at = COALESCE(request_started_at, created_at), reason = ? "
                              "WHERE id = ? AND status = 'reserved'", (reason[:500], reservation_id))
-        self.bus.notify("usage")
+            if cur.rowcount and row["workflow_run_id"]:
+                self._sync_workflow_usage_ledger(db, str(row["workflow_run_id"]))
+        self.bus.notify("usage", *([f"workflow:{row['workflow_run_id']}"]
+                                    if cur.rowcount and row["workflow_run_id"] else []))
         return cur.rowcount == 1
 
     def release_usage_reservation(self, reservation_id: str, reason: str, *, expected_fence: Optional[int] = None) -> bool:
@@ -8663,14 +10010,20 @@ class Store:
         if not reason.strip():
             raise ValueError("a reason is required")
         with self._tx() as db:
-            row = db.execute("SELECT run_id, bot_id FROM usage_reservations WHERE id = ?", (reservation_id,)).fetchone()
+            row = db.execute("SELECT run_id, bot_id, workflow_run_id, request_started_at "
+                             "FROM usage_reservations WHERE id = ?", (reservation_id,)).fetchone()
             if row is None:
                 raise KeyError(reservation_id)
             self._usage_authority(db, row["run_id"], row["bot_id"], expected_fence)
+            if row["request_started_at"]:
+                raise ValueError("a started provider request must be settled or reconciled, not released")
             cur = db.execute("UPDATE usage_reservations SET status = 'released', resolved_at = ?, reason = ? "
-                             "WHERE id = ? AND status = 'reserved'",
+                             "WHERE id = ? AND status = 'reserved' AND request_started_at IS NULL",
                              (iso(utcnow()), reason[:500], reservation_id))
-        self.bus.notify("usage")
+            if cur.rowcount and row["workflow_run_id"]:
+                self._sync_workflow_usage_ledger(db, str(row["workflow_run_id"]))
+        self.bus.notify("usage", *([f"workflow:{row['workflow_run_id']}"]
+                                    if cur.rowcount and row["workflow_run_id"] else []))
         return cur.rowcount == 1
 
     def unresolved_usage_reservations(self, limit: int = 100) -> list[dict[str, Any]]:
@@ -8733,7 +10086,9 @@ class Store:
                            (now_text, prompt_tokens, completion_tokens, cached_tokens, actual_cost_usd,
                             reason[:500], reservation_id))
                 result = "settled"
-        self.bus.notify("usage")
+            if row["workflow_run_id"]:
+                self._sync_workflow_usage_ledger(db, str(row["workflow_run_id"]))
+        self.bus.notify("usage", *([f"workflow:{row['workflow_run_id']}"] if row["workflow_run_id"] else []))
         return result
 
     def add_usage(self, run_id: str, bot_id: str, provider: str, model: str, prompt_tokens: int,
@@ -8754,6 +10109,7 @@ class Store:
         now_text = iso(utcnow())
         with self._tx() as db:
             account = account_id or provider
+            workflow_id = ""
             if reservation_id:
                 reservation = db.execute("SELECT * FROM usage_reservations WHERE id = ?",
                                          (reservation_id,)).fetchone()
@@ -8776,6 +10132,11 @@ class Store:
                 if reservation["status"] == "uncertain":
                     raise ValueError("uncertain usage requires explicit terminal-run reconciliation")
                 account = reservation["account_id"]
+                workflow_id = str(reservation["workflow_run_id"] or "")
+                # A settled usage record is proof the request reached a provider, even
+                # for compatibility callers that predate the explicit start marker.
+                db.execute("UPDATE usage_reservations SET request_started_at = COALESCE(request_started_at, created_at) "
+                           "WHERE id = ? AND status = 'reserved'", (reservation_id,))
             else:
                 self._usage_authority(db, run_id, bot_id, expected_fence, required=False)
             db.execute(
@@ -8788,7 +10149,9 @@ class Store:
                 db.execute("UPDATE usage_reservations SET status = 'settled', resolved_at = ?, actual_prompt_tokens = ?, "
                            "actual_completion_tokens = ?, actual_cached_tokens = ?, actual_cost_usd = ?, reason = '' WHERE id = ?",
                            (now_text, prompt_tokens, completion_tokens, cached_tokens, cost_usd, reservation_id))
-        self.bus.notify("usage")
+                if workflow_id:
+                    self._sync_workflow_usage_ledger(db, workflow_id)
+        self.bus.notify("usage", *([f"workflow:{workflow_id}"] if workflow_id else []))
 
     def reserved_account_usage_since(self, account_id: str, seconds: float) -> tuple[int, float]:
         """Every unresolved hold consumes the current allowance until settled/reconciled.

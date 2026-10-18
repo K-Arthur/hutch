@@ -14,6 +14,8 @@ from .documents import CreateDocumentTool, InspectDocumentTool, ReviseDocumentTo
 from .media import CreateMediaTool, RenderDiagramTool
 from .python_exec import ResetWorkspaceTool, RunPythonTool
 from .live import InspectMediaTool, LiveSearchTool
+
+from .workflow_draft import DraftWorkflowTool
 from .google_calendar import GoogleCalendarCreateEventTool, GoogleCalendarEventsTool
 from .outlook_calendar import OutlookCalendarEventsTool
 from .outlook_calendar_write import OutlookCalendarCreateEventTool
@@ -54,6 +56,8 @@ _CATALOG: dict[str, type[Tool]] = {
     "render_infographic": RenderInfographicTool,
     "plan_workspace_action": PlanWorkspaceActionTool,
     "run_workspace_plan": RunWorkspacePlanTool,
+
+"draft_workflow": DraftWorkflowTool,
 }
 
 #: bot-level tool groups that expand to concrete tool names

@@ -8,7 +8,7 @@ implemented but not yet exercised against a live dependency.
 The early realignment work was developed on `realign/platform` in `.worktrees/realign`, based on the last coherent pre-realignment
 history and merged with local `main` through `0ab3058`, `cf82f73` (main `44ca869`), and `fdf6592` (main `307ce1d`). The merges
 preserve both histories. After the user's 2026-10-09 direction to continue on `main`, application and marketing work continued in
-the shared `/home/kevina/CodingProjects/hutch` checkout; the schedule-control slice is committed there as `8a87ac9`. Main's PF-2
+the shared `/<local-path-redacted> checkout; the schedule-control slice is committed there as `8a87ac9`. Main's PF-2
 tool-output source-card change (`c0ebc21`) was integrated through merge `6fab391`; its direct file route was adapted to Hutch's
 recorded size/hash verifier instead of retaining an unchecked path-only `FileResponse`. No push or publication is authorized.
 
@@ -1693,7 +1693,7 @@ a real model route. The source test harness still loads its fixture unchanged. R
 
 `.venv/bin/python -m pytest -q -W error::pytest.PytestUnhandledThreadExceptionWarning
 -W error::SyntaxWarning tests/test_runtime.py` passed **8 tests in 0.33s**. `uv build --wheel
---out-dir /tmp/hutch-test-runtime-boundary` succeeded; a clean `/tmp` process importing only that
+--out-dir /<local-path-redacted> succeeded; a clean `/tmp` process importing only that
 wheel with `HUTCH_TESTING=1` printed the intended error and exited normally. No marketing change is
 needed because this is a packaged test-flag edge, not a public capability or product flow.
 

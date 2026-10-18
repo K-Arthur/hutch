@@ -1,0 +1,39 @@
+{
+  "acceptance": "WF-PROTOCOL-01 (narrow OpenAI-compatible streamed runtime path)",
+  "test_command": "TMPDIR=/var/tmp .venv/bin/pytest -q tests/test_runtime_builtin.py tests/test_providers.py tests/test_toolcalling_streaming.py --basetemp=/<local-path-redacted>",
+  "result": {
+    "status": "passed",
+    "tests": 126,
+    "duration_seconds": 79.6
+  },
+  "captured_at": "2026-10-12T04:36:43.384182+00:00",
+  "environment": {
+    "python": "3.13.15",
+    "platform": "Linux-7.2.7-1-cachyos-x86_64-with-glibc2.44",
+    "pytest": "9.1.1",
+    "provider": "FakeOpenAI over local loopback HTTP",
+    "external_provider_calls": 0
+  },
+  "regression": "test_openai_streamed_tool_result_is_consumed_and_repeated_call_stops",
+  "assertions": [
+    "four streamed requests are consumed",
+    "synthesized call IDs are present and each has a matching tool result in subsequent request history",
+    "the result probe ran exactly twice",
+    "the third and later identical calls were refused",
+    "tool results preserve the refusal in replay history"
+  ],
+  "source_sha256": {
+    "src/hutch/runtime/builtin.py": "e2e1ad6a9a5d0419b46c4f4dedd18b16ed7e50d21eccfaa9090214b884357cca",
+    "src/hutch/providers/openai_compat.py": "73490b7a9d60558880b61bef5c772e6df25a850f9bb607251947744976ac6bbd",
+    "src/hutch/toolcalling/streamassembly.py": "226742fc4f3d555098efabb5c899844a36d4332b8027f11719f30f5d23afa145",
+    "tests/fakes.py": "0b79f4856be831cf79736c69c8ed4bda8cfb3ba70072a7592dda565da8761468",
+    "tests/test_runtime_builtin.py": "2443ac21a5dbb9480e6dbb62c69e7757f5255627d07132aff4a9f83f43ca6df4",
+    "tests/test_providers.py": "5576c15b53b36982fc3c52ce9b76ea943f0818507222d324d7db8f4bd9f94e2c",
+    "tests/test_toolcalling_streaming.py": "a39f8048777811292262855dd63764251b4e4c0146d911e8bad065b4ed7b6df2"
+  },
+  "limitations": [
+    "does not reproduce LiteLLM issue #40575",
+    "does not qualify live models",
+    "does not verify Ollama or Claude native loops in this specific end-to-end regression"
+  ]
+}

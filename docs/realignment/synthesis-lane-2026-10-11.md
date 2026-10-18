@@ -97,10 +97,10 @@ Workspace actions (Docs brief, Sheets table, Drive placement, Calendar/reminder 
   the audio player/Join-Ask surface, and listening to rendered speech. The TTS and Google
   routes must be live-verified before any "listened/verified" claim.
 * Contaminated-run note: two intermediate full-suite runs overlapped other agents' pytest
-  sessions that share `/tmp/pytest-of-kevina`; pytest's keep-last-3 pruning deleted this
+  sessions that share `/<local-path-redacted> pytest's keep-last-3 pruning deleted this
   lane's temp base mid-run, producing mass `FileNotFoundError` "errors" that say nothing
   about the committed tree.
-* Final isolated run (`--basetemp=/tmp/opencode/synthesis-final-tmp`): **2132 passed,
+* Final isolated run (`--basetemp=/<local-path-redacted> **2132 passed,
   8 skipped, 1 failed** — the single failure
   (`test_code_handoff.py::test_interactive_process_keeps_terminal_and_owns_a_separate_group`,
   a PTY-ownership timing test in another lane) passes 12/12 in isolation and is attributed

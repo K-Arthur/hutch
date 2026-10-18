@@ -1,0 +1,49 @@
+{
+  "fixture_boundary": "Real SQLite workflow submission, supervisor ask nodes, phone API, CSRF/idempotency and browser UI; no model request.",
+  "viewports": {
+    "review_and_detail": [
+      390,
+      844
+    ],
+    "reflow": [
+      320,
+      780
+    ]
+  },
+  "reflow_dimensions_320": {
+    "viewport": 320,
+    "document": 320,
+    "body": 320
+  },
+  "minimum_phone_target_height_px": 44,
+  "computed_accessibility": {
+    "simultaneous_named_question_forms": 2,
+    "answer_control_names_include_durable_question_ids_and_prompts": true,
+    "authority_boundary_is_associated_as_description": true,
+    "operating_system_screen_reader": "not tested"
+  },
+  "question_reflow_320": {
+    "viewport": 320,
+    "document": 320
+  },
+  "question_answer_min_height_320_px": 48,
+  "question_answer_status": 200,
+  "workflow_stop_status": 200,
+  "page_errors": [],
+  "screenshots_sha256": {
+    "workflow-detail-390.png": "584b6f1a7774b440f4949878eef7ad6faab27cdf037fe6941380cb2317da950c",
+    "workflow-question-390.png": "9c64ee646a74448bbb97d028a4041801644cd0cc531cf713670d6bd1bb48acf2",
+    "workflow-questions-320.png": "f9441d5b59e4affe66b71bbfc3dad94e32663dce48102234d5ca09213e0d81a6",
+    "workflow-detail-320.png": "5bc3d9b5f1d8003297fd9ef088af35734bee665f855d3df665612aa73c5ed851",
+    "workflow-pause-requested-390.png": "cb18cb28ec8a2462733302c0edb4b751f79f47dda60c8a83e67e0de5b887e3e2",
+    "paired-phone-workflows-trace.zip": "2a32121d6f719a45f82a8a0b4c7eb4452df54d098df6e2a897e42f1a37e4b303",
+    "visual-review.md": "0bc5bd276090cca8a204f8715507536986ccdfc2711e19e2af096a1a30d3bbea"
+  },
+  "source_sha256": {
+    "src/hutch/server/workflows_api.py": "64199f3a358c99fb7e2908787b6bb7b555f64ad9d0ff53ff3c43fc04e6b11a07",
+    "src/hutch/server/static/app.js": "19bbc96be1ef20a8515327f44952334e9aaa0168698da240f48718bfa41551d6",
+    "src/hutch/server/static/style.css": "4eb5625f7b73a86bf28245323ccbbc6abd3f3e5c075cc510dabc73ba6c947afc",
+    "tests/e2e/test_browser.py": "2c8726b0a4f4b2ad238cc46a76811dfb6bc79bbe714a673e0c8c59539914f7fc"
+  },
+  "captured_at": "2026-10-11T23:19:26.850446+00:00"
+}

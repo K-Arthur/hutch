@@ -6,7 +6,7 @@
   "capability": {
     "id": "strict_offline",
     "status": "unavailable",
-    "reason": "network/PID namespace failed its local IPv4, IPv4/Unix-socket checks: bwrap: execvp /home/kevina/CodingProjects/hutch/.worktrees/documents/.venv/bin/python3: No such file or directory",
+    "reason": "network/PID namespace failed its local IPv4, IPv4/Unix-socket checks: bwrap: execvp /<local-path-redacted> No such file or directory",
     "verification": "network_pid_namespace_tcp_unix_socket_probe"
   },
   "captures": [

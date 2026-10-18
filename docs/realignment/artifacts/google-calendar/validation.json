@@ -1,6 +1,6 @@
 {
   "test": "tests/e2e/test_browser.py::test_google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone",
-  "command": "PLAYWRIGHT_BROWSERS_PATH=/home/kevina/.cache/ms-playwright .venv/bin/pytest -q -W error::pytest.PytestUnhandledThreadExceptionWarning -W error::SyntaxWarning tests/e2e/test_browser.py -k google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone",
+  "command": "PLAYWRIGHT_BROWSERS_PATH=/<local-path-redacted> .venv/bin/pytest -q -W error::pytest.PytestUnhandledThreadExceptionWarning -W error::SyntaxWarning tests/e2e/test_browser.py -k google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone",
   "captured_at": "2026-10-11T02:08:47.838347+00:00",
   "browser": "153.0.8010.12",
   "provider_credentials_used": false,

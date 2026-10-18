@@ -12,6 +12,8 @@ The queue at `GET /api/approvals` lists pending requests. The same resources are
 
 The client does not remove a request as completed based on a local click alone. If another device decides first, it reads the server's result and shows that decision. Expired requests fail closed as denied. Stop does not undo effects that were already completed.
 
+The worker registers its owner-only wake listener before publishing a pending request, so a reviewer can decide immediately. The decision is committed first and then wakes the worker; the worker still reads the durable decision from SQLite before continuing. Strict Offline mounts only this private datagram directory into the worker namespace so local review works without opening network access.
+
 Approval CAS and reconciliation are live on both path families. The versioned approve/deny routes require `Idempotency-Key`; approve
 also requires the `action_hash` returned with the approval so a revised action cannot reuse the decision. Exact retries return the
 same result and changed request arguments conflict. Legacy routes remain available for the local Studio. Per-run and cross-run transcript SSE

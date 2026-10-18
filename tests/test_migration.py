@@ -21,11 +21,104 @@ from hutch.models import RunStatus
 from hutch.store import (SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migrate_27, _migrate_28,
                          _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33, _migrate_34, _migrate_45,
                          _migrate_35, _migrate_37, _migrate_40, _migrate_41, _migrate_46, _migrate_47,
-                         _migrate_48, _migrate_51, _migrate_53)
+                         _migrate_48, _migrate_51, _migrate_53, _migrate_57, _migrate_58, _migrate_59, _migrate_60,
+                         _migrate_68, _migrate_69, _migrate_70, _migrate_71)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "state_v4.db.fixture"
 BRIEFING, SWEEPER = "bot_7eef563ee683", "bot_611a4b96d543"
 FINISHED_1, FINISHED_2, ORPHAN, QUEUED = "run_582f4cc75ea4", "run_fa7f70664c38", "run_3cefb894fd73", "run_e169d5380ff5"
+
+
+def test_v68_preserves_existing_workflow_mode_and_adds_revisioned_conversation_policy():
+    db = sqlite3.connect(":memory:")
+    try:
+        db.execute("PRAGMA foreign_keys=ON")
+        db.execute("CREATE TABLE bots (id TEXT PRIMARY KEY, doc TEXT NOT NULL)")
+        db.execute("INSERT INTO bots VALUES ('legacy', '{\"name\":\"legacy\"}')")
+        db.execute("INSERT INTO bots VALUES ('explicit', '{\"name\":\"explicit\",\"workflow_mode\":\"off\"}')")
+        db.execute("CREATE TABLE conversations (id TEXT PRIMARY KEY)")
+        db.execute("INSERT INTO conversations VALUES ('conversation-a')")
+        _migrate_68(db)
+        _migrate_68(db)
+        assert json.loads(db.execute("SELECT doc FROM bots WHERE id='legacy'").fetchone()[0])["workflow_mode"] == "off"
+        assert json.loads(db.execute("SELECT doc FROM bots WHERE id='explicit'").fetchone()[0])["workflow_mode"] == "off"
+        db.execute("INSERT INTO conversation_workflow_policies VALUES ('conversation-a', 'suggest', 1, 'now')")
+        with pytest.raises(sqlite3.IntegrityError):
+            db.execute("INSERT INTO conversation_workflow_policies VALUES ('missing', 'auto', 1, 'now')")
+        with pytest.raises(sqlite3.IntegrityError):
+            db.execute("INSERT INTO conversation_workflow_policies VALUES ('conversation-a', 'unknown', 2, 'now')")
+        assert SCHEMA_VERSION >= 57
+    finally:
+        db.close()
+
+
+def test_v69_amendment_history_preserves_revision_links_and_is_idempotent():
+    db = sqlite3.connect(":memory:")
+    try:
+        db.execute("PRAGMA foreign_keys=ON")
+        db.execute("CREATE TABLE workflow_runs (id TEXT PRIMARY KEY)")
+        db.execute("CREATE TABLE workflow_revisions (id TEXT PRIMARY KEY)")
+        db.execute("INSERT INTO workflow_runs VALUES ('wrun-a')")
+        db.execute("INSERT INTO workflow_revisions VALUES ('wrev-before')")
+        db.execute("INSERT INTO workflow_revisions VALUES ('wrev-after')")
+
+        _migrate_69(db)
+        _migrate_69(db)
+        db.execute("""INSERT INTO workflow_amendment_history
+                      (id, workflow_run_id, previous_revision_id, adopted_revision_id,
+                       previous_attempt_run_id, previous_status, previous_plan_hash,
+                       adopted_plan_hash, preview_json, nodes_json, questions_json, result_json, created_at)
+                      VALUES ('wamend-a', 'wrun-a', 'wrev-before', 'wrev-after', 'run-a', 'waiting',
+                              'before', 'after', '{}', '[]', '[]', '{}', 'now')""")
+        assert db.execute("SELECT COUNT(*) FROM workflow_amendment_history").fetchone()[0] == 1
+        with pytest.raises(sqlite3.IntegrityError):
+            db.execute("DELETE FROM workflow_revisions WHERE id='wrev-before'")
+        assert SCHEMA_VERSION >= 58
+    finally:
+        db.close()
+
+
+def test_v70_workflow_pause_defaults_to_unpaused_and_is_idempotent():
+    db = sqlite3.connect(":memory:")
+    try:
+        db.execute("CREATE TABLE workflow_runs (id TEXT PRIMARY KEY)")
+        db.execute("INSERT INTO workflow_runs VALUES ('wrun-old')")
+        _migrate_70(db)
+        _migrate_70(db)
+        assert db.execute("SELECT pause_requested FROM workflow_runs WHERE id='wrun-old'").fetchone()[0] == 0
+        db.execute("UPDATE workflow_runs SET pause_requested=1 WHERE id='wrun-old'")
+        assert db.execute("SELECT pause_requested FROM workflow_runs WHERE id='wrun-old'").fetchone()[0] == 1
+        with pytest.raises(sqlite3.IntegrityError):
+            db.execute("UPDATE workflow_runs SET pause_requested=2 WHERE id='wrun-old'")
+        assert SCHEMA_VERSION >= 59
+    finally:
+        db.close()
+
+
+def test_v71_event_outbox_adds_idempotent_commit_keys_and_preserves_history():
+    db = sqlite3.connect(":memory:")
+    try:
+        db.execute("""CREATE TABLE events (
+            id INTEGER PRIMARY KEY, run_id TEXT, seq INTEGER, hash TEXT, ts TEXT, type TEXT, data TEXT)""")
+        db.execute("INSERT INTO events VALUES (1, 'run-old', 1, 'hash', 'now', 'log', '{}')")
+        _migrate_71(db)
+        _migrate_71(db)
+        assert db.execute("SELECT event_key FROM events WHERE id=1").fetchone()[0] is None
+        columns = {str(row[1]) for row in db.execute("PRAGMA table_info(event_outbox)")}
+        assert {"outbox_seq", "event_key", "run_id", "ts", "type", "data", "owner_fence"} <= columns
+        db.execute("INSERT INTO events (run_id, seq, hash, ts, type, data, event_key) "
+                   "VALUES ('run-new', 1, 'hash-1', 'now', 'log', '{}', 'event-a')")
+        with pytest.raises(sqlite3.IntegrityError):
+            db.execute("INSERT INTO events (run_id, seq, hash, ts, type, data, event_key) "
+                       "VALUES ('run-new', 2, 'hash-2', 'later', 'log', '{}', 'event-a')")
+        db.execute("INSERT INTO event_outbox (event_key, run_id, ts, type, data) "
+                   "VALUES ('pending-a', 'run-new', 'later', 'log', '{}')")
+        with pytest.raises(sqlite3.IntegrityError):
+            db.execute("INSERT INTO event_outbox (event_key, run_id, ts, type, data) "
+                       "VALUES ('pending-a', 'run-new', 'later', 'log', '{}')")
+        assert SCHEMA_VERSION >= 60
+    finally:
+        db.close()
 
 
 def test_outlook_mail_grant_migration_adds_account_scoped_bot_access():
@@ -1039,7 +1132,7 @@ def test_v59_cost_followup_migrations_preserve_budget_rows_and_require_compactio
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == SCHEMA_VERSION == 62
+        assert upgraded.schema_version == SCHEMA_VERSION == 72
         assert upgraded.get_bot(bot.id).compaction == "ask"
         columns = {row[1] for row in upgraded._db.execute("PRAGMA table_info(usage_reservations)")}
         assert {"quote_snapshot_sha256", "quote_expires_at", "quote_endpoints_json", "quote_currency",

@@ -1,0 +1,162 @@
+{
+  "test": "tests/e2e/test_browser.py::test_workflow_amendment_carry_preview_is_clear_and_responsive",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "viewports": [
+    {
+      "label": "desktop",
+      "size": [
+        1440,
+        960
+      ],
+      "dialog_bounds": {
+        "x": 330,
+        "y": 48,
+        "width": 780,
+        "height": 864
+      },
+      "horizontal_overflow_px": 0,
+      "adopt_target_height": 44,
+      "carried_step_reason_bounds": {
+        "x": 388,
+        "y": 549.84375,
+        "width": 684,
+        "height": 41.5
+      },
+      "fixed_footer_bounds": {
+        "x": 331,
+        "y": 834,
+        "width": 778,
+        "height": 77
+      }
+    },
+    {
+      "label": "tablet",
+      "size": [
+        768,
+        1024
+      ],
+      "dialog_bounds": {
+        "x": 16,
+        "y": 72,
+        "width": 736,
+        "height": 880
+      },
+      "horizontal_overflow_px": 0,
+      "adopt_target_height": 44,
+      "carried_step_reason_bounds": {
+        "x": 74,
+        "y": 575.84375,
+        "width": 640,
+        "height": 41.5
+      },
+      "fixed_footer_bounds": {
+        "x": 17,
+        "y": 874,
+        "width": 734,
+        "height": 77
+      }
+    },
+    {
+      "label": "phone",
+      "size": [
+        360,
+        800
+      ],
+      "dialog_bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 360,
+        "height": 800
+      },
+      "horizontal_overflow_px": 0,
+      "adopt_target_height": 44,
+      "carried_step_reason_bounds": {
+        "x": 50,
+        "y": 502.3125,
+        "width": 280,
+        "height": 82
+      },
+      "fixed_footer_bounds": {
+        "x": 1,
+        "y": 731,
+        "width": 358,
+        "height": 69
+      }
+    },
+    {
+      "label": "compact-phone",
+      "size": [
+        320,
+        740
+      ],
+      "dialog_bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 320,
+        "height": 740
+      },
+      "horizontal_overflow_px": 0,
+      "adopt_target_height": 44,
+      "carried_step_reason_bounds": {
+        "x": 50,
+        "y": 472.109375,
+        "width": 240,
+        "height": 82
+      },
+      "fixed_footer_bounds": {
+        "x": 1,
+        "y": 671,
+        "width": 318,
+        "height": 69
+      }
+    }
+  ],
+  "workflow_id": "wrun_6428a92a14b9",
+  "carried_node": {
+    "site_id": "work",
+    "instance_key": "once",
+    "status": "running",
+    "run_id": "run_ae82e45d34f5",
+    "input_hash": "d9daacb3a22b1d160d4b0711a8681b401e1f4516d49626ecd2e4a4ea6c5a2716",
+    "model": "openai/gpt-4o-mini",
+    "role": "worker",
+    "role_state": "qualified",
+    "binding_fingerprint": "3011707ab1934f6c066b479835f40d7578b975641077e9f1770954911a18806e",
+    "instruction_hash": "202260c791bf72aae830f10bbf54f7038866834575ca02da2531de56436a19c5",
+    "output_schema": null,
+    "max_steps": 12,
+    "timeout_seconds": 600,
+    "reason": "unchanged top-level tool-free worker contract"
+  },
+  "quiescence": {
+    "attempt_parked": true,
+    "owned_work_quiet": false,
+    "owned_work_carryable": true
+  },
+  "interaction": "live tool-free worker remained active while the owner inspected a later-node amendment; carry contract and adoption readiness were visible",
+  "view_state": "owner-local amendment editor shows the read-only candidate diff and one live, unchanged, tool-free worker child; adoption is enabled while that exact child remains under its original run contract",
+  "page_errors": [],
+  "failed_requests": [],
+  "provider_calls": 0,
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "a7d33e9104320c9d2b25d7f951b231826909ec3a518ded078fcad44023e076d7",
+    "src/hutch/server/static/style.css": "6b1a0b4f3ea3b099bd2ffa7c8c47525f109c27122533ac1c3c60ba0824d65b46",
+    "src/hutch/server/workflows_api.py": "71fc0f0d62efc3c1138caa2b3ed3c3162688cd960dae8974b35bc33352159da0",
+    "src/hutch/workflow/amendments.py": "06419c6af0445f9d1fdb5c2cd3a896cc9adeab2f4f54ba3ddb1071fd46505da5",
+    "src/hutch/workflow/persistence.py": "5a84b26e8745b52caaa26dfcee6dd023ab1c8626a8317eeb185e4575ae17d155",
+    "tests/e2e/test_browser.py": "ae9ceb63fbfe1bd21d5caceb66938220dc328c9e40a516ea89e534b3f9ed6417"
+  },
+  "visual_artifact_sha256": {
+    "carry-preview-compact-phone.png": "276b12268792da0d7af7e879327c5afa9667bfc35b239ff18ecdf953ea6e4efd",
+    "carry-preview-tablet.png": "6324e05dcc7174d2a9f6aa03e960de88a2293d6118e07a17d0b3610fff71dff6",
+    "carry-review-tablet.png": "4511e6f261efd8d0e69bf6431ada07994964924206134ea32de2beb6a69c8fa7",
+    "carry-preview-phone.png": "7f9751d575755361d6d4c69c56436c5212f61b136924738c8a1efef592b3905e",
+    "carry-review-compact-phone.png": "8a3cc306794b9631ef314c90b19b23f029590cc9241afdc279b7ddad1e892feb",
+    "trace.zip": "e4edfdc6484babc47ec01b99d453309f900fb18ffbb8467028796e8b26d35282",
+    "carry-review-phone.png": "b0f50de51725c22a96f132d9840858993f823e0f20cdb4052bc4e81e98fa9e01",
+    "carry-preview-desktop.png": "e443859e73f9d8582c17e9da87549a448ec0caedc05066bfba119acf6d58fe17",
+    "carry-review-desktop.png": "aeb15e6bba6ab2478222083e52652704de44f1c8dc7b65896748c4bdf0f50b5e"
+  }
+}

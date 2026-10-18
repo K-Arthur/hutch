@@ -16,6 +16,7 @@ from hutch.toolcalling.contracts import ToolDefinition, canonical_json
 from hutch.toolcalling.envelope import (EnvelopeUnavailable, build_envelope, decode_action, render_contract)
 from hutch.toolcalling.profiles import (Evidence, classify_endpoint, protocol_for_provider, resolve_profile,
                                         strategy_eligibility)
+from hutch.providers.base import ModelMeta
 from hutch.toolcalling.schemas import analyze_for_plan, backend_for_protocol, lower_for_backend
 from hutch.tools import _CATALOG
 
@@ -94,6 +95,53 @@ def test_profile_fingerprint_changes_with_model_and_mode_state():
     assert a.fingerprint() != b.fingerprint()
     view = a.capabilities_view()
     assert "native_tools" in view and view["provider"] == "ollama"
+
+
+def test_execution_profile_fingerprint_covers_exact_build_and_request_settings():
+    baseline_meta = ModelMeta(
+        name="qwen3:1.7b-q4_K_M", backend="ollama", backend_version="0.40.3",
+        digest="sha256:checkpoint-a", quant="Q4_K_M", template_hash="template-a",
+        tokenizer_hash="tokenizer-a", capabilities=["completion", "tools"],
+    )
+    kwargs = dict(provider="ollama", endpoint="http://127.0.0.1:11434", model=baseline_meta.name,
+                  metadata=baseline_meta, effective_context=4096,
+                  decoding={"temperature": 0, "max_tokens": 256, "think": False, "stream": False})
+    baseline = resolve_profile(**kwargs)
+    execution = baseline.execution_view()
+    assert execution["complete"] is True and execution["missing"] == []
+    assert execution["modalities"] == ["text"]
+    assert len(execution["fingerprint"]) == 64
+
+    mutations = [
+        ("digest", "sha256:checkpoint-b"),
+        ("quant", "Q5_K_M"),
+        ("backend_version", "0.40.4"),
+        ("template_hash", "template-b"),
+        ("tokenizer_hash", "tokenizer-b"),
+        ("capabilities", ["completion", "tools", "vision"]),
+    ]
+    for field_name, changed in mutations:
+        meta = ModelMeta(**{**baseline_meta.__dict__, field_name: changed})
+        candidate = resolve_profile(**{**kwargs, "metadata": meta})
+        assert candidate.execution_view()["fingerprint"] != execution["fingerprint"], field_name
+
+    for field_name, changed in (("context", 8192), ("decoding", {"temperature": 0.2, "max_tokens": 256,
+                                                                     "think": False, "stream": False})):
+        update = {"effective_context": changed} if field_name == "context" else {"decoding": changed}
+        candidate = resolve_profile(**{**kwargs, **update})
+        assert candidate.execution_view()["fingerprint"] != execution["fingerprint"], field_name
+    assert baseline.fingerprint() != resolve_profile(**{**kwargs, "effective_context": 8192}).fingerprint()
+    assert "credential" not in json.dumps(execution).lower()
+    assert "resource_ready" not in execution
+
+
+def test_incomplete_execution_profile_names_missing_evidence_without_credentials():
+    profile = resolve_profile(provider="openai", endpoint="https://api.openai.com/v1", model="gpt-example")
+    execution = profile.execution_view()
+    assert execution["complete"] is False
+    assert {"backend_version", "checkpoint_digest", "quantization", "template_hash", "tokenizer_hash",
+            "effective_context"}.issubset(execution["missing"])
+    assert not any("key" in str(key).lower() or "credential" in str(key).lower() for key in execution)
 
 
 # ------------------------------------------------------------------ safety of evidence

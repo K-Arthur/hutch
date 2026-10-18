@@ -1,6 +1,6 @@
 {
   "test": "tests/e2e/test_browser.py::test_google_calendar_event_creation_scope_is_explicit_and_owner_only",
-  "command": "PLAYWRIGHT_BROWSERS_PATH=/home/kevina/.cache/ms-playwright .venv/bin/pytest -q -W error::pytest.PytestUnhandledThreadExceptionWarning -W error::SyntaxWarning tests/e2e/test_browser.py::test_google_calendar_event_creation_scope_is_explicit_and_owner_only",
+  "command": "PLAYWRIGHT_BROWSERS_PATH=/<local-path-redacted> .venv/bin/pytest -q -W error::pytest.PytestUnhandledThreadExceptionWarning -W error::SyntaxWarning tests/e2e/test_browser.py::test_google_calendar_event_creation_scope_is_explicit_and_owner_only",
   "captured_at": "2026-10-11T02:08:50.148858+00:00",
   "browser": "153.0.8010.12",
   "provider_credentials_used": false,

@@ -1809,6 +1809,487 @@ def source_events(source_id: str = typer.Argument(...),
         console.print(f"({row['status']}) {row['kind']} {row['event_key']} — "
                       f"{' '.join(row['summary'].split())[:140]} ({row['received_at'][:19]}Z)")
 
+# ------------------------------------------------------------------ workflows
+
+workflow_app = typer.Typer(no_args_is_help=True,
+                           help="Saved dynamic workflows: inspect, validate, run, stop, qualify.")
+app.add_typer(workflow_app, name="workflow")
+
+
+def _workflow_inputs(pairs: list[str]) -> dict:
+    import json as _json
+
+    out: dict = {}
+    for pair in pairs:
+        if "=" not in pair:
+            err.print(f"[red]--input needs key=value, got {pair!r}[/red]")
+            raise typer.Exit(code=2)
+        key, _, raw = pair.partition("=")
+        key = key.strip()
+        if not key:
+            err.print("[red]--input needs a name before '='[/red]")
+            raise typer.Exit(code=2)
+        try:
+            out[key] = _json.loads(raw)
+        except _json.JSONDecodeError:
+            out[key] = raw
+    return out
+
+
+def _load_plan_file(path: str) -> dict:
+    import json as _json
+
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            data = _json.load(handle)
+    except OSError as exc:
+        err.print(f"[red]cannot read {path}: {exc}[/red]")
+        raise typer.Exit(code=2) from None
+    except _json.JSONDecodeError as exc:
+        err.print(f"[red]{path} is not valid JSON: {exc}[/red]")
+        raise typer.Exit(code=2) from None
+    if not isinstance(data, dict):
+        err.print("[red]a plan file must contain one JSON object[/red]")
+        raise typer.Exit(code=2)
+    return data
+
+
+def _print_structure(structure: list[dict]) -> None:
+    for item in structure:
+        indent = "  " * item["depth"]
+        marker = "◆" if item["bounded"] else "•"
+        console.print(f"  {indent}{marker} [bold]{item['site_id']}[/bold] "
+                      f"[dim]{item['kind']}[/dim] {item['title']}")
+
+
+@workflow_app.command("list")
+def workflow_list() -> None:
+    """Saved workflow definitions (a saved method is inert until it is run)."""
+    from .workflow import persistence as wfstore
+
+    store = _store()
+    rows = wfstore.list_definitions(store)
+    if not rows:
+        console.print("no saved workflows. Save one with `hutch workflow save <plan.json> --name <name>`.")
+        return
+    for row in rows:
+        state = "active" if row["active"] else "inactive"
+        console.print(f"[bold]{row['name']}[/bold]  [dim]rev {row['revisions']} · {state} · "
+                      f"{row['source']}[/dim]  {row['description']}")
+
+
+@workflow_app.command("show")
+def workflow_show(ref: str = typer.Argument(..., help="Workflow name or id")) -> None:
+    """The plan of a saved workflow's latest revision, with its bounded structure."""
+    from .workflow import persistence as wfstore
+    from .workflow.compile import compile_plan, plan_structure
+
+    store = _store()
+    entry = wfstore.definition(store, ref)
+    if entry is None:
+        err.print(f"[red]no such workflow: {ref}[/red]")
+        raise typer.Exit(code=1)
+    revision = wfstore.latest_revision(store, str(entry["id"]))
+    if revision is None:
+        err.print("[red]this workflow has no revision[/red]")
+        raise typer.Exit(code=1)
+    plan = revision["plan"]
+    # Show the *effective* plan: the stored document is exactly what was submitted, so the
+    # defaults the compiler fills in are what a reader needs to see.
+    from .workflow.compile import PlanInvalid
+
+    try:
+        effective = compile_plan(plan).plan
+    except PlanInvalid as exc:
+        err.print("[red]this saved revision no longer compiles:[/red]")
+        for item in exc.diagnostics[:8]:
+            err.print(f"[red]  {item.render()}[/red]")
+        raise typer.Exit(code=1) from None
+    console.print(f"[bold]{effective.name}[/bold] rev {revision['revision']}  [dim]{revision['plan_hash'][:12]}…[/dim]")
+    if effective.description:
+        console.print(effective.description)
+    console.print(f"envelope: tools={effective.envelope.tools or []} "
+                  f"models={effective.envelope.models or ['$bot']} "
+                  f"network={effective.envelope.network} "
+                  f"parallel={effective.envelope.max_parallel_steps}")
+    budget = effective.budget
+    console.print(f"budget: nodes≤{budget.max_nodes} model_calls≤{budget.max_model_calls} "
+                  f"tokens≤{budget.max_tokens:,} wall≤{budget.max_wall_seconds}s "
+                  f"fanout≤{budget.max_fanout} repairs≤{budget.max_repairs}")
+    if effective.inputs:
+        console.print("inputs:")
+        for name, spec in effective.inputs.items():
+            console.print(f"  {name}: {spec.type}{'' if spec.required else ' (optional)'}"
+                          + (f" default={spec.default!r}" if spec.default is not None else ""))
+    console.print("nodes:")
+    _print_structure(plan_structure(plan))
+
+
+@workflow_app.command("validate")
+def workflow_validate(path: str = typer.Argument(..., help="Plan JSON file"),
+                      bot_ref: str = typer.Option(..., "--bot", help="Bot whose authority is checked")) -> None:
+    """Compile a plan and check it against a Bot without admitting or running anything."""
+    from .workflow import submit as wfsubmit
+    from .workflow.compile import PlanInvalid, compile_plan
+
+    store = _store()
+    bot = _require_bot(store, bot_ref)
+    plan = _load_plan_file(path)
+    try:
+        compiled = compile_plan(plan)
+    except PlanInvalid as exc:
+        for item in exc.diagnostics:
+            err.print(f"[red]{item.render()}[/red]")
+        raise typer.Exit(code=1) from None
+    for warning in compiled.warnings:
+        console.print(f"[yellow]warning[/yellow] {warning.render()}")
+    try:
+        verdicts = wfsubmit.check_authority(compiled, bot, store=store)
+    except wfsubmit.PlanNotSubmittable as exc:
+        err.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from None
+    console.print(f"[green]valid[/green] {compiled.plan.name} · {len(compiled.nodes)} sites · "
+                  f"hash {compiled.plan_hash[:12]}…")
+    console.print(f"tools needed: {sorted(wfsubmit.required_tools(compiled)) or 'none'}")
+    for verdict in verdicts:
+        state = verdict["state"]
+        color = "green" if state == "qualified" else "yellow"
+        console.print(f"  node {verdict['node']}: [{color}]{state}[/{color}] "
+                      f"({verdict['route']['spec'] if verdict.get('route') else 'no route'}) "
+                      + "; ".join(verdict["reasons"][:1]))
+    raise typer.Exit(code=0)
+
+
+@workflow_app.command("save")
+def workflow_save(path: str = typer.Argument(..., help="Plan JSON file"),
+                  name: str = typer.Option("", "--name", help="Definition name (defaults to the plan's name)"),
+                  note: str = typer.Option("", "--note", help="Review note kept with the revision")) -> None:
+    """Save a validated plan as a reviewable definition (it starts inactive)."""
+    from .workflow import persistence as wfstore
+    from .workflow.compile import PlanInvalid
+
+    store = _store()
+    plan = _load_plan_file(path)
+    try:
+        saved = wfstore.save_definition(store, name=name or str(plan.get("name") or ""), plan=plan,
+                                        note=note, source="operator")
+    except PlanInvalid as exc:
+        for item in exc.diagnostics:
+            err.print(f"[red]{item.render()}[/red]")
+        raise typer.Exit(code=1) from None
+    console.print(f"saved [bold]{name or plan.get('name')}[/bold] as revision {saved['revision']} "
+                  f"[dim](inactive until run)[/dim]")
+
+
+@workflow_app.command("export")
+def workflow_export(ref: str = typer.Argument(...), out: Optional[str] = typer.Option(None, "--out")) -> None:
+    """Print (or write) a saved workflow's latest plan JSON for review."""
+    import json as _json
+
+    from .workflow import persistence as wfstore
+
+    store = _store()
+    entry = wfstore.definition(store, ref)
+    revision = wfstore.latest_revision(store, str(entry["id"])) if entry else None
+    if revision is None:
+        err.print(f"[red]no such workflow: {ref}[/red]")
+        raise typer.Exit(code=1)
+    text = _json.dumps(revision["plan"], indent=2, ensure_ascii=False)
+    if out:
+        with open(out, "w", encoding="utf-8") as handle:
+            handle.write(text + "\n")
+        console.print(f"wrote {out}")
+    else:
+        console.print_json(text)
+
+
+def _watch_workflow(store, engine, wf_id: str, timeout: float) -> dict:
+    """Drive dispatch until the instance settles; the same loop `hutch run` uses."""
+    from .workflow import persistence as wfstore
+
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        engine.dispatch_pending()
+        engine.continue_workflow_runs()
+        workflow = wfstore.workflow_run(store, wf_id)
+        if workflow is None:
+            break
+        if workflow["status"] in ("succeeded", "failed", "stopped", "outcome_unknown"):
+            return workflow
+        pending = wfstore.questions(store, wf_id, status="pending")
+        if pending:
+            console.print(f"[yellow]waiting for you[/yellow]: {pending[0]['question']}")
+            console.print(f"  answer with: hutch workflow answer {pending[0]['id']} \"...\"")
+        time.sleep(0.4)
+    return wfstore.workflow_run(store, wf_id) or {}
+
+
+def _report_workflow(store, wf_id: str) -> int:
+    from .workflow import persistence as wfstore
+
+    workflow = wfstore.workflow_run(store, wf_id)
+    if workflow is None:
+        err.print("[red]no such workflow run[/red]")
+        return 1
+    color = {"succeeded": "green", "failed": "red", "stopped": "yellow",
+             "outcome_unknown": "yellow"}.get(workflow["status"], "white")
+    console.print(f"workflow [bold]{wf_id}[/bold] → [{color}]{workflow['status']}[/{color}]"
+                  + (f" — {workflow['reason']}" if workflow["reason"] else ""))
+    for node in wfstore.nodes(store, wf_id):
+        mark = {"succeeded": "✓", "failed": "✗", "skipped": "–", "running": "…"}.get(node["status"], "·")
+        console.print(f"  {mark} {node['site_id']} [dim]{node['instance_key']}[/dim] "
+                      f"{node['status']}" + (f" — {node['error'].get('reason', '')[:120]}" if node["error"] else ""))
+    published = (workflow.get("result") or {}).get("artifacts") or []
+    for item in published:
+        console.print(f"  artifact: {item['name']} ({item['bytes']} bytes, sha256 {item['sha256'][:12]}…)")
+    return 0 if workflow["status"] == "succeeded" else 1
+
+
+@workflow_app.command("run")
+def workflow_run(ref: str = typer.Argument(..., help="Saved workflow name or id"),
+                 bot_ref: str = typer.Option(..., "--bot", help="Bot that executes the nodes"),
+                 input_pairs: list[str] = typer.Option([], "--input", help="key=value (JSON value or text)"),
+                 wait: bool = typer.Option(True, "--wait/--no-wait")) -> None:
+    """Run a saved workflow without any planning call, and wait for the result."""
+    from .engine import Engine
+    from .workflow import submit as wfsubmit
+
+    config = get_config()
+    store = _store()
+    store.assert_execution_ready()
+    bot = _require_bot(store, bot_ref)
+    try:
+        submission = wfsubmit.submit_saved(store, bot=bot, definition=ref,
+                                           inputs=_workflow_inputs(input_pairs), origin="manual:cli")
+    except KeyError:
+        err.print(f"[red]no such workflow: {ref}[/red]")
+        raise typer.Exit(code=1) from None
+    except (wfsubmit.PlanInputError, wfsubmit.PlanNotSubmittable) as exc:
+        err.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from None
+    console.print(f"started [bold]{submission.workflow_run_id}[/bold] "
+                  f"[dim](revision {submission.revision_id})[/dim]")
+    if not wait:
+        raise typer.Exit(code=0)
+    engine = Engine(config, store, executor=os.environ.get("HUTCH_EXECUTOR") or "process")
+    try:
+        _watch_workflow(store, engine, submission.workflow_run_id,
+                        timeout=bot.limits.timeout_seconds + 300)
+    finally:
+        engine.shutdown()
+    raise typer.Exit(code=_report_workflow(store, submission.workflow_run_id))
+
+
+@workflow_app.command("submit")
+def workflow_submit(path: str = typer.Argument(..., help="Plan JSON file"),
+                    bot_ref: str = typer.Option(..., "--bot"),
+                    name: str = typer.Option("", "--name"),
+                    input_pairs: list[str] = typer.Option([], "--input"),
+                    wait: bool = typer.Option(True, "--wait/--no-wait")) -> None:
+    """Validate and submit one plan (saving it as a definition by default), then optionally wait."""
+    from .engine import Engine
+    from .workflow import submit as wfsubmit
+    from .workflow.compile import PlanInvalid
+
+    config = get_config()
+    store = _store()
+    store.assert_execution_ready()
+    bot = _require_bot(store, bot_ref)
+    plan = _load_plan_file(path)
+    try:
+        submission = wfsubmit.submit_workflow(store, bot=bot, plan=plan, definition_name=name,
+                                              inputs=_workflow_inputs(input_pairs), origin="manual:cli")
+    except PlanInvalid as exc:
+        for item in exc.diagnostics:
+            err.print(f"[red]{item.render()}[/red]")
+        raise typer.Exit(code=1) from None
+    except (wfsubmit.PlanInputError, wfsubmit.PlanNotSubmittable) as exc:
+        err.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from None
+    console.print(f"started [bold]{submission.workflow_run_id}[/bold]")
+    if not wait:
+        raise typer.Exit(code=0)
+    engine = Engine(config, store, executor=os.environ.get("HUTCH_EXECUTOR") or "process")
+    try:
+        _watch_workflow(store, engine, submission.workflow_run_id,
+                        timeout=bot.limits.timeout_seconds + 300)
+    finally:
+        engine.shutdown()
+    raise typer.Exit(code=_report_workflow(store, submission.workflow_run_id))
+
+
+@workflow_app.command("status")
+def workflow_status(wf_id: str = typer.Argument(...)) -> None:
+    """One workflow instance: attempt, nodes, pending questions and published artifacts."""
+    from .workflow import persistence as wfstore
+
+    store = _store()
+    workflow = wfstore.workflow_run(store, wf_id)
+    if workflow is None:
+        err.print("[red]no such workflow run[/red]")
+        raise typer.Exit(code=1)
+    console.print(f"[bold]{wf_id}[/bold] {workflow['status']} · revision {workflow['revision_id']} · "
+                  f"attempt {workflow['attempt_run_id'] or 'none'}")
+    for question in wfstore.questions(store, wf_id, status="pending"):
+        console.print(f"[yellow]question[/yellow] {question['id']}: {question['question']} "
+                      f"(expires {question['expires_at']})")
+    raise typer.Exit(code=_report_workflow(store, wf_id))
+
+
+@workflow_app.command("stop")
+def workflow_stop(wf_id: str = typer.Argument(...)) -> None:
+    """Stop a workflow instance durably: its attempt tree is cancelled and no continuation starts."""
+    from .workflow import persistence as wfstore
+
+    store = _store()
+    try:
+        wfstore.request_workflow_stop(store, wf_id)
+    except KeyError:
+        err.print("[red]no such workflow run[/red]")
+        raise typer.Exit(code=1) from None
+    console.print(f"stop requested for {wf_id}; owned work stays visible until cleanup is verified")
+
+
+@workflow_app.command("answer")
+def workflow_answer(question_id: str = typer.Argument(...), text: str = typer.Argument(...)) -> None:
+    """Answer one pending workflow question by its own id."""
+    from .workflow import persistence as wfstore
+
+    store = _store()
+    outcome = wfstore.answer_question(store, question_id, text)
+    if outcome == "missing":
+        err.print("[red]no such question[/red]")
+        raise typer.Exit(code=1)
+    if outcome == "expired":
+        err.print("[red]that question expired unanswered; the workflow is not waiting on it[/red]")
+        raise typer.Exit(code=1)
+    if outcome == "already":
+        row = wfstore.question(store, question_id) or {}
+        err.print(f"[yellow]that question is {row.get('status')} (answer={row.get('answer')!r}); "
+                  f"the recorded answer is unchanged[/yellow]")
+        raise typer.Exit(code=1)
+    console.print("answer recorded")
+
+
+@workflow_app.command("qualify")
+def workflow_qualify(bot_ref: str = typer.Argument(...),
+                     role: str = typer.Option("worker", "--role", help="worker | verifier | author | selector"),
+                     reason: str = typer.Option("", "--reason", help="why this scope is acceptable"),
+                     revoke: bool = typer.Option(False, "--revoke"),
+                     assess_only: bool = typer.Option(False, "--assess"),
+                     probe: bool = typer.Option(False, "--probe", help="run the bounded local held-out suite"),
+                     campaign: str = typer.Option("dynamic-workflows-initial", "--campaign")) -> None:
+    """Inspect or record a scoped role qualification for one Bot's exact route.
+
+    An acknowledgement can only ever unlock a bounded worker/verifier scope; authoring and
+    selection require probed evidence, which this command cannot fabricate.
+    """
+    from .workflow import qualify
+
+    store = _store()
+    bot = _require_bot(store, bot_ref)
+    from .providers import parse_spec
+
+    if probe:
+        if role not in ("author", "selector"):
+            err.print("[red]--probe supports only the author and selector held-out suites[/red]")
+            raise typer.Exit(code=2)
+        from .providers import ProviderError, make_provider
+        from .route_identity import default_endpoint
+        from .workflow.probes import run_probe_suite
+
+        provider_name, _model = parse_spec(bot.model)
+        endpoint = bot.base_url or default_endpoint(provider_name)
+        try:
+            provider = make_provider(provider_name, endpoint or None)
+            result = run_probe_suite(store, spec=bot.model, role=role, endpoint=endpoint,
+                                     provider=provider, campaign_id=campaign)
+        except (ProviderError, ValueError, RuntimeError) as exc:
+            err.print(f"[red]qualification probe could not run: {exc}[/red]")
+            raise typer.Exit(code=2) from None
+        console.print(f"{result.status}: {result.role} on {result.provider}/{result.model}; "
+                      f"{len(result.requests)} sample(s), execution profile "
+                      f"{result.execution_profile['fingerprint']}")
+        for item in result.requests:
+            console.print(f"  {item['dimension']}: {item['status']} — {item.get('reason') or 'passed'}")
+        if result.reason:
+            console.print(f"  {result.reason}")
+        raise typer.Exit(code=0 if result.status == "passed" else 1)
+    if assess_only:
+        profile_hash = None
+        if role in ("author", "selector"):
+            try:
+                from .providers import make_provider
+                from .route_identity import default_endpoint
+                from .workflow.probes import inspect_probe_profile
+
+                provider_name, _model = parse_spec(bot.model)
+                endpoint = bot.base_url or default_endpoint(provider_name)
+                _name, _revision, profile = inspect_probe_profile(
+                    spec=bot.model, endpoint=endpoint, provider=make_provider(provider_name, endpoint or None))
+                profile_hash = profile["fingerprint"]
+            except Exception:
+                profile_hash = None
+        verdict = qualify.assess(role, spec=bot.model, store=store, base_url=bot.base_url or None,
+                                 execution_profile_hash=profile_hash)
+        console.print(verdict.summary())
+        if not verdict.allowed:
+            from .workflow.routing import explain_block
+
+            for line in explain_block(bot, [verdict.as_dict()]):
+                console.print(f"  {line}")
+        raise typer.Exit(code=0 if verdict.allowed else 1)
+    if revoke:
+        removed = qualify.revoke(store, spec=bot.model, role=role, base_url=bot.base_url or None)
+        console.print(f"removed {removed} qualification record(s) for {role} on {bot.model}")
+        raise typer.Exit(code=0)
+    if not reason:
+        err.print("[red]--reason is required when recording a qualification[/red]")
+        raise typer.Exit(code=2)
+    try:
+        verdict = qualify.acknowledge_limited(store, spec=bot.model, role=role, reason=reason,
+                                              scope={"acknowledged_by": "cli"},
+                                              base_url=bot.base_url or None)
+    except ValueError as exc:
+        err.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=2) from None
+    console.print(f"recorded: {verdict.summary()}")
+
+
+@workflow_app.command("mode")
+def workflow_mode(bot_ref: str = typer.Argument(...),
+                  mode: str = typer.Option("off", "--mode", help="off | suggest | auto"),
+                  definition: list[str] = typer.Option([], "--allow-definition",
+                                                       help="saved workflow auto may start (repeatable)"),
+                  max_nodes: Optional[int] = typer.Option(None, "--max-nodes"),
+                  max_model_calls: Optional[int] = typer.Option(None, "--max-model-calls"),
+                  max_tokens: Optional[int] = typer.Option(None, "--max-tokens"),
+                  max_wall_seconds: Optional[int] = typer.Option(None, "--max-wall-seconds"),
+                  max_fanout: Optional[int] = typer.Option(None, "--max-fanout")) -> None:
+    """Set how Hutch may use workflows for one Bot. Saving a policy starts nothing."""
+    from .workflow import routing
+
+    if mode not in routing.MODES:
+        err.print(f"[red]--mode must be one of {', '.join(routing.MODES)}[/red]")
+        raise typer.Exit(code=2)
+    store = _store()
+    bot = _require_bot(store, bot_ref)
+    limits: dict = {}
+    if mode == "auto":
+        if definition:
+            limits["definitions"] = list(definition)
+        for key, value in (("max_nodes", max_nodes), ("max_model_calls", max_model_calls),
+                           ("max_tokens", max_tokens),
+                           ("max_wall_seconds", max_wall_seconds), ("max_fanout", max_fanout)):
+            if value is not None:
+                limits[key] = int(value)
+    bot.workflow_mode = mode
+    bot.workflow_limits = limits
+    store.upsert_bot(bot, preserve_schedules=True)
+    console.print(f"{bot.name}: workflow mode [bold]{mode}[/bold]"
+                  + (f" · scope {limits}" if limits else "")
+                  + " [dim](saving a policy starts nothing)[/dim]")
+
 
 # ------------------------------------------------------------------ models
 

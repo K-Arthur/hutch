@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import http.server
 import json
+import os
 import platform
 import socketserver
 import threading
@@ -703,6 +704,166 @@ def test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_
             "external_requests": external, "page_errors": errors,
         }, indent=2) + "\n", encoding="utf-8")
     finally:
+        context.close()
+
+
+def test_dynamic_workflow_marketing_is_truthful_and_responsive(browser, site_url):
+    context, page, errors = _page(browser, reduced_motion="reduce")
+    out = Path(os.environ.get("HUTCH_DYNAMIC_WORKFLOW_MARKETING_ARTIFACTS",
+                              ROOT / "docs/realignment/artifacts/dynamic-workflows/marketing"))
+    out.mkdir(parents=True, exist_ok=True)
+    external = []
+    page.on("request", lambda request: external.append(request.url)
+            if not request.url.startswith(site_url) and not request.url.startswith("data:") else None)
+    source_hashes = {
+        "website/index.html": hashlib.sha256((SITE_DIR / "index.html").read_bytes()).hexdigest(),
+        "website/styles.css": hashlib.sha256((SITE_DIR / "styles.css").read_bytes()).hexdigest(),
+    }
+    captures = []
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        page.goto(site_url, wait_until="networkidle")
+        preview = page.locator("#workflow .workflow-preview")
+        assert preview.count() == 1
+        preview_text = preview.inner_text().lower()
+        workflow_copy_words = len(preview_text.split())
+        assert workflow_copy_words <= 100, "the workflow explanation should stay concise"
+        for phrase in ("private preview", "saved steps, started by you", "planned steps stay distinct from discovered instances",
+                       "answer each pending question", "pause lets active work settle before the next step is held",
+                       "resume or stop from chat",
+                       "completed step is not necessarily verified", "a qualified selector for the exact model profile",
+                       "neither tested local profile qualified", "auto does not create new plans",
+                       "an owner can link an activated workflow to a routine", "enabling stays separate"):
+            assert phrase in preview_text, phrase
+        assert page.locator("#workflow .workflow-details").count() == 3
+
+        page.locator("#get .availability-details > summary").click()
+        workflow_row = page.locator("#get .availability tbody tr").filter(has_text="Workflows")
+        assert workflow_row.count() == 1
+        availability = workflow_row.inner_text().lower()
+        for phrase in ("owner-started saved workflows", "chat route cards", "auto starts of activated saved methods",
+                       "selector qualification for the exact model profile", "two local profiles tested did not qualify",
+                       "auto does not create new plans", "an owner can link an activated saved method to an existing routine",
+                       "pins the exact revision and checked inputs", "enabling the routine stays separate",
+                       "run now starts one copy without advancing the schedule",
+                       "the existing local supervisor and host must be running", "live provider execution remains unverified",
+                       "experimental"):
+            assert phrase in availability, phrase
+
+        faq_expectations = {
+            "How do Suggest and Auto work for workflows?": "the two local profiles tested did not qualify",
+            "Can a local model design or choose a workflow?": "neither of the two qwen3 profiles tested qualified",
+            "What happens if I stop a workflow or Hutch restarts?": "a pause request does not cancel active work",
+            "What is the difference between a workflow and a routine?": "hutch pins the exact revision and checks its inputs",
+        }
+        for question, expected in faq_expectations.items():
+            item = page.locator("#faq details").filter(has=page.get_by_text(question, exact=True))
+            assert item.count() == 1, question
+            item.locator("summary").click()
+            answer = item.locator(".collapse-content")
+            assert answer.is_visible()
+            assert expected in answer.inner_text().lower(), question
+
+        page.get_by_role("link", name="Workflow questions").click()
+        assert page.evaluate("location.hash") == "#faq"
+
+        viewports = (("desktop", 1440, 900), ("tablet", 768, 1024),
+                     ("phone", 360, 800), ("compact-phone", 320, 800))
+        for label, width, height in viewports:
+            page.set_viewport_size({"width": width, "height": height})
+            page.locator("#workflow").scroll_into_view_if_needed()
+            preview.scroll_into_view_if_needed()
+            preview.evaluate("element => window.scrollBy(0, element.getBoundingClientRect().top - 90)")
+            page.wait_for_timeout(60)
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            box = preview.bounding_box()
+            assert box and box["x"] >= 0 and box["x"] + box["width"] <= width + 1, (label, box)
+            copy_box = preview.locator(".workflow-preview-copy").bounding_box()
+            headline = preview.locator("h3").bounding_box()
+            assert copy_box and headline and headline["x"] >= copy_box["x"] - 1
+            assert headline["x"] + headline["width"] <= copy_box["x"] + copy_box["width"] + 1
+            assert headline["height"] <= 120, (label, headline)
+            page.screenshot(path=str(out / f"workflow-{label}.png"), animations="disabled")
+
+            workflow_row.locator(".av-v").scroll_into_view_if_needed()
+            page.wait_for_timeout(40)
+            row_box = workflow_row.bounding_box()
+            assert row_box and row_box["x"] >= 0 and row_box["x"] + row_box["width"] <= width + 1, (label, row_box)
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
+            page.screenshot(path=str(out / f"availability-{label}.png"), animations="disabled")
+            captures.append({"name": label, "viewport": [width, height], "workflow_preview": box,
+                             "availability_row": row_box, "horizontal_overflow_px": overflow})
+
+        # Exercise the new workflow teaser under the WCAG text-spacing override and
+        # system high-contrast colors. These are separate states from the normal
+        # responsive captures above so their visual evidence stays inspectable.
+        page.set_viewport_size({"width": 320, "height": 800})
+        page.add_style_tag(content=(
+            "* { letter-spacing: .12em !important; word-spacing: .16em !important; "
+            "line-height: 1.5 !important; } "
+            "p { margin-bottom: 2em !important; }"
+        ))
+        preview.scroll_into_view_if_needed()
+        preview.evaluate("element => window.scrollBy(0, element.getBoundingClientRect().top - 70)")
+        spacing_box = preview.bounding_box()
+        spacing_overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert spacing_box and spacing_box["x"] >= 0 and spacing_box["x"] + spacing_box["width"] <= 321
+        assert spacing_overflow <= 1, spacing_overflow
+        page.screenshot(path=str(out / "workflow-text-spacing-start-compact-phone.png"), animations="disabled")
+        preview_link = preview.locator(".workflow-preview-link")
+        preview_link.focus()
+        page.keyboard.press("Tab")
+        page.keyboard.press("Shift+Tab")
+        assert preview_link.evaluate("el => document.activeElement === el")
+        assert preview_link.evaluate("el => getComputedStyle(el).outlineStyle !== 'none'")
+        link_box = preview_link.bounding_box()
+        assert link_box and link_box["height"] >= 44 and 0 <= link_box["y"] < 800
+        page.screenshot(path=str(out / "workflow-text-spacing-focus-compact-phone.png"), animations="disabled")
+
+        page.emulate_media(forced_colors="active")
+        preview.scroll_into_view_if_needed()
+        preview.evaluate("element => window.scrollBy(0, element.getBoundingClientRect().top - 70)")
+        page.screenshot(path=str(out / "workflow-forced-colors-start-compact-phone.png"), animations="disabled")
+        preview_link.focus()
+        page.keyboard.press("Tab")
+        page.keyboard.press("Shift+Tab")
+        forced_outline = preview_link.evaluate("el => getComputedStyle(el).outlineStyle")
+        assert forced_outline != "none", forced_outline
+        forced_link_box = preview_link.bounding_box()
+        assert forced_link_box and forced_link_box["height"] >= 44 and 0 <= forced_link_box["y"] < 800
+        page.screenshot(path=str(out / "workflow-forced-colors-focus-compact-phone.png"), animations="disabled")
+        captures.append({"name": "compact-phone-text-spacing", "viewport": [320, 800],
+                         "workflow_preview": spacing_box, "workflow_link": link_box,
+                         "horizontal_overflow_px": spacing_overflow})
+        captures.append({"name": "compact-phone-forced-colors", "viewport": [320, 800],
+                         "workflow_link": forced_link_box, "outline_style": forced_outline,
+                         "horizontal_overflow_px": page.evaluate("document.documentElement.scrollWidth - innerWidth")})
+
+        assert external == [], external
+        assert not errors, errors
+        context.tracing.stop(path=str(out / "trace.zip"))
+        hashes = {file.name: hashlib.sha256(file.read_bytes()).hexdigest()
+                  for file in out.iterdir() if file.suffix in {".png", ".zip"}}
+        (out / "results.json").write_text(json.dumps({
+            "test": "tests/e2e/test_website.py::test_dynamic_workflow_marketing_is_truthful_and_responsive",
+            "command": "TMPDIR=/var/tmp .venv/bin/pytest -q tests/e2e/test_website.py::test_local_asset_urls_use_current_content_hashes tests/e2e/test_website.py::test_dynamic_workflow_marketing_is_truthful_and_responsive --basetemp=/var/tmp/hutch-marketing-a11y-review",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright_version": package_version("playwright"), "reduced_motion": "reduce",
+            "accessibility_states": {"text_spacing": "WCAG 1.4.12 user override injected",
+                                     "forced_colors": "active", "keyboard_focus": "workflow FAQ link"},
+            "workflow_preview_word_count": workflow_copy_words,
+            "provider_calls": 0, "external_requests": external, "page_errors": errors,
+            "viewports": captures, "source_sha256": source_hashes,
+            "visual_artifact_sha256": hashes,
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        if context.tracing:
+            try:
+                context.tracing.stop()
+            except Exception:
+                pass
         context.close()
 
 

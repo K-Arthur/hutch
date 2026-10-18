@@ -96,6 +96,8 @@ response is marked `Cache-Control: no-store`.
 | `command_rules` | list | `[]` | `{match, verdict}` per-command `allow`/`ask`/`deny` globs ([safety.md](safety.md)) |
 | `sandbox` | enum | `strict` for new bots | `strict` uses Linux bubblewrap for shell commands and fails closed if unavailable; `off` runs shell commands without OS containment |
 | `paused` | bool | false | schedules skipped while paused |
+| `workflow_mode` | enum | `off` | `off` · `suggest` · `auto`: whether Hutch may propose a dynamic workflow in conversation, or start one without a fresh confirmation inside `workflow_limits`. Saving a policy starts nothing and grants no schedule. See [workflows.md](workflows.md). |
+| `workflow_limits` | obj | `{}` | the `auto` scope: `definitions` (saved workflow names Hutch may start on its own) and optional caps `max_nodes`, `max_model_calls` (actual provider requests), `max_tokens`, `max_wall_seconds`, `max_fanout`. Only meaningful with `workflow_mode: auto`; set it with `hutch workflow mode` or `POST /api/v1/workflows/policy`. |
 
 Manage task streams independently with `hutch bot schedules list <bot>`, `add`, `update`, and
 `remove`, or the per-task versioned API routes. Each stream's ID is globally unique and remains

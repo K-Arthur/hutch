@@ -213,13 +213,17 @@ class ToolContext:
     dry_run: bool = False             # Rehearse mode: mutating actions are simulated, reads still run
     closed: bool = False              # the run is over: a worker that outlived it must not start another action
     receipt: Optional[Callable[[], Optional[str]]] = None   # set per call by the runtime: records the intent (see begin_effect)
+    workflow_action_identity: Optional[dict[str, str]] = None  # stable site/instance/slot for workflow effect receipts
     delegation_submit: Optional[Callable[[str, str, str], ToolResult]] = None  # supervised, strict-offline child admission
+    delegation_resume: Optional[Callable[[str], ToolResult]] = None  # read a completed child after a durable parent wait
     tool_call_index: Optional[int] = None   # position of this call inside the model response, set by the built-in loop
     skills: Optional[Any] = None      # skills.ResolvedSkills for this run; the engine resolves it once at start
     private_computer_history: bool = False   # local observations make a later hosted fallback unsafe without consent
     computer_sessions: list[Any] = field(default_factory=list)  # owner-thread human step channels; never exported to a planner
     computer_leases: list[Any] = field(default_factory=list)  # also track local handoffs while inference is in flight
     clock: Optional[Any] = None       # grounding.clock.Clock: the ONE time source for tools/parsers; None = SystemClock
+
+    model_execution_profile: Optional[dict[str, Any]] = None  # exact profile for the active provider turn, if reported
 
     def begin_effect(self) -> Optional[str]:
         """Call right BEFORE performing a lasting effect, after policy and approval have said yes. Records the intent
@@ -293,7 +297,8 @@ def read_text_bounded(path: Path, limit: int = MAX_TOOL_OUTPUT) -> tuple[str, di
     except OSError:
         file_bytes = None
     output = "".join(parts)
-    data: dict[str, Any] = {"retained_chars": retained, "limit_chars": limit}
+    data: dict[str, Any] = {"retained_chars": retained, "limit_chars": limit,
+                            "truncated": truncated}
     if file_bytes is not None:
         data["file_bytes"] = file_bytes
     if truncated:

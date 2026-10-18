@@ -4,7 +4,7 @@
 =================================== FAILURES ===================================
 _ test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runtimes _
 
-browser = <Browser type=<BrowserType name=chromium executable_path=/home/kevina/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome> version=153.0.8010.12>
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
 app_server = ('http://127.0.0.1:44027', <fastapi.applications.FastAPI object at 0x7f3809e76210>)
 
     def test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runtimes(browser, app_server):

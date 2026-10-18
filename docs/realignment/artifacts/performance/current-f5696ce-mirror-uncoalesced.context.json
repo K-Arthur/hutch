@@ -7,11 +7,11 @@
     1.154296875
   ],
   "command": [
-    "/home/kevina/CodingProjects/hutch/.worktrees/realign/.venv/bin/python",
+    "/<local-path-redacted>",
     "-m",
     "benchmarks.run"
   ],
-  "cwd": "/home/kevina/CodingProjects/hutch/.worktrees/realign",
+  "cwd": "/<local-path-redacted>",
   "source_sha256": {
     "src/hutch/slots.py": "f834599436ae25c29824b84af148ae66e7de685a250cb64a76ecf5e0d9b6f455",
     "src/hutch/reliability.py": "dd89d685ce24c977cd7f17da8717461031008085a297209f70e8276c5eccb474",

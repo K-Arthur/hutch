@@ -1,0 +1,43 @@
+{
+  "test": "tests/e2e/test_browser.py::test_workflow_publishes_a_verified_chart_that_renders_in_a_browser",
+  "captured_at": "2026-10-11T23:39:07.263806+00:00",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright": "1.63.0",
+  "workflow_id": "wrun_ae3a7679e4a1",
+  "artifact_sha256": "3c209a6c0fe316bccd2d25d83bebd5c7709b0aa0ee017a98fb44817dbd13b155",
+  "artifact_bytes": 1333,
+  "verification": {
+    "advisory": [],
+    "checks": [
+      {
+        "detail": "verified 1333 bytes against sha256",
+        "kind": "artifact",
+        "ok": true,
+        "ref": "deliver.artifacts[0]"
+      }
+    ],
+    "ok": true,
+    "rounds": 0,
+    "verified": true
+  },
+  "rendered_svg_css_px": [
+    720,
+    186
+  ],
+  "horizontal_overflow_px": 0,
+  "page_errors": [],
+  "external_requests": [],
+  "artifact_file_sha256": {
+    "category-chart.svg": "3c209a6c0fe316bccd2d25d83bebd5c7709b0aa0ee017a98fb44817dbd13b155",
+    "category-chart-preview.png": "6abcd1d3fd7435a4d181059ba722fc8dc3ef6bf26aca8c179061641b7779dfe9",
+    "category-chart-trace.zip": "657bbec26f7664bf64e3cab9b45dadda9cb5f5c2358105529dcbc96eaa75c4bc"
+  },
+  "source_sha256": {
+    "src/hutch/workflow/ops.py": "05b8bdaf03db29daa8da094db1e2fc28c0a196fc2b22df95ca630871faadaf83",
+    "src/hutch/workflow/engine.py": "67cd6d54ef4324b2f94b5d0c4e82fce62eca043103bbd2faae64690475cb0f23",
+    "tests/test_workflow_ops.py": "76bff00d6459d89a6c134ac86907d2cc43c3b015fb206ad61349db8dd21644b5",
+    "tests/test_workflow_csv_acceptance.py": "54a5638d9b82626a8abf5d862b6e15be89706bf84055f2d5c6f0556b75ddf10f",
+    "tests/e2e/test_browser.py": "e7164d30c936053972663b63671ed965191f2ab203c90d7335dbf9cc626f45dd"
+  }
+}

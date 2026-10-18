@@ -99,6 +99,7 @@ class OllamaProvider(Provider):
             self.base_url = self.base_url[:-3]
         self._client = None
         self._caps: dict[str, list[str]] = {}
+        self._version = ""
 
     # ----------------------------------------------------------------- http
 
@@ -162,6 +163,7 @@ class OllamaProvider(Provider):
             r = self._http().get("/api/version", timeout=self._timeout(read=3.0))
             r.raise_for_status()
             version = r.json().get("version", "")
+            self._version = str(version or "")
         except Exception as exc:
             return Health(ok=False, detail=self._wrap_exc(exc).args[0])
         return Health(ok=True, version=version, loaded=self.ps(),
@@ -199,6 +201,34 @@ class OllamaProvider(Provider):
         info = j.get("model_info", {}) or {}
         arch = info.get("general.architecture") or d.get("family") or ""
 
+        # /api/show contains model architecture and template data, while /api/tags is
+        # the source of the exact installed manifest digest. Keep both in the profile;
+        # a tag name can point at a different checkpoint later.
+        digest = ""
+        try:
+            installed_models = self.list_models()
+            installed = next((item for item in installed_models if item.name == model), None)
+            if installed is None:
+                normalize_latest = lambda name: name[:-7] if name.endswith(":latest") else name
+                matches = [item for item in installed_models
+                           if normalize_latest(item.name) == normalize_latest(model)]
+                installed = matches[0] if len(matches) == 1 else None
+            digest = installed.digest if installed else ""
+        except Exception:
+            digest = ""
+        if not self._version:
+            try:
+                version_response = self._http().get("/api/version", timeout=self._timeout(read=3.0))
+                version_response.raise_for_status()
+                self._version = str(version_response.json().get("version") or "")
+            except Exception:
+                self._version = ""
+        tokenizer = {str(key): value for key, value in info.items()
+                     if str(key).lower().startswith("tokenizer.")}
+        tokenizer_hash = (hashlib.sha256(json.dumps(tokenizer, sort_keys=True, separators=(",", ":"),
+                                                   ensure_ascii=False).encode()).hexdigest()
+                          if tokenizer else "")
+
         def pick(suffix: str) -> Optional[int]:
             for k, v in info.items():
                 if k.endswith(suffix) and isinstance(v, (int, float)):
@@ -210,11 +240,14 @@ class OllamaProvider(Provider):
         head_dim = pick(".attention.key_length") or (emb // heads if emb and heads else None)
         lic = (j.get("license") or "").strip().splitlines()
         meta = ModelMeta(
-            name=model, params_b=_params_b(d.get("parameter_size")), quant=d.get("quantization_level", ""),
+            name=model, backend="ollama", backend_version=self._version,
+            params_b=_params_b(d.get("parameter_size")), quant=d.get("quantization_level", ""),
             family=arch, max_context=pick(".context_length"), n_layers=pick(".block_count"),
             n_kv_heads=kv_heads or heads, head_dim=head_dim, capabilities=list(j.get("capabilities") or []),
-            template_hash=hashlib.sha256((j.get("template") or "").encode()).hexdigest()[:12],
-            license=lic[0].strip() if lic else "", size_bytes=_size_from_ps_or_none(self, model))
+            template_hash=(hashlib.sha256(j["template"].encode()).hexdigest()
+                           if isinstance(j.get("template"), str) and j["template"] else ""),
+            tokenizer_hash=tokenizer_hash, license=lic[0].strip() if lic else "",
+            digest=digest, size_bytes=_size_from_ps_or_none(self, model))
         self._caps[model] = meta.capabilities
         return meta
 
@@ -269,6 +302,8 @@ class OllamaProvider(Provider):
             raise ProviderError("bad_request", "Ollama requests must set num_ctx explicitly (LM-1)",
                                 provider=self.name)
         options: dict[str, Any] = {"num_ctx": int(req.num_ctx)}
+        if req.num_gpu is not None:
+            options["num_gpu"] = int(req.num_gpu)
         if req.max_tokens:
             options["num_predict"] = int(req.max_tokens)  # per-turn cap (SR-5)
         if req.temperature is not None:

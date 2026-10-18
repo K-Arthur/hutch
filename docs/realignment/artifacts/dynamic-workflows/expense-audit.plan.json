@@ -1,0 +1,245 @@
+{
+  "name": "expense-audit",
+  "description": "Parse a messy expense export, branch on what it actually contains, and publish a verified summary.",
+  "inputs": {
+    "csv": {
+      "type": "string",
+      "required": true,
+      "max_length": 100000
+    },
+    "period": {
+      "type": "string",
+      "default": "current export"
+    }
+  },
+  "envelope": {
+    "tools": [],
+    "models": [],
+    "max_parallel_steps": 1
+  },
+  "budget": {
+    "max_nodes": 40,
+    "max_model_calls": 0,
+    "max_wall_seconds": 300,
+    "max_fanout": 10,
+    "max_repairs": 0
+  },
+  "nodes": [
+    {
+      "kind": "transform",
+      "id": "table",
+      "op": "parse_table",
+      "args": {
+        "text": {
+          "ref": "input.csv"
+        },
+        "max_rows": 5000
+      }
+    },
+    {
+      "kind": "branch",
+      "id": "shape",
+      "condition": {
+        "ref": "table.columns",
+        "op": "contains",
+        "value": "category"
+      },
+      "then": [
+        {
+          "kind": "transform",
+          "id": "by_category",
+          "op": "group_count",
+          "args": {
+            "items": {
+              "ref": "table.rows"
+            },
+            "by": "category"
+          }
+        },
+        {
+          "kind": "transform",
+          "id": "totals",
+          "op": "total",
+          "args": {
+            "items": {
+              "ref": "table.rows"
+            },
+            "of": "amount"
+          }
+        },
+        {
+          "kind": "transform",
+          "id": "packed",
+          "op": "merge",
+          "args": {
+            "values": [
+              {
+                "by_category": {
+                  "ref": "shape.then.by_category"
+                },
+                "total": {
+                  "ref": "shape.then.totals"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "else": [
+        {
+          "kind": "transform",
+          "id": "no_category",
+          "op": "constant",
+          "args": {
+            "value": "the export has no 'category' column"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "transform",
+      "id": "category_chart",
+      "op": "bar_chart_svg",
+      "args": {
+        "values": {
+          "ref": "shape.result.by_category"
+        },
+        "title": "Expenses by category"
+      }
+    },
+    {
+      "kind": "transform",
+      "id": "problems",
+      "op": "join_text",
+      "args": {
+        "items": {
+          "ref": "table.bad_rows"
+        },
+        "separator": "\n",
+        "of": "line"
+      }
+    },
+    {
+      "kind": "transform",
+      "id": "report",
+      "op": "join_text",
+      "args": {
+        "separator": "\n",
+        "items": [
+          {
+            "template": "Expense audit — {{period}}",
+            "values": {
+              "period": {
+                "ref": "input.period"
+              }
+            }
+          },
+          {
+            "template": "Rows kept: {{kept}} of {{total}}",
+            "values": {
+              "kept": {
+                "ref": "table.kept"
+              },
+              "total": {
+                "ref": "table.total"
+              }
+            }
+          },
+          {
+            "template": "Rows rejected: {{bad}}",
+            "values": {
+              "bad": {
+                "ref": "table.bad"
+              }
+            }
+          },
+          {
+            "template": "Total amount: {{total}}",
+            "values": {
+              "total": {
+                "ref": "shape.result.total"
+              }
+            }
+          },
+          {
+            "template": "By category:\n{{groups}}",
+            "values": {
+              "groups": {
+                "ref": "shape.result.by_category"
+              }
+            }
+          },
+          {
+            "template": "Rejected lines:\n{{lines}}",
+            "values": {
+              "lines": {
+                "ref": "problems"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "publish",
+      "id": "deliver",
+      "artifacts": [
+        {
+          "name": "expense-report",
+          "ref": "report",
+          "media_type": "text/markdown",
+          "primary": true
+        },
+        {
+          "name": "expense-category-chart",
+          "ref": "category_chart",
+          "media_type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "kind": "verify",
+      "id": "check",
+      "checks": [
+        {
+          "kind": "schema",
+          "ref": "table.kept",
+          "schema": {
+            "type": "integer",
+            "minimum": 300
+          }
+        },
+        {
+          "kind": "schema",
+          "ref": "table.bad",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "kind": "artifact",
+          "ref": "deliver.artifacts[0]",
+          "min_bytes": 100
+        },
+        {
+          "kind": "artifact",
+          "ref": "deliver.artifacts[1]",
+          "min_bytes": 300
+        },
+        {
+          "kind": "human",
+          "prompt": "Does this expense summary look right for the sample data?",
+          "timeout_seconds": 600
+        }
+      ],
+      "on_fail": {
+        "action": "stop"
+      }
+    }
+  ],
+  "outputs": [
+    "report",
+    "deliver"
+  ]
+}

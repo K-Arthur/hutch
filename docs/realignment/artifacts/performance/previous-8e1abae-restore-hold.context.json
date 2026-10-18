@@ -7,11 +7,11 @@
     1.95556640625
   ],
   "command": [
-    "/home/kevina/CodingProjects/hutch/.worktrees/realign/.venv/bin/python",
+    "/<local-path-redacted>",
     "-m",
     "benchmarks.run"
   ],
-  "cwd": "/tmp/hutch-comparison-pcqio5st/source",
+  "cwd": "/<local-path-redacted>",
   "source_sha256": {
     "src/hutch/__init__.py": "568574ab401d0207b2e5bbf867341bdce1041794c04a41813720be38df26da74",
     "src/hutch/action_receipts.py": "974ccc618fdd9acfecee3fefea538f0b3de1fd71eff96ad3d2c1ff7769d26bba",

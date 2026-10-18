@@ -18,6 +18,7 @@ approval waits, and kill every child process group the run started.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import signal
 import socket
@@ -56,7 +57,7 @@ from .safety import PolicyEngine
 from .workdir import check_workdir_at_run
 from .scheduler import Scheduler
 from .store import Store
-from .tools import ToolContext, ToolResult, build_tools
+from .tools import ToolContext, ToolResult, build_tools, expand_tools
 
 DEFAULT_MAX_CONCURRENT = 2
 
@@ -186,6 +187,21 @@ class Engine:
             self._reap_threads()
             self.store.release_expired_claims()
             active = self.store.active_runs()
+            # A delegated child is submitted from a parent's blocking tool call. While
+            # that child is live, the parent is orchestration waiting for its result,
+            # not an inference request: keeping the parent's local-model reservation
+            # would deadlock the child on the same single-request Ollama slot.
+            waiting_parents = {
+                str(run.parent_run_id) for run in active
+                if run.parent_run_id and self.store.run_kind(run.id) == "attempt"
+            }
+            local_model_busy = any(
+                self._local_model_spec(run) is not None
+                and run.id not in waiting_parents
+                and run.status not in (RunStatus.waiting_workflow, RunStatus.waiting_child)
+                and (run.status is not RunStatus.pending or bool(run.lease_owner))
+                for run in active
+            )
             # Delegated rows enter the same global reservation pool. _start_worker reconstructs
             # their immutable parent policy and rejects unsupported routes before any process starts.
             pending = sorted((r for r in active if r.status is RunStatus.pending and not r.lease_owner),
@@ -195,7 +211,15 @@ class Engine:
             for run in pending:
                 if run.id in self._threads:
                     continue
-                if len(self._threads) >= self.max_concurrent:
+                local_model = self._local_model_spec(run)
+                if local_model is not None and local_model_busy:
+                    continue
+                # The blocking parent process remains supervised, but it yields its
+                # logical run slot while a durable delegated child row is active.
+                # This makes one-slot hosts usable without letting unrelated queued
+                # work take the child's place.
+                occupied = sum(1 for run_id in self._threads if run_id not in waiting_parents)
+                if occupied >= self.max_concurrent:
                     break
                 bot = self.store.get_bot(run.bot_id)
                 if bot is None:
@@ -210,11 +234,34 @@ class Engine:
                     continue          # another process took it, this bot is busy elsewhere, or the global cap is reached
                 if self._start_worker(bot, claimed):
                     started += 1
+                    if local_model is not None:
+                        local_model_busy = True
         return started
+
+    def _local_model_spec(self, run: Run) -> str | None:
+        """Return an Ollama route whose single request slot is not yet qualified for scaling."""
+        if run.kind == "workflow":
+            return None
+        if isinstance(run.workflow_step, dict):
+            spec = str(run.workflow_step.get("model") or "")
+        else:
+            spec = str(run.model_override or "")
+            if not spec:
+                bot = self.store.get_bot(run.bot_id)
+                spec = str(bot.model or "") if bot is not None else ""
+        provider = spec.partition("/")[0].strip().lower()
+        return spec if provider == "ollama" else None
 
     def _start_worker(self, bot: Bot, run: Run) -> bool:
         try:
-            if run.parent_run_id is not None:
+            kind = self.store.run_kind(run.id)
+            if kind == "step":
+                target = self._step_bot(bot, run)
+            elif kind == "workflow":
+                if bot.runtime.value != "builtin":
+                    raise ValueError("dynamic workflows require the built-in runtime")
+                target = bot.model_copy(update={"model": run.model_override}) if run.model_override else bot
+            elif run.parent_run_id is not None:
                 snapshot = self.store.run_capability_snapshot(run.id)
                 if snapshot is None:
                     raise ValueError("delegated run has no inherited capability snapshot")
@@ -236,7 +283,7 @@ class Engine:
                 return False
             get_runtime(target)
         except ValueError as exc:
-            if run.parent_run_id is not None:
+            if run.parent_run_id is not None or self.store.run_kind(run.id) == "step":
                 self._fail_unavailable_child_executor(run, str(exc))
                 return False
             raise
@@ -339,7 +386,8 @@ class Engine:
         env = dict(os.environ, HUTCH_STATE_DIR=str(self.config.state_dir),
                    HUTCH_ENABLE_ADAPTIVE_PERSONA="1" if self.config.adaptive_persona_enabled else "0",
                    HUTCH_LEASE_SECONDS=str(self.lease_seconds),
-                   HUTCH_EXECUTOR=self.executor, HUTCH_MAX_CONCURRENT=str(self.max_concurrent))
+                   HUTCH_EXECUTOR=self.executor, HUTCH_MAX_CONCURRENT=str(self.max_concurrent),
+                   HUTCH_WAKE_DIR=str(self.store.hub.dir))
         argv = [sys.executable, "-m", "hutch.worker", run.id, "--owner", self.owner_id, "--fence", str(run.fence)]
         if bot is not None and bot.inference_mode.value == "offline":
             from .offline import OfflineBrokerSet
@@ -398,7 +446,8 @@ class Engine:
                 elif waited > CANCEL_GRACE_SECONDS + 5.0:
                     self._signal_group(proc, signal.SIGKILL)
         cur = self.store.get_run(run.id)
-        if cur is not None and cur.status not in TERMINAL_STATUSES:
+        if cur is not None and cur.status not in (TERMINAL_STATUSES | {RunStatus.waiting_workflow,
+                                                                         RunStatus.waiting_child}):
             self._recover_one(cur, extra_error=f"worker exited with code {proc.returncode} before the run finished",
                               owner_exited=True)
         elif cur is not None:
@@ -675,9 +724,56 @@ class Engine:
         except (KeyError, TypeError, ValueError) as exc:
             raise ValueError(f"the parent's execution snapshot cannot be enforced: {exc}") from None
 
+    @staticmethod
+    def _step_bot(bot: Bot, run: Run) -> Bot:
+        """Reconstruct one workflow step's execution envelope from its frozen contract.
+
+        The contract was written at admission from a *validated* plan: the tools were
+        already intersected with the workflow envelope, and the envelope with the Bot's own
+        tool list. Re-checking here means a Bot edited after admission cannot be widened by
+        an old step, and a tool the Bot no longer allows fails the step instead of running.
+        """
+        spec = run.workflow_step if isinstance(run.workflow_step, dict) else None
+        if not spec:
+            raise ValueError("this step run has no frozen execution contract")
+        tools = spec.get("tools")
+        if not isinstance(tools, list) or any(not isinstance(name, str) or not name for name in tools):
+            raise ValueError("the step's frozen tool list is invalid")
+        allowed = set(expand_tools(bot.tools))
+        missing = sorted(name for name in tools if name not in allowed)
+        if missing:
+            raise ValueError(f"this Bot no longer allows the step's tools: {missing}")
+        skills = spec.get("skills") or []
+        if not isinstance(skills, list) or any(not isinstance(name, str) for name in skills):
+            raise ValueError("the step's frozen skill list is invalid")
+        unknown = sorted(name for name in skills if name not in set(bot.skills))
+        if unknown:
+            raise ValueError(f"this Bot is no longer bound to the step's skills: {unknown}")
+        try:
+            max_steps = int(spec.get("max_steps") or 12)
+            timeout_seconds = int(spec.get("timeout_seconds") or 600)
+        except (TypeError, ValueError):
+            raise ValueError("the step's frozen limits are invalid") from None
+        limits = bot.limits.model_copy(update={
+            "max_steps": max(1, min(bot.limits.max_steps, max_steps)),
+            "timeout_seconds": max(5, min(bot.limits.timeout_seconds, timeout_seconds)),
+        })
+        model = spec.get("model")
+        if model is not None and (not isinstance(model, str) or not model.strip()):
+            raise ValueError("the step's frozen model binding is invalid")
+        update: dict[str, object] = {
+            "tools": list(tools), "skills": list(skills), "limits": limits.model_dump(mode="json"),
+            "workspace_mode": "fresh", "workdir": None, "local_browser_handoff": False,
+        }
+        if isinstance(model, str) and model.strip():
+            # The step runs on the model its node declared (and that qualification was
+            # assessed against), never on whatever the Bot's model happens to be now.
+            update["model"] = model.strip()
+        return Bot.model_validate({**bot.model_dump(mode="json"), **update})
+
     def _run_delegated_task(self, ctx: ToolContext, task_text: str, idem_key: str,
                             request_hash: str, parent_deadline: float) -> ToolResult:
-        """Admit one child under the live parent's fence, then wait without model calls."""
+        """Admit one child under the live parent's fence, returning a durable wait marker if it is still active."""
         from .models import ACTIVE_STATUSES
 
         if (self.executor != "process" or ctx.bot.runtime.value != "builtin"
@@ -686,11 +782,13 @@ class Engine:
         depth = self.store.delegation_depth(ctx.run.id)
         if depth >= 2:
             return ToolResult(ok=False, output="delegation depth limit is two")
-        if self.max_concurrent < depth + 2:
-            return ToolResult(ok=False, output=(f"delegation at depth {depth + 1} needs at least "
-                                                f"{depth + 2} global run slots; current limit is {self.max_concurrent}"))
 
-        child_run = Run(bot_id=ctx.bot.id, prompt=task_text)
+        workflow_context = (ctx.workflow_action_identity
+                            or ctx.run.workflow_step
+                            or ctx.run.workflow_context)
+        child_run = Run(bot_id=ctx.bot.id, prompt=task_text,
+                        workflow_run_id=ctx.run.workflow_run_id,
+                        workflow_context=(dict(workflow_context) if isinstance(workflow_context, dict) else None))
         child_task = Task(bot_id=ctx.bot.id, kind="delegated", prompt=task_text)
         try:
             child, inserted = self.store.submit_delegated_run(
@@ -712,51 +810,66 @@ class Engine:
             ctx.cancel_hooks.append(cancel_child)
             self.bus.notify("work")
 
-        deadline = min(parent_deadline, time.monotonic() + min(ctx.bot.limits.timeout_seconds, 600))
-        while True:
-            parent = self.store.get_run(ctx.run.id)
-            if (parent is None or parent.fence != ctx.run.fence or parent.cancel_requested
-                    or parent.status is not RunStatus.running or ctx.closed):
-                cancel_child()
-                return ToolResult(ok=False, output="parent ownership ended; child cancellation was requested")
+        parent = self.store.get_run(ctx.run.id)
+        if (parent is None or parent.fence != ctx.run.fence or parent.cancel_requested
+                or parent.status is not RunStatus.running or ctx.closed):
+            cancel_child()
+            return ToolResult(ok=False, output="parent ownership ended; child cancellation was requested")
+        current = self.store.get_run(child.id)
+        if current is None:
+            return ToolResult(ok=False, output="child run record disappeared; no result can be verified")
+        if current.status not in ACTIVE_STATUSES:
+            return self._delegated_child_result(child.id)
+        if time.monotonic() >= parent_deadline:
+            cancel_child()
+            return ToolResult(ok=False, output=(f"Child run {child.id} did not finish before the bounded wait expired; "
+                                                "cancellation was requested."),
+                              data={"child_run_id": child.id, "status": current.status.value,
+                                    "cancel_requested": True})
+        return ToolResult(
+            ok=True,
+            output=f"Child run {child.id} is {current.status_label.lower()}; Hutch will resume this run when it settles.",
+            data={"child_run_id": child.id, "status": current.status.value, "child_wait_pending": True,
+                  "deadline_epoch": time.time() + max(0.0, parent_deadline - time.monotonic())},
+        )
 
-            current = self.store.get_run(child.id)
-            if current is None:
-                return ToolResult(ok=False, output="child run record disappeared; no result can be verified")
-            if current.status not in ACTIVE_STATUSES:
-                if current.status is RunStatus.succeeded:
-                    question = self.store.pending_question_for_run(child.id)
-                    if question is not None:
-                        # The conversational primitive ends a run without waiting, but a parent
-                        # blocked in this call cannot deliver the answer. Report needs-input
-                        # instead of claiming the child completed.
-                        return ToolResult(
-                            ok=False,
-                            output=(f"Child run {child.id} ended by asking the owner a question that this "
-                                    "delegation cannot deliver: "
-                                    f"{str(question['question'])[:300]} No answer was applied."),
-                            data={"child_run_id": child.id, "status": "needs_input", "needs_input": True,
-                                  "question_id": question["id"]})
-                    final = ""
-                    for event in reversed(self.store.tail_events(child.id, limit=100)):
-                        if event.type is EventType.message and event.data.get("role") == "assistant":
-                            final = str(event.data.get("content") or "")
-                            break
-                    if not final:
-                        final = "The child completed without a final text response."
-                    return ToolResult(ok=True, output=f"Child run {child.id} completed.\n\n{final}",
-                                      data={"child_run_id": child.id, "status": current.status.value})
-                return ToolResult(ok=False, output=(f"Child run {child.id} ended as {current.status_label}: "
-                                                   f"{current.error or current.exit_reason or 'no verified result'}"),
-                                  data={"child_run_id": child.id, "status": current.status.value})
+    def _delegated_child_result(self, child_id: str) -> ToolResult:
+        """Read a completed child without dispatching or repeating any of its work."""
+        from .models import ACTIVE_STATUSES
 
-            if time.monotonic() >= deadline:
-                cancel_child()
-                return ToolResult(ok=False, output=(f"Child run {child.id} did not finish before the bounded wait expired; "
-                                                   "cancellation was requested."),
-                                  data={"child_run_id": child.id, "status": current.status.value,
-                                        "cancel_requested": True})
-            time.sleep(0.2)
+        current = self.store.get_run(child_id)
+        if current is None:
+            return ToolResult(ok=False, output="child run record disappeared; no result can be verified")
+        if current.status in ACTIVE_STATUSES:
+            return ToolResult(ok=False, output=f"Child run {child_id} is still active; its result is not ready.",
+                              data={"child_run_id": child_id, "status": current.status.value,
+                                    "child_wait_pending": True})
+        if current.status is RunStatus.outcome_unknown:
+            return ToolResult(ok=False, output=(f"Child run {child_id} ended with an unresolved action outcome; "
+                                                "human review is required before its result can be used."),
+                              data={"child_run_id": child_id, "status": current.status.value,
+                                    "outcome_unknown": True})
+        if current.status is RunStatus.succeeded:
+            question = self.store.pending_question_for_run(child_id)
+            if question is not None:
+                return ToolResult(
+                    ok=False,
+                    output=(f"Child run {child_id} ended by asking the owner a question that this delegation cannot "
+                            f"deliver: {str(question['question'])[:300]} No answer was applied."),
+                    data={"child_run_id": child_id, "status": "needs_input", "needs_input": True,
+                          "question_id": question["id"]})
+            final = ""
+            for event in reversed(self.store.tail_events(child_id, limit=100)):
+                if event.type is EventType.message and event.data.get("role") == "assistant":
+                    final = str(event.data.get("content") or "")
+                    break
+            if not final:
+                final = "The child completed without a final text response."
+            return ToolResult(ok=True, output=f"Child run {child_id} completed.\n\n{final}",
+                              data={"child_run_id": child_id, "status": current.status.value})
+        return ToolResult(ok=False, output=(f"Child run {child_id} ended as {current.status_label}: "
+                                           f"{current.error or current.exit_reason or 'no verified result'}"),
+                          data={"child_run_id": child_id, "status": current.status.value})
 
     def _execute(self, bot: Bot, run: Run, cancel: threading.Event) -> None:
         # The ordinary dispatcher already excludes children; enforce the same rule at the
@@ -764,7 +877,16 @@ class Engine:
         persisted = self.store.get_run(run.id)
         if persisted is None:
             return
-        if persisted.parent_run_id is not None:
+        run_kind = self.store.run_kind(run.id)
+        if run_kind == "step":
+            if persisted.status is not RunStatus.pending:
+                return
+            try:
+                bot = self._step_bot(bot, persisted)
+            except ValueError as exc:
+                self._fail_unavailable_child_executor(persisted, str(exc))
+                return
+        elif persisted.parent_run_id is not None:
             if persisted.status is not RunStatus.pending:
                 return
             snapshot = self.store.run_capability_snapshot(run.id)
@@ -791,7 +913,12 @@ class Engine:
             self._fail_unavailable_runtime(run, "tool-free execution purposes require the built-in runtime")
             return
         try:
-            runtime = get_runtime(bot)
+            if run_kind == "workflow":
+                from .workflow.runtime import WorkflowRuntime
+
+                runtime = WorkflowRuntime(self)
+            else:
+                runtime = get_runtime(bot)
         except RuntimeError as exc:
             self._fail_unavailable_runtime(run, str(exc))
             return
@@ -832,8 +959,9 @@ class Engine:
             )
         closed = threading.Event()          # set once the run is over: a late worker's events and tool calls are dropped
         degraded: list[str] = []            # audit writes that failed: shown, never silent
+        workflow_owned_events = run.kind == "workflow" or bool(run.workflow_run_id)
 
-        def emit(ev: Event) -> None:
+        def emit(ev: Event, *, propagate: bool = False) -> None:
             if closed.is_set():
                 return                      # a worker that outlived its run must not extend the transcript
             try:
@@ -841,6 +969,27 @@ class Engine:
                 self.store.append_event(ev)
             except Exception as exc:
                 degraded.append(f"{type(exc).__name__}: {exc}")     # recorded on the run's final event, not swallowed
+                if propagate:
+                    raise RunAborted(
+                        "event_delivery_failed",
+                        f"canonical workflow event could not be queued: {type(exc).__name__}: {exc}",
+                    ) from exc
+
+        def context_emit(ev: Event) -> None:
+            if closed.is_set():
+                return
+            emit(ev, propagate=workflow_owned_events)
+            if workflow_owned_events:
+                try:
+                    # Workflow node state and effects are only recoverable when their
+                    # transcript checkpoint is durable before execution continues.
+                    self.store.flush_events()
+                except Exception as exc:
+                    degraded.append(f"{type(exc).__name__}: {exc}")
+                    raise RunAborted(
+                        "event_delivery_failed",
+                        f"canonical workflow event could not be committed: {type(exc).__name__}: {exc}",
+                    ) from exc
 
 
         # Resolve this run's response style once, before it starts. An existing plan (from an earlier start
@@ -888,9 +1037,10 @@ class Engine:
         # The first step of a run's life. A stop that arrived between the claim and now is noticed here: the run is then
         # 'cancelling' and not allowed to start.
         try:
+            started_at = run.started_at or iso(utcnow())
             run = self.store.transition_run(
                 run.id, RunStatus.running, fence=run.fence, event={"origin": run.origin},
-                fields={"started_at": iso(utcnow()), "workspace": str(workspace), "owner": str(os.getpid()),
+                fields={"started_at": started_at, "workspace": str(workspace), "owner": str(os.getpid()),
                         "skill_snapshot": skill_snapshot, "tool_access": run.tool_access,
                         "execution_purpose": run.execution_purpose},
                 persona_plan=persona_plan.model_dump(mode="json") if persona_plan is not None else None,
@@ -904,11 +1054,18 @@ class Engine:
                        data={"note": f"catch-up run: {run.missed_windows} missed schedule window(s) coalesced"}))
 
         policy = PolicyEngine(bot.risk_tier, bot.command_rules)
-        gate = ApprovalGate(self.store, bot, run, policy, emit)
+        gate = ApprovalGate(self.store, bot, run, policy, context_emit)
         self._gates[run.id] = gate
-        deadline = time.monotonic() + bot.limits.timeout_seconds
+        elapsed = 0.0
+        if run.started_at:
+            try:
+                started = datetime.fromisoformat(run.started_at.replace("Z", "+00:00"))
+                elapsed = max(0.0, (utcnow() - started).total_seconds())
+            except (TypeError, ValueError):
+                elapsed = 0.0
+        deadline = time.monotonic() + max(0.0, bot.limits.timeout_seconds - elapsed)
         ctx = ToolContext(bot=bot, run=run, store=self.store, policy=policy, gate=gate,
-                          config=self.config, workspace=workspace, emit=emit,
+                          config=self.config, workspace=workspace, emit=context_emit,
                           headless=not bot.local_browser_handoff, dry_run=run.rehearsal,
                           skills=resolved_skills,
                           clock=SYSTEM_CLOCK)
@@ -917,6 +1074,7 @@ class Engine:
                 and bot.inference_mode.value == "offline"):
             ctx.delegation_submit = lambda task, idem, request_hash: self._run_delegated_task(
                 ctx, task, idem, request_hash, deadline)
+            ctx.delegation_resume = self._delegated_child_result
         # remember every process this run starts, so a supervisor that did not spawn it can still end it after a crash
         ctx.procs.on_register = lambda pid, pgid, st, kind, boot: self.store.add_proc(run.id, pid, pgid, st, kind, boot)
         tools = self.tools_for_run(run, bot, ctx)
@@ -1021,11 +1179,31 @@ class Engine:
             exc: RunAborted = result["aborted"]  # type: ignore[assignment]
             error = exc.detail or exc.reason
             outcome_reason = exc.reason
-            outcome_status = RunStatus.stopped if exc.reason == "stopped" else RunStatus.failed
+            outcome_status = (RunStatus.waiting_workflow if exc.reason == "workflow_wait" else
+                              RunStatus.waiting_child if exc.reason == "child_wait" else
+                              RunStatus.outcome_unknown if exc.reason == "outcome_unknown" else
+                              RunStatus.stopped if exc.reason == "stopped" else RunStatus.failed)
             if timed_out and exc.reason == "stopped":
                 outcome_status, outcome_reason, error = RunStatus.failed, "timeout", timeout_msg
-            emit(Event(run_id=run.id, type=EventType.error,
-                       data={"error": f"run aborted ({outcome_reason}): {error}"}))
+            if outcome_status is RunStatus.waiting_workflow:
+                emit(Event(run_id=run.id, type=EventType.log,
+                           data={"workflow": "parked", "reason": error,
+                                 "capacity_released_after_cleanup": True}))
+            elif outcome_status is RunStatus.waiting_child:
+                continuation = exc.continuation
+                if (not isinstance(continuation, dict)
+                        or not isinstance(continuation.get("payload"), dict)
+                        or not continuation.get("child_run_id")):
+                    outcome_status, outcome_reason = RunStatus.failed, "continuation_missing"
+                    error = "the child wait did not include a durable continuation"
+                    emit(Event(run_id=run.id, type=EventType.error, data={"error": error}))
+                else:
+                    emit(Event(run_id=run.id, type=EventType.log,
+                               data={"delegation": "parked", "child_run_id": continuation.get("child_run_id"),
+                                     "reason": error, "capacity_released_after_cleanup": True}))
+            else:
+                emit(Event(run_id=run.id, type=EventType.error,
+                           data={"error": f"run aborted ({outcome_reason}): {error}"}))
         elif "crashed" in result:
             outcome_status, outcome_reason = RunStatus.failed, "error"
             error = f"{result['crashed']}\n{result.get('traceback', '')}"
@@ -1105,7 +1283,14 @@ class Engine:
                 pass
             try:
                 self.store.transition_run(run.id, outcome_status, fence=run.fence, exit_reason=outcome_reason, error=error,
-                                          event=data, cancel_wins=True)
+                                          event=data, cancel_wins=True,
+                                          fields={"reason": error} if outcome_status in
+                                          (RunStatus.waiting_workflow, RunStatus.waiting_child) else None,
+                                          child_wait=((str(continuation.get("child_run_id")),
+                                                       continuation.get("payload"))
+                                                      if outcome_status is RunStatus.waiting_child
+                                                      and isinstance(continuation, dict)
+                                                      and isinstance(continuation.get("payload"), dict) else None))
             except (LeaseLost, IllegalTransition, KeyError):
                 pass                    # recovery already decided this run's outcome; the owner does not overwrite it
             self.store.flush_events()
@@ -1187,6 +1372,12 @@ class Engine:
             error = f"the process running this job ({owner}) exited before it finished"
         if extra_error:
             error += "\n" + extra_error
+        if owned.status is RunStatus.waiting_child and not owned.cancel_requested:
+            # The parked continuation is intentionally not an orphaned active run.
+            # Its child owns the next action and the supervisor will resume it only
+            # after the child tree and recorded process identities are quiet.
+            self.store.close_procs(run.id)
+            return self.store.get_run(run.id)
         try:
             done_run = self.store.transition_run(
                 run.id, to, fence=owned.fence, exit_reason=reason, error=error,
@@ -1251,6 +1442,57 @@ class Engine:
         by exactly one (``Store.submit_scheduled``), and the run is created in the same transaction as the claim."""
         created: list[Run] = []
         for due in self.scheduler.due_claims():
+            if due.schedule.workflow_definition_id:
+                from .workflow import persistence as wfstore
+                from .workflow import submit as wfsubmit
+
+                definition = wfstore.definition(self.store, due.schedule.workflow_definition_id)
+                revision = wfstore.revision(self.store, due.schedule.workflow_revision_id or "")
+                if (definition is None or not definition.get("active") or revision is None
+                        or str(revision["definition_id"]) != str(definition["id"])):
+                    reason = "the linked saved workflow is missing or inactive"
+                    self.scheduler._note_blocked(due.schedule, "workflow_not_ready", reason)
+                    self.scheduler._note_skipped(due.bot, 1, due.schedule, reason="workflow_not_ready")
+                    self.scheduler.mark_dispatched(due.bot, due.occurrence, due.schedule)
+                    continue
+                occurrence = iso(due.occurrence)
+                request_data = {
+                    "schedule_id": due.schedule.id,
+                    "workflow_definition_id": due.schedule.workflow_definition_id,
+                    "workflow_revision_id": due.schedule.workflow_revision_id,
+                    "workflow_inputs": due.schedule.workflow_inputs,
+                    "occurrence": occurrence,
+                }
+                request_hash = hashlib.sha256(json.dumps(
+                    request_data, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+                ).encode("utf-8")).hexdigest()
+                schedule_claim = {
+                    "schedule_id": due.schedule.id,
+                    "occurrence": occurrence,
+                    "expected_marker": due.marker,
+                    "claimed_by": self.owner_id,
+                    "missed_windows": due.missed,
+                }
+                try:
+                    submission = wfsubmit.submit_workflow(
+                        self.store, bot=due.bot, plan=revision["plan"], inputs=due.schedule.workflow_inputs,
+                        save_definition=False, revision_id=str(revision["id"]), origin="schedule",
+                        schedule_id=due.schedule.id,
+                        idem_key=f"schedule:{due.schedule.id}:{occurrence}",
+                        request_hash=request_hash, schedule_claim=schedule_claim,
+                    )
+                except wfstore.ScheduleClaimLost:
+                    continue
+                except (wfsubmit.PlanInputError, wfsubmit.PlanNotSubmittable, KeyError, ValueError) as exc:
+                    reason = str(exc)[:300]
+                    self.scheduler._note_blocked(due.schedule, "workflow_not_ready", reason)
+                    self.scheduler._note_skipped(due.bot, 1, due.schedule, reason="workflow_not_ready")
+                    self.scheduler.mark_dispatched(due.bot, due.occurrence, due.schedule)
+                    continue
+                run = self.store.get_run(submission.attempt_run_id)
+                if run is not None:
+                    created.append(run)
+                continue
             run = Run(bot_id=due.bot.id, prompt=bot_prompt_for_schedule(due.bot, due.schedule),
                       missed_windows=due.missed, origin="schedule", schedule_id=due.schedule.id)
             task = Task(bot_id=due.bot.id, kind="scheduled", prompt=run.prompt)
@@ -1267,15 +1509,101 @@ class Engine:
                 created.append(won)
         return created
 
-    def run_schedule_now(self, bot: Bot, schedule) -> Run:
-        """On-demand execution of a routine's task prompt without consuming the next scheduled occurrence.
+    def run_schedule_now(self, bot: Bot, schedule, *, idem_key: str = "",
+                         request_hash: str = "") -> Run:
+        """Run the routine's prompt or pinned saved workflow once without advancing its occurrence.
 
         Uses ordinary admission (not ``submit_scheduled``), so the last-fire marker and occurrence
-        identity stay untouched. The run still records ``schedule_id`` for provenance.
+        identity stay untouched. The run still records ``schedule_id`` for provenance. A workflow
+        retry is resolved before checking mutable activation state so a completed admission remains
+        addressable after the saved method is later deactivated.
         """
+        if schedule.workflow_definition_id:
+            from .workflow import persistence as wfstore
+            from .workflow import submit as wfsubmit
+
+            if idem_key:
+                replay = self.store.idempotency_replay("api:v1:workflow-runs", idem_key, request_hash)
+                if replay is not None:
+                    run = self.store.get_run(str(replay.get("attempt_run_id") or ""))
+                    if run is None:
+                        raise RuntimeError("idempotent routine launch points to a missing workflow attempt")
+                    return run
+            definition = wfstore.definition(self.store, schedule.workflow_definition_id)
+            revision = wfstore.revision(self.store, schedule.workflow_revision_id or "")
+            if definition is None or not definition.get("active") or revision is None:
+                raise ValueError("the linked workflow is missing or inactive")
+            if str(revision["definition_id"]) != str(definition["id"]):
+                raise ValueError("the linked workflow revision no longer matches its saved method")
+            submission = wfsubmit.submit_workflow(
+                self.store, bot=bot, plan=revision["plan"], inputs=schedule.workflow_inputs,
+                save_definition=False, revision_id=str(revision["id"]), origin="manual:schedule",
+                schedule_id=schedule.id, idem_key=idem_key, request_hash=request_hash,
+            )
+            run = self.store.get_run(submission.attempt_run_id)
+            if run is None:
+                raise RuntimeError("scheduled workflow submission lost its attempt record")
+            return run
         prompt = bot_prompt_for_schedule(bot, schedule)
         run = Run(bot_id=bot.id, prompt=prompt, origin="manual:schedule", schedule_id=schedule.id)
-        return self.store.submit_run(run, Task(bot_id=bot.id, kind="on_demand", prompt=prompt))
+        task = Task(bot_id=bot.id, kind="on_demand", prompt=prompt)
+        if idem_key:
+            result, _created = self.store.submit_run_idempotent(
+                run, task, idem_key=idem_key, request_hash=request_hash)
+            return result
+        return self.store.submit_run(run, task)
+
+    def continue_workflow_runs(self, limit: int = 4) -> int:
+        """Admit a fresh orchestration attempt for any live workflow instance whose attempt is gone.
+
+        A crashed attempt is never resumed (ADR-0003); the *instance* continues, and the new
+        interpreter pass skips every node record that already settled. A previous attempt that
+        was cancelled means the person stopped the workflow, so it is left stopped.
+        """
+        from .workflow import persistence as wfstore
+
+        admitted = 0
+        for candidate in wfstore.workflow_runs_needing_attempt(self.store, limit=limit):
+            wf_id = str(candidate["id"])
+            previous_id = str(candidate.get("attempt_run_id") or "")
+            previous = self.store.get_run(previous_id) if previous_id else None
+            if previous is not None and previous.cancel_requested:
+                terminal = "outcome_unknown" if previous.status is RunStatus.outcome_unknown else "stopped"
+                wfstore.update_workflow_run(self.store, wf_id, status=terminal,
+                                            reason=(previous.error or "a stop was requested")[:500],
+                                            finished=True)
+                continue
+            if (previous is not None and previous.terminal
+                    and not wfstore.is_recoverable_workflow_attempt(
+                        previous.status.value, previous.exit_reason)):
+                terminal = ("outcome_unknown" if previous.status is RunStatus.outcome_unknown
+                            else "stopped" if previous.status is RunStatus.stopped
+                            else "failed")
+                reason = (previous.error or previous.reason or previous.exit_reason
+                          or "the workflow attempt ended before settling the workflow")[:500]
+                wfstore.update_workflow_run(self.store, wf_id, status=terminal,
+                                            reason=reason, finished=True)
+                continue
+            if (previous is not None
+                    and wfstore.is_recoverable_workflow_attempt(previous.status.value, previous.exit_reason)
+                    and wfstore.workflow_recovery_exhausted(self.store, wf_id)):
+                wfstore.update_workflow_run(
+                    self.store, wf_id, status="failed",
+                    reason="automatic workflow recovery limit reached after two recoveries",
+                    finished=True)
+                continue
+            if self.store.get_bot(str(candidate["bot_id"])) is None:
+                wfstore.update_workflow_run(self.store, wf_id, status="failed", reason="the Bot no longer exists",
+                                            finished=True)
+                continue
+            try:
+                run = wfstore.admit_workflow_continuation(self.store, wf_id)
+            except (ValueError, KeyError, PermissionError):
+                continue
+            if run is not None:
+                admitted += 1
+                self.store.bus.notify("work", "runs", f"run:{run.id}")
+        return admitted
 
     def supervisor_snapshot(self) -> dict:
         """Cheap, process-local view of who owns scheduling/recovery in this state directory."""
@@ -1291,8 +1619,30 @@ class Engine:
     def tick(self) -> list[Run]:
         """One beat: recover, expire approvals, claim schedules, drain work and bound change replay."""
         self.recover_orphans()
+        self.continue_delegated_runs()
         expire_stale_approvals(self.store, self.config.default_approval_ttl_seconds)
+        from .workflow import persistence as wfstore
+        wfstore.expire_questions(self.store, limit=200)
+        # A second pass observes the durable cancellation transition. This lets an
+        # unclaimed queued loser become visibly drained in the same supervisor beat.
+        for _pass in range(2):
+            for race in wfstore.monitor_first_success_races(self.store):
+                request = {"workflow_run_id": race["workflow_run_id"],
+                           "revision_id": race["revision_id"],
+                           "attempt_run_id": race["attempt_run_id"],
+                           "join_site": race["join_site"], "winner": race["winner"]}
+                request_hash = hashlib.sha256(json.dumps(
+                    request, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+                for child_id in race["run_ids"]:
+                    self.stop_run(
+                        str(child_id),
+                        idem_key=(f"workflow-first-success:{race['workflow_run_id']}:"
+                                  f"{race['revision_id']}:{race['attempt_run_id']}:"
+                                  f"{race['join_site']}:{race['winner']}:{child_id}"),
+                        request_hash=request_hash)
+        wfstore.finalize_stopped_workflows(self.store)
         created = self.scheduler_claims()
+        self.continue_workflow_runs()
         self.dispatch_pending()
         if self.sources is not None:
             self.sources.pump()
@@ -1304,6 +1654,25 @@ class Engine:
             self.store.prune_resource_changes(durable_changes.MAX_RETAINED_ROWS)
             self._last_resource_change_prune = now
         return created
+
+    def continue_delegated_runs(self) -> int:
+        """Resume or finish parked parents after their delegated child tree settles."""
+        changed = 0
+        for parent, checkpoint in self.store.waiting_child_runs():
+            if parent.status is RunStatus.cancelling:
+                if self.store.finalize_child_wait_cancel(parent.id) is not None:
+                    changed += 1
+                continue
+            deadline = checkpoint["payload"].get("deadline_epoch")
+            if isinstance(deadline, (int, float)) and time.time() >= float(deadline):
+                self.store.mark_child_wait_cancel_reason(parent.id, "timeout")
+                self.stop_run(parent.id)
+                if self.store.finalize_child_wait_cancel(parent.id) is not None:
+                    changed += 1
+                continue
+            if self.store.promote_child_wait(parent.id) is not None:
+                changed += 1
+        return changed
 
     def next_wakeup(self, now: datetime | None = None) -> float:
         """Seconds until the earliest thing that needs the loop: a due schedule or an approval expiry.
@@ -1327,6 +1696,10 @@ class Engine:
             except ValueError:
                 continue
             best = min(best, (exp - now).total_seconds())
+        for run, checkpoint in self.store.waiting_child_runs():
+            deadline = checkpoint["payload"].get("deadline_epoch")
+            if run.status is RunStatus.waiting_child and isinstance(deadline, (int, float)):
+                best = min(best, float(deadline) - time.time())
         lapse = self.store.next_lease_expiry(exclude_owner=self.owner_id)      # someone else's run whose owner may be gone
         if lapse is not None:
             try:

@@ -272,6 +272,7 @@ def test_uncertain_usage_stays_held_until_terminal_run_is_reconciled(store):
 def test_terminal_recovery_marks_a_stranded_reservation_uncertain(store):
     bot, run = _run(store, RunStatus.running)
     reservation = _reserve(store, bot, run, tokens=48, cost=0.22)
+    assert store.start_usage_request(reservation, expected_fence=run.fence)
     store.transition_run(run.id, RunStatus.outcome_unknown, exit_reason="worker_lost")
     row = store._db.execute("SELECT status, reason FROM usage_reservations WHERE id = ?", (reservation,)).fetchone()
     assert row["status"] == "uncertain" and "before provider usage was settled" in row["reason"]

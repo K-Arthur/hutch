@@ -1,6 +1,6 @@
 {
   "test": "tests/e2e/test_browser.py::test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone",
-  "command": "PLAYWRIGHT_BROWSERS_PATH=/home/kevina/.cache/ms-playwright .venv/bin/pytest -q tests/e2e/test_browser.py::test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone",
+  "command": "PLAYWRIGHT_BROWSERS_PATH=/<local-path-redacted> .venv/bin/pytest -q tests/e2e/test_browser.py::test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone",
   "captured_at": "2026-10-11T02:08:55.720261+00:00",
   "browser": "153.0.8010.12",
   "provider_credentials_used": false,

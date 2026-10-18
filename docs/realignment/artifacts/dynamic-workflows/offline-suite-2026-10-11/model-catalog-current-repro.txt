@@ -1,0 +1,12 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_connection_models_known_from_bots_appear_with_their_state ________
+tests/test_model_switcher.py:155: in test_connection_models_known_from_bots_appear_with_their_state
+    assert plan.state == "ready" and "flat-rate" in plan.note
+E   AssertionError: assert ('ready' == 'ready'
+E     
+E       ready and 'flat-rate' in 'model list unavailable; retry from Connections')
+E    +  where 'model list unavailable; retry from Connections' = Choice(spec='opencode-go/glm-5.3', label='glm-5.3', group='OpenCode Go (flat subscription)', state='ready', note='mode...t_case_usd=None, detail=['connection opencode-go: subscription', 'sends this chat to OpenCode Go (flat subscription)']).note
+=========================== short test summary info ============================
+FAILED tests/test_model_switcher.py::test_connection_models_known_from_bots_appear_with_their_state
+1 failed in 4.39s

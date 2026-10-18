@@ -8,7 +8,7 @@ This checkpoint records deterministic local routing cost separately from provide
 - The script is `scripts/measure_persona_resolution.py`. Reproduce with:
 
   ```sh
-  .venv/bin/python scripts/measure_persona_resolution.py --samples 500 --warmup 100 --output /tmp/persona-routing.json
+  .venv/bin/python scripts/measure_persona_resolution.py --samples 500 --warmup 100 --output /<local-path-redacted>
   ```
 
 This result excludes retrieval, engine scheduling, network, streaming, provider inference, first-useful-content latency, completion latency, and actual model adherence. It does not substitute for the matched live-model runs or human review in the approved evaluation plan.

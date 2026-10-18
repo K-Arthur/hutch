@@ -67,6 +67,34 @@ def test_the_local_surface_carries_the_strict_csp_too(client):
     assert "frame-ancestors 'none'" in csp and "object-src 'none'" in csp
     assert "img-src 'self' data:" in csp
 
+def test_stats_distinguish_execution_waits_and_queued_delegated_work(client, monkeypatch):
+    store = client.app.state.store
+    engine = client.app.state.engine
+    monkeypatch.setattr(engine, "tick", lambda: None)
+    bot = store.create_bot(Bot(name="stats-delegation", model="mock/demo", tools=["delegate_task"]))
+    root = store.create_run(Run(bot_id=bot.id, prompt="Coordinate bounded work."))
+    owner = store.claim_run(root.id, "stats-parent-owner", lease_seconds=60)
+    assert owner is not None
+    root = store.transition_run(root.id, RunStatus.running, fence=owner.fence,
+                                capability_snapshot=engine.capability_snapshot(bot))
+    child, inserted = store.submit_delegated_run(
+        parent_run_id=root.id, parent_fence=root.fence,
+        run=Run(bot_id=bot.id, prompt="Inspect one bounded area."),
+        task=Task(bot_id=bot.id, kind="delegated", prompt="Inspect one bounded area."),
+        idem_key="stats-child", request_hash="stats-child-v1")
+    assert inserted
+    store.transition_run(
+        root.id, RunStatus.waiting_child, fence=root.fence,
+        child_wait=(child.id, {"version": 1, "messages": [], "tool_call": {
+            "id": "call-stats", "name": "delegate_task", "arguments": {"task": child.prompt}}}),
+        event={"reason": "delegated child is working"})
+
+    stats = client.get("/api/stats").json()
+    assert stats["active_runs"] == 2  # legacy all-live count remains available
+    assert stats["working_runs"] == 0
+    assert stats["waiting_runs"] == 1
+    assert stats["queued_tasks"] == 1
+
 
 def test_tool_compatibility_reports_route_evidence_without_a_probe(client):
     make_bot(client, "local-tools-bot", model="ollama/llama3.2")

@@ -1,0 +1,103 @@
+........................................................................ [  3%]
+........................................................................ [  6%]
+........................................................................ [  9%]
+........................................................................ [ 13%]
+........................................................................ [ 16%]
+........................................................................ [ 19%]
+........................................................................ [ 23%]
+........................................................................ [ 26%]
+........................................................................ [ 29%]
+........................................................................ [ 32%]
+........................................................................ [ 36%]
+............F........................................................... [ 39%]
+........................................................................ [ 42%]
+................................................F....................... [ 46%]
+........................................................................ [ 49%]
+........................................................................ [ 52%]
+........................................................................ [ 55%]
+........................................................................ [ 59%]
+........................................................................ [ 62%]
+........................................................................ [ 65%]
+........................................................................ [ 69%]
+........................................................................ [ 72%]
+........................................................................ [ 75%]
+........................................................................ [ 78%]
+........................................................................ [ 82%]
+........................................................................ [ 85%]
+........................................................................ [ 88%]
+........................................................................ [ 92%]
+........................................................................ [ 95%]
+........................................................................ [ 98%]
+..............................                                           [100%]
+=================================== FAILURES ===================================
+________ test_connection_models_known_from_bots_appear_with_their_state ________
+
+env = <starlette.testclient.TestClient object at 0x7f2f8c6fecf0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f2f91ee2b30>
+
+    def test_connection_models_known_from_bots_appear_with_their_state(env, monkeypatch):
+        ConnectionBook(env.config.state_dir).add("opencode-go")
+        bot = mkbot(env, model="ollama/fake:8b")
+        mkbot(env, name="user-of-plan", model="opencode-go/glm-5.3")
+        ch = {c.spec: c for c in model_choices(env.config, env.store, bot)}
+        plan = ch["opencode-go/glm-5.3"]
+        assert plan.state == "setup" and "key" in plan.note and "OPENCODE_API_KEY" in plan.fix
+        monkeypatch.setenv("OPENCODE_API_KEY", "k")
+        ConnectionBook(env.config.state_dir).acknowledge(env.store, "opencode-go")
+        reset_cache()
+        plan = {c.spec: c for c in model_choices(env.config, env.store, bot)}["opencode-go/glm-5.3"]
+>       assert plan.state == "ready" and "flat-rate" in plan.note
+E       AssertionError: assert ('ready' == 'ready'
+E
+E           ready and 'flat-rate' in 'model list unavailable; retry from Connections')
+E        +  where 'model list unavailable; retry from Connections' = Choice(spec='opencode-go/glm-5.3', label='glm-5.3', group='OpenCode Go (flat subscription)', state='ready', note='mode...t_case_usd=None, detail=['connection opencode-go: subscription', 'sends this chat to OpenCode Go (flat subscription)']).note
+
+tests/test_model_switcher.py:155: AssertionError
+__________ test_loopback_broker_refuses_a_request_after_close_starts ___________
+
+tmp_path = PosixPath('/<local-path-redacted>')
+
+    def test_loopback_broker_refuses_a_request_after_close_starts(tmp_path):
+        import http.client
+
+        from hutch.offline import LoopbackBroker
+
+>       broker = LoopbackBroker("http://127.0.0.1:11434", str(tmp_path))
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_offline_mode.py:290:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src/hutch/offline.py:261: in __init__
+    self.server = _BoundedUnixHTTPServer(self.path, _BrokerHandler, self)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/hutch/offline.py:92: in __init__
+    super().__init__(path, handler)
+../../../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/socketserver.py:457: in __init__
+    self.server_bind()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <hutch.offline._BoundedUnixHTTPServer object at 0x7f2f8d840170>
+
+    def server_bind(self):
+        """Called by constructor to bind the socket.
+
+        May be overridden.
+
+        """
+        if self.allow_reuse_address and hasattr(socket, "SO_REUSEADDR"):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # Since Linux 6.12.9, SO_REUSEPORT is not allowed
+        # on other address families than AF_INET/AF_INET6.
+        if (
+            self.allow_reuse_port and hasattr(socket, "SO_REUSEPORT")
+            and self.address_family in (socket.AF_INET, socket.AF_INET6)
+        ):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+>       self.socket.bind(self.server_address)
+E       OSError: AF_UNIX path too long
+
+../../../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/socketserver.py:478: OSError
+=========================== short test summary info ============================
+FAILED tests/test_model_switcher.py::test_connection_models_known_from_bots_appear_with_their_state
+FAILED tests/test_offline_mode.py::test_loopback_broker_refuses_a_request_after_close_starts
+2 failed, 2188 passed in 613.40s (0:10:13)

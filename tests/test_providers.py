@@ -97,10 +97,14 @@ def test_native_message_conversion_uses_objects_and_tool_name():
 
 
 def test_show_reports_what_fit_estimation_needs(ollama):
-    meta = OllamaProvider(ollama.url).show("fake:8b")
+    provider = OllamaProvider(ollama.url)
+    meta = provider.show("fake:8b")
     assert meta.params_b == 8.0 and meta.quant == "Q4_K_M" and meta.max_context == 40960
     assert (meta.n_layers, meta.n_kv_heads, meta.head_dim) == (36, 8, 128)
     assert "tools" in meta.capabilities and meta.license.startswith("Apache")
+    assert meta.backend == "ollama" and meta.backend_version == ollama.version
+    assert meta.digest == "sha256:fake-8b"
+    assert len(meta.template_hash) == 64 and len(meta.tokenizer_hash) == 64
     assert OllamaProvider(ollama.url).show("nope:1b") is None
 
 

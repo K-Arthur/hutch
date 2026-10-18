@@ -557,7 +557,7 @@ same artifact folder; I inspected each, including the stacked phone cards.
 ## Baseline visual validation
 
 Captured 2026-10-07 from the `realign/platform` worktree after the shared-budget UI and marketing copy changes. The marketing site was
-served from this worktree. Hutch used `/tmp/hutch-s5-visual.mbtpt6`, a disposable state directory populated by `hutch init` and one
+served from this worktree. Hutch used `/<local-path-redacted> a disposable state directory populated by `hutch init` and one
 OpenCode Go connection configured with a synthetic account ID, a 100k token allowance, and a $5 estimate limit. No API key was stored,
 and no provider request was made. No personal workspace files were used. Both servers bound to loopback only.
 
@@ -567,12 +567,12 @@ current marketing source, use the dated full-page and fold captures under `artif
 ## Reproduction
 
 ```bash
-HUTCH_STATE_DIR=/tmp/hutch-s5-visual.mbtpt6 .venv/bin/hutch init
-HUTCH_STATE_DIR=/tmp/hutch-s5-visual.mbtpt6 .venv/bin/hutch connections add opencode-go \
+HUTCH_STATE_DIR=/<local-path-redacted> .venv/bin/hutch init
+HUTCH_STATE_DIR=/<local-path-redacted> .venv/bin/hutch connections add opencode-go \
   --account-id shared-dev --account-daily-cap-usd 5 --allowance-tokens 100000 --allowance-window month
 python3 -m http.server 18001 --bind 127.0.0.1 --directory website
-HUTCH_STATE_DIR=/tmp/hutch-s5-visual.mbtpt6 .venv/bin/hutch serve --host 127.0.0.1 --port 18877
-PLAYWRIGHT_BROWSERS_PATH=/tmp/hutch-playwright-browsers .venv/bin/python \
+HUTCH_STATE_DIR=/<local-path-redacted> .venv/bin/hutch serve --host 127.0.0.1 --port 18877
+PLAYWRIGHT_BROWSERS_PATH=/<local-path-redacted> .venv/bin/python \
   docs/realignment/capture_visual_validation.py \
   --site http://127.0.0.1:18001/ --app http://127.0.0.1:18877/
 ```
@@ -758,9 +758,9 @@ Impeccable detector returned no findings for the edited stylesheet or the config
 Reproduce with an empty temporary state directory and loopback-only server:
 
 ```bash
-HUTCH_STATE_DIR=/tmp/hutch-style-review .venv/bin/hutch init
-HUTCH_STATE_DIR=/tmp/hutch-style-review .venv/bin/hutch serve --host 127.0.0.1 --port 18803
-PLAYWRIGHT_BROWSERS_PATH=/tmp/hutch-playwright-browsers .venv/bin/python \
+HUTCH_STATE_DIR=/<local-path-redacted> .venv/bin/hutch init
+HUTCH_STATE_DIR=/<local-path-redacted> .venv/bin/hutch serve --host 127.0.0.1 --port 18803
+PLAYWRIGHT_BROWSERS_PATH=/<local-path-redacted> .venv/bin/python \
   docs/realignment/capture_ui_style_review.py --app http://127.0.0.1:18803/
 ```
 

@@ -25,10 +25,10 @@ or live-provider certification.
 
 ```bash
 cd .worktrees/realign
-PLAYWRIGHT_BROWSERS_PATH=/tmp/hutch-playwright-browsers \
+PLAYWRIGHT_BROWSERS_PATH=/<local-path-redacted> \
   .venv/bin/python -m pytest -q -W error::pytest.PytestUnhandledThreadExceptionWarning tests/e2e
-HUTCH_IMAGE_PYTHON=/home/kevina/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 \
-  PLAYWRIGHT_BROWSERS_PATH=/tmp/hutch-playwright-browsers \
+HUTCH_IMAGE_PYTHON=/<local-path-redacted> \
+  PLAYWRIGHT_BROWSERS_PATH=/<local-path-redacted> \
   .venv/bin/python docs/realignment/capture_navigation.py
 node --check src/hutch/server/static/app.js
 .venv/bin/python scripts/build_site_tokens.py --check

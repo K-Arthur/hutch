@@ -50,14 +50,14 @@ Progress (2026-10-11):
   (regressions: `test_empty_final_answer_is_not_a_success`, `test_length_truncated_final_answer_is_preserved_but_not_a_success`).
 - Combined focused check on this tree: **246 passed** in 138.71 s (skills, routines durability, documents,
   runtime, builtin runtime, conversations, migration, delegation); log at
-  `/tmp/opencode/hutch-persona-integration/focused-slices.log`. Full suite, browser suite and live checks remain unrun.
+  `/<local-path-redacted> Full suite, browser suite and live checks remain unrun.
 - `20958e3` slice B: versioned sparse response-style contracts (`src/hutch/persona.py`) with precedence
   resolution and per-field provenance; typed Bot/Run fields; a conversation `persona` column (schema v51);
   revision-guarded, idempotent saves with explicit reset; `GET/PATCH /api/v1/.../persona` resources; a one-turn
   `persona` on message submit; and a write-once resolved plan captured at run start (reused on retries,
   fail-closed on unreadable or newer state). Evidence: 17 persona tests, updated delegation/migration fixtures,
   and the **full offline suite: 1879 passed, 1 skipped** (log at
-  `/tmp/opencode/hutch-persona-integration/offline-suite-sliceB-final.log`); browser suite and live checks remain unrun.
+  `/<local-path-redacted> browser suite and live checks remain unrun.
 - `0d91ed8` slice C: the write-once plan is rendered locally and appended to the builtin system prompt as
   subordinate guidance (wording only; sensitive topics stay plain and steady; playfulness only in clearly
   playful turns, re-decided every turn). No style-only model pass; measured local resolution + render p95
@@ -117,15 +117,15 @@ Review follow-ups (status after the profile-compatibility slice):
   both changelog entry sets are retained.
 - Conflicting browser capture artifacts resolve to local main's canonical set (`canonical_capture_set: main`
   in the integration manifest); both complete sets are archived under
-  `/tmp/opencode/hutch-persona-integration/` (local scratch, with `manifest.json` and SHA-256 checksums),
+  `/<local-path-redacted> (local scratch, with `manifest.json` and SHA-256 checksums),
   outside the repository.
 - Focused combined-tree check: **167 passed** in 25.44 s — `tests/test_skills.py`, `test_skill_runtime.py`,
   `test_skills_api.py`, `test_schedule_durability.py`, `test_document_store.py`, `test_documents_pipeline.py`,
   `test_documents_revisions.py`, `test_runtime.py`, `test_conversations.py`, `test_migration.py`; log at
-  `/tmp/opencode/hutch-persona-integration/focused-mergecommit.log`.
+  `/<local-path-redacted>
 - Inherited whitespace flags from the incoming side (CSV fixtures, one `app.js` line, one `documents.py` EOF
   blank line) are pre-existing content and were left untouched.
-- Baseline of the actual app before persona work: `/tmp/opencode/hutch-persona-baseline/` (isolated state,
+- Baseline of the actual app before persona work: `/<local-path-redacted> (isolated state,
   Chromium **153.0.8010.12**, 360/768/1440 screenshots, DOM, trace; no model calls). Standing directions
   already use a textarea; dedicated persona/depth controls do not exist yet.
 - Local `main` is 473 commits ahead of `origin/main` (`8d71f8a`); all work stays local.
@@ -141,7 +141,7 @@ Review follow-ups (status after the profile-compatibility slice):
   changed on both sides; the persona capture set remains present under its own names.
 - Combined focused migration/persona/runtime/tool-calling check passed: **188 passed in 67.95 s** using the
   existing documents worktree environment, with pytest temporary files directed to
-  `/home/kevina/.cache/hutch-persona-merge-20261011`. An earlier run using `/tmp` hit the full 12 GB tmpfs;
+  `/<local-path-redacted> An earlier run using `/tmp` hit the full 12 GB tmpfs;
   its own pytest directory was empty afterward. Existing `/tmp` caches were left untouched.
 - Commit `04b5722` makes provider refusals terminal in provider retryability, startup fallback and runtime
   recovery while preserving availability recovery. OpenCode Go (`opencode-go/mimo-v2.6-flash`) made the small
@@ -386,7 +386,7 @@ Review follow-ups (status after the profile-compatibility slice):
 - Each slice is its own additive commit; reverting that commit restores prior behavior. Contract or schema
   changes require tested downgrades before landing.
 - Mid-run snapshotting prevents a bad preference change from corrupting an in-flight turn; verification uses
-  isolated state directories under `/tmp/opencode/`.
+  isolated state directories under `/<local-path-redacted>
 
 ## Initial evidence boundary
 

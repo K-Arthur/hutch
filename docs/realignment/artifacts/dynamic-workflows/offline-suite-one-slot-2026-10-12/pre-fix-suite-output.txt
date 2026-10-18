@@ -1,0 +1,179 @@
+........................................................................ [  3%]
+........................................................................ [  6%]
+........................................................................ [  9%]
+........................................................................ [ 13%]
+...................................F.................................... [ 16%]
+........................................................................ [ 19%]
+........................................................................ [ 22%]
+..F..................................................................... [ 26%]
+........................................................................ [ 29%]
+........................................................................ [ 32%]
+........................................................................ [ 35%]
+.............F.......................................................... [ 39%]
+........................................................................ [ 42%]
+........................................................................ [ 45%]
+........................................................................ [ 49%]
+........................................................................ [ 52%]
+........................................................................ [ 55%]
+........................................................................ [ 58%]
+........................................................................ [ 62%]
+........................................................................ [ 65%]
+........................................................................ [ 68%]
+........................................................................ [ 71%]
+........................................................................ [ 75%]
+........................................................................ [ 78%]
+........................................................................ [ 81%]
+........................................................................ [ 85%]
+........................................................................ [ 88%]
+........................................................................ [ 91%]
+........................................................................ [ 94%]
+........................................................................ [ 98%]
+.........................................                                [100%]
+=================================== FAILURES ===================================
+_____ test_strict_offline_delegation_runs_as_child_after_explicit_approval _____
+
+store = <hutch.store.Store object at 0x7f3b1ae728d0>
+config = hutchConfig(state_dir=PosixPath('/<local-path-redacted>'), default_max_steps=24, default_timeout_seconds=900, default_daily_token_cap=200000, default_approval_ttl_seconds=600)
+
+    def test_strict_offline_delegation_runs_as_child_after_explicit_approval(store, config):
+        """Exercise approval, child process, private context and result return with a local HTTP fixture."""
+        import threading
+        import time
+
+        from hutch import sandbox
+        from hutch.approvals import resolve_approval
+        from hutch.models import ApprovalMode
+        from tests.fakes import FakeOllama, agent_script
+
+        if not sandbox.status().ok or not sandbox.offline_egress_status(refresh=True).ok:
+            pytest.skip("host lacks a verified resource-limited offline worker")
+
+        fake = FakeOllama({"fake:1b": {"params": "1B", "size": 200_000_000}})
+        fake.script = agent_script([
+            {"content": "", "tool_calls": [{"name": "delegate_task", "arguments": {
+                "task": "Return a short independent summary of the supplied task."}}]},
+            {"content": "Child result: the requested summary is verified."},
+            {"content": "Parent result includes the verified child summary."},
+        ])
+        bot = store.create_bot(Bot(
+            name="offline-delegation-e2e", model="ollama/fake:1b", base_url=fake.url,
+            inference_mode=InferenceMode.offline, sandbox="strict", tools=["delegate_task"],
+            approval_mode=ApprovalMode.auto, selfcheck=False, num_ctx=4096,
+            limits=Limits(max_steps=8, timeout_seconds=60, max_cost_usd=1.0),
+        ))
+        root = Run(bot_id=bot.id, prompt="Coordinate the task.",
+                   conversation_context=[{"role": "user", "content": "PRIVATE ROOT HISTORY"}])
+        root = store.submit_run(root, Task(bot_id=bot.id, prompt=root.prompt))
+        engine = Engine(config, store, max_concurrent=2, executor="process", light=True,
+                        owner_id="delegation-process-e2e")
+        stop_dispatch = threading.Event()
+
+        def dispatch_children():
+            while not stop_dispatch.is_set():
+                engine.dispatch_pending()
+                stop_dispatch.wait(0.02)
+
+        dispatcher = threading.Thread(target=dispatch_children, name="delegation-test-dispatcher")
+        dispatcher.start()
+        try:
+            deadline = time.monotonic() + 45
+            pending = []
+            while time.monotonic() < deadline:
+                pending = store.pending_approvals(bot_id=bot.id)
+                if pending:
+                    break
+                current = store.get_run(root.id)
+                if current is None or current.terminal:
+                    events = [event.data for event in store.tail_events(root.id, limit=40)]
+                    raise AssertionError((current.status if current else None, current.error if current else None,
+                                          current.exit_reason if current else None, events, fake.of("/api/chat")))
+                time.sleep(0.05)
+
+            assert pending, "root did not request human approval for delegation"
+            request = pending[0]
+            assert request.run_id == root.id and request.tool == "delegate_task"
+            assert request.outward and request.detail["task"] == "Return a short independent summary of the supplied task."
+            resolved = resolve_approval(store, request.id, True, by="fixture-reviewer")
+            assert resolved.status.value == "approved"
+
+            deadline = time.monotonic() + 45
+            while time.monotonic() < deadline:
+                current = store.get_run(root.id)
+                if current is not None and current.terminal:
+                    break
+                time.sleep(0.05)
+
+            final = store.get_run(root.id)
+>           assert final is not None and final.status is RunStatus.succeeded, (
+                final.status if final else None, final.error if final else None,
+                final.exit_reason if final else None,
+            )
+E           AssertionError: (<RunStatus.running: 'running'>, '', '')
+E           assert (Run(id='run_b539c93cd79d', bot_id='bot_8a810d6feb01', task_id='task_0d85c68d5e08', prompt='Coordinate the task.', stat...kflow_run_id='', workflow_step=None, workflow_context=None, status_label='Working', terminal=False, needs_person=False) is not None and <RunStatus.running: 'running'> is <RunStatus.succeeded: 'succeeded'>)
+E            +  where <RunStatus.running: 'running'> = Run(id='run_b539c93cd79d', bot_id='bot_8a810d6feb01', task_id='task_0d85c68d5e08', prompt='Coordinate the task.', stat...kflow_run_id='', workflow_step=None, workflow_context=None, status_label='Working', terminal=False, needs_person=False).status
+E            +  and   <RunStatus.succeeded: 'succeeded'> = RunStatus.succeeded
+
+tests/test_delegation.py:595: AssertionError
+____ test_upgrade_v10_preserves_state_and_initializes_fresh_change_history _____
+
+config = hutchConfig(state_dir=PosixPath('/<local-path-redacted>'), default_max_steps=24, default_timeout_seconds=900, default_daily_token_cap=200000, default_approval_ttl_seconds=600)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f3b185a8ad0>
+
+    def test_upgrade_v10_preserves_state_and_initializes_fresh_change_history(config, monkeypatch):
+        from hutch import store as store_module
+        from hutch.transcript_mirror import TranscriptMirror
+        migrations = store_module._MIGRATIONS
+        version = store_module.SCHEMA_VERSION
+        start = TranscriptMirror.start
+        monkeypatch.setattr(TranscriptMirror, "start", lambda self: None)
+        monkeypatch.setattr(store_module, "SCHEMA_VERSION", 10)
+        monkeypatch.setattr(store_module, "_MIGRATIONS", migrations[:9])
+>       legacy = Store(config)
+                 ^^^^^^^^^^^^^
+
+tests/test_durable_changes.py:205:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src/hutch/store.py:1626: in __init__
+    self._pending: list[Event] = self._restore_event_outbox() if not maintenance else []
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <hutch.store.Store object at 0x7f3b1a9b2d50>
+
+    def _restore_event_outbox(self) -> list[Event]:
+        """Rehydrate events left in SQLite when a process died before canonical commit."""
+        with self._lock:
+>           rows = self._db.execute(
+                "SELECT event_key, run_id, ts, type, data, owner_fence "
+                "FROM event_outbox ORDER BY outbox_seq").fetchall()
+E           sqlite3.OperationalError: no such table: event_outbox
+
+src/hutch/store.py:6555: OperationalError
+________ test_connection_models_known_from_bots_appear_with_their_state ________
+
+env = <starlette.testclient.TestClient object at 0x7f3b1bf84af0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f3b03d3fb60>
+
+    def test_connection_models_known_from_bots_appear_with_their_state(env, monkeypatch):
+        ConnectionBook(env.config.state_dir).add("opencode-go")
+        bot = mkbot(env, model="ollama/fake:8b")
+        mkbot(env, name="user-of-plan", model="opencode-go/glm-5.3")
+        ch = {c.spec: c for c in model_choices(env.config, env.store, bot)}
+        plan = ch["opencode-go/glm-5.3"]
+        assert plan.state == "setup" and "key" in plan.note and "OPENCODE_API_KEY" in plan.fix
+        monkeypatch.setenv("OPENCODE_API_KEY", "k")
+        ConnectionBook(env.config.state_dir).acknowledge(env.store, "opencode-go")
+        reset_cache()
+        plan = {c.spec: c for c in model_choices(env.config, env.store, bot)}["opencode-go/glm-5.3"]
+>       assert plan.state == "ready" and "flat-rate" in plan.note
+E       AssertionError: assert ('ready' == 'ready'
+E
+E           ready and 'flat-rate' in 'model list unavailable; retry from Connections')
+E        +  where 'model list unavailable; retry from Connections' = Choice(spec='opencode-go/glm-5.3', label='glm-5.3', group='OpenCode Go (flat subscription)', state='ready', note='mode...t_case_usd=None, detail=['connection opencode-go: subscription', 'sends this chat to OpenCode Go (flat subscription)']).note
+
+tests/test_model_switcher.py:155: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_delegation.py::test_strict_offline_delegation_runs_as_child_after_explicit_approval
+FAILED tests/test_durable_changes.py::test_upgrade_v10_preserves_state_and_initializes_fresh_change_history
+FAILED tests/test_model_switcher.py::test_connection_models_known_from_bots_appear_with_their_state
+3 failed, 2198 passed in 662.04s (0:11:02)

@@ -11,7 +11,7 @@ const view = $("#view");
 const topContext = $("#app-top-context");
 
 const ACTIVE = new Set(["pending", "loading_model", "running", "waiting_approval", "waiting_human",
-  "waiting_resources", "recovering", "cancelling"]);
+  "waiting_resources", "waiting_child", "recovering", "cancelling"]);
 const TASK_ROLE_OPTIONS = [
   ["banter", "Banter"], ["classification", "Classification"], ["extraction", "Extraction"],
   ["summarization", "Summarization"], ["synthesis_research", "Synthesis / research"],
@@ -24,6 +24,7 @@ const DEFAULT_STATUS_INFO = {
   waiting_approval: { label: "Waiting for you", terminal: false },
   waiting_human: { label: "Needs you", terminal: false },
   waiting_resources: { label: "Waiting for a free slot or quota", terminal: false },
+  waiting_child: { label: "Waiting for delegated work", terminal: false },
   recovering: { label: "Cleaning up", terminal: false },
   cancelling: { label: "Stopping", terminal: false },
   succeeded: { label: "Done", terminal: true },
@@ -374,6 +375,626 @@ async function showConversationArtifactShare(article, item, currentId) {
     }
   });
   await loadChats();
+}
+
+let workflowPanelLoadToken = 0;
+
+const WORKFLOW_STATUS_LABELS = {
+  pending: "Queued", running: "Running", waiting: "Waiting", succeeded: "Finished",
+  failed: "Failed", stopped: "Stopped", outcome_unknown: "Needs review",
+};
+
+function workflowDisplayTitle(value) {
+  const title = String(value || "").trim();
+  if (!/^[a-z0-9][a-z0-9._-]*$/.test(title) || !/[-_.]/.test(title)) return title || "Workflow";
+  return title.split(/[-_.]+/).filter(Boolean)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
+}
+
+function workflowNodeLabel(node) {
+  if (node.question_status === "answered" && node.status !== "succeeded") return "Answer received";
+  if (node.question_status === "expired") return "Question expired";
+  if (node.question_status === "cancelled") return "Cancelled";
+  if (node.status === "succeeded") {
+    if (node.result && typeof node.result === "object" && node.result.verified === true) return "Verified";
+    if (node.result && typeof node.result === "object" && node.result.verified === false) return "Completed · not verified";
+    return "Completed";
+  }
+  return WORKFLOW_STATUS_LABELS[node.status] || String(node.status || "Unknown").replaceAll("_", " ");
+}
+
+async function refreshWorkflowPanel(botName, conversationId, generation, force = false) {
+  const panel = $("#workflow-panel");
+  if (!panel || !conversationId || !botName) return;
+  const activeElement = document.activeElement;
+  const hasDraftFocus = panel.contains(activeElement) && activeElement.matches(
+    "input, textarea, select, [contenteditable='true']",
+  );
+  if (!force && hasDraftFocus) return;
+  const token = ++workflowPanelLoadToken;
+  try {
+    const [runPage, definitionPage] = await Promise.all([
+      api(`/v1/workflows/runs?bot=${encodeURIComponent(botName)}&limit=50`),
+      api("/v1/workflows?limit=50"),
+    ]);
+    if (token !== workflowPanelLoadToken || generation !== studioGeneration || conversationId !== currentConversationId) return;
+    const runs = (runPage.items || []).filter(run => run.conversation_id === conversationId);
+    const selected = runs.find(run => ["pending", "running", "waiting"].includes(run.status)) || runs[0] || null;
+    let detail = null;
+    if (selected) detail = await api(`/v1/workflows/runs/${encodeURIComponent(selected.id)}`);
+    if (token !== workflowPanelLoadToken || generation !== studioGeneration || conversationId !== currentConversationId) return;
+    const definitions = definitionPage.items || [];
+    if (!selected && !definitions.length) {
+      panel.hidden = true;
+      panel.innerHTML = "";
+      return;
+    }
+    const oldDetails = new Map($$("details[data-workflow-disclosure]", panel).map(item => [item.dataset.workflowDisclosure, item.open]));
+    const oldAnswerDrafts = new Map($$("[data-workflow-question-form]", panel).map(form => [
+      form.dataset.questionId,
+      $("textarea[name=answer]", form)?.value || "",
+    ]));
+    const focusedQuestion = panel.contains(document.activeElement)
+      ? document.activeElement.closest("[data-workflow-question-form]")?.dataset.questionId || ""
+      : "";
+    const oldFocus = panel.contains(document.activeElement) ? {
+      action: document.activeElement.dataset.workflowAction || "",
+      id: document.activeElement.dataset.workflowId || document.activeElement.dataset.questionId || "",
+      questionId: focusedQuestion,
+      disclosure: document.activeElement.closest("details[data-workflow-disclosure]")?.dataset.workflowDisclosure || "",
+      summary: document.activeElement.tagName === "SUMMARY",
+    } : null;
+    const status = selected ? (selected.pause_requested
+      ? (detail?.resume_available ? "Paused" : "Pause requested")
+      : WORKFLOW_STATUS_LABELS[selected.status] || selected.status)
+      : "No run in this chat";
+    const plan = detail?.plan || {};
+    const structure = detail?.structure || [];
+    const nodes = detail?.nodes || [];
+    const currentQuestions = (detail?.questions || []).filter(question =>
+      question.revision_id === selected?.revision_id && question.attempt_run_id === selected?.attempt_run_id);
+    const pendingQuestions = currentQuestions.filter(question => question.status === "pending");
+    const questionByIdentity = new Map(currentQuestions.map(question =>
+      [JSON.stringify([question.site_id, question.instance_key]), question]));
+    const questionNodeStatus = { pending: "waiting", answered: "waiting", expired: "failed", cancelled: "cancelled" };
+    const projectedNodes = nodes.map(node => {
+      const question = questionByIdentity.get(JSON.stringify([node.site_id, node.instance_key]));
+      return question && !["succeeded", "failed", "skipped", "cancelled"].includes(node.status)
+        ? { ...node, question_status: question.status } : node;
+    });
+    const nodeIdentities = new Set(projectedNodes.map(node => JSON.stringify([node.site_id, node.instance_key])));
+    const questionNodes = currentQuestions.filter(question =>
+      !nodeIdentities.has(JSON.stringify([question.site_id, question.instance_key]))
+    ).map(question => ({
+      site_id: question.site_id, instance_key: question.instance_key, kind: "ask",
+      status: questionNodeStatus[question.status] || "unknown", question_status: question.status,
+    }));
+    const discoveredNodes = [...projectedNodes, ...questionNodes];
+    const title = workflowDisplayTitle(plan.name || "Workflow run");
+    const stopButton = selected && ["pending", "running", "waiting"].includes(selected.status)
+      ? `<button class="btn danger small" type="button" data-workflow-action="stop" data-workflow-id="${esc(selected.id)}" data-revision-id="${esc(selected.revision_id)}">${icon("stop")} Stop workflow</button>` : "";
+    const amendButton = selected && selected.status === "waiting" && detail?.attempt?.status === "waiting_workflow"
+      && hutchSession?.principal === "owner"
+      ? `<button class="btn ghost small" type="button" data-workflow-action="amend" data-workflow-id="${esc(selected.id)}">Amend parked run</button>` : "";
+    const pauseButton = selected && detail?.pause_available && hutchSession?.principal === "owner"
+      ? `<button class="btn ghost small" type="button" data-workflow-action="pause" data-workflow-id="${esc(selected.id)}">${detail.pause_after_work_available ? "Pause after current work" : "Pause workflow"}</button>` : "";
+    const resumeButton = selected && detail?.resume_available && hutchSession?.principal === "owner"
+      ? `<button class="btn ghost small" type="button" data-workflow-action="resume" data-workflow-id="${esc(selected.id)}">Resume workflow</button>` : "";
+    const liveList = discoveredNodes.length ? `<ol class="workflow-step-list" aria-label="Discovered workflow instances">${discoveredNodes.map(node => {
+      const label = structure.find(item => item.site_id === node.site_id)?.title || node.site_id;
+      return `<li><span class="workflow-step-copy"><b title="${esc(label)}">${esc(label)}</b><span>${esc(node.instance_key)}</span></span><span class="workflow-step-status">${esc(workflowNodeLabel(node))}</span></li>`;
+    }).join("")}</ol>` : `<p class="hint">No step instances have been created yet.</p>`;
+    const plannedList = structure.length ? `<ol class="workflow-step-list workflow-planned-list" aria-label="Planned workflow structure">${structure.map(item =>
+      `<li><span class="workflow-step-copy"><b title="${esc(item.title || item.site_id)}">${esc(item.title || item.site_id)}</b><span>${esc(item.kind || "step")}</span></span><span class="workflow-step-status">Planned</span></li>`
+    ).join("")}</ol>` : `<p class="hint">This saved method has no compiled step outline.</p>`;
+    const pendingQuestionLabel = `${pendingQuestions.length} pending question${pendingQuestions.length === 1 ? "" : "s"}`;
+    const questionMarkup = pendingQuestions.map(question => `<form class="workflow-question" data-workflow-question-form data-question-id="${esc(question.id)}" aria-labelledby="workflow-question-title-${esc(question.id)} workflow-question-prompt-${esc(question.id)}">
+      <p><b id="workflow-question-title-${esc(question.id)}">Question ${esc(question.id)}</b></p><p id="workflow-question-prompt-${esc(question.id)}">${esc(question.question)}</p>
+      <label id="workflow-answer-label-${esc(question.id)}" for="workflow-answer-${esc(question.id)}">Your answer</label>
+      <textarea id="workflow-answer-${esc(question.id)}" name="answer" rows="2" maxlength="4000" required aria-labelledby="workflow-question-title-${esc(question.id)} workflow-question-prompt-${esc(question.id)} workflow-answer-label-${esc(question.id)}" aria-describedby="workflow-answer-help-${esc(question.id)}"></textarea>
+      <p class="hint" id="workflow-answer-help-${esc(question.id)}">This answer resolves only this question. It does not approve a separate action.</p>
+      <button class="btn primary small" type="submit">Send answer</button><p class="workflow-question-error" role="status" aria-live="polite"></p>
+    </form>`).join("");
+    const savedList = definitions.length ? `<details data-workflow-disclosure="saved" ${oldDetails.has("saved") ? (oldDetails.get("saved") ? "open" : "") : ""}>
+      <summary>Saved workflows <span class="hint">${definitions.length}</span></summary>
+      <ul class="workflow-saved-list">${definitions.map(definition => `<li><span><b title="${esc(definition.name)}">${esc(definition.name)}</b><small>${definition.active ? "Active definition" : "Saved · run only when chosen"}</small></span>
+        <button class="btn ghost small" type="button" data-workflow-action="start" data-workflow-id="${esc(definition.id)}">Run</button></li>`).join("")}</ul>
+    </details>` : `<p class="hint">No saved workflows yet. Saving or importing a method does not activate it.</p>`;
+    const disclosure = selected ? `<details class="workflow-inspector" data-workflow-disclosure="run" ${oldDetails.has("run") ? (oldDetails.get("run") ? "open" : "") : "open"}>
+      <summary>Inspect workflow steps</summary>
+      <div class="workflow-inspector-body">
+        ${pendingQuestions.length ? `<section class="workflow-needs-you" aria-labelledby="workflow-questions-title"><h3 id="workflow-questions-title">Needs you <span class="workflow-pending-count">${esc(pendingQuestionLabel)}</span></h3>${questionMarkup}</section>` : ""}
+        <section aria-labelledby="workflow-planned-title"><h3 id="workflow-planned-title">Planned structure</h3>${plannedList}</section>
+        <section aria-labelledby="workflow-instances-title"><h3 id="workflow-instances-title">Discovered instances</h3>${liveList}</section>
+        ${selected.reason ? `<p class="workflow-queue-reason"><b>Current reason:</b> ${esc(selected.reason)}</p>` : ""}
+        <p class="hint">A completed step is not necessarily verified. Only an independent check is labelled Verified.</p>
+      </div>
+    </details>` : "";
+    const markup = selected ? `<header class="workflow-panel-head"><div><p class="workflow-panel-kicker">Workflow activity</p>
+      <h2 title="${esc(title)}">${esc(title)}</h2><p class="hint">${esc(status)}${selected?.definition_id ? " · saved workflow" : " · dynamic plan"}</p>
+      ${selected.pause_requested && !detail?.resume_available ? `<p class="hint">Current work will settle before the next step is held.</p>` : ""}</div>
+      <div class="workflow-panel-actions">${amendButton}${pauseButton}${resumeButton}${stopButton}<button class="btn ghost small" type="button" data-workflow-action="refresh">Refresh</button></div></header>
+      <p class="workflow-panel-meta">${esc(discoveredNodes.length)} discovered ${discoveredNodes.length === 1 ? "instance" : "instances"} · workflow ${esc(selected.id)}</p>${disclosure}
+      ${savedList}` : savedList;
+    if (panel.innerHTML !== markup) {
+      panel.innerHTML = markup;
+      panel.hidden = false;
+      panel.querySelectorAll("[data-workflow-question-form]").forEach(form => {
+        const answer = $("textarea[name=answer]", form);
+        if (answer && oldAnswerDrafts.has(form.dataset.questionId)) {
+          answer.value = oldAnswerDrafts.get(form.dataset.questionId);
+        }
+      });
+      panel.querySelectorAll("[data-workflow-action]").forEach(button => button.addEventListener("click", () => {
+        if (button.dataset.workflowAction === "refresh") {
+          void refreshWorkflowPanel(botName, conversationId, generation, true);
+        } else if (button.dataset.workflowAction === "start") {
+          void startSavedWorkflow(button.dataset.workflowId, button);
+        } else if (button.dataset.workflowAction === "stop") {
+          void stopWorkflowFromPanel(selected, button, botName, conversationId, generation);
+        } else if (button.dataset.workflowAction === "pause" || button.dataset.workflowAction === "resume") {
+          void setWorkflowPauseFromPanel(selected, button, button.dataset.workflowAction === "pause",
+            botName, conversationId, generation);
+        } else if (button.dataset.workflowAction === "amend") {
+          void openWorkflowAmendment(selected, detail, button, botName, conversationId, generation);
+        }
+      }));
+      panel.querySelectorAll("[data-workflow-question-form]").forEach(form => form.addEventListener("submit", event => {
+        event.preventDefault();
+        void answerWorkflowQuestion(form, botName, conversationId, generation);
+      }));
+      if (oldFocus) {
+        const actionOrder = oldFocus.action === "pause" ? ["resume", "pause", "refresh"]
+          : oldFocus.action === "resume" ? ["pause", "resume", "refresh"] : [oldFocus.action];
+        const questionForms = [...panel.querySelectorAll("[data-workflow-question-form]")];
+        const restoredQuestion = oldFocus.questionId
+          ? questionForms.find(form => form.dataset.questionId === oldFocus.questionId)
+          : null;
+        const target = oldFocus.questionId
+          ? (restoredQuestion?.querySelector("textarea[name=answer]")
+            || questionForms[0]?.querySelector("textarea[name=answer]")
+            || panel.querySelector('[data-workflow-action="refresh"]'))
+          : oldFocus.summary && oldFocus.disclosure
+          ? panel.querySelector(`details[data-workflow-disclosure="${CSS.escape(oldFocus.disclosure)}"] > summary`)
+          : actionOrder.map(action => $$('[data-workflow-action]', panel).find(element =>
+            element.dataset.workflowAction === action &&
+            (action === "refresh" || element.dataset.workflowId === oldFocus.id))).find(Boolean);
+        target?.focus({ preventScroll: true });
+      }
+    }
+    panel.hidden = false;
+  } catch (error) {
+    if (token !== workflowPanelLoadToken || generation !== studioGeneration || conversationId !== currentConversationId) return;
+    panel.hidden = false;
+    const statusMessage = "Workflow activity could not be refreshed. Existing details are kept; use Refresh to retry.";
+    if (panel.querySelector(".workflow-panel-head")) {
+      let errorNotice = panel.querySelector("[data-workflow-refresh-error]");
+      if (!errorNotice) {
+        errorNotice = document.createElement("p");
+        errorNotice.className = "workflow-panel-error";
+        errorNotice.dataset.workflowRefreshError = "true";
+        errorNotice.setAttribute("role", "status");
+        errorNotice.setAttribute("aria-live", "polite");
+        panel.querySelector(".workflow-panel-head").after(errorNotice);
+      }
+      errorNotice.textContent = statusMessage;
+    } else {
+      panel.innerHTML = `<p class="workflow-panel-error" role="status">${esc(statusMessage)} <button class="btn ghost small" type="button" data-workflow-action="refresh">Try again</button></p>`;
+      panel.querySelector("[data-workflow-action=refresh]")?.addEventListener("click", () =>
+        void refreshWorkflowPanel(botName, conversationId, generation, true));
+    }
+  }
+}
+
+function workflowAmendmentPreviewMarkup(preview, detail) {
+  const allowedQuestionNodes = new Set((detail?.questions || [])
+    .filter(question => question.status === "pending")
+    .map(question => `${question.site_id}\u0000${question.instance_key}`));
+  const carryNodes = preview.quiescence?.carry_active_nodes || [];
+  const allowedCarryNodes = new Set(carryNodes.map(node => `${node.site_id}\u0000${node.instance_key}`));
+  const drainedNodes = preview.quiescence?.drained_active_nodes || [];
+  const allowedDrainedNodes = new Set(drainedNodes.map(node => `${node.site_id}\u0000${node.instance_key}`));
+  const blockingActive = (preview.quiescence?.active_nodes || []).filter(node =>
+    !allowedCarryNodes.has(`${node.site_id}\u0000${node.instance_key}`)
+    && !allowedDrainedNodes.has(`${node.site_id}\u0000${node.instance_key}`)
+    && (node.status !== "waiting" || !allowedQuestionNodes.has(`${node.site_id}\u0000${node.instance_key}`)));
+  const drainableNodes = preview.quiescence?.drainable_active_nodes || [];
+  const drainableMarkup = drainableNodes.map(node =>
+    `<li><b>${esc(node.site_id)}</b> · ${esc(node.status)} · <code>${esc(node.run_id)}</code>${node.cancel_requested ? " · stop requested" : ""}<br><span class="hint">${esc(node.reason)}</span></li>`).join("");
+  const drainedMarkup = drainedNodes.map(node =>
+    `<li><b>${esc(node.site_id)}</b> · ${esc(node.status)} · <code>${esc(node.run_id)}</code> · ${esc(node.reason)}</li>`).join("");
+  const pendingIds = preview.quiescence?.pending_question_ids || [];
+  const changes = (preview.nodes || []).map(node => {
+    const fields = (node.fields || []).map(change =>
+      `<li><b>${esc(change.field)}</b><span>${esc(JSON.stringify(change.old ?? null))} to ${esc(JSON.stringify(change.new ?? null))}</span></li>`).join("");
+    return `<li><b>${esc(node.site_id)}</b> · ${esc(node.change)}${node.dependencies_changed ? " · dependencies changed" : ""}${fields ? `<ul>${fields}</ul>` : ""}</li>`;
+  }).join("");
+  const changedFields = (preview.changed_fields || []).map(change =>
+    `<li><b>${esc(change.field)}</b><span>${esc(JSON.stringify(change.old ?? null))} to ${esc(JSON.stringify(change.new ?? null))}</span></li>`).join("");
+  const reused = (preview.reuse || []).map(item =>
+    `<li><b>${esc(item.site_id)}</b> · ${esc(item.instance_key)} · ${esc(item.status)}</li>`).join("");
+  const invalidated = (preview.invalidate || []).map(item =>
+    `<li><b>${esc(item.site_id)}</b> · ${esc(item.instance_key)} · ${esc(item.reason)}</li>`).join("");
+  const budgets = Object.entries(preview.budgets || {}).map(([name, budget]) =>
+    `<li><b>${esc(name)}</b>: current ${esc(budget.current ?? "unset")}, proposed ${esc(budget.proposed ?? "unset")}, effective ${esc(budget.effective_if_adopted ?? "unset")}</li>`).join("");
+  const roles = (preview.roles || []).map(role =>
+    `<li><b>${esc(role.node || role.role || "Model role")}</b> · ${esc(role.state || (role.allowed ? "allowed" : "blocked"))}${role.profile ? ` · ${esc(role.profile)}` : ""}</li>`).join("");
+  const carried = carryNodes.map(node =>
+    `<li><b>${esc(node.site_id)}</b> · ${esc(node.role || "worker")} on ${esc(node.model || "recorded model")} · ${esc(node.status)} · <code>${esc(node.run_id)}</code><br><span class="hint">${esc(node.reason || "unchanged tool-free worker contract")}</span></li>`).join("");
+  const blocked = preview.blocked_reasons || [];
+  const canAdopt = workflowAmendmentCanAdopt(preview, detail);
+  const readiness = preview.quiescence?.workflow_status !== "waiting"
+    ? "This run is no longer parked. Refresh it before adopting an amendment."
+    : !preview.quiescence?.attempt_parked
+      ? "The orchestration attempt has not released its owner lease yet. Refresh after it parks."
+      : blockingActive.length && drainableNodes.some(node => !node.cancel_requested)
+        ? "The listed tool-free steps can be stopped explicitly after the workflow is paused. Their unfinished responses will be discarded; stopping work never undoes an external effect."
+      : !preview.quiescence?.owned_work_quiet && !preview.quiescence?.owned_work_carryable
+        ? "Owned child work or a process is still active and cannot be carried. Refresh after cleanup completes."
+    : blockingActive.length
+      ? `Owned work must settle first: ${blockingActive.map(node => `${node.site_id} (${node.status})`).join(", ")}.`
+      : carryNodes.length
+        ? "The unchanged tool-free step keeps its original contract; the new revision continues after that step settles."
+        : "The run is parked and no other active step is recorded.";
+  return `<section class="workflow-amendment-preview" aria-label="Amendment preview">
+    <h4>Read-only preview</h4>
+    <p class="${preview.eligible ? "" : "workflow-amendment-blocked"}" role="status">${preview.eligible ? "Candidate passes current authority and budget checks." : "Candidate is blocked."}</p>
+    ${blocked.length ? `<ul>${blocked.map(reason => `<li>${esc(reason)}</li>`).join("")}</ul>` : ""}
+    <p>${esc(readiness)}</p>
+    <p>Candidate plan hash: <code>${esc(preview.candidate_plan_hash)}</code></p>
+    <details open><summary>Changed fields · ${(preview.changed_fields || []).length}</summary><ul>${changedFields || "<li>No top-level field changes.</li>"}</ul></details>
+    <details open><summary>Step changes · ${(preview.nodes || []).length}</summary><ul>${changes || "<li>No step structure changes.</li>"}</ul></details>
+    <details><summary>Reusable completed results · ${(preview.reuse || []).length}</summary><ul>${reused || "<li>No results are reusable.</li>"}</ul></details>
+    <details open><summary>Results to invalidate · ${(preview.invalidate || []).length}</summary><ul>${invalidated || "<li>No prior results need invalidation.</li>"}</ul></details>
+    ${carryNodes.length ? `<details open><summary>Unchanged work to carry · ${carryNodes.length}</summary><p>The active step keeps its original model and execution contract. The new revision starts after it settles.</p><ul>${carried}</ul></details>` : ""}
+    ${drainableNodes.length ? `<details open><summary>Affected tool-free steps · ${drainableNodes.length}</summary><p>Only children with no declared tools or owned descendants are listed. Stopping one discards its unfinished model response.</p><ul>${drainableMarkup}</ul>
+      ${drainableNodes.some(node => !node.cancel_requested) && !detail?.workflow?.pause_requested
+        ? '<p class="hint">Pause this workflow before stopping an affected step.</p>'
+        : drainableNodes.some(node => !node.cancel_requested)
+          ? '<button class="btn ghost small" type="button" id="workflow-amendment-drain">Stop affected steps</button>' : ""}</details>` : ""}
+    ${drainedNodes.length ? `<details open><summary>Stopped affected steps · ${drainedNodes.length}</summary><p>These steps have reached a terminal state and their owned processes have drained. Their historical node records will be archived as cancelled.</p><ul>${drainedMarkup}</ul></details>` : ""}
+    <details><summary>Effective budgets</summary><ul>${budgets}</ul></details>
+    <details><summary>Model roles checked · ${(preview.roles || []).length}</summary><ul>${roles || "<li>No model role is required.</li>"}</ul></details>
+    ${pendingIds.length ? `<div class="workflow-amendment-questions"><p>Pending questions that adoption would cancel:</p><ul>${pendingIds.map(id => `<li><code>${esc(id)}</code></li>`).join("")}</ul>
+      <label><input type="checkbox" id="workflow-amendment-cancel-questions"> I understand these questions will be canceled and archived</label>
+      <p class="hint">Adoption stays disabled until you select this choice.</p></div>` : ""}
+    <p class="hint">Adoption archives the prior run state. The supervisor continues under a new revision; stale callbacks are rejected.</p>
+    <button class="btn ghost small" type="button" id="workflow-amendment-preview-again">Revise candidate</button>
+    ${canAdopt ? "" : "<p class=\"hint\">Adoption is unavailable until authority and run-state checks pass.</p>"}
+  </section>`;
+}
+
+function workflowAmendmentCanAdopt(preview, detail) {
+  const allowedQuestionNodes = new Set((detail?.questions || [])
+    .filter(question => question.status === "pending")
+    .map(question => `${question.site_id}\u0000${question.instance_key}`));
+  const carryNodes = preview.quiescence?.carry_active_nodes || [];
+  const allowedCarryNodes = new Set(carryNodes.map(node => `${node.site_id}\u0000${node.instance_key}`));
+  const drainedNodes = preview.quiescence?.drained_active_nodes || [];
+  const allowedDrainedNodes = new Set(drainedNodes.map(node => `${node.site_id}\u0000${node.instance_key}`));
+  const blockingActive = (preview.quiescence?.active_nodes || []).some(node =>
+    !allowedCarryNodes.has(`${node.site_id}\u0000${node.instance_key}`)
+    && !allowedDrainedNodes.has(`${node.site_id}\u0000${node.instance_key}`)
+    && (node.status !== "waiting" || !allowedQuestionNodes.has(`${node.site_id}\u0000${node.instance_key}`)));
+  return preview.eligible && preview.quiescence?.workflow_status === "waiting"
+    && preview.quiescence?.attempt_parked === true
+    && (preview.quiescence?.owned_work_quiet === true || preview.quiescence?.owned_work_carryable === true)
+    && !blockingActive;
+}
+
+async function openWorkflowAmendment(workflow, detail, trigger, botName, conversationId, generation) {
+  if (hutchSession?.principal !== "owner" || workflow?.status !== "waiting"
+      || detail?.attempt?.status !== "waiting_workflow" || !detail?.plan) return;
+  const planText = JSON.stringify(detail.plan, null, 2);
+  const inputsText = JSON.stringify(workflow.inputs || {}, null, 2);
+  let reviewed = null;
+  let busy = false;
+  const payloadFromEditor = () => {
+    const plan = JSON.parse($("#workflow-amendment-plan")?.value || "null");
+    const inputs = JSON.parse($("#workflow-amendment-inputs")?.value || "null");
+    if (!plan || typeof plan !== "object" || Array.isArray(plan)) throw new Error("Workflow plan must be a JSON object.");
+    if (!inputs || typeof inputs !== "object" || Array.isArray(inputs)) throw new Error("Workflow inputs must be a JSON object.");
+    return { expected_revision_id: workflow.revision_id, expected_generation: workflow.attempt_run_id, plan, inputs };
+  };
+  const updateAdoptionControl = () => {
+    if (busy) return;
+    const action = $("#modal-confirm");
+    if (!action) return;
+    if (!reviewed) { action.textContent = "Preview candidate"; action.disabled = false; return; }
+    const pending = reviewed.preview.quiescence?.pending_question_ids || [];
+    const cancelQuestions = $("#workflow-amendment-cancel-questions")?.checked === true;
+    const canAdopt = workflowAmendmentCanAdopt(reviewed.preview, detail);
+    action.textContent = canAdopt ? "Adopt amendment" : "Adoption unavailable";
+    action.disabled = !canAdopt || (pending.length > 0 && !cancelQuestions);
+  };
+  const renderPreview = preview => {
+    const result = $("#workflow-amendment-preview-result");
+    result.innerHTML = workflowAmendmentPreviewMarkup(preview, detail);
+    const modalAction = $("#modal-confirm");
+    $("#workflow-amendment-cancel-questions")?.addEventListener("change", updateAdoptionControl);
+    const previewButton = $("#workflow-amendment-preview-again", result);
+    previewButton?.addEventListener("click", () => {
+      reviewed = null;
+      if (modalAction) modalAction.textContent = "Preview candidate";
+      updateAdoptionControl();
+      result.innerHTML = "";
+      $("#workflow-amendment-status").textContent = "Edit the plan or inputs, then preview the candidate again.";
+      $("#workflow-amendment-plan")?.focus({ preventScroll: false });
+    });
+    const drainButton = $("#workflow-amendment-drain", result);
+    drainButton?.addEventListener("click", async () => {
+      if (busy || !reviewed) return;
+      busy = true;
+      drainButton.disabled = true;
+      const status = $("#workflow-amendment-status");
+      if (status) status.textContent = "Requesting stops for the listed tool-free steps. Waiting for verified cleanup before adoption.";
+      try {
+        const drainBody = reviewed.body;
+        const idemScope = "workflow-amendment-drain:" + workflow.id;
+        const key = await messageIdempotencyKey(idemScope, drainBody);
+        const response = await api("/v1/workflows/runs/" + encodeURIComponent(workflow.id) + "/amendments/drain", {
+          method: "POST", headers: { "Idempotency-Key": key }, body: drainBody,
+        });
+        clearMessageIdempotencyKey(idemScope, key);
+        let freshPreview = null;
+        let drainVerified = false;
+        for (let attempt = 0; attempt < 20; attempt += 1) {
+          freshPreview = await api("/v1/workflows/runs/" + encodeURIComponent(workflow.id) + "/amendments/preview", {
+            method: "POST", body: drainBody,
+          });
+          const drainedIds = new Set((freshPreview.quiescence?.drained_active_nodes || [])
+            .map(node => node.run_id));
+          const requestedIds = (response.requested || []).map(node => node.run_id);
+          drainVerified = freshPreview.quiescence?.owned_work_quiet === true
+            || requestedIds.length > 0 && requestedIds.every(runId => drainedIds.has(runId));
+          if (drainVerified) break;
+          await new Promise(resolve => setTimeout(resolve, 250));
+        }
+        reviewed.preview = freshPreview;
+        renderPreview(freshPreview);
+        if (status) status.textContent = drainVerified
+          ? "Affected steps have stopped and their owned processes have drained. Review the updated preview before adopting."
+          : response.message || "Stop requested. Refresh the preview after the owned processes have drained.";
+        status?.focus({ preventScroll: false });
+        updateAdoptionControl();
+      } catch (error) {
+        if (status) status.textContent = error.message || "Could not stop the affected steps.";
+      } finally {
+        busy = false;
+        updateAdoptionControl();
+      }
+    });
+  };
+  openModal({
+    title: `Amend ${detail.plan.name || workflow.definition_id || "workflow"}`,
+    bodyHtml: `<p>Only parked runs can be amended here. Review the server-computed diff, authority and result reuse before adoption.</p>
+      <p class="hint">This editor accepts declarative workflow JSON. Generated scripts are unsupported.</p>
+      <label class="workflow-amendment-label" for="workflow-amendment-plan">Candidate workflow plan</label>
+      <textarea id="workflow-amendment-plan" spellcheck="false" aria-describedby="workflow-amendment-plan-help">${esc(planText)}</textarea>
+      <p id="workflow-amendment-plan-help" class="hint">The plan is validated and role authority is refreshed on preview and adoption.</p>
+      <label class="workflow-amendment-label" for="workflow-amendment-inputs">Input snapshot</label>
+      <textarea id="workflow-amendment-inputs" spellcheck="false">${esc(inputsText)}</textarea>
+      <div id="workflow-amendment-preview-result"></div>
+      <p class="workflow-amendment-error" id="workflow-amendment-status" role="status" aria-live="polite" tabindex="-1"></p>`,
+    confirmText: "Preview candidate", confirmClass: "primary", wide: true, tall: true, returnFocus: trigger,
+    onConfirm: async () => {
+      if (busy) return false;
+      const action = $("#modal-confirm");
+      const status = $("#workflow-amendment-status");
+      busy = true;
+      action.disabled = true;
+      if (!reviewed) {
+        try {
+          const body = payloadFromEditor();
+          const preview = await api(`/v1/workflows/runs/${encodeURIComponent(workflow.id)}/amendments/preview`, {
+            method: "POST", body,
+          });
+          reviewed = { body, preview };
+          renderPreview(preview);
+          const canAdopt = workflowAmendmentCanAdopt(preview, detail);
+          action.textContent = canAdopt ? "Adopt amendment" : "Adoption unavailable";
+          updateAdoptionControl();
+          if (status) status.textContent = preview.eligible ? "Preview complete. Inspect every section before adoption." : "Preview complete with blocked checks.";
+        } catch (error) {
+          if (status) status.textContent = error.message || "Could not preview this candidate.";
+        } finally {
+          busy = false;
+          updateAdoptionControl();
+        }
+        return false;
+      }
+      try {
+        const freshBody = payloadFromEditor();
+        if (JSON.stringify(freshBody) !== JSON.stringify(reviewed.body)) {
+          reviewed = null;
+          action.textContent = "Preview candidate";
+          $("#workflow-amendment-preview-result").innerHTML = "";
+          updateAdoptionControl();
+          if (status) status.textContent = "Candidate changed. Run a fresh preview before adopting it.";
+          return false;
+        }
+        if (!workflowAmendmentCanAdopt(reviewed.preview, detail)) {
+          if (status) status.textContent = "Adoption is unavailable until authority passes and all owned work has settled.";
+          return false;
+        }
+        const pending = reviewed.preview.quiescence?.pending_question_ids || [];
+        const cancelQuestions = $("#workflow-amendment-cancel-questions")?.checked === true;
+        if (pending.length && !cancelQuestions) {
+          if (status) status.textContent = "Review and select the explicit question-cancellation choice before adoption.";
+          return false;
+        }
+        const adoptionBody = { ...freshBody, cancel_pending_questions: cancelQuestions };
+        const key = await messageIdempotencyKey(`workflow-amendment:${workflow.id}`, adoptionBody);
+        const result = await api(`/v1/workflows/runs/${encodeURIComponent(workflow.id)}/amendments/adopt`, {
+          method: "POST", headers: { "Idempotency-Key": key }, body: adoptionBody,
+        });
+        clearMessageIdempotencyKey(`workflow-amendment:${workflow.id}`, key);
+        toast(`Amendment adopted. New revision ${result.revision_id} is running.`);
+        await refreshWorkflowPanel(botName, conversationId, generation, true);
+        return true;
+      } catch (error) {
+        if (error.status === 409 || error.status === 422 || error.status === 413) {
+          reviewed = null;
+          action.textContent = "Preview candidate";
+          $("#workflow-amendment-preview-result").innerHTML = "";
+        }
+        if (status) status.textContent = error.message || "Amendment adoption was not confirmed.";
+        return false;
+      } finally {
+        busy = false;
+        if (action.isConnected) updateAdoptionControl();
+      }
+    },
+  });
+  $(".modal-card", $("#modal-root"))?.classList.add("workflow-amendment-modal");
+  for (const selector of ["#workflow-amendment-plan", "#workflow-amendment-inputs"]) {
+    $(selector)?.addEventListener("input", () => {
+      if (!reviewed) return;
+      reviewed = null;
+      const action = $("#modal-confirm");
+      if (action) action.textContent = "Preview candidate";
+      updateAdoptionControl();
+      $("#workflow-amendment-preview-result").innerHTML = "";
+      $("#workflow-amendment-status").textContent = "Candidate changed. Run a fresh preview before adopting it.";
+    });
+  }
+}
+
+async function startSavedWorkflow(definitionId, trigger) {
+  try {
+    const saved = await api(`/v1/workflows/${encodeURIComponent(definitionId)}`);
+    const plan = saved.plan || {};
+    const inputs = plan.inputs || {};
+    const entries = Object.entries(inputs);
+    const fields = entries.map(([name, spec]) => {
+      const value = spec.default === undefined || spec.default === null ? "" :
+        typeof spec.default === "string" ? spec.default : JSON.stringify(spec.default);
+      const placeholder = spec.required && !value ? `Enter a ${spec.type || "string"} value` : value;
+      const hint = spec.description ? `<span class="hint">${esc(spec.description)}</span>` : "";
+      return `<label class="field">${esc(name)}${spec.required ? " · required" : " · optional"}
+        <textarea data-workflow-input="${esc(name)}" data-workflow-type="${esc(spec.type || "string")}" rows="2" maxlength="20000" placeholder="${esc(placeholder)}">${esc(value)}</textarea>${hint}</label>`;
+    }).join("");
+    openModal({
+      title: `Run ${plan.name || definitionId}`,
+      bodyHtml: `<p>Starting this saved workflow is an explicit action. Its plan and permissions are checked again before admission.</p>
+        ${fields || '<p class="hint">This workflow does not require inputs.</p>'}
+        <p class="workflow-question-error" id="workflow-start-error" role="alert"></p>`,
+      confirmText: "Start workflow", confirmClass: "primary", wide: true, tall: entries.length > 4,
+      returnFocus: trigger,
+      onConfirm: async () => {
+        const values = {};
+        try {
+          for (const field of $$("[data-workflow-input]")) {
+            const raw = field.value;
+            if (!raw.trim() && !inputs[field.dataset.workflowInput]?.required) continue;
+            if (!raw.trim()) throw new Error(`${field.dataset.workflowInput} is required.`);
+            switch (field.dataset.workflowType) {
+              case "string": values[field.dataset.workflowInput] = raw; break;
+              case "boolean":
+              case "number":
+              case "integer":
+              case "array":
+              case "object": values[field.dataset.workflowInput] = JSON.parse(raw); break;
+              default: throw new Error(`Unsupported input type: ${field.dataset.workflowType}`);
+            }
+          }
+          const payload = { bot: currentStudioBot, conversation_id: currentConversationId, inputs: values };
+          const key = await messageIdempotencyKey(`workflow-start:${currentConversationId}:${definitionId}`, payload);
+          const result = await api(`/v1/workflows/${encodeURIComponent(definitionId)}/runs`, {
+            method: "POST", headers: { "Idempotency-Key": key }, body: payload,
+          });
+          clearMessageIdempotencyKey(`workflow-start:${currentConversationId}:${definitionId}`, key);
+          currentRunId = result.attempt_run_id;
+          subscribeRun(result.attempt_run_id);
+          toast("Workflow started. Its progress and checks are available here.");
+          void refreshWorkflowPanel(currentStudioBot, currentConversationId, studioGeneration, true);
+          return true;
+        } catch (error) {
+          const status = $("#workflow-start-error");
+          if (status) status.textContent = error.message;
+          return false;
+        }
+      },
+    });
+  } catch (error) {
+    toast(`Could not open this saved workflow: ${error.message}`, true);
+  }
+}
+
+async function stopWorkflowFromPanel(workflow, button, botName, conversationId, generation) {
+  if (!workflow?.id || button.disabled) return;
+  button.disabled = true;
+  const body = { expected_revision_id: workflow.revision_id };
+  try {
+    const key = await messageIdempotencyKey(`workflow-stop:${workflow.id}`, body);
+    await api(`/v1/workflows/runs/${encodeURIComponent(workflow.id)}/stop`, {
+      method: "POST", headers: { "Idempotency-Key": key }, body,
+    });
+    clearMessageIdempotencyKey(`workflow-stop:${workflow.id}`, key);
+    toast("Stop requested. Hutch will keep the workflow visible until owned work is settled.");
+    await refreshWorkflowPanel(botName, conversationId, generation, true);
+  } catch (error) {
+    button.disabled = false;
+    toast(`Workflow stop was not confirmed: ${error.message}`, true);
+  }
+}
+
+async function setWorkflowPauseFromPanel(workflow, button, paused, botName, conversationId, generation) {
+  if (!workflow?.id || !workflow.attempt_run_id || button.disabled) return;
+  const panel = $("#workflow-panel");
+  button.disabled = true;
+  const body = { expected_revision_id: workflow.revision_id, expected_generation: workflow.attempt_run_id };
+  const action = paused ? "pause" : "resume";
+  const operation = `workflow-${action}:${workflow.id}`;
+  try {
+    const key = await messageIdempotencyKey(operation, body);
+    const result = await api(`/v1/workflows/runs/${encodeURIComponent(workflow.id)}/${action}`, {
+      method: "POST", headers: { "Idempotency-Key": key }, body,
+    });
+    clearMessageIdempotencyKey(operation, key);
+    announce(paused
+      ? result.parked ? "Workflow paused. Its waiting questions and results remain available."
+        : "Pause requested. Current work will settle before the next step is held."
+      : "Workflow resumed. It will continue when its remaining work is ready.");
+    await refreshWorkflowPanel(botName, conversationId, generation, true);
+    if (generation === studioGeneration && conversationId === currentConversationId) {
+      const nextAction = paused && result.parked ? "resume" : "refresh";
+      panel?.querySelector(`[data-workflow-action="${nextAction}"]`)?.focus({ preventScroll: true });
+    }
+  } catch (error) {
+    button.disabled = false;
+    toast(`Workflow ${action} was not confirmed: ${error.message}`, true);
+  }
+}
+
+async function answerWorkflowQuestion(form, botName, conversationId, generation) {
+  if (form.dataset.submitting === "1") return;
+  const questionId = form.dataset.questionId;
+  const answer = $("textarea[name=answer]", form)?.value.trim() || "";
+  const errorNode = $(".workflow-question-error", form);
+  if (!answer) { if (errorNode) errorNode.textContent = "Enter an answer first."; return; }
+  form.dataset.submitting = "1";
+  const button = $("[type=submit]", form);
+  button.disabled = true;
+  try {
+    const body = { answer };
+    const key = await messageIdempotencyKey(`workflow-question:${questionId}`, body);
+    await api(`/v1/workflows/questions/${encodeURIComponent(questionId)}/answer`, {
+      method: "POST", headers: { "Idempotency-Key": key }, body,
+    });
+    clearMessageIdempotencyKey(`workflow-question:${questionId}`, key);
+    announce(`Answer sent for workflow question ${questionId}.`);
+    $("#workflow-panel")?.scrollTo({ top: 0, behavior: "auto" });
+    await refreshWorkflowPanel(botName, conversationId, generation, true);
+    const refreshedPanel = $("#workflow-panel");
+    const nextAnswer = refreshedPanel?.querySelector("[data-workflow-question-form] textarea[name=answer]");
+    (nextAnswer || refreshedPanel?.querySelector('[data-workflow-action="refresh"]'))?.focus({ preventScroll: true });
+  } catch (error) {
+    if (errorNode) errorNode.textContent = error.message;
+    button.disabled = false;
+  } finally {
+    if (form.isConnected) form.dataset.submitting = "";
+  }
 }
 
 async function openConversationFiles(conversationId, returnFocus) {
@@ -921,6 +1542,11 @@ function openModal({ title, bodyHtml, onConfirm, onCancel, confirmText = "Confir
     else if (modalReturnFocus?.dataset.backgroundProvider) {
       ($$('[data-background-provider]').find(button =>
         button.dataset.backgroundProvider === modalReturnFocus.dataset.backgroundProvider) || $('#nav-toggle'))?.focus();
+    }
+    else if (modalReturnFocus?.dataset.workflowAction && modalReturnFocus?.dataset.workflowId) {
+      ($$('[data-workflow-action]').find(button =>
+        button.dataset.workflowAction === modalReturnFocus.dataset.workflowAction &&
+        button.dataset.workflowId === modalReturnFocus.dataset.workflowId) || $('#chat-prompt'))?.focus();
     }
     else if (modalReturnFocus?.isConnected && modalReturnFocus.getClientRects().length) modalReturnFocus.focus();
     else ($('#chat-prompt') || $('#nav-toggle'))?.focus();
@@ -1942,8 +2568,10 @@ function renderWorkflow(stats) {
   const el = $("#workflow");
   if (!el) return;
   const parts = [];
-  const r = stats.active_runs || 0, q = stats.queued_tasks || 0, p = stats.pending_approvals || 0;
+  const r = stats.working_runs || 0, w = stats.waiting_runs || 0;
+  const q = stats.queued_tasks || 0, p = stats.pending_approvals || 0;
   if (r) parts.push(`<span class="w working"><span class="wdot"></span>${r} working</span>`);
+  if (w) parts.push(`<span class="w waiting"><span class="wdot"></span>${w} waiting</span>`);
   if (q) parts.push(`<span class="w queued"><span class="wdot"></span>${q} queued</span>`);
   if (p) parts.push(`<a class="w needs" href="#/approvals"><span class="wdot"></span>${p} need${p === 1 ? "s" : ""} you</a>`);
   el.innerHTML = parts.join("");
@@ -2411,6 +3039,17 @@ async function renderChatStudio(preferredBot = null) {
     status_label: selectedConversation.active_run_status_label,
   } : null;
   currentRunId = activeRun?.id || selectedConversation.latest_run_id || null;
+  let workflowPolicy = { mode: "suggest", override: "inherit", revision: 0,
+    auto_available: false, bot_mode: "suggest", limits: {} };
+  let workflowPolicyError = "";
+  try {
+    workflowPolicy = await api(`/v1/workflows/conversations/${encodeURIComponent(selectedConversation.id)}/policy`);
+  } catch (error) {
+    workflowPolicyError = error.message || "Workflow settings could not be loaded.";
+  }
+  if (generation !== studioGeneration) return;
+  const workflowModeOption = (value, label, disabled = false) =>
+    `<option value="${value}" ${workflowPolicy.override === value ? "selected" : ""} ${disabled ? "disabled" : ""}>${esc(label)}</option>`;
 
   const state = botState(detail);
   const assistantName = botHeading(bot);
@@ -2443,6 +3082,18 @@ async function renderChatStudio(preferredBot = null) {
           <button class="conversation-action-item" id="studio-conversation-pin" data-conversation-action="pin" type="button">${icon("pin")} ${selectedConversation.pinned ? "Unpin conversation" : "Pin conversation"}</button>
           <button class="conversation-action-item" id="studio-conversation-unread" data-conversation-action="unread" type="button">${icon("mail")} ${selectedConversation.unread ? "Mark read" : "Mark unread"}</button>
           <button class="conversation-action-item" id="studio-conversation-section" data-conversation-action="section" type="button">${icon("folder")} ${selectedConversation.section ? "Move to a section" : "New section"}</button>
+          <div class="conversation-workflow-policy">
+            <label for="chat-workflow-mode">Workflow mode for this chat</label>
+            <select id="chat-workflow-mode" aria-describedby="chat-workflow-mode-help" ${workflowPolicyError ? "disabled" : ""}>
+              ${workflowModeOption("inherit", `Assistant default · ${workflowPolicy.mode}`)}
+              ${workflowModeOption("suggest", "Suggest in this chat")}
+              ${workflowModeOption("off", "Off in this chat")}
+              ${workflowModeOption("auto", workflowPolicy.auto_available || workflowPolicy.override === "auto" ? "Auto in this chat" : "Auto (set a reviewed assistant scope first)", !workflowPolicy.auto_available && workflowPolicy.override !== "auto")}
+            </select>
+            <p class="hint" id="chat-workflow-mode-help" role="status">${esc(workflowPolicyError || (workflowPolicy.auto_available
+              ? "Auto stays inside this assistant’s saved workflow and budget limits."
+              : "Suggest never starts a workflow. Auto needs an assistant-level reviewed scope."))}</p>
+          </div>
           <details class="conversation-action-more" id="studio-conversation-more">
             <summary class="conversation-action-item" aria-label="More conversation actions" aria-expanded="false" aria-controls="studio-conversation-more-panel">${icon("moreHorizontal")} More</summary>
             <div class="conversation-action-more-panel" id="studio-conversation-more-panel">
@@ -2465,9 +3116,11 @@ async function renderChatStudio(preferredBot = null) {
 
   view.innerHTML = `
     <section class="studio">
+      <section class="workflow-panel" id="workflow-panel" hidden aria-label="Workflow activity"></section>
       <div class="chat-scroll" id="chat-scroll">
         <div class="feed" id="chat-stream"></div>
       </div>
+      <div class="jump-latest-slot" id="jump-latest-slot" hidden></div>
       <footer class="composer">
         <form id="chat-form" autocomplete="off">
           <div class="composer-box" id="composer-box">
@@ -2539,6 +3192,8 @@ async function renderChatStudio(preferredBot = null) {
         </form>
       </footer>
     </section>`;
+
+  void refreshWorkflowPanel(bot.name, selectedConversation.id, generation);
 
   const conversationSwitcher = $("#conversation-switcher");
   conversationSwitcher?.addEventListener("change", async ev => {
@@ -2688,6 +3343,41 @@ async function renderChatStudio(preferredBot = null) {
       toast(`Could not update this conversation: ${error.message}`, true);
       action.disabled = false;
       action.focus();
+    }
+  });
+
+  const workflowModeSelect = $("#chat-workflow-mode");
+  workflowModeSelect?.addEventListener("change", async event => {
+    const select = event.currentTarget;
+    const requested = select.value;
+    const previous = workflowPolicy.override;
+    if (requested === "auto" && !workflowPolicy.auto_available && previous !== "auto") {
+      select.value = previous;
+      return;
+    }
+    select.disabled = true;
+    const help = $("#chat-workflow-mode-help");
+    if (help) help.textContent = "Saving this conversation’s workflow mode…";
+    const body = { mode: requested, expected_revision: workflowPolicy.revision };
+    try {
+      const key = await messageIdempotencyKey(`workflow-policy:${selectedConversation.id}`, body);
+      const saved = await api(`/v1/workflows/conversations/${encodeURIComponent(selectedConversation.id)}/policy`, {
+        method: "POST", headers: { "Idempotency-Key": key }, body,
+      });
+      clearMessageIdempotencyKey(`workflow-policy:${selectedConversation.id}`, key);
+      if (generation !== studioGeneration || composerConversationId !== currentConversationId) return;
+      workflowPolicy = saved;
+      select.value = saved.override;
+      if (help) help.textContent = saved.auto_available
+        ? "Auto stays inside this assistant’s saved workflow and budget limits."
+        : "Suggest never starts a workflow. Auto needs an assistant-level reviewed scope.";
+      announce(`Workflow mode saved: ${saved.mode}.`);
+    } catch (error) {
+      select.value = previous;
+      if (help) help.textContent = `Could not save this mode: ${error.message}`;
+      toast(`Workflow mode was not saved: ${error.message}`, true);
+    } finally {
+      if (select.isConnected) select.disabled = !!workflowPolicyError;
     }
   });
 
@@ -2989,7 +3679,7 @@ async function renderChatStudio(preferredBot = null) {
         method: "POST", headers: { "Idempotency-Key": key }, body,
       });
       clearChoiceIdempotencyKey(questionConversationId, questionId, key);
-      storageRemove(choiceDraftKey(questionConversationId, questionId));
+      storageRemove(choiceDraftKey(composerConversationId, questionId));
       toast("Answer sent to the specialist.");
       if (generation !== studioGeneration) return;
       scheduleFeedRender();
@@ -3436,6 +4126,7 @@ async function renderChatFeed() {
   if (!stream || !scroll || !currentStudioBot) return;
 
   const conversationId = currentConversationId, generation = studioGeneration;
+  void refreshWorkflowPanel(currentStudioBot, conversationId, generation);
   const stillCurrent = () => generation === studioGeneration && conversationId === currentConversationId && stream.isConnected;
   let messages, authority, factPage, factShares, workspaceTasks = [], codeHandoffs = [];
   try {
@@ -3552,6 +4243,12 @@ async function renderChatFeed() {
   const focusedFeedbackRating = focused?.dataset.answerFeedbackRating;
   const focusedFeedbackMessage = focused?.dataset.feedbackMessage;
   const focusedFeedbackReason = focused?.hasAttribute("data-answer-feedback-reason");
+  const focusedWorkflowSuggestion = focused?.dataset.workflowSuggestionRun;
+  const focusedWorkspaceQuestion = focused?.closest("[data-workspace-question-form]")?.dataset.questionId;
+  const focusedWorkspaceOption = focused?.matches("[data-workspace-question-form] [data-choice-option]")
+    ? focused.value : null;
+  const focusedWorkspaceSubmit = Boolean(focusedWorkspaceQuestion
+    && focused?.matches("[data-workspace-question-form] [type=submit]"));
   const factUi = captureFactUi(stream);
   const nextHtml = parts.join("") + factPanelHtml(factPage.facts || [], factPage.error, factShares);
   if (chatRenderSnapshots.get(stream) === nextHtml) return;
@@ -3593,6 +4290,20 @@ async function renderChatFeed() {
     $$('[data-answer-feedback-reason]', stream).find(select => select.dataset.feedbackMessage === focusedFeedbackMessage)
       ?.focus({ preventScroll: true });
   }
+  if (focusedWorkflowSuggestion && !focused.isConnected) {
+    ($$('[data-workflow-suggestion-run]', stream)
+      .find(button => button.dataset.workflowSuggestionRun === focusedWorkflowSuggestion) || $('#chat-prompt'))
+      ?.focus({ preventScroll: true });
+  }
+  if (focusedWorkspaceQuestion && !focused.isConnected) {
+    const form = $$('[data-workspace-question-form]', stream)
+      .find(item => item.dataset.questionId === focusedWorkspaceQuestion);
+    const target = focusedWorkspaceOption !== null
+      ? [...(form?.querySelectorAll("[data-choice-option]") || [])]
+        .find(input => input.value === focusedWorkspaceOption)
+      : focusedWorkspaceSubmit ? form?.querySelector('[type="submit"]') : null;
+    (target || $("#chat-prompt"))?.focus({ preventScroll: true });
+  }
   restoreFactUi(stream, factUi);
   if (wasNearBottom) scroll.scrollTop = scroll.scrollHeight;
   else if (scrollAnchorRunId && scrollAnchorOffset !== null) {
@@ -3627,18 +4338,19 @@ async function renderChatFeed() {
 
   // The reader's place is sacred: follow the bottom only if they were there.
   let jump = $("#jump-latest");
+  const jumpSlot = $("#jump-latest-slot");
   if (!wasNearBottom) {
     if (!jump) {
       jump = document.createElement("button");
       jump.id = "jump-latest"; jump.className = "jump-latest"; jump.type = "button";
       jump.innerHTML = `${icon("down")} Jump to latest`;
-      scroll.appendChild(jump);
-      jump.addEventListener("click", () => { scroll.scrollTop = scroll.scrollHeight; jump.hidden = true; });
+      jump.addEventListener("click", () => { scroll.scrollTop = scroll.scrollHeight; jumpSlot.hidden = true; });
     }
-    jump.hidden = false;
+    jumpSlot.appendChild(jump);
+    jumpSlot.hidden = false;
   } else {
     scroll.scrollTop = scroll.scrollHeight;
-    if (jump) jump.hidden = true;
+    jumpSlot.hidden = true;
   }
 
   wireApprovals();
@@ -4109,8 +4821,13 @@ function workspaceTaskQuestionHtml(task) {
   const question = task.pending_question;
   const options = Array.isArray(question.options) ? question.options : [];
   const multi = question.selection_mode === "multiple";
+  let selected = [];
+  try {
+    const stored = JSON.parse(storageGet(choiceDraftKey(currentConversationId, question.id)) || "[]");
+    if (Array.isArray(stored)) selected = stored.filter(value => options.some(option => option.id === value));
+  } catch { /* ignore a damaged local draft and render the durable question */ }
   const controls = options.map(option => `<label class="choice-option">
-      <input data-choice-option type="${multi ? "checkbox" : "radio"}" name="question-${esc(question.id)}" value="${esc(option.id)}" ${multi ? "" : "required"}>
+      <input data-choice-option type="${multi ? "checkbox" : "radio"}" name="question-${esc(question.id)}" value="${esc(option.id)}" ${selected.includes(option.id) ? "checked" : ""} ${multi ? "" : "required"}>
       <span>${esc(option.label)}</span>
     </label>`).join("");
   return `<section class="workspace-task-question" data-workspace-task-question="${esc(task.id)}"
@@ -4631,7 +5348,10 @@ function groupToolItems(items) {
     run = [];
   };
   for (const it of items) {
-    if (it.kind === "tool") run.push(it);
+    if (it.kind === "tool" && it.result?.d?.workflow_recommendation) {
+      flush();
+      out.push(it); // keep a workflow card visible even when surrounding tools collapse
+    } else if (it.kind === "tool") run.push(it);
     else { flush(); out.push(it); }
   }
   flush();
@@ -4672,6 +5392,9 @@ function toolLineHtml(item, anchorEvent, runId, includeFileAttachments = true) {
   const verdict = running
     ? '<span class="spin-line" role="status" aria-label="running"></span>'
     : icon(ok ? "check" : "x");
+  const workflowRecommendation = res?.d?.workflow_recommendation;
+  const recommendationCard = workflowRecommendation && workflowRecommendation.route !== "direct"
+    ? workflowRecommendationHtml(workflowRecommendation) : "";
 
   return `<div class="tool-line-wrap">
     <div class="tool-line ${cls}" data-tool-line="${esc(String(idx))}">
@@ -4692,8 +5415,31 @@ function toolLineHtml(item, anchorEvent, runId, includeFileAttachments = true) {
       ${res?.d.artifact ? `<div class="tool-artifact-actions" id="tla-${esc(String(idx))}" ${open ? "" : "hidden"}>${artifactDownloadHtml(runId, res.d)}${sourceCardHtml(res.d, runId)}</div>` : ""}
       ${hutchWidgetsFeedItemHtml(res ? res.d : null, { runId })}
     </div>
+    ${recommendationCard}
     ${includeFileAttachments ? createdFilesHtml(runId, [{ result: res }]) : ""}
   </div>`;
+}
+
+function workflowRecommendationHtml(recommendation) {
+  const route = String(recommendation.route || "workflow").replaceAll("_", " ");
+  const status = recommendation.status === "started" ? "Started within Auto scope"
+    : recommendation.status === "suggested" ? "Suggestion · nothing started" : "Not started";
+  const method = recommendation.suggested_plan_name
+    ? `<p><b>${esc(recommendation.suggested_plan_name)}</b></p>` : "";
+  const runButton = recommendation.status === "suggested" && recommendation.route === "saved_workflow"
+      && recommendation.definition_id
+    ? `<button class="btn primary small" type="button" data-workflow-suggestion-run="${esc(recommendation.definition_id)}">Review &amp; run</button>` : "";
+  const refreshButton = recommendation.status === "started"
+    ? '<button class="btn ghost small" type="button" data-workflow-suggestion-refresh>Refresh workflow activity</button>' : "";
+  const reason = recommendation.why || "A workflow may fit this request.";
+  const simpler = recommendation.simpler
+    ? `<p class="workflow-recommendation-simpler">Simpler option: ${esc(recommendation.simpler)}</p>` : "";
+  return `<section class="workflow-recommendation" aria-label="Workflow recommendation">
+    <div><p class="workflow-panel-kicker">Workflow suggestion · ${esc(route)}</p><p class="workflow-recommendation-status">${esc(status)}</p></div>
+    ${method}<p>${esc(reason)}</p>${simpler}
+    ${recommendation.attempt_run_id ? `<p class="hint">Attempt ${esc(recommendation.attempt_run_id)}</p>` : ""}
+    <div class="workflow-recommendation-actions">${runButton}${refreshButton}</div>
+  </section>`;
 }
 
 /* PF-2 kept the untruncated output on disk; this row is the only door to it. */
@@ -4851,6 +5597,15 @@ function wireFeedInteractions() {
     if (ev.target.closest('[data-receipt-queue]')) { void openNeedsYou(); return; }
     const resume = ev.target.closest("[data-human-resume]");
     if (resume) { void requestHumanResume(resume.dataset.runId, resume.dataset.eventSeq, resume); return; }
+    const suggestedRun = ev.target.closest("[data-workflow-suggestion-run]");
+    if (suggestedRun) {
+      void startSavedWorkflow(suggestedRun.dataset.workflowSuggestionRun, suggestedRun);
+      return;
+    }
+    if (ev.target.closest("[data-workflow-suggestion-refresh]")) {
+      void refreshWorkflowPanel(currentStudioBot, currentConversationId, studioGeneration, true);
+      return;
+    }
     const stop = ev.target.closest("[data-stop-run]");
     if (stop) { requestStop(stop.dataset.stopRun, stop); return; }
     const more = ev.target.closest("[data-show-more]");
@@ -4908,9 +5663,11 @@ function wireFeedInteractions() {
     }
     const input = ev.target.closest("[data-choice-option]");
     const form = input?.closest("[data-choice-form]");
-    if (!form) return;
-    const selected = [...form.querySelectorAll("input:checked")].map(item => item.value);
-    storageSet(choiceDraftKey(currentConversationId, form.dataset.choiceQuestion), JSON.stringify(selected));
+    const workspaceForm = form ? null : input?.closest("[data-workspace-question-form]");
+    if (!form && !workspaceForm) return;
+    const selected = [...(form || workspaceForm).querySelectorAll("input:checked")].map(item => item.value);
+    const questionId = form ? form.dataset.choiceQuestion : workspaceForm.dataset.questionId;
+    storageSet(choiceDraftKey(currentConversationId, questionId), JSON.stringify(selected));
   });
 }
 
@@ -5031,7 +5788,8 @@ function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
         </div>
         <span class="ttl-countdown">${icon("hourglass")}<span data-ttl-text>${expired ? "expired — denied" : ""}</span></span>
       </div>
-      <div class="approval-action-text">${esc(action)}</div>
+      <div class="approval-action-text" id="approval-action-${esc(id)}">${esc(action)}</div>
+      <p class="hint approval-id" id="approval-id-${esc(id)}">Approval ID <code class="mono">${esc(id)}</code></p>
       <details class="approval-review">
         <summary>Review details</summary>
         <div class="review-rows">${rows}</div>
@@ -5059,9 +5817,9 @@ function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
           ? `<p class="hint approval-scope">This action leaves the machine, so always-allow is not offered — you decide each time.</p>`
           : ""}
       <div class="approval-buttons" data-approval="${esc(id)}">
-        <button class="btn primary small" data-approve="1">Allow once</button>
-        ${canAlways ? `<button class="btn ghost small" data-approve="always">Always allow for this bot</button>` : ""}
-        <button class="btn ghost small" data-approve="0">Deny</button>
+        <button class="btn primary small" data-approve="1" aria-describedby="approval-action-${esc(id)} approval-id-${esc(id)}">Allow once</button>
+        ${canAlways ? `<button class="btn ghost small" data-approve="always" aria-describedby="approval-action-${esc(id)} approval-id-${esc(id)}">Always allow for this bot</button>` : ""}
+        <button class="btn ghost small" data-approve="0" aria-describedby="approval-action-${esc(id)} approval-id-${esc(id)}">Deny</button>
         ${runId ? `<a class="btn ghost small" href="${esc(contextHref)}">${a.conversation_id ? "Open conversation" : "Open run"}</a>` : ""}
       </div>
     </div>`;
@@ -5489,8 +6247,12 @@ function paintSchedules() {
       const [botName, scheduleId] = button.getAttribute("data-schedule-run-now").split("/");
       button.setAttribute("aria-busy", "true");
       try {
-        const result = await api(`/v1/bots/${encodeURIComponent(botName)}/schedules/${encodeURIComponent(scheduleId)}/run-now`, { method: "POST", body: {} });
-        toast("Started a one-off run. The recurring schedule is unchanged.");
+        const result = await api(`/v1/bots/${encodeURIComponent(botName)}/schedules/${encodeURIComponent(scheduleId)}/run-now`, {
+          method: "POST", headers: { "Idempotency-Key": newIdempotencyKey() }, body: {},
+        });
+        toast(result?.workflow_run_id
+          ? "Started the linked saved workflow once. The routine schedule is unchanged."
+          : "Started a one-off run. The recurring schedule is unchanged.");
         if (result?.run_id) location.hash = `#/run/${encodeURIComponent(result.run_id)}`;
       } catch (error) {
         toast(`Could not run now: ${error.message}`, true);
@@ -6084,6 +6846,14 @@ const TOOL_SETTINGS = [
 
 function scheduleBodyFromForm(fd) {
   const trigger = String(fd.get("trigger") || "cron");
+  const workflowDefinitionId = String(fd.get("workflow_definition_id") || "").trim();
+  let workflowInputs = {};
+  if (workflowDefinitionId) {
+    workflowInputs = JSON.parse(String(fd.get("workflow_inputs_json") || "{}"));
+    if (!workflowInputs || Array.isArray(workflowInputs) || typeof workflowInputs !== "object") {
+      throw new Error("Workflow inputs must be a JSON object.");
+    }
+  }
   const body = {
     name: String(fd.get("name") || "").trim(),
     trigger,
@@ -6093,6 +6863,9 @@ function scheduleBodyFromForm(fd) {
     overlap: String(fd.get("overlap") || "queue"),
     enabled: fd.get("enabled") === "on" || fd.get("enabled") === "true",
     prompt: String(fd.get("schedule_prompt") || fd.get("prompt") || "").trim(),
+    workflow_definition_id: workflowDefinitionId || null,
+    workflow_revision_id: workflowDefinitionId ? (String(fd.get("workflow_revision_id") || "").trim() || null) : null,
+    workflow_inputs: workflowInputs,
   };
   if (trigger === "interval") {
     const minutes = Number(fd.get("interval_minutes"));
@@ -6107,7 +6880,7 @@ function scheduleBodyFromForm(fd) {
   return body;
 }
 
-function scheduleEditorHtml(schedule, index, status = null) {
+function scheduleEditorHtml(schedule, index, status = null, workflowDefinitions = [], workflowError = "") {
   const id = String(schedule.id || "");
   const trigger = schedule.trigger || "cron";
   const enabled = schedule.enabled !== false;
@@ -6122,6 +6895,14 @@ function scheduleEditorHtml(schedule, index, status = null) {
     : trigger === "once" ? "one time" : (schedule.cron || "cron");
   const formId = index === 0 ? "form-schedule" : `form-schedule-${index}`;
   const preview = Array.isArray(status?.preview) ? status.preview.slice(0, 5) : [];
+  const currentDefinition = workflowDefinitions.find(item => item.id === schedule.workflow_definition_id);
+  const workflowOptions = workflowDefinitions.filter(item => item.active || item.id === schedule.workflow_definition_id)
+    .map(item => `<option value="${esc(item.id)}" data-revision-id="${esc(item.latest_revision_id || "")}" ${item.id === schedule.workflow_definition_id ? "selected" : ""}>${esc(item.name)}${item.active ? "" : " · inactive"}</option>`).join("");
+  const missingLinkedOption = schedule.workflow_definition_id && !currentDefinition
+    ? `<option value="${esc(schedule.workflow_definition_id)}" selected>Linked workflow ${esc(schedule.workflow_definition_id)} · details unavailable</option>` : "";
+  const currentRevisionId = schedule.workflow_revision_id || "";
+  const workflowInputsText = JSON.stringify(schedule.workflow_inputs || {}, null, 2);
+  const linkedWorkflowName = currentDefinition?.name || schedule.workflow_definition_id || "none";
   return `<details class="schedule-entry" data-schedule-entry ${index === 0 ? "open" : ""}>
     <summary class="schedule-summary">
       <strong>${esc(schedule.name || "Scheduled task")}</strong>
@@ -6149,8 +6930,24 @@ function scheduleEditorHtml(schedule, index, status = null) {
       </div>
       <label class="field">Task prompt
         <textarea name="schedule_prompt" rows="2" maxlength="4000" aria-describedby="schedule-prompt-help-${index}">${esc(schedule.prompt || "")}</textarea>
-        <span class="hint" id="schedule-prompt-help-${index}">Leave blank to use this bot’s standing instructions.</span>
+        <span class="hint" id="schedule-prompt-help-${index}">Leave blank to use this bot’s standing instructions. This prompt is ignored when a saved workflow is linked.</span>
       </label>
+      <label class="field">Run a saved workflow
+        <select name="workflow_definition_id" data-schedule-workflow-definition>
+          <option value="" ${schedule.workflow_definition_id ? "" : "selected"}>Run the routine prompt</option>
+          ${workflowOptions}${missingLinkedOption}
+        </select>
+        <span class="hint">Connecting here is a separate owner action. Only activated saved methods are offered; the routine stores an exact revision and checked inputs.</span>
+      </label>
+      <p class="hint" data-workflow-revision-summary ${schedule.workflow_definition_id ? "" : "hidden"}>${schedule.workflow_definition_id
+        ? `Pinned revision ${esc(currentRevisionId)} of ${esc(linkedWorkflowName)}.` : ""}</p>
+      <input type="hidden" name="workflow_revision_id" value="${esc(currentRevisionId)}">
+      <label class="field" data-workflow-inputs-field ${schedule.workflow_definition_id ? "" : "hidden"}>
+        <span data-workflow-inputs-title>Inputs for ${esc(linkedWorkflowName)}</span>
+        <textarea name="workflow_inputs_json" rows="3" maxlength="32768" spellcheck="false">${esc(workflowInputsText)}</textarea>
+        <span class="hint">JSON object only. Inputs are validated against the pinned plan before saving and again when it runs.</span>
+      </label>
+      ${workflowError ? `<p class="hint" role="status">Saved workflow choices are unavailable: ${esc(workflowError)}</p>` : ""}
       <div class="meta-row"><span>Next run</span><span class="mono">${esc(nextFire)}</span></div>
       ${status?.blocked ? `<p class="hint schedule-skip" role="status">Blocked: ${esc(String(status.blocked.reason || "configuration").replaceAll("_", " "))}.</p>` : ""}
       ${status?.last_skip ? `<p class="hint schedule-skip" role="status">Last skipped ${esc(status.last_skip.windows)} missed windows${status.last_skip.reason ? ` · ${esc(String(status.last_skip.reason).replaceAll("_", " "))}` : ""}.</p>` : ""}
@@ -6225,6 +7022,12 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   let scheduleRows = [];
   try { scheduleRows = await api(`/v1/schedules?bot=${encodeURIComponent(b.id)}&limit=100&offset=0`); } catch {}
   const scheduleStatus = new Map(scheduleRows.map(item => [item.id, item]));
+  let workflowDefinitions = [];
+  let workflowDefinitionsError = "";
+  try {
+    const workflowPage = await api("/v1/workflows?limit=100");
+    workflowDefinitions = workflowPage.items || [];
+  } catch (error) { workflowDefinitionsError = error.message; }
   let offlineCapability = { status: "unavailable", reason: "Host isolation could not be verified." };
   let browserHandoffCapability = { status: "unavailable", reason: "The server could not verify this host's display and browser support." };
   try {
@@ -6494,7 +7297,8 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             </div>
             <div class="schedule-list" id="schedule-list">
               ${schedules.length ? schedules.map((scheduled, index) =>
-                scheduleEditorHtml(scheduled, index, scheduleStatus.get(scheduled.id))).join("")
+                scheduleEditorHtml(scheduled, index, scheduleStatus.get(scheduled.id),
+                  workflowDefinitions, workflowDefinitionsError)).join("")
                 : `<div class="empty-state schedule-empty"><p>No recurring tasks yet.</p><p class="hint">Add one when this bot should work on a regular schedule.</p></div>`}
             </div>
           </section>
@@ -6931,22 +7735,48 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     form.querySelectorAll("[data-interval-field]").forEach(el => { el.hidden = trigger !== "interval"; el.querySelector("input")?.toggleAttribute("required", trigger === "interval"); });
     form.querySelectorAll("[data-anchor-field]").forEach(el => { el.hidden = trigger === "cron"; el.querySelector("input")?.toggleAttribute("required", trigger === "once"); });
   }));
+  $$('[data-schedule-workflow-definition]').forEach(select => select.addEventListener("change", () => {
+    const form = select.closest("form");
+    if (!form) return;
+    const selected = select.selectedOptions[0];
+    const linked = Boolean(select.value);
+    const revision = form.querySelector('[name="workflow_revision_id"]');
+    const inputsField = form.querySelector("[data-workflow-inputs-field]");
+    const inputsTitle = form.querySelector("[data-workflow-inputs-title]");
+    const revisionSummary = form.querySelector("[data-workflow-revision-summary]");
+    const selectedName = selected?.textContent?.replace(/ · inactive$/, "") || "saved workflow";
+    if (revision) revision.value = linked ? (selected?.dataset.revisionId || "") : "";
+    if (inputsField) inputsField.hidden = !linked;
+    if (inputsTitle) inputsTitle.textContent = `Inputs for ${selectedName}`;
+    if (revisionSummary) {
+      revisionSummary.hidden = !linked;
+      revisionSummary.textContent = linked
+        ? `Pinned revision ${revision?.value || "not available"} of ${selectedName}.`
+        : "";
+    }
+  }));
   $$('[data-schedule-form]').forEach(form => form.addEventListener("submit", async ev => {
     ev.preventDefault();
     const fd = new FormData(form);
     const scheduleId = form.dataset.scheduleId;
     try {
       await api(`/v1/bots/${encodeURIComponent(b.id)}/schedules/${encodeURIComponent(scheduleId)}`, {
-        method: "PUT", body: scheduleBodyFromForm(fd),
+        method: "PUT", headers: { "Idempotency-Key": newIdempotencyKey() }, body: scheduleBodyFromForm(fd),
       });
-      toast(fd.get("enabled") === "on" ? "Scheduled task saved." : "Draft saved. Future occurrences stay off until enabled.");
+      toast(fd.get("workflow_definition_id")
+        ? (fd.get("enabled") === "on" ? "Saved workflow linked. Future runs are enabled." : "Saved workflow linked to this draft. Future runs stay off until enabled.")
+        : (fd.get("enabled") === "on" ? "Scheduled task saved." : "Draft saved. Future occurrences stay off until enabled."));
       renderBotDetail(b.name); refreshRoster();
     } catch (err) { toast(`Task not saved: ${err.message}`, true); }
   }));
   $$("[data-schedule-run-now-bot]").forEach(button => button.addEventListener("click", async () => {
     try {
-      const result = await api(`/v1/bots/${encodeURIComponent(b.id)}/schedules/${encodeURIComponent(button.dataset.scheduleRunNowBot)}/run-now`, { method: "POST", body: {} });
-      toast("Started a one-off run. The recurring schedule is unchanged.");
+      const result = await api(`/v1/bots/${encodeURIComponent(b.id)}/schedules/${encodeURIComponent(button.dataset.scheduleRunNowBot)}/run-now`, {
+        method: "POST", headers: { "Idempotency-Key": newIdempotencyKey() }, body: {},
+      });
+      toast(result?.workflow_run_id
+        ? "Started the linked saved workflow once. The routine schedule is unchanged."
+        : "Started a one-off run. The recurring schedule is unchanged.");
       if (result?.run_id) location.hash = `#/run/${encodeURIComponent(result.run_id)}`;
     } catch (err) { toast(`Could not run now: ${err.message}`, true); }
   }));
@@ -10081,7 +10911,8 @@ function reconcileResourceStream(source) {
 /* ------------------------------------------------------- paired-phone mode */
 
 let phoneRoot = null;
-let phoneModel = { bots: [], runs: [], approvals: [], selectedRun: null, tab: "status", notice: "", offline: false };
+let phoneModel = { bots: [], runs: [], approvals: [], workflows: [], workflowQuestions: [],
+  selectedRun: null, selectedWorkflow: null, tab: "status", notice: "", offline: false };
 let phonePoll = null;
 let phoneChangeStream = null;
 let phoneRunStream = null;
@@ -10110,6 +10941,11 @@ function phoneSavePendingCommand() {
     else if (phoneUnresolvedCommand) sessionStorage.setItem(phoneStorageKey(), JSON.stringify(phoneUnresolvedCommand));
     else sessionStorage.removeItem(phoneStorageKey());
   } catch { /* an in-memory retry remains available for this page */ }
+}
+
+function phoneCommandIsAllowed(command) {
+  const required = command?.path === "/v1/tasks/runs" ? "start" : "review";
+  return (hutchSession?.capabilities || []).includes(required);
 }
 
 function lockExpiredPhone() {
@@ -10144,16 +10980,36 @@ async function phoneRefresh({ quiet = false } = {}) {
   if (!phoneRoot || phoneRefreshInFlight || document.hidden) return;
   phoneRefreshInFlight = true;
   try {
-    const [bots, runs, approvals] = await Promise.all([
-      api("/bots"), api("/v1/tasks/runs?limit=40"),
-      api("/v1/actions/approvals?status=pending&limit=100"),
-    ]);
+    const freshSession = await api("/v1/session");
+    if (freshSession.principal !== "paired") { lockExpiredPhone(); return; }
+    hutchSession = freshSession;
+    hutchCsrfToken = freshSession.csrf_token || "";
+    phoneSetSessionExpiry(freshSession.idle_expires_at, freshSession.absolute_expires_at);
+    const capabilities = new Set(hutchSession?.capabilities || []);
+    if (!capabilities.has("review")) {
+      phoneModel.approvals = [];
+      phoneModel.workflowQuestions = [];
+      if (phoneModel.tab === "review") phoneModel.tab = "status";
+    }
+    const requests = [api("/bots"), api("/v1/tasks/runs?limit=40"),
+      api("/v1/phone/workflows/runs?limit=40")];
+    if (capabilities.has("review")) {
+      requests.push(api("/v1/actions/approvals?status=pending&limit=100"));
+      requests.push(api("/v1/phone/workflows/questions?limit=100"));
+    }
+    const [bots, runs, workflows, approvalsPage, questionsPage] = await Promise.all(requests);
     phoneModel.bots = bots;
     phoneModel.runs = runs;
-    phoneModel.approvals = approvals;
+    phoneModel.workflows = workflows.items || [];
+    phoneModel.approvals = approvalsPage || [];
+    phoneModel.workflowQuestions = questionsPage?.items || [];
     if (phoneModel.selectedRun) {
       try { phoneModel.selectedRun = await api(`/v1/tasks/runs/${encodeURIComponent(phoneModel.selectedRun.id)}`); }
       catch (error) { if (error.status !== 404) throw error; phoneModel.selectedRun = null; }
+    }
+    if (phoneModel.selectedWorkflow) {
+      try { phoneModel.selectedWorkflow = await api(`/v1/phone/workflows/runs/${encodeURIComponent(phoneModel.selectedWorkflow.id)}`); }
+      catch (error) { if (error.status !== 404) throw error; phoneModel.selectedWorkflow = null; }
     }
     phoneModel.offline = false;
     if (!quiet) phoneModel.notice = "";
@@ -10161,6 +11017,11 @@ async function phoneRefresh({ quiet = false } = {}) {
     phoneAttachRunStream();
   } catch (error) {
     if (!phoneRoot) return;
+    if (error.status === 403) {
+      phoneModel.approvals = [];
+      phoneModel.workflowQuestions = [];
+      if (!(hutchSession?.capabilities || []).includes("review")) phoneModel.tab = "status";
+    }
     phoneModel.offline = true;
     if (!quiet) phoneModel.notice = `Could not refresh Hutch: ${error.message}. Displayed status may be out of date.`;
     phoneRender();
@@ -10173,9 +11034,15 @@ function phoneRender() {
   const bots = phoneModel.bots || [];
   const runs = phoneModel.runs || [];
   const approvals = phoneModel.approvals || [];
+  const workflows = phoneModel.workflows || [];
+  const workflowQuestions = phoneModel.workflowQuestions || [];
+  const canReview = (hutchSession?.capabilities || []).includes("review");
+  const canStart = (hutchSession?.capabilities || []).includes("start");
   const active = new Set(["pending", "loading_model", "running", "waiting_approval", "waiting_human",
-    "waiting_resources", "recovering", "cancelling"]);
+    "waiting_resources", "waiting_child", "recovering", "cancelling"]);
+  const activeWorkflow = new Set(["pending", "running", "waiting"]);
   const selected = phoneModel.selectedRun;
+  const selectedWorkflow = phoneModel.selectedWorkflow;
   const phoneTimestamp = (value) => {
     if (!value) return "time unavailable";
     const date = new Date(value);
@@ -10186,26 +11053,56 @@ function phoneRender() {
   let body = "";
 
   if (phoneModel.tab === "review") {
-    body = approvals.length ? `<section class="phone-list" aria-label="Pending approvals">${approvals.map(a => {
+    const questionCards = workflowQuestions.map(q => `<article class="phone-card phone-question-card">
+      <div class="phone-card-head"><span class="phone-status needs">Needs your answer</span><span>${esc(q.bot_display_name || "Assistant")}</span></div>
+      <h2 id="phone-question-title-${esc(q.id)}">${esc(workflowDisplayTitle(q.workflow_title || "Workflow"))}</h2><p class="phone-sub" id="phone-question-id-${esc(q.id)}">Step ${esc(q.site_id)} · Question ID <code>${esc(q.id)}</code></p>
+      <p class="phone-question-prompt" id="phone-question-prompt-${esc(q.id)}">${esc(q.question)}</p>
+      <form class="phone-workflow-answer-form" data-question-id="${esc(q.id)}" aria-labelledby="phone-question-title-${esc(q.id)} phone-question-id-${esc(q.id)} phone-question-prompt-${esc(q.id)}">
+        ${q.options?.length ? `<label id="phone-question-answer-label-${esc(q.id)}" for="phone-question-answer-${esc(q.id)}">Answer<select id="phone-question-answer-${esc(q.id)}" name="answer" required aria-labelledby="phone-question-title-${esc(q.id)} phone-question-id-${esc(q.id)} phone-question-prompt-${esc(q.id)} phone-question-answer-label-${esc(q.id)}" aria-describedby="phone-question-help-${esc(q.id)}"><option value="">Choose an answer</option>${q.options.map(option => `<option value="${esc(option)}">${esc(option)}</option>`).join("")}</select></label>` : `<label id="phone-question-answer-label-${esc(q.id)}" for="phone-question-answer-${esc(q.id)}">Your answer<textarea id="phone-question-answer-${esc(q.id)}" name="answer" rows="3" maxlength="4000" required aria-labelledby="phone-question-title-${esc(q.id)} phone-question-id-${esc(q.id)} phone-question-prompt-${esc(q.id)} phone-question-answer-label-${esc(q.id)}" aria-describedby="phone-question-help-${esc(q.id)}"></textarea></label>`}
+        <button class="btn primary" type="submit" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Send answer</button>
+      </form><p class="phone-sub" id="phone-question-help-${esc(q.id)}">Answering this resolves only this question. It does not approve a separate action.</p><p class="phone-sub">Expires ${esc(phoneTimestamp(q.expires_at))}</p>
+    </article>`).join("");
+    const approvalCards = approvals.map(a => {
       const id = a.approval_id || a.id;
       const detail = JSON.stringify(a.detail || {}, null, 2);
       return `<article class="phone-card approval-card"><div class="phone-card-head"><span class="phone-status needs">Needs review</span><span>${esc(a.bot_display_name || a.bot_name || "Bot")}</span></div>
-        <h2>${esc(a.action || "Requested action")}</h2><p class="phone-sub">${esc(a.tool || "Action")} · ${esc(a.risk || "risk unavailable")}${a.outward ? " · sends data outside this machine" : ""}</p>
+        <h2 id="phone-approval-action-${esc(id)}">${esc(a.action || "Requested action")}</h2><p class="phone-sub" id="phone-approval-id-${esc(id)}">Approval ID <code>${esc(id)}</code></p><p class="phone-sub">${esc(a.tool || "Action")} · ${esc(a.risk || "risk unavailable")}${a.outward ? " · sends data outside this machine" : ""}</p>
         <details><summary>Review exact request</summary><pre>${esc(detail)}</pre>${a.rule ? `<p>${esc(a.rule)}</p>` : ""}</details>
-        <div class="phone-actions"><button class="btn primary" type="button" data-phone-approve="${esc(id)}" data-action-hash="${esc(a.action_hash || "")}" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Allow once</button><button class="btn danger" type="button" data-phone-deny="${esc(id)}" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Deny</button></div>
+        <div class="phone-actions"><button class="btn primary" type="button" data-phone-approve="${esc(id)}" data-action-hash="${esc(a.action_hash || "")}" aria-describedby="phone-approval-action-${esc(id)} phone-approval-id-${esc(id)}" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Allow once</button><button class="btn danger" type="button" data-phone-deny="${esc(id)}" aria-describedby="phone-approval-action-${esc(id)} phone-approval-id-${esc(id)}" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Deny</button></div>
       </article>`;
-    }).join("")}</section>` : `<section class="phone-empty"><h2>Nothing needs review</h2><p>Pending action requests will appear here.</p></section>`;
+    }).join("");
+    body = questionCards || approvalCards
+      ? `<section class="phone-list" aria-label="Needs you">${questionCards}${approvalCards}</section>`
+      : `<section class="phone-empty"><h2>Nothing needs review</h2><p>Pending workflow questions and action requests will appear here.</p></section>`;
+  } else if (phoneModel.tab === "workflows" && selectedWorkflow) {
+    const nodes = selectedWorkflow.nodes || [];
+    const plannedSteps = selectedWorkflow.planned_steps || [];
+    body = `<section class="phone-workflow-detail"><button class="btn ghost" type="button" data-phone-workflow-back>All workflows</button>
+      <article class="phone-card phone-workflow-heading"><div class="phone-card-head"><span class="phone-status ${selectedWorkflow.needs_you ? "needs" : ""}">${esc(selectedWorkflow.pause_requested ? (selectedWorkflow.pause_ready ? "Paused" : "Pause requested") : selectedWorkflow.status)}${selectedWorkflow.stop_requested ? " · stop requested" : ""}</span><span>${esc(selectedWorkflow.bot_display_name || "Assistant")}</span></div>
+      <h1>${esc(workflowDisplayTitle(selectedWorkflow.title || "Workflow"))}</h1><p class="phone-sub">${plannedSteps.length} planned · ${nodes.length} recorded instance${nodes.length === 1 ? "" : "s"} · updated ${esc(phoneTimestamp(selectedWorkflow.updated_at))}</p>
+      ${canReview && activeWorkflow.has(selectedWorkflow.status) && !selectedWorkflow.stop_requested ? `<button class="btn danger" type="button" data-phone-workflow-stop="${esc(selectedWorkflow.id)}" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Stop workflow</button>` : ""}</article>
+      <h2 class="phone-section-title">Planned steps</h2>
+      ${plannedSteps.length ? `<ol class="phone-workflow-steps phone-planned-steps">${plannedSteps.map(step => `<li data-depth="${Math.min(5, Math.max(0, Number(step.depth) || 0))}"><span class="phone-step-status">planned</span><span class="phone-step-title">${esc(step.site_id)}</span><span class="phone-sub">${esc(step.kind)}${step.bounded ? " · bounded group" : ""}</span></li>`).join("")}</ol>` : `<p class="phone-empty">No plan steps are available.</p>`}
+      <h2 class="phone-section-title">Recorded instances</h2>
+      ${nodes.length ? `<ol class="phone-workflow-steps">${nodes.map(node => `<li><span class="phone-step-status">${esc(node.status)}</span><span class="phone-step-title">${esc(node.site_id)}${node.instance_number > 1 ? ` · instance ${Number(node.instance_number)}` : ""}</span><span class="phone-sub">${esc(node.kind)}</span></li>`).join("")}</ol>` : `<p class="phone-empty">No discovered instances have been recorded yet.</p>`}
+      ${selectedWorkflow.needs_you ? `<p class="phone-sub">${selectedWorkflow.needs_you} pending question${selectedWorkflow.needs_you === 1 ? "" : "s"}. Open Review to answer by question ID.</p>` : ""}
+      <p class="phone-sub">Step names and status only. Results, inputs, artifacts and usage details stay on the local owner view.</p></section>`;
+  } else if (phoneModel.tab === "workflows") {
+    body = workflows.length ? `<section class="phone-list" aria-label="Workflows">${workflows.map(workflow => `<button class="phone-card phone-workflow-card" type="button" data-phone-workflow="${esc(workflow.id)}"><span class="phone-card-head"><span class="phone-status ${workflow.needs_you ? "needs" : ""}">${esc(workflow.pause_requested ? (workflow.pause_ready ? "Paused" : "Pause requested") : workflow.status)}${workflow.stop_requested ? " · stop requested" : ""}</span><span>${esc(workflow.bot_display_name || "Assistant")}</span></span><strong>${esc(workflowDisplayTitle(workflow.title || "Workflow"))}</strong><span class="phone-sub">${Number(workflow.planned_step_count) || 0} planned · ${Number(workflow.step_count) || 0} instances · ${workflow.needs_you ? `${Number(workflow.needs_you)} need you · ` : ""}${esc(phoneTimestamp(workflow.updated_at))}</span></button>`).join("")}</section>` : `<section class="phone-empty"><h2>No workflow runs yet</h2><p>Workflows launched on the local Hutch host will appear here.</p></section>`;
   } else if (phoneModel.tab === "runs" && selected) {
     const events = selected.events || [];
     body = `<section class="phone-run-detail"><button class="btn ghost" type="button" data-phone-back><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg> All runs</button>
       <article class="phone-card"><div class="phone-card-head"><span class="phone-status">${esc(selected.status_label || selected.status)}</span><span>${esc(selected.bot_display_name || selected.bot_name || "Bot")}</span></div>
       <h1>${esc(selected.prompt || "Run")}</h1><p class="phone-sub">Started ${esc(phoneTimestamp(selected.created_at))}</p>
-      ${active.has(selected.status) ? `<button class="btn danger" type="button" data-phone-stop="${esc(selected.id)}" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Stop run</button>` : ""}
-      ${selected.status === "waiting_human" ? (() => { const wait = [...events].reverse().find(e => e.type === "human_needed"); return wait ? `<button class="btn primary" type="button" data-phone-resume="${esc(selected.id)}" data-human-seq="${Number(wait.seq) || 0}" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Resume after completing the requested step</button>` : ""; })() : ""}
+      ${canReview && active.has(selected.status) ? `<button class="btn danger" type="button" data-phone-stop="${esc(selected.id)}" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Stop run</button>` : ""}
+      ${canReview && selected.status === "waiting_human" ? (() => { const wait = [...events].reverse().find(e => e.type === "human_needed"); return wait ? `<button class="btn primary" type="button" data-phone-resume="${esc(selected.id)}" data-human-seq="${Number(wait.seq) || 0}" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Resume after completing the requested step</button>` : ""; })() : ""}
       </article><h2 class="phone-section-title">Progress</h2>
       ${events.length ? `<ol class="phone-transcript">${events.map(e => {
         const d = e.data || {};
-        const content = d.content ?? d.text ?? d.command ?? d.message ?? JSON.stringify(d, null, 2);
+        const statusLabel = typeof d.status === "string"
+          ? (statusInfo[d.status]?.label || d.status.replaceAll("_", " ")) : null;
+        const content = e.type === "status" && statusLabel
+          ? statusLabel : (d.content ?? d.text ?? d.command ?? d.message ?? JSON.stringify(d, null, 2));
         return `<li><span>${esc(String(e.type || "event").replaceAll("_", " "))} · ${esc(phoneTimestamp(e.ts))}</span><pre>${esc(String(content).slice(0, 6000))}${String(content).length > 6000 ? "\\n… clipped for phone display" : ""}</pre></li>`;
       }).join("")}</ol>` : `<p class="phone-empty">No transcript events have arrived yet.</p>`}
       ${selected.events_truncated ? `<p class="phone-sub">Showing the latest transcript window. Open Hutch on its host to inspect older history.</p>` : ""}</section>`;
@@ -10213,21 +11110,33 @@ function phoneRender() {
     body = runs.length ? `<section class="phone-list" aria-label="Runs">${runs.map(run => `<button class="phone-card phone-run-card" type="button" data-phone-run="${esc(run.id)}"><span class="phone-card-head"><span class="phone-status ${run.needs_person ? "needs" : ""}">${esc(run.status_label || run.status)}</span><span>${esc(run.bot_display_name || run.bot_name || "Bot")}</span></span><strong>${esc(run.prompt || "Run")}</strong><span class="phone-sub">${esc(phoneTimestamp(run.created_at))}</span></button>`).join("")}</section>` : `<section class="phone-empty"><h2>No runs yet</h2><p>Runs started locally or from a paired device will appear here.</p></section>`;
   } else {
     const running = runs.filter(run => active.has(run.status));
-    const candidates = bots.filter(bot => bot.remote_start_enabled);
-    body = `<section class="phone-summary"><div><strong>${running.length}</strong><span>in progress</span></div><div><strong>${approvals.length}</strong><span>need review</span></div><div><strong>${bots.length}</strong><span>Bots</span></div></section>
-      <section><h2 class="phone-section-title">Bots</h2>${bots.length ? `<div class="phone-list">${bots.map(bot => `<article class="phone-card"><div class="phone-card-head"><strong>${esc(bot.display_name || bot.name)}</strong><span class="phone-status ${bot.paused ? "needs" : ""}">${bot.paused ? "Paused" : esc(bot.active_run_status_label || "Ready")}</span></div><p class="phone-sub">${esc(bot.description || "")}</p>${bot.paused ? `<span class="phone-sub">Scheduled tasks are paused</span>` : ""}${bot.remote_start_enabled ? `<span class="phone-sub">Phone starts enabled by the local owner</span>` : `<span class="phone-sub">Monitor and review only</span>`}</article>`).join("")}</div>` : `<p class="phone-empty">No Bots are configured.</p>`}</section>
-      <section><h2 class="phone-section-title">Start work</h2>${candidates.length ? `<form class="phone-card phone-start-form" id="phone-start-form"><label>Bot<select name="bot" required>${candidates.map(bot => `<option value="${esc(bot.name)}">${esc(bot.display_name || bot.name)}${bot.paused ? " · scheduled tasks paused" : ""}</option>`).join("")}</select></label><label>What should this Bot do?<textarea name="prompt" rows="4" maxlength="20000" required placeholder="Describe the task"></textarea></label><p class="phone-sub">Uses the Bot’s locally configured model, tools, workspace and approval policy. Starting work here creates an on-demand run; pausing a Bot only pauses its scheduled tasks.</p><button class="btn primary" type="submit" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Start work</button></form>` : `<p class="phone-empty">No Bot is enabled for phone starts. A local owner can enable one with <code>hutch bot update NAME --remote-start</code>.</p>`}</section>
+    const candidates = canStart ? bots.filter(bot => bot.remote_start_enabled) : [];
+    const startUnavailable = canStart
+      ? `No Bot is enabled for phone starts. A local owner can enable one with <code>hutch bot update NAME --remote-start</code>.`
+      : `This paired session is ${canReview ? "monitor and review" : "monitor"} only. Starting work is unavailable.`;
+    body = `<section class="phone-summary"><div><strong>${running.length}</strong><span>in progress</span></div><div><strong>${approvals.length + workflowQuestions.length}</strong><span>need review</span></div><div><strong>${workflows.length}</strong><span>workflows</span></div></section>
+      <section><h2 class="phone-section-title">Bots</h2>${bots.length ? `<div class="phone-list">${bots.map(bot => `<article class="phone-card"><div class="phone-card-head"><strong>${esc(bot.display_name || bot.name)}</strong><span class="phone-status ${bot.paused ? "needs" : ""}">${bot.paused ? "Paused" : esc(bot.active_run_status_label || "Ready")}</span></div><p class="phone-sub">${esc(bot.description || "")}</p>${bot.paused ? `<span class="phone-sub">Scheduled tasks are paused</span>` : ""}${canStart && bot.remote_start_enabled ? `<span class="phone-sub">Phone starts enabled by the local owner</span>` : canReview ? `<span class="phone-sub">Monitor and review only</span>` : `<span class="phone-sub">Monitor only</span>`}</article>`).join("")}</div>` : `<p class="phone-empty">No Bots are configured.</p>`}</section>
+      <section><h2 class="phone-section-title">Start work</h2>${candidates.length ? `<form class="phone-card phone-start-form" id="phone-start-form"><label>Bot<select name="bot" required>${candidates.map(bot => `<option value="${esc(bot.name)}">${esc(bot.display_name || bot.name)}${bot.paused ? " · scheduled tasks paused" : ""}</option>`).join("")}</select></label><label>What should this Bot do?<textarea name="prompt" rows="4" maxlength="20000" required placeholder="Describe the task"></textarea></label><p class="phone-sub">Uses the Bot’s locally configured model, tools, workspace and approval policy. Starting work here creates an on-demand run; pausing a Bot only pauses its scheduled tasks.</p><button class="btn primary" type="submit" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Start work</button></form>` : `<p class="phone-empty">${startUnavailable}</p>`}</section>
       <section><h2 class="phone-section-title">Recent runs</h2>${runs.slice(0, 8).map(run => `<button class="phone-card phone-run-card" type="button" data-phone-run="${esc(run.id)}"><span class="phone-card-head"><span class="phone-status ${run.needs_person ? "needs" : ""}">${esc(run.status_label || run.status)}</span><span>${esc(run.bot_display_name || run.bot_name || "Bot")}</span></span><strong>${esc(run.prompt || "Run")}</strong></button>`).join("") || `<p class="phone-empty">No runs to show yet.</p>`}</section>`;
   }
 
   phoneRoot.innerHTML = `<header class="phone-header"><a href="/" class="phone-brand" aria-label="Hutch home">hutch <span>supervision</span></a><div class="phone-header-actions"><span class="phone-connection ${phoneModel.offline ? "offline" : ""}" role="status">${phoneModel.offline ? "Reconnect needed" : "Connected"}</span><button class="btn ghost small" type="button" data-phone-refresh>Refresh</button><button class="btn ghost small" type="button" data-phone-logout>Lock</button></div></header>
-    <nav class="phone-tabs" aria-label="Phone supervision"><button type="button" data-phone-tab="status" aria-current="${phoneModel.tab === "status" ? "page" : "false"}">Status</button><button type="button" data-phone-tab="review" aria-current="${phoneModel.tab === "review" ? "page" : "false"}">Review${approvals.length ? ` <span>${approvals.length}</span>` : ""}</button><button type="button" data-phone-tab="runs" aria-current="${phoneModel.tab === "runs" ? "page" : "false"}">Runs</button></nav>
-    <main class="phone-content">${pending ? `<aside class="phone-retry" role="alert"><strong>${esc(pending.label)} may not have been confirmed.</strong><p>Check the current run or approval state. Hutch will only resend if you choose Retry, using the same idempotency key.</p><div class="phone-actions"><button class="btn primary" type="button" data-phone-retry>Retry same request</button><button class="btn ghost" type="button" data-phone-clear-pending>Clear retry</button></div></aside>` : ""}${phoneUnresolvedCommand ? `<aside class="phone-retry" role="alert"><strong>A prior phone command is unresolved.</strong><p>${esc(phoneUnresolvedCommand.label)} used another paired credential. Check current runs and approvals on the host before issuing another command from this device.</p><button class="btn ghost" type="button" data-phone-clear-foreign>I've checked the current state</button></aside>` : ""}${phoneModel.notice ? `<p class="phone-notice" role="status">${esc(phoneModel.notice)}</p>` : ""}${body}</main>`;
+    <nav class="phone-tabs ${canReview ? "has-review" : "monitor-only"}" aria-label="Phone supervision"><button type="button" data-phone-tab="status" aria-current="${phoneModel.tab === "status" ? "page" : "false"}">Status</button><button type="button" data-phone-tab="workflows" aria-current="${phoneModel.tab === "workflows" ? "page" : "false"}">Workflows${workflowQuestions.length ? ` <span>${workflowQuestions.length}</span>` : ""}</button>${canReview ? `<button type="button" data-phone-tab="review" aria-current="${phoneModel.tab === "review" ? "page" : "false"}">Review${approvals.length + workflowQuestions.length ? ` <span>${approvals.length + workflowQuestions.length}</span>` : ""}</button>` : ""}<button type="button" data-phone-tab="runs" aria-current="${phoneModel.tab === "runs" ? "page" : "false"}">Runs</button></nav>
+    <main class="phone-content">${phonePendingCommandMarkup()}${phoneUnresolvedCommand ? `<aside class="phone-retry" role="alert"><strong>A prior phone command is unresolved.</strong><p>${esc(phoneUnresolvedCommand.label)} used another paired credential. Check current runs and approvals on the host before issuing another command from this device.</p><button class="btn ghost" type="button" data-phone-clear-foreign>I've checked the current state</button></aside>` : ""}${phoneModel.notice ? `<p class="phone-notice" role="status">${esc(phoneModel.notice)}</p>` : ""}${body}</main>`;
+}
+
+function phonePendingCommandMarkup() {
+  const pending = phonePendingCommand;
+  if (!pending) return "";
+  if (!phoneCommandIsAllowed(pending)) {
+    return `<aside class="phone-retry" role="alert"><strong>${esc(pending.label)} may not have been confirmed.</strong><p>This session no longer has permission to retry it. Reconcile the current state on the Hutch host first.</p><button class="btn ghost" type="button" data-phone-clear-pending>Clear saved command</button></aside>`;
+  }
+  return `<aside class="phone-retry" role="alert"><strong>${esc(pending.label)} may not have been confirmed.</strong><p>Check the current run or approval state. Hutch will only resend if you choose Retry, using the same idempotency key.</p><div class="phone-actions"><button class="btn primary" type="button" data-phone-retry>Retry same request</button><button class="btn ghost" type="button" data-phone-clear-pending>Clear retry</button></div></aside>`;
 }
 
 function phoneAttachRunStream() {
   const run = phoneModel.selectedRun;
-  if (!phoneRoot || !run || !["pending", "loading_model", "running", "waiting_approval", "waiting_human", "waiting_resources", "recovering", "cancelling"].includes(run.status)) {
+  if (!phoneRoot || !run || !["pending", "loading_model", "running", "waiting_approval", "waiting_human", "waiting_resources", "waiting_child", "recovering", "cancelling"].includes(run.status)) {
     if (phoneRunStream) phoneRunStream.close();
     phoneRunStream = null;
     phoneRunStreamId = null;
@@ -10246,6 +11155,11 @@ async function phoneQueueCommand(label, path, body = null) {
   if (phonePendingCommand || phoneUnresolvedCommand) return;
   const request = { method: "POST", path, body, label, key: newIdempotencyKey(),
     credential_id: hutchSession?.credential_id };
+  if (!phoneCommandIsAllowed(request)) {
+    phoneModel.notice = `${label} is not available to this paired session.`;
+    phoneRender();
+    return;
+  }
   phonePendingCommand = request;
   phoneSavePendingCommand();
   await phoneAttemptPending();
@@ -10254,6 +11168,11 @@ async function phoneQueueCommand(label, path, body = null) {
 async function phoneAttemptPending() {
   const command = phonePendingCommand;
   if (!command || !phoneRoot) return;
+  if (!phoneCommandIsAllowed(command)) {
+    phoneModel.notice = `${command.label} may have been sent, but this session no longer has permission to retry it. Reconcile the current state on the Hutch host first.`;
+    phoneRender();
+    return;
+  }
   try {
     const result = await api(command.path, { method: command.method, headers: { "Idempotency-Key": command.key }, body: command.body });
     phonePendingCommand = null;
@@ -10283,13 +11202,32 @@ function phoneHandleClick(event) {
   if (button.hasAttribute("data-phone-refresh")) void phoneRefresh();
   else if (button.hasAttribute("data-phone-logout")) {
     void api("/v1/session/logout", { method: "POST", body: {} }).catch(() => {}).finally(lockExpiredPhone);
-  } else if (button.dataset.phoneTab) { phoneModel.tab = button.dataset.phoneTab; phoneModel.selectedRun = null; phoneRender(); }
+  } else if (button.dataset.phoneTab) {
+    const requestedTab = button.dataset.phoneTab;
+    if (requestedTab === "review" && !(hutchSession?.capabilities || []).includes("review")) return;
+    phoneModel.tab = requestedTab; phoneModel.selectedRun = null; phoneModel.selectedWorkflow = null;
+    phoneRender(); phoneAttachRunStream();
+  }
   else if (button.dataset.phoneRun) {
     const id = button.dataset.phoneRun;
     void api(`/v1/tasks/runs/${encodeURIComponent(id)}`).then(run => {
       phoneModel.selectedRun = run; phoneModel.tab = "runs"; phoneRender(); phoneAttachRunStream();
     }).catch(error => { if (phoneRoot) { phoneModel.notice = `Could not load run: ${error.message}`; phoneRender(); } });
   } else if (button.hasAttribute("data-phone-back")) { phoneModel.selectedRun = null; phoneRender(); }
+  else if (button.dataset.phoneWorkflow) {
+    const id = button.dataset.phoneWorkflow;
+    void api(`/v1/phone/workflows/runs/${encodeURIComponent(id)}`).then(workflow => {
+      phoneModel.selectedWorkflow = workflow; phoneModel.selectedRun = null; phoneModel.tab = "workflows";
+      phoneRender(); phoneAttachRunStream();
+    }).catch(error => { if (phoneRoot) { phoneModel.notice = `Could not load workflow: ${error.message}`; phoneRender(); } });
+  } else if (button.hasAttribute("data-phone-workflow-back")) { phoneModel.selectedWorkflow = null; phoneRender(); }
+  else if (button.dataset.phoneWorkflowStop) {
+    const workflow = phoneModel.selectedWorkflow;
+    if (workflow?.id === button.dataset.phoneWorkflowStop && workflow.revision_id && (hutchSession?.capabilities || []).includes("review")) {
+      void phoneQueueCommand("Stop workflow", `/v1/phone/workflows/runs/${encodeURIComponent(workflow.id)}/stop`,
+        { expected_revision_id: workflow.revision_id });
+    }
+  }
   else if (button.dataset.phoneApprove) {
     if (!button.dataset.actionHash) { phoneModel.notice = "This approval has no current action fingerprint. Refresh before deciding."; phoneRender(); return; }
     void phoneQueueCommand("Allow once", `/v1/actions/approvals/${encodeURIComponent(button.dataset.phoneApprove)}/approve`,
@@ -10310,6 +11248,16 @@ function phoneHandleClick(event) {
 }
 
 function phoneHandleSubmit(event) {
+  const answerForm = event.target.closest(".phone-workflow-answer-form");
+  if (answerForm && phoneRoot?.contains(answerForm)) {
+    event.preventDefault();
+    if (phonePendingCommand || phoneUnresolvedCommand || !(hutchSession?.capabilities || []).includes("review")) return;
+    const answer = String(new FormData(answerForm).get("answer") || "").trim();
+    const questionId = answerForm.dataset.questionId;
+    if (!answer || !questionId) { phoneModel.notice = "Choose or enter an answer before sending it."; phoneRender(); return; }
+    void phoneQueueCommand("Answer workflow question", `/v1/phone/workflows/questions/${encodeURIComponent(questionId)}/answer`, { answer });
+    return;
+  }
   const form = event.target.closest("#phone-start-form");
   if (!form || !phoneRoot?.contains(form)) return;
   event.preventDefault();

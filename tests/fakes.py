@@ -135,6 +135,8 @@ class FakeOllama(_Server):
             m.setdefault("head_dim", 128)
             m.setdefault("size", 5_000_000_000)
             m.setdefault("template", "{{ .Prompt }}")
+            m.setdefault("digest", "sha256:" + name.replace(":", "-").replace("/", "-"))
+            m.setdefault("tokenizer", {"tokenizer.ggml.model": "gpt2", "tokenizer.ggml.tokens": 32000})
         self.loaded: list[str] = []
         self.max_loaded = max_loaded
         self.load_delay = load_delay
@@ -145,6 +147,7 @@ class FakeOllama(_Server):
         self.chat_delay = 0.0                  # simulated generation time per call
         self.truncate = True                   # emulate Ollama's silent front-truncation
         self.version = "0.0-fake"
+        self.vram_bytes = 0
         self.loads: list[tuple[str, float]] = []
         super().__init__()
 
@@ -168,12 +171,12 @@ class FakeOllama(_Server):
             return self.send_json(h, {"version": self.version})
         if path == "/api/tags":
             return self.send_json(h, {"models": [
-                {"name": n, "model": n, "size": m["size"], "digest": "sha256:fake",
+                {"name": n, "model": n, "size": m["size"], "digest": m["digest"],
                  "details": {"parameter_size": m["params"], "quantization_level": m["quant"], "family": "llama"}}
                 for n, m in self.models.items()]})
         if path == "/api/ps":
             return self.send_json(h, {"models": [
-                {"name": n, "model": n, "size": self.models[n]["size"], "size_vram": 0,
+                {"name": n, "model": n, "size": self.models[n]["size"], "size_vram": self.vram_bytes,
                  "expires_at": "2099-01-01T00:00:00Z"} for n in self.loaded if n in self.models]})
         if path == "/api/show":
             m = self.models.get(body.get("model"))
@@ -185,7 +188,7 @@ class FakeOllama(_Server):
                 "model_info": {"general.architecture": "llama", "llama.context_length": m["ctx"],
                                "llama.block_count": m["layers"], "llama.attention.head_count": 32,
                                "llama.attention.head_count_kv": m["kv_heads"], "llama.embedding_length": 4096,
-                               "llama.attention.key_length": m["head_dim"]}})
+                               "llama.attention.key_length": m["head_dim"], **m["tokenizer"]}})
         if path == "/api/generate":
             name = body.get("model")
             if name not in self.models:
@@ -207,6 +210,7 @@ class FakeOllama(_Server):
             return self.send_json(h, {"error": f"model '{name}' not found, try pulling it first"}, status=404)
         load = self._ensure_loaded(name)
         opts = body.get("options") or {}
+        self.last_chat_options = dict(opts)
         num_ctx = int(opts.get("num_ctx") or 4096)       # what real Ollama would default to, silently
         messages = body.get("messages", [])
         full = messages_text(messages)

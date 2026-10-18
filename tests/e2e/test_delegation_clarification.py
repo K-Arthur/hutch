@@ -20,6 +20,7 @@ import uvicorn  # noqa: E402
 
 from hutch.models import Bot, Event, EventType, Run, RunStatus, Task  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
+from tests.fakes import FakeOllama, agent_script  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -46,7 +47,7 @@ def _seed_clarification(store):
     coordinator = store.create_bot(Bot(name="clarity-coordinator", display_name="Mara",
                                        model="mock/demo", tools=[]))
     specialist = store.create_bot(Bot(name="clarity-specialist", display_name="Research Partner",
-                                      model="mock/demo", tools=[]))
+                                      model="ollama/tiny:1b", tools=[]))
     store.set_workspace_coordinator(coordinator.id)
     store.set_workspace_specialists([specialist.id])
     parent, _ = store.create_conversation(coordinator.id, "Coordinator",
@@ -93,10 +94,28 @@ def _seed_clarification(store):
     }
 
 
+def _scroll_question_into_view(page):
+    """Retry when a live transcript refresh replaces the task card during layout."""
+    for attempt in range(3):
+        question = page.locator("[data-workspace-task-question]")
+        question.wait_for(state="visible", timeout=5000)
+        try:
+            question.scroll_into_view_if_needed(timeout=3000)
+            return question
+        except pw.Error:
+            if attempt == 2:
+                raise
+            page.wait_for_timeout(100)
+    raise AssertionError("the pending specialist question did not remain available")
+
+
 @pytest.fixture()
 def clarification_live(tmp_path, monkeypatch):
     monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
     monkeypatch.setenv("HUTCH_MAX_CONCURRENT", "4")
+    ollama = FakeOllama({"tiny:1b": {"params": "1.0B", "size": 800_000_000, "ctx": 8192}})
+    ollama.script = agent_script([{"content": "Test scenario finished."}])
+    monkeypatch.setenv("OLLAMA_HOST", ollama.url)
     from hutch.config import get_config
     from hutch.store import Store
 
@@ -113,17 +132,21 @@ def clarification_live(tmp_path, monkeypatch):
     while not server.started and time.time() < deadline:
         time.sleep(0.02)
     port = server.servers[0].sockets[0].getsockname()[1]
-    yield f"http://127.0.0.1:{port}", app, seed
-    server.should_exit = True
-    thread.join(timeout=10)
-    assert not thread.is_alive()
+    try:
+        yield f"http://127.0.0.1:{port}", app, seed, ollama
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
+        assert not thread.is_alive()
+        ollama.close()
 
 
 def test_specialist_question_is_answered_from_the_task_card(browser, clarification_live):
-    base, app, seed = clarification_live
+    base, app, seed, ollama = clarification_live
     output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/delegation-clarification"
     output.mkdir(parents=True, exist_ok=True)
     viewports = {"desktop": (1440, 960), "tablet": (900, 1024), "phone": (390, 844)}
+    viewport_results = []
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
     errors = []
@@ -145,9 +168,19 @@ def test_specialist_question_is_answered_from_the_task_card(browser, clarificati
 
         for label, (width, height) in viewports.items():
             page.set_viewport_size({"width": width, "height": height})
-            question.scroll_into_view_if_needed()
+            question = _scroll_question_into_view(page)
             assert page.evaluate("document.documentElement.scrollWidth - innerWidth") == 0, label
+            send = question.get_by_role("button", name="Send answer")
+            send_bounds = send.bounding_box()
+            composer_bounds = page.locator(".composer").bounding_box()
+            assert send_bounds and send_bounds["height"] >= 44, f"answer target is too small at {label}"
+            assert composer_bounds and send_bounds["y"] + send_bounds["height"] <= composer_bounds["y"], \
+                f"answer target is covered by the composer at {label}"
             page.screenshot(path=str(output / f"{label}-needs-answer.png"), animations="disabled")
+            viewport_results.append({"size": label, "viewport": [width, height],
+                                     "horizontal_overflow": 0,
+                                     "send_answer_bounds": send_bounds,
+                                     "composer_bounds": composer_bounds})
         page.set_viewport_size({"width": 1440, "height": 960})
 
         # Keyboard-only answer: focus the Beta option, select it, then submit.
@@ -156,6 +189,17 @@ def test_specialist_question_is_answered_from_the_task_card(browser, clarificati
         assert page.evaluate("document.activeElement === document.querySelector('[data-workspace-task-question] input[value=\"" + seed["beta_option_id"] + "\"]')")
         page.keyboard.press("Space")
         assert beta.is_checked()
+        page.evaluate("""() => {
+          window.__oldWorkspaceQuestion = document.querySelector('[data-workspace-question-form]');
+          chatRenderSnapshots.delete(document.querySelector('#chat-stream'));
+          scheduleFeedRender();
+        }""")
+        page.wait_for_function("window.__oldWorkspaceQuestion && !window.__oldWorkspaceQuestion.isConnected",
+                               timeout=10000)
+        beta = page.locator("[data-workspace-question-form]").get_by_label("Beta")
+        assert beta.is_checked(), "the selected answer should survive a live transcript refresh"
+        assert page.evaluate("document.activeElement === document.querySelector('[data-workspace-question-form] input[value=\"" + seed["beta_option_id"] + "\"]')"), \
+            "focus should follow the selected answer into the refreshed card"
         send = question.get_by_role("button", name="Send answer")
         send.focus()
         page.keyboard.press("Enter")
@@ -168,6 +212,10 @@ def test_specialist_question_is_answered_from_the_task_card(browser, clarificati
         assert stored["pending_question"] is None
         assert stored["status"] == "succeeded"
         assert stored["current_run_id"] != stored["child_run_id"]
+        assert page.evaluate("key => localStorage.getItem(key)",
+                             f"hutch-choice-draft:{seed['parent_conversation_id']}:{seed['question_id']}") is None
+        assert ollama.script.calls == 1
+        assert ollama.of("/api/chat"), "the answer run should use the scripted local model endpoint"
         page.screenshot(path=str(output / "desktop-question-answered.png"), animations="disabled")
 
         # The answer is visible as an answered choice in the specialist's own chat.
@@ -194,10 +242,11 @@ def test_specialist_question_is_answered_from_the_task_card(browser, clarificati
             "browser": browser.version,
             "playwright_version": package_version("playwright"),
             "fixture": "synthetic local bots and seeded conversation question; app engine executes the answer run",
-            "provider_requests": 0,
+            "refresh_fixture": "forces the real feed renderer to replace the transcript after a server snapshot refresh",
+            "provider": "scripted local Ollama HTTP server",
+            "provider_requests": len(ollama.of("/api/chat")),
             "page_errors": errors,
-            "viewports": [{"size": label, "viewport": [width, height], "horizontal_overflow": 0}
-                          for label, (width, height) in viewports.items()],
+            "viewports": viewport_results,
             "verified": [
                 "task card shows Needs your answer with the specialist identity and question options",
                 "the pending question text is not presented as a produced result",

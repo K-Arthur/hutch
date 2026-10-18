@@ -30,8 +30,9 @@ def source_work(store):
     store.flush_events()
     action = store.begin_action(run.id, 'files_write', 'file-fixture', 'fs', arguments={'path': 'fixture.md'}, fence=run.fence)
     approval = store.create_approval(ApprovalRequest(run_id=run.id, bot_id=bot.id, tool='shell', action='private effect'))
-    store.reserve_usage(run_id=run.id, bot_id=bot.id, provider='mock', account_id='fixture-account', model='demo',
-                        reserved_tokens=100, reserved_cost_usd=0, expected_fence=run.fence)
+    reservation = store.reserve_usage(run_id=run.id, bot_id=bot.id, provider='mock', account_id='fixture-account', model='demo',
+                                     reserved_tokens=100, reserved_cost_usd=0, expected_fence=run.fence)
+    assert store.start_usage_request(reservation, expected_fence=run.fence)
     with store._tx() as db:
         db.execute('INSERT INTO tool_allows VALUES (?, ?, ?)', (bot.id, 'files:write', run.created_at))
     code = store.create_pairing_code()

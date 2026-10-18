@@ -1,0 +1,38 @@
+{
+  "test": "tests/test_workflow_regressions.py::test_workflow_step_shares_the_only_global_run_slot_with_its_attempt",
+  "command": "TMPDIR=/var/tmp uv run pytest tests/test_claims.py tests/test_state_snapshot.py tests/test_workflow_engine.py tests/test_workflow_regressions.py tests/test_delegation.py::test_delegated_child_claim_can_share_only_its_parent_capacity tests/test_capacity_procs.py -q",
+  "result": {
+    "passed": 96,
+    "failed": 0,
+    "duration_seconds": 58.12
+  },
+  "captured_at": "2026-10-11T19:46:09.254375+00:00",
+  "python": "3.13.15",
+  "pytest": "9.1.1",
+  "hutch_version": "0.1.0",
+  "base_commit": "05e7ba9a51c01504ca110693c91e146b2703a5d7",
+  "provider_calls": 0,
+  "external_effects": 0,
+  "defect_reproduced_before_fix": true,
+  "observed_before_fix": "At max_live=1, claim_run returned None for a pending workflow step while its parent workflow attempt was running, although that child is specified to share the parent capacity slot.",
+  "asserted_after_fix": [
+    "The step run is claimable while its workflow attempt occupies the only global slot.",
+    "The claimed child retains the workflow attempt as its parent.",
+    "An unrelated interactive run remains queued when max_live=1 because the workflow parent still counts against the cap.",
+    "The same interactive lane can claim when max_live=2 leaves one independent slot available."
+  ],
+  "visual_evidence": "No UI changed in this runtime-admission slice; existing Studio/website visual evidence is unaffected.",
+  "source_sha256": {
+    "src/hutch/store.py": "21c898ac684957c61f89c8423a6eea343ac9b9c5d942578f7310c0811cad5267",
+    "tests/test_workflow_regressions.py": "d276c2cb70a46c10266f60a3967e7918ed40011fa5570abbb22d99bae74eb8f4",
+    "docs/architecture.md": "34500fa95867a1b1b6195433e7f5ad2e1b3cc856095fae8ed8170bef645fe9a5",
+    "docs/realignment/dynamic-workflows.md": "529401499353dc9decef88bf5a29f2d0e675186f08a58197afba37d98ff3fc5a",
+    "CHANGELOG.md": "92975a7accf977c34cda634b3f02b670e4b4d9c9402f3908de1f47c7b828865a"
+  },
+  "focused_confirmation": {
+    "command": "TMPDIR=/var/tmp uv run pytest tests/test_workflow_regressions.py tests/test_delegation.py::test_delegated_child_claim_can_share_only_its_parent_capacity tests/test_capacity_procs.py -q",
+    "passed": 26,
+    "failed": 0,
+    "duration_seconds": 21.01
+  }
+}

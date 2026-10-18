@@ -1,0 +1,2547 @@
+Installed 12 packages in 51ms
+........F...F.......................F..F...........FE..........F...F.F.F [ 34%]
+...............FFFFFFFF.FE.................FEFEFE....FEFEFE...FFF....... [ 66%]
+..........F..........................................................F   [100%]
+==================================== ERRORS ====================================
+___ ERROR at teardown of test_mobile_navigation_traps_tab_and_restores_focus ___
+
+tmp_path = PosixPath('/<local-path-redacted>')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f618be43770>
+
+    @pytest.fixture()
+    def live(tmp_path, monkeypatch):
+        monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+        monkeypatch.setenv("HUTCH_MAX_CONCURRENT", "4")
+        app = create_app()
+        server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=0, log_level="error", lifespan="on"))
+        t = threading.Thread(target=server.run, daemon=True)
+        t.start()
+        deadline = time.time() + 10
+        while not server.started and time.time() < deadline:
+            time.sleep(0.02)
+        port = server.servers[0].sockets[0].getsockname()[1]
+        yield f"http://127.0.0.1:{port}", app
+        server.should_exit = True
+        t.join(timeout=10)
+>       assert not t.is_alive()
+E       assert not True
+E        +  where True = is_alive()
+E        +    where is_alive = <Thread(Thread-132 (run), started daemon 140056878581440)>.is_alive
+
+tests/e2e/test_browser.py:66: AssertionError
+_ ERROR at teardown of test_bot_and_conversation_switches_isolate_unsent_drafts _
+
+tmp_path = PosixPath('/<local-path-redacted>')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f61ba286890>
+
+    @pytest.fixture()
+    def live(tmp_path, monkeypatch):
+        monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+        monkeypatch.setenv("HUTCH_MAX_CONCURRENT", "4")
+        app = create_app()
+        server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=0, log_level="error", lifespan="on"))
+        t = threading.Thread(target=server.run, daemon=True)
+        t.start()
+        deadline = time.time() + 10
+        while not server.started and time.time() < deadline:
+            time.sleep(0.02)
+        port = server.servers[0].sockets[0].getsockname()[1]
+        yield f"http://127.0.0.1:{port}", app
+        server.should_exit = True
+        t.join(timeout=10)
+>       assert not t.is_alive()
+E       assert not True
+E        +  where True = is_alive()
+E        +    where is_alive = <Thread(Thread-312 (run), started daemon 140056719120064)>.is_alive
+
+tests/e2e/test_browser.py:66: AssertionError
+_ ERROR at teardown of test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus[1440-1000-desktop] _
+
+tmp_path = PosixPath('/<local-path-redacted>')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f61bcaeb070>
+
+    @pytest.fixture()
+    def live(tmp_path, monkeypatch):
+        monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+        monkeypatch.setenv("HUTCH_MAX_CONCURRENT", "4")
+        app = create_app()
+        server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=0, log_level="error", lifespan="on"))
+        t = threading.Thread(target=server.run, daemon=True)
+        t.start()
+        deadline = time.time() + 10
+        while not server.started and time.time() < deadline:
+            time.sleep(0.02)
+        port = server.servers[0].sockets[0].getsockname()[1]
+        yield f"http://127.0.0.1:{port}", app
+        server.should_exit = True
+        t.join(timeout=10)
+>       assert not t.is_alive()
+E       assert not True
+E        +  where True = is_alive()
+E        +    where is_alive = <Thread(Thread-349 (run), started daemon 140056954119872)>.is_alive
+
+tests/e2e/test_browser.py:66: AssertionError
+_ ERROR at teardown of test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus[900-1024-tablet] _
+
+tmp_path = PosixPath('/<local-path-redacted>')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f61b98610f0>
+
+    @pytest.fixture()
+    def live(tmp_path, monkeypatch):
+        monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+        monkeypatch.setenv("HUTCH_MAX_CONCURRENT", "4")
+        app = create_app()
+        server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=0, log_level="error", lifespan="on"))
+        t = threading.Thread(target=server.run, daemon=True)
+        t.start()
+        deadline = time.time() + 10
+        while not server.started and time.time() < deadline:
+            time.sleep(0.02)
+        port = server.servers[0].sockets[0].getsockname()[1]
+        yield f"http://127.0.0.1:{port}", app
+        server.should_exit = True
+        t.join(timeout=10)
+>       assert not t.is_alive()
+E       assert not True
+E        +  where True = is_alive()
+E        +    where is_alive = <Thread(Thread-350 (run), started daemon 140056668763840)>.is_alive
+
+tests/e2e/test_browser.py:66: AssertionError
+_ ERROR at teardown of test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus[390-844-phone] _
+
+tmp_path = PosixPath('/<local-path-redacted>')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f618423d6a0>
+
+    @pytest.fixture()
+    def live(tmp_path, monkeypatch):
+        monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+        monkeypatch.setenv("HUTCH_MAX_CONCURRENT", "4")
+        app = create_app()
+        server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=0, log_level="error", lifespan="on"))
+        t = threading.Thread(target=server.run, daemon=True)
+        t.start()
+        deadline = time.time() + 10
+        while not server.started and time.time() < deadline:
+            time.sleep(0.02)
+        port = server.servers[0].sockets[0].getsockname()[1]
+        yield f"http://127.0.0.1:{port}", app
+        server.should_exit = True
+        t.join(timeout=10)
+>       assert not t.is_alive()
+E       assert not True
+E        +  where True = is_alive()
+E        +    where is_alive = <Thread(Thread-354 (run), started daemon 140056542873280)>.is_alive
+
+tests/e2e/test_browser.py:66: AssertionError
+_ ERROR at teardown of test_composer_options_rehearsal_and_cancelled_notice[1440-1000-desktop] _
+
+tmp_path = PosixPath('/<local-path-redacted>')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f618c001390>
+
+    @pytest.fixture()
+    def live(tmp_path, monkeypatch):
+        monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+        monkeypatch.setenv("HUTCH_MAX_CONCURRENT", "4")
+        app = create_app()
+        server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=0, log_level="error", lifespan="on"))
+        t = threading.Thread(target=server.run, daemon=True)
+        t.start()
+        deadline = time.time() + 10
+        while not server.started and time.time() < deadline:
+            time.sleep(0.02)
+        port = server.servers[0].sockets[0].getsockname()[1]
+        yield f"http://127.0.0.1:{port}", app
+        server.should_exit = True
+        t.join(timeout=10)
+>       assert not t.is_alive()
+E       assert not True
+E        +  where True = is_alive()
+E        +    where is_alive = <Thread(Thread-372 (run), started daemon 140056962512576)>.is_alive
+
+tests/e2e/test_browser.py:66: AssertionError
+_ ERROR at teardown of test_composer_options_rehearsal_and_cancelled_notice[900-1024-tablet] _
+
+tmp_path = PosixPath('/<local-path-redacted>')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f61b4cdd9b0>
+
+    @pytest.fixture()
+    def live(tmp_path, monkeypatch):
+        monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+        monkeypatch.setenv("HUTCH_MAX_CONCURRENT", "4")
+        app = create_app()
+        server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=0, log_level="error", lifespan="on"))
+        t = threading.Thread(target=server.run, daemon=True)
+        t.start()
+        deadline = time.time() + 10
+        while not server.started and time.time() < deadline:
+            time.sleep(0.02)
+        port = server.servers[0].sockets[0].getsockname()[1]
+        yield f"http://127.0.0.1:{port}", app
+        server.should_exit = True
+        t.join(timeout=10)
+>       assert not t.is_alive()
+E       assert not True
+E        +  where True = is_alive()
+E        +    where is_alive = <Thread(Thread-376 (run), started daemon 140056358233792)>.is_alive
+
+tests/e2e/test_browser.py:66: AssertionError
+_ ERROR at teardown of test_composer_options_rehearsal_and_cancelled_notice[390-844-phone] _
+
+tmp_path = PosixPath('/<local-path-redacted>')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f61af591320>
+
+    @pytest.fixture()
+    def live(tmp_path, monkeypatch):
+        monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+        monkeypatch.setenv("HUTCH_MAX_CONCURRENT", "4")
+        app = create_app()
+        server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=0, log_level="error", lifespan="on"))
+        t = threading.Thread(target=server.run, daemon=True)
+        t.start()
+        deadline = time.time() + 10
+        while not server.started and time.time() < deadline:
+            time.sleep(0.02)
+        port = server.servers[0].sockets[0].getsockname()[1]
+        yield f"http://127.0.0.1:{port}", app
+        server.should_exit = True
+        t.join(timeout=10)
+>       assert not t.is_alive()
+E       assert not True
+E        +  where True = is_alive()
+E        +    where is_alive = <Thread(Thread-380 (run), started daemon 140056240735936)>.is_alive
+
+tests/e2e/test_browser.py:66: AssertionError
+=================================== FAILURES ===================================
+_ test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences __
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:44549', <fastapi.applications.FastAPI object at 0x7f61afea4f50>)
+
+    def test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences(browser, live):
+        base, app = live
+        store = app.state.store
+        bots = [
+            Bot(name="schedule-west", display_name="West Coast Review", model="ollama/qwen3:4b", tools=[],
+                schedules=[Schedule(name="Weekly review", cron="0 9 * * 1", timezone="America/Vancouver",
+                                    prompt="Review the weekly notes.")]),
+            Bot(name="schedule-london", display_name="London Digest", model="ollama/qwen3:4b", tools=[],
+                schedules=[Schedule(name="Morning digest", cron="30 8 * * 1-5", timezone="Europe/London",
+                                    prompt="Prepare a morning digest.")]),
+            Bot(name="schedule-personal-paused", display_name="Paused Reminder", model="ollama/qwen3:4b", tools=[], paused=True,
+                schedules=[Schedule(name="Personal reminder", cron="0 10 * * *", timezone="America/Toronto",
+                                    prompt="Review the reminder.")]),
+        ]
+        for bot in bots:
+            store.create_bot(bot)
+        live_run = store.create_run(Run(bot_id=bots[0].id, prompt="already admitted work", status=RunStatus.running))
+    
+        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/schedules"
+        out.mkdir(parents=True, exist_ok=True)
+        context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+        page = context.new_page()
+        page.set_default_timeout(8000)
+        errors: list[str] = []
+        requests: list[str] = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.on("request", lambda request: requests.append(request.url))
+        context.tracing.start(screenshots=True, snapshots=True, sources=False)
+        captures = []
+        empty_captures = []
+        try:
+            page.goto(f"{base}/#/schedules")
+            page.get_by_role("heading", name="Scheduled work", exact=True).wait_for()
+            page.get_by_role("heading", name="Upcoming scheduled work").wait_for()
+            assert page.get_by_role("listitem").count() == 3
+            assert page.get_by_text("America/Vancouver", exact=True).count() == 1
+            assert page.get_by_text("Europe/London", exact=True).count() == 1
+            assert page.get_by_text("Paused for this assistant", exact=True).count() == 1
+            assert page.get_by_role("link", name="Edit schedule").count() == 3
+            timing = page.locator(".schedule-overview-details").first
+            assert timing.locator("summary").inner_text() == "Timing details"
+            assert not timing.locator("code").is_visible()
+            timing.locator("summary").click()
+            timing.get_by_text("If a time is missed").wait_for()
+            assert timing.evaluate("element => element.open")
+>           assert timing.locator("dd").nth(2).inner_text().strip() in {
+                "Run once for missed times", "Skip missed times"
+            }
+E           AssertionError: assert '' in {'Run once for missed times', 'Skip missed times'}
+E            +  where '' = <built-in method strip of str object at 0x153c950>()
+E            +    where <built-in method strip of str object at 0x153c950> = ''.strip
+E            +      where '' = inner_text()
+E            +        where inner_text = <Locator frame=<Frame name= url='http://127.0.0.1:44549/#/schedules'> selector='.schedule-overview-details >> nth=0 >> dd >> nth=2'>.inner_text
+E            +          where <Locator frame=<Frame name= url='http://127.0.0.1:44549/#/schedules'> selector='.schedule-overview-details >> nth=0 >> dd >> nth=2'> = nth(2)
+E            +            where nth = <Locator frame=<Frame name= url='http://127.0.0.1:44549/#/schedules'> selector='.schedule-overview-details >> nth=0 >> dd'>.nth
+E            +              where <Locator frame=<Frame name= url='http://127.0.0.1:44549/#/schedules'> selector='.schedule-overview-details >> nth=0 >> dd'> = locator('dd')
+E            +                where locator = <Locator frame=<Frame name= url='http://127.0.0.1:44549/#/schedules'> selector='.schedule-overview-details >> nth=0'>.locator
+
+tests/e2e/test_browser.py:925: AssertionError
+___________ test_opencode_coding_handoff_is_reviewed_and_responsive ____________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:44117', <fastapi.applications.FastAPI object at 0x7f61afe61310>)
+tmp_path = PosixPath('/<local-path-redacted>')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f61afe59e50>
+
+    def test_opencode_coding_handoff_is_reviewed_and_responsive(browser, live, tmp_path, monkeypatch):
+        """Review a code task in chat; this fixture never starts OpenCode or calls a model provider."""
+        from hutch import code_handoff
+    
+        base, app = live
+        project = tmp_path / "code-project"
+        project.mkdir()
+        subprocess.run(["git", "-C", str(project), "init", "-q"], check=True)
+        subprocess.run(["git", "-C", str(project), "config", "user.email", "<email-redacted>"], check=True)
+        subprocess.run(["git", "-C", str(project), "config", "user.name", "Hutch Test"], check=True)
+        (project / "README.md").write_text("A small project for a local coding handoff fixture.\n")
+        subprocess.run(["git", "-C", str(project), "add", "README.md"], check=True)
+        subprocess.run(["git", "-C", str(project), "commit", "-qm", "base"], check=True)
+        bot = app.state.store.create_bot(Bot(
+            name="docs-coding-helper", display_name="Documentation Partner", model="mock/demo", tools=[],
+            workspace_mode="folder", workdir=str(project)))
+        contract = {"available": False}
+    
+        def check_cli():
+            if not contract["available"]:
+                raise code_handoff.CodeHandoffError("Fixture: install OpenCode CLI v2.0.24 or newer.")
+            return "/fixture/opencode", "2.0.24"
+    
+        monkeypatch.setattr(code_handoff, "inspect_opencode", check_cli)
+        output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/opencode-handoff"
+        output.mkdir(parents=True, exist_ok=True)
+        context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+        context.grant_permissions(["clipboard-read", "clipboard-write"], origin=base)
+        page = context.new_page()
+        errors: list[str] = []
+        external: list[str] = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.on("request", lambda request: external.append(request.url) if not request.url.startswith(base) else None)
+        context.tracing.start(screenshots=True, snapshots=True, sources=False)
+        viewports = (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844),
+                     ("compact", 320, 844))
+        try:
+            page.goto(f"{base}/#/chat/{bot.name}")
+            page.locator("#chat-prompt").wait_for()
+            page.locator("#chat-prompt").fill("Help me make this project README easier for new contributors.")
+            page.locator("#chat-send").click()
+            prepare = page.get_by_role("button", name="Prepare coding task")
+            prepare.wait_for(timeout=15000)
+>           page.locator("#toast-root .toast-close").first.click()
+
+tests/e2e/test_browser.py:1568: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:18032: in click
+    self._sync(
+.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:165: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:594: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f61b8db9940>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f61bd800900>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.
+E           Call log:
+E             - waiting for locator("#toast-root .toast-close").first
+
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: TimeoutError
+__ test_truncated_tool_source_card_opens_verified_plain_text_at_all_viewports __
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:42449', <fastapi.applications.FastAPI object at 0x7f61b8720910>)
+
+    def test_truncated_tool_source_card_opens_verified_plain_text_at_all_viewports(browser, live):
+        """The PF-2 source card exposes the full artifact through the hash-checked compatibility route."""
+        base, app = live
+        store = app.state.store
+        bot = store.create_bot(Bot(name="source-card", model="mock/demo", runtime=RuntimeKind.mock, tools=["files"]))
+        conversation, _ = store.create_conversation(
+            bot.id, "Source card", idem_key="source-card-conversation", request_hash="source-card-request")
+        prompt = "read the large output"
+        run = Run(bot_id=bot.id, prompt=prompt)
+        task = Task(bot_id=bot.id, kind="on_demand", prompt=prompt)
+        run_id, _ = store.submit_conversation_message(
+            conversation["id"], prompt, run, task, idem_key="source-card-message", request_hash="source-card-message-request")
+        claimed = store.claim_run(run_id, "source-card-fixture", 60)
+        assert claimed is not None
+        store.transition_run(run_id, RunStatus.running, fence=claimed.fence, event={"fixture": "artifact-card"})
+    
+        filename = "001-read_file.txt"
+        payload = b"<script>window.artifactScriptRan=true</script>\ncomplete verified output\n"
+        artifact_dir = app.state.config.run_dir(bot.name, run_id) / "artifacts"
+        artifact_dir.mkdir(parents=True)
+        artifact = artifact_dir / filename
+        artifact.write_bytes(payload)
+        artifact.chmod(0o400)
+        digest = hashlib.sha256(payload).hexdigest()
+        store.append_event(Event(run_id=run_id, type=EventType.tool_call,
+                                 data={"tool": "read_file", "args": {"path": "large.txt"}}))
+        store.append_event(Event(run_id=run_id, type=EventType.tool_result, data={
+            "tool": "read_file", "ok": True, "output": "<script>window.artifactScriptRan=true</script>\n… [full output saved]",
+            "chars": len(payload.decode()), "artifact": f"artifacts/{filename}",
+            "artifact_sha256": digest, "artifact_bytes": len(payload),
+        }))
+        store.append_event(Event(run_id=run_id, type=EventType.message,
+                                 data={"role": "assistant", "content": "I saved the full output."}))
+        store.transition_run(run_id, RunStatus.succeeded, fence=claimed.fence, event={"verified": True})
+    
+        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/tool-source-card"
+        out.mkdir(parents=True, exist_ok=True)
+        records = []
+        for name, width, height in (("desktop", 1440, 960), ("tablet", 768, 1024), ("phone", 390, 844)):
+            context = browser.new_context(viewport={"width": width, "height": height}, reduced_motion="reduce",
+                                          is_mobile=(name == "phone"), has_touch=(name == "phone"))
+            page = context.new_page()
+            errors: list[str] = []
+            page.on("pageerror", lambda error: errors.append(str(error)))
+            try:
+                page.goto(f"{base}/#/chat/{bot.name}")
+                page.locator("#conversation-switcher").wait_for()
+                page.locator(".tool-src-flag").wait_for()
+                row = page.locator(".tool-line[data-tool-line]").first
+                assert row.locator(".tool-src-flag").inner_text() == "source"
+                row.locator(".tool-line-head").click()
+                card = row.locator(".tool-source")
+                card.wait_for(state="visible")
+                assert card.locator("xpath=..").get_attribute("class") == "tool-artifact-actions"
+                href = card.get_attribute("href")
+                assert href == f"/api/runs/{run_id}/artifacts/{filename}"
+                response = page.request.get(base + href)
+                assert response.status == 200
+                assert response.headers.get("x-hutch-artifact-verified") == "sha256"
+                assert response.headers.get("content-disposition") == "inline"
+                assert response.body() == payload
+                card_box = card.bounding_box()
+                assert card_box and card_box["height"] >= 40, card_box
+                assert card_box["y"] >= 0 and card_box["y"] + card_box["height"] <= height, card_box
+                assert "full output" in card.inner_text() and filename in card.inner_text()
+                filename_box = None
+                if name == "phone":
+                    filename_box = card.locator(".tool-source-name").bounding_box()
+                    meta_box = card.locator(".tool-source-meta").bounding_box()
+                    open_box = card.locator(".tool-source-go").bounding_box()
+>                   assert filename_box and filename_box["height"] < 24, filename_box
+E                   AssertionError: {'x': 49, 'y': 486.3125, 'width': 316, 'height': 24.796875}
+E                   assert ({'x': 49, 'y': 486.3125, 'width': 316, 'height': 24.796875} and 24.796875 < 24)
+
+tests/e2e/test_browser.py:4221: AssertionError
+______ test_verified_artifact_can_be_shared_with_another_chat_and_revoked ______
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:34003', <fastapi.applications.FastAPI object at 0x7f61bb4d2210>)
+
+    def test_verified_artifact_can_be_shared_with_another_chat_and_revoked(browser, live):
+        base, app = live
+        store, config = app.state.store, app.state.config
+        source_bot = store.create_bot(Bot(name="share-source-ui", model="mock/demo", tools=["files"]))
+        target_bot = store.create_bot(Bot(name="share-target-ui", model="mock/demo", tools=["files"]))
+        source, _ = store.create_conversation(source_bot.id, "Source report", idem_key="share-ui-source",
+                                              request_hash="share-ui-source-request")
+        target, _ = store.create_conversation(target_bot.id, "Recipient chat", idem_key="share-ui-target",
+                                              request_hash="share-ui-target-request")
+        run = Run(bot_id=source_bot.id, prompt="create report", conversation_id=source["id"],
+                  status=RunStatus.succeeded)
+        store.create_run(run)
+        with store._tx() as db:
+            db.execute("INSERT INTO conversation_runs (conversation_id, run_id, attached_at) VALUES (?, ?, ?)",
+                       (source["id"], run.id, run.created_at))
+        payload = b"A verified report for the selected recipient chat.\n"
+        filename = "001-report.txt"
+        artifact_dir = config.run_dir(source_bot.name, run.id) / "artifacts"
+        artifact_dir.mkdir(parents=True)
+        (artifact_dir / filename).write_bytes(payload)
+        digest = hashlib.sha256(payload).hexdigest()
+        store.append_event(Event(run_id=run.id, type=EventType.tool_result, data={
+            "tool": "write_file", "output": "saved report", "chars": len(payload),
+            "artifact": f"artifacts/{filename}", "artifact_sha256": digest, "artifact_bytes": len(payload),
+            "workspace_file": {"artifact": f"artifacts/{filename}", "sha256": digest,
+                               "bytes": len(payload), "name": "report.txt", "path": "report.txt"},
+        }))
+    
+        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/artifact-sharing"
+        out.mkdir(parents=True, exist_ok=True)
+        page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+        page.context.tracing.start(screenshots=True, snapshots=True, sources=True)
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        captures = []
+        try:
+            for name, width, height in (("desktop", 1440, 960), ("tablet", 768, 1024), ("phone", 390, 844)):
+                page.set_viewport_size({"width": width, "height": height})
+                page.goto(f"{base}/#/chat/{source_bot.name}")
+                page.locator("#conversation-switcher").wait_for()
+                assert page.locator("#conversation-switcher").input_value() == source["id"]
+                page.locator("#composer-menu-btn").click()
+                page.get_by_role("button", name="Browse files in this chat").click()
+                files_dialog = page.get_by_role("dialog", name="Files in this chat")
+                files_dialog.wait_for()
+                share_button = files_dialog.get_by_role("button", name="Share report.txt with another chat")
+                share_button.wait_for(state="visible")
+                share_button.focus()
+                page.keyboard.press("Enter")
+                destination = files_dialog.get_by_role("combobox", name="Destination chat")
+                destination.wait_for(state="visible")
+                assert files_dialog.get_by_role("button", name="Share file").is_disabled(), (
+                    "sharing must require a deliberate destination choice")
+                destination.select_option(target["id"])
+                assert files_dialog.get_by_text(
+                    "This adds a verified file reference to that chat’s Files list. It does not copy the file into its workspace or add the contents to its model context.",
+                    exact=True).is_visible()
+                share_actions = files_dialog.locator(".artifact-share-actions").bounding_box()
+                modal_footer = page.locator(".modal-footer").bounding_box()
+                done_button = files_dialog.get_by_role("button", name="Done")
+                done_box = done_button.bounding_box()
+>               assert share_actions and modal_footer and share_actions["y"] + share_actions["height"] <= modal_footer["y"] + 1, (
+                    name, share_actions, modal_footer)
+E                   AssertionError: ('phone', {'x': 30, 'y': 770.5625, 'width': 330, 'height': 26}, {'x': 1, 'y': 775, 'width': 388, 'height': 69})
+E                   assert ({'x': 30, 'y': 770.5625, 'width': 330, 'height': 26} and {'x': 1, 'y': 775, 'width': 388, 'height': 69} and (770.5625 + 26) <= (775 + 1))
+
+tests/e2e/test_browser.py:4465: AssertionError
+_____________ test_mobile_navigation_traps_tab_and_restores_focus ______________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:45639', <fastapi.applications.FastAPI object at 0x7f61ba23d1d0>)
+
+    def test_mobile_navigation_traps_tab_and_restores_focus(browser, live):
+        base, _app = live
+        page = browser.new_page(viewport={"width": 390, "height": 844})
+        page.goto(base, wait_until="domcontentloaded")
+>       page.wait_for_selector("#btn-create-first")
+
+tests/e2e/test_browser.py:5103: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:9061: in wait_for_selector
+    self._sync(
+.venv/lib/python3.13/site-packages/playwright/_impl/_page.py:429: in wait_for_selector
+    return await self._main_frame.wait_for_selector(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f61b8db9940>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f61b448c0e0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Page.wait_for_selector: Timeout 30000ms exceeded.
+E           Call log:
+E             - waiting for locator("#btn-create-first") to be visible
+
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: TimeoutError
+_____ test_tool_permissions_are_clear_and_save_at_desktop_tablet_and_phone _____
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:38781', <fastapi.applications.FastAPI object at 0x7f618bf16e90>)
+
+    def test_tool_permissions_are_clear_and_save_at_desktop_tablet_and_phone(browser, live):
+        base, app = live
+        bot = app.state.store.create_bot(Bot(name="tool-settings", model="mock/demo", tools=["files", "memory"]))
+        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/tool-permissions"
+        out.mkdir(parents=True, exist_ok=True)
+        context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce",
+                                      is_mobile=True, has_touch=True)
+        page = context.new_page()
+        errors: list[str] = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        context.tracing.start(screenshots=True, snapshots=True, sources=False)
+        sizes = {"desktop": (1440, 960), "tablet": (900, 1024), "phone": (390, 844)}
+        captures = []
+    
+        def position_panel(edge: str = "start") -> dict:
+            return page.evaluate("""edge => {
+              const scroller = document.querySelector('main#view > .page-scroll');
+              const panel = document.querySelector('section[aria-labelledby="tool-settings-title"]');
+              const bounds = panel.getBoundingClientRect();
+              const viewport = scroller.getBoundingClientRect();
+              const delta = edge === 'end' ? bounds.bottom - viewport.bottom + 12
+                                           : bounds.top - viewport.top - 12;
+              scroller.scrollTop = Math.max(0, scroller.scrollTop + delta);
+              return {scrollTop: Math.round(scroller.scrollTop), panelHeight: Math.round(bounds.height)};
+            }""", edge)
+    
+        try:
+            page.goto(f"{base}/#/bot/{bot.name}")
+            open_assistant_customization(page)
+            page.locator("#form-tools").wait_for()
+            delegate = page.locator('#form-tools input[name="tools"][value="delegate_task"]')
+            assert not delegate.is_checked()
+            assert page.get_by_text("Each request asks for approval and uses another run slot", exact=False).is_visible()
+    
+            for label, (width, height) in sizes.items():
+                page.set_viewport_size({"width": width, "height": height})
+                panel = page.locator('section[aria-labelledby="tool-settings-title"]')
+                position = position_panel("start")
+                page.wait_for_timeout(80)
+                delete_button = page.get_by_role("button", name="Delete assistant")
+>               assert delete_button.is_visible()
+E               assert False
+E                +  where False = is_visible()
+E                +    where is_visible = <Locator frame=<Frame name= url='http://127.0.0.1:38781/#/bot/tool-settings'> selector='internal:role=button[name="Delete assistant"i]'>.is_visible
+
+tests/e2e/test_browser.py:5701: AssertionError
+_ test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_sizes _
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:46349', <fastapi.applications.FastAPI object at 0x7f61af30cf50>)
+
+    def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_sizes(browser, live):
+        base, app = live
+        coordinator = Bot(name="workspace-coordinator", display_name="Workspace Coordinator",
+                         model="mock/demo", tools=[])
+        specialist = Bot(name="release-notes-reviewer", display_name="Release Notes Reviewer",
+                         model="mock/demo", tools=[])
+        app.state.store.create_bot(coordinator)
+        app.state.store.create_bot(specialist)
+        helper_names = [f"release-helper-{index}" for index in range(9)]
+        for index, helper_name in enumerate(helper_names):
+            app.state.store.create_bot(Bot(name=helper_name, display_name=f"Release Helper {index}",
+                                           model="mock/demo", tools=[]))
+        app.state.store.set_workspace_coordinator(coordinator.id)
+    
+        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workspace-coordinator"
+        out.mkdir(parents=True, exist_ok=True)
+        roster_output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workspace-specialists"
+        roster_output.mkdir(parents=True, exist_ok=True)
+        context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+        page = context.new_page()
+        page.set_default_timeout(8000)
+        errors: list[str] = []
+        requests: list[str] = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.on("request", lambda request: requests.append(request.url))
+        context.tracing.start(screenshots=True, snapshots=True, sources=False)
+        try:
+            page.goto(f"{base}/#/bot/{coordinator.name}")
+            open_assistant_customization(page)
+>           page.get_by_role("heading", name="Workspace Coordinator settings").wait_for()
+
+tests/e2e/test_browser.py:6265: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:20696: in wait_for
+    self._sync(
+.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:752: in wait_for
+    await self._frame.wait_for_selector(
+.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f61b8db9940>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f61b4375da0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 8000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("heading", name="Workspace Coordinator settings") to be visible
+
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: TimeoutError
+_ test_large_idle_roster_stays_compact_and_remains_searchable_and_keyboard_accessible _
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:43971', <fastapi.applications.FastAPI object at 0x7f619479ac10>)
+
+    def test_large_idle_roster_stays_compact_and_remains_searchable_and_keyboard_accessible(browser, live):
+        base, app = live
+        store = app.state.store
+        bots = [Bot(name="workspace-coordinator", display_name="Workspace Coordinator", model="mock/demo", tools=[])]
+        bots.extend(Bot(name=f"release-helper-{index}", display_name=f"Release Helper {index}", model="mock/demo", tools=[])
+                    for index in range(9))
+        for bot in bots:
+            store.create_bot(bot)
+        store.set_workspace_coordinator("workspace-coordinator")
+        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/compact-roster"
+        out.mkdir(parents=True, exist_ok=True)
+        context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+        page = context.new_page()
+        page.set_default_timeout(8000)
+        errors: list[str] = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        context.tracing.start(screenshots=True, snapshots=True, sources=False)
+        try:
+            page.goto(f"{base}/#/chat/workspace-coordinator")
+            page.locator(".ctx-id h1").wait_for()
+            detail = page.locator("#roster-idle-details")
+            summary = detail.locator(":scope > summary")
+            assert not detail.evaluate("el => el.open")
+            assert "9" in summary.inner_text()
+            assert page.locator("#roster-list [data-switch-bot]:visible").count() == 1
+            page.screenshot(path=str(out / "collapsed-desktop.png"), animations="disabled")
+    
+            summary.focus()
+            page.keyboard.press("Enter")
+            page.wait_for_function("document.querySelector('#roster-idle-details')?.open === true")
+            assert page.locator("#roster-list [data-switch-bot]:visible").count() == 10
+            page.keyboard.press("Enter")
+>           page.wait_for_function("document.querySelector('#roster-idle-details')?.open === false")
+
+tests/e2e/test_browser.py:6712: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:12809: in wait_for_function
+    self._sync(
+.venv/lib/python3.13/site-packages/playwright/_impl/_page.py:1153: in wait_for_function
+    return await self._main_frame.wait_for_function(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:941: in wait_for_function
+    await self._channel.send("waitForFunction", self._timeout, params)
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f61b8db9940>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f618bfbafc0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Page.wait_for_function: Timeout 8000ms exceeded.
+
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: TimeoutError
+_ test_duplicate_bot_starts_from_safe_editable_setup_without_copying_authority _
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:43115', <fastapi.applications.FastAPI object at 0x7f61b4378a50>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f61bcae0910>
+
+    def test_duplicate_bot_starts_from_safe_editable_setup_without_copying_authority(browser, live, monkeypatch):
+        """A Bot can seed a new setup draft without copying tools, schedules, memory, or its workspace."""
+        base, app = live
+        monkeypatch.setenv("OPENAI_API_KEY", "test-only-key-never-sent-to-a-provider")
+        source = Bot(name="release-reviewer", display_name="Release Notes Reviewer", model="openai/gpt-4o-mini",
+                     tools=["read_file", "write_file", "remember"], memory_enabled=True,
+                     instructions="Review release notes and prepare a short project summary.",
+                     description="Review and summarize project releases.", workspace_mode="folder",
+                     workdir="/private/source/project", base_url="https://private-provider.example/v1",
+                     local_browser_handoff=True,
+                     schedule=Schedule(cron="0 9 * * 1", timezone="America/Vancouver",
+                                       prompt="Review the latest release notes."))
+        app.state.store.create_bot(source)
+        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-chat-options"
+        out.mkdir(parents=True, exist_ok=True)
+        context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+        page = context.new_page()
+        page.set_default_timeout(8000)
+        errors: list[str] = []
+        requests: list[str] = []
+        create_payloads: list[dict] = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.on("request", lambda request: requests.append(request.url))
+        page.on("request", lambda request: create_payloads.append(request.post_data_json)
+                if request.url.endswith("/api/v1/bots") and request.method == "POST" else None)
+        context.tracing.start(screenshots=True, snapshots=True, sources=False)
+        try:
+            page.goto(f"{base}/#/chat/{source.name}")
+            page.locator("[data-bot-options='release-reviewer']").click()
+>           page.get_by_role("menuitem", name="Duplicate bot").click()
+
+tests/e2e/test_browser.py:6903: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:18032: in click
+    self._sync(
+.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:165: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:594: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f61b8db9940>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f61b41d8540>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 8000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("menuitem", name="Duplicate bot")
+
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: TimeoutError
+____ test_small_workspace_has_one_roster_and_legacy_routes_do_not_trap_back ____
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:38417', <fastapi.applications.FastAPI object at 0x7f61b93cccd0>)
+request = <FixtureRequest for <Function test_small_workspace_has_one_roster_and_legacy_routes_do_not_trap_back>>
+
+    def test_small_workspace_has_one_roster_and_legacy_routes_do_not_trap_back(browser, live, request):
+        base, app = live
+        app.state.store.create_bot(Bot(name="one-bot", model="mock/demo", tools=[]))
+        page = browser.new_page(viewport={"width": 1200, "height": 800})
+        request.addfinalizer(page.close)
+        page.goto(base + "/#/chat/one-bot")
+        page.locator("#conversation-switcher").wait_for()
+        assert not page.locator("#fleet-nav").is_visible()
+        assert not page.locator("#monitor-nav").get_attribute("open")
+        assert page.get_by_text("Manage all bots", exact=True).count() == 0
+        assert page.get_by_role("button", name="Context", exact=True).count() == 0
+        page.locator("[data-bot-options='one-bot']").click()
+        page.get_by_role("menuitem", name="Assistant settings").click()
+        open_assistant_customization(page)
+>       page.get_by_role("heading", name="One Bot settings", exact=True).wait_for()
+
+tests/e2e/test_browser.py:8614: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:20696: in wait_for
+    self._sync(
+.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:752: in wait_for
+    await self._frame.wait_for_selector(
+.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f61b8db9940>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f6194190900>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("heading", name="One Bot settings", exact=True) to be visible
+
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: TimeoutError
+_ test_bot_workspace_modes_are_clear_and_persist_across_settings[1440-1000-desktop] _
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:42219', <fastapi.applications.FastAPI object at 0x7f61b4a48a50>)
+tmp_path = PosixPath('/<local-path-redacted>')
+width = 1440, height = 1000, size = 'desktop'
+
+    @pytest.mark.parametrize("width,height,size", [(1440,1000,"desktop"),(900,1024,"tablet"),(390,844,"phone"),(320,740,"compact-phone")])
+    def test_bot_workspace_modes_are_clear_and_persist_across_settings(browser, live, tmp_path, width, height, size):
+        import hashlib
+        import json
+        from hutch.models import iso, utcnow
+    
+        base, app = live
+        app.state.store.create_bot(Bot(name="workspace-helper", model="mock/demo", tools=["files"]))
+        folder = tmp_path / "existing-workspace"
+        folder.mkdir()
+        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/managed-workspaces"
+        out.mkdir(parents=True, exist_ok=True)
+        page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        try:
+            page.goto(base + "/#/bot/workspace-helper")
+            open_assistant_customization(page)
+>           page.get_by_role("heading", name="Workspace Helper settings", exact=True).wait_for()
+
+tests/e2e/test_browser.py:8644: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:20696: in wait_for
+    self._sync(
+.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:752: in wait_for
+    await self._frame.wait_for_selector(
+.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f61b8db9940>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f6194631da0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("heading", name="Workspace Helper settings", exact=True) to be visible
+
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: TimeoutError
+_ test_bot_workspace_modes_are_clear_and_persist_across_settings[900-1024-tablet] _
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:40095', <fastapi.applications.FastAPI object at 0x7f61af465f90>)
+tmp_path = PosixPath('/<local-path-redacted>')
+width = 900, height = 1024, size = 'tablet'
+
+    @pytest.mark.parametrize("width,height,size", [(1440,1000,"desktop"),(900,1024,"tablet"),(390,844,"phone"),(320,740,"compact-phone")])
+    def test_bot_workspace_modes_are_clear_and_persist_across_settings(browser, live, tmp_path, width, height, size):
+        import hashlib
+        import json
+        from hutch.models import iso, utcnow
+    
+        base, app = live
+        app.state.store.create_bot(Bot(name="workspace-helper", model="mock/demo", tools=["files"]))
+        folder = tmp_path / "existing-workspace"
+        folder.mkdir()
+        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/managed-workspaces"
+        out.mkdir(parents=True, exist_ok=True)
+        page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        try:
+            page.goto(base + "/#/bot/workspace-helper")
+            open_assistant_customization(page)
+>           page.get_by_role("heading", name="Workspace Helper settings", exact=True).wait_for()
+
+tests/e2e/test_browser.py:8644: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:20696: in wait_for
+    self._sync(
+.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:752: in wait_for
+    await self._frame.wait_for_selector(
+.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f61b8db9940>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f6184269d00>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("heading", name="Workspace Helper settings", exact=True) to be visible
+
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: TimeoutError
+_ test_bot_workspace_modes_are_clear_and_persist_across_settings[390-844-phone] _
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:33995', <fastapi.applications.FastAPI object at 0x7f6184233b10>)
+tmp_path = PosixPath('/<local-path-redacted>')
+width = 390, height = 844, size = 'phone'
+
+    @pytest.mark.parametrize("width,height,size", [(1440,1000,"desktop"),(900,1024,"tablet"),(390,844,"phone"),(320,740,"compact-phone")])
+    def test_bot_workspace_modes_are_clear_and_persist_across_settings(browser, live, tmp_path, width, height, size):
+        import hashlib
+        import json
+        from hutch.models import iso, utcnow
+    
+        base, app = live
+        app.state.store.create_bot(Bot(name="workspace-helper", model="mock/demo", tools=["files"]))
+        folder = tmp_path / "existing-workspace"
+        folder.mkdir()
+        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/managed-workspaces"
+        out.mkdir(parents=True, exist_ok=True)
+        page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        try:
+            page.goto(base + "/#/bot/workspace-helper")
+            open_assistant_customization(page)
+>           page.get_by_role("heading", name="Workspace Helper settings", exact=True).wait_for()
+
+tests/e2e/test_browser.py:8644: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:20696: in wait_for
+    self._sync(
+.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:752: in wait_for
+    await self._frame.wait_for_selector(
+.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f61b8db9940>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f61afa3c860>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("heading", name="Workspace Helper settings", exact=True) to be visible
+
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: TimeoutError
+_ test_bot_workspace_modes_are_clear_and_persist_across_settings[320-740-compact-phone] _
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:38105', <fastapi.applications.FastAPI object at 0x7f61bca7c410>)
+tmp_path = PosixPath('/<local-path-redacted>')
+width = 320, height = 740, size = 'compact-phone'
+
+    @pytest.mark.parametrize("width,height,size", [(1440,1000,"desktop"),(900,1024,"tablet"),(390,844,"phone"),(320,740,"compact-phone")])
+    def test_bot_workspace_modes_are_clear_and_persist_across_settings(browser, live, tmp_path, width, height, size):
+        import hashlib
+        import json
+        from hutch.models import iso, utcnow
+    
+        base, app = live
+        app.state.store.create_bot(Bot(name="workspace-helper", model="mock/demo", tools=["files"]))
+        folder = tmp_path / "existing-workspace"
+        folder.mkdir()
+        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/managed-workspaces"
+        out.mkdir(parents=True, exist_ok=True)
+        page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        try:
+            page.goto(base + "/#/bot/workspace-helper")
+            open_assistant_customization(page)
+>           page.get_by_role("heading", name="Workspace Helper settings", exact=True).wait_for()
+
+tests/e2e/test_browser.py:8644: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:20696: in wait_for
+    self._sync(
+.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:752: in wait_for
+    await self._frame.wait_for_selector(
+.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f61b8db9940>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f61b99e5ee0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("heading", name="Workspace Helper settings", exact=True) to be visible
+
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: TimeoutError
+_ test_local_browser_handoff_setting_is_explicit_and_persists[1440-1000-desktop] _
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:42367', <fastapi.applications.FastAPI object at 0x7f61b49f0e10>)
+width = 1440, height = 1000, size = 'desktop'
+
+    @pytest.mark.parametrize("width,height,size", [(1440, 1000, "desktop"), (900, 1024, "tablet"), (390, 844, "phone")])
+    def test_local_browser_handoff_setting_is_explicit_and_persists(browser, live, width, height, size):
+        from hutch.models import iso, utcnow
+    
+        base, app = live
+        # Settings-only journey: use Hutch's ordinary model default without starting a run.
+        app.state.store.create_bot(Bot(name="local-handoff", model="ollama/qwen3:4b", tools=["browser"]))
+        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/local-browser-handoff"
+        out.mkdir(parents=True, exist_ok=True)
+        context = browser.new_context(viewport={"width": width, "height": height}, reduced_motion="reduce")
+        context.tracing.start(screenshots=True, snapshots=True, sources=False)
+        page = context.new_page()
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
+        try:
+            page.goto(base + "/#/bot/local-handoff")
+            open_assistant_customization(page)
+>           page.get_by_role("heading", name="Local Handoff settings", exact=True).wait_for()
+
+tests/e2e/test_browser.py:8724: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:20696: in wait_for
+    self._sync(
+.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:752: in wait_for
+    await self._frame.wait_for_selector(
+.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f61b8db9940>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f61bb41f600>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("heading", name="Local Handoff settings", exact=True) to be visible
+
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: TimeoutError
+_ test_local_browser_handoff_setting_is_explicit_and_persists[900-1024-tablet] _
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:44847', <fastapi.applications.FastAPI object at 0x7f61b97f8690>)
+width = 900, height = 1024, size = 'tablet'
+
+    @pytest.mark.parametrize("width,height,size", [(1440, 1000, "desktop"), (900, 1024, "tablet"), (390, 844, "phone")])
+    def test_local_browser_handoff_setting_is_explicit_and_persists(browser, live, width, height, size):
+        from hutch.models import iso, utcnow
+    
+        base, app = live
+        # Settings-only journey: use Hutch's ordinary model default without starting a run.
+        app.state.store.create_bot(Bot(name="local-handoff", model="ollama/qwen3:4b", tools=["browser"]))
+        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/local-browser-handoff"
+        out.mkdir(parents=True, exist_ok=True)
+        context = browser.new_context(viewport={"width": width, "height": height}, reduced_motion="reduce")
+        context.tracing.start(screenshots=True, snapshots=True, sources=False)
+        page = context.new_page()
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
+        try:
+            page.goto(base + "/#/bot/local-handoff")
+            open_assistant_customization(page)
+>           page.get_by_role("heading", name="Local Handoff settings", exact=True).wait_for()
+
+tests/e2e/test_browser.py:8724: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:20696: in wait_for
+    self._sync(
+.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:752: in wait_for
+    await self._frame.wait_for_selector(
+.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f61b8db9940>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f61b99e5300>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("heading", name="Local Handoff settings", exact=True) to be visible
+
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: TimeoutError
+__ test_local_browser_handoff_setting_is_explicit_and_persists[390-844-phone] __
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:46711', <fastapi.applications.FastAPI object at 0x7f618c0e20d0>)
+width = 390, height = 844, size = 'phone'
+
+    @pytest.mark.parametrize("width,height,size", [(1440, 1000, "desktop"), (900, 1024, "tablet"), (390, 844, "phone")])
+    def test_local_browser_handoff_setting_is_explicit_and_persists(browser, live, width, height, size):
+        from hutch.models import iso, utcnow
+    
+        base, app = live
+        # Settings-only journey: use Hutch's ordinary model default without starting a run.
+        app.state.store.create_bot(Bot(name="local-handoff", model="ollama/qwen3:4b", tools=["browser"]))
+        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/local-browser-handoff"
+        out.mkdir(parents=True, exist_ok=True)
+        context = browser.new_context(viewport={"width": width, "height": height}, reduced_motion="reduce")
+        context.tracing.start(screenshots=True, snapshots=True, sources=False)
+        page = context.new_page()
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
+        try:
+            page.goto(base + "/#/bot/local-handoff")
+            open_assistant_customization(page)
+>           page.get_by_role("heading", name="Local Handoff settings", exact=True).wait_for()
+
+tests/e2e/test_browser.py:8724: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:20696: in wait_for
+    self._sync(
+.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:752: in wait_for
+    await self._frame.wait_for_selector(
+.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f61b8db9940>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f61af5062a0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("heading", name="Local Handoff settings", exact=True) to be visible
+
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: TimeoutError
+___________ test_bot_and_conversation_switches_isolate_unsent_drafts ___________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:40265', <fastapi.applications.FastAPI object at 0x7f61ba1016d0>)
+
+    def test_bot_and_conversation_switches_isolate_unsent_drafts(browser, live):
+        base, app = live
+        for name in ("draft-a", "draft-b"):
+            app.state.store.create_bot(Bot(name=name, model="mock/demo", tools=[]))
+        page = browser.new_page(viewport={"width": 1200, "height": 800})
+        page.goto(base + "/#/chat/draft-a")
+        page.locator("#conversation-switcher").wait_for()
+        first = page.locator("#conversation-switcher").input_value()
+        page.locator("#chat-prompt").fill("Private draft for A")
+        # No debounce wait: immediate navigation must preserve the draft in its own context.
+        page.locator('[data-switch-bot="draft-b"]').click()
+>       page.wait_for_function("document.querySelector('#chat-prompt')?.placeholder.includes('Draft B')")
+
+tests/e2e/test_browser.py:8828: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:12809: in wait_for_function
+    self._sync(
+.venv/lib/python3.13/site-packages/playwright/_impl/_page.py:1153: in wait_for_function
+    return await self._main_frame.wait_for_function(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:941: in wait_for_function
+    await self._channel.send("waitForFunction", self._timeout, params)
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f61b8db9940>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f61af37e0c0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Page.wait_for_function: Timeout 30000ms exceeded.
+
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: TimeoutError
+_ test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus[1440-1000-desktop] _
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:44701', <fastapi.applications.FastAPI object at 0x7f61b44d47d0>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f61bcaeb070>
+width = 1440, height = 1000, size = 'desktop'
+
+    @pytest.mark.parametrize("width,height,size", [(1440, 1000, "desktop"), (900, 1024, "tablet"), (390, 844, "phone")])
+    def test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus(browser, live, monkeypatch, width, height, size):
+        import hashlib
+        import json
+        from pathlib import Path
+        from hutch.approvals import ApprovalGate
+        from hutch.models import Run, Task, iso, utcnow
+        from hutch.safety import PolicyEngine
+        base, app = live
+        store = app.state.store
+        monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+        bot = store.create_bot(Bot(name="resource-replay", model="mock/demo", approval_mode=ApprovalMode.ask))
+        conv, _ = store.create_conversation(bot.id, "Replay fixture", idem_key="create", request_hash="create")
+        run = Run(bot_id=bot.id, prompt="Sanitized replay request", status=RunStatus.running)
+        store.submit_conversation_message(conv["id"], run.prompt, run, Task(bot_id=bot.id, prompt=run.prompt),
+                                         idem_key="turn", request_hash="turn")
+        page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        # Disable the existing slow fallback readers. This must pass using durable
+        # resource replay, including when no run transcript SSE hint is delivered.
+        page.add_init_script("""const originalInterval = window.setInterval;
+          window.setInterval = (fn, delay, ...args) => delay >= 4000 ? 0 : originalInterval(fn, delay, ...args);""")
+        gap_count = []
+        def gap_once(route):
+            if not gap_count:
+                gap_count.append(1)
+                route.fulfill(status=200, content_type="text/event-stream", body=
+                    'event: snapshot_required\ndata: {"snapshot_url":"/api/v1/snapshot"}\n\n')
+            else:
+                route.continue_()
+        page.route("**/api/v1/changes/stream?*", gap_once)
+        page.route(f"**/api/runs/{run.id}/stream", lambda route: route.fulfill(status=200,
+                   content_type="text/event-stream", body=": held transcript fixture\n\n"))
+        page.goto(base + "/#/chat/resource-replay")
+        page.locator("#chat-prompt").fill("My unsent draft stays here")
+        page.locator("#chat-prompt").focus()
+        page.wait_for_function("resourceStream && resourceStream.readyState === EventSource.OPEN")
+        gate = ApprovalGate(store, bot, run, PolicyEngine(), store.append_event)
+        # Admission commits the real request/event/wait; only the subsequent human
+        # wait is held so the test can act as the second client.
+        monkeypatch.setattr(gate, "_wait", lambda *args, **kwargs: None)
+        gate.decide("files", "write reviewed.txt", {"path": "reviewed.txt", "content": "Sanitized review"})
+        request = store.pending_approvals()[0]
+        card = page.locator(f'#chat-stream [data-approval-card="{request.id}"]')
+        card.locator('[data-approve="1"]').wait_for(timeout=15000)
+        assert "Waiting for you" in page.locator(".ctx-meta").inner_text()
+        assert page.locator("#chat-prompt").input_value() == "My unsent draft stays here"
+        assert page.locator("#chat-prompt").evaluate("e => e === document.activeElement")
+        assert gap_count, "exercise explicit reconciliation before live replay"
+        page.locator("#studio-review-run").click()
+        box, feed = card.bounding_box(), page.locator("#chat-scroll").bounding_box()
+        assert box["y"] >= feed["y"] - 1 and box["y"] + box["height"] <= feed["y"] + feed["height"] + 1
+        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/resource-replay"
+        out.mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=str(out / f"{size}.png"), full_page=True, animations="disabled")
+        overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow <= 1 and not errors
+        (out / f"{size}.json").write_text(json.dumps({
+            "captured_at": iso(utcnow()), "browser": browser.browser_type.name, "version": browser.version,
+            "viewport": [width, height], "scenario": "real approval admission, fixture gap, fallback timers/transcript hints disabled",
+            "page_errors": errors, "horizontal_overflow": overflow, "draft_and_focus_preserved": True,
+            "source_sha256": {p: hashlib.sha256((out.parents[3] / p).read_bytes()).hexdigest()
+                for p in ("src/hutch/server/static/app.js", "src/hutch/store.py", "src/hutch/server/app.py", "src/hutch/approvals.py")},
+        }, indent=2) + "\n")
+        # A second client's durable decision must replace the inline ask without
+        # relying on a worker resolution event, which can be lost during a crash.
+        from hutch.models import ApprovalStatus
+        store.decide_approval(request.id, ApprovalStatus.denied, "second-fixture-client")
+        card.locator(".tag.danger").wait_for(timeout=15000)
+        assert "Denied" in card.inner_text() and not card.locator("[data-approve]").count()
+        assert page.locator("#chat-prompt").input_value() == "My unsent draft stays here"
+        page.evaluate("id => { location.hash = '#/run/' + id; }", run.id)
+        page.wait_for_function("feedMode === 'run'")
+        page.evaluate("location.hash = '#/bot/resource-replay'")
+        open_assistant_customization(page)
+        settings = page.locator('#form-instructions textarea[name="instructions"]')
+        settings.fill("Unsaved instructions stay intact")
+        settings.focus()
+        before = store.list_resource_changes()["cursor"]
+        other, _ = store.create_conversation(bot.id, "Other fixture conversation", idem_key="other", request_hash="other")
+        assert store.list_resource_changes(before)["changes"]
+        page.wait_for_timeout(1700)
+        assert settings.input_value() == "Unsaved instructions stay intact"
+        assert settings.evaluate("e => e === document.activeElement")
+        assert page.url.endswith("#/bot/resource-replay") and not errors
+        held = []
+        page.route(f"**/api/runs/{run.id}", lambda route: held.append(route))
+        page.evaluate("id => { location.hash = '#/run/' + id; }", run.id)
+        page.wait_for_timeout(150)
+        assert held, "hold a run response across navigation"
+        page.evaluate("location.hash = '#/bot/resource-replay'")
+>       page.get_by_role("heading", name="Resource Replay settings", exact=True).wait_for()
+
+tests/e2e/test_browser.py:9513: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:20696: in wait_for
+    self._sync(
+.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:752: in wait_for
+    await self._frame.wait_for_selector(
+.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f61b8db9940>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f61ba0f42c0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("heading", name="Resource Replay settings", exact=True) to be visible
+
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: TimeoutError
+_ test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus[900-1024-tablet] _
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:41619', <fastapi.applications.FastAPI object at 0x7f61afad25d0>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f61b98610f0>
+width = 900, height = 1024, size = 'tablet'
+
+    @pytest.mark.parametrize("width,height,size", [(1440, 1000, "desktop"), (900, 1024, "tablet"), (390, 844, "phone")])
+    def test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus(browser, live, monkeypatch, width, height, size):
+        import hashlib
+        import json
+        from pathlib import Path
+        from hutch.approvals import ApprovalGate
+        from hutch.models import Run, Task, iso, utcnow
+        from hutch.safety import PolicyEngine
+        base, app = live
+        store = app.state.store
+        monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+        bot = store.create_bot(Bot(name="resource-replay", model="mock/demo", approval_mode=ApprovalMode.ask))
+        conv, _ = store.create_conversation(bot.id, "Replay fixture", idem_key="create", request_hash="create")
+        run = Run(bot_id=bot.id, prompt="Sanitized replay request", status=RunStatus.running)
+        store.submit_conversation_message(conv["id"], run.prompt, run, Task(bot_id=bot.id, prompt=run.prompt),
+                                         idem_key="turn", request_hash="turn")
+        page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        # Disable the existing slow fallback readers. This must pass using durable
+        # resource replay, including when no run transcript SSE hint is delivered.
+        page.add_init_script("""const originalInterval = window.setInterval;
+          window.setInterval = (fn, delay, ...args) => delay >= 4000 ? 0 : originalInterval(fn, delay, ...args);""")
+        gap_count = []
+        def gap_once(route):
+            if not gap_count:
+                gap_count.append(1)
+                route.fulfill(status=200, content_type="text/event-stream", body=
+                    'event: snapshot_required\ndata: {"snapshot_url":"/api/v1/snapshot"}\n\n')
+            else:
+                route.continue_()
+        page.route("**/api/v1/changes/stream?*", gap_once)
+        page.route(f"**/api/runs/{run.id}/stream", lambda route: route.fulfill(status=200,
+                   content_type="text/event-stream", body=": held transcript fixture\n\n"))
+        page.goto(base + "/#/chat/resource-replay")
+        page.locator("#chat-prompt").fill("My unsent draft stays here")
+        page.locator("#chat-prompt").focus()
+        page.wait_for_function("resourceStream && resourceStream.readyState === EventSource.OPEN")
+        gate = ApprovalGate(store, bot, run, PolicyEngine(), store.append_event)
+        # Admission commits the real request/event/wait; only the subsequent human
+        # wait is held so the test can act as the second client.
+        monkeypatch.setattr(gate, "_wait", lambda *args, **kwargs: None)
+        gate.decide("files", "write reviewed.txt", {"path": "reviewed.txt", "content": "Sanitized review"})
+        request = store.pending_approvals()[0]
+        card = page.locator(f'#chat-stream [data-approval-card="{request.id}"]')
+        card.locator('[data-approve="1"]').wait_for(timeout=15000)
+        assert "Waiting for you" in page.locator(".ctx-meta").inner_text()
+        assert page.locator("#chat-prompt").input_value() == "My unsent draft stays here"
+        assert page.locator("#chat-prompt").evaluate("e => e === document.activeElement")
+        assert gap_count, "exercise explicit reconciliation before live replay"
+        page.locator("#studio-review-run").click()
+        box, feed = card.bounding_box(), page.locator("#chat-scroll").bounding_box()
+        assert box["y"] >= feed["y"] - 1 and box["y"] + box["height"] <= feed["y"] + feed["height"] + 1
+        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/resource-replay"
+        out.mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=str(out / f"{size}.png"), full_page=True, animations="disabled")
+        overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow <= 1 and not errors
+        (out / f"{size}.json").write_text(json.dumps({
+            "captured_at": iso(utcnow()), "browser": browser.browser_type.name, "version": browser.version,
+            "viewport": [width, height], "scenario": "real approval admission, fixture gap, fallback timers/transcript hints disabled",
+            "page_errors": errors, "horizontal_overflow": overflow, "draft_and_focus_preserved": True,
+            "source_sha256": {p: hashlib.sha256((out.parents[3] / p).read_bytes()).hexdigest()
+                for p in ("src/hutch/server/static/app.js", "src/hutch/store.py", "src/hutch/server/app.py", "src/hutch/approvals.py")},
+        }, indent=2) + "\n")
+        # A second client's durable decision must replace the inline ask without
+        # relying on a worker resolution event, which can be lost during a crash.
+        from hutch.models import ApprovalStatus
+        store.decide_approval(request.id, ApprovalStatus.denied, "second-fixture-client")
+        card.locator(".tag.danger").wait_for(timeout=15000)
+        assert "Denied" in card.inner_text() and not card.locator("[data-approve]").count()
+        assert page.locator("#chat-prompt").input_value() == "My unsent draft stays here"
+        page.evaluate("id => { location.hash = '#/run/' + id; }", run.id)
+        page.wait_for_function("feedMode === 'run'")
+        page.evaluate("location.hash = '#/bot/resource-replay'")
+        open_assistant_customization(page)
+        settings = page.locator('#form-instructions textarea[name="instructions"]')
+        settings.fill("Unsaved instructions stay intact")
+        settings.focus()
+        before = store.list_resource_changes()["cursor"]
+        other, _ = store.create_conversation(bot.id, "Other fixture conversation", idem_key="other", request_hash="other")
+        assert store.list_resource_changes(before)["changes"]
+        page.wait_for_timeout(1700)
+        assert settings.input_value() == "Unsaved instructions stay intact"
+        assert settings.evaluate("e => e === document.activeElement")
+        assert page.url.endswith("#/bot/resource-replay") and not errors
+        held = []
+        page.route(f"**/api/runs/{run.id}", lambda route: held.append(route))
+        page.evaluate("id => { location.hash = '#/run/' + id; }", run.id)
+        page.wait_for_timeout(150)
+        assert held, "hold a run response across navigation"
+        page.evaluate("location.hash = '#/bot/resource-replay'")
+>       page.get_by_role("heading", name="Resource Replay settings", exact=True).wait_for()
+
+tests/e2e/test_browser.py:9513: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:20696: in wait_for
+    self._sync(
+.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:752: in wait_for
+    await self._frame.wait_for_selector(
+.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f61b8db9940>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f61845c7740>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("heading", name="Resource Replay settings", exact=True) to be visible
+
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: TimeoutError
+_ test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus[390-844-phone] _
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:39353', <fastapi.applications.FastAPI object at 0x7f61b4d35f90>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f618423d6a0>
+width = 390, height = 844, size = 'phone'
+
+    @pytest.mark.parametrize("width,height,size", [(1440, 1000, "desktop"), (900, 1024, "tablet"), (390, 844, "phone")])
+    def test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus(browser, live, monkeypatch, width, height, size):
+        import hashlib
+        import json
+        from pathlib import Path
+        from hutch.approvals import ApprovalGate
+        from hutch.models import Run, Task, iso, utcnow
+        from hutch.safety import PolicyEngine
+        base, app = live
+        store = app.state.store
+        monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+        bot = store.create_bot(Bot(name="resource-replay", model="mock/demo", approval_mode=ApprovalMode.ask))
+        conv, _ = store.create_conversation(bot.id, "Replay fixture", idem_key="create", request_hash="create")
+        run = Run(bot_id=bot.id, prompt="Sanitized replay request", status=RunStatus.running)
+        store.submit_conversation_message(conv["id"], run.prompt, run, Task(bot_id=bot.id, prompt=run.prompt),
+                                         idem_key="turn", request_hash="turn")
+        page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        # Disable the existing slow fallback readers. This must pass using durable
+        # resource replay, including when no run transcript SSE hint is delivered.
+        page.add_init_script("""const originalInterval = window.setInterval;
+          window.setInterval = (fn, delay, ...args) => delay >= 4000 ? 0 : originalInterval(fn, delay, ...args);""")
+        gap_count = []
+        def gap_once(route):
+            if not gap_count:
+                gap_count.append(1)
+                route.fulfill(status=200, content_type="text/event-stream", body=
+                    'event: snapshot_required\ndata: {"snapshot_url":"/api/v1/snapshot"}\n\n')
+            else:
+                route.continue_()
+        page.route("**/api/v1/changes/stream?*", gap_once)
+        page.route(f"**/api/runs/{run.id}/stream", lambda route: route.fulfill(status=200,
+                   content_type="text/event-stream", body=": held transcript fixture\n\n"))
+        page.goto(base + "/#/chat/resource-replay")
+        page.locator("#chat-prompt").fill("My unsent draft stays here")
+        page.locator("#chat-prompt").focus()
+        page.wait_for_function("resourceStream && resourceStream.readyState === EventSource.OPEN")
+        gate = ApprovalGate(store, bot, run, PolicyEngine(), store.append_event)
+        # Admission commits the real request/event/wait; only the subsequent human
+        # wait is held so the test can act as the second client.
+        monkeypatch.setattr(gate, "_wait", lambda *args, **kwargs: None)
+        gate.decide("files", "write reviewed.txt", {"path": "reviewed.txt", "content": "Sanitized review"})
+        request = store.pending_approvals()[0]
+        card = page.locator(f'#chat-stream [data-approval-card="{request.id}"]')
+        card.locator('[data-approve="1"]').wait_for(timeout=15000)
+        assert "Waiting for you" in page.locator(".ctx-meta").inner_text()
+        assert page.locator("#chat-prompt").input_value() == "My unsent draft stays here"
+        assert page.locator("#chat-prompt").evaluate("e => e === document.activeElement")
+        assert gap_count, "exercise explicit reconciliation before live replay"
+        page.locator("#studio-review-run").click()
+        box, feed = card.bounding_box(), page.locator("#chat-scroll").bounding_box()
+        assert box["y"] >= feed["y"] - 1 and box["y"] + box["height"] <= feed["y"] + feed["height"] + 1
+        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/resource-replay"
+        out.mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=str(out / f"{size}.png"), full_page=True, animations="disabled")
+        overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow <= 1 and not errors
+        (out / f"{size}.json").write_text(json.dumps({
+            "captured_at": iso(utcnow()), "browser": browser.browser_type.name, "version": browser.version,
+            "viewport": [width, height], "scenario": "real approval admission, fixture gap, fallback timers/transcript hints disabled",
+            "page_errors": errors, "horizontal_overflow": overflow, "draft_and_focus_preserved": True,
+            "source_sha256": {p: hashlib.sha256((out.parents[3] / p).read_bytes()).hexdigest()
+                for p in ("src/hutch/server/static/app.js", "src/hutch/store.py", "src/hutch/server/app.py", "src/hutch/approvals.py")},
+        }, indent=2) + "\n")
+        # A second client's durable decision must replace the inline ask without
+        # relying on a worker resolution event, which can be lost during a crash.
+        from hutch.models import ApprovalStatus
+        store.decide_approval(request.id, ApprovalStatus.denied, "second-fixture-client")
+        card.locator(".tag.danger").wait_for(timeout=15000)
+        assert "Denied" in card.inner_text() and not card.locator("[data-approve]").count()
+        assert page.locator("#chat-prompt").input_value() == "My unsent draft stays here"
+        page.evaluate("id => { location.hash = '#/run/' + id; }", run.id)
+        page.wait_for_function("feedMode === 'run'")
+        page.evaluate("location.hash = '#/bot/resource-replay'")
+        open_assistant_customization(page)
+        settings = page.locator('#form-instructions textarea[name="instructions"]')
+        settings.fill("Unsaved instructions stay intact")
+        settings.focus()
+        before = store.list_resource_changes()["cursor"]
+        other, _ = store.create_conversation(bot.id, "Other fixture conversation", idem_key="other", request_hash="other")
+        assert store.list_resource_changes(before)["changes"]
+        page.wait_for_timeout(1700)
+        assert settings.input_value() == "Unsaved instructions stay intact"
+        assert settings.evaluate("e => e === document.activeElement")
+        assert page.url.endswith("#/bot/resource-replay") and not errors
+        held = []
+        page.route(f"**/api/runs/{run.id}", lambda route: held.append(route))
+        page.evaluate("id => { location.hash = '#/run/' + id; }", run.id)
+        page.wait_for_timeout(150)
+        assert held, "hold a run response across navigation"
+        page.evaluate("location.hash = '#/bot/resource-replay'")
+>       page.get_by_role("heading", name="Resource Replay settings", exact=True).wait_for()
+
+tests/e2e/test_browser.py:9513: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:20696: in wait_for
+    self._sync(
+.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:752: in wait_for
+    await self._frame.wait_for_selector(
+.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f61b8db9940>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f61ba88e3e0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("heading", name="Resource Replay settings", exact=True) to be visible
+
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: TimeoutError
+___ test_composer_options_rehearsal_and_cancelled_notice[1440-1000-desktop] ____
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:37519', <fastapi.applications.FastAPI object at 0x7f618b3ca710>)
+width = 1440, height = 1000, size = 'desktop'
+
+    @pytest.mark.parametrize("width,height,size", [(1440, 1000, "desktop"), (900, 1024, "tablet"), (390, 844, "phone")])
+    def test_composer_options_rehearsal_and_cancelled_notice(browser, live, width, height, size):
+        import hashlib
+        import json
+        from pathlib import Path
+        from hutch.models import Run, iso, utcnow
+        base, app = live
+        bot = app.state.store.create_bot(Bot(name="composer-fixture", model="mock/demo", tools=["files", "memory"],
+                                           approval_mode=ApprovalMode.auto))
+        page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.goto(base + "/#/chat/composer-fixture")
+        page.locator("#conversation-switcher").wait_for()
+        assert not page.locator("#studio-stop-run").is_visible()
+        assert page.locator("#chat-stop").count() == 0, "do not duplicate the primary Stop beside Send"
+        page.locator("#composer-menu-btn").click()
+        menu = page.locator("#composer-menu")
+        assert menu.is_visible() and menu.get_attribute("role") == "dialog"
+        assert menu.locator("button").first.evaluate("e => e === document.activeElement")
+        box = menu.bounding_box()
+        assert 0 <= box["x"] and box["x"] + box["width"] <= width + 1
+        assert 0 <= box["y"] and box["y"] + box["height"] <= height + 1
+        menu.get_by_text("model calls and reads still happen", exact=False).wait_for()
+        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/composer-integration"
+        out.mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=str(out / f"options-{size}.png"), full_page=True, animations="disabled")
+        menu.locator("#rehearse-opt").check()
+        page.keyboard.press("Escape")
+        assert not menu.is_visible()
+        assert page.locator("#composer-menu-btn").evaluate("e => e === document.activeElement")
+        assert "model calls and reads" in page.locator("#rehearse-flag").inner_text()
+        if size == "phone":
+            for control in ("#composer-menu-btn", "#chat-send"):
+                assert page.locator(control).bounding_box()["height"] >= 44
+        page.locator("#chat-prompt").fill("write a report")
+        with page.expect_response(lambda response: response.url.endswith("/messages") and response.request.method == "POST") as sent:
+            page.locator("#chat-send").click()
+        run = sent.value.json()
+        assert sent.value.request.post_data_json["rehearse"] is True
+        wait_for(lambda: app.state.store.get_run(run["id"]).terminal)
+        stored = app.state.store.get_run(run["id"])
+        assert stored.rehearsal and not (Path(stored.workspace) / "report.md").exists()
+        assert not app.state.store.recall_all(bot.id)
+        cancelled = app.state.store.create_run(Run(bot_id=bot.id, prompt="Sanitized cancellation notice fixture",
+            status=RunStatus.stopped, error="Cancelled before a model step completed", queue_ms=1250, finished_at=iso(utcnow())))
+        page.goto(base + f"/#/run/{cancelled.id}")
+        notice = page.locator(".run-error")
+        notice.wait_for()
+        assert notice.inner_text().startswith("Cancelled:") and "Failed:" not in notice.inner_text()
+        assert "run-notice" in notice.get_attribute("class")
+>       assert "1.3s" in page.locator(".run-queue-time").inner_text()
+E       AssertionError: assert '1.3s' in ''
+E        +  where '' = inner_text()
+E        +    where inner_text = <Locator frame=<Frame name= url='http://127.0.0.1:37519/#/run/run_b43e030e1e0c'> selector='.run-queue-time'>.inner_text
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:37519/#/run/run_b43e030e1e0c'> selector='.run-queue-time'> = locator('.run-queue-time')
+E        +        where locator = <Page url='http://127.0.0.1:37519/#/run/run_b43e030e1e0c'>.locator
+
+tests/e2e/test_browser.py:9701: AssertionError
+____ test_composer_options_rehearsal_and_cancelled_notice[900-1024-tablet] _____
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:36331', <fastapi.applications.FastAPI object at 0x7f618b3d9090>)
+width = 900, height = 1024, size = 'tablet'
+
+    @pytest.mark.parametrize("width,height,size", [(1440, 1000, "desktop"), (900, 1024, "tablet"), (390, 844, "phone")])
+    def test_composer_options_rehearsal_and_cancelled_notice(browser, live, width, height, size):
+        import hashlib
+        import json
+        from pathlib import Path
+        from hutch.models import Run, iso, utcnow
+        base, app = live
+        bot = app.state.store.create_bot(Bot(name="composer-fixture", model="mock/demo", tools=["files", "memory"],
+                                           approval_mode=ApprovalMode.auto))
+        page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.goto(base + "/#/chat/composer-fixture")
+        page.locator("#conversation-switcher").wait_for()
+        assert not page.locator("#studio-stop-run").is_visible()
+        assert page.locator("#chat-stop").count() == 0, "do not duplicate the primary Stop beside Send"
+        page.locator("#composer-menu-btn").click()
+        menu = page.locator("#composer-menu")
+        assert menu.is_visible() and menu.get_attribute("role") == "dialog"
+        assert menu.locator("button").first.evaluate("e => e === document.activeElement")
+        box = menu.bounding_box()
+        assert 0 <= box["x"] and box["x"] + box["width"] <= width + 1
+        assert 0 <= box["y"] and box["y"] + box["height"] <= height + 1
+        menu.get_by_text("model calls and reads still happen", exact=False).wait_for()
+        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/composer-integration"
+        out.mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=str(out / f"options-{size}.png"), full_page=True, animations="disabled")
+        menu.locator("#rehearse-opt").check()
+        page.keyboard.press("Escape")
+        assert not menu.is_visible()
+        assert page.locator("#composer-menu-btn").evaluate("e => e === document.activeElement")
+        assert "model calls and reads" in page.locator("#rehearse-flag").inner_text()
+        if size == "phone":
+            for control in ("#composer-menu-btn", "#chat-send"):
+                assert page.locator(control).bounding_box()["height"] >= 44
+        page.locator("#chat-prompt").fill("write a report")
+        with page.expect_response(lambda response: response.url.endswith("/messages") and response.request.method == "POST") as sent:
+            page.locator("#chat-send").click()
+        run = sent.value.json()
+        assert sent.value.request.post_data_json["rehearse"] is True
+        wait_for(lambda: app.state.store.get_run(run["id"]).terminal)
+        stored = app.state.store.get_run(run["id"])
+        assert stored.rehearsal and not (Path(stored.workspace) / "report.md").exists()
+        assert not app.state.store.recall_all(bot.id)
+        cancelled = app.state.store.create_run(Run(bot_id=bot.id, prompt="Sanitized cancellation notice fixture",
+            status=RunStatus.stopped, error="Cancelled before a model step completed", queue_ms=1250, finished_at=iso(utcnow())))
+        page.goto(base + f"/#/run/{cancelled.id}")
+        notice = page.locator(".run-error")
+        notice.wait_for()
+        assert notice.inner_text().startswith("Cancelled:") and "Failed:" not in notice.inner_text()
+        assert "run-notice" in notice.get_attribute("class")
+>       assert "1.3s" in page.locator(".run-queue-time").inner_text()
+E       AssertionError: assert '1.3s' in ''
+E        +  where '' = inner_text()
+E        +    where inner_text = <Locator frame=<Frame name= url='http://127.0.0.1:36331/#/run/run_fd377832473a'> selector='.run-queue-time'>.inner_text
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:36331/#/run/run_fd377832473a'> selector='.run-queue-time'> = locator('.run-queue-time')
+E        +        where locator = <Page url='http://127.0.0.1:36331/#/run/run_fd377832473a'>.locator
+
+tests/e2e/test_browser.py:9701: AssertionError
+_____ test_composer_options_rehearsal_and_cancelled_notice[390-844-phone] ______
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:33109', <fastapi.applications.FastAPI object at 0x7f6194113110>)
+width = 390, height = 844, size = 'phone'
+
+    @pytest.mark.parametrize("width,height,size", [(1440, 1000, "desktop"), (900, 1024, "tablet"), (390, 844, "phone")])
+    def test_composer_options_rehearsal_and_cancelled_notice(browser, live, width, height, size):
+        import hashlib
+        import json
+        from pathlib import Path
+        from hutch.models import Run, iso, utcnow
+        base, app = live
+        bot = app.state.store.create_bot(Bot(name="composer-fixture", model="mock/demo", tools=["files", "memory"],
+                                           approval_mode=ApprovalMode.auto))
+        page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.goto(base + "/#/chat/composer-fixture")
+        page.locator("#conversation-switcher").wait_for()
+        assert not page.locator("#studio-stop-run").is_visible()
+        assert page.locator("#chat-stop").count() == 0, "do not duplicate the primary Stop beside Send"
+        page.locator("#composer-menu-btn").click()
+        menu = page.locator("#composer-menu")
+        assert menu.is_visible() and menu.get_attribute("role") == "dialog"
+        assert menu.locator("button").first.evaluate("e => e === document.activeElement")
+        box = menu.bounding_box()
+        assert 0 <= box["x"] and box["x"] + box["width"] <= width + 1
+        assert 0 <= box["y"] and box["y"] + box["height"] <= height + 1
+        menu.get_by_text("model calls and reads still happen", exact=False).wait_for()
+        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/composer-integration"
+        out.mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=str(out / f"options-{size}.png"), full_page=True, animations="disabled")
+        menu.locator("#rehearse-opt").check()
+        page.keyboard.press("Escape")
+        assert not menu.is_visible()
+        assert page.locator("#composer-menu-btn").evaluate("e => e === document.activeElement")
+        assert "model calls and reads" in page.locator("#rehearse-flag").inner_text()
+        if size == "phone":
+            for control in ("#composer-menu-btn", "#chat-send"):
+                assert page.locator(control).bounding_box()["height"] >= 44
+        page.locator("#chat-prompt").fill("write a report")
+        with page.expect_response(lambda response: response.url.endswith("/messages") and response.request.method == "POST") as sent:
+            page.locator("#chat-send").click()
+        run = sent.value.json()
+        assert sent.value.request.post_data_json["rehearse"] is True
+        wait_for(lambda: app.state.store.get_run(run["id"]).terminal)
+        stored = app.state.store.get_run(run["id"])
+        assert stored.rehearsal and not (Path(stored.workspace) / "report.md").exists()
+        assert not app.state.store.recall_all(bot.id)
+        cancelled = app.state.store.create_run(Run(bot_id=bot.id, prompt="Sanitized cancellation notice fixture",
+            status=RunStatus.stopped, error="Cancelled before a model step completed", queue_ms=1250, finished_at=iso(utcnow())))
+        page.goto(base + f"/#/run/{cancelled.id}")
+        notice = page.locator(".run-error")
+        notice.wait_for()
+        assert notice.inner_text().startswith("Cancelled:") and "Failed:" not in notice.inner_text()
+        assert "run-notice" in notice.get_attribute("class")
+>       assert "1.3s" in page.locator(".run-queue-time").inner_text()
+E       AssertionError: assert '1.3s' in ''
+E        +  where '' = inner_text()
+E        +    where inner_text = <Locator frame=<Frame name= url='http://127.0.0.1:33109/#/run/run_e52114fc4451'> selector='.run-queue-time'>.inner_text
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:33109/#/run/run_e52114fc4451'> selector='.run-queue-time'> = locator('.run-queue-time')
+E        +        where locator = <Page url='http://127.0.0.1:33109/#/run/run_e52114fc4451'>.locator
+
+tests/e2e/test_browser.py:9701: AssertionError
+_ test_scoped_fact_review_revision_conflict_and_memory_off[1440-1000-desktop] __
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:45357', <fastapi.applications.FastAPI object at 0x7f618a74fc50>)
+width = 1440, height = 1000, size = 'desktop'
+
+    @pytest.mark.parametrize('width,height,size', [(1440,1000,'desktop'),(900,1024,'tablet'),(390,844,'phone')])
+    def test_scoped_fact_review_revision_conflict_and_memory_off(browser, live, width, height, size):
+        import hashlib
+        import json
+        from pathlib import Path
+        from hutch.models import Run, iso, utcnow
+        base, application = live
+        store = application.state.store
+        bot = store.create_bot(Bot(name='fact-review-bot', tools=['memory']))
+        a, _ = store.create_conversation(bot.id, 'Private reference chat', idem_key='fact-chat-a', request_hash='a')
+        b, _ = store.create_conversation(bot.id, 'Separate private chat', idem_key='fact-chat-b', request_hash='b')
+        # A running status fixture keeps the e2e run out of the live supervisor's
+        # pending queue. Production fence ownership is covered by test_fact_memory.
+        run = store.create_run(Run(bot_id=bot.id, conversation_id=a['id'], prompt='synthetic fact proposal', status=RunStatus.running))
+        fact = store.remember(bot.id, 'format', 'PRIVATE A: prefer short bullets. <script>window.__factInjected=true</script>',
+                              run_id=run.id, expected_fence=0)
+        store.transition_run(run.id, RunStatus.succeeded, fence=0)
+        store.remember(bot.id, 'other-private', 'PRIVATE B MUST NOT APPEAR IN A', conversation_id=b['id'])
+        context = browser.new_context(viewport={'width':width,'height':height}, reduced_motion='reduce')
+        context.tracing.start(screenshots=True, snapshots=True, sources=True)
+        page, errors = context.new_page(), []
+        page.on('pageerror', lambda error: errors.append(str(error)))
+        out = Path(__file__).resolve().parents[2]/'docs/realignment/artifacts/fact-memory'
+        out.mkdir(parents=True, exist_ok=True)
+        try:
+            page.goto(base+'/#/chat/'+bot.name)
+            page.locator('#conversation-switcher').select_option(a['id'])
+            page.locator(f'[data-fact-card="{fact.id}"]').wait_for()
+            assert 'PRIVATE B MUST NOT APPEAR IN A' not in page.locator('#chat-stream').inner_text()
+            assert page.evaluate('window.__factInjected === undefined')
+            page.locator('#chat-prompt').fill('Keep this unsent fact-review draft')
+            page.screenshot(path=str(out/f'{size}-proposed.png'), full_page=True, animations='disabled')
+            review_button = page.locator(f'[data-fact-review="{fact.id}"]')
+            review_button.focus(); page.keyboard.press('Enter')
+            page.locator('#fact-share').wait_for()
+            assert not page.locator('#fact-share').is_checked()
+            assert 'not proof of truth' in page.locator('.modal-body').inner_text()
+            if size=='phone':
+                assert page.locator('.fact-share').bounding_box()['height']>=44
+                assert page.locator('#modal-confirm').bounding_box()['height']>=44
+            page.screenshot(path=str(out/f'{size}-review.png'), full_page=True, animations='disabled')
+            with page.expect_response(lambda response: '/facts?' in response.url and 'conversation_id=' in response.url) as refresh:
+                store.remember(bot.id, 'background-proposal', 'A refresh must not dismiss or steal the review dialog',
+                               conversation_id=a['id'])
+            assert refresh.value.status == 200
+            page.wait_for_timeout(100)
+            assert page.locator('.modal-card').is_visible()
+            page.keyboard.press('Escape')
+            wait_for(lambda: review_button.evaluate('e => e.matches(":focus")'), timeout=2)
+            assert review_button.evaluate('e => e.matches(":focus")')
+            review_button.click()
+            newer = store.remember(bot.id, 'format', 'PRIVATE A REVISED: concise summary', conversation_id=a['id'])
+            page.locator('#modal-confirm').click()
+            page.locator('#fact-review-error').get_by_text('replaced', exact=False).wait_for()
+            assert page.locator('#chat-prompt').input_value().startswith('Keep this unsent')
+            assert store.fact_page(bot.id, conversation_id=a['id'], approved_only=True)==[]
+            page.screenshot(path=str(out/f'{size}-revision-conflict.png'), full_page=True, animations='disabled')
+            page.keyboard.press('Escape')
+            page.locator(f'[data-fact-review="{newer.id}"]').click()
+            page.locator('#fact-share').check()
+            with page.expect_response(lambda r: r.request.method=='POST' and r.url.endswith('/review')) as result:
+                page.locator('#modal-confirm').click()
+            assert result.value.status==200
+            page.locator('#modal-title').wait_for(state='hidden')
+            assert page.locator('#chat-prompt').input_value().startswith('Keep this unsent')
+            shared = store.fact_page(bot.id, approved_only=True)[0]
+            assert shared['scope_kind']=='bot' and shared['value'].startswith('PRIVATE A REVISED')
+            page.locator('#conversation-switcher').select_option(b['id'])
+            page.locator('.fact-panel details summary').click()
+            page.locator(f'[data-fact-card="{shared["id"]}"]').wait_for()
+            assert 'PRIVATE A REVISED' in page.locator('#chat-stream').inner_text()
+            page.screenshot(path=str(out/f'{size}-shared.png'), full_page=True, animations='disabled')
+>           page.get_by_role('link',name='Settings',exact=True).click()
+
+tests/e2e/test_browser.py:9863: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:18032: in click
+    self._sync(
+.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:165: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:594: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f61b8db9940>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f618b9b7600>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("link", name="Settings", exact=True)
+
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: TimeoutError
+__ test_scoped_fact_review_revision_conflict_and_memory_off[900-1024-tablet] ___
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:36429', <fastapi.applications.FastAPI object at 0x7f618a74dd10>)
+width = 900, height = 1024, size = 'tablet'
+
+    @pytest.mark.parametrize('width,height,size', [(1440,1000,'desktop'),(900,1024,'tablet'),(390,844,'phone')])
+    def test_scoped_fact_review_revision_conflict_and_memory_off(browser, live, width, height, size):
+        import hashlib
+        import json
+        from pathlib import Path
+        from hutch.models import Run, iso, utcnow
+        base, application = live
+        store = application.state.store
+        bot = store.create_bot(Bot(name='fact-review-bot', tools=['memory']))
+        a, _ = store.create_conversation(bot.id, 'Private reference chat', idem_key='fact-chat-a', request_hash='a')
+        b, _ = store.create_conversation(bot.id, 'Separate private chat', idem_key='fact-chat-b', request_hash='b')
+        # A running status fixture keeps the e2e run out of the live supervisor's
+        # pending queue. Production fence ownership is covered by test_fact_memory.
+        run = store.create_run(Run(bot_id=bot.id, conversation_id=a['id'], prompt='synthetic fact proposal', status=RunStatus.running))
+        fact = store.remember(bot.id, 'format', 'PRIVATE A: prefer short bullets. <script>window.__factInjected=true</script>',
+                              run_id=run.id, expected_fence=0)
+        store.transition_run(run.id, RunStatus.succeeded, fence=0)
+        store.remember(bot.id, 'other-private', 'PRIVATE B MUST NOT APPEAR IN A', conversation_id=b['id'])
+        context = browser.new_context(viewport={'width':width,'height':height}, reduced_motion='reduce')
+        context.tracing.start(screenshots=True, snapshots=True, sources=True)
+        page, errors = context.new_page(), []
+        page.on('pageerror', lambda error: errors.append(str(error)))
+        out = Path(__file__).resolve().parents[2]/'docs/realignment/artifacts/fact-memory'
+        out.mkdir(parents=True, exist_ok=True)
+        try:
+            page.goto(base+'/#/chat/'+bot.name)
+            page.locator('#conversation-switcher').select_option(a['id'])
+            page.locator(f'[data-fact-card="{fact.id}"]').wait_for()
+            assert 'PRIVATE B MUST NOT APPEAR IN A' not in page.locator('#chat-stream').inner_text()
+            assert page.evaluate('window.__factInjected === undefined')
+            page.locator('#chat-prompt').fill('Keep this unsent fact-review draft')
+            page.screenshot(path=str(out/f'{size}-proposed.png'), full_page=True, animations='disabled')
+            review_button = page.locator(f'[data-fact-review="{fact.id}"]')
+            review_button.focus(); page.keyboard.press('Enter')
+            page.locator('#fact-share').wait_for()
+            assert not page.locator('#fact-share').is_checked()
+            assert 'not proof of truth' in page.locator('.modal-body').inner_text()
+            if size=='phone':
+                assert page.locator('.fact-share').bounding_box()['height']>=44
+                assert page.locator('#modal-confirm').bounding_box()['height']>=44
+            page.screenshot(path=str(out/f'{size}-review.png'), full_page=True, animations='disabled')
+            with page.expect_response(lambda response: '/facts?' in response.url and 'conversation_id=' in response.url) as refresh:
+                store.remember(bot.id, 'background-proposal', 'A refresh must not dismiss or steal the review dialog',
+                               conversation_id=a['id'])
+            assert refresh.value.status == 200
+            page.wait_for_timeout(100)
+            assert page.locator('.modal-card').is_visible()
+            page.keyboard.press('Escape')
+            wait_for(lambda: review_button.evaluate('e => e.matches(":focus")'), timeout=2)
+            assert review_button.evaluate('e => e.matches(":focus")')
+            review_button.click()
+            newer = store.remember(bot.id, 'format', 'PRIVATE A REVISED: concise summary', conversation_id=a['id'])
+            page.locator('#modal-confirm').click()
+            page.locator('#fact-review-error').get_by_text('replaced', exact=False).wait_for()
+            assert page.locator('#chat-prompt').input_value().startswith('Keep this unsent')
+            assert store.fact_page(bot.id, conversation_id=a['id'], approved_only=True)==[]
+            page.screenshot(path=str(out/f'{size}-revision-conflict.png'), full_page=True, animations='disabled')
+            page.keyboard.press('Escape')
+            page.locator(f'[data-fact-review="{newer.id}"]').click()
+            page.locator('#fact-share').check()
+            with page.expect_response(lambda r: r.request.method=='POST' and r.url.endswith('/review')) as result:
+                page.locator('#modal-confirm').click()
+            assert result.value.status==200
+            page.locator('#modal-title').wait_for(state='hidden')
+            assert page.locator('#chat-prompt').input_value().startswith('Keep this unsent')
+            shared = store.fact_page(bot.id, approved_only=True)[0]
+            assert shared['scope_kind']=='bot' and shared['value'].startswith('PRIVATE A REVISED')
+            page.locator('#conversation-switcher').select_option(b['id'])
+            page.locator('.fact-panel details summary').click()
+            page.locator(f'[data-fact-card="{shared["id"]}"]').wait_for()
+            assert 'PRIVATE A REVISED' in page.locator('#chat-stream').inner_text()
+            page.screenshot(path=str(out/f'{size}-shared.png'), full_page=True, animations='disabled')
+>           page.get_by_role('link',name='Settings',exact=True).click()
+
+tests/e2e/test_browser.py:9863: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:18032: in click
+    self._sync(
+.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:165: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:594: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f61b8db9940>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f618b9b6b60>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("link", name="Settings", exact=True)
+
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: TimeoutError
+___ test_scoped_fact_review_revision_conflict_and_memory_off[390-844-phone] ____
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live = ('http://127.0.0.1:34327', <fastapi.applications.FastAPI object at 0x7f61b4d347d0>)
+width = 390, height = 844, size = 'phone'
+
+    @pytest.mark.parametrize('width,height,size', [(1440,1000,'desktop'),(900,1024,'tablet'),(390,844,'phone')])
+    def test_scoped_fact_review_revision_conflict_and_memory_off(browser, live, width, height, size):
+        import hashlib
+        import json
+        from pathlib import Path
+        from hutch.models import Run, iso, utcnow
+        base, application = live
+        store = application.state.store
+        bot = store.create_bot(Bot(name='fact-review-bot', tools=['memory']))
+        a, _ = store.create_conversation(bot.id, 'Private reference chat', idem_key='fact-chat-a', request_hash='a')
+        b, _ = store.create_conversation(bot.id, 'Separate private chat', idem_key='fact-chat-b', request_hash='b')
+        # A running status fixture keeps the e2e run out of the live supervisor's
+        # pending queue. Production fence ownership is covered by test_fact_memory.
+        run = store.create_run(Run(bot_id=bot.id, conversation_id=a['id'], prompt='synthetic fact proposal', status=RunStatus.running))
+        fact = store.remember(bot.id, 'format', 'PRIVATE A: prefer short bullets. <script>window.__factInjected=true</script>',
+                              run_id=run.id, expected_fence=0)
+        store.transition_run(run.id, RunStatus.succeeded, fence=0)
+        store.remember(bot.id, 'other-private', 'PRIVATE B MUST NOT APPEAR IN A', conversation_id=b['id'])
+        context = browser.new_context(viewport={'width':width,'height':height}, reduced_motion='reduce')
+        context.tracing.start(screenshots=True, snapshots=True, sources=True)
+        page, errors = context.new_page(), []
+        page.on('pageerror', lambda error: errors.append(str(error)))
+        out = Path(__file__).resolve().parents[2]/'docs/realignment/artifacts/fact-memory'
+        out.mkdir(parents=True, exist_ok=True)
+        try:
+            page.goto(base+'/#/chat/'+bot.name)
+            page.locator('#conversation-switcher').select_option(a['id'])
+            page.locator(f'[data-fact-card="{fact.id}"]').wait_for()
+            assert 'PRIVATE B MUST NOT APPEAR IN A' not in page.locator('#chat-stream').inner_text()
+            assert page.evaluate('window.__factInjected === undefined')
+            page.locator('#chat-prompt').fill('Keep this unsent fact-review draft')
+            page.screenshot(path=str(out/f'{size}-proposed.png'), full_page=True, animations='disabled')
+            review_button = page.locator(f'[data-fact-review="{fact.id}"]')
+            review_button.focus(); page.keyboard.press('Enter')
+            page.locator('#fact-share').wait_for()
+            assert not page.locator('#fact-share').is_checked()
+            assert 'not proof of truth' in page.locator('.modal-body').inner_text()
+            if size=='phone':
+                assert page.locator('.fact-share').bounding_box()['height']>=44
+                assert page.locator('#modal-confirm').bounding_box()['height']>=44
+            page.screenshot(path=str(out/f'{size}-review.png'), full_page=True, animations='disabled')
+            with page.expect_response(lambda response: '/facts?' in response.url and 'conversation_id=' in response.url) as refresh:
+                store.remember(bot.id, 'background-proposal', 'A refresh must not dismiss or steal the review dialog',
+                               conversation_id=a['id'])
+            assert refresh.value.status == 200
+            page.wait_for_timeout(100)
+            assert page.locator('.modal-card').is_visible()
+            page.keyboard.press('Escape')
+            wait_for(lambda: review_button.evaluate('e => e.matches(":focus")'), timeout=2)
+            assert review_button.evaluate('e => e.matches(":focus")')
+            review_button.click()
+            newer = store.remember(bot.id, 'format', 'PRIVATE A REVISED: concise summary', conversation_id=a['id'])
+            page.locator('#modal-confirm').click()
+            page.locator('#fact-review-error').get_by_text('replaced', exact=False).wait_for()
+            assert page.locator('#chat-prompt').input_value().startswith('Keep this unsent')
+            assert store.fact_page(bot.id, conversation_id=a['id'], approved_only=True)==[]
+            page.screenshot(path=str(out/f'{size}-revision-conflict.png'), full_page=True, animations='disabled')
+            page.keyboard.press('Escape')
+            page.locator(f'[data-fact-review="{newer.id}"]').click()
+            page.locator('#fact-share').check()
+            with page.expect_response(lambda r: r.request.method=='POST' and r.url.endswith('/review')) as result:
+                page.locator('#modal-confirm').click()
+            assert result.value.status==200
+            page.locator('#modal-title').wait_for(state='hidden')
+            assert page.locator('#chat-prompt').input_value().startswith('Keep this unsent')
+            shared = store.fact_page(bot.id, approved_only=True)[0]
+            assert shared['scope_kind']=='bot' and shared['value'].startswith('PRIVATE A REVISED')
+            page.locator('#conversation-switcher').select_option(b['id'])
+            page.locator('.fact-panel details summary').click()
+            page.locator(f'[data-fact-card="{shared["id"]}"]').wait_for()
+            assert 'PRIVATE A REVISED' in page.locator('#chat-stream').inner_text()
+            page.screenshot(path=str(out/f'{size}-shared.png'), full_page=True, animations='disabled')
+>           page.get_by_role('link',name='Settings',exact=True).click()
+
+tests/e2e/test_browser.py:9863: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:18032: in click
+    self._sync(
+.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:165: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:594: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f61b8db9940>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f618a8236a0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("link", name="Settings", exact=True)
+
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: TimeoutError
+___________ test_specialist_question_is_answered_from_the_task_card ____________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+clarification_live = ('http://127.0.0.1:33461', <fastapi.applications.FastAPI object at 0x7f61ba7af250>, {'coordinator_name': 'clarity-coor...conv_98cd63c292bf', 'question': 'Which launch option should I prefer?', 'question_id': 'choice_a4bef567d55e46ec', ...})
+
+    def test_specialist_question_is_answered_from_the_task_card(browser, clarification_live):
+        base, app, seed = clarification_live
+        output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/delegation-clarification"
+        output.mkdir(parents=True, exist_ok=True)
+        viewports = {"desktop": (1440, 960), "tablet": (900, 1024), "phone": (390, 844)}
+        context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+        page = context.new_page()
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        context.tracing.start(screenshots=True, snapshots=True, sources=False)
+        try:
+            page.goto(f"{base}/#/chat/{seed['coordinator_name']}")
+            card = page.locator("[data-workspace-task]")
+            card.wait_for(timeout=15000)
+            question = card.locator("[data-workspace-task-question]")
+            question.wait_for(timeout=15000)
+            card_text = card.inner_text()
+            assert "Needs your answer" in card_text, card_text
+            assert seed["question"] in question.inner_text()
+            assert "Alpha" in question.inner_text() and "Beta" in question.inner_text()
+            assert "Latest specialist response" not in card_text
+            assert card.locator("[data-discuss-specialist-result]").count() == 0
+            assert card.locator("[data-stop-run]").count() == 0, "a waiting question is not a live run to stop"
+    
+            for label, (width, height) in viewports.items():
+                page.set_viewport_size({"width": width, "height": height})
+>               question.scroll_into_view_if_needed()
+
+tests/e2e/test_delegation_clarification.py:148: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:20142: in scroll_into_view_if_needed
+    self._sync(
+.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:621: in scroll_into_view_if_needed
+    return await self._with_element(
+.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:118: in _with_element
+    return await task(
+.venv/lib/python3.13/site-packages/playwright/_impl/_element_handle.py:112: in scroll_into_view_if_needed
+    await self._channel.send(
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f618bf9e690>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f618dbafd80>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: Locator.scroll_into_view_if_needed: Element is not attached to the DOM
+E           Call log:
+E             - attempting scroll into view action
+E               - waiting for element to be stable
+E               - element is not stable
+E             - retrying scroll into view action
+E               - waiting for element to be stable
+
+.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:632: Error
+____________ test_chat_suggestion_card_reflows_and_requires_review _____________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/<local-path-redacted>> version=153.0.8010.12>
+live_studio = ('http://127.0.0.1:44487', <hutch.store.Store object at 0x7f61947df790>, Bot(id='bot_ee07e33f621f', name='workflow-rou...: 'wrev_13baeddae8c9', 'revision': 1, 'plan_hash': '7e8a95b6b8035dffcf6dd336e00e2207784f466dd20bc888ab06d2302fb21065'})
+
+    def test_chat_suggestion_card_reflows_and_requires_review(browser, live_studio):
+        base, store, bot, conversation, definition = live_studio
+        EVIDENCE.mkdir(parents=True, exist_ok=True)
+        context = browser.new_context(reduced_motion="reduce")
+        page = context.new_page()
+        errors: list[str] = []
+        failed_requests: list[str] = []
+        external_requests: list[str] = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.on("requestfailed", lambda request: failed_requests.append(request.url))
+        page.on("request", lambda request: external_requests.append(request.url)
+                if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+        context.tracing.start(screenshots=True, snapshots=True, sources=False)
+        states = []
+        accessibility_states = []
+        try:
+            sizes = (("desktop", 1440, 960), ("tablet", 768, 1024),
+                     ("phone", 360, 800), ("compact-phone", 320, 740))
+            for label, width, height in sizes:
+                page.set_viewport_size({"width": width, "height": height})
+                page.goto(f"{base}/#/chat/{bot.name}", wait_until="domcontentloaded")
+                card = page.locator(".workflow-recommendation")
+                card.wait_for(state="visible", timeout=15_000)
+                assert page.locator("#conversation-switcher").input_value() == conversation["id"]
+                assert "Suggestion · nothing started" in card.inner_text()
+                assert "direct checks once" in card.inner_text()
+                assert card.locator("[data-workflow-suggestion-run]").get_attribute(
+                    "data-workflow-suggestion-run") == definition["definition_id"]
+                assert card.locator("[data-workflow-suggestion-run]").inner_text() == "Review & run"
+                card.scroll_into_view_if_needed()
+                assert page.evaluate("Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) <= innerWidth + 1")
+                box = card.bounding_box()
+                button = card.locator("[data-workflow-suggestion-run]").bounding_box()
+                styles = card.evaluate("el => { const s = getComputedStyle(el); return {fontFamily:s.fontFamily, "
+                                       "fontSize:s.fontSize, lineHeight:s.lineHeight, padding:s.padding, "
+                                       "borderRadius:s.borderRadius, color:s.color, "
+                                       "borderLeftColor:s.borderLeftColor}; }")
+                panel = page.locator("#workflow-panel").bounding_box()
+                assert box and button and box["width"] <= width and button["height"] >= 44
+                page.screenshot(path=str(EVIDENCE / f"suggestion-{label}.png"), animations="disabled")
+                states.append({"label": label, "viewport": [width, height],
+                               "document_width": page.evaluate("document.documentElement.scrollWidth"),
+                               "card_bounds": box, "button_bounds": button,
+                               "panel_bounds": panel, "computed_style": styles,
+                               "card_text": card.inner_text()})
+    
+                if label == "desktop":
+                    action = card.locator("[data-workflow-suggestion-run]")
+                    action.focus()
+                    action.press("Enter")
+                    dialog = page.locator('.modal-card[role="dialog"]')
+                    dialog.wait_for(state="visible")
+                    assert "Starting this saved workflow is an explicit action" in dialog.inner_text()
+                    assert dialog.locator("#modal-confirm").inner_text() == "Start workflow"
+                    page.screenshot(path=str(EVIDENCE / "suggestion-review-dialog.png"), animations="disabled")
+                    dialog.locator("#modal-cancel").click()
+>                   assert action.evaluate("el => el === document.activeElement"), "focus should return to the review action"
+E                   AssertionError: focus should return to the review action
+E                   assert False
+E                    +  where False = evaluate('el => el === document.activeElement')
+E                    +    where evaluate = <Locator frame=<Frame name= url='http://127.0.0.1:44487/#/chat/workflow-route-review'> selector='.workflow-recommendation >> [data-workflow-suggestion-run]'>.evaluate
+
+tests/e2e/test_workflow_route_card.py:171: AssertionError
+=========================== short test summary info ============================
+FAILED tests/e2e/test_browser.py::test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences
+FAILED tests/e2e/test_browser.py::test_opencode_coding_handoff_is_reviewed_and_responsive
+FAILED tests/e2e/test_browser.py::test_truncated_tool_source_card_opens_verified_plain_text_at_all_viewports
+FAILED tests/e2e/test_browser.py::test_verified_artifact_can_be_shared_with_another_chat_and_revoked
+FAILED tests/e2e/test_browser.py::test_mobile_navigation_traps_tab_and_restores_focus
+FAILED tests/e2e/test_browser.py::test_tool_permissions_are_clear_and_save_at_desktop_tablet_and_phone
+FAILED tests/e2e/test_browser.py::test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_sizes
+FAILED tests/e2e/test_browser.py::test_large_idle_roster_stays_compact_and_remains_searchable_and_keyboard_accessible
+FAILED tests/e2e/test_browser.py::test_duplicate_bot_starts_from_safe_editable_setup_without_copying_authority
+FAILED tests/e2e/test_browser.py::test_small_workspace_has_one_roster_and_legacy_routes_do_not_trap_back
+FAILED tests/e2e/test_browser.py::test_bot_workspace_modes_are_clear_and_persist_across_settings[1440-1000-desktop]
+FAILED tests/e2e/test_browser.py::test_bot_workspace_modes_are_clear_and_persist_across_settings[900-1024-tablet]
+FAILED tests/e2e/test_browser.py::test_bot_workspace_modes_are_clear_and_persist_across_settings[390-844-phone]
+FAILED tests/e2e/test_browser.py::test_bot_workspace_modes_are_clear_and_persist_across_settings[320-740-compact-phone]
+FAILED tests/e2e/test_browser.py::test_local_browser_handoff_setting_is_explicit_and_persists[1440-1000-desktop]
+FAILED tests/e2e/test_browser.py::test_local_browser_handoff_setting_is_explicit_and_persists[900-1024-tablet]
+FAILED tests/e2e/test_browser.py::test_local_browser_handoff_setting_is_explicit_and_persists[390-844-phone]
+FAILED tests/e2e/test_browser.py::test_bot_and_conversation_switches_isolate_unsent_drafts
+FAILED tests/e2e/test_browser.py::test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus[1440-1000-desktop]
+FAILED tests/e2e/test_browser.py::test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus[900-1024-tablet]
+FAILED tests/e2e/test_browser.py::test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus[390-844-phone]
+FAILED tests/e2e/test_browser.py::test_composer_options_rehearsal_and_cancelled_notice[1440-1000-desktop]
+FAILED tests/e2e/test_browser.py::test_composer_options_rehearsal_and_cancelled_notice[900-1024-tablet]
+FAILED tests/e2e/test_browser.py::test_composer_options_rehearsal_and_cancelled_notice[390-844-phone]
+FAILED tests/e2e/test_browser.py::test_scoped_fact_review_revision_conflict_and_memory_off[1440-1000-desktop]
+FAILED tests/e2e/test_browser.py::test_scoped_fact_review_revision_conflict_and_memory_off[900-1024-tablet]
+FAILED tests/e2e/test_browser.py::test_scoped_fact_review_revision_conflict_and_memory_off[390-844-phone]
+FAILED tests/e2e/test_delegation_clarification.py::test_specialist_question_is_answered_from_the_task_card
+FAILED tests/e2e/test_workflow_route_card.py::test_chat_suggestion_card_reflows_and_requires_review
+ERROR tests/e2e/test_browser.py::test_mobile_navigation_traps_tab_and_restores_focus
+ERROR tests/e2e/test_browser.py::test_bot_and_conversation_switches_isolate_unsent_drafts
+ERROR tests/e2e/test_browser.py::test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus[1440-1000-desktop]
+ERROR tests/e2e/test_browser.py::test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus[900-1024-tablet]
+ERROR tests/e2e/test_browser.py::test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus[390-844-phone]
+ERROR tests/e2e/test_browser.py::test_composer_options_rehearsal_and_cancelled_notice[1440-1000-desktop]
+ERROR tests/e2e/test_browser.py::test_composer_options_rehearsal_and_cancelled_notice[900-1024-tablet]
+ERROR tests/e2e/test_browser.py::test_composer_options_rehearsal_and_cancelled_notice[390-844-phone]
+29 failed, 177 passed, 8 errors in 1193.28s (0:19:53)

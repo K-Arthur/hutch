@@ -418,6 +418,7 @@ a:hover { text-decoration: underline; }
 .workflow .w:hover { text-decoration: none; }
 .workflow .wdot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
 .workflow .working { color: var(--brand-hi); }
+.workflow .waiting { color: var(--warn); }
 .workflow .queued { color: var(--text-3); }
 .workflow .needs { color: var(--warn); }
 .workflow .needs:hover { text-decoration: underline; }
@@ -500,6 +501,7 @@ button.small, a.small { min-height: 26px; font-size: var(--fs-sm); padding: 0 va
 .status.succeeded, .chip.ok { color: var(--text-2); border-color: var(--line-strong); background: transparent; }
 .status.succeeded::before, .chip.ok::before { background: var(--brand-deep); }
 .status.running, .chip.warn.live { color: var(--brand-hi); border-color: var(--brand-line); background: var(--brand-wash); }
+.status.waiting_child { color: var(--warn); border-color: rgba(251, 191, 36, 0.4); background: transparent; }
 .status.waiting_for_answer { color: var(--brand-hi); border-color: var(--brand-line); background: var(--brand-wash); }
 .status.failed, .chip.danger { color: var(--danger); border-color: rgba(248, 113, 113, 0.4); background: transparent; }
 .status.waiting_approval { color: var(--warn); border-color: rgba(251, 191, 36, 0.4); background: transparent; }
@@ -629,6 +631,10 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .conversation-action-more > summary { list-style: none; }
 .conversation-action-more > summary::-webkit-details-marker { display: none; }
 .conversation-action-more-panel { margin: 2px 0 4px 8px; padding-left: 8px; border-left: 1px solid var(--line); }
+.conversation-workflow-policy { display: grid; gap: 6px; margin: 8px 4px; padding: 10px; border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--sunken); }
+.conversation-workflow-policy label { font-size: var(--fs-xs); font-weight: 650; }
+.conversation-workflow-policy select { width: 100%; min-height: 40px; }
+.conversation-workflow-policy .hint { margin: 0; font-size: var(--fs-2xs); line-height: 1.45; overflow-wrap: anywhere; }
 .saved-request-list { display: grid; gap: var(--s-2); max-block-size: min(52vh, 30rem); overflow: auto; overscroll-behavior: contain; }
 .saved-request-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--s-3); min-width: 0; padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--panel); }
 .saved-request-copy { min-width: 0; }
@@ -639,12 +645,69 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .model-slot { flex: none; }
 
 .studio { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.chat-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; position: relative; }
+.chat-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; position: relative; scroll-padding-block-end: 4rem; }
+.workflow-panel { box-sizing: border-box; flex: none; width: min(760px, calc(100% - 2 * var(--s-5))); max-height: min(36dvh, 24rem); overflow: auto; overscroll-behavior: contain; margin: var(--s-3) auto 0; padding: var(--s-3) var(--s-4); border: 1px solid var(--line-strong); border-radius: var(--r-panel); background: var(--panel); }
+.workflow-panel[hidden] { display: none; }
+.workflow-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3); min-width: 0; }
+.workflow-panel-head > div:first-child { min-width: 0; }
+.workflow-panel-kicker { margin: 0 0 2px; font: 650 var(--fs-xs)/1.3 var(--sans); color: var(--text-2); }
+.workflow-panel h2 { margin: 0; font-size: var(--fs-md); line-height: 1.3; overflow-wrap: anywhere; }
+.workflow-panel h3 { margin: 0 0 var(--s-2); font-size: var(--fs-sm); }
+.workflow-pending-count { color: var(--text-2); font-size: var(--fs-xs); font-weight: 500; }
+.workflow-panel-head .hint { margin: 2px 0 0; overflow-wrap: anywhere; }
+.workflow-panel-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--s-1); flex: none; }
+.workflow-panel-meta { margin: var(--s-2) 0; font-size: var(--fs-xs); color: var(--text-2); overflow-wrap: anywhere; }
+.workflow-panel > details { margin-top: var(--s-2); border-top: 1px solid var(--line); }
+.workflow-panel > details > summary { min-height: 40px; display: flex; align-items: center; gap: var(--s-2); padding: var(--s-2) 0; cursor: pointer; font-size: var(--fs-sm); font-weight: 650; }
+.workflow-inspector-body { display: grid; gap: var(--s-3); padding: 0 0 var(--s-2); }
+.workflow-step-list, .workflow-saved-list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.workflow-step-list li, .workflow-saved-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--s-3); min-width: 0; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.workflow-step-copy { display: grid; min-width: 0; gap: 2px; }
+.workflow-step-copy b, .workflow-saved-list b { min-width: 0; font-size: var(--fs-xs); font-weight: 650; overflow-wrap: anywhere; }
+.workflow-step-copy span, .workflow-saved-list small { min-width: 0; color: var(--text-3); font: 400 var(--fs-2xs)/1.4 var(--mono); overflow-wrap: anywhere; }
+.workflow-step-status { max-width: 19ch; text-align: right; color: var(--text-2); font-size: var(--fs-2xs); overflow-wrap: anywhere; }
+.workflow-saved-list li > span { display: grid; min-width: 0; gap: 2px; }
+.workflow-question { display: grid; gap: var(--s-2); padding: var(--s-3); border: 1px solid var(--line-strong); border-radius: var(--r-ctl); background: var(--sunken); }
+.workflow-question p { margin: 0; overflow-wrap: anywhere; }
+.workflow-question label { font-size: var(--fs-xs); font-weight: 650; }
+.workflow-question textarea { box-sizing: border-box; width: 100%; min-height: 64px; resize: vertical; }
+.workflow-question-error, .workflow-panel-error, .workflow-queue-reason { color: var(--warn); overflow-wrap: anywhere; }
+.workflow-panel-error { margin: 0; }
+.workflow-amendment-label { display: block; margin: var(--s-3) 0 var(--s-1); font-size: var(--fs-xs); font-weight: 650; }
+.modal-body > #workflow-amendment-plan, .modal-body > #workflow-amendment-inputs {
+  box-sizing: border-box; display: block; width: 100%; min-height: 9rem; max-height: 34dvh; padding: var(--s-3);
+  border: 1px solid var(--line-strong); border-radius: var(--r-ctl); background: var(--sunken); color: var(--text);
+  font: 400 var(--fs-xs)/1.5 var(--mono); overflow-wrap: anywhere;
+}
+.modal-body > #workflow-amendment-plan { min-height: 16rem; }
+.workflow-amendment-preview { display: grid; gap: var(--s-2); margin-top: var(--s-4); padding: var(--s-3); border: 1px solid var(--line-strong); border-radius: var(--r-panel); background: var(--panel); }
+.workflow-amendment-preview h4, .workflow-amendment-preview p { margin: 0; }
+.workflow-amendment-preview > p, .workflow-amendment-preview li { font-size: var(--fs-xs); line-height: 1.5; overflow-wrap: anywhere; }
+.workflow-amendment-preview code { overflow-wrap: anywhere; }
+.workflow-amendment-preview details { border-top: 1px solid var(--line); }
+.workflow-amendment-preview summary { min-height: 40px; display: flex; align-items: center; padding: var(--s-1) 0; cursor: pointer; font-size: var(--fs-xs); font-weight: 650; }
+.workflow-amendment-preview ul { display: grid; gap: var(--s-1); margin: 0; padding: 0 0 var(--s-2) 1.25rem; }
+.workflow-amendment-preview li span { display: block; color: var(--text-2); overflow-wrap: anywhere; }
+.workflow-amendment-questions { padding: var(--s-2); border-inline-start: 2px solid var(--warn); background: var(--sunken); }
+.workflow-amendment-questions label { display: flex; align-items: flex-start; gap: var(--s-2); font-size: var(--fs-xs); line-height: 1.5; scroll-margin-bottom: var(--s-2); }
+.workflow-amendment-questions input { flex: none; width: 18px; height: 18px; margin: 0; }
+.workflow-amendment-error, .workflow-amendment-blocked { color: var(--warn); overflow-wrap: anywhere; }
+.workflow-amendment-error { min-height: 1.35em; margin: 0; font-size: var(--fs-xs); }
+.workflow-amendment-modal .modal-footer .btn, .workflow-amendment-preview .btn { min-height: 44px; }
+.workflow-amendment-modal #modal-confirm:disabled { opacity: .48; filter: grayscale(.4); cursor: not-allowed; }
+.workflow-recommendation { display: grid; gap: var(--s-1); min-width: 0; margin: var(--s-2) 0 var(--s-3); padding: var(--s-3); border: 1px solid var(--line-strong); border-radius: var(--r-panel); background: var(--panel); color: var(--text); overflow-wrap: anywhere; scroll-margin-block-start: var(--s-3); }
+.workflow-recommendation p { margin: 0; font-size: var(--fs-xs); }
+.workflow-recommendation > div:first-child { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s-2); }
+.workflow-recommendation-status { color: var(--text-2); font-size: var(--fs-2xs) !important; }
+.workflow-recommendation-simpler { color: var(--text-2); }
+.workflow-recommendation-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-1); }
+.workflow-recommendation-actions .btn { min-height: 44px; }
+.workflow-queue-reason { margin: 0; padding: var(--s-2); border-left: 2px solid var(--warn); background: var(--sunken); font-size: var(--fs-xs); }
 
 /* ── conversation: iMessage-style turns, quiet tool activity ──
    Bubbles carry the chat; tool calls are plain lines — visible, transparent,
    never boxed. Amber is reserved for "a person is needed", nothing else. */
-.feed { position: relative; max-width: 760px; margin: 0 auto; padding: var(--s-5) var(--s-5) var(--s-4); display: flex; flex-direction: column; }
+.feed { position: relative; max-width: 760px; margin: 0 auto; padding: var(--s-5) var(--s-5) calc(var(--s-4) + 1rem); display: flex; flex-direction: column; }
 
 .msg { display: flex; flex-direction: column; gap: 4px; margin-bottom: var(--s-4); min-width: 0; }
 .msg.you { align-self: flex-end; align-items: flex-end; max-width: min(560px, 88%); }
@@ -687,11 +750,25 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .code-handoff-card details p { white-space: pre-wrap; overflow-wrap: anywhere; }
 .code-handoff-card .run-notice { overflow-wrap: anywhere; }
 @media (max-width: 520px) {
+  .workflow-panel { max-height: min(58dvh, 30rem); }
+  .workflow-panel-head { flex-direction: column; }
+  .workflow-panel-head > div:first-child { width: 100%; }
+  .workflow-panel-actions { width: 100%; justify-content: flex-start; }
+  .workflow-panel-actions .btn { min-height: 44px; }
+  .workflow-question > .btn { min-height: 44px; }
   .saved-request-card { grid-template-columns: minmax(0, 1fr); }
   .saved-request-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: stretch; }
   .saved-request-actions > :first-child { grid-column: 1 / -1; }
   .code-handoff-command { align-items: stretch; flex-direction: column; }
   .code-handoff-command .btn { align-self: flex-start; }
+}
+@media (min-width: 521px) and (max-width: 820px) {
+  .workflow-panel { max-height: min(58dvh, 30rem); }
+  .workflow-panel-head { flex-direction: column; }
+  .workflow-panel-head > div:first-child { width: 100%; }
+  .workflow-panel-actions { width: 100%; justify-content: flex-start; }
+  .workflow-panel-actions .btn { min-height: 44px; }
+  .workflow-question > .btn { min-height: 44px; }
 }
 .workspace-task-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; }
 .workspace-task-brief { margin: var(--s-3) 0; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -703,6 +780,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .workspace-task-result p { margin-bottom: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 /* A waiting question is part of the task card, not a nested card; the option rows keep the shared choice rhythm. */
 .workspace-task-question { margin: var(--s-3) 0; padding-top: var(--s-3); border-top: 1px solid var(--line); }
+.workspace-task-question .btn { min-height: 44px; }
 .workspace-task-question .choice-card { width: 100%; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
 .workspace-task-question .choice-question { margin-bottom: var(--s-3); }
 .workspace-task-continuation-preview { min-width: 0; margin: var(--s-3) 0; padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--sunken); color: var(--text-2); white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -917,15 +995,16 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
 .run-error-label { font: 700 var(--fs-2xs)/1.6 var(--font-ui); letter-spacing: 0.06em; text-transform: uppercase; color: var(--danger); }
 
 /* jump to latest */
+.jump-latest-slot { flex: none; display: flex; justify-content: center; min-width: 0; padding: 0 var(--s-3); }
+.jump-latest-slot[hidden] { display: none; }
 .jump-latest {
-  position: absolute; left: 50%; transform: translateX(-50%); bottom: 10px; z-index: 5;
-  display: inline-flex; align-items: center; gap: 6px;
+  position: static; display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px;
+  max-width: 100%; min-height: 44px; margin: 0 0 var(--s-2); overflow-wrap: anywhere;
   background: var(--overlay); color: var(--text); border: 1px solid var(--line-strong);
   border-radius: var(--r-chip); padding: 7px var(--s-4);
   font: 600 var(--fs-sm)/1 var(--sans); cursor: pointer; box-shadow: var(--sh-2);
 }
 .jump-latest:hover { border-color: var(--line-hi); }
-.jump-latest[hidden] { display: none; }
 
 /* ── composer (named 16px exception) ── */
 .composer { flex: none; padding: 0 var(--s-5) var(--s-5); background: linear-gradient(transparent, var(--bg) 26%); }
@@ -1803,7 +1882,7 @@ button.inline-link:hover { color: var(--text); }
   .kpi:nth-child(-n + 2) { border-top: 0; }
   .kpi:nth-child(odd) { border-left: 0; }
   .container { padding: var(--s-4) var(--s-4) var(--s-7); }
-  .feed { padding: var(--s-4) var(--s-3) var(--s-5); }
+  .feed { padding: var(--s-4) var(--s-3) calc(var(--s-5) + 1rem); }
   .run-integrity { align-items: stretch; flex-direction: column; }
   .run-technical-details > summary { gap: var(--s-2); padding-inline: var(--s-3); }
   .run-technical-details > summary span:nth-child(2) { max-width: 16ch; text-align: right; }
@@ -1907,11 +1986,12 @@ button.inline-link:hover { color: var(--text); }
 
 /* forced colors: system paints what matters; state never rides on color alone */
 @media (forced-colors: active) {
-  .card, .panel, .answer, .bubble, .modal-card, .toast, .approval-card-chat, .approval-card,
+  .card, .panel, .modal-card, .toast, .approval-card-chat, .approval-card,
   .bot-card, .ov-col, .table-wrap, .composer-box, .run-error, .feed-pill,
   .chip, .status, .tag, .pill, .roster-search { border: 1px solid CanvasText; forced-color-adjust: none; }
+  .status { color: CanvasText; background-color: Canvas; forced-color-adjust: auto; }
   .btn.primary, button.primary { background: ButtonFace; color: ButtonText; border-color: ButtonText; }
-  .thread .bubble, .answer, .typing { border: 1px solid CanvasText; forced-color-adjust: none; }
+  .thread .bubble, .answer, .typing { border: 1px solid CanvasText; }
   .tool-group-items { background: transparent; }
   :focus-visible { outline: 2px solid Highlight; }
   .status::before, .chip::before { forced-color-adjust: none; }
@@ -2090,8 +2170,9 @@ body.paired-phone > :not(#phone-root) { display: none !important; }
 .phone-header-actions .btn { min-height: 44px; }
 .phone-connection { color: var(--ok); font-size: 12px; }
 .phone-connection.offline { color: var(--warn); }
-.phone-tabs { max-width: 760px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr);
+.phone-tabs { max-width: 760px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
   position: sticky; top: 0; z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line); }
+.phone-tabs.monitor-only { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .phone-tabs button { min-height: 48px; border: 0; border-bottom: 2px solid transparent; background: transparent;
   color: var(--text-2); font: inherit; font-weight: 650; cursor: pointer; }
 .phone-tabs button[aria-current="page"] { color: var(--brand); border-bottom-color: var(--brand); }
@@ -2107,6 +2188,7 @@ body.paired-phone > :not(#phone-root) { display: none !important; }
 .phone-section-title { font-size: var(--fs-lg); }
 .phone-list { display: grid; gap: 10px; }
 .phone-card { min-width: 0; padding: 15px; background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--r-panel); }
+.phone-run-detail .phone-card > .btn { min-height: 48px; }
 .phone-card h1 { margin: 11px 0 5px; font-size: var(--fs-2xl); overflow-wrap: anywhere; }
 .phone-card h2 { margin: 12px 0 5px; font-size: var(--fs-lg); overflow-wrap: anywhere; }
 .phone-card p { margin-top: 7px; }
@@ -2127,7 +2209,29 @@ body.paired-phone > :not(#phone-root) { display: none !important; }
 .phone-start-form textarea { min-height: 112px; resize: vertical; }
 .phone-start-form button { min-height: 48px; }
 .phone-run-card { width: 100%; display: grid; gap: 8px; text-align: left; color: var(--text); font: inherit; cursor: pointer; }
+.phone-workflow-card { width: 100%; display: grid; gap: 8px; text-align: left; color: var(--text); font: inherit; cursor: pointer; }
 .phone-run-card strong { font-size: var(--fs-md); font-weight: 600; overflow-wrap: anywhere; }
+.phone-workflow-card strong { font-size: var(--fs-md); font-weight: 650; overflow-wrap: anywhere; }
+.phone-workflow-heading { display: grid; gap: 6px; }
+.phone-workflow-detail { min-width: 0; display: grid; gap: 11px; }
+.phone-workflow-detail > .btn, .phone-workflow-heading > .btn { min-height: 48px; }
+.phone-workflow-steps { list-style: none; display: grid; gap: 8px; padding: 0; margin: 0; }
+.phone-workflow-steps li { min-width: 0; padding: 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-ctl); }
+.phone-workflow-steps .phone-step-status { grid-column: 2; grid-row: 1; color: var(--text-2); font-size: 12px; text-transform: capitalize; text-align: right; }
+.phone-workflow-steps .phone-step-title { grid-column: 1; grid-row: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 620; }
+.phone-workflow-steps .phone-sub { grid-column: 1 / -1; }
+.phone-planned-steps li[data-depth="1"] { margin-left: 12px; }
+.phone-planned-steps li[data-depth="2"] { margin-left: 24px; }
+.phone-planned-steps li[data-depth="3"] { margin-left: 36px; }
+.phone-planned-steps li[data-depth="4"], .phone-planned-steps li[data-depth="5"] { margin-left: 48px; }
+.phone-question-prompt { overflow-wrap: anywhere; }
+.phone-workflow-answer-form { display: grid; gap: 9px; margin-top: 12px; }
+.phone-workflow-answer-form label { display: grid; gap: 6px; font-weight: 600; }
+.phone-workflow-answer-form select, .phone-workflow-answer-form textarea { width: 100%; min-height: 48px; padding: 11px 12px; color: var(--text);
+  background: var(--sunken); border: 1px solid var(--line-strong); border-radius: var(--r-ctl); font: inherit; }
+.phone-workflow-answer-form textarea { min-height: 96px; resize: vertical; }
+.phone-workflow-answer-form button { min-height: 48px; }
 .phone-empty { padding: 18px; color: var(--text-2); background: var(--panel); border: 1px dashed var(--line-strong); border-radius: var(--r-panel); }
 .phone-transcript { list-style: none; display: grid; gap: 10px; padding: 0; margin: 0; }
 .phone-transcript li { min-width: 0; }
@@ -2143,6 +2247,8 @@ body.paired-phone > :not(#phone-root) { display: none !important; }
   .phone-header-actions { flex-wrap: wrap; justify-content: flex-end; }
   .phone-connection { width: 100%; text-align: right; }
   .phone-summary > div { padding: 10px; }
+  .phone-tabs button { font-size: 13px; }
+  .phone-tabs button span { min-width: 18px; height: 18px; margin-left: 2px; }
 }
 
 /* Assistant-first design: familiar chat navigation, service marks, and details on demand. */

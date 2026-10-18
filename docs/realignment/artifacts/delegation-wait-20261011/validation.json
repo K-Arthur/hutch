@@ -1,0 +1,119 @@
+{
+  "captured_at": "2026-10-12T05:24:22.483135+00:00",
+  "browser": {
+    "name": "chromium",
+    "version": "153.0.8010.12"
+  },
+  "fixture": {
+    "run_id": "run_33e7411fe032",
+    "status": "waiting_child",
+    "child_run_id": "run_4f7aa7510cd1",
+    "child_status": "pending",
+    "provider_calls": 0
+  },
+  "owner_views": {
+    "desktop-1440": {
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "document_width": 1440,
+      "client_width": 1440,
+      "screenshot": "desktop-1440.png"
+    },
+    "tablet-768": {
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "document_width": 768,
+      "client_width": 768,
+      "screenshot": "tablet-768.png"
+    },
+    "phone-360": {
+      "viewport": {
+        "width": 360,
+        "height": 800
+      },
+      "document_width": 360,
+      "client_width": 360,
+      "screenshot": "phone-360.png"
+    },
+    "compact-320": {
+      "viewport": {
+        "width": 320,
+        "height": 800
+      },
+      "document_width": 320,
+      "client_width": 320,
+      "screenshot": "compact-320.png"
+    }
+  },
+  "owner_wait_status_style": {
+    "color": "rgb(251, 191, 36)",
+    "borderColor": "rgba(251, 191, 36, 0.4)"
+  },
+  "reduced_motion": {
+    "requested": "reduce",
+    "matched": true,
+    "fast_duration": "0ms"
+  },
+  "text_spacing_override": {
+    "line_height": 1.5,
+    "letter_spacing_em": 0.12,
+    "word_spacing_em": 0.16,
+    "paragraph_spacing_em": 2,
+    "document_width": 320,
+    "client_width": 320,
+    "stop_target_css_px": {
+      "width": 44,
+      "height": 44
+    }
+  },
+  "forced_colors": {
+    "requested": "active",
+    "matched": true,
+    "waiting_status": {
+      "color": "rgb(0, 0, 0)",
+      "canvas": "rgb(255, 255, 255)",
+      "contrast": 21
+    },
+    "document_width": 320,
+    "client_width": 320
+  },
+  "owner_stop_target_css_px": {
+    "width": 44,
+    "height": 44
+  },
+  "paired_review_view": {
+    "viewport": {
+      "width": 320,
+      "height": 844
+    },
+    "document_width": 320,
+    "client_width": 320,
+    "stop_target_css_px": {
+      "width": 101.984375,
+      "height": 48
+    },
+    "stop_action_available": true
+  },
+  "console_errors": [],
+  "failed_requests": [],
+  "source_sha256": {
+    "tests/e2e/test_browser.py": "018dea18453d22619f19b1db2370b18c800388291728a56afa4f13f290e81c2d",
+    "src/hutch/server/static/app.js": "46d20982de8a508e8e382514631e18a784062df33befadb87c11bb75147ab78e",
+    "src/hutch/server/static/style.css": "61d78a424c663debc9ba828bc93654045410e51e6d25b384b37bb02522e58fbb"
+  },
+  "artifact_sha256": {
+    "compact-320.png": "119cf34e91e8804ac60829ced332b6f16b8cfd2063a7f9c28d6ab5aa2f638efb",
+    "desktop-1440.png": "1415f63ec6925304dc20215a7d29e422e3ad76342997a74933e5de11fc64fefe",
+    "forced-colors-320.png": "5b14224a054b3ba388a7609d373c5366c07e7ceb7e121782321626798ad264cd",
+    "paired-review-320.png": "6d28933ee65591f8bd71ef5467e566ffdca5b5055cd1d482b64dd021307ce7dc",
+    "phone-360.png": "2af8a471f80b50724558353c3f1c0c84c0da12db1a4472476847ca602907de86",
+    "tablet-768.png": "8e712729961262ccedbf0c0fee6a6348e517e448cfa5f446ef78c1888a23f71b",
+    "text-spacing-320.png": "0a5e9a711124c327bc2c777beccc99b8fe6791bfa72c249649670d34450607ff",
+    "trace.zip": "7429784d7a564e42f8d64b8acfae65ecfa8f738a214d6b3cfda36e497e7c6da3",
+    "visual-review.md": "509b00bc96d6710b8733a191e02a4bb0d4b7e73320e9e819d2368687378b90fc"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "complete": false,
+  "discovery_complete": true,
+  "discovered_count": 3,
+  "covered_count": 2,
+  "covered": [
+    {
+      "path": "research/a.md",
+      "findings": [
+        "Monthly reliability reports are published."
+      ],
+      "evidence": [
+        "publishes monthly reliability reports"
+      ]
+    },
+    {
+      "path": "research/c.md",
+      "findings": [
+        "Retry limits are undocumented."
+      ],
+      "evidence": [
+        "does not document retry limits"
+      ]
+    }
+  ],
+  "omissions": [
+    {
+      "path": "research/b.md",
+      "reason": "review_sources.review: the step's answer did not satisfy its output contract: no JSON object was found in the answer"
+    }
+  ]
+}

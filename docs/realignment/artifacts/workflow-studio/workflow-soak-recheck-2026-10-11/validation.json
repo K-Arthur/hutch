@@ -1,0 +1,636 @@
+{
+  "test": "deterministic saved-workflow process-executor soak",
+  "started_at": "2026-10-12T01:07:19.231589+00:00",
+  "finished_at": "2026-10-12T01:17:19.236053+00:00",
+  "duration_seconds_requested": 600.0,
+  "duration_seconds_actual": 600.0,
+  "interval_seconds": 10.0,
+  "run_timeout_seconds": 30.0,
+  "python": "3.13.15 (main, Sep  1 2026, 14:18:08) [Clang 22.1.3 ]",
+  "platform": "Linux-7.2.7-1-cachyos-x86_64-with-glibc2.44",
+  "executor": "thread",
+  "test_runtime": "tests.support.runtime.test_runtime_for; used only for route readiness",
+  "workflow_interpreter": "production hutch.workflow.runtime.WorkflowRuntime",
+  "max_concurrent": 1,
+  "model_requests": 0,
+  "network_requests": 0,
+  "workflow_runs": 60,
+  "engine_ticks": 781,
+  "peak_active_runs": 1,
+  "results": [
+    {
+      "workflow_run_id": "wrun_71bf1154058f",
+      "attempt_run_id": "run_6fae39302c49",
+      "elapsed_seconds": 0.11,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_50c45106a132",
+      "attempt_run_id": "run_e3c918d8a3b6",
+      "elapsed_seconds": 0.116,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_371f170b723d",
+      "attempt_run_id": "run_c1d44d7a65dc",
+      "elapsed_seconds": 0.116,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_4cd5828579bb",
+      "attempt_run_id": "run_0b1df74fc836",
+      "elapsed_seconds": 0.116,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_dfa298910a95",
+      "attempt_run_id": "run_54d3c13df014",
+      "elapsed_seconds": 0.116,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_4e1256f49bcb",
+      "attempt_run_id": "run_6fe9b7a85de3",
+      "elapsed_seconds": 0.116,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_dea512fd2cc6",
+      "attempt_run_id": "run_b2e8b6dd1ac1",
+      "elapsed_seconds": 0.116,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_797642f27be2",
+      "attempt_run_id": "run_dfad1a537782",
+      "elapsed_seconds": 0.133,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_c36fef94b514",
+      "attempt_run_id": "run_950914cd22a2",
+      "elapsed_seconds": 0.111,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_252d2b64b0fb",
+      "attempt_run_id": "run_3bd01602c183",
+      "elapsed_seconds": 0.117,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_f63dcbd27c1b",
+      "attempt_run_id": "run_6ac1d690b170",
+      "elapsed_seconds": 0.116,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_53c3a56b2336",
+      "attempt_run_id": "run_67e4be5f6045",
+      "elapsed_seconds": 0.108,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_6385b1ac66ba",
+      "attempt_run_id": "run_45d1b0d5e51c",
+      "elapsed_seconds": 0.116,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_11bcb1e5b6d2",
+      "attempt_run_id": "run_25ca6a433c96",
+      "elapsed_seconds": 0.115,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_29867355d108",
+      "attempt_run_id": "run_ae86502f0ca7",
+      "elapsed_seconds": 0.106,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_28d66e91622a",
+      "attempt_run_id": "run_7eb2ed7d1ac3",
+      "elapsed_seconds": 0.119,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_4a3a5f49cb6e",
+      "attempt_run_id": "run_29b7f4d743b3",
+      "elapsed_seconds": 0.115,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_765a1eac1ead",
+      "attempt_run_id": "run_8b3b34095d5b",
+      "elapsed_seconds": 0.116,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_8a0f31e8feaf",
+      "attempt_run_id": "run_e22b3eab13ba",
+      "elapsed_seconds": 0.115,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_a9e66e0308d3",
+      "attempt_run_id": "run_651fbcd75b71",
+      "elapsed_seconds": 0.115,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_b37959d10366",
+      "attempt_run_id": "run_5b1da922b549",
+      "elapsed_seconds": 0.106,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_5e52f654f4d5",
+      "attempt_run_id": "run_372d70b9206e",
+      "elapsed_seconds": 0.116,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_b15cf56a08bd",
+      "attempt_run_id": "run_7d13d3d57a50",
+      "elapsed_seconds": 0.106,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_17db9a0b1a99",
+      "attempt_run_id": "run_bb69beb45b02",
+      "elapsed_seconds": 0.106,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_350d1cee40bc",
+      "attempt_run_id": "run_82e22d7a44a9",
+      "elapsed_seconds": 0.116,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_6a3a4f3378f1",
+      "attempt_run_id": "run_7ea79f524ea0",
+      "elapsed_seconds": 0.116,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_a27f30a41c65",
+      "attempt_run_id": "run_1e8db3dbf6dc",
+      "elapsed_seconds": 0.117,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_023a1e7e9ab5",
+      "attempt_run_id": "run_688dd64b8e8f",
+      "elapsed_seconds": 0.116,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_c3a36aabf7a6",
+      "attempt_run_id": "run_a2f4f91738a2",
+      "elapsed_seconds": 0.115,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_7d38436eaf3c",
+      "attempt_run_id": "run_ab6e181a3424",
+      "elapsed_seconds": 0.127,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_b8ddbdbd3b20",
+      "attempt_run_id": "run_482e9bf41885",
+      "elapsed_seconds": 0.108,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_e32fdb27fb45",
+      "attempt_run_id": "run_50d1d545abaa",
+      "elapsed_seconds": 0.115,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_93418a5850ad",
+      "attempt_run_id": "run_d88223d476c8",
+      "elapsed_seconds": 0.115,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_144e3ce91509",
+      "attempt_run_id": "run_dc6a3ee4e11e",
+      "elapsed_seconds": 0.116,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_a10189eb59d6",
+      "attempt_run_id": "run_f6033b7f8a2b",
+      "elapsed_seconds": 0.106,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_ef91e44a13ae",
+      "attempt_run_id": "run_04724288efa6",
+      "elapsed_seconds": 0.116,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_c1e563d86e44",
+      "attempt_run_id": "run_d06898338e32",
+      "elapsed_seconds": 0.106,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_06e3ecb67453",
+      "attempt_run_id": "run_e1125b46ef48",
+      "elapsed_seconds": 0.106,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_7436ad237969",
+      "attempt_run_id": "run_8d45ad67225f",
+      "elapsed_seconds": 0.115,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_083cd258e753",
+      "attempt_run_id": "run_651ccbb1b646",
+      "elapsed_seconds": 0.115,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_3e715d116dc0",
+      "attempt_run_id": "run_cba213526742",
+      "elapsed_seconds": 0.115,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_c7017032b741",
+      "attempt_run_id": "run_b906efae92c8",
+      "elapsed_seconds": 0.116,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_ac4abb2becfb",
+      "attempt_run_id": "run_66b4f5c14f3b",
+      "elapsed_seconds": 0.106,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_d94bb913111a",
+      "attempt_run_id": "run_9c7e8117418f",
+      "elapsed_seconds": 0.108,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_f59e98dcb0c1",
+      "attempt_run_id": "run_d77348d670f6",
+      "elapsed_seconds": 0.106,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_b51583bf70d5",
+      "attempt_run_id": "run_d1745b1e5fba",
+      "elapsed_seconds": 0.115,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_ecac7ea2144d",
+      "attempt_run_id": "run_e7029704be56",
+      "elapsed_seconds": 0.106,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_bbdb16892a64",
+      "attempt_run_id": "run_05d108605c24",
+      "elapsed_seconds": 0.107,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_3fb9354bbfc2",
+      "attempt_run_id": "run_ae877f313e0c",
+      "elapsed_seconds": 0.106,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_3228f66110de",
+      "attempt_run_id": "run_bb8cc35a1efc",
+      "elapsed_seconds": 0.162,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_bc119a5e4a0a",
+      "attempt_run_id": "run_6e50aa7a3403",
+      "elapsed_seconds": 0.116,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_70b8ec09b9d5",
+      "attempt_run_id": "run_1a2a9e6bcaa5",
+      "elapsed_seconds": 0.115,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_6b33cc9fc5d0",
+      "attempt_run_id": "run_ec0bae80b9ff",
+      "elapsed_seconds": 0.106,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_7bc088251549",
+      "attempt_run_id": "run_dd46bb249d41",
+      "elapsed_seconds": 0.116,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_d8e2f7d23345",
+      "attempt_run_id": "run_70d3cb9b1d93",
+      "elapsed_seconds": 0.116,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_a2161a75d09d",
+      "attempt_run_id": "run_112e1dd04897",
+      "elapsed_seconds": 0.119,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_eecbca755963",
+      "attempt_run_id": "run_640d93621c8a",
+      "elapsed_seconds": 0.105,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_b34b7b68143c",
+      "attempt_run_id": "run_d81190ae959b",
+      "elapsed_seconds": 0.116,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_868f62a890a1",
+      "attempt_run_id": "run_0ba699daea19",
+      "elapsed_seconds": 0.106,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    },
+    {
+      "workflow_run_id": "wrun_2ced18b75f2d",
+      "attempt_run_id": "run_fb438425a500",
+      "elapsed_seconds": 0.116,
+      "status": "succeeded",
+      "verified_outputs": [
+        "value"
+      ],
+      "model_requests": 0
+    }
+  ],
+  "parent_max_rss_kib": 951396,
+  "child_max_rss_kib": 122228,
+  "failure": null,
+  "source_sha256": {
+    "src/hutch/engine.py": "59053e79cf04f740def0936f117b8da5b60d7dbaee4ebb41b9d34171695f2486",
+    "src/hutch/store.py": "b7718de2747c751c3d9d69faabff04cd3c0ad8bd9f87a75bdc5367f39b736617",
+    "src/hutch/workflow/engine.py": "ea2878b9432d3bba562c909ae7cc809fd9954b3861b35599b57a1e2da487438a",
+    "src/hutch/workflow/persistence.py": "928a54cee424d0547241532fd05bbf8371ffdf319e3f4e3ca5809bd58dcc8e36",
+    "src/hutch/workflow/runtime.py": "3d245e698486b1137c9376da37f2fbdbcea99012efdd356795368e4cd6bb301b",
+    "src/hutch/workflow/submit.py": "d8f7bb1799461259d439fda348d7c7fcbe8df07d4333d1496a7c02a5fe74387c",
+    "tests/support/runtime.py": "ef7e1494ce196b95ed5e85ef5b2b6b690cc5b2158af85b5976c9937819470178",
+    "docs/realignment/artifacts/workflow-studio/workflow-soak-2026-10-11/workflow_process_soak.py": "2585caa53899c4cfceea39129bc7ec296ff7323ba1bcb930aa0aef155b8417d8"
+  },
+  "state_dir": "/<local-path-redacted>"
+}

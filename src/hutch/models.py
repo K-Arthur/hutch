@@ -55,6 +55,8 @@ class RunStatus(str, Enum):
     waiting_approval = "waiting_approval"
     waiting_human = "waiting_human"        # login / CAPTCHA wall: a person must act
     waiting_resources = "waiting_resources"  # a free model slot, memory, or an allowance reset
+    waiting_workflow = "waiting_workflow"  # durable workflow wait; no worker or run capacity is held
+    waiting_child = "waiting_child"        # durable delegated child wait; no parent worker capacity is held
     recovering = "recovering"              # the owner was lost; recovery is deciding the outcome
     cancelling = "cancelling"              # a stop was requested and is not yet verified complete
     succeeded = "succeeded"
@@ -68,7 +70,7 @@ class RunStatus(str, Enum):
 ACTIVE_STATUSES = (
     RunStatus.pending, RunStatus.loading_model, RunStatus.running,
     RunStatus.waiting_approval, RunStatus.waiting_human, RunStatus.waiting_resources,
-    RunStatus.recovering, RunStatus.cancelling,
+    RunStatus.waiting_workflow, RunStatus.waiting_child, RunStatus.recovering, RunStatus.cancelling,
 )
 
 
@@ -122,6 +124,9 @@ class Schedule(BaseModel):
     overlap: OverlapPolicy = OverlapPolicy.queue
     enabled: bool = True               # draft/disabled routines do not admit occurrences
     prompt: str = Field(default="", max_length=4000)  # task to perform; empty preserves legacy instruction fallback
+    workflow_definition_id: Optional[str] = Field(default=None, max_length=80)
+    workflow_revision_id: Optional[str] = Field(default=None, max_length=80)
+    workflow_inputs: dict[str, Any] = Field(default_factory=dict)
     created_at: str = Field(default_factory=lambda: iso(utcnow()))
 
     @field_validator("name")
@@ -148,6 +153,10 @@ class Schedule(BaseModel):
 
     @model_validator(mode="after")
     def _trigger_fields(self) -> "Schedule":
+        if bool(self.workflow_definition_id) != bool(self.workflow_revision_id):
+            raise ValueError("a linked workflow needs both definition and immutable revision IDs")
+        if not self.workflow_definition_id and self.workflow_inputs:
+            raise ValueError("workflow_inputs require a linked workflow")
         if self.trigger is TriggerKind.cron:
             cron = self.cron.strip()
             if not cron:
@@ -402,6 +411,11 @@ class Bot(BaseModel):
     remote_start_enabled: bool = False   # local-owner opt-in for passkey-paired phone starts; never grants new tools
     paused: bool = False
     pinned: bool = False              # workspace roster preference; does not affect execution
+    # --- dynamic workflows (schema v53): how Hutch may use a workflow for this Bot.
+    # New assistants default to Suggest; the schema-v57 migration pins older persisted
+    # assistants to their former Off behavior when this field was absent.
+    workflow_mode: Literal["off", "suggest", "auto"] = "suggest"
+    workflow_limits: dict = Field(default_factory=dict)  # auto scope: definitions + budget caps
     sidebar_hidden: bool = False       # removes an idle Bot from the main roster; never pauses work
     roster_section: Optional[str] = Field(default=None, max_length=40)
     template: Optional[str] = None    # which starter template it came from
@@ -642,6 +656,12 @@ class Run(BaseModel):
     pgid: int = 0                     # process group of the worker, so a supervisor that did not spawn it can still end it
     verified: Optional[bool] = None   # did the task's expectation hold? None = no expectation was declared
     reason: str = ""                  # why a waiting/recovering run is in that state (shown with the label)
+    # --- dynamic workflows (schema v53). ``kind`` also exists as a column, because claim
+    # admission needs it in SQL; the document copy keeps it readable everywhere else.
+    kind: Literal["attempt", "workflow", "step"] = "attempt"
+    workflow_run_id: str = ""          # the workflow instance this attempt/step belongs to
+    workflow_step: Optional[dict] = None  # a step's frozen execution contract (tools, limits, role)
+    workflow_context: Optional[dict] = None  # inherited node identity for a narrowly delegated descendant
 
     @model_validator(mode="before")
     @classmethod
@@ -721,6 +741,7 @@ class EventType(str, Enum):
 
 class Event(BaseModel):
     id: Optional[int] = None          # database row id; only set on events read back
+    outbox_id: Optional[str] = Field(default=None, exclude=True)  # stable id for crash-safe event delivery
     run_id: str
     seq: int = 0                      # per-run sequence number, 1-based and gap-free (UI-3)
     hash: str = ""                    # hash-chain link to the previous event of this run (SR-11)

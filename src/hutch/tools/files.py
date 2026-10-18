@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,12 @@ from .base import (
     truncation_meta,
 )
 from .filewrite import destination, replace_reviewed, revision
+
+
+# ``list_files`` also feeds bounded workflow expansion. Keep the structured discovery
+# inventory comfortably below the workflow interpreter's 16 KiB tool-data boundary.
+_MAX_DISCOVERY_PATHS = 512
+_MAX_DISCOVERY_PATH_BYTES = 10_000
 
 
 def _resolve(path: str, ctx: ToolContext):
@@ -63,6 +70,9 @@ class FilesListTool(Tool):
         if not base.exists():
             return ToolResult(ok=False, output=f"error: no such directory: {rel}")
         lines: list[str] = []
+        paths: list[str] = []
+        path_bytes = 2  # JSON array brackets.
+        paths_complete = True
         retained = 0
         truncated = False
         listed = 0
@@ -82,10 +92,27 @@ class FilesListTool(Tool):
                     break
                 lines.append(entry)
                 retained += cost
+                encoded_path_bytes = len(json.dumps(entry, ensure_ascii=False).encode("utf-8"))
+                # Keep both the string array and the object form used by stable-key maps
+                # within the interpreter's bounded tool-data envelope.
+                path_cost = 2 * encoded_path_bytes + 13 + (2 if paths else 0)
+                if len(paths) < _MAX_DISCOVERY_PATHS and path_bytes + path_cost <= _MAX_DISCOVERY_PATH_BYTES:
+                    paths.append(entry)
+                    path_bytes += path_cost
+                else:
+                    # The human-readable listing can remain useful even when the
+                    # interpreter cannot retain every entry as structured map input.
+                    paths_complete = False
             if truncated:
                 break
         output = "\n".join(lines) or "(empty)"
-        data: dict[str, Any] = {"count": len(lines), "listed_entries": listed}
+        data: dict[str, Any] = {
+            "count": len(lines),
+            "listed_entries": listed,
+            "paths": paths,
+            "entries": [{"path": path} for path in paths],
+            "paths_complete": paths_complete and not truncated,
+        }
         if truncated:
             output = clip(output + f"\n… [listing clipped; retained {len(lines):,} paths, scanned {listed:,}]")
             data.update(truncation_meta(stream="listing", retained=len(output), limit=MAX_TOOL_OUTPUT,
