@@ -34,6 +34,47 @@ resolution and style-only writes; runtime/API behavior and responsive actual-app
 
 ## Current slices
 
+Grounding slice, 2026-10-11 (branch `grounding/evidence`, worktree `.worktrees/grounding`): the
+integration base was re-derived from the actual repository — local `main` (`4ac6041`, documents
+pipeline) lacked both the Agent Skills work (`wcag22-audit-fixes`) and the tool-transpiler work
+(`toolcall/unified`). `toolcall/unified` merged into main cleanly; `wcag22-audit-fixes` produced
+29 conflicts (26 regenerated evidence artifacts resolved to main's captures; `CHANGELOG.md`,
+`models.py`, `tools/__init__.py`, `cli.py` resolved by keeping both sides). The merged tree is
+`f878724` + `bfc4590` with both source branches untouched. Schema v51 adds a canonical evidence
+layer (investigations, attempts, source revisions, claims, evidence links, media, observations,
+answers, stream cursors). `live_search` and `inspect_media` are opt-in tools; `web_fetch` records
+source rows with declared dates. Live-verified read-only: BBC/HN feeds, Hacker News Algolia,
+Wikimedia EventStreams (40 events, structured cursor), and the Bluesky Jetstream firehose (227
+events scanned in an 8 s window; stored `seq` cursor resumed to a later window and advanced even
+when that window matched nothing — a continuity bug the live check caught, alongside a v2
+wire-shape change the first parser silently ignored; both are fixed and regression-tested).
+GDELT answered HTTP 200 earlier and `rate_limited` later — reported as its own outcome.
+Bluesky's public search host is blocked from this network and says so; SearXNG awaits an
+operator instance. The Evidence panel (approved route: run panel +
+chat entry) shows effective as-of, claimed/what-evidence-shows, outcomes and gaps, independence
+clusters with exact times, hash-verified frames, and answer revisions; inspected in a real browser
+at 1440/900/360 with zero console errors and no overflow. Offline tests: 83 grounding tests plus
+2 browser regressions. Final full offline suite on the combined tree (including the later main
+merge and the continuation increments — live Jetstream, scene-change and region sampling, hard
+wall budget, refresh action, accessibility pass): see the fresh run recorded in
+`docs/realignment/grounding-evidence.md`. The last recorded run before the final closures: 2032
+passed, 6 skipped, 0 failed after closing every failure: the TTY race in `test_code_handoff.py` was
+a real product bug: a SIGINT-ignoring launcher (backgrounded suite runs) passed `SIG_IGN` through
+fork/exec to the interactive CLI, so `^C` never reached it; `spawn_interactive` now resets SIGINT
+for the child (A/B-proven). The residue was the harness stopping its pty read before the
+controller's separate `EXIT=` write (now drained until `EXIT=`), and a hardcoded `/tmp` in
+`OfflineBrokerSet` that hit ENOSPC on a full shared tmpfs (now honors `TMPDIR`). Final offline
+suite on the merged tree: **2047 passed, 6 skipped, 0 failed**; after a second main merge (runtime/monitoring, `63b2712`) and the migration reconciliation (final schema v54: guards/sources/jobs + idempotent grounding ensure): **2111 passed, 6 skipped, 0 failed** offline and 93 grounding offline/browser tests.
+A genuine DOCX determinism defect found
+during integration (python-docx ZIP timestamps) is repaired and verified byte-identical across a
+2.2 s boundary. Evidence: `docs/realignment/grounding-evidence.md`, `docs/grounding.md`, artifacts under
+`docs/realignment/artifacts/grounding/`. Schema collision resolved: this branch's grounding tables and main's pending-question guards each claimed schema v51 independently. The merged history keeps v51 = grounding tables and v52 = guards plus an idempotent ensure-grounding reconciliation, so a database stamped v51 by either unmerged branch upgrades to a complete v52; `test_v51_reconciliation_upgrades_a_database_from_either_branch` covers both directions.
+
+Related robustness fixes surfaced by the certification runs: `OfflineBrokerSet` now honors `TMPDIR` instead of hardcoding `/tmp` (a full shared tmpfs broke Strict Offline with ENOSPC), and `spawn_interactive` resets SIGINT to its default for the handed-off interactive CLI (a SIGINT-ignoring launcher such as a backgrounded shell previously made Ctrl-C silently unreachable).
+
+Not claimed: any live hosted-model media call, a live
+Jetstream connection, physical-device or screen-reader passes, or tuned budget benchmarks.
+
 S6 delegation clarification, 2026-10-11: a specialist's waiting question is now a needed input, not a
 produced result. The task projection derives `needs_input`, `current_run_id` and a bounded
 `pending_question` (stable id, question, selection mode, options, source run/message) from the task's
@@ -73,6 +114,7 @@ Implementation commit `8f32d90`, merged into local `main` by fast-forward. Envir
 rerun of the same batch reported environment errors (ENOSPC) while the shared host `/tmp` tmpfs was full
 under four concurrent suite runs from other worktrees; rerunning with `TMPDIR` on the root filesystem
 passed. No provider or external request was made.
+
 
 UI realignment, 2026-10-10: the everyday path now opens with a request, carries that exact
 request into assistant setup, and suggests a short editable name. Default assistant settings

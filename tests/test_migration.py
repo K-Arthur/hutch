@@ -626,8 +626,81 @@ def test_a_database_from_a_newer_hutch_is_refused_not_downgraded(config):
         Store(config)
 
 
+def test_v51_reconciliation_upgrades_a_database_from_either_branch(config):
+    """Two unmerged branches each claimed v51; opening a v51 database must leave BOTH halves
+    present. Simulate each branch's stamp by dropping the other side's objects first."""
+    store = Store(config)
+    store.close()
+    grounding_tables = ("inv_stream_cursors", "inv_answers", "inv_observations", "inv_media_frames",
+                        "inv_media", "inv_evidence", "inv_claims", "inv_sources", "inv_query_attempts",
+                        "investigations")
+    db = sqlite3.connect(config.db_path)
+    for table in grounding_tables:                       # main-lineage stamp: guards exist, grounding absent
+        db.execute(f"DROP TABLE IF EXISTS {table}")
+    db.execute("PRAGMA user_version = 51")
+    db.commit()
+    db.close()
+    reopened = Store(config)
+    try:
+        assert reopened.schema_version == SCHEMA_VERSION
+        names = {row["name"] for row in reopened._db.execute("SELECT name FROM sqlite_master")}
+        assert "investigations" in names, "grounding tables must be created for a v51-main database"
+        assert "idx_runs_conversation_created" in names
+    finally:
+        reopened.close()
+
+
+    db = sqlite3.connect(config.db_path)
+    db.execute("DROP INDEX IF EXISTS idx_runs_conversation_created")   # grounding-lineage stamp
+    db.execute("DROP TRIGGER IF EXISTS messages_pending_question_result_insert")
+    db.execute("DROP TRIGGER IF EXISTS messages_pending_question_result_update")
+    db.execute("PRAGMA user_version = 51")
+    db.commit()
+    db.close()
+    reopened = Store(config)
+    try:
+        assert reopened.schema_version == SCHEMA_VERSION
+        names = {row["name"] for row in reopened._db.execute("SELECT name FROM sqlite_master")}
+        assert "idx_runs_conversation_created" in names, "guards must be restored for a v51-grounding database"
+        assert "investigations" in names
+    finally:
+        reopened.close()
+
+
+def test_v55_grounding_install_preserves_output_rows_and_repeats_startup(config):
+    """The grounding lane installs after current main's v55 outputs without reusing its version."""
+    from hutch.models import Bot
+
+    store = Store(config)
+    bot = store.create_bot(Bot(name="v55-grounding", model="mock/demo", tools=[]))
+    conversation, _ = store.create_conversation(
+        bot.id, "Keep uploaded output", idem_key="v55-grounding-create", request_hash="v55-grounding-create")
+    store.add_upload(conversation["id"], "kept.txt", "text/plain", 4, "a" * 64, upload_id="upl_v55_kept")
+    store.close()
+
+    with sqlite3.connect(config.db_path) as db:
+        for table in ("inv_stream_cursors", "inv_answers", "inv_observations", "inv_media_frames", "inv_media",
+                      "inv_evidence", "inv_claims", "inv_sources", "inv_query_attempts", "investigations"):
+            db.execute(f"DROP TABLE IF EXISTS {table}")
+        db.execute("PRAGMA user_version = 55")
+
+    for _ in range(2):
+        upgraded = Store(config)
+        try:
+            assert upgraded.schema_version == SCHEMA_VERSION == 56
+            assert upgraded.get_upload("upl_v55_kept")["conversation_id"] == conversation["id"]
+            names = {row["name"] for row in upgraded._db.execute("SELECT name FROM sqlite_master")}
+            assert {"investigations", "inv_sources", "uploads"} <= names
+        finally:
+            upgraded.close()
+
 def test_v51_pending_specialist_questions_are_not_attachable_results():
-    """Schema v51 keeps a waiting question out of the accepted-result record, in the database."""
+    """Schema v51 keeps a waiting question out of the accepted-result record, in the database.
+
+    In the final merged history these guards are ``_migrate_51`` (the runtime slice's numbering);
+    ``_migrate_54`` re-applies them idempotently so databases stamped by the grounding branch —
+    which never saw them — end complete.
+    """
     from hutch.store import _migrate_51
 
     db = sqlite3.connect(":memory:")

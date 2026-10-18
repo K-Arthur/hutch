@@ -38,10 +38,12 @@ def _version_rows(data: bytes, filename: str = "report.pdf", version: int = 1,
 
 
 def test_schema_v50_tables_exist(store: Store):
-    assert SCHEMA_VERSION >= 50
+    assert SCHEMA_VERSION == 54   # v51-v53 runtime slice + v54 grounding/guards reconciliation
     names = {row["name"] for row in store._db.execute(
         "SELECT name FROM sqlite_master WHERE type='table'")}
     assert {"documents", "document_versions"} <= names
+    # schema v51 added the grounding evidence layer; its own test lives with the layer
+    assert {"investigations", "inv_sources", "inv_stream_cursors"} <= names
 
 
 def test_create_document_and_versions_roundtrip(store: Store):

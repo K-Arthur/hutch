@@ -224,7 +224,6 @@ verified; otherwise `cancelling` or `recovering` remains visible with a reason. 
   provider-side billing can differ, so this is not an exact dollar guarantee.
 
 ### D6 — Web dashboard and CLI are the same engine
-
 `hutch serve` runs FastAPI with a background supervisor loop, serving a dependency-free static SPA that polls `/api`. A durable
 SQLite lease elects one scheduler/recovery supervisor across dashboard workers and `hutch daemon`; web workers submit work
 and wait for state changes. The CLI drives the same `Engine`.
@@ -240,6 +239,21 @@ records old attempts as Needs review. Source processes are never signalled. Devi
 standing grants and schedules are revoked/paused; an explicit local operator review permits
 new work without resuming old work. Files and credentials require separate preservation.
 See [ADR-0015](adr/0015-held-database-restoration.md) and [Operations](operations.md).
+
+### D7b — Grounding is evidence with roles, not a search wrapper
+
+Schema v51 stores investigations, adapter attempts with distinct outcomes, source items with
+revisions, claims, evidence links, media artifacts/observations, answer revisions and versioned
+stream cursors. Timestamps keep their role (occurred / announced / published / seen / retrieved):
+run and transcript timestamps are never the occurrence time of an external event, relative
+phrases anchor to their own document or request, and unknown zones stay unknown. Mirrors,
+reposts and syndicated headlines collapse into one origin cluster before any corroboration
+count; popularity is never treated as independence. The `live_search` and `inspect_media` tools
+are opt-in per Bot, read-only outward, and report blocked/rate-limited/disabled/zero-result
+states separately. Media frames reach the model only through routes that accept images, with a
+record of what was transmitted; C2PA presence is a provenance fact about the file, never a
+truth badge. See [Grounding](grounding.md) and the evidence record in
+[realignment/grounding-evidence.md](realignment/grounding-evidence.md).
 
 ## Concurrency model
 

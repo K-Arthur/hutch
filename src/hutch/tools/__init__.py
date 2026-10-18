@@ -13,6 +13,7 @@ from .skill import UseSkillTool
 from .documents import CreateDocumentTool, InspectDocumentTool, ReviseDocumentTool
 from .media import CreateMediaTool, RenderDiagramTool
 from .python_exec import ResetWorkspaceTool, RunPythonTool
+from .live import InspectMediaTool, LiveSearchTool
 from .google_calendar import GoogleCalendarCreateEventTool, GoogleCalendarEventsTool
 from .outlook_calendar import OutlookCalendarEventsTool
 from .outlook_calendar_write import OutlookCalendarCreateEventTool
@@ -36,6 +37,8 @@ _CATALOG: dict[str, type[Tool]] = {
     "run_python": RunPythonTool,
     "reset_workspace": ResetWorkspaceTool,
     "delegate_task": DelegateTaskTool,
+    "live_search": LiveSearchTool,
+    "inspect_media": InspectMediaTool,
 }
 
 #: bot-level tool groups that expand to concrete tool names
@@ -47,6 +50,7 @@ GROUPS: dict[str, list[str]] = {
     "memory": ["remember", "recall"],
     "browser": ["browser"],
     "computer": ["computer"],
+    "grounding": ["live_search", "inspect_media"],
 }
 
 ALL_TOOL_NAMES = sorted(_CATALOG) + ["browser", "computer"]
@@ -83,6 +87,7 @@ def build_tools(names: list[str], ctx: ToolContext, *, memory_enabled: bool | No
         # an isolated desktop has not been verified: withheld rather than implied.
         expanded = [name for name in expanded if name not in {
             "web_fetch", "browser", "computer", "google_calendar_events", "google_calendar_create_event",
+            "live_search",
             "outlook_calendar_events", "outlook_calendar_create_event", "outlook_mail_search"}]
     for name in expanded:
         if name == "delegate_task" and (ctx is None or ctx.delegation_submit is None):

@@ -108,6 +108,8 @@ def to_claude_tools(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 class ClaudeProvider(Provider):
     name = "anthropic"
+    #: messages API accepts base64 image blocks (converted in to_claude_messages)
+    supports_media_input = True
 
     def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None,
                  provider_name: str = "anthropic", headers: Optional[dict[str, str]] = None,

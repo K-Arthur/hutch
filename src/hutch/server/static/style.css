@@ -2721,3 +2721,72 @@ details[open] > summary .summary-row-action .icon { transform: rotate(180deg); }
 .composer-attachments-hint { margin: 0; color: var(--text-3); font-size: var(--fs-xs); }
 .composer-attachments-status { display: block; }
 @media (pointer: coarse) { .upload-chip-remove { inline-size: 44px; block-size: 44px; } }
+/* ───────────────────────── grounded evidence panel ─────────────────────────
+   Reads stored evidence only: claimed/observation split, source independence,
+   acquisition outcomes and gaps, inspected media frames with exact timecodes,
+   answer revisions. Chips always carry text, so state is never color-only. */
+
+.grounding-entry {
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  margin-top: var(--s-2); padding: 6px 10px;
+  border: 1px solid var(--line); border-radius: var(--r-ctl);
+  background: var(--raised); color: var(--text); font-size: var(--fs-sm);
+  text-decoration: none;
+}
+.grounding-entry:hover { border-color: var(--line-strong); background: var(--raised-hi); }
+.grounding-entry:focus-visible { outline: 2px solid var(--focus, var(--brand)); outline-offset: 2px; }
+.grounding-entry svg { width: 15px; height: 15px; }
+.grounding-entry-meta { color: var(--text-3); }
+
+.evidence-host:empty { display: none; }
+.evidence-panel { margin: var(--s-4) 0 var(--s-3); padding: var(--s-4); }
+.evidence-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s-2); margin-bottom: var(--s-3); }
+.evidence-head h2 { display: inline-flex; align-items: center; gap: var(--s-2); margin: 0; font: var(--weight-semibold) var(--fs-lg)/1.2 var(--font-display, var(--font-ui)); }
+.evidence-head h2 svg { width: 18px; height: 18px; color: var(--brand); }
+.evidence-head .hint { margin: 0; }
+
+.evidence-split { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: var(--s-4); padding: var(--s-3) 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.evidence-split-cell h3 { margin: 0 0 var(--s-1); font: var(--weight-semibold) var(--fs-xs)/1.3 var(--font-ui); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); }
+.evidence-split-cell p { margin: 0 0 var(--s-2); }
+.evidence-claim + .evidence-claim { margin-top: var(--s-3); padding-top: var(--s-3); border-top: 1px dashed var(--line); }
+.evidence-claim-text { font-weight: var(--weight-medium, 500); }
+.evidence-claim-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.evidence-reason { color: var(--text-2); font-size: var(--fs-sm); margin: var(--s-1) 0 0; }
+.evidence-disclaimer { color: var(--text-3); font-size: var(--fs-xs); margin: var(--s-2) 0 0; }
+
+.evidence-sample { padding: var(--s-3) 0 0; }
+.evidence-block { margin-top: var(--s-2); border-top: 1px solid var(--line); }
+.evidence-block > summary { cursor: pointer; padding: var(--s-2) 0; font-weight: var(--weight-medium, 500); }
+.evidence-block > summary:focus-visible { outline: 2px solid var(--focus, var(--brand)); outline-offset: 2px; border-radius: var(--r-ctl); }
+.evidence-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-3); }
+.evidence-outcome { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.evidence-outcome-name { font-weight: var(--weight-medium, 500); }
+.evidence-outcome-detail { flex-basis: 100%; color: var(--text-2); font-size: var(--fs-sm); }
+.evidence-source { padding: var(--s-2) 0; border-bottom: 1px dashed var(--line); }
+.evidence-source:last-child, .evidence-revision:last-child { border-bottom: 0; }
+.evidence-source-head { display: flex; align-items: baseline; gap: var(--s-2); min-width: 0; }
+.evidence-source-title { color: var(--text); text-decoration: none; overflow-wrap: anywhere; }
+.evidence-source-title:hover { text-decoration: underline; }
+.evidence-source-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin-top: 2px; }
+.evidence-source-excerpt { margin: var(--s-1) 0 0; color: var(--text-2); font-size: var(--fs-sm); }
+.evidence-media-item + .evidence-media-item { margin-top: var(--s-4); padding-top: var(--s-3); border-top: 1px dashed var(--line); }
+.evidence-frames { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--s-2); margin-top: var(--s-2); }
+.evidence-frame { margin: 0; border: 1px solid var(--line); border-radius: var(--r-ctl); overflow: hidden; background: var(--sunken); }
+.evidence-frame img { display: block; width: 100%; height: auto; }
+.evidence-frame figcaption { padding: 4px 8px; font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--fs-xs); color: var(--text-3); }
+.evidence-revision { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.evidence-revision-body { flex-basis: 100%; }
+.evidence-revision-body pre { margin: var(--s-2) 0 0; padding: var(--s-2); max-height: 260px; overflow: auto; background: var(--sunken); border: 1px solid var(--line); border-radius: var(--r-ctl); font-size: var(--fs-xs); white-space: pre-wrap; }
+
+.ev-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line-strong); font-size: var(--fs-xs); color: var(--text-2); background: var(--raised); }
+.ev-chip.ok { color: var(--success, var(--brand)); border-color: color-mix(in oklab, var(--success, var(--brand)) 45%, transparent); }
+.ev-chip.warn { color: var(--warning, #fbbf24); border-color: color-mix(in oklab, var(--warning, #fbbf24) 45%, transparent); }
+.ev-chip.bad { color: var(--error, #f87171); border-color: color-mix(in oklab, var(--error, #f87171) 45%, transparent); }
+.ev-chip.plain { color: var(--text-3); }
+.ev-handle { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; padding: 2px 6px; border-radius: var(--r-ctl); background: var(--sunken); border: 1px solid var(--line); font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--fs-xs); color: var(--text-2); }
+.ev-handle svg { width: 14px; height: 14px; }
+
+@media (max-width: 720px) {
+  .evidence-split { grid-template-columns: 1fr; }
+  .evidence-frames { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+}

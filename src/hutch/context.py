@@ -30,9 +30,32 @@ def estimate_tokens(text: str) -> int:
     return int(math.ceil(len(text) / CHARS_PER_TOKEN))
 
 
+#: a conservative per-image estimate for prompt budgeting; vision tokenisation is vendor-specific and
+#: exact counts come back from the provider in usage. Images are counted so they are never free.
+IMAGE_TOKEN_ESTIMATE = 800
+
+
+def _content_tokens(content: Any) -> int:
+    """Estimate one message body: text by chars, image parts by a flat conservative block."""
+    if isinstance(content, str):
+        return estimate_tokens(content)
+    if isinstance(content, list):
+        total = 0
+        for part in content:
+            if isinstance(part, dict):
+                if part.get("type") == "image_url":
+                    total += IMAGE_TOKEN_ESTIMATE
+                elif part.get("type") == "text":
+                    total += estimate_tokens(str(part.get("text") or ""))
+                else:
+                    total += estimate_tokens(json.dumps(part)[:2000])
+        return total
+    return estimate_tokens(str(content or ""))
+
+
 def prompt_tokens(messages: list[dict[str, Any]], tools: list[dict[str, Any]]) -> tuple[int, int]:
     """(message tokens, tool-definition tokens). Tool schemas are sent with every request."""
-    msg = sum(estimate_tokens(str(m.get("content") or "")) + PER_MESSAGE_OVERHEAD
+    msg = sum(_content_tokens(m.get("content")) + PER_MESSAGE_OVERHEAD
               + sum(estimate_tokens(json.dumps(tc)) for tc in (m.get("tool_calls") or [])) for m in messages)
     tool = estimate_tokens(json.dumps(tools, separators=(",", ":"))) if tools else 0
     return msg, tool

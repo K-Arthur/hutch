@@ -428,6 +428,31 @@ JSON schema, or the explicitly chosen prompt contract), arrives through one gove
   and `prompt` are per-Bot choices; no run silently downgrades a strict workflow, switches
   model, or changes accounts to make a call succeed.
 
+## The grounded-data boundary
+
+Live acquisition (`live_search`, `inspect_media`, and the upgraded `web_fetch`) follows the
+same rule: everything fetched is evidence, never authority.
+
+- Fetched titles, excerpts, captions, file names, metadata and media-visible text are untrusted
+  data. They cannot change policy, grant permissions, approve an action, or create a routine,
+  even when they contain instructions that look like the operator's voice.
+- All outbound requests go through the existing SSRF guard: scheme and address screening, DNS
+  resolution re-checked at every redirect, and the connection pinned to the validated public
+  address. Strict Offline runs get no web tools, and remote media is refused offline.
+- Search snippets are never treated as opened pages: declared dates are recorded with their
+  method and precision, local date bounds are validated, and a source's own page is opened to
+  verify a quote before it is used as a citation.
+- Media parsing is bounded and local (size caps, Pillow decompression-bomb guard, time-limited
+  ffprobe/ffmpeg). The evidence panel serves only image derivatives whose recorded SHA-256 is
+  re-verified, confined to Hutch's state directory, and never serves active remote HTML/SVG.
+- Private media is not uploaded to reverse-image or fact-check services; that egress is a
+  separate permission this build does not hold, and the capability reports `unsupported`
+  instead of simulating a check.
+- Claims bind to sources as supports / contradicts / context / reports-allegation; an account
+  posting X is evidence of the posting, not of X. Copies, reposts and syndicated headlines
+  collapse into one origin cluster so repetition never becomes corroboration, and findings
+  keep a scoped label ("insufficient evidence" included) rather than a universal verdict.
+
 ## Honest limits (read this)
 
 - **External runtimes** (`pi`, `opencode`) are disabled. They cannot currently satisfy Hutch's process ownership, approval,

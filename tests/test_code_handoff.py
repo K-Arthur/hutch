@@ -137,8 +137,9 @@ pid, master = pty.fork()
 if pid == 0:
     os.execv(sys.executable, [sys.executable, "-c", controller_code, child_code])
 output = bytearray()
-deadline = time.monotonic() + 8
-sent_input = False
+started = time.monotonic()
+deadline = started + 25          # one budget for the whole interaction, so a loaded machine
+sent_input = False               # cannot turn a slow start into a false failure
 sent_interrupt = False
 while time.monotonic() < deadline:
     readable, _, _ = select.select([master], [], [], 0.1)
@@ -157,10 +158,10 @@ while time.monotonic() < deadline:
     if b"REPLY hello from controlling terminal" in output and not sent_interrupt:
         os.write(master, b"\x03")
         sent_interrupt = True
-    if b"RESTORED foreground=True" in output:
+    if b"EXIT=" in output:
         break
 waited_pid = 0
-wait_deadline = time.monotonic() + 2
+wait_deadline = started + 40     # the outer subprocess timeout is 60 s; anything longer is a real failure
 while waited_pid == 0 and time.monotonic() < wait_deadline:
     waited_pid, status = os.waitpid(pid, os.WNOHANG)
     if waited_pid == 0:
@@ -171,12 +172,25 @@ if waited_pid == 0:
     os.waitpid(pid, 0)
     print(transcript)
     raise SystemExit("interactive controller did not finish")
+# The controller writes RESTORED and EXIT= as separate writes; drain anything still buffered
+# in the pty so a slow second write cannot be mistaken for a missing one.
+while True:
+    readable, _, _ = select.select([master], [], [], 0.05)
+    if not readable:
+        break
+    try:
+        chunk = os.read(master, 4096)
+    except OSError:
+        break
+    if not chunk:
+        break
+    output.extend(chunk)
 os.close(master)
 print(output.decode(errors="replace"), end="")
 raise SystemExit(os.waitstatus_to_exitcode(status))
 '''
     result = subprocess.run([sys.executable, "-c", harness_code, controller_code, child_code],
-                            capture_output=True, text=True, timeout=15, check=False)
+                            capture_output=True, text=True, timeout=60, check=False)
     transcript = result.stdout + result.stderr
     assert result.returncode == 0, transcript
     assert "READY tty=1 foreground=1" in transcript

@@ -45,6 +45,8 @@ def _httpx():
 
 class OpenAICompatProvider(Provider):
     name = "openai-compatible"
+    #: OpenAI-shaped messages already carry content parts; image input passes through
+    supports_media_input = True
 
     def supports_vision(self, model: str) -> bool:
         return self._official_openai and (model in _VISION_MODELS or any(

@@ -307,7 +307,9 @@ class OfflineBrokerSet:
     """Run-scoped broker sockets for every local fallback/escalation endpoint."""
 
     def __init__(self, endpoints: Iterable[str]):
-        self._temp = tempfile.TemporaryDirectory(prefix="hutch-o-", dir="/tmp")
+        # Honor the operator's TMPDIR: a hardcoded /tmp broke Strict Offline wherever /tmp is
+        # small, read-only, or full (this host's shared tmpfs filled during a full test run).
+        self._temp = tempfile.TemporaryDirectory(prefix="hutch-o-", dir=tempfile.gettempdir())
         os.chmod(self._temp.name, 0o700)
         self.brokers = []
         self.directory = self._temp.name

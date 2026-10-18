@@ -35,6 +35,7 @@ from typing import Callable, Optional
 from . import durable_changes, procguard, sandbox
 from .approvals import ApprovalGate, expire_stale_approvals
 from .config import hutchConfig
+from .grounding.clock import SYSTEM_CLOCK
 from .jobs import JobRunner
 from .lifecycle import LIVE, TERMINAL as TERMINAL_STATUSES, IllegalTransition, LeaseLost
 from .monitoring import SourcePump
@@ -909,7 +910,8 @@ class Engine:
         ctx = ToolContext(bot=bot, run=run, store=self.store, policy=policy, gate=gate,
                           config=self.config, workspace=workspace, emit=emit,
                           headless=not bot.local_browser_handoff, dry_run=run.rehearsal,
-                          skills=resolved_skills)
+                          skills=resolved_skills,
+                          clock=SYSTEM_CLOCK)
         self._ctxs[run.id] = ctx
         if (self.executor == "process" and bot.runtime.value == "builtin"
                 and bot.inference_mode.value == "offline"):

@@ -53,8 +53,18 @@ def spawn_interactive(command: list[str], *, cwd: Path | None = None,
     if foreground != parent_group:
         raise CodeHandoffError("Run this command from the foreground of its terminal")
 
-    process = subprocess.Popen(command, cwd=cwd, env=env, shell=False,
-                               process_group=0)
+    # The interactive CLI must see normal terminal signal semantics even when Hutch was
+    # launched by a parent that ignores SIGINT (nohup, a background shell, or a test
+    # runner): dispositions are inherited across fork/exec, and CPython keeps an inherited
+    # SIG_IGN instead of installing its KeyboardInterrupt handler — so ^C would silently
+    # never reach the handed-off process. Reset to default for the child only.
+    previous_sigint = signal.getsignal(signal.SIGINT)
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    try:
+        process = subprocess.Popen(command, cwd=cwd, env=env, shell=False,
+                                   process_group=0)
+    finally:
+        signal.signal(signal.SIGINT, previous_sigint)
     from . import procguard
     runner_identity = procguard.identity(process.pid)
     if runner_identity is None or runner_identity.pgrp != process.pid or runner_identity.session != parent_session:
