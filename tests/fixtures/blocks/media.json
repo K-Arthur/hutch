@@ -1,0 +1,28 @@
+{
+  "v": 1,
+  "id": "blk_8b9c0d1e2f3a4b5c",
+  "kind": "media",
+  "revision": 1,
+  "availability": "ready",
+  "text_fallback": "PNG image: bar chart of requests per second during the load test.",
+  "provenance": {
+    "run_id": "run_0f1e2d3c4b5a6978",
+    "tool": "shell"
+  },
+  "payload": {
+    "media_id": "media_0f1e2d3c4b5a6978",
+    "version": 1,
+    "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "mime": "image/png",
+    "kind": "image",
+    "alt_text": "Bar chart of requests per second climbing from 0 to 30 across a two-second load test.",
+    "poster": {
+      "media_id": "media_0f1e2d3c4b5a6979",
+      "version": 1
+    },
+    "width": 800,
+    "height": 600,
+    "backend": "matplotlib",
+    "generated_by": "deterministic"
+  }
+}

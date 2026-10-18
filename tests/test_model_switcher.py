@@ -142,6 +142,16 @@ def test_hosted_models_need_their_key_and_say_what_they_cost(env, monkeypatch):
 
 
 def test_connection_models_known_from_bots_appear_with_their_state(env, monkeypatch):
+    from hutch.providers.base import ProviderError
+
+    class UnavailableModelList:
+        def list_models(self):
+            raise ProviderError("unreachable", "catalog temporarily unavailable")
+
+    monkeypatch.setattr(
+        "hutch.providers.connection.provider_for_connection",
+        lambda *args, **kwargs: UnavailableModelList(),
+    )
     ConnectionBook(env.config.state_dir).add("opencode-go")
     bot = mkbot(env, model="ollama/fake:8b")
     mkbot(env, name="user-of-plan", model="opencode-go/glm-5.3")

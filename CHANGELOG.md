@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## [Unreleased]
+
+- Add validated typed output cards for charts, tables, timelines, comparisons, flowcharts, media, artifacts and code receipts. Blocks carry readable fallbacks and are rendered only from explicit tool data; invalid blocks remain visible as diagnostics. Add durable media jobs and content-addressed, hash-verified media storage with deterministic local renderers and optional OpenAI Images or ComfyUI adapters.
+- Add bounded conversation uploads and disclosures, plus a contained persistent Python workspace with generation-bound sessions and code receipts. Uploads are magic-byte checked, hash-verified at serve time, and registered under an atomic 200-file conversation cap; media and workspace routes remain owner-only.
+- Keep known connection models' billing notes visible when provider catalog discovery is unavailable, and report the discovery problem as supplemental detail.
+- Integrate output tables as additive schema v55 after mainline v51–v54. Both the historical output-v51 shape and current v54 databases upgrade idempotently while preserving user rows.
 - Decide and document the deployment topology (ADR-0018): one local engine per state directory, clients attach to it, a personal
   headless host is a supported profile of the same core, and shared multi-tenant hosting stays a separate release gate. Interface
   packaging is independent of execution lifetime.
@@ -164,13 +169,13 @@
   process exits; it refuses to signal a live group and only marks the task interrupted
   after verified disappearance, without making the task launchable again.
 
-## Separate Outlook Mail send setup and provider artwork
+### Separate Outlook Mail send setup and provider artwork
 
 - Exposed the existing experimental `Mail.Send` connection flow inside Outlook Mail's optional account settings. Read and send now have visibly separate sign-ins and Bot grants; exact per-message approval and the no-retry/uncertain-delivery limits appear before a send grant can be saved.
 - Reused Microsoft's official sign-in artwork unchanged on its authorization buttons. Added OpenAI's unmodified white Blossom beside the named ChatGPT service; the Outlook product icon remains a neutral mail glyph because Hutch has no license to reproduce it.
 - Desktop, tablet, phone, and compact-phone fixture captures cover the send sign-in, grant, revoke, and disconnect flow. No Microsoft account or provider request was used.
 
-## Assistant identity and app-card refinement
+### Assistant identity and app-card refinement
 
 - Refined the app mascot faces into fitted dark face panels with two soft pale slits. Their placement adapts to all eight head shapes; the separate marketing mascot is unchanged.
 - Apps & AI now pairs the unaltered OpenAI Blossom with the named ChatGPT service. Outlook keeps a neutral mail glyph; Microsoft's unmodified sign-in lockup appears only on account-authorization buttons. Gmail remains a category glyph.
@@ -178,7 +183,7 @@
 - Short desktop windows use a compact first-run welcome so the main setup action can remain in the first screen. Assistant names remain single-line in the roster, and the active selection continues through its one options button.
 - The responsive browser checks now cover the short desktop welcome, colored app tiles, shape-fitted oval eyes, selected-row coverage, and single-line names. New screenshots are individually reviewed before this UI slice is committed.
 
-## Everyday activity and task review
+### Everyday activity and task review
 
 - Activity leads with assistant and task counts; reported model tokens and recorded provider cost stay inside an optional **Usage details** disclosure.
 - Empty Activity buckets no longer create three competing panels. A single clear-state links to a new chat and past work; populated views show only sections that contain something to review.
@@ -196,12 +201,12 @@
 - Optional setup is also available inside Apps & AI under Outlook Mail account settings; the versioned API remains available.
   Live consent and send behavior are unverified, so the feature is experimental and not a public marketing claim.
 
-## Marketing approval illustration
+### Marketing approval illustration
 
 - Replaced a text checkmark with a local SVG icon so the illustration renders consistently across fonts and satisfies the repository's
   icon/emoji audit. Refreshed the static asset hash and checked the card at desktop, tablet and phone sizes.
 
-## Linux user service
+### Linux user service
 
 - Added `hutch service install`, `status`, and `uninstall` for the loopback-only dashboard under `systemd --user`. The installer
   uses the active Python environment and Hutch state directory, refuses to overwrite an unrelated or modified unit, and does not
@@ -209,7 +214,7 @@
 - Added operations and quickstart guidance for service logs, user-session behavior, and the fact that systemd status is not an HTTP
   readiness check. Automated tests use a controlled systemd runner; installation was not performed on this machine.
 
-## App typography, icon language, and roster selection
+### App typography, icon language, and roster selection
 
 - Added named, rem-based app type roles for body, reading, labels, metadata, and headings while keeping Hutch's marketing display font separate.
 - Standardized local outline icon sizing and stroke treatment. Apps & AI and marketing use original Hutch-colored category glyphs beside exact provider names until brand artwork permissions are documented. Assistant names stay on one sidebar line; long names truncate with an ellipsis while the full name remains available in the row title.
@@ -217,7 +222,7 @@
 - Tightened the phone first-run layout so its main setup action stays visible in the initial 390px screen.
 - Browser regression checks cover type scaling, service icons, setup visibility, and selection at desktop, tablet, and phone widths. Individual captures are recorded in `docs/realignment/artifacts/`.
 
-## Personal-assistant first run and app choices
+### Personal-assistant first run and app choices
 
 - The empty chat now starts with a real request composer and carries that exact request into assistant setup. Its title and helper text make clear that the person is reviewing the request they just gave Hutch, not being asked to repeat it.
 - The request composer offers three one-tap, icon-led starting ideas. Choosing one fills the request for editing; it does not create an assistant or start work.
@@ -229,7 +234,7 @@
 - App mascots keep simple, shape-aware 2D silhouettes with a gently uneven pair of dark oval eyes and no separate pupils or highlights. The marketing site keeps its separate, more detailed 3D mascot.
 - Browser fixtures verified first-run, request handoff, model selection, app setup and mascot geometry without provider calls.
 
-## Google Calendar event creation (experimental, schema v45)
+### Google Calendar event creation (experimental, schema v45)
 
 - Read-only calendar sign-in remains the default. A separate explicit installed-app OAuth sign-in can request Google's `calendar.events.owned` scope; existing read-only accounts remain unchanged because Google's desktop flow cannot add scopes incrementally.
 - Owners can grant one Bot access to create guest-free events on one calendar Google identifies as owned by the signed-in account. Every event shows its normalized title, time, description, location, account and calendar for one-time outward approval, even when Bot approval mode is automatic.
@@ -237,30 +242,30 @@
 - Google warns the selected OAuth scope itself also permits changes and deletion on all calendars the user owns. Consent, public OAuth verification and provider/live-account behavior remain unverified; keep this experimental and do not market it as public support.
 - HTTP/API/migration fixtures and a responsive Chromium journey cover the consent split, owned-vs-shared calendar boundary, exact review, grant revocation and uncertain-write handling. No Google credentials or provider calls were used.
 
-## Intent-preserving chat-led Bot setup
+### Intent-preserving chat-led Bot setup
 
 - Simple Bot setup can optionally ask the workspace coordinator to clarify only a missing work detail. It asks one bounded question at a time, offers choice cards plus free text, and asks at most five questions before producing an editable proposal.
 - The coordinator receives the exact selected user request, only earlier user context chosen by the owner, and the prior question/answer turns. The run stays tool-free; the proposal cannot create the Bot or change its tools, integrations, model, or permissions. The user still reviews and confirms creation.
 - Unsent answers and proposals can resume in the same browser for up to seven days; they are not synced across devices, and setup warns owners not to enter credentials. Fixture-backed review and responsive captures are recorded in `docs/realignment/visual-validation.md`.
 
-## Shape-aware 2D Bot faces
+### Shape-aware 2D Bot faces
 
 - Replaced the small diagonal eye marks with softer upright ink ovals. Eye placement, scale, spacing and subtle tilt now follow each mascot silhouette, and the identity picker previews the exact avatar face. Detailed 3D characters remain a marketing-site treatment.
 - Verified every shape against its vector boundary and contrast in Chromium; individually inspected the eight enlarged silhouettes and responsive picker screenshots. See `docs/realignment/visual-validation.md`.
 
-## Per-Bot task focus profiles
+### Per-Bot task focus profiles
 
 - Bot setup and Bot model settings can select or clear a task focus: router, research, extraction, coding, planner, or vision. The choice is persisted and used by the built-in local runtime for its context target and residency policy.
 - Choosing a focus never selects or installs a model, changes a provider route, or triggers a run. The review step names the selected focus; an invalid or no-longer-configured profile is rejected instead of silently falling back.
 - API and desktop/tablet/phone Chromium tests covered preset listing, persistence, update, clearing, invalid IDs, and the full no-provider-call setup journey.
 
-## Independent responsive UI review
+### Independent responsive UI review
 
 - Reduced Fleet card actions to **Open** plus one 44px options menu for pause/resume and settings. Empty Schedules now offers one explicit Bot chooser instead of presenting every Bot link at once.
 - Run history uses readable Bot display names and switches from a dense table to compact run cards through tablet widths. The app's eight simple 2D Bot shapes keep their own face geometry; the marketing site retains its separate detailed 3D mascot.
 - Captured Studio, Activity, Schedules, Fleet, Runs, approvals, Connections, Bot settings, run detail, Preferences and marketing independently at desktop, tablet and phone sizes. Fixture results and individual screenshots are recorded in `docs/realignment/visual-validation.md`.
 
-## Conversation organization and local task templates
+### Conversation organization and local task templates
 
 - Chat options now keep frequent actions visible and group template, export and archive actions under **More**. Keyboard Escape closes the nested disclosure first and restores focus at each level.
 - Owners can review and save the first user request to a searchable local library, then edit, reuse or delete it from any chat. Using a saved request only fills the draft; Send remains a separate action. The library lives in SQLite and is included in local database backups.
@@ -268,7 +273,7 @@
 - The token source now names shared section-title and wordmark sizes so Studio panels and server-rendered pages use the same roles. The design sidecar and generated CSS were refreshed from the main-branch `DESIGN.md` and shared token file.
 - Responsive Chromium fixtures verified the menu, local template review/import, unchanged run count, focus recovery, and desktop/tablet/phone layout. No screen-reader or physical-device validation was performed.
 
-## Quick Bot setup and a calmer large roster
+### Quick Bot setup and a calmer large roster
 
 - New Bot now has a one-screen purpose-first path when the workspace or source-chat model route is configured. It reuses that route, suggests a professional name locally, and creates a managed Bot with no tools or schedule, ask-first actions and no initial run. If no route is configured, the user must select one; Hutch never chooses a paid fallback silently.
 - The explicit **Customize** path retains model, workspace, tools, memory, schedule, limits, browser handoff, YAML import and full review. A selected chat request remains the only included source unless the user chooses earlier context.
@@ -276,19 +281,19 @@
 - App mascot eyes now share a coherent tapered 2D shape and angle; the marketing site's more detailed 3D artwork remains separate. Product research and anecdotal failure cases are recorded in `docs/research/bot-setup-patterns-2026-10-09.md`.
 - Responsive Chromium evidence and validation traces are stored under `docs/realignment/artifacts/simple-bot-setup/` and `docs/realignment/artifacts/compact-roster/` after those checks pass.
 
-## Reviewed Bot setup YAML import
+### Reviewed Bot setup YAML import
 
 - The guided setup accepts bounded `hutch.ai/v1` YAML and fills an unsaved draft after strict safe parsing and Bot configuration validation. It rejects unsafe tags, aliases, duplicate keys, unknown fields and unsupported authority such as endpoint URLs, local folders, command rules, trusted risk or automatic approval. Missing local model credentials do not prevent review; final creation still checks route readiness.
 - Every imported value remains editable in the existing setup steps, including tools, memory, schedule, model route and limits. Only the separate final **Create bot** action saves; importing does not create a Bot, start a run, or grant a connection.
 - API adversarial cases and desktop/tablet/phone Chromium flow were verified with local fixtures. Screenshots, trace and validation metadata are in `docs/realignment/artifacts/bot-setup-import/`.
 
-## Bounded Bot memory export
+### Bounded Bot memory export
 
 - Bot settings can download a consistent JSON snapshot of all fact scopes and revisions, human review/archive decisions, and incoming/outgoing Bot-share records. The endpoint applies explicit count and byte limits, refuses oversize exports instead of truncating, and sends `Cache-Control: no-store`.
 - The confirmation describes plaintext handling and excluded data. The export does not contain conversation transcripts, credentials, run events, action receipts, workspace files or artifact bytes. Permanent deletion remains unavailable; archive retains history.
 - API, snapshot-boundary and desktop/tablet/phone Chromium download tests passed with synthetic local data and no model/provider call. Screenshots and traces are in `docs/realignment/artifacts/bot-memory-export/`.
 
-## Reviewed OpenCode coding handoff (experimental, schema v39)
+### Reviewed OpenCode coding handoff (experimental, schema v39)
 
 - Studio can prepare a durable OpenCode coding task from a completed Bot answer after the owner reviews and edits the exact brief. The Bot must point to an existing Git project; each task is pinned to its reviewed commit in a separate worktree.
 - `hutch code run <task-id>` launches the installed OpenCode mini CLI only from an interactive Linux terminal. Its own sign-in, selected model and usage pool remain separate from Hutch. The task profile does not auto-approve and caps steps at 20; shell commands approved in OpenCode retain the Linux user's authority and are outside Hutch's sandbox and permission broker.
@@ -296,7 +301,7 @@
 - Task state stays visible while process cleanup is incomplete. Process identity includes boot ID and start time; reconciliation never signals stale PIDs. The worktree is retained for human review and is not applied, committed, pushed or published by Hutch.
 - Updated product, architecture, safety, configuration, migration/operations and marketing claims. OpenCode's installed configuration loading, permission UX, model execution and live provider usage remain unverified; Pi/OpenCode Bot runtimes remain unavailable.
 
-## Explicit Bot-to-Bot reference grants (schema v38)
+### Explicit Bot-to-Bot reference grants (schema v38)
 
 - A person can share one exact, current, reviewed memory fact with one named Bot. The grant is a durable, provenance-labelled reference snapshot available across that recipient Bot's chats; it does not transfer tools, accounts, credentials, files or other history.
 - Either Bot can revoke the grant. Source revision/archive or disabled memory blocks later retrieval, while the snapshot and its audit trail remain in local database backups.
@@ -304,15 +309,15 @@
 - Marketing workflow cards keep paragraph flow natural at desktop, tablet and phone widths; the public copy now describes explicit named-Bot memory grants accurately.
 - Offline store/API, restore and responsive Chromium fixtures passed. No live provider calls, screen reader or physical phone was used.
 
-## Dashboard accent polish (2026-10-09)
+### Dashboard accent polish (2026-10-09)
 
 - Replaced one-sided accents on specialist checkpoint rows and quoted chat replies with subtle full outlines. Legacy Bot cards no longer use colored rails for running or paused state; the visible Fleet keeps its explicit text labels. Reply tests use the professional Bot display name exposed by the interface and assert the quote's balanced border.
 
-## Provider diagnostic budget safety (2026-10-09)
+### Provider diagnostic budget safety (2026-10-09)
 
 - Standalone `hutch connections test --chat` requests are refused because they bypass shared usage reservations and uncertain-charge reconciliation. Credentials/model-list checks remain token-free; use a normal Bot run for model behavior checks.
 
-## Scoped fact memory continuation (schema v15, local)
+### Scoped fact memory continuation (schema v15, local)
 
 - Replace automatic per-bot fact/system injection with explicitly retrieved, human-reviewed chat facts and bounded FTS5.
 - Fence proposals against expired/lost ownership, cancellation and terminal state. Preserve immutable revisions and reviews; cross-Bot sharing requires a separate explicit grant.
@@ -322,7 +327,6 @@
 
 All notable changes to hutch (formerly "openbot"). Format follows Keep a Changelog; versioning is semantic.
 
-## [Unreleased]
 
 - Connections can now save a public Google Desktop OAuth client ID locally for both Calendar and the Gmail private preview. The operator environment setting remains authoritative and read-only in the UI; credentials and OAuth tokens are never accepted by this setting. API persistence, environment precedence, fixture sign-in, and responsive setup screens are covered without a live Google account.
 - Schema v41 adds an owner-managed, empty-by-default specialist roster for coordinator tasks. Settings save the roster, the dispatch review lists only approved Bots, and storage rechecks membership atomically. Promoting a specialist removes it from the list without automatically approving the former coordinator; removing approval leaves existing tasks and history intact. API, migration, direct-dispatch and responsive browser coverage were added.
@@ -609,7 +613,7 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
   into the SPA since 27a73ed): the phone approval journey now targets `#/approvals`, and a live SPA
   transcript journey replaces the retired server SSE DOM test.
 
-## [0.1.0] — 2026-10-07
+### Recorded version marker: 0.1.0 — 2026-10-07 (publication unverified)
 
 First MVP.
 

@@ -182,7 +182,9 @@ raise SystemExit(os.waitstatus_to_exitcode(status))
     assert "READY tty=1 foreground=1" in transcript
     assert "REPLY hello from controlling terminal" in transcript
     assert "RESTORED foreground=True" in transcript
-    assert "EXIT=-2" in transcript
+    # Depending on whether Python is blocked in input() or sleeping when the
+    # terminal sends SIGINT, it reports KeyboardInterrupt (130) or signal death (-2).
+    assert "EXIT=-2" in transcript or "EXIT=130" in transcript
 
 
 def test_project_open_code_plugin_directory_fails_closed(tmp_path):

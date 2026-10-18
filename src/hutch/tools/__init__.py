@@ -11,6 +11,8 @@ from .delegation import DelegateTaskTool
 from .choice import AskUserChoiceTool
 from .skill import UseSkillTool
 from .documents import CreateDocumentTool, InspectDocumentTool, ReviseDocumentTool
+from .media import CreateMediaTool, RenderDiagramTool
+from .python_exec import ResetWorkspaceTool, RunPythonTool
 from .google_calendar import GoogleCalendarCreateEventTool, GoogleCalendarEventsTool
 from .outlook_calendar import OutlookCalendarEventsTool
 from .outlook_calendar_write import OutlookCalendarCreateEventTool
@@ -29,6 +31,10 @@ _CATALOG: dict[str, type[Tool]] = {
     "create_document": CreateDocumentTool,
     "revise_document": ReviseDocumentTool,
     "inspect_document": InspectDocumentTool,
+    "create_media": CreateMediaTool,
+    "render_diagram": RenderDiagramTool,
+    "run_python": RunPythonTool,
+    "reset_workspace": ResetWorkspaceTool,
     "delegate_task": DelegateTaskTool,
 }
 
@@ -36,6 +42,8 @@ _CATALOG: dict[str, type[Tool]] = {
 GROUPS: dict[str, list[str]] = {
     "files": ["read_file", "list_files", "write_file"],
     "documents": ["create_document", "revise_document", "inspect_document"],
+    "media": ["create_media", "render_diagram"],
+    "workspace": ["run_python", "reset_workspace"],
     "memory": ["remember", "recall"],
     "browser": ["browser"],
     "computer": ["computer"],

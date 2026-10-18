@@ -27,6 +27,7 @@ from typing import Any, Optional
 from ..lifecycle import LeaseLost
 from ..action_receipts import freeze
 from ..models import Event, EventType, Run
+from ..outputblocks import parse_blocks
 from ..tools import Tool, ToolContext
 from ..tools.base import ToolResult
 
@@ -221,6 +222,27 @@ def _public_frames(images: Any) -> list[dict[str, Any]]:
     return out[:4]
 
 
+def _presented_blocks(data: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Validate explicitly supplied output blocks without allowing parser failures to escape."""
+    if "blocks" not in data:
+        return [], []
+    try:
+        return parse_blocks(data.get("blocks"))
+    except Exception as exc:  # parse_blocks should be total; retain a diagnostic if it is not.
+        return [], [{"error": f"output blocks could not be validated ({exc!r})"}]
+
+
+def _blocks_summary(blocks: list[dict[str, Any]], errors: list[dict[str, Any]]) -> str:
+    """Expose block ids/kinds to the model without feeding block JSON back as prose."""
+    if blocks:
+        line = "[presented: " + ", ".join(f"{block['kind']} {block['id']}" for block in blocks) + "]"
+    else:
+        line = f"[presented: none — {len(errors)} output block(s) failed validation]"
+    if errors:
+        line += f" ({len(errors)} output block(s) could not be validated; see block_errors)"
+    return line
+
+
 def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, args: dict[str, Any],
               timer: Optional[StepTimer] = None, output_chars: int = 2_000) -> ToolResult:
     """Emit the call, run the tool (timed), emit the result. Used by production and test runtimes."""
@@ -266,6 +288,10 @@ def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, arg
             result.data["workspace_file"] = {"error": str(exc)[:240]}
     full_chars = len(result.output)
     result.output, artifact = truncate_for_model(ctx, name, result.output)
+    has_blocks = "blocks" in result.data
+    blocks, block_errors = _presented_blocks(result.data) if has_blocks else ([], [])
+    if blocks or block_errors:
+        result.output = f"{result.output}\n{_blocks_summary(blocks, block_errors)}"
     data: dict[str, Any] = {"tool": name, "ok": result.ok, "output": result.output[:output_chars]}
     if artifact:
         data.update(artifact=artifact["path"], artifact_sha256=artifact["sha256"],
@@ -276,6 +302,10 @@ def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, arg
     document = result.data.get("document")
     if isinstance(document, dict):
         data["document"] = document
+    if has_blocks:
+        data["blocks"] = blocks
+        if block_errors:
+            data["block_errors"] = block_errors
     if isinstance(result.data.get("transfer"), dict):
         data["transfer"] = result.data["transfer"]
     if result.data.get("images"):

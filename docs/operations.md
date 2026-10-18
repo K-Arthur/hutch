@@ -68,6 +68,14 @@ include managed workspaces or user folders; back these up separately.
 Files created through Hutch's `write_file` tool appear as SHA-256-verified downloads in the originating run. Hutch snapshots text files
 up to 4 MB each and 16 MB total per run. Shell-created files remain in the workspace and are not attached to chat automatically.
 
+Conversation uploads are owner-only, stored in that conversation's workspace, and limited to 25,000,000 bytes per file and 200
+registered files per conversation. The HTTP request cap is 26 MB including multipart framing; accepted formats are CSV/TSV, plain
+text, Markdown, JSON, PNG, JPEG and WebP. CSV disclosures inspect at most a 1 MiB sample and report when the parser reaches its
+field-size limit. Deleting an upload hides its listing entry but retains its bytes and still counts toward the conversation limit.
+Uploads stage in a private directory under the state directory on the same filesystem as the conversation workspace. If Hutch exits
+during an upload or after promoting bytes but before registering the database row, a private marker lets a later startup remove the
+unregistered staging file after a 24-hour grace period; ordinary request failures remove it immediately.
+
 ## Stop and incomplete cleanup
 
 Run status remains `Stopping` or `Recovering` when an owned process is still alive or its identity cannot be verified. Hutch records

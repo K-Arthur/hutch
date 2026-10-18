@@ -1,0 +1,36 @@
+{
+  "v": 1,
+  "id": "blk_2b3c4d5e6f7a8b9c",
+  "kind": "code_receipt",
+  "revision": 1,
+  "availability": "ready",
+  "text_fallback": "Ran 2 lines of Python; it printed 'the answer is 42' and returned None.",
+  "provenance": {
+    "run_id": "run_0f1e2d3c4b5a6978",
+    "tool": "shell"
+  },
+  "payload": {
+    "source": "total = 40 + 2\nprint(f\"the answer is {total}\")\n",
+    "language": "python",
+    "source_sha256": "d91b3d89e2c88673abe67f53b6e2daec824e3d39aac7a96fa6b3525a1a2abe1b",
+    "execution": {
+      "ordinal": 1,
+      "environment_generation": 3,
+      "started_at": "2026-10-10T12:00:00+00:00",
+      "finished_at": "2026-10-10T12:00:01+00:00",
+      "status": "ok",
+      "stdout_chars_total": 18,
+      "stderr_chars_total": 0
+    },
+    "stdout_tail": "the answer is 42\n",
+    "stderr_tail": "",
+    "result_repr": "None",
+    "produced_files": [
+      {
+        "name": "answer.txt",
+        "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "bytes": 18
+      }
+    ]
+  }
+}

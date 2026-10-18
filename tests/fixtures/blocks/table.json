@@ -1,0 +1,40 @@
+{
+  "v": 1,
+  "id": "blk_3c4d5e6f7a8b9c0d",
+  "kind": "table",
+  "revision": 1,
+  "availability": "ready",
+  "text_fallback": "Five cities previewed of eight; Lisbon is largest at 545,000.",
+  "provenance": {
+    "run_id": "run_0f1e2d3c4b5a6978",
+    "tool": "shell"
+  },
+  "payload": {
+    "columns": [
+      {
+        "name": "city",
+        "dtype": "text"
+      },
+      {
+        "name": "population",
+        "dtype": "number"
+      }
+    ],
+    "rows": [
+      [
+        "Lisbon",
+        545000
+      ],
+      [
+        "Porto",
+        231000
+      ]
+    ],
+    "row_total": 8,
+    "truncation": {
+      "omitted_rows": 6,
+      "reason": "preview shows the two largest of eight cities"
+    },
+    "notes": "Population figures are 2021 census estimates."
+  }
+}

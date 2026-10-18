@@ -40,6 +40,7 @@ ENROLLMENT_COOKIE = "hutch_enroll"
 FLOW_COOKIE = "hutch_flow"
 MAX_PASSKEY_CREDENTIAL_BYTES = 256 * 1024
 MAX_PASSKEY_VERIFY_BODY_BYTES = MAX_PASSKEY_CREDENTIAL_BYTES + 4096
+MAX_UPLOAD_REQUEST_BODY_BYTES = 26_000_000
 LOOPBACK_NAMES = {"localhost", "localhost.localdomain"}
 OPEN_EXACT_PATHS = {"/login", "/pair", "/api/v1/pairing/exchange",
                     "/api/v1/passkeys/login/options", "/api/v1/passkeys/login/verify",
@@ -214,21 +215,26 @@ class SecurityMiddleware:
             "/api/v1/passkeys/registration/verify", "/api/v1/passkeys/login/verify",
         }
         computer_input = scope.get("path", "").startswith("/api/v1/tasks/runs/") and scope.get("path", "").endswith("/computer/control")
-        body_limit = 16_384 if computer_input else MAX_PASSKEY_VERIFY_BODY_BYTES
-        body_label = "computer command" if computer_input else "passkey credential"
-        if passkey_verify or computer_input:
+        path_parts = scope.get("path", "").split("/")
+        upload_input = (scope.get("method") == "POST" and len(path_parts) == 6 and
+                        path_parts[1:4] == ["api", "v1", "conversations"] and path_parts[5] == "uploads")
+        body_limit = (16_384 if computer_input else MAX_PASSKEY_VERIFY_BODY_BYTES if passkey_verify
+                      else MAX_UPLOAD_REQUEST_BODY_BYTES)
+        body_label = ("computer command" if computer_input else
+                      "passkey credential" if passkey_verify else "upload request")
+        if passkey_verify or computer_input or upload_input:
             lengths = self._header_values(scope, b"content-length")
             if len(lengths) > 1:
-                await PlainTextResponse("hutch: invalid passkey request length.", status_code=400)(scope, receive, send)
+                await PlainTextResponse("hutch: invalid request length.", status_code=400)(scope, receive, send)
                 return
             if lengths:
                 try:
                     content_length = int(lengths[0].decode("ascii"))
                 except (UnicodeDecodeError, ValueError):
-                    await PlainTextResponse("hutch: invalid passkey request length.", status_code=400)(scope, receive, send)
+                    await PlainTextResponse("hutch: invalid request length.", status_code=400)(scope, receive, send)
                     return
                 if content_length < 0:
-                    await PlainTextResponse("hutch: invalid passkey request length.", status_code=400)(scope, receive, send)
+                    await PlainTextResponse("hutch: invalid request length.", status_code=400)(scope, receive, send)
                     return
                 if content_length > body_limit:
                     await PlainTextResponse(f"hutch: {body_label} payload is too large.", status_code=413)(
@@ -387,7 +393,7 @@ class SecurityMiddleware:
             await send(message)
 
         app_receive = receive
-        if passkey_verify or computer_input:
+        if passkey_verify or computer_input or upload_input:
             received_bytes = 0
 
             async def receive_limited():

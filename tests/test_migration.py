@@ -737,7 +737,7 @@ def test_v53_feedback_migration_preserves_chat_and_repeats_startup(config):
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == SCHEMA_VERSION == 54
+        assert upgraded.schema_version == SCHEMA_VERSION
         assert upgraded.get_conversation(conversation["id"])["title"] == "Keep this transcript"
         assert upgraded.list_conversation_messages(conversation["id"])[0]["content"] == "Existing answer remains intact."
         assert upgraded._db.execute("SELECT COUNT(*) FROM persona_feedback").fetchone()[0] == 0
@@ -810,7 +810,7 @@ def test_v54_repairs_legacy_main_and_persona_v53_shapes_without_data_loss(tmp_pa
         db.execute("PRAGMA user_version = 53")
     main_upgraded = Store(main_config)
     try:
-        assert main_upgraded.schema_version == SCHEMA_VERSION == 54
+        assert main_upgraded.schema_version == SCHEMA_VERSION
         assert "persona" in {row[1] for row in main_upgraded._db.execute("PRAGMA table_info(conversations)")}
         assert main_upgraded._db.execute("SELECT COUNT(*) FROM persona_feedback").fetchone()[0] == 0
         assert main_upgraded.get_conversation(main_conversation_id)["title"] == "Versioned transcript"
@@ -832,7 +832,7 @@ def test_v54_repairs_legacy_main_and_persona_v53_shapes_without_data_loss(tmp_pa
         db.execute("PRAGMA user_version = 53")
     persona_upgraded = Store(persona_config)
     try:
-        assert persona_upgraded.schema_version == SCHEMA_VERSION == 54
+        assert persona_upgraded.schema_version == SCHEMA_VERSION
         assert persona_upgraded.get_conversation(persona_conversation_id)["persona"] == '{"version":2}'
         assert persona_upgraded.list_conversation_messages(persona_conversation_id)[0]["id"] == persona_message_id
         assert tuple(persona_upgraded._db.execute(
@@ -874,7 +874,7 @@ def test_v50_upgrades_to_combined_v54_without_losing_state(config):
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == SCHEMA_VERSION == 54
+        assert upgraded.schema_version == SCHEMA_VERSION
         assert upgraded.get_conversation(conversation["id"])["title"] == "v50 transcript"
         assert upgraded.list_conversation_messages(conversation["id"])[0]["content"] == "Transcript data survives."
         assert "persona" in {row[1] for row in upgraded._db.execute("PRAGMA table_info(conversations)")}
@@ -922,7 +922,7 @@ def test_v51_startup_upgrade_repairs_both_historical_shapes(tmp_path, persona_co
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == SCHEMA_VERSION == 54
+        assert upgraded.schema_version == SCHEMA_VERSION
         current = upgraded.get_conversation(conversation["id"])
         assert current["title"] == "v51 transcript"
         assert current["persona"] == (persona_value if persona_column else "")

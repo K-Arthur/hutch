@@ -197,13 +197,14 @@ def _connection_choices(bot: Bot, store: Any, book: ConnectionBook, extra: set[s
             catalog_row = catalog_by_spec.get(spec)
             note = ("needs a key" if not has_key else
                     "terms not acknowledged" if ack in ("required", "stale") else
-                    "model list unavailable; retry from Connections" if model_error else
                     _openrouter_price_note(catalog_row) if catalog_row and catalog_row.get("pricing") else
                     "listed in OpenRouter's model catalog" if catalog_row else
                     "subscription; output limit is provider-unbounded" if c.auth_type == "chatgpt-siws" else
                     "flat-rate plan" if c.flat else "pay per token")
             detail = [f"connection {name}: {c.billing.replace('_', ' ')}",
                       f"sends this chat to {c.title}"]
+            if model_error:
+                detail.append("model list unavailable; retry from Connections")
             if catalog_row:
                 detail.append("OpenRouter's published catalog price does not verify the final charge; Hutch requires a reviewed price entry for currency-limited admission.")
                 if catalog_row.get("supports_tools"):
