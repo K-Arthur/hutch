@@ -70,6 +70,16 @@ def test_the_local_surface_carries_the_strict_csp_too(client):
 def test_stats_distinguish_execution_waits_and_queued_delegated_work(client, monkeypatch):
     store = client.app.state.store
     engine = client.app.state.engine
+    # TestClient starts the scheduler before yielding the fixture.  A tick may
+    # already be dispatching work when this patch is installed, so stop and join
+    # that tick before creating the child whose queued count this endpoint reports.
+    stop = engine._background_stop
+    background = engine._background_thread
+    assert stop is not None and background is not None
+    stop.set()
+    store.bus.notify("work", remote=False)
+    background.join(timeout=5)
+    assert not background.is_alive()
     monkeypatch.setattr(engine, "tick", lambda: None)
     bot = store.create_bot(Bot(name="stats-delegation", model="mock/demo", tools=["delegate_task"]))
     root = store.create_run(Run(bot_id=bot.id, prompt="Coordinate bounded work."))

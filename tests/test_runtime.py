@@ -165,6 +165,10 @@ def test_builtin_loop_token_cap_aborts(store, config, tmp_path, monkeypatch):
     # pre-consume cap
     run.tokens = 1000
     store.update_run(run)
+    claimed = store.claim_run(run.id, "token-cap-test", 120)
+    assert claimed is not None
+    run = store.transition_run(run.id, RunStatus.running, fence=claimed.fence)
+    ctx.run = ctx.gate.run = run
 
     with pytest.raises(RunAborted) as exc:
         BuiltinRuntime().execute(run, ctx, {}, stop=lambda: False)

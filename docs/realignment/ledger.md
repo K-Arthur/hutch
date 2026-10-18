@@ -4265,3 +4265,20 @@ keeps the mainline migrations through v56 and installs budget state additively a
 for branch databases that already contain those tables or columns. Historical branch test counts in
 `docs/research/security-containment-2026-10-11.md` describe that branch candidate only; they do not certify
 this combined tree. Final verification is recorded after all integration slices complete.
+
+## Final strict regression gate (2026-10-18)
+
+The final non-browser strict run passed **3,188 tests**, with 6 expected skips and 6 expected xfails, in
+1,613.36s. It ran with `PytestUnhandledThreadExceptionWarning` and `SyntaxWarning` treated as errors.
+Before this pass, the seven established baseline failures were fixed: delegated continuation now reuses
+its immutable persisted persona plan, provider-authority tests use normal fenced run claims, and the token
+cap test establishes a real owner before execution. Follow-up full-suite runs exposed two test-order races:
+the API queue-count test now stops and joins the scheduler tick before creating pending work, and the
+coordinator test waits for both the assistant reply and its succeeded-run task projection within the
+existing 15-second deadline. The intermediate isolated-node and ordered-file checks are recorded in the
+[evidence ledger](evidence-ledger.md).
+
+One discarded run exhausted the host's `/tmp` tmpfs and caused unrelated SQLite setup failures. Its
+generated scratch was removed only after preserving the run log and workflow artifacts; the final strict
+run completed with sufficient temporary space. Each full-run coding-repair artifact set is privately
+backed up with SHA-256 manifests and the tracked acceptance files were restored before committing.

@@ -1122,11 +1122,13 @@ def test_coordinator_dispatch_is_reviewed_atomic_and_stays_in_specialist_context
         child = client.get(f"/api/v1/conversations/{record['child_conversation_id']}").json()
         specialist_answer = next((message for message in child["messages"]
                                   if message["role"] == "assistant" and message["run_id"] == record["child_run_id"]), None)
-        if specialist_answer:
+        task_projection = client.get(
+            f"/api/v1/workspace/tasks?conversation_id={conversation['id']}").json()[0]
+        if (specialist_answer is not None
+                and task_projection["result_message_id"] == specialist_answer["id"]):
             break
         time.sleep(.05)
     assert specialist_answer is not None
-    task_projection = client.get(f"/api/v1/workspace/tasks?conversation_id={conversation['id']}").json()[0]
     assert task_projection["result_message_id"] == specialist_answer["id"]
     checkpoints = task_projection["checkpoints"]
     assert checkpoints[-1]["run_status"] == "succeeded"

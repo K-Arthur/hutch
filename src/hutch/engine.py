@@ -1046,7 +1046,8 @@ class Engine:
                 fields={"started_at": started_at, "workspace": str(workspace), "owner": str(os.getpid()),
                         "skill_snapshot": skill_snapshot, "tool_access": run.tool_access,
                         "execution_purpose": run.execution_purpose},
-                persona_plan=persona_plan.model_dump(mode="json") if persona_plan is not None else None,
+                persona_plan=(persona_plan.model_dump(mode="json")
+                              if persona_plan is not None and persisted.persona_plan is None else None),
                 capability_snapshot=self.capability_snapshot(
                     bot, run.tool_access, run.execution_purpose,
                     integration_tools=self.store.integration_tool_names(bot.id))

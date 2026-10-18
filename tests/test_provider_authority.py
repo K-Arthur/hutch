@@ -56,7 +56,6 @@ def test_account_policy_is_refreshed_after_a_tool_approval(store, config, tmp_pa
         {"content": "must not be requested", "prompt_tokens": 10, "completion_tokens": 3}])
     ctx, run, emitted, tools = build(store, config, tmp_path, model="metered/m", mode=ApprovalMode.ask,
                                      limits=Limits(max_turn_tokens=64))
-    store.set_status(run, RunStatus.running)
     try:
         with in_worker(ctx, lambda: run_it(runtime(), run, ctx, tools)) as result:
             req = pending(store)
@@ -114,7 +113,6 @@ def test_provider_auth_or_quota_rejection_waits_for_review_before_paid_fallback(
     try:
         ctx, run, emitted, tools = build(store, config, tmp_path, model="openai/gpt-4o-mini",
                                          fallbacks=["anthropic/claude-test"], tools=())
-        store.set_status(run, RunStatus.running)
         with in_worker(ctx, lambda: run_it(runtime(provider_factory=provider_factory), run, ctx, tools)) as result:
             req = pending(store)
             assert req.outward and not req.sticky_key
@@ -210,7 +208,6 @@ def test_stream_retry_gets_another_reservation_and_retains_uncertain_first_usage
         server.fail_stream_once = True
         server.script = lambda body: {"content": "fixture done", "prompt_tokens": 10, "completion_tokens": 3}
         ctx, run, emitted, tools = build(store, config, tmp_path, model="openai/gpt-4o", tools=())
-        store.set_status(run, RunStatus.running)
         assert run_it(runtime(provider_factory=factory(oai=server)), run, ctx, tools) == "fixture done"
         assert [r["body"]["stream"] for r in server.of("/v1/chat/completions")] == [True, False]
         rows = store._db.execute("SELECT status FROM usage_reservations WHERE run_id=? ORDER BY rowid", (run.id,)).fetchall()
@@ -226,7 +223,6 @@ def test_stream_retry_refuses_when_another_reservation_would_exceed_the_bot_budg
         server.fail_stream_once = True
         ctx, run, emitted, tools = build(store, config, tmp_path, model="openai/gpt-4o", tools=(),
                                          limits=Limits(max_turn_tokens=1000, daily_token_cap=2000))
-        store.set_status(run, RunStatus.running)
         # Each attempt reserves a 1,000-token response plus the same nonempty prompt.
         with pytest.raises(RunAborted) as exc:
             run_it(runtime(provider_factory=factory(oai=server)), run, ctx, tools)
