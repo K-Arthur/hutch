@@ -12,7 +12,7 @@
   <link rel="preload" href="assets/fonts/archivo-latin-var.woff2?v=e3a28ead" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="tokens.css?v=5b585bb3">
   <link rel="stylesheet" href="app.css?v=8e7aa22c">
-    <link rel="stylesheet" href="styles.css?v=b1862178">
+    <link rel="stylesheet" href="styles.css?v=6ccc71f4">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -236,6 +236,16 @@
         </li>
       </ol>
 
+      <aside class="workflow-preview" aria-labelledby="workflow-preview-title">
+        <div class="workflow-preview-copy">
+          <p class="workflow-preview-status"><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Private preview</span><span>Saved steps, started by you</span></p>
+          <h3 id="workflow-preview-title">Keep a multi-step plan and its progress in the same chat.</h3>
+          <p>Review and start saved workflows in chat. Planned steps stay distinct from discovered instances; answer each pending question. Pause lets active work settle before the next step is held. Resume or stop from chat. A completed step is not necessarily verified.</p>
+          <p class="workflow-preview-limit">Chat route cards and Auto require a qualified selector for the exact model profile; neither tested local profile qualified. Auto does not create new plans. An owner can link an activated workflow to a routine; enabling stays separate.</p>
+        </div>
+        <a class="btn btn-outline workflow-preview-link" href="#faq">Workflow questions</a>
+      </aside>
+
       <div class="response-style-showcase" id="response-style">
         <div class="response-style-top">
           <div class="response-style-copy">
@@ -325,7 +335,7 @@
           <div class="card-body">
             <span class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="4.5" width="15" height="15" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M9 1.8v2.7M15 1.8v2.7M9 19.5v2.7M15 19.5v2.7M1.8 9h2.7M1.8 15h2.7M19.5 9h2.7M19.5 15h2.7"/></svg></span>
             <h3 class="card-title">Inference</h3>
-            <p>Hutch supports configured OpenAI, Anthropic, OpenRouter, other OpenAI-compatible and Ollama routes. OpenRouter’s searchable model catalog is loaded when you open model choice; model availability and listed prices can change. In Studio, review the selected route, draft context and current spend policy before sending; choose an exact route for one message, assign manual routes to task roles, or select <b>Save as Bot default</b> for future chats and scheduled runs. Strict OpenRouter USD ceilings require fresh endpoint pricing and block when Hutch cannot establish a safe estimate. Estimates are not provider billing guarantees; live inference and model-quality checks have not been performed for this preview.</p>
+            <p>Hutch supports configured OpenAI, Anthropic, OpenRouter, other OpenAI-compatible and Ollama routes. OpenRouter’s searchable model catalog is loaded when you open model choice; model availability and listed prices can change. In Studio, review the selected route, draft context and current spend policy before sending; choose an exact route for the next message, assign manual routes to task roles, or select <b>Save as Bot default</b> for future chats and scheduled runs. Strict OpenRouter USD ceilings require fresh endpoint pricing and block when Hutch cannot establish a safe estimate. Estimates are not provider billing guarantees; live inference and model-quality checks have not been performed for this preview.</p>
           </div>
         </article>
         <article class="card feature border border-line bg-surface">
@@ -594,6 +604,7 @@
               <tr><td class="av-k">Public access</td><td class="av-v">Private source; no anonymous download or public release</td><td><span class="ev"><span class="dot dot-warn" aria-hidden="true"></span>Unavailable</span></td></tr>
               <tr><td class="av-k">Supported</td><td class="av-v">Linux executor, local SQLite state and fixture-tested lifecycle/control flows; actual runs need a configured model route</td><td><span class="ev"><span class="dot dot-ok" aria-hidden="true"></span>Supported</span></td></tr>
               <tr><td class="av-k">Documents</td><td class="av-v">Local generation of PDF, DOCX, XLSX, PPTX, CSV, JSON, Markdown, YAML and ZIP bundles from reviewed content, with SHA-256-verified downloads, versioned revisions and in-app previews (page images for PDF; extracted structure for other formats; office layout renders additionally need LibreOffice installed on the host)</td><td><span class="ev"><span class="dot dot-ok" aria-hidden="true"></span>Supported</span></td></tr>
+              <tr><td class="av-k">Workflows</td><td class="av-v">Experimental: owner-started saved workflows are in the private preview. An owner can link an activated saved method to an existing routine; it pins the exact revision and checked inputs, and enabling the routine stays separate. Run now starts one copy without advancing the schedule; the existing local supervisor and host must be running. Chat route cards and Auto starts of activated saved methods require selector qualification for the exact model profile; the two local profiles tested did not qualify. Auto does not create new plans; live provider execution remains unverified.</td><td><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></td></tr>
               <tr><td class="av-k">Chat image input</td><td class="av-v">Unavailable: Hutch chat accepts text only; the Vision focus setting does not attach or send images</td><td><span class="ev"><span class="dot dot-warn" aria-hidden="true"></span>Unavailable</span></td></tr>
               <tr><td class="av-k">Experimental</td><td class="av-v">Hosted/local models; OpenCode Go API-key handoff; reviewed OpenCode CLI coding tasks on Linux in pinned worktrees (separate sign-in/usage, command approvals outside Hutch); ChatGPT sign-in preview (eligibility unconfirmed); Google Calendar lookup plus owner-configured guest-free event creation after per-event approval (Google account scope is broader; consent unverified); Outlook Calendar lookup and optional guest-free event creation on one selected calendar, with exact approval each time (Microsoft consent is account-wide and unverified); read-only Outlook Mail previews; private Gmail search (owner OAuth and loopback Local routes only; public release awaits Google scope verification and any required security assessment); host-gated Offline; reviewed child tasks; HTTPS pairing; Linux credential/CAPTCHA handoff; fixture-tested DNS pinning. Browser field detection, public destinations and live provider checks remain unverified</td><td><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></td></tr>
               <tr><td class="av-k">Computer sessions</td><td class="av-v">Experimental owned Chromium and contained native apps in disposable KWin Wayland; explicit authenticated web step control. Real browser/editor outcomes and responsive previews tested locally; physical phone and live multimodal model quality unverified</td><td><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></td></tr>
@@ -659,6 +670,22 @@
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">What happens when my laptop sleeps on a schedule?</summary>
           <div class="collapse-content"><p>Nothing runs while the machine is off. With the local supervisor running again, configured schedules detect missed windows and either coalesce them into one catch-up run or record a skip, according to the bot&rsquo;s policy.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">How do Suggest and Auto work for workflows?</summary>
+          <div class="collapse-content"><p>New assistants start in Suggest. The setting is stored per conversation, and changing it never starts work. A chat route card and Auto start require selector qualification for the exact active model profile; the two local profiles tested did not qualify. Auto can start only a matching activated saved method within explicit limits. It does not create a new plan, and consequential actions still need separate approval.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">Can a local model design or choose a workflow?</summary>
+          <div class="collapse-content"><p>Author and selector authority depends on evidence for the exact model and execution settings. Neither of the two Qwen3 profiles tested qualified for authoring or selection. Hutch does not silently switch to another provider. You can still start a saved workflow when its required model roles are qualified for your route.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">What happens if I stop a workflow or Hutch restarts?</summary>
+          <div class="collapse-content"><p>A pause request does not cancel active work: the current node and owned child work settle before the next step is held. If the run is already parked, it pauses immediately. Pending questions remain answerable, and no downstream step starts until you resume it from the same chat. Stop cancels work owned by that workflow and keeps its status visible until cleanup is verified. After a restart, settled steps and completed effect receipts are reused; if an external effect is uncertain, Hutch holds retry for reconciliation. Some recovery paths remain under evaluation in this private preview.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">What is the difference between a workflow and a routine?</summary>
+          <div class="collapse-content"><p>A workflow describes the steps to do; a routine decides when work runs. Saving or importing still starts nothing. After you activate a saved workflow, you can link it to an existing routine; Hutch pins the exact revision and checks its inputs. The routine stays off until you enable it separately. Run now starts that pinned workflow once without moving the next scheduled occurrence. The local supervisor and host must be running when the routine is due.</p></div>
         </details>
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">Can I hand coding work to OpenCode?</summary>
