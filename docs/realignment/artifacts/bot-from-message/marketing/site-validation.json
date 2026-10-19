@@ -1,11 +1,11 @@
 {
   "test": "tests/e2e/test_website.py::test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_website.py::test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation",
-  "captured_at": "2026-10-11T00:17:29.749053+00:00",
+  "captured_at": "2026-10-11T01:04:13.030394+00:00",
   "python": "3.13.15",
   "browser": "153.0.8010.12",
   "playwright_version": "1.63.0",
-  "index_sha256": "d35001a2050a3dc2a800b624f6cea6b989adb9cd41a1806ba553948f09d76161",
+  "index_sha256": "2eb224fcdf2f2497e11726dfe905b968a8c85dbd34174bab060c3f1a3d3da279",
   "captures": [
     {
       "size": "desktop",
@@ -15,7 +15,7 @@
       ],
       "card": {
         "x": 164,
-        "y": -2787.359375,
+        "y": -9.3125,
         "width": 354.65625,
         "height": 919.5
       },
@@ -29,7 +29,7 @@
       ],
       "model_card": {
         "x": 189,
-        "y": 248.671875,
+        "y": 248.71875,
         "width": 338,
         "height": 403.25
       },
@@ -43,7 +43,7 @@
       ],
       "card": {
         "x": 24,
-        "y": 269.453125,
+        "y": 269.0625,
         "width": 852,
         "height": 485.5625
       },
@@ -57,7 +57,7 @@
       ],
       "model_card": {
         "x": 49,
-        "y": 344.046875,
+        "y": 344.65625,
         "width": 389,
         "height": 335
       },

@@ -15,7 +15,7 @@
       ],
       "card": {
         "x": 921.328125,
-        "y": 299.640625,
+        "y": 299.6875,
         "width": 354.65625,
         "height": 300.984375
       },
@@ -29,7 +29,7 @@
       ],
       "card": {
         "x": 24,
-        "y": 401.640625,
+        "y": 401.25,
         "width": 852,
         "height": 221.59375
       },
@@ -50,7 +50,7 @@
       "overflow": 0
     }
   ],
-  "source_sha256": "d35001a2050a3dc2a800b624f6cea6b989adb9cd41a1806ba553948f09d76161",
+  "source_sha256": "2eb224fcdf2f2497e11726dfe905b968a8c85dbd34174bab060c3f1a3d3da279",
   "verified": [
     "local saved-request library is described",
     "reuse fills a draft without sending",
