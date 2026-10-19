@@ -938,7 +938,7 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
 .tool-source:hover { border-color: var(--line-hi); background: var(--raised); color: var(--text); }
 .tool-source:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .tool-source .icon { flex: none; color: var(--text-3); }
-.tool-source-name { font-family: var(--mono); overflow-wrap: anywhere; }
+.tool-source-name { font-family: var(--mono); line-height: 1.35; overflow-wrap: anywhere; }
 .tool-source-meta { margin-left: auto; flex: none; font-size: var(--fs-2xs); color: var(--text-3); }
 .tool-source-go { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-xs); color: var(--text-3); }
 .tool-source:hover .tool-source-go { color: var(--brand-hi); }
@@ -1121,7 +1121,11 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
 .conversation-file-share .field select { width: 100%; }
 .artifact-share-note { margin: 8px 0; }
 .artifact-share-status { margin-top: 8px; }
-.artifact-share-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-top: 8px; }
+.artifact-share-actions {
+  position: sticky; bottom: 0; z-index: 1;
+  display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px;
+  margin-top: 8px; padding: 8px 0; background: var(--overlay);
+}
 #conversation-files-more { display: flex; justify-content: center; margin-top: var(--s-3); }
 
 .quick-prompts { display: grid; gap: 1px; }
