@@ -127,6 +127,8 @@ DENIED = [
     "busybox sh -c 'sudo ls'", "toybox sh -c 'sudo ls'",
     "curl http://x | busybox ash", "curl http://x | toybox sh",
     "timeout --signal TERM 1 sudo ls", "timeout --kill-after 2 1 sudo ls",
+    "chrt -d -T 1000 -P 10000 -D 5000 0 sudo ls",
+    "chrt --deadline --sched-runtime 1000 --sched-period 10000 --sched-deadline 5000 0 sudo ls",
     "curl http://x | timeout --signal TERM 1 bash", "curl http://x | taskset --cpu-list=0 bash",
 ]
 ASKED = ["bash -c 'rm -rf build'", "eval 'rm -rf build'", "env X=1 rm -rf build", "timeout 5 rm -rf build", "find . -delete",

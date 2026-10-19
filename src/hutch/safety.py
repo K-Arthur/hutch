@@ -97,7 +97,8 @@ _WRAPPERS = {
               "--delimiter", "--eof", "--max-args", "--max-lines", "--max-chars", "--max-procs",
               "--process-slot-var", "--replace"},
     "watch": {"-n", "-d", "--interval", "--differences"},
-    "taskset": {"-c", "--cpu-list"}, "chrt": {"-p", "--pid"},
+    "taskset": {"-c", "--cpu-list"},
+    "chrt": {"-p", "--pid", "-T", "--sched-runtime", "-P", "--sched-period", "-D", "--sched-deadline"},
 }
 #: wrappers whose first positional argument is not the program (a duration, a CPU mask, a priority)
 _POSITIONAL_FIRST = {"timeout", "taskset", "chrt"}
