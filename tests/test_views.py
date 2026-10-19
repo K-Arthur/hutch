@@ -169,6 +169,17 @@ def test_home_state_partitions_needs_running_and_stale(store, config):
     assert h.needs_count == 2
 
 
+def test_home_daily_stats_use_the_supplied_local_day(store):
+    bot = mk(store)
+    finished(store, bot, RunStatus.succeeded, NOW, tokens=123, cost_usd=0.45)
+
+    home = views.home_state(store, Scheduler(store), now=NOW)
+
+    assert home.stats["runs_today"] == 1
+    assert home.stats["tokens_today"] == 123
+    assert home.stats["spend_today"] == 0.45
+
+
 def test_dismissed_failures_leave_needs_you_and_a_later_success_clears_them(store, config):
     sched = Scheduler(store)
     bot = mk(store)

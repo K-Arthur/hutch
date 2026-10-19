@@ -350,7 +350,7 @@ def home_state(store, scheduler, engine: Any = None, now: Optional[datetime] = N
             h.stale.append(st)
     h.failures.sort(key=lambda t: t[0].finished_at or "", reverse=True)
     h.running.sort(key=lambda t: t[0].created_at, reverse=True)
-    runs_today = store._runs_today()
+    runs_today = store._runs_today(now=now)
     h.stats = {
         "bots": len(bots), "paused": sum(1 for b in bots.values() if b.paused),
         "runs_today": len(runs_today),
