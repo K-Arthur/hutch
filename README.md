@@ -17,7 +17,7 @@ today) and [docs/realignment/ledger.md](docs/realignment/ledger.md) (what is bei
 and there is no PyPI release, so install from a source checkout.
 
 ```
-$ hutch run tidy-downloads "sort this week's downloads"
+$ uv run hutch run tidy-downloads "sort this week's downloads"
 → remember    {"key": "last-run", "value": "sort downloads"}
 → list_files  42 files
 ! approval needed: move invoices/ → sorted/invoices/      ← you decide
@@ -37,15 +37,15 @@ answers, and their limits, are in [docs/safety.md](docs/safety.md).
 
 ```bash
 cd hutch                       # your source checkout (the repository is private)
-pip install -e .               # from a source checkout; or: uv venv && uv pip install -e ".[dev]"
-hutch init                   # create local state; no bots or runs are fabricated
-hutch serve                  # dashboard → http://127.0.0.1:8787
+uv sync --extra dev            # creates or updates .venv and installs Hutch with dev dependencies
+uv run hutch init              # create local state; no bots or runs are fabricated
+uv run hutch serve             # dashboard → http://127.0.0.1:8787
 ```
 
-On Linux with systemd, `hutch service install` can start the same loopback-only dashboard in your user session
+On Linux with systemd, `uv run hutch service install` can start the same loopback-only dashboard in your user session
 and bring it back at the next login. It does not enable remote access or change your data. Hutch does not enable
 systemd linger for you; if you want background work to continue after logout, review your own systemd user-session
-policy first. `hutch service status` and `hutch service uninstall` inspect or remove the unit without deleting data.
+policy first. `uv run hutch service status` and `uv run hutch service uninstall` inspect or remove the unit without deleting data.
 
 Configure a real model route in **Connections**. Save a workspace model default if you want the
 one-screen New Bot flow to reuse it; without a configured model, setup asks you to choose one
@@ -164,9 +164,9 @@ provider billing and live compatibility remain unverified.
 ## Development
 
 ```bash
-uv venv && uv pip install -e ".[dev]"
-pytest --ignore=tests/e2e   # isolated provider and execution fixtures; tests/e2e needs Playwright browsers
-hutch init && hutch serve   # opens the real empty setup state; no sample activity is seeded
+uv sync --extra dev
+uv run pytest --ignore=tests/e2e   # isolated provider and execution fixtures; tests/e2e needs Playwright browsers
+uv run hutch init && uv run hutch serve   # opens the real empty setup state; no sample activity is seeded
 ```
 
 Python ≥ 3.11. Linux first; macOS/Windows are roadmap items.
