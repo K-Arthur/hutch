@@ -19,6 +19,7 @@ import asyncio
 import json
 from typing import Any, Callable, Optional
 
+from starlette.exceptions import HTTPException
 from starlette.requests import Request
 
 from ..lifecycle import TERMINAL
@@ -30,6 +31,7 @@ COALESCE_SECONDS = 0.08
 KEEPALIVE_SECONDS = 15.0
 GLOBAL_POLL_SECONDS = 1.0       # writers in another process cannot wake this Store's in-process bus
 FINISHED = tuple(TERMINAL)    # one definition: hutch.lifecycle
+MAX_SQLITE_CURSOR = 2**63 - 1
 
 
 def sse_message(event: str, payload: dict[str, Any], id_: int | str | None = None) -> bytes:
@@ -52,9 +54,10 @@ def phone_change_page(page: dict[str, Any]) -> dict[str, Any]:
 def resume_cursor(request: Request, after: int = 0) -> int:
     """``Last-Event-ID`` (set by the browser on reconnect) wins over the page's initial ``?after=``."""
     header = request.headers.get("last-event-id", "").strip()
-    if header.isdigit():
-        return int(header)
-    return max(0, after)
+    cursor = int(header) if header.isdigit() else max(0, after)
+    if cursor > MAX_SQLITE_CURSOR:
+        raise HTTPException(422, "event cursor exceeds the supported integer range")
+    return cursor
 
 
 async def run_event_stream(request: Request, store, run_id: str, cursor: int,

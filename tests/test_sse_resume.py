@@ -143,6 +143,21 @@ def test_last_event_id_wins_over_the_after_parameter(live, monkeypatch):
     assert got == [7, 8, 9, 10]
 
 
+def test_run_stream_rejects_cursors_outside_sqlite_integer_range(live):
+    base, app = live
+    store = app.state.store
+    bot = store.create_bot(Bot(name="bounded-cursor"))
+    from hutch.models import Run
+    run = store.create_run(Run(bot_id=bot.id, prompt="x"))
+    too_large = str(2**63)
+
+    header = httpx.get(f"{base}/api/runs/{run.id}/stream", headers={"Last-Event-ID": too_large})
+    query = httpx.get(f"{base}/api/runs/{run.id}/stream?after={too_large}")
+
+    assert header.status_code == 422
+    assert query.status_code == 422
+
+
 def test_global_event_pages_and_sse_replay_use_one_durable_cursor(live):
     base, app = live
     store = app.state.store
