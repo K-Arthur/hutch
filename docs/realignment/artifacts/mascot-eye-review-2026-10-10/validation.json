@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_design_system.py::test_flat_mascot_eyes_stay_inside_every_silhouette",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_flat_mascot_eyes_stay_inside_every_silhouette",
-  "captured_at": "2026-10-11T00:50:21.747772+00:00",
+  "captured_at": "2026-10-11T01:02:21.941866+00:00",
   "browser": "Chromium 153.0.8010.12",
   "viewports": {
     "desktop": [

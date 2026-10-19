@@ -1,5 +1,5 @@
 {
-  "created_at": "2026-10-11T00:50:02.221585+00:00",
+  "created_at": "2026-10-11T01:02:01.201524+00:00",
   "test": "tests/e2e/test_design_system.py::test_assistant_settings_header_groups_secondary_actions",
   "browser": "153.0.8010.12",
   "playwright": "1.63.0",
@@ -14,7 +14,7 @@
     "src/hutch/server/static/brands/google-calendar-2026q2.png": "eac7b1d7c78a7c7fb40d74b6d879ba5fe781cbf2cd5f8d7d40f3c28fea73f77e",
     "src/hutch/server/static/brands/google-gmail-2026q2.png": "ab8e9e880a28e2bc29207a62394aa7d296f435113fcc922819dab629ffbd64e6",
     "src/hutch/server/static/brands/microsoft-outlook.svg": "4a3b6ab15d36e7c5317f75a83d1781708d68cce4d8b9073a3c82f0af662eaf18",
-    "website/index.html": "d35001a2050a3dc2a800b624f6cea6b989adb9cd41a1806ba553948f09d76161",
+    "website/index.html": "2eb224fcdf2f2497e11726dfe905b968a8c85dbd34174bab060c3f1a3d3da279",
     "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
     "website/styles.css": "4e2f4b3e4094cfc3aef1e9b21deaaf472421e607bb416824e63db0197dd0f4bd",
     "tests/e2e/test_design_system.py": "51e2ffb58dd1a8a982bbb9f0ac8358f579038ab9a9009858778665e2e3af0de1"
