@@ -107,6 +107,20 @@ def _unwrap(name: str, args: list[str]) -> list[str]:
         if t == "--":
             i += 1
             break
+        if name == "env" and t in ("-S", "--split-string"):
+            if i + 1 >= len(args):
+                return ["$UNPARSEABLE_ENV_SPLIT"]
+            try:
+                split = shlex.split(args[i + 1])
+            except ValueError:
+                return ["$UNPARSEABLE_ENV_SPLIT"]
+            return split + args[i + 2:]
+        if name == "env" and t.startswith("--split-string="):
+            try:
+                split = shlex.split(t.partition("=")[2])
+            except ValueError:
+                return ["$UNPARSEABLE_ENV_SPLIT"]
+            return split + args[i + 1:]
         if t.startswith("-") and len(t) > 1:
             i += 2 if t in valued else 1
             continue
@@ -392,7 +406,10 @@ class PolicyEngine:
         elif name in _WRAPPERS:
             rest = _unwrap(name, toks[1:])
             if rest:
-                inner = Segment(text=" ".join(rest), tokens=rest)
+                # A command wrapper retains the shell segment's pipeline endpoints. Dropping
+                # them lets `curl ... | env bash` evade the pipe-to-interpreter hard deny.
+                inner = Segment(text=" ".join(rest), tokens=rest,
+                                piped_in=seg.piped_in, piped_out=seg.piped_out)
                 add(self._tier(self._apply_rule(inner.text, self._classify_segment(inner, depth + 1))))
         elif name == "find":
             for payload in _find_payloads(toks):
