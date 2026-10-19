@@ -86,7 +86,7 @@ _SHELLS = {"sh", "bash", "dash", "zsh", "ksh", "fish"}
 
 #: programs that run another program: name -> options that take a value
 _WRAPPERS = {
-    "env": {"-u", "-C", "-S", "--unset", "--chdir"}, "nohup": set(),
+    "env": {"-u", "-C", "-S", "--unset", "--chdir", "--argv0"}, "nohup": set(),
     "nice": {"-n", "--adjustment"}, "ionice": {"-c", "-n", "-p", "--class", "--classdata", "--pid"},
     "timeout": {"-s", "-k", "--signal", "--kill-after"},
     "time": {"-f", "-o", "--format", "--output"},
