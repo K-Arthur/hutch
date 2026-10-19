@@ -115,6 +115,12 @@ def _unwrap(name: str, args: list[str]) -> list[str]:
             except ValueError:
                 return ["$UNPARSEABLE_ENV_SPLIT"]
             return split + args[i + 2:]
+        if name == "env" and t.startswith("-S") and len(t) > 2:
+            try:
+                split = shlex.split(t[2:])
+            except ValueError:
+                return ["$UNPARSEABLE_ENV_SPLIT"]
+            return split + args[i + 1:]
         if name == "env" and t.startswith("--split-string="):
             try:
                 split = shlex.split(t.partition("=")[2])
