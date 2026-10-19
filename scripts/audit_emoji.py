@@ -45,8 +45,9 @@ ROOT = Path(__file__).resolve().parent.parent
 # banned as "emoji": (c) (r) (tm) and plain-text dingbats in documentation —
 # pass 2 is what holds the UI to SVG-only iconography.
 EMOJI_CODEPOINTS: frozenset[int] = frozenset(
-    [0xFE0F, 0x1F004, 0x1F0CF, 0x1F18E, 0x1F191, 0x1F19A]
+    [0x20E3, 0xFE0F, 0x1F004, 0x1F0CF, 0x1F18E, 0x1F191, 0x1F19A]
     + list(range(0x1F0E0, 0x1F0FF + 1))
+    + list(range(0x1F1E6, 0x1F1FF + 1))
     + list(range(0x1F200, 0x1F2FF + 1))
     + list(range(0x1F300, 0x1FAFF + 1))
     + list(range(0x1FB00, 0x1FBFF + 1))

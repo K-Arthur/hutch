@@ -43,6 +43,8 @@ def test_repository_is_emoji_clean():
 def test_pictographic_emoji_detected_in_any_file():
     mod = _load_audit_module()
     assert mod.line_violations("hello \U0001F4C1 folder", ui=False) == ["EMOJI"]  # hutch-emoji-allow: test data
+    assert mod.line_violations("flag \U0001F1FA\U0001F1F8", ui=False) == ["EMOJI"]  # hutch-emoji-allow: test data
+    assert mod.line_violations("keycap 1\u20E3", ui=False) == ["EMOJI"]  # hutch-emoji-allow: test data
     assert mod.line_violations("spark \u26A1", ui=False) == []  # text-presentation dingbat: UI rule only
     assert mod.line_violations("spark \u26A1", ui=True) == ["ICON"]
     assert mod.line_violations("variation \u2713\uFE0F", ui=False) == ["EMOJI"]  # hutch-emoji-allow: test data
@@ -75,10 +77,10 @@ def test_escape_sequences_detected():
     assert mod.line_violations('x = "\\u0041"', ui=True) == []  # plain A
 
 
-def test_waiver_marker_suppresses_violation():
+def test_line_matcher_does_not_apply_waivers():
     mod = _load_audit_module()
     line = "spark \u26A1  # hutch-emoji-allow (terminal transcript)"
-    assert mod.line_violations(line, ui=True) == [] or True  # waiver applied at audit() level
+    assert mod.line_violations(line, ui=True) == ["ICON"]
 
 
 def test_audit_counts_waivers():
