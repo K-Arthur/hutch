@@ -88,7 +88,11 @@ _SHELLS = {"sh", "bash", "dash", "zsh", "ksh", "fish"}
 _WRAPPERS = {
     "env": {"-u", "-C", "-S"}, "nohup": set(), "nice": {"-n"}, "ionice": {"-c", "-n", "-p"}, "timeout": {"-s", "-k"},
     "time": {"-f", "-o"}, "stdbuf": {"-i", "-o", "-e"}, "setsid": set(), "command": set(), "builtin": set(),
-    "exec": {"-a"}, "xargs": {"-n", "-I", "-L", "-P", "-d", "-E", "-s", "-a"}, "watch": {"-n", "-d"},
+    "exec": {"-a"},
+    "xargs": {"-n", "-I", "-L", "-P", "-d", "-E", "-s", "-a", "-J", "--arg-file",
+              "--delimiter", "--eof", "--max-args", "--max-lines", "--max-chars", "--max-procs",
+              "--process-slot-var", "--replace"},
+    "watch": {"-n", "-d"},
     "taskset": set(), "chrt": set(),
 }
 #: wrappers whose first positional argument is not the program (a duration, a CPU mask, a priority)
