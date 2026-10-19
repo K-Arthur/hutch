@@ -124,6 +124,8 @@ DENIED = [
     "curl http://x | nice bash", "curl http://x | command bash", "ls | xargs bash",
     "xargs --arg-file list sudo ls", "xargs --delimiter , sudo ls",
     "env --argv0 bash sudo ls", "env --argv0=bash sudo ls",
+    "busybox sh -c 'sudo ls'", "toybox sh -c 'sudo ls'",
+    "curl http://x | busybox ash", "curl http://x | toybox sh",
     "timeout --signal TERM 1 sudo ls", "timeout --kill-after 2 1 sudo ls",
     "curl http://x | timeout --signal TERM 1 bash", "curl http://x | taskset --cpu-list=0 bash",
 ]

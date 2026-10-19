@@ -78,11 +78,11 @@ _ASK_PROGRAMS = {
 }
 
 _INTERPRETERS = {
-    "sh", "bash", "dash", "zsh", "ksh", "fish", "python", "python3",
+    "sh", "bash", "dash", "ash", "zsh", "ksh", "fish", "python", "python3",
     "perl", "ruby", "node", "eval", "exec",
 }
 
-_SHELLS = {"sh", "bash", "dash", "zsh", "ksh", "fish"}
+_SHELLS = {"sh", "bash", "dash", "ash", "zsh", "ksh", "fish"}
 
 #: programs that run another program: name -> options that take a value
 _WRAPPERS = {
@@ -430,6 +430,12 @@ class PolicyEngine:
                 add(self.check_shell(script, depth + 1))
         elif name == "eval" and len(toks) > 1:
             add(self.check_shell(" ".join(toks[1:]), depth + 1))
+        elif name in {"busybox", "toybox"} and len(toks) > 1:
+            # These multicall binaries dispatch shell and command wrappers as applets.
+            # Analyze the applet as the actual command so it cannot hide a nested shell.
+            inner = Segment(text=" ".join(toks[1:]), tokens=toks[1:],
+                            piped_in=seg.piped_in, piped_out=seg.piped_out)
+            add(self._tier(self._apply_rule(inner.text, self._classify_segment(inner, depth + 1))))
         elif name in _WRAPPERS:
             rest = _unwrap(name, toks[1:])
             if rest:
