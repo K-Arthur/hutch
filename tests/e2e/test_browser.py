@@ -1174,7 +1174,7 @@ def test_workflow_studio_lists_and_resolves_every_pending_question(browser, live
         trace.append({"state": "one-answer-received", "discovered_instances": [
             partial_rows.nth(index).inner_text().splitlines()[-1] for index in range(2)],
             "pending_question_forms": 1})
-        page.wait_for_function(
+        wait_for_page(page,
             """questionId => document.activeElement?.closest('[data-workflow-question-form]')?.dataset.questionId === questionId""",
             arg=pending_questions[1]["id"])
         remaining = panel.locator(f'[data-question-id="{pending_questions[1]["id"]}"]')
@@ -1191,7 +1191,7 @@ def test_workflow_studio_lists_and_resolves_every_pending_question(browser, live
             time.sleep(0.05)
         assert workflow_store.workflow_run(store, workflow_id)["status"] == "succeeded"
         page.get_by_role("button", name="Refresh").click()
-        page.wait_for_function("document.querySelector('#workflow-panel .workflow-panel-head')?.innerText.includes('Finished')")
+        wait_for_page(page, "document.querySelector('#workflow-panel .workflow-panel-head')?.innerText.includes('Finished')")
         assert "4 discovered instances" in panel.locator(".workflow-panel-meta").inner_text()
         completed_rows = panel.locator('[aria-label="Discovered workflow instances"] li')
         assert completed_rows.count() == 4
@@ -1404,7 +1404,7 @@ def test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports(bro
         panel.get_by_text("Paused · saved workflow", exact=True).wait_for()
         resume_after_pause = panel.get_by_role("button", name="Resume workflow")
         assert resume_after_pause.count() == 1
-        page.wait_for_function("document.activeElement?.dataset.workflowAction === 'resume'", timeout=2000)
+        wait_for_page(page, "document.activeElement?.dataset.workflowAction === 'resume'", timeout=2000)
         assert resume_after_pause.evaluate("element => document.activeElement === element"), page.evaluate(
             "({tag: document.activeElement?.tagName, id: document.activeElement?.id, "
             "action: document.activeElement?.dataset.workflowAction, "
@@ -1464,7 +1464,7 @@ def test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports(bro
         assert resume_response.value.request.headers.get("idempotency-key")
         assert resume_response.value.request.post_data_json == pause_body
         assert resume_response.value.json()["paused"] is False
-        page.wait_for_function("document.activeElement?.dataset.workflowAction === 'refresh'", timeout=2000)
+        wait_for_page(page, "document.activeElement?.dataset.workflowAction === 'refresh'", timeout=2000)
         assert panel.get_by_role("button", name="Refresh").evaluate(
             "element => document.activeElement === element")
         deadline = time.monotonic() + 20
@@ -1506,7 +1506,7 @@ def test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports(bro
         assert newest and newest["status"] == "stopped"
         panel.get_by_text("Stopped · saved workflow", exact=True).wait_for()
         assert panel.get_by_role("button", name="Stop workflow").count() == 0
-        page.wait_for_function("document.querySelectorAll('#toast-root .toast').length === 0", timeout=6000)
+        pw.expect(page.locator("#toast-root .toast")).to_have_count(0, timeout=6000)
         page.screenshot(path=str(artifacts / "desktop-stopped.png"), full_page=True, animations="disabled")
         assert not errors, errors
 
@@ -1769,7 +1769,7 @@ def test_workflow_studio_pause_after_active_work_at_all_viewports(browser, live,
         panel.get_by_text("Current work will settle before the next step is held.", exact=True).wait_for()
         assert panel.get_by_role("button", name="Pause after current work").count() == 0
         assert panel.get_by_role("button", name="Resume workflow").count() == 0
-        page.wait_for_function("document.activeElement?.dataset.workflowAction === 'refresh'", timeout=2000)
+        wait_for_page(page, "document.activeElement?.dataset.workflowAction === 'refresh'", timeout=2000)
         assert panel.get_by_role("button", name="Refresh").evaluate(
             "element => element === document.activeElement")
         capture_state("Pause requested", None)
@@ -2266,7 +2266,7 @@ def test_run_detail_reports_transcript_chain_verification_and_tampering(browser,
             technical_details = page.locator("#run-technical-details")
             if not technical_details.evaluate("element => element.open"):
                 technical_details.locator(":scope > summary").click()
-            page.wait_for_function("document.querySelector('#run-technical-details')?.open === true")
+            wait_for_page(page, "document.querySelector('#run-technical-details')?.open === true")
             page.locator("[data-run-integrity-run]").wait_for(state="visible")
             result = page.locator("[data-run-integrity-result]")
             verify_control = page.evaluate("""() => {
@@ -2281,7 +2281,7 @@ def test_run_detail_reports_transcript_chain_verification_and_tampering(browser,
             # The run view can refresh after its initial snapshot. Dispatch the
             # click against the current connected control in one browser turn.
             page.evaluate("document.querySelector('[data-verify-run-history]')?.click()")
-            page.wait_for_function("""expected => {
+            wait_for_page(page, """expected => {
                   const node = document.querySelector('[data-run-integrity-result]');
                   return node && node.dataset.state === 'verified' && node.textContent.includes(expected);
                 }""", arg=expected_verified, timeout=5000)
@@ -2327,7 +2327,7 @@ def test_run_detail_reports_transcript_chain_verification_and_tampering(browser,
         page.get_by_role("heading", name="Task details").wait_for()
         page.locator("#run-technical-details > summary").click()
         page.get_by_role("button", name="Verify event history").click()
-        page.wait_for_function("""() => {
+        wait_for_page(page, """() => {
           const node = document.querySelector('[data-run-integrity-result]');
           return node && node.dataset.state === 'partial' && node.textContent.includes('older event');
         }""", timeout=5000)
@@ -2346,7 +2346,7 @@ def test_run_detail_reports_transcript_chain_verification_and_tampering(browser,
                               ('{"role":"assistant","content":"changed after commit"}', run.id))
             store._db.commit()
         page.get_by_role("button", name="Verify event history").click()
-        page.wait_for_function("""() => {
+        wait_for_page(page, """() => {
           const node = document.querySelector('[data-run-integrity-result]');
           return node && node.dataset.state === 'failed' && node.textContent.includes('event 1');
         }""", timeout=5000)
@@ -5095,7 +5095,7 @@ def test_outlook_mail_send_access_is_separate_and_responsive(browser, live, monk
         assert send_signin.locator("img").evaluate("img => img.complete && img.naturalWidth === 215")
         page.locator("#outlook-mail-send-label").fill("Second sender")
         send_signin.click()
-        page.wait_for_function("window.__outlookMailSendOAuth.url !== null")
+        wait_for_page(page, "window.__outlookMailSendOAuth.url !== null")
         oauth = page.evaluate("window.__outlookMailSendOAuth")
         authorization_url = urlsplit(oauth["url"])
         assert oauth["opener"] is None
@@ -5240,7 +5240,7 @@ def test_google_mail_send_access_is_send_only_and_responsive(browser, live, monk
         page.locator("#google-mail-send-label").fill("Second sender")
         page.locator("#google-mail-send-from").fill("owner@example.test")
         page.locator("#google-mail-send-connect").click()
-        page.wait_for_function("window.__googleMailSendOAuth.url !== null")
+        wait_for_page(page, "window.__googleMailSendOAuth.url !== null")
         oauth = page.evaluate("window.__googleMailSendOAuth")
         authorization_url = urlsplit(oauth["url"])
         assert oauth["opener"] is None
@@ -5337,7 +5337,7 @@ def test_opt_in_chatgpt_signin_is_fixture_intercepted_and_responsive(browser, li
         assert page.get_by_text("Availability depends on OpenAI eligibility and your account", exact=False).is_visible()
         # Wait for the first app paint before taking the full-page desktop capture. The button can
         # become visible one frame before the view is composited, which produced a blank proof image.
-        page.wait_for_function("document.fonts.status === 'loaded'")
+        wait_for_page(page, "document.fonts.status === 'loaded'")
         page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
         page.wait_for_timeout(250)
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
@@ -5454,6 +5454,11 @@ class CuttableProxy:
     def close(self):
         self.cut()
         self._srv.close()
+
+
+def wait_for_page(page, expression, *, arg=None, timeout=30000):
+    """Poll a page predicate without Playwright's CSP-blocked wait_for_function eval."""
+    return wait_for(lambda: page.evaluate(expression, arg), timeout=timeout / 1000)
 
 
 def wait_for(fn, timeout=20.0):
@@ -5930,7 +5935,7 @@ def test_verified_artifact_can_be_shared_with_another_chat_and_revoked(browser, 
             share.focus()
             page.keyboard.press("Enter")
             share_status = files_dialog.locator(".artifact-share-status")
-            page.wait_for_function("el => el.textContent.includes('Shared with')", arg=share_status.element_handle())
+            wait_for_page(page, "el => el.textContent.includes('Shared with')", arg=share_status.element_handle())
             assert "Recipient chat" in share_status.inner_text()
             shared_page = page.request.get(f"{base}/api/v1/conversations/{target['id']}/artifacts")
             shared_rows = shared_page.json().get("artifacts", [])
@@ -5951,7 +5956,7 @@ def test_verified_artifact_can_be_shared_with_another_chat_and_revoked(browser, 
             if name == "desktop":
                 source_revoke.focus()
                 page.keyboard.press("Enter")
-                page.wait_for_function(
+                wait_for_page(page,
                     "() => document.querySelector('#conversation-files-status')?.textContent?.includes('Sharing with Recipient chat has stopped')")
                 assert page.request.get(f"{base}{shared_rows[0]['download_url']}").status == 404
                 assert not page.request.get(
@@ -5991,7 +5996,7 @@ def test_verified_artifact_can_be_shared_with_another_chat_and_revoked(browser, 
             unshare = recipient_files.get_by_role("button", name="Stop sharing report.txt")
             unshare.focus()
             page.keyboard.press("Enter")
-            page.wait_for_function("() => document.querySelector('#conversation-files-status')?.textContent?.includes('no longer has access')")
+            wait_for_page(page, "() => document.querySelector('#conversation-files-status')?.textContent?.includes('no longer has access')")
             assert recipient_files.locator(".conversation-file").count() == 0
             client_artifact = page.request.get(f"{base}/api/v1/tasks/runs/{run.id}/artifacts/{filename}")
             assert client_artifact.status == 200 and client_artifact.body() == payload
@@ -6055,10 +6060,10 @@ def test_conversation_file_browser_loads_the_next_cursor_page(browser, live):
         dialog = page.get_by_role("dialog", name="Files in this chat")
         dialog.wait_for()
         status = dialog.locator("#conversation-files-status")
-        page.wait_for_function("() => document.querySelector('#conversation-files-status')?.textContent === '50 items'")
+        wait_for_page(page, "() => document.querySelector('#conversation-files-status')?.textContent === '50 items'")
         assert dialog.locator(".conversation-file").count() == 50
         dialog.get_by_role("button", name="Load more").click()
-        page.wait_for_function("() => document.querySelector('#conversation-files-status')?.textContent === '51 items'")
+        wait_for_page(page, "() => document.querySelector('#conversation-files-status')?.textContent === '51 items'")
         filenames = dialog.locator(".conversation-file-copy strong").all_text_contents()
         assert len(filenames) == 51 and len(set(filenames)) == 51
         assert dialog.get_by_role("button", name="Load more").count() == 0
@@ -6206,10 +6211,10 @@ def test_conversation_options_are_compact_persistent_and_recoverable(browser, li
     page.get_by_role("button", name="Mark unread").click()
     wait_for(lambda: store.get_conversation(first["id"])["unread"] == 1)
     page.locator("#conversation-switcher").select_option(second["id"])
-    page.wait_for_function("id => document.querySelector('#conversation-switcher')?.value === id", arg=second["id"])
+    wait_for_page(page, "id => document.querySelector('#conversation-switcher')?.value === id", arg=second["id"])
     assert store.get_conversation(first["id"])["unread"] == 1
     page.locator("#conversation-switcher").select_option(first["id"])
-    page.wait_for_function("id => document.querySelector('#conversation-switcher')?.value === id", arg=first["id"])
+    wait_for_page(page, "id => document.querySelector('#conversation-switcher')?.value === id", arg=first["id"])
     wait_for(lambda: store.get_conversation(first["id"])["unread"] == 0)
 
     page.locator("#studio-conversation-options").click()
@@ -6269,7 +6274,7 @@ def test_conversation_options_are_compact_persistent_and_recoverable(browser, li
     page.locator("#task-template-file").set_input_files(template_path)
     assert page.locator("#chat-prompt").input_value() == "Help me prepare a launch review."
     assert [run.id for run in store.list_runs()] == runs_before_template_import
-    page.wait_for_function("document.querySelector('#live-status')?.textContent.includes('Nothing was sent')")
+    wait_for_page(page, "document.querySelector('#live-status')?.textContent.includes('Nothing was sent')")
 
     page.locator("#studio-conversation-options").click()
     page.locator("#studio-conversation-more > summary").click()
@@ -6291,7 +6296,7 @@ def test_conversation_options_are_compact_persistent_and_recoverable(browser, li
     page.locator("#conversation-title-input").fill("Launch review notes")
     page.get_by_role("button", name="Save name").click()
     wait_for(lambda: store.get_conversation(first["id"])["title"] == "Launch review notes")
-    page.wait_for_function("document.querySelector('#conversation-switcher')?.innerText.includes('Launch review notes')")
+    wait_for_page(page, "document.querySelector('#conversation-switcher')?.innerText.includes('Launch review notes')")
     assert "Launch review notes" in page.locator("#conversation-switcher").inner_text()
     page.reload()
     page.locator("#conversation-switcher").wait_for()
@@ -6303,7 +6308,7 @@ def test_conversation_options_are_compact_persistent_and_recoverable(browser, li
     wait_for(lambda: store.get_conversation(first["id"])["archived"] == 1)
     assert page.locator(f"#conversation-switcher option[value='{first['id']}']").count() == 1
     page.locator("#conversation-switcher").select_option(first["id"])
-    page.wait_for_function("id => document.querySelector('#conversation-switcher')?.value === id", arg=first["id"])
+    wait_for_page(page, "id => document.querySelector('#conversation-switcher')?.value === id", arg=first["id"])
     page.locator("#studio-conversation-options").click()
     page.locator("#studio-conversation-more > summary").click()
     page.get_by_role("button", name="Restore conversation").click()
@@ -7074,7 +7079,7 @@ def test_bot_usage_limits_are_optional_clear_and_use_everyday_time_units(browser
                 page.locator("#toast-root").evaluate("root => root.replaceChildren()")
                 expected_steps, expected_duration = "11 work steps", "2.5 min per task"
                 expected_timeout_minutes = "2.5"
-                page.wait_for_function("document.querySelector('#assistant-usage-limits small')?.textContent.includes('2.5 min per task')")
+                wait_for_page(page, "document.querySelector('#assistant-usage-limits small')?.textContent.includes('2.5 min per task')")
                 assert not disclosure.evaluate("element => element.open")
                 disclosure.locator(":scope > summary").focus()
                 disclosure.locator(":scope > summary").press("Space")
@@ -7707,7 +7712,7 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
     try:
         page.goto(f"{base}/#/bot/{coordinator.name}")
         open_assistant_customization(page)
-        page.get_by_role("heading", name="Workspace Coordinator settings").wait_for()
+        page.get_by_role("heading", name="About this assistant", exact=True).wait_for()
         roster_panel = page.locator("#workspace-specialist-roster")
         roster_details = page.locator("#workspace-specialist-settings")
         roster_summary = roster_details.locator("summary")
@@ -7771,7 +7776,7 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
         page.get_by_role("button", name="Make this the main assistant").click()
         page.get_by_role("heading", name="Make this your main assistant?").wait_for()
         page.locator("#modal-confirm").click()
-        page.get_by_role("heading", name="Release Notes Reviewer settings").wait_for()
+        page.get_by_role("heading", name="About this assistant", exact=True).wait_for()
         assert app.state.store.workspace_coordinator_id() == specialist.id
         assert app.state.store.workspace_specialists()["specialist_bot_ids"] == []
         chat_link = page.locator(f"#app-top-context .ctx-actions a[href='#/chat/{specialist.name}']")
@@ -7866,7 +7871,7 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
             else:
                 page.locator("#nav-toggle").click()
         name_labels.first.wait_for(state="visible")
-        page.wait_for_function("""() => {
+        wait_for_page(page, """() => {
           const name = document.querySelector('#roster-list .roster-name');
           if (!name) return false;
           const style = getComputedStyle(name);
@@ -7880,7 +7885,7 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
         long_name_row.evaluate("button => { for (let parent = button.parentElement; parent && parent.id !== 'roster-list'; parent = parent.parentElement) if (parent instanceof HTMLDetailsElement) parent.open = true; }")
         name_label = long_name_row.locator(".roster-name")
         name_label.wait_for(state="visible")
-        page.wait_for_function("""() => {
+        wait_for_page(page, """() => {
           const el = document.querySelector("[data-switch-bot='research-helper'] .roster-name");
           if (!el) return false;
           const style = getComputedStyle(el);
@@ -7929,7 +7934,7 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
         page.locator("[data-switch-bot='website-auditor']").hover()
         page.locator("[data-bot-options='website-auditor']").click()
         page.get_by_role("menuitem", name="Pin to sidebar").click()
-        page.wait_for_function("""() => {
+        wait_for_page(page, """() => {
           const names = [...document.querySelectorAll('#roster-list [data-switch-bot]')].map(el => el.dataset.switchBot);
           return names.indexOf('website-auditor') < names.indexOf('agenda-assistant');
         }""")
@@ -7968,7 +7973,7 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
         page.locator("[data-bot-options='research-helper']").click()
         page.get_by_role("menuitem", name="Remove from pinned").focus()
         page.keyboard.press("Enter")
-        page.wait_for_function("document.activeElement?.dataset?.botOptions === 'research-helper'")
+        wait_for_page(page, "document.activeElement?.dataset?.botOptions === 'research-helper'")
         assert store.get_bot("research-helper").pinned is False
 
         identity = page.locator("#roster-list .avatar svg").evaluate_all("""svgs => {
@@ -8022,10 +8027,10 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
             selected_row.wait_for(state="visible")
             selected_row.click()
             page.wait_for_url("**/#/chat/research-helper")
-            page.wait_for_function("""() => location.hash === '#/chat/research-helper'
+            wait_for_page(page, """() => location.hash === '#/chat/research-helper'
               && document.querySelector('.ctx-id h1')?.textContent.includes('Research Companion')""")
-            page.wait_for_function("document.querySelector('[data-switch-bot=\\\"research-helper\\\"]')?.getAttribute('aria-current') === 'true'")
-            page.wait_for_function("""() => {
+            wait_for_page(page, "document.querySelector('[data-switch-bot=\\\"research-helper\\\"]')?.getAttribute('aria-current') === 'true'")
+            wait_for_page(page, """() => {
               const button = document.querySelector('#roster-list [data-switch-bot="research-helper"]');
               const entry = button?.closest('.roster-entry');
               const row = entry?.getBoundingClientRect();
@@ -8151,10 +8156,10 @@ def test_large_idle_roster_stays_compact_and_remains_searchable_and_keyboard_acc
 
         summary.focus()
         page.keyboard.press("Enter")
-        page.wait_for_function("document.querySelector('#roster-idle-details')?.open === true")
+        wait_for_page(page, "document.querySelector('#roster-idle-details')?.open === true")
         assert page.locator("#roster-list [data-switch-bot]:visible").count() == 10
         page.keyboard.press("Enter")
-        page.wait_for_function("document.querySelector('#roster-idle-details')?.open === false")
+        wait_for_page(page, "document.querySelector('#roster-idle-details')?.open === false")
         page.locator("#bot-search").fill("Release Helper 7")
         assert page.locator("#roster-list [data-switch-bot]").evaluate_all("els => els.map(el => el.dataset.switchBot)") == ["release-helper-7"]
         page.locator("#bot-search").fill("")
@@ -9418,8 +9423,8 @@ def test_multiple_scheduled_tasks_can_be_managed_from_bot_settings(browser, live
         assert edited_secondary.value.status == 200, edited_secondary.value.text()
         wait_for(lambda: next((item.name for item in app.state.store.get_bot("scheduled-research").schedules
                               if item.id == secondary.id), None) == "Monthly release review")
-        page.wait_for_function("form => !form.isConnected", arg=stale_secondary_form)
-        page.wait_for_function("() => [...document.querySelectorAll('[data-schedule-form] [name=name]')].some(input => input.value === 'Monthly release review')")
+        wait_for_page(page, "form => !form.isConnected", arg=stale_secondary_form)
+        wait_for_page(page, "() => [...document.querySelectorAll('[data-schedule-form] [name=name]')].some(input => input.value === 'Monthly release review')")
 
         page.set_viewport_size({"width": 390, "height": 844})
         primary_form = page.locator("#form-schedule")
@@ -9434,7 +9439,7 @@ def test_multiple_scheduled_tasks_can_be_managed_from_bot_settings(browser, live
         wait_for(lambda: next((item.prompt for item in app.state.store.get_bot("scheduled-research").schedules
                               if item.id == primary_id), None)
                  == "Check the weekly security feed and list actionable changes.")
-        page.wait_for_function("form => !form.isConnected", arg=stale_primary_form)
+        wait_for_page(page, "form => !form.isConnected", arg=stale_primary_form)
         page.locator("#form-schedule").wait_for(state="visible")
         assert page.locator('#form-schedule [name="schedule_prompt"]').input_value() \
             == "Check the weekly security feed and list actionable changes."
@@ -9799,7 +9804,7 @@ def test_composer_switcher_menu_check_keyboard_and_per_message_override(browser,
     menu = page.locator(".ms-menu")
     menu.wait_for(state="visible")
     items = page.locator(".ms-menu .ms-item[role=menuitemradio]")
-    page.wait_for_function("document.querySelectorAll('.ms-menu .ms-item[role=menuitemradio]').length >= 2")
+    wait_for_page(page, "document.querySelectorAll('.ms-menu .ms-item[role=menuitemradio]').length >= 2")
     assert items.first.get_attribute("aria-checked") == "true", "the model in use carries the check"
     assert "default" in items.first.inner_text()
     assert page.evaluate("document.activeElement.classList.contains('ms-item')"), "focus moves into the menu"
@@ -9816,11 +9821,11 @@ def test_composer_switcher_menu_check_keyboard_and_per_message_override(browser,
     assert "is-custom" in btn.get_attribute("class")
     page.locator("#studio-conversation-options").click()
     page.locator("#studio-new-conversation").click()
-    page.wait_for_function("old => document.querySelector('#conversation-switcher').value !== old", arg=first_conversation)
+    wait_for_page(page, "old => document.querySelector('#conversation-switcher').value !== old", arg=first_conversation)
     assert "tiny:1b" in page.locator(".ms-btn").get_attribute("aria-label")
     assert "is-custom" not in page.locator(".ms-btn").get_attribute("class")
     page.locator("#conversation-switcher").select_option(first_conversation)
-    page.wait_for_function("() => document.querySelector('.ms-btn')?.getAttribute('aria-label')?.includes('small:2b')")
+    wait_for_page(page, "() => document.querySelector('.ms-btn')?.getAttribute('aria-label')?.includes('small:2b')")
 
     page.locator("#chat-prompt").fill("hello there")
     with page.expect_response(lambda r: "/api/v1/conversations/" in r.url and r.url.endswith("/messages")
@@ -10194,7 +10199,7 @@ def test_small_workspace_has_one_roster_and_legacy_routes_do_not_trap_back(brows
     page.locator("[data-bot-options='one-bot']").click()
     page.get_by_role("menuitem", name="Assistant settings").click()
     open_assistant_customization(page)
-    page.get_by_role("heading", name="One Bot settings", exact=True).wait_for()
+    page.get_by_role("heading", name="About this assistant", exact=True).wait_for()
     assert page.get_by_text("Recent runs", exact=True).count() == 0
     page.goto(base + "/#/overview")
     page.get_by_role("heading", name="Activity", exact=True).wait_for()
@@ -10224,7 +10229,7 @@ def test_bot_workspace_modes_are_clear_and_persist_across_settings(browser, live
     try:
         page.goto(base + "/#/bot/workspace-helper")
         open_assistant_customization(page)
-        page.get_by_role("heading", name="Workspace Helper settings", exact=True).wait_for()
+        page.get_by_role("heading", name="About this assistant", exact=True).wait_for()
         mode = page.locator('#form-risk [name="workspace_mode"]')
         assert mode.input_value() == "fresh"
         if width <= 390:
@@ -10237,7 +10242,7 @@ def test_bot_workspace_modes_are_clear_and_persist_across_settings(browser, live
                                   and response.request.method == "PATCH") as saved:
             page.locator('#form-risk button[type="submit"]').click()
         assert saved.value.status == 200, saved.value.text()
-        page.wait_for_function("form => !form.isConnected", arg=old_form)
+        wait_for_page(page, "form => !form.isConnected", arg=old_form)
         page.locator("#form-risk").wait_for(state="visible")
         page.get_by_text("Policy and workspace saved.", exact=True).wait_for()
         assert app.state.store.get_bot("workspace-helper").workspace_mode == "managed"
@@ -10259,7 +10264,7 @@ def test_bot_workspace_modes_are_clear_and_persist_across_settings(browser, live
                                   and response.request.method == "PATCH") as saved:
             page.locator('#form-risk button[type="submit"]').click()
         assert saved.value.status == 200, saved.value.text()
-        page.wait_for_function("form => !form.isConnected", arg=old_form)
+        wait_for_page(page, "form => !form.isConnected", arg=old_form)
         page.locator("#form-risk").wait_for(state="visible")
         stored = app.state.store.get_bot("workspace-helper")
         assert stored.workspace_mode == "folder" and stored.workdir == str(folder.resolve())
@@ -10304,7 +10309,7 @@ def test_local_browser_handoff_setting_is_explicit_and_persists(browser, live, w
     try:
         page.goto(base + "/#/bot/local-handoff")
         open_assistant_customization(page)
-        page.get_by_role("heading", name="Local Handoff settings", exact=True).wait_for()
+        page.get_by_role("heading", name="About this assistant", exact=True).wait_for()
         handoff = page.locator('#form-risk [name="local_browser_handoff"]')
         assert handoff.input_value() == "false"
         assert handoff.get_attribute("aria-describedby") == "browser-handoff-help"
@@ -10328,7 +10333,7 @@ def test_local_browser_handoff_setting_is_explicit_and_persists(browser, live, w
                                   and response.request.method == "PATCH") as saved:
             page.locator('#form-risk button[type="submit"]').click()
         assert saved.value.status == 200, saved.value.text()
-        page.wait_for_function("form => !form.isConnected", arg=old_form)
+        wait_for_page(page, "form => !form.isConnected", arg=old_form)
         page.locator("#form-risk").wait_for(state="visible")
         handoff = page.locator('#form-risk [name="local_browser_handoff"]')
         assert handoff.input_value() == "true"
@@ -10408,17 +10413,20 @@ def test_bot_and_conversation_switches_isolate_unsent_drafts(browser, live):
     page.locator("#chat-prompt").fill("Private draft for A")
     # No debounce wait: immediate navigation must preserve the draft in its own context.
     page.locator('[data-switch-bot="draft-b"]').click()
-    page.wait_for_function("document.querySelector('#chat-prompt')?.placeholder.includes('Draft B')")
+    page.wait_for_url("**/#/chat/draft-b")
+    page.locator("#conversation-switcher").wait_for(state="visible")
     assert page.locator("#chat-prompt").input_value() == ""
     page.locator('[data-switch-bot="draft-a"]').click()
-    page.wait_for_function("document.querySelector('#chat-prompt')?.placeholder.includes('Draft A')")
+    page.wait_for_url("**/#/chat/draft-a")
+    page.locator("#conversation-switcher").wait_for(state="visible")
+    wait_for_page(page, "id => document.querySelector('#conversation-switcher')?.value === id", arg=first)
     assert page.locator("#chat-prompt").input_value() == "Private draft for A"
     page.locator("#studio-conversation-options").click()
     page.locator("#studio-new-conversation").click()
-    page.wait_for_function("id => document.querySelector('#conversation-switcher')?.value !== id", arg=first)
+    wait_for_page(page, "id => document.querySelector('#conversation-switcher')?.value !== id", arg=first)
     assert page.locator("#chat-prompt").input_value() == ""
     page.locator("#conversation-switcher").select_option(first)
-    page.wait_for_function("document.querySelector('#chat-prompt')?.value === 'Private draft for A'")
+    wait_for_page(page, "document.querySelector('#chat-prompt')?.value === 'Private draft for A'")
     page.close()
 
 
@@ -10869,7 +10877,7 @@ def test_queued_chat_keeps_earlier_approval_and_live_status_fresh(browser, live)
     page.locator("#chat-prompt").fill("write the next report")
     page.locator("#chat-send").click()
     second = page.locator("#chat-stream [data-run-id]").last
-    page.wait_for_function("document.querySelectorAll('#chat-stream [data-run-id]').length === 2")
+    wait_for_page(page, "document.querySelectorAll('#chat-stream [data-run-id]').length === 2")
     assert "Queued" in second.inner_text()
     assert page.locator("#studio-stop-run").get_attribute("data-stop-target") == first_run
     assert "Waiting for you" in page.locator(".ctx-meta").inner_text()
@@ -11049,7 +11057,7 @@ def test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus(br
     page.goto(base + "/#/chat/resource-replay")
     page.locator("#chat-prompt").fill("My unsent draft stays here")
     page.locator("#chat-prompt").focus()
-    page.wait_for_function("resourceStream && resourceStream.readyState === EventSource.OPEN")
+    wait_for_page(page, "resourceStream && resourceStream.readyState === EventSource.OPEN")
     gate = ApprovalGate(store, bot, run, PolicyEngine(), store.append_event)
     # Admission commits the real request/event/wait; only the subsequent human
     # wait is held so the test can act as the second client.
@@ -11085,7 +11093,7 @@ def test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus(br
     assert "Denied" in card.inner_text() and not card.locator("[data-approve]").count()
     assert page.locator("#chat-prompt").input_value() == "My unsent draft stays here"
     page.evaluate("id => { location.hash = '#/run/' + id; }", run.id)
-    page.wait_for_function("feedMode === 'run'")
+    wait_for_page(page, "feedMode === 'run'")
     page.evaluate("location.hash = '#/bot/resource-replay'")
     open_assistant_customization(page)
     settings = page.locator('#form-instructions textarea[name="instructions"]')
@@ -11104,7 +11112,7 @@ def test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus(br
     page.wait_for_timeout(150)
     assert held, "hold a run response across navigation"
     page.evaluate("location.hash = '#/bot/resource-replay'")
-    page.get_by_role("heading", name="Resource Replay settings", exact=True).wait_for()
+    page.get_by_role("heading", name="About this assistant", exact=True).wait_for()
     open_assistant_customization(page)
     settings.fill("Late run responses cannot replace this form")
     for route in held:
@@ -11439,7 +11447,7 @@ def test_uncertain_action_review_in_chat_preserves_history_and_recovers_lost_res
         page.locator('#modal-confirm').click()
         page.locator('#modal-root .modal-card').wait_for(state='detached')
         page.get_by_role('button',name='View recorded outcome',exact=True).wait_for()
-        page.wait_for_function("document.activeElement?.dataset.receiptReview !== undefined")
+        wait_for_page(page, "document.activeElement?.dataset.receiptReview !== undefined")
         assert len(attempts) == 2 and attempts[0] == attempts[1]
         assert page.locator('#chat-prompt').input_value() == 'Keep this unsent follow-up during review'
         assert store.get_run(run.id).model_dump() == before
@@ -11758,7 +11766,7 @@ def test_explicit_cross_bot_fact_share_is_reviewable_revocable_and_responsive(br
             trace.append({'viewport': label, 'size': [width, height], 'state': 'share_review',
                           'horizontal_overflow': page.evaluate('document.documentElement.scrollWidth - innerWidth')})
         page.keyboard.press('Escape')
-        page.wait_for_function('document.activeElement?.dataset.factShareCreate !== undefined')
+        wait_for_page(page, 'document.activeElement?.dataset.factShareCreate !== undefined')
         trigger = page.locator(f'[data-fact-share-create="{fact.id}"]')
         trigger.click()
         page.get_by_role('dialog', name='Share this reference with a Bot').locator('#fact-share-target').select_option(label='Brief Writer')
@@ -11938,7 +11946,7 @@ def test_needs_you_receipt_queue_pages_old_actions_and_stays_keyboard_reachable(
         page.locator('#receipts-pending [data-receipt-card]').first.wait_for()
         assert page.locator('#receipts-pending [data-receipt-card]').count() == 20
         page.get_by_role('button',name='Next actions',exact=True).click()
-        page.wait_for_function("document.querySelectorAll('#receipts-pending [data-receipt-card]').length === 2")
+        wait_for_page(page, "document.querySelectorAll('#receipts-pending [data-receipt-card]').length === 2")
         page.locator('#receipts-pending [data-receipt-review]').first.focus()
         page.keyboard.press('Enter')
         page.locator('#receipt-outcome').wait_for()
@@ -12118,7 +12126,7 @@ def test_bot_message_reply_is_keyboard_accessible_editable_and_persisted(browser
     with page.expect_response(lambda response: response.request.method == "POST" and response.url.endswith("/messages")) as sent:
         page.locator("#chat-send").click()
     assert sent.value.status == 201, sent.value.text()
-    page.wait_for_function("""async ({conversationId, sourceId}) => {
+    wait_for_page(page, """async ({conversationId, sourceId}) => {
       const r = await fetch(`/api/v1/conversations/${conversationId}?after=0&limit=100`);
       if (!r.ok) return false;
       const page = await r.json();
@@ -12234,7 +12242,7 @@ def test_chat_choice_question_is_selectable_and_readable_at_all_viewports(browse
         answer_card = page.locator(f'#chat-stream [data-run-id="{answer_run["id"]}"]')
         answer_bubble = answer_card.locator(".msg.you .bubble")
         answer_bubble.wait_for(state="visible")
-        page.wait_for_function("""() => {
+        wait_for_page(page, """() => {
           const scroll = document.querySelector('#chat-scroll');
           const bubble = [...document.querySelectorAll('#chat-stream .thread')].at(-1)?.querySelector('.msg.you .bubble');
           const composer = document.querySelector('.composer');
