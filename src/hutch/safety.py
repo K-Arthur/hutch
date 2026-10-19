@@ -86,14 +86,18 @@ _SHELLS = {"sh", "bash", "dash", "zsh", "ksh", "fish"}
 
 #: programs that run another program: name -> options that take a value
 _WRAPPERS = {
-    "env": {"-u", "-C", "-S"}, "nohup": set(), "nice": {"-n"}, "ionice": {"-c", "-n", "-p"}, "timeout": {"-s", "-k"},
-    "time": {"-f", "-o"}, "stdbuf": {"-i", "-o", "-e"}, "setsid": set(), "command": set(), "builtin": set(),
+    "env": {"-u", "-C", "-S", "--unset", "--chdir"}, "nohup": set(),
+    "nice": {"-n", "--adjustment"}, "ionice": {"-c", "-n", "-p", "--class", "--classdata", "--pid"},
+    "timeout": {"-s", "-k", "--signal", "--kill-after"},
+    "time": {"-f", "-o", "--format", "--output"},
+    "stdbuf": {"-i", "-o", "-e", "--input", "--output", "--error"},
+    "setsid": set(), "command": set(), "builtin": set(),
     "exec": {"-a"},
     "xargs": {"-n", "-I", "-L", "-P", "-d", "-E", "-s", "-a", "-J", "--arg-file",
               "--delimiter", "--eof", "--max-args", "--max-lines", "--max-chars", "--max-procs",
               "--process-slot-var", "--replace"},
-    "watch": {"-n", "-d"},
-    "taskset": set(), "chrt": set(),
+    "watch": {"-n", "-d", "--interval", "--differences"},
+    "taskset": {"-c", "--cpu-list"}, "chrt": {"-p", "--pid"},
 }
 #: wrappers whose first positional argument is not the program (a duration, a CPU mask, a priority)
 _POSITIONAL_FIRST = {"timeout", "taskset", "chrt"}
@@ -131,7 +135,20 @@ def _unwrap(name: str, args: list[str]) -> list[str]:
             except ValueError:
                 return ["$UNPARSEABLE_ENV_SPLIT"]
             return split + args[i + 1:]
+        if t.startswith("--") and "=" in t:
+            option = t.partition("=")[0]
+            if option in valued:
+                if name == "taskset":
+                    skip_positional = False
+                i += 1
+                continue
+        if name == "taskset" and t.startswith("-c") and len(t) > 2:
+            skip_positional = False
+            i += 1
+            continue
         if t.startswith("-") and len(t) > 1:
+            if name == "taskset" and t in valued:
+                skip_positional = False
             i += 2 if t in valued else 1
             continue
         if name == "env" and "=" in t:
