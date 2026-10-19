@@ -65,6 +65,7 @@ class FixtureGoogleMailBook:
 
 class FixtureGoogleMailSendBook:
     callback_scopes = []
+    callback_queries = []
     accounts_rows = [{"id": SEND_ACCOUNT_ID, "label": "Work sender", "from_address": "owner@example.test",
                       "created_at": "2026-10-10T00:00:00+00:00", "scopes": [GOOGLE_MAIL_SEND_SCOPE],
                       "status": "connected"}]
@@ -83,6 +84,7 @@ class FixtureGoogleMailSendBook:
 
     @classmethod
     def callback_uri(cls, request):
+        cls.callback_queries.append((request.scope.get("query_string"), request.scope.get("hutch_oauth_query")))
         if request.headers.get("host", "").startswith("127.0.0.1"):
             return "http://127.0.0.1:18787/api/v1/connections/google-mail-send/callback"
         from hutch.google_calendar import GoogleCalendarError
@@ -283,6 +285,23 @@ def test_gmail_send_connection_and_grants_are_separate_from_read_access(tmp_path
         assert disconnected.status_code == 200
         assert client.app.state.store.google_mail_send_grant(bot.id) is None
         assert client.app.state.store.google_mail_grant(bot.id)["account_id"] == ACCOUNT_ID
+
+
+def test_gmail_send_callback_strips_authorization_code_from_access_log_scope(tmp_path, monkeypatch):
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "fixture-desktop-client.apps.googleusercontent.com")
+    FixtureGoogleMailSendBook.callback_queries.clear()
+    with TestClient(create_app(), base_url="http://127.0.0.1:18787", follow_redirects=False) as client:
+        monkeypatch.setattr("hutch.google_mail_send.GoogleMailSendBook", FixtureGoogleMailSendBook)
+        response = client.get(
+            "/api/v1/connections/google-mail-send/callback?state=one-time-fixture-state-000000000000&code=one-time-code")
+
+    assert response.status_code == 303
+    assert response.headers["location"].endswith("google_mail_send_result=connected#/connections")
+    assert FixtureGoogleMailSendBook.callback_queries == [(
+        b"", {"state": ["one-time-fixture-state-000000000000"], "code": ["one-time-code"]})]
+    assert FixtureGoogleMailSendBook.callback_scopes[-1][:3] == (
+        "finish", "one-time-fixture-state-000000000000", "one-time-code")
 
 
 def test_gmail_denied_callback_consumes_state_without_echoing_provider_error(tmp_path, monkeypatch):
