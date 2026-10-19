@@ -6,7 +6,7 @@ from benchmarks.run import METRICS, _percentile, compare, summarize_samples
 
 
 def _r(**m):
-    return {"metrics": m}
+    return {"metrics": {name: 1.0 for name in METRICS} | m}
 
 
 def test_twenty_percent_slower_cli_is_a_regression():
@@ -34,6 +34,15 @@ def test_every_draft_target_is_tracked():
     tracked = set(METRICS)
     assert {"idle_cpu_daemon_s_per_hour", "cli_status_ms", "events_per_sec",
             "step_overhead_ms", "idle_rss_daemon_mb"} <= tracked
+
+
+def test_missing_benchmark_metric_fails_closed():
+    current = _r()
+    del current["metrics"]["events_per_sec"]
+
+    bad = compare(current, _r())
+
+    assert any("events_per_sec" in item and "missing" in item for item in bad)
 
 
 def test_benchmark_summary_uses_nearest_rank_and_keeps_sample_count() -> None:

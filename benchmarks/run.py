@@ -245,7 +245,13 @@ def compare(current: dict, baseline: dict) -> list[str]:
     """Return human-readable regressions (empty list = pass)."""
     bad = []
     for name, (unit, better, floor, _target) in METRICS.items():
-        if name not in current["metrics"] or name not in baseline["metrics"]:
+        missing = []
+        if name not in current["metrics"]:
+            missing.append("current")
+        if name not in baseline["metrics"]:
+            missing.append("baseline")
+        if missing:
+            bad.append(f"{name}: missing from {' and '.join(missing)} benchmark metrics")
             continue
         cur, base = current["metrics"][name], baseline["metrics"][name]
         worse = (cur - base) if better == "lower" else (base - cur)
