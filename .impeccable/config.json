@@ -66,6 +66,15 @@
         ],
         "createdAt": "2026-10-09T00:27:11.344Z",
         "reason": "Agent: the only rendered layout transition is the FAQ disclosure from DaisyUI collapse CSS; website/styles.css overrides its title and answer transitions to none. The scan reads the bundled generic CSS and misses the page override."
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "website/styles.css"
+        ],
+        "createdAt": "2026-10-19T08:04:42.004Z",
+        "reason": "Intentional workflow-preview callout accent retained from the previously reviewed implementation (efdb613e) and consistent with the marketing surface brief's emerald brand accent."
       }
     ]
   }
