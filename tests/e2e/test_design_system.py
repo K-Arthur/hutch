@@ -17,6 +17,7 @@ from urllib.parse import urlsplit
 import pytest
 
 pw = pytest.importorskip("playwright.sync_api")
+expect = pw.expect
 import uvicorn  # noqa: E402
 
 from hutch.models import Bot, Event, EventType, Run, RunStatus, RuntimeKind  # noqa: E402
@@ -1074,10 +1075,10 @@ def test_chat_message_search_is_scoped_responsive_and_opens_its_conversation(bro
             dialog = page.get_by_role("dialog", name="Search chats")
             field = dialog.get_by_role("searchbox", name="Search messages")
             field.fill("violet gearbox")
-            page.wait_for_function("document.querySelectorAll('.message-search-result').length === 2")
+            expect(dialog.locator(".message-search-result")).to_have_count(2)
             assert "violet gearbox" not in page.url.lower(), page.url
             dialog.locator("#message-search-bot").select_option(second_bot.id)
-            page.wait_for_function("document.querySelectorAll('.message-search-result').length === 1")
+            expect(dialog.locator(".message-search-result")).to_have_count(1)
             result = dialog.locator(".message-search-result").first
             assert "Trip planning" in result.inner_text()
             assert "Travel Planner" in result.inner_text()
@@ -1091,8 +1092,8 @@ def test_chat_message_search_is_scoped_responsive_and_opens_its_conversation(bro
             if label == "desktop":
                 dialog.locator("#message-search-bot").select_option("")
                 field.fill("saffron calibration absent")
-                page.wait_for_function(
-                    "document.querySelector('#message-search-status')?.textContent === 'No messages found in active chats.'"
+                expect(dialog.locator("#message-search-status")).to_have_text(
+                    "No messages found in active chats."
                 )
                 assert dialog.locator(".message-search-result").count() == 0
                 page.screenshot(path=str(out / "search-empty-desktop.png"), animations="disabled")
@@ -1103,8 +1104,8 @@ def test_chat_message_search_is_scoped_responsive_and_opens_its_conversation(bro
 
                 page.route("**/api/v1/search/messages", fail_search)
                 field.fill("violet gearbox")
-                page.wait_for_function(
-                    "document.querySelector('#message-search-status')?.textContent === 'Search unavailable: search service unavailable'"
+                expect(dialog.locator("#message-search-status")).to_have_text(
+                    "Search unavailable: search service unavailable"
                 )
                 assert dialog.locator(".message-search-result").count() == 0
                 page.screenshot(path=str(out / "search-error-desktop.png"), animations="disabled")
@@ -1116,13 +1117,11 @@ def test_chat_message_search_is_scoped_responsive_and_opens_its_conversation(bro
                 page.get_by_role("button", name="Search chats").click()
                 dialog = page.get_by_role("dialog", name="Search chats")
                 dialog.get_by_role("searchbox", name="Search messages").fill("violet gearbox")
-                page.wait_for_function("document.querySelectorAll('.message-search-result').length === 2")
+                expect(dialog.locator(".message-search-result")).to_have_count(2)
                 dialog.locator("#message-search-bot").select_option(second_bot.id)
-                page.wait_for_function("document.querySelectorAll('.message-search-result').length === 1")
+                expect(dialog.locator(".message-search-result")).to_have_count(1)
                 dialog.locator(".message-search-result").click()
-                page.wait_for_function(
-                    "id => document.querySelector('#conversation-switcher')?.value === id", arg=second["id"]
-                )
+                expect(page.locator("#conversation-switcher")).to_have_value(second["id"])
                 assert page.evaluate("location.hash") == "#/chat/search-travel-planner"
 
         assert not external_requests, external_requests
