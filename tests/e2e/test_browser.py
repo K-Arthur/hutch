@@ -9052,8 +9052,10 @@ def test_user_can_start_bot_setup_from_the_exact_chat_request(browser, live, mon
         action = page.locator('[data-create-bot-from-request="selected-request-message"]')
         action.wait_for(state="visible")
         assert action.get_attribute("aria-label") == "Create a bot from this request"
-        action.focus()
-        page.keyboard.press("Enter")
+        # Keep focusing and dispatching Enter on the same live element. The
+        # conversation poll may replace feed nodes between separate protocol
+        # calls, which can move focus back to the document body.
+        action.press("Enter")
         page.get_by_role("heading", name="Create from this request").wait_for(state="visible")
         assert page.locator("#setup-use-source").is_checked()
         assert page.locator("#setup-purpose").input_value() == selected_request
