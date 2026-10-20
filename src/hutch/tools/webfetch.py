@@ -140,8 +140,9 @@ class WebFetchTool(Tool):
         html = "html" in resp.headers.get("content-type", "").lower()
         comments_removed = 0
         hidden_comment_text = ""
+        comments_truncated = False
         if html:
-            cleaned, hidden_comment_text, comments_removed = strip_html_comments(resp.text)
+            cleaned, hidden_comment_text, comments_removed, comments_truncated = strip_html_comments(resp.text)
             body = html_to_text(cleaned)
         status = f"HTTP {resp.status} {resp.reason}"
         note = "\n[response clipped at the size limit]" if resp.truncated else ""
@@ -169,10 +170,12 @@ class WebFetchTool(Tool):
                               key=lambda f: (f.start, f.rule))
         scan_note = annotation(findings,
                                assessed_chars=min(len(body), DEFAULT_SCAN_CHARS),
-                               total_chars=len(body), comments_removed=comments_removed)
+                               total_chars=len(body), comments_removed=comments_removed,
+                               comments_truncated=comments_truncated)
         excerpt = body.strip()[:600]
         text = f"{chr(10).join(header_lines)}\n\n{scan_note + chr(10) + chr(10) if scan_note else ''}{excerpt}{note}"
         security = {"findings": [f.to_json() for f in findings], "comments_removed": comments_removed,
+                    "comments_truncated": comments_truncated,
                     "assessed_chars": min(len(body), DEFAULT_SCAN_CHARS), "total_chars": len(body)}
         try:
             self._record_source(ctx, resp, metadata, excerpt, clock)

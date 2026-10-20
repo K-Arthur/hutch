@@ -310,20 +310,24 @@ class GoogleWorkspaceClient:
         accounts = self._read_accounts()
         accounts.pop(account_id, None)
         _atomic_private_json(self._accounts_path, accounts)
+        with _ACCESS_LOCK:
+            _ACCESS_CACHE.pop((account_id, self.client_id), None)
 
     # ------------------------------------------------------------------ tokens
 
     def access_token(self, account_id: str, *, force: bool = False) -> str:
         key = (account_id, self.client_id)
+        stored = self.secrets.get(account_id)
+        if not stored or account_id not in self._read_accounts():
+            with _ACCESS_LOCK:
+                _ACCESS_CACHE.pop(key, None)
+            raise GoogleWorkspaceError("this Workspace account is not connected on this machine")
         now = time.monotonic()
         with _ACCESS_LOCK:
             if not force:
                 cached = _ACCESS_CACHE.get(key)
                 if cached and cached[0] > now + 30:
                     return cached[1]
-        stored = self.secrets.get(account_id)
-        if not stored:
-            raise GoogleWorkspaceError("this Workspace account is not connected on this machine")
         try:
             refresh_token = str(json.loads(stored).get("refresh_token") or "")
         except ValueError:
@@ -351,7 +355,11 @@ class GoogleWorkspaceClient:
             expires_in = float(body.get("expires_in", 3000))
         except (ValueError, KeyError) as exc:
             raise GoogleWorkspaceError("Google returned an unreadable token response") from exc
+        # Disconnect may race a refresh request. Do not repopulate the process
+        # cache with a token after its local credential/account was removed.
         with _ACCESS_LOCK:
+            if (self.secrets.get(account_id) != stored or account_id not in self._read_accounts()):
+                raise GoogleWorkspaceError("this Workspace account was disconnected during token refresh")
             _ACCESS_CACHE[key] = (time.monotonic() + min(expires_in, 3600), token)
         return token
 
@@ -631,19 +639,33 @@ class GoogleWorkspaceClient:
         (the caller re-raises the unknown outcome).
         """
         last_column = max(len(spec["values"][0]), 1)
+        wanted = [[str(c) for c in row] for row in spec["values"]]
+        # A bounded lookup must contain the whole submitted batch or it cannot
+        # establish that an ambiguous append landed. Larger batches remain
+        # uncertain rather than being reported as complete from a partial match.
+        if len(wanted) > 1_000:
+            return None
         window = ws.sheets_values_lookup_spec(resolved=resolved, first_column=1,
-                                              last_column=last_column, max_rows=50)
+                                              last_column=last_column,
+                                              max_rows=max(50, len(wanted)))
         try:
             data = self.read_values(account_id, spreadsheet_id, window["range"])
         except GoogleWorkspaceError:
             return None
-        wanted = [[str(c) for c in row] for row in spec["values"]]
-        for offset, row in enumerate(data.get("values") or []):
-            cells = [str(c) for c in (row + [""] * len(wanted[0]))[: len(wanted[0])]]
-            if cells == wanted[0]:
+        rows = data.get("values") or []
+        normalized = [
+            [str(c) for c in (row + [""] * len(wanted[0]))[: len(wanted[0])]]
+            for row in rows
+        ]
+        # Google omits trailing empty cells/rows in value reads, so pad cells
+        # but require each submitted row to be present contiguously.
+        for offset in range(max(0, len(normalized) - len(wanted) + 1)):
+            if normalized[offset:offset + len(wanted)] == wanted:
                 row_number = offset + 2  # the lookup window starts at row 2
+                end_row = row_number + len(wanted) - 1
                 return {"updates": {
-                    "updatedRange": f"{ws.a1_sheet_title(resolved['title'])}!A{row_number}",
+                    "updatedRange": (f"{ws.a1_sheet_title(resolved['title'])}!"
+                                     f"A{row_number}:{ws._column_letter(last_column)}{end_row}"),
                     "updatedRows": len(wanted),
                     "updatedColumns": len(wanted[0]),
                 }}

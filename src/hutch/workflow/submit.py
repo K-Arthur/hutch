@@ -357,17 +357,31 @@ def answer(store: Any, question_id: str, text: str) -> str:
 
 def status(store: Any, wf_id: str) -> dict[str, Any]:
     """The authoritative view: instance, nodes, questions and attempt - one read model."""
-    workflow = wstore.workflow_run(store, wf_id)
-    if workflow is None:
-        raise KeyError(wf_id)
-    attempt = store.get_run(str(workflow["attempt_run_id"])) if workflow["attempt_run_id"] else None
-    return {
-        "workflow": workflow,
-        "attempt": {"run_id": attempt.id, "status": attempt.status.value, "error": attempt.error,
-                    "reason": attempt.reason, "exit_reason": attempt.exit_reason} if attempt else None,
-        "nodes": wstore.nodes(store, wf_id),
-        "questions": wstore.questions(store, wf_id),
-    }
+    # A workflow attempt may cross the waiting boundary between any two separate
+    # queries. Keep the related rows pinned to one Store snapshot so callers never
+    # receive a waiting workflow paired with a still-running attempt (or controls
+    # computed from a later state).
+    with store._lock:
+        db = store._db
+        db.execute("BEGIN")
+        try:
+            workflow = wstore.workflow_run(store, wf_id)
+            if workflow is None:
+                raise KeyError(wf_id)
+            attempt = store.get_run(str(workflow["attempt_run_id"])) if workflow["attempt_run_id"] else None
+            result = {
+                "workflow": workflow,
+                "attempt": {"run_id": attempt.id, "status": attempt.status.value, "error": attempt.error,
+                            "reason": attempt.reason, "exit_reason": attempt.exit_reason} if attempt else None,
+                "nodes": wstore.nodes(store, wf_id),
+                "questions": wstore.questions(store, wf_id),
+                "pause_controls": wstore.workflow_pause_controls(store, wf_id),
+            }
+            db.commit()
+            return result
+        except BaseException:
+            db.rollback()
+            raise
 
 
 __all__ = ["Submission", "PlanInputError", "PlanNotSubmittable", "validate_inputs",

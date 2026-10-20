@@ -11,14 +11,17 @@ from __future__ import annotations
 import hashlib
 import json
 import threading
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlsplit
 
 import pytest
 
+from hutch.gsuite import client as client_module
 from hutch.actions.execute import ExecutorResult, execute_plan, plan_outcome_report
 from hutch.actions.plan import build_plan
-from hutch.gsuite.client import GoogleWorkspaceClient, GoogleWorkspaceError
+from hutch.gsuite.client import (GoogleWorkspaceClient, GoogleWorkspaceError,
+                                 GoogleWorkspaceOutcomeUnknown)
 from hutch.gsuite.executors import workspace_executors
 from hutch.gsuite.requests import ColumnSpec
 
@@ -324,6 +327,21 @@ def test_oauth_connect_refresh_caching_and_scope_validation(google):
     assert "did not grant" in str(exc.value)
 
 
+def test_disconnect_invalidates_cached_access_token(google, monkeypatch):
+    server, client, secrets = google
+    monkeypatch.setattr(client_module, "_ACCESS_CACHE", {})
+    account = _connect(server, client, secrets)
+    assert client.access_token(account.account_id) == "tok-2"
+    grants_before_disconnect = len(server.token_grants)
+
+    client.disconnect(account.account_id)
+
+    with pytest.raises(GoogleWorkspaceError, match="not connected"):
+        client.access_token(account.account_id)
+    assert len(server.token_grants) == grants_before_disconnect
+    assert (account.account_id, client.client_id) not in client_module._ACCESS_CACHE
+
+
 def test_create_document_writes_with_tab_and_reads_back(google):
     server, client, secrets = google
     account = _connect(server, client, secrets)
@@ -388,6 +406,22 @@ def test_ambiguous_append_reconciles_without_duplicating(google):
     assert server.spreadsheets[sheet_id]["sheets"][0]["rows"] == [["r-1", 1]]
 
 
+def test_ambiguous_multirow_append_does_not_match_only_an_old_first_row(google):
+    server, client, _secrets = google
+    account = _connect(server, client, _secrets)
+    created = client.create_spreadsheet(account.account_id, title="T", sheet_titles=["Runs"])
+    sheet_id = created["spreadsheet_id"]
+    rows = server.spreadsheets[sheet_id]["sheets"][0].setdefault("rows", [])
+    rows.append(["r-1", 1])  # an earlier write happens to match this batch's first row
+    server.drops.add(f"POST /v4/spreadsheets/{sheet_id}/values/Runs!A1:append")
+
+    with pytest.raises(GoogleWorkspaceOutcomeUnknown):
+        client.append_rows(account.account_id, sheet_id,
+                           columns=[ColumnSpec("id", "text"), ColumnSpec("n", "integer")],
+                           rows=[["r-1", 1], ["r-2", 2]], title="Runs")
+    assert rows == [["r-1", 1]]
+
+
 def test_upload_verifies_md5_and_reports_size_mismatch(google):
     server, client, secrets = google
     account = _connect(server, client, secrets)
@@ -440,7 +474,7 @@ def test_plan_executes_workspace_journey_and_reuses_on_retry(google, store, tmp_
     row_step = next(s for s in plan.steps if s.id == "row")
     assert row_step.depends_on == ["sheet"]
 
-    executors = dict(workspace_executors(client))
+    executors = dict(workspace_executors(client, read_local_file=lambda path: Path(path).read_bytes()))
     executors["local_draft"] = lambda step, plan: ExecutorResult(ok=True, remote_id="brief-v1")
     executed = execute_plan(plan, store=store, executors=executors,
                             approved_hash=plan.approval_scope_hash)

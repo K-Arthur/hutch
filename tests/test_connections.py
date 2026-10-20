@@ -556,7 +556,7 @@ def test_usage_summary_groups_by_day_bot_provider_and_model(store):
 
 # ============================================================ CLI
 
-def test_cli_add_list_ack_set_key_test_and_remove(config, oai, monkeypatch):
+def test_cli_add_list_ack_set_key_test_and_remove(config, store, oai, monkeypatch):
     monkeypatch.setenv("HUTCH_STATE_DIR", str(config.state_dir))
     monkeypatch.delenv("OPENCODE_API_KEY", raising=False)
     out = runner.invoke(cli_app, ["connections", "templates"]).output
@@ -565,9 +565,17 @@ def test_cli_add_list_ack_set_key_test_and_remove(config, oai, monkeypatch):
                                 "--allowance-tokens", "500000", "--allowance-window", "week",
                                 "--account-id", "team-provider", "--account-daily-cap-usd", "20"])
     assert r.exit_code == 0 and "hutch connections ack opencode-go" in r.output
+    book = ConnectionBook(config.state_dir)
+    book.add("custom-openai", name="team-route", base_url="https://team.example.test/v1",
+             account_id="team-provider")
+    store.add_usage("seed-cli-usage", "bot-cli", "team-route", "model", 300, 200,
+                    account_id="team-provider")
     listing = runner.invoke(cli_app, ["connections", "list"]).output
-    assert "ACK REQUIRED" in listing and "missing" in listing and "0 / 500,000 tokens (week window)" in listing
+    assert "ACK REQUIRED" in listing and "missing" in listing
+    normalized_listing = " ".join(listing.split())
+    assert "500 / 500,000 tokens (week window; includes shared-account pending holds)" in normalized_listing
     assert "account: team-provider" in listing and "$20.00" in listing
+    book.remove("team-route")
     cap = runner.invoke(cli_app, ["connections", "set-account-cap", "opencode-go", "24",
                                   "--account-id", "team-provider"])
     assert cap.exit_code == 0 and "$24.00" in cap.output

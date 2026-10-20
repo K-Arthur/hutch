@@ -9,6 +9,10 @@ outcomes honestly.
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import os
+import stat
 from typing import Any
 
 from ..actions.execute import ApprovalMismatch, execute_plan, plan_outcome_report
@@ -17,7 +21,54 @@ from ..google_calendar import GoogleCalendarBook
 from ..google_oauth_config import resolve_google_oauth_client_id
 from ..gsuite.client import GoogleWorkspaceClient, GoogleWorkspaceError
 from ..gsuite.executors import workspace_executors
+from ..gsuite.executors import MAX_LOCAL_UPLOAD
 from .base import Tool, ToolContext, ToolResult, rehearsed
+from .filewrite import destination, parent_fd
+
+
+def _read_approved_upload_source(path_value: str, ctx: ToolContext) -> tuple[bytes, dict[str, Any]]:
+    """Read a regular workspace file through no-follow directory descriptors."""
+    decision = ctx.policy.check_path(path_value, ctx.workspace, write=False)
+    if decision.verdict.value == "deny":
+        raise ValueError(decision.reason)
+    workspace, parts = destination(path_value, ctx.workspace)
+    with parent_fd(workspace, parts) as parent:
+        fd = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=parent)
+        with os.fdopen(fd, "rb") as stream:
+            before = os.fstat(stream.fileno())
+            if not stat.S_ISREG(before.st_mode):
+                raise ValueError("Drive upload source must be a regular file without symlinks")
+            if before.st_size > MAX_LOCAL_UPLOAD:
+                raise ValueError("Drive upload source exceeds the single-upload limit")
+            content = stream.read(MAX_LOCAL_UPLOAD + 1)
+            after = os.fstat(stream.fileno())
+    if len(content) > MAX_LOCAL_UPLOAD:
+        raise ValueError("Drive upload source exceeds the single-upload limit")
+    if ((before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns)
+            != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns)
+            or len(content) != after.st_size):
+        raise ValueError("Drive upload source changed while it was being reviewed")
+    digest = hashlib.sha256(content).hexdigest()
+    try:
+        text = content.decode("utf-8")
+        is_text = True
+    except UnicodeDecodeError:
+        text = ""
+        is_text = False
+    if is_text:
+        preview = text[:4_000]
+        preview_kind = "utf8"
+    else:
+        preview = base64.b64encode(content[:192]).decode("ascii")
+        preview_kind = "base64-prefix"
+    return content, {
+        "path": path_value,
+        "size_bytes": len(content),
+        "sha256": digest,
+        "preview_kind": preview_kind,
+        "preview": preview,
+        "preview_truncated": len(text) > 4_000 if is_text else len(content) > 192,
+    }
 
 
 def _obj(required: list[str], properties: dict[str, Any]) -> dict[str, Any]:
@@ -133,6 +184,24 @@ class RunWorkspacePlanTool(Tool):
         if unbound:
             return ToolResult(ok=False, output=(
                 "error: these steps name an account that is not connected: " + ", ".join(unbound[:5])))
+        prepared_uploads: dict[str, bytes] = {}
+        upload_sources: dict[str, dict[str, Any]] = {}
+        for step in plan.steps:
+            if step.kind != "cloud_create" or step.target.service != "drive":
+                continue
+            path_value = step.inputs.get("local_path")
+            if not isinstance(path_value, str):
+                continue
+            try:
+                content, source = _read_approved_upload_source(path_value, ctx)
+            except (OSError, ValueError) as exc:
+                return ToolResult(ok=False, output=f"error: Drive upload source cannot be reviewed: {exc}")
+            previous = prepared_uploads.get(path_value)
+            if previous is not None and previous != content:
+                return ToolResult(ok=False, output=(
+                    "error: Drive upload source changed while the plan was being prepared; review it again"))
+            prepared_uploads[path_value] = content
+            upload_sources[step.id] = source
         calendar_book = None
         calendar_steps = [s for s in plan.steps
                           if s.target.service == "calendar" and s.kind in ("event_create", "cloud_edit")]
@@ -160,11 +229,16 @@ class RunWorkspacePlanTool(Tool):
                     return ToolResult(ok=False, output=(
                         f"error: calendar account {step.target.account} is not connected on this machine"))
         review = plan_review(plan)
+        for entry in review["steps"]:
+            if entry["id"] in upload_sources:
+                entry["upload_source"] = upload_sources[entry["id"]]
         try:
             ctx.gate.decide(
                 "workspace_action", f"execute {len(plan.steps)} step(s): {plan.summary}",
                 {"plan_id": plan.id, "approval_scope_hash": approved_hash,
-                 "steps": [{"id": s["id"], "kind": s["kind"], "target": s["target"]}
+                 "steps": [{"id": s["id"], "kind": s["kind"], "target": s["target"],
+                            "inputs": s["inputs"], **({"upload_source": s["upload_source"]}
+                                                       if "upload_source" in s else {})}
                            for s in review["steps"]]},
                 outward=True)
         except Exception as exc:  # noqa: BLE001 - denial and expiry both stop the call
@@ -184,7 +258,14 @@ class RunWorkspacePlanTool(Tool):
             except Exception as exc:  # noqa: BLE001 - each separate grant is an independent decision
                 continue
             separately_approved.add(step.id)
-        executors = workspace_executors(client, calendar_book=calendar_book)
+        def read_prepared_upload(path_value: str) -> bytes:
+            try:
+                return prepared_uploads[path_value]
+            except KeyError:
+                raise ValueError("Drive upload source was not included in the reviewed plan") from None
+
+        executors = workspace_executors(client, read_local_file=read_prepared_upload,
+                                        calendar_book=calendar_book)
         try:
             executed = execute_plan(
                 plan, store=ctx.store, executors=executors, approved_hash=approved_hash,

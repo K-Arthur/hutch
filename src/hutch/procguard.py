@@ -168,9 +168,21 @@ def end_recorded(records: Iterable[dict], term_grace: float = 2.0, kill_grace: f
     for row in records:
         pgid, pid = int(row.get("pgid", 0)), int(row.get("pid", 0))
         start, saved_boot = int(row.get("starttime", 0)), str(row.get("boot_id", ""))
-        if not pgid or not pid or not start:
-            continue
         if saved_boot and saved_boot != boot_id():  # every process from that boot is gone
+            continue
+        if not pgid or not pid or not start:
+            # The record cannot authorize a signal, but it also cannot prove that a process
+            # tree is gone. Surface any visible candidates and retain a sentinel when the
+            # group is no longer enumerable (a detached descendant may still exist).
+            raw_session = row.get("session")
+            session_id = int(raw_session) if raw_session is not None else None
+            candidates = unverified_group(pgid, session_id=session_id) if pgid else []
+            cur = _read(pid) if pid else None
+            if cur is not None and _alive(cur) and cur.pid not in {p.pid for p in candidates}:
+                candidates.append(cur)
+            unresolved.extend(candidates)
+            if not candidates:
+                unresolved.append(Proc(pid or pgid or -1, 0, pgid, session_id or 0, start, "?"))
             continue
         if not saved_boot:
             # Old rows did not store enough identity to signal safely. A missing PID is already clean; a live one is unresolved.

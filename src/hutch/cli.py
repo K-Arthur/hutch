@@ -1346,8 +1346,10 @@ def conn_list() -> None:
             console.print(f"  terms: [yellow]{'ACK REQUIRED' if ack == 'required' else 'CHANGED - ACK REQUIRED'}"
                           f"[/yellow] - run `hutch connections ack {name}`")
         if c.quota.tokens:
-            u = store.usage_tokens_since(name, c.quota.seconds)
-            console.print(f"  allowance: {u:,} / {c.quota.tokens:,} tokens ({c.quota.window} window)")
+            used = store.account_usage_tokens_since(c.account_id, c.quota.seconds)
+            reserved, _ = store.reserved_account_usage_since(c.account_id, c.quota.seconds)
+            console.print(f"  allowance: {used + reserved:,} / {c.quota.tokens:,} tokens "
+                          f"({c.quota.window} window; includes shared-account pending holds)")
         else:
             console.print("  allowance: none declared (`hutch connections set-allowance`)")
         console.print()

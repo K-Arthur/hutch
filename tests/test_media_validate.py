@@ -189,8 +189,10 @@ def test_a_clean_svg_passes_unchanged():
     svg('<handler xmlns="http://www.w3.org/2000/svg">alert(1)</handler>'),
     # CSS can also fetch: url(...)/@import must not become an external beacon
     svg('<style>rect{fill:url(https://evil.example/x.svg#f)}</style><rect/>'),
+    svg(r'<style>rect{background-image:u\72l(h\74 tps\3a \2f \2f evil.example/x)}</style><rect/>'),
     svg('<style>@import "https://evil.example/sheet.css";</style><rect/>'),
     svg('<rect style="fill:url(//evil.example/y.svg#f)"/>'),
+    svg(r'<rect style="background-image:url(h\74 tps\3a \2f \2f evil.example/x)"/>'),
     svg('<rect style="background:url(http://evil.example/z)"/>'),
 ])
 def test_svg_bypass_attempts_are_rejected(attempt):
@@ -205,6 +207,7 @@ def test_css_that_never_fetches_is_still_allowed():
                '<defs><linearGradient id="g"><stop offset="0"/></linearGradient></defs>'
                '<rect class="a" style="fill:url(#g)"/>')
     sanitize_svg(keep)  # must not raise: internal fragment and plain CSS are fine
+
 
 
 def test_svg_rejects_doctype_and_entity_expansion():

@@ -133,8 +133,8 @@ _COMMENT_RE = re.compile(r"<!--(.*?)-->", re.DOTALL)
 MAX_COMMENT_TEXT = 20_000
 
 
-def strip_html_comments(html: str) -> tuple[str, str, int]:
-    """Remove HTML comments from the visible text; return (text, hidden_text, count).
+def strip_html_comments(html: str) -> tuple[str, str, int, bool]:
+    """Remove HTML comments; return visible text, retained text, count, and whether retention was capped.
 
     Comments are not visible to a human reader of the page, but a model fed
     extracted text would read them verbatim. They are removed from the visible
@@ -143,16 +143,28 @@ def strip_html_comments(html: str) -> tuple[str, str, int]:
     """
     hidden_parts: list[str] = []
     count = 0
+    hidden_chars = 0
+    truncated = False
 
     def collect(match: re.Match[str]) -> str:
-        nonlocal count
+        nonlocal count, hidden_chars, truncated
         count += 1
-        if sum(len(p) for p in hidden_parts) < MAX_COMMENT_TEXT:
-            hidden_parts.append(match.group(1))
+        part = match.group(1)
+        if part:
+            separator_chars = 1 if hidden_parts else 0
+            remaining = MAX_COMMENT_TEXT - hidden_chars - separator_chars
+            if remaining > 0:
+                retained = part[:remaining]
+                hidden_parts.append(retained)
+                hidden_chars += separator_chars + len(retained)
+                if len(retained) < len(part):
+                    truncated = True
+            else:
+                truncated = True
         return " "
 
     cleaned = _COMMENT_RE.sub(collect, html)
-    return cleaned, "\n".join(hidden_parts), count
+    return cleaned, "\n".join(hidden_parts), count, truncated
 
 
 def _control_findings(text: str, source: str = "unicode") -> list[Finding]:
@@ -199,7 +211,7 @@ def assess(text: str, *, scan_chars: int = DEFAULT_SCAN_CHARS, source: str = "te
 
 
 def annotation(findings: Iterable[Finding], *, assessed_chars: int, total_chars: int,
-               comments_removed: int = 0) -> str:
+               comments_removed: int = 0, comments_truncated: bool = False) -> str:
     """The host-authored note shown beside untrusted content; empty when clean.
 
     Claims only what was done: flagged, not removed. The content below the note
@@ -213,6 +225,8 @@ def annotation(findings: Iterable[Finding], *, assessed_chars: int, total_chars:
     if comments_removed:
         lines.append(f"- {comments_removed} hidden HTML comment(s) omitted from the visible text "
                      "and assessed separately")
+    if comments_truncated:
+        lines.append(f"- hidden-comment assessment was limited to {MAX_COMMENT_TEXT:,} characters")
     for finding in items:
         where = f"char {finding.start}" if finding.excerpt else "invisible content"
         detail = f' ("…{finding.excerpt}…")' if finding.excerpt else ""

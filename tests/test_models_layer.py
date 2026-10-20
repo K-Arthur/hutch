@@ -165,6 +165,13 @@ def test_user_presets_file_overrides_the_bundled_one(tmp_path):
     assert p["research"].hosted == "anthropic/claude-sonnet-5-5"
 
 
+def test_invalid_user_preset_reports_the_field_instead_of_a_conversion_traceback(tmp_path):
+    f = tmp_path / "presets.json"
+    f.write_text('{"presets":{"router":{"want_ctx":"not-a-number"}}}')
+    with pytest.raises(ValueError, match=r"presets\.router\.want_ctx"):
+        load_presets(f)
+
+
 # ---------------------------------------------------- pre-run warning (LM-3)
 
 def test_prompt_plus_tools_over_the_window_fails_with_a_fix():

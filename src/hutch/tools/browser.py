@@ -1688,14 +1688,22 @@ class BrowserTool(Tool):
                 return ToolResult(ok=True, output=f"selector appeared: {args['selector']}")
             seconds = min(float(args.get("seconds") or 1), 30)
             had_sensitive_fields = self._page_has_sensitive_fields(page)
-            page.wait_for_timeout(int(seconds * 1000))
-            checkpoint = self._await_human_challenge(page, ctx)
-            if checkpoint:
-                return checkpoint
-            sensitive = self._new_sensitive_field_result(
-                page, ctx, had_sensitive_fields=had_sensitive_fields, completed_action="wait")
-            if sensitive:
-                return sensitive
+            # Keep observing while the page's event loop runs. A fixed sleep
+            # can return just before a delayed password or verification field
+            # appears, leaving the next browser action to encounter it.
+            deadline = time.monotonic() + seconds
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                page.wait_for_timeout(max(1, min(100, int(remaining * 1000))))
+                checkpoint = self._await_human_challenge(page, ctx)
+                if checkpoint:
+                    return checkpoint
+                sensitive = self._new_sensitive_field_result(
+                    page, ctx, had_sensitive_fields=had_sensitive_fields, completed_action="wait")
+                if sensitive:
+                    return sensitive
             return ToolResult(ok=True, output=f"waited {seconds}s")
 
         return ToolResult(ok=False, output=f"unhandled action {action}")  # pragma: no cover

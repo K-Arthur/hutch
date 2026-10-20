@@ -112,13 +112,55 @@ def _sock_dir(state_dir: Path) -> Path:
         return d
     tag = hashlib.sha1(str(state_dir.resolve()).encode()).hexdigest()[:8]
     runtime = os.environ.get("XDG_RUNTIME_DIR")
+    uid = os.getuid() if hasattr(os, "getuid") else 0
     base = Path(runtime) if runtime and os.access(runtime, os.W_OK) else Path(tempfile.gettempdir())
-    d = base / f"hutch-{os.getuid() if hasattr(os, 'getuid') else 0}" / tag
-    d.mkdir(parents=True, exist_ok=True)
+    parent = base / f"hutch-{uid}"
+    d = parent / tag
+
+    def open_owned_directory(path: Path, *, create: bool = False) -> int:
+        if create:
+            try:
+                path.mkdir(mode=0o700)
+            except FileExistsError:
+                pass
+        flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+        try:
+            fd = os.open(path, flags)
+        except OSError as exc:
+            raise RuntimeError(f"Hutch wake path must be a real directory: {path}") from exc
+        info = os.fstat(fd)
+        if not stat.S_ISDIR(info.st_mode) or (hasattr(os, "getuid") and info.st_uid != uid):
+            os.close(fd)
+            raise RuntimeError(f"Hutch wake directory is not owned by this user: {path}")
+        return fd
+
+    # Validate the shared/runtime base without changing its mode. /tmp is
+    # intentionally shared and sticky; XDG_RUNTIME_DIR is expected to be private.
     try:
-        os.chmod(d, 0o700)
-    except OSError:
-        pass
+        base_info = base.lstat()
+    except OSError as exc:
+        raise RuntimeError(f"Hutch wake base directory is unavailable: {exc}") from exc
+    if not stat.S_ISDIR(base_info.st_mode) or stat.S_ISLNK(base_info.st_mode):
+        raise RuntimeError("Hutch wake base must be a real directory")
+    if runtime and base == Path(runtime):
+        if (hasattr(os, "getuid") and base_info.st_uid != uid) or base_info.st_mode & 0o022:
+            base = Path(tempfile.gettempdir())
+            base_info = base.lstat()
+            if not stat.S_ISDIR(base_info.st_mode) or stat.S_ISLNK(base_info.st_mode):
+                raise RuntimeError("Hutch temporary wake base must be a real directory")
+            parent, d = base / f"hutch-{uid}", base / f"hutch-{uid}" / tag
+
+    parent_fd = open_owned_directory(parent, create=True)
+    try:
+        os.fchmod(parent_fd, 0o700)
+        leaf_fd = open_owned_directory(d, create=True)
+        try:
+            # A legacy directory created by this user may be tightened safely.
+            os.fchmod(leaf_fd, 0o700)
+        finally:
+            os.close(leaf_fd)
+    finally:
+        os.close(parent_fd)
     return d
 
 

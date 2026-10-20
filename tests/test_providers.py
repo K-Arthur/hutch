@@ -285,6 +285,24 @@ def test_claude_request_shape_cache_control_system_tools_and_key(claude_srv):
     assert res.completion_tokens == 12 and res.finish_reason == "stop"
 
 
+def test_claude_stalled_stream_obeys_the_shared_idle_timeout(claude_srv):
+    claude_srv.stall_once = 0.5
+    p = ClaudeProvider(api_key="sk-test", base_url=claude_srv.url)
+    result = p.chat(req(idle_timeout=0.1, first_token_timeout=2.0))
+    assert not result.streamed
+    assert any("stream stalled" in note for note in result.notes)
+    assert len(claude_srv.of("/v1/messages")) == 2  # stalled stream, then one non-stream retry
+
+
+def test_claude_first_event_uses_first_token_timeout_not_idle_timeout(claude_srv):
+    claude_srv.first_event_delay_once = 0.5
+    p = ClaudeProvider(api_key="sk-test", base_url=claude_srv.url)
+    result = p.chat(req(idle_timeout=2.0, first_token_timeout=0.1))
+    assert not result.streamed
+    assert any("no data for 0s" in note and "stream stalled" in note for note in result.notes)
+    assert len(claude_srv.of("/v1/messages")) == 2  # first-token stall, then one non-stream retry
+
+
 def test_claude_tool_use_round_trip_merges_parallel_results(claude_srv):
     claude_srv.script = lambda b: {"tool_calls": [{"name": "write_file", "arguments": {"path": "a"}},
                                                   {"name": "write_file", "arguments": {"path": "b"}}]}

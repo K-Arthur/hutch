@@ -4,7 +4,7 @@ The SDK is imported lazily - ``import anthropic`` costs ~1.1 s, and a local-only
 (PF-6). It lives in the ``hutch[anthropic]`` extra.
 
 Decisions, each from the Claude API guidance:
-* streaming + ``get_final_message()`` (no request timeouts on long outputs); SDK retries are OFF
+* streaming with explicit first-token and idle timeouts; SDK retries are OFF
   (``max_retries=0``) because Hutch owns retries and the fallback chain (SR-8), so a 429 is not retried twice
   underneath us and then again above.
 * top-level ``cache_control`` so the stable prefix (tools -> system -> early messages) is cached; the system
@@ -24,8 +24,8 @@ import os
 import re
 from typing import Any, Optional
 
-from .base import (ChatRequest, ChatResult, Health, ModelMeta, Provider, ProviderError, ToolCall, abort_response,
-                   record_adapter_receipt)
+from .base import (ChatRequest, ChatResult, Health, ModelMeta, Provider, ProviderError, ToolCall, Watchdog,
+                   abort_response, record_adapter_receipt)
 
 #: models that accept an ``effort`` level (others error if it is sent)
 EFFORT_PREFIXES = ("claude-opus-5", "claude-sonnet-5", "claude-fable", "claude-mythos", "claude-opus-4-8",
@@ -255,10 +255,36 @@ class ClaudeProvider(Provider):
         try:
             if stream:
                 with client.messages.stream(**kwargs) as s:
-                    unregister = req.register_cancel(lambda: abort_response(s.response))
+                    abort = lambda: abort_response(s.response)
+                    dog = Watchdog(abort)
+                    unregister = req.register_cancel(abort)
                     try:
-                        msg = s.get_final_message()
+                        try:
+                            # The SDK context opens the response but does not consume its first event.
+                            # Keep the larger first-token allowance until an event is observed, then
+                            # enforce the shorter inter-event idle bound.
+                            saw_event = False
+                            dog.arm(req.first_token_timeout)
+                            for _event in s:
+                                if dog.stalled:
+                                    limit = req.idle_timeout if saw_event else req.first_token_timeout
+                                    raise ProviderError("stream", f"no data for {limit:.0f}s - the Anthropic "
+                                                        "stream stalled", provider=self.name)
+                                saw_event = True
+                                dog.arm(req.idle_timeout)
+                            if dog.stalled:
+                                limit = req.idle_timeout if saw_event else req.first_token_timeout
+                                raise ProviderError("stream", f"no data for {limit:.0f}s - the Anthropic "
+                                                    "stream stalled", provider=self.name)
+                            msg = s.get_final_message()
+                        except Exception as exc:
+                            if dog.stalled:
+                                limit = req.idle_timeout if saw_event else req.first_token_timeout
+                                raise ProviderError("stream", f"no data for {limit:.0f}s - the Anthropic "
+                                                    "stream stalled", provider=self.name) from exc
+                            raise
                     finally:
+                        dog.cancel()
                         unregister()
             else:
                 msg = client.messages.create(**kwargs)

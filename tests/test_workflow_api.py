@@ -573,7 +573,7 @@ def test_recovery_parks_a_lost_active_attempt_when_pause_is_requested(client):
     waiting = None
     while time.monotonic() < deadline:
         waiting = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
-        if waiting["pause_available"]:
+        if waiting["pause_available"] and not waiting["pause_after_work_available"]:
             break
         time.sleep(0.05)
     assert waiting and waiting["pause_available"] is True

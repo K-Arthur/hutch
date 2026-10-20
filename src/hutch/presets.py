@@ -28,6 +28,36 @@ def _data(name: str) -> dict:
     return json.loads(Path(str(resources.files("hutch") / "data" / name)).read_text())
 
 
+def _validate_preset(pid: str, row: dict) -> None:
+    """Reject structurally invalid user overrides with a field-specific message."""
+    def fail(field: str, expected: str) -> None:
+        raise ValueError(f"invalid presets.{pid}.{field}: expected {expected}")
+
+    for field in ("title", "description", "hosted"):
+        if field in row and not isinstance(row[field], str):
+            fail(field, "a string")
+    for field in ("want_ctx", "min_ctx"):
+        value = row.get(field, 16384 if field == "want_ctx" else 8192)
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            fail(field, "a positive integer")
+    for field in ("needs",):
+        value = row.get(field, ["tools"])
+        if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+            fail(field, "a list of strings")
+    limits = row.get("limits", {})
+    if not isinstance(limits, dict):
+        fail("limits", "an object")
+    local = row.get("local", {})
+    if not isinstance(local, dict) or any(
+        not isinstance(tier, str) or not isinstance(models, list)
+        or any(not isinstance(model, str) for model in models)
+        for tier, models in local.items()
+    ):
+        fail("local", "an object of model-name lists")
+    if "keep_resident" in row and not isinstance(row["keep_resident"], bool):
+        fail("keep_resident", "a boolean")
+
+
 @dataclass
 class Preset:
     id: str
@@ -65,8 +95,18 @@ def load_presets(user_path: Optional[Path] = None) -> dict[str, Preset]:
     if user_path and user_path.exists():
         try:
             user = json.loads(user_path.read_text())
+            if not isinstance(user, dict):
+                raise ValueError("invalid presets file: expected a JSON object")
             hosted_default = user.get("hosted_default", hosted_default)
-            for k, v in (user.get("presets") or {}).items():
+            if not isinstance(hosted_default, str):
+                raise ValueError("invalid presets.hosted_default: expected a string")
+            overrides = user.get("presets", {})
+            if not isinstance(overrides, dict):
+                raise ValueError("invalid presets.presets: expected an object")
+            for k, v in overrides.items():
+                if not isinstance(k, str) or not isinstance(v, dict):
+                    raise ValueError("invalid presets.presets: expected preset names mapped to objects")
+                _validate_preset(k, v)
                 rows[k] = {**rows.get(k, {}), **v}
         except (OSError, json.JSONDecodeError):
             pass

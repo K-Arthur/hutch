@@ -6,6 +6,7 @@ file). These tests drive real runs through a scripted model and check the disk, 
 from __future__ import annotations
 
 from pathlib import Path
+import subprocess
 
 import pytest
 
@@ -80,6 +81,40 @@ def test_read_only_commands_really_run(eng):
     assert not results[0].get("simulated") and "existing.txt" in results[0]["output"] and "7" in results[0]["output"]
 
 
+@pytest.mark.parametrize("command", ["date -s @0", "date --set=@0"])
+def test_rehearsal_simulates_clock_changes(eng, command):
+    engine, store, fake, folder = eng
+    fake.script = agent_script([{"content": "check time", "tool_calls": [
+        {"name": "shell", "arguments": {"command": command}},
+    ]}, {"content": "finished"}])
+    bot = store.create_bot(Bot(name="date-rehearsal", model="ollama/tiny:1b", tools=["shell"], selfcheck=False,
+                               workdir=str(folder)))
+    run = engine.run_blocking(bot, "check time", rehearsal=True)
+    result = next(e.data for e in store.list_events(run.id) if e.type is EventType.tool_result)
+    assert result["simulated"] and "would pause for approval" in result["output"]
+
+
+def test_rehearsal_does_not_run_a_repository_configured_git_status_hook(eng, tmp_path):
+    engine, store, fake, _ = eng
+    repo = tmp_path / "repo-with-fsmonitor"
+    repo.mkdir()
+    marker = tmp_path / "fsmonitor-hook-ran"
+    hook = tmp_path / "fsmonitor-hook.sh"
+    hook.write_text(f"#!/bin/sh\nprintf called > {marker}\nprintf 'token\\n'\n")
+    hook.chmod(0o700)
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "core.fsmonitor", str(hook)], check=True)
+    fake.script = agent_script([{"content": "inspect repository", "tool_calls": [
+        {"name": "shell", "arguments": {"command": "git status"}},
+    ]}, {"content": "finished"}])
+    bot = store.create_bot(Bot(name="git-rehearsal", model="ollama/tiny:1b", tools=["shell"], selfcheck=False,
+                               workdir=str(repo)))
+    run = engine.run_blocking(bot, "inspect repository", rehearsal=True)
+    result = next(e.data for e in store.list_events(run.id) if e.type is EventType.tool_result)
+    assert result["simulated"] and "Policy: allowed" in result["output"]
+    assert not marker.exists(), "a configured Git hook must not run during Rehearse"
+
+
 def test_a_hard_denied_command_is_reported_as_blocked(eng):
     run, results, *_ = rehearse(eng, [{"name": "shell", "arguments": {"command": "sudo rm -rf /"}}])
     assert results[0]["simulated"] and results[0]["ok"] is False and "would be BLOCKED" in results[0]["output"]
@@ -128,11 +163,11 @@ def test_a_normal_run_is_unaffected(eng):
 
 # ------------------------------------------------------------------- the read-only classifier
 
-READ_ONLY = ["ls", "ls -la | head", "cat a.txt", "git status", "git log --oneline | wc -l", "grep -r foo . | sort | uniq",
-             "find . -name '*.py'", "echo hi", "pwd && date", "(cd sub && ls)", "echo $(date)", "wc -l a b", "git diff HEAD~1",
+READ_ONLY = ["ls", "ls -la | head", "cat a.txt", "date", "pwd && date", "(cd sub && ls)", "echo $(date)", "wc -l a b",
              "ls > /dev/null", "cat a 2>/dev/null"]
 NOT_READ_ONLY = ["rm a", "touch a", "mkdir d", "mv a b", "cp a b", "echo hi > a", "cat a >> b", "ls & touch a", "find . -delete",
-                 "find . -exec rm {} \\;", "sort -o out a", "sort a --output=b", "git commit -m x", "git push", "git checkout x", "git branch -D x",
+                 "find . -exec rm {} \\;", "sort -o out a", "sort a --output=b", "git status", "git log --oneline | wc -l", "git diff HEAD~1",
+                 "git commit -m x", "git push", "git checkout x", "git branch -D x", "date -s @0", "date --set=@0",
                  "sed -i s/a/b/ f", "awk 'BEGIN{system(\"rm a\")}'", "python3 -c 'x'", "bash -c ls", "env ls", "xargs ls", "tee a",
                  "curl http://x", "echo $(touch a)", "ls | tee a", "cat <<EOF\nx\nEOF", "$(echo ls)", "echo 'unterminated", "", "   "]
 

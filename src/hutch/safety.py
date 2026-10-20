@@ -235,10 +235,15 @@ _READONLY_PROGRAMS = {
     "ls", "cat", "head", "tail", "wc", "grep", "egrep", "fgrep", "rg", "pwd", "echo", "printf", "date", "stat", "du", "df",
     "file", "uniq", "cut", "tr", "diff", "cmp", "which", "type", "tree", "basename", "dirname", "realpath", "readlink",
     "sha256sum", "sha1sum", "md5sum", "jq", "true", "false", "test", "[", "[[", "seq", "expr", "id", "whoami", "uname",
-    "hostname", "uptime", "nproc", "sort", "find", "git", "cd",
+    "hostname", "uptime", "nproc", "sort", "find", "cd",
 }
-_READONLY_GIT = {"status", "log", "diff", "show", "ls-files", "rev-parse", "describe", "shortlog", "blame", "grep"}
 _FIND_MUTATORS = {"-exec", "-execdir", "-ok", "-okdir", "-delete", "-fprint", "-fprint0", "-fprintf", "-fls"}
+
+
+def _date_sets_clock(tokens: list[str]) -> bool:
+    """Whether GNU/BSD date arguments request changing the system clock."""
+    return any(t == "-s" or (t.startswith("-") and not t.startswith("--") and t[1:].startswith("s"))
+               or t == "--set" or t.startswith("--set=") for t in tokens[1:])
 
 
 def is_read_only(command: str, _depth: int = 0) -> bool:
@@ -261,16 +266,18 @@ def is_read_only(command: str, _depth: int = 0) -> bool:
         else:
             toks = seg.tokens
             prog = os.path.basename(toks[0]) if toks else ""
+            # Git may run repository-configured hooks even for `status` and other nominal reads.
+            # Keep it out of Rehearse's real-read allowlist.
+            if prog == "git":
+                return False
             if prog not in _READONLY_PROGRAMS or any(SUBST in t for t in toks[:1]):
+                return False
+            if prog == "date" and _date_sets_clock(toks):
                 return False
             if prog == "find" and any(t in _FIND_MUTATORS for t in toks):
                 return False
             if prog == "sort" and any(t in ("-o", "--output") or t.startswith("--output=") or (t.startswith("-") and not t.startswith("--") and "o" in t[1:]) for t in toks[1:]):
                 return False
-            if prog == "git":
-                sub = next((t for t in toks[1:] if not t.startswith("-")), "")
-                if sub not in _READONLY_GIT or any(t in ("--output", "-o") or t.startswith("--output=") for t in toks):
-                    return False
         if not all(is_read_only(inner, _depth + 1) for inner in seg.nested):
             return False
     return True
@@ -521,6 +528,10 @@ class PolicyEngine:
             if not self._looks_readonly(prog, seg.tokens):
                 return Decision(Verdict.deny, "network upload/write flags on " + prog, rule="deny:network-upload", risk="high", outward=True)
             return Decision(Verdict.allow, "read-only fetch", rule="allow:readonly-fetch", risk="low")
+
+        if prog == "date" and _date_sets_clock(seg.tokens):
+            return Decision(Verdict.ask, "changes the system clock", "shell:date", rule="ask:date-set",
+                            risk="medium")
 
         if prog == "git":
             sub = seg.tokens[1] if len(seg.tokens) > 1 else ""

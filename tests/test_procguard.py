@@ -134,6 +134,21 @@ def test_a_helper_that_outlived_its_shell_is_still_ended():
     assert left == [] and not any(pid_alive(p.pid) for p in helpers)
 
 
+def test_an_unverified_recorded_group_blocks_cleanup_without_signalling_it():
+    """Missing PID identity must stay unresolved; cleanup must never silently report success."""
+    sh = spawn_sh("sleep 300 & wait")
+    try:
+        assert wait_for(lambda: children_of(sh.pid))
+        left = procguard.end_recorded(
+            [{"pid": sh.pid, "pgid": sh.pid, "starttime": 0, "boot_id": ""}],
+            term_grace=0, kill_grace=0,
+        )
+        assert {sh.pid, *children_of(sh.pid)} <= {proc.pid for proc in left}
+        assert pid_alive(sh.pid), "an unverified PID/group must not be signalled"
+    finally:
+        reap(sh)
+
+
 def test_an_unrelated_process_is_left_alone():
     bystander = subprocess.Popen(["sleep", "300"], start_new_session=True)
     sh = spawn_sh("sleep 300 & wait")

@@ -267,10 +267,25 @@ def input_step_refs(value: Any) -> set[str]:
     return refs
 
 
+def _review_input_projection(inputs: dict[str, Any], *, limit: int = 16_000) -> dict[str, Any]:
+    """Show exact small requests and bounded, digest-bound previews of large payloads."""
+    encoded = _canonical(inputs)
+    raw = encoded.encode("utf-8")
+    if len(raw) <= limit:
+        return {"inputs": inputs, "truncated": False}
+    return {
+        "inputs": {"preview": raw[:4_000].decode("utf-8", errors="replace"),
+                   "sha256": hashlib.sha256(raw).hexdigest(),
+                   "size_bytes": len(raw)},
+        "truncated": True,
+    }
+
+
 def plan_review(plan: "ActionPlan") -> dict[str, Any]:
     """The exact review payload: targets, effects, authorities, and the binding hash."""
     review_steps = []
     for step in sorted(plan.steps, key=lambda s: s.index):
+        input_projection = _review_input_projection(step.inputs)
         review_steps.append({
             "id": step.id,
             "kind": step.kind,
@@ -281,6 +296,10 @@ def plan_review(plan: "ActionPlan") -> dict[str, Any]:
             "account": step.target.account,
             "target": step.target.display or step.target.resource_id or step.target.parent_id,
             "audience": step.target.audience,
+            # Bound large payloads while keeping the preview digest-linked to the
+            # exact request hash. Small requests remain fully inspectable.
+            "inputs": input_projection["inputs"],
+            "inputs_truncated": input_projection["truncated"],
             "idempotency_key": step.idempotency_key,
         })
     separate = [s["id"] for s in review_steps if s["authority"] == "separate"]

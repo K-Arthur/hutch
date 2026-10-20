@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 
 from hutch.actions.execute import ExecutorResult
 from hutch.approvals import ApprovalGate
+from hutch.gsuite.client import WorkspaceAccount
 from hutch.models import ApprovalMode, Bot, Run
 from hutch.safety import PolicyEngine
 from hutch.tools.base import ToolContext
@@ -44,6 +46,13 @@ def _steps(account: str = "gws_" + "a" * 24) -> list[dict]:
                     "audience": "attendees"},
          "inputs": {"emails": ["a@example.com"]}},
     ]
+
+
+def _drive_upload(path: str, account: str = "gws_" + "a" * 24) -> list[dict]:
+    return [{"kind": "cloud_create", "id": "upload", "title": "Upload reviewed file",
+             "target": {"service": "drive", "account": account, "parent_id": "folder-1",
+                        "display": "Shared folder"},
+             "inputs": {"name": "source.txt", "local_path": path, "mime_type": "text/plain"}}]
 
 
 def test_plan_workspace_action_persists_a_review_with_separate_authority(tmp_path, store, config):
@@ -91,7 +100,7 @@ def test_run_workspace_plan_executes_with_the_approved_hash(tmp_path, store, con
 
     calls: list[str] = []
 
-    def _executors(client, *, calendar_book=None):
+    def _executors(client, *, read_local_file=None, calendar_book=None):
         def run(step, plan):
             calls.append(step.id)
             return ExecutorResult(ok=True, remote_id=f"remote-{step.id}")
@@ -139,6 +148,88 @@ def test_run_workspace_plan_executes_with_the_approved_hash(tmp_path, store, con
     assert approved_separately.ok
     assert approved_separately.data["status"] == "completed"
     assert calls[-1] == "tell"
+
+
+def test_drive_upload_denies_sources_outside_workspace_before_approval(tmp_path, store, config, monkeypatch):
+    ctx = _ctx(tmp_path, store, config)
+    outside = tmp_path / "outside.txt"
+    outside.write_text("private")
+    planned = PlanWorkspaceActionTool().run({"intent": "upload", "steps": _drive_upload(str(outside))}, ctx)
+    assert planned.ok
+
+    class _Client:
+        def accounts(self):
+            return [WorkspaceAccount("gws_" + "a" * 24, "Test", ())]
+
+    approvals = []
+    monkeypatch.setattr("hutch.tools.workspace_actions._client", lambda _ctx: _Client())
+    monkeypatch.setattr(ctx.gate, "decide", lambda *args, **kwargs: approvals.append((args, kwargs)))
+    result = RunWorkspacePlanTool().run(
+        {"plan_id": planned.data["plan_id"], "approved_hash": planned.data["approval_scope_hash"]}, ctx)
+    assert not result.ok and "escapes the workspace jail" in result.output
+    assert approvals == []
+
+
+def test_drive_upload_refuses_symlink_sources_before_approval(tmp_path, store, config, monkeypatch):
+    ctx = _ctx(tmp_path, store, config)
+    real = ctx.workspace / "real.txt"
+    real.write_text("private")
+    (ctx.workspace / "alias.txt").symlink_to(real)
+    planned = PlanWorkspaceActionTool().run({"intent": "upload", "steps": _drive_upload("alias.txt")}, ctx)
+    assert planned.ok
+
+    class _Client:
+        def accounts(self):
+            return [WorkspaceAccount("gws_" + "a" * 24, "Test", ())]
+
+    approvals = []
+    monkeypatch.setattr("hutch.tools.workspace_actions._client", lambda _ctx: _Client())
+    monkeypatch.setattr(ctx.gate, "decide", lambda *args, **kwargs: approvals.append((args, kwargs)))
+    result = RunWorkspacePlanTool().run(
+        {"plan_id": planned.data["plan_id"], "approved_hash": planned.data["approval_scope_hash"]}, ctx)
+    assert not result.ok and "cannot be reviewed" in result.output
+    assert approvals == []
+
+
+def test_drive_upload_freezes_reviewed_source_bytes_and_discloses_digest(tmp_path, store, config, monkeypatch):
+    ctx = _ctx(tmp_path, store, config)
+    source = ctx.workspace / "source.txt"
+    original = b"reviewed upload payload"
+    source.write_bytes(original)
+    planned = PlanWorkspaceActionTool().run({"intent": "upload", "steps": _drive_upload("source.txt")}, ctx)
+    assert planned.ok
+
+    class _Client:
+        def accounts(self):
+            return [WorkspaceAccount("gws_" + "a" * 24, "Test", ())]
+
+    seen: list[bytes] = []
+
+    def _executors(_client, *, read_local_file, calendar_book=None):
+        def upload(step, _plan):
+            seen.append(read_local_file(step.inputs["local_path"]))
+            return ExecutorResult(ok=True, remote_id="drive-file-1")
+        return {("cloud_create", "drive"): upload}
+
+    approval_details = []
+
+    def _approve(_tool, _action, detail, **_kwargs):
+        approval_details.append(detail)
+        source.write_bytes(b"changed after approval request")
+
+    monkeypatch.setattr("hutch.tools.workspace_actions._client", lambda _ctx: _Client())
+    monkeypatch.setattr("hutch.tools.workspace_actions.workspace_executors", _executors)
+    monkeypatch.setattr(ctx.gate, "decide", _approve)
+    result = RunWorkspacePlanTool().run(
+        {"plan_id": planned.data["plan_id"], "approved_hash": planned.data["approval_scope_hash"]}, ctx)
+
+    assert result.ok and result.data["status"] == "completed"
+    assert seen == [original]
+    step_review = approval_details[0]["steps"][0]
+    assert step_review["inputs"]["local_path"] == "source.txt"
+    assert step_review["upload_source"]["size_bytes"] == len(original)
+    assert step_review["upload_source"]["sha256"] == hashlib.sha256(original).hexdigest()
+    assert step_review["upload_source"]["preview"] == original.decode()
 
 
 def test_event_plan_requires_the_bot_calendar_grant_then_executes(tmp_path, store, config, monkeypatch):

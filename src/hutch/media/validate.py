@@ -201,6 +201,25 @@ _SCRIPT_ELEMENTS = frozenset({"script", "handler", "listener", "foreignobject", 
 
 _DOCTYPE_RE = re.compile(r"<!\s*(DOCTYPE|ENTITY)", re.IGNORECASE)
 _SCRIPT_TAG_RE = re.compile(r"<\s*[\w:.-]*:?script", re.IGNORECASE)
+_CSS_ESCAPE_RE = re.compile(r"\\(?:([0-9a-fA-F]{1,6})[ \t\r\n\f]?|(\r\n|[\n\r\f])|(.))", re.DOTALL)
+
+
+def _decode_css_escapes(value: str) -> str:
+    """Decode CSS escapes before checking whether a declaration can fetch a URL."""
+    def replace(match: re.Match[str]) -> str:
+        codepoint, continuation, escaped = match.groups()
+        if codepoint:
+            value = int(codepoint, 16)
+            return "\ufffd" if value == 0 or value > 0x10FFFF else chr(value)
+        if continuation:
+            return ""
+        return escaped or ""
+
+    return _CSS_ESCAPE_RE.sub(replace, value)
+
+
+def _normalize_css(value: str) -> str:
+    return _normalize_url(_decode_css_escapes(value))
 
 
 def _normalize_url(value: str) -> str:
@@ -256,7 +275,7 @@ def sanitize_svg(data: bytes) -> tuple[bytes, list[str]]:
             problems.append(f"<{tag}> elements are not accepted (script/embedding vector)")
         if tag == "style":
             # CSS can fetch: url(...) and @import reach whatever the sheet names.
-            css = _normalize_url("".join(element.itertext()))
+            css = _normalize_css("".join(element.itertext()))
             if "@import" in css:
                 problems.append("<style> uses @import (an external stylesheet reference)")
             if "url(" in css and any(token in css for token in
@@ -267,7 +286,7 @@ def sanitize_svg(data: bytes) -> tuple[bytes, list[str]]:
             if local.startswith("on"):
                 problems.append(f"event-handler attribute '{attr_name}' is not accepted")
             if local == "style":
-                css = _normalize_url(attr_value)
+                css = _normalize_css(attr_value)
                 if "url(" in css and any(token in css for token in
                                          ("http://", "https://", "//", "ftp:", "file:", "data:")):
                     problems.append("style attribute carries an external url(...) reference")

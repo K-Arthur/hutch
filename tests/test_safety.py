@@ -80,6 +80,12 @@ def test_mutators_ask(policy):
         assert v(policy.check_shell(cmd)) == "ask", cmd
 
 
+def test_setting_the_system_clock_requires_approval(policy):
+    for cmd in ("date -s @0", "date -s@0", "date --set @0", "date --set=@0"):
+        decision = policy.check_shell(cmd)
+        assert decision.verdict is Verdict.ask and decision.rule == "ask:date-set", cmd
+
+
 def test_readonly_git_allowed(policy):
     for cmd in ("git status", "git log --oneline", "git diff HEAD~1"):
         assert v(policy.check_shell(cmd)) == "allow", cmd

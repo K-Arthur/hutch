@@ -339,6 +339,8 @@ class FakeAnthropic(_Server):
     def __init__(self):
         self.script: Callable[[dict], dict] = lambda body: {"content": "ok"}
         self.force_status: Optional[tuple[int, dict, dict]] = None
+        self.stall_once = 0.0
+        self.first_event_delay_once = 0.0
         super().__init__()
 
     def _route(self, h, method, path, body):
@@ -372,12 +374,18 @@ class FakeAnthropic(_Server):
             return self.send_json(h, message)
         self.start_stream(h, "text/event-stream")
         ev = lambda name, obj: self.chunk(h, f"event: {name}\ndata: {json.dumps(obj)}\n\n".encode())
+        if self.first_event_delay_once:
+            delay, self.first_event_delay_once = self.first_event_delay_once, 0.0
+            time.sleep(delay)
         ev("message_start", {"type": "message_start", "message": {**message, "content": [], "stop_reason": None,
                                                                   "usage": {**usage, "output_tokens": 1}}})
         for i, b in enumerate(blocks):
             if b["type"] == "text":
                 ev("content_block_start", {"type": "content_block_start", "index": i,
                                            "content_block": {"type": "text", "text": ""}})
+                if self.stall_once:
+                    delay, self.stall_once = self.stall_once, 0.0
+                    time.sleep(delay)
                 ev("content_block_delta", {"type": "content_block_delta", "index": i,
                                            "delta": {"type": "text_delta", "text": b["text"]}})
             else:

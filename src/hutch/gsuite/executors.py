@@ -12,7 +12,6 @@ Executors are keyed by ``(kind, service)`` where a kind covers several services 
 from __future__ import annotations
 
 import base64
-from pathlib import Path
 from typing import Any, Callable, Optional
 
 from ..actions.execute import Executor, ExecutorResult
@@ -54,13 +53,9 @@ def workspace_executors(client: GoogleWorkspaceClient, *,
     """
 
     def _read(path_value: str) -> bytes:
-        if read_local_file is not None:
-            return read_local_file(path_value)
-        path = Path(path_value)
-        data = path.read_bytes()
-        if len(data) > MAX_LOCAL_UPLOAD:
-            raise GoogleWorkspaceError(f"{path.name} exceeds the single-upload limit")
-        return data
+        if read_local_file is None:
+            raise GoogleWorkspaceError("local upload bytes were not prepared for approval")
+        return read_local_file(path_value)
 
     def create_docs(step: PlanStep, plan: ActionPlan) -> ExecutorResult:
         inputs = step.inputs

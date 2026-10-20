@@ -281,7 +281,8 @@ Sensitive-entry protection blocks agent `type` calls on conventional password, p
 ## Rehearse (dry run)
 
 A run started with **Rehearse** simulates the builtin tools' mutating operations. Reads and model
-calls still happen; rehearsal is not a network-disconnected preview. The tools enforce simulation:
+calls still happen; rehearsal is not a network-disconnected preview, and a remote read may have
+service-side effects such as recording access or changing a server-side session. The tools enforce simulation:
 
 - **Reads run for real**: `read_file`, `list_files`, `web_fetch`, browser `goto`/`read`/`wait`, `recall`, and shell commands
   that are provably read-only.
@@ -289,13 +290,15 @@ calls still happen; rehearsal is not a network-disconnected preview. The tools e
   command that is not read-only reply `[rehearsal] would ...` with the policy's verdict ("would pause for approval", or
   "would be BLOCKED: ..."), and the transcript marks the result **simulated**. A simulated action asks nobody, because
   nothing happens.
-- **Read-only is an allowlist, and unsure means simulated**: `ls`, `cat`, `grep`, `find` (without `-exec`/`-delete`), `git
-  status|log|diff|show`, `sort`, `wc`, `echo`, and similar, joined by pipes and `&&`. A write redirect, a background job, a
+- **Read-only is an allowlist, and unsure means simulated**: `ls`, `cat`, `grep`, `find` (without `-exec`/`-delete`),
+  `sort`, `wc`, `echo`, `date` without a clock-setting option, and similar, joined by pipes and `&&`. Git is simulated
+  because repository config can run hooks during commands such as `git status`. Clock-setting `date` options ask in a
+  normal run and are simulated in Rehearse. A write redirect, a background job, a
   heredoc, a wrapper (`bash -c`, `env`, `xargs`), a substitution containing a non-read-only command, `sed`, `awk`, `tee`,
   `python`, `curl` are all treated as mutating.
 
 Limits: a rehearsal still calls the model (and so can cost money on a hosted one), and a read that has a side effect on
-someone else's server (a `GET` that logs you out) still happens.
+someone else's server (for example a `GET` that logs you out) still happens.
 
 ## Conversational questions
 
