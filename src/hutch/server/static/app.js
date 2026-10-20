@@ -963,6 +963,13 @@ async function setWorkflowPauseFromPanel(workflow, button, paused, botName, conv
     }
   } catch (error) {
     button.disabled = false;
+    if (error.status === 409) {
+      await refreshWorkflowPanel(botName, conversationId, generation, true);
+      if (generation === studioGeneration && conversationId === currentConversationId) {
+        toast(`Workflow ${action} was not applied because its state changed. The latest status is loaded; review it before trying again.`, true);
+      }
+      return;
+    }
     toast(`Workflow ${action} was not confirmed: ${error.message}`, true);
   }
 }

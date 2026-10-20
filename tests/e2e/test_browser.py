@@ -1748,6 +1748,9 @@ def test_workflow_studio_pause_after_active_work_at_all_viewports(browser, live,
             headers={"Idempotency-Key": "workflow-active-pause-submit"})
         assert submitted.status == 201, submitted.text()
         workflow_id = submitted.json()["workflow_run_id"]
+        detail_refreshes = []
+        page.on("response", lambda response: detail_refreshes.append(response.url)
+                if response.url.endswith(f"/api/v1/workflows/runs/{workflow_id}") else None)
         assert entered.wait(15), "the first transform did not enter its in-flight operation"
 
         page.goto(f"{base}/#/chat/{bot.name}")
@@ -1800,6 +1803,21 @@ def test_workflow_studio_pause_after_active_work_at_all_viewports(browser, live,
         assert active["workflow"]["status"] == "running" and active["pause_available"] is True
         pause_body = {"expected_revision_id": active["workflow"]["revision_id"],
                       "expected_generation": active["workflow"]["attempt_run_id"]}
+        pause_url = f"**/api/v1/workflows/runs/{workflow_id}/pause"
+        page.route(pause_url, lambda route: route.fulfill(
+            status=409, json={"detail": "pause requires the current attempt to be running or parked while waiting"}))
+        detail_count = len(detail_refreshes)
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/workflows/runs/{workflow_id}/pause")) as conflict_response:
+            pause_button.click()
+        assert conflict_response.value.status == 409
+        page.get_by_role("alert").get_by_text(
+            "Workflow pause was not applied because its state changed. The latest status is loaded; review it before trying again.",
+            exact=True).wait_for()
+        assert len(detail_refreshes) > detail_count, "a pause conflict must refresh the workflow details"
+        page.unroute(pause_url)
+        pause_button = panel.get_by_role("button", name="Pause after current work")
+        pause_button.wait_for(state="visible")
         with page.expect_response(lambda response: response.url.endswith(
                 f"/workflows/runs/{workflow_id}/pause")) as pause_response:
             pause_button.click()

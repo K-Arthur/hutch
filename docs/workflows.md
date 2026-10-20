@@ -164,6 +164,8 @@ be parked, have released its lease, and have no active child/process work. Both 
 revision or generation is stale, and the mutation rechecks its state transactionally. Run detail
 reports `pause_available`, `pause_after_work_available`, and `resume_available`. Paired phones can
 display **Pause requested** or **Paused**, but planning and pause/resume remain local-owner controls.
+If a pause or resume returns 409 because that state changed after the detail read, Studio refreshes
+the workflow card and asks the owner to review the latest controls before trying again.
 
 ## Authoring
 

@@ -459,11 +459,30 @@ def test_pause_holds_an_answered_wait_and_resume_continues_the_same_workflow(cli
             break
         time.sleep(0.05)
     assert parked and parked["pause_available"] is True
-    stop_body = {"expected_revision_id": parked["workflow"]["revision_id"],
-                 "expected_generation": parked["workflow"]["attempt_run_id"]}
-    pause_for_stop = client.post(f"/api/v1/workflows/runs/{stop_workflow_id}/pause",
-                                 headers={"Idempotency-Key": "wf-pause-before-stop"}, json=stop_body)
-    assert pause_for_stop.status_code == 200 and pause_for_stop.json()["paused"] is True
+    pause_for_stop = None
+    pause_deadline = time.monotonic() + 5
+    for attempt in range(100):
+        parked = client.get(f"/api/v1/workflows/runs/{stop_workflow_id}").json()
+        if not parked["pause_available"]:
+            time.sleep(0.05)
+            continue
+        stop_body = {"expected_revision_id": parked["workflow"]["revision_id"],
+                     "expected_generation": parked["workflow"]["attempt_run_id"]}
+        pause_for_stop = client.post(
+            f"/api/v1/workflows/runs/{stop_workflow_id}/pause",
+            headers={"Idempotency-Key": f"wf-pause-before-stop-{attempt}"}, json=stop_body)
+        if (pause_for_stop.status_code == 409
+                and pause_for_stop.json().get("detail") == "pause requires the current attempt to be running or parked while waiting"
+                and time.monotonic() < pause_deadline):
+            # Optimistic state can change between the availability read and mutation.
+            # Refresh and retry only this explicit state conflict, with the current fence.
+            time.sleep(0.05)
+            continue
+        break
+    assert pause_for_stop is not None and pause_for_stop.status_code == 200 and pause_for_stop.json()["paused"] is True, (
+        f"{pause_for_stop.text if pause_for_stop else 'pause did not become available'}; "
+        f"current={client.get(f'/api/v1/workflows/runs/{stop_workflow_id}').json()}"
+    )
     stopped = client.post(f"/api/v1/workflows/runs/{stop_workflow_id}/stop",
                           headers={"Idempotency-Key": "wf-stop-after-pause"},
                           json={"expected_revision_id": stop_body["expected_revision_id"]})
