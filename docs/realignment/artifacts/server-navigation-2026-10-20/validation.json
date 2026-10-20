@@ -1,0 +1,132 @@
+{
+  "browser": "chromium",
+  "version": "153.0.8010.12",
+  "page": "/usage",
+  "captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "metrics": {
+        "viewport": 1440,
+        "document": 1440,
+        "nav": {
+          "x": 118.40625,
+          "y": 9.03125,
+          "width": 1123.5625,
+          "height": 34.921875,
+          "top": 9.03125,
+          "right": 1241.96875,
+          "bottom": 43.953125,
+          "left": 118.40625
+        }
+      }
+    },
+    {
+      "size": "narrow-desktop",
+      "viewport": [
+        1366,
+        900
+      ],
+      "metrics": {
+        "viewport": 1366,
+        "document": 1366,
+        "nav": {
+          "x": 0,
+          "y": -900,
+          "width": 1366,
+          "height": 900,
+          "top": -900,
+          "right": 1366,
+          "bottom": 0,
+          "left": 0
+        }
+      }
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "metrics": {
+        "viewport": 900,
+        "document": 900,
+        "nav": {
+          "x": 0,
+          "y": -1024,
+          "width": 900,
+          "height": 1024,
+          "top": -1024,
+          "right": 900,
+          "bottom": 0,
+          "left": 0
+        }
+      }
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "metrics": {
+        "viewport": 390,
+        "document": 390,
+        "nav": {
+          "x": 0,
+          "y": -844,
+          "width": 390,
+          "height": 844,
+          "top": -844,
+          "right": 390,
+          "bottom": 0,
+          "left": 0
+        }
+      }
+    },
+    {
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        720
+      ],
+      "metrics": {
+        "viewport": 320,
+        "document": 320,
+        "nav": {
+          "x": 0,
+          "y": -720,
+          "width": 320,
+          "height": 720,
+          "top": -720,
+          "right": 320,
+          "bottom": 0,
+          "left": 0
+        }
+      }
+    }
+  ],
+  "page_errors": [],
+  "keyboard": "compact menu traps Tab, Shift+Tab, and Escape restores menu-button focus",
+  "reduced_motion": "primary navigation transition duration is 0s",
+  "forced_colors": "active mode kept the current Usage destination visible",
+  "text_spacing": "WCAG text-spacing overrides retained all 320px menu destinations without horizontal overflow",
+  "inspected_screenshots": [
+    "server-nav-desktop.png",
+    "server-nav-narrow-desktop-open.png",
+    "server-nav-tablet-open.png",
+    "server-nav-phone-open.png",
+    "server-nav-compact-phone-open.png",
+    "server-nav-compact-phone-text-spacing.png",
+    "server-nav-tablet-forced-colors.png"
+  ],
+  "source_sha256": {
+    "src/hutch/server/static/hutch.js": "bf49ab0102faac8b55d2c8c5087c807b66a3c0809f7df760ae83babfa9908fab",
+    "src/hutch/server/static/hutch.css": "778700237d218e440584759b261ca0770b71b6471cc0345454d97e07056aef84",
+    "src/hutch/server/templates/base.html": "4111d57874cb2cd928dfd79c5fb3754661458f56785d030945f6f85a17580a85",
+    "tests/e2e/test_browser.py": "b4a41f4c727bcf571073ba63646682754389419d19e4bffc5327560d87c6679e"
+  }
+}

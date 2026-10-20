@@ -170,3 +170,19 @@ a fixture explicitly waited for committed model-move events. Source hashes match
 application/site. Action-review/marketing figure artifacts have their own matching hashes
 and demonstrate local fixtures, preserved history, retry and focus; no live provider/device
 claim is added. See the ledger for earlier failures and verification boundaries.
+
+## Server-page navigation refresh (2026-10-20)
+
+The saved 900px Usage capture exposed a clipped active navigation item. The server-rendered page
+header now switches to its full-screen menu through 1400px, keeping all eight destinations visible
+on tablets and narrower laptops. Closed compact navigation is `inert` and hidden from assistive
+technology; opening it moves focus into the menu, Tab and Shift+Tab stay within it, and Escape
+returns focus to the menu button. Reduced-motion users get no menu transition.
+
+The Chromium check `tests/e2e/test_browser.py::test_server_page_navigation_uses_accessible_tablet_menu`
+passed alongside the existing Studio workspace-menu check (**2 passed**). It captured and visually
+inspected 1440px desktop, 1366px narrow-desktop, 900px tablet, 390px phone and 320px compact-phone
+layouts, plus forced-colors and WCAG text-spacing overrides. All destinations remained visible;
+there was no page overflow or browser error. Evidence and exact source hashes are in
+[`artifacts/server-navigation-2026-10-20/`](artifacts/server-navigation-2026-10-20/). These are
+local synthetic-state screenshots; no live provider or production account was used.

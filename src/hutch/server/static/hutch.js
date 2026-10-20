@@ -152,12 +152,36 @@
   var btn = document.getElementById("nav-toggle");
   var nav = document.getElementById("primary-nav");
   if (!btn || !nav) return;
-  function setOpen(open) {
+  function isCompact() { return window.matchMedia("(max-width: 1400px)").matches; }
+  function setOpen(open, restoreFocus) {
     nav.classList.toggle("open", open);
     btn.setAttribute("aria-expanded", String(open));
     btn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+    nav.inert = isCompact() && !open;
+    if (isCompact() && !open) nav.setAttribute("aria-hidden", "true");
+    else nav.removeAttribute("aria-hidden");
+    if (open) nav.querySelector("a")?.focus();
+    else if (restoreFocus) btn.focus();
   }
-  btn.addEventListener("click", function () { setOpen(!nav.classList.contains("open")); });
+  setOpen(false);
+  btn.addEventListener("click", function () {
+    setOpen(!nav.classList.contains("open"), nav.classList.contains("open"));
+  });
   nav.addEventListener("click", function (e) { if (e.target.closest("a")) setOpen(false); });
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape") setOpen(false); });
+  document.addEventListener("keydown", function (e) {
+    if (!nav.classList.contains("open")) return;
+    if (e.key === "Escape") { e.preventDefault(); setOpen(false, true); return; }
+    if (e.key !== "Tab") return;
+    var items = [btn, ...nav.querySelectorAll("a")].filter(function (item) {
+      return !item.hidden && item.getClientRects().length;
+    });
+    if (!items.length) return;
+    var first = items[0], last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+  window.addEventListener("resize", function () {
+    if (!isCompact()) setOpen(false);
+    else if (!nav.classList.contains("open")) setOpen(false);
+  });
 })();

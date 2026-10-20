@@ -352,7 +352,7 @@ th, td { font-family: var(--mono); }
 .nav-toggle { display: none; width: 38px; height: 38px; align-items: center; justify-content: center;
   background: transparent; border: 1px solid var(--border); color: var(--dim); cursor: pointer; border-radius: var(--r-sm); }
 .nav-toggle[aria-expanded="true"] { color: var(--accent); border-color: rgba(52, 211, 153, .42); }
-@media (max-width: 760px) {
+@media (max-width: 1400px) {
   .nav-toggle { display: inline-flex; }
   #primary-nav {
     position: fixed; inset: 0; z-index: 120;
@@ -364,6 +364,9 @@ th, td { font-family: var(--mono); }
   #primary-nav.open { transform: none; opacity: 1; pointer-events: auto; }
   #primary-nav a { font-size: var(--text-size-lg); font-weight: 600; padding: 16px 12px; border-bottom: 1px solid var(--border); border-radius: var(--r-btn); }
   #primary-nav a.active { background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #primary-nav { transition: none; }
 }
 
 /* Status remains legible without color; identity and interaction stay separate. */

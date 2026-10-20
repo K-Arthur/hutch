@@ -6733,6 +6733,99 @@ def test_usage_budget_table_uses_labelled_phone_cards(browser, live):
     page.close()
 
 
+def test_server_page_navigation_uses_accessible_tablet_menu(browser, live, tmp_path):
+    base, _app = live
+    page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.goto(base + "/usage", wait_until="domcontentloaded")
+    page.locator("#primary-nav a[aria-current='page']").wait_for()
+    nav = page.locator("#primary-nav")
+    toggle = page.locator("#nav-toggle")
+    captures = []
+    try:
+        for label, width, height in (("desktop", 1440, 960), ("narrow-desktop", 1366, 900),
+                                     ("tablet", 900, 1024), ("phone", 390, 844),
+                                     ("compact-phone", 320, 720)):
+            page.set_viewport_size({"width": width, "height": height})
+            if width > 1400:
+                assert nav.is_visible() and not nav.evaluate("el => el.inert")
+                assert not nav.get_attribute("aria-hidden")
+                links = nav.locator("a")
+                assert links.count() >= 8
+                assert {links.nth(i).get_attribute("href") for i in range(links.count())} == {
+                    "/", "/overview", "/bots", "/runs", "/approvals", "/models", "/usage", "/connections"}
+                nav_box = nav.bounding_box()
+                assert all((box := links.nth(i).bounding_box()) is not None
+                           and box["x"] + box["width"] <= nav_box["x"] + nav_box["width"] + 1
+                           for i in range(links.count()))
+            else:
+                assert toggle.is_visible()
+                assert nav.evaluate("el => el.inert")
+                assert nav.get_attribute("aria-hidden") == "true"
+                assert toggle.get_attribute("aria-expanded") == "false"
+                toggle.click()
+                assert toggle.get_attribute("aria-expanded") == "true"
+                assert not nav.evaluate("el => el.inert")
+                assert nav.get_attribute("aria-hidden") is None
+                assert page.evaluate("document.activeElement.closest('#primary-nav') !== null")
+                assert nav.locator("a[aria-current='page']").inner_text().strip() == "Usage"
+                links = nav.locator("a")
+                assert links.count() >= 8
+                assert all(links.nth(i).is_visible() for i in range(links.count()))
+                assert {links.nth(i).get_attribute("href") for i in range(links.count())} == {
+                    "/", "/overview", "/bots", "/runs", "/approvals", "/models", "/usage", "/connections"}
+                page.screenshot(path=str(tmp_path / f"server-nav-{label}-open.png"), animations="disabled")
+                links.last.focus()
+                page.keyboard.press("Tab")
+                assert page.evaluate("document.activeElement.id") == "nav-toggle"
+                page.keyboard.press("Shift+Tab")
+                assert page.evaluate("document.activeElement.closest('#primary-nav') !== null")
+                page.keyboard.press("Escape")
+                assert toggle.get_attribute("aria-expanded") == "false"
+                assert page.evaluate("document.activeElement.id") == "nav-toggle"
+                assert nav.evaluate("el => el.inert")
+            metrics = page.evaluate("""() => ({viewport: innerWidth,
+              document: document.documentElement.scrollWidth,
+              nav: document.querySelector('#primary-nav').getBoundingClientRect().toJSON()})""")
+            assert metrics["document"] <= width + 1, (label, metrics)
+            page.screenshot(path=str(tmp_path / f"server-nav-{label}.png"), animations="disabled")
+            captures.append({"size": label, "viewport": [width, height], "metrics": metrics})
+        page.set_viewport_size({"width": 900, "height": 1024})
+        assert page.evaluate("getComputedStyle(document.querySelector('#primary-nav')).transitionDuration") == "0s"
+        page.set_viewport_size({"width": 320, "height": 720})
+        page.add_style_tag(content="* { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; } p { margin-bottom: 2em !important; }")
+        toggle.click()
+        assert nav.locator("a[aria-current='page']").is_visible()
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+        page.screenshot(path=str(tmp_path / "server-nav-compact-phone-text-spacing.png"), animations="disabled")
+        page.keyboard.press("Escape")
+        page.set_viewport_size({"width": 900, "height": 1024})
+        page.emulate_media(forced_colors="active")
+        toggle.click()
+        assert nav.locator("a[aria-current='page']").is_visible()
+        page.screenshot(path=str(tmp_path / "server-nav-tablet-forced-colors.png"), animations="disabled")
+        page.emulate_media(forced_colors="none")
+        assert not errors, errors
+        (tmp_path / "server-nav-validation.json").write_text(json.dumps({
+            "browser": browser.browser_type.name, "version": browser.version,
+            "page": "/usage", "captures": captures, "page_errors": errors,
+            "keyboard": "compact menu traps Tab, Shift+Tab, and Escape restores menu-button focus",
+            "reduced_motion": "primary navigation transition duration is 0s",
+            "forced_colors": "active mode kept the current Usage destination visible",
+            "text_spacing": "WCAG text-spacing overrides retained all 320px menu destinations without horizontal overflow",
+            "inspected_screenshots": ["server-nav-desktop.png", "server-nav-narrow-desktop-open.png",
+                                      "server-nav-tablet-open.png", "server-nav-phone-open.png",
+                                      "server-nav-compact-phone-open.png", "server-nav-compact-phone-text-spacing.png",
+                                      "server-nav-tablet-forced-colors.png"],
+            "source_sha256": {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
+                              for relative in ("src/hutch/server/static/hutch.js", "src/hutch/server/static/hutch.css",
+                                               "src/hutch/server/templates/base.html", "tests/e2e/test_browser.py")},
+        }, indent=2) + "\n")
+    finally:
+        page.close()
+
+
 def test_approve_from_the_phone_ui_resumes_the_run(browser, live):
     """The data-approval card lives in the SPA now; the phone journey must still work."""
     base, app = live
