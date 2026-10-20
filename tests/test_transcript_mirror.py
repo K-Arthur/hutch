@@ -3,6 +3,7 @@ import json
 import multiprocessing
 import os
 import sqlite3
+import time
 from pathlib import Path
 
 import pytest
@@ -256,13 +257,19 @@ def test_successive_batches_append_without_rereading_the_whole_history(paused, m
     assert len(afters) <= 7, "verified prefix should be reused until its file metadata changes"
 
 
-def _competing_delivery(state_dir, ready):
+def _competing_delivery(state_dir, run_id, ready):
     TranscriptMirror.start = lambda self: None
     store = Store(hutchConfig(state_dir=Path(state_dir)))
     try:
         assert ready.wait(10)
-        for _ in range(30):
-            store._mirror.drain_once()
+        deadline = time.monotonic() + 10
+        while store._mirror.status(run_id)["pending"] and time.monotonic() < deadline:
+            if not store._mirror.drain_once():
+                # A peer may own the nonblocking file lock; give it time to
+                # finish and acknowledge before retrying instead of burning a
+                # fixed number of lock-contention attempts.
+                time.sleep(0.005)
+        assert not store._mirror.status(run_id)["pending"], "competing delivery did not reach the canonical tail"
     finally:
         store.close()
 
@@ -271,7 +278,8 @@ def test_two_processes_deliver_one_file_without_duplicates(paused, config):
     _, run, path = history(paused, count=400)
     context = multiprocessing.get_context("spawn")
     ready = context.Event()
-    processes = [context.Process(target=_competing_delivery, args=(str(config.state_dir), ready)) for _ in range(2)]
+    processes = [context.Process(target=_competing_delivery, args=(str(config.state_dir), run.id, ready))
+                 for _ in range(2)]
     for process in processes:
         process.start()
     ready.set()
