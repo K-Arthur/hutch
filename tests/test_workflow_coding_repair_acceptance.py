@@ -21,10 +21,11 @@ from hutch.models import ApprovalMode
 from hutch.workflow import submit as wfsubmit
 from tests.fakes import FakeOllama
 from tests.test_workflow_engine import drive, make_bot
+from tests.support.artifacts import artifact_path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EVIDENCE = ROOT / "docs/realignment/artifacts/dynamic-workflows/coding-repair"
+EVIDENCE = artifact_path("dynamic-workflows/coding-repair")
 
 FILE_PATHS = {
     "metrics": "workflow_metrics.py",

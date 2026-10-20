@@ -3,12 +3,22 @@
 from __future__ import annotations
 
 import os
+import tempfile
 from pathlib import Path
 
 import pytest
 
 from hutch.config import hutchConfig, get_config
 from hutch.store import Store
+
+
+def pytest_configure(config):
+    """Keep generated visual/test evidence outside the checkout by default."""
+    artifact_root = os.environ.get("HUTCH_TEST_ARTIFACTS_DIR")
+    if not artifact_root:
+        artifact_root = tempfile.mkdtemp(prefix="hutch-test-artifacts-")
+        os.environ["HUTCH_TEST_ARTIFACTS_DIR"] = artifact_root
+    Path(artifact_root).expanduser().resolve().mkdir(parents=True, exist_ok=True)
 
 
 @pytest.fixture(autouse=True)

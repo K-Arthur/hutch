@@ -171,10 +171,15 @@ provider billing and live compatibility remain unverified.
 ## Development
 
 ```bash
-uv sync --extra dev
-uv run pytest --ignore=tests/e2e   # isolated provider and execution fixtures; tests/e2e needs Playwright browsers
+uv sync --extra dev --extra browser
+uv run playwright install chromium
+uv run pytest --ignore=tests/e2e   # includes one browser-dependent coding-repair acceptance test
+uv run pytest -q
 uv run hutch init && uv run hutch serve   # opens the real empty setup state; no sample activity is seeded
 ```
+
+Browser screenshots and traces go to a fresh temporary directory by default. Set
+`HUTCH_TEST_ARTIFACTS_DIR` only when you intend to retain or refresh evidence.
 
 Python ≥ 3.11. Linux first; macOS/Windows are roadmap items.
 
