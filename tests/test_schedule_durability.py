@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from hutch.engine import Engine
-from hutch.models import Bot, CatchUpPolicy, Run, Schedule, Task, iso
+from hutch.models import Bot, CatchUpPolicy, Run, RunStatus, Schedule, Task, iso
 from hutch.scheduler import Scheduler
 
 
@@ -67,6 +67,43 @@ def test_duplicate_occurrence_claim_is_rejected(store, config):
     )
     assert second is None
     assert len(store.list_schedule_occurrences(due.schedule.id)) == 1
+
+
+def test_overlap_skip_is_rechecked_atomically_at_schedule_admission(store):
+    from hutch.models import OverlapPolicy
+
+    bot = store.create_bot(Bot(
+        name="overlap-race", instructions="work",
+        schedule=Schedule(cron="* * * * *", timezone="UTC", overlap=OverlapPolicy.skip),
+        created_at="2026-10-07T12:00:00+00:00",
+    ))
+    marker = "2026-10-07T12:00:00+00:00"
+    occurrence = "2026-10-07T12:01:00+00:00"
+    store.kv_set(f"{bot.schedule.id}:last_fire", marker)
+    busy = Run(bot_id=bot.id, prompt="already active", status=RunStatus.running)
+    store.create_run(busy)
+    candidate = Run(bot_id=bot.id, prompt="scheduled", origin="schedule", schedule_id=bot.schedule.id)
+    admitted = store.submit_scheduled(
+        candidate, Task(bot_id=bot.id, kind="scheduled", prompt=candidate.prompt),
+        occurrence=occurrence, expected_marker=marker, new_marker=occurrence,
+        claimed_by="schedule-test", schedule_id=bot.schedule.id)
+
+    assert admitted is None
+    assert store.get_run(candidate.id) is None
+    assert store.kv_get(f"{bot.schedule.id}:last_fire") == occurrence
+    assert Scheduler(store).last_skip(bot, bot.schedule)["reason"] == "overlap_skip"
+
+
+def test_deleted_bot_does_not_receive_a_stale_scheduled_admission(store):
+    bot = _bot(store)
+    assert store.delete_bot(bot.id)
+    candidate = Run(bot_id=bot.id, prompt="stale schedule", origin="schedule", schedule_id=bot.schedule.id)
+    admitted = store.submit_scheduled(
+        candidate, Task(bot_id=bot.id, kind="scheduled", prompt=candidate.prompt),
+        occurrence="2026-10-07T12:01:00+00:00", expected_marker=None,
+        new_marker="2026-10-07T12:01:00+00:00", claimed_by="schedule-test", schedule_id=bot.schedule.id)
+    assert admitted is None
+    assert store.get_run(candidate.id) is None
 
 
 def test_disabled_draft_never_admits_after_save(store):

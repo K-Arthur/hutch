@@ -115,12 +115,13 @@ def explain_run(store, run: Run, engine: Any = None, bot: Optional[Bot] = None) 
     """The cause and fix for a run that is not simply running. None when nothing needs explaining."""
     st = run.status
     if st is RunStatus.pending:
+        lane = store.execution_lane(run.id)
         active = [r for r in store.active_runs() if r.id != run.id and r.status is not RunStatus.pending]
-        same_bot = next((r for r in active if r.bot_id == run.bot_id), None)
+        same_bot = next((r for r in active if r.bot_id == run.bot_id and store.execution_lane(r.id) == lane), None)
         if same_bot is not None:
             return Wait(
-                cause=f"Queued behind this bot's own run {same_bot.id[:14]}. A bot never runs two jobs at once, "
-                      "so schedules and manual runs cannot overlap.",
+                cause=f"Queued behind this bot's active {lane} run {same_bot.id[:14]}. Runs in the same lane take turns; "
+                      "workflow and interactive work use separate lanes.",
                 fix="Wait for it to finish, or stop it.", href=f"/runs/{same_bot.id}",
                 link_text="open the running job")
         if engine is not None and len([r for r in active]) >= getattr(engine, "max_concurrent", 2):

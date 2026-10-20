@@ -46,6 +46,7 @@ from .models import (
     Event,
     EventType,
     MemoryItem,
+    OverlapPolicy,
     Run,
     RunStatus,
     Schedule,
@@ -6138,15 +6139,18 @@ class Store:
 
         Two schedulers (``serve`` plus ``daemon``), or a crash between "dispatch" and "mark dispatched", used to produce two runs
         for one window. Now the last-fire marker is compared and advanced, the occurrence row is inserted (unique per bot and
-        window) and the run is created in a single write transaction: exactly one caller can win.
+        window) and the run is created in a single write transaction: exactly one caller can win. A stale, paused, removed or
+        overlap-skipped occurrence returns None without creating a run.
         """
         if run.parent_run_id is not None or run.delegation_budget_cost_usd is not None:
             raise ValueError("delegated runs must use submit_delegated_run")
+        legacy_implicit_schedule = not schedule_id
         schedule_id = schedule_id or f"schedule:{run.bot_id}"
         marker_key = f"{schedule_id}:last_fire"
         dispatch_key = f"{schedule_id}:last_dispatch"
         run.schedule_id = schedule_id
         run.task_id = task.id
+        skipped_for_overlap = False
         with self._tx() as db:
             self._assert_execution_ready(db)
             schedule_control = db.execute("SELECT schedules_paused FROM workspace_settings WHERE id = 1").fetchone()
@@ -6155,27 +6159,119 @@ class Store:
             row = db.execute("SELECT value FROM kv WHERE key = ?", (marker_key,)).fetchone()
             if (row["value"] if row else None) != expected_marker:
                 return None
-            try:
-                db.execute("INSERT INTO schedule_occurrences_v20 "
-                           "(schedule_id, occurrence, bot_id, run_id, claimed_at, claimed_by) "
-                           "VALUES (?, ?, ?, ?, ?, ?)",
-                           (schedule_id, occurrence, run.bot_id, run.id, iso(utcnow()), claimed_by))
-            except sqlite3.IntegrityError:
+            bot_row = db.execute("SELECT doc FROM bots WHERE id = ?", (run.bot_id,)).fetchone()
+            if bot_row is None:
                 return None
-            db.execute("INSERT INTO tasks (id, bot_id, kind, prompt, created_at, done, state, run_id) "
-                       "VALUES (?, ?, ?, ?, ?, 0, 'queued', ?)",
-                       (task.id, task.bot_id, task.kind, task.prompt, task.created_at, run.id))
-            db.execute("INSERT INTO runs (id, bot_id, task_id, doc, status, created_at, conversation_id, conversation_context) "
-                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                       (run.id, run.bot_id, task.id, self._run_json(run), run.status.value, run.created_at,
-                        run.conversation_id, json.dumps(run.conversation_context, ensure_ascii=False)))
-            db.execute("INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                       (marker_key, new_marker))
-            if note is not None:
+            try:
+                current_bot = Bot.from_store_json(bot_row["doc"])
+            except (TypeError, ValueError):
+                return None
+            current_schedules = current_bot.schedules or ([current_bot.schedule] if current_bot.schedule else [])
+            current_schedule = next((item for item in current_schedules if item.id == schedule_id), None)
+            if current_bot.paused or (current_schedules and
+                                      (current_schedule is None or not current_schedule.enabled)) or (
+                    not current_schedules and not legacy_implicit_schedule):
+                return None
+            if current_schedule is not None and current_schedule.overlap is OverlapPolicy.skip:
+                statuses = tuple(status.value for status in ACTIVE_STATUSES)
+                marks = ",".join("?" for _ in statuses)
+                busy = db.execute(f"SELECT 1 FROM runs WHERE bot_id = ? AND status IN ({marks}) LIMIT 1",
+                                  (run.bot_id, *statuses)).fetchone()
+                if busy is not None:
+                    skipped_for_overlap = True
+                    skipped_at = iso(utcnow())
+                    db.execute("INSERT INTO kv (key, value) VALUES (?, ?) "
+                               "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (marker_key, new_marker))
+                    db.execute("INSERT INTO kv (key, value) VALUES (?, ?) "
+                               "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                               (f"{schedule_id}:last_skip", json.dumps({"at": skipped_at, "windows": 1,
+                                                                        "uncertain": False,
+                                                                        "reason": "overlap_skip"})))
+            if not skipped_for_overlap:
+                try:
+                    db.execute("INSERT INTO schedule_occurrences_v20 "
+                               "(schedule_id, occurrence, bot_id, run_id, claimed_at, claimed_by) "
+                               "VALUES (?, ?, ?, ?, ?, ?)",
+                               (schedule_id, occurrence, run.bot_id, run.id, iso(utcnow()), claimed_by))
+                except sqlite3.IntegrityError:
+                    return None
+                db.execute("INSERT INTO tasks (id, bot_id, kind, prompt, created_at, done, state, run_id) "
+                           "VALUES (?, ?, ?, ?, ?, 0, 'queued', ?)",
+                           (task.id, task.bot_id, task.kind, task.prompt, task.created_at, run.id))
+                db.execute("INSERT INTO runs (id, bot_id, task_id, doc, status, created_at, conversation_id, conversation_context) "
+                           "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                           (run.id, run.bot_id, task.id, self._run_json(run), run.status.value, run.created_at,
+                            run.conversation_id, json.dumps(run.conversation_context, ensure_ascii=False)))
                 db.execute("INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                           (dispatch_key, json.dumps(note)))
+                           (marker_key, new_marker))
+                if note is not None:
+                    db.execute("INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                               (dispatch_key, json.dumps(note)))
+        if skipped_for_overlap:
+            self.bus.notify("work", f"schedule:{schedule_id}")
+            return None
         self.bus.notify("work", "runs", f"run:{run.id}")
         return run
+
+    def skip_scheduled_occurrence(self, *, schedule_id: str, bot_id: str, occurrence: str,
+                                  expected_marker: Optional[str], reason: str, windows: int = 1,
+                                  uncertain: bool = False, consume_skip_next: bool = False,
+                                  require_busy: bool = False) -> bool:
+        """Advance a skipped schedule occurrence only if its observed marker and policy still match.
+
+        Marker comparison, optional one-shot skip consumption, and skip history are one write transaction. Concurrent scheduler
+        processes therefore cannot consume one ``skip_next`` request inconsistently or roll a newer marker back to an older
+        occurrence. Returns False when a pause, changed schedule, competing claim, or changed marker made this snapshot stale.
+        """
+        if reason not in {"skip_next", "catch_up_skip", "overlap_skip"}:
+            raise ValueError("unknown scheduled-occurrence skip reason")
+        if consume_skip_next != (reason == "skip_next") or require_busy != (reason == "overlap_skip"):
+            raise ValueError("scheduled-occurrence skip flags do not match its reason")
+        marker_key = f"{schedule_id}:last_fire"
+        skip_key = f"{schedule_id}:skip_next"
+        now = iso(utcnow())
+        with self._tx() as db:
+            if self._execution_hold(db):
+                return False
+            workspace = db.execute("SELECT schedules_paused FROM workspace_settings WHERE id = 1").fetchone()
+            if workspace is None or bool(workspace["schedules_paused"]):
+                return False
+            bot_row = db.execute("SELECT doc FROM bots WHERE id = ?", (bot_id,)).fetchone()
+            if bot_row is None:
+                return False
+            try:
+                bot = Bot.from_store_json(bot_row["doc"])
+            except (TypeError, ValueError):
+                return False
+            schedules = bot.schedules or ([bot.schedule] if bot.schedule else [])
+            schedule = next((item for item in schedules if item.id == schedule_id), None)
+            if bot.paused or schedule is None or not schedule.enabled:
+                return False
+            marker_row = db.execute("SELECT value FROM kv WHERE key = ?", (marker_key,)).fetchone()
+            if (marker_row["value"] if marker_row else None) != expected_marker:
+                return False
+            if consume_skip_next:
+                skip_row = db.execute("SELECT value FROM kv WHERE key = ?", (skip_key,)).fetchone()
+                if skip_row is None or not str(skip_row["value"] or ""):
+                    return False
+            if require_busy:
+                statuses = tuple(status.value for status in ACTIVE_STATUSES)
+                marks = ",".join("?" for _ in statuses)
+                busy = db.execute(f"SELECT 1 FROM runs WHERE bot_id = ? AND status IN ({marks}) LIMIT 1",
+                                  (bot_id, *statuses)).fetchone()
+                if busy is None:
+                    return False
+            db.execute("INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                       (marker_key, occurrence))
+            if consume_skip_next:
+                db.execute("UPDATE kv SET value = '' WHERE key = ?", (skip_key,))
+                db.execute("INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                           (f"{schedule_id}:last_skip_next", occurrence))
+            db.execute("INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                       (f"{schedule_id}:last_skip", json.dumps({"at": now, "windows": max(1, int(windows)),
+                                                                "uncertain": bool(uncertain), "reason": reason})))
+        self.bus.notify("work", f"schedule:{schedule_id}")
+        return True
 
     def claim_run(self, run_id: str, owner: str, lease_seconds: float, now: Optional[datetime] = None,
                   max_live: Optional[int] = None) -> Optional[Run]:
@@ -7398,6 +7494,13 @@ class Store:
         runs = [self._run(r) for r in rows]
         # A queued turn must not hide work already executing or waiting for a human.
         return min(runs, key=lambda r: (r.status is RunStatus.pending, r.created_at, r.id)) if runs else None
+
+    def execution_lane(self, run_id: str) -> str:
+        """Return the admission lane used for same-Bot exclusion (workflow/step versus interactive)."""
+        with self._lock:
+            row = self._db.execute("SELECT t.kind FROM runs r LEFT JOIN tasks t ON t.run_id=r.id WHERE r.id=?",
+                                   (run_id,)).fetchone()
+        return "workflow" if row is not None and row["kind"] in ("workflow", "step") else "interactive"
 
     def active_runs_by_bot(self) -> dict[str, Run]:
         """Map bot_id → preferred active run from a single live-status scan."""

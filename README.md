@@ -93,7 +93,8 @@ Review the retained branch manually. Hutch does not apply or publish it; see [op
   `hutch doctor` reports configuration problems with suggested fixes.
 - **Scheduling that survives sleep and DST** — IANA-timezone cron, DST-correct, catch-up after sleep or workspace pause; each occurrence and each run is
   claimed in the database; each bot can have up to 100 named tasks with independent prompts and timezones. One elected supervisor
-  handles schedules and recovery, and one bot never overlaps itself. The Schedules overview shows each next run in its own time zone;
+  handles schedules and recovery. Runs take turns within their execution lane; interactive chat and workflow work use separate lanes.
+  The Schedules overview shows each next run in its own time zone;
   its workspace pause blocks future schedule starts without stopping queued or running work. Edit tasks in Bot settings or with
   `hutch bot schedules`.
 - **Bounded task delegation (experimental)** — an explicit `delegate_task` opt-in for the built-in Strict Offline Linux worker.

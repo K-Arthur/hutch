@@ -187,8 +187,8 @@ prompt preserves legacy behavior by using the bot instructions, then a generic w
 task if the instructions are empty. Prompts are limited to 4,000 characters. Settings, the typed
 schedule API and `hutch bot schedules` manage individual tasks. Older `schedule` fields and
 `hutch bot update` schedule options remain aliases for the first task. Tasks on one bot share its
-tools, workspace, limits and permissions, and that bot still never runs two attempts at once. The
-dashboard's Schedules overview lists next occurrences in each task's timezone. A durable workspace
+tools, workspace, limits and permissions. Runs in the same lane take turns; workflow work may
+progress beside interactive chat. The dashboard's Schedules overview lists next occurrences in each task's timezone. A durable workspace
 pause affects future schedule admission only; queued/running work and Bot-specific pause settings
 remain independent.
 
@@ -258,7 +258,8 @@ truth badge. See [Grounding](grounding.md) and the evidence record in
 ## Concurrency model
 
 > **Updated (realignment, slices S2-S3).** Ownership is no longer process memory. A run is *claimed* by one atomic SQL statement
-> that also enforces the per-bot rule across processes; the owner heartbeats a lease; every owner write carries a fence;
+> that enforces one active run per Bot and execution lane across processes; interactive and workflow lanes are separate, while
+> workflow attempts and their step runs share the workflow lane. The owner heartbeats a lease; every owner write carries a fence;
 > expired leases already refuse owner writes and cannot be revived by heartbeat; recovery bumps the fence; status changes only through `Store.transition_run` against the
 > table in `lifecycle.py`; schedule occurrences are claimed in the same transaction as the run they create. Stop is an intent in
 > the database and marks persisted descendants before any cleanup or process signal. Under `serve` and `daemon` each run is its own OS process (`hutch.worker`) in its own session, so a kill is a real

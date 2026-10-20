@@ -20,6 +20,7 @@ import pytest
 
 from hutch.engine import Engine
 from hutch.models import ApprovalMode, Bot, RunStatus, utcnow
+from hutch import procguard
 from hutch.runtime.steps import call_tool
 from hutch.store import Store
 
@@ -233,16 +234,17 @@ def test_a_crash_after_an_effect_but_before_its_receipt_is_reported_and_never_re
     store.create_bot(Bot(name="deployer", model="mock/demo", tools=["shell"], approval_mode=ApprovalMode.auto,
                          workdir=str(folder)))
     proc = spawn(config, CRASH_SCRIPT)
-    sleeper_pid = None
+    process_records: list[dict] = []
     try:
         run_id = proc.stdout.readline().split()[1]
         log = folder / "effects.log"
         assert wait_for(lambda: log.exists() and log.read_text().count("hit") == 1), "the effect never happened"
+        process_records = wait_for(lambda: store.live_procs(run_id))
+        assert process_records, "the effect process was not recorded"
         doubt = wait_for(lambda: store.actions_in_doubt(run_id))
         assert [d["tool"] for d in doubt] == ["shell"] and "effects.log" in doubt[0]["summary"]
-        recorded = wait_for(lambda: store.live_procs(run_id))                 # the owner recorded what it started
-        assert len(recorded) == 1 and recorded[0]["kind"] == "shell"
-        shell_pid = recorded[0]["pid"]
+        assert len(process_records) == 1 and process_records[0]["kind"] == "shell"
+        shell_pid = process_records[0]["pid"]
         assert _alive(shell_pid)
 
         os.kill(proc.pid, signal.SIGKILL)                             # power loss: no cleanup runs
@@ -267,11 +269,7 @@ def test_a_crash_after_an_effect_but_before_its_receipt_is_reported_and_never_re
     finally:
         if proc.poll() is None:
             proc.kill()
-        # the shell's own session survives its parent; clean up the helper this test started
-        import subprocess as sp
-        out = sp.run(["pgrep", "-f", "echo hit >> effects.log"], capture_output=True, text=True).stdout.split()
-        for pid in out:
-            try:
-                os.kill(int(pid), signal.SIGKILL)
-            except (ProcessLookupError, ValueError):
-                pass
+            proc.wait(timeout=5)
+        # Use only the boot/PID/group identities recorded by this test. Never search process names globally.
+        if process_records:
+            procguard.end_recorded(process_records, term_grace=0.1, kill_grace=1.0)

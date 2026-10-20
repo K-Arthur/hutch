@@ -103,8 +103,8 @@ Manage task streams independently with `hutch bot schedules list <bot>`, `add`, 
 `remove`, or the per-task versioned API routes. Each stream's ID is globally unique and remains
 reserved after removal, including when it was removed before its first run. Existing schedule IDs,
 occurrence claims, runs and next-fire markers survive the schema v21 upgrade; the normal migration
-path makes a SQLite backup before applying the upgrade. A bot still has at most one active run at a
-time, so simultaneous tasks on that bot queue independently instead of overlapping.
+path makes a SQLite backup before applying the upgrade. Runs in the same execution lane take turns
+for one bot. Interactive chat and workflow work use separate lanes and may progress at the same time.
 
 Database restoration sets every saved bot to `paused` and revokes standing tool grants. A separate
 installation-wide restore hold blocks new submissions and claims until local review is recorded.

@@ -366,9 +366,7 @@ class Scheduler:
                 newest = self._newest_on_or_before(schedule, now, zone)
                 if newest is None or newest <= last_utc:
                     continue
-                if self.consume_skip_next(schedule, newest):
-                    self.store.kv_set(self._last_fire_key(schedule), iso(newest))
-                    self._note_skipped(bot, 1, schedule, reason="skip_next")
+                if self.consume_skip_next(schedule, newest, marker=marker, bot_id=bot.id):
                     continue
                 count, uncertain = self._count_windows(schedule, last_utc, newest, zone)
                 if count < 1:
@@ -379,13 +377,15 @@ class Scheduler:
                 if schedule.catch_up is CatchUpPolicy.skip:
                     grace = self.skip_grace(schedule, zone, now)
                     if (now - newest) > grace:
-                        self.store.kv_set(self._last_fire_key(schedule), iso(newest))
-                        self._note_skipped(bot, count if not uncertain else MAX_CATCHUP_WINDOWS,
-                                           schedule, uncertain=uncertain, reason="catch_up_skip")
+                        self.store.skip_scheduled_occurrence(
+                            schedule_id=schedule.id, bot_id=bot.id, occurrence=iso(newest),
+                            expected_marker=marker, reason="catch_up_skip",
+                            windows=count if not uncertain else MAX_CATCHUP_WINDOWS, uncertain=uncertain)
                         continue
                 if schedule.overlap is OverlapPolicy.skip and self._bot_busy(bot.id):
-                    self.store.kv_set(self._last_fire_key(schedule), iso(newest))
-                    self._note_skipped(bot, 1, schedule, reason="overlap_skip")
+                    self.store.skip_scheduled_occurrence(
+                        schedule_id=schedule.id, bot_id=bot.id, occurrence=iso(newest),
+                        expected_marker=marker, reason="overlap_skip", require_busy=True)
                     continue
                 if schedule.overlap is OverlapPolicy.buffer_one and self._schedule_has_pending(schedule.id):
                     # Keep the existing pending run; do not advance the marker so a later tick
@@ -412,16 +412,11 @@ class Scheduler:
         """Skip the next due occurrence once; does not change the recurring definition."""
         self.store.kv_set(f"{schedule.id}:skip_next", "1")
 
-    def consume_skip_next(self, schedule: Schedule, occurrence: datetime) -> bool:
-        raw = self.store.kv_get(f"{schedule.id}:skip_next")
-        if not raw:
-            return False
-        self.store.kv_set(f"{schedule.id}:skip_next", "")
-        self.store.kv_set(
-            f"{schedule.id}:last_skip_next",
-            iso(occurrence),
-        )
-        return True
+    def consume_skip_next(self, schedule: Schedule, occurrence: datetime, *, marker: Optional[str], bot_id: str) -> bool:
+        """Atomically consume a one-shot skip and advance this still-current occurrence."""
+        return self.store.skip_scheduled_occurrence(
+            schedule_id=schedule.id, bot_id=bot_id, occurrence=iso(occurrence), expected_marker=marker,
+            reason="skip_next", consume_skip_next=True)
 
     def _windows_between(self, scheduled: Bot | Schedule, last_utc: datetime, now: datetime,
                          zone: ZoneInfo | None = None) -> list[datetime]:

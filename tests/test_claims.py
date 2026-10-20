@@ -125,6 +125,33 @@ def test_global_cap_racing_claims_across_bots_has_one_winner(store, config):
     assert outs.count("won") == 1 and outs.count("lost") == 5
 
 
+def test_skip_next_marker_and_consumption_are_one_cross_process_claim(store, config):
+    bot = make_bot(store, "skip-race", schedule=Schedule(cron="0 * * * *", timezone="UTC"))
+    marker = "2026-10-20T10:00:00+00:00"
+    first = "2026-10-20T11:00:00+00:00"
+    second = "2026-10-20T12:00:00+00:00"
+    store.kv_set(f"{bot.schedule.id}:last_fire", marker)
+    store.kv_set(f"{bot.schedule.id}:skip_next", "1")
+    outs = race(config, f"""
+        occurrence = ({first!r}, {second!r})[worker_index % 2]
+        won = store.skip_scheduled_occurrence(
+            schedule_id={bot.schedule.id!r}, bot_id={bot.id!r}, occurrence=occurrence,
+            expected_marker={marker!r}, reason="skip_next", consume_skip_next=True)
+        print("won" if won else "lost")
+        store.close()
+    """, n=6)
+    assert outs.count("won") == 1 and outs.count("lost") == 5
+    current = store.kv_get(f"{bot.schedule.id}:last_fire")
+    assert current in {first, second}
+    assert store.kv_get(f"{bot.schedule.id}:skip_next") == ""
+    assert store.kv_get(f"{bot.schedule.id}:last_skip_next") == current
+    # A delayed scheduler holding the old marker cannot roll progress back or replace the winner's skip record.
+    assert not store.skip_scheduled_occurrence(
+        schedule_id=bot.schedule.id, bot_id=bot.id, occurrence="2026-10-20T10:30:00+00:00",
+        expected_marker=marker, reason="catch_up_skip")
+    assert store.kv_get(f"{bot.schedule.id}:last_fire") == current
+
+
 def test_a_cancelled_or_started_run_cannot_be_claimed(store):
     bot = make_bot(store)
     run = submit(store, bot)

@@ -82,7 +82,24 @@ def test_queued_behind_the_same_bots_own_run(store, config):
     running = store.create_run(Run(bot_id=bot.id, prompt="a", status=RunStatus.running))
     queued = store.create_run(Run(bot_id=bot.id, prompt="b"))
     w = views.explain_run(store, queued, Engine(config, store), bot)
-    assert "never runs two" in w.cause and running.id[:14] in w.cause and w.fix
+    assert "same lane take turns" in w.cause and running.id[:14] in w.cause and w.fix
+
+
+def test_interactive_run_is_not_reported_as_blocked_by_workflow_lane(store, config):
+    from hutch.models import Task
+
+    bot = mk(store)
+    workflow = Run(bot_id=bot.id, prompt="workflow")
+    store.submit_run(workflow, Task(bot_id=bot.id, kind="workflow", prompt=workflow.prompt))
+    claim = store.claim_run(workflow.id, "workflow-owner", 60, max_live=2)
+    assert claim is not None
+    store.transition_run(workflow.id, RunStatus.running, fence=claim.fence)
+
+    chat = Run(bot_id=bot.id, prompt="chat")
+    store.submit_run(chat, Task(bot_id=bot.id, kind="on_demand", prompt=chat.prompt))
+    wait = views.explain_run(store, chat, Engine(config, store, max_concurrent=2), bot)
+    assert wait and "Queued behind this bot's active" not in wait.cause
+    assert "workflow run" not in wait.cause
 
 
 def test_queued_because_all_slots_busy_names_the_limit(store, config):

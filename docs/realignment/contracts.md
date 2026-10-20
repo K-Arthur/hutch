@@ -169,7 +169,8 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   `GET .../occurrences` returns a bounded newest-first page of claimed occurrences with run status.
   `DELETE` removes one stream and returns 204; its runs, occurrence claims, and reserved ID remain
   as history. All tasks on a bot share its tools, workspace, limits and permissions, and remain
-  subject to the one-active-run-per-bot rule.
+  subject to one active run per Bot and execution lane. Interactive and workflow lanes may progress
+  at the same time; workflow attempts and step runs share their lane.
 * Legacy bot creation's `cron`/`schedule_prompt` fields and bot-update schedule fields remain
   compatibility aliases for the first task. Empty task prompts use the bot's standing `instructions`,
   then the generic workspace-report task if those are empty. CLI task management is available through
