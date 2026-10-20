@@ -226,7 +226,8 @@
           <p class="ms-search-status" role="status" aria-live="polite"></p>
           <div class="ms-groups" role="radiogroup" aria-label="Models"></div>
           <label class="ms-other">Another model <span class="muted">(provider/model, for example a model on one of your connections)</span>
-            <input type="text" class="ms-custom mono" placeholder="opencode-go/glm-5.3" autocomplete="off" spellcheck="false"></label>
+            <input type="text" class="ms-custom mono" aria-describedby="ms-custom-egress-note" placeholder="opencode-go/glm-5.3" autocomplete="off" spellcheck="false">
+            <span id="ms-custom-egress-note" class="muted">An openai-compatible route uses its configured endpoint and may send this chat off this machine. Confirm the provider endpoint for this Bot or Hutch installation before selecting it.</span></label>
           <p class="ms-foot"><a href="/models">Hardware fit, task presets and prices</a> &middot;
             <a href="/connections">Connections</a></p>
         </div>`;

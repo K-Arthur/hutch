@@ -1,6 +1,8 @@
 """Actual Chromium pixels/input through Hutch HTTP + responsive panel; no live model or physical phone claim."""
 from __future__ import annotations
 
+from tests.support.browser import wait_for_page
+
 import os
 import json
 import threading
@@ -52,6 +54,7 @@ def controlled(live, tmp_path):
     run = store.create_run(Run(bot_id=bot.id, prompt="Complete the controlled login", status=RunStatus.running))
     finish, ready = threading.Event(), threading.Event()
     effects, failures = {}, []
+    tool = BrowserTool()
 
     def worker():
         class FixtureGate(ApprovalGate):
@@ -63,7 +66,6 @@ def controlled(live, tmp_path):
         gate.cancelled = finish.is_set
         ctx = ToolContext(bot=bot, run=run, store=store, config=config, workspace=tmp_path, gate=gate,
                           policy=PolicyEngine(), emit=store.append_event)
-        tool = BrowserTool()
         try:
             ready.set()
             opened = tool.run({"action": "goto", "url": f"http://localhost:{port}/"}, ctx)
@@ -94,7 +96,13 @@ def controlled(live, tmp_path):
         store.bus.notify(f"human:{run.id}", remote=False)
         for session in sessions(config, run.id): session.close()
         thread.join(timeout=10)
+        if thread.is_alive():
+            # A failed setup assertion must not strand a Playwright driver or origin server.
+            tool._emergency_stop()
+            thread.join(timeout=5)
         origin.shutdown(); origin.server_close(); serving.join(timeout=3)
+        assert not thread.is_alive(), "controlled browser worker survived fixture teardown"
+        assert not serving.is_alive(), "controlled login origin survived fixture teardown"
 
 
 def _shot(page, name):
@@ -118,7 +126,7 @@ def test_login_control_from_panel_reaches_owned_headless_session_and_hands_back(
         panel.get_by_role("button", name="Take control").click()
         panel.get_by_role("button", name="Refresh human frame").click()
         preview = panel.locator(".computer-human-preview")
-        page.wait_for_function("() => document.querySelector('.computer-human-img')?.naturalWidth > 0")
+        wait_for_page(page, "() => document.querySelector('.computer-human-img')?.naturalWidth > 0")
         preview.scroll_into_view_if_needed()
         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
         _shot(page, f"{width}")
@@ -131,7 +139,7 @@ def test_login_control_from_panel_reaches_owned_headless_session_and_hands_back(
         assert panel.get_by_role("button", name="Type in focused control").is_enabled(), panel.inner_text()
         panel.get_by_label("Text to type in the controlled app").fill("SENTINEL-HUMAN-ONLY")
         panel.get_by_role("button", name="Type in focused control").click()
-        page.wait_for_function("() => document.querySelector('.computer-remote textarea').value === ''")
+        wait_for_page(page, "() => document.querySelector('.computer-remote textarea').value === ''")
         page.wait_for_timeout(250)
         panel.get_by_label("Key to send").select_option("tab")
         panel.get_by_role("button", name="Send key").click()
@@ -162,7 +170,7 @@ def test_rotation_reflow_two_viewers_and_pagehide_pause(browser, controlled):
         panel = first.locator(".computer-remote")
         panel.get_by_role("button", name="Take control").click()
         panel.get_by_role("button", name="Refresh human frame").click()
-        first.wait_for_function("() => document.querySelector('.computer-human-img')?.naturalWidth > 0")
+        wait_for_page(first, "() => document.querySelector('.computer-human-img')?.naturalWidth > 0")
         channel = sessions(get_config(), run.id)[0]
         assert channel.public()["control"]["owner"] == "human"
         other = second.locator(".computer-remote")
@@ -236,7 +244,7 @@ def test_normal_process_worker_accepts_http_human_input_and_exits_cleanly(browse
         panel = page.locator(".computer-remote")
         panel.get_by_role("button", name="Take control").click()
         panel.get_by_role("button", name="Refresh human frame").click()
-        page.wait_for_function("() => document.querySelector('.computer-human-img')?.naturalWidth > 0")
+        wait_for_page(page, "() => document.querySelector('.computer-human-img')?.naturalWidth > 0")
         panel.get_by_role("button", name="Refresh human frame").wait_for(state="visible")
         page.wait_for_timeout(250)
         preview = panel.locator(".computer-human-img")
@@ -247,7 +255,7 @@ def test_normal_process_worker_accepts_http_human_input_and_exits_cleanly(browse
         page.wait_for_timeout(250)
         panel.get_by_label("Text to type in the controlled app").fill("SENTINEL-HUMAN-ONLY")
         panel.get_by_role("button", name="Type in focused control").click()
-        page.wait_for_function("() => document.querySelector('.computer-remote textarea').value === ''")
+        wait_for_page(page, "() => document.querySelector('.computer-remote textarea').value === ''")
         for key in ("tab", "enter"):
             page.wait_for_timeout(250)
             panel.get_by_label("Key to send").select_option(key)

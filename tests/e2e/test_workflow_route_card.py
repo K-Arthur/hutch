@@ -5,6 +5,8 @@ covered separately in test_runtime_builtin.py and test_workflow_routing.py.
 """
 from __future__ import annotations
 
+from tests.support.browser import wait_for_page
+
 import hashlib
 import json
 import os
@@ -22,11 +24,12 @@ import uvicorn  # noqa: E402
 from hutch.models import Bot, Event, EventType, Run, RunStatus, Task  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
 from hutch.workflow import persistence as wstore  # noqa: E402
+from tests.support.artifacts import artifact_path
 
 
 ROOT = Path(__file__).resolve().parents[2]
 EVIDENCE = Path(os.environ.get("HUTCH_WORKFLOW_ROUTE_ARTIFACTS",
-                              str(ROOT / "docs/realignment/artifacts/dynamic-workflows/chat-router")))
+                              str(artifact_path("dynamic-workflows/chat-router"))))
 SOURCES = (
     "src/hutch/runtime/builtin.py",
     "src/hutch/runtime/steps.py",
@@ -195,11 +198,11 @@ def test_chat_suggestion_card_reflows_and_requires_review(browser, live_studio):
                                                "content": "Transcript refreshed while review is open."}))
                 store.flush_events()
                 page.evaluate("scheduleFeedRender()")
-                page.wait_for_function("feedRefreshPending === true", timeout=5000)
+                wait_for_page(page, "feedRefreshPending === true", timeout=5000)
                 dialog.locator("#modal-cancel").click()
                 page.get_by_text("Transcript refreshed while review is open.", exact=True).wait_for()
                 try:
-                    page.wait_for_function(
+                    wait_for_page(page,
                         "document.activeElement?.dataset?.workflowSuggestionRun === "
                         f"{json.dumps(definition['definition_id'])}", timeout=5000)
                 except pw.TimeoutError:
@@ -359,7 +362,7 @@ def test_chat_suggestion_card_reflows_and_requires_review(browser, live_studio):
             jump_action["shown"] = True
             jump_action["scroll_top_before"] = page.locator("#chat-scroll").evaluate("el => el.scrollTop")
             jump_button.click()
-            page.wait_for_function("document.querySelector('#jump-latest-slot')?.hidden === true")
+            wait_for_page(page, "document.querySelector('#jump-latest-slot')?.hidden === true")
             jump_action["scroll_top_after"] = page.locator("#chat-scroll").evaluate("el => el.scrollTop")
             jump_action["scroll_max_after"] = page.locator("#chat-scroll").evaluate("el => el.scrollHeight - el.clientHeight")
             assert abs(jump_action["scroll_top_after"] - jump_action["scroll_max_after"]) <= 1

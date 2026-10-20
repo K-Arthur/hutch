@@ -26,7 +26,7 @@
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <textarea name="prompt" rows="3" required placeholder="What should {{ bot.display_name }} do? e.g. summarize this week's AI news"></textarea>
     <div class="compose-row">
-      <label class="check" title="Mutating actions are simulated and logged. Reads still run, so you can see what it would do before it does it."><input type="checkbox" name="rehearse" value="1"> Rehearse (dry run - nothing is changed)</label>
+      <label class="check" title="Mutating actions are simulated and logged. Model calls and reads still happen; reads from remote services can have service-side effects."><input type="checkbox" name="rehearse" value="1"> Rehearse (simulate changes)</label>
       <button class="btn primary" type="submit">{{ icon("play", 15) }} Start run</button>
     </div>
     <p class="hint estimate" id="estimate">{{ icon("chart", 13) }} <strong>{{ estimate.spec }}:</strong> {{ estimate.summary }}</p>

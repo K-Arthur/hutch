@@ -6,6 +6,8 @@ deterministic and exercises the genuine UI -> API -> storage -> run path.
 """
 from __future__ import annotations
 
+from tests.support.browser import wait_for_page
+
 import json
 import threading
 import time
@@ -21,6 +23,7 @@ import uvicorn  # noqa: E402
 from hutch.models import Bot, Event, EventType, Run, RunStatus, Task  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
 from tests.fakes import FakeOllama, agent_script  # noqa: E402
+from tests.support.artifacts import artifact_path
 
 
 @pytest.fixture(scope="module")
@@ -143,7 +146,7 @@ def clarification_live(tmp_path, monkeypatch):
 
 def test_specialist_question_is_answered_from_the_task_card(browser, clarification_live):
     base, app, seed, ollama = clarification_live
-    output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/delegation-clarification"
+    output = artifact_path("delegation-clarification")
     output.mkdir(parents=True, exist_ok=True)
     viewports = {"desktop": (1440, 960), "tablet": (900, 1024), "phone": (390, 844)}
     viewport_results = []
@@ -194,7 +197,7 @@ def test_specialist_question_is_answered_from_the_task_card(browser, clarificati
           chatRenderSnapshots.delete(document.querySelector('#chat-stream'));
           scheduleFeedRender();
         }""")
-        page.wait_for_function("window.__oldWorkspaceQuestion && !window.__oldWorkspaceQuestion.isConnected",
+        wait_for_page(page, "window.__oldWorkspaceQuestion && !window.__oldWorkspaceQuestion.isConnected",
                                timeout=10000)
         beta = page.locator("[data-workspace-question-form]").get_by_label("Beta")
         assert beta.is_checked(), "the selected answer should survive a live transcript refresh"

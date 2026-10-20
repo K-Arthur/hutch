@@ -5,6 +5,8 @@ cannot see. Skipped automatically when no Playwright browser is installed.
 
 from __future__ import annotations
 
+from tests.support.browser import wait_for_page
+
 from tests.e2e.grounding_fixtures import (  # noqa: F401 - the fixtures are the point
     browser, live, open_panel, seed_grounded_run,
 )
@@ -65,7 +67,7 @@ def test_evidence_panel_refresh_appends_a_revision(browser, live, monkeypatch):
     try:
         problems = open_panel(page, base, run_id)
         page.click("[data-evidence-refresh]")
-        page.wait_for_function(
+        wait_for_page(page,
             "() => Array.from(document.querySelectorAll('[data-evidence-panel] summary'))"
             ".some(s => /Answer revisions \\(2\\)/.test(s.textContent))", timeout=20_000)
         panel_text = page.locator("[data-evidence-panel]").inner_text()

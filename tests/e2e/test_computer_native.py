@@ -300,6 +300,7 @@ def test_native_app_namespace_cannot_read_outside_workspace_or_reach_host_loopba
 
 def test_human_step_input_edits_and_saves_the_real_native_application_without_model_observation(native):
     from tests.test_computer_human import _call
+    from hutch.computer.human import HumanError
     native.ctx.bot.remote_computer_access = "control"
     launched = native.tool.run({"action": "launch", "app": "kwrite"}, native.ctx)
     assert launched.ok, launched.output
@@ -307,13 +308,30 @@ def test_human_step_input_edits_and_saves_the_real_native_application_without_mo
     grant = channel.takeover("native-human")
     sequence = 0
     frame = {}
+    def heartbeat():
+        nonlocal grant
+        state = channel.command("native-human", {"action": "heartbeat",
+                                  "control_token": grant["control_token"], "generation": grant["generation"]})
+        if isinstance(state, HumanError):
+            assert "control expired" in str(state), str(state)
+            # This low-level test drives HumanSession directly, so it must model
+            # the browser's keepalive and explicit reacquisition after expiry.
+            grant = channel.takeover("native-human")
+        else:
+            assert isinstance(state, dict), str(state)
     def command(action, **args):
         nonlocal sequence, frame
+        heartbeat()
         sequence += 1
         time.sleep(0.21)
         result = _call(channel, "native-human", {"action": action, "sequence": sequence,
                        "control_token": grant["control_token"], "generation": grant["generation"],
                        "frame_id": frame.get("frame_id", ""), **args})
+        if (action != "capture" and isinstance(result, HumanError)
+                and "Input was dispatched, but its follow-up capture failed" in str(result)):
+            # The input is already dispatched. Never retry it: follow the channel's
+            # instruction and make a new read-only observation before any more input.
+            return command("capture")
         assert isinstance(result, dict), str(result)
         frame = result["frame"]
         return result

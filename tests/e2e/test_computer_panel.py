@@ -5,6 +5,8 @@ Set HUTCH_EVIDENCE_DIR to keep the screenshots (they are how the layout is inspe
 
 from __future__ import annotations
 
+from tests.support.browser import wait_for_page
+
 import os
 import struct
 import threading
@@ -127,7 +129,7 @@ def test_computer_settings_round_trip_and_readiness_at_each_width(browser, live,
         form.get_by_label("Allow observations to hosted AI").check()
         form.get_by_label("Computer access from paired devices").select_option("control")
         form.get_by_role("button", name="Save computer access").click()
-        page.wait_for_function("() => document.querySelector('#form-computer input[name=observation_to_hosted]')?.checked")
+        wait_for_page(page, "() => document.querySelector('#form-computer input[name=observation_to_hosted]')?.checked")
         deadline = time.monotonic() + 5
         while not app.state.store.get_bot(bot.id).observation_to_hosted and time.monotonic() < deadline:
             time.sleep(0.05)
@@ -141,7 +143,7 @@ def test_computer_settings_round_trip_and_readiness_at_each_width(browser, live,
         assert form.get_by_label("Allow observations to hosted AI").is_checked()
         assert form.get_by_label("Computer access from paired devices").input_value() == "control"
         form.get_by_role("button", name="Check host readiness").click()
-        page.wait_for_function("() => {const el=document.querySelector('#computer-readiness'); return el && el.textContent && !el.textContent.includes('Checking');}")
+        wait_for_page(page, "() => {const el=document.querySelector('#computer-readiness'); return el && el.textContent && !el.textContent.includes('Checking');}")
         assert "undefined" not in page.locator("#computer-readiness").inner_text()
         form.scroll_into_view_if_needed()
         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
@@ -164,18 +166,42 @@ def test_panel_shows_environment_owner_and_a_never_live_frame_at_each_width(brow
         assert "not a live view" in text and "Live" not in text.replace("not a live view", "")
         img = panel.locator("img.computer-img")
         img.wait_for()
-        assert page.evaluate("el => el.complete && el.naturalWidth > 0", img.element_handle()), "frame did not load"
-        assert panel.locator("[data-stop-run]").is_visible()
+        stop = panel.locator("[data-stop-run]")
+        wait_for_page(page, "() => { const img = document.querySelector('[data-computer-panel] img.computer-img'); "
+                            "const stop = document.querySelector('[data-computer-panel] [data-stop-run]'); "
+                            "return !!img && img.isConnected && img.complete && img.naturalWidth > 0 "
+                            "&& !!stop && stop.isConnected && stop.getBoundingClientRect().height > 0; }")
+        assert page.evaluate("() => { const img = document.querySelector('[data-computer-panel] img.computer-img'); "
+                              "return !!img && img.complete && img.naturalWidth > 0; }"), "frame did not load"
+        assert stop.is_visible()
         # layout: no horizontal page scroll, panel and image inside the viewport. The shell animates its sidebar on load,
         # so wait for the layout to settle into a fitting state (a layout that never fits still fails here).
-        page.wait_for_function(
-            """() => { const p = document.querySelector('[data-computer-panel]'); const r = p.getBoundingClientRect();
+        wait_for_page(page,
+            """() => { const p = document.querySelector('[data-computer-panel]');
+                      if (!p || !p.isConnected) return false;
+                      const r = p.getBoundingClientRect();
+                      const img = p.querySelector('img.computer-img');
+                      if (!img || !img.isConnected) return false;
+                      const ir = img.getBoundingClientRect();
                       return r.left >= 0 && r.right <= window.innerWidth + 1 &&
-                             document.documentElement.scrollWidth <= window.innerWidth + 1; }""", timeout=5000)
+                             ir.width > 0 && ir.height > 40 &&
+                             document.documentElement.scrollWidth <= window.innerWidth + 1; }""", timeout=10000)
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1")
+        wait_for_page(page, "() => { const p = document.querySelector('[data-computer-panel]'); "
+                            "const i = p?.querySelector('img.computer-img'); "
+                            "return !!p?.isConnected && !!i?.isConnected && i.getBoundingClientRect().height > 40; }")
         box = panel.bounding_box()
         assert box and box["x"] >= 0 and box["x"] + box["width"] <= width + 1
-        img_box = img.bounding_box()
+        # The app can replace the run transcript between layout sampling and
+        # Playwright's bounding_box call. Read the current connected element's
+        # geometry in one browser-side operation instead of carrying a stale
+        # locator result across that render boundary.
+        img_box = page.evaluate("""() => {
+          const image = document.querySelector('[data-computer-panel] img.computer-img');
+          if (!image || !image.isConnected) return null;
+          const rect = image.getBoundingClientRect();
+          return {x: rect.x, y: rect.y, width: rect.width, height: rect.height};
+        }""")
         assert img_box and img_box["width"] <= width and img_box["height"] > 40
         _shot(page, f"{width}")
     finally:

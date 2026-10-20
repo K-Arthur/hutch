@@ -1000,7 +1000,7 @@ def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key:
         revision = wstore.revision(store, str(view["workflow"]["revision_id"]))
         plan = revision["plan"] if revision else None
         workflow = view["workflow"]
-        pause_controls = wstore.workflow_pause_controls(store, wf_id)
+        pause_controls = view["pause_controls"]
         return WorkflowRunDetail(
             workflow=_run_resource(workflow), attempt=view["attempt"],
             nodes=[_node_resource(node) for node in view["nodes"]],

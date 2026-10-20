@@ -1548,6 +1548,10 @@ function openModal({ title, bodyHtml, onConfirm, onCancel, confirmText = "Confir
         button.dataset.workflowAction === modalReturnFocus.dataset.workflowAction &&
         button.dataset.workflowId === modalReturnFocus.dataset.workflowId) || $('#chat-prompt'))?.focus();
     }
+    else if (modalReturnFocus?.dataset.workflowSuggestionRun) {
+      ($$('[data-workflow-suggestion-run]').find(button =>
+        button.dataset.workflowSuggestionRun === modalReturnFocus.dataset.workflowSuggestionRun) || $('#chat-prompt'))?.focus();
+    }
     else if (modalReturnFocus?.isConnected && modalReturnFocus.getClientRects().length) modalReturnFocus.focus();
     else ($('#chat-prompt') || $('#nav-toggle'))?.focus();
     if (feedRefreshPending) {
@@ -2024,7 +2028,13 @@ function errorState(err) {
   </div></div></div>`;
 }
 
-function setTopContext(html) { if (topContext) topContext.innerHTML = html; }
+function setTopContext(html) {
+  if (!topContext || topContext.innerHTML === html) return;
+  const active = document.activeElement;
+  const focusedId = topContext.contains(active) ? active?.id : "";
+  topContext.innerHTML = html;
+  if (focusedId) document.getElementById(focusedId)?.focus({ preventScroll: true });
+}
 
 window.addEventListener("hashchange", () => route(true));
 /* Delegated so the strict local CSP can forbid inline handlers: a rebuilt
@@ -3167,7 +3177,7 @@ async function renderChatStudio(preferredBot = null) {
                   <p class="hint cmenu-image-note" role="note">Image attachments aren’t available in chat yet. Describe an image in text instead.</p>
                   <div class="cmenu-sep"></div>
                   <label class="cmenu-row"><input type="checkbox" id="rehearse-opt">
-                    <span>Rehearse this run<span class="cmenu-sub">simulates writes and commands; model calls and reads still happen</span></span></label>
+                    <span>Rehearse this run<span class="cmenu-sub">simulates writes and commands; model calls and reads still happen, and remote reads can have service-side effects</span></span></label>
                   <label class="cmenu-row"><input type="checkbox" id="enter-send-setting" checked>
                     <span>Enter sends<span class="cmenu-sub">off: Enter adds a newline, use the send button</span></span></label>
                   <div class="cmenu-sep"></div>
@@ -3186,7 +3196,7 @@ async function renderChatStudio(preferredBot = null) {
               </div>
             </div>
             <div class="composer-strip task-role-strip" id="task-role-flag" hidden></div>
-            <div class="composer-strip" id="rehearse-flag" hidden>${icon("shield")} <b>Rehearsal</b> — writes and commands are simulated; model calls and reads still happen.</div>
+            <div class="composer-strip" id="rehearse-flag" hidden>${icon("shield")} <b>Rehearsal</b> — writes and commands are simulated; model calls and reads still happen, and remote reads can have service-side effects.</div>
           </div>
           <p class="visually-hidden" id="chat-help">Enter sends, Shift+Enter adds a newline. Your draft is kept for this bot if you navigate away.</p>
         </form>
@@ -3607,7 +3617,15 @@ async function renderChatStudio(preferredBot = null) {
       }
     } finally {
       pendingAnswerFeedbackUpdates.delete(pendingKey);
-      if (generation === studioGeneration && composerConversationId === currentConversationId) scheduleFeedRender();
+      if (generation === studioGeneration && composerConversationId === currentConversationId) {
+        // The pending state is applied directly to the live controls. If no
+        // poll rendered while the request was in flight, the cached server
+        // snapshot still matches the post-save markup and the no-op shortcut
+        // would leave those controls stuck in their busy state.
+        const stream = $("#chat-stream");
+        if (stream) chatRenderSnapshots.delete(stream);
+        scheduleFeedRender();
+      }
     }
   };
   activeBotCreationFromMessageHandler = async messageId => {
@@ -6004,11 +6022,20 @@ function wireApprovals() {
 
 /* -------------------------------------------------------------- overview */
 
-async function renderOverview() {
+async function renderOverview(preservePosition = false) {
+  preservePosition = preservePosition === true;
+  const renderedHash = location.hash || "#/chat";
+  const oldPage = preservePosition ? view.querySelector(".page-scroll") : null;
+  const oldActive = preservePosition && view.contains(document.activeElement) ? document.activeElement : null;
+  const focusId = oldActive?.id || "";
+  const focusHref = !focusId ? oldActive?.closest("a")?.getAttribute("href") || "" : "";
+  const scrollTop = oldPage?.scrollTop || 0;
+  const usageOpen = preservePosition && !!view.querySelector("#ov-usage-details")?.open;
   const [o, recentRuns] = await Promise.all([
     api("/overview"),
     api("/runs?limit=8").catch(() => []),
   ]);
+  if ((location.hash || "#/chat") !== renderedHash) return;
   const s = o.stats || {};
   const fmt = (n) => Number(n || 0).toLocaleString();
   setTopContext(`<div class="ctx-id"><h1>Activity</h1></div>`);
@@ -6078,8 +6105,8 @@ async function renderOverview() {
         <div class="kpi"><span class="kpi-label">Assistants</span><span class="kpi-val">${fmt(s.bots)}</span></div>
         <div class="kpi"><span class="kpi-label">Tasks today</span><span class="kpi-val">${fmt(s.runs_today)}</span></div>
       </div>
-      <details class="ov-usage-details">
-        <summary><span>Usage details</span><span>Model tokens and cost</span></summary>
+      <details class="ov-usage-details" id="ov-usage-details">
+        <summary id="ov-usage-summary"><span>Usage details</span><span>Model tokens and cost</span></summary>
         <div class="ov-stats ov-usage-stats">
           <div class="kpi"><span class="kpi-label">Reported model tokens today</span><span class="kpi-val">${fmt(s.tokens_today)}</span></div>
           <div class="kpi"><span class="kpi-label">Recorded provider cost today</span><span class="kpi-val">${fmtUsd(s.spend_today || 0)}</span></div>
@@ -6091,6 +6118,17 @@ async function renderOverview() {
         ${recent.map(row).join("")}
       </section>` : ""}
     </div></div>`;
+  if (preservePosition) {
+    const nextPage = view.querySelector(".page-scroll");
+    if (nextPage) nextPage.scrollTop = scrollTop;
+    const nextDetails = view.querySelector("#ov-usage-details");
+    if (nextDetails) nextDetails.open = usageOpen;
+    let nextFocus = focusId ? document.getElementById(focusId) : null;
+    if (!nextFocus && focusHref) {
+      nextFocus = Array.from(view.querySelectorAll("a")).find(anchor => anchor.getAttribute("href") === focusHref) || null;
+    }
+    nextFocus?.focus({ preventScroll: true });
+  }
 }
 
 /* -------------------------------------------------------------- schedules */
@@ -6589,10 +6627,15 @@ async function renderRuns(query = "") {
   const params = new URLSearchParams(query);
   runsState = {
     all: await api("/runs?limit=200"),
+    offset: 200,
+    exhausted: false,
+    loading: false,
+    scanning: false,
     status: params.get("status") || "all",
     q: params.get("q") || "",
     shown: RUNS_PAGE_SIZE,
   };
+  runsState.exhausted = runsState.all.length < 200;
   setTopContext(`<div class="ctx-id"><h1>Past work</h1></div>`);
   view.innerHTML = `
     <div class="page-scroll"><div class="container">
@@ -6632,7 +6675,7 @@ async function renderRuns(query = "") {
       wrap.innerHTML = runsState.all.length ? `
         <div class="empty-state">
           ${icon("search", "icon-lg")}
-          <p>No past work matches this filter.</p>
+          <p>${runsState.scanning ? "Searching older tasks…" : runsState.exhausted ? "No past work matches this filter." : "No matches in the loaded tasks yet."}</p>
           <button class="btn ghost small" id="runs-clear">Clear filters</button>
         </div>` : `
         <div class="empty-state">
@@ -6669,10 +6712,73 @@ async function renderRuns(query = "") {
           }).join("")}
         </div>
         ${filtered.length > runsState.shown ? `
-          <button class="btn ghost small runs-more" id="runs-more">Show ${Math.min(RUNS_PAGE_SIZE, filtered.length - runsState.shown)} more of ${filtered.length}</button>` : ""}`;
+          <button class="btn ghost small runs-more" id="runs-more">Show ${Math.min(RUNS_PAGE_SIZE, filtered.length - runsState.shown)} more loaded</button>` : ""}`;
       $("#runs-more")?.addEventListener("click", () => { runsState.shown += RUNS_PAGE_SIZE; renderRows(); });
     }
-    $("#runs-count").textContent = `${filtered.length} result${filtered.length === 1 ? "" : "s"}`;
+    $("#runs-count").textContent = `${filtered.length} loaded result${filtered.length === 1 ? "" : "s"}${runsState.scanning ? " · searching older tasks…" : ""}`;
+    let older = $("#runs-older");
+    if (!older) {
+      older = document.createElement("button");
+      older.id = "runs-older";
+      older.className = "btn ghost small runs-more";
+      older.type = "button";
+      $("#runs-table-wrap").after(older);
+      older.addEventListener("click", async () => {
+        if (runsState.loading || runsState.exhausted) return;
+        runsState.loading = true;
+        older.disabled = true;
+        older.textContent = "Loading older tasks…";
+        try {
+          const page = await api(`/runs?limit=200&offset=${runsState.offset}`);
+          runsState.all.push(...page);
+          runsState.offset += page.length;
+          runsState.exhausted = page.length < 200;
+          runsState.shown += page.length;
+          renderRows();
+        } catch (err) {
+          older.disabled = false;
+          older.textContent = "Could not load older tasks. Try again.";
+          toast(`Could not load older tasks: ${err.message}`, true);
+        } finally {
+          runsState.loading = false;
+          older.disabled = runsState.exhausted || runsState.scanning;
+          older.hidden = runsState.exhausted || runsState.scanning;
+          older.textContent = runsState.exhausted ? "" : "Load older tasks";
+        }
+      });
+    }
+    older.hidden = runsState.exhausted || runsState.scanning;
+    older.disabled = runsState.loading;
+    older.textContent = runsState.loading ? "Loading older tasks…" : "Load older tasks";
+  };
+
+  let scanGeneration = 0;
+  const loadAllRunsForFilter = async () => {
+    const generation = ++scanGeneration;
+    if (runsState.status === "all" && !runsState.q.trim()) {
+      runsState.scanning = false;
+      renderRows();
+      return;
+    }
+    runsState.scanning = true;
+    renderRows();
+    try {
+      while (!runsState.exhausted && generation === scanGeneration
+          && location.hash.startsWith("#/runs")) {
+        const page = await api(`/runs?limit=200&offset=${runsState.offset}`);
+        if (generation !== scanGeneration) return;
+        runsState.all.push(...page);
+        runsState.offset += page.length;
+        runsState.exhausted = page.length < 200;
+      }
+    } catch (err) {
+      toast(`Could not search older tasks: ${err.message}`, true);
+    } finally {
+      if (generation === scanGeneration) {
+        runsState.scanning = false;
+        renderRows();
+      }
+    }
   };
 
   let searchTimer = null;
@@ -6681,7 +6787,7 @@ async function renderRuns(query = "") {
     searchTimer = setTimeout(() => {
       runsState.q = ev.target.value;
       runsState.shown = RUNS_PAGE_SIZE;
-      syncHash(); renderRows();
+      syncHash(); renderRows(); void loadAllRunsForFilter();
     }, 180);
   });
   $$(".runs-filter-pills button").forEach(btn => {
@@ -6693,10 +6799,11 @@ async function renderRuns(query = "") {
         b.classList.toggle("active", on);
         b.setAttribute("aria-pressed", String(on));
       });
-      syncHash(); renderRows();
+      syncHash(); renderRows(); void loadAllRunsForFilter();
     });
   });
   renderRows();
+  void loadAllRunsForFilter();
 }
 
 /* -------------------------------------------------------------- approvals */
@@ -7944,6 +8051,10 @@ async function renderRunDetail(runId, params = new URLSearchParams()) {
       <a class="btn ghost small" href="#/runs">${icon("arrowLeft")} All runs</a>
     </div>`);
   const steps = (r.events || []).filter(e => e.type === "step").map(e => e.data);
+  // Refreshes can replace this view while a run is settling. Preserve an
+  // operator's disclosure state so the visible transcript does not collapse.
+  const previousTechnicalDetails = document.querySelector("#run-technical-details");
+  const technicalDetailsOpen = previousTechnicalDetails?.dataset.runId === runId && previousTechnicalDetails.open;
   const sum = (k) => steps.reduce((t, d) => t + (d[k] || 0), 0);
   const model = sum("model_ms"), tool = sum("tool_ms"), over = sum("overhead_ms"), queue = sum("queue_ms");
   const total = Math.max(1, model + tool + over + queue);
@@ -7952,7 +8063,7 @@ async function renderRunDetail(runId, params = new URLSearchParams()) {
   view.innerHTML = `
     <div class="page-scroll run-detail-page" id="chat-scroll"><div class="feed" id="chat-stream">
       <div class="run-stats">
-        <details class="run-technical-details" id="run-technical-details">
+        <details class="run-technical-details" id="run-technical-details" data-run-id="${esc(runId)}"${technicalDetailsOpen ? " open" : ""}>
           <summary><span>More details</span><span>Usage, timing, and transcript checks</span></summary>
           <div class="run-technical-content">
         <div class="ov-stats">
@@ -10852,6 +10963,10 @@ function refreshChangedResources(resources) {
       if (needsYouDialog.open) void refreshApprovals();
     }
     if (changed.has("state")) void pollHealth();
+    if ((location.hash || "#/chat") === "#/overview"
+        && ["bots", "runs", "approvals", "actions", "state", "usage"].some(r => changed.has(r))) {
+      void renderOverview(true);
+    }
     if (["workspace", "bots"].some(resource => changed.has(resource)) && (location.hash || "#/chat") === "#/schedules") {
       void renderSchedules();
     }
@@ -10873,7 +10988,11 @@ async function startResourceStream() {
     const snapshot = await api("/v1/snapshot?limit=1");
     const source = new EventSource(`/api/v1/changes/stream?cursor=${encodeURIComponent(snapshot.change_cursor)}`);
     resourceStream = source;
-    refreshChangedResources(["bots", "runs", "approvals", "conversations"]);
+    // The route already loaded its visible resource from the same authoritative
+    // endpoints. Reconcile the shared shell directly here so startup does not
+    // repaint a form/detail page just after it becomes interactive.
+    void refreshRoster();
+    void refreshBadge();
     source.addEventListener("changes", event => {
       if (source !== resourceStream) return;
       try {
@@ -11003,13 +11122,27 @@ async function phoneRefresh({ quiet = false } = {}) {
     phoneModel.workflows = workflows.items || [];
     phoneModel.approvals = approvalsPage || [];
     phoneModel.workflowQuestions = questionsPage?.items || [];
-    if (phoneModel.selectedRun) {
-      try { phoneModel.selectedRun = await api(`/v1/tasks/runs/${encodeURIComponent(phoneModel.selectedRun.id)}`); }
-      catch (error) { if (error.status !== 404) throw error; phoneModel.selectedRun = null; }
+    const selectedRunId = phoneModel.selectedRun?.id;
+    if (selectedRunId) {
+      try {
+        const selectedRun = await api(`/v1/tasks/runs/${encodeURIComponent(selectedRunId)}`);
+        if (phoneModel.selectedRun?.id === selectedRunId) phoneModel.selectedRun = selectedRun;
+      }
+      catch (error) {
+        if (error.status !== 404) throw error;
+        if (phoneModel.selectedRun?.id === selectedRunId) phoneModel.selectedRun = null;
+      }
     }
-    if (phoneModel.selectedWorkflow) {
-      try { phoneModel.selectedWorkflow = await api(`/v1/phone/workflows/runs/${encodeURIComponent(phoneModel.selectedWorkflow.id)}`); }
-      catch (error) { if (error.status !== 404) throw error; phoneModel.selectedWorkflow = null; }
+    const selectedWorkflowId = phoneModel.selectedWorkflow?.id;
+    if (selectedWorkflowId) {
+      try {
+        const selectedWorkflow = await api(`/v1/phone/workflows/runs/${encodeURIComponent(selectedWorkflowId)}`);
+        if (phoneModel.selectedWorkflow?.id === selectedWorkflowId) phoneModel.selectedWorkflow = selectedWorkflow;
+      }
+      catch (error) {
+        if (error.status !== 404) throw error;
+        if (phoneModel.selectedWorkflow?.id === selectedWorkflowId) phoneModel.selectedWorkflow = null;
+      }
     }
     phoneModel.offline = false;
     if (!quiet) phoneModel.notice = "";

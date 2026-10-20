@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from tests.support.browser import wait_for_page
+
 import json
 import threading
 import time
@@ -13,6 +15,7 @@ import uvicorn  # noqa: E402
 
 from hutch.models import Bot  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
+from tests.support.artifacts import artifact_path
 
 
 @pytest.fixture(scope="module")
@@ -96,7 +99,7 @@ def test_saved_request_library_is_private_reusable_and_reviewed(browser, live, t
         page.locator("#task-template-name").fill("Launch review")
         page.locator("#task-template-prompt").fill("Review the launch plan and list risks.")
         template_viewports = []
-        artifacts = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/saved-requests"
+        artifacts = artifact_path("saved-requests")
         artifacts.mkdir(parents=True, exist_ok=True)
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024),
                                      ("phone", 390, 844), ("compact-phone", 320, 844)):
@@ -134,7 +137,7 @@ def test_saved_request_library_is_private_reusable_and_reviewed(browser, live, t
         page.locator("[data-saved-request-use]").click()
         assert page.locator("#chat-prompt").input_value() == "Review the launch plan and list risks."
         assert {run.id for run in store.list_runs()} == run_ids_before_use
-        page.wait_for_function("document.querySelector('#live-status')?.textContent.includes('Nothing was sent')")
+        wait_for_page(page, "document.querySelector('#live-status')?.textContent.includes('Nothing was sent')")
 
         page.locator("#composer-menu-btn").click()
         page.get_by_role("button", name="Browse saved requests").click()

@@ -29,6 +29,8 @@ import uvicorn  # noqa: E402
 from hutch.models import ApprovalMode, Bot, Event, EventType, Run, RunStatus, RuntimeKind, Schedule, Task  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
 from hutch.connections import ConnectionBook  # noqa: E402
+from tests.support.artifacts import artifact_path, repository_path
+from tests.support.browser import wait_for_page_value
 
 
 @pytest.fixture(scope="module")
@@ -49,9 +51,10 @@ def browser():
 
 
 @pytest.fixture()
-def live(tmp_path, monkeypatch):
+def live(tmp_path, monkeypatch, browser):
     monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
     monkeypatch.setenv("HUTCH_MAX_CONCURRENT", "4")
+    existing_contexts = set(browser.contexts)
     app = create_app()
     server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=0, log_level="error", lifespan="on"))
     t = threading.Thread(target=server.run, daemon=True)
@@ -60,10 +63,16 @@ def live(tmp_path, monkeypatch):
     while not server.started and time.time() < deadline:
         time.sleep(0.02)
     port = server.servers[0].sockets[0].getsockname()[1]
-    yield f"http://127.0.0.1:{port}", app
-    server.should_exit = True
-    t.join(timeout=10)
-    assert not t.is_alive()
+    try:
+        yield f"http://127.0.0.1:{port}", app
+    finally:
+        # Tests may fail before closing a context. Stop its EventSource and other
+        # browser requests before asking Uvicorn and the app lifespan to shut down.
+        for context in set(browser.contexts) - existing_contexts:
+            context.close()
+        server.should_exit = True
+        t.join(timeout=10)
+        assert not t.is_alive()
 
 
 def test_executor_health_status_uses_a_steady_indicator(browser, live):
@@ -159,7 +168,7 @@ def test_delegated_wait_status_is_responsive_and_reviewable(browser, live, monke
             "id": "call-visual", "name": "delegate_task", "arguments": {"task": child.prompt}}}),
         event={"reason": "delegated child is working"})
 
-    artifacts = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/delegation-wait-20261011"
+    artifacts = artifact_path("delegation-wait-20261011")
     artifacts.mkdir(parents=True, exist_ok=True)
     page_errors, failed_requests = [], []
     context = browser.new_context(viewport={"width": 1440, "height": 1000}, device_scale_factor=1,
@@ -223,19 +232,25 @@ def test_delegated_wait_status_is_responsive_and_reviewable(browser, live, monke
         assert forced_colors
         forced_status_style = status.first.evaluate("""el => {
           const style = getComputedStyle(el);
-          const canvasProbe = document.createElement('span');
-          canvasProbe.style.cssText = 'position:fixed;color:CanvasText;background-color:Canvas';
-          document.body.append(canvasProbe);
-          const canvasColor = getComputedStyle(canvasProbe).backgroundColor;
-          canvasProbe.remove();
-          const rgb = value => value.match(/[\\d.]+/g).slice(0, 3).map(Number);
+          const resolveColor = (value, property) => {
+            const probe = document.createElement('span');
+            probe.style.cssText = `position:fixed;${property}:${value}`;
+            document.body.append(probe);
+            const resolved = getComputedStyle(probe)[property];
+            probe.remove();
+            const channels = resolved.match(/[\\d.]+/g);
+            if (!channels) throw new Error(`Could not resolve forced color ${value}: ${resolved}`);
+            return channels.slice(0, 3).map(Number);
+          };
           const luminance = value => value.map(channel => {
             channel /= 255;
             return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
           }).reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
-          const [foreground, background] = [luminance(rgb(style.color)), luminance(rgb(canvasColor))]
+          const foregroundColor = resolveColor(style.color, 'color');
+          const backgroundColor = resolveColor('Canvas', 'backgroundColor');
+          const [foreground, background] = [luminance(foregroundColor), luminance(backgroundColor)]
             .sort((a, b) => b - a);
-          return {color: style.color, canvas: canvasColor,
+          return {color: style.color, canvas: backgroundColor,
                   contrast: (foreground + 0.05) / (background + 0.05)};
         }""")
         assert forced_status_style["contrast"] >= 4.5, forced_status_style
@@ -245,10 +260,16 @@ def test_delegated_wait_status_is_responsive_and_reviewable(browser, live, monke
         assert status.first.is_visible() and stop.is_enabled()
         page.screenshot(path=str(artifacts / "forced-colors-320.png"), full_page=True)
         page.emulate_media(forced_colors="none")
-        owner_stop_box = stop.bounding_box()
-        assert owner_stop_box and owner_stop_box["width"] >= 44 and owner_stop_box["height"] >= 44
+        owner_stop_box = wait_for_page_value(page, """() => {
+          const button = document.querySelector('#stop-this-run');
+          if (!button || !button.isConnected) return null;
+          const rect = button.getBoundingClientRect();
+          return rect.width >= 44 && rect.height >= 44
+            ? {width: rect.width, height: rect.height} : null;
+        }""")
+        assert owner_stop_box["width"] >= 44 and owner_stop_box["height"] >= 44, owner_stop_box
         stop.focus()
-        assert page.evaluate("el => document.activeElement === el", stop.element_handle())
+        wait_for_page(page, "() => document.activeElement?.id === 'stop-this-run'")
     finally:
         try:
             context.tracing.stop(path=str(artifacts / "trace.zip"))
@@ -280,10 +301,16 @@ def test_delegated_wait_status_is_responsive_and_reviewable(browser, live, monke
         assert "reason" not in phone_progress.inner_text()
         phone_stop = phone.get_by_role("button", name="Stop run")
         phone_stop.wait_for()
-        phone_stop_box = phone_stop.bounding_box()
+        wait_for_page(phone, "() => { const stop = document.querySelector('[data-phone-stop]'); "
+                            "if (!stop || !stop.isConnected) return false; "
+                            "const rect = stop.getBoundingClientRect(); "
+                            "return rect.width >= 44 && rect.height >= 44; }")
+        phone_stop_box = phone.evaluate("() => { const rect = document.querySelector('[data-phone-stop]')?.getBoundingClientRect(); "
+                                        "return rect ? {width: rect.width, height: rect.height} : null; }")
         assert phone_stop_box and phone_stop_box["width"] >= 44 and phone_stop_box["height"] >= 44
         phone_stop.focus()
-        assert phone.evaluate("el => document.activeElement === el", phone_stop.element_handle())
+        wait_for_page(phone, "() => { const stop = document.querySelector('[data-phone-stop]'); "
+                            "return !!stop && stop.isConnected && document.activeElement === stop; }")
         phone_metrics = phone.evaluate("() => ({client: document.documentElement.clientWidth, "
                                        "scroll: document.documentElement.scrollWidth})")
         assert phone_metrics["scroll"] <= phone_metrics["client"] + 1, phone_metrics
@@ -393,7 +420,7 @@ def test_paired_phone_monitors_and_reviews_redacted_workflows(browser, live):
         "credential_id": secrets.token_bytes(24), "public_key": b"browser-workflow-phone-key", "sign_count": 0,
         "backup_eligible": True, "backed_up": True, "user_handle": store.webauthn_user_handle(),
     })
-    artifacts = Path(__file__).parents[2] / "docs/realignment/artifacts/workflow-studio/phone"
+    artifacts = artifact_path("workflow-studio/phone")
     artifacts.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=1)
     context.tracing.start(screenshots=True, snapshots=True, sources=True)
@@ -440,6 +467,11 @@ def test_paired_phone_monitors_and_reviews_redacted_workflows(browser, live):
         question_dimensions_320 = page.evaluate(
             "({viewport: innerWidth, document: document.documentElement.scrollWidth})")
         assert question_dimensions_320["document"] <= question_dimensions_320["viewport"]
+        page.wait_for_function("""() => {
+          const buttons = [...document.querySelectorAll('.phone-workflow-answer-form button[type=submit]')];
+          return buttons.length === 2 && buttons.every(button => button.isConnected
+            && button.getBoundingClientRect().height >= 44);
+        }""")
         question_answer_heights = page.locator(
             ".phone-workflow-answer-form button[type=submit]").evaluate_all(
                 "items => items.map(el => Math.round(el.getBoundingClientRect().height))")
@@ -514,7 +546,8 @@ def test_paired_phone_monitors_and_reviews_redacted_workflows(browser, live):
     hashes = {name: hashlib.sha256((artifacts / name).read_bytes()).hexdigest() for name in screenshots}
     hashes["paired-phone-workflows-trace.zip"] = hashlib.sha256(
         (artifacts / "paired-phone-workflows-trace.zip").read_bytes()).hexdigest()
-    hashes["visual-review.md"] = hashlib.sha256((artifacts / "visual-review.md").read_bytes()).hexdigest()
+    visual_review = repository_path("docs/realignment/artifacts/workflow-studio/phone/visual-review.md")
+    hashes["visual-review.md"] = hashlib.sha256(visual_review.read_bytes()).hexdigest()
     (artifacts / "paired-phone-workflows-results.json").write_text(json.dumps({
         "fixture_boundary": "Real SQLite workflow submission, supervisor ask nodes, phone API, CSRF/idempotency and browser UI; no model request.",
         "viewports": {"review_and_detail": [390, 844], "reflow": [320, 780]},
@@ -554,7 +587,7 @@ def test_paired_phone_reviews_the_exact_approval_once(browser, live):
         "backup_eligible": True, "backed_up": True, "user_handle": store.webauthn_user_handle(),
     })
 
-    artifacts = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workflow-studio/phone"
+    artifacts = artifact_path("workflow-studio/phone")
     artifacts.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 390, "height": 844})
     page = context.new_page()
@@ -603,7 +636,7 @@ def test_paired_phone_reviews_the_exact_approval_once(browser, live):
         context.tracing.stop(path=str(artifacts / "phone-approval-trace.zip"))
         context.close()
     artifact_names = ["phone-approval-390.png", "phone-approval-320.png",
-                      "phone-approval-trace.zip", "visual-review.md"]
+                      "phone-approval-trace.zip"]
     (artifacts / "phone-approval-results.json").write_text(json.dumps({
         "test": "tests/e2e/test_browser.py::test_paired_phone_reviews_the_exact_approval_once",
         "captured_at": datetime.now(timezone.utc).isoformat(),
@@ -616,6 +649,9 @@ def test_paired_phone_reviews_the_exact_approval_once(browser, live):
         "page_errors": errors,
         "artifact_sha256": {name: hashlib.sha256((artifacts / name).read_bytes()).hexdigest()
                             for name in artifact_names},
+        "visual_review_sha256": hashlib.sha256(
+            repository_path("docs/realignment/artifacts/workflow-studio/phone/visual-review.md").read_bytes()
+        ).hexdigest(),
         "source_sha256": {name: hashlib.sha256((Path(__file__).resolve().parents[2] / name).read_bytes()).hexdigest()
                           for name in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                        "tests/e2e/test_browser.py")},
@@ -663,8 +699,7 @@ def test_paired_phone_keeps_mixed_question_and_approval_pending_in_either_order(
         "credential_id": secrets.token_bytes(24), "public_key": b"mixed-review-phone-key", "sign_count": 0,
         "backup_eligible": True, "backed_up": True, "user_handle": store.webauthn_user_handle(),
     })
-    artifacts = (Path(__file__).resolve().parents[2]
-                 / "docs/realignment/artifacts/workflow-studio/mixed-review-2026-10-11")
+    artifacts = (artifact_path("workflow-studio/mixed-review-2026-10-11"))
     artifacts.mkdir(parents=True, exist_ok=True)
     order_label = "-".join(decision_order)
     capture_names = [f"needs-you-{order_label}-390.png", f"needs-you-{order_label}-320.png",
@@ -784,8 +819,7 @@ def test_paired_phone_keeps_multiple_approvals_independently_pending(
         "sign_count": 0, "backup_eligible": True, "backed_up": True,
         "user_handle": store.webauthn_user_handle(),
     })
-    artifacts = (Path(__file__).resolve().parents[2]
-                 / "docs/realignment/artifacts/workflow-studio/multiple-approvals-2026-10-11")
+    artifacts = (artifact_path("workflow-studio/multiple-approvals-2026-10-11"))
     artifacts.mkdir(parents=True, exist_ok=True)
     order_label = "-".join(str(index) for index in decision_order)
     capture_names = [f"approvals-{order_label}-390.png", f"approvals-{order_label}-320.png",
@@ -920,8 +954,7 @@ def test_workflow_publishes_a_verified_chart_that_renders_in_a_browser(browser, 
     artifact = view["workflow"]["result"]["artifacts"][0]
     assert artifact["media_type"] == "image/svg+xml"
 
-    artifacts = (Path(__file__).resolve().parents[2]
-                 / "docs/realignment/artifacts/dynamic-workflows/expense-chart")
+    artifacts = (artifact_path("dynamic-workflows/expense-chart"))
     artifacts.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 960, "height": 420})
     page = context.new_page()
@@ -1010,8 +1043,7 @@ def test_workflow_studio_lists_and_resolves_every_pending_question(browser, live
              "args": {"value": {"ref": "review.items"}}},
         ],
     }
-    out = Path(__file__).resolve().parents[2] / \
-        "docs/realignment/artifacts/workflow-studio/multiple-questions-2026-10-11"
+    out = artifact_path("workflow-studio/multiple-questions-2026-10-11")
     out.mkdir(parents=True, exist_ok=True)
     page = browser.new_page(viewport={"width": 1440, "height": 960}, device_scale_factor=1)
     context = page.context
@@ -1306,7 +1338,7 @@ def test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports(bro
                   {"kind": "transform", "id": "carry_answer", "op": "constant",
                    "args": {"value": {"ref": "review.answer"}}}],
     }
-    artifacts = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workflow-studio/pause-resume-2026-10-11"
+    artifacts = artifact_path("workflow-studio/pause-resume-2026-10-11")
     artifacts.mkdir(parents=True, exist_ok=True)
     page = browser.new_page(viewport={"width": 1440, "height": 960}, device_scale_factor=1)
     context = page.context
@@ -1556,8 +1588,7 @@ def test_workflow_question_draft_survives_tcp_disconnect_and_reconnect(browser, 
                   {"kind": "transform", "id": "carry_answer", "op": "constant",
                    "args": {"value": {"ref": "review.answer"}}}],
     }
-    artifacts = Path(__file__).resolve().parents[2] / (
-        "docs/realignment/artifacts/workflow-studio/workflow-reconnect-2026-10-11")
+    artifacts = artifact_path("workflow-studio/workflow-reconnect-2026-10-11")
     artifacts.mkdir(parents=True, exist_ok=True)
     saved = page = context = proxy = None
     errors = []
@@ -1700,8 +1731,7 @@ def test_workflow_studio_pause_after_active_work_at_all_viewports(browser, live,
              "op": "constant", "args": {"value": {"ref": "in_flight"}}},
         ],
     }
-    artifacts = Path(__file__).resolve().parents[2] / (
-        "docs/realignment/artifacts/workflow-studio/pause-resume-2026-10-11")
+    artifacts = artifact_path("workflow-studio/pause-resume-2026-10-11")
     artifacts.mkdir(parents=True, exist_ok=True)
     page = browser.new_page(viewport={"width": 1440, "height": 960}, device_scale_factor=1)
     context = page.context
@@ -1737,8 +1767,19 @@ def test_workflow_studio_pause_after_active_work_at_all_viewports(browser, live,
                 overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
                 assert overflow <= 1, f"{label} {state} view has horizontal overflow: {overflow}px"
                 action = panel.get_by_role("button", name=expected_button) if expected_button else None
-                target_bounds = action.bounding_box() if action else None
+                target_bounds = None
                 if action:
+                    deadline = time.monotonic() + 5
+                    previous_bounds = None
+                    while time.monotonic() < deadline:
+                        target_bounds = page.evaluate("expected => { const button = [...document.querySelectorAll('#workflow-panel button')].find("
+                            "item => item.innerText.trim() === expected); if (!button || !button.isConnected) return null; "
+                            "const rect = button.getBoundingClientRect(); return rect.width > 0 && rect.height > 0 ? "
+                            "{x: rect.x, y: rect.y, width: rect.width, height: rect.height} : null; }", expected_button)
+                        if target_bounds is not None and target_bounds == previous_bounds:
+                            break
+                        previous_bounds = target_bounds
+                        time.sleep(0.05)
                     assert target_bounds is not None
                     assert target_bounds["height"] >= (44 if width <= 520 else 24)
                 image_name = f"active-pause-{state.lower().replace(' ', '-')}-{label}.png"
@@ -1843,6 +1884,7 @@ def test_paired_phone_can_stop_a_run_and_resume_the_current_human_wait(browser, 
     store, engine = app.state.store, app.state.engine
     monkeypatch.delenv("HUTCH_AUTH_TOKEN", raising=False)
     monkeypatch.setattr(engine, "tick", lambda: None)
+    monkeypatch.setattr(engine, "dispatch_pending", lambda: 0)
     stop_bot = store.create_bot(Bot(name="phone-stop", model="mock/demo", tools=[]))
     stop_run = engine.submit(stop_bot, "stop this pending task")
 
@@ -1866,6 +1908,27 @@ def test_paired_phone_can_stop_a_run_and_resume_the_current_human_wait(browser, 
 
     context = browser.new_context(viewport={"width": 390, "height": 844})
     page = context.new_page()
+    phone_page_errors: list[str] = []
+    phone_responses: list[dict[str, str | int]] = []
+    page.on("pageerror", lambda error: phone_page_errors.append(str(error)))
+    page.on("response", lambda response: phone_responses.append({"url": response.url, "status": response.status})
+            if "/v1/session" in response.url or "/v1/tasks/runs" in response.url else None)
+
+    def phone_state():
+        return page.evaluate("""() => ({
+          phoneText: document.querySelector('#phone-root')?.innerText || null,
+          renderedRunIds: [...document.querySelectorAll('[data-phone-run]')].map(node => node.dataset.phoneRun),
+          model: typeof phoneModel === 'undefined' ? 'unavailable' : {
+            tab: phoneModel.tab, selectedRun: phoneModel.selectedRun && {
+              id: phoneModel.selectedRun.id, status: phoneModel.selectedRun.status,
+            }, runIds: (phoneModel.runs || []).map(run => ({id:run.id, status:run.status})),
+            offline: phoneModel.offline, refreshInFlight: phoneRefreshInFlight,
+          },
+          session: typeof hutchSession === 'undefined' ? 'unavailable' : {
+            principal: hutchSession?.principal, capabilities: hutchSession?.capabilities,
+          },
+        })""")
+
     try:
         context.add_cookies([{"name": "hutch_session", "value": paired["session_token"], "url": base}])
         page.goto(base + "/")
@@ -1874,7 +1937,11 @@ def test_paired_phone_can_stop_a_run_and_resume_the_current_human_wait(browser, 
 
         page.locator(f'[data-phone-run="{stop_run.id}"]').click()
         stop_button = page.get_by_role("button", name="Stop run")
-        stop_button.wait_for()
+        try:
+            stop_button.wait_for(timeout=3_000)
+        except Exception as exc:
+            raise AssertionError({"missing": "Stop run", "error": str(exc), "phone_state": phone_state(),
+                                  "page_errors": phone_page_errors, "responses": phone_responses}) from exc
         with page.expect_response(lambda response: response.url.endswith(
                 f"/api/v1/tasks/runs/{stop_run.id}/stop")) as stopped:
             stop_button.click()
@@ -1885,7 +1952,27 @@ def test_paired_phone_can_stop_a_run_and_resume_the_current_human_wait(browser, 
         wait_for(lambda: store.get_run(stop_run.id).status is RunStatus.stopped)
 
         page.get_by_role("button", name="All runs").click()
-        page.locator(f'[data-phone-run="{resume_run.id}"]').click()
+        # The phone view refreshes its run snapshot asynchronously. Confirm the
+        # authoritative list contains the seeded wait before asserting its card
+        # has been rendered, so a prior in-flight refresh cannot make the test
+        # race the view's first snapshot.
+        with page.expect_response(lambda response: response.url.endswith(
+                "/api/v1/tasks/runs?limit=40")) as run_list:
+            page.get_by_role("button", name="Refresh").click()
+        assert run_list.value.status == 200, run_list.value.text()
+        response_runs = run_list.value.json()
+        assert any(run["id"] == resume_run.id for run in response_runs), \
+            "the paired run listing omitted the seeded human wait"
+        resume_card = page.locator(f'[data-phone-run="{resume_run.id}"]')
+        try:
+            resume_card.wait_for(state="visible", timeout=3_000)
+        except Exception as exc:
+            raise AssertionError({
+                "error": str(exc), "expected_run": resume_run.id,
+                "response_run_ids": [run["id"] for run in response_runs], "phone_state": phone_state(),
+                "page_errors": phone_page_errors, "responses": phone_responses,
+            }) from exc
+        resume_card.click()
         resume_button = page.get_by_role("button", name="Resume after completing the requested step")
         resume_button.wait_for()
         assert resume_button.get_attribute("data-human-seq") == str(human_event_seq)
@@ -1981,7 +2068,7 @@ def test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences(
         store.create_bot(bot)
     live_run = store.create_run(Run(bot_id=bots[0].id, prompt="already admitted work", status=RunStatus.running))
 
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/schedules"
+    out = artifact_path("schedules")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -2081,9 +2168,14 @@ def test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences(
         page.reload()
         page.get_by_role("heading", name="No recurring tasks yet").wait_for()
         assert page.get_by_role("link", name="Set up West Coast Review").count() == 0
-        page.locator(".schedule-empty-bots summary").click()
-        assert page.get_by_role("link", name="Set up West Coast Review").count() == 1
-        assert page.get_by_role("link", name="Set up London Digest").count() == 1
+        empty_bots = page.locator(".schedule-empty-bots")
+        if empty_bots.get_attribute("open") is None:
+            empty_bots.locator(":scope > summary").click()
+        assert empty_bots.get_attribute("open") is not None
+        assert page.get_by_role("link", name="Set up West Coast Review").count() == 1, empty_bots.inner_html()
+        assert page.get_by_role("link", name="Set up London Digest").count() == 1, {
+            "markup": empty_bots.inner_html(), "bots": [bot.name for bot in store.list_bots()],
+        }
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024),
                                      ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
@@ -2135,7 +2227,7 @@ def test_chatgpt_background_permission_is_explicit_responsive_and_reversible(bro
     connection = ConnectionBook(app.state.config.state_dir).add_chatgpt_account(account_id, "Fixture account")
     bot = app.state.store.create_bot(Bot(name="weekly-review", display_name="Weekly Project Reviewer",
                                          model=f"{connection.name}/gpt-fixture", tools=[]))
-    output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/chatgpt-background-consent"
+    output = artifact_path("chatgpt-background-consent")
     output.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -2237,12 +2329,12 @@ def test_run_detail_reports_transcript_chain_verification_and_tampering(browser,
     errors: list[str] = []
     external: list[str] = []
     verification_responses: list[dict[str, str | int]] = []
-    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("pageerror", lambda error: errors.append(f"{error}\n{error.stack or ''}"))
     page.on("request", lambda request: external.append(request.url)
             if not request.url.startswith(base) else None)
     page.on("response", lambda response: verification_responses.append({"url": response.url, "status": response.status})
             if response.url.endswith(f"/api/v1/tasks/runs/{run.id}/verify") else None)
-    output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/transcript-integrity"
+    output = artifact_path("transcript-integrity")
     output.mkdir(parents=True, exist_ok=True)
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
@@ -2373,7 +2465,7 @@ def test_run_detail_reports_transcript_chain_verification_and_tampering(browser,
             "tampering_detected_at_seq": 1,
             "tamper_capture": "tampered-desktop.png",
             "tamper_viewport": [1440, 960],
-            "source_sha256": {path: hashlib.sha256((output.parents[3] / path).read_bytes()).hexdigest()
+            "source_sha256": {path: hashlib.sha256(repository_path(path).read_bytes()).hexdigest()
                               for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                            "src/hutch/server/app.py", "src/hutch/store.py")},
         }, indent=2) + "\n", encoding="utf-8")
@@ -2395,7 +2487,7 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
                                 action="approve", actor="fixture")
     app.state.store.set_workspace_coordinator(coordinator.id)
     app.state.store.set_workspace_specialists([specialist.id])
-    output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workspace-task-dispatch"
+    output = artifact_path("workspace-task-dispatch")
     output.mkdir(parents=True, exist_ok=True)
     sizes = {"desktop": (1440, 960), "tablet": (900, 1024), "phone": (390, 844)}
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
@@ -2573,7 +2665,13 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
         for label, (width, height) in sizes.items():
             page.set_viewport_size({"width": width, "height": height})
             assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
-            page.locator("#chat-stream .msg.agent .mhead").last.scroll_into_view_if_needed()
+            page.wait_for_function("""() => {
+              const headers = document.querySelectorAll('#chat-stream .msg.agent .mhead');
+              const current = headers[headers.length - 1];
+              if (!current || !current.isConnected) return false;
+              current.scrollIntoView({block: 'nearest'});
+              return true;
+            }""")
             page.locator(".toast").wait_for(state="detached", timeout=6000)
             page.screenshot(path=str(output / f"result-return-{label}.png"), animations="disabled")
         page.locator("[data-open-workspace-task]").click()
@@ -2632,7 +2730,7 @@ def test_opencode_coding_handoff_is_reviewed_and_responsive(browser, live, tmp_p
         return "/fixture/opencode", "2.0.24"
 
     monkeypatch.setattr(code_handoff, "inspect_opencode", check_cli)
-    output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/opencode-handoff"
+    output = artifact_path("opencode-handoff")
     output.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     context.grant_permissions(["clipboard-read", "clipboard-write"], origin=base)
@@ -2651,7 +2749,9 @@ def test_opencode_coding_handoff_is_reviewed_and_responsive(browser, live, tmp_p
         page.locator("#chat-send").click()
         prepare = page.get_by_role("button", name="Prepare coding task")
         prepare.wait_for(timeout=15000)
-        page.locator("#toast-root .toast-close").first.click()
+        toast_close = page.locator("#toast-root .toast-close").first
+        if toast_close.is_visible():
+            toast_close.click()
         prepare.click()
         dialog = page.get_by_role("dialog", name="Prepare a coding task for OpenCode")
         dialog.wait_for()
@@ -2729,7 +2829,7 @@ def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(brows
     """Inspect the real dashboard styles at desktop, tablet, and phone widths."""
     base, app = live
     app.state.store.create_bot(Bot(name="dashboard-polish", model="mock/demo", tools=[]))
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/dashboard-polish"
+    out = artifact_path("dashboard-polish")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960})
     page = context.new_page()
@@ -2878,7 +2978,7 @@ def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(brows
             "playwright_version": package_version("playwright"),
             "scenario": "Offscreen fixture assertions for working, workflow, running-status and success/error styles; clean Studio and server-rendered Connections captures; no run or provider call",
             "provider_calls": 0, "page_errors": errors, "captures": captures,
-            "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
+            "source_sha256": {path: hashlib.sha256(repository_path(path).read_bytes()).hexdigest()
                               for path in ("app/src/input.css", "src/hutch/server/static/ui.css",
                                            "src/hutch/server/static/style.css", "src/hutch/server/static/hutch.css",
                                            "src/hutch/server/static/app.js")},
@@ -2913,7 +3013,7 @@ def test_activity_omits_empty_sections_when_attention_is_needed(browser, live):
                        "tool": "gmail_send", "risk": "high", "action": "Send the reviewed follow-up"}],
         "humans": [], "failures": [], "running": [], "stale": [],
     }
-    output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/ui-surface-review"
+    output = artifact_path("ui-surface-review")
     output.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -3021,7 +3121,7 @@ def test_safe_checkpoint_continuation_is_reviewed_and_starts_a_new_attempt(brows
     store.transition_run(child_run_id, RunStatus.failed, fence=child_owner.fence,
                          exit_reason="interrupted", error="fixture interruption")
 
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/safe-task-continuation"
+    out = artifact_path("safe-task-continuation")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -3109,7 +3209,7 @@ def test_provider_connections_fit_phone_viewports_and_capture_signin_states(brow
     page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/provider-signin"
+    out = artifact_path("provider-signin")
     out.mkdir(parents=True, exist_ok=True)
     try:
         page.goto(base + "/#/connections")
@@ -3188,7 +3288,7 @@ def test_workflow_amendment_preview_adoption_is_explicit_and_responsive(browser,
 
     artifact_override = os.environ.get("HUTCH_WORKFLOW_AMENDMENT_ARTIFACTS")
     artifacts = (Path(artifact_override) if artifact_override else
-                 Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workflow-studio/amendment")
+                 artifact_path("workflow-studio/amendment"))
     artifacts.mkdir(parents=True, exist_ok=True)
     page = browser.new_page(viewport={"width": 1440, "height": 960}, device_scale_factor=1)
     errors: list[str] = []
@@ -3311,7 +3411,7 @@ def test_workflow_amendment_preview_adoption_is_explicit_and_responsive(browser,
             "cancellation_choice_bounds": label_bounds,
             "fixed_footer_bounds": footer_bounds,
             "page_errors": errors, "failed_requests": failed_requests, "provider_calls": 0,
-            "source_sha256": {relative: hashlib.sha256((artifacts.parents[4] / relative).read_bytes()).hexdigest()
+            "source_sha256": {relative: hashlib.sha256(repository_path(relative).read_bytes()).hexdigest()
                               for relative in source_paths},
             "visual_artifact_sha256": visual_artifacts,
         }, indent=2) + "\n", encoding="utf-8")
@@ -3369,8 +3469,7 @@ def test_workflow_amendment_carry_preview_is_clear_and_responsive(browser, live,
     workflow_id = submission.workflow_run_id
     artifacts_override = os.environ.get("HUTCH_WORKFLOW_AMENDMENT_CARRY_ARTIFACTS")
     artifacts = (Path(artifacts_override) if artifacts_override else
-                 Path(__file__).resolve().parents[2] /
-                 "docs/realignment/artifacts/workflow-studio/amendment-carry-active-step-2026-10-11")
+                 artifact_path("workflow-studio/amendment-carry-active-step-2026-10-11"))
     artifacts.mkdir(parents=True, exist_ok=True)
     page = browser.new_page(viewport={"width": 1440, "height": 960}, device_scale_factor=1,
                             reduced_motion="reduce")
@@ -3474,7 +3573,7 @@ def test_workflow_amendment_carry_preview_is_clear_and_responsive(browser, live,
             "interaction": "live tool-free worker remained active while the owner inspected a later-node amendment; carry contract and adoption readiness were visible",
             "view_state": "owner-local amendment editor shows the read-only candidate diff and one live, unchanged, tool-free worker child; adoption is enabled while that exact child remains under its original run contract",
             "page_errors": errors, "failed_requests": failed_requests, "provider_calls": 0,
-            "source_sha256": {relative: hashlib.sha256((artifacts.parents[4] / relative).read_bytes()).hexdigest()
+            "source_sha256": {relative: hashlib.sha256(repository_path(relative).read_bytes()).hexdigest()
                               for relative in source_paths},
             "visual_artifact_sha256": visual_artifacts,
         }, indent=2) + "\n", encoding="utf-8")
@@ -3683,7 +3782,7 @@ def test_workflow_amendment_drain_control_is_owner_reviewable_and_responsive(bro
 
 def test_model_capability_observations_show_unknown_and_latest_evidence(browser, live):
     base, _app = live
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/model-capabilities"
+    out = artifact_path("model-capabilities")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -3852,7 +3951,7 @@ def test_google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone(browser
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("request", lambda request: external.append(request.url)
             if not request.url.startswith(base) else None)
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/google-calendar"
+    out = artifact_path("google-calendar")
     out.mkdir(parents=True, exist_ok=True)
     try:
         page.goto(base + "/#/connections")
@@ -3910,7 +4009,7 @@ def test_google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone(browser
             "provider_credentials_used": False, "provider_calls": 0,
             "scenario": "Synthetic connected-account metadata and calendar-list fixture; exercised actual local API grant persistence, Bot binding, disclosure and revoke control",
             "external_requests": external, "page_errors": errors, "captures": captures,
-            "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
+            "source_sha256": {path: hashlib.sha256(repository_path(path).read_bytes()).hexdigest()
                               for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                            "src/hutch/server/app.py", "src/hutch/server/security.py",
                                            "src/hutch/store.py", "src/hutch/google_calendar.py",
@@ -3999,7 +4098,7 @@ def test_google_calendar_event_creation_scope_is_explicit_and_owner_only(browser
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("request", lambda request: external.append(request.url)
             if not request.url.startswith(base) else None)
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/google-calendar-event-creation"
+    out = artifact_path("google-calendar-event-creation")
     out.mkdir(parents=True, exist_ok=True)
     captures = []
     try:
@@ -4079,7 +4178,7 @@ def test_google_calendar_event_creation_scope_is_explicit_and_owner_only(browser
             "provider_credentials_used": False, "provider_calls": 0,
             "scenario": "Fixture-only account consent metadata, owner calendar selection, disabled shared-writer grant, exact user review, local persistence and explicit OAuth scope choice",
             "external_requests": external, "page_errors": errors, "captures": captures,
-            "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
+            "source_sha256": {path: hashlib.sha256(repository_path(path).read_bytes()).hexdigest()
                               for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                            "src/hutch/server/app.py", "src/hutch/store.py",
                                            "src/hutch/google_calendar.py", "src/hutch/tools/google_calendar.py")},
@@ -4096,7 +4195,7 @@ def test_gmail_preview_discloses_restricted_scope_and_requires_local_setup(brows
     from pathlib import Path
 
     base, _ = live
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/google-mail"
+    out = artifact_path("google-mail")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -4161,7 +4260,7 @@ def test_gmail_preview_discloses_restricted_scope_and_requires_local_setup(brows
             "external_requests": external, "page_errors": errors, "captures": captures,
             "inspected_screenshots": [f"{scene}-{size}.png" for size in ("desktop", "tablet", "phone", "compact-phone")
                                       for scene in ("client-setup", "unconfigured")],
-            "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
+            "source_sha256": {path: hashlib.sha256(repository_path(path).read_bytes()).hexdigest()
                               for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                            "src/hutch/server/app.py", "src/hutch/google_oauth_config.py",
                                            "src/hutch/google_calendar.py", "docs/connections.md", "docs/requirements.md")},
@@ -4175,7 +4274,7 @@ def test_google_oauth_environment_override_is_readonly_in_connections(browser, l
 
     base, _ = live
     monkeypatch.setenv("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "operator-preview.apps.googleusercontent.com")
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/google-mail"
+    out = artifact_path("google-mail")
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
     errors, external = [], []
@@ -4217,7 +4316,7 @@ def test_google_oauth_environment_override_is_readonly_in_connections(browser, l
             "external_requests": external, "page_errors": errors, "captures": captures,
             "inspected_screenshots": [f"operator-managed-{size}.png"
                                       for size in ("desktop", "tablet", "phone", "compact-phone")],
-            "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
+            "source_sha256": {path: hashlib.sha256(repository_path(path).read_bytes()).hexdigest()
                               for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                            "src/hutch/server/app.py", "src/hutch/google_oauth_config.py")},
         }, indent=2) + "\n", encoding="utf-8")
@@ -4290,7 +4389,7 @@ def test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone(browser, l
     errors, external = [], []
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("request", lambda request: external.append(request.url) if not request.url.startswith(base) else None)
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/google-mail"
+    out = artifact_path("google-mail")
     out.mkdir(parents=True, exist_ok=True)
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
@@ -4366,7 +4465,7 @@ def test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone(browser, l
             "scenario": "Synthetic connected Gmail account; local grant is persisted only for a loopback Local-inference Bot; hybrid Bot is absent; fixed Google OAuth destination is opened with no opener; no external network requests",
             "external_requests": external, "page_errors": errors, "captures": captures,
             "client_change_review": client_review_sizes,
-            "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
+            "source_sha256": {path: hashlib.sha256(repository_path(path).read_bytes()).hexdigest()
                               for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                            "src/hutch/server/app.py", "src/hutch/server/security.py", "src/hutch/store.py",
                                            "src/hutch/google_calendar.py", "src/hutch/google_mail.py",
@@ -4495,7 +4594,7 @@ def test_browser_hands_off_when_a_wait_reveals_a_sensitive_field(browser, live, 
         status=200, content_type="text/html", body="""<!doctype html><main id="form">Loading</main>
           <script>window.hutchMarker='same-live-page'; setTimeout(() => {
           document.querySelector('#form').innerHTML='<label>Password <input type="password" name="account-secret"></label>';
-          }, 40);</script>"""))
+          }, 250);</script>"""))
     page.goto(url)
     tool = BrowserTool()
     tool._ensure = lambda _ctx: SimpleNamespace(pages=[page])
@@ -4508,7 +4607,7 @@ def test_browser_hands_off_when_a_wait_reveals_a_sensitive_field(browser, live, 
 
     ctx.gate.wait_for_human = resume_human
     try:
-        result = tool.run({"action": "wait", "seconds": 0.1}, ctx)
+        result = tool.run({"action": "wait", "seconds": 0.5}, ctx)
         assert len(handoffs) == 1
         assert "sensitive field" in handoffs[0][0].lower()
         assert not result.ok and result.data["sensitive_field_revealed"]
@@ -4620,7 +4719,7 @@ def test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewport
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("request", lambda request: external.append(request.url)
             if not request.url.startswith(base) else None)
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/outlook-calendar"
+    out = artifact_path("outlook-calendar")
     out.mkdir(parents=True, exist_ok=True)
     try:
         page.goto(base + "/#/connections")
@@ -4694,7 +4793,7 @@ def test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewport
             "provider_credentials_used": False, "provider_calls": 0,
             "scenario": "Synthetic Microsoft account metadata and calendar list; actual local API persists one Bot grant; sign-in navigation is intercepted",
             "external_requests": external, "page_errors": errors, "captures": captures,
-            "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
+            "source_sha256": {path: hashlib.sha256(repository_path(path).read_bytes()).hexdigest()
                               for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                            "src/hutch/server/app.py", "src/hutch/server/security.py",
                                            "src/hutch/store.py", "src/hutch/outlook_calendar.py",
@@ -4762,7 +4861,7 @@ def test_outlook_calendar_event_creation_is_separate_approved_and_responsive(bro
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("request", lambda request: external.append(request.url)
             if not request.url.startswith(base) else None)
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/outlook-calendar-write"
+    out = artifact_path("outlook-calendar-write")
     out.mkdir(parents=True, exist_ok=True)
     try:
         page.goto(base + "/#/connections")
@@ -4853,7 +4952,7 @@ def test_outlook_calendar_event_creation_is_separate_approved_and_responsive(bro
             "external_requests": external, "page_errors": errors,
             "permission_review_captures": permission_captures,
             "approval_notice_captures": approval_notice_captures, "grant_captures": captures,
-            "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
+            "source_sha256": {path: hashlib.sha256(repository_path(path).read_bytes()).hexdigest()
                               for path in ("src/hutch/server/static/app.js", "src/hutch/server/app.py",
                                            "src/hutch/server/security.py", "src/hutch/store.py",
                                            "src/hutch/outlook_calendar_write.py", "src/hutch/tools/outlook_calendar_write.py")},
@@ -4901,7 +5000,7 @@ def test_outlook_mail_grant_and_consent_boundary_fit_all_viewports(browser, live
     monkeypatch.setattr("hutch.outlook_mail.OutlookMailBook", FixtureOutlookMailBook)
     bot = Bot(name="mail-assistant", display_name="Mail Assistant", model="mock/demo", tools=[])
     app.state.store.create_bot(bot)
-    output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/outlook-mail"
+    output = artifact_path("outlook-mail")
     output.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -5002,7 +5101,7 @@ def test_outlook_mail_grant_and_consent_boundary_fit_all_viewports(browser, live
             "provider_credentials_used": False, "provider_calls": 0,
             "scenario": "Fixture account metadata and consent redirect; actual local API persists one Bot grant; no mail content or Microsoft call",
             "external_requests": external, "page_errors": errors, "captures": captures,
-            "source_sha256": {path: hashlib.sha256((output.parents[3] / path).read_bytes()).hexdigest()
+            "source_sha256": {path: hashlib.sha256(repository_path(path).read_bytes()).hexdigest()
                               for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                            "src/hutch/server/app.py", "src/hutch/server/security.py",
                                            "src/hutch/store.py", "src/hutch/outlook_mail.py",
@@ -5062,7 +5161,7 @@ def test_outlook_mail_send_access_is_separate_and_responsive(browser, live, monk
     monkeypatch.setattr("hutch.outlook_mail.OutlookMailSendBook", FixtureOutlookMailSendBook)
     bot = Bot(name="mail-assistant", display_name="Mail Assistant", model="mock/demo", tools=[])
     app.state.store.create_bot(bot)
-    output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/outlook-mail-send"
+    output = artifact_path("outlook-mail-send")
     output.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -5147,7 +5246,7 @@ def test_outlook_mail_send_access_is_separate_and_responsive(browser, live, monk
             "provider_credentials_used": False, "provider_calls": 0,
             "scenario": "Local fixture account; separate Mail.Send consent, explicit Bot grant/revoke and local disconnect",
             "external_requests": external, "page_errors": errors, "captures": captures,
-            "source_sha256": {path: hashlib.sha256((output.parents[3] / path).read_bytes()).hexdigest()
+            "source_sha256": {path: hashlib.sha256(repository_path(path).read_bytes()).hexdigest()
                               for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                            "src/hutch/server/static/brands/openai-white-monoblossom.svg",
                                            "src/hutch/server/static/brands/ms-symbollockup_signin_dark.svg",
@@ -5209,7 +5308,7 @@ def test_google_mail_send_access_is_send_only_and_responsive(browser, live, monk
 
     monkeypatch.setattr("hutch.google_mail_send.GoogleMailSendBook", FixtureGoogleMailSendBook)
     app.state.store.create_bot(Bot(name="gmail-assistant", display_name="Mail Assistant", model="mock/demo", tools=[]))
-    output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/google-mail-send"
+    output = artifact_path("google-mail-send")
     output.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -5293,7 +5392,7 @@ def test_google_mail_send_access_is_send_only_and_responsive(browser, live, monk
             "provider_credentials_used": False, "provider_calls": 0,
             "scenario": "Fixture send-only Gmail account; separate gmail.send OAuth, explicit assistant grant/revoke, and local disconnect",
             "external_requests": external, "page_errors": errors, "captures": captures,
-            "source_sha256": {path: hashlib.sha256((output.parents[3] / path).read_bytes()).hexdigest()
+                "source_sha256": {path: hashlib.sha256(repository_path(path).read_bytes()).hexdigest()
                               for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                            "src/hutch/server/app.py", "src/hutch/google_mail_send.py",
                                            "src/hutch/tools/google_mail_send.py", "src/hutch/store.py",
@@ -5315,7 +5414,7 @@ def test_opt_in_chatgpt_signin_is_fixture_intercepted_and_responsive(browser, li
     monkeypatch.setenv("HUTCH_ENABLE_CHATGPT_PLAN", "1")
     base, _ = live
     page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/provider-signin"
+    out = artifact_path("provider-signin")
     out.mkdir(parents=True, exist_ok=True)
     auth_requests = []
     request_origins = set()
@@ -5548,7 +5647,7 @@ def test_saved_tool_output_is_downloadable_and_verified_at_all_viewports(browser
     assert artifact_event.data["chars"] == len(original)
     expected_hash = hashlib.sha256(original.encode()).hexdigest()
     assert artifact_event.data["artifact_sha256"] == expected_hash
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/versioned-artifacts"
+    out = artifact_path("versioned-artifacts")
     out.mkdir(parents=True, exist_ok=True)
     records = []
     for name, width, height in (("desktop", 1440, 1000), ("tablet", 768, 1024), ("phone", 390, 844)):
@@ -5633,7 +5732,7 @@ def test_truncated_tool_source_card_opens_verified_plain_text_at_all_viewports(b
                              data={"role": "assistant", "content": "I saved the full output."}))
     store.transition_run(run_id, RunStatus.succeeded, fence=claimed.fence, event={"verified": True})
 
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/tool-source-card"
+    out = artifact_path("tool-source-card")
     out.mkdir(parents=True, exist_ok=True)
     records = []
     for name, width, height in (("desktop", 1440, 960), ("tablet", 768, 1024), ("phone", 390, 844)):
@@ -5747,7 +5846,7 @@ def test_generated_workspace_file_is_downloadable_from_its_chat(browser, live, m
     assert descriptor["path"] == "reports/monthly.csv"
     assert hashlib.sha256(content.encode()).hexdigest() == descriptor["sha256"]
 
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/generated-files"
+    out = artifact_path("generated-files")
     out.mkdir(parents=True, exist_ok=True)
     records = []
     for name, width, height in (("desktop", 1440, 1000), ("tablet", 768, 1024), ("phone", 390, 844)):
@@ -5879,7 +5978,7 @@ def test_verified_artifact_can_be_shared_with_another_chat_and_revoked(browser, 
                            "bytes": len(payload), "name": "report.txt", "path": "report.txt"},
     }))
 
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/artifact-sharing"
+    out = artifact_path("artifact-sharing")
     out.mkdir(parents=True, exist_ok=True)
     page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page.context.tracing.start(screenshots=True, snapshots=True, sources=True)
@@ -6072,7 +6171,7 @@ def test_conversation_file_browser_loads_the_next_cursor_page(browser, live):
         assert overflow <= 1
         assert dialog.evaluate("el => el.scrollWidth - el.clientWidth") <= 1
         assert not errors, errors
-        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/generated-files"
+        out = artifact_path("generated-files")
         out.mkdir(parents=True, exist_ok=True)
         screenshot = out / "large-list-phone.png"
         page.screenshot(path=str(screenshot), animations="disabled")
@@ -6168,7 +6267,7 @@ def test_conversation_options_are_compact_persistent_and_recoverable(browser, li
     page.locator("#conversation-switcher").select_option(first["id"])
     page.locator("#chat-stream").get_by_text("Help me prepare a launch review.", exact=True).wait_for()
 
-    artifacts = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/conversation-options"
+    artifacts = artifact_path("conversation-options")
     artifacts.mkdir(parents=True, exist_ok=True)
     viewports = [("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844),
                  ("compact-phone", 320, 844)]
@@ -6338,6 +6437,32 @@ def test_conversation_options_are_compact_persistent_and_recoverable(browser, li
     page.close()
 
 
+def test_overview_refreshes_from_live_changes_without_losing_focus(browser, live, monkeypatch):
+    base, app = live
+    monkeypatch.setattr(app.state.engine, "dispatch_pending", lambda: 0)
+    bot = app.state.store.create_bot(Bot(name="live-overview-bot", model="mock/demo", tools=[]))
+    page = browser.new_page(viewport={"width": 1280, "height": 900})
+    try:
+        with page.expect_request("**/api/v1/changes/stream*"):
+            page.goto(base + "/#/overview")
+        summary = page.locator("#ov-usage-summary")
+        summary.wait_for()
+        summary.focus()
+        page.locator("#ov-usage-details").evaluate("el => { el.open = true; }")
+
+        with page.expect_response(lambda response: response.url.endswith("/api/overview"), timeout=5000) as refreshed:
+            app.state.store.create_run(Run(bot_id=bot.id, prompt="live refresh check", status=RunStatus.pending))
+        assert any(row["prompt"] == "live refresh check" for row in refreshed.value.json()["running"]), \
+            refreshed.value.json()
+        assert page.evaluate("document.activeElement.id") == "ov-usage-summary"
+        assert page.locator("#ov-usage-details").evaluate("el => el.open")
+        working_heading = page.locator(".ov-col").get_by_text("Working now", exact=False)
+        working_heading.wait_for(state="visible", timeout=5000)
+        assert page.get_by_text("live refresh check", exact=True).is_visible()
+    finally:
+        page.close()
+
+
 def test_bot_menu_downloads_a_reviewable_local_setup_template(browser, live, tmp_path, request):
     base, app = live
     bot = Bot(name="template-export", model="mock/demo", tools=["memory", "files"],
@@ -6359,7 +6484,7 @@ def test_bot_menu_downloads_a_reviewable_local_setup_template(browser, live, tmp
     assert "Review project risks" in yaml_text
     assert "private-provider.example" not in yaml_text
     assert str(tmp_path / "private-project") not in yaml_text
-    artifacts = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/conversation-options"
+    artifacts = artifact_path("conversation-options")
     artifacts.mkdir(parents=True, exist_ok=True)
     inspected = []
     for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
@@ -6431,7 +6556,7 @@ def test_conversation_export_shows_scope_and_downloads_json(browser, live, tmp_p
         overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
         assert overflow <= 1, (label, overflow)
 
-        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/conversation-export"
+        out = artifact_path("conversation-export")
         out.mkdir(parents=True, exist_ok=True)
         screenshot = out / f"scope-{label}.png"
         trace = out / f"scope-{label}-trace.zip"
@@ -6465,8 +6590,7 @@ def test_conversation_export_shows_scope_and_downloads_json(browser, live, tmp_p
     finally:
         if not trace_stopped:
             try:
-                page.context.tracing.stop(path=str(Path(__file__).resolve().parents[2] /
-                    "docs/realignment/artifacts/conversation-export" / f"scope-{label}-trace-failed.zip"))
+                page.context.tracing.stop(path=str(artifact_path("conversation-export")))
             except Exception:
                 pass
         page.close()
@@ -6508,7 +6632,7 @@ def test_inference_queue_reason_and_timing_are_visible(browser, live, monkeypatc
     page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/inference-admission"
+    out = artifact_path("inference-admission")
     out.mkdir(parents=True, exist_ok=True)
     try:
         page.goto(base + "/#/conversation/" + conversation["id"])
@@ -6539,7 +6663,7 @@ def test_inference_queue_reason_and_timing_are_visible(browser, live, monkeypatc
             "browser": browser.browser_type.name, "version": browser.version, "viewport": [width, height],
             "captured_at": iso(utcnow()), "scenario": "synthetic queue and timing; not live inference",
             "page_errors": errors, "horizontal_overflow": overflow,
-            "source_sha256": {p: hashlib.sha256((out.parents[3] / p).read_bytes()).hexdigest()
+            "source_sha256": {p: hashlib.sha256(repository_path(p).read_bytes()).hexdigest()
                 for p in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css", "src/hutch/runtime/builtin.py")},
         }, indent=2) + "\n")
     finally:
@@ -6549,21 +6673,23 @@ def test_inference_queue_reason_and_timing_are_visible(browser, live, monkeypatc
 def test_mobile_navigation_traps_tab_and_restores_focus(browser, live):
     base, _app = live
     page = browser.new_page(viewport={"width": 390, "height": 844})
-    page.goto(base, wait_until="domcontentloaded")
-    page.wait_for_selector("#btn-create-first")
-    toggle = page.locator("#nav-toggle")
-    toggle.click()
-    assert toggle.get_attribute("aria-expanded") == "true"
-    assert page.evaluate("document.activeElement.classList.contains('brand')")
-    assert page.evaluate("document.activeElement.tagName") not in {"INPUT", "TEXTAREA"}
-    page.locator("#workspace .ws-foot-link").last.focus()
-    page.keyboard.press("Tab")
-    assert page.evaluate("document.activeElement.classList.contains('brand')")
-    page.keyboard.press("Escape")
-    assert toggle.get_attribute("aria-expanded") == "false"
-    assert page.evaluate("document.activeElement.id") == "nav-toggle"
-    assert page.evaluate("document.activeElement.tagName") not in {"INPUT", "TEXTAREA"}
-    page.close()
+    try:
+        page.goto(base + "/#/chat", wait_until="domcontentloaded")
+        page.wait_for_selector("#first-run-request")
+        toggle = page.locator("#nav-toggle")
+        toggle.click()
+        assert toggle.get_attribute("aria-expanded") == "true"
+        assert page.evaluate("document.activeElement.classList.contains('brand')")
+        assert page.evaluate("document.activeElement.tagName") not in {"INPUT", "TEXTAREA"}
+        page.locator("#workspace .ws-foot-link").last.focus()
+        page.keyboard.press("Tab")
+        assert page.evaluate("document.activeElement.classList.contains('brand')")
+        page.keyboard.press("Escape")
+        assert toggle.get_attribute("aria-expanded") == "false"
+        assert page.evaluate("document.activeElement.id") == "nav-toggle"
+        assert page.evaluate("document.activeElement.tagName") not in {"INPUT", "TEXTAREA"}
+    finally:
+        page.close()
 
 
 def test_usage_budget_table_uses_labelled_phone_cards(browser, live):
@@ -6655,9 +6781,23 @@ def test_studio_resumes_only_the_active_human_wait_with_v1_command(browser, live
         resume = card.locator("[data-human-resume]")
         assert resume.count() == 1
         assert resume.get_attribute("data-event-seq") == str(event_seq)
-        assert resume.evaluate("el => el.getBoundingClientRect().height") >= 44
+        # Read the live node and its geometry in one page evaluation. A feed
+        # refresh can replace the transcript between separate Playwright
+        # commands, leaving a locator evaluation attached to a detached node.
+        resume_metrics = wait_for_page_value(page, """() => {
+          const el = document.querySelector('#chat-stream [data-human-resume]');
+          if (!el || !el.isConnected) return null;
+          const rect = el.getBoundingClientRect();
+          if (rect.width <= 0 || rect.height < 44) return null;
+          return {
+            rect: rect.toJSON(), minHeight: getComputedStyle(el).minHeight,
+            display: getComputedStyle(el).display, visibility: getComputedStyle(el).visibility,
+            parent: el.parentElement?.getBoundingClientRect().toJSON()
+          };
+        }""")
+        assert resume_metrics["rect"]["height"] >= 44, resume_metrics
 
-        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/human-resume"
+        out = artifact_path("human-resume")
         out.mkdir(parents=True, exist_ok=True)
         screenshot = out / f"{size}.png"
         page.screenshot(path=str(screenshot), full_page=True, animations="disabled")
@@ -6673,9 +6813,9 @@ def test_studio_resumes_only_the_active_human_wait_with_v1_command(browser, live
         assert response.request.headers.get("idempotency-key") == f"studio-human-resume:{run.id}:{event_seq}"
         assert response.request.post_data_json == {"human_event_seq": event_seq}
         assert store.kv_get(f"resume:{run.id}") == "1"
-        requested = page.get_by_role("button", name="Resume requested; waiting for the run to continue")
-        requested.wait_for()
-        assert requested.is_disabled()
+        wait_for_page(page, "() => [...document.querySelectorAll('#chat-stream [role=status]')].some("
+                            "node => node.innerText.includes('Resume requested. Waiting for the run to continue.'))")
+        assert page.locator("#chat-stream [data-human-resume]").count() == 0
         assert not errors, errors
         (out / f"{size}.json").write_text(json.dumps({
             "test": "tests/e2e/test_browser.py::test_studio_resumes_only_the_active_human_wait_with_v1_command",
@@ -6685,7 +6825,7 @@ def test_studio_resumes_only_the_active_human_wait_with_v1_command(browser, live
             "idempotency_key": f"studio-human-resume:{run.id}:{event_seq}",
             "horizontal_overflow": overflow, "page_errors": errors,
             "provider_calls": 0, "captured_at": datetime.now(timezone.utc).isoformat(),
-            "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
+            "source_sha256": {path: hashlib.sha256(repository_path(path).read_bytes()).hexdigest()
                               for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                            "src/hutch/server/app.py", "src/hutch/store.py")},
         }, indent=2) + "\n")
@@ -7021,7 +7161,7 @@ def test_bot_usage_limits_are_optional_clear_and_use_everyday_time_units(browser
     base, app = live
     store = app.state.store
     store.create_bot(Bot(name="limit-bot", model="mock/demo", approval_mode=ApprovalMode.auto))
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/assistant-usage-details-2026-10-10"
+    out = artifact_path("assistant-usage-details-2026-10-10")
     out.mkdir(parents=True, exist_ok=True)
     ctx = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = ctx.new_page()
@@ -7111,7 +7251,7 @@ def test_bot_usage_limits_are_optional_clear_and_use_everyday_time_units(browser
 def test_tool_permissions_are_clear_and_save_at_desktop_tablet_and_phone(browser, live):
     base, app = live
     bot = app.state.store.create_bot(Bot(name="tool-settings", model="mock/demo", tools=["files", "memory"]))
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/tool-permissions"
+    out = artifact_path("tool-permissions")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce",
                                   is_mobile=True, has_touch=True)
@@ -7147,6 +7287,9 @@ def test_tool_permissions_are_clear_and_save_at_desktop_tablet_and_phone(browser
             panel = page.locator('section[aria-labelledby="tool-settings-title"]')
             position = position_panel("start")
             page.wait_for_timeout(80)
+            options = page.locator(".assistant-settings-menu > summary")
+            if not options.evaluate("element => element.parentElement.open"):
+                options.click()
             delete_button = page.get_by_role("button", name="Delete assistant")
             assert delete_button.is_visible()
             if label == "phone":
@@ -7154,6 +7297,7 @@ def test_tool_permissions_are_clear_and_save_at_desktop_tablet_and_phone(browser
                 box = delete_button.bounding_box()
                 assert box and box["width"] >= 44 and box["height"] >= 44, box
             page.screenshot(path=str(out / f"{label}.png"), animations="disabled")
+            options.click()
             metrics = page.evaluate("""() => {
               const panel = document.querySelector('#form-tools').getBoundingClientRect();
               const input = document.querySelector('#form-tools input[value=delegate_task]').getBoundingClientRect();
@@ -7227,7 +7371,7 @@ def test_quick_bot_creation_uses_the_workspace_default_without_starting_work(bro
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("request", lambda request: outside_requests.append(request.url)
             if urlsplit(request.url).netloc not in {urlsplit(base).netloc, ""} else None)
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/quick-setup-language-2026-10-10"
+    out = artifact_path("quick-setup-language-2026-10-10")
     out.mkdir(parents=True, exist_ok=True)
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
@@ -7327,7 +7471,7 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
     page.set_default_timeout(8000)
     errors: list[str] = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-setup"
+    out = artifact_path("bot-setup")
     out.mkdir(parents=True, exist_ok=True)
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
@@ -7547,7 +7691,7 @@ def test_bot_setup_yaml_import_fills_reviewed_draft_without_saving_until_confirm
     requests: list[str] = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("request", lambda request: requests.append(request.url))
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-setup-import"
+    out = artifact_path("bot-setup-import")
     out.mkdir(parents=True, exist_ok=True)
     yaml_text = """apiVersion: hutch.ai/v1
 kind: BotConfig
@@ -7697,9 +7841,9 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
                                        model="mock/demo", tools=[]))
     app.state.store.set_workspace_coordinator(coordinator.id)
 
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workspace-coordinator"
+    out = artifact_path("workspace-coordinator")
     out.mkdir(parents=True, exist_ok=True)
-    roster_output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workspace-specialists"
+    roster_output = artifact_path("workspace-specialists")
     roster_output.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -7761,7 +7905,7 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
         assert page.locator("#workspace-coordinator-pill").inner_text() == "Workspace coordinator"
         rows = page.locator("#roster-list [data-switch-bot]")
         assert rows.first.get_attribute("data-switch-bot") == coordinator.name
-        assert rows.first.locator(".roster-sub").inner_text().startswith("Coordinator · ")
+        assert rows.first.locator(".roster-sub").inner_text() == "Idle · Coordinator"
 
         # A coordinator is an ordinary, directly addressable Bot conversation too.
         conversation_id = page.locator("#conversation-switcher").input_value()
@@ -7781,6 +7925,8 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
         assert app.state.store.workspace_specialists()["specialist_bot_ids"] == []
         chat_link = page.locator(f"#app-top-context .ctx-actions a[href='#/chat/{specialist.name}']")
         assert chat_link.count() == 1, page.locator("#app-top-context").inner_html()
+        page.locator(".assistant-settings-menu > summary").click()
+        chat_link.wait_for(state="visible")
         chat_link.click()
         page.locator("#chat-stream").get_by_role("heading", name="Release Notes Reviewer").wait_for()
         assert page.locator("#workspace-coordinator-pill").inner_text() == "Workspace coordinator"
@@ -7847,7 +7993,7 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
         store.create_bot(bot)
     store.set_workspace_coordinator("workspace-coordinator")
 
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/pinned-roster"
+    out = artifact_path("pinned-roster")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -8136,7 +8282,7 @@ def test_large_idle_roster_stays_compact_and_remains_searchable_and_keyboard_acc
     for bot in bots:
         store.create_bot(bot)
     store.set_workspace_coordinator("workspace-coordinator")
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/compact-roster"
+    out = artifact_path("compact-roster")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -8230,7 +8376,7 @@ def test_bot_sidebar_menu_supports_recoverable_hide_and_named_sections(browser, 
         store.create_bot(bot)
     store.set_workspace_coordinator("workspace-coordinator")
 
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-chat-options"
+    out = artifact_path("bot-chat-options")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -8334,7 +8480,7 @@ def test_duplicate_bot_starts_from_safe_editable_setup_without_copying_authority
                  schedule=Schedule(cron="0 9 * * 1", timezone="America/Vancouver",
                                    prompt="Review the latest release notes."))
     app.state.store.create_bot(source)
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-chat-options"
+    out = artifact_path("bot-chat-options")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -8350,7 +8496,7 @@ def test_duplicate_bot_starts_from_safe_editable_setup_without_copying_authority
     try:
         page.goto(f"{base}/#/chat/{source.name}")
         page.locator("[data-bot-options='release-reviewer']").click()
-        page.get_by_role("menuitem", name="Duplicate bot").click()
+        page.get_by_role("menuitem", name="Duplicate assistant").click()
         page.get_by_role("heading", name="Set up your assistant").wait_for()
         assert page.get_by_label("Assistant name").input_value() == "Release Notes Reviewer copy"
         name_input = page.get_by_label("Assistant name")
@@ -8432,7 +8578,7 @@ def test_duplicate_bot_starts_from_safe_editable_setup_without_copying_authority
 def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(browser, live, monkeypatch):
     base, app = live
     monkeypatch.setenv("OPENAI_API_KEY", "test-only-key-never-sent-to-a-provider")
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-naming-quality"
+    out = artifact_path("bot-naming-quality")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -8672,7 +8818,7 @@ def test_bot_creation_reuses_only_the_selected_chat_messages_and_keeps_provenanc
         store._insert_conversation_message(db, message_id="chat-context-current-request", conversation_id=conversation["id"],
             seq=4, run_id="", role="user", content=source_request, created_at=conversation["created_at"])
 
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-setup-context"
+    out = artifact_path("bot-setup-context")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -8859,7 +9005,7 @@ def test_user_can_start_bot_setup_from_the_exact_chat_request(browser, live, mon
     configured = store.kv_get("workspace:model-defaults")
     assert configured is None
 
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-from-message"
+    out = artifact_path("bot-from-message")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -8968,7 +9114,7 @@ def test_user_can_start_bot_setup_from_the_exact_chat_request(browser, live, mon
             "provider_calls": 0, "external_requests": external, "page_errors": errors,
             "scenario": "Keyboard-activate a message action in a multi-request conversation; exact request is used without retyping; only the chosen message is saved as Bot instructions; unrelated later text is excluded; create starts no run; phone path keeps the same no-retype default",
             "captures": captures,
-            "source_sha256": {name: hashlib.sha256((out.parents[3] / name).read_bytes()).hexdigest()
+            "source_sha256": {name: hashlib.sha256(repository_path(name).read_bytes()).hexdigest()
                               for name in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                            "tests/e2e/test_browser.py")},
         }, indent=2) + "\n", encoding="utf-8")
@@ -9009,7 +9155,7 @@ def test_coordinator_can_refine_a_bot_purpose_without_changing_its_source_or_aut
                        (conversation["id"], message_run.id, message_run.created_at))
             store._insert_conversation_message(db, message_id=message_id, conversation_id=conversation["id"],
                 seq=seq, run_id=message_run.id, role=role, content=content, created_at=message_run.created_at)
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-purpose-refinement"
+    out = artifact_path("bot-purpose-refinement")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -9132,7 +9278,7 @@ def test_chat_sourced_bot_setup_clarifies_multiple_details_and_restores_after_re
             store._insert_conversation_message(db, message_id=message_id, conversation_id=conversation["id"],
                 seq=seq, run_id=message_run.id, role=role, content=content, created_at=message_run.created_at)
 
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-setup-multi-round"
+    out = artifact_path("bot-setup-multi-round")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -9294,7 +9440,7 @@ def test_workspace_model_default_is_editable_persistent_and_seeds_new_bot_setup(
     base, app = live
     monkeypatch.setenv("OPENAI_API_KEY", "test-only-key-never-sent-to-a-provider")
     source_bot = app.state.store.create_bot(Bot(name="workspace-default-source", model="mock/demo", tools=[]))
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workspace-model-defaults"
+    out = artifact_path("workspace-model-defaults")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -9371,7 +9517,7 @@ def test_multiple_scheduled_tasks_can_be_managed_from_bot_settings(browser, live
     page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     errors: list[str] = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/scheduled-tasks"
+    out = artifact_path("scheduled-tasks")
     out.mkdir(parents=True, exist_ok=True)
     page.context.tracing.start(screenshots=True, snapshots=True, sources=False)
     trace_stopped = False
@@ -9568,7 +9714,7 @@ def test_routine_editor_links_an_activated_workflow_accessibly_across_viewports(
     page = browser.new_page(viewport={"width": 1440, "height": 1000}, reduced_motion="reduce")
     errors: list[str] = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/scheduled-workflow-link-2026-10-11"
+    out = artifact_path("scheduled-workflow-link-2026-10-11")
     out.mkdir(parents=True, exist_ok=True)
     page.context.tracing.start(screenshots=True, snapshots=True, sources=False)
     trace_stopped = False
@@ -9712,7 +9858,7 @@ def test_model_route_setting_explains_host_gated_offline_mode_and_saves_on_phone
     assert page.locator("#inference-mode-help").is_visible()
     assert "separate model service" in page.locator("#inference-mode-help").inner_text()
 
-    capture_dir = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/strict-offline"
+    capture_dir = artifact_path("strict-offline")
     capture_dir.mkdir(parents=True, exist_ok=True)
     captures = []
     sizes = {"desktop": (1440, 1000), "tablet": (900, 1024), "phone": (390, 844)}
@@ -9785,6 +9931,26 @@ def switcher_env(live, monkeypatch):
     fake.close()
 
 
+def test_custom_openai_compatible_route_has_egress_disclosure(browser, switcher_env):
+    base, _app, _fake = switcher_env
+    page = browser.new_page(viewport={"width": 1280, "height": 800})
+    try:
+        page.goto(base + "/")
+        button = page.locator(".ms-btn")
+        button.wait_for()
+        button.click()
+        page.locator(".ms-more").click()
+        field = page.locator(".ms-custom")
+        field.wait_for()
+        disclosure = page.locator("#ms-custom-egress-note")
+        assert disclosure.is_visible()
+        assert "openai-compatible route" in disclosure.inner_text()
+        assert "may send this chat off this machine" in disclosure.inner_text()
+        assert field.get_attribute("aria-describedby") == "ms-custom-egress-note"
+    finally:
+        page.close()
+
+
 def test_composer_switcher_menu_check_keyboard_and_per_message_override(browser, switcher_env, request):
     from tests.fakes import agent_script
     base, app, fake = switcher_env
@@ -9853,7 +10019,7 @@ def test_composer_switcher_menu_check_keyboard_and_per_message_override(browser,
 
 def test_model_switcher_can_explicitly_save_the_selected_route_as_bot_default(browser, switcher_env, request):
     base, app, _fake = switcher_env
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/model-default-choice"
+    out = artifact_path("model-default-choice")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -9982,7 +10148,7 @@ def test_openrouter_models_are_searchable_from_the_chat_picker(browser, switcher
     from hutch.modelchoices import reset_cache
     reset_cache()
 
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/openrouter-model-search"
+    out = artifact_path("openrouter-model-search")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -10099,7 +10265,7 @@ def test_legacy_external_runtime_can_move_to_hutch_and_run_a_real_local_route(br
     base, app, fake = switcher_env
     bot = app.state.store.create_bot(Bot(name="legacy-runner", model="ollama/tiny:1b",
                                          runtime=RuntimeKind.opencode, tools=[], selfcheck=False))
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/runtime-recovery"
+    out = artifact_path("runtime-recovery")
     out.mkdir(parents=True, exist_ok=True)
     page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     errors = []
@@ -10122,7 +10288,7 @@ def test_legacy_external_runtime_can_move_to_hutch_and_run_a_real_local_route(br
         assert "/home/" not in isolation_help, "host diagnostic paths belong in the CLI, not a narrow settings panel"
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
-            page.locator("#form-model").scroll_into_view_if_needed()
+            page.locator("#runtime-recovery").scroll_into_view_if_needed()
             page.wait_for_timeout(80)
             metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight], documentWidth:document.documentElement.scrollWidth,
                 panelVisible:(() => { const r=document.querySelector('#runtime-recovery').getBoundingClientRect();
@@ -10221,7 +10387,7 @@ def test_bot_workspace_modes_are_clear_and_persist_across_settings(browser, live
     app.state.store.create_bot(Bot(name="workspace-helper", model="mock/demo", tools=["files"]))
     folder = tmp_path / "existing-workspace"
     folder.mkdir()
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/managed-workspaces"
+    out = artifact_path("managed-workspaces")
     out.mkdir(parents=True, exist_ok=True)
     page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
     errors = []
@@ -10282,7 +10448,7 @@ def test_bot_workspace_modes_are_clear_and_persist_across_settings(browser, live
             "journey": ["fresh default", "managed workspace saved", "existing folder selected and saved"],
             "screenshots": [f"{size}-managed.png", f"{size}-folder.png"],
             "folder_path": "[local fixture path omitted]", "page_errors": errors, "horizontal_overflow": overflow,
-            "source_sha256": {p: hashlib.sha256((out.parents[3] / p).read_bytes()).hexdigest() for p in (
+            "source_sha256": {p: hashlib.sha256(repository_path(p).read_bytes()).hexdigest() for p in (
                 "src/hutch/server/static/app.js", "src/hutch/server/static/style.css", "src/hutch/engine.py",
                 "src/hutch/config.py", "src/hutch/models.py", "src/hutch/cli.py", "src/hutch/server/app.py",
                 "src/hutch/server/pages.py", "src/hutch/server/templates/bot.html")},
@@ -10298,7 +10464,7 @@ def test_local_browser_handoff_setting_is_explicit_and_persists(browser, live, w
     base, app = live
     # Settings-only journey: use Hutch's ordinary model default without starting a run.
     app.state.store.create_bot(Bot(name="local-handoff", model="ollama/qwen3:4b", tools=["browser"]))
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/local-browser-handoff"
+    out = artifact_path("local-browser-handoff")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": width, "height": height}, reduced_motion="reduce")
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
@@ -10351,7 +10517,7 @@ def test_local_browser_handoff_setting_is_explicit_and_persists(browser, live, w
             "limitation": "The visible headed challenge flow was not exercised by this settings journey.",
             "stored": app.state.store.get_bot("local-handoff").local_browser_handoff,
             "page_errors": errors, "horizontal_overflow": overflow,
-            "source_sha256": {p: hashlib.sha256((out.parents[3] / p).read_bytes()).hexdigest() for p in (
+            "source_sha256": {p: hashlib.sha256(repository_path(p).read_bytes()).hexdigest() for p in (
                 "src/hutch/server/static/app.js", "src/hutch/server/static/style.css", "src/hutch/server/app.py",
                 "src/hutch/server/pages.py", "src/hutch/server/templates/bot.html", "src/hutch/models.py")},
         }, indent=2) + "\n")
@@ -10414,7 +10580,8 @@ def test_bot_and_conversation_switches_isolate_unsent_drafts(browser, live):
     # No debounce wait: immediate navigation must preserve the draft in its own context.
     page.locator('[data-switch-bot="draft-b"]').click()
     page.wait_for_url("**/#/chat/draft-b")
-    page.locator("#conversation-switcher").wait_for(state="visible")
+    wait_for_page(page, "id => { const input = document.querySelector('#conversation-switcher'); "
+                        "return !!input && input.value !== id; }", arg=first)
     assert page.locator("#chat-prompt").input_value() == ""
     page.locator('[data-switch-bot="draft-a"]').click()
     page.wait_for_url("**/#/chat/draft-a")
@@ -10457,7 +10624,13 @@ def test_inline_chat_approval_is_one_click_and_preserves_conversation(browser, l
         ).is_visible()
     thread = card.locator("xpath=ancestor::article[@data-run-id]")
     assert thread.locator(".msg.you").count() == 1
-    assert thread.locator(".msg.you").bounding_box()["y"] < thread.locator(".msg.agent").bounding_box()["y"]
+    assert thread.locator(".msg.you .bubble").inner_text() == "write a report"
+    assert thread.evaluate("""article => {
+      const user = article.querySelector('.msg.you');
+      const agent = article.querySelector('.msg.agent');
+      return !!user && !!agent && !!(user.compareDocumentPosition(agent) & Node.DOCUMENT_POSITION_FOLLOWING)
+        && agent.querySelectorAll('[data-approval-card]').length === 1;
+    }""")
     assert not thread.locator(".answer").count(), "a waiting run must not echo the user's prompt as an assistant answer"
     card.get_by_text("Review details", exact=True).click()
     assert "Changing a file needs your okay." in card.inner_text()
@@ -10495,7 +10668,7 @@ def test_inline_chat_approval_is_one_click_and_preserves_conversation(browser, l
 def test_chat_header_uses_available_title_space_and_groups_assistant_settings(browser, live):
     base, app = live
     app.state.store.create_bot(Bot(name="header-space", display_name="Design Partner", model="mock/demo", tools=[]))
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/chat-header-options"
+    out = artifact_path("chat-header-options")
     out.mkdir(parents=True, exist_ok=True)
     page = browser.new_page(viewport={"width": 1440, "height": 960})
     page_errors = []
@@ -10532,7 +10705,7 @@ def test_chat_header_uses_available_title_space_and_groups_assistant_settings(br
         "verified": ["title uses available toolbar width", "assistant settings are grouped in the chat options menu",
                      "phone toolbar has no horizontal overflow", "primary chat controls stay within the toolbar"],
         "page_errors": page_errors, "external_requests": external_requests, "provider_calls": 0,
-        "source_sha256": {source: hashlib.sha256((out.parents[3] / source).read_bytes()).hexdigest()
+        "source_sha256": {source: hashlib.sha256(repository_path(source).read_bytes()).hexdigest()
                           for source in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                          "tests/e2e/test_browser.py")},
     }, indent=2) + "\n", encoding="utf-8")
@@ -10660,7 +10833,7 @@ def test_form_submission_approval_explains_destination_and_fields_at_all_viewpor
     assert "Recipient" in review.inner_text() and "Password · sensitive value hidden" in review.inner_text()
     assert "person@example.test" not in card.inner_text() and "must-not-leak-this-secret" not in card.inner_text()
     assert not card.locator(".approval-detail").count(), "field values and internal fingerprints stay out of raw review JSON"
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/browser-form-review"
+    out = artifact_path("browser-form-review")
     out.mkdir(parents=True, exist_ok=True)
     captures = []
     phone_decision = None
@@ -10746,7 +10919,7 @@ def test_browser_alerts_are_opt_in_private_and_open_the_review_queue(browser, li
       }
       window.Notification = TestNotification;
     })();""")
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/browser-alerts"
+    out = artifact_path("browser-alerts")
     out.mkdir(parents=True, exist_ok=True)
     page.goto(base + "/#/chat")
     page.locator("#needs-you-open").click()
@@ -10923,7 +11096,7 @@ def test_transcript_mirror_error_preserves_done_and_recovers_without_losing_draf
     page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/transcript-mirror"
+    out = artifact_path("transcript-mirror")
     out.mkdir(parents=True, exist_ok=True)
     try:
         page.goto(base + "/#/conversation/" + conv["id"])
@@ -10948,7 +11121,7 @@ def test_transcript_mirror_error_preserves_done_and_recovers_without_losing_draf
             "captured_at": iso(utcnow()), "browser": browser.browser_type.name, "version": browser.version,
             "viewport": [width, height], "scenario": "fixture IO failure; real durable retry and invalidation; no live provider",
             "page_errors": errors, "horizontal_overflow": overflow, "draft_and_focus_preserved": True,
-            "source_sha256": {p: hashlib.sha256((out.parents[3] / p).read_bytes()).hexdigest()
+            "source_sha256": {p: hashlib.sha256(repository_path(p).read_bytes()).hexdigest()
                 for p in ("src/hutch/server/static/app.js", "src/hutch/store.py", "src/hutch/server/app.py", "src/hutch/transcript_mirror.py")},
         }, indent=2) + "\n")
     finally:
@@ -10985,7 +11158,7 @@ def test_untrusted_run_content_is_text_not_executable_html(browser, live, monkey
     page.add_init_script("window.__hutchXss = 0")
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/untrusted-content"
+    out = artifact_path("untrusted-content")
     out.mkdir(parents=True, exist_ok=True)
     try:
         page.goto(base + "/#/conversation/" + conversation["id"])
@@ -11073,7 +11246,7 @@ def test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus(br
     page.locator("#studio-review-run").click()
     box, feed = card.bounding_box(), page.locator("#chat-scroll").bounding_box()
     assert box["y"] >= feed["y"] - 1 and box["y"] + box["height"] <= feed["y"] + feed["height"] + 1
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/resource-replay"
+    out = artifact_path("resource-replay")
     out.mkdir(parents=True, exist_ok=True)
     page.screenshot(path=str(out / f"{size}.png"), full_page=True, animations="disabled")
     overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
@@ -11082,7 +11255,7 @@ def test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus(br
         "captured_at": iso(utcnow()), "browser": browser.browser_type.name, "version": browser.version,
         "viewport": [width, height], "scenario": "real approval admission, fixture gap, fallback timers/transcript hints disabled",
         "page_errors": errors, "horizontal_overflow": overflow, "draft_and_focus_preserved": True,
-        "source_sha256": {p: hashlib.sha256((out.parents[3] / p).read_bytes()).hexdigest()
+        "source_sha256": {p: hashlib.sha256(repository_path(p).read_bytes()).hexdigest()
             for p in ("src/hutch/server/static/app.js", "src/hutch/store.py", "src/hutch/server/app.py", "src/hutch/approvals.py")},
     }, indent=2) + "\n")
     # A second client's durable decision must replace the inline ask without
@@ -11176,7 +11349,7 @@ def test_old_active_approval_survives_chat_window_and_header_stop_targets_it(bro
         assert page.locator("#studio-review-run").bounding_box()["height"] >= 44
         assert card.locator("xpath=ancestor::article").locator(".mhead .status").evaluate(
             "e => e.scrollWidth <= e.clientWidth + 1"), "keep the complete waiting label visible"
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/conversation-authority"
+    out = artifact_path("conversation-authority")
     out.mkdir(parents=True, exist_ok=True)
     page.screenshot(path=str(out / f"{size}.png"), full_page=True, animations="disabled")
     overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
@@ -11191,7 +11364,7 @@ def test_old_active_approval_survives_chat_window_and_header_stop_targets_it(bro
         "browser": browser.browser_type.name, "version": browser.version, "viewport": [width, height],
         "captured_at": iso(utcnow()), "scenario": "synthetic old approval, seven queued turns, failed run refresh, real Stop command",
         "page_errors": errors, "horizontal_overflow": overflow,
-        "source_sha256": {p: hashlib.sha256((out.parents[3] / p).read_bytes()).hexdigest()
+        "source_sha256": {p: hashlib.sha256(repository_path(p).read_bytes()).hexdigest()
             for p in ("src/hutch/server/static/app.js", "src/hutch/store.py", "src/hutch/server/app.py")},
     }, indent=2) + "\n")
     page.close()
@@ -11236,14 +11409,14 @@ def test_fleet_attention_survives_queue_failure_and_includes_human_wait(browser,
         assert notice["y"] + notice["height"] <= content["y"] + 1, "the notice must not cover Fleet content"
     overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
     assert overflow <= 1 and not errors
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/fleet-attention"
+    out = artifact_path("fleet-attention")
     out.mkdir(parents=True, exist_ok=True)
     page.screenshot(path=str(out / f"{size}.png"), full_page=True, animations="disabled")
     (out / f"{size}.json").write_text(json.dumps({
         "browser": browser.browser_type.name, "version": browser.version, "viewport": [width, height],
         "captured_at": iso(utcnow()), "scenario": "synthetic waits, 51 persisted requests, failed queue discovery; no live handoff",
         "page_errors": errors, "horizontal_overflow": overflow,
-        "source_sha256": {p: hashlib.sha256((out.parents[3] / p).read_bytes()).hexdigest()
+        "source_sha256": {p: hashlib.sha256(repository_path(p).read_bytes()).hexdigest()
             for p in ("src/hutch/server/static/app.js", "src/hutch/store.py")},
     }, indent=2) + "\n")
     page.close()
@@ -11273,7 +11446,7 @@ def test_composer_options_rehearsal_and_cancelled_notice(browser, live, width, h
     assert 0 <= box["x"] and box["x"] + box["width"] <= width + 1
     assert 0 <= box["y"] and box["y"] + box["height"] <= height + 1
     menu.get_by_text("model calls and reads still happen", exact=False).wait_for()
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/composer-integration"
+    out = artifact_path("composer-integration")
     out.mkdir(parents=True, exist_ok=True)
     page.screenshot(path=str(out / f"options-{size}.png"), full_page=True, animations="disabled")
     menu.locator("#rehearse-opt").check()
@@ -11295,12 +11468,21 @@ def test_composer_options_rehearsal_and_cancelled_notice(browser, live, width, h
     assert not app.state.store.recall_all(bot.id)
     cancelled = app.state.store.create_run(Run(bot_id=bot.id, prompt="Sanitized cancellation notice fixture",
         status=RunStatus.stopped, error="Cancelled before a model step completed", queue_ms=1250, finished_at=iso(utcnow())))
+    assert app.state.store.get_run(cancelled.id).queue_ms == 1250
+    assert page.request.get(f"{base}/api/runs/{cancelled.id}").json()["queue_ms"] == 1250
     page.goto(base + f"/#/run/{cancelled.id}")
     notice = page.locator(".run-error")
     notice.wait_for()
     assert notice.inner_text().startswith("Cancelled:") and "Failed:" not in notice.inner_text()
     assert "run-notice" in notice.get_attribute("class")
-    assert "1.3s" in page.locator(".run-queue-time").inner_text()
+    technical_details = page.locator("#run-technical-details")
+    if not technical_details.evaluate("element => element.open"):
+        technical_details.locator(":scope > summary").click()
+    wait_for_page(page, "() => document.querySelector('#run-technical-details')?.open === true")
+    assert technical_details.get_attribute("open") is not None
+    queue_time = page.locator(".run-queue-time")
+    queue_time.wait_for(state="visible")
+    assert "1.3s" in queue_time.inner_text()
     assert not page.locator(".timeline-stack").count(), "no completed step means no fabricated timing breakdown"
     overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
     assert overflow <= 1 and not errors
@@ -11309,10 +11491,46 @@ def test_composer_options_rehearsal_and_cancelled_notice(browser, live, width, h
         "browser": browser.browser_type.name, "version": browser.version, "viewport": [width, height],
         "captured_at": iso(utcnow()), "scenario": "real mock rehearsal; synthetic cancellation and admitted queue timing",
         "page_errors": errors, "horizontal_overflow": overflow,
-        "source_sha256": {p: hashlib.sha256((out.parents[3] / p).read_bytes()).hexdigest()
+        "source_sha256": {p: hashlib.sha256(repository_path(p).read_bytes()).hexdigest()
             for p in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css")},
     }, indent=2) + "\n")
     page.close()
+
+
+def test_runs_archive_loads_older_pages_and_searches_them(browser, live):
+    from datetime import timedelta
+    from hutch.models import iso, utcnow
+
+    base, app = live
+    bot = app.state.store.create_bot(Bot(name="archive-pagination", model="mock/demo", tools=[]))
+    now = utcnow()
+    oldest = app.state.store.create_run(Run(
+        bot_id=bot.id, prompt="distinctive oldest archive marker",
+        created_at=iso(now - timedelta(days=2))))
+    for index in range(400):
+        app.state.store.create_run(Run(
+            bot_id=bot.id, prompt=f"recent archive fixture {index}",
+            created_at=iso(now - timedelta(days=1) + timedelta(seconds=index))))
+
+    page = browser.new_page(viewport={"width": 1100, "height": 800})
+    try:
+        page.goto(base + "/#/runs")
+        page.locator("#runs-count").wait_for()
+        assert "200 loaded results" in page.locator("#runs-count").inner_text()
+        assert page.locator("#runs-older").is_visible()
+        page.locator("#runs-older").click()
+        wait_for_page(page, "document.querySelector('#runs-count')?.textContent === '400 loaded results'")
+        assert page.locator("#runs-older").is_enabled(), "the next archive page stays available after loading"
+        page.locator("#runs-older").click()
+        wait_for_page(page, "document.querySelector('#runs-count')?.textContent === '401 loaded results'")
+        assert not page.locator("#runs-older").is_visible(), "pagination ends after the last archive page"
+        page.locator("#run-search").fill("distinctive oldest archive marker")
+        page.get_by_text("distinctive oldest archive marker", exact=True).wait_for()
+        assert not page.locator("#runs-older").is_visible()
+        assert page.locator("#runs-count").inner_text() == "1 loaded result"
+        assert page.locator(f'a[href="#/run/{oldest.id}"]').count() == 1
+    finally:
+        page.close()
 
 
 @pytest.mark.parametrize("width,height,size", [
@@ -11339,7 +11557,7 @@ def test_chat_discloses_unsupported_image_input_and_preserves_pasted_image_draft
             if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
     page.on("response", lambda response: failed_responses.append({"url": response.url, "status": response.status})
             if response.status >= 400 else None)
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/persona-image-input-unsupported"
+    out = artifact_path("persona-image-input-unsupported")
     out.mkdir(parents=True, exist_ok=True)
     context.tracing.start(screenshots=True, snapshots=True, sources=True)
     trace_active = True
@@ -11382,7 +11600,7 @@ def test_chat_discloses_unsupported_image_input_and_preserves_pasted_image_draft
             "draft_preserved": prompt.input_value() == draft, "message_posts": message_posts,
             "page_errors": page_errors, "console_errors": console_errors,
             "external_requests": external_requests, "failed_responses": failed_responses,
-            "source_sha256": {relative: hashlib.sha256((out.parents[3] / relative).read_bytes()).hexdigest()
+            "source_sha256": {relative: hashlib.sha256(repository_path(relative).read_bytes()).hexdigest()
                 for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                  "src/hutch/data/presets.json", "tests/e2e/test_browser.py")},
         }, indent=2) + "\n")
@@ -11418,7 +11636,7 @@ def test_uncertain_action_review_in_chat_preserves_history_and_recovers_lost_res
     context = browser.new_context(viewport={'width':width,'height':height},reduced_motion='reduce')
     page = context.new_page(); errors = []; attempts = []
     page.on('pageerror',lambda error: errors.append(str(error)))
-    out = Path(__file__).resolve().parents[2]/'docs/realignment/artifacts/action-receipts'
+    out = artifact_path("action-receipts")
     out.mkdir(parents=True,exist_ok=True)
     context.tracing.start(screenshots=True,snapshots=True,sources=True)
     def lose_response(route):
@@ -11461,7 +11679,7 @@ def test_uncertain_action_review_in_chat_preserves_history_and_recovers_lost_res
             'captured_at':iso(utcnow()),'browser':browser.browser_type.name,'version':browser.version,'viewport':[width,height],
             'scenario':'Synthetic missing receipt; real API commit, lost response and idempotent retry; no live provider effect',
             'page_errors':errors,'horizontal_overflow':overflow,'draft_and_focus_preserved':True,'sealed_history_preserved':True,
-            'source_sha256':{p:hashlib.sha256((out.parents[3]/p).read_bytes()).hexdigest() for p in (
+            'source_sha256':{p:hashlib.sha256(repository_path(p).read_bytes()).hexdigest() for p in (
                 'src/hutch/server/static/app.js','src/hutch/server/static/style.css','src/hutch/server/static/index.html',
                 'src/hutch/server/app.py','src/hutch/store.py','src/hutch/action_receipts.py')},
         },indent=2)+'\n')
@@ -11528,7 +11746,7 @@ def test_workflow_owned_uncertain_effect_is_reviewable_without_rewriting_workflo
     assert wstore.workflow_run(store, workflow["id"])["status"] == "outcome_unknown"
     sealed_chain = store.verify_chain(attempt.id)
 
-    artifacts = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workflow-effect-review-20261012"
+    artifacts = artifact_path("workflow-effect-review-20261012")
     artifacts.mkdir(parents=True, exist_ok=True)
     errors, failed_requests = [], []
     context = browser.new_context(viewport={"width": 1440, "height": 1000}, reduced_motion="reduce")
@@ -11537,7 +11755,8 @@ def test_workflow_owned_uncertain_effect_is_reviewable_without_rewriting_workflo
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
     page.on("requestfailed", lambda request: failed_requests.append({"url": request.url,
-                                                                       "failure": request.failure}))
+                                                                       "failure": request.failure})
+            if request.failure != "net::ERR_ABORTED" else None)
     try:
         page.goto(f"{base}/#/run/{attempt.id}")
         run_card = page.locator(f'[data-run-id="{attempt.id}"]')
@@ -11643,7 +11862,7 @@ def test_scoped_fact_review_revision_conflict_and_memory_off(browser, live, widt
     context.tracing.start(screenshots=True, snapshots=True, sources=True)
     page, errors = context.new_page(), []
     page.on('pageerror', lambda error: errors.append(str(error)))
-    out = Path(__file__).resolve().parents[2]/'docs/realignment/artifacts/fact-memory'
+    out = artifact_path("fact-memory")
     out.mkdir(parents=True, exist_ok=True)
     try:
         page.goto(base+'/#/chat/'+bot.name)
@@ -11693,7 +11912,12 @@ def test_scoped_fact_review_revision_conflict_and_memory_off(browser, live, widt
         page.locator(f'[data-fact-card="{shared["id"]}"]').wait_for()
         assert 'PRIVATE A REVISED' in page.locator('#chat-stream').inner_text()
         page.screenshot(path=str(out/f'{size}-shared.png'), full_page=True, animations='disabled')
-        page.get_by_role('link',name='Settings',exact=True).click()
+        if width <= 900:
+            page.locator('#nav-toggle').click()
+        page.locator(f'[data-bot-options="{bot.name}"]').click()
+        page.get_by_role('menuitem', name='Assistant settings').click()
+        open_assistant_customization(page)
+        page.locator('#memory-toggle').wait_for()
         page.locator('#memory-toggle').click()
         page.get_by_role('button', name='Enable memory', exact=True).wait_for()
         assert not store.get_bot(bot.id).memory_enabled
@@ -11710,7 +11934,7 @@ def test_scoped_fact_review_revision_conflict_and_memory_off(browser, live, widt
             'viewport':[width,height], 'page_errors':errors,'horizontal_overflow':overflow,
             'scenario':'Synthetic running attempt proposes a fact; real local API review/conflict/share/off/history; ownership fences have separate offline coverage',
             'draft_preserved':True,'rendered_fact_script_not_executed':True,
-            'source_sha256':{p:hashlib.sha256((out.parents[3]/p).read_bytes()).hexdigest() for p in (
+            'source_sha256':{p:hashlib.sha256(repository_path(p).read_bytes()).hexdigest() for p in (
                 'src/hutch/models.py','src/hutch/store.py','src/hutch/fact_memory.py','src/hutch/tools/memory.py',
                 'src/hutch/runtime/builtin.py','src/hutch/server/app.py','src/hutch/server/static/app.js','src/hutch/server/static/style.css')}
         },indent=2)+'\n')
@@ -11736,7 +11960,7 @@ def test_explicit_cross_bot_fact_share_is_reviewable_revocable_and_responsive(br
                           run_id=run.id, expected_fence=0)
     store.transition_run(run.id, RunStatus.succeeded, fence=0)
     store.review_fact(source.id, fact.id, content_hash=fact.content_hash, action='approve', actor='fixture')
-    out = Path(__file__).resolve().parents[2] / 'docs/realignment/artifacts/fact-sharing'
+    out = artifact_path("fact-sharing")
     out.mkdir(parents=True, exist_ok=True)
     sizes = {'desktop': (1440, 960), 'tablet': (900, 1024), 'phone': (390, 844)}
     context = browser.new_context(viewport={'width': 1440, 'height': 960}, reduced_motion='reduce')
@@ -11833,7 +12057,7 @@ def test_explicit_cross_bot_fact_share_is_reviewable_revocable_and_responsive(br
             'page_errors': errors, 'external_requests': external, 'provider_calls': 0,
             'scenario': 'Locally seeded reviewed fact is explicitly granted to a named Bot; exact snapshot and provenance survive a fresh Store connection; recipient can revoke; retrieval stops immediately.',
             'captures': [f'{screen}-{size}.png' for screen in ('share-review', 'source', 'recipient') for size in sizes],
-            'source_sha256': {name: hashlib.sha256((out.parents[3] / name).read_bytes()).hexdigest() for name in (
+            'source_sha256': {name: hashlib.sha256(repository_path(name).read_bytes()).hexdigest() for name in (
                 'src/hutch/store.py', 'src/hutch/fact_memory.py', 'src/hutch/tools/memory.py',
                 'src/hutch/server/app.py', 'src/hutch/server/static/app.js', 'src/hutch/server/static/style.css')},
         }, indent=2) + '\n', encoding='utf-8')
@@ -11888,7 +12112,7 @@ def test_bot_memory_export_explains_scope_and_downloads_complete_json(browser, l
         if width <= 640:
             assert metrics['button']['height'] >= 44 and metrics['confirm']['height'] >= 44, metrics
 
-        out = Path(__file__).resolve().parents[2] / 'docs/realignment/artifacts/bot-memory-export'
+        out = artifact_path("bot-memory-export")
         out.mkdir(parents=True, exist_ok=True)
         screenshot = out / f'{label}.png'
         trace = out / f'{label}-trace.zip'
@@ -11999,7 +12223,7 @@ def test_restored_state_is_visible_without_losing_chat_draft(browser, restored_l
     context.tracing.start(screenshots=True, snapshots=True, sources=True)
     page, errors = context.new_page(), []
     page.on('pageerror', lambda error: errors.append(str(error)))
-    out = Path(__file__).resolve().parents[2] / 'docs/realignment/artifacts/restoration'
+    out = artifact_path("restoration")
     out.mkdir(parents=True, exist_ok=True)
     try:
         page.goto(base + '/#/chat/restored-bot')
@@ -12047,7 +12271,7 @@ def test_restored_state_is_visible_without_losing_chat_draft(browser, restored_l
             'viewport': [width, height], 'page_errors': errors, 'horizontal_overflow': overflow,
             'scenario': 'Real isolated database backup/restore with synthetic old work; no production restore or physical device',
             'draft_and_keyboard_focus_preserved': True, 'executor_ui_code_hash': code_hash(),
-            'source_sha256': {p: hashlib.sha256((out.parents[3] / p).read_bytes()).hexdigest() for p in (
+            'source_sha256': {p: hashlib.sha256(repository_path(p).read_bytes()).hexdigest() for p in (
                 'src/hutch/server/static/app.js', 'src/hutch/server/static/style.css', 'src/hutch/server/static/index.html',
                 'src/hutch/server/app.py', 'src/hutch/store.py', 'src/hutch/state_snapshot.py')},
         }, indent=2) + '\n')
@@ -12082,7 +12306,7 @@ def test_bot_message_reply_is_keyboard_accessible_editable_and_persisted(browser
     store.append_event(Event(run_id=run.id, type=EventType.message, data={"role": "assistant", "content": answer}))
     store.flush_events()
 
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/reply-quote-polish-2026-10-10"
+    out = artifact_path("reply-quote-polish-2026-10-10")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": width, "height": height}, reduced_motion="reduce",
                                   has_touch=(size == "phone"))
@@ -12138,14 +12362,28 @@ def test_bot_message_reply_is_keyboard_accessible_editable_and_persisted(browser
     assert preview.is_hidden()
     anchored = page.locator(".reply-reference-quote")
     anchored.wait_for(state="visible")
-    assert "The migration finished successfully" in anchored.inner_text()
-    quote_height = anchored.bounding_box()["height"]
+    deadline = time.monotonic() + 5
+    quote_metrics = previous_metrics = None
+    while time.monotonic() < deadline:
+        quote_metrics = page.evaluate("""() => {
+          const quote = document.querySelector('.reply-reference-quote');
+          if (!quote || !quote.isConnected) return null;
+          const rect = quote.getBoundingClientRect(), style = getComputedStyle(quote);
+          return rect.width > 0 && rect.height > 0 ? {
+            text: quote.innerText, width: rect.width, height: rect.height,
+            leftWidth: style.borderLeftWidth, topWidth: style.borderTopWidth,
+            leftColor: style.borderLeftColor, topColor: style.borderTopColor,
+          } : null;
+        }""")
+        if quote_metrics is not None and quote_metrics == previous_metrics:
+            break
+        previous_metrics = quote_metrics
+        time.sleep(0.05)
+    assert quote_metrics is not None, "reply reference did not remain laid out in the rendered transcript"
+    assert "The migration finished successfully" in quote_metrics["text"]
+    quote_height = quote_metrics["height"]
     assert quote_height <= 140, f"A short reply reference should stay compact; rendered at {quote_height:.1f}px"
-    quote_style = anchored.evaluate("""element => {
-      const style = getComputedStyle(element);
-      return {leftWidth: style.borderLeftWidth, topWidth: style.borderTopWidth,
-        leftColor: style.borderLeftColor, topColor: style.borderTopColor};
-    }""")
+    quote_style = quote_metrics
     assert quote_style["leftWidth"] == quote_style["topWidth"] == "1px"
     assert quote_style["leftColor"] == quote_style["topColor"]
     assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
@@ -12159,7 +12397,7 @@ def test_bot_message_reply_is_keyboard_accessible_editable_and_persisted(browser
         "page_errors": errors, "horizontal_overflow": page.evaluate("document.documentElement.scrollWidth - innerWidth"),
         "keyboard_focus_restored": True, "draft_reference_restored_after_reload": True,
         "reply_target": "reply-fixture-answer",
-        "source_sha256": {p: hashlib.sha256((out.parents[3] / p).read_bytes()).hexdigest() for p in (
+        "source_sha256": {p: hashlib.sha256(repository_path(p).read_bytes()).hexdigest() for p in (
             "src/hutch/server/static/app.js", "src/hutch/server/static/style.css", "src/hutch/server/app.py", "src/hutch/store.py")},
     }, indent=2) + "\n")
     context.tracing.stop(path=str(out / f"{size}-trace.zip"))
@@ -12175,7 +12413,7 @@ def test_chat_choice_question_is_selectable_and_readable_at_all_viewports(browse
     base, app = live
     store = app.state.store
     monkeypatch.setattr(app.state.engine, "tick", lambda: None)
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/structured-choices"
+    out = artifact_path("structured-choices")
     out.mkdir(parents=True, exist_ok=True)
     sizes = {"desktop": (1440, 960), "tablet": (900, 1024), "phone": (390, 844)}
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
@@ -12283,7 +12521,7 @@ def test_chat_choice_question_is_selectable_and_readable_at_all_viewports(browse
             "playwright_version": package_version("playwright"), "viewports": trace,
             "page_errors": errors, "provider_calls": 0,
             "fixture_boundary": "SQLite-seeded questions exercise the real Store, API, HTML and chat-submit path; no model is invoked.",
-            "source_sha256": {name: hashlib.sha256((out.parents[3] / name).read_bytes()).hexdigest() for name in (
+            "source_sha256": {name: hashlib.sha256(repository_path(name).read_bytes()).hexdigest() for name in (
                 "src/hutch/models.py", "src/hutch/store.py", "src/hutch/tools/choice.py",
                 "src/hutch/runtime/builtin.py", "src/hutch/server/app.py",
                 "src/hutch/server/static/app.js", "src/hutch/server/static/style.css")},

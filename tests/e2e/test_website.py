@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from tests.support.browser import wait_for_page
+
 import hashlib
 import http.server
 import json
@@ -16,6 +18,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 
 import pytest
+from tests.support.artifacts import artifact_path
 
 pw = pytest.importorskip("playwright.sync_api")
 
@@ -166,7 +169,7 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     assert not errors, errors
     external_requests = [url for url in requests if urlsplit(url).netloc not in {urlsplit(site_url).netloc, ""}]
     assert not external_requests, external_requests
-    out = ROOT / "docs/realignment/artifacts/assistant-first-ui/marketing"
+    out = artifact_path("assistant-first-ui/marketing")
     out.mkdir(parents=True, exist_ok=True)
     viewports = (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844))
     for label, width, height in viewports:
@@ -182,7 +185,7 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
         "viewports": [{"name": label, "size": [width, height]} for label, width, height in viewports],
         "source_sha256": hashlib.sha256((ROOT / "website/index.html").read_bytes()).hexdigest(),
     }, indent=2) + "\n", encoding="utf-8")
-    saved_out = ROOT / "docs/realignment/artifacts/assistant-first-ui/marketing/repeat-work"
+    saved_out = artifact_path("assistant-first-ui/marketing/repeat-work")
     saved_out.mkdir(parents=True, exist_ok=True)
     saved_viewports = []
     for label, width, height in viewports:
@@ -203,7 +206,7 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
         "verified": ["local saved-request library is described", "reuse fills a draft without sending",
                      "responsive marketing card has no horizontal overflow"],
     }, indent=2) + "\n", encoding="utf-8")
-    handoff_out = ROOT / "docs/realignment/artifacts/assistant-first-ui/marketing/specialists"
+    handoff_out = artifact_path("assistant-first-ui/marketing/specialists")
     handoff_out.mkdir(parents=True, exist_ok=True)
     for label, width, height in viewports:
         page.set_viewport_size({"width": width, "height": height})
@@ -226,7 +229,7 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
 def test_marketing_card_hierarchy_and_mobile_labels_are_readable(browser, site_url):
     """Keep feature icons with their labels and make mobile helper text legible."""
     context, page, errors = _page(browser, width=1440, height=960, reduced_motion="reduce")
-    output = ROOT / "docs/realignment/artifacts/marketing-card-hierarchy-2026-10-10"
+    output = artifact_path("marketing-card-hierarchy-2026-10-10")
     output.mkdir(parents=True, exist_ok=True)
     requests: list[str] = []
     page.on("request", lambda request: requests.append(request.url))
@@ -324,7 +327,7 @@ def test_marketing_card_hierarchy_and_mobile_labels_are_readable(browser, site_u
 
 def test_chatgpt_background_consent_marketing_copy_at_responsive_sizes(browser, site_url):
     context, page, errors = _page(browser, reduced_motion="reduce")
-    out = ROOT / "docs/realignment/artifacts/chatgpt-background-consent/marketing"
+    out = artifact_path("chatgpt-background-consent/marketing")
     out.mkdir(parents=True, exist_ok=True)
     external: list[str] = []
     page.on("request", lambda request: external.append(request.url)
@@ -433,7 +436,7 @@ def test_static_site_makes_no_external_requests(browser, site_url):
 
 def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
     context, page, errors = _page(browser, reduced_motion="reduce")
-    out = ROOT / "docs/realignment/artifacts/assistant-first-ui/marketing/workflow"
+    out = artifact_path("assistant-first-ui/marketing/workflow")
     out.mkdir(parents=True, exist_ok=True)
     index = (SITE_DIR / "index.html").read_bytes()
     external = []
@@ -513,7 +516,7 @@ def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
 
 def test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation(browser, site_url):
     context, page, errors = _page(browser, reduced_motion="reduce")
-    out = ROOT / "docs/realignment/artifacts/bot-from-message/marketing"
+    out = artifact_path("bot-from-message/marketing")
     out.mkdir(parents=True, exist_ok=True)
     source = (SITE_DIR / "index.html").read_bytes()
     external = []
@@ -580,7 +583,7 @@ def test_provider_availability_is_readable_without_horizontal_page_scroll(browse
     external = []
     page.on("request", lambda request: external.append(request.url)
             if not request.url.startswith(site_url) and not request.url.startswith("data:") else None)
-    out = ROOT / "docs/realignment/artifacts/assistant-first-ui/marketing/availability"
+    out = artifact_path("assistant-first-ui/marketing/availability")
     out.mkdir(parents=True, exist_ok=True)
     source = (SITE_DIR / "index.html").read_bytes()
     styles = (SITE_DIR / "styles.css").read_bytes()
@@ -647,7 +650,7 @@ def test_provider_availability_is_readable_without_horizontal_page_scroll(browse
 
 def test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_viewports(browser, site_url):
     context, page, errors = _page(browser, reduced_motion="reduce")
-    out = ROOT / "docs/realignment/artifacts/outlook-calendar-write/marketing"
+    out = artifact_path("outlook-calendar-write/marketing")
     out.mkdir(parents=True, exist_ok=True)
     source = (SITE_DIR / "index.html").read_bytes()
     styles = (SITE_DIR / "styles.css").read_bytes()
@@ -710,7 +713,7 @@ def test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_
 def test_dynamic_workflow_marketing_is_truthful_and_responsive(browser, site_url):
     context, page, errors = _page(browser, reduced_motion="reduce")
     out = Path(os.environ.get("HUTCH_DYNAMIC_WORKFLOW_MARKETING_ARTIFACTS",
-                              ROOT / "docs/realignment/artifacts/dynamic-workflows/marketing"))
+                              artifact_path("dynamic-workflows/marketing")))
     out.mkdir(parents=True, exist_ok=True)
     external = []
     page.on("request", lambda request: external.append(request.url)
@@ -905,7 +908,7 @@ def test_mobile_drawer_focus_and_ctas(browser, site_url):
     hidden_skip_box = skip_link.bounding_box()
     assert hidden_skip_box and hidden_skip_box["y"] + hidden_skip_box["height"] < 0, hidden_skip_box
     skip_link.focus()
-    page.wait_for_function("document.activeElement?.matches('.skip-link') && document.querySelector('.skip-link').getBoundingClientRect().top >= 0")
+    wait_for_page(page, "document.activeElement?.matches('.skip-link') && document.querySelector('.skip-link').getBoundingClientRect().top >= 0")
     visible_skip_box = skip_link.bounding_box()
     assert visible_skip_box and 0 <= visible_skip_box["y"] <= 16, visible_skip_box
     page.keyboard.press("Enter")
@@ -961,7 +964,7 @@ def test_adaptive_response_style_marketing_is_labeled_and_fits(browser, site_url
     assert "text-only today" in image_input.inner_text().lower()
     assert "does not enable image input" in image_input.inner_text().lower()
 
-    out = ROOT / "docs/realignment/artifacts/persona-marketing-2026-10-11"
+    out = artifact_path("persona-marketing-2026-10-11")
     out.mkdir(parents=True, exist_ok=True)
     # This is a tall, section-only capture. Keep the sticky site header from being
     # composited repeatedly over the captured content by the browser's full-element shot.
@@ -973,7 +976,7 @@ def test_adaptive_response_style_marketing_is_labeled_and_fits(browser, site_url
     for width, height, label in viewports:
         page.set_viewport_size({"width": width, "height": height})
         block.scroll_into_view_if_needed()
-        page.wait_for_function("""() => {
+        wait_for_page(page, """() => {
           const img = document.querySelector('#response-style picture img');
           return img && img.complete && img.naturalWidth > 0;
         }""")
@@ -1028,7 +1031,7 @@ def test_real_setup_capture_is_truthful_and_fits_anonymous_viewports(browser, si
     from hutch.models import iso, utcnow
 
     context, page, errors = _page(browser, width=width, height=height, reduced_motion="reduce")
-    out = ROOT / "docs/realignment/artifacts/no-mock-setup/site"
+    out = artifact_path("no-mock-setup/site")
     out.mkdir(parents=True, exist_ok=True)
     try:
         requests = []

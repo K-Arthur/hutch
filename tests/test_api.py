@@ -65,7 +65,7 @@ def test_the_local_surface_carries_the_strict_csp_too(client):
     assert "default-src 'self'" in csp
     assert "script-src 'self'" in csp and "connect-src 'self'" in csp
     assert "frame-ancestors 'none'" in csp and "object-src 'none'" in csp
-    assert "img-src 'self' data:" in csp
+    assert "img-src 'self' data: blob:" in csp
 
 def test_stats_distinguish_execution_waits_and_queued_delegated_work(client, monkeypatch):
     store = client.app.state.store

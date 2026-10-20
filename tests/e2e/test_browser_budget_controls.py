@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from tests.support.browser import wait_for_page, wait_for_page_value
+
 import hashlib
 import json
 import time
@@ -12,10 +14,11 @@ import pytest
 from hutch.models import Bot
 
 from tests.e2e.test_browser import browser, live, open_assistant_customization  # noqa: F401
+from tests.support.artifacts import artifact_path
 
 pytest.importorskip("playwright.sync_api")
 
-ARTIFACTS = Path(__file__).resolve().parents[2] / "docs" / "realignment" / "artifacts" / "cost-guardrails-2026-10-11"
+ARTIFACTS = artifact_path("cost-guardrails-2026-10-11")
 VIEWPORTS = (("desktop", {"width": 1440, "height": 900}),
              ("tablet", {"width": 768, "height": 1024}),
              ("phone", {"width": 360, "height": 780}))
@@ -54,7 +57,15 @@ def test_budget_bands_preflight_and_context_are_usable_at_every_width(browser, l
                 open_assistant_customization(page)
             route_input = page.locator('[data-task-route="code_analysis"]')
             route_input.wait_for(state="visible")
-            route_input.scroll_into_view_if_needed()
+            route_geometry = wait_for_page_value(page, """() => {
+              const input = document.querySelector('[data-task-route="code_analysis"]');
+              if (!input || !input.isConnected) return null;
+              input.scrollIntoView({block: 'center', inline: 'nearest'});
+              const rect = input.getBoundingClientRect();
+              return rect.width > 0 && rect.height > 0
+                ? {value: input.value, width: rect.width, height: rect.height} : null;
+            }""")
+            assert route_geometry["width"] > 0 and route_geometry["height"] > 0
             page.screenshot(path=str(ARTIFACTS / f"route-settings-{label}.png"), full_page=False,
                             animations="disabled")
             disclosure = page.locator("#assistant-usage-limits")
@@ -82,7 +93,7 @@ def test_budget_bands_preflight_and_context_are_usable_at_every_width(browser, l
             disclosure.wait_for(state="attached")
             if not disclosure.evaluate("element => element.open"):
                 disclosure.locator(":scope > summary").click()
-            page.wait_for_function("document.querySelector('#band-ceiling')?.value === '0.15'", timeout=6000)
+            wait_for_page(page, "document.querySelector('#band-ceiling')?.value === '0.15'", timeout=6000)
             assert page.input_value("#band-warn") == "0.05"
 
             page.goto(f"{base}/#/chat")

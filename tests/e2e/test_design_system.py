@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from tests.support.browser import wait_for_page
+
 import hashlib
 import http.server
 import json
@@ -9,7 +11,7 @@ import platform
 import socketserver
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from importlib.metadata import version as package_version
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -22,6 +24,7 @@ import uvicorn  # noqa: E402
 
 from hutch.models import Bot, Event, EventType, Run, RunStatus, RuntimeKind  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
+from tests.support.artifacts import artifact_path
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -116,7 +119,7 @@ def test_studio_template_gallery_survives_background_refresh(browser, app_server
     """Optional helper examples stay secondary and survive an unchanged chat refresh."""
     app_url, app = app_server
     store = app.state.store
-    out = ROOT / "docs/realignment/artifacts/studio-helper-gallery-2026-10-10"
+    out = artifact_path("studio-helper-gallery-2026-10-10")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(reduced_motion="reduce")
     page = context.new_page()
@@ -241,7 +244,7 @@ def test_studio_template_gallery_survives_background_refresh(browser, app_server
 def test_assistant_settings_header_groups_secondary_actions(browser, app_server):
     """Assistant settings keep the name visible and place rare actions in one menu."""
     app_url, _app = app_server
-    out = ROOT / "docs/realignment/artifacts/assistant-settings-actions-2026-10-10"
+    out = artifact_path("assistant-settings-actions-2026-10-10")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(reduced_motion="reduce", viewport={"width": 1440, "height": 960})
     page = context.new_page()
@@ -389,7 +392,7 @@ def _measure_operator_shell(page) -> dict:
 def test_shared_design_tokens_render_consistently_across_all_surfaces(browser, app_server, site_server):
     """Capture current Studio, Connections, and marketing renders at desktop/tablet/phone sizes."""
     app_url, _app = app_server
-    out = ROOT / "docs/realignment/artifacts/design-system"
+    out = artifact_path("design-system")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -551,7 +554,7 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
     """Capture a real request-first setup and the non-technical app catalog at common sizes."""
     app_url, app = app_server
     assert app.state.store.delete_bot("design-system-review")
-    out = ROOT / "docs/realignment/artifacts/app-catalog-source-aligned-2026-10-10"
+    out = artifact_path("app-catalog-source-aligned-2026-10-10")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -721,7 +724,7 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
 def test_assistant_settings_keep_everyday_edits_up_front(browser, app_server):
     """A one-assistant setup stays approachable while detailed controls remain available."""
     app_url, _app = app_server
-    out = ROOT / "docs/realignment/artifacts/assistant-settings-everyday"
+    out = artifact_path("assistant-settings-everyday")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -814,7 +817,7 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
     page = context.new_page()
     errors: list[str] = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    out = ROOT / "docs/realignment/artifacts/mascot-eye-review-2026-10-10"
+    out = artifact_path("mascot-eye-review-2026-10-10")
     out.mkdir(parents=True, exist_ok=True)
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
@@ -1052,7 +1055,7 @@ def test_chat_message_search_is_scoped_responsive_and_opens_its_conversation(bro
     assert touch_size and touch_size["width"] >= 44 and touch_size["height"] >= 44, touch_size
     touch_context.close()
 
-    out = ROOT / "docs/realignment/artifacts/conversation-search"
+    out = artifact_path("conversation-search")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -1176,7 +1179,7 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
     store.append_event(Event(run_id=run.id, type=EventType.message,
         data={"role": "assistant", "content": completed_answer}))
 
-    out = ROOT / "docs/realignment/artifacts/ui-surface-review"
+    out = artifact_path("ui-surface-review")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(
         viewport={"width": 1440, "height": 960}, reduced_motion="reduce", forced_colors="none"
@@ -1238,7 +1241,7 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                     assert outlook_mark.is_visible()
                     assert page.get_by_role("heading", name="Microsoft Outlook", exact=True).is_visible()
                 if surface_name == "bot-settings":
-                    page.wait_for_function(
+                    wait_for_page(page,
                         "document.querySelector('#app-top-context h1')?.textContent.trim() === 'Design Partner'"
                     )
                 page.evaluate("document.fonts.ready")
@@ -1374,7 +1377,7 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                     assert "steps" not in run_card.inner_text().lower()
                     assert run.id not in run_card.inner_text()
                     assert page.locator("#runs-table-wrap > table").count() == 0
-                    assert page.locator("#runs-count").inner_text() == "1 result"
+                    assert page.locator("#runs-count").inner_text() == "1 loaded result"
                 if surface_name == "run-detail":
                     assert page.get_by_role("heading", name="Task details").is_visible()
                     assert page.locator("#chat-stream .answer").inner_text() == completed_answer
@@ -1487,7 +1490,7 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
 def test_model_provider_connect_flow_is_compact_and_responsive(browser, app_server):
     """The everyday key flow stays short; provider catalogs remain a server-owned capability."""
     app_url, _app = app_server
-    out = ROOT / "docs/realignment/artifacts/model-provider-quick-connect-2026-10-10"
+    out = artifact_path("model-provider-quick-connect-2026-10-10")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(reduced_motion="reduce")
     page = context.new_page()
@@ -1616,7 +1619,7 @@ def test_connection_and_assistant_settings_share_disclosure_axes(browser, app_se
     .summary-row skeleton introduced in October 2026 against silent drift.
     """
     app_url, _app = app_server
-    out = ROOT / "docs/realignment/artifacts/settings-disclosure-axes-2026-10-10"
+    out = artifact_path("settings-disclosure-axes-2026-10-10")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(reduced_motion="reduce")
     page = context.new_page()
@@ -1781,7 +1784,7 @@ def test_adaptive_persona_controls_round_trip_recover_conflicts_and_stay_local(b
     conversation, _ = store.create_conversation(
         bot.id, "Persona controls", idem_key="persona-controls-conversation", request_hash="persona-controls"
     )
-    out = ROOT / "docs/realignment/artifacts/persona-ui-v2-2026-10-11"
+    out = artifact_path("persona-ui-v2-2026-10-11")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -1902,9 +1905,9 @@ def test_adaptive_persona_controls_round_trip_recover_conflicts_and_stay_local(b
         outer = page.locator("#studio-conversation-actions")
         if not outer.evaluate("el => el.open"):
             page.locator("#studio-conversation-options").click()
-        page.wait_for_function("() => document.querySelector('#studio-conversation-actions')?.open === true")
+        wait_for_page(page, "() => document.querySelector('#studio-conversation-actions')?.open === true")
         page.locator("#persona-chat-options summary").click()
-        page.wait_for_function("() => document.querySelector('#persona-chat-options')?.open === true")
+        wait_for_page(page, "() => document.querySelector('#persona-chat-options')?.open === true")
         chat_options = page.locator("#persona-chat-options")
         conversation_scope = chat_options.locator("[data-persona-scope='conversation']")
         conversation_scope.locator('[data-persona-field="preset"]').select_option("dry_wit")
@@ -1914,7 +1917,7 @@ def test_adaptive_persona_controls_round_trip_recover_conflicts_and_stay_local(b
         save_conversation.focus()
         assert save_conversation.evaluate("el => el === document.activeElement")
         page.keyboard.press("Enter")
-        page.wait_for_function("() => document.querySelector('#persona-chat-options [data-persona-conversation-status]')?.textContent === 'Saved for this conversation.'")
+        wait_for_page(page, "() => document.querySelector('#persona-chat-options [data-persona-conversation-status]')?.textContent === 'Saved for this conversation.'")
         conversation_state = get_persona(f"conversations/{conversation['id']}/persona")
         assert conversation_state["override"]["preset"] == "dry_wit"
         assert conversation_state["override"]["depth"] == "detailed"
@@ -1932,7 +1935,7 @@ def test_adaptive_persona_controls_round_trip_recover_conflicts_and_stay_local(b
         assert conversation_scope.locator('[data-persona-field="humor"]').input_value() == "off"
         assert "Unsaved change" in conversation_scope.locator('[data-persona-origin="depth"]').inner_text()
         save_conversation.click()
-        page.wait_for_function("() => document.querySelector('#persona-chat-options [data-persona-conversation-status]')?.textContent === 'Saved for this conversation.'")
+        wait_for_page(page, "() => document.querySelector('#persona-chat-options [data-persona-conversation-status]')?.textContent === 'Saved for this conversation.'")
         recovered_conversation = get_persona(f"conversations/{conversation['id']}/persona")
         assert recovered_conversation["revision"] == 3
         assert recovered_conversation["override"]["depth"] == "brief"
@@ -2055,7 +2058,7 @@ def test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive(br
     bot = store.get_bot("design-system-review")
     bot.model = "ollama/fake:8b"  # local route gives a $0 quote; no model server is contacted by this fixture
     store.upsert_bot(bot)
-    out = ROOT / "docs/realignment/artifacts/persona-live-preview-2026-10-11"
+    out = artifact_path("persona-live-preview-2026-10-11")
     out.mkdir(parents=True, exist_ok=True)
     runtime_calls: list[dict[str, object]] = []
 
@@ -2136,7 +2139,7 @@ def test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive(br
         inspector = preview.locator("[data-persona-preview-inspector]")
         assert inspector.is_hidden()
         budget = preview.locator("[data-persona-preview-budget]")
-        page.wait_for_function("() => document.querySelector('[data-persona-preview-budget]')?.textContent.includes('local model has no per-token Hutch charge')")
+        wait_for_page(page, "() => document.querySelector('[data-persona-preview-budget]')?.textContent.includes('local model has no per-token Hutch charge')")
         assert "one fixed sample" in preview.inner_text()
         assert "does not send conversation history or standing directions" in preview.inner_text()
         assert preview.locator("[data-persona-preview-status]").get_attribute("aria-live") == "polite"
@@ -2153,12 +2156,12 @@ def test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive(br
         assert "Unsaved change" in form.locator('[data-persona-origin="preset"]').inner_text()
         button.focus()
         page.keyboard.press("Enter")
-        page.wait_for_function("() => document.querySelector('[data-persona-preview-status]')?.textContent.includes('Previewing')")
+        wait_for_page(page, "() => document.querySelector('[data-persona-preview-status]')?.textContent.includes('Previewing')")
         assert button.get_attribute("aria-disabled") == "true"
         assert page.evaluate("document.activeElement?.matches('[data-persona-preview-run]')") is True
         page.keyboard.press("Enter")  # aria-disabled repeat activation is ignored without dropping focus
         page.get_by_text("Offer a sunny windowsill", exact=False).wait_for()
-        page.wait_for_function("() => document.querySelector('[data-persona-preview-status]')?.textContent.includes('Preview complete')")
+        wait_for_page(page, "() => document.querySelector('[data-persona-preview-status]')?.textContent.includes('Preview complete')")
         assert page.evaluate("document.activeElement?.matches('[data-persona-preview-run]')") is True
         assert len(preview_posts) == 1 and len(runtime_calls) == 1
         assert preview_posts[0] == {"style": {"preset": "dry_wit", "depth": "brief", "humor": "playful"},
@@ -2215,7 +2218,7 @@ def test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive(br
         button.click()
         preview.locator("[data-persona-preview-stop]").wait_for(state="visible")
         preview.locator("[data-persona-preview-stop]").click()
-        page.wait_for_function("() => document.querySelector('[data-persona-preview-status]')?.textContent.includes('Preview stopped')")
+        wait_for_page(page, "() => document.querySelector('[data-persona-preview-status]')?.textContent.includes('Preview stopped')")
         assert len(preview_posts) == 2
         latest = store._db.execute("SELECT id, status FROM runs WHERE bot_id = ? ORDER BY created_at DESC LIMIT 1",
                                    (bot.id,)).fetchone()
@@ -2260,7 +2263,7 @@ def test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive(br
 def test_static_persona_examples_are_labeled_local_and_responsive(browser, app_server):
     """Authored examples explain voice and depth without previewing through a model."""
     app_url, _app = app_server
-    out = ROOT / "docs/realignment/artifacts/persona-static-examples-2026-10-11"
+    out = artifact_path("persona-static-examples-2026-10-11")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 360, "height": 844}, reduced_motion="reduce")
     page = context.new_page()
@@ -2385,7 +2388,7 @@ def test_adaptive_persona_rollback_is_visible_read_only_and_preserves_local_draf
 
     # The server reads this immutable startup config for each request. Mutate only this isolated test app.
     object.__setattr__(app.state.config, "adaptive_persona_enabled", False)
-    out = ROOT / "docs/realignment/artifacts/persona-rollback-ui-2026-10-11"
+    out = artifact_path("persona-rollback-ui-2026-10-11")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -2434,15 +2437,15 @@ def test_adaptive_persona_rollback_is_visible_read_only_and_preserves_local_draf
                       conversation["id"])
         page.goto(f"{app_url}/#/chat/design-system-review", wait_until="domcontentloaded")
         page.locator("#chat-form").wait_for()
-        page.wait_for_function("id => document.querySelector('#conversation-switcher')?.value === id",
+        wait_for_page(page, "id => document.querySelector('#conversation-switcher')?.value === id",
                                arg=conversation["id"])
         outer = page.locator("#studio-conversation-actions")
         if not outer.evaluate("el => el.open"):
             page.locator("#studio-conversation-options").click()
-        page.wait_for_function("() => document.querySelector('#studio-conversation-actions')?.open === true")
+        wait_for_page(page, "() => document.querySelector('#studio-conversation-actions')?.open === true")
         options = page.locator("#persona-chat-options")
         options.locator("summary").click()
-        page.wait_for_function("() => document.querySelector('#persona-chat-options')?.open === true")
+        wait_for_page(page, "() => document.querySelector('#persona-chat-options')?.open === true")
         summary = options.locator("summary")
         summary.focus()
         page.keyboard.press("Space")
@@ -2510,7 +2513,7 @@ def test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runti
         bot.id, "Answer correction controls", idem_key="answer-correction-conversation",
         request_hash="answer-correction-conversation",
     )
-    out = ROOT / "docs/realignment/artifacts/persona-rewrite-ui-2026-10-11"
+    out = artifact_path("persona-rewrite-ui-2026-10-11")
     out.mkdir(parents=True, exist_ok=True)
     errors: list[str] = []
     console_errors: list[str] = []
@@ -2521,7 +2524,10 @@ def test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runti
     trace_saved = False
 
     def seed_answer(target_bot, target_conversation_id: str, request: str, answer: str, suffix: str) -> str:
-        stamp = datetime.now(timezone.utc).isoformat()
+        # Keep relative timestamps stable across the responsive checks. The
+        # chat feed refreshes periodically and can otherwise replace its DOM
+        # when a newly seeded answer crosses a minute boundary.
+        stamp = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
         run = store.create_run(Run(
             bot_id=target_bot.id, prompt=request, conversation_id=target_conversation_id,
             status=RunStatus.succeeded, exit_reason="completed", finished_at=stamp,
@@ -2639,7 +2645,7 @@ def test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runti
         # cannot advertise a rewrite flow that the server does not support.
         page.goto(f"{app_url}/#/conversation/{external_conversation['id']}", wait_until="domcontentloaded")
         page.locator("#chat-form").wait_for()
-        page.wait_for_function("id => document.querySelector('#conversation-switcher')?.value === id",
+        wait_for_page(page, "id => document.querySelector('#conversation-switcher')?.value === id",
                                arg=external_conversation["id"])
         external_transcript = page.request.get(
             f"{app_url}/api/v1/conversations/{external_conversation['id']}?after=0&limit=100"
@@ -2650,7 +2656,7 @@ def test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runti
 
         page.goto(f"{app_url}/#/chat/design-system-review", wait_until="domcontentloaded")
         actions = page.locator(f'[data-answer-message="{target_message_id}"][data-answer-correction="shorter"]')
-        page.wait_for_function("id => document.querySelector('#conversation-switcher')?.value === id",
+        wait_for_page(page, "id => document.querySelector('#conversation-switcher')?.value === id",
                                arg=conversation["id"])
         actions.wait_for()
         scroll = page.locator("#chat-scroll")
@@ -2665,8 +2671,8 @@ def test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runti
         scroll_before = scroll.evaluate("el => el.scrollTop")
         assert scroll.evaluate("el => el.scrollHeight - el.scrollTop - el.clientHeight") > 90
         page.keyboard.press("Enter")
-        page.wait_for_function("() => document.querySelectorAll('#chat-stream [data-run-id]').length >= 5")
-        page.wait_for_function("() => document.activeElement?.dataset?.answerCorrection === 'shorter'")
+        wait_for_page(page, "() => document.querySelectorAll('#chat-stream [data-run-id]').length >= 5")
+        wait_for_page(page, "() => document.activeElement?.dataset?.answerCorrection === 'shorter'")
         assert page.locator("#chat-prompt").input_value() == "Keep this draft and its selection."
         assert page.locator("#chat-prompt").evaluate("el => [el.selectionStart, el.selectionEnd]") == [5, 13]
         assert scroll.evaluate("el => el.scrollTop") == scroll_before
@@ -2721,7 +2727,7 @@ def test_answer_feedback_stays_local_revisioned_and_accessible(browser, app_serv
     conversation, _ = store.create_conversation(
         bot.id, "Local answer feedback", idem_key="feedback-ui-conversation", request_hash="feedback-ui-conversation",
     )
-    out = ROOT / "docs/realignment/artifacts/persona-feedback-2026-10-11"
+    out = artifact_path("persona-feedback-2026-10-11")
     out.mkdir(parents=True, exist_ok=True)
     errors: list[str] = []
     console_errors: list[str] = []
@@ -2792,7 +2798,7 @@ def test_answer_feedback_stays_local_revisioned_and_accessible(browser, app_serv
     try:
         page.goto(f"{app_url}/#/chat/design-system-review", wait_until="domcontentloaded")
         page.locator("#chat-form").wait_for()
-        page.wait_for_function("id => document.querySelector('#conversation-switcher')?.value === id",
+        wait_for_page(page, "id => document.querySelector('#conversation-switcher')?.value === id",
                                arg=conversation["id"])
         page.locator(f'[data-feedback-message="{target_message_id}"][data-answer-feedback-rating="helpful"]').wait_for()
         page.locator(f'[data-feedback-message="{target_message_id}"][data-answer-feedback-rating="needs_work"]').wait_for()
@@ -2801,7 +2807,7 @@ def test_answer_feedback_stays_local_revisioned_and_accessible(browser, app_serv
           ?.scrollIntoView({block: 'center'})""", target_message_id)
 
         def wait_for_feedback_revision(revision: int) -> None:
-            page.wait_for_function("""([id, expected]) => {
+            wait_for_page(page, """([id, expected]) => {
               const controls = [...document.querySelectorAll('[data-feedback-message]')]
                 .filter(control => control.dataset.feedbackMessage === id && control.hasAttribute('data-answer-feedback-rating')
                   && control.dataset.answerFeedbackRating);
@@ -2811,7 +2817,7 @@ def test_answer_feedback_stays_local_revisioned_and_accessible(browser, app_serv
 
         for label, width, height in viewports:
             page.set_viewport_size({"width": width, "height": height})
-            page.wait_for_function("id => document.querySelectorAll(`[data-feedback-message=\\\"${id}\\\"][data-answer-feedback-rating]`).length === 2",
+            wait_for_page(page, "id => document.querySelectorAll(`[data-feedback-message=\\\"${id}\\\"][data-answer-feedback-rating]`).length === 2",
                                    arg=target_message_id)
             page.evaluate("""id => [...document.querySelectorAll('[data-feedback-message]')]
               .find(control => control.dataset.feedbackMessage === id && control.dataset.answerFeedbackRating === 'helpful')
@@ -2870,7 +2876,7 @@ def test_answer_feedback_stays_local_revisioned_and_accessible(browser, app_serv
         page.keyboard.press("Tab")
         assert page.evaluate("document.activeElement.dataset.answerFeedbackRating") == "needs_work"
         page.keyboard.press("Enter")
-        page.wait_for_function("id => document.querySelector(`[data-feedback-message=\\\"${id}\\\"][data-answer-feedback-rating=\\\"needs_work\\\"]`)?.getAttribute('aria-pressed') === 'true'",
+        wait_for_page(page, "id => document.querySelector(`[data-feedback-message=\\\"${id}\\\"][data-answer-feedback-rating=\\\"needs_work\\\"]`)?.getAttribute('aria-pressed') === 'true'",
                                arg=target_message_id)
         wait_for_feedback_revision(2)
         assert prompt.input_value() == "Keep this draft and selected range."
@@ -2880,7 +2886,7 @@ def test_answer_feedback_stays_local_revisioned_and_accessible(browser, app_serv
         reason = page.get_by_label("Optional reason for feedback")
         reason.wait_for()
         reason.select_option("accuracy")
-        page.wait_for_function("""([id, expected]) => [...document.querySelectorAll('[data-answer-feedback-reason]')]
+        wait_for_page(page, """([id, expected]) => [...document.querySelectorAll('[data-answer-feedback-reason]')]
           .some(select => select.dataset.feedbackMessage === id && select.value === 'accuracy'
             && Number(select.dataset.feedbackRevision) === expected
             && select.getAttribute('aria-disabled') !== 'true')""",
@@ -2895,14 +2901,14 @@ def test_answer_feedback_stays_local_revisioned_and_accessible(browser, app_serv
         page.screenshot(path=str(out / "feedback-needs-work-reason.png"), animations="disabled")
         page.locator(f'[data-feedback-message="{target_message_id}"][data-answer-feedback-rating=""]').click()
         wait_for_feedback_revision(4)
-        page.wait_for_function("id => document.querySelector(`[data-feedback-message=\\\"${id}\\\"][data-answer-feedback-rating=\\\"helpful\\\"]`)?.getAttribute('aria-pressed') === 'false'",
+        wait_for_page(page, "id => document.querySelector(`[data-feedback-message=\\\"${id}\\\"][data-answer-feedback-rating=\\\"helpful\\\"]`)?.getAttribute('aria-pressed') === 'false'",
                                arg=target_message_id)
 
         assert len(feedback_requests) == 4, feedback_requests
         assert [request["body"]["expected_revision"] for request in feedback_requests] == [0, 1, 2, 3]
         assert [request["body"]["rating"] for request in feedback_requests] == ["helpful", "needs_work", "needs_work", None]
         assert feedback_requests[2]["body"]["reason"] == "accuracy"
-        page.wait_for_function("""([id, expected]) => {
+        wait_for_page(page, """([id, expected]) => {
           const group = [...document.querySelectorAll('.answer-feedback')]
             .find(element => element.querySelector(`[data-feedback-message=\\"${id}\\"]`));
           return group?.querySelector('[role=status]')?.textContent.trim() === expected;
@@ -2915,7 +2921,7 @@ def test_answer_feedback_stays_local_revisioned_and_accessible(browser, app_serv
         assert store.read_conversation_persona(conversation["id"]) == (None, 0)
 
         page.goto(f"{app_url}/#/conversation/{external_conversation['id']}", wait_until="domcontentloaded")
-        page.wait_for_function("id => document.querySelector('#conversation-switcher')?.value === id",
+        wait_for_page(page, "id => document.querySelector('#conversation-switcher')?.value === id",
                                arg=external_conversation["id"])
         assert page.locator(f'[data-feedback-message="{external_answer_id}"][data-answer-feedback-rating]').count() == 0
         assert failed_responses == [], failed_responses

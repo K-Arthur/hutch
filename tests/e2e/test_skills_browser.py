@@ -18,8 +18,9 @@ import uvicorn  # noqa: E402
 from hutch.models import Bot  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
 from hutch.skills import SkillRegistry  # noqa: E402
+from tests.support.artifacts import artifact_path
 
-OUT = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/skills"
+OUT = artifact_path("skills")
 
 
 @pytest.fixture(scope="module")

@@ -22,6 +22,7 @@ import uvicorn  # noqa: E402
 
 from hutch.models import ApprovalMode, Bot  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
+from tests.support.artifacts import artifact_path
 
 
 @pytest.fixture(scope="module")
@@ -84,7 +85,7 @@ def test_tool_compatibility_reports_evidence_and_saves_the_choice(browser, live)
                          tools=["files"], approval_mode=ApprovalMode.auto))
     store.create_bot(Bot(name="lmstudio-bot", display_name="LM Studio bot", model="lmstudio/qwen2.5-7b",
                          tools=["files"], approval_mode=ApprovalMode.auto))
-    artifact_dir = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/tool-compatibility"
+    artifact_dir = artifact_path("tool-compatibility")
     artifact_dir.mkdir(parents=True, exist_ok=True)
 
     context = browser.new_context(viewport={"width": 1440, "height": 1000})

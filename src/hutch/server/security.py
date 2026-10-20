@@ -384,7 +384,7 @@ class SecurityMiddleware:
                 security_headers[b"content-security-policy"] = (
                     b"default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; "
                     b"form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
-                    b"img-src 'self' data:; connect-src 'self'")
+                    b"img-src 'self' data: blob:; connect-src 'self'")
                 if remote_request or paired_request:
                     security_headers[b"content-security-policy"] = (
                         b"default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; "
