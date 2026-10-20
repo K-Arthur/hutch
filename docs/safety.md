@@ -291,8 +291,9 @@ service-side effects such as recording access or changing a server-side session.
   "would be BLOCKED: ..."), and the transcript marks the result **simulated**. A simulated action asks nobody, because
   nothing happens.
 - **Read-only is an allowlist, and unsure means simulated**: `ls`, `cat`, `grep`, `find` (without `-exec`/`-delete`),
-  `sort`, `wc`, `echo`, `date` without a clock-setting option, and similar, joined by pipes and `&&`. Git is simulated
-  because repository config can run hooks during commands such as `git status`. Clock-setting `date` options ask in a
+  `wc`, `echo`, `date` without a clock-setting option, and similar, joined by pipes and `&&`. Git is simulated
+  because repository config can run hooks during commands such as `git status`. `sort` is simulated because it may write
+  temporary files or invoke the executable named by `--compress-program`. Clock-setting `date` options ask in a
   normal run and are simulated in Rehearse. A write redirect, a background job, a
   heredoc, a wrapper (`bash -c`, `env`, `xargs`), a substitution containing a non-read-only command, `sed`, `awk`, `tee`,
   `python`, `curl` are all treated as mutating.

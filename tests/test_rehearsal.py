@@ -115,6 +115,28 @@ def test_rehearsal_does_not_run_a_repository_configured_git_status_hook(eng, tmp
     assert not marker.exists(), "a configured Git hook must not run during Rehearse"
 
 
+def test_rehearsal_does_not_run_sort_compress_program(eng, tmp_path):
+    """GNU sort's compression option runs an arbitrary helper while spilling large inputs."""
+    engine, store, fake, folder = eng
+    helper = tmp_path / "compress-helper"
+    marker = tmp_path / "compress-helper-ran"
+    helper.write_text(f"#!/bin/sh\nprintf called > {marker}\nexec cat\n")
+    helper.chmod(0o700)
+    source = folder / "sort-input.txt"
+    source.write_text("z\na\nm\n" * 100)
+    command = (f"sort --buffer-size=1 --temporary-directory={tmp_path} "
+               f"--compress-program={helper} {source}")
+    fake.script = agent_script([{"content": "inspect sorted output", "tool_calls": [
+        {"name": "shell", "arguments": {"command": command}},
+    ]}, {"content": "finished"}])
+    bot = store.create_bot(Bot(name="sort-rehearsal", model="ollama/tiny:1b", tools=["shell"], selfcheck=False,
+                               workdir=str(folder)))
+    run = engine.run_blocking(bot, "inspect sorted output", rehearsal=True)
+    result = next(e.data for e in store.list_events(run.id) if e.type is EventType.tool_result)
+    assert result["simulated"] and "Nothing was changed." in result["output"]
+    assert not marker.exists(), "Rehearse must not invoke sort's configured executable helper"
+
+
 def test_a_hard_denied_command_is_reported_as_blocked(eng):
     run, results, *_ = rehearse(eng, [{"name": "shell", "arguments": {"command": "sudo rm -rf /"}}])
     assert results[0]["simulated"] and results[0]["ok"] is False and "would be BLOCKED" in results[0]["output"]
@@ -166,7 +188,8 @@ def test_a_normal_run_is_unaffected(eng):
 READ_ONLY = ["ls", "ls -la | head", "cat a.txt", "date", "pwd && date", "(cd sub && ls)", "echo $(date)", "wc -l a b",
              "ls > /dev/null", "cat a 2>/dev/null"]
 NOT_READ_ONLY = ["rm a", "touch a", "mkdir d", "mv a b", "cp a b", "echo hi > a", "cat a >> b", "ls & touch a", "find . -delete",
-                 "find . -exec rm {} \\;", "sort -o out a", "sort a --output=b", "git status", "git log --oneline | wc -l", "git diff HEAD~1",
+                 "find . -exec rm {} \\;", "sort a", "sort -o out a", "sort a --output=b",
+                 "sort --compress-program=helper a", "sort --comp=helper a", "git status", "git log --oneline | wc -l", "git diff HEAD~1",
                  "git commit -m x", "git push", "git checkout x", "git branch -D x", "date -s @0", "date --set=@0",
                  "sed -i s/a/b/ f", "awk 'BEGIN{system(\"rm a\")}'", "python3 -c 'x'", "bash -c ls", "env ls", "xargs ls", "tee a",
                  "curl http://x", "echo $(touch a)", "ls | tee a", "cat <<EOF\nx\nEOF", "$(echo ls)", "echo 'unterminated", "", "   "]
