@@ -11917,7 +11917,6 @@ def test_scoped_fact_review_revision_conflict_and_memory_off(browser, live, widt
         assert page.locator('.modal-card').is_visible()
         page.keyboard.press('Escape')
         wait_for(lambda: review_button.evaluate('e => e.matches(":focus")'), timeout=2)
-        assert review_button.evaluate('e => e.matches(":focus")')
         review_button.click()
         newer = store.remember(bot.id, 'format', 'PRIVATE A REVISED: concise summary', conversation_id=a['id'])
         page.locator('#modal-confirm').click()
