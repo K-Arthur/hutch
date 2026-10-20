@@ -2032,6 +2032,30 @@ def test_paired_phone_recovers_approval_after_lost_response_with_same_key(browse
         card = page.locator(f'.approval-card [data-phone-approve="{approval.id}"]').locator("..")
         button = card.get_by_role("button", name="Allow once")
         button.wait_for()
+        assert page.evaluate("() => phoneRefreshInFlight") is False
+        page.evaluate("""approvalId => {
+          const gate = {armed: true, started: false, staleHasApproval: false, release: null};
+          const nativeFetch = window.fetch.bind(window);
+          window.__phoneRefreshGate = gate;
+          window.fetch = (input, init) => {
+            const url = typeof input === "string" ? input : input.url;
+            if (gate.armed && url.includes("/api/v1/actions/approvals?status=pending&limit=100")) {
+              gate.armed = false;
+              return nativeFetch(input, init).then(async response => {
+                const approvals = await response.clone().json();
+                gate.staleHasApproval = Array.isArray(approvals)
+                  && approvals.some(item => (item.approval_id || item.id) === approvalId);
+                gate.started = true;
+                document.documentElement.dataset.phoneRefreshGate = "started";
+                return new Promise(resolve => { gate.release = () => resolve(response); });
+              });
+            }
+            return nativeFetch(input, init);
+          };
+          void phoneRefresh({quiet: true});
+        }""", approval.id)
+        page.locator('html[data-phone-refresh-gate="started"]').wait_for()
+        assert page.evaluate("window.__phoneRefreshGate.staleHasApproval")
         page.route(target, commit_then_drop_response)
         button.click()
         retry = page.get_by_role("button", name="Retry same request")
@@ -2049,7 +2073,9 @@ def test_paired_phone_recovers_approval_after_lost_response_with_same_key(browse
         assert retry_response.request.headers.get("idempotency-key") == captured[0]["key"]
         assert retry_response.request.post_data_json == captured[0]["body"]
         assert store.get_approval(approval.id).status.value == "approved"
+        page.evaluate("window.__phoneRefreshGate.release()")
         retry.wait_for(state="detached")
+        card.wait_for(state="detached")
     finally:
         context.close()
 

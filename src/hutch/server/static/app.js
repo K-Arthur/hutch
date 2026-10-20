@@ -11038,6 +11038,8 @@ let phoneRunStream = null;
 let phoneRunStreamId = null;
 let phoneExpiryTimer = null;
 let phoneRefreshInFlight = false;
+let phoneRefreshQueued = false;
+let phoneRefreshQueuedQuiet = true;
 let phoneLastActivityTouch = 0;
 let phonePendingCommand = null;
 let phoneUnresolvedCommand = null;
@@ -11096,7 +11098,12 @@ function phoneSetSessionExpiry(idleExpiresAt, absoluteExpiresAt) {
 }
 
 async function phoneRefresh({ quiet = false } = {}) {
-  if (!phoneRoot || phoneRefreshInFlight || document.hidden) return;
+  if (!phoneRoot || document.hidden) return;
+  if (phoneRefreshInFlight) {
+    phoneRefreshQueued = true;
+    phoneRefreshQueuedQuiet = phoneRefreshQueuedQuiet && quiet;
+    return;
+  }
   phoneRefreshInFlight = true;
   try {
     const freshSession = await api("/v1/session");
@@ -11158,7 +11165,15 @@ async function phoneRefresh({ quiet = false } = {}) {
     phoneModel.offline = true;
     if (!quiet) phoneModel.notice = `Could not refresh Hutch: ${error.message}. Displayed status may be out of date.`;
     phoneRender();
-  } finally { phoneRefreshInFlight = false; }
+  } finally {
+    phoneRefreshInFlight = false;
+    if (phoneRefreshQueued) {
+      const queuedQuiet = phoneRefreshQueuedQuiet;
+      phoneRefreshQueued = false;
+      phoneRefreshQueuedQuiet = true;
+      if (phoneRoot && !document.hidden) queueMicrotask(() => void phoneRefresh({ quiet: queuedQuiet }));
+    }
+  }
 }
 
 function phoneRender() {

@@ -2595,7 +2595,14 @@ def test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runti
 
         for label, width, height in viewports:
             page.set_viewport_size({"width": width, "height": height})
-            actions.scroll_into_view_if_needed()
+            selector = f'[data-answer-message="{target_message_id}"][data-answer-correction="shorter"]'
+            scrolled = page.evaluate("""selector => {
+              const control = document.querySelector(selector);
+              if (!control || !control.isConnected) return false;
+              control.scrollIntoView({block: "center", inline: "nearest", behavior: "instant"});
+              return control.isConnected;
+            }""", selector)
+            assert scrolled, (label, "answer rewrite control was replaced before visual inspection")
             measurements = page.evaluate("""() => {
               const controls = [...document.querySelectorAll('[data-answer-correction]')];
               const scroll = document.querySelector('#chat-scroll');
