@@ -82,6 +82,12 @@ When a lease expires:
   original statuses, receipts and transcript hashes remain unchanged. Legacy arguments are
   explicitly unknown. See [ADR-0014](0014-immutable-action-review.md).
 
+A tool must not convert an exception after `begin_effect()` into an ordinary failed result. The
+effect boundary means the action may already have reached its destination; the runtime leaves the
+receipt unresolved and ends the run as `outcome_unknown`. Browser dispatch is especially subject
+to this rule because a click can submit before Playwright reports a navigation or target timeout.
+The operator must inspect the destination and reconcile before another attempt.
+
 Hutch does not resume work after a lost process or from an arbitrary checkpoint. The sole in-run
 continuation is a supervised `delegate_task` parent parked at a tool-call boundary: it stores the
 exact messages and call identity, releases its worker, and is admitted again only after the child

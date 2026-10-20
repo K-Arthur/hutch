@@ -1425,9 +1425,14 @@ class BrowserTool(Tool):
         try:
             with _DRIVER_SLOT.acquire(_cancelled_probe(ctx)):
                 return self._annotate_tabs(self._run_locked(action, args, ctx, decision))
-        except (BrowserUnavailable, DeniedError) as exc:
-            return ToolResult(ok=False, output=f"error: {exc}")
-        except Exception as exc:  # playwright errors are runtime-dependent
+        except Exception as exc:
+            from ..runtime.base import RunAborted
+            if isinstance(exc, RunAborted):
+                raise
+            if ctx.effect_started:
+                raise RunAborted("outcome_unknown", "the browser action may have been dispatched; inspect the destination before retrying") from exc
+            if isinstance(exc, (BrowserUnavailable, DeniedError)):
+                return ToolResult(ok=False, output=f"error: {exc}")
             if self._stopped:
                 return ToolResult(ok=False, output="error: the run was stopped; the browser was closed mid-action, so the "
                                                    "outcome of that action is unknown",

@@ -134,6 +134,55 @@ def test_exception_after_effect_does_not_invent_a_failed_receipt(store, config, 
         engine.shutdown()
 
 
+def test_browser_exception_after_effect_keeps_receipt_unresolved(store, config, tmp_path, monkeypatch):
+    from hutch.runtime.steps import call_tool
+    from hutch.runtime.base import RunAborted
+    from hutch.tools.browser import BrowserTool
+    from tests.test_receipts import make
+
+    run, ctx, _ = make(store, config, tmp_path, mode=ApprovalMode.auto, tools=("browser",))
+    tool = BrowserTool()
+
+    def click_then_timeout(action, args, context, decision):
+        assert context.begin_effect() is None
+        raise RuntimeError("fixture timeout after click dispatch")
+
+    monkeypatch.setattr(tool, "_run_locked", click_then_timeout)
+    with pytest.raises(RunAborted, match="may have been dispatched"):
+        call_tool(run, ctx, {"browser": tool}, "browser", {"action": "click", "selector": "button"})
+
+    [action] = store.list_actions(run.id)
+    assert action["status"] == "started"
+    sealed = store.transition_run(run.id, RunStatus.succeeded, fence=run.fence)
+    assert sealed.status is RunStatus.outcome_unknown
+    assert store.get_action(action["id"])["status"] == "unknown"
+
+
+def test_browser_unverified_dispatch_result_keeps_receipt_unresolved(store, config, tmp_path, monkeypatch):
+    from hutch.runtime.steps import call_tool
+    from hutch.runtime.base import RunAborted
+    from hutch.tools.base import ToolResult
+    from hutch.tools.browser import BrowserTool
+    from tests.test_receipts import make
+
+    run, ctx, _ = make(store, config, tmp_path, mode=ApprovalMode.auto, tools=("browser",))
+    tool = BrowserTool()
+
+    def click_not_verified(action, args, context, decision):
+        assert context.begin_effect() is None
+        return ToolResult(False, "dispatch could not be verified", {"outcome": "unknown"})
+
+    monkeypatch.setattr(tool, "_run_locked", click_not_verified)
+    with pytest.raises(RunAborted, match="may have happened"):
+        call_tool(run, ctx, {"browser": tool}, "browser", {"action": "click", "selector": "button"})
+
+    [action] = store.list_actions(run.id)
+    assert action["status"] == "started"
+    sealed = store.transition_run(run.id, RunStatus.succeeded, fence=run.fence)
+    assert sealed.status is RunStatus.outcome_unknown
+    assert store.get_action(action["id"])["status"] == "unknown"
+
+
 def test_reconciliation_is_once_and_does_not_rewrite_execution_history(store, config):
     _, run = owned(store)
     action_id = begin(store, run)

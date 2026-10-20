@@ -210,6 +210,7 @@ def _run_with_receipt(tool: Tool, name: str, args: dict[str, Any], ctx: ToolCont
             return f"the action could not be recorded ({exc}), so it was not run"
         return None
 
+    ctx.effect_started = False
     ctx.receipt = begin
     result = None
     try:
@@ -218,6 +219,11 @@ def _run_with_receipt(tool: Tool, name: str, args: dict[str, Any], ctx: ToolCont
             replay = began["replay"]
             return ToolResult(ok=bool(replay["ok"]), output=str(replay["output"]),
                               data=dict(replay.get("data") or {}))
+        if ctx.effect_started and not result.ok and result.data.get("outcome") == "unknown":
+            result = None  # leave the started receipt for terminal uncertainty sealing
+            from .base import RunAborted
+            ctx.closed = True
+            raise RunAborted("outcome_unknown", "the action may have happened; inspect its destination before retrying")
         return result
     finally:
         ctx.receipt = None

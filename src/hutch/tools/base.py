@@ -213,6 +213,7 @@ class ToolContext:
     dry_run: bool = False             # Rehearse mode: mutating actions are simulated, reads still run
     closed: bool = False              # the run is over: a worker that outlived it must not start another action
     receipt: Optional[Callable[[], Optional[str]]] = None   # set per call by the runtime: records the intent (see begin_effect)
+    effect_started: bool = False      # the current tool call crossed its durable effect boundary
     workflow_action_identity: Optional[dict[str, str]] = None  # stable site/instance/slot for workflow effect receipts
     delegation_submit: Optional[Callable[[str, str, str], ToolResult]] = None  # supervised, strict-offline child admission
     delegation_resume: Optional[Callable[[str], ToolResult]] = None  # read a completed child after a durable parent wait
@@ -232,7 +233,10 @@ class ToolContext:
         if self.receipt is None:
             return None
         begin, self.receipt = self.receipt, None          # once per call
-        return begin()
+        refusal = begin()
+        if refusal is None:
+            self.effect_started = True
+        return refusal
 
 
 #: Tools return up to this much (a hard memory bound). What the MODEL sees is truncated to a per-tool limit in
