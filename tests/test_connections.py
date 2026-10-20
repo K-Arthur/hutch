@@ -114,6 +114,18 @@ def test_account_policy_groups_connections_and_keeps_strictest_limits(book):
                  quota={"window": "fortnight", "tokens": 1})
 
 
+@pytest.mark.parametrize("endpoint", [
+    "http://provider.example.test/v1",
+    "ftp://provider.example.test/v1",
+    "https://provider.example.test/v1?token=embedded",
+    "https://provider.example.test/v1#fragment",
+])
+def test_connection_endpoints_require_https_for_remote_credentials_and_clean_urls(config, endpoint):
+    book = ConnectionBook(config.state_dir)
+    with pytest.raises(ValueError, match="connection endpoint|HTTPS"):
+        book.add("custom-openai", name="unsafe-transport", base_url=endpoint)
+
+
 def test_bad_names_reserved_names_duplicates_and_unknown_templates_are_refused(book):
     with pytest.raises(ValueError, match="slug"):
         book.add("opencode-go", name="Bad Name!")

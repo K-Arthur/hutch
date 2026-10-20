@@ -290,6 +290,11 @@ and may change; it does not prove tool support, model quality, price stability,
 or successful inference. Advanced providers and custom endpoints stay behind
 **More providers and endpoint settings**.
 
+Custom provider endpoints must use HTTPS. Plain HTTP is accepted only for an
+explicit loopback service (`localhost`, `127.0.0.1`, or `::1`); Hutch will not
+send a connection key over cleartext to a remote host. Put credentials in the
+connection's key field or private key file, never in the endpoint URL.
+
 OpenAI API keys use OpenAI API billing and are separate from ChatGPT sign-in or
 a ChatGPT subscription. Anthropic's account catalog is paginated. OpenRouter
 catalog details and prices are provider-reported and can change; OpenRouter may

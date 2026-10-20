@@ -27,6 +27,7 @@ scope and request restrictions; OpenAI's Sign in with ChatGPT is currently an el
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import math
 import os
@@ -155,8 +156,20 @@ class ConnectionBook:
                     parts = urlsplit(endpoint)
                     if parts.username is not None or parts.password is not None:
                         raise ValueError("connection endpoints cannot embed credentials; use a key reference")
+                    host = (parts.hostname or "").lower()
+                    port = parts.port
                 except ValueError:
                     raise ValueError("connection endpoint is malformed or contains embedded credentials") from None
+                if (parts.scheme not in {"http", "https"} or not host or parts.query or parts.fragment or
+                        (port is not None and not 1 <= port <= 65535) or "%" in host):
+                    raise ValueError("connection endpoint must be an absolute HTTP(S) URL without query or fragment")
+                if parts.scheme == "http":
+                    try:
+                        loopback = ipaddress.ip_address(host).is_loopback
+                    except ValueError:
+                        loopback = host == "localhost"
+                    if not loopback:
+                        raise ValueError("connection endpoints must use HTTPS except for a loopback HTTP service")
         terms = {**tpl.get("terms", {}), **row.get("terms", {})}
         q = row.get("quota") or {}
         auth_type = merged.get("auth_type", "api_key")
