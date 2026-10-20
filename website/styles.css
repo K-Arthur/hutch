@@ -455,6 +455,7 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
      status column on phones to give the useful explanation room to wrap. */
   .availability th:last-child, .availability td:last-child { display: none; }
   .availability th:first-child, .availability .av-k { width: 96px; }
+  .availability .av-k { white-space: normal; overflow-wrap: anywhere; }
   .availability th, .availability td { padding-inline: 8px; overflow-wrap: anywhere; }
   .preview-banner { align-items: flex-start; padding: var(--space-4); }
   .preview-icon { width: 44px; height: 44px; border-radius: var(--radius-panel); }

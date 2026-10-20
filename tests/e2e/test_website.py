@@ -676,7 +676,8 @@ def test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_
         assert "private gmail search" in text
         assert "public release awaits google scope verification" in text
         wrapper = page.locator("#get .overflow-x-auto")
-        for label, width, height in (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844)):
+        for label, width, height in (("desktop", 1440, 900), ("tablet", 900, 1024),
+                                     ("phone", 390, 844), ("compact-phone", 320, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.evaluate("document.documentElement.style.scrollBehavior = 'auto'")
             page.locator("#get .availability").evaluate(
@@ -690,6 +691,23 @@ def test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_
             assert metrics["scrollWidth"] <= metrics["clientWidth"] + 1, (label, metrics)
             if width <= 640:
                 assert page.locator("#get .availability thead th:visible").count() == 2
+            if width == 320:
+                image_row = page.locator("#get .availability tbody tr").filter(has_text="Chat image input")
+                label_bounds = image_row.locator(".av-k").evaluate("""element => {
+                  const range = document.createRange();
+                  range.selectNodeContents(element);
+                  return {
+                    whiteSpace: getComputedStyle(element).whiteSpace,
+                    label: [...range.getClientRects()].map(rect => ({left: rect.left, right: rect.right})),
+                    cell: element.getBoundingClientRect().toJSON(),
+                    description: element.nextElementSibling.getBoundingClientRect().toJSON(),
+                  };
+                }""")
+                assert label_bounds["whiteSpace"] != "nowrap", label_bounds
+                assert len(label_bounds["label"]) > 1, label_bounds
+                assert all(rect["left"] >= label_bounds["cell"]["left"] - 1
+                           and rect["right"] <= label_bounds["description"]["left"] + 1
+                           for rect in label_bounds["label"]), label_bounds
             captures.append({"size": label, "viewport": [width, height], "table": metrics,
                              "table_capture": f"availability-table-{label}.png",
                              "viewport_capture": f"availability-viewport-{label}.png",
