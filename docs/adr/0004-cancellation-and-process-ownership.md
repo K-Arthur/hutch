@@ -11,7 +11,9 @@ Status: accepted (2026-10-07), amended during realignment. Slices: S2-S4. Eviden
   1. cooperative: the worker sees the flag (DB poll every 0.5 s while idle, the in-process event while busy) and unwinds; model I/O is
      aborted through the existing `cancel_hooks`; approval/handoff waits are woken;
   2. signal only process identities recorded for this run, after checking boot id and start ticks; Linux pidfds avoid the PID reuse
-     race. Process-group membership is checked against the recorded leader identity; Hutch never signals a raw numeric PGID.
+     race. Process-group membership is checked against the recorded leader identity; Hutch never signals a raw numeric PGID. If
+     the recorded leader identity no longer matches, cleanup remains unverifiable and is retried; the replacement PID is never
+     signalled or treated as proof that the old process tree is gone.
 * **Verified cleanup**: a run leaves `cancelling` for `stopped` only after owned processes are confirmed gone. An incomplete or
   unverifiable cleanup stays visibly `cancelling` or `recovering`, records the PIDs/reason, relinquishes its lease briefly, and is
   retried. It is never reported as a successful cancellation while a recorded process may remain.

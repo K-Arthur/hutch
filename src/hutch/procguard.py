@@ -202,7 +202,10 @@ def end_recorded(records: Iterable[dict], term_grace: float = 2.0, kill_grace: f
         for pgid, (pid, start, saved_boot, session_id) in anchors.items():
             members = _group_snapshot(pgid, pid, start, expected_session=session_id)
             if members is None:
-                # The original leader PID was reused. Do not act on the numeric group.
+                # The original leader PID was reused. Do not act on the numeric group,
+                # but keep cleanup unverified: its escaped descendants may no longer
+                # be discoverable from the replacement process or the old process group.
+                unknown.append(Proc(pid, 0, pgid, session_id or 0, start, "?"))
                 continue
             found.update((p.pid, p) for p in members)
         return list(found.values()), unresolved + unknown
@@ -250,6 +253,9 @@ def end_groups(pgids: Iterable[int], not_before: int = 0, term_grace: float = 2.
 def describe(procs: Iterable[Proc]) -> str:
     out = []
     for p in procs:
+        if p.state == "?":
+            out.append(f"process group {p.pgrp} cannot be verified")
+            continue
         try:
             cmd = (PROC / str(p.pid) / "cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace").strip()
         except OSError:

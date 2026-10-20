@@ -179,6 +179,27 @@ def test_a_process_group_id_that_was_recycled_is_not_touched():
         reap(sh)
 
 
+def test_reused_recorded_leader_keeps_unverifiable_cleanup_pending(monkeypatch):
+    """A reused PID cannot be signalled or treated as proof that the old tree is gone."""
+    recorded = procguard.Proc(pid=43210, ppid=1, pgrp=43210, session=10, starttime=10, state="S")
+    reused = procguard.Proc(pid=43210, ppid=1, pgrp=43210, session=20, starttime=20, state="S")
+    detached = procguard.Proc(pid=43211, ppid=1, pgrp=43211, session=21, starttime=21, state="S")
+    monkeypatch.setattr(procguard, "boot_id", lambda: "boot-a")
+    monkeypatch.setattr(procguard, "_read", lambda pid: reused if pid == reused.pid else None)
+    monkeypatch.setattr(procguard, "_all", lambda: {reused.pid: reused, detached.pid: detached})
+
+    def unexpected_signal(*_args):
+        raise AssertionError("a reused PID must never be signalled")
+
+    monkeypatch.setattr(procguard, "_signal_exact", unexpected_signal)
+    survivors = procguard.end_recorded([{
+        "pid": recorded.pid, "pgid": recorded.pgrp, "starttime": recorded.starttime,
+        "boot_id": "boot-a", "session": recorded.session,
+    }], term_grace=0, kill_grace=0)
+
+    assert survivors and survivors[0].state == "?"
+
+
 def test_survivors_are_reported_when_something_will_not_die():
     sh = spawn_sh("trap '' TERM; while true; do sleep 1; done")      # ignores SIGTERM; only SIGKILL ends it
     try:
