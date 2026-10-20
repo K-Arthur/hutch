@@ -685,6 +685,7 @@ dev = [
     { name = "hypothesis" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "websockets" },
 ]
 jetstream = [
     { name = "websockets" },
@@ -717,6 +718,7 @@ requires-dist = [
     { name = "uvicorn", specifier = ">=0.30" },
     { name = "weasyprint", specifier = ">=70" },
     { name = "webauthn", specifier = ">=2.2,<3" },
+    { name = "websockets", marker = "extra == 'dev'", specifier = ">=12" },
     { name = "websockets", marker = "extra == 'jetstream'", specifier = ">=12" },
     { name = "xlsxwriter", specifier = ">=3.2" },
 ]

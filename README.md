@@ -181,6 +181,9 @@ uv run hutch init && uv run hutch serve   # opens the real empty setup state; no
 
 Browser screenshots and traces go to a fresh temporary directory by default. Set
 `HUTCH_TEST_ARTIFACTS_DIR` only when you intend to retain or refresh evidence.
+The `dev` extra includes the optional WebSocket package used by deterministic loopback Jetstream tests; Hutch's
+`jetstream` product extra remains optional. CI installs `dev` and `browser`, then provisions Chromium before running
+the full suite.
 The event-writer throughput check is sensitive to the filesystem used for its temporary database.
 When running the full suite locally on a slow or busy disk, point `HUTCH_TEST_BENCHMARK_DIR` at
 a fresh RAM-backed directory (for example, a unique directory under `/dev/shm` on Linux); keep

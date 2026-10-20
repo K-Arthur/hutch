@@ -70,8 +70,18 @@ class LocalJetstream:
         self.thread.join(timeout=5)
 
 
-def test_bounded_read_dedupes_overlap_and_advances_the_seq_cursor():
+def use_local_transport(monkeypatch, instance: LocalJetstream):
+    """Inject the loopback fixture below the production public-WSS validation boundary."""
+    monkeypatch.setattr(stream_mod, "_jetstream_target",
+                        lambda _host: ("wss://fixture.invalid/xrpc/network.bsky.jetstream.subscribeEvents",
+                                       "fixture.invalid"))
+    monkeypatch.setattr(stream_mod, "_connect_jetstream",
+                        lambda _url, _hostname, ws_connect: ws_connect(instance.url_host))
+
+
+def test_bounded_read_dedupes_overlap_and_advances_the_seq_cursor(monkeypatch):
     instance = LocalJetstream([frame(5, "aurora tonight"), frame(5, "aurora tonight"), frame(6, "aurora again")])
+    use_local_transport(monkeypatch, instance)
     try:
         pump = StreamPump(key_fn=lambda e: e.get("id", ""), clock=CLOCK)
         report = read_jetstream_stream(pump=pump, host=instance.url_host, max_events=2, max_seconds=5.0,
@@ -85,8 +95,9 @@ def test_bounded_read_dedupes_overlap_and_advances_the_seq_cursor():
         instance.close()
 
 
-def test_cursor_too_old_is_an_explicit_gap_not_a_silent_skip():
+def test_cursor_too_old_is_an_explicit_gap_not_a_silent_skip(monkeypatch):
     instance = LocalJetstream([], reject_with=b'{"error":"CursorTooOld","message":"below lookback floor"}')
+    use_local_transport(monkeypatch, instance)
     try:
         pump = StreamPump(key_fn=lambda e: e.get("id", ""), clock=CLOCK)
         report = read_jetstream_stream(pump=pump, host=instance.url_host, max_events=5, max_seconds=3.0,
@@ -98,9 +109,10 @@ def test_cursor_too_old_is_an_explicit_gap_not_a_silent_skip():
         instance.close()
 
 
-def test_term_filter_keeps_only_matching_frames_but_counts_traffic():
+def test_term_filter_keeps_only_matching_frames_but_counts_traffic(monkeypatch):
     instance = LocalJetstream([frame(1, "buy my token now"), frame(2, "aurora visible over the city"),
                                frame(3, "unrelated chatter")])
+    use_local_transport(monkeypatch, instance)
     try:
         pump = StreamPump(key_fn=lambda e: e.get("id", ""), clock=CLOCK)
         seen: list[int] = []
