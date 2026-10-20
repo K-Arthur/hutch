@@ -141,8 +141,12 @@ def test_workflow_pill_meets_target_minimum(audit_browser, audit_live):
     try:
         wait_live(page, base)
         pill = page.locator(".workflow a.w.needs")
-        pill.wait_for()
-        height = pill.evaluate("el => el.getBoundingClientRect().height")
+        height = page.wait_for_function("""() => {
+          const element = document.querySelector('.workflow a.w.needs');
+          if (!element?.isConnected) return false;
+          const measured = element.getBoundingClientRect().height;
+          return measured >= 24 ? measured : false;
+        }""").json_value()
         assert height >= 24
     finally:
         page.close()

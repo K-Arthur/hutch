@@ -29,12 +29,27 @@ class _Page(BaseHTTPRequestHandler):
             self.server.signed_in.set()
         body = b'''<!doctype html><title>Controlled login</title><style>body{padding:40px;font:20px sans-serif}input,button{font:inherit;margin:12px;padding:12px;display:block}</style>
         <h1>Controlled login</h1><input type=password id=password aria-label=Password>
-        <button id=continue onclick="if(document.querySelector('#password').value==='SENTINEL-HUMAN-ONLY'){fetch('/receipt');document.body.innerHTML='<h1>Signed in</h1><p id=result>Human input reached the intended session</p>';history.pushState({},'', '/done')}">Continue</button>'''
+        <button id=continue onclick="if(document.querySelector('#password').value==='SENTINEL-HUMAN-ONLY'){fetch('/receipt');document.body.innerHTML='<h1>Signed in</h1><p id=result>Human input reached the intended session</p>';history.pushState({},'', '/done')}">Continue</button>
+        <script>
+          const report = event => fetch('/trace', {method:'POST', headers:{'content-type':'application/json'},
+            body:JSON.stringify({event:event.type, key:event.key||'', target:document.activeElement.id||'',
+              password_matches:document.querySelector('#password')?.value==='SENTINEL-HUMAN-ONLY'})});
+          document.addEventListener('keydown', report); document.addEventListener('click', report);
+          const r = document.querySelector('#password').getBoundingClientRect();
+          fetch('/trace', {method:'POST', headers:{'content-type':'application/json'},
+            body:JSON.stringify({event:'geometry', viewport:[innerWidth,innerHeight], target:{x:r.x,y:r.y,width:r.width,height:r.height}})});
+        </script>'''
         self.send_response(200)
         self.send_header("Content-Type", "text/html")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def do_POST(self):
+        if self.path == "/trace" and hasattr(self.server, "trace"):
+            self.server.trace.append(json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0")))))
+        self.send_response(204)
+        self.end_headers()
 
     def log_message(self, *_args): pass
 
@@ -44,6 +59,8 @@ def controlled(live, tmp_path):
     base, app = live
     config = get_config()
     origin = ThreadingHTTPServer(("127.0.0.1", 0), _Page)
+    origin.signed_in = threading.Event()
+    origin.trace = []
     serving = threading.Thread(target=origin.serve_forever, daemon=True)
     serving.start()
     port = origin.server_address[1]
@@ -53,7 +70,7 @@ def controlled(live, tmp_path):
     store.upsert_bot(bot)
     run = store.create_run(Run(bot_id=bot.id, prompt="Complete the controlled login", status=RunStatus.running))
     finish, ready = threading.Event(), threading.Event()
-    effects, failures = {}, []
+    effects, failures = {"receipt": origin.signed_in, "trace": origin.trace}, []
     tool = BrowserTool()
 
     def worker():
@@ -130,23 +147,58 @@ def test_login_control_from_panel_reaches_owned_headless_session_and_hands_back(
         preview.scroll_into_view_if_needed()
         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
         _shot(page, f"{width}")
-        page.wait_for_timeout(250)
-        # Browser CSS coordinates, mapped through the REAL preview image bounds. The page starts at 1280x720.
+        # Screenshots can take long enough to age the 10-second input frame. Refresh explicitly after capture,
+        # then wait for the new private image before mapping the human click into its coordinates.
+        image = panel.locator(".computer-human-img")
+        previous_image = image.get_attribute("src")
+        with page.expect_response(lambda response: response.url.endswith("/computer/control")
+                                  and response.request.post_data_json.get("action") == "capture") as fresh_capture:
+            panel.get_by_role("button", name="Refresh human frame").click()
+        assert fresh_capture.value.status == 200, fresh_capture.value.text()
+        wait_for_page(page, """previous => {
+          const image = document.querySelector('.computer-human-img');
+          return Boolean(image && image.src !== previous && image.complete && image.naturalWidth > 0);
+        }""", arg=previous_image, timeout=5000)
+        # Use the live fixture target and captured image dimensions so this exercises actual frame-to-CSS mapping.
+        deadline = time.monotonic() + 3
+        while not any(item["event"] == "geometry" for item in effects["trace"]) and time.monotonic() < deadline:
+            time.sleep(0.01)
+        geometry = next(item for item in effects["trace"] if item["event"] == "geometry")
+        frame = fresh_capture.value.json()["frame"]
+        assert geometry["viewport"] == [frame["width"], frame["height"]]
+        target = geometry["target"]
         image_box = panel.locator(".computer-human-img").bounding_box()
-        page.mouse.click(image_box["x"] + 120 * image_box["width"] / 1280,
-                         image_box["y"] + 155 * image_box["height"] / 720)
-        page.wait_for_timeout(450)
-        assert panel.get_by_role("button", name="Type in focused control").is_enabled(), panel.inner_text()
+        preview_box = preview.bounding_box()
+        click_position = {"x": image_box["x"] - preview_box["x"]
+                               + (target["x"] + target["width"] / 2) * image_box["width"] / frame["width"],
+                          "y": image_box["y"] - preview_box["y"]
+                               + (target["y"] + target["height"] / 2) * image_box["height"] / frame["height"]}
+        with page.expect_response(lambda response: response.url.endswith("/computer/control")
+                                  and response.request.post_data_json.get("action") == "click", timeout=8000) as click_result:
+            preview.click(position=click_position)
+        assert click_result.value.status == 200, click_result.value.text()
+        assert wait_for_page(page, """() => {
+          const button = [...document.querySelectorAll('.computer-remote button')]
+            .find(item => item.textContent.trim() === 'Type in focused control');
+          return Boolean(button && !button.disabled);
+        }""", timeout=5000), panel.inner_text()
         panel.get_by_label("Text to type in the controlled app").fill("SENTINEL-HUMAN-ONLY")
         panel.get_by_role("button", name="Type in focused control").click()
         wait_for_page(page, "() => document.querySelector('.computer-remote textarea').value === ''")
-        page.wait_for_timeout(250)
+        expect(panel.get_by_role("button", name="Send key")).to_be_enabled()
         panel.get_by_label("Key to send").select_option("tab")
         panel.get_by_role("button", name="Send key").click()
-        page.wait_for_timeout(450)
+        expect(panel.get_by_role("button", name="Send key")).to_be_enabled(timeout=5000)
         panel.get_by_label("Key to send").select_option("enter")
         panel.get_by_role("button", name="Send key").click()
-        page.wait_for_timeout(450)
+        assert effects["receipt"].wait(5), f"controlled page did not receive expected form submission; safe trace: {effects['trace']}"
+        assert any(item.get("event") == "keydown" and item.get("key") == "Tab"
+                   and item.get("target") == "password" and item.get("password_matches") is True
+                   for item in effects["trace"]), "human text was not delivered into the password field"
+        assert any(item.get("event") == "keydown" and item.get("key") == "Enter"
+                   and item.get("target") == "continue" and item.get("password_matches") is True
+                   for item in effects["trace"]), "human submit key was not delivered to the intended control"
+        expect(panel.get_by_role("button", name="Send key")).to_be_enabled(timeout=5000)
         panel.get_by_role("button", name="Hand back to Hutch").click()
         worker.join(timeout=10)
         assert not worker.is_alive() and not failures, failures
