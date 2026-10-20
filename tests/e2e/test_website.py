@@ -260,6 +260,7 @@ def test_marketing_card_hierarchy_and_mobile_labels_are_readable(browser, site_u
                 heroSceneGlowCount: document.querySelectorAll('.hero-scene-glow').length,
                 heroNote: metrics('.hero-note small'),
                 heroPromise: metrics('.hero-promises li'),
+                heroTitle: metrics('.hero-title'),
                 exampleLabel: metrics('.case-kicker'),
                 scrollWidth: document.documentElement.scrollWidth,
               };
@@ -273,10 +274,17 @@ def test_marketing_card_hierarchy_and_mobile_labels_are_readable(browser, site_u
             for key in ("heroNote", "heroPromise", "exampleLabel"):
                 assert values[key]["fontSize"] >= 12, (label, key, values[key])
                 assert values[key]["lineHeight"] >= values[key]["fontSize"] * 1.35, (label, key, values[key])
+            expected_hero_size = {
+                "desktop": 80,
+                "tablet": 52.2,
+                "phone": 40.95,
+                "compact-phone": 40,
+            }[label]
+            assert abs(values["heroTitle"]["fontSize"] - expected_hero_size) < 0.15, (label, values["heroTitle"])
             overflow = values["scrollWidth"] - width
             assert overflow <= 1, (label, overflow)
             screenshots = []
-            if label in {"desktop", "tablet", "phone"}:
+            if label in {"desktop", "tablet", "phone", "compact-phone"}:
                 page.evaluate("scrollTo(0, 0)")
                 filename = f"website-{label}.png"
                 page.screenshot(path=str(output / filename), animations="disabled")

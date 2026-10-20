@@ -15,6 +15,13 @@ Reproduce: `python -m benchmarks.run` (print), `--record` (new baseline), `--che
 its own on first run and caches it (`.github/workflows/ci.yml` — written, **not yet exercised on
 GitHub from the development machine**).
 
+The pytest event-writer throughput floor is a separate, lightweight regression check. Its temporary
+database should use fast local storage: set `HUTCH_TEST_BENCHMARK_DIR` to a fresh directory when
+running under a slow or contended filesystem. On Linux, a unique directory under `/dev/shm` avoids
+measuring the host's disk queue instead of the writer. Do not share that directory between runs.
+This setting affects only the throughput test's state database; pytest temp files and captured
+artifacts retain their own roots.
+
 ## Phase 1 baseline
 
 | Metric | Req | Proposed target | Measured | Notes |

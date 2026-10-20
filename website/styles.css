@@ -194,7 +194,7 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .hero-eyebrow-mark svg { width: 15px; height: 15px; }
 .hero-title {
   font-family: var(--font-display);
-  font-size: clamp(2.75rem, 5.8vw, 5rem);
+  font-size: var(--text-size-marketing-hero);
   font-variation-settings: "wdth" 112, "wght" 820;
   line-height: .99; letter-spacing: -0.04em;
   margin-bottom: var(--space-6);
@@ -237,7 +237,7 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
   .hero { padding-top: var(--space-8); }
   .hero-grid { gap: var(--space-8); }
   .hero-eyebrow { font-size: var(--text-size-xs); }
-  .hero-title { font-size: clamp(2.5rem, 10.5vw, 2.75rem); max-width: none; }
+  .hero-title { font-size: var(--text-size-marketing-hero-compact); max-width: none; }
   .hero-sub { font-size: var(--text-size-base); }
   .hero-actions { flex-direction: column; align-items: stretch; }
   .hero-actions .btn { width: 100%; }

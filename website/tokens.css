@@ -70,6 +70,8 @@
   --text-size-brand: 16px;
   --text-size-display: clamp(40px, 5.6vw, 66px);
   --text-size-lg: 19px;
+  --text-size-marketing-hero: clamp(44px, 5.8vw, 80px);
+  --text-size-marketing-hero-compact: clamp(40px, 10.5vw, 44px);
   --text-size-poster: clamp(88px, 12.5vw, 260px);
   --text-size-section: 16px;
   --text-size-sm: 15px;

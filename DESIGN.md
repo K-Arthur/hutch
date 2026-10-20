@@ -72,11 +72,11 @@ typography:
     lineHeight: 1
   marketing-display:
     fontFamily: "Archivo, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "176px"
+    fontSize: "clamp(44px, 5.8vw, 80px)"
     fontWeight: 800
-    lineHeight: "1"
+    lineHeight: "0.99"
   marketing-display-min:
-    fontSize: "88px"
+    fontSize: "clamp(40px, 10.5vw, 44px)"
   metadata:
     fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
     fontSize: "0.75rem"

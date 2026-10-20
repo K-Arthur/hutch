@@ -385,11 +385,11 @@
       },
       "marketing-display": {
         "displayName": "Archivo Display",
-        "purpose": "Marketing hero and section headings; body copy uses the shared system sans."
+        "purpose": "Responsive marketing hero title at clamp(44px, 5.8vw, 80px); body copy uses the shared system sans."
       },
       "marketing-display-min": {
         "displayName": "Archivo Display Compact",
-        "purpose": "Responsive minimum size for the marketing wordmark."
+        "purpose": "Compact marketing hero title at clamp(40px, 10.5vw, 44px) through the phone breakpoint."
       },
       "metadata": {
         "displayName": "Metadata",
