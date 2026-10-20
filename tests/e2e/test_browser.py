@@ -1501,8 +1501,6 @@ def test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports(bro
           const refresh = panel?.querySelector('[data-workflow-action="refresh"]');
           return Boolean(refresh && document.activeElement === refresh);
         }""", timeout=2000)
-        assert panel.get_by_role("button", name="Refresh").evaluate(
-            "element => document.activeElement === element")
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline:
             current = workflow_store.workflow_run(store, first_workflow_id)
