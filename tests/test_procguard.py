@@ -200,6 +200,33 @@ def test_reused_recorded_leader_keeps_unverifiable_cleanup_pending(monkeypatch):
     assert survivors and survivors[0].state == "?"
 
 
+def test_leader_exit_during_group_snapshot_is_verified_after_identity_reread(monkeypatch):
+    recorded = procguard.Proc(pid=43210, ppid=1, pgrp=43210, session=10, starttime=10, state="S")
+    zombie = procguard.Proc(pid=43210, ppid=1, pgrp=43210, session=10, starttime=10, state="Z")
+    reads = iter((recorded, zombie))
+    monkeypatch.setattr(procguard, "_read", lambda _pid: next(reads))
+    monkeypatch.setattr(procguard, "_all", lambda: {})
+
+    snapshot = procguard._group_snapshot(43210, 43210, 10, expected_session=10)
+
+    assert snapshot == []
+
+
+def test_identity_mismatch_during_cleanup_is_retained_as_unverified(monkeypatch):
+    recorded = procguard.Proc(pid=43210, ppid=1, pgrp=43210, session=10, starttime=10, state="S")
+    snapshots = iter(([recorded], None, None))
+    monkeypatch.setattr(procguard, "_group_snapshot", lambda *_args, **_kwargs: next(snapshots))
+    monkeypatch.setattr(procguard, "_signal_exact", lambda *_args: True)
+    monkeypatch.setattr(procguard, "boot_id", lambda: "boot-a")
+
+    survivors = procguard.end_recorded([{
+        "pid": recorded.pid, "pgid": recorded.pgrp, "starttime": recorded.starttime,
+        "boot_id": "boot-a", "session": recorded.session,
+    }], term_grace=0, kill_grace=0)
+
+    assert survivors and survivors[0].state == "?"
+
+
 def test_survivors_are_reported_when_something_will_not_die():
     sh = spawn_sh("trap '' TERM; while true; do sleep 1; done")      # ignores SIGTERM; only SIGKILL ends it
     try:

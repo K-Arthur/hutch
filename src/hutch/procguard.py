@@ -149,7 +149,17 @@ def _group_snapshot(pgid: int, anchor_pid: int, anchor_start: int,
     members = [p for p in table.values() if p.pgrp == pgid and p.starttime >= anchor_start
                and (expected_session is None or p.session == expected_session) and _alive(p)]
     if anchor is not None and anchor.pid not in {p.pid for p in members} and _alive(anchor):
-        return None
+        # The leader can exit between the first identity read and the process-table
+        # scan. Re-read before calling that an identity mismatch: a same-identity
+        # zombie or vanished process is a normal teardown race, while a live changed
+        # identity must keep cleanup unresolved.
+        current = _read(anchor_pid)
+        if current is not None:
+            if (current.starttime != anchor_start or current.pgrp != pgid
+                    or (expected_session is not None and current.session != expected_session)):
+                return None
+            if _alive(current):
+                return None
     found = {p.pid: p for p in members}
     changed = True
     while changed:
@@ -212,25 +222,36 @@ def end_recorded(records: Iterable[dict], term_grace: float = 2.0, kill_grace: f
 
     expected_boot = boot_id()
     current, unknown = snapshot()
+    unverified: dict[tuple[int, int, int, str], Proc] = {}
+
+    def remember_unverified(items: Iterable[Proc]) -> None:
+        for p in items:
+            unverified[(p.pid, p.pgrp, p.starttime, p.state)] = p
+
+    remember_unverified(unknown)
     for p in current:
         _signal_exact(p, signal.SIGTERM, expected_boot)
     deadline = time.monotonic() + term_grace
     while time.monotonic() < deadline:
-        current, _ = snapshot()
+        current, unknown = snapshot()
+        remember_unverified(unknown)
         if not current:
             break
         time.sleep(0.05)
-    current, _ = snapshot()
+    current, unknown = snapshot()
+    remember_unverified(unknown)
     for p in current:
         _signal_exact(p, signal.SIGKILL, expected_boot)
     deadline = time.monotonic() + kill_grace
     while time.monotonic() < deadline:
-        current, _ = snapshot()
+        current, unknown = snapshot()
+        remember_unverified(unknown)
         if not current:
             break
         time.sleep(0.05)
-    current, _ = snapshot()
-    return current + unknown
+    current, unknown = snapshot()
+    remember_unverified(unknown)
+    return current + list(unverified.values())
 
 
 def end_groups(pgids: Iterable[int], not_before: int = 0, term_grace: float = 2.0, kill_grace: float = 2.0) -> list[Proc]:
