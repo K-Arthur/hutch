@@ -182,6 +182,91 @@ def test_first_success_join_selects_first_acceptable_result_and_drains_discarded
         assert set(starts) == {"slow", "fast"}
 
 
+def test_dispatch_settles_a_first_success_before_starting_a_queued_local_candidate(
+        store, config, monkeypatch):
+    """A queued local sibling must not start after the first candidate has succeeded."""
+    import hutch.engine as engine_module
+    from hutch.models import Event, EventType
+    from threading import Event as ThreadEvent, Lock
+
+    slow_started = ThreadEvent()
+    release_slow = ThreadEvent()
+    starts: list[str] = []
+    starts_lock = Lock()
+
+    class ControlledRuntime:
+        kind = "controlled-first-success-test"
+
+        def execute(self, run, ctx, tools, stop):
+            candidate = "slow" if "slow candidate" in run.prompt.lower() else "fast"
+            with starts_lock:
+                starts.append(candidate)
+            if candidate == "slow":
+                slow_started.set()
+                assert release_slow.wait(5), "test did not release the slow candidate"
+            if stop():
+                raise RunAborted("stopped", "the first-success supervisor discarded this candidate")
+            ctx.emit(Event(run_id=run.id, type=EventType.message,
+                           data={"role": "assistant", "content": f"{candidate} result"}))
+            return f"{candidate} result"
+
+    from hutch.runtime.base import RunAborted
+
+    monkeypatch.setattr(engine_module, "get_runtime", lambda bot: ControlledRuntime())
+    model = "ollama/qwen3:4b"
+    bot = make_bot(store, name="first-success-dispatch", model=model, tools=[])
+    engine = Engine(config, store, max_concurrent=3)
+    plan = {
+        "name": "first-success-dispatch",
+        "envelope": {"tools": [], "models": [model], "max_parallel_steps": 2},
+        "budget": {"max_nodes": 10, "max_model_calls": 2, "max_wall_seconds": 60},
+        "nodes": [
+            {"kind": "agent", "id": "slow", "instruction": "Answer as the slow candidate."},
+            {"kind": "agent", "id": "fast", "instruction": "Answer as the fast candidate."},
+            {"kind": "join", "id": "chosen", "of": ["slow", "fast"], "policy": "first_success"},
+        ],
+    }
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=plan)
+    slow_id = fast_id = None
+    try:
+        engine.tick()
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            slow = wstore.node(store, submission.workflow_run_id, "slow", "once")
+            fast = wstore.node(store, submission.workflow_run_id, "fast", "once")
+            if slow and fast and slow.get("run_id") and fast.get("run_id"):
+                slow_id, fast_id = slow["run_id"], fast["run_id"]
+                break
+            time.sleep(0.01)
+        assert slow_id and fast_id, "the first-success race did not admit both bounded candidates"
+
+        if store.get_run(slow_id).status.value == "pending":
+            engine.dispatch_pending()
+        assert slow_started.wait(5), "the first candidate was not dispatched"
+        release_slow.set()
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline and not store.get_run(slow_id).terminal:
+            time.sleep(0.01)
+        assert store.get_run(slow_id).status.value == "succeeded"
+
+        # Exercise the dispatch path that can race ahead of the supervisor's next tick.
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline and store.get_run(fast_id).status.value == "pending":
+            engine.dispatch_pending()
+            time.sleep(0.01)
+        assert "fast" not in starts, f"queued loser started after slow had succeeded: {starts}"
+        fast_run = store.get_run(fast_id)
+        assert fast_run is not None and fast_run.status.value in {"stopped", "cancelled"}
+        drive(engine, store, submission.attempt_run_id, timeout=10)
+        view = wfsubmit.status(store, submission.workflow_run_id)
+        joined = next(item for item in view["nodes"] if item["site_id"] == "chosen")
+        assert joined["result"]["winner"] == "slow"
+        assert joined["result"]["drained"] is True
+    finally:
+        release_slow.set()
+        engine.stop_owned()
+
+
 def test_first_success_restart_reuses_winner_and_retries_loser_cancellation(
         store, config, monkeypatch):
     import hutch.engine as engine_module

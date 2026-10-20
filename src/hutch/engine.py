@@ -202,6 +202,28 @@ class Engine:
                 and (run.status is not RunStatus.pending or bool(run.lease_owner))
                 for run in active
             )
+            if (not local_model_busy and any(
+                    run.status is RunStatus.pending and run.parent_run_id
+                    and self._local_model_spec(run) is not None
+                    and isinstance(run.workflow_step, dict)
+                    for run in active)):
+                # A local-model slot may have just opened because a first-success
+                # candidate completed. Reconcile the parked race before dispatching
+                # its queued siblings, or the next candidate can start in the gap
+                # between this dispatcher and the supervisor's next tick.
+                self._monitor_first_success_races()
+                active = self.store.active_runs()
+                waiting_parents = {
+                    str(run.parent_run_id) for run in active
+                    if run.parent_run_id and self.store.run_kind(run.id) == "attempt"
+                }
+                local_model_busy = any(
+                    self._local_model_spec(run) is not None
+                    and run.id not in waiting_parents
+                    and run.status not in (RunStatus.waiting_workflow, RunStatus.waiting_child)
+                    and (run.status is not RunStatus.pending or bool(run.lease_owner))
+                    for run in active
+                )
             # Delegated rows enter the same global reservation pool. _start_worker reconstructs
             # their immutable parent policy and rejects unsupported routes before any process starts.
             pending = sorted((r for r in active if r.status is RunStatus.pending and not r.lease_owner),
@@ -1632,20 +1654,7 @@ class Engine:
         # A second pass observes the durable cancellation transition. This lets an
         # unclaimed queued loser become visibly drained in the same supervisor beat.
         for _pass in range(2):
-            for race in wfstore.monitor_first_success_races(self.store):
-                request = {"workflow_run_id": race["workflow_run_id"],
-                           "revision_id": race["revision_id"],
-                           "attempt_run_id": race["attempt_run_id"],
-                           "join_site": race["join_site"], "winner": race["winner"]}
-                request_hash = hashlib.sha256(json.dumps(
-                    request, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
-                for child_id in race["run_ids"]:
-                    self.stop_run(
-                        str(child_id),
-                        idem_key=(f"workflow-first-success:{race['workflow_run_id']}:"
-                                  f"{race['revision_id']}:{race['attempt_run_id']}:"
-                                  f"{race['join_site']}:{race['winner']}:{child_id}"),
-                        request_hash=request_hash)
+            self._monitor_first_success_races()
         wfstore.finalize_stopped_workflows(self.store)
         created = self.scheduler_claims()
         self.continue_workflow_runs()
@@ -1660,6 +1669,25 @@ class Engine:
             self.store.prune_resource_changes(durable_changes.MAX_RETAINED_ROWS)
             self._last_resource_change_prune = now
         return created
+
+    def _monitor_first_success_races(self) -> None:
+        """Persist first-success winners and fence discarded children before dispatch."""
+        from .workflow import persistence as wfstore
+
+        for race in wfstore.monitor_first_success_races(self.store):
+            request = {"workflow_run_id": race["workflow_run_id"],
+                       "revision_id": race["revision_id"],
+                       "attempt_run_id": race["attempt_run_id"],
+                       "join_site": race["join_site"], "winner": race["winner"]}
+            request_hash = hashlib.sha256(json.dumps(
+                request, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+            for child_id in race["run_ids"]:
+                self.stop_run(
+                    str(child_id),
+                    idem_key=(f"workflow-first-success:{race['workflow_run_id']}:"
+                              f"{race['revision_id']}:{race['attempt_run_id']}:"
+                              f"{race['join_site']}:{race['winner']}:{child_id}"),
+                    request_hash=request_hash)
 
     def continue_delegated_runs(self) -> int:
         """Resume or finish parked parents after their delegated child tree settles."""
