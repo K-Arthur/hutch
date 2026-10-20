@@ -1338,7 +1338,7 @@ def test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports(bro
                   {"kind": "transform", "id": "carry_answer", "op": "constant",
                    "args": {"value": {"ref": "review.answer"}}}],
     }
-    artifacts = artifact_path("workflow-studio/pause-resume-2026-10-11")
+    artifacts = artifact_path("workflow-studio/policy-steps-2026-10-11")
     artifacts.mkdir(parents=True, exist_ok=True)
     page = browser.new_page(viewport={"width": 1440, "height": 960}, device_scale_factor=1)
     context = page.context
@@ -1496,7 +1496,11 @@ def test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports(bro
         assert resume_response.value.request.headers.get("idempotency-key")
         assert resume_response.value.request.post_data_json == pause_body
         assert resume_response.value.json()["paused"] is False
-        wait_for_page(page, "document.activeElement?.dataset.workflowAction === 'refresh'", timeout=2000)
+        page.wait_for_function("""() => {
+          const panel = document.querySelector('#workflow-panel');
+          const refresh = panel?.querySelector('[data-workflow-action="refresh"]');
+          return Boolean(refresh && document.activeElement === refresh);
+        }""", timeout=2000)
         assert panel.get_by_role("button", name="Refresh").evaluate(
             "element => document.activeElement === element")
         deadline = time.monotonic() + 20
