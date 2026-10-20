@@ -52,7 +52,7 @@ def live(tmp_path, monkeypatch):
     thread.join(timeout=10)
 
 
-def test_runtime_page_shows_truth_and_controls_bounded_work(live, browser, tmp_path):
+def test_runtime_page_shows_truth_and_controls_bounded_work(live, browser, tmp_path, monkeypatch):
     base, app = live
     store = app.state.store
     bot = store.create_bot(Bot(name="runtime-bot", model="mock/demo"))
@@ -61,6 +61,17 @@ def test_runtime_page_shows_truth_and_controls_bounded_work(live, browser, tmp_p
     (watched / "a.txt").write_bytes(b"one")
     source = store.create_event_source(bot_id=bot.id, kind="folder", name="Inbox",
                                        config={"path": str(watched), "settle_seconds": 0})
+    pause_entered, release_pause = threading.Event(), threading.Event()
+    update_event_source = store.update_event_source
+
+    def delay_source_pause(source_id, **changes):
+        if source_id == source["id"] and changes.get("enabled") is False:
+            pause_entered.set()
+            if not release_pause.wait(5):
+                raise TimeoutError("test did not release the held source pause")
+        return update_event_source(source_id, **changes)
+
+    monkeypatch.setattr(store, "update_event_source", delay_source_pause)
 
     page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     console_errors: list[str] = []
@@ -105,11 +116,18 @@ def test_runtime_page_shows_truth_and_controls_bounded_work(live, browser, tmp_p
     assert store.workspace_schedule_control()["paused"] is False
 
     # Pausing one source retires pending events; resuming re-arms checks.
-    page.click('[data-runtime-action="source-pause"]')
+    try:
+        page.click('[data-runtime-action="source-pause"]')
+        assert pause_entered.wait(5), "source pause request did not reach the store"
+        assert page.locator('[data-runtime-action="source-pause"]').is_disabled()
+        assert all(button.is_disabled() for button in page.locator("[data-runtime-action]").all())
+    finally:
+        release_pause.set()
     deadline = time.time() + 5
     while time.time() < deadline and store.get_event_source(source["id"])["enabled"]:
         time.sleep(0.05)
     assert store.get_event_source(source["id"])["enabled"] is False
+    page.locator('[data-runtime-action="source-resume"]').wait_for()
     page.click('[data-runtime-action="source-resume"]')
     deadline = time.time() + 5
     while time.time() < deadline and not store.get_event_source(source["id"])["enabled"]:

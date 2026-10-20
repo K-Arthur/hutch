@@ -11988,9 +11988,7 @@ function setRuntimePending(action, pending) {
   const state = $("[data-runtime-pending]");
   if (state) state.hidden = !pending;
   $$("[data-runtime-action]").forEach(button => {
-    const interactive = ["refresh"].includes(button.dataset.runtimeAction);
-    if (pending && interactive) button.disabled = true;
-    if (!pending) button.disabled = false;
+    button.disabled = pending;
   });
 }
 
