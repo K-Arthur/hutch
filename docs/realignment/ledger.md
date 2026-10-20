@@ -353,6 +353,13 @@ cd .worktrees/realign
 bash docs/realignment/journeys.sh
 ```
 
+Both `journeys.sh` and `race_schedule.py` remove their generated temporary state on normal exit and after an interrupt. Set
+`HUTCH_REALIGNMENT_KEEP_STATE=1` when you need to inspect the throwaway database and run output after a reproduction. Journey
+cleanup also requests a stop and waits for its background CLI run before removing the state directory. Its strict shell mode
+stops at failed CLI steps instead of reporting a false-success journey. The journey sets `HUTCH_TESTING=1` and loads only the
+test support runtime from `tests/support`; no production model/provider route is enabled. The schedule race directly claims the
+due occurrence without dispatching the workflow, keeping the experiment focused on atomic schedule creation.
+
 The current same-harness captures and data-quality notebook are in `artifacts/performance/` and `../../benchmarks/quality_audit.ipynb`.
 
 ## Main interface integration checkpoint (2026-10-07)
