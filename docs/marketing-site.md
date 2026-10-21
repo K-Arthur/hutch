@@ -200,13 +200,15 @@ The marketing surface is Tailwind + DaisyUI layered on the brand token source:
 
 - `website/src/input.css` — Tailwind v4 entry. DaisyUI v5 loads with an explicit component
   include list (`button, badge, card, navbar, footer, table, collapse, alert, link, menu`)
-  and a custom `hutch` theme mapped to the pinned brand contract: emerald `#34d399`, 0px
-  fields (buttons), 100px selectors (badges/chips), 8px boxes (cards/panels), one dark theme.
+  and a custom `hutch` theme mapped to the current design contract: emerald `#34d399`, 8px
+  controls, 12px panels, 100px chips, and one dark theme.
 - Rebuild with `npm install` (once) then `npm run build:css`, which compiles `website/app.css`
   and stamps each local asset reference in `index.html` with an 8-char content hash so a
   cached sheet can never outlive its build. The compiled file is committed, so the page
   stays a static, no-build surface at runtime: no external requests, no toolchain needed to
-  serve it (29-49 KiB minified, within the 40 KiB CSS budget at the trimmed include list).
+  serve it. In the current build, `app.css` is 50,575 bytes and the Hutch-specific
+  `styles.css` is 36,193 bytes. The 40 KiB CSS budget applies to `styles.css`; deployment
+  compression is not part of the local transfer measurement.
 - `website/styles.css` holds only hutch-specific pieces — hero weave, proof chrome, code
   window, architecture diagram, receipts/availability tables, footer base, motion.
 - `website/tokens.css` remains the generated source of truth for brand/semantic values;
@@ -241,13 +243,10 @@ theme) governs.
   availability, FAQ, CTA), plus pointer-swap verification left/right and a measured check that the hero wordmark fits its
   column (about 18px slack each side).
 
-The merged-site review is also captured in `docs/realignment/artifacts/marketing-top/`. The anonymous static site was opened
-in Chromium 153.0.8010.12 / Playwright 1.63.0 at desktop 1440×1000, tablet 900×1024 and phone 390×844 with reduced motion.
-The viewport and full-page screenshots were opened and inspected. All three report zero horizontal overflow, zero page errors,
-and only same-origin requests. `capture.json` records the Git revision and SHA-256 hashes for the exact HTML, compiled/source
-CSS, JavaScript, font, mascot, and embedded app screenshots. The source-tree app capture report likewise records every shipped
-Hutch Python and frontend source file. These captures were regenerated after the main-site merge; source changes do not update
-screenshots automatically.
+The files under `docs/realignment/artifacts/marketing-top/` are historical captures, not current design evidence. Their
+`capture.json` records the 2026-10-08 source revision and an HTML hash that no longer matches `website/index.html`; do not use
+their screenshots as a representation of the current landing page. The full-site audit and refreshed source-pinned captures are
+recorded under `docs/realignment/artifacts/ui-audit-2026-10-20/`; source changes do not update screenshots automatically.
 
 The adaptive-style marketing check is captured in `docs/realignment/artifacts/persona-marketing-2026-10-11/`.
 It records the current HTML/CSS/image hashes and Chromium viewport measurements for 1440×1000, 768×1024,

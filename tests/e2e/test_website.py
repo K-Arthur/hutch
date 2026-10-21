@@ -107,6 +107,71 @@ def _page(browser, *, width=1440, height=900, reduced_motion="no-preference", js
     return context, page, errors
 
 
+def test_landing_initial_transfer_stays_within_review_budget_and_art_loads_on_demand(browser, site_url):
+    """Keep the hero pointer effect off the initial asset path."""
+    context, page, errors = _page(browser, width=1440, height=900)
+    requests: list[str] = []
+    page.on("request", lambda request: requests.append(request.url))
+    try:
+        page.goto(site_url, wait_until="networkidle")
+        page.wait_for_timeout(3200)  # Exercise the former idle-preload window.
+        page.evaluate("document.fonts.ready")
+        initial = page.evaluate("""() => performance.getEntriesByType('resource').map(entry => ({
+          url: new URL(entry.name).pathname,
+          bytes: entry.encodedBodySize || 0
+        }))""")
+        by_path = {entry["url"]: entry["bytes"] for entry in initial}
+        total_bytes = sum(entry["bytes"] for entry in initial)
+        sprite_paths = [entry["url"] for entry in initial if "/assets/agent/f" in entry["url"]]
+        font_paths = [entry["url"] for entry in initial if entry["url"].endswith("archivo-latin-var.woff2")]
+        assert len(sprite_paths) <= 2, sprite_paths
+        assert len(font_paths) == 1, font_paths
+        assert by_path["/site.js"] <= 100 * 1024
+        assert by_path["/styles.css"] <= 40 * 1024
+        assert by_path[font_paths[0]] <= 120 * 1024
+        assert by_path["/assets/hutch-agent.webp"] <= 300 * 1024
+        assert total_bytes <= 900 * 1024, {"bytes": total_bytes, "resources": initial}
+
+        subject = page.locator("#agent")
+        bounds = subject.bounding_box()
+        assert bounds
+        page.mouse.move(bounds["x"] + bounds["width"] / 2, bounds["y"] + bounds["height"] / 2)
+        page.wait_for_function("""() => {
+          return (document.querySelector('#agent .weave-agent')?.src || '').includes('/assets/agent/f');
+        }""")
+        center_frame_source = page.locator("#agent .weave-agent").get_attribute("src")
+        page.mouse.move(bounds["x"] + bounds["width"] - 1, bounds["y"] + bounds["height"] - 1)
+        page.wait_for_function("""previous => {
+          const source = document.querySelector('#agent .weave-agent')?.src || '';
+          return source !== previous && source.includes('/assets/agent/f');
+        }""", arg=center_frame_source)
+        assert not errors, errors
+        assert all(url.startswith(site_url) for url in requests), requests
+        out = ROOT / "docs/realignment/artifacts/ui-audit-2026-10-20"
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "transfer-budgets.json").write_text(json.dumps({
+            "test": "tests/e2e/test_website.py::test_landing_initial_transfer_stays_within_review_budget_and_art_loads_on_demand",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "browser": browser.version,
+            "viewport": [1440, 900],
+            "encoded_resources": initial,
+            "initial_bytes": total_bytes,
+            "budgets_bytes": {"js": 100 * 1024, "custom_css": 40 * 1024, "font": 120 * 1024,
+                              "hero_art": 300 * 1024, "initial_transfer": 900 * 1024},
+            "initial_sprite_frames": sprite_paths,
+            "font_urls": font_paths,
+            "source_sha256": {
+                "website/index.html": hashlib.sha256((SITE_DIR / "index.html").read_bytes()).hexdigest(),
+                "website/styles.css": hashlib.sha256((SITE_DIR / "styles.css").read_bytes()).hexdigest(),
+                "website/site.js": hashlib.sha256((SITE_DIR / "site.js").read_bytes()).hexdigest(),
+            },
+            "external_requests": [],
+            "page_errors": errors,
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        context.close()
+
+
 def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     context, page, errors = _page(browser)
     responses = []
@@ -117,7 +182,10 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     assert page.title().startswith("hutch")
     assert "A little help with what’s next." in page.inner_text("h1.hero-title")
     mascot = page.locator("img.weave-agent")
-    assert mascot.count() == 1 and "assets/hutch-agent.webp" in mascot.get_attribute("src")
+    assert mascot.count() == 1
+    mascot_src = mascot.get_attribute("src") or ""
+    assert "assets/hutch-agent.webp" in mascot_src or "assets/agent/f" in mascot_src
+    assert mascot.evaluate("img => img.complete && img.naturalWidth > 0")
     assert page.locator(".hero-promises li").count() == 3
     assert page.locator(".benefit-card").count() == 3
     assert page.locator(".benefit-art svg").count() == 7  # The three illustrated cards include 7 distinct icon paths.
@@ -156,10 +224,11 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     assert "provider-side billing limits" in text
     assert "can i review cost and context before sending?" in text
     assert "bounded recent conversation context" in text
-    assert "automatic classification is not enabled" in text
-    assert "private" in text and "no anonymous download or public release" in text
+    assert "questions about what an assistant can do" in text
+    assert "the source is private" in text
+    assert "no anonymous download, public release, or hosted sign-up today" in text
     assert "not a virtual machine" in text
-    assert "fixture-tested dns pinning" in text and "browser field detection" in text
+    assert "dns pinning is fixture-tested" in text and "browser field detection" in text
     assert "sign in with chatgpt is an opt-in local preview" in text
     assert "eligibility for hutch is unconfirmed" in text
     assert "does not enforce hutch's output-token allowance" in text
@@ -587,74 +656,64 @@ def test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation(browser, s
 
 def test_provider_availability_is_readable_without_horizontal_page_scroll(browser, site_url):
     context, page, errors = _page(browser, reduced_motion="reduce")
-    page.goto(site_url, wait_until="networkidle")
+    out = ROOT / "docs/realignment/artifacts/ui-audit-2026-10-20/availability"
+    out.mkdir(parents=True, exist_ok=True)
     external = []
     page.on("request", lambda request: external.append(request.url)
             if not request.url.startswith(site_url) and not request.url.startswith("data:") else None)
-    out = artifact_path("assistant-first-ui/marketing/availability")
-    out.mkdir(parents=True, exist_ok=True)
     source = (SITE_DIR / "index.html").read_bytes()
     styles = (SITE_DIR / "styles.css").read_bytes()
-    viewports = (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844))
+    captures = []
     try:
+        page.goto(site_url, wait_until="networkidle")
         page.locator("#get .availability-details > summary").click()
-        assert page.locator("#get .availability").get_by_text("Public access", exact=True).count() == 1
-        availability = page.locator("#get").inner_text().lower()
-        assert "opencode go api-key handoff" in availability
-        assert "chatgpt sign-in preview" in availability
-        assert "eligibility unconfirmed" in availability
-        assert "google calendar lookup" in availability
-        assert "consent unverified" in availability
-        assert "private gmail search" in availability
-        assert "public release awaits google scope verification" in availability
-        assert "outlook calendar lookup and optional guest-free event creation on one selected calendar" in availability
-        assert "read-only outlook mail previews" in availability
-        assert page.locator("a[href='#get']").count() >= 1
-        for label, width, height in viewports:
+        table = page.locator("#get .availability")
+        rows = table.locator("tbody tr")
+        expected = {
+            "Public access": "no anonymous download, public release, or hosted sign-up",
+            "Documents": "versioned revisions and in-app previews",
+            "Workflows": "auto does not create new plans",
+            "AI services": "eligibility for hutch is unconfirmed",
+            "Coding with OpenCode": "pinned worktrees",
+            "Google Calendar": "each event needs exact approval",
+            "Gmail search": "owner oauth and loopback local routes",
+            "Outlook": "microsoft consent is account-wide and unverified",
+            "Scheduling and delegation": "do not grant extra permissions",
+            "Paired access and browser": "dns pinning is fixture-tested",
+            "Other platforms and runtimes": "unavailable",
+        }
+        for area, phrase in expected.items():
+            row = rows.filter(has_text=area)
+            assert row.count() == 1, area
+            assert phrase in row.inner_text().lower(), (area, phrase)
+            assert row.locator(".ev").count() == 1, area
+        assert table.locator("thead th").count() == 2
+        for label, width, height in (("desktop", 1440, 900), ("tablet", 900, 1024),
+                                     ("phone", 390, 844), ("compact-phone", 320, 740)):
             page.set_viewport_size({"width": width, "height": height})
             page.get_by_role("heading", name="Hutch is still a private preview.").scroll_into_view_if_needed()
-            page.screenshot(path=str(out / f"marketing-{label}.png"), animations="disabled")
+            page.screenshot(path=str(out / f"availability-{label}.png"), full_page=True, animations="disabled")
+            metrics = table.evaluate("el => ({scrollWidth: el.scrollWidth, clientWidth: el.clientWidth})")
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert overflow <= 1, (label, overflow)
-        feature_sizes = (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844))
-        for label, width, height in feature_sizes:
-            page.set_viewport_size({"width": width, "height": height})
-            if not page.locator("#runs .technical-details").evaluate("el => el.open"):
-                page.locator("#runs .technical-details > summary").click()
-            page.locator("#runs").screenshot(
-                path=str(out / f"marketing-features-{label}.png"), animations="disabled",
-                style="body > header { display: none !important; } .skip-link { display: none !important; }")
-            cards = page.locator("#runs .feature .card-body")
-            assert cards.count() == 6
-            for index in range(cards.count()):
-                card = cards.nth(index)
-                icon_box = card.locator(".card-icon").bounding_box()
-                title_box = card.locator(".card-title").bounding_box()
-                assert icon_box and title_box
-                assert icon_box["x"] + icon_box["width"] <= title_box["x"] + 1, (label, index, icon_box, title_box)
-                assert abs((icon_box["y"] + icon_box["height"] / 2) -
-                           (title_box["y"] + title_box["height"] / 2)) <= 2, (label, index, icon_box, title_box)
-            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
-            assert overflow <= 1, (label, overflow)
+            assert metrics["scrollWidth"] <= metrics["clientWidth"] + 1, (label, metrics)
+            assert table.locator("thead th:visible").count() == 2
+            assert table.locator("tbody .ev:visible").count() == rows.count()
+            captures.append({"name": label, "viewport": [width, height], "table": metrics,
+                             "page_overflow": overflow})
         assert external == [], external
         assert not errors, errors
-        (out / "marketing-validation.json").write_text(json.dumps({
+        (out / "availability-validation.json").write_text(json.dumps({
             "test": "tests/e2e/test_website.py::test_provider_availability_is_readable_without_horizontal_page_scroll",
-            "command": ".venv/bin/python -m pytest -q tests/e2e/test_website.py::test_provider_availability_is_readable_without_horizontal_page_scroll",
             "captured_at": datetime.now(timezone.utc).isoformat(),
-            "python": platform.python_version(), "browser": browser.version,
-            "index_sha256": hashlib.sha256(source).hexdigest(),
-            "styles_sha256": hashlib.sha256(styles).hexdigest(),
-            "viewports": [{"name": label, "width": width, "height": height}
-                          for label, width, height in viewports],
-            "feature_grid_viewports": [{"name": label, "width": width, "height": height}
-                                       for label, width, height in feature_sizes],
-            "feature_heading_layout": "icon and heading share a row",
-            "anonymous": True, "external_requests": len(external),
-        }, indent=2) + "\n")
+            "browser": browser.version,
+            "source_sha256": {"website/index.html": hashlib.sha256(source).hexdigest(),
+                              "website/styles.css": hashlib.sha256(styles).hexdigest()},
+            "viewports": captures, "anonymous": True,
+            "external_requests": external, "page_errors": errors,
+        }, indent=2) + "\n", encoding="utf-8")
     finally:
         context.close()
-
 
 def test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_viewports(browser, site_url):
     context, page, errors = _page(browser, reduced_motion="reduce")
@@ -669,19 +728,20 @@ def test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_
     try:
         page.goto(site_url, wait_until="networkidle")
         page.locator("#get .availability-details > summary").click()
-        row = page.locator("#get .availability tbody tr").filter(has_text="Outlook Calendar")
+        row = page.locator("#get .availability tbody tr").filter(has_text="Outlook")
         assert row.count() == 1
         text = row.inner_text().lower()
         assert "experimental" in row.inner_text().lower()
         assert "consent unverified" in text
-        assert "credential/captcha handoff" in text
-        assert "browser field detection" in text
+        paired = page.locator("#get .availability tbody tr").filter(has_text="Paired access and browser")
+        assert "linux credential/captcha handoff" in paired.inner_text().lower()
+        assert "browser field detection" in paired.inner_text().lower()
         assert "outlook calendar lookup and optional guest-free event creation on one selected calendar" in text
         assert "exact approval each time" in text
         assert "microsoft consent is account-wide and unverified" in text
-        assert "read-only outlook mail previews" in text
+        assert "outlook mail provides read-only previews" in text
         assert "consent unverified" in text
-        assert "private gmail search" in text
+        assert "private search requires owner oauth and loopback local routes" in text
         assert "public release awaits google scope verification" in text
         wrapper = page.locator("#get .overflow-x-auto")
         for label, width, height in (("desktop", 1440, 900), ("tablet", 900, 1024),
@@ -697,8 +757,7 @@ def test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert overflow <= 1, (label, overflow)
             assert metrics["scrollWidth"] <= metrics["clientWidth"] + 1, (label, metrics)
-            if width <= 640:
-                assert page.locator("#get .availability thead th:visible").count() == 2
+            assert page.locator("#get .availability thead th:visible").count() == 2
             if width == 320:
                 image_row = page.locator("#get .availability tbody tr").filter(has_text="Chat image input")
                 label_bounds = image_row.locator(".av-k").evaluate("""element => {

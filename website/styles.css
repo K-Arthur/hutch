@@ -443,20 +443,20 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .preview-banner p { max-width: 68ch; color: var(--color-semantic-text-2); font-size: var(--text-size-sm); line-height: 1.6; }
 .availability-details { margin-top: var(--space-5); }
 @media (max-width: 940px) { .get-grid { grid-template-columns: minmax(0, 1fr); gap: var(--space-8); } }
-.availability { width: 100%; min-width: 520px; }
-.availability td:last-child { white-space: nowrap; }
-.availability thead th { font-family: var(--font-mono); font-size: var(--text-size-xs); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--color-semantic-text-3); }
-.availability .av-k { font-family: var(--font-mono); font-size: var(--text-size-2xs); font-weight: 700; color: var(--color-semantic-brand); white-space: nowrap; }
-.availability .av-v { color: var(--color-semantic-text-2); font-size: var(--text-size-xs); }
+.availability { width: 100%; min-width: 0; table-layout: fixed; }
+.availability th:first-child { width: 205px; }
+.availability thead th { font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--color-semantic-text-3); }
+.availability .av-area { text-align: left; vertical-align: top; font-weight: 500; }
+.availability .av-k { display: block; font-family: var(--font-mono); font-size: var(--text-size-2xs); font-weight: 700; color: var(--color-semantic-brand); white-space: normal; }
+.availability .av-area .ev { display: inline-flex; max-width: 100%; margin-top: var(--space-2); white-space: normal; overflow-wrap: anywhere; flex-wrap: wrap; }
+.availability .av-v { color: var(--color-semantic-text-2); font-size: var(--text-size-xs); vertical-align: top; overflow-wrap: anywhere; }
 .get-term .term-body a { text-decoration: underline; text-underline-offset: 3px; }
 @media (max-width: 640px) {
-  .availability { min-width: 0; table-layout: fixed; }
-  /* The first cell already carries each row's support label. Drop the repeated
-     status column on phones to give the useful explanation room to wrap. */
-  .availability th:last-child, .availability td:last-child { display: none; }
-  .availability th:first-child, .availability .av-k { width: 96px; }
-  .availability .av-k { white-space: normal; overflow-wrap: anywhere; }
-  .availability th, .availability td { padding-inline: 8px; overflow-wrap: anywhere; }
+  .availability { width: 100%; table-layout: fixed; }
+  .availability thead th { white-space: normal; }
+  .availability th:first-child { width: 122px; }
+  .availability th, .availability td { padding-inline: 8px; overflow-wrap: anywhere; vertical-align: top; }
+  .availability .av-area .ev { font-size: var(--text-size-xs); }
   .preview-banner { align-items: flex-start; padding: var(--space-4); }
   .preview-icon { width: 44px; height: 44px; border-radius: var(--radius-panel); }
   .preview-icon svg { width: 24px; height: 24px; }

@@ -100,14 +100,18 @@
     var ROWS = parseInt(subject.getAttribute("data-rows") || "3", 10);
     var base = subject.getAttribute("data-frames") || "assets/agent/f";
     var CENTER_C = (COLS - 1) / 2, CENTER_R = (ROWS - 1) / 2;
-    var loaded = {}, failed = false, queued = false, current = "";
+    var loaded = {}, failed = false, current = "", hasPointerTarget = false;
+    var target = { c: CENTER_C, r: CENTER_R };
 
     function srcFor(c, r) { return base + c + "-p" + r + ".webp"; }
     function preload(c, r) {
       var k = c + "-" + r;
       if (loaded[k] || failed) return;
       var im = new Image();
-      im.onload = function () { loaded[k] = true; };
+      im.onload = function () {
+        loaded[k] = true;
+        if (hasPointerTarget && target.c === c && target.r === r) show(c, r);
+      };
       im.onerror = function () { failed = true; };   /* missing set: keep static frame */
       im.src = srcFor(c, r);
     }
@@ -122,7 +126,7 @@
     }
     function setStatic() { show(CENTER_C, CENTER_R); }
 
-    var target = { c: CENTER_C, r: CENTER_R }, pending = false;
+    var pending = false;
     function tick() {
       pending = false;
       show(target.c, target.r);
@@ -138,6 +142,8 @@
       ny = Math.max(-0.5, Math.min(0.5, ny));
       target.c = Math.round(CENTER_C + nx * (COLS - 1));
       target.r = Math.round(CENTER_R + ny * (ROWS - 1));
+      hasPointerTarget = true;
+      preload(target.c, target.r);
       if (!pending) { pending = true; requestAnimationFrame(tick); }
     }
     document.addEventListener("pointermove", onMove, { passive: true });
@@ -146,20 +152,5 @@
       if (document.hidden) document.removeEventListener("pointermove", onMove);
       else document.addEventListener("pointermove", onMove, { passive: true });
     });
-    /* bulk preload starts after the entrance animation, off the critical path */
-    function preloadRest() {
-      if (queued || failed) return;
-      queued = true;
-      var order = [];
-      for (var c = 0; c < COLS; c++) for (var r = 0; r < ROWS; r++) order.push([c, r]);
-      order.sort(function (a, b) {
-        var da = Math.abs(a[0] - CENTER_C) + Math.abs(a[1] - CENTER_R);
-        var db = Math.abs(b[0] - CENTER_C) + Math.abs(b[1] - CENTER_R);
-        return da - db;
-      });
-      order.forEach(function (cell) { preload(cell[0], cell[1]); });
-    }
-    if ("requestIdleCallback" in window) requestIdleCallback(preloadRest, { timeout: 4000 });
-    else setTimeout(preloadRest, 2500);
   }
 })();
