@@ -4736,6 +4736,44 @@ class Store:
             rows = self._db.execute(query, args).fetchall()
             return [self._with_conversation_authority(row) for row in rows]
 
+    def query_conversations(self, query: str, *, bot_id: Optional[str] = None,
+                            scope: str = "active", limit: int = 50,
+                            offset: int = 0) -> tuple[list[dict[str, Any]], int]:
+        """Page conversation titles without making a client retain the whole library.
+
+        ``scope`` intentionally names the user-facing buckets.  Imported
+        conversations remain separate from the ordinary active and archived
+        history because they have different provenance and editing limits.
+        """
+        where = ["1 = 1"]
+        args: list[Any] = []
+        if scope == "active":
+            where.extend(("c.archived = 0", "c.is_legacy = 0"))
+        elif scope == "archived":
+            where.append("c.archived = 1")
+        elif scope == "imported":
+            where.append("c.is_legacy = 1")
+        elif scope != "all":
+            raise ValueError("unsupported conversation scope")
+        if bot_id:
+            where.append("c.bot_id = ?")
+            args.append(bot_id)
+        if query.strip():
+            # instr keeps the query a literal substring, not SQL LIKE syntax.
+            where.append("instr(lower(c.title), lower(?)) > 0")
+            args.append(query.strip())
+        predicate = " AND ".join(where)
+        fields = ("c.*, (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id) AS message_count, "
+                  "(SELECT COALESCE(MAX(m.seq), 0) FROM messages m WHERE m.conversation_id = c.id) AS last_seq, "
+                  "(SELECT r.run_id FROM conversation_runs r WHERE r.conversation_id = c.id "
+                  "ORDER BY r.attached_at DESC LIMIT 1) AS latest_run_id ")
+        sql = (f"SELECT {fields} FROM conversations c WHERE {predicate} "
+               "ORDER BY c.pinned DESC, c.updated_at DESC, c.id LIMIT ? OFFSET ?")
+        with self._lock:
+            rows = self._db.execute(sql, [*args, limit, offset]).fetchall()
+            total = self._db.execute(f"SELECT COUNT(*) FROM conversations c WHERE {predicate}", args).fetchone()[0]
+        return [self._with_conversation_authority(row) for row in rows], int(total)
+
     @staticmethod
     def _persona_feedback_resource(row: sqlite3.Row) -> Optional[dict[str, Any]]:
         if row["feedback_revision"] is None:

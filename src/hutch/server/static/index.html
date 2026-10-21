@@ -38,6 +38,7 @@
 
       <nav class="ws-nav" aria-label="Primary">
         <a href="#/chat" data-nav="chat"><span class="nav-ico" aria-hidden="true"></span><span>Chats</span></a>
+        <a href="#/chats" data-nav="chats"><span class="nav-ico" aria-hidden="true"></span><span>Chat library</span></a>
         <button type="button" id="needs-you-open"><span class="nav-ico" aria-hidden="true"></span><span>Needs you</span><span id="approval-badge" class="badge hidden">0</span></button>
         <details id="monitor-nav">
           <summary><span class="nav-ico" aria-hidden="true"></span><span>More</span></summary>
@@ -67,17 +68,10 @@
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 8.5 4.7L12 11.4 3.5 6.7z"/><path d="m3.5 12.6 8.5 4.7 8.5-4.7"/><path d="m3.5 17.3 8.5 4.7 8.5-4.7"/></svg>
           <span>Apps &amp; AI</span>
         </a>
-        <div class="pref-wrap">
-          <button class="ws-foot-link" id="prefs-toggle" type="button" aria-expanded="false" aria-haspopup="true" aria-controls="prefs-pop">
+        <a href="#/settings" class="ws-foot-link" data-nav="settings">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1"/></svg>
             <span>Settings</span>
-          </button>
-          <div class="pref-pop" id="prefs-pop" hidden>
-            <button class="btn ghost small" id="prefs-model-defaults" type="button">Model defaults for new Bots</button>
-            <label class="cmenu-row"><input type="checkbox" id="pref-reduce">
-              <span>Reduce effects<span class="cmenu-sub">Follows your system by default</span></span></label>
-          </div>
-        </div>
+        </a>
       </footer>
     </aside>
     <div class="ws-scrim" id="ws-scrim" hidden></div>

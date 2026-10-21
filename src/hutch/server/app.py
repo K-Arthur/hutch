@@ -946,6 +946,27 @@ class ConversationResource(BaseModel):
     active_run_status_label: Optional[str] = None
 
 
+class ConversationPageResource(BaseModel):
+    items: list[ConversationResource]
+    total: int
+    limit: int
+    offset: int
+    next_offset: Optional[int] = None
+
+
+class ConversationLibraryRequest(BaseModel):
+    q: str = Field(default="", max_length=256)
+    bot: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    scope: Literal["active", "archived", "imported", "all"] = "active"
+    limit: int = Field(default=50, ge=1, le=100)
+    offset: int = Field(default=0, ge=0)
+
+    @field_validator("q")
+    @classmethod
+    def query_is_bounded(cls, value: str) -> str:
+        return value.strip()
+
+
 class PersonaFeedbackResource(BaseModel):
     version: int = 1
     revision: int
@@ -3378,6 +3399,17 @@ def create_app() -> FastAPI:
         return store.list_conversations(bot_id, include_legacy=include_legacy,
                                         include_archived=include_archived,
                                         limit=max(1, min(limit, 100)), offset=max(0, offset))
+
+    @app.post("/api/v1/conversations/query", response_model=ConversationPageResource)
+    def query_conversations(body: ConversationLibraryRequest) -> dict:
+        bot_id = bot_or_404(body.bot).id if body.bot else None
+        items, total = store.query_conversations(body.q, bot_id=bot_id, scope=body.scope,
+                                                 limit=body.limit, offset=body.offset)
+        next_offset = body.offset + len(items)
+        return {
+            "items": items, "total": total, "limit": body.limit, "offset": body.offset,
+            "next_offset": next_offset if next_offset < total else None,
+        }
 
     @app.post("/api/v1/conversations", response_model=ConversationResource)
     def create_conversation(body: ConversationCreate, request: Request, response: Response) -> dict:

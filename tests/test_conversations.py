@@ -230,6 +230,33 @@ def test_private_conversation_search_returns_bounded_active_chat_excerpts(conver
     assert client.post("/api/v1/search/messages", json={"q": "violet", "limit": 101}).status_code == 422
 
 
+def test_conversation_library_pages_literal_title_search_and_history_buckets(conversation_client):
+    client = conversation_client
+    bot = client.post("/api/bots", json={"name": "library-bot", "model": "mock/demo", "tools": []}).json()
+    store = client.app.state.store
+    rows = [store.create_conversation(bot["id"], f"Planning note {index:03d}", idem_key=f"library-{index}",
+                                      request_hash=f"library-{index}")[0] for index in range(105)]
+    archived, _ = store.create_conversation(bot["id"], "Planning archive", idem_key="library-archived",
+                                             request_hash="library-archived")
+    imported, _ = store.create_conversation(bot["id"], "Planning import", idem_key="library-imported",
+                                             request_hash="library-imported")
+    with store._tx() as db:
+        db.execute("UPDATE conversations SET archived = 1 WHERE id = ?", (archived["id"],))
+        db.execute("UPDATE conversations SET is_legacy = 1 WHERE id = ?", (imported["id"],))
+
+    first = client.post("/api/v1/conversations/query", json={"bot": bot["id"], "q": "planning", "limit": 50})
+    assert first.status_code == 200, first.text
+    first_page = first.json()
+    assert first_page["total"] == 105 and len(first_page["items"]) == 50 and first_page["next_offset"] == 50
+    second = client.post("/api/v1/conversations/query", json={"bot": bot["id"], "q": "planning", "limit": 50, "offset": 50})
+    assert second.status_code == 200 and len(second.json()["items"]) == 50
+    assert {item["id"] for item in first_page["items"]}.isdisjoint({item["id"] for item in second.json()["items"]})
+    assert client.post("/api/v1/conversations/query", json={"bot": bot["id"], "scope": "archived"}).json()["items"][0]["id"] == archived["id"]
+    assert client.post("/api/v1/conversations/query", json={"bot": bot["id"], "scope": "imported"}).json()["items"][0]["id"] == imported["id"]
+    assert client.post("/api/v1/conversations/query", json={"bot": bot["id"], "q": "%_", "scope": "all"}).json()["total"] == 0
+    assert client.post("/api/v1/conversations/query", json={"scope": "missing"}).status_code == 422
+
+
 def test_conversation_section_validation_is_bounded_and_can_be_cleared(conversation_client):
     client = conversation_client
     bot = client.post("/api/bots", json={"name": "section-bounds", "model": "mock/demo", "tools": []}).json()

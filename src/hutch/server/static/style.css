@@ -245,6 +245,8 @@ a:hover { text-decoration: underline; }
 /* nav icons: drawn glyphs per item (kept monochrome until active) */
 .nav-ico { width: 16px; height: 16px; display: inline-block; flex: none; }
 .ws-nav a[data-nav="chat"]      .nav-ico { background: currentColor; -webkit-mask: var(--i-chat) center/contain no-repeat; mask: var(--i-chat) center/contain no-repeat; }
+.ws-nav a[data-nav="chats"]     .nav-ico { background: currentColor; -webkit-mask: var(--i-list) center/contain no-repeat; mask: var(--i-list) center/contain no-repeat; }
+.ws-foot-link[data-nav="settings"] svg { color: currentColor; }
 .ws-nav a[data-nav="overview"]  .nav-ico { background: currentColor; -webkit-mask: var(--i-dash) center/contain no-repeat; mask: var(--i-dash) center/contain no-repeat; }
 .ws-nav a[data-nav="schedules"] .nav-ico { background: currentColor; -webkit-mask: var(--i-calendar) center/contain no-repeat; mask: var(--i-calendar) center/contain no-repeat; }
 .ws-nav a[data-nav="runs"]      .nav-ico { background: currentColor; -webkit-mask: var(--i-list) center/contain no-repeat; mask: var(--i-list) center/contain no-repeat; }
@@ -341,16 +343,6 @@ a:hover { text-decoration: underline; }
 .ws-foot-link:hover { color: var(--text); background: rgba(255, 255, 255, 0.045); }
 .ws-foot-link:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 
-.pref-wrap { position: relative; }
-.pref-pop {
-  position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 30;
-  width: 268px; max-width: calc(100vw - 32px);
-  background: var(--overlay); border: 1px solid var(--line-strong);
-  border-radius: var(--r-panel); box-shadow: var(--sh-pop);
-  padding: 6px;
-}
-.pref-pop[hidden] { display: none; }
-
 /* ── docked sidebar (desktop): an icon rail, labels dropped ── */
 @media (min-width: 901px) {
   .app-shell.collapsed { grid-template-columns: 64px minmax(0, 1fr); }
@@ -371,7 +363,6 @@ a:hover { text-decoration: underline; }
   .app-shell.collapsed .roster-id { display: none; }
   .app-shell.collapsed .roster-head { justify-content: center; padding: 0 0 var(--s-2); }
   .app-shell.collapsed .ws-foot-link { font-size: 0; gap: 0; justify-content: center; padding: 9px 0; }
-  .app-shell.collapsed .pref-pop { left: 52px; bottom: 0; }
   .app-shell.collapsed .ws-foot { justify-items: center; }
   /* collapsed: the logo IS the expand control; the dock button shows only
      when the rail is expanded (separate from the logo, per review) */
@@ -2554,13 +2545,13 @@ details[open] > summary .summary-row-action .icon { transform: rotate(180deg); }
 
 /* Assistant settings start with the two things most people change. Deeper
    controls stay available behind one clearly labeled disclosure. */
-.assistant-settings-page { max-width: 1120px; }
-.assistant-settings-basics { max-width: 760px; margin: 0 auto 14px; }
+.assistant-settings-page { max-width: 760px; }
+.assistant-settings-basics { max-width: none; margin: 0 0 14px; }
 .assistant-settings-intro { display: flex; align-items: center; gap: 12px; margin-bottom: 2px; }
 .assistant-settings-intro > :first-child { flex: none; }
 .assistant-settings-intro .panel-title { margin-bottom: 2px; }
 .assistant-settings-intro .hint { max-width: 52ch; margin: 0; }
-.assistant-more-settings { max-width: 1120px; margin: 0 auto; }
+.assistant-more-settings { max-width: none; margin: 0; }
 /* Skin only: the summary grid, min-height, and action behavior come from
    .summary-row; this panel head keeps its own border, fill, and icon tile. */
 .assistant-more-settings > summary {
@@ -2587,6 +2578,40 @@ details[open] > summary .summary-row-action .icon { transform: rotate(180deg); }
 .assistant-usage-today { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: var(--s-2) var(--s-4) var(--s-3);
   border-top: 1px solid var(--line); color: var(--text-2); font-size: var(--fs-xs); }
 .assistant-usage-today strong { color: var(--text); font-weight: 600; }
+
+/* The library and workspace settings are companion management views: they use
+   the same readable column as the everyday assistant settings, while lists
+   retain their own row boundary instead of adding nested cards. */
+.page-intro { max-width: 68ch; margin: 0 0 var(--s-5); }
+.page-intro h2 { margin-bottom: var(--s-2); font-size: var(--fs-xl); }
+.page-intro p { color: var(--text-2); line-height: var(--leading-reading); }
+.chat-library-page, .workspace-settings-page { max-width: 760px; }
+.chat-library-filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(10rem, .62fr); align-items: end; gap: var(--s-3); }
+.chat-library-filters > :first-child { grid-column: 1 / -1; }
+.chat-library-filters .btn { justify-self: start; min-height: 44px; }
+.chat-library-results { display: grid; border: 1px solid var(--line); border-radius: var(--r-panel); overflow: clip; background: var(--panel); }
+.chat-library-results[aria-busy="true"] { opacity: .7; }
+.chat-library-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); min-height: 68px; padding: var(--s-3) var(--s-4); color: var(--text); border-bottom: 1px solid var(--line); }
+.chat-library-row:last-child { border-bottom: 0; }
+.chat-library-row:hover { color: var(--text); background: var(--raised); text-decoration: none; }
+.chat-library-row:focus-visible { outline-offset: -3px; }
+.chat-library-copy { display: grid; gap: 3px; min-width: 0; }
+.chat-library-copy strong { overflow-wrap: anywhere; }
+.chat-library-copy small { color: var(--text-2); font-size: var(--fs-sm); line-height: 1.4; }
+.chat-library-meta { display: inline-flex; align-items: center; gap: var(--s-2); flex: none; color: var(--text-3); font-size: var(--fs-xs); white-space: nowrap; }
+.chat-library-meta .icon { width: 16px; height: 16px; color: var(--brand-hi); }
+.chat-library-pagination { margin-top: var(--s-4); }
+.workspace-settings-form { max-width: 760px; }
+.workspace-settings-form input, .workspace-settings-form select { min-height: 44px; }
+.workspace-settings-form .panel-title:not(:first-child) { padding-top: var(--s-4); border-top: 1px solid var(--line); }
+
+@media (max-width: 640px) {
+  .chat-library-filters { grid-template-columns: minmax(0, 1fr); }
+  .chat-library-filters > :first-child { grid-column: auto; }
+  .chat-library-filters .btn { width: 100%; justify-content: center; }
+  .chat-library-row { align-items: flex-start; min-height: 76px; padding: var(--s-3); }
+  .chat-library-meta { padding-top: 2px; }
+}
 .settings-panel-title { display: flex; align-items: center; gap: 10px; }
 .settings-panel-icon { display: grid; place-items: center; width: 30px; height: 30px; flex: none; color: var(--brand-hi);
   background: color-mix(in srgb, var(--brand) 9%, var(--sunken)); border-radius: var(--r-ctl); }
