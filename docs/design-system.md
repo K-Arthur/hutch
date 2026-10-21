@@ -219,6 +219,10 @@ local-host access, or fixture-only states in public flows.
 - Use real buttons, links, labels, headings, and landmarks. Keep keyboard focus
   visible, target 44px touch comfort for primary phone actions, and honor reduced
   motion. Use full-page or local scrolling deliberately; do not mask overflow.
+- Hutch intentionally ships a fixed dark theme. It does not currently add a
+  separate `prefers-contrast` palette; this is a product decision, not an
+  unrecorded audit failure. Keep the existing visible focus treatment and
+  `forced-colors` overrides, and reassess this choice if theme support changes.
 - Status always has a readable word or sentence and any needed icon. Color is a
   secondary cue; Bot colors identify people or tasks, never run state.
 - Keep animation tied to actual state or an explicitly chosen marketing moment.
