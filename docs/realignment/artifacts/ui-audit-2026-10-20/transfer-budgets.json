@@ -1,0 +1,69 @@
+{
+  "test": "tests/e2e/test_website.py::test_landing_initial_transfer_stays_within_review_budget_and_art_loads_on_demand",
+  "captured_at": "2026-10-21T06:47:17.942198+00:00",
+  "browser": "153.0.8010.12",
+  "viewport": [
+    1440,
+    900
+  ],
+  "encoded_resources": [
+    {
+      "url": "/assets/fonts/archivo-latin-var.woff2",
+      "bytes": 90104
+    },
+    {
+      "url": "/tokens.css",
+      "bytes": 3967
+    },
+    {
+      "url": "/app.css",
+      "bytes": 50575
+    },
+    {
+      "url": "/styles.css",
+      "bytes": 36193
+    },
+    {
+      "url": "/assets/hutch-agent.webp",
+      "bytes": 40300
+    },
+    {
+      "url": "/site.js",
+      "bytes": 7113
+    },
+    {
+      "url": "/assets/agent/f3-p1.webp",
+      "bytes": 40300
+    },
+    {
+      "url": "/assets/agent/f0-p0.webp",
+      "bytes": 43240
+    },
+    {
+      "url": "/assets/captures/setup-desktop.webp",
+      "bytes": 39214
+    }
+  ],
+  "initial_bytes": 351006,
+  "budgets_bytes": {
+    "js": 102400,
+    "custom_css": 40960,
+    "font": 122880,
+    "hero_art": 307200,
+    "initial_transfer": 921600
+  },
+  "initial_sprite_frames": [
+    "/assets/agent/f3-p1.webp",
+    "/assets/agent/f0-p0.webp"
+  ],
+  "font_urls": [
+    "/assets/fonts/archivo-latin-var.woff2"
+  ],
+  "source_sha256": {
+    "website/index.html": "ba2f5f8dc05ec249111aacef35120b8193d448bd9612be5a0b36364ea21949be",
+    "website/styles.css": "7a7f9e733e25e7559bc3341e9f8cd0a2b964aeb7b60fe0d3d864023a7c1aafdd",
+    "website/site.js": "51b1a0e6c99f9d74d980c568dfbcc6486eb43c247fe41217a7a49487fe6cefe0"
+  },
+  "external_requests": [],
+  "page_errors": []
+}

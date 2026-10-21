@@ -1,0 +1,40 @@
+{
+  "captured_at": "2026-10-20 local",
+  "browser": "Chromium 153.0.8010.12",
+  "viewport": [
+    390,
+    844
+  ],
+  "source_sha256": {
+    "website/index.html": "ba2f5f8dc05ec249111aacef35120b8193d448bd9612be5a0b36364ea21949be",
+    "website/styles.css": "7a7f9e733e25e7559bc3341e9f8cd0a2b964aeb7b60fe0d3d864023a7c1aafdd",
+    "website/site.js": "51b1a0e6c99f9d74d980c568dfbcc6486eb43c247fe41217a7a49487fe6cefe0",
+    "src/hutch/server/static/app.js": "b92c9096f9e507cdde73da5ebc54b907f35d468d595762115b6357fdff7f1615"
+  },
+  "results": [
+    {
+      "forced": true,
+      "width": 390,
+      "documentWidth": 390,
+      "focus": {
+        "outlineColor": "rgba(5, 0, 73, 0.8)",
+        "outlineStyle": "solid",
+        "outlineWidth": "2px"
+      },
+      "surface": "first-run",
+      "page_errors": []
+    },
+    {
+      "forced": true,
+      "width": 390,
+      "documentWidth": 390,
+      "focus": {
+        "outlineColor": "rgba(5, 0, 73, 0.8)",
+        "outlineStyle": "solid",
+        "outlineWidth": "2px"
+      },
+      "surface": "marketing",
+      "page_errors": []
+    }
+  ]
+}

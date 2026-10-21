@@ -1,0 +1,60 @@
+{
+  "test": "tests/e2e/test_website.py::test_provider_availability_is_readable_without_horizontal_page_scroll",
+  "captured_at": "2026-10-21T06:49:20.418178+00:00",
+  "browser": "153.0.8010.12",
+  "index_sha256": "ba2f5f8dc05ec249111aacef35120b8193d448bd9612be5a0b36364ea21949be",
+  "styles_sha256": "7a7f9e733e25e7559bc3341e9f8cd0a2b964aeb7b60fe0d3d864023a7c1aafdd",
+  "viewports": [
+    {
+      "name": "desktop",
+      "viewport": [
+        1440,
+        900
+      ],
+      "table": {
+        "scrollWidth": 558,
+        "clientWidth": 558
+      },
+      "page_overflow": 0
+    },
+    {
+      "name": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "table": {
+        "scrollWidth": 802,
+        "clientWidth": 802
+      },
+      "page_overflow": 0
+    },
+    {
+      "name": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "table": {
+        "scrollWidth": 324,
+        "clientWidth": 324
+      },
+      "page_overflow": 0
+    },
+    {
+      "name": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "table": {
+        "scrollWidth": 254,
+        "clientWidth": 254
+      },
+      "page_overflow": 0
+    }
+  ],
+  "anonymous": true,
+  "external_requests": [],
+  "page_errors": []
+}

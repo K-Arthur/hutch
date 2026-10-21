@@ -1,0 +1,64 @@
+{
+  "test": "tests/e2e/test_website.py::test_connection_capability_groups_preserve_each_limit_at_all_viewports",
+  "captured_at": "2026-10-21T06:49:24.324576+00:00",
+  "python": "3.13.15",
+  "browser": "153.0.8010.12",
+  "source_sha256": {
+    "website/index.html": "ba2f5f8dc05ec249111aacef35120b8193d448bd9612be5a0b36364ea21949be",
+    "website/styles.css": "7a7f9e733e25e7559bc3341e9f8cd0a2b964aeb7b60fe0d3d864023a7c1aafdd",
+    "website/site.js": "51b1a0e6c99f9d74d980c568dfbcc6486eb43c247fe41217a7a49487fe6cefe0"
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "viewport": [
+        1440,
+        900
+      ],
+      "table": {
+        "scrollWidth": 558,
+        "clientWidth": 558
+      },
+      "page_overflow": 0
+    },
+    {
+      "name": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "table": {
+        "scrollWidth": 802,
+        "clientWidth": 802
+      },
+      "page_overflow": 0
+    },
+    {
+      "name": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "table": {
+        "scrollWidth": 324,
+        "clientWidth": 324
+      },
+      "page_overflow": 0
+    },
+    {
+      "name": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "table": {
+        "scrollWidth": 254,
+        "clientWidth": 254
+      },
+      "page_overflow": 0
+    }
+  ],
+  "anonymous": true,
+  "external_requests": [],
+  "page_errors": []
+}

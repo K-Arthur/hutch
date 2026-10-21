@@ -1179,7 +1179,7 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
     store.append_event(Event(run_id=run.id, type=EventType.message,
         data={"role": "assistant", "content": completed_answer}))
 
-    out = artifact_path("ui-surface-review")
+    out = ROOT / "docs/realignment/artifacts/ui-audit-2026-10-20/app-surfaces"
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(
         viewport={"width": 1440, "height": 960}, reduced_motion="reduce", forced_colors="none"

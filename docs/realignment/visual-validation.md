@@ -667,7 +667,7 @@ was started. Current captures and trace are the `*-enabled.png`, `*.json` and `*
 [`artifacts/local-browser-handoff/`](artifacts/local-browser-handoff/).
 No P0–P3 defect was observed in the changed settings path; the real visible login challenge and cross-browser behavior remain open.
 
-## Marketing source recapture (2026-10-08)
+## Archived marketing source capture (2026-10-08; superseded 2026-10-20)
 
 Because the older `artifacts/visual-validation/site-*.png` images predate later site edits, the marketing page was recaptured directly
 from the current `website/` directory. The repeatable command is `.venv/bin/python docs/realignment/capture_marketing_top.py`.
@@ -685,16 +685,11 @@ preference is reflected by the visible effects control; the capture intentionall
 or external request is needed for these captures. Local asset URLs, including product screenshots, are content-pinned to prevent browser
 caches from silently keeping an older image after the file is refreshed.
 
-After main `307ce1d`'s app styling was merged at `fdf6592`, the empty-state app images were regenerated from the built application,
-re-encoded as the site's WebP proof images, and all local asset URLs were re-stamped. The app captures were opened beside the embedded
-proof images; the anonymous site was recaptured at all three sizes with its full-page screenshots and opened for visual review.
-`artifacts/no-mock-setup/results.json` and `artifacts/marketing-top/capture.json` pin the post-merge source hashes and image hashes.
-The separate navigation contact sheet had not been regenerated and still showed an older marketing page; its independent capture utility
-was rerun after correcting a wait for a hidden duplicate status label. All 39 current app/site captures and inspection sheets now pin
-the post-merge sources. The integrated browser suite passed 83 checks after the latest CSS build; the site/token suite passed 27 checks
-after the refreshed image URLs were built. A screenshot is a saved file, so merging a UI change alone does not update it; each capture
-generator and the asset-hash build step must be run. The empty first-run image remains visually similar because it does not show the
-modal, card and switcher components changed by main `307ce1d`; populated app states are available in the navigation capture set.
+At the time, these files were treated as post-merge captures. A fresh source comparison on 2026-10-20 found that
+`artifacts/marketing-top/capture.json` is pinned to older HTML than the current `website/index.html`, and its full-page image shows
+retired copy. The screenshots and capture report remain useful as historical records only. The current audit recaptures and source hashes
+are in `artifacts/ui-audit-2026-10-20/`; the app first-run capture remains separately guarded by
+`docs/realignment/capture_first_run.py`. A screenshot is a saved file, so source changes do not update it automatically.
 
 ## Action intent review continuation
 

@@ -20,7 +20,8 @@ from playwright.async_api import async_playwright
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUT = ROOT / "docs/realignment/artifacts/no-mock-setup"
-VIEWPORTS = (("desktop", 1440, 1000), ("tablet", 768, 1024), ("phone", 390, 844))
+VIEWPORTS = (("desktop", 1440, 960), ("tablet", 900, 1024),
+             ("phone", 390, 844), ("compact-phone", 320, 740))
 def source_hashes() -> dict[str, str]:
     """Tie screenshots to all shipped Hutch sources, including compiled UI styles."""
     paths = sorted(

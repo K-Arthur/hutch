@@ -1,0 +1,24 @@
+{
+  "test": "tests/e2e/test_browser.py::test_work_history_paginates_and_searches_beyond_the_first_200_runs",
+  "browser": "153.0.8010.12",
+  "playwright": "1.63.0",
+  "fixture_run_count": 225,
+  "oldest_run_searchable": true,
+  "status_filters": [
+    "failed",
+    "succeeded"
+  ],
+  "pagination": "50-record API pages; 25 visible cards per step",
+  "compact_viewport": [
+    320,
+    420
+  ],
+  "page_errors": [],
+  "provider_calls": 0,
+  "source_sha256": {
+    "src/hutch/store.py": "dff61209c165f4492f4119dcadfcca3faa90983164729b5a42f30eebe671ac88",
+    "src/hutch/server/app.py": "b1a196de86549d8af7c967e9fa7495f7b130840da62b8e5fc38696b74582844b",
+    "src/hutch/server/static/app.js": "b92c9096f9e507cdde73da5ebc54b907f35d468d595762115b6357fdff7f1615"
+  },
+  "captured_at": "2026-10-21T06:37:34.536407+00:00"
+}

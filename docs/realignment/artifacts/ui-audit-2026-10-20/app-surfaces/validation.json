@@ -1,0 +1,654 @@
+{
+  "test": "tests/e2e/test_design_system.py::test_every_workspace_route_renders_independently_at_responsive_sizes",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_every_workspace_route_renders_independently_at_responsive_sizes",
+  "captured_at": "2026-10-21T06:49:54.649955+00:00",
+  "python": "3.13.15",
+  "browser": "Chromium 153.0.8010.12",
+  "playwright": "1.63.0",
+  "viewports": [
+    {
+      "surface": "studio",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "title": "Design Partner",
+      "workspace": true,
+      "visibleBotNames": [
+        "Design Partner"
+      ],
+      "menuControls": 11
+    },
+    {
+      "surface": "activity",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "title": "Activity",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "schedules",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "title": "Scheduled work",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "fleet",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "title": "Manage assistants",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11,
+      "longAssistantCard": {
+        "left": 864,
+        "right": 1408,
+        "width": 544,
+        "viewport": 1440
+      }
+    },
+    {
+      "surface": "runs",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "title": "Past work",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "approvals",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "title": "Design Partner",
+      "workspace": true,
+      "visibleBotNames": [
+        "Design Partner"
+      ],
+      "menuControls": 11
+    },
+    {
+      "surface": "connections",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "title": "Apps & AI",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "bot-settings",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "title": "Design Partner",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "run-detail",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "title": "Task details",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11,
+      "completionReply": "I reviewed the activity available in this workspace. Nothing needs your attention now."
+    },
+    {
+      "surface": "marketing",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "title": "A little help with what\u2019s next.",
+      "workspace": false,
+      "visibleBotNames": [],
+      "menuControls": 0
+    },
+    {
+      "surface": "preferences",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "dialog": {
+        "x": 12,
+        "y": 814.03125,
+        "width": 268,
+        "height": 96.28125,
+        "top": 814.03125,
+        "right": 280,
+        "bottom": 910.3125,
+        "left": 12
+      }
+    },
+    {
+      "surface": "studio",
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "documentWidth": 900,
+      "title": "Design Partner",
+      "workspace": true,
+      "visibleBotNames": [
+        "Design Partner"
+      ],
+      "menuControls": 11
+    },
+    {
+      "surface": "activity",
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "documentWidth": 900,
+      "title": "Activity",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "schedules",
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "documentWidth": 900,
+      "title": "Scheduled work",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "fleet",
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "documentWidth": 900,
+      "title": "Manage assistants",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11,
+      "longAssistantCard": {
+        "left": 458,
+        "right": 884,
+        "width": 426,
+        "viewport": 900
+      }
+    },
+    {
+      "surface": "runs",
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "documentWidth": 900,
+      "title": "Past work",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "approvals",
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "documentWidth": 900,
+      "title": "Design Partner",
+      "workspace": true,
+      "visibleBotNames": [
+        "Design Partner"
+      ],
+      "menuControls": 11
+    },
+    {
+      "surface": "connections",
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "documentWidth": 900,
+      "title": "Apps & AI",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "bot-settings",
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "documentWidth": 900,
+      "title": "Design Partner",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "run-detail",
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "documentWidth": 900,
+      "title": "Task details",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11,
+      "completionReply": "I reviewed the activity available in this workspace. Nothing needs your attention now."
+    },
+    {
+      "surface": "marketing",
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "documentWidth": 900,
+      "title": "A little help with what\u2019s next.",
+      "workspace": false,
+      "visibleBotNames": [],
+      "menuControls": 0
+    },
+    {
+      "surface": "studio",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "title": "Design Partner",
+      "workspace": true,
+      "visibleBotNames": [
+        "Design Partner"
+      ],
+      "menuControls": 11
+    },
+    {
+      "surface": "activity",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "title": "Activity",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "schedules",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "title": "Scheduled work",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "fleet",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "title": "Manage assistants",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11,
+      "longAssistantCard": {
+        "left": 16,
+        "right": 374,
+        "width": 358,
+        "viewport": 390
+      }
+    },
+    {
+      "surface": "runs",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "title": "Past work",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "approvals",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "title": "Design Partner",
+      "workspace": true,
+      "visibleBotNames": [
+        "Design Partner"
+      ],
+      "menuControls": 11
+    },
+    {
+      "surface": "connections",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "title": "Apps & AI",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "bot-settings",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "title": "Design Partner",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "run-detail",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "title": "Task details",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11,
+      "completionReply": "I reviewed the activity available in this workspace. Nothing needs your attention now."
+    },
+    {
+      "surface": "marketing",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "title": "A little help with what\u2019s next.",
+      "workspace": false,
+      "visibleBotNames": [],
+      "menuControls": 0
+    },
+    {
+      "surface": "preferences",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "dialog": {
+        "x": 12,
+        "y": 698.03125,
+        "width": 268,
+        "height": 96.28125,
+        "top": 698.03125,
+        "right": 280,
+        "bottom": 794.3125,
+        "left": 12
+      }
+    },
+    {
+      "surface": "studio",
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "documentWidth": 320,
+      "title": "Design Partner",
+      "workspace": true,
+      "visibleBotNames": [
+        "Design Partner"
+      ],
+      "menuControls": 11
+    },
+    {
+      "surface": "activity",
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "documentWidth": 320,
+      "title": "Activity",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "schedules",
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "documentWidth": 320,
+      "title": "Scheduled work",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "fleet",
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "documentWidth": 320,
+      "title": "Manage assistants",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11,
+      "longAssistantCard": {
+        "left": 16,
+        "right": 304,
+        "width": 288,
+        "viewport": 320
+      }
+    },
+    {
+      "surface": "runs",
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "documentWidth": 320,
+      "title": "Past work",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "approvals",
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "documentWidth": 320,
+      "title": "Design Partner",
+      "workspace": true,
+      "visibleBotNames": [
+        "Design Partner"
+      ],
+      "menuControls": 11
+    },
+    {
+      "surface": "connections",
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "documentWidth": 320,
+      "title": "Apps & AI",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "bot-settings",
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "documentWidth": 320,
+      "title": "Design Partner",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "run-detail",
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "documentWidth": 320,
+      "title": "Task details",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11,
+      "completionReply": "I reviewed the activity available in this workspace. Nothing needs your attention now."
+    },
+    {
+      "surface": "marketing",
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "documentWidth": 320,
+      "title": "A little help with what\u2019s next.",
+      "workspace": false,
+      "visibleBotNames": [],
+      "menuControls": 0
+    }
+  ],
+  "external_requests": [],
+  "provider_calls": 0,
+  "synthetic_bots": 11,
+  "long_display_name": "Customer Operations and Knowledge Research Analyst",
+  "individual_surfaces": [
+    "studio",
+    "activity",
+    "schedules",
+    "fleet",
+    "runs",
+    "approvals",
+    "connections",
+    "bot-settings",
+    "run-detail",
+    "marketing",
+    "preferences",
+    "Schedule assistant chooser",
+    "Fleet details disclosure",
+    "Fleet action menu",
+    "Long assistant name on phone and compact phone"
+  ],
+  "visual_review": "Open each desktop, tablet, and phone screenshot individually; 320px compact-phone has overflow assertions.",
+  "reference_access": {
+    "figma": "MCP node retrieval hit the Starter-plan limit; the open browser canvas exposed the supplied community file's Settings and Edit Profile frames, which were inspected individually. The supplied ChatGPT screenshots, not Figma frames, informed list, chat, and per-chat menu review.",
+    "mobbin": "The screen searches returned a paid-plan requirement; no Mobbin result was used."
+  },
+  "source_sha256": {
+    "src/hutch/server/pages.py": "7884021b4a97b41a26c49e4337e8f53fe245ff8682c5e820a613a4dc70263826",
+    "src/hutch/server/static/app.js": "b92c9096f9e507cdde73da5ebc54b907f35d468d595762115b6357fdff7f1615",
+    "src/hutch/server/static/index.html": "10d70088a4d4ba9fb9320d8d3ea308ef513ae53257a8fbddeeb8197c8715ac11",
+    "src/hutch/server/static/style.css": "f7b683466687ff0a2e8639c3f184e9c05371b6165db354f5d80f2992c0b85794",
+    "src/hutch/server/static/brands/openai-white-monoblossom.svg": "b94ea61d860fae6f82f43571f36f17111fcf5d348e8e9cc22ae4b441c7560011",
+    "src/hutch/server/static/brands/anthropic-symbol-ivory.svg": "38fc06d8e9390654cc4e96aa53691e2e78d929667c0034805b6d1b3891ba22dd",
+    "src/hutch/server/static/brands/openrouter-glyph-volt.svg": "0d22462e4f2835a5a5b9000af0a55fc9238e39996100f54706e41ec45b9d1727",
+    "src/hutch/server/static/brands/google-calendar-2026q2.png": "eac7b1d7c78a7c7fb40d74b6d879ba5fe781cbf2cd5f8d7d40f3c28fea73f77e",
+    "src/hutch/server/static/brands/google-gmail-2026q2.png": "ab8e9e880a28e2bc29207a62394aa7d296f435113fcc922819dab629ffbd64e6",
+    "src/hutch/server/static/brands/microsoft-outlook.svg": "4a3b6ab15d36e7c5317f75a83d1781708d68cce4d8b9073a3c82f0af662eaf18",
+    "website/index.html": "ba2f5f8dc05ec249111aacef35120b8193d448bd9612be5a0b36364ea21949be",
+    "website/site.js": "51b1a0e6c99f9d74d980c568dfbcc6486eb43c247fe41217a7a49487fe6cefe0",
+    "website/styles.css": "7a7f9e733e25e7559bc3341e9f8cd0a2b964aeb7b60fe0d3d864023a7c1aafdd",
+    "tests/e2e/test_design_system.py": "09b265cae9e88371a2050f94d23f261508b11cfcd7ced57ae7cf75b86776df72"
+  }
+}
