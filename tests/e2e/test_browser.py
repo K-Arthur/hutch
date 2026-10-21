@@ -6361,6 +6361,7 @@ def test_conversation_options_are_compact_persistent_and_recoverable(browser, li
     page.locator("#conversation-switcher").select_option(first["id"])
     wait_for_page(page, "id => document.querySelector('#conversation-switcher')?.value === id", arg=first["id"])
     wait_for(lambda: store.get_conversation(first["id"])["unread"] == 0)
+    page.locator("#chat-stream").get_by_text("Help me prepare a launch review.", exact=True).wait_for()
 
     page.locator("#studio-conversation-options").click()
     page.get_by_role("button", name="New section").click()

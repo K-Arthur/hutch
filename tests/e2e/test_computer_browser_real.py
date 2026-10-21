@@ -55,7 +55,12 @@ class _Handler(BaseHTTPRequestHandler):
         for name, value in headers:
             self.send_header(name, value)
         self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.wfile.write(body)
+        except BrokenPipeError:
+            # The stop-during-navigation check deliberately closes Chromium
+            # while this fixture is holding the response open.
+            pass
         self.close_connection = True
 
     def do_GET(self):
@@ -153,6 +158,7 @@ def shop(config):
     ctx = SimpleNamespace(
         config=config, bot=bot, run=SimpleNamespace(id="run-real-shop"), headless=True,
         emit=lambda _e: None, on_finish=[], gate=gate, policy=_Policy(), workspace=config.state_dir,
+        effect_started=False,
         dry_run=False, begin_effect=lambda: None, cancel_hooks=[])
     try:
         yield SimpleNamespace(tool=tool, ctx=ctx, gate=gate, base=f"http://localhost:{local_port}/",
