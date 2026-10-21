@@ -17,8 +17,36 @@ from hutch.engine import Engine
 from hutch.models import ApprovalRequest, Bot, Event, EventType, Run, RunStatus, Schedule, Task
 from hutch import procguard
 from hutch.server.app import create_app
-from hutch.state_snapshot import ExecutionHeld, backup, file_hash, restore
+from hutch.state_snapshot import ExecutionHeld, backup, code_hash, file_hash, restore
 from hutch.store import SCHEMA_VERSION, Store
+
+
+def test_executor_fingerprint_covers_packaged_runtime_data(tmp_path, monkeypatch):
+    package = tmp_path / 'hutch'
+    data = package / 'data'
+    skill = data / 'skills' / 'example'
+    skill.mkdir(parents=True)
+    module = package / 'state_snapshot.py'
+    module.write_text('# fixture package root\n')
+    catalog = data / 'catalog.json'
+    catalog.write_text('{"models": {"fixture": "local"}}\n')
+    instructions = skill / 'SKILL.md'
+    instructions.write_text('---\nname: example\n---\nUse the fixture policy.\n')
+    cache = package / '__pycache__' / 'state_snapshot.cpython-313.pyc'
+    cache.parent.mkdir()
+    cache.write_bytes(b'generated cache one')
+    monkeypatch.setattr('hutch.state_snapshot.__file__', str(module))
+
+    original = code_hash()
+    catalog.write_text('{"models": {"fixture": "remote"}}\n')
+    catalog_changed = code_hash()
+    instructions.write_text('---\nname: example\n---\nUse a changed fixture policy.\n')
+    resources_changed = code_hash()
+    cache.write_bytes(b'generated cache two')
+
+    assert original != catalog_changed
+    assert catalog_changed != resources_changed
+    assert resources_changed == code_hash()
 
 
 def source_work(store):

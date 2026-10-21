@@ -48,13 +48,23 @@ def migrate(db: sqlite3.Connection) -> None:
 
 
 def code_hash() -> str:
-    """Identify installed executor/UI bytes, excluding generated Python caches."""
+    """Identify installed package code and runtime resources, excluding generated Python caches."""
     root = Path(__file__).parent
     value = hashlib.sha256()
     for path in sorted(root.rglob('*')):
-        if path.is_file() and '__pycache__' not in path.parts and path.suffix in {'.py', '.js', '.css', '.html'}:
+        if '__pycache__' in path.parts or path.suffix in {'.pyc', '.pyo'}:
+            continue
+        try:
+            fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+        except FileNotFoundError:
+            raise RuntimeError('installed package changed while computing its restore fingerprint') from None
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            os.close(fd)
+            continue
+        with os.fdopen(fd, 'rb') as stream:
             value.update(path.relative_to(root).as_posix().encode() + b'\0')
-            value.update(path.read_bytes())
+            for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+                value.update(chunk)
     return value.hexdigest()
 
 

@@ -14,7 +14,9 @@ after the snapshot. A valid SQLite file does not resolve those external outcomes
 including WAL pages. It does not migrate the source. The new snapshot directory is private and
 exclusive; a persistent snapshot marker prevents using it directly as executor state. The
 database is normalized to a closed standalone file, fsynced and recorded in a SHA-256 manifest
-with schema/version and the capturing executor/UI fingerprint. Incomplete snapshots remain marked.
+with schema/version and the capturing installed-package fingerprint. The fingerprint covers
+executor/UI code and packaged runtime resources such as catalogs and bundled skills, while
+excluding generated Python caches. Incomplete snapshots remain marked.
 Backup has a five-minute progress deadline. See the primary
 [SQLite backup API documentation](https://www.sqlite.org/backup.html).
 
@@ -48,7 +50,7 @@ The authenticated versioned API exposes report pages. The existing header displa
 desktop and phone; a read-only dialog explains its scope without adding another navigation page.
 Chat rejects unsent work with an actionable error while keeping the draft. Activation is local
 CLI only: the operator records review evidence. An immediate transaction rechecks integrity,
-history, installed executor/UI fingerprint and absence of unexpected runnable work, then records
+history, installed-package fingerprint and absence of unexpected runnable work, then records
 activation once. A changed competing review conflicts. New work may be submitted afterwards;
 old work, grants, device sessions and paused schedules are not reinstated. A restore of a held
 copy supersedes its prior hold with a new auditable hold rather than inventing a human review.

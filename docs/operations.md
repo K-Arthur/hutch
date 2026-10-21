@@ -273,11 +273,12 @@ local operator review using the restore ID printed by the command:
 HUTCH_STATE_DIR=STATE_RESTORE hutch state activate RESTORE_ID --evidence 'Record what you actually checked'
 ```
 
-Activation rechecks integrity/history, the installed executor/UI fingerprint and absence of
+Activation rechecks integrity/history, the installed-package fingerprint (code, UI and packaged
+runtime resources such as catalogs and bundled skills) and absence of
 unexpected runnable work, then resolves once. It allows **new** explicit work; old work stays
 quarantined and device/standing grants revoked. Activation does not unpause saved schedules;
 an operator may explicitly change their paused setting during review. Re-pair devices and restore
-needed grants deliberately. If installed executor/UI bytes changed since validation, restore
+needed grants deliberately. If installed-package bytes changed since validation, restore
 with that release into another new directory. Configure the service to use the reviewed state
 directory only after cutover checks; the CLI does not switch your service configuration.
 
