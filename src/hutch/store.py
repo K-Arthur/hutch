@@ -7449,7 +7449,7 @@ class Store:
         return [self._run(r) for r in rows]
 
     def list_runs_page(self, bot_id: Optional[str] = None, status: Optional[str] = None,
-                       limit: int = 50, offset: int = 0) -> list[Run]:
+                       limit: int = 50, offset: int = 0, query: Optional[str] = None) -> list[Run]:
         """Filtered, paginated run listing for the Runs page."""
         q, args = f"SELECT {_RUN_COLS} FROM runs WHERE 1=1", []
         if bot_id:
@@ -7461,7 +7461,14 @@ class Store:
         elif status:
             q += " AND status = ?"
             args.append(status)
-        q += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        search = (query or "").strip()
+        if search:
+            q += " AND (instr(lower(COALESCE(json_extract(runs.doc, '$.prompt'), '')), lower(?)) > 0 OR EXISTS ("
+            q += "SELECT 1 FROM bots b WHERE b.id = runs.bot_id AND ("
+            q += "instr(lower(COALESCE(b.name, '')), lower(?)) > 0 OR "
+            q += "instr(lower(COALESCE(json_extract(b.doc, '$.display_name'), '')), lower(?)) > 0)))"
+            args += [search, search, search]
+        q += " ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?"
         args += [limit, offset]
         with self._lock:
             rows = self._db.execute(q, args).fetchall()

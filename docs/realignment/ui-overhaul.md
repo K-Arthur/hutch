@@ -423,6 +423,15 @@ and the rest of the all-surface UI redesign remain open.
 
 ### Next
 
+Assistant setup and settings form guidance received a semantic accessibility
+pass on 2026-10-20. The existing visible hints now remain separate from short
+accessible field names in quick/advanced setup, SPA settings, and the direct Bot
+page. The focused browser checks passed; a broader non-E2E run had one
+unrelated model-catalog note assertion failure. See the [WCAG audit follow-up](wcag22-audit-2026-10-10.md#follow-up-form-guidance-in-assistant-setup-and-settings-2026-10-20)
+and [current-source captures](artifacts/form-hints-2026-10-20/).
+The advanced setup Workspace choice now keeps both native-select labels readable
+at 320 px and explains their folder behavior beneath the control.
+
 1. Finish Studio's initial and active-chat layouts, then separately review the
    phone composer, choice cards, replies, attachments, and human-wait states.
 2. Review the app shell and assistant roster actions at wide and compact sizes;

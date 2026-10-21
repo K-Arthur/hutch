@@ -16,7 +16,7 @@ import secrets
 import subprocess
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from importlib.metadata import version as package_version
 from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlsplit
@@ -1896,6 +1896,88 @@ def test_workflow_studio_pause_after_active_work_at_all_viewports(browser, live,
             except Exception:
                 pass
         context.close()
+
+
+def test_work_history_paginates_and_searches_beyond_the_first_200_runs(browser, live):
+    base, app = live
+    store = app.state.store
+    bot = store.create_bot(Bot(name="history-audit-bot", display_name="History helper", model="mock/demo", tools=[]))
+    oldest = None
+    origin = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    for index in range(225):
+        status = RunStatus.failed if index == 0 or index % 2 else RunStatus.succeeded
+        run = store.create_run(Run(
+            bot_id=bot.id,
+            prompt="Find the oldest searchable history marker" if index == 0 else f"History task {index:03d}",
+            status=status,
+            created_at=(origin + timedelta(seconds=index)).isoformat(),
+        ))
+        if index == 0:
+            oldest = run
+    assert oldest is not None
+
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/ui-audit-2026-10-20/history"
+    out.mkdir(parents=True, exist_ok=True)
+    page = browser.new_page(viewport={"width": 1440, "height": 960})
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    try:
+        page.goto(base + "/#/runs")
+        page.get_by_role("link", name=re.compile("History helper")).first.wait_for()
+        assert page.locator("#runs-count").inner_text() == "Showing 25 of more than 50 matching tasks"
+        page.screenshot(path=str(out / "history-desktop.png"), full_page=True, animations="disabled")
+
+        page.get_by_role("searchbox", name="Find a task or assistant").fill("oldest searchable history marker")
+        oldest_card = page.get_by_role("link", name=re.compile("Find the oldest searchable history marker"))
+        oldest_card.wait_for()
+        assert oldest_card.get_attribute("href") == f"#/run/{oldest.id}"
+        assert page.locator("#runs-count").inner_text() == "1 result"
+
+        page.get_by_role("button", name="Didn't finish").click()
+        oldest_card.wait_for()
+        assert page.locator("#runs-count").inner_text() == "1 result"
+        page.get_by_role("button", name="Completed").click()
+        page.get_by_text("No past work matches this filter.", exact=True).wait_for()
+        page.get_by_role("button", name="Clear filters").click()
+        page.get_by_role("link", name=re.compile("History helper")).first.wait_for()
+
+        page.get_by_role("button", name="Show 25 more tasks").click()
+        assert page.locator("#runs-table-wrap .run-card").count() == 50
+        page.get_by_role("button", name="Load older tasks").click()
+        page.wait_for_function(
+            "document.querySelector('#runs-count')?.textContent === 'Showing 50 of more than 100 matching tasks'"
+        )
+        assert page.locator("#runs-table-wrap .run-card").count() == 50
+        assert page.locator("#runs-count").inner_text() == "Showing 50 of more than 100 matching tasks"
+
+        page.set_viewport_size({"width": 320, "height": 420})
+        page.get_by_role("button", name="Show 25 more tasks").focus()
+        page.keyboard.press("Enter")
+        assert page.locator("#runs-table-wrap .run-card").count() == 75
+        assert page.evaluate("document.activeElement?.id") == "runs-more"
+        assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+        page.screenshot(path=str(out / "history-phone-short-viewport.png"), full_page=True, animations="disabled")
+        assert not errors, errors
+
+        (out / "results.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_work_history_paginates_and_searches_beyond_the_first_200_runs",
+            "browser": browser.version,
+            "playwright": package_version("playwright"),
+            "fixture_run_count": 225,
+            "oldest_run_searchable": True,
+            "status_filters": ["failed", "succeeded"],
+            "pagination": "50-record API pages; 25 visible cards per step",
+            "compact_viewport": [320, 420],
+            "page_errors": errors,
+            "provider_calls": 0,
+            "source_sha256": {
+                name: hashlib.sha256((Path(__file__).resolve().parents[2] / name).read_bytes()).hexdigest()
+                for name in ("src/hutch/store.py", "src/hutch/server/app.py", "src/hutch/server/static/app.js")
+            },
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+        }, indent=2) + "\n")
+    finally:
+        page.close()
 
 
 def test_paired_phone_can_stop_a_run_and_resume_the_current_human_wait(browser, live, monkeypatch):

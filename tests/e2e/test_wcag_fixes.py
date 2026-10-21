@@ -339,3 +339,68 @@ def test_prose_links_are_underlined_at_rest(audit_browser, audit_live):
         assert "underline" in decoration
     finally:
         page.close()
+
+
+def test_setup_and_settings_hints_are_descriptions_not_field_names(audit_browser, audit_live):
+    """M-3: form hints stay available without becoming long accessible names."""
+    base, app = audit_live
+    page = audit_browser.new_page()
+    try:
+        wait_live(page, base)
+        page.get_by_label("Your first request").fill("Help me plan my week.")
+        page.get_by_role("button", name="Set up my assistant").click()
+        page.locator("#setup-display_name").wait_for()
+
+        def check_field(selector, role, name, expected_hint):
+            field = page.locator(selector)
+            assert page.get_by_role(role, name=name, exact=True).count() == 1
+            hint = field.evaluate("el => document.getElementById(el.getAttribute('aria-describedby'))?.textContent.trim()")
+            assert expected_hint in hint
+            assert field.aria_snapshot().splitlines()[0].startswith(f'- {role} "{name}"')
+
+        check_field("#setup-purpose", "textbox", "Your starting request", "carried this over")
+        check_field("#setup-display_name", "textbox", "Assistant name", "Rename it anytime")
+        page.get_by_role("button", name="Fine-tune the details").click()
+        page.locator("#setup-model").wait_for()
+        check_field("#setup-model", "combobox", "Model route", "Hosted routes send prompts")
+        assert "Open Connections" not in page.locator("#setup-model-hint").inner_text()
+        assert page.get_by_role("link", name="Open Connections in another tab").is_visible()
+        check_field("#setup-inference_mode", "combobox", "Inference mode", "Strict offline requires")
+        check_field("#setup-workspace_mode", "combobox", "Workspace", "one private folder")
+        page.set_viewport_size({"width": 320, "height": 740})
+        assert page.locator("#setup-workspace_mode").evaluate("""el => {
+          const style = getComputedStyle(el), canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+          return [...el.options].every(option => context.measureText(option.text).width < el.clientWidth - 32);
+        }""")
+        page.locator("#setup-model").fill("mock/demo")
+        page.get_by_role("button", name="Continue").click()
+        page.locator(".setup-task-focus > summary").click()
+        check_field("#setup-preset", "combobox", "Focus", "never chooses a model")
+        page.get_by_text("Add a recurring task (optional)", exact=True).click()
+        check_field("#setup-timezone", "textbox", "Time zone", "IANA time zone")
+        check_field("#setup-schedule_prompt", "textbox", "Scheduled task prompt", "needs a cron schedule")
+
+        page.get_by_role("button", name="Cancel").click()
+        app.state.store.create_bot(Bot(name="access-hints", display_name="Access Hints",
+                                       model="mock/demo", tools=[]))
+        page.goto(base + "/#/bot/access-hints")
+        page.locator("#assistant-more-settings > summary").click()
+        check_field('#form-identity input[name="display_name"]', "textbox", "Assistant name", "Shown in your chats")
+        check_field('#form-model input[name="model"]', "textbox", "Default model", "Hybrid allows")
+        check_field('#form-model select[name="inference_mode"]', "combobox", "Model routing", "model service")
+        check_field('#form-model select[name="preset"]', "combobox", "Task focus for local models", "context sizing")
+        check_field('#form-risk select[name="workspace_mode"]', "combobox", "Workspace", "Changing modes")
+        check_field('#form-risk select[name="local_browser_handoff"]', "combobox", "Local browser handoff", "browser")
+
+        page.goto(base + "/bots/access-hints")
+        check_field('.settings input[name="display_name"]', "textbox", "Display name", "Shown in chats")
+        check_field('.settings input[name="model"]', "textbox", "Model route", "configured Ollama")
+        check_field('.settings select[name="workspace_mode"]', "combobox", "Workspace", "Changing modes")
+        check_field('.settings select[name="local_browser_handoff"]', "combobox", "Local browser handoff", "Linux desktop")
+        check_field('.settings input[name="workdir"]', "textbox", "Existing folder (folder mode)", "must already exist")
+        check_field('.settings select[name="risk_tier"]', "combobox", "Risk tier", "blocked at every tier")
+        check_field('.settings textarea[name="command_rules"]', "textbox", "Command rules", "first match wins")
+    finally:
+        page.close()

@@ -1,0 +1,33 @@
+{
+  "browser": "Chromium 153.0.8010.12",
+  "viewports": {
+    "desktop": [
+      1440,
+      960
+    ],
+    "phone": [
+      390,
+      844
+    ],
+    "compact": [
+      320,
+      740
+    ]
+  },
+  "data": "isolated synthetic local bot and request; no run submitted",
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "99e5e6e44d8a0b86835449ea06245743ba09d0f8ee3e3c38ee500d4998aa81ec",
+    "src/hutch/server/templates/bot.html": "6957e498ec418a554d65c5e38b27361d4a6a1f3211c916483cd969b41d3387d3",
+    "src/hutch/server/static/style.css": "f7b683466687ff0a2e8639c3f184e9c05371b6165db354f5d80f2992c0b85794"
+  },
+  "captures": [
+    "legacy-settings-phone.png",
+    "settings-desktop.png",
+    "settings-phone.png",
+    "setup-desktop.png",
+    "setup-model-compact.png",
+    "setup-model-phone.png",
+    "setup-phone.png",
+    "setup-workspace-compact.png"
+  ]
+}

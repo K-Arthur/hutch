@@ -6434,7 +6434,11 @@ async function renderBots() {
 /* -------------------------------------------------------------- runs list */
 
 const RUNS_PAGE_SIZE = 25;
-let runsState = { all: [], status: "all", q: "", shown: RUNS_PAGE_SIZE };
+const RUNS_API_PAGE_SIZE = 50;
+const RUNS_API_FETCH_SIZE = RUNS_API_PAGE_SIZE + 1;
+let runsState = { all: [], status: "all", q: "", shown: RUNS_PAGE_SIZE, offset: 0,
+  hasMore: false, loading: false, error: "", loaded: false };
+let runsRequestGeneration = 0;
 
 /* ------------------------------------------------------------------ grounded evidence panel
    Route: a compact entry under a grounded answer links here (run detail), where the full
@@ -6633,16 +6637,12 @@ async function renderEvidencePanel(runId, events, params) {
 async function renderRuns(query = "") {
   const params = new URLSearchParams(query);
   runsState = {
-    all: await api("/runs?limit=200"),
-    offset: 200,
-    exhausted: false,
-    loading: false,
-    scanning: false,
+    all: [],
     status: params.get("status") || "all",
     q: params.get("q") || "",
     shown: RUNS_PAGE_SIZE,
+    offset: 0, hasMore: false, loading: false, error: "", loaded: false,
   };
-  runsState.exhausted = runsState.all.length < 200;
   setTopContext(`<div class="ctx-id"><h1>Past work</h1></div>`);
   view.innerHTML = `
     <div class="page-scroll"><div class="container">
@@ -6656,12 +6656,13 @@ async function renderRuns(query = "") {
               ${f === "all" ? "All" : f === "succeeded" ? "Completed" : f === "failed" ? "Didn't finish" : "Waiting on you"}
             </button>`).join("")}
         </div>
-        <span class="hint" id="runs-count"></span>
+        <span class="hint" id="runs-count" aria-live="polite" aria-atomic="true"></span>
       </div>
       <div class="runs-results" id="runs-table-wrap"></div>
     </div></div>`;
 
   const syncHash = () => {
+    if (!location.hash.startsWith("#/runs")) return;
     const p = new URLSearchParams();
     if (runsState.status !== "all") p.set("status", runsState.status);
     if (runsState.q) p.set("q", runsState.q);
@@ -6669,20 +6670,25 @@ async function renderRuns(query = "") {
   };
 
   const renderRows = () => {
-    const q = runsState.q.trim().toLowerCase();
-    const filtered = runsState.all.filter(r => {
-      if (runsState.status !== "all" && r.status !== runsState.status) return false;
-      if (q && !`${r.bot_display_name || ""} ${r.bot_name} ${r.prompt}`.toLowerCase().includes(q)) return false;
-      return true;
-    });
+    const filtered = runsState.all;
     const wrap = $("#runs-table-wrap");
     if (!wrap) return;
-    if (!filtered.length) {
+    const restoreMoreFocus = document.activeElement?.id === "runs-more";
+    const restoreRetryFocus = document.activeElement?.id === "runs-retry";
+    if (runsState.error && !runsState.all.length) {
       wrap.classList.remove("runs-has-results");
-      wrap.innerHTML = runsState.all.length ? `
+      wrap.innerHTML = `<div class="empty-state" role="alert"><p>Past work could not be loaded.</p>
+        <p class="hint">${esc(runsState.error)}</p><button class="btn ghost small" id="runs-retry" type="button">Try again</button></div>`;
+      $("#runs-retry")?.addEventListener("click", () => { void loadPage({ reset: !runsState.all.length }); });
+    } else if (!filtered.length && runsState.loading) {
+      wrap.classList.remove("runs-has-results");
+      wrap.innerHTML = `<div class="empty-state" role="status"><p>Loading past work…</p></div>`;
+    } else if (!filtered.length) {
+      wrap.classList.remove("runs-has-results");
+      wrap.innerHTML = (runsState.q || runsState.status !== "all") ? `
         <div class="empty-state">
           ${icon("search", "icon-lg")}
-          <p>${runsState.scanning ? "Searching older tasks…" : runsState.exhausted ? "No past work matches this filter." : "No matches in the loaded tasks yet."}</p>
+          <p>No past work matches this filter.</p>
           <button class="btn ghost small" id="runs-clear">Clear filters</button>
         </div>` : `
         <div class="empty-state">
@@ -6699,10 +6705,12 @@ async function renderRuns(query = "") {
           b.classList.toggle("active", on);
           b.setAttribute("aria-pressed", String(on));
         });
-        syncHash(); renderRows();
+        syncHash(); void loadPage({ reset: true });
       });
     } else {
       const rows = filtered.slice(0, runsState.shown);
+      const moreLoaded = rows.length < filtered.length;
+      const moreAvailable = moreLoaded || runsState.hasMore;
       wrap.classList.add("runs-has-results");
       wrap.innerHTML = `
         <div class="run-card-list" aria-label="Past work">
@@ -6718,71 +6726,58 @@ async function renderRuns(query = "") {
             </a>`;
           }).join("")}
         </div>
-        ${filtered.length > runsState.shown ? `
-          <button class="btn ghost small runs-more" id="runs-more">Show ${Math.min(RUNS_PAGE_SIZE, filtered.length - runsState.shown)} more loaded</button>` : ""}`;
-      $("#runs-more")?.addEventListener("click", () => { runsState.shown += RUNS_PAGE_SIZE; renderRows(); });
-    }
-    $("#runs-count").textContent = `${filtered.length} loaded result${filtered.length === 1 ? "" : "s"}${runsState.scanning ? " · searching older tasks…" : ""}`;
-    let older = $("#runs-older");
-    if (!older) {
-      older = document.createElement("button");
-      older.id = "runs-older";
-      older.className = "btn ghost small runs-more";
-      older.type = "button";
-      $("#runs-table-wrap").after(older);
-      older.addEventListener("click", async () => {
-        if (runsState.loading || runsState.exhausted) return;
-        runsState.loading = true;
-        older.disabled = true;
-        older.textContent = "Loading older tasks…";
-        try {
-          const page = await api(`/runs?limit=200&offset=${runsState.offset}`);
-          runsState.all.push(...page);
-          runsState.offset += page.length;
-          runsState.exhausted = page.length < 200;
-          runsState.shown += page.length;
-          renderRows();
-        } catch (err) {
-          older.disabled = false;
-          older.textContent = "Could not load older tasks. Try again.";
-          toast(`Could not load older tasks: ${err.message}`, true);
-        } finally {
-          runsState.loading = false;
-          older.disabled = runsState.exhausted || runsState.scanning;
-          older.hidden = runsState.exhausted || runsState.scanning;
-          older.textContent = runsState.exhausted ? "" : "Load older tasks";
-        }
+        ${runsState.error ? `<p class="hint" role="alert">Older tasks could not be loaded. ${esc(runsState.error)}
+          <button class="btn ghost small" id="runs-retry" type="button">Try again</button></p>` : ""}
+        ${moreAvailable ? `
+          <button class="btn ghost small runs-more" id="runs-more" type="button" aria-busy="${runsState.loading}">
+            ${runsState.loading ? "Loading older tasks…" : moreLoaded
+              ? `Show ${Math.min(RUNS_PAGE_SIZE, filtered.length - runsState.shown)} more tasks`
+              : "Load older tasks"}
+          </button>` : ""}`;
+      $("#runs-more")?.addEventListener("click", () => {
+        if (moreLoaded) { runsState.shown += RUNS_PAGE_SIZE; renderRows(); }
+        else void loadPage();
       });
+      $("#runs-retry")?.addEventListener("click", () => { void loadPage(); });
     }
-    older.hidden = runsState.exhausted || runsState.scanning;
-    older.disabled = runsState.loading;
-    older.textContent = runsState.loading ? "Loading older tasks…" : "Load older tasks";
+    const count = $("#runs-count");
+    if (count) {
+      if (runsState.loading && !runsState.loaded) count.textContent = "Loading past work…";
+      else if (runsState.loading) count.textContent = `${runsState.all.length} matching tasks loaded; loading more…`;
+      else if (runsState.hasMore) count.textContent = `Showing ${Math.min(runsState.shown, filtered.length)} of more than ${filtered.length} matching tasks`;
+      else count.textContent = `${filtered.length} result${filtered.length === 1 ? "" : "s"}`;
+    }
+    if (restoreMoreFocus) $("#runs-more")?.focus();
+    if (restoreRetryFocus) $("#runs-retry")?.focus();
   };
 
-  let scanGeneration = 0;
-  const loadAllRunsForFilter = async () => {
-    const generation = ++scanGeneration;
-    if (runsState.status === "all" && !runsState.q.trim()) {
-      runsState.scanning = false;
-      renderRows();
-      return;
+  const loadPage = async ({ reset = false } = {}) => {
+    if (runsState.loading && !reset) return;
+    if (reset) {
+      runsState = { ...runsState, all: [], shown: RUNS_PAGE_SIZE, offset: 0,
+        hasMore: false, error: "", loaded: false };
     }
-    runsState.scanning = true;
+    const generation = ++runsRequestGeneration;
+    const request = new URLSearchParams({ limit: String(RUNS_API_FETCH_SIZE), offset: String(runsState.offset) });
+    if (runsState.status !== "all") request.set("status", runsState.status);
+    if (runsState.q.trim()) request.set("q", runsState.q.trim());
+    runsState.loading = true;
+    runsState.error = "";
     renderRows();
     try {
-      while (!runsState.exhausted && generation === scanGeneration
-          && location.hash.startsWith("#/runs")) {
-        const page = await api(`/runs?limit=200&offset=${runsState.offset}`);
-        if (generation !== scanGeneration) return;
-        runsState.all.push(...page);
-        runsState.offset += page.length;
-        runsState.exhausted = page.length < 200;
-      }
-    } catch (err) {
-      toast(`Could not search older tasks: ${err.message}`, true);
+      const page = await api(`/runs?${request}`);
+      if (generation !== runsRequestGeneration || !location.hash.startsWith("#/runs")) return;
+      const nextPage = page.slice(0, RUNS_API_PAGE_SIZE);
+      runsState.all = reset ? nextPage : [...runsState.all, ...nextPage];
+      runsState.offset += nextPage.length;
+      runsState.hasMore = page.length > RUNS_API_PAGE_SIZE;
+      runsState.loaded = true;
+    } catch (error) {
+      if (generation !== runsRequestGeneration || error?.name === "AbortError") return;
+      runsState.error = error.message || "Check your connection and try again.";
     } finally {
-      if (generation === scanGeneration) {
-        runsState.scanning = false;
+      if (generation === runsRequestGeneration) {
+        runsState.loading = false;
         renderRows();
       }
     }
@@ -6793,8 +6788,7 @@ async function renderRuns(query = "") {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
       runsState.q = ev.target.value;
-      runsState.shown = RUNS_PAGE_SIZE;
-      syncHash(); renderRows(); void loadAllRunsForFilter();
+      syncHash(); void loadPage({ reset: true });
     }, 180);
   });
   $$(".runs-filter-pills button").forEach(btn => {
@@ -6806,11 +6800,11 @@ async function renderRuns(query = "") {
         b.classList.toggle("active", on);
         b.setAttribute("aria-pressed", String(on));
       });
-      syncHash(); renderRows(); void loadAllRunsForFilter();
+      syncHash(); void loadPage({ reset: true });
     });
   });
   renderRows();
-  void loadAllRunsForFilter();
+  void loadPage({ reset: true });
 }
 
 /* -------------------------------------------------------------- approvals */
@@ -7224,8 +7218,8 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
           ${botAvatar(b.name, 48)}
           <div><h2 class="panel-title">About this assistant</h2><p class="hint">Give it a name and a little direction. You can change the details whenever you like.</p></div>
         </div>
-        <label class="field">Assistant name
-          <input type="text" name="display_name" maxlength="80" value="${esc(b.display_name || b.name)}" required aria-describedby="assistant-name-hint">
+        <label class="field"><span id="assistant-name-label">Assistant name</span>
+          <input type="text" name="display_name" maxlength="80" value="${esc(b.display_name || b.name)}" required aria-labelledby="assistant-name-label" aria-describedby="assistant-name-hint">
           <span class="hint" id="assistant-name-hint">Shown in your chats and assistant list.</span>
         </label>
         <label class="field">What it helps with
@@ -7272,8 +7266,8 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
           <form class="panel form-grid" id="form-model">
             <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("zap")}</span>AI service and model</div>
             <div class="form-grid row2">
-              <label class="field">Default model
-                <input type="text" name="model" value="${esc(b.model || "")}" aria-describedby="default-model-hint">
+              <label class="field"><span id="default-model-label">Default model</span>
+                <input type="text" name="model" value="${esc(b.model || "")}" aria-labelledby="default-model-label" aria-describedby="default-model-hint">
                 <span class="hint" id="default-model-hint">Hybrid allows local and hosted routes; Local blocks hosted models but keeps tools online. Offline requires a host that verifies worker network isolation.</span>
               </label>
               <label class="field">Execution runtime
@@ -7288,16 +7282,16 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
                 ${runtimeSwitchBlocked ? `<span class="hint">${esc(runtimeSwitchBlocked)}</span>` : ""}
               </div>
             </div>` : ""}
-            <label class="field">Model routing
-              <select name="inference_mode" aria-describedby="inference-mode-help">
+            <label class="field"><span id="inference-mode-label">Model routing</span>
+              <select name="inference_mode" aria-labelledby="inference-mode-label" aria-describedby="inference-mode-help">
                 <option value="hybrid" ${(b.inference_mode || "hybrid") === "hybrid" ? "selected" : ""}>Hybrid · local and hosted routes</option>
                 <option value="local" ${b.inference_mode === "local" ? "selected" : ""}>Local model routes only</option>
                 <option value="offline" ${b.inference_mode === "offline" ? "selected" : ""} ${offlineDisabled}>${offlineLabel}</option>
               </select>
               <span class="hint" id="inference-mode-help">${esc(offlineReason)}</span>
             </label>
-            <label class="field">Task focus for local models
-              <select name="preset" aria-describedby="task-focus-help" ${taskPresetsError ? "disabled" : ""}>
+            <label class="field"><span id="task-focus-label">Task focus for local models</span>
+              <select name="preset" aria-labelledby="task-focus-label" aria-describedby="task-focus-help" ${taskPresetsError ? "disabled" : ""}>
                 <option value="" ${b.preset ? "" : "selected"}>Standard context policy</option>
                 ${taskPresets.map(preset => `<option value="${esc(preset.id)}" ${b.preset === preset.id ? "selected" : ""}>${esc(preset.title)}</option>`).join("")}
               </select>
@@ -7432,20 +7426,20 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
                 </select>
               </label>
             </div>
-            <label class="field workspace-mode-field">Workspace
-              <select name="workspace_mode" aria-describedby="workspace-mode-help">
+            <label class="field workspace-mode-field"><span id="workspace-mode-label">Workspace</span>
+              <select name="workspace_mode" aria-labelledby="workspace-mode-label" aria-describedby="workspace-mode-help">
                 <option value="fresh" ${(b.workspace_mode || (b.workdir ? "folder" : "fresh")) === "fresh" ? "selected" : ""}>Fresh each run</option>
                 <option value="managed" ${b.workspace_mode === "managed" ? "selected" : ""}>Hutch-managed</option>
                 <option value="folder" ${b.workspace_mode === "folder" ? "selected" : ""}>Existing folder</option>
               </select>
               <span class="hint" id="workspace-mode-help">Fresh starts each run in a new folder. Managed reuses one private folder for this bot’s runs and chats. Folder uses the existing path below. Changing modes never moves or deletes files; deleting a bot keeps its managed folder.</span>
             </label>
-            <label class="field workspace-folder-field" id="workspace-folder-field" ${b.workspace_mode === "folder" ? "" : "hidden"}>Existing folder
-              <input type="text" name="workdir" value="${esc(b.workdir || "")}" placeholder="absolute path, for example ~/Projects/report" ${b.workspace_mode === "folder" ? "required" : ""} aria-describedby="workdir-folder-hint">
+            <label class="field workspace-folder-field" id="workspace-folder-field" ${b.workspace_mode === "folder" ? "" : "hidden"}><span id="workdir-folder-label">Existing folder</span>
+              <input type="text" name="workdir" value="${esc(b.workdir || "")}" placeholder="absolute path, for example ~/Projects/report" ${b.workspace_mode === "folder" ? "required" : ""} aria-labelledby="workdir-folder-label" aria-describedby="workdir-folder-hint">
               <span class="hint" id="workdir-folder-hint">Choose a folder that already exists. System folders, your whole home, and Hutch’s private state are refused.</span>
             </label>
-            <label class="field browser-handoff-field">Local browser handoff
-              <select name="local_browser_handoff" aria-describedby="browser-handoff-help">
+            <label class="field browser-handoff-field"><span id="browser-handoff-label">Local browser handoff</span>
+              <select name="local_browser_handoff" aria-labelledby="browser-handoff-label" aria-describedby="browser-handoff-help">
                 <option value="false" ${b.local_browser_handoff ? "" : "selected"}>Off - browser stays headless</option>
                 <option value="true" ${b.local_browser_handoff ? "selected" : ""}>On - visible Linux desktop window</option>
               </select>
@@ -10563,10 +10557,10 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       </details>` : ""}
       ${conversationSource && draft.useConversationSource && !draft.forceAdvanced ? `<details class="setup-schedule setup-purpose-editor" id="setup-purpose-editor">
         <summary>Edit these instructions (optional)</summary>
-        <label class="field" for="setup-purpose">Bot instructions<textarea id="setup-purpose" rows="4" maxlength="20000" required>${esc(draft.purpose)}</textarea>
-          <span class="hint">By default, Hutch uses your selected request. Editing it is optional; no tools or account access are inferred.</span></label>
-      </details>` : `<label class="field" for="setup-purpose">${prefillPurpose.trim() ? "Your starting request" : conversationSource ? "What should this assistant keep doing?" : "What would you like this assistant to handle?"}<textarea id="setup-purpose" rows="${draft.forceAdvanced ? 5 : 3}" maxlength="20000" placeholder="For example: review release notes and prepare a short summary of changes that affect our project." required>${esc(draft.purpose)}</textarea>
-        <span class="hint">${prefillPurpose.trim() ? "We carried this over from your first message. You can edit it, but you do not need to repeat it." : "This becomes the assistant’s starting instructions. Hutch does not add tools or account access."}</span></label>`}
+        <label class="field" for="setup-purpose"><span id="setup-purpose-label">Bot instructions</span><textarea id="setup-purpose" rows="4" maxlength="20000" required aria-labelledby="setup-purpose-label" aria-describedby="setup-purpose-hint">${esc(draft.purpose)}</textarea>
+          <span class="hint" id="setup-purpose-hint">By default, Hutch uses your selected request. Editing it is optional; no tools or account access are inferred.</span></label>
+      </details>` : `<label class="field" for="setup-purpose"><span id="setup-purpose-label">${prefillPurpose.trim() ? "Your starting request" : conversationSource ? "What should this assistant keep doing?" : "What would you like this assistant to handle?"}</span><textarea id="setup-purpose" rows="${draft.forceAdvanced ? 5 : 3}" maxlength="20000" placeholder="For example: review release notes and prepare a short summary of changes that affect our project." required aria-labelledby="setup-purpose-label" aria-describedby="setup-purpose-hint">${esc(draft.purpose)}</textarea>
+        <span class="hint" id="setup-purpose-hint">${prefillPurpose.trim() ? "We carried this over from your first message. You can edit it, but you do not need to repeat it." : "This becomes the assistant’s starting instructions. Hutch does not add tools or account access."}</span></label>`}
         ${conversationSource?.source_bot_is_coordinator && conversationSource.source_bot_runtime === "builtin" && conversationSource.source_bot_model ? `<details class="setup-schedule setup-refine-details" id="setup-refine-details" ${draft.purposeClarificationQuestion || draft.purposeRefinement || draft.purposeDraftPending || draft.purposeRefinementStatus ? "open" : ""}>
           <summary>Check for missing details (optional)</summary>
           <div class="setup-refine-action">
@@ -10577,13 +10571,13 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
             ${purposeRefinementHtml()}
           </div>
         </details>` : ""}
-      <label class="field" for="setup-display_name">Assistant name<input id="setup-display_name" maxlength="80" autocomplete="off" placeholder="Avery Chen" value="${esc(draft.display_name)}" required>
-        <span class="hint">Suggested from your request. Rename it anytime.</span></label>
+      <label class="field" for="setup-display_name"><span id="setup-display-name-label">Assistant name</span><input id="setup-display_name" maxlength="80" autocomplete="off" placeholder="Avery Chen" value="${esc(draft.display_name)}" required aria-labelledby="setup-display-name-label" aria-describedby="setup-display-name-hint">
+        <span class="hint" id="setup-display-name-hint">Suggested from your request. Rename it anytime.</span></label>
       <details class="setup-schedule setup-identity">
         <summary>Advanced details</summary>
         <div class="form-grid">
-          <label class="field" for="setup-name">Internal address<input id="setup-name" maxlength="41" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="release-notes-reviewer" value="${esc(draft.name)}" required>
-            <span class="hint">A stable local identifier based on the task. Most people can leave it as suggested.</span></label>
+          <label class="field" for="setup-name"><span id="setup-name-label">Internal address</span><input id="setup-name" maxlength="41" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="release-notes-reviewer" value="${esc(draft.name)}" required aria-labelledby="setup-name-label" aria-describedby="setup-name-hint">
+            <span class="hint" id="setup-name-hint">A stable local identifier based on the task. Most people can leave it as suggested.</span></label>
           <label class="field" for="setup-description">Short note<input id="setup-description" maxlength="240" placeholder="What people can ask this assistant to do" value="${esc(draft.description)}"></label>
         </div>
       </details>
@@ -10602,18 +10596,18 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       const options = readyRoutes.map(route => `<option value="${esc(route.spec)}" label="${esc(`${route.group}: ${route.note || route.label}`)}"></option>`).join("");
       content = `<div class="setup-conversation form-grid">
         <p class="setup-assistant">${draft.model ? "Hutch found a configured route from this chat or your workspace. Review it below." : "Choose a configured model route. Safe defaults fill the other setup choices."} It becomes the Bot’s saved default; creating the Bot does not start a run.</p>
-        <label class="field" for="setup-model">Model route<input id="setup-model" list="setup-model-routes" maxlength="240" autocomplete="off" placeholder="Choose or enter provider/model" value="${esc(draft.model)}" required>
+        <label class="field" for="setup-model"><span id="setup-model-label">Model route</span><input id="setup-model" list="setup-model-routes" maxlength="240" autocomplete="off" placeholder="Choose or enter provider/model" value="${esc(draft.model)}" required aria-labelledby="setup-model-label" aria-describedby="setup-model-hint">
           <datalist id="setup-model-routes">${options}</datalist>
-          <span class="hint">${modelSuggestionSource === "chat" ? `Suggested from ${esc(conversationSource.source_bot_name)}’s current route and routing mode: ${esc(conversationSource.model_suggestion)}.` : modelSuggestionSource === "duplicate" ? `Copied from ${esc(duplicateBot?.display_name || duplicateBot?.name)}; confirm it is configured in Connections.` : modelSuggestionSource === "workspace" ? `Workspace default for new Bots: ${esc(workspaceDefaults.model)}.` : modelSuggestionSource === "import" ? `Imported route: ${esc(modelSuggestion)}. Confirm it is configured in Connections.` : "No workspace or chat model route is configured yet."} ${readyRoutes.length ? `${readyRoutes.length} ready route${readyRoutes.length === 1 ? "" : "s"} shown as suggestions.` : "No ready routes were found. Configure a provider or local model in Connections."} Hosted routes send prompts to that provider; local routes use this machine. <a href="/#/connections" target="_blank" rel="noopener">Open Connections in another tab</a>.</span></label>
-        <label class="field" for="setup-inference_mode">Inference mode<select id="setup-inference_mode">
+          <span class="hint"><span id="setup-model-hint">${modelSuggestionSource === "chat" ? `Suggested from ${esc(conversationSource.source_bot_name)}’s current route and routing mode: ${esc(conversationSource.model_suggestion)}.` : modelSuggestionSource === "duplicate" ? `Copied from ${esc(duplicateBot?.display_name || duplicateBot?.name)}; confirm it is configured in Connections.` : modelSuggestionSource === "workspace" ? `Workspace default for new Bots: ${esc(workspaceDefaults.model)}.` : modelSuggestionSource === "import" ? `Imported route: ${esc(modelSuggestion)}. Confirm it is configured in Connections.` : "No workspace or chat model route is configured yet."} ${readyRoutes.length ? `${readyRoutes.length} ready route${readyRoutes.length === 1 ? "" : "s"} shown as suggestions.` : "No ready routes were found. Configure a provider or local model in Connections."} Hosted routes send prompts to that provider; local routes use this machine.</span> <a href="/#/connections" target="_blank" rel="noopener">Open Connections in another tab</a>.</span></label>
+        <label class="field" for="setup-inference_mode"><span id="setup-inference-mode-label">Inference mode</span><select id="setup-inference_mode" aria-labelledby="setup-inference-mode-label" aria-describedby="setup-inference-mode-hint">
           <option value="hybrid" ${draft.inference_mode === "hybrid" ? "selected" : ""}>Hybrid — local or hosted</option>
           <option value="local" ${draft.inference_mode === "local" ? "selected" : ""}>Local — this machine</option>
           <option value="offline" ${draft.inference_mode === "offline" ? "selected" : ""}>Strict offline</option>
-        </select><span class="hint">Strict offline requires a verified local route.</span></label>
-        <label class="field" for="setup-workspace_mode">Workspace<select id="setup-workspace_mode">
-          <option value="fresh" ${draft.workspace_mode === "fresh" ? "selected" : ""}>Fresh — a clean workspace for each run</option>
-          <option value="managed" ${draft.workspace_mode === "managed" ? "selected" : ""}>Managed — keep this bot’s workspace between runs</option>
-        </select></label>
+        </select><span class="hint" id="setup-inference-mode-hint">Strict offline requires a verified local route.</span></label>
+        <label class="field" for="setup-workspace_mode"><span id="setup-workspace-mode-label">Workspace</span><select id="setup-workspace_mode" aria-labelledby="setup-workspace-mode-label" aria-describedby="setup-workspace-mode-hint">
+          <option value="fresh" ${draft.workspace_mode === "fresh" ? "selected" : ""}>Fresh — new folder each run</option>
+          <option value="managed" ${draft.workspace_mode === "managed" ? "selected" : ""}>Managed — reuse one folder</option>
+        </select><span class="hint" id="setup-workspace-mode-hint">Fresh starts clean each run. Managed keeps one private folder for this assistant’s runs and chats.</span></label>
       </div>`;
     }
     if (step === 2) content = `<div class="setup-conversation form-grid">
@@ -10629,12 +10623,12 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       </details>
       <details class="setup-schedule setup-task-focus">
         <summary>Task focus (optional)</summary>
-        <label class="field" for="setup-preset">Focus
-          <select id="setup-preset">
+        <label class="field" for="setup-preset"><span id="setup-preset-label">Focus</span>
+          <select id="setup-preset" aria-labelledby="setup-preset-label" aria-describedby="setup-preset-hint">
             <option value="" ${draft.preset ? "" : "selected"}>Standard context policy</option>
             ${taskPresets.map(preset => `<option value="${esc(preset.id)}" ${draft.preset === preset.id ? "selected" : ""}>${esc(preset.title)}</option>`).join("")}
           </select>
-          <span class="hint">A focus profile tunes local context sizing and residency. The selected model and tools determine actual capabilities; this never chooses a model or provider, and the route above stays explicit.</span>
+          <span class="hint" id="setup-preset-hint">A focus profile tunes local context sizing and residency. The selected model and tools determine actual capabilities; this never chooses a model or provider, and the route above stays explicit.</span>
         </label>
       </details>
       <details class="setup-schedule" id="setup-tools-details" ${draft.tools.size ? "open" : ""}>
@@ -10648,13 +10642,13 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
         <summary>Add a recurring task (optional)</summary>
         <div class="form-grid">
           <label class="field" for="setup-cron">Cron schedule<input id="setup-cron" maxlength="100" placeholder="0 9 * * 1" value="${esc(draft.cron)}"></label>
-          <label class="field" for="setup-timezone">Time zone<input id="setup-timezone" maxlength="120" placeholder="America/Vancouver" value="${esc(draft.timezone)}"><span class="hint">Use an IANA time zone such as UTC or America/Vancouver.</span></label>
+          <label class="field" for="setup-timezone"><span id="setup-timezone-label">Time zone</span><input id="setup-timezone" maxlength="120" placeholder="America/Vancouver" value="${esc(draft.timezone)}" aria-labelledby="setup-timezone-label" aria-describedby="setup-timezone-hint"><span class="hint" id="setup-timezone-hint">Use an IANA time zone such as UTC or America/Vancouver.</span></label>
           <label class="field" for="setup-catch_up">Missed schedule windows<select id="setup-catch_up">
             <option value="coalesce" ${draft.catch_up === "coalesce" ? "selected" : ""}>Run once when Hutch is available</option>
             <option value="skip" ${draft.catch_up === "skip" ? "selected" : ""}>Skip windows older than 30 minutes</option>
           </select></label>
-          <label class="field" for="setup-schedule_prompt">Scheduled task prompt<textarea id="setup-schedule_prompt" maxlength="4000" rows="3" placeholder="Leave blank to use the standing instructions">${esc(draft.schedule_prompt)}</textarea>
-            <span class="hint">A scheduled task prompt needs a cron schedule.</span></label>
+          <label class="field" for="setup-schedule_prompt"><span id="setup-schedule-prompt-label">Scheduled task prompt</span><textarea id="setup-schedule_prompt" maxlength="4000" rows="3" placeholder="Leave blank to use the standing instructions" aria-labelledby="setup-schedule-prompt-label" aria-describedby="setup-schedule-prompt-hint">${esc(draft.schedule_prompt)}</textarea>
+            <span class="hint" id="setup-schedule-prompt-hint">A scheduled task prompt needs a cron schedule.</span></label>
         </div>
       </details>
       <details class="setup-schedule">

@@ -133,6 +133,26 @@ def test_tool_protocol_is_a_validated_bot_setting(client):
     assert client.patch("/api/bots/protocol-bot", json={"tool_protocol": "yolo"}).status_code == 422
 
 
+def test_run_listing_searches_prompt_and_assistant_with_status_and_offset(client):
+    bot = make_bot(client, name="history-search-helper", display_name="Research helper")
+    store = client.app.state.store
+    first = store.create_run(Run(bot_id=bot["id"], prompt="Find the oldest searchable history marker",
+                                 status=RunStatus.failed, created_at="2026-01-01T00:00:00+00:00"))
+    store.create_run(Run(bot_id=bot["id"], prompt="A completed unrelated task", status=RunStatus.succeeded,
+                    created_at="2026-01-02T00:00:00+00:00"))
+    store.create_run(Run(bot_id=bot["id"], prompt="Another failed unrelated task", status=RunStatus.failed,
+                    created_at="2026-01-03T00:00:00+00:00"))
+
+    by_prompt = client.get("/api/runs", params={"q": "oldest searchable history marker"})
+    assert by_prompt.status_code == 200
+    assert [run["id"] for run in by_prompt.json()] == [first.id]
+    assert first.id in [run["id"] for run in client.get("/api/runs", params={"q": "research helper"}).json()]
+    first_page = client.get("/api/runs", params={"q": "research helper", "limit": 1, "offset": 0}).json()
+    second_page = client.get("/api/runs", params={"q": "research helper", "limit": 1, "offset": 1}).json()
+    assert len(first_page) == len(second_page) == 1
+    assert first_page[0]["id"] != second_page[0]["id"]
+
+
 def test_task_focus_presets_are_real_bot_settings_with_safe_validation(client):
     presets = client.get("/api/v1/task-presets")
     assert presets.status_code == 200, presets.text

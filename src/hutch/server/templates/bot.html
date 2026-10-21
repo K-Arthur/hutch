@@ -65,30 +65,30 @@
   <h2>{{ icon("cpu", 18) }} Settings</h2>
   <form method="post" action="/bots/{{ bot.name }}/update" class="settings">
     <input type="hidden" name="csrf" value="{{ csrf }}">
-    <label class="field"><span>Display name</span><input type="text" name="display_name" value="{{ bot.display_name }}" maxlength="80" required aria-describedby="display-name-hint">
+    <label class="field"><span id="display-name-label">Display name</span><input type="text" name="display_name" value="{{ bot.display_name }}" maxlength="80" required aria-labelledby="display-name-label" aria-describedby="display-name-hint">
       <small id="display-name-hint">Shown in chats and lists. Existing links keep the same Bot address.</small></label>
     <label class="field"><span>Description</span><input type="text" name="description" value="{{ bot.description }}"></label>
-    <label class="field"><span>Model route</span><input type="text" name="model" value="{{ bot.model }}" required aria-describedby="model-hint"><small id="model-hint">Choose a configured Ollama, OpenAI, Anthropic, or compatible route.</small></label>
+    <label class="field"><span id="model-label">Model route</span><input type="text" name="model" value="{{ bot.model }}" required aria-labelledby="model-label" aria-describedby="model-hint"><small id="model-hint">Choose a configured Ollama, OpenAI, Anthropic, or compatible route.</small></label>
     <label class="field"><span>Schedule (cron, blank = on demand)</span><input type="text" name="cron" value="{{ bot.schedule.cron if bot.schedule else '' }}" placeholder="0 9 * * 1"></label>
     <label class="field"><span>Schedule time zone</span><input type="text" name="timezone" value="{{ bot.schedule.timezone if bot.schedule else 'UTC' }}"></label>
     <label class="field"><span>Approvals</span><select name="approval_mode"><option value="ask" {{ 'selected' if bot.approval_mode.value == 'ask' }}>ask - pause for risky actions</option><option value="auto" {{ 'selected' if bot.approval_mode.value == 'auto' }}>auto - only the deny-list stops it</option></select></label>
-    <label class="field"><span>Workspace</span><select name="workspace_mode" aria-describedby="workspace-mode-hint">
+    <label class="field"><span id="workspace-mode-label">Workspace</span><select name="workspace_mode" aria-labelledby="workspace-mode-label" aria-describedby="workspace-mode-hint">
       <option value="fresh" {{ 'selected' if not bot.workdir and bot.workspace_mode == 'fresh' }}>Fresh each run</option>
       <option value="managed" {{ 'selected' if not bot.workdir and bot.workspace_mode == 'managed' }}>Hutch-managed</option>
       <option value="folder" {{ 'selected' if bot.workdir }}>Existing folder</option></select>
       <small id="workspace-mode-hint">Fresh starts with a clean folder. Managed shares one private folder across this bot's runs and chats; deleting the bot keeps its files. Changing modes does not move or delete files.</small></label>
-    <label class="field browser-handoff-field"><span>Local browser handoff</span><select name="local_browser_handoff" aria-describedby="browser-handoff-help">
+    <label class="field browser-handoff-field"><span id="browser-handoff-label">Local browser handoff</span><select name="local_browser_handoff" aria-labelledby="browser-handoff-label" aria-describedby="browser-handoff-help">
       <option value="false" {{ 'selected' if not bot.local_browser_handoff }}>Off - browser stays headless</option>
       <option value="true" {{ 'selected' if bot.local_browser_handoff }}>On - open a visible browser on this Linux desktop</option></select>
       <small id="browser-handoff-help">Requires a Linux desktop display and the optional browser extra. When a login or CAPTCHA needs you, the same browser window stays open while automation pauses. Only one Hutch run can hold the handoff at a time. This does not enable phone control.</small></label>
-    <label class="field wide"><span>Existing folder (folder mode)</span><input type="text" name="workdir" value="{{ bot.workdir or '' }}" placeholder="absolute path, for example ~/Projects/report" class="mono" aria-describedby="workdir-hint">
+    <label class="field wide"><span id="workdir-label">Existing folder (folder mode)</span><input type="text" name="workdir" value="{{ bot.workdir or '' }}" placeholder="absolute path, for example ~/Projects/report" class="mono" aria-labelledby="workdir-label" aria-describedby="workdir-hint">
       <small id="workdir-hint">Used only in folder mode. The folder must already exist; Hutch will not create, move, or delete it. System folders, your whole home and Hutch's own state are refused.</small></label>
-    <label class="field"><span>Risk tier</span><select name="risk_tier" aria-describedby="risk-tier-hint">
+    <label class="field"><span id="risk-tier-label">Risk tier</span><select name="risk_tier" aria-labelledby="risk-tier-label" aria-describedby="risk-tier-hint">
       <option value="readonly" {{ 'selected' if bot.risk_tier.value == 'readonly' }}>read-only - anything that would ask is blocked</option>
       <option value="supervised" {{ 'selected' if bot.risk_tier.value == 'supervised' }}>supervised - medium-risk actions ask (default)</option>
       <option value="trusted" {{ 'selected' if bot.risk_tier.value == 'trusted' }}>trusted - medium-risk actions run; sending anything out still asks</option></select>
       <small id="risk-tier-hint">Secrets, exfiltration, sudo and leaving the workspace stay blocked at every tier.</small></label>
-    <label class="field wide"><span>Command rules</span><textarea name="command_rules" rows="4" class="mono" placeholder="deny: git push*&#10;allow: npm test&#10;ask: pip install*" aria-describedby="command-rules-hint">{% for r in bot.command_rules %}{{ r.verdict }}: {{ r.match }}
+    <label class="field wide"><span id="command-rules-label">Command rules</span><textarea name="command_rules" rows="4" class="mono" placeholder="deny: git push*&#10;allow: npm test&#10;ask: pip install*" aria-labelledby="command-rules-label" aria-describedby="command-rules-hint">{% for r in bot.command_rules %}{{ r.verdict }}: {{ r.match }}
 {% endfor %}</textarea>
       <small id="command-rules-hint">One per line, first match wins, matched against each command in a pipeline or chain. A rule can tighten any decision or let a medium-risk command run, but can never allow what is blocked or stop an outward send from asking.</small></label>
     <label class="field wide"><span>Instructions</span><textarea name="instructions" rows="6">{{ bot.instructions }}</textarea></label>

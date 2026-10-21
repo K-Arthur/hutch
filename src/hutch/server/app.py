@@ -4935,10 +4935,11 @@ def create_app() -> FastAPI:
     @app.get("/api/runs")
     @app.get("/api/v1/tasks/runs")
     def list_runs(request: Request, bot: Optional[str] = None, status: Optional[str] = None, limit: int = 30,
-                  offset: int = 0) -> list[dict]:
+                  offset: int = 0, q: Optional[str] = None) -> list[dict]:
         bot_id = bot_or_404(bot).id if bot else None
         view = phone_run_view if is_paired_phone(request) else run_view
-        return [view(r) for r in store.list_runs_page(bot_id, status, max(1, min(limit, 200)), max(0, offset))]
+        return [view(r) for r in store.list_runs_page(bot_id, status, max(1, min(limit, 200)),
+                                                      max(0, offset), q)]
 
     @app.get("/api/runs/{run_id}")
     @app.get("/api/v1/tasks/runs/{run_id}")
