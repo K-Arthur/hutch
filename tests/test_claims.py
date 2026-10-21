@@ -319,6 +319,29 @@ def test_recovery_cleanup_failure_does_not_claim_a_run_stopped(store, config, mo
     assert "cleanup incomplete" in waiting.reason
 
 
+def test_recovery_stays_pending_when_proc_cannot_be_inspected(store, config, monkeypatch):
+    from hutch import procguard
+    from hutch.engine import Engine
+    bot = make_bot(store, "unavailable-proc-recovery")
+    run = submit(store, bot)
+    worker = store.claim_run(run.id, "dead-worker", 1)
+    store.transition_run(run.id, RunStatus.running, fence=worker.fence)
+    store.add_proc(run.id, 1234, 1234, 99, boot_id="test-boot")
+    with store._lock:
+        store._db.execute("UPDATE runs SET lease_expires_at = '2000-01-01T00:00:00+00:00' WHERE id = ?", (run.id,))
+        store._db.commit()
+
+    monkeypatch.setattr(procguard, "available", lambda: False)
+    monkeypatch.setattr(procguard, "boot_id", lambda: "test-boot")
+    recovered = Engine(config, store)._recover_one(store.get_run(run.id))
+    waiting = store.get_run(run.id)
+
+    assert recovered is None
+    assert waiting.status is RunStatus.recovering
+    assert waiting.lease_owner == f"cleanup-pending:{run.id}"
+    assert "cleanup incomplete" in waiting.reason
+
+
 def test_a_finished_run_cannot_be_changed_by_a_late_worker(store):
     bot = make_bot(store)
     run = submit(store, bot)

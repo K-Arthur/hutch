@@ -13,8 +13,10 @@ Status: accepted (2026-10-07), amended during realignment. Slices: S2-S4. Eviden
   2. signal only process identities recorded for this run, after checking boot id and start ticks; Linux pidfds avoid the PID reuse
      race. Process-group membership is checked against the recorded leader identity; Hutch never signals a raw numeric PGID. If
      the recorded leader identity no longer matches, cleanup remains unverifiable and is retried; the replacement PID is never
-     signalled or treated as proof that the old process tree is gone. If the leader exits during a process-table scan, Hutch
-     rereads its identity before deciding whether the snapshot was a normal exit or an identity change.
+     signalled or treated as proof that the old process tree is gone. If `/proc` is unavailable, recorded identities and process
+     groups remain unresolved: an empty or unavailable process-table scan is never evidence that cleanup succeeded. If the leader
+     exits during a process-table scan, Hutch rereads its identity before deciding whether the snapshot was a normal exit or an
+     identity change.
 * **Verified cleanup**: a run leaves `cancelling` for `stopped` only after owned processes are confirmed gone. An incomplete or
   unverifiable cleanup stays visibly `cancelling` or `recovering`, records the PIDs/reason, relinquishes its lease briefly, and is
   retried. It is never reported as a successful cancellation while a recorded process may remain.
@@ -34,3 +36,5 @@ Status: accepted (2026-10-07), amended during realignment. Slices: S2-S4. Eviden
 Cost: a poll of one indexed column per owned run every 0.5 s while waiting; pidfd cleanup adds no steady-state work. A single
 database lease elects the scheduler/recovery supervisor across web workers and daemon processes. On Linux, verified cleanup uses
 `/proc` boot/start identity and pidfds; platforms without these primitives are not supported for production execution.
+If process inspection becomes unavailable during cleanup, recovery leaves the run nonterminal and retries after the cleanup lease;
+it does not fall back to numeric PID signalling or treat missing visibility as a clean process table.

@@ -81,8 +81,17 @@ def _all() -> dict[int, Proc]:
     return out
 
 
+def _unverifiable(pgid: int, pid: int = 0, starttime: int = 0, session: int = 0) -> Proc:
+    """Represent a process identity that cannot currently be inspected or disproved."""
+    return Proc(pid or pgid or -1, 0, pgid, session, starttime, "?")
+
+
 def unverified_group(pgid: int, *, session_id: int | None = None) -> list[Proc]:
     """List possible members without signalling when no persisted group identity is available."""
+    if not pgid:
+        return []
+    if not available():
+        return [_unverifiable(pgid, session=session_id or 0)]
     return [p for p in _all().values() if p.pgrp == pgid and (session_id is None or p.session == session_id)
             and _alive(p)]
 
@@ -173,12 +182,21 @@ def _group_snapshot(pgid: int, anchor_pid: int, anchor_start: int,
 
 def end_recorded(records: Iterable[dict], term_grace: float = 2.0, kill_grace: float = 2.0) -> list[Proc]:
     """End processes using persisted boot/PID/start and optional session identities, then verify each group is empty."""
+    records = list(records)
+    if not records:
+        return []
     anchors: dict[int, tuple[int, int, str, int | None]] = {}
     unresolved: list[Proc] = []
     for row in records:
         pgid, pid = int(row.get("pgid", 0)), int(row.get("pid", 0))
         start, saved_boot = int(row.get("starttime", 0)), str(row.get("boot_id", ""))
-        if saved_boot and saved_boot != boot_id():  # every process from that boot is gone
+        current_boot = boot_id()
+        if saved_boot and current_boot and saved_boot != current_boot:  # every process from that boot is gone
+            continue
+        if not available():
+            raw_session = row.get("session")
+            session_id = int(raw_session) if raw_session is not None else 0
+            unresolved.append(_unverifiable(pgid, pid, start, session_id))
             continue
         if not pgid or not pid or not start:
             # The record cannot authorize a signal, but it also cannot prove that a process
@@ -260,8 +278,10 @@ def end_groups(pgids: Iterable[int], not_before: int = 0, term_grace: float = 2.
     Returns the processes still alive afterwards (empty means verified gone). Signals go to individual pids, not
     ``killpg``, so a recycled process-group id cannot take down an unrelated group."""
     pgids = [g for g in pgids if g and g != os.getpgrp()]
-    if not pgids or not available():
+    if not pgids:
         return []
+    if not available():
+        return [_unverifiable(pgid) for pgid in pgids]
     anchors = []
     for pgid in pgids:
         anchor = _read(pgid)
@@ -323,6 +343,8 @@ def end_tree(root: Proc, term_grace: float = 1.0, kill_grace: float = 1.5) -> li
     signalling would hit the supervisor too. Every signal goes through a pidfd after an identity check, so a recycled pid is
     never signalled.
     """
+    if not available():
+        return [_unverifiable(root.pgrp, root.pid, root.starttime, root.session)]
     expected_boot = boot_id()
     current = identity(root.pid)
     if current is None or current.starttime != root.starttime:

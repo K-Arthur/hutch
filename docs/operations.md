@@ -107,8 +107,9 @@ unregistered staging file after a 24-hour grace period; ordinary request failure
 Run status remains `Stopping` or `Recovering` when an owned process is still alive or its identity cannot be verified. Hutch records
 the process IDs and retries cleanup after the short recovery lease. Do not delete process records or mark a run stopped manually.
 Inspect the latest run events and worker log (`hutch bot show <name>` and the bot's `runs/<run-id>/worker.log`). If a host policy
-prevents pidfd signalling or process visibility, resolve that host restriction and let the supervisor retry. Hutch will not signal
-a numeric PID or process-group ID whose recorded boot/start identity does not match.
+prevents pidfd signalling or process visibility, resolve that host restriction and let the supervisor retry. An unavailable
+`/proc` view leaves recorded processes unresolved; an empty view is not evidence that they exited. Hutch will not signal a numeric
+PID or process-group ID whose recorded boot/start identity does not match.
 
 ## Phone supervision over private HTTPS
 
