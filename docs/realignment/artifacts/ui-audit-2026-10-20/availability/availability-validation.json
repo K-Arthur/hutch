@@ -1,9 +1,9 @@
 {
   "test": "tests/e2e/test_website.py::test_provider_availability_is_readable_without_horizontal_page_scroll",
-  "captured_at": "2026-10-21T07:33:25.878144+00:00",
+  "captured_at": "2026-10-21T08:54:47.788886+00:00",
   "browser": "153.0.8010.12",
   "source_sha256": {
-    "website/index.html": "3e73ae64d0ecbbadd65b4d09bfcdd70252aa73192480d651f8c2cdafde8f1c5d",
+    "website/index.html": "0c21ac6392e811a12bb2899c7eeb2bc84b7a1a3f617728727378bed1f2460eae",
     "website/styles.css": "62cf027af1be662834e58462abc04dfd190856608d69edbbf640e83903a28e64",
     "website/styles.min.css": "4c9ee5cfde1a45b7a187ba913746a8f886607a32cfd366ac196588dd1e45261c"
   },

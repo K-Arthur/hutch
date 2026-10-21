@@ -1844,6 +1844,8 @@ function botRole(ref) { return botIdentityParts(ref).role; }
 const routes = [
   [/^#\/chat(?:\/([\w-]+))?$/, m => renderChatStudio(m ? m[1] : null), "chat"],
   [/^#\/conversation\/([\w-]+)$/, m => openConversation(m[1]), "chat"],
+  [/^#\/chats$/, renderChatLibrary, "chats"],
+  [/^#\/settings$/, renderWorkspaceSettings, "settings"],
   [/^#\/overview$/, renderOverview, "overview"],
   [/^#\/schedules$/, renderSchedules, "schedules"],
   [/^#\/runtime$/, renderRuntime, "runtime"],
@@ -1863,7 +1865,7 @@ async function openConversation(id) {
   if (!bot) throw new Error("This conversation's bot is no longer available. Its history is retained in run history.");
   storageSet(`hutch-conversation:${bot.id}`, id);
   history.replaceState(null, "", `#/chat/${encodeURIComponent(bot.name)}`);
-  await renderChatStudio(bot.name);
+  await renderChatStudio(bot.name, id);
 }
 
 function openConversationSearch(trigger) {
@@ -1967,9 +1969,118 @@ function openConversationSearch(trigger) {
   });
 }
 
+function formatConversationDate(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.valueOf()) ? "Date unavailable" : new Intl.DateTimeFormat(undefined,
+    { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }).format(date);
+}
+
+async function renderChatLibrary() {
+  const generation = ++studioGeneration;
+  const bots = await api("/bots");
+  if (generation !== studioGeneration) return;
+  botsCache = bots;
+  renderRoster();
+  setTopContext(`<div class="ctx-id"><div class="ctx-heading"><h1>Chat library</h1><span class="ctx-subtitle">Find active, archived, and imported conversations</span></div></div>`);
+  view.innerHTML = `<div class="page-scroll"><div class="container chat-library-page">
+    <header class="page-intro"><h2>Chat library</h2><p>Browse conversation titles across your assistants. Message search remains in Chats.</p></header>
+    <form class="panel chat-library-filters" id="chat-library-filters" role="search">
+      <label class="field"><span>Find by chat title</span><input id="chat-library-query" type="search" maxlength="256" autocomplete="off" placeholder="For example, project notes"></label>
+      <label class="field"><span>Assistant</span><select id="chat-library-bot"><option value="">All assistants</option>${bots.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}</option>`).join("")}</select></label>
+      <label class="field"><span>Show</span><select id="chat-library-scope"><option value="active">Active chats</option><option value="archived">Archived chats</option><option value="imported">Imported history</option><option value="all">Everything</option></select></label>
+      <button class="btn primary" type="submit">Find chats</button>
+    </form>
+    <p class="hint" id="chat-library-status" role="status" aria-live="polite">Choose a filter to browse conversations.</p>
+    <section class="chat-library-results" id="chat-library-results" aria-label="Conversation results"></section>
+    <div class="btn-row chat-library-pagination" id="chat-library-pagination"></div>
+  </div></div>`;
+  const form = $("#chat-library-filters");
+  const query = $("#chat-library-query");
+  const bot = $("#chat-library-bot");
+  const scope = $("#chat-library-scope");
+  const status = $("#chat-library-status");
+  const results = $("#chat-library-results");
+  const pagination = $("#chat-library-pagination");
+  let offset = 0;
+  let requestGeneration = 0;
+  const pageSize = 50;
+  const load = async (nextOffset = 0) => {
+    const request = ++requestGeneration;
+    offset = nextOffset;
+    status.textContent = "Loading chats…";
+    results.setAttribute("aria-busy", "true");
+    try {
+      const page = await api("/v1/conversations/query", { method: "POST", body: {
+        q: query.value.trim(), bot: bot.value || null, scope: scope.value, limit: pageSize, offset,
+      }});
+      if (!form.isConnected || request !== requestGeneration) return;
+      const labels = new Map(bots.map(item => [item.id, item.display_name || item.name]));
+      results.innerHTML = page.items.length ? page.items.map(item => `<a class="chat-library-row" href="#/conversation/${esc(item.id)}">
+        <span class="chat-library-copy"><strong>${esc(item.title || "Untitled conversation")}</strong><small>${esc(labels.get(item.bot_id) || "Unavailable assistant")} · ${esc(formatConversationDate(item.updated_at))}</small></span>
+        <span class="chat-library-meta">${item.is_legacy ? "Imported" : item.archived ? "Archived" : `${item.message_count} messages`} ${icon("arrow")}</span>
+      </a>`).join("") : `<div class="empty-state"><p>No chats match these filters.</p><p class="hint">Try another assistant, title, or history bucket.</p></div>`;
+      const first = page.total ? offset + 1 : 0;
+      status.textContent = page.total ? `Showing ${first}–${offset + page.items.length} of ${page.total} chats.` : "No chats found.";
+      pagination.innerHTML = `${offset ? '<button class="btn ghost" type="button" data-library-page="previous">Previous</button>' : ""}${page.next_offset !== null ? '<button class="btn ghost" type="button" data-library-page="next">Load more</button>' : ""}`;
+      pagination.querySelector('[data-library-page="previous"]')?.addEventListener("click", () => void load(Math.max(0, offset - pageSize)));
+      pagination.querySelector('[data-library-page="next"]')?.addEventListener("click", () => void load(page.next_offset));
+    } catch (error) {
+      if (!form.isConnected || request !== requestGeneration) return;
+      results.innerHTML = "";
+      pagination.innerHTML = "";
+      status.textContent = `Chat library unavailable: ${error.message}`;
+    } finally {
+      if (request === requestGeneration) results.removeAttribute("aria-busy");
+    }
+  };
+  form.addEventListener("submit", event => { event.preventDefault(); void load(); });
+  scope.addEventListener("change", () => void load());
+  bot.addEventListener("change", () => void load());
+  await load();
+}
+
+async function renderWorkspaceSettings() {
+  const defaults = await api("/v1/preferences/model-defaults");
+  const currentEffects = storageGet("hutch:reduce-effects");
+  setTopContext(`<div class="ctx-id"><div class="ctx-heading"><h1>Settings</h1><span class="ctx-subtitle">Workspace defaults and appearance</span></div></div>`);
+  view.innerHTML = `<div class="page-scroll"><div class="container workspace-settings-page">
+    <header class="page-intro"><h2>Workspace settings</h2><p>These defaults apply when you create an assistant. Existing assistants and chats keep their saved settings.</p></header>
+    <form class="panel form-grid workspace-settings-form" id="workspace-settings-form">
+      <h3 class="panel-title">Model defaults for new assistants</h3>
+      <label class="field" for="workspace-settings-model">Default model route
+        <input id="workspace-settings-model" type="text" maxlength="200" autocomplete="off" placeholder="Choose or enter provider/model" value="${esc(defaults.model || "")}">
+        <span class="hint">Leave empty to choose a route for each new assistant.</span></label>
+      <label class="field" for="workspace-settings-mode">Default routing
+        <select id="workspace-settings-mode"><option value="hybrid" ${defaults.inference_mode === "hybrid" ? "selected" : ""}>Hybrid — local or hosted</option><option value="local" ${defaults.inference_mode === "local" ? "selected" : ""}>Local — this machine</option><option value="offline" ${defaults.inference_mode === "offline" ? "selected" : ""}>Strict Offline — host-gated</option></select></label>
+      <p class="hint">Hosted routes send prompts to their provider. Local routing keeps inference on this machine while tools may still use the network.</p>
+      <h3 class="panel-title">Appearance</h3>
+      <label class="field" for="workspace-settings-effects">Effects
+        <select id="workspace-settings-effects"><option value="system" ${currentEffects === null ? "selected" : ""}>Follow system setting</option><option value="reduce" ${currentEffects === "true" ? "selected" : ""}>Reduce effects</option><option value="full" ${currentEffects === "false" ? "selected" : ""}>Show effects</option></select>
+        <span class="hint">The dark workspace theme is fixed. This only controls nonessential motion.</span></label>
+      <div class="btn-row"><button class="btn primary" type="submit">Save workspace settings</button><a class="btn ghost" href="#/connections">Apps &amp; AI</a></div>
+      <p id="workspace-settings-status" class="hint" role="status" aria-live="polite"></p>
+    </form>
+  </div></div>`;
+  $("#workspace-settings-form")?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const status = $("#workspace-settings-status");
+    status.textContent = "Saving settings…";
+    try {
+      await api("/v1/preferences/model-defaults", { method: "PUT", body: {
+        model: $("#workspace-settings-model").value.trim(), inference_mode: $("#workspace-settings-mode").value,
+      }});
+      const effects = $("#workspace-settings-effects").value;
+      if (effects === "system") storageRemove("hutch:reduce-effects");
+      else storageSet("hutch:reduce-effects", effects === "reduce");
+      applyEffects();
+      status.textContent = "Workspace settings saved.";
+    } catch (error) { status.textContent = `Could not save settings: ${error.message}`; }
+  });
+}
+
 const ROUTE_TITLES = { chat: "Chats", overview: "Activity", schedules: "Scheduled work",
   runtime: "Runtime", runs: "Work history", bots: "Assistants", connections: "Apps & AI",
-  approvals: "Needs you" };
+  approvals: "Needs you", chats: "Chat library", settings: "Settings" };
 
 function routeTitle(hash) {
   if (hash.startsWith("#/conversation/")) return "Conversation";
@@ -2286,97 +2397,16 @@ window.addEventListener("resize", () => { if (innerWidth > 900) closeWorkspace()
 $("#bot-search")?.addEventListener("input", renderRoster);
 $("#ws-close")?.addEventListener("keydown", ev => { if (ev.key === "Tab" && !ev.shiftKey) { ev.preventDefault(); $("#workspace a, #workspace button")?.focus(); } });
 
-/* Effects follow the OS by default; the explicit override lives in
-   Preferences (sidebar footer) for the cases the OS setting does not cover. */
+/* Effects follow the OS by default; Settings offers an explicit override for
+   the cases the system preference does not cover. */
 function applyEffects() {
   const stored = store$.get("hutch:reduce-effects", null);
   const reduce = stored === null ? matchMedia("(prefers-reduced-motion: reduce)").matches : !!stored;
   document.documentElement.classList.toggle("reduce-effects", reduce);
-  const cb = $("#pref-reduce"); if (cb) cb.checked = reduce;
 }
 applyEffects();
 
-async function openWorkspaceModelDefaultsDialog() {
-  let defaults;
-  try { defaults = await api("/v1/preferences/model-defaults"); }
-  catch (err) { toast(`Workspace defaults are unavailable: ${err.message}`, true); return; }
-  const initialMode = defaults.inference_mode || "hybrid";
-  let routeChoices = [];
-  try { routeChoices = await api(`/v1/model-routes?inference_mode=${encodeURIComponent(initialMode)}`); }
-  catch { /* a route can still be entered and the server validates it on save */ }
-  const optionHtml = routes => routes.filter(route => route.state === "ready" && !route.spec.startsWith("mock/"))
-    .map(route => `<option value="${esc(route.spec)}" label="${esc(`${route.group}: ${route.note || route.label}`)}"></option>`).join("");
-  const bodyHtml = `<div class="setup-conversation form-grid">
-      <p class="setup-assistant">These defaults seed new Bot drafts. They do not change existing Bots, chats or runs. Hosted routes send prompts to their provider; Local routing keeps inference on this machine while tools may still use the network. Strict Offline requires verified host isolation.</p>
-      <label class="field" for="workspace-default-model">Default model route<input id="workspace-default-model" list="workspace-default-routes" maxlength="200" autocomplete="off" placeholder="Choose or enter provider/model" value="${esc(defaults.model || "")}">
-        <datalist id="workspace-default-routes">${optionHtml(routeChoices)}</datalist>
-        <span class="hint">Leave empty to choose a route for each new Bot. Existing Bots keep their own saved model.</span></label>
-      <label class="field" for="workspace-default-mode">Default routing<select id="workspace-default-mode">
-        <option value="hybrid" ${initialMode === "hybrid" ? "selected" : ""}>Hybrid — local or hosted</option>
-        <option value="local" ${initialMode === "local" ? "selected" : ""}>Local — this machine</option>
-        <option value="offline" ${initialMode === "offline" ? "selected" : ""}>Strict Offline — host-gated</option>
-      </select></label>
-      <p class="hint" role="status" aria-live="polite">${defaults.configured ? "A saved default is shown. Review availability before using it for a new Bot." : "No workspace model default is set."}</p>
-      <div id="workspace-default-error" role="alert" hidden></div>
-    </div>`;
-  openModal({
-    title: "Model defaults for new Bots", bodyHtml, confirmText: "Save workspace defaults",
-    returnFocus: $("#prefs-toggle"),
-    onConfirm: async () => {
-      const model = $("#workspace-default-model")?.value.trim() || "";
-      const inference_mode = $("#workspace-default-mode")?.value || "hybrid";
-      const error = $("#workspace-default-error");
-      error.hidden = true;
-      try {
-        const saved = await api("/v1/preferences/model-defaults", {
-          method: "PUT", body: { model, inference_mode },
-        });
-        toast(saved.configured ? "Workspace defaults saved for future Bots." : "Workspace model default cleared.");
-        return true;
-      } catch (err) {
-        error.textContent = err.message;
-        error.hidden = false;
-        return false;
-      }
-    },
-  });
-  $("#workspace-default-mode")?.addEventListener("change", async ev => {
-    try {
-      routeChoices = await api(`/v1/model-routes?inference_mode=${encodeURIComponent(ev.target.value)}`);
-      const list = $("#workspace-default-routes");
-      if (list) list.innerHTML = optionHtml(routeChoices);
-    } catch { /* existing or manually entered routes remain editable */ }
-  });
-}
-
 matchMedia("(prefers-reduced-motion: reduce)").addEventListener?.("change", applyEffects);
-{
-  const t = $("#prefs-toggle"), pop = $("#prefs-pop");
-  if (t && pop) {
-    t.addEventListener("click", () => {
-      const open = pop.hidden;
-      pop.hidden = !open;
-      t.setAttribute("aria-expanded", String(open));
-    });
-    document.addEventListener("click", ev => {
-      if (!pop.hidden && !ev.target.closest(".pref-wrap")) { pop.hidden = true; t.setAttribute("aria-expanded", "false"); }
-    });
-    document.addEventListener("keydown", ev => {
-      if (ev.key === "Escape" && !pop.hidden) { pop.hidden = true; t.setAttribute("aria-expanded", "false"); }
-    });
-  }
-  const cb = $("#pref-reduce");
-  cb?.addEventListener("change", () => {
-    store$.set("hutch:reduce-effects", cb.checked);
-    applyEffects();
-    toast(cb.checked ? "Effects reduced" : "Effects restored");
-  });
-  $("#prefs-model-defaults")?.addEventListener("click", () => {
-    pop.hidden = true;
-    t.setAttribute("aria-expanded", "false");
-    openWorkspaceModelDefaultsDialog();
-  });
-}
 
 /* Sidebar docking: collapse to an icon rail on desktop; remembered between
    visits. Phones keep the full-width overlay sheet (the dock button hides). */
@@ -2953,7 +2983,7 @@ async function openSavedTaskTemplateLibrary({ returnFocus, onUse }) {
   });
 }
 
-async function renderChatStudio(preferredBot = null) {
+async function renderChatStudio(preferredBot = null, requestedConversationId = null) {
   const generation = ++studioGeneration;
   const fetchedBots = await api("/bots");
   if (generation !== studioGeneration) return;
@@ -3022,17 +3052,41 @@ async function renderChatStudio(preferredBot = null) {
     return;
   }
 
-  let bot = botsCache.find(b => b.name === preferredBot) ||
+  let requestedConversation = null;
+  if (requestedConversationId) {
+    try {
+      requestedConversation = await api(`/v1/conversations/${encodeURIComponent(requestedConversationId)}`);
+    } catch (error) {
+      throw new Error(`That conversation is unavailable: ${error.message}`);
+    }
+  }
+  let bot = (requestedConversation && botsCache.find(item => item.id === requestedConversation.bot_id)) ||
+            botsCache.find(b => b.name === preferredBot) ||
             botsCache.find(b => b.name === currentStudioBot) ||
             botsCache.find(b => b.is_workspace_coordinator) ||
             botsCache[0];
+  if (requestedConversation && !bot) {
+    throw new Error("This conversation's assistant is no longer available. Its history is retained in work history.");
+  }
   currentStudioBot = bot.name;
   updateRosterCurrentItem();
   const detail = await api(`/bots/${encodeURIComponent(bot.name)}`);
   if (generation !== studioGeneration) return;
   currentConversations = await api(`/v1/conversations?bot=${encodeURIComponent(bot.id)}&include_legacy=true&include_archived=true&limit=100`);
   if (generation !== studioGeneration) return;
-  const rememberedConversation = storageGet(`hutch-conversation:${bot.id}`);
+  const rememberedConversation = requestedConversationId || storageGet(`hutch-conversation:${bot.id}`);
+  if (requestedConversation && !currentConversations.some(item => item.id === requestedConversation.id)) {
+    currentConversations.unshift(requestedConversation);
+  }
+  if (!requestedConversation && rememberedConversation && !currentConversations.some(item => item.id === rememberedConversation)) {
+    try {
+      requestedConversation = await api(`/v1/conversations/${encodeURIComponent(rememberedConversation)}`);
+      if (requestedConversation.bot_id === bot.id) currentConversations.unshift(requestedConversation);
+      else requestedConversation = null;
+    } catch {
+      storageRemove(`hutch-conversation:${bot.id}`);
+    }
+  }
   let selectedConversation = currentConversations.find(c => c.id === rememberedConversation) || null;
   if (!selectedConversation) selectedConversation = currentConversations.find(c => !c.archived && !c.is_legacy) || null;
   if (!selectedConversation) {

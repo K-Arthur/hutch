@@ -744,6 +744,13 @@ def test_assistant_settings_keep_everyday_edits_up_front(browser, app_server):
             assert page.get_by_role("heading", name="About this assistant").is_visible()
             assert page.get_by_label("Assistant name").is_visible()
             assert page.get_by_label("What it helps with").is_visible()
+            basics = page.locator(".assistant-settings-basics")
+            advanced = page.locator("#assistant-more-settings")
+            basics_box = basics.bounding_box()
+            advanced_box = advanced.bounding_box()
+            assert basics_box and advanced_box
+            assert abs(basics_box["x"] - advanced_box["x"]) <= 1, (label, basics_box, advanced_box)
+            assert abs(basics_box["width"] - advanced_box["width"]) <= 1, (label, basics_box, advanced_box)
             assert page.locator("#btn-set-workspace-coordinator").count() == 0
             assert not page.locator("#assistant-more-settings").evaluate("el => el.open")
             assert not page.locator("#form-model").is_visible()
@@ -1152,6 +1159,75 @@ def test_chat_message_search_is_scoped_responsive_and_opens_its_conversation(bro
         context.close()
 
 
+def test_chat_library_recovers_history_beyond_quick_switcher_and_workspace_settings(browser, app_server):
+    """The library is the recovery path when a quick switcher has only recent chats."""
+    app_url, app = app_server
+    store = app.state.store
+    bot = store.get_bot("design-system-review")
+    for index in range(105):
+        store.create_conversation(bot.id, f"Library history {index:03d}", idem_key=f"library-history-{index}",
+                                  request_hash=f"library-history-{index}")
+    target, _ = store.create_conversation(bot.id, "History recovery target", idem_key="library-target",
+                                          request_hash="library-target")
+    # Make the direct-link target older than the quick-switcher page without
+    # depending on timestamp precision in a fast fixture.
+    with store._tx() as db:
+        db.execute("UPDATE conversations SET updated_at = ? WHERE id = ?", ("2000-01-01T00:00:00+00:00", target["id"]))
+
+    out = artifact_path("chat-library-and-settings")
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    try:
+        page.goto(f"{app_url}/#/conversation/{target['id']}")
+        page.locator("#conversation-switcher").wait_for(timeout=15_000)
+        assert page.locator("#conversation-switcher").input_value() == target["id"]
+        assert page.locator("#conversation-switcher option").count() == 101
+
+        page.goto(f"{app_url}/#/chats")
+        page.locator("#app-top-context h1", has_text="Chat library").wait_for(timeout=15_000)
+        expect(page.locator(".chat-library-row")).to_have_count(50)
+        page.locator("#chat-library-query").fill("recovery target")
+        page.get_by_role("button", name="Find chats").click()
+        expect(page.locator(".chat-library-row")).to_have_count(1)
+        assert "History recovery target" in page.locator(".chat-library-row").inner_text()
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+        page.screenshot(path=str(out / "library-desktop.png"), animations="disabled")
+        page.locator(".chat-library-row").click()
+        expect(page.locator("#conversation-switcher")).to_have_value(target["id"])
+
+        page.goto(f"{app_url}/#/settings")
+        page.locator("#app-top-context h1", has_text="Settings").wait_for(timeout=15_000)
+        assert page.locator("#workspace-settings-effects").input_value() == "system"
+        page.locator("#workspace-settings-effects").select_option("reduce")
+        page.get_by_role("button", name="Save workspace settings").click()
+        expect(page.locator("#workspace-settings-status")).to_have_text("Workspace settings saved.")
+        assert page.evaluate("document.documentElement.classList.contains('reduce-effects')")
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+        page.screenshot(path=str(out / "settings-desktop.png"), animations="disabled")
+        page.locator("#workspace-settings-effects").select_option("system")
+        page.get_by_role("button", name="Save workspace settings").click()
+        expect(page.locator("#workspace-settings-status")).to_have_text("Workspace settings saved.")
+        assert page.evaluate("localStorage.getItem('hutch:reduce-effects')") is None
+
+        page.set_viewport_size({"width": 390, "height": 844})
+        page.goto(f"{app_url}/#/chats")
+        page.locator("#chat-library-query").wait_for(timeout=15_000)
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+        page.screenshot(path=str(out / "library-phone.png"), animations="disabled")
+        page.goto(f"{app_url}/#/settings")
+        page.locator("#workspace-settings-effects").wait_for(timeout=15_000)
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+        assert page.locator("#workspace-settings-model").bounding_box()["height"] >= 44
+        assert page.locator("#workspace-settings-effects").bounding_box()["height"] >= 44
+        page.screenshot(path=str(out / "settings-phone.png"), animations="disabled")
+        assert not errors, errors
+    finally:
+        context.close()
+
+
 def test_every_workspace_route_renders_independently_at_responsive_sizes(browser, app_server, site_server):
     """Keep one screenshot per surface and viewport; never judge these pages from a contact sheet."""
     app_url, app = app_server
@@ -1201,6 +1277,7 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
     }
     surfaces = [
         ("studio", f"{app_url}/#/chat/design-system-review", "#conversation-switcher"),
+        ("chat-library", f"{app_url}/#/chats", "#chat-library-query"),
         ("activity", f"{app_url}/#/overview", ".ov-all-clear"),
         ("schedules", f"{app_url}/#/schedules", ".schedule-overview"),
         ("fleet", f"{app_url}/#/bots", ".bot-grid"),
@@ -1208,6 +1285,7 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
         ("approvals", f"{app_url}/#/approvals", "#needs-you"),
         ("connections", f"{app_url}/connections", ".service-tile"),
         ("bot-settings", f"{app_url}/#/bot/design-system-review", "#app-top-context h1"),
+        ("workspace-settings", f"{app_url}/#/settings", "#workspace-settings-effects"),
         ("run-detail", f"{app_url}/#/run/{run.id}", "#run-technical-details > summary"),
         ("marketing", site_server, ".hero-title"),
     ]
@@ -1436,24 +1514,6 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                 assert page.evaluate("Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) <= innerWidth + 1")
                 page.screenshot(path=str(out / f"fleet-menu-{viewport_name}.png"), animations="disabled")
 
-            if viewport_name in {"desktop", "phone"}:
-                active_surface["name"] = f"preferences-{viewport_name}"
-                page.goto(f"{app_url}/#/chat/design-system-review", wait_until="domcontentloaded")
-                page.locator("#conversation-switcher").wait_for(timeout=15_000)
-                if viewport_name == "phone":
-                    page.locator("#nav-toggle").click()
-                    page.locator("#workspace.open").wait_for()
-                page.locator("#prefs-toggle").click()
-                page.locator("#prefs-pop:not([hidden])").wait_for()
-                metrics = page.evaluate("""() => ({
-                  viewport: [innerWidth, innerHeight],
-                  documentWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
-                  dialog: document.querySelector('#prefs-pop')?.getBoundingClientRect().toJSON()
-                })""")
-                assert metrics["documentWidth"] <= width + 1, ("preferences", viewport_name, metrics)
-                page.screenshot(path=str(out / f"preferences-{viewport_name}.png"), animations="disabled")
-                evidence.append({"surface": "preferences", "size": viewport_name, **metrics})
-
         assert not external_requests, external_requests
         assert not errors, errors
         context.tracing.stop(path=str(out / "trace.zip"))
@@ -1470,7 +1530,7 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
             "provider_calls": 0,
             "synthetic_bots": len(bot_names) + 1,
             "long_display_name": display_names[4],
-            "individual_surfaces": [name for name, _, _ in surfaces] + ["preferences", "Schedule assistant chooser", "Fleet details disclosure", "Fleet action menu", "Long assistant name on phone and compact phone"],
+            "individual_surfaces": [name for name, _, _ in surfaces] + ["Schedule assistant chooser", "Fleet details disclosure", "Fleet action menu", "Long assistant name on phone and compact phone"],
             "visual_review": "Open each desktop, tablet, and phone screenshot individually; 320px compact-phone has overflow assertions.",
             "reference_access": {
                 "figma": "MCP node retrieval hit the Starter-plan limit; the open browser canvas exposed the supplied community file's Settings and Edit Profile frames, which were inspected individually. The supplied ChatGPT screenshots, not Figma frames, informed list, chat, and per-chat menu review.",

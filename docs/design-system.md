@@ -73,6 +73,21 @@ Brand art, assistant identity, and runtime state never substitute for one anothe
 
 ## Surface roles
 
+### Chat recovery and workspace settings
+
+Chats remain the daily workspace. The compact conversation selector is a recent
+switcher, not a history browser: the **Chat library** is the canonical recovery
+path for active, archived, and imported conversation titles across assistants.
+It pages results, opens the selected conversation exactly, and keeps message
+search scoped to active chats so its disclosure remains true. Do not replace a
+missing selected conversation with a newer one.
+
+**Settings** is the single workspace-level destination for defaults used by new
+assistants and the nonessential-motion preference. Assistant-specific model,
+tool, schedule, memory, and approval controls remain in that assistant's
+settings. Keep the dark theme as the shared visual contract; effects can follow
+the operating system or be explicitly reduced/restored without changing theme.
+
 ### Chats and assistants
 
 The chat is the daily workspace. Keep the active conversation and current work
