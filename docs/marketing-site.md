@@ -6,6 +6,13 @@ inaccessible private repository, copy commands that cannot work anonymously, or 
 three cited user-report scenarios only. The site loads its CSS, JavaScript, font and images from its own directory and sends no
 analytics request. Motion follows the operating system's reduced-motion setting; the page stores no browser preference.
 
+The history description may state that the application has a title-based Chat
+library for active, archived, and imported conversations across assistants.
+It must distinguish that library from active-chat message search, and must not
+claim that archive/imported content is searched by message. Workspace settings
+contain new-assistant defaults and a local motion preference; they do not alter
+existing assistants or conversations.
+
 ## Capability language
 
 | State shown publicly | Evidence and limit |

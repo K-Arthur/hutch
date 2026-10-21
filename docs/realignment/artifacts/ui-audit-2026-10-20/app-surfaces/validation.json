@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_design_system.py::test_every_workspace_route_renders_independently_at_responsive_sizes",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_every_workspace_route_renders_independently_at_responsive_sizes",
-  "captured_at": "2026-10-21T07:26:22.733467+00:00",
+  "captured_at": "2026-10-21T08:58:18.000062+00:00",
   "python": "3.13.15",
   "browser": "Chromium 153.0.8010.12",
   "playwright": "1.63.0",
@@ -19,6 +19,19 @@
       "visibleBotNames": [
         "Design Partner"
       ],
+      "menuControls": 11
+    },
+    {
+      "surface": "chat-library",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "title": "Chat library",
+      "workspace": true,
+      "visibleBotNames": [],
       "menuControls": 11
     },
     {
@@ -121,6 +134,19 @@
       "menuControls": 11
     },
     {
+      "surface": "workspace-settings",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "title": "Settings",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
       "surface": "run-detail",
       "size": "desktop",
       "viewport": [
@@ -148,25 +174,6 @@
       "menuControls": 0
     },
     {
-      "surface": "preferences",
-      "size": "desktop",
-      "viewport": [
-        1440,
-        960
-      ],
-      "documentWidth": 1440,
-      "dialog": {
-        "x": 12,
-        "y": 814.03125,
-        "width": 268,
-        "height": 96.28125,
-        "top": 814.03125,
-        "right": 280,
-        "bottom": 910.3125,
-        "left": 12
-      }
-    },
-    {
       "surface": "studio",
       "size": "tablet",
       "viewport": [
@@ -179,6 +186,19 @@
       "visibleBotNames": [
         "Design Partner"
       ],
+      "menuControls": 11
+    },
+    {
+      "surface": "chat-library",
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "documentWidth": 900,
+      "title": "Chat library",
+      "workspace": true,
+      "visibleBotNames": [],
       "menuControls": 11
     },
     {
@@ -281,6 +301,19 @@
       "menuControls": 11
     },
     {
+      "surface": "workspace-settings",
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "documentWidth": 900,
+      "title": "Settings",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
       "surface": "run-detail",
       "size": "tablet",
       "viewport": [
@@ -320,6 +353,19 @@
       "visibleBotNames": [
         "Design Partner"
       ],
+      "menuControls": 11
+    },
+    {
+      "surface": "chat-library",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "title": "Chat library",
+      "workspace": true,
+      "visibleBotNames": [],
       "menuControls": 11
     },
     {
@@ -422,6 +468,19 @@
       "menuControls": 11
     },
     {
+      "surface": "workspace-settings",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "title": "Settings",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
       "surface": "run-detail",
       "size": "phone",
       "viewport": [
@@ -449,25 +508,6 @@
       "menuControls": 0
     },
     {
-      "surface": "preferences",
-      "size": "phone",
-      "viewport": [
-        390,
-        844
-      ],
-      "documentWidth": 390,
-      "dialog": {
-        "x": 12,
-        "y": 698.03125,
-        "width": 268,
-        "height": 96.28125,
-        "top": 698.03125,
-        "right": 280,
-        "bottom": 794.3125,
-        "left": 12
-      }
-    },
-    {
       "surface": "studio",
       "size": "compact-phone",
       "viewport": [
@@ -480,6 +520,19 @@
       "visibleBotNames": [
         "Design Partner"
       ],
+      "menuControls": 11
+    },
+    {
+      "surface": "chat-library",
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "documentWidth": 320,
+      "title": "Chat library",
+      "workspace": true,
+      "visibleBotNames": [],
       "menuControls": 11
     },
     {
@@ -582,6 +635,19 @@
       "menuControls": 11
     },
     {
+      "surface": "workspace-settings",
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "documentWidth": 320,
+      "title": "Settings",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
       "surface": "run-detail",
       "size": "compact-phone",
       "viewport": [
@@ -615,6 +681,7 @@
   "long_display_name": "Customer Operations and Knowledge Research Analyst",
   "individual_surfaces": [
     "studio",
+    "chat-library",
     "activity",
     "schedules",
     "fleet",
@@ -622,9 +689,9 @@
     "approvals",
     "connections",
     "bot-settings",
+    "workspace-settings",
     "run-detail",
     "marketing",
-    "preferences",
     "Schedule assistant chooser",
     "Fleet details disclosure",
     "Fleet action menu",
@@ -637,19 +704,19 @@
   },
   "source_sha256": {
     "src/hutch/server/pages.py": "7884021b4a97b41a26c49e4337e8f53fe245ff8682c5e820a613a4dc70263826",
-    "src/hutch/server/static/app.js": "d5fc09d68da2bec85970b2915e3c0848e478f6fa2499472241ede45c6624e107",
+    "src/hutch/server/static/app.js": "073a795aa28c5abfd10f692d3bd4da681fbb07a93868e908a4b1fad2c0afda8c",
     "src/hutch/server/static/persona.js": "47913767ed7ba2cc20675becf9594c8ddd81ab63da82b207705cf0a079b70299",
-    "src/hutch/server/static/index.html": "c8000a5b1135678e984e9c12d0ad79190b0bf7f28bc314a267cac2112c2fbaac",
-    "src/hutch/server/static/style.css": "3a5beb27cf6e9f0e9272ab2c770cc89ea54bbc4f23e429c64e4431f33314bf6c",
+    "src/hutch/server/static/index.html": "7b0d80c8ec3ed12a724b8f39d652d304c2706987d7c586fc0fea0cded9adfbb6",
+    "src/hutch/server/static/style.css": "96a04d6b641191ccc7b817d211da1aa4e13e2b6759a39e5b0cafd4333d2e3d41",
     "src/hutch/server/static/brands/openai-white-monoblossom.svg": "b94ea61d860fae6f82f43571f36f17111fcf5d348e8e9cc22ae4b441c7560011",
     "src/hutch/server/static/brands/anthropic-symbol-ivory.svg": "38fc06d8e9390654cc4e96aa53691e2e78d929667c0034805b6d1b3891ba22dd",
     "src/hutch/server/static/brands/openrouter-glyph-volt.svg": "0d22462e4f2835a5a5b9000af0a55fc9238e39996100f54706e41ec45b9d1727",
     "src/hutch/server/static/brands/google-calendar-2026q2.png": "eac7b1d7c78a7c7fb40d74b6d879ba5fe781cbf2cd5f8d7d40f3c28fea73f77e",
     "src/hutch/server/static/brands/google-gmail-2026q2.png": "ab8e9e880a28e2bc29207a62394aa7d296f435113fcc922819dab629ffbd64e6",
     "src/hutch/server/static/brands/microsoft-outlook.svg": "4a3b6ab15d36e7c5317f75a83d1781708d68cce4d8b9073a3c82f0af662eaf18",
-    "website/index.html": "cd44afccf0439f1f1174f7ff391036049bb038d57c29e3e7cacbed4faec5bf80",
+    "website/index.html": "0c21ac6392e811a12bb2899c7eeb2bc84b7a1a3f617728727378bed1f2460eae",
     "website/site.js": "51b1a0e6c99f9d74d980c568dfbcc6486eb43c247fe41217a7a49487fe6cefe0",
     "website/styles.css": "62cf027af1be662834e58462abc04dfd190856608d69edbbf640e83903a28e64",
-    "tests/e2e/test_design_system.py": "d2772736fe7ed1e4dacd0304ffeffde4a1c54b109581c36287d1ff72729edeb3"
+    "tests/e2e/test_design_system.py": "0e14ed73afc4a9dd038bede67bbd95d500ed5a91878df97111964e38d7b63ab4"
   }
 }
