@@ -1407,6 +1407,18 @@ def test_hosted_claude_run_prices_cache_reads_and_reports_the_cached_share(store
 
 # ============================================================ UI-2: stop aborts the model call
 
+def test_cancel_hook_registered_after_stop_aborts_immediately(store, config, tmp_path, ollama):
+    ctx, _run, _emitted, _tools = build(store, config, tmp_path)
+    stopped = threading.Event()
+
+    unregister = runtime()._register_cancel(ctx, lambda: True)(stopped.set)
+
+    assert stopped.is_set()
+    assert ctx.cancel_hooks
+    unregister()
+    assert not ctx.cancel_hooks
+
+
 def test_stop_aborts_an_in_flight_model_call_promptly(store, config, tmp_path, ollama):
     ollama.script = agent_script([{"content": "ok"}])
     ollama.stall_once = 20.0

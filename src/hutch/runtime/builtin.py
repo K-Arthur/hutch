@@ -380,9 +380,14 @@ class BuiltinRuntime:
         return bot.limits.max_turn_tokens or (DEFAULT_LOCAL_TURN_TOKENS if rung.local else DEFAULT_HOSTED_TURN_TOKENS)
 
     @staticmethod
-    def _register_cancel(ctx: ToolContext):
+    def _register_cancel(ctx: ToolContext, is_cancelled=None):
         def register(fn):
             ctx.cancel_hooks.append(fn)
+            # Stop may win after dispatch's pre-call check but before the provider
+            # has installed its abort hook. Check again after registration so that
+            # either the stopper sees this hook or this check aborts the new call.
+            if ctx.closed or ctx.gate.cancelled() or bool(is_cancelled and is_cancelled()):
+                fn()
 
             def unregister():
                 try:
@@ -1442,7 +1447,7 @@ class BuiltinRuntime:
                 max_tokens=self._turn_cap(bot, session.rung, run), think=False if run.execution_purpose == "persona_preview"
                 else (bot.think if bot.think is not None else False),
                 stream=False if run.execution_purpose == "persona_preview" else session.stream, allow_stream_retry=False,
-                register_cancel=self._register_cancel(ctx), is_cancelled=stop,
+                register_cancel=self._register_cancel(ctx, stop), is_cancelled=stop,
                 session_id=run.conversation_id or run.id,
                 structured_output=({"name": f"hutch-action-{plan.plan_hash[:8]}",
                                     "schema": _plain_schema(plan.envelope_schema),

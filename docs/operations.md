@@ -109,7 +109,8 @@ the process IDs and retries cleanup after the short recovery lease. Do not delet
 Inspect the latest run events and worker log (`hutch bot show <name>` and the bot's `runs/<run-id>/worker.log`). If a host policy
 prevents pidfd signalling or process visibility, resolve that host restriction and let the supervisor retry. An unavailable
 `/proc` view leaves recorded processes unresolved; an empty view is not evidence that they exited. Hutch will not signal a numeric
-PID or process-group ID whose recorded boot/start identity does not match.
+PID or process-group ID whose recorded boot/start identity does not match. A model call that races with Stop is aborted when its
+provider hook registers, and the run remains `Stopping` until owned process cleanup is verified.
 
 ## Phone supervision over private HTTPS
 
