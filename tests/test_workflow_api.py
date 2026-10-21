@@ -1783,6 +1783,60 @@ def test_qualification_routes_are_scoped_and_revocable(client):
     assert bad.status_code == 422
 
 
+def test_qualification_endpoints_follow_the_bots_connection_route(client):
+    from hutch.connections import ConnectionBook
+    from hutch.models import Bot
+
+    endpoint = "https://qualification.example.test/v1"
+    book = ConnectionBook(client.app.state.config.state_dir)
+    book.add("opencode-go", base_url=endpoint)
+    store = client.app.state.store
+    bot = store.create_bot(Bot(name="qualification-connection", model="opencode-go/glm-5.3", tools=[]))
+
+    ack = client.post("/api/v1/workflows/qualifications", headers=KEY,
+                      json={"bot": bot.name, "role": "worker", "reason": "bounded test scope", "scope": {}})
+    assert ack.status_code == 201, ack.text
+    assert ack.json()["allowed"] is True
+    assert ack.json()["route"]["endpoint"] == endpoint
+
+    assessed = client.get("/api/v1/workflows/qualifications/assess",
+                          params={"bot": bot.name, "role": "worker"})
+    assert assessed.status_code == 200
+    assert assessed.json()["allowed"] is True
+    assert assessed.json()["route"]["endpoint"] == endpoint
+
+    removed = client.delete("/api/v1/workflows/qualifications",
+                            params={"bot": bot.name, "role": "worker"}, headers=KEY)
+    assert removed.json()["removed"] == 1
+
+
+def test_qualification_probe_uses_the_bots_connection_endpoint(client, monkeypatch):
+    from hutch.connections import ConnectionBook
+    from hutch.models import Bot
+
+    endpoint = "https://qualification-probe.example.test/v1"
+    monkeypatch.setenv("OPENCODE_API_KEY", "test-only-key")
+    book = ConnectionBook(client.app.state.config.state_dir)
+    book.add("opencode-go", base_url=endpoint)
+    bot = client.app.state.store.create_bot(
+        Bot(name="qualification-probe-connection", model="opencode-go/glm-5.3", tools=[]))
+    seen = {}
+
+    def capture_probe(_store, *, endpoint, provider, **_kwargs):
+        seen["endpoint"] = endpoint
+        seen["provider"] = provider
+        raise RuntimeError("captured route")
+
+    monkeypatch.setattr(probe_module, "run_probe_suite", capture_probe)
+    response = client.post("/api/v1/workflows/qualifications/probe",
+                           headers={"Idempotency-Key": "connection-probe-route"},
+                           json={"bot": bot.name, "role": "author", "campaign_id": "route-test"})
+
+    assert response.status_code == 409
+    assert seen["endpoint"] == endpoint
+    assert seen["provider"].base_url.rstrip("/") == endpoint.rstrip("/")
+
+
 def test_workflow_policy_route_saves_mode_and_scope(client):
     bot = make_bot(client, name="policy-bot")
     before = client.get("/api/v1/workflows/policy", params={"bot": "policy-bot"}).json()

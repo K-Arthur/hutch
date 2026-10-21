@@ -739,24 +739,32 @@ def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key:
     @app.get("/api/v1/workflows/qualifications/assess")
     def assess_role(bot: str, role: str, requires_tools: bool = False) -> dict[str, Any]:
         resolved = _bot_or_404(store, bot)
+        connections = qualify.connections_for_store(store)
         execution_profile_hash = None
         if role in qualify.PROBE_ONLY_ROLES:
             try:
                 from ..providers import make_provider, parse_spec
+                from ..providers.connection import provider_for_connection
                 from ..route_identity import default_endpoint
                 from ..workflow.probes import inspect_probe_profile
 
                 provider_name, _model = parse_spec(resolved.model)
-                endpoint = resolved.base_url or default_endpoint(provider_name)
+                route = qualify.route_ref(resolved.model, base_url=resolved.base_url or None,
+                                          connections=connections)
+                endpoint = route.endpoint
+                connection = connections.get(provider_name) if connections is not None else None
+                provider = (provider_for_connection(connections, provider_name, _model) if connection else
+                            make_provider(provider_name,
+                                          resolved.base_url or default_endpoint(provider_name) or None))
                 _name, _revision, profile = inspect_probe_profile(
-                    spec=resolved.model, endpoint=endpoint,
-                    provider=make_provider(provider_name, endpoint or None))
+                    spec=resolved.model, endpoint=endpoint, provider=provider)
                 execution_profile_hash = profile["fingerprint"]
             except Exception:
                 execution_profile_hash = None
         try:
             verdict = qualify.assess(role, spec=resolved.model, store=store,
                                      base_url=resolved.base_url or None,
+                                     connections=connections,
                                      requires_tools=requires_tools,
                                      execution_profile_hash=execution_profile_hash)
         except ValueError as exc:
@@ -770,14 +778,20 @@ def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key:
         bot = _bot_or_404(store, payload.bot)
         try:
             from ..providers import make_provider, parse_spec
+            from ..providers.connection import provider_for_connection
             from ..route_identity import default_endpoint
             from ..workflow.probes import run_probe_suite
 
             provider_name, _model = parse_spec(bot.model)
-            endpoint = bot.base_url or default_endpoint(provider_name)
+            connections = qualify.connections_for_store(store)
+            route = qualify.route_ref(bot.model, base_url=bot.base_url or None, connections=connections)
+            endpoint = route.endpoint
+            connection = connections.get(provider_name) if connections is not None else None
+            provider = (provider_for_connection(connections, provider_name, _model) if connection else
+                        make_provider(provider_name, bot.base_url or default_endpoint(provider_name) or None))
             result = run_probe_suite(
                 store, spec=bot.model, role=payload.role, endpoint=endpoint,
-                provider=make_provider(provider_name, endpoint or None), campaign_id=payload.campaign_id,
+                provider=provider, campaign_id=payload.campaign_id,
                 idempotency_scope="api:v1:workflows:qualifications:probe", idempotency_key=key,
                 request_hash=digest)
         except (ValueError, RuntimeError) as exc:
@@ -1254,7 +1268,8 @@ def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key:
         try:
             verdict = qualify.acknowledge_limited(store, spec=bot.model, role=payload.role,
                                                   reason=payload.reason, scope=payload.scope,
-                                                  base_url=bot.base_url or None)
+                                                  base_url=bot.base_url or None,
+                                                  connections=qualify.connections_for_store(store))
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
         return verdict.as_dict()
@@ -1265,7 +1280,8 @@ def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key:
         resolved = _bot_or_404(store, bot)
         try:
             removed = qualify.revoke(store, spec=resolved.model, role=role,
-                                     base_url=resolved.base_url or None)
+                                     base_url=resolved.base_url or None,
+                                     connections=qualify.connections_for_store(store))
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
         return {"removed": removed}

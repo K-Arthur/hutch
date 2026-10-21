@@ -2191,19 +2191,28 @@ def workflow_qualify(bot_ref: str = typer.Argument(...),
     store = _store()
     bot = _require_bot(store, bot_ref)
     from .providers import parse_spec
+    connections = qualify.connections_for_store(store)
+
+    def qualification_route_provider():
+        from .providers import make_provider
+        from .providers.connection import provider_for_connection
+
+        provider_name, model = parse_spec(bot.model)
+        route = qualify.route_ref(bot.model, base_url=bot.base_url or None, connections=connections)
+        connection = connections.get(provider_name) if connections is not None else None
+        provider = (provider_for_connection(connections, provider_name, model) if connection else
+                    make_provider(provider_name, route.endpoint or None))
+        return provider_name, model, route.endpoint, provider
 
     if probe:
         if role not in ("author", "selector"):
             err.print("[red]--probe supports only the author and selector held-out suites[/red]")
             raise typer.Exit(code=2)
-        from .providers import ProviderError, make_provider
-        from .route_identity import default_endpoint
+        from .providers import ProviderError
         from .workflow.probes import run_probe_suite
 
-        provider_name, _model = parse_spec(bot.model)
-        endpoint = bot.base_url or default_endpoint(provider_name)
         try:
-            provider = make_provider(provider_name, endpoint or None)
+            _provider_name, _model, endpoint, provider = qualification_route_provider()
             result = run_probe_suite(store, spec=bot.model, role=role, endpoint=endpoint,
                                      provider=provider, campaign_id=campaign)
         except (ProviderError, ValueError, RuntimeError) as exc:
@@ -2221,18 +2230,16 @@ def workflow_qualify(bot_ref: str = typer.Argument(...),
         profile_hash = None
         if role in ("author", "selector"):
             try:
-                from .providers import make_provider
-                from .route_identity import default_endpoint
                 from .workflow.probes import inspect_probe_profile
 
-                provider_name, _model = parse_spec(bot.model)
-                endpoint = bot.base_url or default_endpoint(provider_name)
+                _provider_name, _model, endpoint, provider = qualification_route_provider()
                 _name, _revision, profile = inspect_probe_profile(
-                    spec=bot.model, endpoint=endpoint, provider=make_provider(provider_name, endpoint or None))
+                    spec=bot.model, endpoint=endpoint, provider=provider)
                 profile_hash = profile["fingerprint"]
             except Exception:
                 profile_hash = None
         verdict = qualify.assess(role, spec=bot.model, store=store, base_url=bot.base_url or None,
+                                 connections=connections,
                                  execution_profile_hash=profile_hash)
         console.print(verdict.summary())
         if not verdict.allowed:
@@ -2242,7 +2249,8 @@ def workflow_qualify(bot_ref: str = typer.Argument(...),
                 console.print(f"  {line}")
         raise typer.Exit(code=0 if verdict.allowed else 1)
     if revoke:
-        removed = qualify.revoke(store, spec=bot.model, role=role, base_url=bot.base_url or None)
+        removed = qualify.revoke(store, spec=bot.model, role=role, base_url=bot.base_url or None,
+                                 connections=connections)
         console.print(f"removed {removed} qualification record(s) for {role} on {bot.model}")
         raise typer.Exit(code=0)
     if not reason:
@@ -2251,7 +2259,8 @@ def workflow_qualify(bot_ref: str = typer.Argument(...),
     try:
         verdict = qualify.acknowledge_limited(store, spec=bot.model, role=role, reason=reason,
                                               scope={"acknowledged_by": "cli"},
-                                              base_url=bot.base_url or None)
+                                              base_url=bot.base_url or None,
+                                              connections=connections)
     except ValueError as exc:
         err.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=2) from None

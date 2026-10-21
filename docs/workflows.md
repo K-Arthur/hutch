@@ -211,6 +211,8 @@ A model is not "workflow-capable" in general. Each role is qualified separately,
 route revision and execution profile, with its own evidence. The profile distinguishes the
 serving backend/version, checkpoint digest where available, quantization, chat template,
 tokenizer, protocol/parser, effective context, decoding settings and reported modalities.
+The exact route includes the Bot's configured ConnectionBook endpoint when present; CLI and
+API assessment, acknowledgement, revocation and probes all use that same connection route.
 It contains no credential or resource-readiness state. For Ollama, `/api/tags` and `/api/show`
 provide the installed digest and model metadata; missing identity fields are reported as
 incomplete instead of guessed. These fields now participate in compiler identity, so changing

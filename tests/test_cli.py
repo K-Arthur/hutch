@@ -77,6 +77,27 @@ def test_opencode_login_requires_an_interactive_linux_terminal(state_env, monkey
     assert "interactive terminal on the linux hutch host" in result.output.lower()
 
 
+def test_workflow_qualification_cli_uses_connection_endpoint(state_env):
+    from hutch.cli import _store
+    from hutch.connections import ConnectionBook
+    from hutch.workflow import qualify
+
+    assert runner.invoke(app, ["init"]).exit_code == 0
+    store = _store()
+    endpoint = "https://qualification-cli.example.test/v1"
+    book = ConnectionBook(store.config.state_dir)
+    book.add("opencode-go", base_url=endpoint)
+    bot = store.create_bot(Bot(name="qualification-cli", model="opencode-go/glm-5.3", tools=[]))
+
+    result = runner.invoke(app, ["workflow", "qualify", bot.name, "--role", "worker",
+                                 "--reason", "bounded test scope"])
+    assert result.exit_code == 0, result.output
+    route = qualify.route_ref(bot.model, connections=book)
+    records = store.role_qualifications(route.provider, route.model, route.revision)
+    assert records and records[0]["state"] == "limited"
+    assert route.endpoint == endpoint
+
+
 def test_bot_create_and_validation(state_env, monkeypatch):
     runner.invoke(app, ["init"])
     ok = runner.invoke(app, ["bot", "create", "my-scout", "--model", "mock/demo",
