@@ -10269,7 +10269,7 @@ def test_all_models_dialog_filters_explains_and_applies(browser, switcher_env, r
     assert page.locator(".ms-menu").is_hidden() and "small:2b" in page.locator(".ms-btn").inner_text()
 
 
-def test_openrouter_models_are_searchable_from_the_chat_picker(browser, switcher_env, request):
+def test_openrouter_models_are_searchable_from_the_chat_picker(browser, switcher_env, request, monkeypatch):
     from tests.fakes import FakeOpenAI
 
     base, app, _fake = switcher_env
@@ -10290,6 +10290,23 @@ def test_openrouter_models_are_searchable_from_the_chat_picker(browser, switcher
     from hutch.modelchoices import reset_cache
     reset_cache()
 
+    # Hold the mount-time local catalog until the explicit discovery request completes. Otherwise
+    # a slow initial response can arrive last and erase the discovered connection models.
+    from hutch import modelchoices
+    initial_started = threading.Event()
+    release_initial = threading.Event()
+    original_choices = modelchoices.model_choices
+
+    def delayed_initial_choices(config, store, bot, *, discover_hosted_models=False, model_query=""):
+        if not discover_hosted_models and not initial_started.is_set():
+            initial_started.set()
+            if not release_initial.wait(timeout=15):
+                raise RuntimeError("test did not release the initial model catalog")
+        return original_choices(config, store, bot, discover_hosted_models=discover_hosted_models,
+                                model_query=model_query)
+
+    monkeypatch.setattr(modelchoices, "model_choices", delayed_initial_choices)
+
     out = artifact_path("openrouter-model-search")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
@@ -10301,9 +10318,17 @@ def test_openrouter_models_are_searchable_from_the_chat_picker(browser, switcher
         page.goto(f"{base}/#/chat/chatty")
         button = page.locator(".ms-btn")
         button.wait_for()
+        assert initial_started.wait(timeout=5), "mount-time model catalog request did not start"
         assert router.requests == [], "opening a chat must not refresh provider catalogs"
         button.click()
-        page.locator('.ms-menu [data-spec="openrouter/anthropic/claude-sonnet-4"]').wait_for()
+        openrouter_model = page.locator('.ms-menu [data-spec="openrouter/anthropic/claude-sonnet-4"]')
+        openrouter_model.wait_for()
+        with page.expect_response(lambda response: "/api/bots/chatty/models" in response.url
+                                  and "discover=1" not in response.url) as initial_response:
+            release_initial.set()
+        assert initial_response.value.status == 200
+        page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
+        openrouter_model.wait_for()
         catalog = page.request.get(f"{base}/api/bots/chatty/models?discover=1").json()
         assert any(row["spec"] == "openrouter/anthropic/claude-sonnet-4" for row in catalog["models"]), catalog
         with page.expect_response(lambda response: "/api/bots/chatty/models?discover=1" in response.url) as all_models_response:
@@ -10353,6 +10378,7 @@ def test_openrouter_models_are_searchable_from_the_chat_picker(browser, switcher
                                                "tests/e2e/test_browser.py")},
         }, indent=2) + "\n", encoding="utf-8")
     finally:
+        release_initial.set()
         try:
             context.tracing.stop(path=str(out / "trace.zip"))
         except Exception:

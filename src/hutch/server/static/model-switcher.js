@@ -33,6 +33,7 @@
     let data = { default: bot.model, models: [{ spec: bot.model, label: shortName(bot.model), group: "This bot",
                                                   state: "ready", default: true, note: "this bot's own model" }] };
     let selected = store.get(key) || "";
+    let refreshRevision = 0;
 
     const find = spec => data.models.find(m => m.spec === spec);
     const active = () => (selected && (find(selected) || /\//.test(selected))) ? selected : data.default;
@@ -146,6 +147,7 @@
     function onOutside(ev) { if (!slot.contains(ev.target)) closeMenu(false); }
 
     async function refresh({ discover = false, query = "" } = {}) {
+      const revision = ++refreshRevision;
       try {
         const params = new URLSearchParams();
         if (discover) params.set("discover", "1");
@@ -153,6 +155,7 @@
         const encoded = params.toString();
         const suffix = encoded ? `?${encoded}` : "";
         const fresh = await api(`/bots/${encodeURIComponent(bot.name)}/models${suffix}`);
+        if (revision !== refreshRevision) return;
         data = fresh;
         paintButton();
         announceSelection();

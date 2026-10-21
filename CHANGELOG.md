@@ -11,6 +11,7 @@
 - Add validated typed output cards for charts, tables, timelines, comparisons, flowcharts, media, artifacts and code receipts. Blocks carry readable fallbacks and are rendered only from explicit tool data; invalid blocks remain visible as diagnostics. Add durable media jobs and content-addressed, hash-verified media storage with deterministic local renderers and optional OpenAI Images or ComfyUI adapters.
 - Add bounded conversation uploads and disclosures, plus a contained persistent Python workspace with generation-bound sessions and code receipts. Uploads are magic-byte checked, hash-verified at serve time, and registered under an atomic 200-file conversation cap; media and workspace routes remain owner-only.
 - Keep known connection models' billing notes visible when provider catalog discovery is unavailable, and report the discovery problem as supplemental detail.
+- Keep explicit hosted-model discovery results when the slower initial model catalog responds afterward; the composer now ignores superseded catalog responses.
 - Integrate output tables as additive schema v55 after mainline v51–v54. Both the historical output-v51 shape and current v54 databases upgrade idempotently while preserving user rows.
 - Decide and document the deployment topology (ADR-0018): one local engine per state directory, clients attach to it, a personal
   headless host is a supported profile of the same core, and shared multi-tenant hosting stays a separate release gate. Interface
