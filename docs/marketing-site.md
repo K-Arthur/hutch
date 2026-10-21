@@ -203,12 +203,14 @@ The marketing surface is Tailwind + DaisyUI layered on the brand token source:
   and a custom `hutch` theme mapped to the current design contract: emerald `#34d399`, 8px
   controls, 12px panels, 100px chips, and one dark theme.
 - Rebuild with `npm install` (once) then `npm run build:css`, which compiles `website/app.css`
-  and stamps each local asset reference in `index.html` with an 8-char content hash so a
-  cached sheet can never outlive its build. The compiled file is committed, so the page
+  and minifies the Hutch-specific `website/styles.css` source into `website/styles.min.css`.
+  It stamps each local asset reference in `index.html` with an 8-char content hash so a
+  cached sheet can never outlive its build. Both compiled files are committed, so the page
   stays a static, no-build surface at runtime: no external requests, no toolchain needed to
-  serve it. In the current build, `app.css` is 50,575 bytes and the Hutch-specific
-  `styles.css` is 36,193 bytes. The 40 KiB CSS budget applies to `styles.css`; deployment
-  compression is not part of the local transfer measurement.
+  serve it. In the current build, `app.css` is 51,665 bytes, editable `styles.css` is
+  42,310 bytes, and its served minified output is about 35.6 KiB. The 40 KiB transfer budget
+  applies to `styles.min.css`; deployment gzip/Brotli compression is not part of the local
+  transfer measurement.
 - `website/styles.css` holds only hutch-specific pieces — hero weave, proof chrome, code
   window, architecture diagram, receipts/availability tables, footer base, motion.
 - `website/tokens.css` remains the generated source of truth for brand/semantic values;

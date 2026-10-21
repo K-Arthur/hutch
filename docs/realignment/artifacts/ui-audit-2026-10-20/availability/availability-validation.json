@@ -1,9 +1,12 @@
 {
   "test": "tests/e2e/test_website.py::test_provider_availability_is_readable_without_horizontal_page_scroll",
-  "captured_at": "2026-10-21T06:49:20.418178+00:00",
+  "captured_at": "2026-10-21T07:33:25.878144+00:00",
   "browser": "153.0.8010.12",
-  "index_sha256": "ba2f5f8dc05ec249111aacef35120b8193d448bd9612be5a0b36364ea21949be",
-  "styles_sha256": "7a7f9e733e25e7559bc3341e9f8cd0a2b964aeb7b60fe0d3d864023a7c1aafdd",
+  "source_sha256": {
+    "website/index.html": "3e73ae64d0ecbbadd65b4d09bfcdd70252aa73192480d651f8c2cdafde8f1c5d",
+    "website/styles.css": "62cf027af1be662834e58462abc04dfd190856608d69edbbf640e83903a28e64",
+    "website/styles.min.css": "4c9ee5cfde1a45b7a187ba913746a8f886607a32cfd366ac196588dd1e45261c"
+  },
   "viewports": [
     {
       "name": "desktop",
@@ -52,6 +55,17 @@
         "clientWidth": 254
       },
       "page_overflow": 0
+    },
+    {
+      "name": "forced-colors-phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "active": true,
+      "overflow": 0,
+      "outline": "solid",
+      "outlineWidth": "2px"
     }
   ],
   "anonymous": true,

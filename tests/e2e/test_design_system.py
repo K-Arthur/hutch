@@ -1377,7 +1377,7 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                     assert "steps" not in run_card.inner_text().lower()
                     assert run.id not in run_card.inner_text()
                     assert page.locator("#runs-table-wrap > table").count() == 0
-                    assert page.locator("#runs-count").inner_text() == "1 loaded result"
+                    assert page.locator("#runs-count").inner_text() == "1 result"
                 if surface_name == "run-detail":
                     assert page.get_by_role("heading", name="Task details").is_visible()
                     assert page.locator("#chat-stream .answer").inner_text() == completed_answer

@@ -1944,8 +1944,9 @@ def test_work_history_paginates_and_searches_beyond_the_first_200_runs(browser, 
         page.get_by_role("button", name="Show 25 more tasks").click()
         assert page.locator("#runs-table-wrap .run-card").count() == 50
         page.get_by_role("button", name="Load older tasks").click()
-        page.wait_for_function(
-            "document.querySelector('#runs-count')?.textContent === 'Showing 50 of more than 100 matching tasks'"
+        wait_for_page(
+            page, "() => document.querySelector('#runs-count')?.textContent === "
+                  "'Showing 50 of more than 100 matching tasks'"
         )
         assert page.locator("#runs-table-wrap .run-card").count() == 50
         assert page.locator("#runs-count").inner_text() == "Showing 50 of more than 100 matching tasks"

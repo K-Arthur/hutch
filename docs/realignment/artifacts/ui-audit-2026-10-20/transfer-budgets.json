@@ -1,6 +1,6 @@
 {
   "test": "tests/e2e/test_website.py::test_landing_initial_transfer_stays_within_review_budget_and_art_loads_on_demand",
-  "captured_at": "2026-10-21T06:47:17.942198+00:00",
+  "captured_at": "2026-10-21T07:30:57.260498+00:00",
   "browser": "153.0.8010.12",
   "viewport": [
     1440,
@@ -13,15 +13,15 @@
     },
     {
       "url": "/tokens.css",
-      "bytes": 3967
+      "bytes": 4088
     },
     {
       "url": "/app.css",
-      "bytes": 50575
+      "bytes": 51665
     },
     {
-      "url": "/styles.css",
-      "bytes": 36193
+      "url": "/styles.min.css",
+      "bytes": 35588
     },
     {
       "url": "/assets/hutch-agent.webp",
@@ -42,9 +42,13 @@
     {
       "url": "/assets/captures/setup-desktop.webp",
       "bytes": 39214
+    },
+    {
+      "url": "/assets/captures/response-style-desktop.webp",
+      "bytes": 14896
     }
   ],
-  "initial_bytes": 351006,
+  "initial_bytes": 366508,
   "budgets_bytes": {
     "js": 102400,
     "custom_css": 40960,
@@ -60,8 +64,8 @@
     "/assets/fonts/archivo-latin-var.woff2"
   ],
   "source_sha256": {
-    "website/index.html": "ba2f5f8dc05ec249111aacef35120b8193d448bd9612be5a0b36364ea21949be",
-    "website/styles.css": "7a7f9e733e25e7559bc3341e9f8cd0a2b964aeb7b60fe0d3d864023a7c1aafdd",
+    "website/index.html": "3e73ae64d0ecbbadd65b4d09bfcdd70252aa73192480d651f8c2cdafde8f1c5d",
+    "website/styles.css": "62cf027af1be662834e58462abc04dfd190856608d69edbbf640e83903a28e64",
     "website/site.js": "51b1a0e6c99f9d74d980c568dfbcc6486eb43c247fe41217a7a49487fe6cefe0"
   },
   "external_requests": [],

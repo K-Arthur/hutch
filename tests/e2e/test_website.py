@@ -127,7 +127,7 @@ def test_landing_initial_transfer_stays_within_review_budget_and_art_loads_on_de
         assert len(sprite_paths) <= 2, sprite_paths
         assert len(font_paths) == 1, font_paths
         assert by_path["/site.js"] <= 100 * 1024
-        assert by_path["/styles.css"] <= 40 * 1024
+        assert by_path["/styles.min.css"] <= 40 * 1024
         assert by_path[font_paths[0]] <= 120 * 1024
         assert by_path["/assets/hutch-agent.webp"] <= 300 * 1024
         assert total_bytes <= 900 * 1024, {"bytes": total_bytes, "resources": initial}
@@ -240,12 +240,28 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     assert not external_requests, external_requests
     out = artifact_path("assistant-first-ui/marketing")
     out.mkdir(parents=True, exist_ok=True)
-    viewports = (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844))
+    audit_out = ROOT / "docs/realignment/artifacts/ui-audit-2026-10-20/marketing"
+    audit_out.mkdir(parents=True, exist_ok=True)
+    viewports = (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844),
+                 ("compact-phone", 320, 740))
+    landing_views = []
     for label, width, height in viewports:
         page.set_viewport_size({"width": width, "height": height})
         page.evaluate("scrollTo(0, 0)")
         assert mascot.is_visible()
         page.screenshot(path=str(out / f"site-mascot-{label}.png"), animations="disabled")
+        page.screenshot(path=str(audit_out / f"landing-{label}.png"), animations="disabled")
+        overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow <= 1, (label, overflow)
+        landing_views.append({"name": label, "viewport": [width, height], "overflow": overflow})
+    (audit_out / "validation.json").write_text(json.dumps({
+        "test": "tests/e2e/test_website.py::test_home_loads_real_assets_and_truthful_availability",
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "browser": browser.version,
+        "source_sha256": {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
+                          for name in ("website/index.html", "website/styles.css", "website/styles.min.css", "website/site.js")},
+        "viewports": landing_views, "external_requests": external_requests, "page_errors": errors,
+    }, indent=2) + "\n", encoding="utf-8")
     (out / "site-mascot-validation.json").write_text(json.dumps({
         "test": "tests/e2e/test_website.py::test_home_loads_real_assets_and_truthful_availability",
         "browser": browser.version, "playwright": package_version("playwright"),
@@ -693,6 +709,8 @@ def test_provider_availability_is_readable_without_horizontal_page_scroll(browse
             page.set_viewport_size({"width": width, "height": height})
             page.get_by_role("heading", name="Hutch is still a private preview.").scroll_into_view_if_needed()
             page.screenshot(path=str(out / f"availability-{label}.png"), full_page=True, animations="disabled")
+            table.screenshot(path=str(out / f"availability-table-{label}.png"), animations="disabled",
+                             style="body > header { display: none !important; } .skip-link { display: none !important; }")
             metrics = table.evaluate("el => ({scrollWidth: el.scrollWidth, clientWidth: el.clientWidth})")
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert overflow <= 1, (label, overflow)
@@ -701,6 +719,26 @@ def test_provider_availability_is_readable_without_horizontal_page_scroll(browse
             assert table.locator("tbody .ev:visible").count() == rows.count()
             captures.append({"name": label, "viewport": [width, height], "table": metrics,
                              "page_overflow": overflow})
+        page.set_viewport_size({"width": 390, "height": 844})
+        page.emulate_media(forced_colors="active", reduced_motion="reduce")
+        summary = page.locator("#get .availability-details > summary")
+        summary.focus()
+        page.keyboard.press("Tab")
+        page.keyboard.press("Shift+Tab")
+        assert summary.evaluate("el => document.activeElement === el")
+        forced_state = page.evaluate("""() => ({
+          active: matchMedia('(forced-colors: active)').matches,
+          overflow: document.documentElement.scrollWidth - innerWidth,
+          outline: getComputedStyle(document.querySelector('#get .availability-details > summary')).outlineStyle,
+          outlineWidth: getComputedStyle(document.querySelector('#get .availability-details > summary')).outlineWidth
+        })""")
+        assert forced_state["active"] and forced_state["overflow"] <= 1, forced_state
+        assert forced_state["outline"] != "none" and float(forced_state["outlineWidth"].removesuffix("px")) >= 2, forced_state
+        forced_dir = out.parent / "forced-colors"
+        forced_dir.mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=str(forced_dir / "marketing-phone.png"), full_page=True, animations="disabled")
+        summary.screenshot(path=str(forced_dir / "marketing-focus-phone.png"), animations="disabled")
+        captures.append({"name": "forced-colors-phone", "viewport": [390, 844], **forced_state})
         assert external == [], external
         assert not errors, errors
         (out / "availability-validation.json").write_text(json.dumps({
@@ -708,7 +746,8 @@ def test_provider_availability_is_readable_without_horizontal_page_scroll(browse
             "captured_at": datetime.now(timezone.utc).isoformat(),
             "browser": browser.version,
             "source_sha256": {"website/index.html": hashlib.sha256(source).hexdigest(),
-                              "website/styles.css": hashlib.sha256(styles).hexdigest()},
+                              "website/styles.css": hashlib.sha256(styles).hexdigest(),
+                              "website/styles.min.css": hashlib.sha256((SITE_DIR / "styles.min.css").read_bytes()).hexdigest()},
             "viewports": captures, "anonymous": True,
             "external_requests": external, "page_errors": errors,
         }, indent=2) + "\n", encoding="utf-8")
@@ -732,7 +771,7 @@ def test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_
         assert row.count() == 1
         text = row.inner_text().lower()
         assert "experimental" in row.inner_text().lower()
-        assert "consent unverified" in text
+        assert "consent is account-wide and unverified" in text
         paired = page.locator("#get .availability tbody tr").filter(has_text="Paired access and browser")
         assert "linux credential/captcha handoff" in paired.inner_text().lower()
         assert "browser field detection" in paired.inner_text().lower()
@@ -740,9 +779,10 @@ def test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_
         assert "exact approval each time" in text
         assert "microsoft consent is account-wide and unverified" in text
         assert "outlook mail provides read-only previews" in text
-        assert "consent unverified" in text
-        assert "private search requires owner oauth and loopback local routes" in text
-        assert "public release awaits google scope verification" in text
+        gmail = page.locator("#get .availability tbody tr").filter(has_text="Gmail search")
+        gmail_text = gmail.inner_text().lower()
+        assert "private search requires owner oauth and loopback local routes" in gmail_text
+        assert "public release awaits google scope verification" in gmail_text
         wrapper = page.locator("#get .overflow-x-auto")
         for label, width, height in (("desktop", 1440, 900), ("tablet", 900, 1024),
                                      ("phone", 390, 844), ("compact-phone", 320, 844)):
@@ -767,13 +807,13 @@ def test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_
                     whiteSpace: getComputedStyle(element).whiteSpace,
                     label: [...range.getClientRects()].map(rect => ({left: rect.left, right: rect.right})),
                     cell: element.getBoundingClientRect().toJSON(),
-                    description: element.nextElementSibling.getBoundingClientRect().toJSON(),
+                    cellBounds: element.closest('th').getBoundingClientRect().toJSON(),
                   };
                 }""")
                 assert label_bounds["whiteSpace"] != "nowrap", label_bounds
                 assert len(label_bounds["label"]) > 1, label_bounds
-                assert all(rect["left"] >= label_bounds["cell"]["left"] - 1
-                           and rect["right"] <= label_bounds["description"]["left"] + 1
+                assert all(rect["left"] >= label_bounds["cellBounds"]["left"] - 1
+                           and rect["right"] <= label_bounds["cellBounds"]["right"] + 1
                            for rect in label_bounds["label"]), label_bounds
             captures.append({"size": label, "viewport": [width, height], "table": metrics,
                              "table_capture": f"availability-table-{label}.png",
