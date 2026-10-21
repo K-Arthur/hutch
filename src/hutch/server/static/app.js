@@ -2017,7 +2017,7 @@ async function renderChatLibrary() {
       const labels = new Map(bots.map(item => [item.id, item.display_name || item.name]));
       results.innerHTML = page.items.length ? page.items.map(item => `<a class="chat-library-row" href="#/conversation/${esc(item.id)}">
         <span class="chat-library-copy"><strong>${esc(item.title || "Untitled conversation")}</strong><small>${esc(labels.get(item.bot_id) || "Unavailable assistant")} · ${esc(formatConversationDate(item.updated_at))}</small></span>
-        <span class="chat-library-meta">${item.archived ? "Archived" : item.is_legacy ? "Imported" : `${item.message_count} messages`} ${icon("arrow")}</span>
+        <span class="chat-library-meta">${item.is_legacy ? "Imported" : item.archived ? "Archived" : `${item.message_count} messages`} ${icon("arrow")}</span>
       </a>`).join("") : `<div class="empty-state"><p>No chats match these filters.</p><p class="hint">Try another assistant, title, or history bucket.</p></div>`;
       const first = page.total ? offset + 1 : 0;
       status.textContent = page.total ? `Showing ${first}–${offset + page.items.length} of ${page.total} chats.` : "No chats found.";

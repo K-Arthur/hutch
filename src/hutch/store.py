@@ -4750,7 +4750,7 @@ class Store:
         if scope == "active":
             where.extend(("c.archived = 0", "c.is_legacy = 0"))
         elif scope == "archived":
-            where.append("c.archived = 1")
+            where.extend(("c.archived = 1", "c.is_legacy = 0"))
         elif scope == "imported":
             where.append("c.is_legacy = 1")
         elif scope != "all":

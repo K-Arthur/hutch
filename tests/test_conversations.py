@@ -242,7 +242,7 @@ def test_conversation_library_pages_literal_title_search_and_history_buckets(con
                                              request_hash="library-imported")
     with store._tx() as db:
         db.execute("UPDATE conversations SET archived = 1 WHERE id = ?", (archived["id"],))
-        db.execute("UPDATE conversations SET is_legacy = 1 WHERE id = ?", (imported["id"],))
+        db.execute("UPDATE conversations SET archived = 1, is_legacy = 1 WHERE id = ?", (imported["id"],))
 
     first = client.post("/api/v1/conversations/query", json={"bot": bot["id"], "q": "planning", "limit": 50})
     assert first.status_code == 200, first.text
@@ -251,8 +251,10 @@ def test_conversation_library_pages_literal_title_search_and_history_buckets(con
     second = client.post("/api/v1/conversations/query", json={"bot": bot["id"], "q": "planning", "limit": 50, "offset": 50})
     assert second.status_code == 200 and len(second.json()["items"]) == 50
     assert {item["id"] for item in first_page["items"]}.isdisjoint({item["id"] for item in second.json()["items"]})
-    assert client.post("/api/v1/conversations/query", json={"bot": bot["id"], "scope": "archived"}).json()["items"][0]["id"] == archived["id"]
-    assert client.post("/api/v1/conversations/query", json={"bot": bot["id"], "scope": "imported"}).json()["items"][0]["id"] == imported["id"]
+    archived_page = client.post("/api/v1/conversations/query", json={"bot": bot["id"], "scope": "archived"}).json()
+    assert [item["id"] for item in archived_page["items"]] == [archived["id"]]
+    imported_page = client.post("/api/v1/conversations/query", json={"bot": bot["id"], "scope": "imported"}).json()
+    assert [item["id"] for item in imported_page["items"]] == [imported["id"]]
     assert client.post("/api/v1/conversations/query", json={"bot": bot["id"], "q": "%_", "scope": "all"}).json()["total"] == 0
     assert client.post("/api/v1/conversations/query", json={"scope": "missing"}).status_code == 422
 
