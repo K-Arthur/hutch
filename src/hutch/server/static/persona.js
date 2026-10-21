@@ -103,26 +103,28 @@
     : optionLabel(key, value);
 
   function fieldsHtml(prefix, keys = CHAT_FIELDS) {
+    const hintId = field => `${prefix}-hint-${field.key}`;
     return FIELDS.filter(field => keys.includes(field.key) && field.type !== "habits").map(field => `
       <label class="field persona-field">${esc(field.label)}
         ${field.type === "range"
-          ? `<span class="persona-range-row"><select aria-label="${esc(field.label)} inheritance" data-persona-field="${field.key}"><option value="${INHERIT}">Inherited</option><option value="custom">Custom</option></select><input id="${prefix}-${field.key}" type="range" min="${field.min}" max="${field.max}" step="${field.step}" data-persona-range="${field.key}" aria-label="${esc(field.label)} value"><output data-persona-value="${field.key}" for="${prefix}-${field.key}" aria-hidden="true"></output></span>`
-          : `<select id="${prefix}-${field.key}" data-persona-field="${field.key}">
+          ? `<span class="persona-range-row"><select aria-label="${esc(field.label)} inheritance" data-persona-field="${field.key}" aria-describedby="${hintId(field)}"><option value="${INHERIT}">Inherited</option><option value="custom">Custom</option></select><input id="${prefix}-${field.key}" type="range" min="${field.min}" max="${field.max}" step="${field.step}" data-persona-range="${field.key}" aria-label="${esc(field.label)} value" aria-describedby="${hintId(field)}"><output data-persona-value="${field.key}" for="${prefix}-${field.key}" aria-hidden="true"></output></span>`
+          : `<select id="${prefix}-${field.key}" data-persona-field="${field.key}" aria-describedby="${hintId(field)}">
               <option value="${INHERIT}">Inherited</option>
               ${field.options.map(([value, label]) =>
                 `<option value="${esc(value)}">${esc(label)}</option>`).join("")}
             </select>`}
-        <span class="hint" id="${prefix}-hint-${field.key}" data-persona-origin="${field.key}">${esc(field.hint)}</span>
+        <span class="hint" id="${hintId(field)}" data-persona-origin="${field.key}">${esc(field.hint)}</span>
       </label>`).join("");
   }
 
   function habitsHtml(prefix) {
-    return `<fieldset class="persona-habits" data-persona-habits>
+    const hintId = `${prefix}-hint-avoid_habits`;
+    return `<fieldset class="persona-habits" data-persona-habits aria-describedby="${hintId}">
       <legend>${esc(FIELDS.find(field => field.key === "avoid_habits").label)}</legend>
       <label class="persona-habit-inherit"><input type="checkbox" data-persona-habits-inherit> Use inherited preferences</label>
       <div class="persona-habit-options">${HABITS.map(([value, label]) => `
         <label><input type="checkbox" value="${esc(value)}" data-persona-habit> ${esc(label)}</label>`).join("")}</div>
-      <span class="hint" data-persona-origin="avoid_habits">${esc(FIELDS.find(field => field.key === "avoid_habits").hint)}</span>
+      <span class="hint" id="${hintId}" data-persona-origin="avoid_habits">${esc(FIELDS.find(field => field.key === "avoid_habits").hint)}</span>
     </fieldset>`;
   }
 

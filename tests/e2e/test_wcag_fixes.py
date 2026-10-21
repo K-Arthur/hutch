@@ -3,7 +3,8 @@
 Each test pins one audit finding: F-1 skip link, F-2 route focus/title,
 F-3 error-toast target, F-4 prose link underline, F-5 workflow pill target,
 M-1 tool-stream summary target, M-2 coarse small-button target,
-M-4 unknown-route 404 page shell.
+M-3 settings descriptions, M-4 unknown-route 404 page shell, and M-5
+responsive form-review rows.
 """
 from __future__ import annotations
 
@@ -18,6 +19,7 @@ from hutch.models import (ApprovalRequest, Bot, Event, EventType, Run, RunStatus
                           RuntimeKind, Task, iso, utcnow)
 from hutch.server.app import create_app
 from hutch.approvals import action_fingerprint
+from tests.support.artifacts import artifact_path
 
 
 @pytest.fixture(scope="module")
@@ -78,6 +80,21 @@ def test_skip_link_moves_focus_into_main(audit_browser, audit_live):
         assert focused == {"id": "view", "tag": "MAIN"}
     finally:
         page.close()
+
+
+def test_skip_link_meets_touch_comfort_target(audit_browser, audit_live):
+    """N-7: the focused skip link follows Hutch's 44px coarse-pointer target."""
+    base, _ = audit_live
+    context = audit_browser.new_context(viewport={"width": 390, "height": 844},
+                                        is_mobile=True, has_touch=True)
+    page = context.new_page()
+    try:
+        wait_live(page, base)
+        page.keyboard.press("Tab")
+        box = page.locator(".skip-link").bounding_box()
+        assert box is not None and box["height"] >= 44
+    finally:
+        context.close()
 
 
 def test_route_change_updates_title_and_rescues_orphaned_focus(audit_browser, audit_live):
@@ -214,6 +231,98 @@ def test_unknown_page_renders_html_404_with_title_and_lang(audit_browser, audit_
         assert page.evaluate("document.documentElement.getAttribute('lang')") == "en"
         assert page.title().strip() != ""
         assert page.locator("main h1").inner_text().strip() == "404"
+    finally:
+        page.close()
+
+
+def test_bot_settings_hints_are_associated_with_their_controls(audit_browser, audit_live):
+    """M-3: all helper text in the server-rendered settings form is described."""
+    base, app = audit_live
+    app.state.store.create_bot(Bot(name="wcag-settings", model="mock/demo", runtime=RuntimeKind.mock,
+                                   tools=["shell"]))
+    page = audit_browser.new_page()
+    try:
+        page.goto(base + "/bots/wcag-settings")
+        fields = {
+            "display_name": "display-name-hint",
+            "model": "model-hint",
+            "workspace_mode": "workspace-mode-hint",
+            "local_browser_handoff": "browser-handoff-help",
+            "workdir": "workdir-hint",
+            "risk_tier": "risk-tier-hint",
+            "command_rules": "command-rules-hint",
+        }
+        for name, hint_id in fields.items():
+            control = page.locator(f'.settings [name="{name}"]')
+            assert hint_id in (control.get_attribute("aria-describedby") or "").split()
+            assert page.locator(f"#{hint_id}").count() == 1
+        broken = page.locator(".settings [aria-describedby]").evaluate_all("""items => items.flatMap(el =>
+          (el.getAttribute('aria-describedby') || '').split(/\\s+/)
+            .filter(id => id && !document.getElementById(id)))""")
+        assert broken == []
+        page.goto(base + "/#/bot/wcag-settings")
+        page.locator(".assistant-settings-page label.field .hint[id]").first.wait_for()
+        unassociated = page.locator(".assistant-settings-page label.field").evaluate_all("""labels => labels.flatMap(label => {
+          const controls = [...label.querySelectorAll('input, select, textarea')];
+          const hints = [...label.querySelectorAll('.hint[id]')];
+          return hints.flatMap(hint => controls
+            .filter(control => !(control.getAttribute('aria-describedby') || '').split(/\\s+/).includes(hint.id))
+            .map(control => ({name: control.name, hint: hint.id})));
+        })""")
+        assert unassociated == [], unassociated
+        habits = page.locator(".assistant-settings-page fieldset.persona-habits")
+        hint = habits.locator(".hint[id]").get_attribute("id")
+        assert hint in (habits.get_attribute("aria-describedby") or "").split()
+    finally:
+        page.close()
+
+
+def test_form_review_rows_stack_at_phone_width(audit_browser, audit_live):
+    """M-5: real form-review rows stack at 320px and retain two columns on desktop."""
+    base, app = audit_live
+    store = app.state.store
+    bot = store.create_bot(Bot(name="wcag-form-review", model="mock/demo", runtime=RuntimeKind.mock,
+                               tools=["browser"]))
+    run = store.create_run(Run(bot_id=bot.id, prompt="submit the reviewed form",
+                               status=RunStatus.waiting_approval))
+    detail = {"target_kind": "form_submit", "target": {
+        "destination": "https://example.test/checkout", "method": "post", "label": "Continue",
+        "fields": [{"label": "Shipping address"}]}}
+    store.create_approval(ApprovalRequest(
+        run_id=run.id, bot_id=bot.id, tool="browser", action="Submit checkout form", detail=detail,
+        action_hash=action_fingerprint("browser", detail),
+        expires_at=iso(utcnow() + timedelta(minutes=10))))
+
+    page = audit_browser.new_page(viewport={"width": 1440, "height": 960})
+    try:
+        page.goto(base + "/#/approvals")
+        page.locator('#daemon-pill[data-state="live"]').wait_for(state="attached")
+        page.locator(".approval-review summary").first.click()
+        rows = page.locator(".form-review-rows .review-row")
+        rows.first.wait_for()
+        desktop_tracks = rows.first.evaluate("el => getComputedStyle(el).gridTemplateColumns.split(' ').length")
+        assert desktop_tracks == 2
+        review = page.locator(".needs-you details.approval-review")
+        artifact = artifact_path("wcag22-current")
+        artifact.mkdir(parents=True, exist_ok=True)
+        page.set_viewport_size({"width": 768, "height": 900})
+        assert rows.first.evaluate("el => getComputedStyle(el).gridTemplateColumns.split(' ').length") == 2
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+        page.set_viewport_size({"width": 390, "height": 844})
+        assert rows.first.evaluate("el => getComputedStyle(el).gridTemplateColumns.split(' ').length") == 1
+        assert review.evaluate("el => getComputedStyle(el).overflowY") == "visible"
+        assert page.get_by_text("Shipping address", exact=True).is_visible()
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+        page.screenshot(path=str(artifact / "form-review-phone-390.png"), full_page=True,
+                        animations="disabled")
+        page.set_viewport_size({"width": 320, "height": 844})
+        assert rows.first.evaluate("el => getComputedStyle(el).gridTemplateColumns.split(' ').length") == 1
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+        page.screenshot(path=str(artifact / "form-review-phone-320-top.png"), full_page=True,
+                        animations="disabled")
+        page.locator(".needs-you").evaluate("el => { el.scrollTop = el.scrollHeight; }")
+        page.screenshot(path=str(artifact / "form-review-phone-320-bottom.png"), full_page=True,
+                        animations="disabled")
     finally:
         page.close()
 

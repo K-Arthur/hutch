@@ -1967,6 +1967,7 @@ button.inline-link:hover { color: var(--text); }
 
 /* touch comfort (Hutch standard 44x44; exceeds WCAG 2.5.8's 24px) */
 @media (pointer: coarse) {
+  .skip-link { min-height: 44px; display: inline-flex; align-items: center; }
   .roster-row { min-height: 44px; }
   .btn { min-height: 40px; padding: 0 var(--s-4); }
   /* inline small buttons lose to button.small's min-height by specificity */
@@ -2055,6 +2056,9 @@ button.inline-link:hover { color: var(--text); }
 .fleet-filters { display: grid; grid-template-columns: minmax(0, 1fr) 180px; gap: var(--s-4); margin-bottom: var(--s-3); }
 @media (max-width: 640px) {
   .needs-you { padding: var(--s-4); }
+  /* Let the full review join the dialog's scroll on phones instead of trapping
+     its contents in a short nested scroller. */
+  .needs-you details.approval-review[open] { max-height: none; overflow: visible; }
   .browser-alerts { align-items: flex-start; flex-direction: column; }
   .browser-alerts .btn { width: 100%; }
   .fleet-filters { grid-template-columns: 1fr; }
