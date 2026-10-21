@@ -129,6 +129,12 @@ def _shot(page, name):
         page.screenshot(path=str(Path(target) / f"phone-control-{name}.png"), full_page=False)
 
 
+def _wait_for_control_slot(page):
+    # The control API admits one sequenced step per 200ms. Chromium can finish
+    # successive human interactions faster than that, especially in a full run.
+    page.wait_for_timeout(250)
+
+
 @pytest.mark.parametrize("width,height", [(360, 780), (768, 1024), (1440, 900)])
 def test_login_control_from_panel_reaches_owned_headless_session_and_hands_back(browser, controlled, width, height):
     base, app, run, bot, effects, failures, worker = controlled
@@ -149,6 +155,7 @@ def test_login_control_from_panel_reaches_owned_headless_session_and_hands_back(
         _shot(page, f"{width}")
         # Screenshots can take long enough to age the 10-second input frame. Refresh explicitly after capture,
         # then wait for the new private image before mapping the human click into its coordinates.
+        _wait_for_control_slot(page)
         image = panel.locator(".computer-human-img")
         previous_image = image.get_attribute("src")
         with page.expect_response(lambda response: response.url.endswith("/computer/control")
@@ -159,6 +166,7 @@ def test_login_control_from_panel_reaches_owned_headless_session_and_hands_back(
           const image = document.querySelector('.computer-human-img');
           return Boolean(image && image.src !== previous && image.complete && image.naturalWidth > 0);
         }""", arg=previous_image, timeout=5000)
+        _wait_for_control_slot(page)
         # Use the live fixture target and captured image dimensions so this exercises actual frame-to-CSS mapping.
         deadline = time.monotonic() + 3
         while not any(item["event"] == "geometry" for item in effects["trace"]) and time.monotonic() < deadline:
@@ -182,13 +190,16 @@ def test_login_control_from_panel_reaches_owned_headless_session_and_hands_back(
             .find(item => item.textContent.trim() === 'Type in focused control');
           return Boolean(button && !button.disabled);
         }""", timeout=5000), panel.inner_text()
+        _wait_for_control_slot(page)
         panel.get_by_label("Text to type in the controlled app").fill("SENTINEL-HUMAN-ONLY")
         panel.get_by_role("button", name="Type in focused control").click()
         wait_for_page(page, "() => document.querySelector('.computer-remote textarea').value === ''")
         expect(panel.get_by_role("button", name="Send key")).to_be_enabled()
+        _wait_for_control_slot(page)
         panel.get_by_label("Key to send").select_option("tab")
         panel.get_by_role("button", name="Send key").click()
         expect(panel.get_by_role("button", name="Send key")).to_be_enabled(timeout=5000)
+        _wait_for_control_slot(page)
         panel.get_by_label("Key to send").select_option("enter")
         panel.get_by_role("button", name="Send key").click()
         assert effects["receipt"].wait(5), f"controlled page did not receive expected form submission; safe trace: {effects['trace']}"
