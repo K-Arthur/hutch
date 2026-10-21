@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-10-21T07:35:32.174729+00:00",
+  "captured_at": "2026-10-21T07:38:53.646613+00:00",
   "url": "http://127.0.0.1:18789/#/chat",
   "state_check": {
     "bots": [],
@@ -13,7 +13,7 @@
     "version": "153.0.8010.12",
     "playwright": "1.63.0"
   },
-  "git_revision": "a2239200317a9e99da52e4e2299cc51c814a4d62",
+  "git_revision": "8b19f04c251cdaf5c390f9fb3b6c1f5cfc7dcc80",
   "source_sha256": {
     "src/hutch/__init__.py": "568574ab401d0207b2e5bbf867341bdce1041794c04a41813720be38df26da74",
     "src/hutch/action_receipts.py": "a71c0241ad306fdb74624b81fd859bf0eeb76ab521f255663163287c87e9140c",
