@@ -543,7 +543,7 @@ button.small:focus-visible, a.primary:focus-visible, a.ghost:focus-visible { out
 .status.waiting_child { color: var(--warn); border-color: rgba(251, 191, 36, 0.4); background: transparent; }
 .status.waiting_for_answer { color: var(--brand-hi); border-color: var(--brand-line); background: var(--brand-wash); }
 .status.failed, .chip.danger { color: var(--danger); border-color: rgba(248, 113, 113, 0.4); background: transparent; }
-/* Failure is a cross, not a dot (DESIGN.md: "✕ failed"): under protanopia the rose
+/* Failure is a cross, not a dot (DESIGN.md status chip "failed"): under protanopia the rose
    and emerald dots are nearly the same colour, so shape keeps them apart at a glance. */
 .status.failed::before, .chip.danger::before { width: 8px; height: 8px; border-radius: 0;
   clip-path: polygon(20% 0, 50% 30%, 80% 0, 100% 20%, 70% 50%, 100% 80%, 80% 100%, 50% 70%, 20% 100%, 0 80%, 30% 50%, 0 20%); }
