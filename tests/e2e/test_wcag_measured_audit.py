@@ -510,11 +510,12 @@ def test_sheet_inertness_follows_resize_across_the_breakpoint(audit_browser, aud
     page = audit_browser.new_page(viewport={"width": 1440, "height": 900})
     try:
         wait_live(page, base)
-        inert = "document.getElementById('workspace').inert"
+        # Function form: a bare string predicate is eval'd in the page, which Hutch's CSP blocks.
+        inert = "() => document.getElementById('workspace').inert"
         assert page.evaluate(inert) is False
         page.set_viewport_size({"width": 390, "height": 844})
         page.wait_for_function(inert)
         page.set_viewport_size({"width": 1440, "height": 900})
-        page.wait_for_function(f"!{inert}")
+        page.wait_for_function("() => !document.getElementById('workspace').inert")
     finally:
         page.close()
