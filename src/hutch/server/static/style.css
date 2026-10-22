@@ -2484,10 +2484,17 @@ body.paired-phone > :not(#phone-root) { display: none !important; }
 .service-tile-top { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-width: 0; }
 /* A narrow tile moves the state under the name, so a product name never breaks
    letter by letter beside the badge: mark, longest name word and the longest
-   badge ("Not available here") need about 18rem of tile content in one row. */
-@container (max-width: 18rem) {
+   badge ("Not available here") need about 18rem of tile content in one row,
+   16rem with the compact phone mark and gaps. */
+@container (max-width: 16rem) {
   .service-tile-top { grid-template-columns: 48px minmax(0, 1fr); }
   .service-tile-top .service-state { grid-column: 2; justify-self: start; }
+}
+@media (min-width: 641px) {
+  @container (max-width: 18rem) {
+    .service-tile-top { grid-template-columns: 48px minmax(0, 1fr); }
+    .service-tile-top .service-state { grid-column: 2; justify-self: start; }
+  }
 }
 .service-mark {
   display: grid; place-items: center; width: 48px; height: 48px; flex: none;
