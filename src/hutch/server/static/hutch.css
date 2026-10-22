@@ -211,6 +211,8 @@ html { scroll-padding-top: 4.5rem; }
 .field small { font-weight: 400; color: var(--faint); }
 input[type=text], input[type=password], select, textarea { width: 100%; background: var(--bg-subtle); color: var(--text); border: 1px solid var(--border-strong); border-radius: var(--r-sm); padding: 9px 11px; font: 14px var(--sans); }
 textarea { font-family: var(--mono); font-size: 13px; resize: vertical; }
+/* iOS Safari zooms on focus below 16px; touch devices get a 16px floor (zoom stays enabled). */
+@media (pointer: coarse) { input[type=text], input[type=password], select, textarea { font-size: 16px; } }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--focus); outline-offset: 0; border-color: transparent; }
 .settings { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .settings .wide, .form-actions { grid-column: 1 / -1; }

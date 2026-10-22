@@ -2077,6 +2077,11 @@ button.inline-link:hover { color: var(--text); }
   .roster-entry { grid-template-columns: minmax(0, 1fr) 44px; }
   .roster-options, .ws-nav button { min-height: 44px; }
   .roster-action-menu [role="menuitem"] { min-height: 44px; }
+  /* iOS Safari zooms the page when a focused field's text is under 16px; touch
+     devices get a 16px floor instead (zoom itself is never disabled). */
+  :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), select, textarea) {
+    font-size: max(1rem, 16px);
+  }
 }
 
 /* Visual review: preserve identity, decisions and composer at phone width. */

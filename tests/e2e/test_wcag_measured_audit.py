@@ -219,6 +219,23 @@ def test_server_page_tables_are_named_keyboard_regions(audit_browser, audit_live
         page.close()
 
 
+def test_touch_text_fields_meet_the_16px_no_zoom_floor(audit_browser, audit_live):
+    """F-10: on touch devices text fields render at 16px or more, so iOS Safari does not zoom on focus."""
+    base, app = audit_live
+    app.state.store.create_bot(Bot(name="zoom-fixture", model="mock/demo", tools=[]))
+    context = audit_browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    page = context.new_page()
+    try:
+        for path, selector in (("/#/chat/zoom-fixture", "#conversation-switcher"), ("/#/chat/zoom-fixture", "#bot-search"),
+                               ("/pair", "input[name=code]")):
+            page.goto(base + path)
+            page.locator(selector).wait_for(state="attached")
+            size = page.evaluate("(s) => parseFloat(getComputedStyle(document.querySelector(s)).fontSize)", selector)
+            assert size >= 16, (path, selector, size)
+    finally:
+        context.close()
+
+
 def test_server_skip_link_adds_no_overflow_in_rtl(audit_browser, audit_live):
     """F-14: the hidden skip link must not create horizontal scrolling when the page runs right-to-left."""
     base, _ = audit_live
