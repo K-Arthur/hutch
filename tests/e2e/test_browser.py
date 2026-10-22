@@ -11192,6 +11192,7 @@ def test_needs_you_prioritizes_deadline_and_keeps_close_reachable(browser, live,
     assert "leaves machine" in first.inner_text().lower()
     assert page.locator(".approvals-summary").inner_text().startswith("5 approvals")
     assert page.locator(".approval-filter").count() == 4
+    assert page.locator("#receipt-queue").is_hidden(), "the empty action-outcomes bucket is hidden"
     assert page.locator('.approval-filter[data-approval-filter="all"]').get_attribute("aria-pressed") == "true"
 
     page.locator('.approval-filter[data-approval-filter="high"]').click()
@@ -11310,6 +11311,7 @@ def test_needs_you_first_load_failure_is_not_left_loading(browser, live):
     assert page.locator("#approvals-overview").inner_text().strip() == "Requests could not be loaded."
     assert "No requests are displayed." in page.locator("#needs-you-error").inner_text()
     assert "Loading requests…" not in page.locator("#needs-you").inner_text()
+    assert page.locator("#receipt-queue").is_hidden()
     page.close()
 
 
@@ -11339,11 +11341,12 @@ def test_needs_you_receipts_only_leads_with_the_outcome(browser, live):
     page.locator("#receipts-pending [data-receipt-card]").wait_for()
     assert page.locator(".approvals-summary").inner_text().strip() == "0 approvals · 1 action outcome"
     assert page.locator("#approvals-overview .approval-filter").count() == 0
-    order = page.evaluate("""() => [...document.querySelectorAll('#needs-you #receipts-section, #needs-you #approvals-pending')]
+    order = page.evaluate("""() => [...document.querySelectorAll('#needs-you #receipt-queue, #needs-you #approvals-pending')]
         .map(el => el.id)""")
-    assert order == ["receipts-section", "approvals-pending"]
+    assert order == ["receipt-queue", "approvals-pending"]
+    assert page.locator("#receipt-queue").is_visible()
     assert page.locator("#receipt-queue-count").inner_text() == "1"
-    receipt_top = page.locator("#receipts-section").bounding_box()["y"]
+    receipt_top = page.locator("#receipt-queue").bounding_box()["y"]
     assert 0 <= receipt_top < 844
     assert "One action outcome still needs review." in page.locator("#approvals-pending").inner_text()
     page.close()

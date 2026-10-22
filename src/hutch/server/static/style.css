@@ -2116,7 +2116,7 @@ button.inline-link:hover { color: var(--text); }
 /* Reserve the final overview height while the first request paints. */
 .needs-you[data-approvals-loading="true"] .needs-you-sticky { min-height: 131px; }
 /* Keep card z-index scoped below the sticky header. */
-.needs-you #approvals-pending, .needs-you #receipts-section { isolation: isolate; }
+.needs-you #approvals-pending, .needs-you #receipt-queue { isolation: isolate; }
 .needs-you [data-approval-card], .needs-you #approvals-pending { scroll-margin-top: var(--needs-you-sticky, 128px); }
 .needs-you-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-2); }
 .needs-you-head h2 { margin: 0; font-size: var(--fs-xl); }

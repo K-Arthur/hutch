@@ -7182,7 +7182,7 @@ $("#approvals-pending")?.addEventListener("click", ev => {
 });
 
 function orderReceiptsSection(pendingCount, receiptCount) {
-  const section = $("#receipts-section");
+  const section = $("#receipt-queue");
   const pending = $("#approvals-pending");
   const pagination = $("#approvals-pagination");
   if (!section || !pending || !pagination) return;
@@ -7195,6 +7195,8 @@ function orderReceiptsSection(pendingCount, receiptCount) {
 
 function renderApprovalReceipts(receipts, stats) {
   const total = Number(stats?.unresolved_actions) || 0;
+  const section = $("#receipt-queue");
+  if (section) section.hidden = !receipts.length;
   const count = $("#receipt-queue-count");
   if (count) {
     count.textContent = total ? String(total) : "";
@@ -7202,9 +7204,7 @@ function renderApprovalReceipts(receipts, stats) {
   }
   const focus = document.activeElement;
   const focusReceipt = focus?.dataset?.receiptReview;
-  $("#receipts-pending").innerHTML = receipts.length
-    ? receipts.map(receiptCardHtml).join("")
-    : '<p class="hint">No uncertain action receipts.</p>';
+  $("#receipts-pending").innerHTML = receipts.length ? receipts.map(receiptCardHtml).join("") : "";
   $("#receipts-pagination").innerHTML = receipts.length
     ? `<span class="hint">${receiptOffset + 1}–${receiptOffset + receipts.length} of ${total} actions</span>
       ${receiptOffset ? '<button class="btn ghost small" id="receipts-prev" type="button">Previous actions</button>' : ""}
