@@ -2233,10 +2233,10 @@ def test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences(
 
         with page.expect_response(lambda response: response.url.endswith("/api/v1/schedules/control")
                                   and response.request.method == "PUT") as paused:
-            page.get_by_role("button", name="Pause scheduled work").click()
+            page.get_by_role("switch", name="Automatic starts").click()
         assert paused.value.status == 200 and paused.value.json()["paused"] is True
         wait_for(lambda: store.workspace_schedule_control()["paused"] is True)
-        page.get_by_role("button", name="Resume scheduled work").wait_for()
+        page.locator('#schedule-control-toggle[aria-checked="false"]').wait_for()
         assert page.evaluate("document.activeElement?.id") == "schedule-control-toggle"
         assert store.get_run(live_run.id).status is RunStatus.running
         wait_for(lambda: page.get_by_text("Paused for now", exact=True).count() == 2)
@@ -2278,14 +2278,14 @@ def test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences(
                                  "screenshot": bottom_path.name})
 
         page.reload()
-        page.get_by_role("button", name="Resume scheduled work").wait_for()
+        page.locator('#schedule-control-toggle[aria-checked="false"]').wait_for()
         page.get_by_text("each task follows its saved choice for missed times", exact=False).wait_for()
         with page.expect_response(lambda response: response.url.endswith("/api/v1/schedules/control")
                                   and response.request.method == "PUT") as resumed:
-            page.get_by_role("button", name="Resume scheduled work").click()
+            page.get_by_role("switch", name="Automatic starts").click()
         assert resumed.value.status == 200 and resumed.value.json()["paused"] is False
         wait_for(lambda: store.workspace_schedule_control()["paused"] is False)
-        page.get_by_role("button", name="Pause scheduled work").wait_for()
+        page.locator('#schedule-control-toggle[aria-checked="true"]').wait_for()
         assert page.evaluate("document.activeElement?.id") == "schedule-control-toggle"
         wait_for(lambda: page.locator(".schedule-overview-list .tag").get_by_text("On", exact=True).count() == 2)
         assert page.get_by_text("Paused for this assistant", exact=True).count() == 1

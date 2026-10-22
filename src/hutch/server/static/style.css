@@ -484,6 +484,41 @@ button.small:focus-visible, a.primary:focus-visible, a.ghost:focus-visible { out
 .btn.danger:hover { background: color-mix(in oklab, var(--danger) 12%, transparent); }
 .btn.warn { background: var(--warn); border-color: var(--warn); color: var(--warn-ink); }
 
+/* ── switch: an on/off setting that applies immediately (WAI-ARIA switch) ──
+   A button with role="switch" + aria-checked, or a checkbox with role="switch".
+   The label names the setting and never flips; the thumb position, track fill
+   and visible On/Off word all carry the state, so colour is never the only cue.
+   The thumb is a gradient so the same look works on a native checkbox. */
+.switch {
+  all: unset; box-sizing: border-box; cursor: pointer;
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  min-height: 32px; color: var(--text); font: var(--weight-semibold) var(--fs-sm)/1.2 var(--font-ui);
+}
+.switch-state { min-inline-size: 3ch; color: var(--text-2); font-weight: 400; }
+.switch-track, input[type="checkbox"][role="switch"] {
+  appearance: none; flex: none; box-sizing: border-box; margin: 0;
+  inline-size: 36px; block-size: 20px; border-radius: var(--r-chip);
+  border: 1px solid var(--text-3);
+  background: radial-gradient(circle at 9px 50%, var(--text-2) 5.5px, transparent 6px);
+}
+.switch[aria-checked="true"] .switch-track, input[type="checkbox"][role="switch"]:checked {
+  border-color: var(--brand);
+  background: radial-gradient(circle at calc(100% - 9px) 50%, var(--brand-ink) 5.5px, transparent 6px), var(--brand);
+}
+.switch:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-ctl); }
+.switch[aria-busy="true"], .switch:disabled { cursor: progress; opacity: 0.7; }
+@media (forced-colors: active) {
+  .switch-track, input[type="checkbox"][role="switch"] {
+    forced-color-adjust: none; border-color: CanvasText;
+    background: radial-gradient(circle at 9px 50%, CanvasText 5.5px, transparent 6px);
+  }
+  .switch[aria-checked="true"] .switch-track, input[type="checkbox"][role="switch"]:checked {
+    border-color: Highlight;
+    background: radial-gradient(circle at calc(100% - 9px) 50%, HighlightText 5.5px, transparent 6px), Highlight;
+  }
+}
+@media (pointer: coarse) { .switch { min-height: 44px; } }
+
 /* ── chips: state pills — the 100px geometry exception ── */
 .chip, .status, .tag {
   display: inline-flex; align-items: center; gap: 5px;
@@ -1811,7 +1846,6 @@ button.inline-link:hover { color: var(--text); }
 
 .schedule-overview { display: grid; align-content: start; gap: var(--s-4); }
 .schedule-overview-note { max-width: 78ch; margin: 0; color: var(--text-2); }
-.schedule-control-state { color: var(--text-2); font-size: var(--fs-sm); }
 .schedule-paused-note { margin: 0; padding: var(--s-3) var(--s-4); border: 1px solid var(--line-strong); border-radius: var(--r-panel); background: var(--panel); }
 .schedule-overview > .schedule-empty { width: min(100%, 760px); justify-self: center; padding: clamp(24px, 4vw, 40px); border: 1px solid var(--line); background: var(--panel); }
 .schedule-overview > .schedule-empty > .ico { display: grid; place-items: center; width: 48px; height: 48px; margin: 0 auto; color: var(--brand); background: var(--brand-wash); border-radius: var(--r-panel); }

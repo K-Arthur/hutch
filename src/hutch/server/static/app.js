@@ -3261,7 +3261,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
                   <div class="cmenu-sep"></div>
                   <label class="cmenu-row"><input type="checkbox" id="rehearse-opt">
                     <span>Rehearse this run<span class="cmenu-sub">simulates writes and commands; model calls and reads still happen, and remote reads can have service-side effects</span></span></label>
-                  <label class="cmenu-row"><input type="checkbox" id="enter-send-setting" checked>
+                  <label class="cmenu-row"><input type="checkbox" id="enter-send-setting" role="switch" checked>
                     <span>Enter sends<span class="cmenu-sub">off: Enter adds a newline, use the send button</span></span></label>
                   <div class="cmenu-sep"></div>
                   <div class="cmenu-facts">${budgetMeterHtml(detail)}
@@ -6274,10 +6274,10 @@ function paintSchedules() {
         </details>`
     : `<a class="btn primary" href="#/chat">Create an assistant</a>`;
   setTopContext(`<div class="ctx-id"><h1>Scheduled work</h1></div>
-    <div class="ctx-actions schedule-control-actions"><span class="schedule-control-state" role="status">Scheduled work is ${paused ? "paused" : "on"}</span>
-      <button class="btn ${paused ? "primary" : "ghost"} small" id="schedule-control-toggle" type="button"
+    <div class="ctx-actions schedule-control-actions">
+      <button class="switch" id="schedule-control-toggle" type="button" role="switch" aria-checked="${!paused}"
         ${scheduleControlPending ? 'aria-disabled="true" aria-busy="true"' : ""}>
-        ${paused ? "Resume scheduled work" : "Pause scheduled work"}
+        <span>Automatic starts</span><span class="switch-track" aria-hidden="true"></span><span class="switch-state" aria-hidden="true">${paused ? "Off" : "On"}</span>
       </button></div>`);
   view.innerHTML = `
     <div class="page-scroll"><div class="container schedule-overview">
@@ -12053,9 +12053,9 @@ function paintRuntime() {
           ${queue.execution_held ? `<div><dt>Execution</dt><dd><span class="tag danger">Held</span> Restore review is required before new work starts.</dd></div>` : ""}
         </dl>
         <div class="runtime-controls">
-          <button class="btn ${automationPaused ? "primary" : "ghost"} small" type="button"
+          <button class="switch" type="button" role="switch" aria-checked="${!automationPaused}"
                   data-runtime-action="${automationPaused ? "automation-resume" : "automation-pause"}">
-            ${automationPaused ? "Resume automation" : "Pause automation"}
+            <span>Automatic starts</span><span class="switch-track" aria-hidden="true"></span><span class="switch-state" aria-hidden="true">${automationPaused ? "Off" : "On"}</span>
           </button>
         </div>
       </section>
@@ -12155,8 +12155,8 @@ async function runtimeAction(action, button) {
       setRuntimePending(action, true);
       await api("/v1/schedules/control", { method: "PUT", body: { paused } });
       await renderRuntime();
-      runtimeNotice(paused ? "Automation paused. Schedules and watched sources will not start new work; running work can finish."
-                           : "Automation resumed.");
+      runtimeNotice(paused ? "Automatic starts paused. Schedules and watched sources will not start new work; running work can finish."
+                           : "Automatic starts resumed.");
       return;
     }
     if (action === "source-check") {
@@ -12216,7 +12216,9 @@ async function runtimeAction(action, button) {
     runtimeNotice(err.message || "That action failed.", true);
   } finally {
     setRuntimePending("", false);
-    const again = focusId ? $(`[data-runtime-action="${focusId.split(":")[0]}"][data-source-id="${focusId.split(":")[1] || ""}"]`) : null;
+    // The automatic-starts switch changes its action as it flips, so find it by role.
+    const again = action.startsWith("automation-") ? $('[role="switch"][data-runtime-action]')
+      : focusId ? $(`[data-runtime-action="${focusId.split(":")[0]}"][data-source-id="${focusId.split(":")[1] || ""}"]`) : null;
     (again || $("[data-runtime-action]"))?.focus?.({ preventScroll: true });
   }
 }

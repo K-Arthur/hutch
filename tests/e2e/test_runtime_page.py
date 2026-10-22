@@ -108,7 +108,7 @@ def test_runtime_page_shows_truth_and_controls_bounded_work(live, browser, tmp_p
     while time.time() < deadline and not store.workspace_schedule_control()["paused"]:
         time.sleep(0.05)
     assert store.workspace_schedule_control()["paused"] is True
-    page.wait_for_selector('text=Automation paused', timeout=5000)
+    page.wait_for_selector('text=Automatic starts paused', timeout=5000)
     page.click('[data-runtime-action="automation-resume"]')
     deadline = time.time() + 5
     while time.time() < deadline and store.workspace_schedule_control()["paused"]:

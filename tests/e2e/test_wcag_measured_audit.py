@@ -304,6 +304,32 @@ def test_helper_text_keeps_the_72ch_measure(audit_browser, audit_live):
         page.close()
 
 
+def test_immediate_on_off_settings_are_switches(audit_browser, audit_live):
+    """D-02: automatic starts (Scheduled work and Runtime) and Enter-sends are switches that keep focus."""
+    base, app = audit_live
+    app.state.store.create_bot(Bot(name="switch-fixture", model="mock/demo", tools=[]))
+    page = audit_browser.new_page(viewport={"width": 1440, "height": 900})
+    try:
+        for path, selector in (("/#/schedules", "#schedule-control-toggle"), ("/#/runtime", "[role=switch][data-runtime-action]")):
+            page.goto(base + path)
+            switch = page.locator(selector)
+            switch.wait_for()
+            assert switch.get_attribute("role") == "switch" and switch.get_attribute("aria-checked") == "true"
+            assert page.get_by_role("switch", name="Automatic starts").count() == 1
+            assert "On" in switch.inner_text()
+            tab_to(page, selector, 120)
+            page.keyboard.press("Space")
+            page.locator(f'{selector}[aria-checked="false"]').wait_for()
+            assert "Off" in switch.inner_text()
+            assert page.evaluate("(s) => document.activeElement.matches(s)", selector), path
+            page.keyboard.press("Space")
+            page.locator(f'{selector}[aria-checked="true"]').wait_for()
+        page.goto(base + "/#/chat/switch-fixture")
+        assert page.locator("#enter-send-setting").get_attribute("role") == "switch"
+    finally:
+        page.close()
+
+
 def test_server_skip_link_adds_no_overflow_in_rtl(audit_browser, audit_live):
     """F-14: the hidden skip link must not create horizontal scrolling when the page runs right-to-left."""
     base, _ = audit_live
