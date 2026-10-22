@@ -2655,7 +2655,8 @@ function renderWorkflow(stats) {
 function renderAttention() {  const bar = $("#attention-bar");
   if (!bar) return;
   const n = lastPendingCount || 0;
-  const onApprovals = needsYouDialog.open;
+  // The Needs you route opens its dialog just after rendering chat; don't flash the reminder first.
+  const onApprovals = needsYouDialog.open || needsYouRouteOpening;
   const shownRequests = $$("#chat-stream [data-approval-card]").filter(c => c.querySelector("[data-approve]:not([disabled])"));
   const shownReceipts = $$('#chat-stream [data-receipt-card]').filter(c => !c.dataset.receiptReviewed);
   const allInChat = location.hash.startsWith("#/chat") && n && n <= shownRequests.length + shownReceipts.length;
@@ -6932,10 +6933,16 @@ needsYouDialog.addEventListener("click", ev => {
 });
 
 // Existing bookmarks open the queue over Studio, without trapping browser Back.
+let needsYouRouteOpening = false;
 async function renderApprovals() {
   history.replaceState(null, "", "#/chat");
-  await renderChatStudio();
-  await openNeedsYou();
+  needsYouRouteOpening = true;
+  try {
+    await renderChatStudio();
+    await openNeedsYou();
+  } finally {
+    needsYouRouteOpening = false;
+  }
 }
 
 let receiptOffset = 0;

@@ -1309,7 +1309,7 @@ nav a.attention, .ws-nav a.attention { color: var(--warn); }
 body.has-composer .attention-bar { top: calc(var(--app-top-h, 56px) + 10px); bottom: auto; }
 /* Elsewhere the bar floats over the end of the page; reserve room so the last
    focusable item can scroll clear of it (WCAG 2.4.11, technique C43). */
-@media (min-width: 901px) {
+@media (min-width: 641px) {
   body:not(.has-composer):has(#attention-bar:not([hidden])) main#view > .page-scroll {
     padding-bottom: calc(var(--attention-h, 58px) + var(--s-5) + var(--s-3));
     scroll-padding-bottom: calc(var(--attention-h, 58px) + var(--s-5) + var(--s-3));
@@ -2143,7 +2143,9 @@ button.inline-link:hover { color: var(--text); }
 /* The status chip keeps its size. When identity, chip and run controls do not fit
    on one row, the controls wrap under the identity instead of painting over it. */
 .app-top-context { flex-wrap: wrap; height: auto; row-gap: var(--s-2); padding-block: 6px; }
-.ctx-id { flex: 1 1 18rem; }
+.ctx-id { flex: 1 1 auto; }
+/* A long subtitle truncates rather than forcing the header to wrap. */
+.ctx-subtitle { contain: inline-size; }
 .ctx-id h1 { min-width: 0; }
 .ctx-meta { flex: none; }
 .ctx-actions { flex: 0 1 auto; min-width: 0; }
@@ -2161,17 +2163,17 @@ button.inline-link:hover { color: var(--text); }
   .app-top-context { flex-wrap: wrap; height: auto; padding: 2px 0; }
   .ctx-id { flex: 1 1 100%; }
   .ctx-actions { flex: 1 1 100%; }
-  /* The reminder is in normal grid flow wherever the header wraps, so it never
-     covers header controls; it stays behind the opened workspace sheet so
-     phone navigation remains reachable. */
-  .app-shell { grid-template-rows: auto auto minmax(0, 1fr); }
-  .app-top { grid-row: 1; }
-  main#view { grid-row: 3; }
-  .attention-bar { position: static; grid-row: 2; grid-column: 1; transform: none; z-index: auto; width: auto;
-    margin: var(--s-2) var(--s-3); gap: var(--s-2); box-shadow: none; }
 }
 @media (max-width: 640px) {
   .approval-buttons .btn, .needs-you-head button { min-height: 44px; }
+  .app-shell { grid-template-rows: auto auto minmax(0, 1fr); }
+  .app-top { grid-row: 1; }
+  main#view { grid-row: 3; }
+  /* The reminder is in normal grid flow; it must stay behind the opened
+     workspace sheet so phone navigation remains reachable. Wider screens dock
+     it under the measured header instead, so it never pushes content down. */
+  .attention-bar { position: static; grid-row: 2; grid-column: 1; transform: none; z-index: auto; width: auto;
+    margin: var(--s-2) var(--s-3); gap: var(--s-2); box-shadow: none; }
   .ctx-actions:has(#conversation-switcher) { gap: var(--s-1); }
   .ctx-actions:has(#conversation-switcher) .conversation-select { min-width: 96px; flex: 1 1 96px; }
   .attention-bar .btn, .attention-bar .icon-btn { min-height: 44px; }

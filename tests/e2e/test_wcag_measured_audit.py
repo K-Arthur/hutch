@@ -449,6 +449,45 @@ def test_skills_header_and_import_row_are_aligned(audit_browser, audit_live):
         page.close()
 
 
+def test_header_wraps_only_when_its_controls_do_not_fit(audit_browser, audit_live):
+    """F-06 follow-up: a short title with one control stays on one header row (no late-load shift)."""
+    base, app = audit_live
+    store = app.state.store
+    seed_pending_approval(store, "header-fixture-a")  # waiting + need-you counts widen the status cluster,
+    seed_pending_approval(store, "header-fixture-b")  # as in a busy workspace
+    app.state.engine.tick = lambda: None  # keep the queued task queued
+    store.create_run(Run(bot_id=store.get_bot("header-fixture-a").id, prompt="Queued fixture", status=RunStatus.pending))
+    page = audit_browser.new_page(viewport={"width": 960, "height": 900})  # narrowest common desktop band
+    page.add_init_script(LAYOUT_SHIFT)
+    try:
+        page.goto(base + "/#/schedules")
+        page.locator("#schedule-control-toggle").wait_for()
+        page.wait_for_timeout(800)
+        assert page.evaluate("document.querySelector('.app-top').getBoundingClientRect().height") <= 60
+        assert page.evaluate("window.__shift") < 0.1
+    finally:
+        page.close()
+
+
+def test_needs_you_route_never_flashes_the_reminder(audit_browser, audit_live):
+    """F-04 follow-up: opening Needs you directly does not show and then hide the reminder (phone layout)."""
+    base, app = audit_live
+    seed_pending_approval(app.state.store)
+    context = audit_browser.new_context(viewport={"width": 375, "height": 812}, is_mobile=True, has_touch=True)
+    page = context.new_page()
+    page.add_init_script("""window.__reminderShown = false;
+      new MutationObserver(() => { const bar = document.getElementById('attention-bar');
+        if (bar && !bar.hidden) window.__reminderShown = true; })
+        .observe(document, {subtree: true, attributes: true, attributeFilter: ['hidden'], childList: true});""")
+    try:
+        page.goto(base + "/#/approvals")
+        page.locator("#needs-you[open] [data-approve]").first.wait_for()
+        page.wait_for_timeout(600)
+        assert page.evaluate("window.__reminderShown") is False
+    finally:
+        context.close()
+
+
 def test_server_skip_link_adds_no_overflow_in_rtl(audit_browser, audit_live):
     """F-14: the hidden skip link must not create horizontal scrolling when the page runs right-to-left."""
     base, _ = audit_live
