@@ -163,7 +163,11 @@ Approvals appear in the chat where the action was requested and remain available
 in the dedicated queue for review at scale. Lead with the action and consequence;
 keep exact arguments and destination reviewable; never hide an approval behind a
 generic notification or rely on color alone. The **Needs you** queue puts pending
-decisions and uncertain outcomes first. Optional browser notifications stay in a
+decisions and uncertain outcomes first. At scale it orders requests by the soonest
+decision deadline, then risk and outward effect, and keeps a sticky summary with
+counts and filters for due-soon, high-risk, and leaves-machine requests. The close
+control remains reachable while the queue scrolls. There is still no bulk approval;
+each decision stays bound to the exact request shown. Optional browser notifications stay in a
 collapsed **Browser notifications** disclosure with their current state visible
 in its summary; recently decided requests remain collapsed until someone asks to
 review them.

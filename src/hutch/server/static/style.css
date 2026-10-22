@@ -1256,6 +1256,7 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
 .ttl-countdown.expired { color: var(--danger); }
 
 details.approval-review { margin: var(--s-3) 0; border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--sunken); overflow: hidden; }
+details.approval-review > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 details.approval-review > summary {
   cursor: pointer; list-style: none;
   padding: var(--s-2) var(--s-3); font: 600 var(--fs-sm)/1 var(--sans); color: var(--text-2);
@@ -2097,11 +2098,44 @@ button.inline-link:hover { color: var(--text); }
   .roster-options[aria-expanded="true"] { opacity: 1; pointer-events: auto; }
 }
 .ctx-id h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.needs-you { position: fixed; inset: 0 0 0 auto; margin: 0; width: min(580px, 100vw); height: 100dvh; max-width: 100vw; max-height: 100dvh; padding: var(--s-5); color: var(--text); background: var(--panel); border: 0; border-left: 1px solid var(--line-strong); overflow-y: auto; box-sizing: border-box; }
+.needs-you {
+  --needs-you-pad: var(--s-5);
+  position: fixed; inset: 0 0 0 auto; margin: 0; width: min(580px, 100vw); height: 100dvh;
+  max-width: 100vw; max-height: 100dvh; padding: 0 var(--needs-you-pad) var(--needs-you-pad); color: var(--text);
+  background: var(--panel); border: 0; border-left: 1px solid var(--line-strong);
+  overflow-y: auto; box-sizing: border-box;
+  scroll-padding-top: var(--needs-you-sticky, 128px);
+}
 .needs-you::backdrop { background: rgba(0,0,0,.55); }
-.needs-you-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-3); }
+.needs-you-sticky {
+  position: sticky; top: 0; z-index: 1;
+  margin: 0 calc(-1 * var(--needs-you-pad)) 0;
+  padding: var(--needs-you-pad) var(--needs-you-pad) var(--s-2);
+  background: var(--panel); border-bottom: 1px solid var(--line);
+}
+/* Reserve the final overview height while the first request paints. */
+.needs-you[data-approvals-loading="true"] .needs-you-sticky { min-height: 131px; }
+/* Keep card z-index scoped below the sticky header. */
+.needs-you #approvals-pending, .needs-you #receipts-section { isolation: isolate; }
+.needs-you [data-approval-card], .needs-you #approvals-pending { scroll-margin-top: var(--needs-you-sticky, 128px); }
+.needs-you-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-2); }
 .needs-you-head h2 { margin: 0; font-size: var(--fs-xl); }
 .needs-you-head button { font-size: var(--fs-2xl); }
+.approvals-overview { display: grid; gap: var(--s-2); }
+.approvals-summary { margin: 0; font-size: var(--fs-sm); color: var(--text-2); line-height: 1.45; }
+.approvals-summary b { color: var(--text); font-variant-numeric: tabular-nums; }
+.approvals-filters { display: flex; flex-wrap: wrap; gap: var(--s-1); }
+.approval-filter {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 10px;
+  border: 1px solid var(--line); border-radius: var(--r-chip); background: transparent;
+  color: var(--text-2); font: 600 var(--fs-2xs)/1 var(--font-ui); cursor: pointer;
+}
+.approval-filter:hover { border-color: var(--line-strong); color: var(--text); }
+.approval-filter:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.approval-filter[aria-pressed="true"] { background: var(--brand-wash); border-color: var(--brand-line); color: var(--brand-hi); }
+.approval-filter .count { color: inherit; opacity: .82; font-variant-numeric: tabular-nums; }
+.approvals-cap { margin: 0; }
+.needs-you h3 .count { margin-left: 4px; color: var(--text-3); font: 600 var(--fs-xs)/1 var(--mono); }
 .browser-alerts { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-3); margin: var(--s-3) 0; border: 1px solid var(--line); border-radius: var(--r-panel); }
 .browser-alerts p { margin: var(--s-1) 0 0; }
 .browser-alerts .btn { flex: 0 0 auto; min-height: 44px; }
@@ -2122,7 +2156,9 @@ button.inline-link:hover { color: var(--text); }
 #needs-you-error { color: var(--warn); margin: var(--s-3) 0; }
 .fleet-filters { display: grid; grid-template-columns: minmax(0, 1fr) 180px; gap: var(--s-4); margin-bottom: var(--s-3); }
 @media (max-width: 640px) {
-  .needs-you { padding: var(--s-4); }
+  .needs-you { --needs-you-pad: var(--s-4); }
+  .needs-you[data-approvals-loading="true"] .needs-you-sticky { min-height: 197px; }
+  .approval-filter { min-height: 44px; }
   /* Let the full review join the dialog's scroll on phones instead of trapping
      its contents in a short nested scroller. */
   .needs-you details.approval-review[open] { max-height: none; overflow: visible; }

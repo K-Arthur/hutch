@@ -10861,7 +10861,8 @@ def test_inline_chat_approval_is_one_click_and_preserves_conversation(browser, l
     card = page.locator("#chat-stream [data-approval-card]").first
     card.locator('[data-approve="1"]').wait_for()
     approval_id = card.get_attribute("data-approval-card")
-    assert card.get_by_text(approval_id, exact=True).is_visible()
+    assert not card.locator(".approval-id").count(), "the approval ID stays out of the card face"
+    assert card.locator(f"#approval-id-{approval_id}").inner_text().strip().endswith(approval_id)
     assert card.get_attribute("data-action-hash")
     for selector, name in (("[data-approve=\"1\"]", "Allow once"),
                            ("[data-approve=\"0\"]", "Deny")):
@@ -10884,6 +10885,7 @@ def test_inline_chat_approval_is_one_click_and_preserves_conversation(browser, l
     }""")
     assert not thread.locator(".answer").count(), "a waiting run must not echo the user's prompt as an assistant answer"
     card.get_by_text("Review details", exact=True).click()
+    assert card.locator(".review-rows").get_by_text(approval_id, exact=True).is_visible()
     assert "Changing a file needs your okay." in card.inner_text()
     assert "ask:file-write" not in card.inner_text()
     assert not card.locator(".approval-detail").is_visible()
@@ -11141,6 +11143,8 @@ def test_needs_you_pages_large_queues_without_hiding_requests(browser, live, mon
     assert page.locator("#needs-you [data-approval-card]").count() == 50
     page.locator("#approvals-pagination").get_by_role("button", name="Next", exact=True).click()
     page.locator("#approvals-pagination").get_by_text("51–51 of 51 requests", exact=True).wait_for()
+    assert page.evaluate("() => document.activeElement?.tagName") == "SUMMARY", (
+        "paging moves focus to the first request's Review details when the pager button disappears")
     final = page.locator("#needs-you [data-approval-card]")
     assert final.count() == 1
     final_id = final.get_attribute("data-approval-card")
@@ -11148,6 +11152,235 @@ def test_needs_you_pages_large_queues_without_hiding_requests(browser, live, mon
     wait_for(lambda: app.state.store.get_approval(final_id).status.value == "denied")
     page.locator("#approvals-pagination").get_by_text("1–50 of 50 requests", exact=True).wait_for()
     assert {a.id for a in app.state.store.pending_approvals()} == {a.id for a in requests} - {final_id}
+    page.close()
+
+
+def test_needs_you_prioritizes_deadline_and_keeps_close_reachable(browser, live, monkeypatch):
+    from datetime import timedelta
+    from hutch.approvals import action_fingerprint
+    from hutch.models import ApprovalRequest, Run, iso, utcnow
+    base, app = live
+    monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+    store = app.state.store
+    bot = store.create_bot(Bot(name="priority-bot", model="mock/demo", tools=[]))
+    run = store.create_run(Run(bot_id=bot.id, prompt="priority fixture", status=RunStatus.waiting_approval))
+    approvals = {}
+
+    def add(action, minutes, *, risk="medium", outward=False, tool="files"):
+        detail = {"path": f"{action}.txt", "content": action}
+        approvals[action] = store.create_approval(ApprovalRequest(
+            run_id=run.id, bot_id=bot.id, tool=tool, action=action, detail=detail,
+            risk=risk, outward=outward, action_hash=action_fingerprint(tool, detail),
+            expires_at=iso(utcnow() + timedelta(minutes=minutes))))
+
+    add("Pay the supplier invoice", 2, risk="high", outward=True, tool="browser")
+    add("Delete the build output", 3, risk="high", tool="shell")
+    add("Write a low-risk note", 30, risk="low")
+    add("Read the quarterly report", 8, risk="medium", tool="browser")
+    add("Run the staging migration", 45, risk="high", tool="shell")
+
+    page = browser.new_page(viewport={"width": 1200, "height": 800})
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.goto(base + "/#/chat/priority-bot")
+    page.locator("#needs-you-open").click()
+    page.locator("#approvals-pending [data-approval-card]").first.wait_for()
+    page.set_viewport_size({"width": 320, "height": 740})
+    page.wait_for_timeout(300)
+    first = page.locator("#approvals-pending [data-approval-card]").first
+    assert "Pay the supplier invoice" in first.inner_text()
+    assert "leaves machine" in first.inner_text().lower()
+    assert page.locator(".approvals-summary").inner_text().startswith("5 approvals")
+    assert page.locator(".approval-filter").count() == 4
+    assert page.locator('.approval-filter[data-approval-filter="all"]').get_attribute("aria-pressed") == "true"
+
+    page.locator('.approval-filter[data-approval-filter="high"]').click()
+    page.wait_for_timeout(200)
+    high_cards = page.locator("#approvals-pending [data-approval-card]")
+    assert high_cards.count() == 3
+    assert all("high risk" in high_cards.nth(i).inner_text().lower() for i in range(high_cards.count()))
+    assert page.locator('.approval-filter[data-approval-filter="high"]').get_attribute("aria-pressed") == "true"
+
+    page.locator('.approval-filter[data-approval-filter="all"]').click()
+    page.wait_for_timeout(200)
+    first = page.locator("#approvals-pending [data-approval-card]").first
+    approval_id = first.get_attribute("data-approval-card")
+    assert not first.locator(".approval-id").count()
+    assert re.search(r"\d+m \d+s left|\d+s left", first.inner_text())
+    first_box = first.bounding_box()
+    assert first_box and first_box["y"] + first_box["height"] <= 740, (
+        "the most urgent request is fully visible in the first viewport at 320px")
+    first.get_by_text("Review details", exact=True).click()
+    assert first.locator(".review-rows").get_by_text(approval_id, exact=True).is_visible()
+    page.evaluate("() => { const d = document.querySelector('#needs-you'); d.scrollTop = d.scrollHeight; }")
+    page.wait_for_timeout(200)
+    close = page.locator("#needs-you-close")
+    close_box = close.bounding_box()
+    assert close_box and 0 <= close_box["y"] and close_box["y"] + close_box["height"] <= 740, (
+        "the sticky header keeps the close control in the viewport at 320px")
+    close.click()
+    page.wait_for_timeout(200)
+    assert not page.evaluate("() => document.querySelector('#needs-you').open")
+    assert page.evaluate("() => document.activeElement?.id") == "needs-you-open"
+    assert not errors, errors
+
+    out = artifact_path("approval-triage/priority-2026-10-22")
+    out.mkdir(parents=True, exist_ok=True)
+    page.screenshot(path=str(out / "queue-320-after.png"), full_page=False)
+    (out / "priority.json").write_text(json.dumps({
+        "ordered_actions": [first.inner_text().splitlines()[0]],
+        "approval_id": approval_id,
+        "high_filter_count": 3,
+        "close_visible_at_end": True,
+        "page_errors": errors,
+    }, indent=2) + "\n")
+    page.close()
+
+
+def test_needs_you_reopen_resets_to_priority_page(browser, live, monkeypatch):
+    from datetime import timedelta
+    from hutch.approvals import action_fingerprint
+    from hutch.models import ApprovalRequest, Run, iso, utcnow
+    base, app = live
+    monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+    store = app.state.store
+    bot = store.create_bot(Bot(name="reopen-bot", model="mock/demo", tools=[]))
+    run = store.create_run(Run(bot_id=bot.id, prompt="reopen fixture", status=RunStatus.waiting_approval))
+    for index in range(51):
+        detail = {"path": f"priority-{index}.txt", "content": f"Priority {index}"}
+        store.create_approval(ApprovalRequest(
+            run_id=run.id, bot_id=bot.id, tool="files", action=f"Priority request {index}",
+            detail=detail, action_hash=action_fingerprint("files", detail),
+            expires_at=iso(utcnow() + timedelta(minutes=2 + index))))
+
+    page = browser.new_page(viewport={"width": 1200, "height": 800})
+    page.goto(base + "/#/chat/reopen-bot")
+    page.locator("#needs-you-open").click()
+    page.locator("#approvals-pending [data-approval-card]").first.wait_for()
+    page.locator("#approvals-pagination").get_by_role("button", name="Next", exact=True).click()
+    page.locator("#approvals-pagination").get_by_text("51–51 of 51 requests", exact=True).wait_for()
+    page.locator("#needs-you-close").click()
+    page.locator("#needs-you-open").click()
+    page.locator("#approvals-pagination").get_by_text("1–50 of 51 requests", exact=True).wait_for()
+    assert page.locator('.approval-filter[data-approval-filter="all"]').get_attribute("aria-pressed") == "true"
+    assert page.evaluate("() => document.querySelector('#needs-you').scrollTop") == 0
+    assert "Priority request 0" in page.locator("#approvals-pending [data-approval-card]").first.inner_text()
+    page.close()
+
+
+def test_due_soon_summary_and_filter_refresh_without_data_change(browser, live, monkeypatch):
+    from datetime import timedelta
+    from hutch.approvals import action_fingerprint
+    from hutch.models import ApprovalRequest, Run, iso, utcnow
+    base, app = live
+    monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+    store = app.state.store
+    bot = store.create_bot(Bot(name="due-soon-bot", model="mock/demo", tools=[]))
+    run = store.create_run(Run(bot_id=bot.id, prompt="due-soon fixture", status=RunStatus.waiting_approval))
+    detail = {"path": "soon.txt", "content": "soon"}
+    store.create_approval(ApprovalRequest(
+        run_id=run.id, bot_id=bot.id, tool="files", action="Write the soon note", detail=detail,
+        risk="medium", action_hash=action_fingerprint("files", detail),
+        expires_at=iso(utcnow() + timedelta(minutes=10, seconds=3))))
+
+    page = browser.new_page(viewport={"width": 1200, "height": 800})
+    page.goto(base + "/#/chat/due-soon-bot")
+    page.locator("#needs-you-open").click()
+    page.locator("#approvals-pending [data-approval-card]").first.wait_for()
+    due = page.locator('.approval-filter[data-approval-filter="due"]')
+    assert due.locator(".count").inner_text() == "0"
+    # Move the page clock across the ten-minute boundary without changing server data.
+    page.evaluate("""() => { const realNow = Date.now; Date.now = () => realNow() + 30_000; }""")
+    page.wait_for_timeout(6000)  # one polling interval
+    due = page.locator('.approval-filter[data-approval-filter="due"]')
+    assert due.locator(".count").inner_text() == "1"
+    due.click()
+    page.locator("#approvals-pending [data-approval-card]").wait_for()
+    assert "Write the soon note" in page.locator("#approvals-pending [data-approval-card]").inner_text()
+    page.close()
+
+
+def test_needs_you_first_load_failure_is_not_left_loading(browser, live):
+    base, _app = live
+    page = browser.new_page(viewport={"width": 390, "height": 844})
+    page.route("**/api/v1/actions/approvals?status=pending*", lambda route: route.abort())
+    page.goto(base + "/#/approvals")
+    page.locator("#needs-you[open]").wait_for()
+    page.locator("#needs-you-error").wait_for()
+    assert page.locator("#approvals-overview").inner_text().strip() == "Requests could not be loaded."
+    assert "No requests are displayed." in page.locator("#needs-you-error").inner_text()
+    assert "Loading requests…" not in page.locator("#needs-you").inner_text()
+    page.close()
+
+
+def test_needs_you_receipts_only_leads_with_the_outcome(browser, live):
+    from datetime import timedelta
+    from hutch.models import iso, utcnow
+    base, _app = live
+    page = browser.new_page(viewport={"width": 390, "height": 844})
+    page.route("**/api/stats", lambda route: route.fulfill(json={
+        "bots": 1, "paused": 0, "active_runs": 1, "pending_approvals": 0,
+        "working_runs": 1, "waiting_runs": 1, "unresolved_actions": 1,
+        "execution_held": False, "queued_tasks": 0, "tokens_today": 0,
+        "tokens_measured_today": 0, "tokens_reserved_today": 0,
+        "cost_measured_today_usd": 0, "cost_reserved_today_usd": 0, "version": "fixture",
+    }))
+    page.route("**/api/v1/actions/approvals?status=pending*", lambda route: route.fulfill(json=[]))
+    page.route("**/api/v1/actions/approvals?status=resolved*", lambda route: route.fulfill(json=[]))
+    page.route("**/api/v1/actions/receipts?*", lambda route: route.fulfill(json=[{
+        "id": "act_receipt_fixture", "run_id": "run_receipt_fixture", "tool": "web_fetch",
+        "effect": "network", "summary": "POST weekly brief to hooks.example", "status": "unknown",
+        "started_at": iso(utcnow() - timedelta(minutes=2)), "bot_name": "research-briefing",
+        "bot_display_name": "Research Briefing", "reconciliation": None, "legacy": False,
+    }]))
+    page.route("**/api/approvals", lambda route: route.fulfill(json=[]))
+    page.goto(base + "/#/approvals")
+    page.locator("#needs-you[open]").wait_for()
+    page.locator("#receipts-pending [data-receipt-card]").wait_for()
+    assert page.locator(".approvals-summary").inner_text().strip() == "0 approvals · 1 action outcome"
+    assert page.locator("#approvals-overview .approval-filter").count() == 0
+    order = page.evaluate("""() => [...document.querySelectorAll('#needs-you #receipts-section, #needs-you #approvals-pending')]
+        .map(el => el.id)""")
+    assert order == ["receipts-section", "approvals-pending"]
+    assert page.locator("#receipt-queue-count").inner_text() == "1"
+    receipt_top = page.locator("#receipts-section").bounding_box()["y"]
+    assert 0 <= receipt_top < 844
+    assert "One action outcome still needs review." in page.locator("#approvals-pending").inner_text()
+    page.close()
+
+
+def test_needs_you_filter_can_be_cleared_and_resets_to_all(browser, live, monkeypatch):
+    from datetime import timedelta
+    from hutch.approvals import action_fingerprint
+    from hutch.models import ApprovalRequest, Run, iso, utcnow
+    base, app = live
+    monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+    store = app.state.store
+    bot = store.create_bot(Bot(name="filter-bot", model="mock/demo", tools=[]))
+    run = store.create_run(Run(bot_id=bot.id, prompt="filter fixture", status=RunStatus.waiting_approval))
+    detail = {"path": "later.txt", "content": "later"}
+    store.create_approval(ApprovalRequest(
+        run_id=run.id, bot_id=bot.id, tool="files", action="Write the later note", detail=detail,
+        risk="medium", action_hash=action_fingerprint("files", detail),
+        expires_at=iso(utcnow() + timedelta(minutes=30))))
+
+    page = browser.new_page(viewport={"width": 1200, "height": 800})
+    page.goto(base + "/#/chat/filter-bot")
+    page.locator("#needs-you-open").click()
+    page.locator("#approvals-pending [data-approval-card]").first.wait_for()
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.wait_for_timeout(300)
+    due = page.locator('.approval-filter[data-approval-filter="due"]')
+    due.focus()
+    page.keyboard.press("Enter")
+    page.locator("#approvals-pending").get_by_text("No requests match this filter.").wait_for()
+    assert due.get_attribute("aria-pressed") == "true"
+    page.get_by_role("button", name="Show all requests").click()
+    page.locator("#approvals-pending [data-approval-card]").wait_for()
+    assert page.locator('.approval-filter[data-approval-filter="all"]').get_attribute("aria-pressed") == "true"
+    assert page.evaluate("() => document.activeElement?.dataset?.approvalFilter") == "all", (
+        "clearing an empty filter returns keyboard focus to the All filter")
+    assert page.locator("#approvals-pending [data-approval-card]").count() == 1
     page.close()
 
 

@@ -5803,9 +5803,7 @@ function updateTtls() {
     if (!target) return;
     const ttlEl = el.querySelector(".ttl-countdown");
     if (ttlEl) ttlEl.classList.toggle("urgent", ms < 120_000);   // amber only as it nears expiry
-    const m = Math.floor(ms / 60000);
-    const s = Math.floor((ms % 60000) / 1000);
-    target.textContent = `${m}:${String(s).padStart(2, "0")} left`;
+    target.textContent = formatApprovalTtl(ms);
   });
 }
 setInterval(updateTtls, 1000);
@@ -5854,6 +5852,7 @@ function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
     || (a.expires_at ? new Date(a.expires_at).getTime()
       : (a.created_at ? new Date(a.created_at).getTime() + 10 * 60 * 1000 : 0));
   const expired = deadline && deadline <= Date.now();
+  const ttlText = expired ? "expired — denied" : (deadline ? formatApprovalTtl(deadline - Date.now()) : "");
   const detail = !formTarget && a.detail && Object.keys(a.detail || {}).length ? JSON.stringify(a.detail, null, 2) : "";
   const segments = a.segments || [];
   const stickyKey = a.sticky_key || "";
@@ -5874,6 +5873,7 @@ function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
   ].filter(([, value]) => value !== null && value !== undefined) : [];
   const rows = [
     ["Tool", toolLabel],
+    ["Approval ID", id],
     ...summaryRows,
     formTarget ? ["Destination", formTarget.destination || "unknown destination"] : null,
     formTarget ? ["Request method", String(formTarget.method || "get").toUpperCase()] : null,
@@ -5899,10 +5899,10 @@ function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
           <span class="tag ${risk === "high" ? "danger" : ""}">${esc(risk)} risk</span>
           ${outward ? `<span class="tag danger" title="Leaves this machine; always-allow is not offered">leaves machine</span>` : ""}
         </div>
-        <span class="ttl-countdown">${icon("hourglass")}<span data-ttl-text>${expired ? "expired — denied" : ""}</span></span>
+        <span class="ttl-countdown">${icon("hourglass")}<span data-ttl-text>${esc(ttlText)}</span></span>
       </div>
       <div class="approval-action-text" id="approval-action-${esc(id)}">${esc(action)}</div>
-      <p class="hint approval-id" id="approval-id-${esc(id)}">Approval ID <code class="mono">${esc(id)}</code></p>
+      <span class="visually-hidden" id="approval-id-${esc(id)}">Approval ID <code class="mono">${esc(id)}</code></span>
       <details class="approval-review">
         <summary>Review details</summary>
         <div class="review-rows">${rows}</div>
@@ -6893,8 +6893,67 @@ async function renderRuns(query = "") {
 
 let approvalsTimer = null, approvalSignature = "", needsYouReturnFocus = null, approvalOffset = 0;
 const APPROVAL_PAGE_SIZE = 50;
+const APPROVAL_FETCH_SIZE = 200;
+const APPROVAL_FETCH_MAX = 1000;
+const APPROVAL_DUE_SOON_MS = 10 * 60 * 1000;
+let approvalFilter = "all";
+let pendingApprovalsCache = [];
+let approvalsStatsCache = null;
+let approvalsStickyObserver = null;
+let needsYouClosing = false;
 const needsYouDialog = $("#needs-you");
 const approvalsFlight = { promise: null };
+
+function approvalDeadline(a) {
+  if (a?.deadline) {
+    const direct = Number(a.deadline);
+    if (Number.isFinite(direct)) return direct;
+    const parsed = Date.parse(a.deadline);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  if (a?.expires_at) {
+    const t = Date.parse(a.expires_at);
+    if (Number.isFinite(t)) return t;
+  }
+  if (a?.created_at) {
+    const t = Date.parse(a.created_at);
+    if (Number.isFinite(t)) return t + Number(a.ttl_seconds || 600) * 1000;
+  }
+  return Number.MAX_SAFE_INTEGER;
+}
+
+function approvalRiskRank(a) {
+  return { high: 0, medium: 1, low: 2 }[a?.risk] ?? 1;
+}
+
+function compareApprovalPriority(a, b) {
+  return approvalDeadline(a) - approvalDeadline(b)
+    || approvalRiskRank(a) - approvalRiskRank(b)
+    || Number(!!b.outward) - Number(!!a.outward)
+    || String(a.created_at || "").localeCompare(String(b.created_at || ""))
+    || String(a.approval_id || a.id || "").localeCompare(String(b.approval_id || b.id || ""));
+}
+
+function sortPendingApprovals(list) {
+  return [...list].sort(compareApprovalPriority);
+}
+
+function approvalMatchesFilter(a) {
+  if (approvalFilter === "due") return approvalDeadline(a) - Date.now() <= APPROVAL_DUE_SOON_MS;
+  if (approvalFilter === "high") return a.risk === "high";
+  if (approvalFilter === "outward") return !!a.outward;
+  return true;
+}
+
+function formatApprovalTtl(ms) {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (h) return `${h}h ${m}m left`;
+  if (m) return `${m}m ${s}s left`;
+  return `${s}s left`;
+}
 
 function scheduleApprovalsPoll() {
   clearTimeout(approvalsTimer);
@@ -6909,7 +6968,15 @@ function scheduleApprovalsPoll() {
 async function openNeedsYou() {
   needsYouReturnFocus = wsEl.classList.contains("open") ? wsBtn : document.activeElement;
   closeWorkspace();
+  approvalSignature = "";
+  approvalOffset = 0;
+  approvalFilter = "all";
+  needsYouDialog.scrollTop = 0;
+  if ($("#approvals-overview")?.dataset.loaded !== "true") {
+    needsYouDialog.dataset.approvalsLoading = "true";
+  }
   if (!needsYouDialog.open) needsYouDialog.showModal();
+  observeNeedsYouSticky();
   $("#needs-you-close").focus();
   renderAttention();
   bumpSubOwner(approvalsOwner);
@@ -6917,20 +6984,50 @@ async function openNeedsYou() {
   scheduleApprovalsPoll();
 }
 
-function closeNeedsYou() {
+function finalizeNeedsYouClose() {
   clearTimeout(approvalsTimer);
   approvalsTimer = null;
   bumpSubOwner(approvalsOwner);
-  needsYouDialog.close();
   if (needsYouReturnFocus?.isConnected) needsYouReturnFocus.focus();
+  needsYouReturnFocus = null;
   renderAttention();
+}
+
+function closeNeedsYou() {
+  if (!needsYouDialog.open) return;
+  needsYouClosing = true;
+  needsYouDialog.close();
+  finalizeNeedsYouClose();
+}
+
+function observeNeedsYouSticky() {
+  const sticky = $("#needs-you-sticky");
+  if (!sticky) return;
+  const update = () => {
+    const height = Math.ceil(sticky.getBoundingClientRect().height);
+    needsYouDialog.style.setProperty("--needs-you-sticky", `${height}px`);
+  };
+  if (!approvalsStickyObserver && typeof ResizeObserver === "function") {
+    approvalsStickyObserver = new ResizeObserver(update);
+    approvalsStickyObserver.observe(sticky);
+  }
+  update();
 }
 
 $("#needs-you-open").addEventListener("click", openNeedsYou);
 $("#needs-you-close").addEventListener("click", closeNeedsYou);
 needsYouDialog.addEventListener("cancel", ev => { ev.preventDefault(); closeNeedsYou(); });
+needsYouDialog.addEventListener("close", () => {
+  if (needsYouClosing) { needsYouClosing = false; return; }
+  finalizeNeedsYouClose();
+});
 needsYouDialog.addEventListener("click", ev => {
-  if (ev.target.closest("a[href]")) closeNeedsYou();
+  if (ev.target.closest("a[href]")) { closeNeedsYou(); return; }
+  if (ev.target !== needsYouDialog) return;
+  const rect = needsYouDialog.getBoundingClientRect();
+  const outside = ev.clientX < rect.left || ev.clientX > rect.right
+    || ev.clientY < rect.top || ev.clientY > rect.bottom;
+  if (outside) closeNeedsYou();
 });
 
 // Existing bookmarks open the queue over Studio, without trapping browser Back.
@@ -6949,74 +7046,233 @@ async function renderApprovals() {
 let receiptOffset = 0;
 const RECEIPT_PAGE_SIZE = 20;
 
+async function fetchAllPendingApprovals(signal) {
+  const all = [];
+  const seen = new Set();
+  let offset = 0;
+  while (all.length < APPROVAL_FETCH_MAX) {
+    const page = await api(`/v1/actions/approvals?status=pending&limit=${APPROVAL_FETCH_SIZE}&offset=${offset}`, { signal });
+    if (!Array.isArray(page) || !page.length) break;
+    for (const item of page) {
+      if (all.length >= APPROVAL_FETCH_MAX) break;
+      const id = item.approval_id || item.id;
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      all.push(item);
+    }
+    offset += page.length;
+    if (all.length >= APPROVAL_FETCH_MAX || page.length < APPROVAL_FETCH_SIZE) break;
+  }
+  return all.slice(0, APPROVAL_FETCH_MAX);
+}
+
+function approvalOverviewHtml(pending, stats) {
+  const total = Math.max(pending.length, Number(stats?.pending_approvals) || 0);
+  const receipts = Number(stats?.unresolved_actions) || 0;
+  const due = pending.filter(a => approvalDeadline(a) - Date.now() <= APPROVAL_DUE_SOON_MS).length;
+  const high = pending.filter(a => a.risk === "high").length;
+  const outward = pending.filter(a => a.outward).length;
+  const summary = [`<b>${total}</b> approval${total === 1 ? "" : "s"}`];
+  if (receipts) summary.push(`<b>${receipts}</b> action outcome${receipts === 1 ? "" : "s"}`);
+  if (pending.length < total) summary.push(`showing ${pending.length}`);
+  const filters = [
+    ["all", "All", pending.length],
+    ["due", "Due soon", due],
+    ["high", "High risk", high],
+    ["outward", "Leaves machine", outward],
+  ];
+  const filterRow = pending.length
+    ? `<div class="approvals-filters" role="group" aria-label="Filter requests">
+      ${filters.map(([key, label, count]) => `<button type="button" class="approval-filter" data-approval-filter="${key}" aria-pressed="${String(approvalFilter === key)}" aria-label="${label}: ${count} request${count === 1 ? "" : "s"}">${label}<span class="count">${count}</span></button>`).join("")}
+    </div>` : "";
+  return `<p class="approvals-summary">${summary.join(" · ")}</p>
+    ${filterRow}
+    ${pending.length < total ? `<p class="hint approvals-cap">Showing the first ${pending.length} of ${total} requests. Resolve these, or use the CLI queue for the rest.</p>` : ""}`;
+}
+
+function approvalEmptyHtml(pending, stats) {
+  if (!pending.length) {
+    const receipts = Number(stats?.unresolved_actions) || 0;
+    if (receipts) {
+      return `<div class="empty-state"><p>No pending approvals.</p><p class="hint">${receipts === 1 ? "One action outcome still needs review." : `${receipts} action outcomes still need review.`}</p></div>`;
+    }
+    return `<div class="empty-state">${icon("check", "icon-lg")}<p>No pending approvals.</p><p class="hint">Requests appear in their conversation and here.</p></div>`;
+  }
+  return `<div class="empty-state"><p>No requests match this filter.</p><button class="btn ghost small" type="button" data-clear-approval-filter>Show all requests</button></div>`;
+}
+
+function renderApprovalQueue({ scrollTop = false, focusFilterAfter = "" } = {}) {
+  const pending = pendingApprovalsCache;
+  const stats = approvalsStatsCache || {};
+  const filtered = pending.filter(approvalMatchesFilter);
+  const maxOffset = Math.max(0, Math.ceil(filtered.length / APPROVAL_PAGE_SIZE) - 1) * APPROVAL_PAGE_SIZE;
+  if (approvalOffset > maxOffset) approvalOffset = maxOffset;
+  const page = filtered.slice(approvalOffset, approvalOffset + APPROVAL_PAGE_SIZE);
+
+  const focus = document.activeElement;
+  const focusedCard = focus?.closest?.("[data-approval-card]");
+  const focusChoice = focus?.dataset?.approve;
+  const focusSummary = focus?.tagName === "SUMMARY" ? focus.textContent.trim() : "";
+  const focusFilter = focus?.dataset?.approvalFilter;
+  const focusPager = ["approvals-next", "approvals-prev"].includes(focus?.id) ? focus.id : "";
+  const expanded = new Set($$("#needs-you [data-approval-card]").filter(c => c.querySelector("details[open]"))
+    .map(c => c.dataset.approvalCard));
+
+  const overview = $("#approvals-overview");
+  if (overview) {
+    overview.innerHTML = approvalOverviewHtml(pending, stats);
+    overview.dataset.loaded = "true";
+  }
+  delete needsYouDialog.dataset.approvalsLoading;
+  $("#approvals-pending").innerHTML = page.length
+    ? page.map(a => approvalCardHtml(a, { botName: botDisplayName(a.bot_display_name || a.bot_name) })).join("")
+    : approvalEmptyHtml(pending, stats);
+
+  const start = page.length ? approvalOffset + 1 : 0;
+  const end = approvalOffset + page.length;
+  $("#approvals-pagination").innerHTML = filtered.length
+    ? `<span class="hint">${start}–${end} of ${filtered.length} requests</span>
+      ${approvalOffset ? '<button class="btn ghost small" id="approvals-prev" type="button">Previous</button>' : ""}
+      ${end < filtered.length ? '<button class="btn ghost small" id="approvals-next" type="button">Next</button>' : ""}`
+    : "";
+
+  $$("#needs-you [data-approval-card]").forEach(c => {
+    if (expanded.has(c.dataset.approvalCard) && c.querySelector("details")) c.querySelector("details").open = true;
+  });
+  if (focusedCard) {
+    const replacement = $$("#needs-you [data-approval-card]").find(c => c.dataset.approvalCard === focusedCard.dataset.approvalCard);
+    const button = replacement && [...replacement.querySelectorAll("button")].find(b => b.dataset.approve === focusChoice);
+    const summary = replacement && focusSummary
+      ? [...replacement.querySelectorAll("summary")].find(s => s.textContent.trim() === focusSummary) : null;
+    (button || summary || $("#needs-you-close")).focus();
+  } else if (focusFilter) {
+    ($$("#approvals-overview [data-approval-filter]").find(b => b.dataset.approvalFilter === focusFilter) || $("#needs-you-close")).focus();
+  } else if (focusPager) {
+    ($(`#${focusPager}`) || $("#approvals-pending [data-approval-card] summary") || $("#needs-you-close")).focus();
+  }
+  if (focusFilterAfter) {
+    ($$("#approvals-overview [data-approval-filter]").find(b => b.dataset.approvalFilter === focusFilterAfter) || $("#needs-you-close")).focus();
+  }
+
+  $("#approvals-prev")?.addEventListener("click", () => {
+    approvalOffset = Math.max(0, approvalOffset - APPROVAL_PAGE_SIZE);
+    renderApprovalQueue({ scrollTop: true });
+  });
+  $("#approvals-next")?.addEventListener("click", () => {
+    approvalOffset += APPROVAL_PAGE_SIZE;
+    renderApprovalQueue({ scrollTop: true });
+  });
+  wireApprovals();
+  updateTtls();
+  if (scrollTop) $("#approvals-pending")?.scrollIntoView({ block: "start" });
+}
+
+$("#approvals-overview")?.addEventListener("click", ev => {
+  const filterButton = ev.target.closest("[data-approval-filter]");
+  if (!filterButton) return;
+  approvalFilter = filterButton.dataset.approvalFilter || "all";
+  approvalOffset = 0;
+  renderApprovalQueue({ scrollTop: true });
+});
+$("#approvals-pending")?.addEventListener("click", ev => {
+  if (!ev.target.closest("[data-clear-approval-filter]")) return;
+  approvalFilter = "all";
+  approvalOffset = 0;
+  renderApprovalQueue({ scrollTop: true, focusFilterAfter: "all" });
+});
+
+function orderReceiptsSection(pendingCount, receiptCount) {
+  const section = $("#receipts-section");
+  const pending = $("#approvals-pending");
+  const pagination = $("#approvals-pagination");
+  if (!section || !pending || !pagination) return;
+  if (!pendingCount && receiptCount) {
+    if (pending.previousElementSibling !== section) pending.before(section);
+  } else if (pagination.nextElementSibling !== section) {
+    pagination.after(section);
+  }
+}
+
+function renderApprovalReceipts(receipts, stats) {
+  const total = Number(stats?.unresolved_actions) || 0;
+  const count = $("#receipt-queue-count");
+  if (count) {
+    count.textContent = total ? String(total) : "";
+    count.hidden = !total;
+  }
+  const focus = document.activeElement;
+  const focusReceipt = focus?.dataset?.receiptReview;
+  $("#receipts-pending").innerHTML = receipts.length
+    ? receipts.map(receiptCardHtml).join("")
+    : '<p class="hint">No uncertain action receipts.</p>';
+  $("#receipts-pagination").innerHTML = receipts.length
+    ? `<span class="hint">${receiptOffset + 1}–${receiptOffset + receipts.length} of ${total} actions</span>
+      ${receiptOffset ? '<button class="btn ghost small" id="receipts-prev" type="button">Previous actions</button>' : ""}
+      ${receiptOffset + receipts.length < total ? '<button class="btn ghost small" id="receipts-next" type="button">Next actions</button>' : ""}`
+    : "";
+  $("#receipts-prev")?.addEventListener("click", () => {
+    receiptOffset = Math.max(0, receiptOffset - RECEIPT_PAGE_SIZE);
+    void refreshApprovals();
+  });
+  $("#receipts-next")?.addEventListener("click", () => {
+    receiptOffset += RECEIPT_PAGE_SIZE;
+    void refreshApprovals();
+  });
+  $$("#receipts-pending [data-receipt-review]").forEach(button => {
+    button.addEventListener("click", () => void reviewReceipt(button.dataset.receiptReview, button));
+  });
+  orderReceiptsSection(pendingApprovalsCache.length, total);
+  if (focusReceipt) {
+    ($$("#receipts-pending [data-receipt-review]").find(b => b.dataset.receiptReview === focusReceipt) || $("#needs-you-close")).focus();
+  }
+}
+
 async function refreshApprovals() {
   if (!needsYouDialog.open) return;
   let retry = false;
   await singleFlight(approvalsFlight, async () => {
   if (!needsYouDialog.open) return;
   const error = $("#needs-you-error");
-  const offset = approvalOffset;
   const gen = approvalsOwner.gen;
   const signal = approvalsOwner.abort?.signal;
   try {
     const receiptPageOffset = receiptOffset;
     const [pending, resolved, stats, receipts] = await Promise.all([
-      api(`/v1/actions/approvals?limit=${APPROVAL_PAGE_SIZE}&offset=${offset}`, { signal }),
+      fetchAllPendingApprovals(signal),
       api("/v1/actions/approvals?status=resolved&limit=8", { signal }),
       api("/stats", { signal }),
       api(`/v1/actions/receipts?unresolved=true&limit=${RECEIPT_PAGE_SIZE}&offset=${receiptPageOffset}`, { signal }),
     ]);
-    if (!needsYouDialog.open || gen !== approvalsOwner.gen
-        || offset !== approvalOffset || receiptPageOffset !== receiptOffset) return;
-    if (!pending.length && offset) { approvalOffset = 0; retry = true; return; }
+    if (!needsYouDialog.open || gen !== approvalsOwner.gen || receiptPageOffset !== receiptOffset) return;
     if (!receipts.length && receiptPageOffset) { receiptOffset = 0; retry = true; return; }
     error.hidden = true;
-    const signature = JSON.stringify([pending, resolved, offset, stats.pending_approvals, receipts, receiptPageOffset, stats.unresolved_actions]);
+    const dueIds = pending
+      .filter(a => approvalDeadline(a) - Date.now() <= APPROVAL_DUE_SOON_MS)
+      .map(a => a.approval_id || a.id || "").sort();
+    const signature = JSON.stringify([pending, resolved, stats.pending_approvals, receipts, receiptPageOffset,
+      stats.unresolved_actions, dueIds]);
     // Preserve keyboard focus and expanded review details during unchanged polls.
     if (signature === approvalSignature) return;
     approvalSignature = signature;
-    const focus = document.activeElement;
-    const focusedCard = focus?.closest("[data-approval-card]");
-    const focusChoice = focus?.dataset.approve;
-    const focusReceipt = focus?.dataset.receiptReview;
-    const expanded = new Set($$("#needs-you [data-approval-card]").filter(c => c.querySelector("details[open]"))
-      .map(c => c.dataset.approvalCard));
-    $("#approvals-pending").innerHTML = pending.length
-      ? pending.map(a => approvalCardHtml(a, { botName: botDisplayName(a.bot_display_name || a.bot_name) })).join("")
-      : `<div class="empty-state">${icon("check", "icon-lg")}<p>No pending approvals.</p><p class="hint">Requests appear in their conversation and here.</p></div>`;
-    const total = stats.pending_approvals;
-    $("#approvals-pagination").innerHTML = total ? `<span class="hint">${offset + 1}–${offset + pending.length} of ${total} requests</span>
-      ${offset ? '<button class="btn ghost small" id="approvals-prev">Previous</button>' : ""}
-      ${offset + pending.length < total ? '<button class="btn ghost small" id="approvals-next">Next</button>' : ""}` : "";
-    $("#approvals-prev")?.addEventListener("click", () => { approvalOffset = Math.max(0, offset - APPROVAL_PAGE_SIZE); refreshApprovals(); });
-    $("#approvals-next")?.addEventListener("click", () => { approvalOffset = offset + APPROVAL_PAGE_SIZE; refreshApprovals(); });
+    pendingApprovalsCache = sortPendingApprovals(pending);
+    approvalsStatsCache = stats;
+    const filtered = pendingApprovalsCache.filter(approvalMatchesFilter);
+    const maxOffset = Math.max(0, Math.ceil(filtered.length / APPROVAL_PAGE_SIZE) - 1) * APPROVAL_PAGE_SIZE;
+    if (approvalOffset > maxOffset) approvalOffset = maxOffset;
+    renderApprovalQueue();
     $("#approvals-resolved").innerHTML = resolved.length
       ? resolved.map(a => approvalResolvedHtml(a, a.status, botDisplayName(a.bot_display_name || a.bot_name))).join("")
       : `<p class="hint">No recent decisions.</p>`;
-    // An empty bucket is noise (DESIGN.md: hide empty activity buckets).
-    $('#receipt-queue').hidden = !receipts.length;
-    $('#receipts-pending').innerHTML = receipts.map(receiptCardHtml).join('');
-    $('#receipts-pagination').innerHTML = receipts.length ? `<span class="hint">${receiptPageOffset + 1}–${receiptPageOffset + receipts.length} of ${stats.unresolved_actions} actions</span>
-      ${receiptPageOffset ? '<button class="btn ghost small" id="receipts-prev">Previous actions</button>' : ''}
-      ${receiptPageOffset + receipts.length < stats.unresolved_actions ? '<button class="btn ghost small" id="receipts-next">Next actions</button>' : ''}` : '';
-    $('#receipts-prev')?.addEventListener('click', () => { receiptOffset = Math.max(0, receiptPageOffset - RECEIPT_PAGE_SIZE); void refreshApprovals(); });
-    $('#receipts-next')?.addEventListener('click', () => { receiptOffset = receiptPageOffset + RECEIPT_PAGE_SIZE; void refreshApprovals(); });
-    $$('#receipts-pending [data-receipt-review]').forEach(button => button.addEventListener('click', () => void reviewReceipt(button.dataset.receiptReview, button)));
-    $$("#needs-you [data-approval-card]").forEach(c => {
-      if (expanded.has(c.dataset.approvalCard) && c.querySelector("details")) c.querySelector("details").open = true;
-    });
-    if (focusedCard) {
-      const replacement = $$("#needs-you [data-approval-card]").find(c => c.dataset.approvalCard === focusedCard.dataset.approvalCard);
-      const button = replacement && [...replacement.querySelectorAll("button")].find(b => b.dataset.approve === focusChoice);
-      (button || $("#needs-you-close")).focus();
-    }
-    if (focusReceipt) ($$('#receipts-pending [data-receipt-review]').find(b => b.dataset.receiptReview === focusReceipt) || $('#needs-you-close')).focus();
-    wireApprovals();
-    updateTtls();
+    renderApprovalReceipts(receipts, stats);
   } catch (err) {
     if (err?.name === "AbortError" || !needsYouDialog.open || gen !== approvalsOwner.gen) return;
+    delete needsYouDialog.dataset.approvalsLoading;
+    const loaded = $("#approvals-overview")?.dataset.loaded === "true";
+    if (!loaded) {
+      $("#approvals-overview").innerHTML = '<p class="approvals-summary">Requests could not be loaded.</p>';
+    }
     error.hidden = false;
-    error.innerHTML = `<p>Could not refresh requests: ${esc(err.message)}. Displayed requests may be outdated.</p><button class="btn ghost small" id="needs-you-retry">Retry</button>`;
+    error.innerHTML = `<p>Could not refresh requests: ${esc(err.message)}. ${loaded ? "Displayed requests may be outdated." : "No requests are displayed."}</p><button class="btn ghost small" id="needs-you-retry">Retry</button>`;
     $("#needs-you-retry").addEventListener("click", () => void refreshApprovals());
   }
   });
