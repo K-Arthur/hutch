@@ -270,6 +270,21 @@ def test_reminder_keeps_keyboard_focus_across_status_polls(audit_browser, audit_
         page.close()
 
 
+def test_links_in_running_text_are_underlined(audit_browser, audit_live):
+    """F-19: an in-sentence link is identifiable without relying on colour (WCAG 1.4.1)."""
+    base, app = audit_live
+    seed_pending_approval(app.state.store)
+    page = audit_browser.new_page(viewport={"width": 1440, "height": 900})
+    try:
+        wait_live(page, base)
+        page.goto(base + "/#/runtime")
+        link = page.locator('dd a[href="#/approvals"]')
+        link.wait_for()
+        assert "underline" in link.evaluate("a => getComputedStyle(a).textDecorationLine")
+    finally:
+        page.close()
+
+
 def test_server_skip_link_adds_no_overflow_in_rtl(audit_browser, audit_live):
     """F-14: the hidden skip link must not create horizontal scrolling when the page runs right-to-left."""
     base, _ = audit_live

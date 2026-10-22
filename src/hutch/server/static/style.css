@@ -157,6 +157,9 @@ p:last-child { margin-bottom: 0; }
 a { color: var(--focus); text-decoration: none; text-underline-offset: 3px; }
 a:hover { text-decoration: underline; }
 .answer a { text-decoration: underline; }
+/* Links inside running text need more than colour to stand out (WCAG 1.4.1);
+   class-bearing links are buttons, cards and navigation with their own styling. */
+:is(p, li, dd, td, .hint) a:not([class]) { text-decoration: underline; }
 
 .mono, .type-mono { font-family: var(--mono); font-variant-ligatures: none; }
 .type-mono { font-size: var(--type-mono-size); }
