@@ -35,8 +35,15 @@
 
 ## Gates passed
 
-- Phase 1 recon, Phase 2 research (see `RESEARCH.md`), Phase 4 baseline measurements (see `FINDINGS.md`).
-- Pending: user route choice before implementation (design research gate). Plan is drafted in `PLAN.md`.
+- Phase 1 recon, Phase 2 research (see `RESEARCH.md`), Phase 4 baseline measurements (see `FINDINGS.md`), user route choice (Route A), implementation, focused verification, and independent verification.
+- Final branch: two commits on `agent/approval-triage/approvals` (`Improve approval queue triage`, `Record approval triage verification`).
+
+## Integration / concurrency status
+
+- `main` is still `ceb9d36b`; the branch is based on it. No rebase was needed.
+- The concurrent WCAG branch has advanced beyond `main` with F-01 focus rings and D-01…D-10, including **D-05 “Hide the empty action-outcomes bucket in Needs you”**. That lane is still unmerged and touches the same `index.html` line and the `refreshApprovals` receipt block.
+- This lane adopted the same `#receipt-queue` + `hidden` behavior and leaves F-01 to the WCAG lane. Integration will require a manual merge/rebase of these two approval-adjacent changes; do not merge this branch before the WCAG lane’s ownership is resolved.
+- The final matrix was run on this branch (base `main`), so the shared `.btn` focus ring is still absent here and is expected to appear after the WCAG branch lands. The new filter/summary focus rings are present and verified.
 
 ## Things skipped / blockers
 

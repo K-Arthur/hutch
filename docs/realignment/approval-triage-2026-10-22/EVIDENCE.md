@@ -25,8 +25,8 @@ Raw data: [`evidence/before-stress.json`](evidence/before-stress.json), [`eviden
 
 ## State coverage
 
-- 0 approvals + 0 receipts: existing success empty state (unchanged).
-- 0 approvals + 1 unresolved action: summary `0 approvals · 1 action outcome`; receipts section is the first content; neutral “One action outcome still needs review.” (test + [`after-receipts-only-390.png`](evidence/after-receipts-only-390.png)).
+- 0 approvals + 0 receipts: existing success empty state (unchanged); the empty receipts bucket is hidden (aligned with the concurrent WCAG D-05).
+- 0 approvals + 1 unresolved action: summary `0 approvals · 1 action outcome`; `#receipt-queue` is the first content; neutral “One action outcome still needs review.” (test + [`after-receipts-only-390.png`](evidence/after-receipts-only-390.png)).
 - 52 approvals: priority order, filters, pagination, sticky close.
 - Client expiry: countdown disables decisions and shows “Expired — checking decision” (source path unchanged; covered by existing tests).
 - Refresh error/Retry + stale-details notice: existing test `test_needs_you_drawer_preserves_review_focus_and_reports_refresh_failure` passed.
