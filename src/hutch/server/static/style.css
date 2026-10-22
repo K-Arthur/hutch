@@ -463,6 +463,10 @@ button.ghost:hover, a.ghost:hover { color: var(--text); border-color: var(--line
 button.danger { background: transparent; border-color: color-mix(in oklab, var(--danger) 50%, transparent); color: var(--danger); }
 button.danger:hover { background: color-mix(in oklab, var(--danger) 12%, transparent); }
 button.small, a.small { min-height: 26px; font-size: var(--fs-sm); padding: 0 var(--s-3); }
+/* `all: unset` above also clears the global :focus-visible ring, and its
+   element+class selectors outrank it, so the shared variants restate it. */
+button.primary:focus-visible, button.ghost:focus-visible, button.danger:focus-visible,
+button.small:focus-visible, a.primary:focus-visible, a.ghost:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 /* Keep Hutch's semantic button variants above the generated Daisy utilities.
    The utility layer otherwise applies its neutral .btn fill after the
