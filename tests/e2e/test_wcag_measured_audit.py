@@ -172,6 +172,34 @@ def test_service_tile_names_never_break_inside_a_word(audit_browser, audit_live)
         page.close()
 
 
+LAYOUT_SHIFT = """window.__shift = 0; new PerformanceObserver(list => { for (const entry of list.getEntries())
+  if (!entry.hadRecentInput) window.__shift += entry.value; }).observe({type: 'layout-shift', buffered: true});"""
+
+
+def test_work_history_count_does_not_shift_the_list_while_loading(audit_browser, audit_live):
+    """F-08: the result count keeps its row between "Loading past work…" and the final count."""
+    base, app = audit_live
+    store = app.state.store
+    bot = store.create_bot(Bot(name="history-fixture", model="mock/demo", tools=[]))
+    for index in range(12):
+        store.create_run(Run(bot_id=bot.id, prompt=f"Synthetic history entry {index}", status=RunStatus.succeeded))
+    for width in (768, 1440):
+        context = audit_browser.new_context(viewport={"width": width, "height": 900}, reduced_motion="reduce")
+        page = context.new_page()
+        page.add_init_script(LAYOUT_SHIFT)
+        try:
+            page.goto(base + "/#/runs")
+            page.get_by_text("12 results", exact=True).wait_for()
+            page.wait_for_timeout(500)
+            assert page.evaluate("window.__shift") < 0.05, width
+            if width == 1440:  # desktop keeps the count on the toolbar row
+                rows = page.evaluate("""() => [document.querySelector('#run-search'), document.querySelector('#runs-count')]
+                    .map(e => Math.round(e.getBoundingClientRect().top + e.getBoundingClientRect().height / 2))""")
+                assert abs(rows[0] - rows[1]) <= 4
+        finally:
+            context.close()
+
+
 def test_sheet_inertness_follows_resize_across_the_breakpoint(audit_browser, audit_live):
     """F-03: loading wide then narrowing (and back) matches loading at that width."""
     base, _ = audit_live

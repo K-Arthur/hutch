@@ -1483,6 +1483,9 @@ button.inline-link:hover { color: var(--text); }
 
 .runs-filter-bar { display: flex; gap: var(--s-3); align-items: center; flex-wrap: wrap; margin-bottom: var(--s-3); }
 .runs-filter-bar input { width: 260px; }
+/* A fixed basis decides the count's row, not its changing text, so "Loading…"
+   and "42 results" sit in the same place and the list does not jump. */
+.runs-filter-bar #runs-count { flex: 1 1 12rem; }
 .runs-filter-pills { display: flex; border: 1px solid var(--line-strong); background: var(--panel); border-radius: var(--r-ctl); overflow: hidden; }
 .runs-filter-pills button { all: unset; cursor: pointer; font: 600 var(--fs-sm)/1 var(--sans); color: var(--text-2); padding: 7px var(--s-3); border-left: 1px solid var(--line); }
 .runs-filter-pills button:first-child { border-left: 0; }
