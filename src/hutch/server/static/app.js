@@ -2411,10 +2411,10 @@ document.addEventListener("keydown", ev => {
 });
 wsNarrow.addEventListener("change", () => { if (!wsNarrow.matches) closeWorkspace(); syncWorkspaceInert(); });
 syncWorkspaceInert();
-// The header wraps when its controls do not fit, and the reminder can wrap too;
-// publish both heights so the floating reminder is placed from measurements.
+// The reminder can wrap to several lines; publish its height so pages reserve
+// enough room below their last item while it floats.
 if ("ResizeObserver" in window) {
-  const measured = new Map([[$(".app-top"), "--app-top-h"], [$("#attention-bar"), "--attention-h"]]);
+  const measured = new Map([[$("#attention-bar"), "--attention-h"]]);
   const sizes = new ResizeObserver(entries => {
     for (const { target } of entries) document.documentElement.style.setProperty(measured.get(target), `${target.offsetHeight}px`);
   });

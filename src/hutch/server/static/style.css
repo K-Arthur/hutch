@@ -1305,8 +1305,15 @@ nav a.attention, .ws-nav a.attention { color: var(--warn); }
 .attention-bar a { color: var(--focus); font-weight: 650; white-space: nowrap; }
 /* in the chat studio, dock under the header: the bar must never sit on top of
    the composer's +/model/send controls (a real collision the first capture hit).
-   The header can wrap to two rows, so follow its measured height (app.js). */
-body.has-composer .attention-bar { top: calc(var(--app-top-h, 56px) + 10px); bottom: auto; }
+   It shares the main view's grid cell, so it sits just below the header however
+   many rows that has, moves with the page instead of jumping on its own, and
+   stays beneath the navigation sheet. Phones keep it in its own row (below). */
+@media (min-width: 641px) {
+  body.has-composer .attention-bar { position: relative; grid-row: 2; grid-column: -2 / -1; align-self: start; justify-self: center;
+    inset: auto; transform: none; margin-top: 10px; z-index: var(--z-rail); }
+  /* Keyboard focus moving up the conversation lands below the reminder, not under it (C43). */
+  body.has-composer:has(#attention-bar:not([hidden])) #chat-scroll { scroll-padding-top: calc(var(--attention-h, 58px) + var(--s-5)); }
+}
 /* Elsewhere the bar floats over the end of the page; reserve room so the last
    focusable item can scroll clear of it (WCAG 2.4.11, technique C43). */
 @media (min-width: 641px) {
