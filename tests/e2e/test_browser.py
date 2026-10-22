@@ -1933,10 +1933,10 @@ def test_work_history_paginates_and_searches_beyond_the_first_200_runs(browser, 
         assert oldest_card.get_attribute("href") == f"#/run/{oldest.id}"
         assert page.locator("#runs-count").inner_text() == "1 result"
 
-        page.get_by_role("button", name="Didn't finish").click()
+        page.get_by_role("radio", name="Didn't finish").check()
         oldest_card.wait_for()
         assert page.locator("#runs-count").inner_text() == "1 result"
-        page.get_by_role("button", name="Completed").click()
+        page.get_by_role("radio", name="Completed").check()
         page.get_by_text("No past work matches this filter.", exact=True).wait_for()
         page.get_by_role("button", name="Clear filters").click()
         page.get_by_role("link", name=re.compile("History helper")).first.wait_for()

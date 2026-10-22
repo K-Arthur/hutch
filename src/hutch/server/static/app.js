@@ -6729,11 +6729,10 @@ async function renderRuns(query = "") {
       <div class="runs-filter-bar">
         <label class="visually-hidden" for="run-search">Find a task or assistant</label>
         <input type="search" id="run-search" placeholder="Find a task or assistant…" value="${esc(runsState.q)}" enterkeyhint="search">
-        <div class="runs-filter-pills" role="group" aria-label="Filter past work">
+        <div class="runs-filter-pills" role="radiogroup" aria-label="Filter past work">
           ${["all", "succeeded", "failed", "waiting_approval"].map(f => `
-            <button class="${runsState.status === f ? "active" : ""}" data-filter="${f}" aria-pressed="${runsState.status === f}">
-              ${f === "all" ? "All" : f === "succeeded" ? "Completed" : f === "failed" ? "Didn't finish" : "Waiting on you"}
-            </button>`).join("")}
+            <label><input type="radio" name="runs-filter" value="${f}" ${runsState.status === f ? "checked" : ""}>
+              ${f === "all" ? "All" : f === "succeeded" ? "Completed" : f === "failed" ? "Didn't finish" : "Waiting on you"}</label>`).join("")}
         </div>
         <span class="hint" id="runs-count" aria-live="polite" aria-atomic="true"></span>
       </div>
@@ -6779,11 +6778,8 @@ async function renderRuns(query = "") {
       $("#runs-clear")?.addEventListener("click", () => {
         runsState = { ...runsState, status: "all", q: "", shown: RUNS_PAGE_SIZE };
         $("#run-search").value = "";
-        $$(".runs-filter-pills button").forEach(b => {
-          const on = b.dataset.filter === "all";
-          b.classList.toggle("active", on);
-          b.setAttribute("aria-pressed", String(on));
-        });
+        const all = $('.runs-filter-pills input[value="all"]');
+        if (all) all.checked = true;
         syncHash(); void loadPage({ reset: true });
       });
     } else {
@@ -6870,15 +6866,10 @@ async function renderRuns(query = "") {
       syncHash(); void loadPage({ reset: true });
     }, 180);
   });
-  $$(".runs-filter-pills button").forEach(btn => {
-    btn.addEventListener("click", () => {
-      runsState.status = btn.dataset.filter;
+  $$('.runs-filter-pills input[name="runs-filter"]').forEach(input => {
+    input.addEventListener("change", () => {
+      runsState.status = input.value;
       runsState.shown = RUNS_PAGE_SIZE;
-      $$(".runs-filter-pills button").forEach(b => {
-        const on = b === btn;
-        b.classList.toggle("active", on);
-        b.setAttribute("aria-pressed", String(on));
-      });
       syncHash(); void loadPage({ reset: true });
     });
   });

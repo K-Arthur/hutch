@@ -1522,16 +1522,20 @@ button.inline-link:hover { color: var(--text); }
 /* ───────────────────────────── runs ───────────────────────────── */
 
 .runs-filter-bar { display: flex; gap: var(--s-3); align-items: center; flex-wrap: wrap; margin-bottom: var(--s-3); }
-.runs-filter-bar input { width: 260px; }
+.runs-filter-bar input[type="search"] { width: 260px; }
 /* A fixed basis decides the count's row, not its changing text, so "Loading…"
    and "42 results" sit in the same place and the list does not jump. */
 .runs-filter-bar #runs-count { flex: 1 1 12rem; }
 .runs-filter-pills { display: flex; border: 1px solid var(--line-strong); background: var(--panel); border-radius: var(--r-ctl); overflow: hidden; }
-.runs-filter-pills button { all: unset; cursor: pointer; font: 600 var(--fs-sm)/1 var(--sans); color: var(--text-2); padding: 7px var(--s-3); border-left: 1px solid var(--line); }
-.runs-filter-pills button:first-child { border-left: 0; }
-.runs-filter-pills button:hover { color: var(--text); background: rgba(255, 255, 255, 0.04); }
-.runs-filter-pills button.active { color: var(--brand-ink); background: var(--brand); }
-.runs-filter-pills button:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+/* One choice from a set: native radios (one Tab stop, arrow keys, "1 of 4" in screen
+   readers) drawn as segments; the label is the visible segment. */
+.runs-filter-pills label { position: relative; cursor: pointer; font: 600 var(--fs-sm)/1 var(--sans); color: var(--text-2); padding: 7px var(--s-3); border-left: 1px solid var(--line); }
+.runs-filter-pills label:first-child { border-left: 0; }
+.runs-filter-pills label:hover { color: var(--text); background: rgba(255, 255, 255, 0.04); }
+.runs-filter-pills label:has(input:checked) { color: var(--brand-ink); background: var(--brand); }
+.runs-filter-pills label:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: -2px; }
+.runs-filter-pills input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+@media (forced-colors: active) { .runs-filter-pills label:has(input:checked) { forced-color-adjust: none; color: HighlightText; background: Highlight; } }
 .runs-more { display: block; margin: var(--s-3) auto 0; }
 
 /* duration bar: proportional, with a printed value beside it — never percent-only */
@@ -1971,7 +1975,7 @@ button.inline-link:hover { color: var(--text); }
   .schedule-editor { padding: var(--s-3); }
   .schedule-actions { display: grid; grid-template-columns: 1fr; }
   .schedule-actions .btn { width: 100%; }
-  .runs-filter-bar input { width: 100%; }
+  .runs-filter-bar input[type="search"] { width: 100%; }
   .ov-stats, .kpi-bento { grid-template-columns: 1fr 1fr; }
   .tool-grid { grid-template-columns: 18px minmax(72px, auto) minmax(0, 1fr) 14px; }
   .tool-time { display: none; }

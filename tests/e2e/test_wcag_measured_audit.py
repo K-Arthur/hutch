@@ -330,6 +330,31 @@ def test_immediate_on_off_settings_are_switches(audit_browser, audit_live):
         page.close()
 
 
+def test_work_history_filter_is_one_radio_group(audit_browser, audit_live):
+    """D-03: the single-choice filter is one Tab stop with arrow-key selection, announced as radios."""
+    base, app = audit_live
+    store = app.state.store
+    bot = store.create_bot(Bot(name="filter-fixture", model="mock/demo", tools=[]))
+    for index, status in enumerate((RunStatus.succeeded, RunStatus.failed, RunStatus.succeeded)):
+        store.create_run(Run(bot_id=bot.id, prompt=f"Synthetic filter entry {index}", status=status))
+    page = audit_browser.new_page(viewport={"width": 1440, "height": 900})
+    try:
+        page.goto(base + "/#/runs")
+        page.get_by_text("3 results", exact=True).wait_for()
+        assert page.get_by_role("radiogroup", name="Filter past work").count() == 1
+        assert page.get_by_role("radio").count() == 4
+        page.locator("#run-search").focus()
+        page.keyboard.press("Tab")
+        assert page.evaluate("document.activeElement.value") == "all"
+        page.keyboard.press("ArrowRight")
+        page.get_by_text("2 results", exact=True).wait_for()
+        assert page.get_by_role("radio", name="Completed").is_checked()
+        page.keyboard.press("Tab")
+        assert page.evaluate("document.activeElement.name") != "runs-filter"
+    finally:
+        page.close()
+
+
 def test_server_skip_link_adds_no_overflow_in_rtl(audit_browser, audit_live):
     """F-14: the hidden skip link must not create horizontal scrolling when the page runs right-to-left."""
     base, _ = audit_live
