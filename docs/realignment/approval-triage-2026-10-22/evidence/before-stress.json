@@ -1,0 +1,32 @@
+{
+  "fixture": "52 pending approvals (stress seed); pre-change commit ceb9d36b",
+  "measurement_notes": "Desktop and narrow values are from the pre-change code served from an archived ceb9d36b tree. Page 1 is the server's oldest-first 50; the urgent outward payment is the second item on page 2. The narrow page-2 values were recorded in the earlier pre-change run; the before-narrow-bottom.png shows the same page-1 state.",
+  "desktop": {
+    "cardCount": 50,
+    "scrollHeight": 12869,
+    "clientHeight": 960,
+    "firstCardAction": "Write the generated summary to workspace/report.md (queue item 1).",
+    "pagination": "1–50 of 52 requests · Next",
+    "paginationTop": 12640,
+    "page2": {
+      "cardCount": 2,
+      "scrollHeight": 1019,
+      "cards": [
+        { "action": "Post the weekly brief to hooks.example.", "ttl": "5:39 left", "top": 127 },
+        { "action": "Submit the urgent payment form on supplier-portal.example for INV-2099.", "ttl": "1:39 left", "top": 448 }
+      ]
+    }
+  },
+  "narrow320": {
+    "cardCount": 50,
+    "scrollHeight": 20584,
+    "clientHeight": 740,
+    "firstCardAction": "Write the generated summary to workspace/report.md (queue item 1).",
+    "pagination": "1–50 of 52 requests · Next",
+    "paginationTop": 20363,
+    "page2": {
+      "cardCount": 2,
+      "urgentPayment": { "action": "Submit the urgent payment form on supplier-portal.example for INV-2099.", "ttl": "1:27 left", "top": 615 }
+    }
+  }
+}

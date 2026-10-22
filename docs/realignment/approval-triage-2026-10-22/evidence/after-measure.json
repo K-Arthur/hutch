@@ -1,0 +1,150 @@
+{
+  "desktop": {
+    "top": {
+      "firstAction": "Delete the generated build directory before rebuilding the reconciliation report.",
+      "firstTtl": "1m 48s left",
+      "firstOutward": false,
+      "summary": "52 approvals",
+      "filters": [
+        {
+          "label": "All\n52",
+          "pressed": "true"
+        },
+        {
+          "label": "Due soon\n20",
+          "pressed": "false"
+        },
+        {
+          "label": "High risk\n8",
+          "pressed": "false"
+        },
+        {
+          "label": "Leaves machine\n4",
+          "pressed": "false"
+        }
+      ],
+      "cardCount": 50,
+      "pagination": "1–50 of 52 requests Next",
+      "scrollHeight": 12038,
+      "stickyHeight": 131.296875,
+      "scrollPaddingTop": "132px",
+      "idVisible": false,
+      "hiddenIdText": "Approval ID apr_2a9f9bb25c91"
+    },
+    "high": {
+      "count": 8,
+      "allHigh": true,
+      "pagination": "1–8 of 8 requests",
+      "pressed": "true"
+    },
+    "bottom": {
+      "closeTop": 24,
+      "closeBottom": 56,
+      "visible": true
+    },
+    "closed": true,
+    "errors": []
+  },
+  "phone": {
+    "top": {
+      "firstAction": "Delete the generated build directory before rebuilding the reconciliation report.",
+      "firstTtl": "1m 45s left",
+      "firstOutward": false,
+      "summary": "52 approvals",
+      "filters": [
+        {
+          "label": "All\n52",
+          "pressed": "true"
+        },
+        {
+          "label": "Due soon\n20",
+          "pressed": "false"
+        },
+        {
+          "label": "High risk\n8",
+          "pressed": "false"
+        },
+        {
+          "label": "Leaves machine\n4",
+          "pressed": "false"
+        }
+      ],
+      "cardCount": 50,
+      "pagination": "1–50 of 52 requests Next",
+      "scrollHeight": 15260,
+      "stickyHeight": 197.296875,
+      "scrollPaddingTop": "198px",
+      "idVisible": false,
+      "hiddenIdText": "Approval ID apr_2a9f9bb25c91"
+    },
+    "high": {
+      "count": 8,
+      "allHigh": true,
+      "pagination": "1–8 of 8 requests",
+      "pressed": "true"
+    },
+    "bottom": {
+      "closeTop": 16,
+      "closeBottom": 60,
+      "visible": true
+    },
+    "closed": true,
+    "errors": []
+  },
+  "narrow": {
+    "top": {
+      "firstAction": "Delete the generated build directory before rebuilding the reconciliation report.",
+      "firstTtl": "1m 43s left",
+      "firstOutward": false,
+      "summary": "52 approvals",
+      "filters": [
+        {
+          "label": "All\n52",
+          "pressed": "true"
+        },
+        {
+          "label": "Due soon\n20",
+          "pressed": "false"
+        },
+        {
+          "label": "High risk\n8",
+          "pressed": "false"
+        },
+        {
+          "label": "Leaves machine\n4",
+          "pressed": "false"
+        }
+      ],
+      "cardCount": 50,
+      "pagination": "1–50 of 52 requests Next",
+      "scrollHeight": 19762,
+      "stickyHeight": 197.296875,
+      "scrollPaddingTop": "198px",
+      "idVisible": false,
+      "hiddenIdText": "Approval ID apr_2a9f9bb25c91"
+    },
+    "high": {
+      "count": 8,
+      "allHigh": true,
+      "pagination": "1–8 of 8 requests",
+      "pressed": "true"
+    },
+    "bottom": {
+      "closeTop": 16,
+      "closeBottom": 60,
+      "visible": true
+    },
+    "closed": true,
+    "errors": []
+  },
+  "receiptsOnly": {
+    "summary": "0 approvals · 1 action outcome",
+    "text": "Needs you\n\n0 approvals · 1 action outcome\n\nReview here or open the conversation for context. Each decision applies to the exact request shown.\n\nAction outcomes to check 1\nAction outcome needs review\n\nResearch Briefing · POST weekly brief to hooks.example\n\nThis action may already have happened. Check the destination before repeating it.\n\nReview action outcome Open attempt\n1–1 of 1 actions\n\nNo pending approvals.\n\nOne action outcome still needs review.\n\nBrowser notifications\nBlocked\nRecently decided",
+    "order": [
+      "receipts-section",
+      "approvals-pending"
+    ],
+    "receiptTop": 152.671875,
+    "count": "1"
+  }
+}

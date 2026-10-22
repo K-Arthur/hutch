@@ -1,0 +1,63 @@
+{
+  "before": {
+    "count": 50,
+    "scrollHeight": 12038,
+    "clientHeight": 960,
+    "paginationTop": 11809,
+    "paginationText": "1–50 of 52 requests\n      \n      Next",
+    "first": "Delete the generated build directory before rebuilding the reconciliation report.",
+    "last": "Sign in to the vendor portal with the stored profile.",
+    "urgentTargets": [
+      {
+        "i": 1,
+        "ttl": "1m 39s left",
+        "action": "Submit the urgent payment form on supplier-portal.example for INV-2099.",
+        "outward": true,
+        "top": 482
+      },
+      {
+        "i": 2,
+        "ttl": "3m 39s left",
+        "action": "Submit the payment form on supplier-portal.example for invoice INV-2048.",
+        "outward": true,
+        "top": 806
+      },
+      {
+        "i": 4,
+        "ttl": "5m 39s left",
+        "action": "Post the weekly brief to hooks.example.",
+        "outward": true,
+        "top": 1396
+      },
+      {
+        "i": 12,
+        "ttl": "8m 39s left",
+        "action": "Push the release branch to origin/main.",
+        "outward": true,
+        "top": 3359
+      }
+    ]
+  },
+  "after": {
+    "count": 2,
+    "scrollHeight": 960,
+    "paginationText": "51–52 of 52 requests\n      Previous",
+    "cards": [
+      {
+        "i": 0,
+        "action": "Append 1,200 lines to audit.log.",
+        "ttl": "24m 37s left",
+        "outward": false,
+        "top": 191
+      },
+      {
+        "i": 1,
+        "action": "Run the staging database migration.",
+        "ttl": "29m 37s left",
+        "outward": false,
+        "top": 433
+      }
+    ],
+    "scrollTop": 0
+  }
+}
