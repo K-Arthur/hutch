@@ -1978,7 +1978,7 @@ button.inline-link:hover { color: var(--text); }
   .app-top-context .schedule-control-actions { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: start; }
   .app-top-context .schedule-control-actions #schedule-control-toggle {
     min-width: 0; min-height: 44px; padding: 0 var(--s-4); gap: var(--s-2);
-    font-size: var(--fs-sm); justify-content: center; white-space: nowrap;
+    font-size: var(--fs-sm); justify-content: flex-start;
   }
   .schedule-manager-head > .btn { align-self: flex-start; min-height: 44px; }
   .schedule-summary { padding: var(--s-3); }
