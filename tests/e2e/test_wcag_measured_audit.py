@@ -427,6 +427,28 @@ def test_failed_status_has_a_distinct_shape(audit_browser, audit_live):
         page.close()
 
 
+def test_skills_header_and_import_row_are_aligned(audit_browser, audit_live):
+    """D-09: the page action sits on the title row, sections have breathing room, paired controls match."""
+    base, _ = audit_live
+    page = audit_browser.new_page(viewport={"width": 1440, "height": 900})
+    try:
+        page.goto(base + "/#/skills")
+        page.locator("#skills-bundled .btn").first.wait_for()
+        m = page.evaluate("""() => { const r = s => document.querySelector(s).getBoundingClientRect();
+          const bundled = [...document.querySelectorAll('#skills-bundled .btn')].map(b => b.getBoundingClientRect());
+          return {titleMid: r('.page-title').top + r('.page-title').height / 2, refreshMid: r('#skills-refresh').top + r('#skills-refresh').height / 2,
+                  refreshRight: r('#skills-refresh').right, rowRight: r('.page-title-row').right,
+                  sectionGap: r('section.panel').top - r('.page-subtitle').bottom,
+                  field: r('#skills-import-path input').height, button: r('#skills-import-path .btn').height,
+                  bundledGaps: bundled.slice(1).map((b, i) => b.left - bundled[i].right)}; }""")
+        assert abs(m["titleMid"] - m["refreshMid"]) <= 4 and abs(m["rowRight"] - m["refreshRight"]) <= 1, m
+        assert m["sectionGap"] >= 16, m
+        assert abs(m["field"] - m["button"]) <= 1, m
+        assert all(gap >= 6 for gap in m["bundledGaps"]), m
+    finally:
+        page.close()
+
+
 def test_server_skip_link_adds_no_overflow_in_rtl(audit_browser, audit_live):
     """F-14: the hidden skip link must not create horizontal scrolling when the page runs right-to-left."""
     base, _ = audit_live
