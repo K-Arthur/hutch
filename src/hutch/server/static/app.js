@@ -6477,7 +6477,7 @@ async function renderBots() {
               </div>
             </details>
             <div class="card-actions">
-              <a class="btn primary small" href="#/chat/${esc(b.name)}">${icon("chat")} Open</a>
+              <a class="btn ghost small" href="#/chat/${esc(b.name)}" aria-label="Open chat with ${esc(b.display_name || b.name)}">${icon("chat")} Open</a>
               <details class="fleet-card-menu">
                 <summary class="icon-btn" data-fleet-options="${esc(b.name)}" aria-label="More options for ${esc(b.display_name || b.name)}" title="More options">${icon("moreHorizontal")}</summary>
                 <div class="fleet-card-menu-panel" aria-label="More options for ${esc(b.display_name || b.name)}">

@@ -393,6 +393,40 @@ def test_notices_allow_reading_time_and_wait_while_hovered(audit_browser, audit_
         page.close()
 
 
+def test_assistant_list_has_one_primary_action_and_named_open_links(audit_browser, audit_live):
+    """D-07: per-card Open links are secondary and say which chat they open."""
+    base, app = audit_live
+    for index in range(10):  # the full assistant manager appears at ten assistants
+        app.state.store.create_bot(Bot(name=f"list-fixture-{index}", display_name=f"List fixture {index}", model="mock/demo", tools=[]))
+    page = audit_browser.new_page(viewport={"width": 1440, "height": 900})
+    try:
+        page.goto(base + "/#/bots")
+        page.locator(".card-actions a.btn").first.wait_for()
+        primaries = page.evaluate("() => [...document.querySelectorAll('#view .btn.primary, .app-top .btn.primary')].filter(e => e.getClientRects().length).length")
+        assert primaries == 1
+        assert page.get_by_role("link", name="Open chat with List fixture 1").count() == 1
+    finally:
+        page.close()
+
+
+def test_failed_status_has_a_distinct_shape(audit_browser, audit_live):
+    """D-08: failure is marked with a cross, not the same dot as success, so colour is not the only cue."""
+    base, app = audit_live
+    store = app.state.store
+    bot = store.create_bot(Bot(name="chip-fixture", model="mock/demo", tools=[]))
+    store.create_run(Run(bot_id=bot.id, prompt="Synthetic success", status=RunStatus.succeeded))
+    store.create_run(Run(bot_id=bot.id, prompt="Synthetic failure", status=RunStatus.failed))
+    page = audit_browser.new_page(viewport={"width": 1440, "height": 900})
+    try:
+        page.goto(base + "/#/runs")
+        page.locator(".status.failed").first.wait_for()
+        shape = "(s) => getComputedStyle(document.querySelector(s), '::before').clipPath"
+        assert page.evaluate(shape, ".status.failed").startswith("polygon")
+        assert page.evaluate(shape, ".status.succeeded") == "none"
+    finally:
+        page.close()
+
+
 def test_server_skip_link_adds_no_overflow_in_rtl(audit_browser, audit_live):
     """F-14: the hidden skip link must not create horizontal scrolling when the page runs right-to-left."""
     base, _ = audit_live
