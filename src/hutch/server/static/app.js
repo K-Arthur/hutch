@@ -1150,7 +1150,8 @@ function toast(msg, isError = false) {
   let timer = setTimeout(dismiss, readingTime);
   const hold = () => clearTimeout(timer);
   const resume = () => { if (!el.matches(":hover, :focus-within")) { clearTimeout(timer); timer = setTimeout(dismiss, readingTime / 2); } };
-  el.addEventListener("pointerenter", hold);
+  // A notice that appears under a resting pointer still times out; moving onto it holds it.
+  el.addEventListener("pointermove", ev => { if (ev.movementX || ev.movementY) hold(); });
   el.addEventListener("focusin", hold);
   el.addEventListener("pointerleave", resume);
   el.addEventListener("focusout", resume);
