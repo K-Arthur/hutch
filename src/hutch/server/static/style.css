@@ -2138,8 +2138,9 @@ button.inline-link:hover { color: var(--text); }
   .roster-options, .ws-nav button { min-height: 44px; }
   .roster-action-menu [role="menuitem"] { min-height: 44px; }
   /* iOS Safari zooms the page when a focused field's text is under 16px; touch
-     devices get a 16px floor instead (zoom itself is never disabled). */
-  :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), select, textarea) {
+     devices get a 16px floor instead (zoom itself is never disabled). The
+     composer is already larger, so it keeps its own size. */
+  :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), select, textarea:not(.composer-textarea)) {
     font-size: max(1rem, 16px);
   }
 }
@@ -2482,8 +2483,9 @@ body.paired-phone > :not(#phone-root) { display: none !important; }
 }
 .service-tile-top { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-width: 0; }
 /* A narrow tile moves the state under the name, so a product name never breaks
-   letter by letter beside the badge (tiles shrink to ~230px in two-column grids). */
-@container (max-width: 16rem) {
+   letter by letter beside the badge: mark, longest name word and the longest
+   badge ("Not available here") need about 18rem of tile content in one row. */
+@container (max-width: 18rem) {
   .service-tile-top { grid-template-columns: 48px minmax(0, 1fr); }
   .service-tile-top .service-state { grid-column: 2; justify-self: start; }
 }

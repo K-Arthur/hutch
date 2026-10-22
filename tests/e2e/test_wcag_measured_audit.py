@@ -152,28 +152,29 @@ def test_floating_reminder_leaves_the_last_page_control_uncovered(audit_browser,
 
 
 def test_service_tile_names_never_break_inside_a_word(audit_browser, audit_live):
-    """F-07: narrow two-column tiles stack the state badge instead of squeezing the name."""
+    """F-07: narrow tiles stack the state badge instead of squeezing the name."""
     base, _ = audit_live
     page = audit_browser.new_page(viewport={"width": 768, "height": 900})
     try:
         wait_live(page, base)
         page.goto(base + "/#/connections")
         page.locator("article.service-tile h3").first.wait_for()
-        broken = page.evaluate("""() => [...document.querySelectorAll('article.service-tile h3')].filter(h => {
-            const probe = document.createElement('span');
-            probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;font:' + getComputedStyle(h).font;
-            document.body.append(probe);
-            const longest = Math.max(...h.textContent.trim().split(/\\s+/).map(word => {
-                probe.textContent = word; return probe.getBoundingClientRect().width; }));
-            probe.remove();
-            return h.getBoundingClientRect().width + 0.5 < longest; }).map(h => h.textContent.trim())""")
-        assert broken == []
+        # Worst case regardless of this machine's providers: the longest real state label on every tile.
+        page.evaluate("() => document.querySelectorAll('article.service-tile .service-state').forEach(s => { s.textContent = 'Not available here'; })")
+        # 656: a three-column row of ~300px tiles; 768: two-column tiles
+        for width in (656, 768):
+            page.set_viewport_size({"width": width, "height": 900})
+            broken = page.evaluate("""() => [...document.querySelectorAll('article.service-tile h3')].filter(h => {
+                const probe = document.createElement('span');
+                probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;font:' + getComputedStyle(h).font;
+                document.body.append(probe);
+                const longest = Math.max(...h.textContent.trim().split(/\\s+/).map(word => {
+                    probe.textContent = word; return probe.getBoundingClientRect().width; }));
+                probe.remove();
+                return h.getBoundingClientRect().width + 0.5 < longest; }).map(h => h.textContent.trim())""")
+            assert broken == [], width
     finally:
         page.close()
-
-
-LAYOUT_SHIFT = """window.__shift = 0; new PerformanceObserver(list => { for (const entry of list.getEntries())
-  if (!entry.hadRecentInput) window.__shift += entry.value; }).observe({type: 'layout-shift', buffered: true});"""
 
 
 def test_work_history_count_does_not_shift_the_list_while_loading(audit_browser, audit_live):
@@ -232,6 +233,10 @@ def test_touch_text_fields_meet_the_16px_no_zoom_floor(audit_browser, audit_live
             page.locator(selector).wait_for(state="attached")
             size = page.evaluate("(s) => parseFloat(getComputedStyle(document.querySelector(s)).fontSize)", selector)
             assert size >= 16, (path, selector, size)
+        page.goto(base + "/#/chat/zoom-fixture")
+        page.locator("#chat-prompt").wait_for()
+        composer = page.evaluate("() => parseFloat(getComputedStyle(document.querySelector('#chat-prompt')).fontSize)")
+        assert composer >= 18  # the floor must not shrink the larger composer
     finally:
         context.close()
 
