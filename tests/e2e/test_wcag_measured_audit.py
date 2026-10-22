@@ -177,6 +177,10 @@ def test_service_tile_names_never_break_inside_a_word(audit_browser, audit_live)
         page.close()
 
 
+LAYOUT_SHIFT = """window.__shift = 0; new PerformanceObserver(list => { for (const entry of list.getEntries())
+  if (!entry.hadRecentInput) window.__shift += entry.value; }).observe({type: 'layout-shift', buffered: true});"""
+
+
 def test_work_history_count_does_not_shift_the_list_while_loading(audit_browser, audit_live):
     """F-08: the result count keeps its row between "Loading past work…" and the final count."""
     base, app = audit_live
