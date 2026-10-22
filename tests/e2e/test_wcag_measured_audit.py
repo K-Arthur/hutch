@@ -488,6 +488,21 @@ def test_needs_you_route_never_flashes_the_reminder(audit_browser, audit_live):
         context.close()
 
 
+def test_phone_switch_label_wraps_instead_of_widening_the_page(audit_browser, audit_live):
+    """D-02 follow-up: a longer (translated) switch label wraps at 320px rather than causing sideways scroll."""
+    base, _ = audit_live
+    context = audit_browser.new_context(viewport={"width": 320, "height": 780}, is_mobile=True, has_touch=True)
+    page = context.new_page()
+    try:
+        page.goto(base + "/#/schedules")
+        page.locator("#schedule-control-toggle").wait_for()
+        page.evaluate("""() => { document.querySelector('#schedule-control-toggle > span').textContent =
+            'Automatische Starts für geplante Aufgaben'; }""")  # ~40% longer, like a German UI
+        assert page.evaluate("() => document.documentElement.scrollWidth - document.documentElement.clientWidth") <= 1
+    finally:
+        context.close()
+
+
 def test_server_skip_link_adds_no_overflow_in_rtl(audit_browser, audit_live):
     """F-14: the hidden skip link must not create horizontal scrolling when the page runs right-to-left."""
     base, _ = audit_live
