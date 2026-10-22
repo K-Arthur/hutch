@@ -370,6 +370,29 @@ def test_needs_you_hides_the_empty_action_outcomes_bucket(audit_browser, audit_l
         page.close()
 
 
+def test_notices_allow_reading_time_and_wait_while_hovered(audit_browser, audit_live):
+    """D-06: success notices stay at least five seconds and do not vanish under the pointer."""
+    base, _ = audit_live
+    page = audit_browser.new_page(viewport={"width": 1440, "height": 900})
+    try:
+        wait_live(page, base)
+        page.evaluate("() => toast('Saved.')")
+        notice = page.locator("#toast-root .toast").last
+        notice.wait_for()
+        page.wait_for_timeout(4600)  # the old fixed timeout was 4.2 s
+        assert notice.count() == 1
+        notice.wait_for(state="detached", timeout=4000)
+        page.evaluate("() => toast('Workspace settings saved.')")
+        notice = page.locator("#toast-root .toast").last
+        notice.hover()
+        page.wait_for_timeout(6500)
+        assert notice.count() == 1  # held while hovered
+        page.mouse.move(5, 5)
+        notice.wait_for(state="detached", timeout=6000)
+    finally:
+        page.close()
+
+
 def test_server_skip_link_adds_no_overflow_in_rtl(audit_browser, audit_live):
     """F-14: the hidden skip link must not create horizontal scrolling when the page runs right-to-left."""
     base, _ = audit_live

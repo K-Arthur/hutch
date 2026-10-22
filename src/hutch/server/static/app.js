@@ -1142,8 +1142,18 @@ function toast(msg, isError = false) {
   const dismiss = () => el.remove();
   el.querySelector(".toast-close").addEventListener("click", dismiss);
   root.appendChild(el);
-  // Transient notices auto-dismiss; errors persist until dismissed.
-  if (!isError) setTimeout(dismiss, 4200);
+  // Transient notices auto-dismiss; errors persist until dismissed. Longer notices
+  // stay longer (5s plus ~1s per 15 words), and the countdown waits while the
+  // notice is hovered or focused so people can finish reading it.
+  if (isError) return;
+  const readingTime = 5000 + Math.floor(String(msg).length / 90) * 1000;
+  let timer = setTimeout(dismiss, readingTime);
+  const hold = () => clearTimeout(timer);
+  const resume = () => { if (!el.matches(":hover, :focus-within")) { clearTimeout(timer); timer = setTimeout(dismiss, readingTime / 2); } };
+  el.addEventListener("pointerenter", hold);
+  el.addEventListener("focusin", hold);
+  el.addEventListener("pointerleave", resume);
+  el.addEventListener("focusout", resume);
 }
 
 // The local OAuth callback redirects to the Connections view with a short-lived

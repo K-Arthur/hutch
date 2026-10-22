@@ -2669,7 +2669,7 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
         }""")
         assert source_style["leftWidth"] == source_style["topWidth"]
         assert source_style["leftColor"] == source_style["topColor"]
-        page.locator(".toast").wait_for(state="detached", timeout=6000)
+        page.locator(".toast").wait_for(state="detached", timeout=10_000)
         for label, (width, height) in sizes.items():
             page.set_viewport_size({"width": width, "height": height})
             page.evaluate("document.fonts.ready")
@@ -2693,7 +2693,7 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
         assert "Research Partner" in task_card.inner_text()
         assert "Use public information only" in task_card.inner_text()
         assert "Specialist settings" in task_card.inner_text()
-        page.locator(".toast").wait_for(state="detached", timeout=6000)
+        page.locator(".toast").wait_for(state="detached", timeout=10_000)
         task_card.get_by_text("Done", exact=True).wait_for(timeout=15000)
         assert "Latest specialist response" in task_card.inner_text()
         shared_facts = task_card.locator(".workspace-task-shared-facts")
@@ -2801,7 +2801,7 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
               current.scrollIntoView({block: 'nearest'});
               return true;
             }""")
-            page.locator(".toast").wait_for(state="detached", timeout=6000)
+            page.locator(".toast").wait_for(state="detached", timeout=10_000)
             page.screenshot(path=str(output / f"result-return-{label}.png"), animations="disabled")
         page.locator("[data-open-workspace-task]").click()
         page.locator("#chat-prompt").wait_for()
