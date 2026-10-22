@@ -2359,8 +2359,13 @@ let currentRunId = null;
 let lastPrompt = "";
 // Mobile overlay: labeled navigation sheet with focus ownership + restore.
 const wsBtn = $("#nav-toggle"), wsEl = $("#workspace"), wsScrim = $("#ws-scrim"), wsClose = $("#ws-close");
+// Same breakpoint as the CSS sheet. A closed sheet is only moved off-canvas, so it
+// is made inert to keep its links out of the tab order and away from assistive tech.
+const wsNarrow = matchMedia("(max-width: 900px)");
+function syncWorkspaceInert() { wsEl.inert = wsNarrow.matches && !wsEl.classList.contains("open"); }
 function openWorkspace() {
   wsEl.classList.add("open");
+  syncWorkspaceInert();
   wsScrim.hidden = false;
   wsBtn.setAttribute("aria-expanded", "true");
   wsBtn.setAttribute("aria-label", "Close menu");
@@ -2370,6 +2375,7 @@ function openWorkspace() {
 function closeWorkspace(restoreFocus = false) {
   if (!wsEl.classList.contains("open")) return;
   wsEl.classList.remove("open");
+  syncWorkspaceInert();
   wsScrim.hidden = true;
   wsBtn.setAttribute("aria-expanded", "false");
   wsBtn.setAttribute("aria-label", "Open menu");
@@ -2393,9 +2399,9 @@ document.addEventListener("keydown", ev => {
     ev.preventDefault(); first.focus();
   }
 });
-window.addEventListener("resize", () => { if (innerWidth > 900) closeWorkspace(); });
+wsNarrow.addEventListener("change", () => { if (!wsNarrow.matches) closeWorkspace(); syncWorkspaceInert(); });
+syncWorkspaceInert();
 $("#bot-search")?.addEventListener("input", renderRoster);
-$("#ws-close")?.addEventListener("keydown", ev => { if (ev.key === "Tab" && !ev.shiftKey) { ev.preventDefault(); $("#workspace a, #workspace button")?.focus(); } });
 
 /* Effects follow the OS by default; Settings offers an explicit override for
    the cases the system preference does not cover. */
@@ -3996,7 +4002,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
     if (card) {
       card.scrollIntoView({ block: "center", behavior: "instant" });
       card.querySelector("summary, button")?.focus({ preventScroll: true });
-    } else $("#needs-you-open")?.click();
+    } else void openNeedsYou();
   };
 
   feedMode = "studio";
@@ -12183,7 +12189,7 @@ async function runtimeAction(action, button) {
       return;
     }
     if (action === "needs-you") {
-      $("#needs-you-open")?.click();
+      void openNeedsYou();
       return;
     }
   } catch (err) {
