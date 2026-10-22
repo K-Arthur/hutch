@@ -64,6 +64,8 @@ code { font-size: 12.5px; background: var(--bg-subtle); border: 1px solid var(--
 pre { margin: 0; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .muted { color: var(--faint); }
 .hint { color: var(--faint); font-size: 12.5px; }
+/* The Measure Rule (DESIGN.md): explanatory text stops near 72ch, even in wide panels. */
+p.hint, p.muted { max-width: 72ch; }
 .bad { color: var(--red); }
 .hidden { display: none !important; }
 .ico { flex: none; vertical-align: -3px; }

@@ -285,6 +285,25 @@ def test_links_in_running_text_are_underlined(audit_browser, audit_live):
         page.close()
 
 
+MEASURE_OVERRUNS = """() => [...document.querySelectorAll('p.hint, div.hint, p.muted')].filter(e => e.getClientRects().length).filter(e => {
+    const probe = document.createElement('span'); probe.textContent = '0'; probe.style.font = getComputedStyle(e).font;
+    document.body.append(probe); const ch = probe.getBoundingClientRect().width; probe.remove();
+    return e.getBoundingClientRect().width > 72 * ch + 1; }).map(e => e.className)"""
+
+
+def test_helper_text_keeps_the_72ch_measure(audit_browser, audit_live):
+    """D-01: helper and description text stops near 72ch on wide screens (DESIGN.md Measure Rule)."""
+    base, _ = audit_live
+    page = audit_browser.new_page(viewport={"width": 1920, "height": 1000})
+    try:
+        for path, ready in (("/#/skills", "#skills-import-path"), ("/models", "h1")):
+            page.goto(base + path)
+            page.locator(ready).first.wait_for()
+            assert page.evaluate(MEASURE_OVERRUNS) == [], path
+    finally:
+        page.close()
+
+
 def test_server_skip_link_adds_no_overflow_in_rtl(audit_browser, audit_live):
     """F-14: the hidden skip link must not create horizontal scrolling when the page runs right-to-left."""
     base, _ = audit_live
