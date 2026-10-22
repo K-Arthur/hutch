@@ -266,9 +266,10 @@ one-live-run limit. A removed task ID stays reserved for run-history identity an
 The dashboard's **Scheduled work** page brings recurring tasks from every assistant into one
 bounded, chronologically ordered overview. It leads with each task's next occurrence and keeps
 the schedule expression, timezone, and missed-time choice under **Timing details**.
-**Pause scheduled work** is a durable workspace setting: it prevents future scheduled admissions,
-but does not stop work already queued or running. Resuming the workspace does not clear a Bot's
-own pause; windows missed during the workspace pause then follow each task's `catch_up` policy.
+The **Automatic starts** switch (shown on both the Scheduled work and Runtime pages) is a durable
+workspace setting: turning it off prevents future scheduled admissions, but does not stop work
+already queued or running. Turning it back on does not clear a Bot's own pause; windows missed
+while it was off then follow each task's `catch_up` policy.
 The scheduler checks the workspace pause in the same transaction that admits an occurrence, so a
 previously read due-time snapshot cannot slip through after pause is saved.
 
