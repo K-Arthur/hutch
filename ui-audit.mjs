@@ -365,7 +365,7 @@ function applyPseudo() {
 // ---------------------------------------------------------------------------
 async function auditOne(browser, url, cfg, w, scheme, stress) {
   const ctx = await browser.newContext({
-    viewport: { width: w, height: w < 600 ? 780 : 900 }, deviceScaleFactor: 1, colorScheme: scheme, reducedMotion: 'reduce',
+    viewport: { width: w, height: w < 600 ? 780 : 900 }, deviceScaleFactor: 1, colorScheme: scheme, reducedMotion: 'reduce', bypassCSP: true, // strict CSPs block the injected axe script
     ...(w < 600 ? { isMobile: true, hasTouch: true } : {}), ...(cfg.storage ? { storageState: cfg.storage } : {}),
   });
   const page = await ctx.newPage();
@@ -442,13 +442,14 @@ async function auditOne(browser, url, cfg, w, scheme, stress) {
     }
   }
 
-  // axe-core (optional)
-  try {
-    const axePath = require.resolve('axe-core/axe.min.js');
+  // axe-core (optional). Installed-but-failed is a finding, never a silent pass.
+  let axePath = null;
+  try { axePath = require.resolve('axe-core/axe.min.js'); } catch { /* not installed: summary says so */ }
+  if (axePath) try {
     await page.addScriptTag({ path: axePath });
     const axe = await page.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations.map((v) => ({ id: v.id, impact: v.impact, help: v.help, nodes: v.nodes.slice(0, 5).map((n) => n.target.join(' ')) })));
     for (const v of axe) findings.push({ check: 'axe:' + v.id, severity: v.impact === 'critical' || v.impact === 'serious' ? 'high' : 'medium', msg: v.help, items: v.nodes });
-  } catch { /* axe-core not installed: report it in summary */ }
+  } catch (e) { findings.push({ check: 'axe-unavailable', severity: 'high', msg: `axe-core is installed but did not run on this page (${String(e).split('\n')[0].slice(0, 160)}); contrast, name and ARIA checks are missing for this row` }); }
 
   if (cls > 0.1) findings.push({ check: 'cls', severity: cls > 0.25 ? 'high' : 'medium', msg: `Cumulative Layout Shift during load = ${cls.toFixed(3)} (good < 0.1)` });
   for (const c of consoleErrors.slice(0, 10)) findings.push({ check: 'console-error', severity: 'medium', msg: c });
@@ -492,7 +493,7 @@ function summarize(results, cfg, axeAvailable) {
 }
 
 // Self-test fixture: every check must fire here, or the audit is not trustworthy.
-const FIXTURE = `<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>
+const FIXTURE = `<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="script-src 'self'"><style>
 body{margin:0;font:16px system-ui} header{position:sticky;top:0;height:64px;background:#222;color:#fff;z-index:10}
 .wide{width:1400px;height:20px;background:#eee}.btn{width:90px;white-space:nowrap;overflow:visible;display:inline-block;border:1px solid}
 .clip{width:120px;height:20px;overflow:hidden}.chat{position:fixed;right:8px;bottom:8px;width:120px;height:120px;background:#06c;border-radius:50%}
@@ -548,6 +549,7 @@ async function main() {
     const want = ['horizontal-overflow', 'text-spill', 'text-clipped', 'collision', 'fixed-layer-overlap', 'occluded-control', 'target-size', 'image-distorted', 'image-broken', 'small-text', 'focus-invisible', 'focus-obscured'];
     const got = new Set(results.flatMap((r) => (r.findings || []).map((f) => f.check)));
     const missing = want.filter((c) => !got.has(c));
+    if (axeAvailable && ![...got].some((c) => c.startsWith('axe:'))) missing.push('axe:* (axe did not run under the fixture CSP)');
     // negative controls: known-good elements must NOT be flagged
     const all = results.flatMap((r) => r.findings || []);
     const falsePos = all.filter((f) => JSON.stringify(f).includes('goodlink') || JSON.stringify(f).includes('cleanp'));
