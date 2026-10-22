@@ -6975,7 +6975,9 @@ async function refreshApprovals() {
     $("#approvals-resolved").innerHTML = resolved.length
       ? resolved.map(a => approvalResolvedHtml(a, a.status, botDisplayName(a.bot_display_name || a.bot_name))).join("")
       : `<p class="hint">No recent decisions.</p>`;
-    $('#receipts-pending').innerHTML = receipts.length ? receipts.map(receiptCardHtml).join('') : '<p class="hint">No uncertain action receipts.</p>';
+    // An empty bucket is noise (DESIGN.md: hide empty activity buckets).
+    $('#receipt-queue').hidden = !receipts.length;
+    $('#receipts-pending').innerHTML = receipts.map(receiptCardHtml).join('');
     $('#receipts-pagination').innerHTML = receipts.length ? `<span class="hint">${receiptPageOffset + 1}–${receiptPageOffset + receipts.length} of ${stats.unresolved_actions} actions</span>
       ${receiptPageOffset ? '<button class="btn ghost small" id="receipts-prev">Previous actions</button>' : ''}
       ${receiptPageOffset + receipts.length < stats.unresolved_actions ? '<button class="btn ghost small" id="receipts-next">Next actions</button>' : ''}` : '';

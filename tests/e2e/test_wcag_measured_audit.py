@@ -355,6 +355,21 @@ def test_work_history_filter_is_one_radio_group(audit_browser, audit_live):
         page.close()
 
 
+def test_needs_you_hides_the_empty_action_outcomes_bucket(audit_browser, audit_live):
+    """D-05: an empty "Action outcomes to check" section is not shown (DESIGN.md: hide empty buckets)."""
+    base, app = audit_live
+    seed_pending_approval(app.state.store)
+    page = audit_browser.new_page(viewport={"width": 390, "height": 844})
+    try:
+        wait_live(page, base)
+        page.goto(base + "/#/approvals")
+        page.locator("#needs-you [data-approve]").first.wait_for()
+        assert page.locator("#receipt-queue").is_hidden()
+        assert page.get_by_text("Action outcomes to check").is_hidden()
+    finally:
+        page.close()
+
+
 def test_server_skip_link_adds_no_overflow_in_rtl(audit_browser, audit_live):
     """F-14: the hidden skip link must not create horizontal scrolling when the page runs right-to-left."""
     base, _ = audit_live
