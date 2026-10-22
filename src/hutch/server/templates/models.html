@@ -29,7 +29,7 @@
 <section class="panel" id="installed" aria-labelledby="inst-h">
   <h2 id="inst-h" class="card-title">Installed models</h2>
   {% if v.rows %}
-  <div class="table-wrap"><table class="models-table">
+  <div class="table-wrap" role="region" tabindex="0" aria-label="Installed models table"><table class="models-table">
     <thead><tr><th>Model</th><th>Size</th><th>At 16k context</th><th>At 32k context</th><th>Used by</th><th>Tool reliability</th></tr></thead>
     <tbody>
     {% for r in v.rows %}
@@ -75,7 +75,7 @@
 <section class="panel" id="suggested" aria-labelledby="sug-h">
   <h2 id="sug-h" class="card-title">Suggested models (not installed)</h2>
   <p class="hint">Estimates from architecture numbers, until you install one and Hutch reads the real figures from the runtime.</p>
-  <div class="table-wrap"><table>
+  <div class="table-wrap" role="region" tabindex="0" aria-label="Suggested models table"><table>
     <thead><tr><th>Model</th><th>Fit</th><th>Install</th></tr></thead>
     <tbody>{% for tag, f, m in v.suggestions[:10] %}
       <tr><td class="mono">{{ tag }}</td><td>{{ fitchip(f) }} <span class="muted small">{{ f.reason }}</span></td><td class="mono small">ollama pull {{ tag }}</td></tr>
@@ -100,8 +100,8 @@
   <h2 id="price-h" class="card-title">Hosted prices</h2>
   <p class="hint">USD per 1M tokens. Every row shows where it came from and when it was last checked; rows over 90 days old are flagged. Vendors change prices, so correct a row here and the new number is used straight away. A hosted model without a row cannot run while a currency limit is set. Hutch's estimate may differ from provider billing.</p>
   {% for e in v.price_errors %}<div class="flash error" role="alert">{{ icon("alert", 16) }}<span>{{ e }}</span></div>{% endfor %}
-  <div class="table-wrap"><table class="models-table">
-    <thead><tr><th>Model</th><th>Input</th><th>Output</th><th>Cache read</th><th>Verified</th><th>Source</th><th></th></tr></thead>
+  <div class="table-wrap" role="region" tabindex="0" aria-label="Hosted prices table"><table class="models-table">
+    <thead><tr><th>Model</th><th>Input</th><th>Output</th><th>Cache read</th><th>Verified</th><th>Source</th><th>Actions</th></tr></thead>
     <tbody>{% for p in v.prices %}
       <tr><td class="mono">{{ p.model }}</td><td>{{ p.input }}</td><td>{{ p.output }}</td><td>{{ p.cache_read if p.cache_read is not none else "-" }}</td>
         <td>{{ p.verified_on or "never" }}{% if p.stale %} <span class="tag warn">old</span>{% endif %}</td>

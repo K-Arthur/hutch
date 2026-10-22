@@ -200,6 +200,41 @@ def test_work_history_count_does_not_shift_the_list_while_loading(audit_browser,
             context.close()
 
 
+def test_server_page_tables_are_named_keyboard_regions(audit_browser, audit_live):
+    """F-09 + F-12 + F-16: wide tables can be scrolled by keyboard, every header has text, and
+    header text meets the 12px floor."""
+    base, app = audit_live
+    app.state.store.create_bot(Bot(name="usage-fixture", model="mock/demo", tools=[]))
+    page = audit_browser.new_page(viewport={"width": 768, "height": 900})
+    try:
+        for path in ("/models", "/usage"):
+            page.goto(base + path)
+            wraps = page.evaluate("""() => [...document.querySelectorAll('.table-wrap')].map(w => ({
+                role: w.getAttribute('role'), tabindex: w.getAttribute('tabindex'), label: w.getAttribute('aria-label')}))""")
+            assert wraps, path
+            assert all(w["role"] == "region" and w["tabindex"] == "0" and w["label"] for w in wraps), (path, wraps)
+            assert page.evaluate("() => [...document.querySelectorAll('th')].filter(th => !th.textContent.trim()).length") == 0
+            assert page.evaluate("() => Math.min(...[...document.querySelectorAll('th')].map(th => parseFloat(getComputedStyle(th).fontSize)))") >= 12
+    finally:
+        page.close()
+
+
+def test_server_skip_link_adds_no_overflow_in_rtl(audit_browser, audit_live):
+    """F-14: the hidden skip link must not create horizontal scrolling when the page runs right-to-left."""
+    base, _ = audit_live
+    page = audit_browser.new_page(viewport={"width": 320, "height": 780})
+    try:
+        page.goto(base + "/login")
+        page.evaluate("() => { document.documentElement.dir = 'rtl'; }")
+        assert page.evaluate("() => document.documentElement.scrollWidth - document.documentElement.clientWidth") <= 1
+        page.keyboard.press("Tab")
+        box = page.evaluate("() => { const r = document.activeElement.getBoundingClientRect(); return [r.left, r.right, r.top]; }")
+        assert page.evaluate("document.activeElement.className") == "skip"
+        assert box[0] >= 0 and box[1] <= 320 and box[2] >= 0  # visible once focused
+    finally:
+        page.close()
+
+
 def test_sheet_inertness_follows_resize_across_the_breakpoint(audit_browser, audit_live):
     """F-03: loading wide then narrowing (and back) matches loading at that width."""
     base, _ = audit_live

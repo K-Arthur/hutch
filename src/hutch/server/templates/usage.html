@@ -19,7 +19,7 @@
 
 <section class="panel" id="caps" aria-labelledby="caps-h">
       <h2 id="caps-h" class="card-title">Today against each bot's usage budgets</h2>
-  {% if caps %}<div class="table-wrap"><table class="models-table usage-cap-table">
+  {% if caps %}<div class="table-wrap" role="region" tabindex="0" aria-label="Usage budgets table"><table class="models-table usage-cap-table">
     <thead><tr><th>Bot</th><th>Tokens today</th><th>Spend today</th></tr></thead><tbody>
     {% for c in caps %}<tr><td data-label="Bot"><a href="/bots/{{ c.name }}">{{ c.name }}</a></td>
       <td data-label="Tokens today">{% if c.token_cap %}<div class="bar" role="progressbar" aria-label="Measured and reserved tokens today by {{ c.name }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ c.token_pct | round(0) | int }}"><i style="width: {{ c.token_pct }}%"></i></div>{% endif %}
@@ -42,7 +42,7 @@
 
 <section class="panel" id="daily" aria-labelledby="daily-h">
   <h2 id="daily-h" class="card-title">By day</h2>
-  {% if by_day %}<div class="table-wrap"><table class="models-table">
+  {% if by_day %}<div class="table-wrap" role="region" tabindex="0" aria-label="Usage by day table"><table class="models-table">
     <thead><tr><th>Day</th><th>Tokens</th><th>Spend</th><th>Calls</th></tr></thead><tbody>
     {% for d in by_day %}{% set t = d.prompt + d.completion %}<tr><td class="mono">{{ d.day }}</td>
       <td><div class="bar thin" aria-hidden="true"><i style="width: {{ (t / peak * 100) | round(1) }}%"></i></div><span class="small">{{ t | tokens }}</span></td>
@@ -54,13 +54,13 @@
 <div class="two-col">
   <section class="panel" id="by-model" aria-labelledby="bm-h">
     <h2 id="bm-h" class="card-title">By model</h2>
-    {% if by_model %}<div class="table-wrap"><table class="models-table"><thead><tr><th>Model</th><th>Calls</th><th>Tokens</th><th>Cost</th></tr></thead><tbody>
+    {% if by_model %}<div class="table-wrap" role="region" tabindex="0" aria-label="Usage by model table"><table class="models-table"><thead><tr><th>Model</th><th>Calls</th><th>Tokens</th><th>Cost</th></tr></thead><tbody>
       {% for r in by_model %}<tr><td class="mono small">{{ r.key }}</td><td>{{ r.calls }}</td><td>{{ (r.prompt + r.completion) | tokens }}</td><td>{{ cost(r.cost, r.billing) }}</td></tr>{% endfor %}</tbody></table></div>
     {% else %}<p class="muted">Nothing yet.</p>{% endif %}
   </section>
   <section class="panel" id="by-bot" aria-labelledby="bb-h">
     <h2 id="bb-h" class="card-title">By bot</h2>
-    {% if by_bot %}<div class="table-wrap"><table class="models-table"><thead><tr><th>Bot</th><th>Calls</th><th>Tokens</th><th>Spend</th></tr></thead><tbody>
+    {% if by_bot %}<div class="table-wrap" role="region" tabindex="0" aria-label="Usage by bot table"><table class="models-table"><thead><tr><th>Bot</th><th>Calls</th><th>Tokens</th><th>Spend</th></tr></thead><tbody>
       {% for r in by_bot %}<tr><td>{{ r.name }}</td><td>{{ r.calls }}</td><td>{{ (r.prompt + r.completion) | tokens }}</td><td>{{ r.cost | money }}</td></tr>{% endfor %}</tbody></table></div>
     {% else %}<p class="muted">Nothing yet.</p>{% endif %}
   </section>

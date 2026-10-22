@@ -67,8 +67,10 @@ pre { margin: 0; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere
 .bad { color: var(--red); }
 .hidden { display: none !important; }
 .ico { flex: none; vertical-align: -3px; }
-.skip { position: absolute; left: -999px; top: 6px; background: var(--accent); color: var(--accent-ink); padding: 6px 10px; border-radius: var(--r-sm); z-index: 100; }
-.skip:focus { left: 8px; }
+/* Keyboard focus scrolled into view lands below the sticky topbar (WCAG 2.4.11, technique C43). */
+html { scroll-padding-top: 4.5rem; }
+.skip { position: absolute; inset-inline-start: 8px; top: -60px; background: var(--accent); color: var(--accent-ink); padding: 6px 10px; border-radius: var(--r-sm); z-index: 100; }
+.skip:focus { top: 6px; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-sm); }
 
 /* ------------------------------------------------------------------ topbar */
@@ -240,7 +242,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--focus); out
 .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r); background: var(--panel); }
 table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
-th { color: var(--dim); font: 600 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; background: var(--bg-subtle); }
+th { color: var(--dim); font: 600 12px var(--mono); letter-spacing: .06em; text-transform: uppercase; background: var(--bg-subtle); }
 td.snip { white-space: normal; min-width: 200px; max-width: 360px; }
 .num { text-align: right; }
 tbody tr:last-child td { border-bottom: 0; }
@@ -251,10 +253,10 @@ tbody tr:last-child td { border-bottom: 0; }
 .meter { background: var(--panel); border: 1px solid var(--border); border-radius: var(--r); padding: 10px 12px; }
 .meter.wide { grid-column: 1 / -1; }
 .meter-top { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
-.meter-label { color: var(--faint); font-size: 11.5px; letter-spacing: .05em; margin-right: auto; }
+.meter-label { color: var(--faint); font-size: 12px; letter-spacing: .05em; margin-right: auto; }
 .meter-val { font: 700 16px var(--mono); }
 .meter-cap { color: var(--faint); font-size: 12px; }
-.meter-note { color: var(--faint); font-size: 11.5px; margin-top: 4px; }
+.meter-note { color: var(--faint); font-size: 12px; margin-top: 4px; }
 .bar { height: 6px; background: var(--bg-subtle); border-radius: var(--r-full); overflow: hidden; margin-top: 8px; display: flex; }
 .bar i { display: block; height: 100%; background: var(--accent); border-radius: var(--r-full); }
 .lv-warn .bar i { background: var(--amber); }
