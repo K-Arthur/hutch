@@ -2401,6 +2401,15 @@ document.addEventListener("keydown", ev => {
 });
 wsNarrow.addEventListener("change", () => { if (!wsNarrow.matches) closeWorkspace(); syncWorkspaceInert(); });
 syncWorkspaceInert();
+// The header wraps when its controls do not fit, and the reminder can wrap too;
+// publish both heights so the floating reminder is placed from measurements.
+if ("ResizeObserver" in window) {
+  const measured = new Map([[$(".app-top"), "--app-top-h"], [$("#attention-bar"), "--attention-h"]]);
+  const sizes = new ResizeObserver(entries => {
+    for (const { target } of entries) document.documentElement.style.setProperty(measured.get(target), `${target.offsetHeight}px`);
+  });
+  for (const el of measured.keys()) if (el) sizes.observe(el);
+}
 $("#bot-search")?.addEventListener("input", renderRoster);
 
 /* Effects follow the OS by default; Settings offers an explicit override for

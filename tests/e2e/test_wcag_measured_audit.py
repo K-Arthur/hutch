@@ -1,10 +1,12 @@
 """Measured UI audit fixes (docs/realignment/artifacts/ui-audit-2026-10-22/FINDINGS.md).
 
 Each test pins one finding from the rendered-layout audit: F-01 legacy-button focus ring,
-F-02 phone sheet focus wrap, F-03 closed sheet out of the tab order.
+F-02 phone sheet focus wrap, F-03 closed sheet out of the tab order, F-04/F-06 chat header and
+reminder overlap, F-05 reminder clearance at the end of a page, F-13 reminder landmark.
 """
 from __future__ import annotations
 
+from hutch.models import ApprovalMode, Bot, Run, RunStatus
 from tests.e2e.test_wcag_fixes import (audit_browser, audit_live,  # noqa: F401 - pytest fixtures
                                        seed_pending_approval, wait_live)
 
@@ -80,6 +82,73 @@ def test_open_phone_sheet_reaches_every_destination_and_wraps(audit_browser, aud
         assert page.evaluate("document.getElementById('workspace').inert") is True
     finally:
         context.close()
+
+
+HEADER_OVERLAPS = """() => {
+  const box = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 ? r : null; };
+  const parts = [...document.querySelectorAll('.app-top .ctx-id .avatar, .app-top .ctx-id h1, .app-top .ctx-meta > *, '
+    + '.app-top .ctx-actions > :not(.visually-hidden), .app-top-status .w')].map(e => ({e, r: box(e)})).filter(p => p.r);
+  const meet = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1;
+  const label = e => e.id || e.className || e.tagName;
+  const overlaps = [];
+  for (const [i, a] of parts.entries()) for (const b of parts.slice(i + 1))
+    if (!a.e.contains(b.e) && !b.e.contains(a.e) && meet(a.r, b.r)) overlaps.push(`${label(a.e)} x ${label(b.e)}`);
+  const bar = document.getElementById('attention-bar'), barBox = bar.hidden ? null : box(bar);
+  const covered = barBox ? parts.filter(p => meet(p.r, barBox)).map(p => label(p.e)) : [];
+  return {overlaps, covered, reminder: !!barBox};
+}"""
+
+
+def start_waiting_conversation(page, base, store, name="audit-header"):
+    """Drive a real deterministic conversation to an approval so Review/Stop and the reminder show."""
+    store.create_bot(Bot(name=name, display_name="Research assistant", model="mock/demo",
+                         description="Audit fixture with a description long enough to need truncation in the header.",
+                         tools=["files", "memory"], approval_mode=ApprovalMode.ask))
+    seed_pending_approval(store)  # a second request elsewhere keeps the reminder on screen
+    page.goto(f"{base}/#/chat/{name}")
+    page.locator("#chat-prompt").fill("write a report")
+    page.locator("#chat-send").click()
+    page.locator("#chat-stream [data-approval-card]").wait_for()
+
+
+def test_chat_header_and_reminder_never_overlap_across_widths(audit_browser, audit_live):
+    """F-04 + F-06: header parts and the reminder never cover each other from tablet to wide desktop."""
+    base, app = audit_live
+    page = audit_browser.new_page(viewport={"width": 1440, "height": 900})
+    try:
+        start_waiting_conversation(page, base, app.state.store)
+        page.locator("#studio-stop-run").wait_for()
+        for width in (768, 899, 901, 1024, 1280, 1440):
+            page.set_viewport_size({"width": width, "height": 900})
+            page.wait_for_timeout(150)
+            result = page.evaluate(HEADER_OVERLAPS)
+            assert result["reminder"], width
+            assert result["overlaps"] == [] and result["covered"] == [], (width, result)
+    finally:
+        page.close()
+
+
+def test_floating_reminder_leaves_the_last_page_control_uncovered(audit_browser, audit_live):
+    """F-05: at desktop width the focused 'Show more' at the end of Work history is not under the reminder."""
+    base, app = audit_live
+    store = app.state.store
+    bot = seed_pending_approval(store)
+    for index in range(30):
+        store.create_run(Run(bot_id=bot.id, prompt=f"Synthetic history entry {index}", status=RunStatus.succeeded))
+    page = audit_browser.new_page(viewport={"width": 1024, "height": 900})
+    try:
+        wait_live(page, base)
+        page.goto(base + "/#/runs")
+        page.locator("#runs-more").wait_for()
+        page.locator("#attention-bar:not([hidden])").wait_for()
+        tab_to(page, "#runs-more", 160)
+        page.wait_for_timeout(200)
+        assert page.evaluate("""() => { const e = document.activeElement, r = e.getBoundingClientRect();
+            const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+            return hit === e || e.contains(hit); }""")
+        assert page.get_by_role("complementary", name="Pending work").count() == 1
+    finally:
+        page.close()
 
 
 def test_sheet_inertness_follows_resize_across_the_breakpoint(audit_browser, audit_live):
