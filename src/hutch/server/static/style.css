@@ -2408,8 +2408,15 @@ body.paired-phone > :not(#phone-root) { display: none !important; }
   display: grid; align-content: start; gap: 12px;
   min-width: 0; padding: 18px; color: var(--text); background: var(--panel);
   border: 1px solid var(--line); border-radius: var(--r-panel);
+  container-type: inline-size;
 }
 .service-tile-top { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-width: 0; }
+/* A narrow tile moves the state under the name, so a product name never breaks
+   letter by letter beside the badge (tiles shrink to ~230px in two-column grids). */
+@container (max-width: 16rem) {
+  .service-tile-top { grid-template-columns: 48px minmax(0, 1fr); }
+  .service-tile-top .service-state { grid-column: 2; justify-self: start; }
+}
 .service-mark {
   display: grid; place-items: center; width: 48px; height: 48px; flex: none;
   border: 1px solid color-mix(in srgb, var(--service-accent, var(--brand-hi)) 38%, var(--line));

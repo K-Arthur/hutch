@@ -151,6 +151,27 @@ def test_floating_reminder_leaves_the_last_page_control_uncovered(audit_browser,
         page.close()
 
 
+def test_service_tile_names_never_break_inside_a_word(audit_browser, audit_live):
+    """F-07: narrow two-column tiles stack the state badge instead of squeezing the name."""
+    base, _ = audit_live
+    page = audit_browser.new_page(viewport={"width": 768, "height": 900})
+    try:
+        wait_live(page, base)
+        page.goto(base + "/#/connections")
+        page.locator("article.service-tile h3").first.wait_for()
+        broken = page.evaluate("""() => [...document.querySelectorAll('article.service-tile h3')].filter(h => {
+            const probe = document.createElement('span');
+            probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;font:' + getComputedStyle(h).font;
+            document.body.append(probe);
+            const longest = Math.max(...h.textContent.trim().split(/\\s+/).map(word => {
+                probe.textContent = word; return probe.getBoundingClientRect().width; }));
+            probe.remove();
+            return h.getBoundingClientRect().width + 0.5 < longest; }).map(h => h.textContent.trim())""")
+        assert broken == []
+    finally:
+        page.close()
+
+
 def test_sheet_inertness_follows_resize_across_the_breakpoint(audit_browser, audit_live):
     """F-03: loading wide then narrowing (and back) matches loading at that width."""
     base, _ = audit_live
