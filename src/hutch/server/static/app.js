@@ -2649,14 +2649,21 @@ function renderAttention() {  const bar = $("#attention-bar");
   const shownRequests = $$("#chat-stream [data-approval-card]").filter(c => c.querySelector("[data-approve]:not([disabled])"));
   const shownReceipts = $$('#chat-stream [data-receipt-card]').filter(c => !c.dataset.receiptReviewed);
   const allInChat = location.hash.startsWith("#/chat") && n && n <= shownRequests.length + shownReceipts.length;
-  if (!n || onApprovals || allInChat || attentionDismissedCount === n) { bar.hidden = true; return; }
+  if (!n || onApprovals || allInChat || attentionDismissedCount === n) { bar.hidden = true; bar.dataset.message = ""; return; }
   bar.hidden = false;
+  const message = unresolvedReceiptCount ? `${n} items need your review` : `${n} approval${n === 1 ? "" : "s"} need${n === 1 ? "s" : ""} you`;
+  // Status polls call this every few seconds; rebuilding an unchanged reminder
+  // would destroy a focused Review or Dismiss button and drop keyboard focus.
+  if (bar.dataset.message === message) return;
+  const focusedId = bar.contains(document.activeElement) ? document.activeElement.id : "";
+  bar.dataset.message = message;
   bar.innerHTML = `${icon("alert")}
-    <span><b>${unresolvedReceiptCount ? `${n} items need your review` : `${n} approval${n === 1 ? "" : "s"} need${n === 1 ? "s" : ""} you`}</b></span>
+    <span><b>${message}</b></span>
     <button class="btn ghost small" id="attention-review" type="button">Review</button>
     <button class="icon-btn" id="attention-dismiss" aria-label="Dismiss reminder">${icon("x")}</button>`;
   $("#attention-review")?.addEventListener("click", openNeedsYou);
-  $("#attention-dismiss")?.addEventListener("click", () => { attentionDismissedCount = n; bar.hidden = true; });
+  $("#attention-dismiss")?.addEventListener("click", () => { attentionDismissedCount = n; bar.hidden = true; bar.dataset.message = ""; });
+  if (focusedId) document.getElementById(focusedId)?.focus();
 }
 
 /* ------------------------------------------------------- CHAT STUDIO */

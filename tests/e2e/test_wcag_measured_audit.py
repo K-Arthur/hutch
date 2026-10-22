@@ -254,6 +254,22 @@ def test_activity_shows_display_names_on_a_direct_visit(audit_browser, audit_liv
             context.close()
 
 
+def test_reminder_keeps_keyboard_focus_across_status_polls(audit_browser, audit_live):
+    """F-18: periodic status refreshes must not rebuild the reminder under a focused button."""
+    base, app = audit_live
+    seed_pending_approval(app.state.store)
+    page = audit_browser.new_page(viewport={"width": 1440, "height": 900})
+    try:
+        wait_live(page, base)
+        page.goto(base + "/#/overview")
+        page.locator("#attention-review").wait_for()
+        tab_to(page, "#attention-review", 160)
+        page.wait_for_timeout(9000)  # spans at least one status poll
+        assert page.evaluate("document.activeElement.id") == "attention-review"
+    finally:
+        page.close()
+
+
 def test_server_skip_link_adds_no_overflow_in_rtl(audit_browser, audit_live):
     """F-14: the hidden skip link must not create horizontal scrolling when the page runs right-to-left."""
     base, _ = audit_live
