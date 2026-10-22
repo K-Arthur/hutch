@@ -236,6 +236,24 @@ def test_touch_text_fields_meet_the_16px_no_zoom_floor(audit_browser, audit_live
         context.close()
 
 
+def test_activity_shows_display_names_on_a_direct_visit(audit_browser, audit_live):
+    """F-11: Activity never falls back to storage slugs because the roster had not loaded yet."""
+    base, app = audit_live
+    store = app.state.store
+    bot = store.create_bot(Bot(name="slug-fixture", display_name="Readable Fixture", model="mock/demo", tools=[]))
+    store.create_run(Run(bot_id=bot.id, prompt="Synthetic failure", status=RunStatus.failed))
+    for _ in range(4):  # the original fault was a race, so check several fresh loads
+        context = audit_browser.new_context(viewport={"width": 1024, "height": 800})
+        page = context.new_page()
+        try:
+            page.goto(base + "/#/overview")
+            page.locator(".ov-row-main b").first.wait_for()
+            names = page.evaluate("() => [...document.querySelectorAll('.ov-row-main b')].map(b => b.textContent.trim())")
+            assert "Readable Fixture" in names and "slug-fixture" not in names, names
+        finally:
+            context.close()
+
+
 def test_server_skip_link_adds_no_overflow_in_rtl(audit_browser, audit_live):
     """F-14: the hidden skip link must not create horizontal scrolling when the page runs right-to-left."""
     base, _ = audit_live

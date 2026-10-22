@@ -6110,6 +6110,9 @@ async function renderOverview(preservePosition = false) {
   const [o, recentRuns] = await Promise.all([
     api("/overview"),
     api("/runs?limit=8").catch(() => []),
+    // Overview rows carry only the Bot slug; on a direct visit the roster may not
+    // have loaded yet, and names would fall back to storage IDs.
+    botsCache.length ? null : refreshRoster(),
   ]);
   if ((location.hash || "#/chat") !== renderedHash) return;
   const s = o.stats || {};
