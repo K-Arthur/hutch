@@ -82,6 +82,14 @@ def test_only_one_process_is_elected_scheduler_supervisor(store, config):
     assert outs.count("leader") == 1 and outs.count("follower") == len(outs) - 1
 
 
+def test_a_released_scheduler_lease_can_be_claimed_again(store):
+    assert store.claim_supervisor("owner-a", 30)
+    assert store.supervisor_state()["owner"] == "owner-a"
+    assert store.release_supervisor("owner-a")
+    assert store.claim_supervisor("owner-b", 30), "an empty released lease must not become a permanent leader"
+    assert store.supervisor_state()["owner"] == "owner-b"
+
+
 def test_the_per_bot_single_instance_rule_holds_across_processes(store, config):
     """Two queued runs of ONE bot, many claimants: only one run may be claimed in total."""
     bot = make_bot(store)

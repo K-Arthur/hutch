@@ -62,11 +62,12 @@ def test_templates_carry_the_endpoints_and_requirements_found_in_the_vendor_docs
     from hutch.connections import load_templates
     tpl = load_templates()
     go = tpl["opencode-go"]
-    assert go["base_url"] == "https://opencode.ai/zen/go/v1" and go["billing"] == "subscription"
+    assert go["base_url"] == "https://opencode.ai/inference/go/openai/v1" and go["billing"] == "subscription"
+    assert go["anthropic_base_url"] == "https://opencode.ai/inference/go/anthropic"
     assert go["session_header"] == "x-opencode-session" and go["terms"]["requires_ack"]
-    assert go["get_key_url"] == "https://opencode.ai/auth"
-    assert "copy" in go["signin_guidance"] and "not an OAuth session login" in go["signin_guidance"]
-    assert "never reads OpenCode's auth.json" in go["signin_guidance"]
+    assert go["get_key_url"] == "https://opencode.ai/console"
+    assert "copy" in go["signin_guidance"] and "not the full OpenCode assistant sign-in" in go["signin_guidance"]
+    assert "complete OpenCode agent" in go["signin_guidance"]
     assert "monitored" in go["terms"]["notice"] and "UNATTENDED" in go["terms"]["notice"]
     for region in ("sgp", "cn", "ams"):
         x = tpl[f"xiaomi-token-plan-{region}"]

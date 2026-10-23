@@ -4,13 +4,14 @@
     "opencode-go": {
       "title": "OpenCode Go (flat subscription)",
       "protocol": "openai-chat",
-      "base_url": "https://opencode.ai/zen/go/v1",
+      "base_url": "https://opencode.ai/inference/go/openai/v1",
+      "anthropic_base_url": "https://opencode.ai/inference/go/anthropic",
       "api_key_env": "OPENCODE_API_KEY",
       "billing": "subscription",
       "session_header": "x-opencode-session",
-      "get_key_url": "https://opencode.ai/auth",
-      "signin_guidance": "Open OpenCode Go, sign in and subscribe if needed, then copy its provider-issued API key into Hutch. This is an API-key connection, not an OAuth session login. Hutch never reads OpenCode's auth.json or browser session.",
-      "source": "https://opencode.ai/docs/go/",
+      "get_key_url": "https://opencode.ai/console",
+      "signin_guidance": "Open the OpenCode Console, sign in and subscribe to Go if needed, then copy its API key into Hutch. This is an API-key connection, not the full OpenCode assistant sign-in. For the complete OpenCode agent, use the OpenCode setup instead.",
+      "source": "https://opencode.ai/v2/docs/console/go",
       "models_endpoint": true,
       "terms": {
         "url": "https://opencode.ai/docs/go/",
@@ -18,7 +19,7 @@
         "notice": "OpenCode Go asks third-party clients to send 'typical coding agent traffic', to identify themselves with their own User-Agent, and to send a stable session id; it says traffic is monitored for abuse. Hutch sends its own User-Agent and reuses a conversation id across runs in a conversation; standalone scheduled runs use their run id. Whether UNATTENDED, SCHEDULED bot runs count as typical coding-agent traffic is OpenCode's call, not Hutch's - read their terms before scheduling bots on this plan, and keep an allowance below so you stop before they do."
       },
       "quota_hint": "Usage is capped as monthly dollar amounts with a 5-hour sub-limit of 20% and a weekly sub-limit of 50% (docs, 2026-10-07). The dollar value per token varies by model, so declare your allowance in tokens (a rough proxy) and calibrate it against the OpenCode console.",
-      "model_protocol_hint": "The OpenCode docs list some model families (Claude Haiku, MiniMax, Qwen) on the Anthropic Messages endpoint and others (Grok, Muse Spark) on the OpenAI Responses endpoint; models.dev lists them all as OpenAI-compatible. Hutch speaks openai-chat and anthropic; Responses-only models are unsupported. If a model errors on the default, set its protocol: `hutch connections set-protocol opencode-go <model> anthropic`."
+      "model_protocol_hint": "OpenCode publishes a model-specific endpoint: most models use OpenAI Chat Completions, some (Claude Haiku, MiniMax, Qwen) use Anthropic Messages, and a few (Grok, GPT Luna, Muse Spark) use OpenAI Responses, which this direct route does not implement. Set `hutch connections set-protocol opencode-go <model> anthropic` for an Anthropic-served model, or use the full OpenCode assistant for Responses-only models."
     },
     "openai-api": {
       "title": "OpenAI API",

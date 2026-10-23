@@ -6480,6 +6480,14 @@ class Store:
                 db.execute("UPDATE supervisor_leases SET expires_at = ? WHERE name = 'scheduler' AND owner = ?",
                            (expires, owner))
                 return True
+            if not row["owner"]:
+                # release_supervisor() leaves an empty-owner row with no
+                # expiry. Treat it as free; otherwise every later process is
+                # a permanent follower and queued work never dispatches.
+                return db.execute(
+                    "UPDATE supervisor_leases SET owner = ?, expires_at = ?, fence = fence + 1 "
+                    "WHERE name = 'scheduler' AND owner = ''",
+                    (owner, expires)).rowcount == 1
             if row["expires_at"] is None or row["expires_at"] >= stamp:
                 return False
             return db.execute(
