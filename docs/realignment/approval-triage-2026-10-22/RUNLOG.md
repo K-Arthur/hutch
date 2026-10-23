@@ -40,10 +40,13 @@
 
 ## Integration / concurrency status
 
-- `main` is still `ceb9d36b`; the branch is based on it. No rebase was needed.
-- The concurrent WCAG branch has advanced beyond `main` with F-01 focus rings and D-01…D-10, including **D-05 “Hide the empty action-outcomes bucket in Needs you”**. That lane is still unmerged and touches the same `index.html` line and the `refreshApprovals` receipt block.
-- This lane adopted the same `#receipt-queue` + `hidden` behavior and leaves F-01 to the WCAG lane. Integration will require a manual merge/rebase of these two approval-adjacent changes; do not merge this branch before the WCAG lane’s ownership is resolved.
-- The final matrix was run on this branch (base `main`), so the shared `.btn` focus ring is still absent here and is expected to appear after the WCAG branch lands. The new filter/summary focus rings are present and verified.
+- **2026-10-22 20:00:** the WCAG lane landed; `main` fast-forwarded to `5ec62889` and its worktree was removed. The approval branch was rebased onto `5ec62889` in `.worktrees/approval-integrate`.
+- Two conflicts were resolved:
+  - `index.html`: kept main’s `#receipt-queue` + `hidden` (D-05) and added the count badge.
+  - `app.js` `refreshApprovals`: kept `renderApprovalReceipts()` (hidden empty bucket, receipt focus restore) while `renderApprovalQueue()` retains `wireApprovals()`/`updateTtls()` and main’s `needsYouRouteOpening` flag.
+- Added a focus-return fallback: at phone width the original trigger can be in the closed sidebar, so closing now focuses the visible `#nav-toggle` instead of a hidden button.
+- Post-rebase matrix: axe **0** at 1440/390/320; `ui-audit` focus-invisible is **0** (F-01 rings now present), with no horizontal overflow, text spill, target-size, or small-text findings. 21 approval tests passed. 54/55 design-system + WCAG tests passed; the single feedback test is flaky and passed three consecutive reruns (and passes on main alone).
+- Main fast-forward: pending final documentation commit; branch is otherwise ready.
 
 ## Things skipped / blockers
 

@@ -19,6 +19,13 @@ Route A approved by the user on 2026-10-22. No API, schema, permission, or depen
 - `tests/e2e/test_browser.py` — updated the existing ID assertion for the new details placement; added three focused approval-triage tests.
 - `docs/design-system.md`, `CHANGELOG.md` — shared queue rule and user-facing change note.
 
+## Post-rebase integration (main@5ec62889)
+
+- Rebased the five approval commits onto the landed WCAG branch. Kept D-05’s `#receipt-queue` + `hidden` behavior and count badge; kept `renderApprovalReceipts()` with receipt focus restoration; retained `wireApprovals()`, `updateTtls()`, and `needsYouRouteOpening`.
+- Added focus-return fallback for phone: if the original trigger is in the closed sidebar, focus the visible `#nav-toggle` instead of a hidden button.
+- F-01 button focus rings are now present from main; the integrated axe run reports 0 violations and the `ui-audit` focus-invisible count is 0.
+- Final integrated captures: `evidence/after-integrated-320.png`, `evidence/after-integrated-1440.png`, `evidence/ui-audit-integrated-SUMMARY.md`.
+
 ## Follow-up fixes from independent verification
 
 - Reopening the drawer resets the client page offset, filter, and scroll to the priority page instead of restoring a stale page 2.

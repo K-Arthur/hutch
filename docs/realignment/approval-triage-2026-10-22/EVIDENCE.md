@@ -52,7 +52,7 @@ Raw data: [`evidence/before-stress.json`](evidence/before-stress.json), [`eviden
 
 ## Tests run
 
-- `uv run pytest -q tests/e2e/test_browser.py -k "approval or needs_you or due_soon"` → **21 passed**.
+- `uv run pytest -q tests/e2e/test_browser.py -k "approval or needs_you or due_soon"` → **21 passed** (pre-rebase) and **21 passed** after rebasing onto `main@5ec62889`.
 - New focused tests:
   - `test_needs_you_prioritizes_deadline_and_keeps_close_reachable` → passed (320, 52-card-ish fixture, first urgent card fully visible, sticky close measured in-viewport, filter counts, ID in details, focus return).
   - `test_needs_you_receipts_only_leads_with_the_outcome` → passed (390, intercepted receipts-only state).
@@ -68,6 +68,19 @@ Raw data: [`evidence/before-stress.json`](evidence/before-stress.json), [`eviden
   - `test_large_idle_roster…` and `test_tool_compatibility…` passed on immediate rerun (flaky under the long serial run).
   - `test_workspace_model_default…` still looks for `#prefs-toggle`, which does not exist on `main`; it fails identically when the base checkout is served with the same Playwright environment.
   - `test_runs_archive…` asserts immediately after `#runs-count` appears and finds the loading text; it also fails identically on the base checkout. Neither failure touches the approval code.
+
+## Post-rebase integration (main@5ec62889)
+
+The WCAG lane landed and `main` moved from `ceb9d36b` to `5ec62889` (F-01 focus rings, D-01…D-10, including D-05 hidden empty receipts). The five approval commits were rebased onto that base in `.worktrees/approval-integrate`.
+
+- **Conflicts resolved:** `index.html` now has the WCAG `#receipt-queue` + `hidden` section and the approval count badge; `refreshApprovals()` calls `renderApprovalReceipts()` (hidden empty bucket + receipt focus restore), while `renderApprovalQueue()` keeps `wireApprovals()` / `updateTtls()` and main’s `needsYouRouteOpening` remains intact.
+- **Focus return:** closing at 320 after opening from the hidden sidebar now focuses the visible `#nav-toggle`; the previous behavior tried to focus an off-canvas button. The new focused-target assertion passes.
+- **Final axe:** **0 violations** at 1440×960, 390×844, 320×740.
+- **Final `ui-audit` (320/375/1440, dark, none + textspacing):** no `horizontal-overflow`, `text-spill`, `target-size`, `small-text`, or `image-*` findings. **`focus-invisible: 0`** — F-01’s action-button rings are present; a keyboard walk to “Allow once” computed `solid 2px rgb(96, 165, 250)` at offset 2px. The remaining 317 candidates are modal background collisions/overlap candidates and informational roster ellipses.
+- **Focused tests after rebase:** 21 approval/needs-you/due-soon tests passed. Design-system + WCAG suites: 54/55 passed; `test_answer_feedback_stays_local_revisioned_and_accessible` is flaky and passed three consecutive reruns (and on main alone). No recurring failure was introduced by this lane.
+- **Screenshots:** [`after-integrated-320.png`](evidence/after-integrated-320.png), [`after-integrated-1440.png`](evidence/after-integrated-1440.png); summary [`ui-audit-integrated-SUMMARY.md`](evidence/ui-audit-integrated-SUMMARY.md).
+
+The earlier full e2e run predates this rebase; the full offline suite is unchanged because the rebase touches no Python package code. Main’s own WCAG lane supplied the design-system/WCAG suites above.
 
 ## Known false positives / not run
 

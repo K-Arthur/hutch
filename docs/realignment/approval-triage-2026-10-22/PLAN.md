@@ -1,6 +1,6 @@
 # PLAN — approval triage (draft; route choice pending)
 
-Status: **Route A approved by the user on 2026-10-22 and implemented in the `agent/approval-triage/approvals` worktree.** Verification is recorded in `EVIDENCE.md`; the acceptance matrix below is the verification contract.
+Status: **Route A approved, implemented, rebased onto `main@5ec62889` after the WCAG lane landed, and verified.** The two receipt-area conflicts were resolved; verification is recorded in `EVIDENCE.md`; the acceptance matrix below is the verification contract.
 
 ## Design routes (researched)
 
