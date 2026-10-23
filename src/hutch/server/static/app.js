@@ -11350,7 +11350,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
         </div>
       </details>
       ${!draft.forceAdvanced ? `<section class="setup-quick-summary" aria-label="Starting settings">
-        <p>${draft.model ? "Uses your saved AI choice" : "Choose an AI option to finish setup"} · no apps connected or recurring work · checks with you before important actions.</p>
+        <p>${draft.model ? "Uses the selected AI service" : "Choose an AI option to finish setup"} · no apps connected or recurring work · checks with you before important actions.</p>
         <p class="hint">Saves your assistant only; nothing starts until you ask it to work.</p>
       </section>
       <button type="button" class="btn ghost small setup-customize" id="setup-customize">Fine-tune the details</button>` : ""}

@@ -7623,7 +7623,7 @@ def test_quick_bot_creation_uses_the_workspace_default_without_starting_work(bro
         assert name_style["background"] != "rgba(0, 0, 0, 0)", name_style
         assert page.locator(".setup-quick-summary").is_visible()
         quick_summary = page.locator(".setup-quick-summary").inner_text()
-        assert "Uses your saved AI choice" in quick_summary
+        assert "Uses the selected AI service" in quick_summary
         assert "no apps connected or recurring work" in quick_summary
         assert "checks with you before important actions" in quick_summary
         assert "openai/gpt-4o-mini" not in quick_summary

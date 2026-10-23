@@ -842,6 +842,7 @@ def test_first_run_draft_and_ai_readiness_survive_connections_and_failures(brows
         page.get_by_role("heading", name="Create from this request").wait_for()
         assert page.locator("#setup-purpose").input_value() == request_text
         assert page.locator("#modal-confirm").inner_text() == "Create bot"
+        assert "Uses the selected AI service" in page.locator(".setup-quick-summary").inner_text()
         page.locator("#setup-customize").click()
         page.locator("#setup-model").wait_for()
         assert page.locator("#setup-model").input_value() == "opencode/test/readiness-model"
