@@ -1,0 +1,26 @@
+[
+  {
+    "size": "desktop",
+    "viewport": [
+      1440,
+      1000
+    ],
+    "overflow": 0
+  },
+  {
+    "size": "tablet",
+    "viewport": [
+      768,
+      1024
+    ],
+    "overflow": 0
+  },
+  {
+    "size": "phone",
+    "viewport": [
+      390,
+      844
+    ],
+    "overflow": 0
+  }
+]

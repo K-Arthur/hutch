@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_website.py::test_landing_initial_transfer_stays_within_review_budget_and_art_loads_on_demand",
-  "captured_at": "2026-10-21T08:53:48.512890+00:00",
-  "browser": "153.0.8010.12",
+  "captured_at": "2026-10-23T21:59:26.715327+00:00",
+  "browser": "156.0.8078.4",
   "viewport": [
     1440,
     900
@@ -17,11 +17,11 @@
     },
     {
       "url": "/app.css",
-      "bytes": 51522
+      "bytes": 51639
     },
     {
       "url": "/styles.min.css",
-      "bytes": 35588
+      "bytes": 36816
     },
     {
       "url": "/assets/hutch-agent.webp",
@@ -36,19 +36,11 @@
       "bytes": 40300
     },
     {
-      "url": "/assets/agent/f0-p0.webp",
-      "bytes": 43240
-    },
-    {
       "url": "/assets/captures/setup-desktop.webp",
-      "bytes": 39214
-    },
-    {
-      "url": "/assets/captures/response-style-desktop.webp",
-      "bytes": 14896
+      "bytes": 46496
     }
   ],
-  "initial_bytes": 366365,
+  "initial_bytes": 316856,
   "budgets_bytes": {
     "js": 102400,
     "custom_css": 40960,
@@ -57,15 +49,14 @@
     "initial_transfer": 921600
   },
   "initial_sprite_frames": [
-    "/assets/agent/f3-p1.webp",
-    "/assets/agent/f0-p0.webp"
+    "/assets/agent/f3-p1.webp"
   ],
   "font_urls": [
     "/assets/fonts/archivo-latin-var.woff2"
   ],
   "source_sha256": {
-    "website/index.html": "0c21ac6392e811a12bb2899c7eeb2bc84b7a1a3f617728727378bed1f2460eae",
-    "website/styles.css": "62cf027af1be662834e58462abc04dfd190856608d69edbbf640e83903a28e64",
+    "website/index.html": "c7f0d130c2d80138780754cbff0599c989bfff4e23eed9ebe8e50a4d0d96996a",
+    "website/styles.css": "fbe151327292cdd30616c364df384ef6547d51a88fe19d6c0a69e523bae0ad88",
     "website/site.js": "51b1a0e6c99f9d74d980c568dfbcc6486eb43c247fe41217a7a49487fe6cefe0"
   },
   "external_requests": [],

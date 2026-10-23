@@ -21,7 +21,8 @@ from playwright.async_api import async_playwright
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUT = ROOT / "docs/realignment/artifacts/no-mock-setup"
 VIEWPORTS = (("desktop", 1440, 1000), ("tablet", 900, 1024),
-             ("phone", 390, 844), ("compact-phone", 320, 740))
+             ("phone", 390, 844), ("compact-phone", 320, 740),
+             ("phone-proof", 390, 1200))
 def source_hashes() -> dict[str, str]:
     """Tie screenshots to all shipped Hutch sources, including compiled UI styles."""
     paths = sorted(
@@ -39,7 +40,7 @@ def get_json(origin: str, path: str):
         return json.loads(response.read())
 
 
-async def capture(url: str, out: Path) -> None:
+async def capture(url: str, out: Path, browser_executable: str | None = None) -> None:
     parts = urlsplit(url)
     origin = urlunsplit((parts.scheme, parts.netloc, "", "", ""))
     checks = {
@@ -56,7 +57,7 @@ async def capture(url: str, out: Path) -> None:
 
     out.mkdir(parents=True, exist_ok=True)
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(headless=True, executable_path=browser_executable)
         records = []
         for name, width, height in VIEWPORTS:
             page = await browser.new_page(viewport={"width": width, "height": height}, device_scale_factor=1)
@@ -100,8 +101,9 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", default="http://127.0.0.1:18789/#/chat")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUT)
+    parser.add_argument("--browser-executable", help="Use an already installed Chromium executable")
     args = parser.parse_args()
-    asyncio.run(capture(args.url, args.output))
+    asyncio.run(capture(args.url, args.output, args.browser_executable))
 
 
 if __name__ == "__main__":

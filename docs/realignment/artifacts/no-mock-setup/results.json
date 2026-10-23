@@ -1,6 +1,6 @@
 {
-  "captured_at": "2026-10-23T10:01:29.492261+00:00",
-  "url": "http://127.0.0.1:18889/#/chat",
+  "captured_at": "2026-10-23T21:54:42.686003+00:00",
+  "url": "http://127.0.0.1:18891/#/chat",
   "state_check": {
     "bots": [],
     "runs": [],
@@ -10,10 +10,10 @@
   },
   "browser": {
     "name": "chromium",
-    "version": "153.0.8010.12",
+    "version": "156.0.8078.4",
     "playwright": "1.63.0"
   },
-  "git_revision": "327f6bc31083f18818730f689b608b878e240dc2",
+  "git_revision": "050c585f7cc531365138350fe479779462889247",
   "source_sha256": {
     "src/hutch/__init__.py": "568574ab401d0207b2e5bbf867341bdce1041794c04a41813720be38df26da74",
     "src/hutch/action_receipts.py": "a71c0241ad306fdb74624b81fd859bf0eeb76ab521f255663163287c87e9140c",
@@ -143,30 +143,30 @@
     "src/hutch/scheduler.py": "92ad78097da7cec84546434f8876ef0f83a74729fbfdda19787d3664bf44570f",
     "src/hutch/server/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "src/hutch/server/app.py": "5ae5f08602c00a8c44cc6c377f9c4304102789b1781a6deaa0d0046a9949a4dc",
-    "src/hutch/server/pages.py": "7884021b4a97b41a26c49e4337e8f53fe245ff8682c5e820a613a4dc70263826",
+    "src/hutch/server/pages.py": "d636c60db03132c519ac6d5769ffce6c9f3b1790c3353e366ceee7aed3112abf",
     "src/hutch/server/pages_models.py": "6412cd1d1497704f2f15bb9d62be916d6609b8970ddf52a5e71d5ca047b15aff",
     "src/hutch/server/pages_usage.py": "9f566e2fd212a756f2b490c197491dd0b27957eaf8fa7f20d586ec1d90574d0c",
     "src/hutch/server/passkeys.py": "dc57e915a5184051159605e9e5fba23c2a37a944e58d30df9b7b5626ed967fe4",
     "src/hutch/server/security.py": "40b500baa50faf9f84e1964c235700aa2ed03cebd8868945cb78efb9bcde427c",
     "src/hutch/server/skills_api.py": "ea8d1d5a477bac0bfc29189befb770c6284172176ddb51551478d363dd6a34cd",
     "src/hutch/server/sse.py": "1d1a56e4c080917989e01486c0e88d35d826a797745aefca0ec17d1a62f667fd",
-    "src/hutch/server/static/app.js": "6b2f7147117f593c5d8e05e5bbdca4d94febfb5ce9271be4cdb625ebe2316138",
+    "src/hutch/server/static/app.js": "bb2f64785ec1259cfa31be4114c04c69846d0b45e17cab504ec1663a5fd66fbd",
     "src/hutch/server/static/brand-tokens.css": "2d78c988ad555c40c0e2b82f31206a3ec30b68d44403501b1bcf646d95f4b96f",
     "src/hutch/server/static/computer.css": "fad1429bf7e7ea76ecd2071e1726bc4c3105ad96744694eec90817fe3eebc6dd",
     "src/hutch/server/static/computer.js": "a777c0f18232d39bc334c14990d30f9271209dd17516322b4aae28e3776e0908",
-    "src/hutch/server/static/hutch-pages.css": "64bf6454cfdaa3a45c61ab2a93579aef1d99afea132b51087fc55bab127d9c62",
-    "src/hutch/server/static/hutch.css": "60fb9fced7aeabc53337b6066a286b0052260843ae66771e8da5f9888a8da843",
+    "src/hutch/server/static/hutch-pages.css": "9ca082c2c93d1fc86799c74a52c9bc7a4aaa30f47d67f594df9b83ad73a1af50",
+    "src/hutch/server/static/hutch.css": "c5dac27f73ff73bb842d95fed5c063af62148e26afb0a6685f9acbf3933d9232",
     "src/hutch/server/static/hutch.js": "bf49ab0102faac8b55d2c8c5087c807b66a3c0809f7df760ae83babfa9908fab",
-    "src/hutch/server/static/index.html": "766fec5709ebec17d989ca84cea7fafa74626c111275c247f3723544c8164db3",
-    "src/hutch/server/static/model-switcher.css": "5ad36c7f5774bf1813ea12169a879fcf74e799e38f63f7e1362bc79112fb6198",
+    "src/hutch/server/static/index.html": "5efce4729b3c889a4e669818343c9f61d6df7520a3182ec420fa388753499c33",
+    "src/hutch/server/static/model-switcher.css": "561f071cc6775b428da6ad36639e6163e9427fba7d49ec13d715428c3324632c",
     "src/hutch/server/static/model-switcher.js": "6030c9c1cf39883d04f6fbe7ce5e55050797ed725fad35bbb30369db2da35aae",
     "src/hutch/server/static/pair.js": "837b55367502aec1e36807fb9e181e9c3e49911cd2aa06918683168718f3ded7",
     "src/hutch/server/static/passkey-login.js": "4878e3d363316e9906679a61bb6a6a2907a72999b9b978307e56531b2b28d829",
     "src/hutch/server/static/persona.js": "47913767ed7ba2cc20675becf9594c8ddd81ab63da82b207705cf0a079b70299",
-    "src/hutch/server/static/skills.css": "b214f708180ec911ca6989c46a31451f84fc8dc2a701386232faf51ef6036cc3",
-    "src/hutch/server/static/skills.js": "2d97b9152a1293118c249bfd4344017de48750a1274fe72a52476861af5cf543",
-    "src/hutch/server/static/style.css": "8ffc819391c8d44a521e7a53ffb69603443c1ea2695d516e8934b48aa27c8dc0",
-    "src/hutch/server/static/ui.css": "ae4fa761d3e588f14fcdb6c2dbb1e52dde21535a85ef7eeb106d6886542333e9",
+    "src/hutch/server/static/skills.css": "34c4e302100f54c27bebcae37c56ed2c3ce676f111930705a545bb59b7280713",
+    "src/hutch/server/static/skills.js": "a1b8c50528639a66140d3c966a549946d3cf1011e2c1034ca342712b9cab3f8c",
+    "src/hutch/server/static/style.css": "590b63fbce975c3c46a815f6f40698538aed7b2110b418e7aa0668e2d98a85c5",
+    "src/hutch/server/static/ui.css": "aef87c8a0c05a3e6d6551d26e7cf5de16eb7f184205d3f85f6ca77dadc527807",
     "src/hutch/server/static/vendor/htmx.min.js": "e209dda5c8235479f3166defc7750e1dbcd5a5c1808b7792fc2e6733768fb447",
     "src/hutch/server/static/vendor/uplot/uPlot.iife.min.js": "19c8d4c6ad88929a79f4ae49d6f7161566dfd0ba3d15cc495e974f787eb78f1f",
     "src/hutch/server/static/vendor/uplot/uPlot.min.css": "df630c6a8d6f8eeaff264b50f73ce5b114f646ffd9a0bb74f049b0a00135fa04",
@@ -192,9 +192,9 @@
     "src/hutch/server/templates/connections.html": "0a0cbe3d5eeb6c8e2c6da042a1bafb31c95e49838a662c4902eb1ff97ac9802d",
     "src/hutch/server/templates/error.html": "b4c3057ed9d84413d40dd6988fb5351dbfd471ed153009d6d70d3ed6f0f14367",
     "src/hutch/server/templates/home.html": "f9dd86168dcb76923f806576b040834d9f413902a5871b6fa096050c48d1dcbf",
-    "src/hutch/server/templates/login.html": "ab3784cdc2d5e569e0edde369d19fd1c29dfdb83893b0fadd0a767a7fa395862",
+    "src/hutch/server/templates/login.html": "dceb02b8d2aa974fe70eefecb5be36d67603763ba820f79e3f4ec6257b701388",
     "src/hutch/server/templates/models.html": "c333cb5b5ff6248e4b19293406f03ed63e9dec8a962e1ab4789a9333621b9c98",
-    "src/hutch/server/templates/pair.html": "82c40f89eaf9ae07c20508d1b49499c5672d0a121a14ca8717ea999f76bccfaf",
+    "src/hutch/server/templates/pair.html": "746a4e71469d8abdf53f8f08cec5c9126091db4461c514db3fcf44b5b5881590",
     "src/hutch/server/templates/run.html": "07946f95e66435d6f4dd14367942d9274f2b54a4663d666489cfc86bba32f54c",
     "src/hutch/server/templates/runs.html": "6be793b4cedc16514298e07fdc1d4084f44ac7433fafd7f5b6abae7681ed8a41",
     "src/hutch/server/templates/usage.html": "7914d5504247860a32d0f2be5d9db2ee4dde09ea6d728ac65dce9906c1dbbfec",
@@ -288,7 +288,7 @@
         1000
       ],
       "path": "setup-desktop.png",
-      "sha256": "654965db9ef02ba9041611d0013e2b6ac2d1338c7a909dd889866a25a470c466",
+      "sha256": "fdc6352f1f90cde7cff68432de29a2393bedff3c9c5e62ae96629b29596501ae",
       "overflow_px": 0,
       "page_errors": []
     },
@@ -299,7 +299,7 @@
         1024
       ],
       "path": "setup-tablet.png",
-      "sha256": "b4f0eadc933aea587bab5f38a9997759a734b6f5b758fb8077f3207e26d93e3d",
+      "sha256": "436cb12a705ef121aba68f4c5f11da4aecd25734cb7d40d885e09e0ab56859a8",
       "overflow_px": 0,
       "page_errors": []
     },
@@ -310,7 +310,7 @@
         844
       ],
       "path": "setup-phone.png",
-      "sha256": "5fd7a1799a2fa236a81e714f71a34ca39fbb2c9c59081ad191cd1799565d6a2a",
+      "sha256": "4867b677c2b9acddb6ada86d3283b053190f723bd5a73e63f336312b9f730120",
       "overflow_px": 0,
       "page_errors": []
     },
@@ -321,7 +321,18 @@
         740
       ],
       "path": "setup-compact-phone.png",
-      "sha256": "e62078a66a7410366bf787e4d6d64bece8d8bb0873b55ff28708f3d9f665720b",
+      "sha256": "218ac7364c6f686a4d117edddf0f06e75896843e552e60d7f33fbc65def23c25",
+      "overflow_px": 0,
+      "page_errors": []
+    },
+    {
+      "name": "phone-proof",
+      "viewport": [
+        390,
+        1200
+      ],
+      "path": "setup-phone-proof.png",
+      "sha256": "6e6e11dcb7b25deab1668ff653eaa841905857ea1a993432619afc9ca0e8ae4c",
       "overflow_px": 0,
       "page_errors": []
     }

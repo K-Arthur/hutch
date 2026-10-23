@@ -163,8 +163,18 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .review-flow h3 { margin: 0; font-size: var(--text-size-base); font-weight: 750; line-height: 1.3; }
 .review-flow p { color: var(--color-semantic-text-2); font-size: var(--text-size-sm); line-height: 1.6; }
 .technical-details .details-copy { padding: var(--space-6); }
+.technical-details .details-copy > .grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
+.technical-details .feature { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.technical-details .feature + .feature { border-top: 1px solid var(--color-semantic-border); }
+.technical-details .feature .card-body { grid-template-columns: 24px minmax(120px, 180px) minmax(0, 1fr); align-items: start; padding: var(--space-6) 0; }
+.technical-details .feature .card-title { font-size: var(--text-size-base); }
+.technical-details .feature .card-body > p { grid-column: 3; max-width: 72ch; font-size: var(--text-size-base); line-height: 1.65; }
+@media (max-width: 900px) {
+  .technical-details .feature .card-body { grid-template-columns: 24px minmax(0, 1fr); }
+  .technical-details .feature .card-body > p { grid-column: 2; }
+}
 .control-details .details-copy { padding: var(--space-6); }
-.details-note { max-width: 72ch; margin: 0 0 var(--space-5); color: var(--color-semantic-text-2); font-size: var(--text-size-sm); line-height: 1.65; }
+.details-note { max-width: 72ch; margin: 0 0 var(--space-5); color: var(--color-semantic-text-2); font-size: var(--text-size-base); line-height: 1.65; }
 .details-note strong { color: var(--color-semantic-text); }
 @media (max-width: 760px) {
   .benefit-grid, .choice-grid, .review-flow { grid-template-columns: minmax(0,1fr); }
@@ -391,7 +401,8 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .rd-edge-t2 { font-family: var(--font-mono); font-size: 12px; fill: var(--color-semantic-text-3); }
 
 /* ----------------------------------------------------------------- control */
-.control-grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: var(--space-8); align-items: start; }
+.control-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-8); align-items: start; }
+.control-grid .term { max-width: 100%; width: min(100%, 800px); }
 @media (max-width: 940px) { .control-grid { grid-template-columns: minmax(0, 1fr); gap: var(--space-8); } }
 
 /* code window: chrome bar + tabs + body + status bar */
@@ -425,10 +436,13 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .limits { display: flex; flex-direction: column; }
 .limits-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-2); }
 .limits-list { display: flex; flex-direction: column; }
-.limits-list li { padding-block: var(--space-3); border-top: 1px solid var(--color-semantic-border-soft); }
+.limits-list li { display: grid; grid-template-columns: minmax(160px, 200px) minmax(0, 1fr); gap: var(--space-6); padding-block: var(--space-5); border-top: 1px solid var(--color-semantic-border-soft); }
 .limits-list li:first-child { border-top: 1px solid var(--color-semantic-border); }
-.limits-list b { display: block; margin-bottom: var(--space-1); color: var(--color-semantic-text); font-size: var(--text-size-sm); font-weight: 700; }
-.limits-list span { display: block; color: var(--color-semantic-text-2); font-size: var(--text-size-xs); line-height: 1.65; max-width: 58ch; }
+.limits-list b { display: block; color: var(--color-semantic-text); font-size: var(--text-size-base); font-weight: 700; }
+.limits-list span { display: block; color: var(--color-semantic-text-2); font-size: var(--text-size-base); line-height: 1.65; max-width: 72ch; }
+@media (max-width: 900px) {
+  .limits-list li { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
+}
 
 /* -------------------------------------------------------------- use cases */
 .case .card-body { gap: var(--space-3); }

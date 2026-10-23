@@ -226,10 +226,10 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     assert workflow_details.count() == 3
     assert all(not detail.evaluate("el => el.open") for detail in workflow_details.all())
     workflow_details.nth(1).locator("summary").click()
-    coordinator_card = page.locator(".step-card").filter(has_text="Experimental coordinator handoff")
+    coordinator_card = workflow_details.nth(1)
     assert "only assistants on the owner-approved roster can receive a new task" in coordinator_card.inner_text()
     assert "changing the roster never stops existing work" in coordinator_card.inner_text()
-    saved_requests_card = page.locator(".step-card").filter(has_text="Come back to the result")
+    saved_requests_card = workflow_details.nth(2)
     workflow_details.nth(2).locator("summary").click()
     saved_requests_copy = saved_requests_card.inner_text().lower()
     assert "save a reviewed request in hutch’s local library" in saved_requests_copy
@@ -648,6 +648,11 @@ def test_approval_triage_copy_is_truthful_and_responsive(browser, site_url):
         note = control.locator(".details-note")
         note_text = note.inner_text().lower()
         assert note.is_visible()
+        assert note.evaluate("el => getComputedStyle(el).fontSize") == "17px"
+        assert control.locator(".limits-list > li").count() == 6
+        assert control.locator(".limits-head .badge").inner_text() == "6 boundaries"
+        assert control.locator(".limits-list > li > span").evaluate_all(
+            "els => els.every(el => getComputedStyle(el).fontSize === '17px')")
         assert "needs you orders them by soonest deadline, then high risk and outward effect" in note_text
         assert "due-soon" in note_text
         assert "high-risk" in note_text
@@ -738,9 +743,9 @@ def test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation(browser, s
     captures = []
     try:
         page.goto(site_url, wait_until="networkidle")
-        card = page.locator("#workflow .step-card").first
-        card.locator("details.workflow-details > summary").click()
-        text = card.inner_text().lower()
+        card = page.locator("#workflow .workflow-details").first
+        card.locator("summary").click()
+        text = (page.locator("#workflow .step-card").first.inner_text() + " " + card.inner_text()).lower()
         assert "start in chat" in text
         assert "carries your words into setup" in text
         assert "without describing the work again" in text
@@ -1284,6 +1289,8 @@ def test_real_setup_capture_is_truthful_and_fits_anonymous_viewports(browser, si
         page.goto(site_url, wait_until="networkidle")
         image = page.locator("img[src^='assets/captures/setup-desktop.webp']")
         image.evaluate("img => { img.loading='eager'; return img.decode(); }")
+        page.locator("img").evaluate_all("imgs => Promise.all(imgs.map(img => { img.loading = 'eager'; return img.decode(); }))")
+        page.evaluate("document.fonts.ready")
         figure = image.locator("xpath=ancestor::figure")
         assert image.evaluate("img => img.naturalWidth") == (390 if width <= 640 else 1440)
         assert "temporary account was empty" in figure.inner_text()
