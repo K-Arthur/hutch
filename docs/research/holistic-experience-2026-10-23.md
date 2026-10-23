@@ -113,3 +113,14 @@ layouts; marketing icon and technical-content layouts; rendered state matrix; te
 suites; code review; progressive integration and cleanup. Existing surface brief for
 marketing contains stale square/brutalist guidance; current DESIGN.md and this approved
 route take precedence. No unrelated brief repair undertaken.
+
+## Completed outcome
+
+The approved task-first route is implemented and integrated locally into `main`.
+The earlier implementation checkpoint above is historical. Current acceptance,
+verification limitations and cleanup are recorded in
+[`../realignment/holistic-experience-progress.md`](../realignment/holistic-experience-progress.md)
+and the [rendered validation record](../realignment/holistic-experience-validation.md).
+All 62 post-merge checks passed; unrelated edits were preserved, task worktree/branch
+removed, and nothing pushed. Broad-run failures and unrun checks remain disclosed
+rather than represented as whole-product certification.

@@ -1,0 +1,37 @@
+{
+  "recorded_at": "2026-10-23T23:07:24.966677+00:00",
+  "merged_revision": "9fe75af9d299f62abd688601cbed9934e2c064c8",
+  "scope": "Post-merge tests in main with pre-existing unrelated backend edits preserved; these are integration captures, not clean committed-backend proof.",
+  "passed": 62,
+  "elapsed_seconds": 170.16,
+  "checks": [
+    "dashboard/server contracts",
+    "models",
+    "site tokens",
+    "task-page browser regressions",
+    "experience-surface browser regressions",
+    "marketing evidence completeness",
+    "emoji audit"
+  ],
+  "unrelated_modified_file_sha256": {
+    "docs/adr/0007-external-runtimes.md": "64ae2b39bea5076356474b224781edc1b2d740c6015382c317af3bcb4c290151",
+    "docs/adr/0008-memory-and-bounded-collaboration.md": "ca2e2151cbc977b17bcbb8b77c89ba2a6786be8494bd28c61bd2bc5279b983d8",
+    "docs/realignment/ledger.md": "1832bca0b76366e6b668397b0e273d588e4ed08d085310f4d1fe72e90d0fbc68",
+    "src/hutch/models.py": "a8f3f9bd846c06e6743cbab2b69163df3acad52b257487f3522385e507e5db08",
+    "src/hutch/runtime/builtin.py": "3f5de96fbde3fc24d03a5c365c8c6eb20de9f48ab1e5c80b9719f2f3b4b1f44c",
+    "src/hutch/runtime/opencode.py": "920d7624e0de0296b49ec89bfc1f841564a0c315dfb24a9e6878d282ab03deda",
+    "src/hutch/server/app.py": "893a777e1996306637308b86c0265ed591131a8f12861dd33eaf423017809e2d",
+    "src/hutch/store.py": "dd9e51c57c30f64fa85e8ab981f07fc71e157242c837be87aeb67fc8764c7ce9",
+    "tests/test_conversations.py": "41e30b7c458d1cee73ec4306ed2a2ea75be19f706a889cdd6ac1895ce13f53fe",
+    "tests/test_migration.py": "c56d90d851fb2e72362b8e16d6ed210e1a87087d4e2a56e6ad0f971c4540c938",
+    "tests/test_runtime_builtin.py": "f38b47ef1e761c491cb169df603a4c590311ddf0da62a050cb0fe32d39a001e0",
+    "tests/test_runtime_opencode.py": "6ec7487920ba35c9c5d2b4ca03f2cd971e529ad6b328fda2a881786480004e46"
+  },
+  "syntax": "node --check src/hutch/server/static/app.js passed",
+  "cleanup": {
+    "task_worktree_removed": true,
+    "task_branch_removed": true,
+    "owned_baseline_copy_removed": true
+  },
+  "pushed": false
+}

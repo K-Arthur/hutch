@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-10-23T23:02:27.658841+00:00",
+  "recorded_at": "2026-10-23T23:07:24.986338+00:00",
   "browser": "Chromium 156.0.8078.4",
   "scope": "Actual locally rendered UI with synthetic test records; computer frames are synthetic fixtures; first-run proof uses a genuinely empty database. No live provider inference, screen reader or physical-device checks.",
   "source_sha256": {
@@ -41,6 +41,10 @@
     "headers/skills-900.png": "254b7841864fb6b3d6b4b40cce4d0d8f8700a89e614b572a569ed015a154c464",
     "identity/run-identity-1440.png": "900da0c7b27a46046a6f76964dbcea324078e962399536ec8e7ba023fb763872",
     "identity/run-identity-390.png": "ffbcf9365e0c126bd96970b216741e269d70c7c640339b20fd485b96c194f0ba",
+    "integration/run-identity-phone.png": "56f8b2f3b2004f11a76ee7d9310181fd00ade7f3c01c6982f35f2173b01dbadf",
+    "integration/settings-desktop.png": "5437bbcae071ca16c10164db508a1bbf9bddfed026e92735dc64b995a580420d",
+    "integration/test-output.txt": "cd1808b796e9acf5848a38ec8bbf646251f0cfa6785d732a341febbbfe00bebb",
+    "integration/validation.json": "6c674f5459b6cdaae17e1af6b36c0b84c188e348fc34a2bfc83ec42562eaa319",
     "marketing/proof-desktop.png": "c6243e9e57d88dd7aed637e93444a07024b1499a6b935823715ac24134256127",
     "marketing/proof-phone.png": "bfdbe5d950804339aef821be49ed569b4a9c5a7aa2511e109e911a3bdd34a16e",
     "marketing/proof-tablet.png": "97ba5715bf6df4f177bf00b9abc8b317fd24a739ff544dead818ab3ba16e4f97",

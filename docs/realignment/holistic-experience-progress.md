@@ -1,4 +1,4 @@
-# Repo-wide experience work — active checkpoint
+# Repo-wide experience work — completed checkpoint
 
 ## Authority
 
@@ -21,8 +21,8 @@ Do not call isolated screenshots or passing first-run checks repo-wide validatio
 | A4 | Marketing follows same rules; expanded content works without stretching unrelated columns | Implemented; body-sized shared reading rows, real proof and evidence hashes verified |
 | A5 | Actual desktop/tablet/phone and loading/error/empty/focus/expanded-state inspection | Representative family/state coverage recorded; physical-device/screen-reader/native-zoom checks remain unrun |
 | A6 | Meaningful regressions + relevant suite + necessary code review | Complete with disclosed limitations: combined fast coverage 3260 passed, 5 failed nodes; four workflow reruns pass, storage benchmark reproduces baseline failure; computer-control baseline failures remain; two-pass self-review recorded |
-| A7 | Progressive commits and relevant documentation | Six implementation commits through 1d9b58da plus 01afd3ca checkpoint; final validation recorded below |
-| A8 | Integrate into main/master, verify integration, remove task worktree/branch | Pending; do not integrate unfinished work |
+| A7 | Progressive commits and relevant documentation | Six implementation commits through 1d9b58da plus validation/checkpoint commits; final evidence and limitations recorded |
+| A8 | Integrate into main/master, verify integration, remove task worktree/branch | Complete: fast-forwarded main to 9fe75af9, 62 post-merge checks passed, preservation verified, task worktree/branch and owned baseline copy removed; no push |
 
 ## Source inventory / remaining review families
 
@@ -42,11 +42,13 @@ Do not call isolated screenshots or passing first-run checks repo-wide validatio
 
 ## Current implementation and evidence
 
-Branch `feature/holistic-experience`, worktree
-`/home/kevina/.local/share/opencode/worktree/5b4899/holistic-experience`.
+Implementation used branch `feature/holistic-experience` and worktree
+`/home/kevina/.local/share/opencode/worktree/5b4899/holistic-experience`;
+both were removed after verified integration. Current checkout is
+`/home/kevina/CodingProjects/hutch` on `main`.
 The first commit was created on detached HEAD by the worktree tool; the named branch
-now contains it. Original checkout has unrelated backend/test edits—preserve them.
-Original research note also remains untracked there; reconcile only our own duplicate.
+contained it. Original checkout's unrelated backend/test edits remain untouched.
+The task-authored duplicate research note was archived before installing the tracked version.
 
 Committed `ef33bfc3`: marketing workflow explanations moved below compact overview;
 body-size explanation text; missing FAQ class fixed; docs + keyboard/geometry regression.
@@ -160,7 +162,11 @@ Approval/proof/emoji checks passed (**11 passed**, 23.49s). Latest proof desktop
 identity desktop/phone captures opened; genuine approval-triage output recopied and root
 manifest regenerated from actual retained files. Evidence-completeness/site-token checks
 passed (**9 passed**, 5.34s).
-See [rendered coverage and review](holistic-experience-validation.md). Integration still pending.
+See [rendered coverage and review](holistic-experience-validation.md). Main was fast-forwarded
+to `9fe75af9`; **62 post-merge checks passed** (170.16s) in the original checkout with its
+existing unrelated backend edits intact. Syntax check passed. Integration phone identity
+and desktop settings captures were opened and retained in `integration/`. All 12
+preservation hashes still match after testing and cleanup. No push was performed.
 
 Disk: `/tmp` repeatedly fills from unrelated work. Use short home-directory temporary paths;
 do not delete other tasks' temporary trees. Retained current captures are under
@@ -177,13 +183,14 @@ captures are historical, not current-state evidence. No further design/polish ro
   /home/kevina/.local/share/opencode/hutch-run-tests.py -q
   --basetemp=/home/kevina/.hutch-tmp/<short-name> <tests>`; run from the selected source tree.
   Runner sets child `PYTHONPATH` and `TMPDIR=/home/kevina/.hutch-tmp`; directory must exist.
-- node_modules is an **untracked symlink** to original checkout dependencies; never commit.
+- The task-owned node_modules symlink was unlinked without touching shared dependencies.
 - `npm run build:css` and `node --check src/hutch/server/static/app.js` passed after the
   latest setup and technical-detail edits. Builds generate CSS and stamp site asset hashes.
-- Worktree empty-state review server: app 18891, state in
+- Historical worktree empty-state review server: app 18891, state in
   `/home/kevina/.local/share/opencode/hutch-visual-empty-20261023`. Do not run real
   model/provider tasks for visual QA. Use fixture servers for populated states.
-  Processes may die on host restarts. Use independent fixture state for mutations/tests.
+  It stopped during a host restart; no task review server remains active. Tests used
+  independent fixture state for mutations. No real model/provider task was used for QA.
 - Completed restart-safe remainder runner: shell `sh_16ae746210017r0gLHwi8jCR2m`.
   It validated a fingerprint of tracked product/test sources, kept completed nodes,
   and stored admission, per-phase reports, per-batch logs/JUnit and final result in
@@ -197,12 +204,25 @@ captures are historical, not current-state evidence. No further design/polish ro
   short socket paths. These are pre-existing failures in this environment, not proven UI
   regressions; their deeper cause is not diagnosed. Do not claim this path works. Copied
   evidence/site-token checks passed. No claim of successful live computer control.
-- Next: commit the final validation record, fast-forward main,
-  verify integration and all 12 unrelated file hashes, remove only the task worktree/branch.
-  Main remains at f29b299b; preservation record:
+- Integration: main fast-forwarded from f29b299b to 9fe75af9. Session moved to
+  `/home/kevina/CodingProjects/hutch`. Post-merge suite completed as shell
+  `sh_16b012606001aHnXJrJy3txVTl` (**62 passed**, 170.16s)
+  with base path `m1`: dashboard/model/server contracts, site tokens, all task-page and
+  experience-surface browser regressions, evidence completeness and emoji audit.
+- Cleanup complete: removed only the task worktree, merged feature branch, dependency
+  symlink, and task-owned temporary baseline archive. Other worktrees, dependencies,
+  unrelated edits/untracked files, raw validation logs and the research archive remain.
+  Preserved-file hashes and cleanup checks are retained in `integration/validation.json`.
+  External preservation record:
   `/home/kevina/.local/share/opencode/holistic-main-before-merge.json`. Latest comparison
   confirmed all hashes unchanged and merge paths disjoint. The duplicate original-checkout
   task research note is archived at
   `/home/kevina/.local/share/opencode/holistic-original-research-note-2026-10-23.md`;
-  its original remains in place until the fast-forward. It is a prefix of the tracked note.
-  No merge or push yet. No independent subagent review was performed; review is self-review.
+  its duplicate was removed only after verifying the archive and prefix match, allowing Git
+  to install the more complete tracked note. No push. No independent subagent review was
+  performed; review is self-review.
+
+No implementation or integration work remains for this task. Known storage/computer-control
+failures and transient workflow batch failures remain disclosed, not fixed incidentally.
+Physical-device, screen-reader, native browser zoom, other-engine and live-provider checks
+were not run. Main remains intentionally dirty with the user's unrelated work.

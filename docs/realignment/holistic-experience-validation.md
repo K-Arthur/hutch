@@ -106,6 +106,25 @@ tree. Tests, workflow engine, supervisor and API bytes are unchanged. The origin
 failures remain recorded; their batch/timing cause is **not diagnosed**, and no
 timeout, assertion, safety boundary or product code was changed to hide them.
 
+## Integration and cleanup
+
+Fast-forwarded `main` from `f29b299b` to `9fe75af9`. In the original checkout,
+**62 post-merge tests passed** (170.16s): dashboard/server and model contracts,
+site tokens, all setup/task-page and experience-surface browser regressions,
+marketing evidence completeness and the emoji audit. JavaScript syntax passed.
+Opened the post-merge phone identity and desktop expanded-settings captures.
+Genuine output, captures, preservation hashes and cleanup checks are retained in
+`artifacts/holistic-experience-2026-10-23/integration/`.
+
+All **12 unrelated modified tracked files** match their pre-merge hashes after
+integration testing and cleanup; unrelated untracked files were not removed.
+Archived only this task's duplicate research note, then let Git install its more
+complete tracked version. Removed the task worktree and merged feature branch,
+unlinked only its node_modules symlink, and removed the task-owned temporary
+baseline archive. Shared dependencies and other worktrees remain. No push.
+This integration pass includes the user's existing uncommitted backend work;
+it is not a claim that those edits were reviewed or committed by this task.
+
 The mechanical detector reported eight advisory items, not proof of visual
 quality. Provider sign-in artwork radius and neutral provider-artwork backgrounds
 are documented brand exceptions; 11px marketing table headings are an existing
