@@ -306,7 +306,17 @@ class ClaudeProvider(Provider):
         cache_write = int(getattr(u, "cache_creation_input_tokens", 0) or 0)
         uncached = int(getattr(u, "input_tokens", 0) or 0)
         reason = {"end_turn": "stop", "stop_sequence": "stop", "tool_use": "tool_calls", "max_tokens": "length",
-                  "refusal": "refusal", "pause_turn": "stop"}.get(msg.stop_reason or "end_turn", "stop")
+                  "refusal": "refusal"}.get(msg.stop_reason or "end_turn", "stop")
+        if msg.stop_reason == "pause_turn":
+            # pause_turn is not end_turn: Anthropic stopped mid-response. Treat
+            # any delivered text as retained partial output, never a completion.
+            raise ProviderError(
+                "incomplete", f"{msg.model} paused before finishing the response; it was not completed",
+                provider=self.name, partial_content="".join(text),
+                partial_usage={"prompt_tokens": int(getattr(u, "input_tokens", 0) or 0),
+                               "completion_tokens": int(getattr(u, "output_tokens", 0) or 0),
+                               "cached_tokens": cache_read},
+                partial_finish="pause_turn")
         if msg.stop_reason == "refusal":
             details = getattr(msg, "stop_details", None)
             cat = getattr(details, "category", None) if details else None

@@ -139,7 +139,44 @@ class OpenAICompatProvider(Provider):
         return Health(ok=True, latency_ms=(time.perf_counter() - t) * 1000.0)
 
     def probe_models(self) -> tuple[bool, str, list[str]]:
-        """ONE authenticated GET of the model list: (ok, detail, names). Spends no tokens."""
+        """Authenticated discovery: (ok, detail, names). Spends no inference tokens.
+
+        OpenRouter's ``/models`` catalog is public, so a 200 there proves nothing
+        about the key. Verify the key first with its authenticated ``/key``
+        endpoint, which also reports the credit/budget state a person needs
+        before choosing a paid model.
+        """
+        account = ""
+        if self.name == "openrouter":
+            try:
+                key_response = self._http().get("/key", timeout=self._timeout(read=8.0))
+            except Exception as exc:
+                return False, self._wrap_exc(exc).args[0], []
+            if key_response.status_code in (401, 403):
+                return False, "OpenRouter rejected the API key", []
+            if key_response.status_code >= 400:
+                return False, self._error_from_response(key_response).args[0], []
+            try:
+                data = (key_response.json() or {}).get("data") or {}
+            except (ValueError, TypeError, AttributeError):
+                data = {}
+            if not isinstance(data, dict):
+                data = {}
+            parts = []
+            remaining = data.get("limit_remaining")
+            if isinstance(remaining, (int, float)) and not isinstance(remaining, bool):
+                parts.append(f"${float(remaining):.2f} key credit remaining")
+            effective = data.get("effective_budget")
+            if isinstance(effective, dict):
+                left = effective.get("remaining_usd")
+                if isinstance(left, (int, float)) and not isinstance(left, bool):
+                    parts.append(f"${float(left):.2f} before the next budget limit")
+                resets = effective.get("resets_at")
+                if isinstance(resets, str) and resets:
+                    parts.append(f"budget resets {resets}")
+            if data.get("is_free_tier") is True:
+                parts.append("free tier")
+            account = "; ".join(parts)
         try:
             r = self._http().get("/models", timeout=self._timeout(read=8.0))
         except Exception as exc:
@@ -152,7 +189,10 @@ class OpenAICompatProvider(Provider):
             names = self._catalog_ids(r.json())
         except (ValueError, TypeError, ProviderError) as exc:
             return False, str(exc) or "the endpoint returned an invalid model list", []
-        return True, f"authenticated; {len(names)} model(s) available", names
+        detail = f"authenticated; {len(names)} model(s) available"
+        if account:
+            detail += f"; {account}"
+        return True, detail, names
 
     def list_models(self) -> list[ModelMeta]:
         try:
@@ -303,14 +343,22 @@ class OpenAICompatProvider(Provider):
                         raise ProviderError("stream", f"unassemblable stream: {exc}", provider=self.name)
             except Exception as exc:
                 if dog.stalled:
-                    raise ProviderError("stream", f"no data for {req.idle_timeout:.0f}s - the stream stalled",
-                                        provider=self.name)
-                raise self._wrap_exc(exc)
+                    raise self._partial_stream_error(
+                        assembler, f"no data for {req.idle_timeout:.0f}s - the stream stalled")
+                wrapped = self._wrap_exc(exc)
+                if wrapped.partial_content == "" and assembler.content:
+                    wrapped.partial_content = assembler.content
+                    wrapped.partial_usage = self._usage_summary(assembler.usage)
+                    wrapped.partial_finish = assembler.finish
+                raise wrapped
             finally:
                 dog.cancel()
                 unregister()
         if should_reject_empty_stream(assembler):
             raise ProviderError("stream", "the stream ended without any content", provider=self.name)
+        if not assembler.done and not assembler.finish_seen:
+            raise self._partial_stream_error(
+                assembler, "the stream ended without a completion marker; the reply may be incomplete")
         tcs = []
         for slot in assembler.calls():
             args, err, state, double = parse_tool_args_state(slot["arguments"])
@@ -320,6 +368,23 @@ class OpenAICompatProvider(Provider):
                               assembler.model or req.model, req, streamed=True)
         result.notes.extend(assembler.notes)
         return result
+
+    @staticmethod
+    def _usage_summary(usage: dict[str, Any]) -> dict[str, int]:
+        details = usage.get("prompt_tokens_details") or {}
+        return {
+            "prompt_tokens": int(usage.get("prompt_tokens") or 0),
+            "completion_tokens": int(usage.get("completion_tokens") or 0),
+            "cached_tokens": int(details.get("cached_tokens") or 0),
+        }
+
+    def _partial_stream_error(self, assembler, message: str) -> ProviderError:
+        return ProviderError(
+            "stream", f"{self.name} {message}", provider=self.name,
+            partial_content=assembler.content,
+            partial_usage=self._usage_summary(assembler.usage),
+            partial_finish=assembler.finish,
+        )
 
     def _from_full(self, j: dict[str, Any], req: ChatRequest) -> ChatResult:
         choice = (j.get("choices") or [{}])[0]
@@ -354,7 +419,9 @@ class OpenAICompatProvider(Provider):
     def _result(self, content: str, tcs: list[ToolCall], usage: dict[str, Any], finish: str, model: str,
                 req: ChatRequest, streamed: bool) -> ChatResult:
         details = usage.get("prompt_tokens_details") or {}
-        reason = "tool_calls" if tcs else ("length" if finish == "length" else "stop")
+        # Truncation is the stronger fact: a partially streamed tool call must
+        # never be reported as a complete tool request.
+        reason = "length" if finish == "length" else ("tool_calls" if tcs else "stop")
         reported = None
         raw_cost = usage.get("cost")
         if raw_cost is not None:
