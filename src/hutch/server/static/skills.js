@@ -81,7 +81,7 @@
   async function renderSkillsPage() {
     const generation = ++skillsRenderGeneration;
     const container = q("#view");
-    setTopContext(`<div class="ctx-id"><div class="ctx-heading"><h1>Skills</h1><span class="ctx-subtitle">Reusable instruction packages for your assistants</span></div></div><div class="ctx-actions"><button class="btn ghost small" id="skills-refresh" type="button">Refresh</button></div>`);
+    setTopContext(`<div class="ctx-id"><div class="ctx-heading"><h1>Skills</h1><span class="ctx-subtitle">Reusable instruction packages for your assistants</span></div></div><div class="ctx-actions ctx-actions-compact"><button class="btn ghost small" id="skills-refresh" type="button" aria-label="Refresh" title="Refresh skills">${icon("refresh")}Refresh</button></div>`);
     container.innerHTML = `<div class="page-scroll"><div class="container">
       <p class="page-subtitle">Reusable instruction packages (SKILL.md). Installing copies a package here;
         nothing is disclosed to a model until you review it and trust it, and assigning it to an assistant is a separate step.</p>

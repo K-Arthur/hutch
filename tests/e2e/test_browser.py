@@ -128,15 +128,21 @@ def test_paired_phone_uses_supervision_view_and_hides_data_after_revocation(brow
             f"session={page.evaluate('hutchSession.capabilities')} tabs={page.locator('.phone-tabs').get_attribute('class')}")
         assert forbidden_responses == []
         assert "Monitor only" in page.locator("#phone-root").inner_text()
+        out = artifact_path("holistic-experience/phone")
+        out.mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=str(out / "monitor-phone.png"), animations="disabled")
         page.get_by_role("button", name="Runs").click()
         page.locator(f'[data-phone-run="{run.id}"]').click()
         page.locator(".phone-run-detail").wait_for()
         assert page.locator("[data-phone-stop], [data-phone-resume]").count() == 0
         assert page.locator(".phone-run-detail").get_by_text("Phone transcript fixture marker.").is_visible()
+        assert page.locator(".phone-transcript .phone-prose").evaluate("el => getComputedStyle(el).fontSize") == "16px"
+        assert "system-ui" in page.locator(".phone-transcript .phone-prose").evaluate("el => getComputedStyle(el).fontFamily")
         started_at = page.locator(".phone-run-detail .phone-card .phone-sub").first.inner_text()
         transcript_time = page.locator(".phone-transcript li > span").first.inner_text()
         assert "Started " in started_at and not re.search(r"\d{4}-\d{2}-\d{2}T", started_at)
         assert not re.search(r"\d{4}-\d{2}-\d{2}T", transcript_time)
+        page.screenshot(path=str(out / "run-detail-phone.png"), animations="disabled")
         store.revoke_device_session(paired["id"])
         page.locator(".phone-locked").wait_for(timeout=4000)
         assert "Private phone fixture" not in page.locator("body").inner_text()
@@ -10229,7 +10235,7 @@ def test_all_models_dialog_filters_explains_and_applies(browser, switcher_env, r
     assert page.locator('input[name="ms-pick"][value="ollama/huge:70b"]').is_disabled()
     assert "anthropic" in text.lower() and "ANTHROPIC_API_KEY" in text
     assert "leaves this machine" in text
-    assert page.locator('a[href="/models"]').count() == 1
+    assert dlg.locator('a[href="/models"]').count() == 1
 
     page.locator(".ms-search").fill("small")
     assert page.locator(".ms-row:visible").count() == 1

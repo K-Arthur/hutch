@@ -10847,6 +10847,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
   let addressEdited = false;
   let draftClosed = false;
   let persistTimer = 0;
+  let creating = false;
   const restoredSetup = !preselect && !sourceMessageId && !duplicateBot && !prefillPurpose && !firstRunChoice
     ? loadAssistantSetupDraft() : null;
   if (restoredSetup) {
@@ -11607,9 +11608,11 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       : `Step ${step + 1} of ${stepTitles.length}`;
     body.innerHTML = `<div class="bot-setup"><div class="setup-progress" role="status">${progress}</div>${back}${content}<p class="setup-error" id="bot-setup-error" role="alert" hidden></p></div>`;
     element.scrollTop = 0;
-    confirm.textContent = step === 3 || (step === 0 && !draft.forceAdvanced && !!draft.model.trim())
+    body.disabled = creating;
+    $("#setup-discard-actions", root).disabled = creating;
+    confirm.textContent = creating ? "Creating assistant…" : step === 3 || (step === 0 && !draft.forceAdvanced && !!draft.model.trim())
       ? "Create bot" : step === 0 && !draft.forceAdvanced ? "Choose a model" : "Continue";
-    confirm.disabled = false;
+    confirm.disabled = creating;
     let configurationYaml = "";
     $("#setup-yaml-build")?.addEventListener("click", async event => {
       snapshotFields();
@@ -11852,6 +11855,11 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
         source_context_message_ids: selectedCreationContext().map(message => message.id),
       };
       const button = $("#setup-page-confirm"); if (button) button.disabled = true;
+      const actionText = button?.textContent;
+      creating = true;
+      if (button) button.textContent = "Creating assistant…";
+      $(".setup-page-body", element).disabled = true;
+      $("#setup-discard-actions", element).disabled = true;
       try {
         const key = await creationKey(body);
         const bot = await api("/v1/bots", { method: "POST", headers: { "Idempotency-Key": key }, body });
@@ -11873,6 +11881,13 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
         else toast(`Assistant was not created: ${err.message}`, true);
         if (button) button.disabled = false;
         return false;
+      } finally {
+        creating = false;
+        if (!draftClosed) {
+          $(".setup-page-body", element).disabled = false;
+          $("#setup-discard-actions", element).disabled = false;
+          if (button) button.textContent = actionText;
+        }
       }
   };
   const element = document.createElement("div");
@@ -11881,7 +11896,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
   element.innerHTML = `<div class="container setup-page">
     <div class="setup-step-head"><h2 class="page-title" id="setup-page-title" tabindex="-1">New assistant</h2></div>
     ${restoredSetup ? `<p class="setup-restored" role="status">Restored your unsaved setup from this tab. Nothing has been saved or created.</p>` : ""}
-    <div class="setup-page-body"></div>
+    <fieldset class="setup-page-body" aria-labelledby="setup-page-title"></fieldset>
     <div class="setup-page-actions">
       <button class="btn ghost" id="setup-discard-actions" type="button">Discard draft</button>
       <a class="btn ghost" href="${esc(returnRoute)}" id="setup-save-leave">Save draft and leave</a>
@@ -12251,7 +12266,8 @@ function phoneRender() {
           ? (statusInfo[d.status]?.label || d.status.replaceAll("_", " ")) : null;
         const content = e.type === "status" && statusLabel
           ? statusLabel : (d.content ?? d.text ?? d.command ?? d.message ?? JSON.stringify(d, null, 2));
-        return `<li><span>${esc(String(e.type || "event").replaceAll("_", " "))} · ${esc(phoneTimestamp(e.ts))}</span><pre>${esc(String(content).slice(0, 6000))}${String(content).length > 6000 ? "\\n… clipped for phone display" : ""}</pre></li>`;
+        const prose = e.type === "message" && (typeof d.content === "string" || typeof d.text === "string");
+        return `<li><span>${esc(String(e.type || "event").replaceAll("_", " "))} · ${esc(phoneTimestamp(e.ts))}</span><pre${prose ? ' class="phone-prose"' : ""}>${esc(String(content).slice(0, 6000))}${String(content).length > 6000 ? "\\n… clipped for phone display" : ""}</pre></li>`;
       }).join("")}</ol>` : `<p class="phone-empty">No transcript events have arrived yet.</p>`}
       ${selected.events_truncated ? `<p class="phone-sub">Showing the latest transcript window. Open Hutch on its host to inspect older history.</p>` : ""}</section>`;
   } else if (phoneModel.tab === "runs") {
@@ -12813,7 +12829,7 @@ function paintRuntime() {
   }
 
   setTopContext(`<div class="ctx-id"><h1>Runtime &amp; background work</h1></div>
-    <div class="ctx-actions"><button class="btn ghost small" type="button" data-runtime-action="refresh">Refresh</button></div>`);
+    <div class="ctx-actions ctx-actions-compact"><button class="btn ghost small" type="button" data-runtime-action="refresh" aria-label="Refresh" title="Refresh runtime status">${icon("refresh")}Refresh</button></div>`);
 
   view.innerHTML = `
     <div class="page-scroll"><div class="container runtime-page">

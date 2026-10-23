@@ -35,14 +35,14 @@ RUNS_PAGE = 50
 FLASH, FLASH_ERR = "hutch_flash", "hutch_flash_err"
 
 NAV = [
-    ("studio", "/", "Studio", "chat"),
-    ("overview", "/overview", "Overview", "home"),
-    ("bots", "/bots", "Bots", "bot"),
-    ("runs", "/runs", "Runs", "list"),
-    ("approvals", "/approvals", "Approvals", "shield"),
+    ("studio", "/", "Chats", "chat"),
+    ("overview", "/overview", "Activity", "home"),
+    ("bots", "/bots", "Assistants", "bot"),
+    ("runs", "/runs", "Work history", "list"),
+    ("approvals", "/approvals", "Needs you", "shield"),
     ("models", "/models", "Models", "cpu"),
     ("usage", "/usage", "Usage", "chart"),
-    ("connections", "/connections", "Connections", "layers"),
+    ("connections", "/connections", "Apps & AI", "layers"),
 ]
 
 

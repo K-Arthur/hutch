@@ -445,6 +445,7 @@ p.hint, div.hint { max-width: 72ch; }
 .setup-page { max-width: 1040px; }
 .setup-step-head { margin-bottom: var(--s-4); }
 .setup-page-body, .setup-page-actions { max-width: 72ch; }
+.setup-page-body { min-inline-size: 0; padding: 0; margin: 0; border: 0; }
 .setup-page .btn { min-height: 44px; }
 .setup-page-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--s-3); margin-top: var(--s-6); padding-block: var(--s-4); border-top: 1px solid var(--line); }
 .setup-restored { margin: 0 0 var(--s-4); padding: var(--s-3) var(--s-4); border: 1px solid var(--brand-line); border-radius: var(--r-ctl); background: var(--brand-wash); color: var(--text-2); font-size: var(--fs-sm); }
@@ -660,6 +661,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .ctx-meta { display: flex; align-items: center; gap: var(--s-2); min-width: 0; flex-wrap: wrap; }
 .coordinator-label-compact { display: none; }
 .ctx-actions { margin-left: auto; display: flex; align-items: center; gap: var(--s-2); flex: none; }
+.ctx-actions-compact .btn { min-height: 44px; }
 .conversation-select { min-width: 115px; max-width: 190px; height: 34px; font-size: var(--fs-xs); }
 .ctx-heading { flex: 1 1 auto; }
 .studio-search-button { width: 40px; height: 40px; flex: none; border: 1px solid var(--line); }
@@ -2036,6 +2038,10 @@ button.inline-link:hover { color: var(--text); }
   .app-top-status .workflow { display: none; }
   .app-top-context .ctx-actions .btn { font-size: 0; gap: 0; padding: 0 8px; }
   .app-top-context .ctx-actions .btn .icon { width: 16px; height: 16px; }
+  .app-top-context:has(.ctx-actions-compact) { flex-wrap: nowrap; }
+  .app-top-context:has(.ctx-actions-compact) .ctx-id { flex: 1 1 auto; width: auto; }
+  .app-top-context .ctx-actions-compact { flex: none; width: auto; margin-left: auto; }
+  .app-top-context .ctx-actions-compact .btn { width: 44px; min-width: 44px; min-height: 44px; }
 }
 
 @media (max-width: 640px) and (pointer: coarse) {
@@ -2047,7 +2053,7 @@ button.inline-link:hover { color: var(--text); }
 @media (pointer: coarse) {
   .skip-link { min-height: 44px; display: inline-flex; align-items: center; }
   .roster-row { min-height: 44px; }
-  .btn { min-height: 40px; padding: 0 var(--s-4); }
+  .btn { min-height: 44px; padding: 0 var(--s-4); }
   /* inline small buttons lose to button.small's min-height by specificity */
   .btn.small, button.small, a.small { min-height: 44px; padding: 0 var(--s-3); }
   .icon-btn { width: 40px; height: 40px; }
@@ -2339,6 +2345,7 @@ body.paired-phone > :not(#phone-root) { display: none !important; }
 .phone-card summary { min-height: 48px; display: flex; align-items: center; color: var(--focus); cursor: pointer; }
 .phone-card pre, .phone-transcript pre { max-height: 260px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere;
   padding: 11px; background: var(--sunken); border-radius: var(--r-ctl); font: 12px/1.5 var(--mono); }
+.phone-transcript .phone-prose { max-width: 72ch; padding: 0; background: transparent; font: var(--fs-base)/var(--leading-reading) var(--font-ui); }
 .phone-start-form { display: grid; gap: 12px; }
 .phone-start-form label { display: grid; gap: 6px; font-weight: 600; }
 .phone-start-form select, .phone-start-form textarea { width: 100%; min-height: 48px; padding: 11px 12px; color: var(--text);
@@ -2768,7 +2775,7 @@ details[open] > summary .summary-row-action .icon { transform: rotate(180deg); }
 
 /* Assistant settings start with the two things most people change. Deeper
    controls stay available behind one clearly labeled disclosure. */
-.assistant-settings-page { max-width: 760px; }
+.assistant-settings-page { max-width: 1040px; }
 .assistant-settings-basics { max-width: none; margin: 0 0 14px; }
 .assistant-settings-intro { display: flex; align-items: center; gap: 12px; margin-bottom: 2px; }
 .assistant-settings-intro > :first-child { flex: none; }
@@ -2788,6 +2795,11 @@ details[open] > summary .summary-row-action .icon { transform: rotate(180deg); }
 .assistant-more-settings[open] > summary { border-radius: var(--r-panel) var(--r-panel) 0 0; border-bottom-color: transparent; }
 .assistant-more-settings .detail-grid { padding: 16px; background: var(--panel); border: 1px solid var(--line-strong); border-top: 0;
   border-radius: 0 0 var(--r-panel) var(--r-panel); }
+/* Form tracks respond to their actual panel width, not the viewport: the
+   secondary limits column must never squeeze selects or range controls. */
+.assistant-more-settings .form-grid.row2 {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+}
 .assistant-settings-basics .field { max-width: 68ch; }
 .assistant-usage-panel { padding: 0; overflow: hidden; }
 .assistant-usage-details { --summary-slot: 30px; }
@@ -2990,8 +3002,8 @@ details[open] > summary .summary-row-action .icon { transform: rotate(180deg); }
 .persona-form .persona-field select { min-height: 44px; }
 .persona-customize { display: grid; gap: var(--s-2); border-top: 1px solid var(--line); padding-top: var(--s-2); }
 .persona-customize h3 { margin: 0; font-size: var(--fs-md); line-height: 1.35; }
-.persona-range-row { display: grid; grid-template-columns: 108px minmax(60px, 1fr) 44px; align-items: center; gap: var(--s-2); }
-.persona-range-row select { width: 108px !important; min-height: 44px; }
+.persona-range-row { display: grid; grid-template-columns: minmax(0, 1fr) max-content; align-items: center; gap: var(--s-2); }
+.persona-range-row select { grid-column: 1 / -1; width: 100% !important; min-height: 44px; }
 .persona-range-row input[type="range"] { width: 100%; min-width: 0; accent-color: var(--brand); }
 .persona-range-row output { min-width: 44px; color: var(--text-2); font-size: var(--fs-xs); text-align: right; font-variant-numeric: tabular-nums; }
 .persona-habits { min-width: 0; margin: 0; border: 1px solid var(--line); border-radius: var(--r-ctl); padding: var(--s-2); }
@@ -3016,8 +3028,7 @@ details[open] > summary .summary-row-action .icon { transform: rotate(180deg); }
 .persona-preview-inspector dd { margin: 0; min-width: 0; color: var(--text); overflow-wrap: anywhere; }
 .persona-live-preview [hidden] { display: none !important; }
 @media (max-width: 480px) {
-  .persona-range-row { grid-template-columns: 108px minmax(60px, 1fr) 44px; gap: var(--s-1); }
-  .persona-range-row select { width: 108px !important; }
+  .persona-range-row { gap: var(--s-1); }
   .persona-preview-inspector dl > div { grid-template-columns: minmax(0, 1fr); gap: var(--s-1); }
   .persona-habit-options { grid-template-columns: 1fr; }
   .persona-example-grid, .persona-depth-examples { grid-template-columns: 1fr; }

@@ -106,13 +106,13 @@ components:
     textColor: "{colors.primary-ink}"
     rounded: "{rounded.control}"
     padding: "0 16px"
-    height: "32px"
+    height: "40px"
   button-ghost:
     backgroundColor: "transparent"
     textColor: "{colors.text-secondary}"
     rounded: "{rounded.control}"
     padding: "0 16px"
-    height: "32px"
+    height: "40px"
   input-text:
     backgroundColor: "{colors.surface-ground}"
     textColor: "{colors.text-primary}"
@@ -242,6 +242,8 @@ prose, labels, or marketing.
   region below the overview; expanding one must not stretch sibling overview
   cards. Use body-sized prose and keyboard-operable native disclosures, stacking
   overview steps in reading order on smaller screens.
+  Technical boundaries also use body-sized shared-width rows; do not shrink
+  important limitations to metadata or stretch a parallel code panel to match them.
 
 - Desktop shell: `272px sidebar | 56px top bar | 1fr content`, optional
   `380px` context drawer (fixed overlay below 1100px, auto-opened above).
@@ -291,11 +293,12 @@ language after explicit user direction ("right angles feel too off"):
 
 ## Components
 
-- **Primary button** — emerald fill, `primary-ink` text, 8px radius, 32px tall;
+- **Primary button** — emerald fill, `primary-ink` text, 8px radius, 40px tall;
   hover lifts to `#6ee7b7`; ghost variant is transparent with a hairline border;
   danger is a rose outline. Icon buttons are 32px squares (circles only inside
   the composer: send/stop/+).
-- **Controls** — interactive buttons are at least 40px tall; form fields and
+- **Controls** — routine buttons are at least 40px tall, compact desktop actions
+  are 32px with 14px labels, and coarse-pointer actions are 44px; form fields and
   selects are 44px with 16px text so phone browsers do not zoom. Native selects
   open dark surfaces with legible options, and every label, help line, and
   control uses the shared type roles rather than one-off sizes.
@@ -328,6 +331,9 @@ language after explicit user direction ("right angles feel too off"):
   Keep standing directions and technical controls under one optional
   **Customize how it works** disclosure; preserve its open state after a save so
   people can adjust several related choices in one visit.
+  Use the shared 1040px rail, with fields responding to their panel's actual
+  width. Range inheritance and its slider/value occupy separate rows so labels
+  remain legible inside the secondary-column layout.
 - **Settings disclosure row** — every collapsible settings row uses the shared
   skeleton: one grid of icon slot, copy, and trailing Show/Hide action, in a
   large panel-level size and a small in-panel size. Borders and fills belong to

@@ -15,13 +15,13 @@ Do not call isolated screenshots or passing first-run checks repo-wide validatio
 
 | ID | Acceptance | Status |
 |---|---|---|
-| A1 | Inventory all authored frontend surfaces and shared components | In progress; source inventory below |
-| A2 | Consistent layout/type/spacing/controls/icons with purposeful surface differences | Foundations committed in 9280b251; remaining family review pending |
-| A3 | Long setup/configuration on task pages, dialogs for short decisions; preserve navigation/drafts | Setup page committed; lifecycle hardening and replacement protection under test |
-| A4 | Marketing follows same rules; expanded content works without stretching unrelated columns | Overview + FAQ verified/committed; icons uncommitted; other sections pending |
-| A5 | Actual desktop/tablet/phone and loading/error/empty/focus/expanded-state inspection | Partial only; coverage matrix still needed |
-| A6 | Meaningful regressions + relevant suite + necessary code review | Focused setup passes below; broad suites/review pending |
-| A7 | Progressive commits and relevant documentation | ef33bfc3 and 9280b251; this checkpoint tracks remainder |
+| A1 | Inventory all authored frontend surfaces and shared components | Complete inventory; active, alias and compatibility routes distinguished |
+| A2 | Consistent layout/type/spacing/controls/icons with purposeful surface differences | Implemented; representative families opened and verified in the validation record |
+| A3 | Long setup/configuration on task pages, dialogs for short decisions; preserve navigation/drafts | Implemented and tested, including pending/failed/replaced/reloaded drafts |
+| A4 | Marketing follows same rules; expanded content works without stretching unrelated columns | Implemented; body-sized shared reading rows, real proof and evidence hashes verified |
+| A5 | Actual desktop/tablet/phone and loading/error/empty/focus/expanded-state inspection | Representative family/state coverage recorded; physical-device/screen-reader/native-zoom checks remain unrun |
+| A6 | Meaningful regressions + relevant suite + necessary code review | Focused browser suites pass; two-pass self-review recorded; corrected full fast suite running; baseline computer-control failures documented |
+| A7 | Progressive commits and relevant documentation | ef33bfc3, 9280b251, 050c585f; final code/evidence commits being prepared |
 | A8 | Integrate into main/master, verify integration, remove task worktree/branch | Pending; do not integrate unfinished work |
 
 ## Source inventory / remaining review families
@@ -66,13 +66,23 @@ reload/restore, discard, and a fresh form; workspace geometry now scrolls the pa
 and tolerates hover-transition channel drift (300ms settle + ±2). Template-gallery test now
 leaves the page and waits for chat.
 
-Current uncommitted slice: setup generation guards, pagehide flush, stale timer cancellation,
+Committed `050c585f`: setup generation guards, pagehide flush, stale timer cancellation,
 discard cleanup, scoped success navigation, restored-source checks and memory state, scoped
 status announcements, YAML runtime restoration, and no automatic OpenCode tool grants in
 blank setup or runtime switching. Explicitly chosen templates retain their reviewed tools.
-Replacing a draft from an example/source now requires a short confirmation. Source navigation
+Replacing a draft from an example/source now requires a short confirmation.
+
+Current uncommitted slice: compact operational header actions now have icons/accessible names
+and remain reachable at 320px; compact buttons use 32px/14px and coarse-pointer buttons 44px.
+Assistant settings uses the 1040px rail and panel-width-aware field tracks; range inheritance
+no longer squeezes its slider/value. Server pages share scalable body/title roles and section
+type; phone message prose uses body sans rather than raw-event monospace. Source navigation
 labels match the SPA; Models and Usage are discoverable in More. Marketing technical details
-use shared-width rows rather than narrow equal-height explanatory columns.
+use body-sized shared-width rows rather than narrow equal-height explanatory columns.
+Marketing first-run and response-style proof assets have fresh actual-browser captures and
+truthful dimensions. Phone proof explicitly uses an extended 390×1200 viewport; ordinary
+390×844 and 320×740 captures remain separate. Asset provenance is in
+`artifacts/no-mock-setup/marketing-assets.json`.
 
 Latest verified: syntax check and CSS build passed. Six setup tests passed (71.27s): guided
 configuration, YAML import, coordinator purpose refinement, immediate reload/tab isolation/
@@ -84,7 +94,34 @@ The six lifecycle tests in `test_task_pages.py` now pass (94.48s), including rep
 Cancel/confirm, failed replacement loading retaining an editable draft, and delayed creation
 staying on the user's next page. Distinct requirements and standards self-review found/fixed
 silent draft replacement and failed replacement invalidating the retained draft. Full
-design/browser and fast suites are running. No broad pass, final review or integration claimed.
+design/browser batch: **34 passed, 2 failed, 4 errors**. The first-run failure was the newly
+required replacement confirmation; its updated test subsequently passed. The computer-control
+fixture error and process-worker failure both reproduce on clean pre-overhaul `f29b299b` sources
+under `/home/kevina/.local/share/opencode/hutch-baseline-validation`; no backend workaround made.
+Computer panel suite separately passed **10 tests** with synthetic-frame captures inspected.
+Broader interaction batch: **14 passed**, one locator counted the newly added Models nav link;
+scoping that assertion to the dialog passed. Website: **35 passed** excluding stale evidence
+manifest; rerun after final proof/boundary updates is running. Settings-width and header checks
+passed at 1440/1280/900/390/320 as applicable; typed widget transcript and paired supervision
+checks passed. Server-page check correctly found a 22px narrow title override; normalized to
+the shared 24px role, rerun pending. `/legacy` is the SPA alias, not a second home template.
+
+The full fast suite was interrupted again. Fail-fast exposed that the local wrapper re-entered
+pytest in spawned children (missing `if __name__ == '__main__'`); fixed the **external wrapper**,
+and all four admission tests then passed. Corrected full fast suite is running. Do not count
+earlier wrapper-induced failures as product defects or claim a full-suite pass yet.
+Latest functional review fix: returning to setup during a create request must keep its fields,
+Discard and Create disabled and expose Creating assistant…; added a fieldset and pending state
+with a delayed-response regression. **All eight task-page/layout tests passed** after this fix.
+Final route/token/persona checks: **3 passed** (80.91s). Final server matrix plus marketing
+evidence completeness: **2 passed** (16.56s); the server matrix covers 7 surfaces at 4 sizes.
+The long-URL overflow in compatibility Connections and squeezed estimate label were corrected,
+not hidden with page clipping. Current site suite has 34 passing cases plus the corrected
+approval/body-token case; that case, the three real-proof viewports and response-style case
+then passed (**5 passed**, 26.60s). Fresh approval-triage captures and their genuine manifest
+were copied only after inspection; evidence completeness passed. The reading token is 17px
+on marketing, 16px in the app; the failed 16px marketing test assumption was corrected.
+See [rendered coverage and review](holistic-experience-validation.md). Integration still pending.
 Disk: `/tmp` repeatedly reaches 100% from unrelated trees; use TMPDIR and
 `--basetemp` under `/home/kevina/.local/share/opencode/hutch-tmp`. Temporary screenshots
 moved to `/home/kevina/.local/share/opencode/hutch-shots/` after `/tmp` ENOSPC aborted two
@@ -109,9 +146,11 @@ captures. Mobile workflow captures caught transition opacity; recapture settled/
   `/home/kevina/.local/share/opencode/hutch-visual-empty-20261023`. Do not run real
   model/provider tasks for visual QA. Use fixture servers for populated states.
   Processes may die on host restarts. Use independent fixture state for mutations/tests.
-- Next: finish setup replacement/delayed-response checks and review; commit the verified
-  lifecycle slice. Complete remaining frontend-family rendered inspection, refresh real proof
-  captures and evidence, run broad checks, perform distinct review, then integrate and clean up.
+- Next: validate the new pending-create state and final server typography; finish marketing
+  proof/technical disclosure inspection and copy freshly inspected approval-triage evidence;
+  record the opened-surface matrix, inspect generated evidence churn, progressively commit,
+  finish requirements/standards review and test results, then integrate without disturbing
+  the original checkout's unrelated edits. No task changes have been merged or pushed.
 - Required final evidence refresh: marketing validation hashes in prior approval-triage
   evidence and proof screenshots when affected. Tests can rewrite tracked evidence; inspect
   generated churn and use HUTCH_TEST_ARTIFACTS_DIR where supported.

@@ -91,7 +91,7 @@
   .btn.danger { background: transparent; border-color: color-mix(in oklch, var(--color-error) 55%, transparent); color: var(--color-error); }
   .btn.danger:hover { background: color-mix(in oklch, var(--color-error) 12%, transparent); }
   .btn.warn { background: var(--color-warning); border-color: var(--color-warning); color: var(--color-warning-content); }
-  .btn.small { min-height: 1.625rem; font-size: 0.8125rem; padding: 0 0.625rem; }
+  .btn.small { min-height: 2rem; font-size: 0.875rem; padding: 0 0.625rem; }
   .btn.icon-btn, .icon-btn {
     display: inline-grid; place-items: center; width: 2rem; height: 2rem; flex: none;
     color: var(--color-base-content); opacity: .75; background: transparent;

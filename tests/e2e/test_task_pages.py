@@ -5,6 +5,7 @@ import json
 from playwright.sync_api import expect
 
 from tests.e2e.test_design_system import app_server, browser  # noqa: F401
+from tests.support.artifacts import artifact_path
 
 
 def _setup_page(browser, app_server):
@@ -130,6 +131,13 @@ def test_delayed_creation_does_not_navigate_away_from_the_users_next_task(browse
         page.evaluate("location.hash = '#/settings'")
         expect(page.locator("#workspace-settings-form")).to_be_visible()
         assert len(pending) == 1
+        page.evaluate("location.hash = '#/assistant/new'")
+        expect(page.locator("#setup-page-confirm")).to_be_disabled()
+        expect(page.locator("#setup-purpose")).to_be_disabled()
+        expect(page.locator("#setup-discard-actions")).to_be_disabled()
+        expect(page.locator("#setup-page-confirm")).to_have_text("Creating assistant…")
+        page.evaluate("location.hash = '#/settings'")
+        expect(page.locator("#workspace-settings-form")).to_be_visible()
         with page.expect_response(lambda response: response.url.endswith("/api/v1/bots")
                                   and response.request.method == "POST") as created:
             pending[0].continue_()
@@ -162,5 +170,72 @@ def test_failed_replacement_loading_leaves_the_original_draft_editable(browser, 
         expect(page.get_by_role("heading", name="Choose what powers it")).to_be_visible()
         page.locator("#setup-back").click()
         expect(page.locator("#setup-purpose")).to_have_value(purpose)
+    finally:
+        context.close()
+
+
+def test_operational_refresh_headers_remain_named_and_reachable_at_narrow_sizes(browser, app_server):
+    base, _app = app_server
+    context = browser.new_context(reduced_motion="reduce")
+    page = context.new_page()
+    out = artifact_path("holistic-experience/headers")
+    out.mkdir(parents=True, exist_ok=True)
+    try:
+        for width, height in ((1440, 960), (900, 1024), (390, 844), (320, 740)):
+            page.set_viewport_size({"width": width, "height": height})
+            for route in ("skills", "runtime"):
+                page.goto(f"{base}/#/{route}")
+                button = page.locator(".ctx-actions-compact").get_by_role("button", name="Refresh", exact=True)
+                expect(button).to_be_visible()
+                expect(button.locator("svg")).to_have_count(1)
+                box = button.bounding_box()
+                assert box and box["height"] >= 44
+                assert 0 <= box["x"] and box["x"] + box["width"] <= width
+                assert 0 <= box["y"] and box["y"] + box["height"] <= height
+                assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+                button.focus()
+                expect(button).to_be_focused()
+                button.press("Enter")
+                expect(button).to_be_enabled()
+                if route == "skills":
+                    expect(page.locator("#skills-body .spinner")).to_have_count(0)
+                page.screenshot(path=str(out / f"{route}-{width}.png"), animations="disabled")
+    finally:
+        context.close()
+
+
+def test_settings_panel_controls_fit_their_actual_column_width(browser, app_server):
+    base, app = app_server
+    bot = app.state.store.get_bot("design-system-review")
+    app.state.store.update_bot_persona(bot.id, {"preset": "warm", "depth": "detailed", "humor": "off"},
+        expected_revision=0, idem_key="holistic-style-proof", request_hash="holistic-style-proof")
+    context = browser.new_context(reduced_motion="reduce")
+    page = context.new_page()
+    out = artifact_path("holistic-experience/settings")
+    out.mkdir(parents=True, exist_ok=True)
+    try:
+        for width, height in ((1440, 960), (1280, 800), (900, 1024), (390, 844), (320, 740)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.goto(f"{base}/#/bot/design-system-review")
+            details = page.locator("#assistant-more-settings")
+            if not details.evaluate("el => el.open"):
+                details.locator(":scope > summary").click()
+            form = page.locator("#persona-form-slot .persona-form")
+            expect(form).to_be_visible()
+            page.evaluate("document.fonts.ready")
+            assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+            assert form.evaluate("el => el.scrollWidth <= el.clientWidth + 1")
+            for row in form.locator(".persona-range-row").all():
+                assert row.evaluate("el => [...el.children].every(child => child.getBoundingClientRect().right <= el.getBoundingClientRect().right + 1)")
+            form.evaluate("el => el.scrollIntoView({block:'start'})")
+            page.screenshot(path=str(out / f"controls-{width}.png"), animations="disabled")
+            # The actual primary settings, not a reconstructed marketing widget.
+            box = form.bounding_box()
+            fields = form.locator(".persona-fields").first.bounding_box()
+            top = max(56, box["y"])
+            bottom = min(height, fields["y"] + fields["height"] + 12)
+            page.screenshot(path=str(out / f"response-style-{width}.png"), animations="disabled", clip={
+                "x": box["x"], "y": top, "width": box["width"], "height": bottom - top,
+            })
     finally:
         context.close()

@@ -13,12 +13,12 @@
 .stack-form { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
 .terms { border: 1px solid var(--border-strong); border-radius: var(--r); padding: 12px 14px; margin-top: 14px; background: var(--bg-subtle); }
 .terms.required, .terms.stale { border-color: rgba(251, 191, 36, .5); }
-.terms.ok { border-color: rgba(98, 192, 115, .35); }
+.terms.ok { border-color: color-mix(in srgb, var(--success) 35%, transparent); }
 .ack-form { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
 .conn-more { margin-top: 12px; color: var(--dim); }
 .conn-more summary { cursor: pointer; }
 .plain { list-style: none; padding: 0; margin: 8px 0; }
-.card-title { font-size: 14px; margin: 0 0 6px; }
+.card-title { font-size: var(--text-size-section); margin: 0 0 8px; }
 @media (max-width: 800px) { .conn-grid { grid-template-columns: 1fr; } }
 
 /* Sign-in and one-time device pairing */
@@ -65,10 +65,10 @@ main.container:has(.auth-panel) { display: grid; place-items: center; }
 .fixline { flex-basis: 100%; display: flex; gap: 6px; align-items: center; margin: 0; color: var(--text); }
 .preset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 10px; }
 .preset { border: 1px solid var(--border); border-radius: var(--r); padding: 12px 14px; background: var(--bg-subtle); }
-.preset h3 { margin: 0 0 4px; font-size: 14px; }
+.preset h3 { margin: 0 0 4px; font-size: var(--text-size-base); }
 .preset p { margin: 0 0 6px; }
-.small { font-size: 12.5px; }
-.price-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--dim); }
+.small { font-size: 0.875rem; }
+.price-form label { display: flex; flex-direction: column; gap: 4px; font-size: 0.875rem; color: var(--dim); }
 .price-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
 /* global td is nowrap; these cells carry sentences */
 .models-table td { white-space: normal; vertical-align: top; }
@@ -82,7 +82,7 @@ main.container:has(.auth-panel) { display: grid; place-items: center; }
   .usage-cap-table tr { padding: .45rem .8rem; border-bottom: 1px solid var(--border); }
   .usage-cap-table tr:last-child { border-bottom: 0; }
   .usage-cap-table td { display: grid; grid-template-columns: 6.25rem minmax(0, 1fr); gap: .7rem; align-items: start; border: 0; padding: .45rem 0; }
-  .usage-cap-table td::before { content: attr(data-label); color: var(--dim); font-family: var(--mono); font-weight: 600; font-size: .72rem; line-height: 1.4; }
+  .usage-cap-table td::before { content: attr(data-label); color: var(--dim); font-weight: 600; font-size: 0.875rem; line-height: 1.4; }
   .usage-cap-table td:first-child { display: block; padding-bottom: .6rem; margin-bottom: .15rem; border-bottom: 1px solid var(--border); }
   .usage-cap-table td:first-child::before { display: inline-block; width: 6.25rem; margin-right: .7rem; }
   .usage-cap-table .small { max-width: none; line-height: 1.45; overflow-wrap: anywhere; }
@@ -92,11 +92,12 @@ main.container:has(.auth-panel) { display: grid; place-items: center; }
 .seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--r); overflow: hidden; }
 .seg a { padding: 6px 12px; font-size: 13px; color: var(--dim); text-decoration: none; }
 .seg a.active { background: var(--elevated); color: var(--text); }
-.meter-val.big { font-size: 22px; font-weight: 600; margin: 2px 0; }
+.meter-val.big { font-size: 1.5rem; font-weight: 600; margin: 2px 0; }
 .bar.thin { height: 6px; margin-bottom: 4px; }
 .bar.cost > i { background: var(--amber); }
 .moves li { padding: 8px 0; border-top: 1px solid var(--border); }
 .moves li:first-child { border-top: 0; }
-.estimate { display: flex; gap: 6px; align-items: baseline; color: var(--text); }
+.estimate { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; color: var(--text); }
+.estimate strong { max-width: 100%; }
 /* grid children may not be wider than the track: lets a table-wrap scroll instead of widening the page */
 .two-col > * { min-width: 0; }

@@ -1,0 +1,75 @@
+# Holistic experience — rendered review, 2026-10-23
+
+Authority: [approved task-first route](../research/holistic-experience-2026-10-23.md),
+[`DESIGN.md`](../../DESIGN.md). Current test/integration status lives in the
+[task checkpoint](holistic-experience-progress.md); this record does not imply a
+whole-suite pass or accessibility certification.
+
+## Inspection coverage
+
+Screenshots were opened individually, not judged only from a contact sheet. The
+fixture viewports are Chromium CSS viewports, not physical-device tests. Tablet
+and compact-phone geometry is additionally covered by the named regressions.
+
+| Family | Opened evidence / representative states | Result |
+|---|---|---|
+| Chats and roster | `ui-audit-2026-10-20/app-surfaces/studio-{desktop,phone}.png`; expanded helper gallery, long assistant names, fleet menus | Shared shell, readable conversation, bounded menus; all gallery choices remain reachable above the composer |
+| Activity | `app-surfaces/activity-{desktop,phone}.png`; clear state plus recent work | One aligned rail; no unrelated widths or empty activity columns |
+| History and chat library | `app-surfaces/{runs,chat-library}-{desktop,phone}.png` | Filters stack without page overflow; result names wrap; technical data remains secondary |
+| Schedules | `app-surfaces/schedules-{desktop,phone}.png`; open assistant chooser | Task-first empty state, 44px action, keyboard-reachable choices |
+| Apps & AI | `app-surfaces/connections-{desktop,phone}.png`; `model-provider-quick-connect-2026-10-10/connect-phone.png` | Named service marks and states; focused key-entry dialog retains reachable actions and permission/billing copy |
+| Assistant settings | `holistic-experience-2026-10-23/settings/controls-{1440,1280,320}.png`; assistant options menu | Fixed squeezed desktop fields; full inheritance labels, slider/value containment, editable basics remain first |
+| Workspace settings | `app-surfaces/workspace-settings-{desktop,phone}.png`; actual opened native select | Dark native options, readable selection/focus, system-sans fields. Native popup was captured and inspected, not inferred from its closed control |
+| Setup | Guided/import/source/duplicate captures plus `test_task_pages.py` | Page rather than long modal; independent heading/action access; reload, discard, replacement and delayed-create checks; no run on create |
+| Skills and Runtime | `holistic-experience-2026-10-23/headers/` at 1440, 900, 390 and 320 | Fixed blank phone Refresh buttons; SVG, accessible name, focus and 44px target survive narrow headers |
+| Run details and approvals | `app-surfaces/{run-detail,approvals}-{desktop,phone}.png`; interaction regressions | Human outcome first; technical transcript details optional; approval queue loading/focus failure paths checked |
+| Phone supervision | `holistic-experience-2026-10-23/phone/` | Monitor-only boundary and revocation checked; ordinary messages now use body sans, raw technical events retain mono |
+| Computer panel | `holistic-experience-2026-10-23/computer/` | Desktop/phone containment, human control, missing/stale frame states; synthetic frames explicitly are not real desktop/provider proof |
+| Typed output widgets | `holistic-experience-2026-10-23/widgets/` | Real transcript renderer with golden fixture blocks: table, chart, comparison, flowchart, status, timeline, text, code receipt. Necessary table/code scrolling stays local |
+| Server-rendered pages | `holistic-experience-2026-10-23/server-pages/` | Models, Usage, direct assistant page, compatibility Connections, login, pair and error at 1440/900/390/320. Fixed narrow 22px title override, long endpoint overflow and squeezed estimate label |
+| Marketing | `holistic-experience-2026-10-23/marketing/`; refreshed approval-triage evidence | Short overview no longer stretches with explanations. Technical prose uses body-sized shared-width rows. Real proof assets load at their truthful dimensions; no composed/fabricated UI |
+
+Paths in the table are relative to `artifacts/`; `app-surfaces/` abbreviates
+`ui-audit-2026-10-20/app-surfaces/`. Provider-connect, native-select and menu
+captures are retained in `holistic-experience-2026-10-23/controls/`.
+`manifest.json` records retained evidence
+hashes and the source checkpoint; captures from different tests are not an atomic
+whole-product snapshot.
+
+## Findings fixed during review
+
+- Unsaved setup could be silently replaced; pending persistence could resurrect a
+  discarded draft; late async results could seize the next page. Explicit
+  replacement confirmation, lifecycle guards, timer cancellation and scoped
+  completion now have regression coverage.
+- Returning while creation is pending must preserve the submitted configuration:
+  the setup fieldset and action remain disabled and say **Creating assistant…**.
+- Desktop assistant settings inherited a fixed 340px side column inside a 760px
+  page, squeezing the main form. The shared rail plus panel-width-aware tracks
+  correct the cause, rather than shrinking text or hiding fields.
+- Phone header text hiding produced empty Refresh controls. Named SVG actions
+  now use the same compact-header grammar and a 44px target.
+- Long technical/approval explanations were metadata-sized and confined to narrow
+  columns. They now use the site's existing 17px body token; app prose stays on its
+  existing 16px body token. The boundary badge now counts the six actual items.
+
+## Review and limits
+
+Requirements and standards self-review covered the committed branch delta from
+`f29b299b` plus relevant uncommitted/untracked work. No framework, dependency,
+provider access, tool authority, API endpoint or production data operation was
+added. Blank assistant setup no longer grants OpenCode tools implicitly; explicit
+reviewed templates remain explicit selections.
+
+The mechanical detector reported eight advisory items, not proof of visual
+quality. Provider sign-in artwork radius and neutral provider-artwork backgrounds
+are documented brand exceptions; 11px marketing table headings are an existing
+explicit token exception. Off-ramp Skills/server type and the legacy success
+border were normalized. The detector's stale sidecar notice is not a reason to
+rewrite the approved design system.
+
+Keyboard, native-select focus, text-spacing overrides, narrow reflow and
+supplementary doubled-root/effective-viewport probes have evidence in the focused
+tests. Native browser zoom, a screen reader, physical phones, other browser
+engines and live provider inference were **not** verified. No numerical aesthetic
+score, usability success rate or whole-product conformance is asserted.
