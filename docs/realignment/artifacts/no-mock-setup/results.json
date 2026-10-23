@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-10-23T09:19:07.745093+00:00",
+  "captured_at": "2026-10-23T09:51:09.847287+00:00",
   "url": "http://127.0.0.1:18889/#/chat",
   "state_check": {
     "bots": [],
@@ -13,7 +13,7 @@
     "version": "153.0.8010.12",
     "playwright": "1.63.0"
   },
-  "git_revision": "e738010bf3b2adfa5c3dd21514f2e088ce22cfb9",
+  "git_revision": "ae3882d88fe673f7b4b2bd9a9c19183b61c95059",
   "source_sha256": {
     "src/hutch/__init__.py": "568574ab401d0207b2e5bbf867341bdce1041794c04a41813720be38df26da74",
     "src/hutch/action_receipts.py": "a71c0241ad306fdb74624b81fd859bf0eeb76ab521f255663163287c87e9140c",
@@ -118,7 +118,7 @@
     "src/hutch/providers/connection.py": "a70d0f1315f1f831af3fed8fd05377e30bbd4161eee0ba9523f1d670f4112b57",
     "src/hutch/providers/images.py": "b64933c2fabba56545971ed9f666b99cddea88adae90da193bb549b0d58887af",
     "src/hutch/providers/ollama.py": "88ce8ca7fa8f4be71913f765c72d9d0301db04c59de2db740dd1a41fb165a4d7",
-    "src/hutch/providers/openai_compat.py": "bc0fbea1f09d6b7296c72489061fb63f58bee75653f22de06b98a428d9a8bd06",
+    "src/hutch/providers/openai_compat.py": "8fcff5d277eaed3d22897e4fdcf77fa770d2dc22565584a87ef931e9c3041639",
     "src/hutch/providers/openai_responses.py": "6a7d1adc60d6b7896142962b91a88f1ecf31e8ef7f8031437b20f4185b34bf9f",
     "src/hutch/providers/openrouter_pricing.py": "c9a26b9e1a9e374d2d2c85ff761284e81f14face1cbee5e950195d842bf81485",
     "src/hutch/providers/pricing.py": "e16c435898de4023e3e0aef53f0d30624b1616f1b339d58f72f655a25487fc81",
@@ -133,7 +133,7 @@
     "src/hutch/runtime/ladder.py": "4bbec11dffa51cc0f080f4f2e2dda9efc89d984bfddbe94954adcc50bee40336",
     "src/hutch/runtime/opencode.py": "f4981846251dda3be876fe5bae6bbc06c0a490d8d1bd85887e1821256c2c13ce",
     "src/hutch/runtime/opencode_protocol.py": "ca9be7a69bc93b7a60c5a3a7f4d9490f77725d17b0dd78cbdbf3cbf4279ff7dc",
-    "src/hutch/runtime/opencode_server.py": "b71d56bb337913dc5cc1c583b7ad6bdc2e580389d07689f40bb1aed284f9551b",
+    "src/hutch/runtime/opencode_server.py": "1e03ca40daddeafe6cac891252b44eec164af69f2cb3c4b84ac8ad0b738d55cc",
     "src/hutch/runtime/pi.py": "981f6ff6d20f3ce22a4688c7a218215a4396e129eceb9ce6198335b1fc21fd05",
     "src/hutch/runtime/pi_protocol.py": "07766045051ab9176359862a5e174c98bbe29737d874be4205559f29281d14b4",
     "src/hutch/runtime/steps.py": "f6cb726ae4e3c825b955962e504eec6505e2cedac2e0c16b09736d52a3ce7ce1",
@@ -150,7 +150,7 @@
     "src/hutch/server/security.py": "40b500baa50faf9f84e1964c235700aa2ed03cebd8868945cb78efb9bcde427c",
     "src/hutch/server/skills_api.py": "ea8d1d5a477bac0bfc29189befb770c6284172176ddb51551478d363dd6a34cd",
     "src/hutch/server/sse.py": "1d1a56e4c080917989e01486c0e88d35d826a797745aefca0ec17d1a62f667fd",
-    "src/hutch/server/static/app.js": "8fb154c08786dbdace928a6044f49aebd594c72450d39e0b8dad9db858667782",
+    "src/hutch/server/static/app.js": "d4dd261b317c80f9b1c6b2b4c044986be04420b7396d49daf1efdb887ebd8653",
     "src/hutch/server/static/brand-tokens.css": "2d78c988ad555c40c0e2b82f31206a3ec30b68d44403501b1bcf646d95f4b96f",
     "src/hutch/server/static/computer.css": "fad1429bf7e7ea76ecd2071e1726bc4c3105ad96744694eec90817fe3eebc6dd",
     "src/hutch/server/static/computer.js": "a777c0f18232d39bc334c14990d30f9271209dd17516322b4aae28e3776e0908",
@@ -288,7 +288,7 @@
         1000
       ],
       "path": "setup-desktop.png",
-      "sha256": "49550e72bdb1f349c56a7cf752c59bfd2340ba5eeb5252c730319c0def00347d",
+      "sha256": "654965db9ef02ba9041611d0013e2b6ac2d1338c7a909dd889866a25a470c466",
       "overflow_px": 0,
       "page_errors": []
     },
