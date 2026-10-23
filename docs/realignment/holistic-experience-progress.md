@@ -21,7 +21,7 @@ Do not call isolated screenshots or passing first-run checks repo-wide validatio
 | A4 | Marketing follows same rules; expanded content works without stretching unrelated columns | Implemented; body-sized shared reading rows, real proof and evidence hashes verified |
 | A5 | Actual desktop/tablet/phone and loading/error/empty/focus/expanded-state inspection | Representative family/state coverage recorded; physical-device/screen-reader/native-zoom checks remain unrun |
 | A6 | Meaningful regressions + relevant suite + necessary code review | Focused browser suites pass; two-pass self-review recorded; isolated full fast and computer-phone reruns running; no final broad pass claimed |
-| A7 | Progressive commits and relevant documentation | Five commits through b312a4d9; final identity/proof/evidence fixes being prepared |
+| A7 | Progressive commits and relevant documentation | Six implementation commits through 1d9b58da; final validation/integration record pending |
 | A8 | Integrate into main/master, verify integration, remove task worktree/branch | Pending; do not integrate unfinished work |
 
 ## Source inventory / remaining review families
@@ -113,10 +113,22 @@ now has a `__main__` guard (all four admission tests passed), exports the select
 `src` and root through `PYTHONPATH` for workers, and uses short temporary paths. The old
 long-path full run has failures involving schema v76 from the separate editable checkout,
 AF_UNIX path limits, subprocess durability, and the now-fixed multiplication glyph in the
-marketing caption. Its subprocess/performance results cannot establish regressions.
+marketing caption. That superseded run completed with **9 failed, 3256 passed,
+8 skipped, 6 xfailed** (1654.76s); its subprocess results cannot establish regressions.
 With corrected isolation, CLI scenario, native containment and loopback-close tests all
-passed (**3 passed**, 7.10s). A trustworthy full fast run is now running with base path
-`/home/kevina/.hutch-tmp/f1`; no full-suite pass claimed yet.
+passed (**3 passed**, 7.10s). The isolated `f1` run was also interrupted by a host
+restart after printing 716 outcomes without failures. Stable collection contains
+3278 runnable test nodes. Retain 715 outcomes from completed files; rerun the partial
+boundary file and remainder in serial 80-test batches with per-test phase journals.
+This is combined coverage, not one uninterrupted full-suite pass.
+The remaining subprocess durability cases passed with isolation (**4 passed**): queued
+event recovery, post-file-flush process death, and both effect-receipt crash boundaries.
+The disk-backed throughput gate measured **530 events/s** in the changed tree and
+**577 events/s** in the pre-overhaul archive. Both writer and test are byte-identical
+between trees. Its existing RAM-backed benchmark option passed the unchanged >1000/s
+threshold (**1 passed**, 3.77s), using a unique automatically cleaned directory under
+the `/tmp` tmpfs. This identifies a storage/load-sensitive pre-existing failure in this
+environment, not a UI regression or an optimized writer. No threshold or assertion changed.
 Latest functional review fix: returning to setup during a create request must keep its fields,
 Discard and Create disabled and expose Creating assistant…; added a fieldset and pending state
 with a delayed-response regression. **All eight task-page/layout tests passed** after this fix.
@@ -161,18 +173,27 @@ captures are historical, not current-state evidence. No further design/polish ro
   `/home/kevina/.local/share/opencode/hutch-visual-empty-20261023`. Do not run real
   model/provider tasks for visual QA. Use fixture servers for populated states.
   Processes may die on host restarts. Use independent fixture state for mutations/tests.
-- Active check: isolated full fast suite (`f1`). Isolated computer-phone (`c1`) returned
+- Active check: restart-safe remainder runner, shell `sh_16ae746210017r0gLHwi8jCR2m`.
+  Resume with `/home/kevina/CodingProjects/hutch/.venv/bin/python
+  /home/kevina/.local/share/opencode/hutch-resume-fast.py` from this worktree.
+  It validates a fingerprint of tracked product/test sources, keeps completed nodes,
+  and stores admission, per-phase reports, per-batch logs/JUnit and eventual result in
+  `/home/kevina/.local/share/opencode/holistic-fast-validation/`. It does not change
+  product behavior, assertions or benchmark mode. Only the incomplete remainder is run.
+  Do not rerun the whole suite after another restart. Isolated computer-phone (`c1`) returned
   1 failure and 4 fixture errors:
   no controlled session is created and the worker ends before the expected human wait.
   The representative pre-overhaul comparison (`b1`) reproduces the same fixture error
   and process failure (**1 failed, 1 error**, 24.52s), now using correct child imports and
   short socket paths. These are pre-existing failures in this environment, not proven UI
   regressions; their deeper cause is not diagnosed. Do not claim this path works. Copied
-  evidence/site-token checks passed. Await the full fast result before merge.
-- Next: reconcile results, finish final review/evidence commit, then fast-forward main,
+  evidence/site-token checks passed. Await the combined fast coverage result before merge.
+- Next: await/recover remaining fast checks, record their combined scope, then fast-forward main,
   verify integration and all 12 unrelated file hashes, remove only the task worktree/branch.
   Main remains at f29b299b; preservation record:
   `/home/kevina/.local/share/opencode/holistic-main-before-merge.json`. Latest comparison
-  confirmed all hashes unchanged and merge paths disjoint. Archive this task's duplicate
-  original-checkout research note (a prefix of the tracked note) before fast-forward.
+  confirmed all hashes unchanged and merge paths disjoint. The duplicate original-checkout
+  task research note is archived at
+  `/home/kevina/.local/share/opencode/holistic-original-research-note-2026-10-23.md`;
+  its original remains in place until the fast-forward. It is a prefix of the tracked note.
   No merge or push yet. No independent subagent review was performed; review is self-review.

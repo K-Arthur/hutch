@@ -81,6 +81,14 @@ working control path. Test-environment fixes affect only the external runner,
 not Hutch's approval or sandbox controls. The separate synthetic computer-panel
 suite passed all 10 tests; that is not a substitute for successful input handback.
 
+The disk-backed writer-throughput test also fails before this work (577 events/s
+versus 530 events/s in the task tree under shared host load). Writer and test bytes
+are unchanged. The test's supported RAM-backed option passes its unchanged >1000/s
+gate. This supports a storage/load-sensitive environment limitation, not a claim
+that on-disk production throughput was improved. All four remaining subprocess
+durability probes pass after correcting child import isolation; no safety code,
+threshold or assertion was relaxed.
+
 The mechanical detector reported eight advisory items, not proof of visual
 quality. Provider sign-in artwork radius and neutral provider-artwork backgrounds
 are documented brand exceptions; 11px marketing table headings are an existing
