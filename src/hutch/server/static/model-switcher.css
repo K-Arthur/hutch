@@ -88,10 +88,9 @@
 @media (pointer: coarse) {
   .ms-btn { min-height: 44px; }
 }
-/* phone: the model chip shows dot + caret only, so the composer placeholder
-   keeps a single line (same label-hiding pattern as the context header). */
+/* Keep model discovery visible on phone; the short label truncates, but the
+   complete route and override scope remain in the button's accessible name. */
 @media (max-width: 640px) {
-  .ms-btn .ms-label { display: none; }
-  .ms-btn.is-custom .ms-label { display: inline-block; flex: none; width: auto; font-size: 0; }
-  .ms-btn.is-custom .ms-label::after { content: "1×"; color: var(--brand-hi); font: 600 10px/1 var(--mono); } /* hutch-emoji-allow: multiplication sign marks a one-message override */
+  .ms-btn { max-width: 116px; min-height: 44px; }
+  .ms-btn .ms-label { display: block; }
 }

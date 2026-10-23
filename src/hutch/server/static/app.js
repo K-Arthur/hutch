@@ -1689,8 +1689,9 @@ let rosterMenuCleanup = null;
 function closeRosterActionMenu(restoreFocus = false) {
   const menu = document.getElementById("roster-action-menu");
   const name = menu?.dataset.botName;
-  rosterMenuCleanup?.();
+  const cleanup = rosterMenuCleanup;
   rosterMenuCleanup = null;
+  cleanup?.();
   menu?.remove();
   const trigger = name ? $$("#roster-list [data-bot-options]").find(button => button.dataset.botOptions === name) : null;
   trigger?.setAttribute("aria-expanded", "false");
@@ -1807,43 +1808,9 @@ function openRosterActionMenu(trigger) {
     ${bot.is_workspace_coordinator ? "" : `<button type="button" role="menuitem" tabindex="-1" data-menu-hide>${icon(bot.sidebar_hidden ? "eye" : "eyeOff")} ${bot.sidebar_hidden ? "Show in sidebar" : "Hide from sidebar"}</button>`}
     <a role="menuitem" tabindex="-1" data-menu-settings href="#/bot/${encodeURIComponent(bot.name)}">${icon("sliders")} Assistant settings</a>`;
   document.body.append(menu);
-  trigger.setAttribute("aria-expanded", "true");
-  const triggerRect = trigger.getBoundingClientRect();
-  const menuRect = menu.getBoundingClientRect();
-  const left = Math.max(8, Math.min(triggerRect.right - menuRect.width, window.innerWidth - menuRect.width - 8));
-  const below = triggerRect.bottom + 4;
-  const top = below + menuRect.height <= window.innerHeight - 8
-    ? below : Math.max(8, triggerRect.top - menuRect.height - 4);
-  menu.style.left = `${left}px`;
-  menu.style.top = `${top}px`;
-  const items = () => $$('[role="menuitem"]', menu);
-  const onPointerDown = event => {
-    if (!menu.contains(event.target) && !trigger.contains(event.target)) closeRosterActionMenu(false);
-  };
-  const onKeyDown = event => {
-    const options = items();
-    const index = options.indexOf(document.activeElement);
-    if (event.key === "Escape") {
-      event.preventDefault();
-      closeRosterActionMenu(true);
-    } else if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key) && options.length) {
-      event.preventDefault();
-      const next = event.key === "Home" ? 0 : event.key === "End" ? options.length - 1
-        : (index + (event.key === "ArrowDown" ? 1 : options.length - 1)) % options.length;
-      options[next].focus();
-    }
-  };
-  const onScroll = () => closeRosterActionMenu(false);
-  document.addEventListener("pointerdown", onPointerDown, true);
-  document.addEventListener("keydown", onKeyDown);
-  window.addEventListener("resize", onScroll);
-  document.addEventListener("scroll", onScroll, true);
-  rosterMenuCleanup = () => {
-    document.removeEventListener("pointerdown", onPointerDown, true);
-    document.removeEventListener("keydown", onKeyDown);
-    window.removeEventListener("resize", onScroll);
-    document.removeEventListener("scroll", onScroll, true);
-  };
+  const popup = window.hutchControls.popup({ trigger, panel: menu, kind: "menu",
+    onClose: () => closeRosterActionMenu(false) });
+  rosterMenuCleanup = () => popup.destroy();
   menu.querySelector('[data-menu-settings]')?.addEventListener("click", () => closeRosterActionMenu(false));
   menu.querySelector("[data-menu-section]")?.addEventListener("click", () => editBotRosterSection(bot, trigger));
   menu.querySelector("[data-menu-template]")?.addEventListener("click", () => prepareBotTemplateDownload(bot, trigger));
@@ -1897,7 +1864,7 @@ function openRosterActionMenu(trigger) {
       action.focus();
     }
   });
-  menu.querySelector('[role="menuitem"]')?.focus({ preventScroll: true });
+  popup.open();
 }
 
 function botDisplayName(ref) {
@@ -3528,12 +3495,12 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
               <div class="cmenu-wrap">
                 <button class="composer-util" type="button" id="composer-menu-btn" aria-label="Message options" aria-haspopup="dialog" aria-expanded="false" aria-controls="composer-menu">${icon("plus")}</button>
                 <div class="cmenu" id="composer-menu" role="dialog" aria-modal="false" aria-label="Message options" hidden>
-                  <p class="cmenu-h">Start from a suggestion</p>
+                  <details class="cmenu-suggestions"><summary>Start from a suggestion</summary>
                   <div class="quick-prompts" id="quick-prompts">
                     <button type="button" data-quick="Sort this week's downloads and move invoices into folders">${icon("folder")} Sort downloads</button>
                     <button type="button" data-quick="Research this week's AI news and write a short summary">${icon("fileText")} Research news</button>
                     <button type="button" data-quick="Inspect this repository for TODOs and report findings">${icon("search")} Repo sweep</button>
-                  </div>
+                  </div></details>
                   <div class="cmenu-sep"></div>
                   <label class="cmenu-role-field" for="chat-task-role">Task role for the next message
                     <select id="chat-task-role" aria-describedby="chat-task-role-help">
@@ -3554,16 +3521,16 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
                   <input class="visually-hidden" id="workspace-upload-file" type="file" multiple
                     accept=".csv,.jpeg,.jpg,.json,.md,.png,.tsv,.txt,.webp">
                   <button class="cmenu-files" id="conversation-export-open" type="button">Export conversation as JSON</button>
-                  <p class="hint cmenu-image-note" role="note">Image attachments aren’t available in chat yet. Describe an image in text instead.</p>
+                  <p class="hint cmenu-image-note" role="note">Files, including images, are stored in this chat’s workspace. Direct image input to the model isn’t supported here.</p>
                   <div class="cmenu-sep"></div>
                   <label class="cmenu-row"><input type="checkbox" id="rehearse-opt">
                     <span>Rehearse this run<span class="cmenu-sub">simulates writes and commands; model calls and reads still happen, and remote reads can have service-side effects</span></span></label>
                   <label class="cmenu-row"><input type="checkbox" id="enter-send-setting" role="switch" checked>
                     <span>Enter sends<span class="cmenu-sub">off: Enter adds a newline, use the send button</span></span></label>
                   <div class="cmenu-sep"></div>
-                  <div class="cmenu-facts">${budgetMeterHtml(detail)}
+                  <details class="cmenu-usage"><summary>Usage and limits</summary><div class="cmenu-facts">${budgetMeterHtml(detail)}
                     <span class="mono">${esc(detail.limits?.max_steps ?? "?")} steps max · ${esc((detail.tools || []).join(", ") || "no tools")}</span>
-                  </div>
+                  </div></details>
                   <button class="cmenu-files" id="preflight-open" type="button">Review cost and context before sending</button>
                 </div>
               </div>
@@ -4251,10 +4218,9 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
 
   // composer "+" menu: popover with rehearse, Enter behaviour, and live budget
   const menu = $("#composer-menu"), menuBtn = $("#composer-menu-btn");
+  const composerPopup = window.hutchControls.popup({ trigger: menuBtn, panel: menu, kind: "dialog", side: "top" });
   const setMenu = open => {
-    menu.hidden = !open;
-    menuBtn.setAttribute("aria-expanded", String(open));
-    if (open) $("input, button", menu)?.focus();
+    if (open) composerPopup.open(); else composerPopup.close(false);
   };
   const taskTemplateFile = $("#task-template-file");
   $("#prompt-template-library-open")?.addEventListener("click", () => {
@@ -4298,15 +4264,6 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
     }
   });
   menuBtn.addEventListener("click", () => setMenu(menu.hidden));
-  menu.parentElement.addEventListener("focusout", ev => {
-    if (ev.relatedTarget && !menu.parentElement.contains(ev.relatedTarget)) setMenu(false);
-  });
-  if (window.__cmenuDoc) document.removeEventListener("click", window.__cmenuDoc);
-  window.__cmenuDoc = ev => { if (!menu.hidden && !ev.target.closest(".cmenu-wrap")) setMenu(false); };
-  document.addEventListener("click", window.__cmenuDoc);
-  box.addEventListener("keydown", ev => {
-    if (ev.key === "Escape" && !menu.hidden) { ev.stopPropagation(); setMenu(false); menuBtn.focus(); }
-  });
   $("#studio-stop-run").onclick = ev => requestStop(ev.currentTarget.dataset.stopTarget, ev.currentTarget);
   $("#studio-review-run").onclick = () => {
     const id = $("#studio-stop-run").dataset.stopTarget;
@@ -13301,7 +13258,7 @@ function hutchUploadsHumanSize(bytes) {
 function hutchUploadsRow(uploads, status = "") {
   if (!uploads.length && !status) return "";
   const chips = uploads.map(upload => `<span class="upload-chip" role="listitem">
-    <span class="upload-chip-name">${esc(upload.filename)}</span>
+    <span class="upload-chip-name" title="${esc(upload.filename)}">${esc(upload.filename)}</span>
     <span class="upload-chip-size">${esc(hutchUploadsHumanSize(upload.bytes))}</span>
     <button type="button" class="upload-chip-remove" data-upload-remove="${esc(upload.id)}"
       aria-label="Remove ${esc(upload.filename)} from this message draft">${icon("x")}</button>

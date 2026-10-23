@@ -1095,6 +1095,15 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
 .composer-textarea::placeholder { color: var(--text-3); }
 .composer-textarea[disabled] { opacity: 0.55; }
 .composer-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+/* A named model and skill count must not consume the phone's writing area.
+   Keep the input above an explicit utility row instead of hiding model identity. */
+@media (max-width: 640px) {
+  .composer-row { flex-wrap: wrap; }
+  .composer-textarea { flex-basis: calc(100% - 48px); }
+  .composer-actions { flex-basis: 100%; justify-content: flex-end; }
+  .composer-actions .composer-send { width: 44px; height: 44px; }
+  .composer-row .composer-util { min-width: 44px; min-height: 44px; }
+}
 
 /* circular chat actions: the composer's round language (named companion to the
    16px box). Send = brand fill with dark ink; Stop = rose outline; both 36px. */
@@ -3088,21 +3097,21 @@ details[open] > summary .summary-row-action .icon { transform: rotate(180deg); }
 .runtime-job-message { max-width: 78ch; margin: var(--s-2) 0 0; color: var(--text-2); white-space: pre-wrap; }
 
 /* Files attached to the active conversation; chips describe draft state only. */
-.composer-attachments { display: grid; gap: var(--s-1); padding: var(--s-1) var(--s-2) 0; }
-.composer-attachments-chips { display: flex; flex-wrap: wrap; gap: var(--s-1); }
-.upload-chip { display: inline-flex; align-items: center; gap: var(--s-1); max-width: 100%;
+.composer-attachments { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: var(--s-1); padding: var(--s-1) var(--s-2) 0; }
+.composer-attachments-chips { display: flex; flex-wrap: wrap; min-width: 0; gap: var(--s-1); }
+.upload-chip { display: inline-flex; align-items: center; gap: var(--s-1); min-width: 0; max-width: 100%;
   padding: 4px var(--s-2); border: 1px solid var(--line); border-radius: var(--r-chip);
   background: var(--sunken); font-size: var(--fs-sm); }
-.upload-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.upload-chip-size { color: var(--text-3); white-space: nowrap; }
+.upload-chip-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upload-chip-size { flex: none; color: var(--text-3); white-space: nowrap; }
 .upload-chip-remove { display: inline-flex; align-items: center; justify-content: center;
-  inline-size: 32px; block-size: 32px; padding: 0; border: 0; border-radius: var(--r-chip);
+  flex: none; inline-size: 32px; block-size: 32px; padding: 0; border: 0; border-radius: var(--r-chip);
   background: transparent; color: var(--text-2); cursor: pointer; }
 .upload-chip-remove svg { inline-size: 14px; block-size: 14px; }
 .upload-chip-remove:hover { background: var(--line); color: var(--text); }
-.composer-attachments-hint { margin: 0; color: var(--text-3); font-size: var(--fs-xs); }
+.composer-attachments-hint { min-width: 0; margin: 0; overflow-wrap: anywhere; color: var(--text-3); font-size: var(--fs-xs); }
 .composer-attachments-status { display: block; }
-@media (pointer: coarse) { .upload-chip-remove { inline-size: 44px; block-size: 44px; } }
+@media (pointer: coarse), (max-width: 640px) { .upload-chip-remove { inline-size: 44px; block-size: 44px; } }
 /* ───────────────────────── grounded evidence panel ─────────────────────────
    Reads stored evidence only: claimed/observation split, source independence,
    acquisition outcomes and gaps, inspected media frames with exact timecodes,

@@ -97,3 +97,44 @@ or post-change visual passes are claimed by this initial record.
   real-public-content journeys are still pending, not implied by this checkpoint.
 - Next slice: migrate model/skill/composer/roster behavior to the shared controller,
   preserve refresh focus and next-message semantics, retain visible phone labels.
+
+### Chat and catalog checkpoint (implementation in progress)
+
+- Model, skill, composer and roster popups now use the shared controller. Skills
+  use a searchable native-checkbox form, update checks in place and retain focus;
+  model names remain visible on phone, with a separate utility row preserving the
+  writing area. Suggestions/usage are optional composer disclosures; Done stays
+  reachable in a sticky popup header. Model choices expose canonical route IDs.
+- Setup's datalist is progressively enhanced into a typing-focus-preserving
+  combobox; its original input/value/validation and arbitrary explicit routes
+  remain intact. Search renders at most 100 suggestions and reports truncation.
+- Existing selected browser regressions: **9 passed** (model override/default,
+  full picker, delayed OpenRouter discovery, phone bounds, large roster and
+  rehearsal behavior); skill send/consume: **1 passed**. New control checks:
+  **10 passed**, plus separate setup/public-image checks **2 passed** before
+  the latest long-filename correction. Final frozen-source rerun is pending.
+- A genuine public **593,338-byte NASA Blue Marble JPEG** was downloaded from
+  `https://upload.wikimedia.org/wikipedia/commons/7/7b/Earth_Western_Hemisphere.jpg`
+  after reading its [credit/public-domain page](https://commons.wikimedia.org/wiki/File:Earth_Western_Hemisphere.jpg).
+  SHA-256: `b79e0577e7565a2c7e9f7165284ccb53ece2872ddc429c687b6d3ae1aaa85780`.
+  Actual browser file chooser → local upload endpoint → persisted attachment and
+  draft reload succeeded, with zero runs and zero external app requests. This
+  verifies workspace file storage, **not model vision or image-chat input**.
+- Opened real-image, setup, skills, model and composer captures. The real image's
+  long filename exposed a clipped remove button missed by the short fixtures;
+  shrinkable chip tracks and a bounds regression now address it (rerun pending).
+  Updated the composer explanation to distinguish workspace image files from
+  unsupported direct image input, instead of contradicting its file chooser.
+- Regression discovery caught async catalog growth escaping the viewport. A
+  shared ResizeObserver and explicit refresh placement correct this; the delayed
+  OpenRouter regression passed afterward. Historical failures remain in tool
+  logs and are not counted as final passes.
+- Remaining: frozen-source checks/captures, marketing alignment, select-surface
+  matrix/resilience, review and final documentation. No private keys or inference.
+
+Chat/catalog slice rerun: **12 passed**, including the real NASA file and the
+long-filename remove-button bounds check. Opened the corrected real-image phone
+capture and setup suggestions capture: remove action remains visible, the file
+label truncates without hiding its full accessible name, and the route input uses
+the shared 44px field geometry. Broad offline regression is now running on
+root-filesystem scratch, not the nearly full shared `/tmp` tmpfs.

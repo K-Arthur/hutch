@@ -88,12 +88,28 @@ select option, select optgroup { color: var(--control-text); background: var(--c
 .hc-popup .skill-picker-item b { font-weight: 500; }
 .hc-popup .skill-picker-hint { margin: 4px 12px 8px; color: var(--control-muted); font-size: 0.75rem; }
 .hc-popup[data-popup-kind="dialog"] { width: 344px; }
+.hc-popup-header { position: sticky; top: -4px; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 12px 8px; border-bottom: 1px solid var(--color-semantic-border-strong); margin-bottom: 4px; color: var(--control-muted); background: var(--control-surface); font-weight: 650; }
+.hc-popup-close { min-width: 44px; min-height: 40px; border: 0; border-radius: var(--control-radius); padding: 8px; color: var(--control-text); background: transparent; font: inherit; cursor: pointer; }
+.hc-popup-close:hover { background: var(--control-hover); }
+.hc-popup-search { box-sizing: border-box; width: calc(100% - 16px); min-height: 44px; margin: 8px; padding: 8px 12px; border: 1px solid var(--control-line); border-radius: var(--control-radius); color: var(--control-text); background: var(--color-semantic-bg); font: 400 1rem/1.5 var(--font-body, system-ui, sans-serif); }
+.hc-popup-empty { margin: 8px 12px; color: var(--control-muted); }
+.hc-popup [hidden] { display: none !important; }
+.hc-popup-label { padding: 8px 12px 4px; color: var(--control-muted); font-size: 0.75rem; }
+.hc-suggestion { display: grid; gap: 2px; min-height: var(--popup-row-height); padding: 8px 12px; border-radius: var(--control-radius); overflow-wrap: anywhere; cursor: pointer; }
+.hc-autocomplete-input { box-sizing: border-box; width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--control-line); border-radius: var(--control-radius); background: var(--color-semantic-bg); color: var(--control-text); font: 400 1rem/1.5 var(--font-body, system-ui, sans-serif); }
+.hc-autocomplete-input:focus-visible { outline: 2px solid var(--control-focus); outline-offset: 2px; }
+.hc-suggestion small { color: var(--control-muted); font-size: 0.75rem; }
+.hc-suggestion:hover, .hc-suggestion[aria-selected="true"] { background: var(--control-hover); }
+.hc-suggestion[aria-selected="true"] { outline: 2px solid var(--control-focus); outline-offset: -2px; }
 .hc-popup[data-popup-layout="sheet"] { width: calc(100% - 16px); }
 .hc-popup .cmenu-row, .hc-popup .cmenu-role-field { padding: 8px 12px; }
 .hc-popup .cmenu-row { min-height: 44px; }
 .hc-popup .cmenu-role-field select { min-height: 44px; font-size: 1rem; }
 .hc-popup .cmenu-facts { padding: 8px 12px; }
 .hc-popup .quick-prompts { display: grid; padding: 0; }
+.hc-popup :is(.cmenu-suggestions, .cmenu-usage) > summary { display: flex; align-items: center; min-height: var(--popup-row-height); padding: 8px 12px; border-radius: var(--control-radius); cursor: pointer; color: var(--control-muted); }
+.hc-popup :is(.cmenu-suggestions, .cmenu-usage) > summary::after { content: "+"; margin-inline-start: auto; }
+.hc-popup :is(.cmenu-suggestions, .cmenu-usage)[open] > summary::after { content: "−"; }
 @media (pointer: coarse), (max-width: 640px) {
   :root { --popup-row-height: 44px; }
 }

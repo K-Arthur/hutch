@@ -19,6 +19,7 @@ from hutch.models import Bot  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
 from hutch.skills import SkillRegistry  # noqa: E402
 from tests.support.artifacts import artifact_path
+from tests.support.browser import launch_browser
 
 OUT = artifact_path("skills")
 
@@ -26,16 +27,7 @@ OUT = artifact_path("skills")
 @pytest.fixture(scope="module")
 def browser():
     with pw.sync_playwright() as p:
-        b = None
-        errors = []
-        for engine in (p.chromium, p.firefox):
-            try:
-                b = engine.launch()
-                break
-            except Exception as exc:  # browser build unavailable; try another local engine
-                errors.append(f"{engine.name}: {exc}")
-        if b is None:
-            pytest.skip("no Playwright browser is installed: " + "; ".join(errors))
+        b = launch_browser(p)
         yield b
         b.close()
 

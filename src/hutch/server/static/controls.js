@@ -5,17 +5,22 @@
 (function () {
   "use strict";
   const live = new Set();
+  let layoutFrame = 0;
+  const resizeObserver = typeof ResizeObserver === "function" ? new ResizeObserver(() => {
+    if (!layoutFrame) layoutFrame = requestAnimationFrame(() => { layoutFrame = 0; reposition(); });
+  }) : null;
   let serial = 0;
   const visible = node => node?.isConnected && node.getClientRects().length && !node.closest("[hidden]");
   const focusables = root => [...root.querySelectorAll("button, a[href], input, select, textarea, summary, [tabindex]")]
     .filter(node => visible(node) && !node.disabled && node.getAttribute("aria-disabled") !== "true");
 
-  function popup({ trigger, panel, kind = "dialog", side = "bottom", onClose = null }) {
+  function popup({ trigger, panel, kind = "dialog", side = "bottom", triggerKeys = true, matchWidth = false, onOpen = null, onClose = null }) {
     if (!trigger || !panel) return null;
     const abort = new AbortController();
     const options = { signal: abort.signal };
     const topLayer = typeof panel.showPopover === "function";
     let opened = false;
+    let typed = "", typedAt = 0;
     panel.id ||= `hutch-popup-${++serial}`;
     panel.classList.add("hc-popup");
     panel.dataset.popupKind = kind;
@@ -25,6 +30,20 @@
     trigger.setAttribute("aria-haspopup", kind);
     trigger.setAttribute("aria-controls", panel.id);
     trigger.setAttribute("aria-expanded", "false");
+    if (kind === "dialog") {
+      const header = document.createElement("div");
+      header.className = "hc-popup-header";
+      const title = document.createElement("span");
+      title.textContent = panel.getAttribute("aria-label") || trigger.getAttribute("aria-label") || "Options";
+      const dismiss = document.createElement("button");
+      dismiss.type = "button";
+      dismiss.className = "hc-popup-close";
+      dismiss.textContent = "Done";
+      dismiss.setAttribute("aria-label", `Close ${title.textContent.toLowerCase()}`);
+      dismiss.addEventListener("click", () => close(true), options);
+      header.append(title, dismiss);
+      panel.prepend(header);
+    }
 
     function place() {
       if (!opened) return;
@@ -33,6 +52,7 @@
       const width = viewport?.width || innerWidth, height = viewport?.height || innerHeight;
       const gap = 8, inset = 8;
       const anchor = trigger.getBoundingClientRect();
+      if (matchWidth) panel.style.width = `${Math.min(anchor.width, width - inset * 2)}px`;
       panel.style.maxWidth = `${Math.max(0, width - inset * 2)}px`;
       panel.style.maxHeight = `${Math.max(0, height - inset * 2)}px`;
       const bounds = panel.getBoundingClientRect();
@@ -53,6 +73,7 @@
       if (!opened) return;
       opened = false;
       live.delete(api);
+      resizeObserver?.unobserve(panel);
       if (topLayer && panel.matches(":popover-open")) panel.hidePopover();
       panel.hidden = true;
       trigger.setAttribute("aria-expanded", "false");
@@ -63,16 +84,18 @@
       for (const other of [...live]) {
         if (other !== api && !other.panel.contains(trigger)) other.close(false);
       }
+      if (!opened) onOpen?.();
       opened = true;
       if (trigger.parentElement instanceof HTMLDetailsElement) trigger.parentElement.open = true;
       panel.hidden = false;
       trigger.setAttribute("aria-expanded", "true");
       if (topLayer && !panel.matches(":popover-open")) panel.showPopover();
       live.add(api);
+      resizeObserver?.observe(panel);
       place();
       if (focus) {
-        const selected = panel.querySelector('[aria-checked="true"], [aria-selected="true"]');
-        (selected || focusables(panel)[0] || panel).focus({ preventScroll: true });
+        const selected = focusables(panel).find(node => node.matches('[aria-checked="true"], [aria-selected="true"]'));
+        (selected || focusables(panel).find(node => !node.closest(".hc-popup-header")) || panel).focus({ preventScroll: true });
       }
     }
     function navigate(event) {
@@ -84,6 +107,15 @@
       if (event.key === "ArrowUp") next = (index + items.length - 1) % items.length;
       if (event.key === "Home") next = 0;
       if (event.key === "End") next = items.length - 1;
+      if (event.key.length === 1 && event.key !== " " && !event.ctrlKey && !event.altKey && !event.metaKey) {
+        const now = performance.now();
+        typed = now - typedAt > 700 ? event.key : typed + event.key;
+        typedAt = now;
+        const query = typed.toLocaleLowerCase();
+        const ordered = [...items.slice(index + 1), ...items.slice(0, index + 1)];
+        const match = ordered.find(node => node.textContent.trim().toLocaleLowerCase().startsWith(query));
+        if (match) next = items.indexOf(match);
+      }
       if (next >= 0 && items[next]) {
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -92,6 +124,7 @@
     }
     panel.addEventListener("keydown", navigate, options);
     trigger.addEventListener("keydown", event => {
+      if (!triggerKeys) return;
       if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
       event.preventDefault();
       open();
@@ -108,6 +141,11 @@
       if (!item.panel.contains(event.target) && !item.trigger.contains(event.target)) item.close(false);
     }
   }, true);
+  document.addEventListener("focusin", event => {
+    for (const item of [...live].reverse()) {
+      if (!item.panel.contains(event.target) && !item.trigger.contains(event.target)) item.close(false);
+    }
+  });
   document.addEventListener("keydown", event => {
     const item = [...live].at(-1);
     if (!item) return;
@@ -137,7 +175,94 @@
   // Pure action disclosures get menu semantics; mixed controls get a dialog
   // popover with normal Tab order. Ordinary inline <details> are not menus.
   const disclosures = new WeakMap();
+  const suggestions = new WeakMap();
   const selector = ".fleet-card-menu, .assistant-settings-menu, .conversation-actions";
+
+  function autocomplete(input) {
+    if (suggestions.has(input)) return;
+    const datalist = document.getElementById(input.getAttribute("list"));
+    if (!(datalist instanceof HTMLDataListElement)) return;
+    const panel = document.createElement("div");
+    panel.className = "hc-suggestions";
+    panel.setAttribute("aria-label", "Available model routes");
+    // A sibling of the label, not interactive options inside a <label>. This
+    // stays in the owning page/dialog; there is no body portal.
+    (input.closest("label") || input).after(panel);
+    input.removeAttribute("list");
+    input.classList.add("hc-autocomplete-input");
+    input.setAttribute("role", "combobox");
+    input.setAttribute("aria-autocomplete", "list");
+    let rows = [], active = -1;
+    const control = popup({ trigger: input, panel, kind: "listbox", triggerKeys: false, matchWidth: true,
+      onClose: () => { input.removeAttribute("aria-activedescendant"); active = -1; } });
+    suggestions.set(input, control);
+
+    function render() {
+      const query = input.value.trim().toLocaleLowerCase();
+      const matches = [...datalist.options].filter(option => !option.disabled &&
+        `${option.value} ${option.label}`.toLocaleLowerCase().includes(query));
+      panel.replaceChildren();
+      rows = matches.slice(0, 100).map((option, index) => {
+        const row = document.createElement("div");
+        row.className = "hc-suggestion";
+        row.id = `${panel.id}-option-${index}`;
+        row.setAttribute("role", "option");
+        row.setAttribute("aria-selected", "false");
+        const name = document.createElement("span");
+        name.textContent = option.value;
+        row.append(name);
+        if (option.label && option.label !== option.value) {
+          const note = document.createElement("small");
+          note.textContent = option.label;
+          row.append(note);
+        }
+        row.addEventListener("pointerdown", event => event.preventDefault());
+        row.addEventListener("click", () => choose(index));
+        panel.append(row);
+        return { node: row, value: option.value };
+      });
+      const status = document.createElement("p");
+      status.className = "hc-popup-empty";
+      status.setAttribute("role", "status");
+      status.textContent = !matches.length
+        ? "No available route matches. You can still enter an explicit route; Hutch checks it before saving."
+        : matches.length > 100 ? `Showing 100 of ${matches.length} routes. Keep typing to narrow the list.`
+        : `${matches.length} available ${matches.length === 1 ? "route" : "routes"}. Use arrow keys to explore, Enter to choose.`;
+      panel.append(status);
+      active = -1;
+      input.removeAttribute("aria-activedescendant");
+    }
+    function show() {
+      if (input.disabled || input.readOnly) return;
+      render();
+      control.open({ focus: false });
+    }
+    function choose(index) {
+      if (!rows[index]) return;
+      input.value = rows[index].value;
+      control.close();
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      control.close(); // a caller's input listener may have reopened suggestions
+    }
+    input.addEventListener("click", show);
+    input.addEventListener("input", event => { if (!event.isComposing) show(); });
+    input.addEventListener("keydown", event => {
+      if (event.isComposing) return;
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        if (!control.opened) show();
+        if (!rows.length) return;
+        active = (active + (event.key === "ArrowDown" ? 1 : active < 0 ? 0 : rows.length - 1) + rows.length) % rows.length;
+        rows.forEach((row, index) => row.node.setAttribute("aria-selected", String(index === active)));
+        input.setAttribute("aria-activedescendant", rows[active].node.id);
+        rows[active].node.scrollIntoView({ block: "nearest" });
+      } else if (event.key === "Enter" && control.opened && active >= 0) {
+        event.preventDefault(); event.stopPropagation(); choose(active);
+      } else if (event.key === "Tab") control.close();
+    });
+  }
+
   function enhance(root) {
     const nodes = [...root.querySelectorAll(selector)];
     if (root.matches?.(selector)) nodes.unshift(root);
@@ -164,6 +289,9 @@
         if (event.target.closest("a[href]")) control.close(false);
       });
     }
+    const inputs = [...root.querySelectorAll("input[list]")];
+    if (root.matches?.("input[list]")) inputs.unshift(root);
+    inputs.forEach(autocomplete);
   }
   const observer = new MutationObserver(records => {
     for (const item of [...live]) if (!item.trigger.isConnected || !item.panel.isConnected) item.destroy();

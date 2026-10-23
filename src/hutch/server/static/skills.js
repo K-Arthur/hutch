@@ -438,46 +438,60 @@
     if (!slot) return null;
     let usable = [];
     let selected = new Set();
-    let open = false;
 
     slot.innerHTML = `<div class="skill-picker" hidden>
-      <button type="button" class="composer-util skill-picker-btn" aria-haspopup="menu" aria-expanded="false">
+      <button type="button" class="composer-util skill-picker-btn" aria-haspopup="dialog" aria-expanded="false">
         ${glyph("skill", 14)}<span class="skill-picker-label">Skills</span>
       </button>
-      <div class="skill-picker-menu" role="menu" aria-label="Activate a skill for this message" hidden></div>
+      <div class="skill-picker-menu" role="dialog" aria-label="Skills for the next message" hidden>
+        <input class="hc-popup-search" type="search" aria-label="Find a skill" placeholder="Find a skill" autocomplete="off">
+        <div class="skill-picker-options"></div>
+        <p class="hc-popup-empty" role="status" hidden>No skills match. Try another name.</p>
+        <p class="hint skill-picker-hint">Selected skills load into the next message only.</p>
+      </div>
     </div>`;
     const wrap = q(".skill-picker", slot);
     const button = q(".skill-picker-btn", slot);
     const menu = q(".skill-picker-menu", slot);
     const label = q(".skill-picker-label", slot);
+    const list = q(".skill-picker-options", menu);
+    const search = q("input[type=search]", menu);
+    const empty = q(".hc-popup-empty", menu);
+    const popup = window.hutchControls.popup({ trigger: button, panel: menu, kind: "dialog", side: "top" });
 
     function paint() {
       if (!usable.length) { wrap.hidden = true; return; }
       wrap.hidden = false;
       label.textContent = selected.size ? `Skills (${selected.size})` : "Skills";
       button.classList.toggle("is-active", selected.size > 0);
-      menu.innerHTML = usable.map(item => `
-        <label class="skill-picker-item" role="menuitemcheckbox" aria-checked="${selected.has(item.name)}">
+      list.innerHTML = usable.map(item => `
+        <label class="skill-picker-item" data-skill-name="${esc(item.name)}">
           <input type="checkbox" value="${esc(item.name)}" ${selected.has(item.name) ? "checked" : ""}>
           <span><b>${esc(item.name)}</b><small>${esc(item.description || "")}</small></span>
-        </label>`).join("") + `<p class="hint skill-picker-hint">Selected skills load into the next message only.</p>`;
-      qa("input", menu).forEach(input => input.addEventListener("change", () => {
-        if (input.checked) selected.add(input.value); else selected.delete(input.value);
-        paint();
-      }));
+        </label>`).join("");
+      filter();
     }
-
-    button.addEventListener("click", event => {
-      event.stopPropagation();
-      open = !open;
-      menu.hidden = !open;
-      button.setAttribute("aria-expanded", String(open));
-      if (open) q("input", menu)?.focus();
+    function filter() {
+      const query = search.value.trim().toLocaleLowerCase();
+      let count = 0;
+      qa(".skill-picker-item", list).forEach(row => {
+        row.hidden = !row.textContent.toLocaleLowerCase().includes(query);
+        if (!row.hidden) count++;
+      });
+      empty.hidden = count > 0;
+      popup.place();
+    }
+    search.addEventListener("input", filter);
+    list.addEventListener("change", event => {
+      const input = event.target;
+      if (!input.matches('input[type="checkbox"]')) return;
+      if (input.checked) selected.add(input.value); else selected.delete(input.value);
+      // Update state in place: replacing this focused checkbox drops keyboard
+      // focus and makes selecting several skills unnecessarily difficult.
+      label.textContent = selected.size ? `Skills (${selected.size})` : "Skills";
+      button.classList.toggle("is-active", selected.size > 0);
     });
-    menu.addEventListener("keydown", event => { if (event.key === "Escape") { open = false; menu.hidden = true; button.setAttribute("aria-expanded", "false"); button.focus(); } });
-    document.addEventListener("click", event => {
-      if (open && !wrap.contains(event.target)) { open = false; menu.hidden = true; button.setAttribute("aria-expanded", "false"); }
-    });
+    button.addEventListener("click", () => popup.opened ? popup.close(true) : popup.open());
 
     (async () => {
       try {
@@ -500,7 +514,8 @@
 
     return {
       selected: () => [...selected],
-      consume: () => { selected = new Set(); paint(); },
+      consume: () => { selected = new Set(); qa('input[type="checkbox"]', list).forEach(input => { input.checked = false; }); label.textContent = "Skills"; button.classList.remove("is-active"); },
+      destroy: () => popup.destroy(),
     };
   }
 

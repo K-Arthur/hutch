@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from tests.support.browser import wait_for_page
+from tests.support.browser import launch_browser, wait_for_page
 
 import hashlib
 import http.server
@@ -59,16 +59,7 @@ def _visual_source_hashes() -> dict[str, str]:
 @pytest.fixture(scope="module")
 def browser():
     with pw.sync_playwright() as playwright:
-        browser = None
-        errors = []
-        for engine in (playwright.chromium, playwright.firefox):
-            try:
-                browser = engine.launch()
-                break
-            except Exception as exc:
-                errors.append(f"{engine.name}: {exc}")
-        if browser is None:
-            pytest.skip("no Playwright browser is installed: " + "; ".join(errors))
+        browser = launch_browser(playwright)
         yield browser
         browser.close()
 

@@ -50,6 +50,8 @@
     const btn = slot.querySelector(".ms-btn");
     const menu = slot.querySelector(".ms-menu");
     const label = slot.querySelector(".ms-label");
+    const popup = window.hutchControls.popup({ trigger: btn, panel: menu, kind: "menu", side: "top",
+      onOpen: () => { renderMenu(); void refresh({ discover: true }); } });
 
     function paintButton() {
       const spec = active();
@@ -115,10 +117,11 @@
 
     function item(m) {
       const on = active() === m.spec;
-      return `<button type="button" class="ms-item" role="menuitemradio" aria-checked="${on}" data-spec="${escHtml(m.spec)}">
+      return `<button type="button" class="ms-item" role="menuitemradio" tabindex="-1" aria-checked="${on}" data-spec="${escHtml(m.spec)}" ${usable(m) ? "" : 'disabled aria-disabled="true"'}>
         <span class="ms-item-main"><span class="ms-item-name">${escHtml(m.label)}</span>
           ${m.default ? '<span class="ms-tag">default</span>' : ""}
-          <span class="ms-item-note">${escHtml(m.note || "")}</span></span>
+          <span class="ms-item-note">${escHtml(m.spec)}</span>
+          ${m.note ? `<span class="ms-item-note">${escHtml(m.note)}</span>` : ""}</span>
         <span class="ms-item-check">${on ? ico("check", 16) : ""}</span></button>`;
     }
 
@@ -131,20 +134,18 @@
       const cur = find(active());
       if (cur && usable(cur) && !shown.includes(cur)) shown.splice(1, 0, cur);   // the one in use is always visible
       const hidden = data.models.length - shown.length;
-      menu.innerHTML = shown.map(item).join("") +
+      menu.innerHTML = '<div class="hc-popup-label">Model for the next message</div>' + shown.map(item).join("") +
         `<div class="ms-sep" role="separator"></div>
-         <button type="button" class="ms-item ms-more" role="menuitem" data-more>
+         <button type="button" class="ms-item ms-more" role="menuitem" tabindex="-1" data-more>
            <span class="ms-item-main"><span class="ms-item-name">All models</span>
              <span class="ms-item-note">${hidden > 0 ? `${hidden} more, with what each needs` : "fit, cost and setup for each"}</span></span></button>
          ${active() !== data.default ? `<div class="ms-sep" role="separator"></div>
-         <button type="button" class="ms-item ms-save-default" role="menuitem" data-save-default>
+          <button type="button" class="ms-item ms-save-default" role="menuitem" tabindex="-1" data-save-default>
            <span class="ms-item-main"><span class="ms-item-name">Save as Bot default</span>
              <span class="ms-item-note">${escHtml(shortName(active()))}; future chats and scheduled runs use this route.</span></span></button>` : ""}`;
     }
 
     const items = () => Array.from(menu.querySelectorAll(".ms-item"));
-    function focusItem(i) { const l = items(); if (l.length) l[(i + l.length) % l.length].focus(); }
-    function onOutside(ev) { if (!slot.contains(ev.target)) closeMenu(false); }
 
     async function refresh({ discover = false, query = "" } = {}) {
       const revision = ++refreshRevision;
@@ -164,59 +165,49 @@
           const spec = had && had.dataset.spec, more = had && had.hasAttribute("data-more"),
             saveDefault = had && had.hasAttribute("data-save-default");
           renderMenu();
+          popup.place();
           if (had) (items().find(i => (spec && i.dataset.spec === spec) || (more && i.hasAttribute("data-more"))) ||
                     items().find(i => saveDefault && i.hasAttribute("data-save-default")) || items()[0])?.focus();
         }
-      } catch { /* keep what we have: the button still works with the bot's own model */ }
+      } catch {
+        if (!menu.hidden && !menu.querySelector(".ms-refresh-error")) {
+          const status = document.createElement("p");
+          status.className = "ms-refresh-error hc-popup-empty";
+          status.setAttribute("role", "status");
+          status.textContent = "Could not refresh models. Showing the last available choices.";
+          menu.append(status);
+          popup.place();
+        }
+      }
     }
 
     function openMenu() {
-      renderMenu();
-      menu.hidden = false;
-      btn.setAttribute("aria-expanded", "true");
-      document.addEventListener("mousedown", onOutside, true);
-      const checked = items().findIndex(i => i.getAttribute("aria-checked") === "true");
-      focusItem(Math.max(0, checked));
-      refresh({ discover: true });
+      popup.open();
     }
     function closeMenu(returnFocus) {
-      menu.hidden = true;
-      btn.setAttribute("aria-expanded", "false");
-      document.removeEventListener("mousedown", onOutside, true);
-      if (returnFocus) btn.focus();
+      popup.close(returnFocus);
     }
 
     btn.addEventListener("click", () => (menu.hidden ? openMenu() : closeMenu(true)));
-    btn.addEventListener("keydown", ev => {
-      if (menu.hidden && (ev.key === "ArrowUp" || ev.key === "ArrowDown")) { ev.preventDefault(); openMenu(); }
-    });
     menu.addEventListener("click", async ev => {
       const it = ev.target.closest(".ms-item");
-      if (!it) return;
+      if (!it || it.disabled) return;
       if (it.hasAttribute("data-more")) { closeMenu(false); openAll(); return; }
       if (it.hasAttribute("data-save-default")) { await saveAsDefault(it); return; }
       choose(it.dataset.spec);
-    });
-    menu.addEventListener("keydown", ev => {
-      const l = items(), i = l.indexOf(document.activeElement);
-      if (ev.key === "ArrowDown") { ev.preventDefault(); focusItem(i + 1); }
-      else if (ev.key === "ArrowUp") { ev.preventDefault(); focusItem(i - 1); }
-      else if (ev.key === "Home") { ev.preventDefault(); focusItem(0); }
-      else if (ev.key === "End") { ev.preventDefault(); focusItem(l.length - 1); }
-      else if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); closeMenu(true); }
-      else if (ev.key === "Tab") closeMenu(false);
     });
 
     // ------------------------------------------------------------- the full list
     async function openAll() {
       await refresh({ discover: true });               // the model picker is an explicit catalog request
       const cur = active();
+      let draftSpec = cur;
       const row = m => {
         const ok = usable(m);
         let sub = ok ? (m.note || "") : (m.fix || m.note || "");     // the fix already says why it is off
         if (ok && m.worst_case_usd != null) sub += ` - estimated $${m.worst_case_usd.toFixed(2)} per run`;
         return `<label class="ms-row ${ok ? "" : "is-off"}" data-text="${escHtml((m.spec + " " + m.label + " " + m.group).toLowerCase())}">
-          <input type="radio" name="ms-pick" value="${escHtml(m.spec)}" ${ok ? "" : "disabled"} ${m.spec === cur ? "checked" : ""}>
+          <input type="radio" name="ms-pick" value="${escHtml(m.spec)}" ${ok ? "" : "disabled"} ${m.spec === draftSpec ? "checked" : ""}>
           <span class="ms-row-main"><span class="ms-row-name">${escHtml(m.label)}
               ${m.default ? '<span class="ms-tag">default</span>' : ""}
               ${m.hosted ? `<span class="ms-tag ms-hosted" title="This chat is sent to the provider">${ico("cloud", 11)} leaves this machine</span>` : ""}
@@ -235,13 +226,17 @@
             <a href="/connections">Connections</a></p>
         </div>`;
       openModal({
-        title: "Choose a model for this chat", bodyHtml: body, confirmText: "Use this model",
+        title: "Choose a model for the next message", bodyHtml: body, confirmText: "Use this model", returnFocus: btn,
         onConfirm: () => {
           const root = document.getElementById("modal-root");
           const custom = root.querySelector(".ms-custom").value.trim();
           const radio = root.querySelector('input[name="ms-pick"]:checked');
-          const spec = custom || (radio && radio.value);
+          const spec = custom || (radio && radio.value) || draftSpec;
           if (!spec) return false;
+          if (!custom && find(spec) && !usable(find(spec))) {
+            toast("This model is no longer available. Choose another model or check its connection.", true);
+            return false;
+          }
           if (custom && !/^[^/\s]+\/\S+$/.test(custom)) {
             toast("Write it as provider/model, for example opencode-go/glm-5.3", true);
             return false;
@@ -249,6 +244,7 @@
           selected = spec === data.default ? "" : spec;
           store.set(key, selected);
           paintButton();
+          announceSelection();
           if (selected) toast(`${shortName(spec)} is selected for the next message in this conversation. Bot default stays ${shortName(data.default)}.`);
           return true;
         },
@@ -257,6 +253,9 @@
       const search = root.querySelector(".ms-search");
       const groupList = root.querySelector(".ms-groups");
       const searchStatus = root.querySelector(".ms-search-status");
+      groupList.addEventListener("change", event => {
+        if (event.target.matches('input[name="ms-pick"]')) draftSpec = event.target.value;
+      });
       const renderGroups = (models, query = "") => {
         const groups = [];
         for (const model of models) {

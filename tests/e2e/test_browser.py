@@ -30,22 +30,13 @@ from hutch.models import ApprovalMode, Bot, Event, EventType, Run, RunStatus, Ru
 from hutch.server.app import create_app  # noqa: E402
 from hutch.connections import ConnectionBook  # noqa: E402
 from tests.support.artifacts import artifact_path, repository_path
-from tests.support.browser import wait_for_page_value
+from tests.support.browser import launch_browser, wait_for_page_value
 
 
 @pytest.fixture(scope="module")
 def browser():
     with pw.sync_playwright() as p:
-        b = None
-        errors = []
-        for engine in (p.chromium, p.firefox):
-            try:
-                b = engine.launch()
-                break
-            except Exception as exc:  # browser build unavailable; try another local engine
-                errors.append(f"{engine.name}: {exc}")
-        if b is None:
-            pytest.skip("no Playwright browser is installed: " + "; ".join(errors))
+        b = launch_browser(p)
         yield b
         b.close()
 
@@ -10232,7 +10223,7 @@ def test_all_models_dialog_filters_explains_and_applies(browser, switcher_env, r
     dlg = page.locator(".modal-card")
     dlg.wait_for()
     text = dlg.inner_text()
-    assert "Choose a model for this chat" in text and "huge:70b" in text
+    assert "Choose a model for the next message" in text and "huge:70b" in text
     assert "won't fit" in text, "a model that does not fit is shown, with the reason, but cannot be chosen"
     assert page.locator('input[name="ms-pick"][value="ollama/huge:70b"]').is_disabled()
     assert "anthropic" in text.lower() and "ANTHROPIC_API_KEY" in text
@@ -11834,7 +11825,7 @@ def test_composer_options_rehearsal_and_cancelled_notice(browser, live, width, h
     page.locator("#composer-menu-btn").click()
     menu = page.locator("#composer-menu")
     assert menu.is_visible() and menu.get_attribute("role") == "dialog"
-    assert menu.locator("button").first.evaluate("e => e === document.activeElement")
+    assert menu.locator(".cmenu-suggestions > summary").evaluate("e => e === document.activeElement"), "focus starts at the first meaningful option, not the dismiss button"
     box = menu.bounding_box()
     assert 0 <= box["x"] and box["x"] + box["width"] <= width + 1
     assert 0 <= box["y"] and box["y"] + box["height"] <= height + 1
