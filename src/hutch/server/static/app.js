@@ -6988,7 +6988,15 @@ function finalizeNeedsYouClose() {
   clearTimeout(approvalsTimer);
   approvalsTimer = null;
   bumpSubOwner(approvalsOwner);
-  if (needsYouReturnFocus?.isConnected) needsYouReturnFocus.focus();
+  const visible = (el) => {
+    if (!el?.isConnected) return false;
+    const rect = el.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0
+      && rect.top < innerHeight && rect.left < innerWidth;
+  };
+  const target = visible(needsYouReturnFocus) ? needsYouReturnFocus
+    : (visible($("#nav-toggle")) ? $("#nav-toggle") : null);
+  target?.focus();
   needsYouReturnFocus = null;
   renderAttention();
 }

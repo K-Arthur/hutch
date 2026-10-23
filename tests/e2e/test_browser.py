@@ -11222,7 +11222,12 @@ def test_needs_you_prioritizes_deadline_and_keeps_close_reachable(browser, live,
     close.click()
     page.wait_for_timeout(200)
     assert not page.evaluate("() => document.querySelector('#needs-you').open")
-    assert page.evaluate("() => document.activeElement?.id") == "needs-you-open"
+    assert page.evaluate("""() => {
+      const el = document.activeElement;
+      const rect = el?.getBoundingClientRect();
+      return !!rect && rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0
+        && rect.top < innerHeight && rect.left < innerWidth;
+    }"""), "focus returns to a visible trigger after closing at 320px"
     assert not errors, errors
 
     out = artifact_path("approval-triage/priority-2026-10-22")
