@@ -10301,7 +10301,7 @@ async function openOpenCodeSetupDialog(onReady) {
     openModal({
       title: "OpenCode is not ready",
       bodyHtml: `<p>${esc(error.message)}</p>
-        <p class="hint">Install or update the OpenCode CLI, then reopen this setup. Hutch uses its own private profile and does not read your personal OpenCode login.</p>`,
+        <p class="hint">Install or update the OpenCode V2 CLI, then reopen this setup. Hutch does not bundle the CLI. It uses its own private profile and does not read your personal OpenCode login.</p>`,
       confirmText: "Close", onConfirm: () => true,
     });
     return;
@@ -10338,7 +10338,7 @@ async function openOpenCodeSetupDialog(onReady) {
     showCancel: false,
     confirmText: "Done",
     bodyHtml: `<div id="opencode-setup">
-      <p>OpenCode is Hutch's primary assistant. Choose the account you want it to use. Hutch creates a private OpenCode profile for this installation; it does not read or change your personal OpenCode setup.</p>
+      <p>OpenCode is Hutch's primary assistant. Choose the account you want it to use. Hutch requires OpenCode V2 and creates a private OpenCode profile for this installation; it does not read or change your personal OpenCode setup. Your existing local OpenCode login and browser session are not imported.</p>
       <label class="field" for="oc-provider-filter">Find a provider<input id="oc-provider-filter" type="search" autocomplete="off" placeholder="Search OpenAI, Anthropic, OpenRouter…"></label>
       <div id="oc-provider-list" class="oc-provider-list" aria-live="polite">${rowsHtml()}</div>
       <p class="hint" id="oc-setup-status" role="status" aria-live="polite"></p>

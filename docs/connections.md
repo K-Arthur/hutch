@@ -287,7 +287,7 @@ reporting a false success.
 
 ## Connect a model provider in one step
 
-From **Apps & AI → AI model providers → Connect a provider**, choose OpenAI API,
+On a device that has never installed OpenCode or Ollama, use a hosted API-key route first; Hutch does not bundle either runtime. OpenCode requires the **V2** CLI on `PATH`, and Ollama requires a running local server plus downloaded models. See [runtime prerequisites](runtime-setup.md). From **Apps & AI → AI model providers → Connect a provider**, choose OpenAI API,
 Anthropic API, or OpenRouter, paste the key, and select **Connect and find
 models**. Hutch makes one authenticated catalog request; it does not spend
 inference tokens. The response reports whether the catalog was verified and how
