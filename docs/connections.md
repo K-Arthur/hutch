@@ -276,8 +276,14 @@ external billing cap. Hutch requests OpenRouter's `usage.include=true` and
 retains `usage.cost` when reported. An alias or preset without a defensible
 strict quote is refused. Tool support varies by model and upstream provider,
 so a catalog entry does not prove a model will work for every task. Public
-model and endpoint metadata GETs were checked on 2026-10-11 without an
-inference key; no account request or paid model generation was performed.
+model and endpoint metadata GETs were checked on 2026-10-11. A live account
+check on 2026-10-23 verified authenticated key discovery, a text reply and one
+tool round trip with `openai/gpt-4o-mini`; the temporary test key was capped at
+$1 and the calls cost about $0.00009. OpenRouter **management/provisioning
+keys** can list models and administer the account, but OpenRouter rejects them
+on completion endpoints. Hutch now detects that key type during the connection
+check and tells the person to create a normal inference key instead of
+reporting a false success.
 
 ## Connect a model provider in one step
 

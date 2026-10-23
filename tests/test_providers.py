@@ -247,6 +247,11 @@ def test_openrouter_probe_verifies_the_key_before_trusting_the_public_catalog(oa
     assert "$12.50 key credit remaining" in detail and "$8.25 before the next budget limit" in detail
     assert [r["path"] for r in oai.requests][-2:] == ["/v1/key", "/v1/models"]
 
+    oai.key_data = {"is_management_key": True, "is_provisioning_key": True}
+    ok, detail, names = OpenAICompatProvider(oai.url + "/v1", "or-secret", "openrouter").probe_models()
+    assert not ok and "management" in detail and "cannot make chat completion" in detail
+    assert names == []
+
 
 def test_openai_rejecting_stream_options_falls_back_to_non_streaming(oai):
     oai.reject_stream_options = True
