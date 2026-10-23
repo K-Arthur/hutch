@@ -8725,7 +8725,9 @@ def test_duplicate_bot_starts_from_safe_editable_setup_without_copying_authority
             page.set_viewport_size({"width": width, "height": height})
             _check_setup_page(page)
             page.screenshot(path=str(out / f"duplicate-setup-{label}.png"), animations="disabled")
-            captures.append({"viewport": [width, height], "overflow_px": 0, "actions_reachable": True})
+            captures.append({"viewport": [width, height],
+                             "overflow_px": page.evaluate("document.documentElement.scrollWidth - innerWidth"),
+                             "actions_reachable": True})
 
         page.set_viewport_size({"width": 390, "height": 844})
         page.locator("#setup-page-confirm").click()

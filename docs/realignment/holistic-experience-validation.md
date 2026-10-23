@@ -52,6 +52,12 @@ whole-product snapshot.
 - Long technical/approval explanations were metadata-sized and confined to narrow
   columns. They now use the site's existing 17px body token; app prose stays on its
   existing 16px body token. The boundary badge now counts the six actual items.
+- Transcript avatars incorrectly used editable display names rather than the
+  roster's canonical assistant address. The regression compares the saved avatar
+  SVGs on desktop and phone; opened captures are retained in `identity/`.
+- Marketing proof captions/chrome use body sans; mono remains reserved for code
+  and measured values. The explicitly labelled extended phone viewport remains a
+  real capture, not a composite or ordinary-phone viewport claim.
 
 ## Review and limits
 
@@ -60,6 +66,20 @@ Requirements and standards self-review covered the committed branch delta from
 provider access, tool authority, API endpoint or production data operation was
 added. Blank assistant setup no longer grants OpenCode tools implicitly; explicit
 reviewed templates remain explicit selections.
+
+This is a two-pass **self-review**, not an independent reviewer certification.
+The final delta includes identity, measured duplicate-test overflow, caption type,
+and genuine refreshed evidence; no further actionable finding remains in that
+review scope. Broad execution status is recorded separately in the checkpoint.
+Earlier computer-phone “baseline” comparisons were contaminated by child imports
+from another editable checkout. A fresh isolated comparison now reproduces both
+failure classes on `f29b299b`: controlled-session fixture setup fails and the
+process worker finishes before the expected human wait (1 failed, 1 error).
+The changed-tree suite has 1 failure and 4 instances of that fixture error. This
+establishes pre-existing failure in this environment, not the deeper cause or a
+working control path. Test-environment fixes affect only the external runner,
+not Hutch's approval or sandbox controls. The separate synthetic computer-panel
+suite passed all 10 tests; that is not a substitute for successful input handback.
 
 The mechanical detector reported eight advisory items, not proof of visual
 quality. Provider sign-in artwork radius and neutral provider-artwork backgrounds

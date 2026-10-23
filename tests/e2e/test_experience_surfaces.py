@@ -86,3 +86,30 @@ def test_active_server_rendered_pages_share_type_and_readable_layout(browser, ap
         assert page.locator("main h1").evaluate("el => getComputedStyle(el).fontSize") == "48px"
     finally:
         context.close()
+
+
+def test_run_transcript_uses_the_same_saved_identity_as_the_assistant_roster(browser, app_server):
+    base, app = app_server
+    bot = app.state.store.get_bot("design-system-review")
+    run = app.state.store.create_run(Run(bot_id=bot.id, prompt="Review identity consistency.",
+        status=RunStatus.succeeded, exit_reason="completed"))
+    app.state.store.append_event(Event(run_id=run.id, type=EventType.message,
+        data={"role": "assistant", "content": "My identity stays the same across your workspace."}))
+    app.state.store.flush_events()
+    context = browser.new_context(reduced_motion="reduce")
+    context.add_init_script("localStorage.setItem('hutch:sigils', JSON.stringify({'design-system-review': [4, 2]}))")
+    page = context.new_page()
+    out = artifact_path("holistic-experience/identity")
+    out.mkdir(parents=True, exist_ok=True)
+    try:
+        for width, height in ((1440, 960), (390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.goto(f"{base}/#/run/{run.id}")
+            avatar = page.locator(".mhead .avatar svg")
+            expect(avatar).to_be_visible()
+            roster = page.locator('[data-switch-bot="design-system-review"] .avatar svg')
+            assert avatar.inner_html() == roster.inner_html()
+            assert page.locator(".mhead b").inner_text() == "Design Partner"
+            page.screenshot(path=str(out / f"run-identity-{width}.png"), animations="disabled")
+    finally:
+        context.close()

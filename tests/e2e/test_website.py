@@ -1295,6 +1295,7 @@ def test_real_setup_capture_is_truthful_and_fits_anonymous_viewports(browser, si
         assert image.evaluate("img => img.naturalWidth") == (390 if width <= 640 else 1440)
         assert "temporary account was empty" in figure.inner_text()
         assert "no provider call" in figure.inner_text()
+        assert "monospace" not in figure.locator(".proof-meta").evaluate("el => getComputedStyle(el).fontFamily")
         assert page.locator("#gate-card, #gate-demo").count() == 0
         page.evaluate("window.scrollTo(0, 0)")
         page.screenshot(path=str(out / f"site-{size}.png"), animations="disabled", full_page=True)

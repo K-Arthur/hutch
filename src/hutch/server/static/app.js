@@ -5167,7 +5167,7 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHan
       </div>
       <div class="msg agent">
         <div class="mhead">
-          ${botAvatar(botName, 26, run.status === "running" ? "running" : "")}
+          ${botAvatar(sourceBot?.name || run.bot_name || currentStudioBot || botName, 26, run.status === "running" ? "running" : "")}
           <b>${esc(botName)}</b>
           ${waitingForChoice
             ? statusChip("waiting_for_answer", "Waiting for your choice")

@@ -20,8 +20,8 @@ Do not call isolated screenshots or passing first-run checks repo-wide validatio
 | A3 | Long setup/configuration on task pages, dialogs for short decisions; preserve navigation/drafts | Implemented and tested, including pending/failed/replaced/reloaded drafts |
 | A4 | Marketing follows same rules; expanded content works without stretching unrelated columns | Implemented; body-sized shared reading rows, real proof and evidence hashes verified |
 | A5 | Actual desktop/tablet/phone and loading/error/empty/focus/expanded-state inspection | Representative family/state coverage recorded; physical-device/screen-reader/native-zoom checks remain unrun |
-| A6 | Meaningful regressions + relevant suite + necessary code review | Focused browser suites pass; two-pass self-review recorded; corrected full fast suite running; baseline computer-control failures documented |
-| A7 | Progressive commits and relevant documentation | ef33bfc3, 9280b251, 050c585f; final code/evidence commits being prepared |
+| A6 | Meaningful regressions + relevant suite + necessary code review | Focused browser suites pass; two-pass self-review recorded; isolated full fast and computer-phone reruns running; no final broad pass claimed |
+| A7 | Progressive commits and relevant documentation | Five commits through b312a4d9; final identity/proof/evidence fixes being prepared |
 | A8 | Integrate into main/master, verify integration, remove task worktree/branch | Pending; do not integrate unfinished work |
 
 ## Source inventory / remaining review families
@@ -72,14 +72,14 @@ status announcements, YAML runtime restoration, and no automatic OpenCode tool g
 blank setup or runtime switching. Explicitly chosen templates retain their reviewed tools.
 Replacing a draft from an example/source now requires a short confirmation.
 
-Current uncommitted slice: compact operational header actions now have icons/accessible names
+Committed `7e46e858`: compact operational header actions now have icons/accessible names
 and remain reachable at 320px; compact buttons use 32px/14px and coarse-pointer buttons 44px.
 Assistant settings uses the 1040px rail and panel-width-aware field tracks; range inheritance
 no longer squeezes its slider/value. Server pages share scalable body/title roles and section
 type; phone message prose uses body sans rather than raw-event monospace. Source navigation
 labels match the SPA; Models and Usage are discoverable in More. Marketing technical details
 use body-sized shared-width rows rather than narrow equal-height explanatory columns.
-Marketing first-run and response-style proof assets have fresh actual-browser captures and
+Committed `b312a4d9`: marketing first-run and response-style proof assets have fresh actual-browser captures and
 truthful dimensions. Phone proof explicitly uses an extended 390×1200 viewport; ordinary
 390×844 and 320×740 captures remain separate. Asset provenance is in
 `artifacts/no-mock-setup/marketing-assets.json`.
@@ -96,20 +96,27 @@ staying on the user's next page. Distinct requirements and standards self-review
 silent draft replacement and failed replacement invalidating the retained draft. Full
 design/browser batch: **34 passed, 2 failed, 4 errors**. The first-run failure was the newly
 required replacement confirmation; its updated test subsequently passed. The computer-control
-fixture error and process-worker failure both reproduce on clean pre-overhaul `f29b299b` sources
-under `/home/kevina/.local/share/opencode/hutch-baseline-validation`; no backend workaround made.
+fixture error and process-worker failure were reproduced on pre-overhaul `f29b299b` sources,
+but those runs had contaminated subprocess imports; this does not establish baseline product
+defects. The fresh isolated comparison below now reproduces both failure classes.
+No backend workaround or safety relaxation made.
 Computer panel suite separately passed **10 tests** with synthetic-frame captures inspected.
 Broader interaction batch: **14 passed**, one locator counted the newly added Models nav link;
 scoping that assertion to the dialog passed. Website: **35 passed** excluding stale evidence
-manifest; rerun after final proof/boundary updates is running. Settings-width and header checks
+manifest; subsequent final checks below cover the proof/boundary changes. Settings-width and header checks
 passed at 1440/1280/900/390/320 as applicable; typed widget transcript and paired supervision
 checks passed. Server-page check correctly found a 22px narrow title override; normalized to
-the shared 24px role, rerun pending. `/legacy` is the SPA alias, not a second home template.
+the shared 24px role and its rerun passed. `/legacy` is the SPA alias, not a second home template.
 
-The full fast suite was interrupted again. Fail-fast exposed that the local wrapper re-entered
-pytest in spawned children (missing `if __name__ == '__main__'`); fixed the **external wrapper**,
-and all four admission tests then passed. Corrected full fast suite is running. Do not count
-earlier wrapper-induced failures as product defects or claim a full-suite pass yet.
+Earlier fast suites were interrupted or used a defective local runner. The external wrapper
+now has a `__main__` guard (all four admission tests passed), exports the selected tree's
+`src` and root through `PYTHONPATH` for workers, and uses short temporary paths. The old
+long-path full run has failures involving schema v76 from the separate editable checkout,
+AF_UNIX path limits, subprocess durability, and the now-fixed multiplication glyph in the
+marketing caption. Its subprocess/performance results cannot establish regressions.
+With corrected isolation, CLI scenario, native containment and loopback-close tests all
+passed (**3 passed**, 7.10s). A trustworthy full fast run is now running with base path
+`/home/kevina/.hutch-tmp/f1`; no full-suite pass claimed yet.
 Latest functional review fix: returning to setup during a create request must keep its fields,
 Discard and Create disabled and expose Creating assistant…; added a fieldset and pending state
 with a delayed-response regression. **All eight task-page/layout tests passed** after this fix.
@@ -121,17 +128,21 @@ approval/body-token case; that case, the three real-proof viewports and response
 then passed (**5 passed**, 26.60s). Fresh approval-triage captures and their genuine manifest
 were copied only after inspection; evidence completeness passed. The reading token is 17px
 on marketing, 16px in the app; the failed 16px marketing test assumption was corrected.
+Final self-review fixes: canonical assistant identity now keys transcript avatars just as
+the roster does; its regression passed (**1 passed**, 8.20s), and both captures were opened.
+Duplicate-setup evidence now measures overflow rather than reporting a hard-coded zero;
+its regression passed (**1 passed**, 13.99s). Proof chrome/caption now uses body sans;
+the extended viewport caption uses ASCII “390 by 1200” to satisfy the inline-SVG icon audit.
+Approval/proof/emoji checks passed (**11 passed**, 23.49s). Latest proof desktop/phone and
+identity desktop/phone captures opened; genuine approval-triage output recopied and root
+manifest regenerated from actual retained files. Evidence-completeness/site-token checks
+passed (**9 passed**, 5.34s).
 See [rendered coverage and review](holistic-experience-validation.md). Integration still pending.
-Disk: `/tmp` repeatedly reaches 100% from unrelated trees; use TMPDIR and
-`--basetemp` under `/home/kevina/.local/share/opencode/hutch-tmp`. Temporary screenshots
-moved to `/home/kevina/.local/share/opencode/hutch-shots/` after `/tmp` ENOSPC aborted two
-test runs at trace writing (assertions had passed). Do not delete unrelated `/tmp/varve-*`
-or other agents' temporary trees.
 
-Inspected screenshots (temporary `/tmp/opencode/hutch-holistic-review/`): original app
-chat/settings/site; changed marketing workflow at 1440/768/390; changed app Activity,
-Skills, settings and setup at 1440. Later container changes invalidate those last app
-captures. Mobile workflow captures caught transition opacity; recapture settled/reduced.
+Disk: `/tmp` repeatedly fills from unrelated work. Use short home-directory temporary paths;
+do not delete other tasks' temporary trees. Retained current captures are under
+`artifacts/holistic-experience-2026-10-23/` and `artifacts/no-mock-setup/`; earlier temporary
+captures are historical, not current-state evidence. No further design/polish round planned.
 
 ## Environment and next actions
 
@@ -139,6 +150,10 @@ captures. Mobile workflow captures caught transition opacity; recapture settled/
 - Existing browser: `/home/kevina/.cache/ms-playwright/chromium-1248/chrome-linux64/chrome`.
   Python Playwright expects unavailable revision 1243; use explicit executable_path,
   including a process-local BrowserType.launch override for pytest. No dependency install.
+- Verified local invocation: `/home/kevina/CodingProjects/hutch/.venv/bin/python
+  /home/kevina/.local/share/opencode/hutch-run-tests.py -q
+  --basetemp=/home/kevina/.hutch-tmp/<short-name> <tests>`; run from the selected source tree.
+  Runner sets child `PYTHONPATH` and `TMPDIR=/home/kevina/.hutch-tmp`; directory must exist.
 - node_modules is an **untracked symlink** to original checkout dependencies; never commit.
 - `npm run build:css` and `node --check src/hutch/server/static/app.js` passed after the
   latest setup and technical-detail edits. Builds generate CSS and stamp site asset hashes.
@@ -146,11 +161,18 @@ captures. Mobile workflow captures caught transition opacity; recapture settled/
   `/home/kevina/.local/share/opencode/hutch-visual-empty-20261023`. Do not run real
   model/provider tasks for visual QA. Use fixture servers for populated states.
   Processes may die on host restarts. Use independent fixture state for mutations/tests.
-- Next: validate the new pending-create state and final server typography; finish marketing
-  proof/technical disclosure inspection and copy freshly inspected approval-triage evidence;
-  record the opened-surface matrix, inspect generated evidence churn, progressively commit,
-  finish requirements/standards review and test results, then integrate without disturbing
-  the original checkout's unrelated edits. No task changes have been merged or pushed.
-- Required final evidence refresh: marketing validation hashes in prior approval-triage
-  evidence and proof screenshots when affected. Tests can rewrite tracked evidence; inspect
-  generated churn and use HUTCH_TEST_ARTIFACTS_DIR where supported.
+- Active check: isolated full fast suite (`f1`). Isolated computer-phone (`c1`) returned
+  1 failure and 4 fixture errors:
+  no controlled session is created and the worker ends before the expected human wait.
+  The representative pre-overhaul comparison (`b1`) reproduces the same fixture error
+  and process failure (**1 failed, 1 error**, 24.52s), now using correct child imports and
+  short socket paths. These are pre-existing failures in this environment, not proven UI
+  regressions; their deeper cause is not diagnosed. Do not claim this path works. Copied
+  evidence/site-token checks passed. Await the full fast result before merge.
+- Next: reconcile results, finish final review/evidence commit, then fast-forward main,
+  verify integration and all 12 unrelated file hashes, remove only the task worktree/branch.
+  Main remains at f29b299b; preservation record:
+  `/home/kevina/.local/share/opencode/holistic-main-before-merge.json`. Latest comparison
+  confirmed all hashes unchanged and merge paths disjoint. Archive this task's duplicate
+  original-checkout research note (a prefix of the tracked note) before fast-forward.
+  No merge or push yet. No independent subagent review was performed; review is self-review.

@@ -287,7 +287,7 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .win-dots i:nth-child(2) { background: var(--color-semantic-border-strong); }
 .proof-label {
   text-align: center;
-  font-family: var(--font-mono); font-size: var(--text-size-2xs);
+  font-family: var(--font-body); font-size: var(--text-size-xs);
   color: var(--color-semantic-text-3); letter-spacing: 0.02em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -303,8 +303,8 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
   font-family: var(--font-mono); font-size: var(--text-size-xs); font-weight: 700; color: var(--color-semantic-brand);
 }
 .proof-legend b { color: var(--color-semantic-text); font-weight: 650; }
-.proof-meta { margin-top: var(--space-6); padding-top: var(--space-4); border-top: 1px solid var(--color-semantic-border-soft); font-family: var(--font-mono); font-size: 12px; line-height: 1.7; color: var(--color-semantic-text-3); }
-.proof-meta code { font-family: inherit; color: var(--color-semantic-text-2); }
+.proof-meta { margin-top: var(--space-6); padding-top: var(--space-4); border-top: 1px solid var(--color-semantic-border-soft); font-family: var(--font-body); font-size: var(--text-size-xs); line-height: 1.7; color: var(--color-semantic-text-3); }
+.proof-meta code { font-family: var(--font-mono); color: var(--color-semantic-text-2); }
 @media (max-width: 940px) {
   .proof-body { grid-template-columns: minmax(0, 1fr); }
   .proof-legend { border-left: 0; border-top: 1px solid var(--color-semantic-border-soft); }
