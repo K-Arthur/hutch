@@ -276,12 +276,18 @@ external billing cap. Hutch requests OpenRouter's `usage.include=true` and
 retains `usage.cost` when reported. An alias or preset without a defensible
 strict quote is refused. Tool support varies by model and upstream provider,
 so a catalog entry does not prove a model will work for every task. Public
-model and endpoint metadata GETs were checked on 2026-10-11 without an
-inference key; no account request or paid model generation was performed.
+model and endpoint metadata GETs were checked on 2026-10-11. A live account
+check on 2026-10-23 verified authenticated key discovery, a text reply and one
+tool round trip with `openai/gpt-4o-mini`; the temporary test key was capped at
+$1 and the calls cost about $0.00009. OpenRouter **management/provisioning
+keys** can list models and administer the account, but OpenRouter rejects them
+on completion endpoints. Hutch now detects that key type during the connection
+check and tells the person to create a normal inference key instead of
+reporting a false success.
 
 ## Connect a model provider in one step
 
-From **Apps & AI → AI model providers → Connect a provider**, choose OpenAI API,
+On a device that has never installed OpenCode or Ollama, use a hosted API-key route first; Hutch does not bundle either runtime. OpenCode requires the **V2** CLI on `PATH`, and Ollama requires a running local server plus downloaded models. See [runtime prerequisites](runtime-setup.md). From **Apps & AI → AI model providers → Connect a provider**, choose OpenAI API,
 Anthropic API, or OpenRouter, paste the key, and select **Connect and find
 models**. Hutch makes one authenticated catalog request; it does not spend
 inference tokens. The response reports whether the catalog was verified and how

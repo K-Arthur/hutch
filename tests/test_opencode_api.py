@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from hutch.runtime.opencode_server import OpenCodeModel
+from hutch.runtime.opencode_server import OpenCodeModel, OpenCodeServer, OpenCodeServerError
 from hutch.server.app import create_app
 
 
@@ -38,6 +38,19 @@ class FakeServer:
         self.oauth.append((integration_id, method_id))
         return {"attemptID": "att_1", "url": "https://example.test/auth", "instructions": "Sign in",
                 "mode": "auto", "time": {"created": 1, "expires": 2}}
+
+
+def test_opencode_v1_is_rejected_before_starting_a_server(tmp_path, monkeypatch):
+    class Result:
+        returncode = 0
+        stdout = "1.18.0"
+        stderr = ""
+
+    monkeypatch.setattr("hutch.runtime.opencode_server.subprocess.run", lambda *a, **k: Result())
+    server = OpenCodeServer(tmp_path / "state")
+    with pytest.raises(OpenCodeServerError, match="OpenCode V2"):
+        server.start()
+    assert server.process is None
 
 
 @pytest.fixture()

@@ -162,6 +162,11 @@ class OpenAICompatProvider(Provider):
                 data = {}
             if not isinstance(data, dict):
                 data = {}
+            if data.get("is_management_key") is True or data.get("is_provisioning_key") is True:
+                return False, (
+                    "OpenRouter accepted this management/provisioning key, but management keys cannot make "
+                    "chat completion requests. Create a normal inference API key at "
+                    "https://openrouter.ai/settings/keys and use that here."), []
             parts = []
             remaining = data.get("limit_remaining")
             if isinstance(remaining, (int, float)) and not isinstance(remaining, bool):
