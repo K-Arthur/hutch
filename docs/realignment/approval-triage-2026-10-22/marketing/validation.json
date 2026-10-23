@@ -1,0 +1,77 @@
+{
+  "test": "tests/e2e/test_website.py::test_approval_triage_copy_is_truthful_and_responsive",
+  "captured_at": "2026-10-23T04:31:56.445897+00:00",
+  "python": "3.13.15",
+  "browser": "153.0.8010.12",
+  "index_sha256": "9d2dbc0a69a7f851b3b973eacde4c95eb65c87852d62cf91ea9a3c1b30a08665",
+  "captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "overflow": 0,
+      "screenshot": "approval-control-desktop.png",
+      "screenshot_sha256": "e77a7351e23fbe3343439aec2ce82474eba8535d2d6838dccaaaca2414d5e2de",
+      "benefit_screenshot": "approval-benefit-desktop.png",
+      "benefit_sha256": "0a5b6ef9f583f3239cf110c34705f159c80b3bfd3e15cd34faf851c8a53b43e4"
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        768,
+        1024
+      ],
+      "overflow": 0,
+      "screenshot": "approval-control-tablet.png",
+      "screenshot_sha256": "ad7dcbcd6792cde1649ec497388cc8b98e4fa479a2ced9d3120d4d76e4ec25a7",
+      "benefit_screenshot": "approval-benefit-tablet.png",
+      "benefit_sha256": "6cc430c25bc069241faa09115402383b5a60b16eec2f867c5fd098d415660d7d"
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "overflow": 0,
+      "screenshot": "approval-control-phone.png",
+      "screenshot_sha256": "5a6885c2e04004dd8fc76a127d924e94ca381bb3209a79b8b68f000a7fa3af32",
+      "benefit_screenshot": "approval-benefit-phone.png",
+      "benefit_sha256": "e48f926077fdcea60ad97a7420de9af57105634df47efab9aed777694fb786b1"
+    },
+    {
+      "size": "narrow",
+      "viewport": [
+        320,
+        800
+      ],
+      "overflow": 0,
+      "screenshot": "approval-control-narrow.png",
+      "screenshot_sha256": "f71133be3f4dd1661e3f2b3b3962df1384e4eb7c8540b6c86043b33346fa2cdd",
+      "benefit_screenshot": "approval-benefit-narrow.png",
+      "benefit_sha256": "f5e1b89d4c8e170717f37f9ee7073cf8bb56581db32bd7e6140b7a135cccfb62"
+    }
+  ],
+  "text_spacing": {
+    "viewport": [
+      320,
+      800
+    ],
+    "overflow": 0,
+    "screenshot": "approval-details-text-spacing-320.png",
+    "screenshot_sha256": "8e02e35bd6bb0ad1c7b6423ebf7e1da94ebe8a0e2a121e3eea423a0447a5a080"
+  },
+  "zoom_200_effective": {
+    "viewport": [
+      720,
+      480
+    ],
+    "overflow": 0,
+    "screenshot": "approval-details-zoom-200-effective.png",
+    "screenshot_sha256": "1d7d7feae26640880b7f8c2e55a9cbf92abf5ef8b9a6f67278d16aeb7ae80ca6"
+  },
+  "anonymous": true,
+  "page_errors": []
+}
