@@ -7628,15 +7628,16 @@ def test_quick_bot_creation_uses_the_workspace_default_without_starting_work(bro
         assert "checks with you before important actions" in quick_summary
         assert "openai/gpt-4o-mini" not in quick_summary
         assert "hybrid" not in quick_summary.lower()
-        assert page.locator("#modal-confirm").inner_text() == "Create bot"
+        assert page.locator("#setup-page-confirm").inner_text() == "Create bot"
         assert page.locator("#setup-customize").is_visible()
         assert app.state.store.list_bots() == [] and app.state.store.list_runs() == []
         captures = []
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
+            page.locator(".setup-page-actions").scroll_into_view_if_needed()
             metrics = page.evaluate("""() => ({width:document.documentElement.scrollWidth-innerWidth,
-              dialog:document.querySelector('[role=dialog]').getBoundingClientRect().toJSON(),
-              footer:document.querySelector('.modal-footer').getBoundingClientRect(),
+              dialog:document.querySelector('.setup-page').getBoundingClientRect().toJSON(),
+              footer:document.querySelector('.setup-page-actions').getBoundingClientRect(),
               summary:document.querySelector('.setup-quick-summary').getBoundingClientRect(),
               name:document.querySelector('#setup-display_name').getBoundingClientRect()})""")
             assert metrics["width"] <= 1, (label, metrics)
@@ -7653,12 +7654,20 @@ def test_quick_bot_creation_uses_the_workspace_default_without_starting_work(bro
         page.get_by_role("heading", name="Choose what powers it").wait_for()
         assert page.get_by_label("Model route").input_value() == "openai/gpt-4o-mini"
         assert page.locator("#setup-inference_mode").input_value() == "hybrid"
-        page.locator("#modal-cancel").click()
+        page.get_by_role("link", name="Save draft and leave", exact=True).click()
+        page.reload()
         page.locator("#topbar-new-bot").click()
+        page.get_by_role("heading", name="Choose what powers it").wait_for()
+        assert page.get_by_label("Model route").input_value() == "openai/gpt-4o-mini"
+        assert "Restored your unsaved setup" in page.locator(".setup-restored").inner_text()
+        page.get_by_role("button", name="Discard draft").click()
+        page.locator("#topbar-new-bot").click()
+        page.get_by_role("heading", name="Set up your assistant").wait_for()
+        assert page.locator(".setup-restored").count() == 0
         page.get_by_label("What would you like this assistant to handle?").fill(purpose)
         with page.expect_response(lambda response: response.url.endswith("/api/v1/bots")
                                  and response.request.method == "POST") as created:
-            page.locator("#modal-confirm").click()
+            page.locator("#setup-page-confirm").click()
         assert created.value.status == 201, created.value.text()
         bot = app.state.store.list_bots()[0]
         assert bot is not None and bot.instructions == purpose

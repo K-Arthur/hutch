@@ -159,6 +159,33 @@ function clearFirstRunDraft() {
   try { sessionStorage.removeItem(firstRunDraftKey); } catch {}
 }
 
+/* Assistant setup can be long enough to leave and return to. Keep the unsaved
+   form in this tab only, and discard it after creation or an explicit reset. */
+const assistantSetupDraftKey = "hutch-assistant-setup-draft";
+function saveAssistantSetupDraft(payload) {
+  try {
+    sessionStorage.setItem(assistantSetupDraftKey, JSON.stringify({ version: 1, ...payload }));
+  } catch { /* the in-memory page still holds the draft */ }
+}
+function loadAssistantSetupDraft() {
+  try {
+    const raw = sessionStorage.getItem(assistantSetupDraftKey);
+    if (!raw) return null;
+    const saved = JSON.parse(raw);
+    if (saved?.version !== 1 || !saved.draft || typeof saved.draft !== "object") {
+      sessionStorage.removeItem(assistantSetupDraftKey);
+      return null;
+    }
+    return saved;
+  } catch {
+    try { sessionStorage.removeItem(assistantSetupDraftKey); } catch {}
+    return null;
+  }
+}
+function clearAssistantSetupDraft() {
+  try { sessionStorage.removeItem(assistantSetupDraftKey); } catch {}
+}
+
 async function payloadFingerprint(body) {
   const raw = JSON.stringify(body);
   if (window.crypto?.subtle) {
@@ -1891,7 +1918,22 @@ function botIdentityParts(ref) {
 function botHeading(ref) { return botIdentityParts(ref).name; }
 function botRole(ref) { return botIdentityParts(ref).role; }
 
+let assistantSetupPage = null;
+
+async function renderAssistantSetupPage() {
+  if (!assistantSetupPage) {
+    setTopContext(`<div class="ctx-id"><div class="ctx-heading"><h1>New assistant</h1><span class="ctx-subtitle">Set up an assistant without starting work</span></div></div>`);
+    view.innerHTML = `<div class="page-scroll"><div class="container"><p role="status">Loading assistant setup…</p></div></div>`;
+    await promptNewBot("", "", null, loadAssistantSetupDraft() ? "" : loadFirstRunDraft());
+    return;
+  }
+  setTopContext(`<div class="ctx-id"><h1>New assistant</h1></div>`);
+  view.replaceChildren(assistantSetupPage.element);
+  await assistantSetupPage.render();
+}
+
 const routes = [
+  [/^#\/assistant\/new$/, renderAssistantSetupPage, "bots"],
   [/^#\/chat(?:\/([\w-]+))?$/, m => renderChatStudio(m ? m[1] : null), "chat"],
   [/^#\/conversation\/([\w-]+)$/, m => openConversation(m[1]), "chat"],
   [/^#\/chats$/, renderChatLibrary, "chats"],
@@ -2033,7 +2075,7 @@ async function renderChatLibrary() {
   renderRoster();
   setTopContext(`<div class="ctx-id"><div class="ctx-heading"><h1>Chat library</h1><span class="ctx-subtitle">Find active, archived, and imported conversations</span></div></div>`);
   view.innerHTML = `<div class="page-scroll"><div class="container chat-library-page">
-    <header class="page-intro"><h2>Chat library</h2><p>Browse conversation titles across your assistants. Message search remains in Chats.</p></header>
+    <p class="page-subtitle">Browse conversation titles across your assistants. Message search remains in Chats.</p>
     <form class="panel chat-library-filters" id="chat-library-filters" role="search">
       <label class="field"><span>Find by chat title</span><input id="chat-library-query" type="search" maxlength="256" autocomplete="off" placeholder="For example, project notes"></label>
       <label class="field"><span>Assistant</span><select id="chat-library-bot"><option value="">All assistants</option>${bots.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}</option>`).join("")}</select></label>
@@ -2068,7 +2110,7 @@ async function renderChatLibrary() {
       results.innerHTML = page.items.length ? page.items.map(item => `<a class="chat-library-row" href="#/conversation/${esc(item.id)}">
         <span class="chat-library-copy"><strong>${esc(item.title || "Untitled conversation")}</strong><small>${esc(labels.get(item.bot_id) || "Unavailable assistant")} · ${esc(formatConversationDate(item.updated_at))}</small></span>
         <span class="chat-library-meta">${item.is_legacy ? "Imported" : item.archived ? "Archived" : `${item.message_count} messages`} ${icon("arrow")}</span>
-      </a>`).join("") : `<div class="empty-state"><p>No chats match these filters.</p><p class="hint">Try another assistant, title, or history bucket.</p></div>`;
+      </a>`).join("") : `<div class="empty-state"><p>Try another assistant, title, or history bucket.</p></div>`;
       const first = page.total ? offset + 1 : 0;
       status.textContent = page.total ? `Showing ${first}–${offset + page.items.length} of ${page.total} chats.` : "No chats found.";
       pagination.innerHTML = `${offset ? '<button class="btn ghost" type="button" data-library-page="previous">Previous</button>' : ""}${page.next_offset !== null ? '<button class="btn ghost" type="button" data-library-page="next">Load more</button>' : ""}`;
@@ -2094,7 +2136,7 @@ async function renderWorkspaceSettings() {
   const currentEffects = storageGet("hutch:reduce-effects");
   setTopContext(`<div class="ctx-id"><div class="ctx-heading"><h1>Settings</h1><span class="ctx-subtitle">Workspace defaults and appearance</span></div></div>`);
   view.innerHTML = `<div class="page-scroll"><div class="container workspace-settings-page">
-    <header class="page-intro"><h2>Workspace settings</h2><p>These defaults apply when you create an assistant. Existing assistants and chats keep their saved settings.</p></header>
+    <p class="page-subtitle">These defaults apply when you create an assistant. Existing assistants and chats keep their saved settings.</p>
     <form class="panel form-grid workspace-settings-form" id="workspace-settings-form">
       <h3 class="panel-title">Model defaults for new assistants</h3>
       <label class="field" for="workspace-settings-model">Default model route
@@ -2145,6 +2187,10 @@ function routeTitle(hash) {
 
 async function route(announce = false) {
   const hash = location.hash || "#/chat";
+  if (assistantSetupPage?.element.isConnected && hash !== "#/assistant/new") {
+    assistantSetupPage.snapshot();
+    assistantSetupPage.persist();
+  }
   if (!hash.startsWith("#/")) {
     /* Plain fragment targets (the skip link's #view) are not views: leave the
        hash alone so the browser moves focus to the target element. */
@@ -6429,7 +6475,8 @@ async function renderOverview(preservePosition = false) {
     </section>`;
   const recent = recentRuns.filter(run => run.terminal).slice(0, 3);
   view.innerHTML = `
-    <div class="page-scroll"><div class="container">
+    <div class="page-scroll"><div class="container activity-page">
+      ${activity}
       <div class="ov-stats ov-summary-stats">
         <div class="kpi"><span class="kpi-label">Assistants</span><span class="kpi-val">${fmt(s.bots)}</span></div>
         <div class="kpi"><span class="kpi-label">Tasks today</span><span class="kpi-val">${fmt(s.runs_today)}</span></div>
@@ -6441,7 +6488,6 @@ async function renderOverview(preservePosition = false) {
           <div class="kpi"><span class="kpi-label">Recorded provider cost today</span><span class="kpi-val">${fmtUsd(s.spend_today || 0)}</span></div>
         </div>
       </details>
-      ${activity}
       ${recent.length ? `<section class="ov-recent" aria-labelledby="ov-recent-title">
         <h2 class="ov-h" id="ov-recent-title">${icon("clock")} Recent work</h2>
         ${recent.map(row).join("")}
@@ -6748,8 +6794,8 @@ async function renderBots() {
   $("#fleet-search")?.addEventListener("input", filterFleet);
   $("#fleet-state")?.addEventListener("change", filterFleet);
   if ($("#fleet-search")) filterFleet();
-  $("#btn-create-first-bot")?.addEventListener("click", promptNewBot);
-  $("#btn-new-bot-top")?.addEventListener("click", promptNewBot);
+  $("#btn-create-first-bot")?.addEventListener("click", () => void promptNewBot());
+  $("#btn-new-bot-top")?.addEventListener("click", () => void promptNewBot());
   wireCommon();
 }
 
@@ -10673,6 +10719,12 @@ async function openOpenCodeSetupDialog(onReady) {
 }
 
 async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot = null, prefillPurpose = "", firstRunChoice = null) {
+  if (assistantSetupPage && !preselect && !sourceMessageId && !duplicateBot && !prefillPurpose) {
+    location.hash = "#/assistant/new";
+    return;
+  }
+  const returnRoute = location.hash === "#/assistant/new" ? "#/chat" : location.hash || "#/chat";
+  const requestedFrom = location.hash;
   let templates;
   try { templates = await api("/bots/templates"); }
   catch (err) { toast(`Bot setup is unavailable: ${err.message}`, true); return; }
@@ -10770,6 +10822,46 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
   let displayNameEdited = !!duplicateBot;
   let descriptionEdited = !!duplicateBot?.description;
   let addressEdited = false;
+  const restoredSetup = !preselect && !sourceMessageId && !duplicateBot && !prefillPurpose && !firstRunChoice
+    ? loadAssistantSetupDraft() : null;
+  if (restoredSetup) {
+    const saved = restoredSetup.draft;
+    draft.step = Math.min(3, Math.max(0, Number(saved.step) || 0));
+    draft.forceAdvanced = !!saved.forceAdvanced;
+    draft.runtime = typeof saved.runtime === "string" ? saved.runtime : draft.runtime;
+    draft.purpose = typeof saved.purpose === "string" ? saved.purpose.slice(0, 20_000) : draft.purpose;
+    draft.useConversationSource = !!saved.useConversationSource;
+    draft.template = typeof saved.template === "string" ? saved.template.slice(0, 120) : "";
+    draft.preset = typeof saved.preset === "string" ? saved.preset.slice(0, 120) : "";
+    draft.name = typeof saved.name === "string" ? saved.name.slice(0, 41) : "";
+    draft.display_name = typeof saved.display_name === "string" ? saved.display_name.slice(0, 80) : "";
+    draft.description = typeof saved.description === "string" ? saved.description.slice(0, 500) : "";
+    draft.model = typeof saved.model === "string" ? saved.model.slice(0, 200) : draft.model;
+    draft.inference_mode = ["hybrid", "local", "offline"].includes(saved.inference_mode) ? saved.inference_mode : draft.inference_mode;
+    draft.workspace_mode = saved.workspace_mode === "fresh" ? "fresh" : "managed";
+    draft.local_browser_handoff = !!saved.local_browser_handoff;
+    draft.cron = typeof saved.cron === "string" ? saved.cron.slice(0, 200) : "";
+    draft.timezone = typeof saved.timezone === "string" ? saved.timezone.slice(0, 80) : "UTC";
+    draft.catch_up = saved.catch_up === "skip" ? "skip" : "coalesce";
+    draft.schedule_prompt = typeof saved.schedule_prompt === "string" ? saved.schedule_prompt.slice(0, 20_000) : "";
+    draft.tools = new Set(Array.isArray(saved.tools) ? saved.tools.filter(item => typeof item === "string").slice(0, 64) : []);
+    draft.selectedContextMessageIds = new Set(Array.isArray(saved.selectedContextMessageIds)
+      ? saved.selectedContextMessageIds.filter(item => typeof item === "string").slice(0, 32) : []);
+    if (saved.limits && typeof saved.limits === "object") {
+      for (const key of Object.keys(draft.limits)) {
+        const value = Number(saved.limits[key]);
+        if (Number.isFinite(value) && value >= 0) draft.limits[key] = value;
+      }
+    }
+    if (restoredSetup.conversationSource && typeof restoredSetup.conversationSource === "object") {
+      conversationSource = restoredSetup.conversationSource;
+    }
+    draft.purposeRefinementStatus = "Restored your unsaved setup from this tab. Nothing has been saved or created.";
+    displayNameEdited = !!draft.display_name;
+    descriptionEdited = !!draft.description;
+    addressEdited = !!draft.name;
+    presetEdited = !!draft.preset;
+  }
   const occupiedAddresses = new Set(botsCache.map(bot => bot.name));
   const uniqueAddress = value => {
     const base = suggestedBotAddress(value);
@@ -11080,6 +11172,21 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     }
     const tools = $("#setup-tools");
     if (tools) draft.tools = new Set($$("input[name=setup-tool]:checked", tools).map(input => input.value));
+  };
+  const persistSetupDraft = () => {
+    snapshotFields();
+    saveAssistantSetupDraft({
+      conversationSource,
+      draft: {
+        ...draft,
+        tools: [...draft.tools],
+        selectedContextMessageIds: [...draft.selectedContextMessageIds],
+        purposeRefinement: null,
+        purposeDraftPending: null,
+        purposeClarificationQuestion: null,
+        purposeClarificationHistory: [],
+      },
+    });
   };
   let purposeDraftRequestInFlight = false;
   const parsePurposeDraftResponse = answer => {
@@ -11455,8 +11562,9 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       </details>
     </div>`;
     if (step === 3) content = reviewHtml();
-    const root = $("#modal-root");
-    const body = $(".modal-body", root), title = $("#modal-title"), confirm = $("#modal-confirm");
+    const root = assistantSetupPage?.element;
+    if (!root?.isConnected) return;
+    const body = $(".setup-page-body", root), title = $("#setup-page-title", root), confirm = $("#setup-page-confirm", root);
     if (!body || !title || !confirm) return;
     const sourceQuick = step === 0 && !draft.forceAdvanced && (conversationSource
       ? draft.useConversationSource : !!prefillPurpose.trim());
@@ -11671,6 +11779,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       : step === 0 && draft.purposeRefinement ? $("#setup-purpose-draft-review")
       : step === 0 ? (conversationSource && draft.useConversationSource && !draft.forceAdvanced
       ? $("#setup-display_name") : $("#setup-purpose")) : step === 1 ? $("#setup-model") : $("input, textarea, select", body))?.focus();
+    persistSetupDraft();
   };
   const creationKey = async body => {
     const fingerprint = await payloadFingerprint(body), keyName = "hutch-pending-bot-create";
@@ -11682,11 +11791,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     storageSet(keyName, JSON.stringify({ key, fingerprint }));
     return key;
   };
-  openModal({
-    title: stepTitles[0], bodyHtml: `<div class="bot-setup"></div>`,
-    confirmText: draft.model ? "Create bot" : "Choose a model", wide: true, tall: true,
-    returnFocus: document.activeElement,
-    onConfirm: async () => {
+  const submitSetup = async () => {
       snapshotFields();
       setError("");
       if (draft.step === 0 && !draft.purpose.trim()) { setError("Describe what this bot should handle."); $("#setup-purpose")?.focus(); return false; }
@@ -11715,21 +11820,62 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
         source_message_id: draft.useConversationSource ? conversationSource?.message_id || null : null,
         source_context_message_ids: selectedCreationContext().map(message => message.id),
       };
-      const button = $("#modal-confirm"); if (button) button.disabled = true;
+      const button = $("#setup-page-confirm"); if (button) button.disabled = true;
       try {
         const key = await creationKey(body);
         const bot = await api("/v1/bots", { method: "POST", headers: { "Idempotency-Key": key }, body });
         storageRemove("hutch-pending-bot-create");
         clearFirstRunDraft();
+        clearAssistantSetupDraft();
         firstRunSelection = null;
         if (purposeSetupStorageKey) storageRemove(purposeSetupStorageKey);
+        assistantSetupPage = null;
         toast(`Bot “${bot.display_name || draft.display_name}” created. It has not started a run.`);
         location.hash = `#/chat/${encodeURIComponent(bot.name)}`;
         return true;
       } catch (err) { setError(err.message); if (button) button.disabled = false; return false; }
-    },
+  };
+  const element = document.createElement("div");
+  if (location.hash !== requestedFrom) return;
+  element.className = "page-scroll";
+  element.innerHTML = `<div class="container setup-page">
+    <div class="setup-step-head"><h2 class="page-title" id="setup-page-title">New assistant</h2></div>
+    ${restoredSetup ? `<p class="setup-restored" role="status">Restored your unsaved setup from this tab. Nothing has been saved or created.</p>` : ""}
+    <div class="setup-page-body"></div>
+    <div class="setup-page-actions">
+      <button class="btn ghost" id="setup-discard-actions" type="button">Discard draft</button>
+      <a class="btn ghost" href="${esc(returnRoute)}" id="setup-save-leave">Save draft and leave</a>
+      <button class="btn primary" id="setup-page-confirm" type="button">Continue</button>
+    </div>
+  </div>`;
+  assistantSetupPage = { element, render: renderStep, snapshot: snapshotFields, persist: persistSetupDraft };
+  let submitting = false;
+  $("#setup-page-confirm", element).addEventListener("click", async () => {
+    if (submitting) return;
+    submitting = true;
+    try { await submitSetup(); }
+    finally { submitting = false; }
   });
-  await renderStep();
+  const discardDraft = () => {
+    clearAssistantSetupDraft();
+    assistantSetupPage = null;
+    location.hash = returnRoute.startsWith("#") ? returnRoute : "#/chat";
+  };
+  $("#setup-discard", element)?.addEventListener("click", discardDraft);
+  $("#setup-discard-actions", element)?.addEventListener("click", discardDraft);
+  let persistTimer = 0;
+  const schedulePersist = () => {
+    clearTimeout(persistTimer);
+    persistTimer = setTimeout(persistSetupDraft, 250);
+  };
+  element.addEventListener("input", schedulePersist);
+  element.addEventListener("change", schedulePersist);
+  element.addEventListener("click", event => {
+    if (event.target.closest("#setup-save-leave")) persistSetupDraft();
+  });
+  persistSetupDraft();
+  if (location.hash !== "#/assistant/new") location.hash = "#/assistant/new";
+  else await renderAssistantSetupPage();
 }
 
 /* ----------------------------------------------------------- shared wire */
@@ -12276,7 +12422,7 @@ function armShellTimers() {
 }
 
 function startOwnerApp() {
-  $("#topbar-new-bot")?.addEventListener("click", promptNewBot);
+  $("#topbar-new-bot")?.addEventListener("click", () => void promptNewBot());
   route();
   void loadStatusInfo();
   void refreshRoster();

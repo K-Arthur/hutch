@@ -1,8 +1,10 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}Pair this device{% endblock %}
 {% block content %}
-<section class="panel narrow pair-panel">
-  <h1>Pair this device</h1>
+<section class="panel narrow pair-panel auth-panel" aria-labelledby="pair-title">
+  <span class="auth-mark" aria-hidden="true">{{ icon("shield", 20) }}</span>
+  <h1 id="pair-title">Pair this device</h1>
   <p id="pair-instructions" class="sub">On your Hutch host, run <code>hutch pairing create</code>. Enter its one-time code, then save a passkey on this device.</p>
   <form id="pair-form" class="stack" novalidate>
     <label class="field"><span>Device name</span><input name="label" type="text" maxlength="80" autocomplete="off" value="Phone" required></label>

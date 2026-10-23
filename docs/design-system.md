@@ -111,6 +111,12 @@ options menu, so a large roster does not turn into a wall of controls or
 infrastructure metrics. Long names shorten with an ellipsis and retain their
 full text for assistive technology and hover.
 
+Assistant creation is a task page (`#/assistant/new`), not a modal. It keeps
+one step visible at a time, a primary Continue/Create action, and explicit
+Save draft and leave and Discard draft actions. The unsaved form is restored
+only in the same tab and cleared after creation or discard. Short decisions
+may still use dialogs.
+
 Assistant creation should reuse the request that led to the creation flow,
 suggest a short role-based name that the owner can edit, and keep the first path brief.
 Advanced model, permissions, schedule, workspace, and memory controls remain

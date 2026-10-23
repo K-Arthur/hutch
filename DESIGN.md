@@ -255,7 +255,14 @@ prose, labels, or marketing.
   viewport and exposes the readiness heading before the fold.
 - On short desktop windows, the first-run welcome compresses its decorative stage
   and spacing so the initial setup action stays in the first screen.
-- Operational pages: 1240px container, 32px gutters, 4px spacing rhythm.
+- Operational pages: one 1040px content container and 32px desktop gutters
+  (24px or less on phones), shared by the workspace and server-rendered
+  technical pages. Page titles live once in the context header; content starts
+  with its subtitle or first task, not a duplicate title.
+- Assistant setup is a task page at `#/assistant/new`, not a modal. Multi-step
+  setup keeps the primary action and a clear Save draft and leave / Discard
+  draft choice; the unsaved form is restored only within the same tab. Short
+  confirmations and focused pickers may remain dialogs.
 - Phone (≤900px): single surface + overlay navigation; ≤640px hides header meta
   and contextual labels; 44×44px touch targets.
 
@@ -288,6 +295,10 @@ language after explicit user direction ("right angles feel too off"):
   hover lifts to `#6ee7b7`; ghost variant is transparent with a hairline border;
   danger is a rose outline. Icon buttons are 32px squares (circles only inside
   the composer: send/stop/+).
+- **Controls** — interactive buttons are at least 40px tall; form fields and
+  selects are 44px with 16px text so phone browsers do not zoom. Native selects
+  open dark surfaces with legible options, and every label, help line, and
+  control uses the shared type roles rather than one-off sizes.
 - **Status chip** — pill, mono 11px, dot + word always together (`● working`,
   `● needs you`, `✕ failed`); colour never carries state alone.
 - **App avatar/sigil** — one flat silhouette from a varied, curated set in one of

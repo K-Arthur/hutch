@@ -81,9 +81,8 @@
   async function renderSkillsPage() {
     const generation = ++skillsRenderGeneration;
     const container = q("#view");
+    setTopContext(`<div class="ctx-id"><div class="ctx-heading"><h1>Skills</h1><span class="ctx-subtitle">Reusable instruction packages for your assistants</span></div></div><div class="ctx-actions"><button class="btn ghost small" id="skills-refresh" type="button">Refresh</button></div>`);
     container.innerHTML = `<div class="page-scroll"><div class="container">
-      <div class="page-title-row"><h1 class="page-title">Skills</h1>
-        <button class="btn ghost small" id="skills-refresh" type="button">Refresh</button></div>
       <p class="page-subtitle">Reusable instruction packages (SKILL.md). Installing copies a package here;
         nothing is disclosed to a model until you review it and trust it, and assigning it to an assistant is a separate step.</p>
       <div id="skills-error" class="panel skill-error" role="alert" hidden></div>
@@ -107,7 +106,7 @@
       <div id="skills-body"><div class="empty-state"><div class="spinner" role="status" aria-label="Loading"></div><p>Loading skills…</p></div></div>
     </div></div>`;
 
-    q("#skills-refresh").addEventListener("click", () => void refresh());
+    q("#skills-refresh").onclick = () => void refresh();
     q("#skills-import-path").addEventListener("submit", async event => {
       event.preventDefault();
       const input = q('input[name="path"]', event.target);

@@ -21,14 +21,22 @@
 .card-title { font-size: 14px; margin: 0 0 6px; }
 @media (max-width: 800px) { .conn-grid { grid-template-columns: 1fr; } }
 
-/* One-time device pairing */
-.pair-panel { margin-top: clamp(28px, 8vh, 76px) !important; }
-.pair-panel [hidden] { display: none !important; }
-.pair-panel h1 { margin-bottom: 10px; }
-.pair-panel .stack { margin-top: 22px; }
-.pair-panel .field { display: flex; flex-direction: column; gap: 6px; color: var(--dim); font-size: 13px; }
-.pair-panel input { width: 100%; min-height: 44px; }
-.pair-panel .btn { min-height: 44px; }
+/* Sign-in and one-time device pairing */
+main.container:has(.auth-panel) { display: grid; place-items: center; }
+.auth-panel { margin-top: 0 !important; width: 100%; }
+.auth-panel [hidden] { display: none !important; }
+.auth-mark { display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: var(--space-4, 16px); border: 1px solid var(--border-strong); border-radius: var(--r-sm); background: var(--elevated); color: var(--accent); }
+.auth-panel h1 { margin-bottom: 6px; }
+.auth-panel .sub { margin-bottom: 20px; }
+.auth-panel .btn { min-height: 44px; }
+.auth-actions { display: flex; }
+.auth-actions .btn { width: 100%; }
+.auth-details { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 8px; }
+.auth-details > summary { display: flex; align-items: center; min-height: 44px; color: var(--dim); cursor: pointer; font-weight: 600; }
+.auth-details .stack { margin-top: 8px; }
+.auth-foot { margin-top: 18px; }
+.auth-panel .stack { margin-top: 0; gap: 14px; }
+.pair-panel .field { font-size: 0.875rem; }
 .pair-panel .pair-message { margin-top: 12px; }
 .pair-success { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border); }
 .pair-success h2 { margin-bottom: 5px; }

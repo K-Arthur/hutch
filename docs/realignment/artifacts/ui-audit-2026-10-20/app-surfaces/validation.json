@@ -1,9 +1,9 @@
 {
   "test": "tests/e2e/test_design_system.py::test_every_workspace_route_renders_independently_at_responsive_sizes",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_every_workspace_route_renders_independently_at_responsive_sizes",
-  "captured_at": "2026-10-21T08:58:18.000062+00:00",
+  "captured_at": "2026-10-23T20:35:26.896351+00:00",
   "python": "3.13.15",
-  "browser": "Chromium 153.0.8010.12",
+  "browser": "Chromium 156.0.8078.4",
   "playwright": "1.63.0",
   "viewports": [
     {
@@ -74,8 +74,8 @@
       "menuControls": 11,
       "longAssistantCard": {
         "left": 864,
-        "right": 1408,
-        "width": 544,
+        "right": 1344,
+        "width": 480,
         "viewport": 1440
       }
     },
@@ -704,19 +704,19 @@
   },
   "source_sha256": {
     "src/hutch/server/pages.py": "7884021b4a97b41a26c49e4337e8f53fe245ff8682c5e820a613a4dc70263826",
-    "src/hutch/server/static/app.js": "073a795aa28c5abfd10f692d3bd4da681fbb07a93868e908a4b1fad2c0afda8c",
+    "src/hutch/server/static/app.js": "b1a65d479f009ff594d23276cf2e20f15854a1dea66adf9bbfb5ba40b94f1eae",
     "src/hutch/server/static/persona.js": "47913767ed7ba2cc20675becf9594c8ddd81ab63da82b207705cf0a079b70299",
-    "src/hutch/server/static/index.html": "7b0d80c8ec3ed12a724b8f39d652d304c2706987d7c586fc0fea0cded9adfbb6",
-    "src/hutch/server/static/style.css": "96a04d6b641191ccc7b817d211da1aa4e13e2b6759a39e5b0cafd4333d2e3d41",
+    "src/hutch/server/static/index.html": "458ba8ec9b18e5283ed4e3d49793b4e4333188037113cc7296019efd52fea43c",
+    "src/hutch/server/static/style.css": "6d5228c854929458de386f5da4fe14531ebfa91e4d5c4323a66108ac36b6c52b",
     "src/hutch/server/static/brands/openai-white-monoblossom.svg": "b94ea61d860fae6f82f43571f36f17111fcf5d348e8e9cc22ae4b441c7560011",
     "src/hutch/server/static/brands/anthropic-symbol-ivory.svg": "38fc06d8e9390654cc4e96aa53691e2e78d929667c0034805b6d1b3891ba22dd",
     "src/hutch/server/static/brands/openrouter-glyph-volt.svg": "0d22462e4f2835a5a5b9000af0a55fc9238e39996100f54706e41ec45b9d1727",
     "src/hutch/server/static/brands/google-calendar-2026q2.png": "eac7b1d7c78a7c7fb40d74b6d879ba5fe781cbf2cd5f8d7d40f3c28fea73f77e",
     "src/hutch/server/static/brands/google-gmail-2026q2.png": "ab8e9e880a28e2bc29207a62394aa7d296f435113fcc922819dab629ffbd64e6",
     "src/hutch/server/static/brands/microsoft-outlook.svg": "4a3b6ab15d36e7c5317f75a83d1781708d68cce4d8b9073a3c82f0af662eaf18",
-    "website/index.html": "0c21ac6392e811a12bb2899c7eeb2bc84b7a1a3f617728727378bed1f2460eae",
+    "website/index.html": "22485c421656a634e5857db9e48d19a11b454b621e557d0d82b3e43a85c8e55e",
     "website/site.js": "51b1a0e6c99f9d74d980c568dfbcc6486eb43c247fe41217a7a49487fe6cefe0",
-    "website/styles.css": "62cf027af1be662834e58462abc04dfd190856608d69edbbf640e83903a28e64",
-    "tests/e2e/test_design_system.py": "0e14ed73afc4a9dd038bede67bbd95d500ed5a91878df97111964e38d7b63ab4"
+    "website/styles.css": "e3ca4a5430d2e0ec5b7793a99f0060eb161fd6586544b8900cbbe791e64f1ca4",
+    "tests/e2e/test_design_system.py": "8001273e39c3f4da6949f117e3d4eec56409adb0ffb224902881899c23f8a6b7"
   }
 }

@@ -105,7 +105,7 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .choice-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: none; }
 .choice-icon svg { width: 28px; height: 28px; }
 .choice-icon-ai { color: var(--color-semantic-brand); }
-.choice-icon-apps { color: var(--color-semantic-focus-ring); }
+.choice-icon-apps { color: var(--color-semantic-brand); }
 .choice-icon-home { color: var(--color-semantic-brand); }
 .choice-card h3 { margin: 0; font-size: var(--text-size-base); font-weight: 750; line-height: 1.3; }
 .choice-card p { max-width: 38ch; color: var(--color-semantic-text-2); font-size: var(--text-size-sm); line-height: 1.65; }
@@ -433,11 +433,9 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 /* -------------------------------------------------------------- use cases */
 .case .card-body { gap: var(--space-3); }
 .case p { color: var(--color-semantic-text-2); font-size: var(--text-size-sm); }
-.case-art { position: relative; display: grid; place-items: center; width: 100%; min-height: 152px; margin-bottom: var(--space-2); overflow: hidden; border-radius: var(--radius-panel); background: var(--color-semantic-surface); }
-.case-art svg { width: 62px; height: 62px; }
+.case-art { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: var(--space-4); border-radius: var(--radius-panel); background: var(--color-semantic-raised); }
+.case-art svg { width: 32px; height: 32px; }
 .case-art-calendar { color: var(--color-semantic-brand); }
-.case-art-calendar::before { content: ""; position: absolute; width: 112px; height: 112px; border: 1px solid color-mix(in srgb, var(--color-semantic-brand) 25%, transparent); border-radius: 50%; }
-.case-art-calendar > span { position: absolute; top: calc(50% - 12px); left: calc(50% - 8px); color: var(--color-semantic-brand-strong); font-size: 12px; font-weight: 800; }
 .case-art-mail, .case-art-folder { color: var(--color-semantic-brand); }
 
 .case-kicker { color: var(--color-semantic-text-2); font-size: 12px; font-weight: 750; letter-spacing: .08em; line-height: 1.4; }

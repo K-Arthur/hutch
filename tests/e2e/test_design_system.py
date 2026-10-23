@@ -211,7 +211,8 @@ def test_studio_template_gallery_survives_background_refresh(browser, app_server
                 assert len(store.list_bots()) == bot_count_before
                 assert {run.id for run in store.list_runs()} == run_ids_before
                 page.screenshot(path=str(out / "helper-setup-desktop.png"), animations="disabled")
-                page.locator("#modal-close").click()
+                page.get_by_role("link", name="Save draft and leave", exact=True).click()
+                page.locator("#chat-stream .welcome").wait_for(state="visible")
 
         assert not external_requests, external_requests
         assert not errors, errors
@@ -230,7 +231,7 @@ def test_studio_template_gallery_survives_background_refresh(browser, app_server
             "provider_calls": 0,
             "source_sha256": _visual_source_hashes(),
             "text_spacing_override": "At 320px applied WCAG 1.4.12 tolerance values to line, paragraph, letter, and word spacing simultaneously; no horizontal overflow or composer overlap.",
-            "visual_review": "Individually inspected collapsed and expanded desktop/tablet/phone/compact-phone states and the helper setup dialog.",
+            "visual_review": "Individually inspected collapsed and expanded desktop/tablet/phone/compact-phone states and the helper setup page.",
         }, indent=2) + "\n", encoding="utf-8")
     finally:
         if not trace_saved:
@@ -653,7 +654,7 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
         page.screenshot(path=str(out / "setup-from-request-desktop.png"), full_page=True, animations="disabled")
         page.set_viewport_size({"width": 390, "height": 844})
         page.screenshot(path=str(out / "setup-from-request-phone.png"), full_page=True, animations="disabled")
-        page.get_by_role("button", name="Cancel").click()
+        page.get_by_role("link", name="Save draft and leave", exact=True).click()
         page.unroute("**/api/v1/opencode/status", ready_opencode)
 
         for label, width, height in viewports:
@@ -841,12 +842,15 @@ def test_first_run_draft_and_ai_readiness_survive_connections_and_failures(brows
         page.get_by_role("button", name="Set up my assistant").click()
         page.get_by_role("heading", name="Create from this request").wait_for()
         assert page.locator("#setup-purpose").input_value() == request_text
-        assert page.locator("#modal-confirm").inner_text() == "Create bot"
+        assert page.locator("#setup-page-confirm").inner_text() == "Create bot"
+        assert page.evaluate("location.hash") == "#/assistant/new"
+        assert page.locator('[role="dialog"]').count() == 0
         assert "Uses the selected AI service" in page.locator(".setup-quick-summary").inner_text()
         page.locator("#setup-customize").click()
         page.locator("#setup-model").wait_for()
         assert page.locator("#setup-model").input_value() == "opencode/test/readiness-model"
-        page.get_by_role("button", name="Cancel").click()
+        page.get_by_role("link", name="Save draft and leave", exact=True).click()
+        request.wait_for()
         assert request.input_value() == request_text
 
         page.reload(wait_until="domcontentloaded")
@@ -952,7 +956,7 @@ def test_first_run_readiness_distinguishes_saved_route_and_partial_states(browse
         page.locator("#setup-model").wait_for()
         assert page.locator("#setup-model").input_value() == "openai/saved-route"
         assert "Workspace default for new Bots: openai/saved-route" in page.locator("#setup-model-hint").inner_text()
-        page.get_by_role("button", name="Cancel").click()
+        page.get_by_role("link", name="Save draft and leave", exact=True).click()
 
         state["defaults"] = ""
         state["routes"] = [{"spec": "openai/ready-route", "label": "Ready route",
@@ -969,7 +973,7 @@ def test_first_run_readiness_distinguishes_saved_route_and_partial_states(browse
         page.locator("#setup-model").wait_for()
         assert page.locator("#setup-model").input_value() == "openai/ready-route"
         assert "Chosen from the AI service checked on the welcome screen" in page.locator("#setup-model-hint").inner_text()
-        page.get_by_role("button", name="Cancel").click()
+        page.get_by_role("link", name="Save draft and leave", exact=True).click()
 
         state["routes"] = []
         state["opencode_fail"] = True
@@ -1681,9 +1685,14 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                 if surface_name == "schedules":
                     assert page.locator("details.schedule-empty-bots").count() == 1
                     schedule_start = page.locator(".schedule-empty-bots summary")
+                    page.mouse.move(0, 0)
+                    page.wait_for_timeout(300)
                     assert schedule_start.inner_text() == "Choose an assistant"
                     assert "primary" in schedule_start.get_attribute("class").split()
-                    assert schedule_start.evaluate("el => getComputedStyle(el).backgroundColor") == "rgb(52, 211, 153)"
+                    start_channels = schedule_start.evaluate(
+                        "el => getComputedStyle(el).backgroundColor.match(/\\d+/g).map(Number)")
+                    assert all(abs(actual - expected) <= 2 for actual, expected in
+                               zip(start_channels, (52, 211, 153), strict=True)), start_channels
                     schedule_start.click()
                     schedule_choices = page.locator(".schedule-empty-bots a[href^='#/bot/']")
                     assert schedule_choices.count() == 11

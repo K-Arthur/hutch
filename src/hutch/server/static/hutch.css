@@ -12,6 +12,7 @@
 }
 
 :root {
+  color-scheme: dark;
   --bg: var(--color-semantic-bg);
   --bg-subtle: var(--color-semantic-surface);
   --panel: var(--color-semantic-surface);
@@ -41,7 +42,7 @@
   --r-btn: var(--radius-control);
   --r-xs: var(--radius-control);
   --r-full: var(--radius-chip);
-  --gutter: 18px;
+  --gutter: 32px;
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -63,7 +64,7 @@ code, pre, .mono { font-family: var(--mono); }
 code { font-size: 12.5px; background: var(--bg-subtle); border: 1px solid var(--border); padding: 1px 5px; border-radius: var(--r-sm); overflow-wrap: anywhere; }
 pre { margin: 0; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .muted { color: var(--faint); }
-.hint { color: var(--faint); font-size: 12.5px; }
+.hint { color: var(--faint); font-size: 0.875rem; line-height: 1.65; }
 /* The Measure Rule (DESIGN.md): explanatory text stops near 72ch, even in wide panels. */
 p.hint, p.muted { max-width: 72ch; }
 .bad { color: var(--red); }
@@ -97,7 +98,7 @@ html { scroll-padding-top: 4.5rem; }
 .flash.notice .ico { color: var(--accent); }
 .flash.error .ico { color: var(--red); }
 
-.container { width: 100%; max-width: 1280px; margin: 0 auto; padding: 20px var(--gutter) 40px; flex: 1; }
+.container { width: 100%; max-width: 1040px; margin: 0 auto; padding: 24px var(--gutter) 40px; flex: 1; }
 .foot { text-align: center; color: var(--faint); font-size: 12px; padding: 14px var(--gutter); border-top: 1px solid var(--border); overflow-wrap: anywhere; }
 
 .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
@@ -109,10 +110,10 @@ html { scroll-padding-top: 4.5rem; }
 .actions form, form.inline { margin: 0; display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
 /* ----------------------------------------------------------------- buttons */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; padding: 0 14px; border-radius: var(--r-btn); border: 1px solid var(--border-strong);
-  background: var(--elevated); color: var(--text); font: 600 13px var(--sans); cursor: pointer; white-space: nowrap; transition: background .2s var(--ease), border-color .2s var(--ease); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 8px 16px; border-radius: var(--r-btn); border: 1px solid var(--border-strong);
+  background: var(--elevated); color: var(--text); font: 600 0.875rem/1.4 var(--sans); cursor: pointer; text-align: center; transition: background .2s var(--ease), border-color .2s var(--ease); }
 .btn:hover { border-color: var(--border-emphasis); background: rgba(255, 255, 255, .10); text-decoration: none; }
-.btn.small { min-height: 30px; padding: 0 10px; font-size: 12.5px; }
+.btn.small { min-height: 32px; padding: 4px 12px; font-size: 0.875rem; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .btn.primary:hover { background: var(--color-semantic-brand-strong); border-color: var(--color-semantic-brand-strong); }
 .btn.danger { background: transparent; border-color: rgba(248, 113, 113, .45); color: var(--red); }
@@ -208,11 +209,12 @@ html { scroll-padding-top: 4.5rem; }
 .decided { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; color: var(--dim); }
 
 /* ------------------------------------------------------------------ forms */
-.field { display: flex; flex-direction: column; gap: 5px; font-weight: 600; font-size: 12.5px; color: var(--dim); }
+.field { display: flex; flex-direction: column; gap: 8px; font-weight: 600; font-size: 0.875rem; color: var(--dim); min-width: 0; }
 .field.inline { flex-direction: row; align-items: center; gap: 8px; }
 .field small { font-weight: 400; color: var(--faint); }
-input[type=text], input[type=password], select, textarea { width: 100%; background: var(--bg-subtle); color: var(--text); border: 1px solid var(--border-strong); border-radius: var(--r-sm); padding: 9px 11px; font: 14px var(--sans); }
-textarea { font-family: var(--mono); font-size: 13px; resize: vertical; }
+input[type=text], input[type=password], input[type=email], input[type=search], input[type=number], input[type=url], input[type=date], input[type=time], select, textarea { width: 100%; min-height: 44px; background: var(--bg-subtle); color: var(--text); border: 1px solid var(--border-strong); border-radius: var(--r-sm); padding: 8px 12px; font: 400 1rem/1.5 var(--sans); }
+select option, select optgroup { color: var(--text); background: var(--elevated); }
+textarea { resize: vertical; }
 /* iOS Safari zooms on focus below 16px; touch devices get a 16px floor (zoom stays enabled). */
 @media (pointer: coarse) { input[type=text], input[type=password], select, textarea { font-size: 16px; } }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--focus); outline-offset: 0; border-color: transparent; }
@@ -344,6 +346,7 @@ tbody tr:last-child td { border-bottom: 0; }
   h1 { font-size: 22px; }
   .facts { grid-template-columns: 1fr 1fr; }
   .meters { grid-template-columns: 1fr 1fr; }
+  .meters .meter:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .compose-row { flex-direction: column; align-items: stretch; }
   .compose-row .btn { width: 100%; }
   .filters .field.inline { width: 100%; }

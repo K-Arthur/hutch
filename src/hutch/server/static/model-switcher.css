@@ -6,7 +6,7 @@
 .ms-btn {
   display: inline-flex; align-items: center; gap: 7px; max-width: 190px; min-height: 30px; padding: 0 10px 0 11px;
   border-radius: var(--r-chip); border: 1px solid var(--line-strong); background: transparent;
-  color: var(--text-2); font: 600 12px/1 var(--mono); cursor: pointer;
+  color: var(--text-2); font: 600 var(--fs-sm)/1.4 var(--font-ui); cursor: pointer;
 }
 .ms-btn:hover, .ms-btn[aria-expanded="true"] { color: var(--text); border-color: var(--line-hi); background: rgba(255, 255, 255, 0.04); }
 .ms-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
@@ -25,7 +25,7 @@
 .ms-item {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left;
   padding: 9px 10px; border: 0; border-radius: var(--r-ctl); background: transparent; color: var(--text); cursor: pointer;
-  font: inherit; min-height: 40px;
+  font: inherit; min-height: 44px;
   transition: background var(--dur-fast) var(--ease);
 }
 .ms-item:hover { background: var(--raised); }
@@ -60,7 +60,7 @@
 .ms-search-status { min-height: 1.4em; margin: -4px 0 0; font-size: var(--fs-xs); color: var(--text-3); }
 .ms-groups { max-height: 46dvh; overflow: auto; padding-right: 4px; }
 .ms-group { margin-bottom: 12px; }
-.ms-group h4 { margin: 0 0 4px; font: 600 var(--fs-2xs)/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); }
+.ms-group h4 { margin: 0 0 var(--s-2); font: 600 var(--fs-sm)/1.4 var(--font-ui); color: var(--text-2); }
 .ms-row { display: flex; gap: 10px; align-items: flex-start; padding: 9px 10px; border-radius: var(--r-ctl); cursor: pointer; transition: background var(--dur-fast) var(--ease); }
 .ms-row:hover { background: var(--raised); }
 .ms-row[hidden], .ms-group[hidden], .ms-empty[hidden] { display: none; }

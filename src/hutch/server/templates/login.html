@@ -2,19 +2,25 @@
 {% from "_icons.html" import icon %}
 {% block title %}Sign in{% endblock %}
 {% block content %}
-<section class="panel narrow">
-  <h1>{{ icon("lock", 22) }} Sign in</h1>
+<section class="panel narrow auth-panel" aria-labelledby="auth-title">
+  <span class="auth-mark" aria-hidden="true">{{ icon("lock", 20) }}</span>
+  <h1 id="auth-title">Sign in</h1>
   <p class="sub">Unlock Hutch with a passkey paired on this device.</p>
-  <button id="passkey-login" class="btn primary" type="button">Unlock with passkey</button>
+  <div class="auth-actions">
+    <button id="passkey-login" class="btn primary" type="button">Unlock with passkey</button>
+  </div>
   <p id="passkey-error" class="pair-message bad" role="alert" hidden></p>
   {% if not request.state.hutch_remote %}
-  <details class="stack" style="margin-top:18px"><summary>Local owner token</summary>
-  <form method="post" action="/login" class="stack"><input type="hidden" name="csrf" value="{{ csrf }}">
-    <label class="field"><span>Access token</span><input type="password" name="token" autocomplete="current-password" required></label>
-    <button class="btn primary">Sign in</button></form>
+  <details class="auth-details">
+    <summary>Local owner token</summary>
+    <form method="post" action="/login" class="stack">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label class="field"><span>Access token</span><input type="password" name="token" autocomplete="current-password" required></label>
+      <button class="btn primary" type="submit">Sign in</button>
+    </form>
   </details>
   {% endif %}
-  <p class="hint" style="margin-top:16px">Have a one-time code from your Hutch host? <a href="/pair">Pair this device</a>.</p>
+  <p class="hint auth-foot">Have a one-time code from your Hutch host? <a href="/pair">Pair this device</a>.</p>
 </section>
 <script src="/static/passkey-login.js" defer></script>
 {% endblock %}

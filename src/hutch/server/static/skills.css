@@ -3,8 +3,8 @@
    anatomy lives here. Status is always glyph + word, never color alone. */
 
 .skill-section-title {
-  margin: 22px 0 10px;
-  font-size: 14px;
+  margin: var(--s-6) 0 var(--s-3);
+  font-size: var(--type-section-size);
   font-weight: 600;
   color: var(--text-2);
   letter-spacing: 0.01em;
@@ -19,7 +19,7 @@
 .skill-card { display: flex; flex-direction: column; gap: 10px; padding: 14px; }
 .skill-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .skill-name { font-weight: 600; font-size: 15px; }
-.skill-desc { color: var(--text-2); font-size: 13px; margin-top: 2px; }
+.skill-desc { color: var(--text-2); font-size: var(--fs-sm); line-height: var(--leading-reading); margin-top: var(--s-1); }
 .skill-meta { display: flex; flex-wrap: wrap; gap: 8px; color: var(--text-3); font-size: 12px; font-family: var(--font-mono, ui-monospace, monospace); }
 .skill-actions { flex-wrap: wrap; }
 
@@ -37,16 +37,19 @@
 .tone-text.tone-warn, .readiness-area.tone-warn summary .tone-text { color: var(--warn); }
 .tone-text.tone-danger, .readiness-area.tone-danger summary .tone-text { color: var(--danger); }
 
-.skill-import-grid { display: grid; grid-template-columns: minmax(280px, 1fr) auto; gap: 16px; align-items: start; }
+.skill-import-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); align-items: start; }
 .skill-import-form { display: flex; gap: 10px; align-items: flex-end; }
-.skill-import-form .field { flex: 1; }
+.skill-import-form .field { flex: 1; min-width: 0; }
 /* The folder field and its button share one height so the row reads as one control. */
 .skill-import-form input, .skill-import-form .btn { min-height: 2.5rem; }
 .skill-import-bundled .btn-row { flex-wrap: wrap; }
 .skill-error { border-color: color-mix(in oklab, var(--danger) 45%, transparent); }
 
-.skill-list { display: flex; flex-direction: column; gap: 8px; }
-.skill-candidate { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; }
+.skill-list { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.skill-candidate.panel { display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); padding: var(--s-4) 0; margin: 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; box-shadow: none; }
+.skill-candidate .btn { flex-shrink: 0; min-height: 44px; }
+.skill-empty.empty-state { align-items: flex-start; text-align: start; min-height: 0; padding: var(--s-4) 0; }
+.skill-empty.empty-state p { margin: 0; max-width: 72ch; }
 .skill-candidate.invalid { border-color: color-mix(in oklab, var(--danger) 35%, transparent); }
 .skill-candidate-copy { min-width: 0; }
 

@@ -72,8 +72,8 @@
 
   .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
-    min-height: 2rem; padding: 0 0.875rem;
-    font: 600 0.875rem/1 var(--font-body);
+    min-height: 2.5rem; padding: 0.5rem 1rem;
+    font: 600 0.875rem/1.4 var(--font-body);
     color: var(--color-base-content);
     background: var(--color-base-300);
     border: 1px solid rgb(255 255 255 / 0.14);
@@ -102,13 +102,15 @@
   .icon-btn:focus-visible { outline: 2px solid var(--color-secondary); outline-offset: 2px; }
   .btn.icon-btn { width: auto; min-height: 2rem; }
 
-  :where(input[type="text"], input[type="search"], input[type="number"], input[type="password"], input[type="email"], select, textarea) {
-    font: inherit; color: var(--color-base-content);
+  :where(input[type="text"], input[type="search"], input[type="number"], input[type="password"], input[type="email"], input[type="url"], input[type="date"], input[type="time"], select, textarea) {
+    font: 400 1rem/1.5 var(--font-body); color: var(--color-base-content);
     background: var(--color-base-100);
     border: 1px solid rgb(255 255 255 / 0.14);
     border-radius: var(--r-ctl);
-    padding: 0.5rem 0.75rem; width: 100%;
+    padding: 0.5rem 0.75rem; width: 100%; min-height: 2.75rem;
   }
+  select { color-scheme: dark; min-height: 2.75rem; padding-inline-end: 2rem; }
+  select option, select optgroup { color: var(--color-base-content); background: var(--color-base-300); }
   :where(input, select, textarea):focus-visible { border-color: var(--color-secondary); box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-secondary) 30%, transparent); outline: none; }
 
   .card, .panel {
