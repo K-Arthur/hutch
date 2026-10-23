@@ -133,6 +133,15 @@ a functional access cue on a neutral field beside “Microsoft Outlook.” Keep
 provider, model,
 permission, and runtime terminology in the relevant optional detail layer.
 
+First run keeps the request beside one AI-service panel at wide widths and
+stacks the panel after the request card below that breakpoint. The panel names
+the saved, ready, missing, failed, or partially checked state in words and
+offers the next connection action. A saved model is not described as a measured
+readiness result. The request is stored for that tab, survives the provider
+detour and setup Cancel, and is cleared after creation or through **Clear
+request**. At phone widths the setup action stays in the initial viewport; the
+readiness status is announced without taking focus.
+
 Assistant settings lead with the editable name and what the assistant helps with.
 Standing directions and the rest of the controls sit behind one clearly named
 disclosure with a meaningful icon, so people do not face a long technical form

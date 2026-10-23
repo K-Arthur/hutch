@@ -126,6 +126,39 @@ function storageGet(key) { try { return localStorage.getItem(key); } catch { ret
 function storageSet(key, value) { try { localStorage.setItem(key, value); } catch {} }
 function storageRemove(key) { try { localStorage.removeItem(key); } catch {} }
 
+/* The first request belongs to this tab, not the whole workspace. Keeping it
+   in sessionStorage survives navigation and reload without resurfacing on a
+   later visit as if it were still the person's current intent. */
+const firstRunDraftKey = "hutch-first-run-request";
+let firstRunDraftMemory = "";
+function loadFirstRunDraft() {
+  try {
+    const raw = sessionStorage.getItem(firstRunDraftKey);
+    if (raw === null) return firstRunDraftMemory;
+    const saved = JSON.parse(raw);
+    if (saved?.version === 1 && typeof saved.request === "string" && saved.request.length <= 20000) {
+      firstRunDraftMemory = saved.request;
+      return saved.request;
+    }
+    sessionStorage.removeItem(firstRunDraftKey);
+  } catch { /* the in-memory draft still survives this page */ }
+  return firstRunDraftMemory;
+}
+function saveFirstRunDraft(value) {
+  firstRunDraftMemory = typeof value === "string" ? value.slice(0, 20000) : "";
+  try {
+    if (firstRunDraftMemory) {
+      sessionStorage.setItem(firstRunDraftKey, JSON.stringify({ version: 1, request: firstRunDraftMemory }));
+    } else {
+      sessionStorage.removeItem(firstRunDraftKey);
+    }
+  } catch { /* an in-memory draft remains available for this page */ }
+}
+function clearFirstRunDraft() {
+  firstRunDraftMemory = "";
+  try { sessionStorage.removeItem(firstRunDraftKey); } catch {}
+}
+
 async function payloadFingerprint(body) {
   const raw = JSON.stringify(body);
   if (window.crypto?.subtle) {
@@ -1619,6 +1652,10 @@ function confirmDialog({ title, body, confirmText = "Confirm", danger = false })
 
 let botsCache = [];
 let firstRunOpenCodeStatus = null;
+let firstRunSelection = null;
+let firstRunReadinessState = "checking";
+let firstRunReadinessPromise = null;
+let firstRunReadinessGeneration = 0;
 let rosterMenuCleanup = null;
 
 function closeRosterActionMenu(restoreFocus = false) {
@@ -3018,6 +3055,132 @@ async function openSavedTaskTemplateLibrary({ returnFocus, onUse }) {
   });
 }
 
+function firstRunModelName(model) {
+  const text = String(model || "");
+  return text.split("/").filter(Boolean).at(-1) || text;
+}
+
+async function readFirstRunReadiness() {
+  const [defaultsResult, openCodeResult, routesResult] = await Promise.allSettled([
+    api("/v1/preferences/model-defaults"),
+    api("/v1/opencode/status"),
+    api("/v1/model-routes?inference_mode=hybrid&runtime=builtin"),
+  ]);
+  const defaults = defaultsResult.status === "fulfilled" ? defaultsResult.value : null;
+  const openCode = openCodeResult.status === "fulfilled" ? openCodeResult.value : null;
+  const routes = routesResult.status === "fulfilled" && Array.isArray(routesResult.value)
+    ? routesResult.value : [];
+  if (openCodeResult.status === "fulfilled") firstRunOpenCodeStatus = openCode;
+  const failures = [
+    defaultsResult.status === "rejected" ? "your saved AI choice" : "",
+    openCodeResult.status === "rejected" ? "OpenCode" : "",
+    routesResult.status === "rejected" ? "other AI routes" : "",
+  ].filter(Boolean);
+  const readyRoutes = routes.filter(route =>
+    route?.state === "ready" && typeof route.spec === "string" && !route.spec.startsWith("mock/"));
+  const savedModel = typeof defaults?.model === "string" ? defaults.model.trim() : "";
+  const workspaceModel = savedModel.startsWith("mock/") ? "" : savedModel;
+  const openCodeModels = Array.isArray(openCode?.models) ? openCode.models : [];
+
+  if (workspaceModel) {
+    const matchedRoute = readyRoutes.find(route => route.spec === workspaceModel);
+    return {
+      state: "saved",
+      choice: {
+        kind: "workspace", runtime: workspaceModel.startsWith("opencode/") ? "opencode" : "builtin",
+        model: workspaceModel, label: matchedRoute?.label || firstRunModelName(workspaceModel),
+      },
+      copy: "Using your saved workspace choice for new assistants. Review it again before saving.",
+      retry: false,
+    };
+  }
+  if (openCode?.ready && openCodeModels.length) {
+    const model = openCodeModels[0];
+    const spec = typeof model?.spec === "string" ? model.spec : "";
+    if (spec) {
+      const count = openCodeModels.length;
+      return {
+        state: "ready",
+        choice: { kind: "opencode", runtime: "opencode", model: spec, label: model.name || firstRunModelName(spec) },
+        copy: `OpenCode is ready with ${count} model option${count === 1 ? "" : "s"}. ${openCode.authenticated
+          ? "A provider account is connected."
+          : "Its available models can be used without a separate account."}`,
+        retry: false,
+      };
+    }
+  }
+  if (readyRoutes.length) {
+    const route = readyRoutes[0];
+    return {
+      state: "ready",
+      choice: { kind: "route", runtime: "builtin", model: route.spec, label: route.label || firstRunModelName(route.spec) },
+      copy: `${route.group || "A configured provider"} has a ready model route for setup.`,
+      retry: false,
+    };
+  }
+  if (failures.length === 3) {
+    return {
+      state: "error",
+      choice: null,
+      copy: "Hutch could not check AI setup. Check the connection and try again, or open AI services to set one up.",
+      retry: true,
+    };
+  }
+  if (failures.length) {
+    return {
+      state: "setup",
+      choice: null,
+      copy: `No ready AI service was found, and Hutch could not check ${failures.join(", ")}. Try again before choosing a service.`,
+      retry: true,
+    };
+  }
+  return {
+    state: "setup",
+    choice: null,
+    copy: "No ready AI service was found. Connect OpenCode or choose another provider; your request stays here.",
+    retry: false,
+  };
+}
+
+function paintFirstRunReadiness(snapshot) {
+  const panel = $("#first-run-readiness");
+  if (!panel || !panel.isConnected) return;
+  const labels = { checking: "Checking", ready: "Ready", saved: "Saved", setup: "Choose AI", error: "Check failed" };
+  const status = $("#first-run-readiness-status");
+  if (status) status.dataset.state = snapshot.state || "checking";
+  const statusText = $("#first-run-readiness-status-text");
+  if (statusText) statusText.textContent = labels[snapshot.state] || labels.checking;
+  const copy = $("#first-run-ai-state");
+  if (copy) copy.textContent = snapshot.copy || labels.checking;
+  const meta = $("#first-run-ai-meta");
+  if (meta) meta.textContent = snapshot.choice?.model || "";
+  const connect = $("#first-run-connect-opencode");
+  if (connect) connect.textContent = snapshot.choice?.kind === "opencode" ? "OpenCode settings" : "Connect OpenCode";
+  const retry = $("#first-run-ai-retry");
+  if (retry) retry.hidden = !snapshot.retry;
+  const submit = $("#first-run-submit");
+  if (submit) {
+    const ready = ["ready", "saved"].includes(snapshot.state);
+    submit.innerHTML = `${ready ? "Set up my assistant" : "Choose an AI service"} ${icon("arrow")}`;
+  }
+  panel.setAttribute("aria-busy", snapshot.state === "checking" ? "true" : "false");
+  firstRunSelection = snapshot.choice || null;
+  firstRunReadinessState = snapshot.state || "checking";
+}
+
+async function refreshFirstRunReadiness() {
+  const generation = ++firstRunReadinessGeneration;
+  const panel = $("#first-run-readiness");
+  if (!panel) return null;
+  panel.setAttribute("aria-busy", "true");
+  const pending = readFirstRunReadiness();
+  firstRunReadinessPromise = pending;
+  const snapshot = await pending;
+  if (generation !== firstRunReadinessGeneration || !panel.isConnected) return snapshot;
+  paintFirstRunReadiness(snapshot);
+  return snapshot;
+}
+
 async function renderChatStudio(preferredBot = null, requestedConversationId = null) {
   const generation = ++studioGeneration;
   const fetchedBots = await api("/bots");
@@ -3025,9 +3188,12 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
   botsCache = fetchedBots;
   renderRoster();
   if (!botsCache.length) {
+    firstRunSelection = null;
+    firstRunReadinessState = "checking";
+    firstRunReadinessPromise = null;
     view.innerHTML = `<div class="page-scroll first-run-scroll"><div class="container first-run-container">
       <section class="welcome first-run-welcome" aria-labelledby="first-run-title">
-        <div class="welcome-hero">
+        <div class="welcome-hero first-run-hero">
           <div class="welcome-stage" aria-hidden="true">
             <span class="welcome-app-mark welcome-app-calendar">${serviceMark("calendar")}</span>
             <span class="welcome-app-mark welcome-app-mail">${serviceMark("gmail")}</span>
@@ -3036,71 +3202,102 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
           </div>
           <p class="first-run-eyebrow">Your personal assistant</p>
           <h1 id="first-run-title">What would you like help with?</h1>
-          <p class="first-run-copy">Tell Hutch what you’re trying to get done. It suggests a name and carries your request into setup; you can fine-tune the details when you want to.</p>
+          <p class="first-run-copy">Start with a request. Hutch carries it into setup for review.</p>
         </div>
-        <form class="first-run-request" id="first-run-request-form">
-          <label for="first-run-request">Your first request</label>
-          <textarea id="first-run-request" rows="3" maxlength="20000" placeholder="For example, help me plan my week and keep track of the follow-ups." required></textarea>
-          <div class="first-run-examples" aria-label="Try a starting point">
-            <p class="first-run-examples-title">Or start with an idea</p>
-            <div class="first-run-examples-grid">
-              <button class="first-run-example" type="button" data-first-run-example="plan">${icon("clock")}<span>Plan my week</span></button>
-              <button class="first-run-example" type="button" data-first-run-example="email">${icon("mail")}<span>Catch up on email</span></button>
-              <button class="first-run-example" type="button" data-first-run-example="project">${icon("folder")}<span>Organize a project</span></button>
+        <div class="first-run-workbench">
+          <form class="first-run-request" id="first-run-request-form">
+            <div class="first-run-field-head">
+              <label for="first-run-request">Your first request</label>
+              <button class="first-run-clear" type="button" id="first-run-clear" hidden>Clear request</button>
             </div>
-          </div>
-          <div class="first-run-request-foot">
-            <span class="hint">This gives your assistant a starting point. Nothing happens until you ask it to start.</span>
-            <button class="btn primary" type="submit">Set up my assistant ${icon("arrow")}</button>
-          </div>
-        </form>
-        <div class="first-run-secondary">
-          <span class="hint">Have an AI you like?</span>
-          <button class="btn ghost small" type="button" id="first-run-connect-opencode">Connect OpenCode</button>
-          <a href="#/connections">Use another provider</a>
+            <textarea id="first-run-request" rows="3" maxlength="20000" aria-describedby="first-run-request-hint" placeholder="For example, help me plan my week and keep track of the follow-ups." required></textarea>
+            <div class="first-run-examples" aria-label="Try a starting point">
+              <p class="first-run-examples-title">Or start with an idea</p>
+              <div class="first-run-examples-grid">
+                <button class="first-run-example" type="button" data-first-run-example="plan">${icon("clock")}<span>Plan my week</span></button>
+                <button class="first-run-example" type="button" data-first-run-example="email">${icon("mail")}<span>Catch up on email</span></button>
+                <button class="first-run-example" type="button" data-first-run-example="project">${icon("folder")}<span>Organize a project</span></button>
+              </div>
+            </div>
+            <div class="first-run-request-foot">
+              <span class="hint" id="first-run-request-hint">Nothing runs until you ask.</span>
+              <button class="btn primary" type="submit" id="first-run-submit">Set up my assistant ${icon("arrow")}</button>
+            </div>
+          </form>
+          <aside class="first-run-readiness" id="first-run-readiness" aria-labelledby="first-run-readiness-title" aria-busy="true">
+            <div class="first-run-readiness-head">
+              <h2 id="first-run-readiness-title">AI service</h2>
+              <span class="first-run-readiness-status" id="first-run-readiness-status" data-state="checking">
+                <span class="first-run-readiness-dot" aria-hidden="true"></span><span id="first-run-readiness-status-text">Checking</span>
+              </span>
+            </div>
+            <p class="first-run-readiness-copy" id="first-run-ai-state" role="status" aria-live="polite" aria-atomic="true">Looking for a saved model or a ready connection…</p>
+            <p class="first-run-readiness-meta" id="first-run-ai-meta"></p>
+            <div class="first-run-readiness-actions">
+              <button class="btn ghost small" type="button" id="first-run-connect-opencode">Connect OpenCode</button>
+              <a href="#/connections" id="first-run-manage-ai">Use another provider</a>
+            </div>
+            <button class="btn ghost small first-run-ai-retry" type="button" id="first-run-ai-retry" hidden>Check again</button>
+          </aside>
         </div>
-        <p class="hint" id="first-run-ai-state" role="status" aria-live="polite">Checking which AI services are already available…</p>
         <ul class="first-run-promises" aria-label="How Hutch works">
           <li>${icon("chat")}Start with a conversation</li>
           <li>${icon("shield")}Review important actions</li>
           <li>${icon("layers")}Choose the apps and AI you use</li>
         </ul>
-        <p class="first-run-note">If you need help choosing an AI service, Hutch can guide you. You can rename your assistant and change its settings before saving.</p>
+        <p class="first-run-note">Your request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.</p>
       </section>
     </div></div>`;
-    $("#first-run-request-form")?.addEventListener("submit", event => {
+    const request = $("#first-run-request");
+    const clear = $("#first-run-clear");
+    const syncDraftUi = () => { if (clear) clear.hidden = !request?.value; };
+    if (request) {
+      request.value = loadFirstRunDraft();
+      syncDraftUi();
+      request.addEventListener("input", () => {
+        saveFirstRunDraft(request.value);
+        syncDraftUi();
+      });
+    }
+    clear?.addEventListener("click", () => {
+      if (!request) return;
+      request.value = "";
+      clearFirstRunDraft();
+      syncDraftUi();
+      request.focus();
+    });
+    $("#first-run-request-form")?.addEventListener("submit", async event => {
       event.preventDefault();
-      const request = $("#first-run-request")?.value.trim() || "";
-      if (!request) { $("#first-run-request")?.focus(); return; }
-      void promptNewBot("", "", null, request);
+      const text = request?.value.trim() || "";
+      if (!text) { request?.focus(); return; }
+      saveFirstRunDraft(request.value);
+      if (firstRunReadinessState === "checking" && firstRunReadinessPromise) {
+        try { await firstRunReadinessPromise; } catch { /* setup can still resolve its own choice */ }
+      }
+      if (!firstRunSelection && ["setup", "error"].includes(firstRunReadinessState)) {
+        location.hash = "#/connections";
+        return;
+      }
+      void promptNewBot("", "", null, text, firstRunSelection);
     });
-    const noteOpenCode = status => {
-      firstRunOpenCodeStatus = status;
-      const node = $("#first-run-ai-state");
-      if (!node) return;
-      node.textContent = status?.ready
-        ? `OpenCode is ready with ${status.models?.length || 0} model option${status.models?.length === 1 ? "" : "s"}. ${status.authenticated ? "A provider account is connected." : "Its available models can be used without a separate account."}`
-        : "No AI model is available yet. Connect OpenCode, or choose another provider, before the first answer.";
-    };
     $("#first-run-connect-opencode")?.addEventListener("click", () => {
-      void openOpenCodeSetupDialog(noteOpenCode);
+      void openOpenCodeSetupDialog(() => { void refreshFirstRunReadiness(); });
     });
-    void api("/v1/opencode/status").then(noteOpenCode).catch(error => {
-      const node = $("#first-run-ai-state");
-      if (node) node.textContent = `OpenCode status unavailable: ${error.message} You can still connect another provider.`;
-    });
+    $("#first-run-ai-retry")?.addEventListener("click", () => { void refreshFirstRunReadiness(); });
     const starterRequests = {
       plan: "Help me plan my week and keep track of the follow-ups.",
       email: "Help me find the emails I need to answer and prepare drafts for me to review.",
       project: "Help me organize a project and keep track of the next steps.",
     };
     $$('[data-first-run-example]').forEach(button => button.addEventListener("click", () => {
-      const request = $("#first-run-request");
       if (!request) return;
       request.value = starterRequests[button.dataset.firstRunExample] || "";
+      saveFirstRunDraft(request.value);
+      syncDraftUi();
       request.focus();
       request.setSelectionRange(request.value.length, request.value.length);
     }));
+    void refreshFirstRunReadiness();
     return;
   }
 
@@ -10454,7 +10651,7 @@ async function openOpenCodeSetupDialog(onReady) {
   bindRows();
 }
 
-async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot = null, prefillPurpose = "") {
+async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot = null, prefillPurpose = "", firstRunChoice = null) {
   let templates;
   try { templates = await api("/bots/templates"); }
   catch (err) { toast(`Bot setup is unavailable: ${err.message}`, true); return; }
@@ -10519,11 +10716,12 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     ? "Experimental on this Linux desktop. A person enters passwords, passcodes and verification codes in the visible browser. Hutch never types them or accepts them in chat. This does not enable phone browser control."
     : `Unavailable on this host: ${browserHandoffCapability.reason} This does not enable phone browser control.`;
   const chosenTemplate = templates.find(item => item.name === preselect) || null;
-  let modelSuggestion = duplicateBot?.model || conversationSource?.model_suggestion || workspaceDefaults.model || "";
-  let modelSuggestionSource = duplicateBot ? "duplicate" : conversationSource?.model_suggestion ? "chat" : workspaceDefaults.model ? "workspace" : "";
+  const firstRunModel = firstRunChoice?.model && !firstRunChoice.model.startsWith("mock/") ? firstRunChoice.model : "";
+  let modelSuggestion = duplicateBot?.model || conversationSource?.model_suggestion || workspaceDefaults.model || firstRunModel || "";
+  let modelSuggestionSource = duplicateBot ? "duplicate" : conversationSource?.model_suggestion ? "chat" : workspaceDefaults.model ? "workspace" : firstRunModel ? "first_run" : "";
   const draft = {
     step: 0, forceAdvanced: !!chosenTemplate || !!duplicateBot,
-    runtime: duplicateBot?.runtime || (!modelSuggestion && openCodeDefault ? "opencode" : "builtin"),
+    runtime: duplicateBot?.runtime || firstRunChoice?.runtime || (!modelSuggestion && openCodeDefault ? "opencode" : "builtin"),
     purpose: duplicateBot?.instructions || conversationSource?.original_request || prefillPurpose || "",
     useConversationSource: !duplicateBot && !!conversationSource,
     selectedContextMessageIds: new Set(),
@@ -11156,7 +11354,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
         </div>` : ""}
         <label class="field" for="setup-model"><span id="setup-model-label">Model route</span><input id="setup-model" list="setup-model-routes" maxlength="240" autocomplete="off" placeholder="${opencode ? "opencode/provider/model" : "Choose or enter provider/model"}" value="${esc(draft.model)}" required aria-labelledby="setup-model-label" aria-describedby="setup-model-hint">
           <datalist id="setup-model-routes">${options}</datalist>
-          <span class="hint"><span id="setup-model-hint">${opencode ? (readyRoutes.length ? `${readyRoutes.length} OpenCode model route${readyRoutes.length === 1 ? "" : "s"} found in the private profile.` : "No OpenCode models are available yet. Connect a provider account, then reopen this step.") : `${modelSuggestionSource === "chat" ? `Suggested from ${esc(conversationSource.source_bot_name)}’s current route and routing mode: ${esc(conversationSource.model_suggestion)}.` : modelSuggestionSource === "duplicate" ? `Copied from ${esc(duplicateBot?.display_name || duplicateBot?.name)}; confirm it is configured in Connections.` : modelSuggestionSource === "workspace" ? `Workspace default for new Bots: ${esc(workspaceDefaults.model)}.` : modelSuggestionSource === "import" ? `Imported route: ${esc(modelSuggestion)}. Confirm it is configured in Connections.` : "No workspace or chat model route is configured yet."} ${readyRoutes.length ? `${readyRoutes.length} ready route${readyRoutes.length === 1 ? "" : "s"} shown as suggestions.` : "No ready routes were found. Configure a provider or local model in Connections."} Hosted routes send prompts to that provider; local routes use this machine.`} ${opencode ? "" : `<a href="/#/connections" target="_blank" rel="noopener">Open Connections in another tab</a>.`}</span></span></label>
+          <span class="hint"><span id="setup-model-hint">${opencode ? (readyRoutes.length ? `${readyRoutes.length} OpenCode model route${readyRoutes.length === 1 ? "" : "s"} found in the private profile.` : "No OpenCode models are available yet. Connect a provider account, then reopen this step.") : `${modelSuggestionSource === "chat" ? `Suggested from ${esc(conversationSource.source_bot_name)}’s current route and routing mode: ${esc(conversationSource.model_suggestion)}.` : modelSuggestionSource === "duplicate" ? `Copied from ${esc(duplicateBot?.display_name || duplicateBot?.name)}; confirm it is configured in Connections.` : modelSuggestionSource === "workspace" ? `Workspace default for new Bots: ${esc(workspaceDefaults.model)}.` : modelSuggestionSource === "first_run" ? `Chosen from the AI service checked on the welcome screen: ${esc(modelSuggestion)}.` : modelSuggestionSource === "import" ? `Imported route: ${esc(modelSuggestion)}. Confirm it is configured in Connections.` : "No workspace or chat model route is configured yet."} ${readyRoutes.length ? `${readyRoutes.length} ready route${readyRoutes.length === 1 ? "" : "s"} shown as suggestions.` : "No ready routes were found. Configure a provider or local model in Connections."} Hosted routes send prompts to that provider; local routes use this machine.`} ${opencode ? "" : `<a href="/#/connections" target="_blank" rel="noopener">Open Connections in another tab</a>.`}</span></span></label>
         <label class="field" for="setup-inference_mode"><span id="setup-inference-mode-label">Inference mode</span><select id="setup-inference_mode" aria-labelledby="setup-inference-mode-label" aria-describedby="setup-inference-mode-hint">
           <option value="hybrid" ${draft.inference_mode === "hybrid" ? "selected" : ""}>Hybrid — local or hosted</option>
           <option value="local" ${draft.inference_mode === "local" ? "selected" : ""}>Local — this machine</option>
@@ -11501,6 +11699,8 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
         const key = await creationKey(body);
         const bot = await api("/v1/bots", { method: "POST", headers: { "Idempotency-Key": key }, body });
         storageRemove("hutch-pending-bot-create");
+        clearFirstRunDraft();
+        firstRunSelection = null;
         if (purposeSetupStorageKey) storageRemove(purposeSetupStorageKey);
         toast(`Bot “${bot.display_name || draft.display_name}” created. It has not started a run.`);
         location.hash = `#/chat/${encodeURIComponent(bot.name)}`;

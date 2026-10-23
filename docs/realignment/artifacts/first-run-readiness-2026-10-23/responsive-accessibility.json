@@ -1,0 +1,566 @@
+{
+  "captured_at": "2026-10-23T08:17:02.594207+00:00",
+  "fixture": "Ready OpenCode status fixture; empty bots; no provider call",
+  "breakpoints": [
+    {
+      "overflow": 0,
+      "form": {
+        "x": 28,
+        "y": 314,
+        "w": 264,
+        "h": 428,
+        "bottom": 742
+      },
+      "panel": {
+        "x": 28,
+        "y": 754,
+        "w": 264,
+        "h": 240,
+        "bottom": 995
+      },
+      "cta": {
+        "x": 41,
+        "y": 685,
+        "w": 238,
+        "h": 44,
+        "bottom": 729
+      },
+      "overlap": false,
+      "viewport": [
+        320,
+        740
+      ],
+      "errors": []
+    },
+    {
+      "overflow": 0,
+      "form": {
+        "x": 28,
+        "y": 326,
+        "w": 319,
+        "h": 388,
+        "bottom": 714
+      },
+      "panel": {
+        "x": 28,
+        "y": 726,
+        "w": 319,
+        "h": 240,
+        "bottom": 966
+      },
+      "cta": {
+        "x": 41,
+        "y": 657,
+        "w": 293,
+        "h": 44,
+        "bottom": 701
+      },
+      "overlap": false,
+      "viewport": [
+        375,
+        812
+      ],
+      "errors": []
+    },
+    {
+      "overflow": 0,
+      "form": {
+        "x": 60,
+        "y": 326,
+        "w": 520,
+        "h": 376,
+        "bottom": 702
+      },
+      "panel": {
+        "x": 60,
+        "y": 714,
+        "w": 520,
+        "h": 184,
+        "bottom": 899
+      },
+      "cta": {
+        "x": 73,
+        "y": 645,
+        "w": 494,
+        "h": 44,
+        "bottom": 689
+      },
+      "overlap": false,
+      "viewport": [
+        640,
+        900
+      ],
+      "errors": []
+    },
+    {
+      "overflow": 0,
+      "form": {
+        "x": 32,
+        "y": 366,
+        "w": 577,
+        "h": 320,
+        "bottom": 686
+      },
+      "panel": {
+        "x": 32,
+        "y": 698,
+        "w": 577,
+        "h": 204,
+        "bottom": 903
+      },
+      "cta": {
+        "x": 377,
+        "y": 625,
+        "w": 215,
+        "h": 44,
+        "bottom": 669
+      },
+      "overlap": false,
+      "viewport": [
+        641,
+        900
+      ],
+      "errors": []
+    },
+    {
+      "overflow": 0,
+      "form": {
+        "x": 32,
+        "y": 367,
+        "w": 704,
+        "h": 320,
+        "bottom": 687
+      },
+      "panel": {
+        "x": 32,
+        "y": 699,
+        "w": 704,
+        "h": 204,
+        "bottom": 904
+      },
+      "cta": {
+        "x": 504,
+        "y": 626,
+        "w": 215,
+        "h": 44,
+        "bottom": 670
+      },
+      "overlap": false,
+      "viewport": [
+        768,
+        1024
+      ],
+      "errors": []
+    },
+    {
+      "overflow": 0,
+      "form": {
+        "x": 60,
+        "y": 367,
+        "w": 780,
+        "h": 320,
+        "bottom": 687
+      },
+      "panel": {
+        "x": 60,
+        "y": 699,
+        "w": 780,
+        "h": 204,
+        "bottom": 904
+      },
+      "cta": {
+        "x": 608,
+        "y": 626,
+        "w": 215,
+        "h": 44,
+        "bottom": 670
+      },
+      "overlap": false,
+      "viewport": [
+        900,
+        1024
+      ],
+      "errors": []
+    },
+    {
+      "overflow": 0,
+      "form": {
+        "x": 320,
+        "y": 375,
+        "w": 533,
+        "h": 332,
+        "bottom": 707
+      },
+      "panel": {
+        "x": 320,
+        "y": 719,
+        "w": 533,
+        "h": 204,
+        "bottom": 924
+      },
+      "cta": {
+        "x": 621,
+        "y": 646,
+        "w": 215,
+        "h": 44,
+        "bottom": 690
+      },
+      "overlap": false,
+      "viewport": [
+        901,
+        1024
+      ],
+      "errors": []
+    },
+    {
+      "overflow": 0,
+      "form": {
+        "x": 320,
+        "y": 385,
+        "w": 732,
+        "h": 320,
+        "bottom": 706
+      },
+      "panel": {
+        "x": 320,
+        "y": 718,
+        "w": 732,
+        "h": 204,
+        "bottom": 922
+      },
+      "cta": {
+        "x": 820,
+        "y": 645,
+        "w": 215,
+        "h": 44,
+        "bottom": 689
+      },
+      "overlap": false,
+      "viewport": [
+        1100,
+        900
+      ],
+      "errors": []
+    },
+    {
+      "overflow": 0,
+      "form": {
+        "x": 320,
+        "y": 402,
+        "w": 457,
+        "h": 332,
+        "bottom": 734
+      },
+      "panel": {
+        "x": 793,
+        "y": 402,
+        "w": 260,
+        "h": 332,
+        "bottom": 734
+      },
+      "cta": {
+        "x": 545,
+        "y": 673,
+        "w": 215,
+        "h": 44,
+        "bottom": 717
+      },
+      "overlap": false,
+      "viewport": [
+        1101,
+        900
+      ],
+      "errors": []
+    },
+    {
+      "overflow": 0,
+      "form": {
+        "x": 386,
+        "y": 389,
+        "w": 504,
+        "h": 332,
+        "bottom": 721
+      },
+      "panel": {
+        "x": 906,
+        "y": 389,
+        "w": 260,
+        "h": 332,
+        "bottom": 721
+      },
+      "cta": {
+        "x": 658,
+        "y": 660,
+        "w": 215,
+        "h": 44,
+        "bottom": 704
+      },
+      "overlap": false,
+      "viewport": [
+        1280,
+        800
+      ],
+      "errors": []
+    },
+    {
+      "overflow": 0,
+      "form": {
+        "x": 466,
+        "y": 456,
+        "w": 504,
+        "h": 332,
+        "bottom": 788
+      },
+      "panel": {
+        "x": 986,
+        "y": 456,
+        "w": 260,
+        "h": 332,
+        "bottom": 788
+      },
+      "cta": {
+        "x": 738,
+        "y": 727,
+        "w": 215,
+        "h": 44,
+        "bottom": 771
+      },
+      "overlap": false,
+      "viewport": [
+        1440,
+        1000
+      ],
+      "errors": []
+    }
+  ],
+  "text_resize": [
+    {
+      "overflow": 0,
+      "form": {
+        "x": 386,
+        "y": 530,
+        "w": 504,
+        "h": 558,
+        "bottom": 1088
+      },
+      "panel": {
+        "x": 906,
+        "y": 530,
+        "w": 260,
+        "h": 667,
+        "bottom": 1197
+      },
+      "cta": {
+        "x": 625,
+        "y": 999,
+        "w": 248,
+        "h": 66,
+        "bottom": 1065
+      },
+      "title": {
+        "x": 496,
+        "y": 281,
+        "w": 561,
+        "h": 125,
+        "bottom": 407
+      },
+      "viewport": [
+        1280,
+        800
+      ],
+      "errors": []
+    },
+    {
+      "overflow": 0,
+      "form": {
+        "x": 28,
+        "y": 613,
+        "w": 319,
+        "h": 709,
+        "bottom": 1322
+      },
+      "panel": {
+        "x": 28,
+        "y": 1334,
+        "w": 319,
+        "h": 498,
+        "bottom": 1833
+      },
+      "cta": {
+        "x": 41,
+        "y": 1243,
+        "w": 293,
+        "h": 66,
+        "bottom": 1309
+      },
+      "title": {
+        "x": 28,
+        "y": 265,
+        "w": 319,
+        "h": 188,
+        "bottom": 453
+      },
+      "viewport": [
+        375,
+        812
+      ],
+      "errors": []
+    }
+  ],
+  "text_spacing": {
+    "overflow": 0,
+    "elements": [
+      {
+        "id": "first-run-title",
+        "box": [
+          43,
+          215,
+          289,
+          84
+        ],
+        "clipped": false
+      },
+      {
+        "id": "first-run-request",
+        "box": [
+          41,
+          437,
+          293,
+          90
+        ],
+        "clipped": false
+      },
+      {
+        "id": "first-run-readiness",
+        "box": [
+          28,
+          809,
+          319,
+          312
+        ],
+        "clipped": false
+      },
+      {
+        "id": "first-run-submit",
+        "box": [
+          41,
+          740,
+          293,
+          44
+        ],
+        "clipped": false
+      }
+    ],
+    "errors": []
+  },
+  "contrast": [
+    {
+      "selector": "#first-run-title",
+      "ratio": 18.26,
+      "fontSize": "28px"
+    },
+    {
+      "selector": ".first-run-copy",
+      "ratio": 9.98,
+      "fontSize": "16px"
+    },
+    {
+      "selector": "#first-run-request",
+      "ratio": 18.92,
+      "fontSize": "16px"
+    },
+    {
+      "selector": "#first-run-request-hint",
+      "ratio": 6.09,
+      "fontSize": "13px"
+    },
+    {
+      "selector": "#first-run-submit",
+      "ratio": 7.7,
+      "fontSize": "16px"
+    },
+    {
+      "selector": "#first-run-readiness-title",
+      "ratio": 6.1,
+      "fontSize": "13px"
+    },
+    {
+      "selector": "#first-run-readiness-status",
+      "ratio": 9.98,
+      "fontSize": "12px"
+    },
+    {
+      "selector": "#first-run-ai-state",
+      "ratio": 9.98,
+      "fontSize": "14px"
+    },
+    {
+      "selector": "#first-run-ai-meta",
+      "ratio": 6.1,
+      "fontSize": "12px"
+    },
+    {
+      "selector": "#first-run-connect-opencode",
+      "ratio": 9.98,
+      "fontSize": "14px"
+    },
+    {
+      "selector": "#first-run-manage-ai",
+      "ratio": 13.23,
+      "fontSize": "14px"
+    },
+    {
+      "selector": ".first-run-note",
+      "ratio": 6.1,
+      "fontSize": "13px"
+    }
+  ],
+  "touch_targets": [
+    {
+      "text": "Clear request",
+      "w": 91,
+      "h": 44
+    },
+    {
+      "text": "Plan my week",
+      "w": 143,
+      "h": 56
+    },
+    {
+      "text": "Catch up on email",
+      "w": 143,
+      "h": 56
+    },
+    {
+      "text": "Organize a project",
+      "w": 293,
+      "h": 44
+    },
+    {
+      "text": "Set up my assistant",
+      "w": 293,
+      "h": 44
+    },
+    {
+      "text": "OpenCode settings",
+      "w": 159,
+      "h": 44
+    },
+    {
+      "text": "Use another provider",
+      "w": 156,
+      "h": 44
+    }
+  ],
+  "browser": {
+    "name": "chromium",
+    "version": "153.0.8010.12",
+    "playwright": "1.63.0"
+  },
+  "errors": [],
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "960652c92d7513cf2418aab22c7e67722c76fde05e65dcc3ab62009fb55545e2",
+    "src/hutch/server/static/style.css": "bab0f5c162c801c42d9de32d5662feb253f49550237e9c24de1684e4265ceb7f",
+    "tests/e2e/test_design_system.py": "31236b883928be9cd6e98b5f97c6920443233aa44abfcfe7d0f4de70955d93cd"
+  }
+}

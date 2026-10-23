@@ -243,6 +243,10 @@ prose, labels, or marketing.
   state persists per browser.
 - Conversation column: max 760px, composer pinned 24px above the safe area;
   feed scrolls internally (app frame never page-scrolls).
+- First run pairs the request card with the AI-service panel above the **1100px**
+  shell/content breakpoint; below it, the panel stacks after the request in DOM
+  and reading order. The phone layout keeps the setup action in the initial
+  viewport and exposes the readiness heading before the fold.
 - On short desktop windows, the first-run welcome compresses its decorative stage
   and spacing so the initial setup action stays in the first screen.
 - Operational pages: 1240px container, 32px gutters, 4px spacing rhythm.
@@ -319,6 +323,18 @@ language after explicit user direction ("right angles feel too off"):
   start work. Use compact rows with a small, shape-aware 2D assistant identity;
   prioritize everyday jobs with short result names and keep storage IDs such as
   `repo-sweeper` out of visible titles.
+- **First-run request and AI readiness** — pair the first request with one
+  quiet AI-service panel on wide layouts; stack them in reading order below the
+  shell breakpoint. State the actual service or saved workspace choice, not a
+  claim that inference has been tested. Use the words **Ready**, **Saved**,
+  **Choose AI**, and **Check failed** with a decorative dot; color never carries
+  the state alone. A missing service keeps the action on choosing or connecting
+  one instead of opening the technical model form. Keep the request in
+  tab-scoped storage through navigation, reload, Cancel, and connection setup;
+  expose **Clear request** while it has content and clear the draft only after
+  successful assistant creation or that explicit action. Announce readiness
+  changes in one polite status region without moving focus, and reserve stable
+  space so late checks do not push the primary action.
 - **Composer** — 22px rounded box, 16–18px textarea, circular emerald send and
   rose stop, a "+" popover holding only real capabilities (suggestions, rehearsal,
   Enter-behaviour, live budget).

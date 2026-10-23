@@ -577,11 +577,17 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
             assert app_scroll.evaluate("el => el.scrollTop") == 0
             request = page.get_by_label("Your first request")
             assert request.is_visible()
-            setup_button = page.get_by_role("button", name="Set up my assistant")
+            setup_button = page.locator("#first-run-submit")
             assert setup_button.is_visible()
-            if label in {"phone", "short-desktop"}:
+            readiness = page.locator("#first-run-readiness")
+            readiness.wait_for()
+            expect(page.locator("#first-run-readiness-status")).not_to_have_text("Checking")
+            if label in {"compact-phone", "phone", "short-desktop"}:
                 button_box = setup_button.bounding_box()
                 assert button_box and 0 <= button_box["y"] and button_box["y"] + button_box["height"] <= height, button_box
+                panel_box = readiness.bounding_box()
+                if label != "compact-phone":
+                    assert panel_box and panel_box["y"] < height, panel_box
             welcome_marks = page.locator(".welcome-app-mark .service-mark")
             assert welcome_marks.locator("img[src='/static/brands/google-calendar-2026q2.png']").count() == 1
             assert welcome_marks.locator("img[src='/static/brands/google-gmail-2026q2.png']").count() == 1
@@ -623,7 +629,17 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
 
         request_text = "Help me plan my week and keep track of the follow-ups."
         page.set_viewport_size({"width": 1440, "height": 960})
+
+        def ready_opencode(route):
+            route.fulfill(status=200, content_type="application/json", body=json.dumps({
+                "ready": True, "authenticated": False,
+                "models": [{"spec": "opencode/test/design-model", "name": "Design test model"}],
+                "integrations": [],
+            }))
+
+        page.route("**/api/v1/opencode/status", ready_opencode)
         page.goto(f"{app_url}/#/chat")
+        expect(page.locator("#first-run-readiness-status")).to_have_text("Ready")
         page.get_by_label("Your first request").fill(request_text)
         page.get_by_role("button", name="Set up my assistant").click()
         page.get_by_role("heading", name="Create from this request").wait_for()
@@ -638,6 +654,7 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
         page.set_viewport_size({"width": 390, "height": 844})
         page.screenshot(path=str(out / "setup-from-request-phone.png"), full_page=True, animations="disabled")
         page.get_by_role("button", name="Cancel").click()
+        page.unroute("**/api/v1/opencode/status", ready_opencode)
 
         for label, width, height in viewports:
             page.set_viewport_size({"width": width, "height": height})
@@ -707,7 +724,7 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
             "browser": f"{browser.browser_type.name.title()} {browser.version}",
             "playwright": package_version("playwright"),
             "viewports": evidence,
-            "states": ["empty first run", "request carried into assistant setup", "service catalog", "Google Calendar access expanded"],
+            "states": ["empty first run", "request carried into assistant setup (ready OpenCode status fixture)", "service catalog", "Google Calendar access expanded"],
             "external_requests": external_requests,
             "provider_calls": 0,
             "reduced_motion": "reduce",
@@ -718,6 +735,134 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
             context.tracing.stop(path=str(out / "trace-failed.zip"))
         except Exception:
             pass
+        context.close()
+
+
+def test_first_run_draft_and_ai_readiness_survive_connections_and_failures(browser, app_server):
+    """Keep the first request and show an honest, recoverable AI setup state."""
+    app_url, app = app_server
+    assert app.state.store.delete_bot("design-system-review")
+    out = artifact_path("first-run-readiness-2026-10-23")
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 375, "height": 812}, reduced_motion="reduce")
+    page = context.new_page()
+    errors: list[str] = []
+    external_requests: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external_requests.append(request.url)
+            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+    state = {"ready": False, "fail": False}
+    readiness_paths = {
+        "/api/v1/preferences/model-defaults",
+        "/api/v1/opencode/status",
+        "/api/v1/model-routes",
+    }
+
+    def readiness_route(route):
+        path = urlsplit(route.request.url).path
+        if path not in readiness_paths:
+            route.continue_()
+            return
+        if state["fail"]:
+            route.fulfill(status=503, content_type="application/json",
+                          body=json.dumps({"detail": "Readiness fixture unavailable"}))
+            return
+        if path == "/api/v1/preferences/model-defaults":
+            body = {"model": "", "inference_mode": "hybrid", "configured": False}
+        elif path == "/api/v1/opencode/status":
+            body = {
+                "ready": state["ready"], "authenticated": False,
+                "models": ([{"spec": "opencode/test/readiness-model", "name": "Readiness test model"}]
+                           if state["ready"] else []),
+                "integrations": [],
+            }
+        else:
+            body = []
+        route.fulfill(status=200, content_type="application/json", body=json.dumps(body))
+
+    page.route("**/api/v1/**", readiness_route)
+    request_text = "Help me prepare a weekly plan for my volunteer group."
+    try:
+        page.goto(f"{app_url}/#/chat", wait_until="domcontentloaded")
+        page.get_by_role("heading", name="What would you like help with?").wait_for()
+        status = page.locator("#first-run-readiness-status")
+        expect(status).to_have_text("Choose AI")
+        request = page.get_by_label("Your first request")
+        request.fill(request_text)
+        assert page.locator("#first-run-clear").is_visible()
+        page.screenshot(path=str(out / "first-run-setup-phone.png"), animations="disabled")
+
+        page.locator("#first-run-manage-ai").click()
+        page.get_by_role("heading", name="Apps & AI").wait_for()
+        assert json.loads(page.evaluate("sessionStorage.getItem('hutch-first-run-request')"))["request"] == request_text
+
+        state["ready"] = True
+        page.go_back(wait_until="domcontentloaded")
+        request.wait_for()
+        expect(status).to_have_text("Ready")
+        assert request.input_value() == request_text
+        assert page.locator("#first-run-submit").inner_text().strip().startswith("Set up my assistant")
+        panel_box = page.locator("#first-run-readiness").bounding_box()
+        assert panel_box and panel_box["y"] < 812, panel_box
+        page.screenshot(path=str(out / "first-run-ready-phone.png"), animations="disabled")
+
+        page.get_by_role("button", name="Set up my assistant").click()
+        page.get_by_role("heading", name="Create from this request").wait_for()
+        assert page.locator("#setup-purpose").input_value() == request_text
+        assert page.locator("#modal-confirm").inner_text() == "Create bot"
+        page.get_by_role("button", name="Cancel").click()
+        assert request.input_value() == request_text
+
+        page.reload(wait_until="domcontentloaded")
+        request.wait_for()
+        assert request.input_value() == request_text
+        page.set_viewport_size({"width": 1280, "height": 800})
+        page.reload(wait_until="domcontentloaded")
+        request.wait_for()
+        expect(status).to_have_text("Ready")
+        page.screenshot(path=str(out / "first-run-ready-desktop.png"), animations="disabled")
+
+        page.set_viewport_size({"width": 375, "height": 812})
+        state["fail"] = True
+        page.reload(wait_until="domcontentloaded")
+        request.wait_for()
+        expect(status).to_have_text("Check failed")
+        assert request.input_value() == request_text
+        assert page.locator("#first-run-ai-retry").is_visible()
+        page.screenshot(path=str(out / "first-run-check-failed-phone.png"), animations="disabled")
+
+        state["fail"] = False
+        page.locator("#first-run-ai-retry").click()
+        expect(status).to_have_text("Ready")
+        assert request.input_value() == request_text
+
+        page.add_style_tag(content="html { font-size: 200% !important }")
+        page.wait_for_timeout(100)
+        button_box = page.locator("#first-run-submit").bounding_box()
+        assert button_box and button_box["x"] >= 0 and button_box["x"] + button_box["width"] <= 375, button_box
+        assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+
+        page.locator("#first-run-clear").click()
+        assert request.input_value() == ""
+        assert page.evaluate("sessionStorage.getItem('hutch-first-run-request')") is None
+        assert not errors, errors
+        assert not external_requests, external_requests
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_design_system.py::test_first_run_draft_and_ai_readiness_survive_connections_and_failures",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "browser": f"{browser.browser_type.name.title()} {browser.version}",
+            "viewports": [[375, 812], [1280, 800]],
+            "checks": [
+                "request survives Apps & AI detour, reload, setup cancel",
+                "missing AI route leads to AI service selection without losing request",
+                "OpenCode readiness is announced; panel begins inside the phone viewport",
+                "check failure offers retry and preserves request",
+                "clear request removes the tab-scoped draft",
+            ],
+            "readiness_fixture": "Deterministic preference, OpenCode and model-route responses; no provider call was made.",
+            "source_sha256": _visual_source_hashes(),
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
         context.close()
 
 

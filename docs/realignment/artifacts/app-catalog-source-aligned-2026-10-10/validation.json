@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_design_system.py::test_assistant_first_run_and_app_catalog_use_familiar_visual_language",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_assistant_first_run_and_app_catalog_use_familiar_visual_language",
-  "captured_at": "2026-10-11T01:02:15.502270+00:00",
+  "captured_at": "2026-10-23T08:51:10.763281+00:00",
   "python": "3.13.15",
   "browser": "Chromium 153.0.8010.12",
   "playwright": "1.63.0",
@@ -89,7 +89,7 @@
   ],
   "states": [
     "empty first run",
-    "request carried into assistant setup",
+    "request carried into assistant setup (ready OpenCode status fixture)",
     "service catalog",
     "Google Calendar access expanded"
   ],
@@ -97,19 +97,20 @@
   "provider_calls": 0,
   "reduced_motion": "reduce",
   "source_sha256": {
-    "src/hutch/server/pages.py": "366765446fb63c0ce3f1d80425526d93af9173481671023359e7be6b41cf4040",
-    "src/hutch/server/static/app.js": "25568022f95341676adf99c0f4573b66db5181f4099bc28a4d925b212c2d9c8c",
-    "src/hutch/server/static/index.html": "1b0401d605f694214fa52c1e8fbac54eb37ed8d302b51093db9de1e1031a23cc",
-    "src/hutch/server/static/style.css": "f7b683466687ff0a2e8639c3f184e9c05371b6165db354f5d80f2992c0b85794",
+    "src/hutch/server/pages.py": "7884021b4a97b41a26c49e4337e8f53fe245ff8682c5e820a613a4dc70263826",
+    "src/hutch/server/static/app.js": "960652c92d7513cf2418aab22c7e67722c76fde05e65dcc3ab62009fb55545e2",
+    "src/hutch/server/static/persona.js": "47913767ed7ba2cc20675becf9594c8ddd81ab63da82b207705cf0a079b70299",
+    "src/hutch/server/static/index.html": "766fec5709ebec17d989ca84cea7fafa74626c111275c247f3723544c8164db3",
+    "src/hutch/server/static/style.css": "bab0f5c162c801c42d9de32d5662feb253f49550237e9c24de1684e4265ceb7f",
     "src/hutch/server/static/brands/openai-white-monoblossom.svg": "b94ea61d860fae6f82f43571f36f17111fcf5d348e8e9cc22ae4b441c7560011",
     "src/hutch/server/static/brands/anthropic-symbol-ivory.svg": "38fc06d8e9390654cc4e96aa53691e2e78d929667c0034805b6d1b3891ba22dd",
     "src/hutch/server/static/brands/openrouter-glyph-volt.svg": "0d22462e4f2835a5a5b9000af0a55fc9238e39996100f54706e41ec45b9d1727",
     "src/hutch/server/static/brands/google-calendar-2026q2.png": "eac7b1d7c78a7c7fb40d74b6d879ba5fe781cbf2cd5f8d7d40f3c28fea73f77e",
     "src/hutch/server/static/brands/google-gmail-2026q2.png": "ab8e9e880a28e2bc29207a62394aa7d296f435113fcc922819dab629ffbd64e6",
     "src/hutch/server/static/brands/microsoft-outlook.svg": "4a3b6ab15d36e7c5317f75a83d1781708d68cce4d8b9073a3c82f0af662eaf18",
-    "website/index.html": "2eb224fcdf2f2497e11726dfe905b968a8c85dbd34174bab060c3f1a3d3da279",
-    "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
-    "website/styles.css": "4e2f4b3e4094cfc3aef1e9b21deaaf472421e607bb416824e63db0197dd0f4bd",
-    "tests/e2e/test_design_system.py": "51e2ffb58dd1a8a982bbb9f0ac8358f579038ab9a9009858778665e2e3af0de1"
+    "website/index.html": "80a76b56a2f60d60384c576d6061c4974afb8351acaf4cd03a75a8a914677285",
+    "website/site.js": "51b1a0e6c99f9d74d980c568dfbcc6486eb43c247fe41217a7a49487fe6cefe0",
+    "website/styles.css": "899fdc84936fcf5e0bc7c6769312933aec0ec2fbf53355574ea34515a8c1c955",
+    "tests/e2e/test_design_system.py": "31236b883928be9cd6e98b5f97c6920443233aa44abfcfe7d0f4de70955d93cd"
   }
 }
