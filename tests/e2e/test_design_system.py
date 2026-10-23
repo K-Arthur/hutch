@@ -751,12 +751,24 @@ def test_first_run_draft_and_ai_readiness_survive_connections_and_failures(brows
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("request", lambda request: external_requests.append(request.url)
             if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
-    state = {"ready": False, "fail": False}
+    state = {"ready": False, "fail": False, "hold_next_opencode": False, "held_opencode": None}
     readiness_paths = {
         "/api/v1/preferences/model-defaults",
         "/api/v1/opencode/status",
         "/api/v1/model-routes",
     }
+
+    def readiness_body(path):
+        if path == "/api/v1/preferences/model-defaults":
+            return {"model": "", "inference_mode": "hybrid", "configured": False}
+        if path == "/api/v1/opencode/status":
+            return {
+                "ready": state["ready"], "authenticated": False,
+                "models": ([{"spec": "opencode/test/readiness-model", "name": "Readiness test model"}]
+                           if state["ready"] else []),
+                "integrations": [],
+            }
+        return []
 
     def readiness_route(route):
         path = urlsplit(route.request.url).path
@@ -767,27 +779,30 @@ def test_first_run_draft_and_ai_readiness_survive_connections_and_failures(brows
             route.fulfill(status=503, content_type="application/json",
                           body=json.dumps({"detail": "Readiness fixture unavailable"}))
             return
-        if path == "/api/v1/preferences/model-defaults":
-            body = {"model": "", "inference_mode": "hybrid", "configured": False}
-        elif path == "/api/v1/opencode/status":
-            body = {
-                "ready": state["ready"], "authenticated": False,
-                "models": ([{"spec": "opencode/test/readiness-model", "name": "Readiness test model"}]
-                           if state["ready"] else []),
-                "integrations": [],
-            }
-        else:
-            body = []
-        route.fulfill(status=200, content_type="application/json", body=json.dumps(body))
+        if path == "/api/v1/opencode/status" and state["hold_next_opencode"]:
+            state["hold_next_opencode"] = False
+            state["held_opencode"] = route
+            return
+        route.fulfill(status=200, content_type="application/json",
+                      body=json.dumps(readiness_body(path)))
 
     page.route("**/api/v1/**", readiness_route)
     request_text = "Help me prepare a weekly plan for my volunteer group."
     try:
+        state["hold_next_opencode"] = True
         page.goto(f"{app_url}/#/chat", wait_until="domcontentloaded")
         page.get_by_role("heading", name="What would you like help with?").wait_for()
         status = page.locator("#first-run-readiness-status")
-        expect(status).to_have_text("Choose AI")
+        expect(status).to_have_text("Checking")
         request = page.get_by_label("Your first request")
+        request.focus()
+        assert page.evaluate("document.activeElement.id") == "first-run-request"
+        state["held_opencode"].fulfill(
+            status=200, content_type="application/json",
+            body=json.dumps(readiness_body("/api/v1/opencode/status")))
+        state["held_opencode"] = None
+        expect(status).to_have_text("Choose AI")
+        assert page.evaluate("document.activeElement.id") == "first-run-request"
         assert page.locator("#first-run-submit").inner_text().strip().startswith("Choose an AI service")
 
         # The primary action must not be blocked by the required request field
@@ -963,8 +978,8 @@ def test_first_run_readiness_distinguishes_saved_route_and_partial_states(browse
         expect(status).to_have_text("Choose AI")
         assert "could not check OpenCode" in page.locator("#first-run-ai-state").inner_text()
         assert page.locator("#first-run-ai-retry").is_visible()
-        page.screenshot(path=str(out / "first-run-partial-phone.png"), animations="disabled")
         request.fill("Partial check request")
+        page.screenshot(path=str(out / "first-run-partial-phone.png"), animations="disabled")
         page.locator("#first-run-submit").click()
         page.get_by_role("heading", name="Apps & AI").wait_for()
         assert json.loads(page.evaluate("sessionStorage.getItem('hutch-first-run-request')"))["request"] == "Partial check request"

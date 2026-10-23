@@ -52,17 +52,24 @@ observations are structural rather than a claim about fine visual detail.
   first-run primary action leads to AI service selection; the technical model
   form is not the first destination.
 - Use one polite status region; do not take focus when the async result arrives.
-  Reserve the panel's text area to reduce movement.
+  The deterministic test holds the readiness response, focuses the request,
+  then releases it and verifies focus did not move. Reserve the panel's text
+  area to reduce movement.
 - Pair request and readiness above 1100px; stack below. Keep the setup action
-  inside the initial 375×812 viewport and the readiness heading visible.
+  inside the initial 375×812 viewport and the readiness heading visible. The
+  workbench measures 1040px at 1440 and 944px at 1280.
 - Use existing spacing, radius, shadow, surface, text, and interaction tokens.
 
 ## Validation recorded
 
 - `tests/e2e/test_design_system.py::test_first_run_draft_and_ai_readiness_survive_connections_and_failures`
-  covers detour, reload, Cancel, missing-service routing, partial failure,
-  retry, clear, and phone/desktop screenshots. It uses deterministic API
-  responses and makes no provider call.
+  covers the empty-request primary CTA, provider detour, reload, setup Cancel,
+  missing-service routing, all-checks-failure retry, clear, and phone/desktop
+  screenshots. It uses deterministic API responses and makes no provider call.
+- `tests/e2e/test_design_system.py::test_first_run_readiness_distinguishes_saved_route_and_partial_states`
+  covers a saved workspace default, a discovered ready route that reaches
+  setup with its first-run provenance, and a single failed readiness check
+  that reports **Choose AI** with Retry instead of claiming no service exists.
 - `tests/e2e/test_design_system.py::test_assistant_first_run_and_app_catalog_use_familiar_visual_language`
   was updated to keep the setup handoff deterministic with a ready OpenCode
   status fixture.

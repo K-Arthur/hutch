@@ -1,0 +1,38 @@
+{
+  "test": "tests/e2e/test_design_system.py::test_first_run_readiness_distinguishes_saved_route_and_partial_states",
+  "captured_at": "2026-10-23T09:33:52.593648+00:00",
+  "browser": "Chromium 153.0.8010.12",
+  "viewports": [
+    [
+      1280,
+      800
+    ],
+    [
+      375,
+      812
+    ]
+  ],
+  "checks": [
+    "saved workspace default renders as Saved and reaches setup",
+    "discovered ready route renders as Ready, reaches setup, and names its first-run source",
+    "a partial readiness failure says which check failed, offers Retry, and preserves the request"
+  ],
+  "readiness_fixture": "Deterministic preference, OpenCode and model-route responses; no provider call was made.",
+  "source_sha256": {
+    "src/hutch/server/pages.py": "7884021b4a97b41a26c49e4337e8f53fe245ff8682c5e820a613a4dc70263826",
+    "src/hutch/server/static/app.js": "8fb154c08786dbdace928a6044f49aebd594c72450d39e0b8dad9db858667782",
+    "src/hutch/server/static/persona.js": "47913767ed7ba2cc20675becf9594c8ddd81ab63da82b207705cf0a079b70299",
+    "src/hutch/server/static/index.html": "766fec5709ebec17d989ca84cea7fafa74626c111275c247f3723544c8164db3",
+    "src/hutch/server/static/style.css": "8ffc819391c8d44a521e7a53ffb69603443c1ea2695d516e8934b48aa27c8dc0",
+    "src/hutch/server/static/brands/openai-white-monoblossom.svg": "b94ea61d860fae6f82f43571f36f17111fcf5d348e8e9cc22ae4b441c7560011",
+    "src/hutch/server/static/brands/anthropic-symbol-ivory.svg": "38fc06d8e9390654cc4e96aa53691e2e78d929667c0034805b6d1b3891ba22dd",
+    "src/hutch/server/static/brands/openrouter-glyph-volt.svg": "0d22462e4f2835a5a5b9000af0a55fc9238e39996100f54706e41ec45b9d1727",
+    "src/hutch/server/static/brands/google-calendar-2026q2.png": "eac7b1d7c78a7c7fb40d74b6d879ba5fe781cbf2cd5f8d7d40f3c28fea73f77e",
+    "src/hutch/server/static/brands/google-gmail-2026q2.png": "ab8e9e880a28e2bc29207a62394aa7d296f435113fcc922819dab629ffbd64e6",
+    "src/hutch/server/static/brands/microsoft-outlook.svg": "4a3b6ab15d36e7c5317f75a83d1781708d68cce4d8b9073a3c82f0af662eaf18",
+    "website/index.html": "7febbcb40b884b9e7b17609ba91ea43d12352ebc11b0fa550c595c972d3c52ad",
+    "website/site.js": "51b1a0e6c99f9d74d980c568dfbcc6486eb43c247fe41217a7a49487fe6cefe0",
+    "website/styles.css": "899fdc84936fcf5e0bc7c6769312933aec0ec2fbf53355574ea34515a8c1c955",
+    "tests/e2e/test_design_system.py": "f17cfdc8669249a99632339a0e989ba732a9c1f7c00064fb8741afc2f86e5061"
+  }
+}

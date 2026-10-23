@@ -13,15 +13,28 @@ service, a partial check, and a failed check.
 The deterministic browser regression
 `tests/e2e/test_design_system.py::test_first_run_draft_and_ai_readiness_survive_connections_and_failures`
 opened the actual page at **375×812** and **1280×800**. It verified that the
-request survives an Apps & AI detour, reload, setup Cancel, and a failed
-readiness check; that the resolved OpenCode model reaches setup; that
-**Check failed** exposes Retry; and that **Clear request** removes the tab
-draft. The phone primary action ended at **y=701** in an **812px** viewport,
-and the readiness panel heading began at **y=726**. At **320×740**, the primary
-action ended at **y=729**. The test made no provider
-call and used deterministic readiness responses. Its images and
-`validation.json` are under
+primary action reaches Apps & AI with an empty request, the request survives
+an Apps & AI detour, reload, setup Cancel, and an all-checks failure; that the
+resolved OpenCode model reaches setup; that **Check failed** exposes Retry;
+that one polite status region remains in place; and that **Clear request**
+removes the tab draft. The responsive artifact measured the phone primary
+action ending at **y=701** in an **812px** viewport, with the readiness panel
+heading beginning at **y=726**. At **320×740**, the primary action ended at
+**y=729**. The test made no provider call and used deterministic readiness
+responses. Its images and `validation.json` are under
 [`artifacts/first-run-readiness-2026-10-23/`](artifacts/first-run-readiness-2026-10-23/).
+
+A second deterministic journey,
+`test_first_run_readiness_distinguishes_saved_route_and_partial_states`,
+captured the **Saved** workspace-default state at **1280×800** and a partial
+check at **375×812** (`first-run-saved-desktop.png` and
+`first-run-partial-phone.png`). It confirmed that a saved route opens setup with that
+route, a discovered ready route reaches setup and reports its first-run source,
+and a failed OpenCode check says **Choose AI**, names the failed check, exposes
+Retry, and retains the request. The wide workbench measures **1040px** at 1440,
+with a **696px** request card and **328px** readiness panel; at 1280 it measures
+**944px** with **631px** and **297px** columns. The tests use deterministic
+readiness responses, not live provider inspection.
 
 I opened the ready-phone, setup-phone, check-failed-phone, and ready-desktop
 images individually. The request remains the strongest surface, the emerald
