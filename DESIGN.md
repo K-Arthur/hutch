@@ -237,6 +237,13 @@ prose, labels, or marketing.
 
 ## Layout
 
+- **Marketing navigation:** keep section links inside a native modal on compact
+  screens, not an ARIA action menu. Use the same raised surface, panel radius,
+  azure focus, and 44px link rows as the product. Bound and internally scroll
+  the link region so Close and the availability action remain reachable; desktop
+  and phone share the 1024px navigation breakpoint. FAQs remain native inline
+  disclosures with a visible focus outline, not popover menus.
+
 - **Marketing explanations:** keep the short request-to-result overview separate
   from long expandable explanations. Explanations occupy a shared reading-width
   region below the overview; expanding one must not stretch sibling overview

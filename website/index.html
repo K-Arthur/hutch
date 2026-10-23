@@ -12,7 +12,7 @@
   <link rel="preload" href="assets/fonts/archivo-latin-var.woff2?v=e3a28ead" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="tokens.css?v=2d78c988">
   <link rel="stylesheet" href="app.css?v=f577543e">
-    <link rel="stylesheet" href="styles.min.css?v=1cb73b85">
+    <link rel="stylesheet" href="styles.min.css?v=8396aaee">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -54,14 +54,14 @@
       </div>
       <div class="navbar-end gap-2">
         <a class="btn btn-primary btn-sm" href="#proof">See the app</a>
-        <button class="menu-btn btn btn-ghost btn-square lg:hidden" id="menu-btn" type="button" aria-label="Open menu" aria-expanded="false">
+        <button class="menu-btn btn btn-ghost btn-square lg:hidden" id="menu-btn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="menu-drawer" aria-haspopup="dialog">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
       </div>
     </div>
   </header>
 
-  <dialog id="menu-drawer" class="drawer" aria-labelledby="drawer-title">
+  <dialog id="menu-drawer" class="drawer" aria-labelledby="drawer-title" closedby="any">
     <div class="drawer-head wrap">
       <span class="flex items-center gap-2.5 text-ink" aria-hidden="true">
         <svg class="size-[22px]" viewBox="0 0 32 32"><path d="M16 2 28 9v14L16 30 4 23V9z" fill="none" stroke="var(--color-semantic-brand)" stroke-width="2.5"/><circle cx="16" cy="16" r="4" fill="var(--color-semantic-brand)"/></svg>
@@ -74,7 +74,7 @@
     </div>
     <h2 id="drawer-title" class="visually-hidden">Site menu</h2>
     <nav class="drawer-links" aria-label="Sections, mobile">
-      <a href="#proof">Product</a>
+      <a href="#proof">See Hutch</a>
       <a href="#receipts">Everyday help</a>
       <a href="#workflow">How it helps</a>
       <a href="#runs">Your choices</a>
@@ -319,6 +319,7 @@
         <article class="choice-card">
           <div class="choice-heading"><span class="choice-icon choice-icon-ai" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3v7m0 12v7M3 16h7m12 0h7M6.8 6.8l5 5m8.4 8.4 5 5m0-18.4-5 5m-8.4 8.4-5 5"/><circle cx="16" cy="16" r="4"/></svg></span><h3>Choose the AI</h3></div>
           <p>Use a hosted service you connect or a local model you already run. Hutch won’t quietly switch to a paid service.</p>
+          <p>The model choice stays visible on phones. Choose another for the next message, or save an assistant default as a separate action.</p>
         </article>
         <article class="choice-card">
           <div class="choice-heading"><span class="choice-icon choice-icon-apps" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="10" height="10" rx="2.5"/><rect x="18" y="5" width="10" height="10" rx="2.5"/><rect x="4" y="19" width="10" height="9" rx="2.5"/><rect x="18" y="19" width="10" height="9" rx="2.5"/></svg></span><h3>Bring your apps</h3></div>
@@ -782,6 +783,6 @@
     </div>
   </footer>
 
-  <script src="site.js?v=51b1a0e6" defer></script>
+  <script src="site.js?v=5b30d3f5" defer></script>
 </body>
 </html>

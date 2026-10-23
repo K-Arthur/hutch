@@ -1169,6 +1169,38 @@ def test_mobile_drawer_focus_and_ctas(browser, site_url):
     context.close()
 
 
+@pytest.mark.parametrize("width,height", [(1440, 900), (900, 1024), (390, 844), (320, 740)])
+def test_dropdown_alignment_keeps_site_navigation_and_disclosures_semantic(browser, site_url, width, height):
+    context, page, errors = _page(browser, width=width, height=height, reduced_motion="reduce")
+    out = artifact_path("dropdowns/marketing")
+    out.mkdir(parents=True, exist_ok=True)
+    try:
+        page.goto(site_url, wait_until="networkidle")
+        if width < 1024:
+            trigger = page.locator("#menu-btn")
+            trigger.click()
+            drawer = page.locator("#menu-drawer")
+            assert drawer.get_attribute("role") is None, "native dialog semantics need no ARIA menu role"
+            assert drawer.get_by_role("link", name="See Hutch").is_visible()
+            assert drawer.get_by_role("menuitem").count() == 0
+            for link in drawer.locator(".drawer-links a").all():
+                assert link.bounding_box()["height"] >= 44
+            page.screenshot(path=str(out / f"navigation-{width}.png"), animations="disabled")
+            page.keyboard.press("Escape")
+            assert trigger.evaluate("el => el === document.activeElement")
+        summary = page.locator("#faq details > summary").first
+        summary.scroll_into_view_if_needed()
+        summary.focus()
+        page.keyboard.press("Enter")
+        assert summary.evaluate("el => el.parentElement.open")
+        assert summary.evaluate("el => getComputedStyle(el).outlineStyle") != "none"
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+        page.screenshot(path=str(out / f"disclosure-{width}.png"), animations="disabled")
+        assert not errors, errors
+    finally:
+        context.close()
+
+
 def test_adaptive_response_style_marketing_is_labeled_and_fits(browser, site_url):
     context, page, errors = _page(browser, width=1440, height=900, reduced_motion="reduce")
     requests: list[tuple[str, str]] = []

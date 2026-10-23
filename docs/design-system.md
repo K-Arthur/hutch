@@ -54,6 +54,20 @@ validation or `change` events. Unsupported engines keep their native picker.
 Action menus, selected-value pickers, multi-select checklists, form popovers,
 and inline disclosures share visual roles but retain distinct semantics.
 
+The editable setup route progressively enhances its datalist into a combobox:
+DOM focus stays in the input, suggestions keep full provider-qualified route
+values, Arrow keys explore and Enter explicitly accepts. Tab/Escape never
+silently choose a suggestion. A persistent result announcement sits outside the
+listbox; lists render at most 100 matches and state when typing can narrow them.
+The control border derives from 70% tertiary ink / 30% panel in sRGB to maintain
+measured non-text contrast rather than reusing a decorative hairline.
+
+The marketing site deliberately does not load application popup JavaScript.
+Its native modal navigation and inline FAQ disclosures share surface, radius,
+focus and touch sizing, not application-menu roles. The first-run proof image
+contains none of the changed pickers, so it remains the existing genuine empty
+app capture; no synthetic chat screenshot is substituted for marketing proof.
+
 Use `hutchControls.popup({trigger, panel, kind, side, onClose})` for floating
 controls. Callers own data and actions; the controller owns placement, bounded
 scrolling, focus entry, menu arrows, dismissal and teardown. Keep the panel

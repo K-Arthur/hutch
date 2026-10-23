@@ -56,9 +56,12 @@
     };
     document.getElementById("drawer-close").addEventListener("click", closeDrawer);
     drawer.querySelectorAll("a").forEach(function (a) { a.addEventListener("click", closeDrawer); });
-    drawer.addEventListener("click", function (e) { if (e.target === drawer) closeDrawer(); });
+    drawer.addEventListener("click", function (e) {
+      var bounds = drawer.getBoundingClientRect();
+      if (e.target === drawer && (e.clientX < bounds.left || e.clientX > bounds.right || e.clientY < bounds.top || e.clientY > bounds.bottom)) closeDrawer();
+    });
     drawer.addEventListener("close", function () { menuBtn.setAttribute("aria-expanded", "false"); });
-    window.addEventListener("resize", function () { if (window.innerWidth > 1000) closeDrawer(); });
+    window.addEventListener("resize", function () { if (window.innerWidth >= 1024) closeDrawer(); });
   }
 
   /* ------------------------------------------------------------ tab groups */

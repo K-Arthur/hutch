@@ -269,6 +269,27 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .navbar-center { display: flex; }
 @media (max-width: 1023px) { .navbar-center { display: none; } }
 
+/* Site navigation is a native modal containing links, not an application action
+   menu. Share the product's surface, row geometry and focus language only. */
+#menu-drawer {
+  position: fixed; inset: var(--space-2) var(--space-2) var(--space-2) auto;
+  width: min(400px, calc(100% - var(--space-4))); max-width: none;
+  max-height: calc(100dvh - var(--space-4)); margin: 0; padding: 0;
+  border: 1px solid var(--color-semantic-border-emphasis); border-radius: var(--radius-panel);
+  background: var(--color-semantic-panel); color: var(--color-semantic-text);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.45); overflow: hidden;
+}
+#menu-drawer[open] { display: flex; flex-direction: column; }
+#menu-drawer::backdrop { background: color-mix(in srgb, var(--color-semantic-bg) 78%, transparent); }
+.drawer-head { display: flex; flex: none; align-items: center; justify-content: space-between; gap: var(--space-4); width: 100%; padding-block: var(--space-4); border-bottom: 1px solid var(--color-semantic-border-strong); }
+.drawer-head .btn { min-height: var(--size-target); }
+.drawer-links { display: grid; align-content: start; flex: 1; gap: var(--space-1); padding: var(--space-2); overflow-y: auto; overscroll-behavior: contain; }
+.drawer-links a { display: flex; align-items: center; min-height: var(--size-target); padding: var(--space-3) var(--space-4); border-radius: var(--radius-control); color: var(--color-semantic-text); font-size: 1rem; line-height: 1.5; overflow-wrap: anywhere; }
+.drawer-links a:hover { background: var(--color-semantic-raised); text-decoration: none; }
+.drawer-links a:focus-visible { outline-offset: -2px; }
+.drawer-foot { flex: none; width: 100%; padding-block: var(--space-4); border-top: 1px solid var(--color-semantic-border-strong); }
+.drawer-foot .btn { width: 100%; min-height: var(--size-target); }
+
 /* ----------------------------------------------------------------- proof */
 .proof-figure {
   max-width: 1120px; margin-inline: auto;
@@ -493,6 +514,9 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .faq-item .collapse-content { padding-inline: 0; }
 /* Native disclosure is immediate; avoid animating FAQ layout on every open/close. */
 .faq-item .collapse-title, .faq-item .collapse-content { transition: none; }
+.faq-item .collapse-title { min-height: var(--size-target); border-radius: var(--radius-control); }
+.faq-item .collapse-title:focus-visible { outline: 2px solid var(--color-semantic-focus-ring); outline-offset: -2px; }
+.faq-item:focus-within { outline: none; }
 .faq-item .collapse-content p { max-width: 72ch; color: var(--color-semantic-text-2); font-size: var(--text-size-sm); }
 .faq-item code { font-family: var(--font-mono); font-size: 0.9em; color: var(--color-semantic-text); }
 @media (max-width: 940px) {

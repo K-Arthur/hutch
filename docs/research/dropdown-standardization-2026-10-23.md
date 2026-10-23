@@ -138,3 +138,21 @@ capture and setup suggestions capture: remove action remains visible, the file
 label truncates without hiding its full accessible name, and the route input uses
 the shared 44px field geometry. Broad offline regression is now running on
 root-filesystem scratch, not the nearly full shared `/tmp` tmpfs.
+
+### Marketing checkpoint
+
+- Native site navigation now has the shared graphite surface, 12px panel / 8px
+  link geometry, 44px targets, bounded scrolling, and dedicated header/footer.
+  Trigger ownership and native modal semantics remain explicit; the responsive
+  close threshold now matches the 1024px CSS breakpoint. Section links are not
+  mislabeled as application menu items. FAQ focus uses one azure outline.
+- Added truthful phone-model/one-message/default copy. Existing first-run proof
+  is unaffected (no changed picker appears in that capture), so it was retained
+  rather than replaced with a synthetic chat. Assets rebuilt and cache keys stamped.
+- **8 website checks passed**: responsive menu/disclosures at 1440/900/390/320,
+  native Escape/focus restoration, no-JS readability, local asset hashes and no
+  external requests. Opened navigation at 320/390/900 and expanded FAQ at 1440;
+  row alignment, readable names and reachable Close/availability action confirmed.
+- Four existing design-system checks also passed after updating pure action-menu
+  test queries to their correct `menuitem` role: settings header, shared tokens,
+  settings disclosure axes and persona round-trip/conflict behavior.
