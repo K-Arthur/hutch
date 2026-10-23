@@ -29,7 +29,8 @@ not measured prevalence).
 | `delegate_task` | Experimental opt-in for supervised built-in Strict Offline runs only. Each request always asks, including in auto mode. A child inherits the root's immutable permission snapshot, uses a fresh private run workspace, receives only its task text, has browser/memory tools removed, and remains attached to the same conversation for operator visibility. Depth, lifetime fan-out, steps, duration and inherited budget are bounded. Parent Stop cascades; child cleanup remains visible until verified. The current public path runs one child at a time and does not copy files into a parent workspace or prompt. No live model or external-runtime child has been verified. See `realignment/delegation.md`. |
 | Outlook Mail send | Experimental Connections preview. A separate delegated `Mail.Send` account must be granted to one Bot. Each plain-text send shows exact sender account, recipients, subject and body for fresh outward approval, including auto mode. One fixed Graph request is attempted; uncertain responses stay `outcome_unknown` and are never replayed automatically. `202 Accepted` is not delivery confirmation. Live provider behavior is unverified. |
 | Outlook Calendar event creation | Experimental Connections opt-in. A distinct `Calendars.ReadWrite` account and one-calendar Bot grant are required. Microsoft grants account-wide create/read/change/delete authority; Hutch exposes only guest-free creation on the selected calendar. Every complete event needs fresh exact approval, including auto mode, then readback verification. Ambiguous results remain `outcome_unknown` and are never replayed automatically. Provider consent and live Graph writes are unverified. |
-| Pi/OpenCode Bot runtimes | disabled before process creation. Protocol helpers cover selected wire formats, but Hutch cannot yet broker these runtimes' permissions end to end, enforce provider budgets, or run either harness inside the owned sandbox. Selecting these runtimes fails with an actionable message; they are not supported Bot executors. |
+| OpenCode Bot runtime | enabled through a Hutch-owned private `opencode serve` process. Hutch selects the explicit model, brokers every permission as once/reject through the approval gate, reconciles durable session history after a disconnect, and reserves usage before the prompt. OpenCode's own shell/edit tools run with the user's OS authority after approval; they are **not** inside the built-in shell's bubblewrap sandbox. |
+| Pi Bot runtime | disabled before process creation. Pi has no per-action approval hook and does not route provider traffic through Hutch's usage reservation path. Selecting it fails with an actionable message. |
 | Reviewed OpenCode coding handoff | Experimental, owner-launched from a Linux TTY in a pinned Git worktree. `hutch code login` connects a provider through OpenCode's supported CLI picker and stores it in a dedicated private profile under Hutch state; Hutch does not import the regular OpenCode profile. The CLI task uses that profile with shell prompts and a 20-step ceiling, but Hutch does not broker permission decisions or contain commands the owner approves. Those commands have the Linux user's filesystem, process and network authority, and their usage is outside Hutch budgets. OpenCode plugin directories are refused pending upstream verification. Cleanup remains visible until process-group identity is checked; see the dated research. |
 | Stopping a run | an intent recorded in the database: `hutch stop`, `stop-all` and the dashboard work on a run owned by any process. Stopping a run also marks its persisted descendants in one transaction before signaling begins; each owned attempt remains `Stopping` until its own cleanup is verified. Delegated children start only after their capability snapshot is validated and use a private per-run workspace. `serve`, `daemon`, and `hutch run` use one owned process per attempt. Recovery fences the old owner before cleanup and signals only boot/start-verified process identities through pidfds. If a recorded leader PID has been reused, its identity no longer matches, or `/proc` is unavailable, cleanup stays unverifiable and Hutch never signals a replacement PID or treats a missing process-table view as proof of exit. `Stopping` or `Cleaning up` remains visible while cleanup is incomplete or cannot be verified; global/per-bot capacity stays occupied while recorded processes are unreaped even if status already became terminal; terminal cancellation waits for confirmed cleanup. |
 
@@ -317,8 +318,9 @@ prompt and does not change tools, permissions, account scope or approval state.
 Choice questions are not `waiting_approval` or `waiting_human`: approvals govern an exact external
 effect, while browser `waiting_human` is reserved for a live login, CAPTCHA, 2FA or other human-only
 checkpoint. A model response that bundles a choice request with any other tool call is rejected as
-a batch before sibling calls can run. Pi/OpenCode adapters do not support the chat primitive while
-those external runtimes remain disabled.
+a batch before sibling calls can run. Pi remains disabled. The OpenCode runtime does not expose
+Hutch's `ask_user_choice` primitive; it may use OpenCode's own question tool, which is surfaced as an
+ordinary tool event and does not grant authority.
 
 ## Bot-purpose drafting
 
@@ -489,10 +491,12 @@ are in [`research/security-containment-2026-10-11.md`](research/security-contain
 
 ## Honest limits (read this)
 
-- **External runtimes** (`pi`, `opencode`) are disabled. They cannot currently satisfy Hutch's process ownership, approval,
-  credential routing, sandbox and usage-reservation requirements. The builtin runtime is the only production model-backed executor;
-  test scenarios are not available to application users. Builtin calls reserve estimated tokens and priced currency before a request; provider billing can differ, and
-  uncertain outcomes remain held until an operator reconciles the provider record.
+- **OpenCode is available; Pi is disabled.** OpenCode runs in a Hutch-owned private server with explicit model selection,
+  once/reject permission brokering, durable message reconciliation and shared usage reservation. Its approved shell and edit
+  tools run with the Linux user's authority, not inside the built-in bubblewrap sandbox. Pi cannot satisfy the process,
+  approval, credential-routing and reservation requirements, so it fails before process creation. The built-in runtime remains
+  the only executor whose shell is OS-contained. Builtin calls reserve estimated tokens and priced currency before a request;
+  provider billing can differ, and uncertain outcomes remain held until an operator reconciles the provider record.
   Worker accounting requires current ownership, cannot change reservation identity, and cannot
   overwrite an uncertain hold. Outstanding holds do not disappear when an allowance window rolls over.
 - **A supervised human is assumed.** Prompt injection can still produce plausible-but-wrong actions

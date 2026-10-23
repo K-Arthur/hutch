@@ -155,13 +155,13 @@ def test_create_bot_with_skill_bindings_and_detail_lists_bound_bots(client):
 def test_template_create_keeps_template_tools_unless_explicitly_overridden(client):
     # The template's tools survive an omitted tool list...
     res = client.post("/api/bots", json={"name": "research-bot", "model": "mock/demo",
-                                         "template": "research-briefing"})
+                                         "template": "research-decisions"})
     assert res.status_code == 201, res.text
     bot = res.json()
-    assert set(bot["tools"]) == set(expand_tools(list(TEMPLATES["research-briefing"].tools)))
+    assert set(bot["tools"]) == set(expand_tools(list(TEMPLATES["research-decisions"].tools)))
     # ...an explicit empty list means no tools...
     res = client.post("/api/bots", json={"name": "bare-bot", "model": "mock/demo",
-                                         "template": "research-briefing", "tools": []})
+                                         "template": "research-decisions", "tools": []})
     assert res.status_code == 201, res.text
     assert res.json()["tools"] == []
     # ...and an explicit list replaces them.
@@ -171,7 +171,7 @@ def test_template_create_keeps_template_tools_unless_explicitly_overridden(clien
     # Two Bots from the same template get distinct identities (regression: template deep-copies
     # used to share the template singleton's Bot ID and the second create conflicted).
     res = client.post("/api/bots", json={"name": "research-bot-2", "model": "mock/demo",
-                                         "template": "research-briefing"})
+                                         "template": "research-decisions"})
     assert res.status_code == 201, res.text
     assert res.json()["id"] != bot["id"]
 
@@ -295,13 +295,13 @@ def test_cli_bot_create_template_tools_and_skill_binding(state_env):
     runner.invoke(cli_app, ["skills", "trust", "workspace-summary"])
 
     created = runner.invoke(cli_app, ["bot", "create", "research-bot", "--model", "mock/demo",
-                                      "--template", "research-briefing", "--skills", "workspace-summary"])
+                                      "--template", "research-decisions", "--skills", "workspace-summary"])
     assert created.exit_code == 0, created.output
     from hutch.cli import _store
     store = _store()
     try:
         bot = store.get_bot("research-bot")
-        assert set(bot.tools) == set(expand_tools(list(TEMPLATES["research-briefing"].tools))), "the template's tools were kept"
+        assert set(bot.tools) == set(expand_tools(list(TEMPLATES["research-decisions"].tools))), "the template's tools were kept"
         assert bot.skills == ["workspace-summary"]
     finally:
         store.close()

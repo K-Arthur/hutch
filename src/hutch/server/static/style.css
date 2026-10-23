@@ -2597,6 +2597,19 @@ body.paired-phone > :not(#phone-root) { display: none !important; }
 .provider-choice-copy { display: grid; gap: 3px; min-width: 0; }
 .provider-choice-copy strong { font-size: var(--fs-sm); line-height: 1.35; overflow-wrap: anywhere; }
 .provider-choice-copy small { color: var(--text-3); font-size: var(--fs-xs); line-height: 1.35; }
+.oc-provider-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.oc-provider-card { display: grid; gap: 10px; min-width: 0; padding: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-ctl); }
+.oc-provider-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; min-width: 0; }
+.oc-provider-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; min-width: 0; }
+.oc-provider-actions .btn { min-height: 34px; padding-inline: 10px; white-space: normal; text-align: center; }
+.oc-connect-slot:empty { display: none; }
+.oc-connect-slot { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.oc-connect-slot .field { margin: 0; }
+@media (max-width: 640px) {
+  .oc-provider-head { flex-direction: column; }
+  .oc-provider-actions { justify-content: flex-start; }
+  .oc-provider-actions .btn { min-height: 44px; }
+}
 .provider-selection-detail { min-height: 1.5em; margin: 0; }
 .provider-key-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
 .provider-key-row .field { min-width: 0; }

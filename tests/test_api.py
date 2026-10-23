@@ -171,7 +171,7 @@ def test_task_focus_presets_are_real_bot_settings_with_safe_validation(client):
     assert client.app.state.store.get_bot("research-focus-bot").preset == "research"
 
     template = client.post("/api/v1/bots", headers={"Idempotency-Key": "keep-template-task-focus"}, json={
-        "name": "template-focus-bot", "template": "repo-sweeper", "model": "mock/demo", "tools": [],
+        "name": "template-focus-bot", "template": "project-coordinator", "model": "mock/demo", "tools": [],
     })
     assert template.status_code == 201, template.text
     assert template.json()["preset"] == "coding"
@@ -1253,7 +1253,7 @@ def test_bot_setup_yaml_import_rejects_unsafe_or_unsupported_documents(client):
 def test_templates_endpoint(client):
     templates = client.get("/api/bots/templates").json()
     names = {t["name"] for t in templates}
-    assert {"research-briefing", "repo-sweeper", "tidy-downloads"} <= names
+    assert {"personal-assistant", "research-decisions", "project-coordinator"} <= names
 
 
 def test_spa_connections_api_never_echoes_key_and_validates_allowance(client):

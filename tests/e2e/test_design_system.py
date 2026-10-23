@@ -162,10 +162,10 @@ def test_studio_template_gallery_survives_background_refresh(browser, app_server
             assert disclosure.locator(".tpl-gal-note").inner_text() == "Choosing an example opens setup; it won’t start a task."
             gallery_names = page.locator("#tpl-grid .tpl-name").all_text_contents()
             assert gallery_names == [
-                "File organizer", "Meeting follow-up", "Weekly review",
-                "Research briefing", "Website change alerts", "Support inbox helper",
+                "Personal assistant", "Day planner", "Inbox and follow-ups",
+                "Research and decisions", "Project coordinator", "Meeting follow-through",
             ], gallery_names
-            assert gallery.first.get_attribute("aria-label").startswith("Create File organizer helper")
+            assert gallery.first.get_attribute("aria-label").startswith("Create Personal assistant helper")
             assert page.evaluate("Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) <= innerWidth + 1")
             page.screenshot(path=str(out / f"welcome-expanded-{label}.png"), animations="disabled")
 
@@ -1391,10 +1391,10 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                     page.locator("#tpl-grid .tpl-name").first.wait_for(state="visible")
                     gallery_names = page.locator("#tpl-grid .tpl-name").all_text_contents()
                     assert gallery_names[:6] == [
-                        "File organizer", "Meeting follow-up", "Weekly review",
-                        "Research briefing", "Website change alerts", "Support inbox helper",
+                        "Personal assistant", "Day planner", "Inbox and follow-ups",
+                        "Research and decisions", "Project coordinator", "Meeting follow-through",
                     ], gallery_names
-                    assert page.locator('#tpl-grid [data-tpl="tidy-downloads"]').count() == 1
+                    assert page.locator('#tpl-grid [data-tpl="personal-assistant"]').count() == 1
                     assert "repo-sweeper" not in gallery_names
                 if surface_name == "schedules":
                     assert page.locator("details.schedule-empty-bots").count() == 1

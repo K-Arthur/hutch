@@ -317,7 +317,7 @@ testing or key replacement. No provider account or inference request was used
 for visual validation. See the [multi-provider UX review](research/multi-provider-platform-review-2026-10-10.md)
 and [brand asset provenance](brand-assets.md).
 
-For OpenCode Go, sign in and manage the plan on OpenCode, then copy its provider API key into Hutch. This is the
+For OpenCode Go, sign in and manage the plan in the OpenCode Console, then copy its provider API key into Hutch. This is the
 provider's documented third-party connection method, not an OAuth session shared with Hutch. Hutch's Go connection does not
 reuse OpenCode's private auth database, browser profile or CLI sign-in. Separately, the experimental interactive coding handoff
 supports `hutch code login`, which starts OpenCode's documented provider picker in a dedicated profile under Hutch state; it
@@ -353,7 +353,7 @@ exercised against a live account** (there are no keys on the development machine
 | Template | Endpoint | Key | Billing | Source |
 |---|---|---|---|---|
 | `openrouter` | `https://openrouter.ai/api/v1` (Chat Completions) | `OPENROUTER_API_KEY` or a key pasted into Hutch | per token; add a reviewed price row before currency-limited use | [OpenRouter model catalog](https://openrouter.ai/docs/api/api-reference/models/get-models), [chat completions](https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request) |
-| `opencode-go` | `https://opencode.ai/zen/go/v1` (OpenAI chat) | `OPENCODE_API_KEY` or a key pasted into Hutch, after the user signs into Go and copies its provider key | flat subscription, dollar-denominated caps: 5-hour 20%, weekly 50%, monthly 100% | [OpenCode Go docs](https://opencode.ai/docs/go/) |
+| `opencode-go` | `https://opencode.ai/inference/go/openai/v1` (OpenAI chat); `https://opencode.ai/inference/go/anthropic` (Anthropic Messages) | `OPENCODE_API_KEY` or a key pasted into Hutch, after the user signs into the OpenCode Console and copies its provider key | flat subscription, dollar-denominated caps: 5-hour 20%, weekly 50%, monthly 100% | [OpenCode Go docs](https://opencode.ai/v2/docs/console/go) |
 | `chatgpt-plan` | `https://api.openai.com/v1` (Responses only) | Official Sign in with ChatGPT local token-sharing flow; never an API key | subscription account; OpenAI controls actual allowance | [SIWC preview](https://developers.openai.com/siwc/token-sharing-open-source/) |
 | `xiaomi-token-plan-{sgp,cn,ams}` | `https://token-plan-<region>.xiaomimimo.com/v1` (OpenAI chat) and `/anthropic` (Anthropic messages) | `XIAOMI_TOKEN_PLAN_API_KEY` (`tp-...`) | subscription **Credits**, not tokens | [OpenClaw provider docs](https://docs.openclaw.ai/providers/xiaomi), [MiMo docs](https://mimo.mi.com/docs/en-US/tokenplan/subscription) |
 | `xiaomi` | `https://api.xiaomimimo.com/v1` | `XIAOMI_API_KEY` (`sk-...`) | per token (needs a price row) | same |
@@ -472,8 +472,10 @@ key. Hutch never reads or proxies browser cookies, another tool's CLI auth files
 experimental local OpenCode coding handoff uses a new provider login saved by OpenCode in a profile managed under Hutch state;
 it is separate from using an OpenCode CLI session as a Hutch Bot runtime. This is separate from the official, eligibility-gated
 ChatGPT local-app preview above. Plans that issue an **API key**
-(OpenCode Go, MiMo Token Plan, and the API products themselves) are supported through Hutch's built-in provider clients. Vendor
-CLI harnesses (`pi`, `opencode`) remain disabled as Hutch Bot runtimes; the separate reviewed OpenCode coding handoff is an
+(OpenCode Go, MiMo Token Plan, and the API products themselves) are supported through Hutch's built-in provider clients.
+The OpenCode assistant runtime is available through a Hutch-owned private profile, with once/reject permission brokering
+and shared usage reservations; approved OpenCode tools run with the user's OS authority rather than inside the built-in
+shell sandbox. Pi remains disabled. The separate reviewed OpenCode coding handoff is an
 owner-launched terminal workflow and is not a runtime adapter.
 
 ## Limits worth knowing

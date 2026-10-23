@@ -60,7 +60,7 @@ flowchart LR
 
   subgraph Runtimes
     BUILTIN["builtin loop<br/>(OpenAI-compatible)"]
-    EXT["Pi / OpenCode bot runtime<br/>(disabled)"]
+    EXT["OpenCode assistant<br/>(owned private server)"]
     CODE["Reviewed coding handoff<br/>local OpenCode CLI + pinned worktree"]
   end
 
@@ -94,7 +94,7 @@ flowchart LR
 The code-handoff API validates and records an immutable review; it does not launch an executor process. The owner later starts the
 local OpenCode CLI from `hutch code run` in an interactive Linux terminal. That terminal path uses the saved commit and a separate
 Git worktree. OpenCode command approvals, account usage and shell effects stay outside Hutch's executor, sandbox and usage ledger.
-The Bot's normal Pi/OpenCode runtime value remains disabled. See the [reviewed handoff contract](realignment/contracts.md#reviewed-opencode-coding-handoff-experimental-schema-v39).
+The OpenCode Bot runtime is enabled through an owned private server; see ADR-0007. Pi remains disabled. The reviewed coding handoff remains a separate interactive contract; see the [reviewed handoff contract](realignment/contracts.md#reviewed-opencode-coding-handoff-experimental-schema-v39).
 
 ## State layout
 

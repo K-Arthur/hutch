@@ -54,7 +54,8 @@ Running work is cancelled first; deleting a bot with a live run is refused until
   combines runs whose continuity was not recorded. Existing IDs and event chains remain unchanged.
 * New v1 conversation creation, message admission, archival, and their idempotency receipts are transactional. Each admitted run
   stores a snapshot of up to 12 prior messages and 16,000 characters; only the governed builtin runtime currently consumes that
-  snapshot. Pi and OpenCode stay disabled, so external-session translation is not active.
+  snapshot. Pi stays disabled. OpenCode keeps a durable private session mapping under the Hutch state directory, keyed by
+  conversation and model, so a restart can continue the same OpenCode context; Hutch remains the canonical transcript.
 * SQLite FTS5 indexes canonical message text for explicit search. It does not index tool output, credentials, workspaces, or memory,
   and search results are not automatically injected into prompts.
 * Reviewed scoped facts, immutable workspace artifacts, explicit artifact references, a bounded same-bot delegation preview,

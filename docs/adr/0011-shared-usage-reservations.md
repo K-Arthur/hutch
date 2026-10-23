@@ -37,8 +37,10 @@ an uncertain charge.
 
 Schema v10 adds account grouping and an immutable usage reservation record. Existing usage is grouped under its
 former provider name on migration. Before upgrading an existing database, Hutch uses SQLite's backup API; restore
-the matching `hutch.db.bak-vN` before rolling back to an older release. OpenCode and Pi remain disabled until they
-share this reservation path and the rest of Hutch's process, isolation, and approval controls.
+the matching `hutch.db.bak-vN` before rolling back to an older release. OpenCode uses this reservation path: one
+reservation covers the admitted prompt and its bounded internal turns, then provider-reported tokens and cost are
+settled per completed assistant message. A disconnect after admission becomes `uncertain` and `outcome_unknown`.
+Pi remains disabled because it does not share this path or Hutch's per-action approval hook.
 
 ## Verification boundary
 
