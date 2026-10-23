@@ -147,10 +147,12 @@ The owner-approved roster is a durable local control over who may receive new ta
 approved Bot's tools or access.
 
 The product preview is a real first-run application capture with an empty state directory. It
-contains no seeded bots, conversations, runs, approvals, credentials, or provider output. Older
-fixture-generated images have been removed from `website/assets/captures`; their source artifacts
-remain under `docs/realignment/artifacts/` as historical test evidence and are not linked or copied
-to the public site.
+shows the request field beside the AI service Hutch found on that machine, or the next connection
+choice when none is ready; it does not imply that a provider call succeeded. It contains no seeded
+bots, conversations, runs, approvals, credentials, or provider output. Older fixture-generated
+images have been removed from `website/assets/captures`; their source artifacts remain under
+`docs/realignment/artifacts/` as historical test evidence and are not linked or copied to the
+public site.
 
 ## User-report scenarios
 
@@ -170,11 +172,11 @@ measured user-research threshold.
 
 ## Screenshot provenance
 
-`website/assets/captures/setup-desktop.webp` and `setup-phone.webp` show the actual application with a new, empty temporary
-state directory. They contain no seeded bots, conversations, runs, approvals, credentials, provider output or external action.
-The desktop, tablet and phone source captures, browser versions, timestamps and source hashes are retained under
-`docs/realignment/artifacts/no-mock-setup/`; visual validation is recorded in `docs/realignment/navigation-visual-validation.md`.
-These images are screenshots of the app, not evidence of a live provider call. The mascot is an original Blender render
+`website/assets/captures/setup-desktop.webp` (1440×1000) and `setup-phone.webp` (390×844) show the actual application with a
+new, empty temporary state directory, refreshed on 2026-10-23. They contain no seeded bots, conversations, runs, approvals,
+credentials, provider output or external action. The desktop, tablet, phone and compact-phone source captures, browser versions,
+timestamps and source hashes are retained under `docs/realignment/artifacts/no-mock-setup/`; visual validation is recorded in
+`docs/realignment/visual-validation.md`. These images are screenshots of the app, not evidence of a live provider call. The mascot is an original Blender render
 (`scripts/render_hutch_agent.py`), shipped as `website/assets/hutch-agent.webp` plus a 7x3 look-at-cursor frame grid in
 `website/assets/agent/`; it is decorative product art, not an application screenshot.
 

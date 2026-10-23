@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Make first run a request-plus-readiness surface: show the saved or available AI service beside the first request, preserve that request through provider navigation and reload, and route a missing service to connection setup instead of the technical model form. Readiness, partial checks, and failures are distinguished without claiming that inference was tested; the public first-run proof is refreshed from the real empty app.
 - Make OpenCode the full assistant runtime: an owned private `opencode serve` process, provider key or supported sign-in setup, explicit `opencode/provider/model` selection, once/reject permission brokering through Hutch approvals, durable message reconciliation instead of the volatile event stream, and shared usage reservation with uncertain outcomes preserved. OpenCode's approved tools run with the user's OS authority outside the built-in sandbox; Pi remains disabled.
 - Complete provider onboarding and failure handling: OpenRouter now verifies the key through `/key` before trusting its public catalog and reports credit/budget state; OpenAI-compatible and Anthropic streams retain partial output but never report a missing completion marker, truncated tool call, or Anthropic `pause_turn` as success.
 - Replace the demo-style starter gallery with a small outcome-owning roster (personal assistant, day planner, inbox follow-ups, research decisions, project coordinator, meeting follow-through, document workbench and data brief). No template starts with a schedule or fabricates a model route.

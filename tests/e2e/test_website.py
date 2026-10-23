@@ -192,7 +192,7 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     assert page.locator("#proof .proof-img").count() == 1
     assert "Real application" in page.inner_text("#proof .proof-chrome")
     assert "carries your words into assistant setup" in page.inner_text("#proof")
-    assert "2026-10-10" in page.inner_text("#proof")
+    assert "2026-10-23" in page.inner_text("#proof")
     assert page.locator("#gate-card, #gate-demo, #gate-allow, #gate-deny").count() == 0
     assert page.locator("#get").get_by_text("Public access", exact=True).count() == 1
     assert page.locator("#get .ev").filter(has_text="Experimental").count() >= 1
@@ -730,7 +730,7 @@ def test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation(browser, s
         assert "starts no run" in text
         assert "experimental (built-in coordinator only)" in page.locator("#workflow").inner_text().lower()
         page.locator("#runs .technical-details > summary").click()
-        model_card = page.locator("#runs .feature").filter(has_text="Hutch supports configured OpenAI").first
+        model_card = page.locator("#runs .feature").filter(has_text="Hutch supports configured OpenCode").first
         model_text = model_card.inner_text().lower()
         assert "next message" in model_text
         assert "save as bot default" in model_text
@@ -785,7 +785,7 @@ def test_provider_availability_is_readable_without_horizontal_page_scroll(browse
             "Documents": "versioned revisions and in-app previews",
             "Workflows": "auto does not create new plans",
             "AI services": "eligibility for hutch is unconfirmed",
-            "Coding with OpenCode": "pinned worktrees",
+            "OpenCode assistant": "owned private server",
             "Google Calendar": "each event needs exact approval",
             "Gmail search": "owner oauth and loopback local routes",
             "Outlook": "microsoft consent is account-wide and unverified",

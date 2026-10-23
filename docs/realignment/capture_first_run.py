@@ -20,7 +20,7 @@ from playwright.async_api import async_playwright
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUT = ROOT / "docs/realignment/artifacts/no-mock-setup"
-VIEWPORTS = (("desktop", 1440, 960), ("tablet", 900, 1024),
+VIEWPORTS = (("desktop", 1440, 1000), ("tablet", 900, 1024),
              ("phone", 390, 844), ("compact-phone", 320, 740))
 def source_hashes() -> dict[str, str]:
     """Tie screenshots to all shipped Hutch sources, including compiled UI styles."""
@@ -65,7 +65,9 @@ async def capture(url: str, out: Path) -> None:
             page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
             await page.goto(url, wait_until="networkidle")
             await page.get_by_text("No assistants yet — create one.", exact=True).wait_for(state="visible")
-            intro = page.get_by_text("If you need help choosing an AI service, Hutch can guide you.", exact=False)
+            await page.get_by_role("heading", name="AI service").wait_for(state="visible")
+            await page.locator("#first-run-readiness-status[data-state='checking']").wait_for(state="detached")
+            intro = page.get_by_text("Your request stays in this tab", exact=False)
             if not await intro.is_visible():
                 raise SystemExit(f"Refusing capture: real first-run explanation missing at {name}")
             overflow = await page.evaluate("document.documentElement.scrollWidth - innerWidth")

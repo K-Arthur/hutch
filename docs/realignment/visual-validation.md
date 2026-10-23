@@ -1,5 +1,71 @@
 # Visual validation record
 
+## First-run request and AI readiness (2026-10-23)
+
+The empty Chat workspace now pairs the first request with an AI-service panel
+above the **1100px** shell/content breakpoint and stacks the same panel after
+the request card below it. The request is kept for the tab, the setup action
+stays inside the initial phone viewport, and a missing AI route leads to AI
+service selection rather than the technical model form. Readiness wording
+distinguishes a saved workspace choice, a ready OpenCode/model route, a missing
+service, a partial check, and a failed check.
+
+The deterministic browser regression
+`tests/e2e/test_design_system.py::test_first_run_draft_and_ai_readiness_survive_connections_and_failures`
+opened the actual page at **375×812** and **1280×800**. It verified that the
+request survives an Apps & AI detour, reload, setup Cancel, and a failed
+readiness check; that the resolved OpenCode model reaches setup; that
+**Check failed** exposes Retry; and that **Clear request** removes the tab
+draft. The phone primary action ended at **y=701** in an **812px** viewport,
+and the readiness panel heading began at **y=726**. At **320×740**, the primary
+action ended at **y=729**. The test made no provider
+call and used deterministic readiness responses. Its images and
+`validation.json` are under
+[`artifacts/first-run-readiness-2026-10-23/`](artifacts/first-run-readiness-2026-10-23/).
+
+I opened the ready-phone, setup-phone, check-failed-phone, and ready-desktop
+images individually. The request remains the strongest surface, the emerald
+action is the only filled control, the status words carry meaning without
+relying on the dot color, and the readiness model identifier uses mono only as
+a measured machine value. The phone panel begins with the **AI service** heading
+and **Ready** status; its explanatory copy continues below the fold. This is a
+deliberate request-first compromise, not a claim that the entire panel is in
+the first viewport.
+
+The real empty-state capture utility
+`docs/realignment/capture_first_run.py` then captured the local app at
+**1440×1000**, **900×1024**, **390×844**, and **320×740** against an empty
+temporary state directory. `results.json` records zero bots, runs, approvals,
+conversations or configured connections, Chromium **153.0.8010.12**, Playwright
+**1.63.0**, source hashes, and zero horizontal overflow or page errors at every
+size. I opened the desktop, tablet, phone, and compact-phone PNGs. The desktop
+and phone images replace the public proof; the marketing page was then checked
+at desktop, tablet, and phone widths with the new cache-stamped WebP files.
+
+The marketing proof was opened as a desktop, tablet, and phone crop in
+[`artifacts/first-run-readiness-2026-10-23/marketing-proof-{desktop,tablet,phone}.png`](artifacts/first-run-readiness-2026-10-23/).
+The desktop proof keeps the app capture and legend side by side; tablet stacks
+the legend below the capture; phone uses the phone viewport capture and keeps
+the three numbered notes and provenance below it. The embedded desktop image
+rendered at **830×576**, the phone image at **356×770**, and neither the proof
+nor the site introduced horizontal overflow. The proof date, copy, alt text,
+and legend now match the request-plus-readiness surface. The live site tests
+also passed their asset-hash, truthful-availability, and empty-first-run
+capture checks.
+
+The measured keyboard order at **375×812** remains request field → three
+examples → setup action. Readiness updates are announced through one polite
+region and do not move focus. The first-run clear action becomes visible only
+when the request has content, has a visible focus ring, and meets the 44px touch
+target under a coarse pointer. Sampled text/background pairs in the new surface
+ranged from **6.09:1** to **18.92:1**; the emerald primary action measured
+**7.7:1**. At **200% root text size**, the page retained zero horizontal
+overflow and the primary action wrapped inside its card instead of extending
+past the viewport. The WCAG text-spacing override introduced no horizontal
+overflow or clipped text in the title, request, readiness panel, or action.
+The checks do not establish screen-reader conformance, physical-device behavior,
+live provider readiness, or a measured usability improvement.
+
 ## Settings disclosure alignment axes (2026-10-10)
 
 Settings disclosures on the Apps & AI screen and in assistant settings now
