@@ -304,10 +304,13 @@ class OpenCodeServer:
         return data
 
     def messages(self, session_id: str, *, limit: int = 200) -> list[dict[str, Any]]:
+        # Ask for the newest page, then restore chronological order for the
+        # caller. An ascending limit would pin long sessions to their oldest
+        # messages and hide the reply that just arrived.
         value = self._get_with_params(f"/api/session/{session_id}/message",
-                                      {"order": "asc", "limit": str(max(1, min(limit, 500)))})
+                                      {"order": "desc", "limit": str(max(1, min(limit, 500)))})
         rows = value.get("data") if isinstance(value, dict) else None
-        return [row for row in rows or [] if isinstance(row, dict)]
+        return [row for row in reversed(rows or []) if isinstance(row, dict)]
 
     def session(self, session_id: str) -> dict[str, Any]:
         value = self.request("GET", f"/api/session/{session_id}")

@@ -5,7 +5,7 @@ import pytest
 
 from hutch.models import ApprovalMode, EventType, Limits, RuntimeKind
 from hutch.runtime import RunAborted
-from hutch.runtime.opencode import OpenCodeRuntime
+from hutch.runtime.opencode import OpenCodeRuntime, _agent_definition
 from hutch.runtime.opencode_protocol import (
     OpenCodeContract,
     OpenCodeProtocolError,
@@ -126,6 +126,7 @@ def test_runtime_records_a_real_completion_usage_and_assistant_message(store, co
     assert messages and messages[-1].data["content"] == "hello from OpenCode"
     latest = store.get_run(run.id)
     assert (latest.prompt_tokens, latest.completion_tokens, latest.cached_tokens) == (120, 3, 40)
+    assert latest.steps == 1 and latest.tokens == 123
     assert not store.unresolved_usage_reservations(), "usage must settle after reported totals"
 
 
@@ -153,8 +154,8 @@ def test_runtime_brokers_a_shell_permission_once_and_never_emits_always(
         runtime=RuntimeKind.opencode, mode=ApprovalMode.auto,
         limits=Limits(max_steps=3, timeout_seconds=60, daily_token_cap=200_000))
     fake = FakeOpenCodeServer()
-    fake.pending = [{"id": "per_1", "sessionID": "ses_fake", "action": "bash",
-                     "resources": ["echo hello"], "message": "run a command"}]
+    fake.pending = [{"id": "per_1", "sessionID": "ses_fake", "action": "edit",
+                     "resources": ["notes.txt"], "message": "change a file"}]
     fake.assistant = completed_assistant()
     monkeypatch.setattr("hutch.runtime.opencode.OpenCodeServer", lambda *a, **k: fake)
 
@@ -163,6 +164,40 @@ def test_runtime_brokers_a_shell_permission_once_and_never_emits_always(
     assert fake.replies == [("per_1", "once")]
     assert all(decision != "always" for _request, decision in fake.replies)
     assert not store.pending_approvals()
+
+
+def test_an_auto_bot_still_cannot_auto_approve_a_denied_opencode_shell(
+        store, config, tmp_path, monkeypatch):
+    ctx, run, _emitted, tools = build(
+        store, config, tmp_path, model="opencode/test/model", tools=(),
+        runtime=RuntimeKind.opencode, mode=ApprovalMode.auto,
+        limits=Limits(max_steps=3, timeout_seconds=60, daily_token_cap=200_000))
+    fake = FakeOpenCodeServer()
+    fake.pending = [{"id": "per_shell", "sessionID": "ses_fake", "action": "bash",
+                     "resources": ["rm -rf /"]}]
+    fake.assistant = completed_assistant()
+    monkeypatch.setattr("hutch.runtime.opencode.OpenCodeServer", lambda *a, **k: fake)
+
+    run_it(OpenCodeRuntime(), run, ctx, tools)
+
+    assert fake.replies == [("per_shell", "reject")]
+    assert not store.pending_approvals()
+
+
+def test_opencode_agent_permissions_follow_the_reviewed_tool_list():
+    _agent_id, empty = _agent_definition(
+        "b", title="B", instructions="help", provider_id="openai", model_id="gpt-test",
+        tool_names=set(), workspace="/tmp/ws")
+    empty_rules = {(rule["action"], rule["effect"]) for rule in empty["permissions"]}
+    assert ("shell", "deny") in empty_rules and ("bash", "deny") in empty_rules
+    assert ("edit", "deny") in empty_rules and ("webfetch", "deny") in empty_rules
+
+    _agent_id, allowed = _agent_definition(
+        "b", title="B", instructions="help", provider_id="openai", model_id="gpt-test",
+        tool_names={"shell", "write_file", "web_fetch"}, workspace="/tmp/ws")
+    allowed_rules = {(rule["action"], rule["effect"]) for rule in allowed["permissions"]}
+    assert ("shell", "ask") in allowed_rules and ("bash", "ask") in allowed_rules
+    assert ("edit", "ask") in allowed_rules and ("webfetch", "ask") in allowed_rules
 
 
 def test_runtime_marks_a_stop_during_a_running_tool_as_unknown(store, config, tmp_path, monkeypatch):

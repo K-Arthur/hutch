@@ -9,7 +9,9 @@ Date: 2026-10-22. Environment: Linux, Chromium 153 (Playwright), OpenCode CLI 2.
 - The advanced path showed the OpenCode runtime selector, ten model routes from the private profile, the provider dialog, tools, and the review step at desktop/tablet/phone widths.
 - A real message was sent to the created assistant. OpenCode returned: “OK. I can help you plan your week and track follow-ups.”
 - A real file-edit request produced an `OpenCode edit` approval. Hutch approved it once through the API; OpenCode wrote `hutch-opencode-check.txt` with exactly `hello from OpenCode` and the run succeeded. A later shell-only request produced an `OpenCode shell` approval, confirming the shell action did not fall through to an implicit allow.
+- After the tool-list mapping fix, a bot created with only `files` and `web_fetch` produced an edit approval, wrote `mapped-tools-check.txt`, and completed with 2 steps and 5,168 recorded tokens. A bot with no shell tool cannot receive a shell permission from the generated OpenCode profile.
 - The first visual pass caught provider-card overlap at desktop width. The dialog was changed to a single-column list; the evidence here is from the corrected build.
+- Review also found and fixed: a released scheduler lease that became a permanent follower; OpenCode run step/token counters; newest-message pagination; a fresh setup server per OAuth request; shell policy bypass in Auto mode; and ignored bot tool lists.
 
 ## Screenshots
 

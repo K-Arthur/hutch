@@ -10183,6 +10183,7 @@ async function renderConnections() {
 
 const SETUP_TOOL_EXPANSIONS = { files: ["read_file", "list_files", "write_file"], memory: ["remember", "recall"],
   grounding: ["live_search", "inspect_media"] };
+const OPENCODE_TOOL_NAMES = new Set(["read_file", "list_files", "write_file", "shell", "web_fetch", "live_search"]);
 const BOT_SETUP_TOOLS = [
   ["read_file", "Read workspace files", "Open text files in this bot’s workspace."],
   ["list_files", "List workspace files", "See file names in this bot’s workspace."],
@@ -10305,12 +10306,7 @@ async function openOpenCodeSetupDialog(onReady) {
     });
     return;
   }
-  if (status.ready) {
-    toast(status.authenticated ? "OpenCode is connected and has a usable model." : "OpenCode is ready with its available models.");
-    onReady?.(status);
-    return;
-  }
-  let ready = false;
+  let ready = Boolean(status.ready);
   let activeAttempt = null;
   const integrations = (status.integrations || []).filter(item =>
     item.methods?.length && item.id !== "opencode");
@@ -10348,7 +10344,10 @@ async function openOpenCodeSetupDialog(onReady) {
       <p class="hint" id="oc-setup-status" role="status" aria-live="polite"></p>
       <p class="hint">An API key or sign-in is saved by OpenCode inside Hutch's private profile. Hutch never displays it again. If a provider is not listed, install or update the OpenCode CLI and reconnect.</p>
     </div>`,
-    onConfirm: async () => true,
+    onConfirm: async () => {
+      if (ready) onReady?.(status);
+      return true;
+    },
   });
   const statusNode = $("#oc-setup-status");
   const note = text => { if (statusNode) statusNode.textContent = text; };
@@ -10539,7 +10538,9 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       (openCodeDefault && !modelSuggestion ? "hybrid" : workspaceDefaults.inference_mode || "hybrid"),
     workspace_mode: duplicateBot?.workspace_mode === "fresh" ? "fresh" : "managed",
     // A duplicate is a safe configuration starting point, not a copy of authority.
-    tools: duplicateBot ? new Set() : templateTools(chosenTemplate), memory_enabled: false,
+    tools: duplicateBot ? new Set() : chosenTemplate ? templateTools(chosenTemplate)
+      : (openCodeDefault && !modelSuggestion ? new Set(["read_file", "list_files", "write_file", "web_fetch"]) : new Set()),
+    memory_enabled: false,
     local_browser_handoff: false,
     cron: "", timezone: "UTC", catch_up: "coalesce", schedule_prompt: "",
     limits: { max_steps: 24, timeout_seconds: 900, daily_token_cap: 200000,
@@ -11190,8 +11191,9 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       </details>
       <details class="setup-schedule" id="setup-tools-details" ${draft.tools.size ? "open" : ""}>
         <summary>Enable tools (none enabled by default)</summary>
+        ${draft.runtime === "opencode" ? `<p class="hint">OpenCode uses its own tools. File read/write, shell and public-web options below are mapped to its permission profile; memory, browser, computer and delegation are not available in this runtime.</p>` : ""}
         <fieldset class="setup-tool-options" id="setup-tools"><legend>Tools and permissions</legend>
-          ${BOT_SETUP_TOOLS.map(([tool, label, help]) => `<label class="tool-option"><input type="checkbox" name="setup-tool" value="${esc(tool)}" ${draft.tools.has(tool) ? "checked" : ""}>
+          ${BOT_SETUP_TOOLS.filter(([tool]) => draft.runtime !== "opencode" || OPENCODE_TOOL_NAMES.has(tool)).map(([tool, label, help]) => `<label class="tool-option"><input type="checkbox" name="setup-tool" value="${esc(tool)}" ${draft.tools.has(tool) ? "checked" : ""}>
             <span class="tool-option-copy"><b>${esc(label)}</b><small>${esc(help)}</small></span></label>`).join("")}
         </fieldset>
       </details>
@@ -11428,7 +11430,14 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       snapshotFields();
       draft.runtime = $("#setup-runtime").value;
       draft.model = "";
-      if (draft.runtime === "opencode") draft.inference_mode = "hybrid";
+      if (draft.runtime === "opencode") {
+        draft.inference_mode = "hybrid";
+        draft.tools = new Set([...draft.tools].filter(tool => OPENCODE_TOOL_NAMES.has(tool)));
+        if (!draft.tools.size) {
+          draft.tools = new Set(["read_file", "list_files", "write_file", "web_fetch"]);
+        }
+        draft.memory_enabled = false;
+      }
       await renderStep();
     });
     $("#setup-connect-opencode")?.addEventListener("click", () => {

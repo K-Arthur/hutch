@@ -2011,6 +2011,24 @@ def create_app() -> FastAPI:
     store = Store(config)
     engine = Engine(config, store)
     scheduler = engine.scheduler
+    opencode_setup: dict[str, Any] = {"server": None, "lock": threading.Lock()}
+
+    def setup_opencode_server():
+        """One private setup server so OAuth attempts survive polling."""
+        with opencode_setup["lock"]:
+            server = opencode_setup["server"]
+            if server is not None:
+                try:
+                    server.info()
+                    return server
+                except Exception:
+                    server.close()
+                    opencode_setup["server"] = None
+            from ..runtime.opencode_server import OpenCodeServer
+            server = OpenCodeServer(config.state_dir)
+            server.start()
+            opencode_setup["server"] = server
+            return server
 
     @contextlib.asynccontextmanager
     async def lifespan(app_: FastAPI):
@@ -2023,6 +2041,10 @@ def create_app() -> FastAPI:
             stop.set()
             store.bus.notify("work", remote=False)
             engine.shutdown()          # let in-flight runs record their outcome before the DB closes
+            with opencode_setup["lock"]:
+                if opencode_setup["server"] is not None:
+                    opencode_setup["server"].close()
+                    opencode_setup["server"] = None
             store.close()
 
     app = FastAPI(title="hutch", version=__version__, docs_url="/api/openapi.json", lifespan=lifespan,
@@ -7120,20 +7142,13 @@ def create_app() -> FastAPI:
     # OpenCode owns its provider credentials. Hutch never imports another
     # OpenCode profile, and these routes never return a secret.
 
-    def _opencode_private_server():
-        from ..runtime.opencode_server import OpenCodeServer
-        return OpenCodeServer(config.state_dir)
-
     def _opencode_status() -> dict:
+        from ..code_handoff import CodeHandoffError
         from ..runtime.opencode_server import OpenCodeServerError, status_summary
-        server = _opencode_private_server()
         try:
-            server.start()
-            return status_summary(server)
-        except OpenCodeServerError as exc:
+            return status_summary(setup_opencode_server())
+        except (OpenCodeServerError, CodeHandoffError) as exc:
             raise HTTPException(503, str(exc)) from None
-        finally:
-            server.close()
 
     @app.get("/api/v1/opencode/status")
     def opencode_status() -> dict:
@@ -7141,66 +7156,51 @@ def create_app() -> FastAPI:
 
     @app.post("/api/v1/opencode/connect/key")
     def opencode_connect_key(body: OpenCodeKeyRequest) -> dict:
+        from ..code_handoff import CodeHandoffError
         from ..runtime.opencode_server import OpenCodeServerError
-        server = _opencode_private_server()
         try:
-            server.start()
-            server.connect_key(body.integration_id, body.key, label=body.label)
-        except OpenCodeServerError as exc:
+            setup_opencode_server().connect_key(body.integration_id, body.key, label=body.label)
+        except (OpenCodeServerError, CodeHandoffError) as exc:
             raise HTTPException(400, str(exc)) from None
-        finally:
-            server.close()
         return {"ok": True, "detail": "OpenCode saved this provider account in Hutch's private profile."}
 
     @app.post("/api/v1/opencode/oauth/start")
     def opencode_oauth_start(body: OpenCodeOAuthStart) -> dict:
+        from ..code_handoff import CodeHandoffError
         from ..runtime.opencode_server import OpenCodeServerError
-        server = _opencode_private_server()
         try:
-            server.start()
-            attempt = server.start_oauth(body.integration_id, body.method_id)
-        except OpenCodeServerError as exc:
+            attempt = setup_opencode_server().start_oauth(body.integration_id, body.method_id)
+        except (OpenCodeServerError, CodeHandoffError) as exc:
             raise HTTPException(400, str(exc)) from None
-        finally:
-            server.close()
         return {"attempt": attempt}
 
     @app.get("/api/v1/opencode/oauth/{integration_id}/{attempt_id}")
     def opencode_oauth_status(integration_id: str, attempt_id: str) -> dict:
+        from ..code_handoff import CodeHandoffError
         from ..runtime.opencode_server import OpenCodeServerError
-        server = _opencode_private_server()
         try:
-            server.start()
-            return {"attempt": server.oauth_status(integration_id, attempt_id)}
-        except OpenCodeServerError as exc:
+            return {"attempt": setup_opencode_server().oauth_status(integration_id, attempt_id)}
+        except (OpenCodeServerError, CodeHandoffError) as exc:
             raise HTTPException(400, str(exc)) from None
-        finally:
-            server.close()
 
     @app.post("/api/v1/opencode/oauth/complete")
     def opencode_oauth_complete(body: OpenCodeOAuthComplete) -> dict:
+        from ..code_handoff import CodeHandoffError
         from ..runtime.opencode_server import OpenCodeServerError
-        server = _opencode_private_server()
         try:
-            server.start()
-            server.complete_oauth(body.integration_id, body.attempt_id, body.code)
-        except OpenCodeServerError as exc:
+            setup_opencode_server().complete_oauth(body.integration_id, body.attempt_id, body.code)
+        except (OpenCodeServerError, CodeHandoffError) as exc:
             raise HTTPException(400, str(exc)) from None
-        finally:
-            server.close()
         return {"ok": True, "detail": "OpenCode completed this sign-in."}
 
     @app.delete("/api/v1/opencode/oauth/{integration_id}/{attempt_id}")
     def opencode_oauth_cancel(integration_id: str, attempt_id: str) -> dict:
+        from ..code_handoff import CodeHandoffError
         from ..runtime.opencode_server import OpenCodeServerError
-        server = _opencode_private_server()
         try:
-            server.start()
-            server.cancel_oauth(integration_id, attempt_id)
-        except OpenCodeServerError as exc:
+            setup_opencode_server().cancel_oauth(integration_id, attempt_id)
+        except (OpenCodeServerError, CodeHandoffError) as exc:
             raise HTTPException(400, str(exc)) from None
-        finally:
-            server.close()
         return {"ok": True, "detail": "OpenCode sign-in was cancelled."}
 
     # ------------------------------------------------------- pages + static

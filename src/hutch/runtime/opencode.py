@@ -32,7 +32,7 @@ from ..safety import Decision, Verdict
 from ..tools import Tool, ToolContext
 from .base import RunAborted
 from .ladder import SpendGuard, make_rung
-from .opencode_protocol import parse_permission_request
+from .opencode_protocol import OpenCodeProtocolError, parse_permission_request
 from .opencode_server import OpenCodeModel, OpenCodeServer, OpenCodeServerError
 from .steps import StepTimer, finish_step
 
@@ -98,50 +98,87 @@ def _model_ref(bot_model: str, models: list[OpenCodeModel]) -> tuple[str, str]:
 
 
 def _agent_definition(bot_id: str, *, title: str, instructions: str,
-                      provider_id: str, model_id: str) -> tuple[str, dict[str, Any]]:
+                      provider_id: str, model_id: str, tool_names: set[str],
+                      workspace: str) -> tuple[str, dict[str, Any]]:
     """Return a stable agent ID and its V2 inline config.
 
     The V2 config schema uses an ``agents`` object with a ``system`` field.
     Writing Markdown files under an XDG agents directory is not equivalent in
     this release, so the profile config is generated atomically instead.
+
+    OpenCode has its own tool names. The reviewed Hutch tool list decides
+    which OpenCode capabilities are enabled: no `shell` means shell execution
+    is denied, no file-writing tool means edit/write are denied, and no web
+    tool means web access is denied. Read-only workspace inspection remains
+    available. Tools Hutch cannot broker inside OpenCode (memory, browser,
+    computer, delegation) are not silently offered.
     """
     agent_id = f"hutch-{_safe_component(bot_id)}"
+    edit_allowed = bool(tool_names & {"write_file", "revise_document", "create_document",
+                                      "create_media", "render_diagram", "run_python"})
+    shell_allowed = "shell" in tool_names
+    web_allowed = bool(tool_names & {"web_fetch", "live_search", "inspect_media"})
+    deny = {"action": "external_directory", "resource": "*", "effect": "deny"}
+    task_deny = {"action": "task", "resource": "*", "effect": "deny"}
     permissions = [
         {"action": "read", "resource": "*", "effect": "allow"},
         {"action": "list", "resource": "*", "effect": "allow"},
         {"action": "grep", "resource": "*", "effect": "allow"},
         {"action": "glob", "resource": "*", "effect": "allow"},
-        {"action": "edit", "resource": "*", "effect": "ask"},
-        {"action": "write", "resource": "*", "effect": "ask"},
+        {"action": "edit", "resource": "*", "effect": "ask" if edit_allowed else "deny"},
+        {"action": "write", "resource": "*", "effect": "ask" if edit_allowed else "deny"},
         # OpenCode releases differ on whether the shell action is named
         # "bash" or "shell"; cover both so neither can fall through to an
         # implicit allow.
-        {"action": "bash", "resource": "*", "effect": "ask"},
-        {"action": "shell", "resource": "*", "effect": "ask"},
-        {"action": "webfetch", "resource": "*", "effect": "ask"},
-        {"action": "websearch", "resource": "*", "effect": "ask"},
-        {"action": "external_directory", "resource": "*", "effect": "ask"},
-        {"action": "task", "resource": "*", "effect": "ask"},
+        {"action": "bash", "resource": "*", "effect": "ask" if shell_allowed else "deny"},
+        {"action": "shell", "resource": "*", "effect": "ask" if shell_allowed else "deny"},
+        {"action": "webfetch", "resource": "*", "effect": "ask" if web_allowed else "deny"},
+        {"action": "websearch", "resource": "*", "effect": "ask" if web_allowed else "deny"},
+        deny, task_deny,
     ]
     return agent_id, {
         "description": title[:160],
         "mode": "primary",
         "model": f"{provider_id}/{model_id}",
-        "system": instructions.strip() or "You are a helpful personal assistant.",
+        "system": (instructions.strip() or "You are a helpful personal assistant.")
+                  + f"\n\nYour working folder is {workspace}. Stay inside it unless a reviewed action explicitly "
+                    "allows another destination.",
         "permissions": permissions,
     }
 
 
-def _permission_decision(action: str, resources: list[str]) -> tuple[Decision, bool]:
+def _permission_decision(action: str, resources: list[str],
+                         ctx: ToolContext) -> tuple[Decision, bool, bool]:
+    """Map an OpenCode permission to Hutch policy, review and auto behaviour.
+
+    Returns ``(decision, outward, ask_in_auto)``. Shell commands are checked
+    through the same policy engine as Hutch's shell tool, but they always
+    require review even in Auto mode: OpenCode executes them outside the
+    built-in OS sandbox. A hard policy denial is final and is never sent to
+    the approval queue.
+    """
     normalized = (action or "").strip().lower()
     if normalized in _SAFE_READ_ACTIONS:
-        return Decision(Verdict.allow, "OpenCode read-only action", "opencode:read", risk="low"), False
+        return Decision(Verdict.allow, "OpenCode read-only action", "opencode:read", risk="low"), False, False
     outward = normalized in _OUTWARD_ACTIONS
-    if normalized in {"edit", "write", "shell", "delete", "webfetch", "websearch"}:
+    if normalized in {"shell", "bash"}:
+        checked = [ctx.policy.check_shell(command) for command in resources if command.strip()]
+        denied = next((item for item in checked if item.verdict is Verdict.deny), None)
+        if denied is not None:
+            return Decision(Verdict.deny, denied.reason, denied.rule or "opencode:shell-deny",
+                            risk="high", outward=denied.outward), True, True
+        return (Decision(Verdict.ask,
+                         "OpenCode shell runs outside Hutch's built-in sandbox; review the exact command",
+                         "opencode:shell", risk="high", outward=any(item.outward for item in checked)),
+                any(item.outward for item in checked), True)
+    if normalized in {"external_directory", "task"}:
+        return (Decision(Verdict.ask, f"OpenCode {normalized} action", f"opencode:{normalized}",
+                         risk="high"), False, True)
+    if normalized in {"edit", "write", "delete", "webfetch", "websearch"}:
         return Decision(Verdict.ask, f"OpenCode {normalized} action", f"opencode:{normalized}",
-                        risk="high" if outward else "medium", outward=outward), outward
+                        risk="high" if outward else "medium", outward=outward), outward, outward
     return Decision(Verdict.ask, f"OpenCode {normalized or 'unknown'} action", "opencode:unknown",
-                    risk="high"), outward
+                    risk="high"), outward, True
 
 
 def _tool_text(content: Any) -> str:
@@ -290,10 +327,25 @@ class OpenCodeRuntime:
             request_id = raw.get("id")
             if not isinstance(request_id, str) or not request_id or request_id in handled:
                 continue
-            parsed = parse_permission_request(raw)
+            try:
+                parsed = parse_permission_request(raw)
+            except OpenCodeProtocolError as exc:
+                # Never leave an unparseable request pending: reject it, keep
+                # the session moving, and make the reason visible.
+                server.reply_permission(session_id, request_id, "reject",
+                                        f"Hutch could not review this request: {exc}"[:400])
+                handled.add(request_id)
+                self._emit(ctx, run, "opencode", f"permission rejected as unreadable: {exc}", ok=False)
+                continue
+            if parsed["session_id"] != session_id:
+                server.reply_permission(session_id, request_id, "reject",
+                                        "Hutch rejected a permission from another session"[:400])
+                handled.add(request_id)
+                self._emit(ctx, run, "opencode", "permission rejected: session identity mismatch", ok=False)
+                continue
             action = parsed["action"]
             resources = list(parsed["resources"])
-            decision, outward = _permission_decision(action, resources)
+            decision, outward, ask_in_auto = _permission_decision(action, resources, ctx)
             detail = {
                 "action": action, "resources": resources[:20], "session_id": session_id,
                 "message": parsed.get("message", ""), "source": parsed.get("source"),
@@ -304,7 +356,7 @@ class OpenCodeRuntime:
             }
             try:
                 ctx.gate.decide("opencode", f"OpenCode {action}", detail, decision,
-                                outward=outward, ask_in_auto=outward)
+                                outward=outward, ask_in_auto=ask_in_auto)
             except DeniedError as exc:
                 server.reply_permission(session_id, request_id, "reject", str(exc)[:400])
                 handled.add(request_id)
@@ -346,9 +398,12 @@ class OpenCodeRuntime:
         if stop() or ctx.gate.cancelled():
             raise RunAborted("stopped", "run stopped before OpenCode started")
         provider_id, model_id = _model_ref(ctx.bot.model, [])
+        from ..tools import expand_tools
+        reviewed_tools = set(expand_tools(list(ctx.bot.tools)))
         agent_id, agent = _agent_definition(ctx.bot.id, title=ctx.bot.name,
                                             instructions=ctx.bot.instructions,
-                                            provider_id=provider_id, model_id=model_id)
+                                            provider_id=provider_id, model_id=model_id,
+                                            tool_names=reviewed_tools, workspace=str(ctx.workspace))
         server = OpenCodeServer(ctx.config.state_dir, executable=self.binary, cwd=ctx.workspace,
                                 agents={agent_id: agent})
         process = None
@@ -357,6 +412,11 @@ class OpenCodeRuntime:
                 server.start()
             except OpenCodeServerError as exc:
                 raise RunAborted("unavailable", f"OpenCode could not start: {exc}") from exc
+            except Exception as exc:
+                from ..code_handoff import CodeHandoffError
+                if isinstance(exc, CodeHandoffError):
+                    raise RunAborted("unavailable", f"OpenCode's private profile is unsafe or unreadable: {exc}") from exc
+                raise
             process = server.process
             if process is not None:
                 ctx.procs.register(process, "opencode")
@@ -393,7 +453,6 @@ class OpenCodeRuntime:
             first_accounting = True
             last_finish = ""
             reported_any_usage = False
-            started = time.perf_counter()
             timer = StepTimer()
             while True:
                 if stop() or ctx.gate.cancelled():
@@ -447,6 +506,17 @@ class OpenCodeRuntime:
                     input_tokens, output_tokens, cached_tokens, cost = _assistant_usage(message)
                     if input_tokens or output_tokens:
                         reported_any_usage = True
+                    if run.steps >= int(ctx.bot.limits.max_steps or 1):
+                        try:
+                            server.interrupt(session_id)
+                        except OpenCodeServerError:
+                            pass
+                        raise RunAborted(
+                            "steps_exceeded",
+                            f"OpenCode reached this Bot's {ctx.bot.limits.max_steps}-step limit; no further "
+                            "tool or model turn was started")
+                    run.steps += 1
+                    run.tokens += input_tokens + output_tokens
                     use_reservation = first_accounting and bool(input_tokens or output_tokens)
                     finish_step(
                         run, ctx, timer, model=ctx.bot.model, prompt_tokens=input_tokens,
@@ -493,10 +563,6 @@ class OpenCodeRuntime:
                     if outcome == "interrupted":
                         raise RunAborted("stopped", "OpenCode interrupted this session")
                     raise RunAborted("error", "OpenCode reported this session as failed")
-                if not reported_any_usage and time.perf_counter() - started > 2.0:
-                    # Keep waiting for the first assistant message; usage is only
-                    # known once a step completes.
-                    pass
                 time.sleep(_POLL_SECONDS)
         except RunAborted:
             raise
