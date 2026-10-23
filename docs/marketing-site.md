@@ -47,6 +47,12 @@ not a VM; migrated bots remain unsandboxed until an operator enables the setting
 
 ## Cost, context and routing claims
 
+The approval section may say that a multi-request **Needs you** queue puts the soonest decision deadline first, then high risk and
+actions that leave the machine; it may describe due-soon and high-risk counts/filters plus requests that leave the machine, and state
+that each request is still decided one at a time. It must not claim bulk approval, automatic approval, a measured triage-time improvement, or that every
+allowed action is safe. This is backed by the approval-triage browser matrix, axe results, and the queue measurements under
+`docs/realignment/approval-triage-2026-10-22/`; those are fixture checks, not a user study.
+
 The site may say that Hutch offers distinct warning, approval-pause and estimated admission-ceiling controls. It must not call the
 estimate a provider-enforced hard cap. For OpenRouter, a configured strict USD ceiling requires a fresh, endpoint-aware quote; when
 the metadata is stale, unavailable, or contains no qualified priced endpoint, Hutch blocks the call. A non-strict view can show a

@@ -48,6 +48,14 @@
 - Post-rebase matrix: axe **0** at 1440/390/320; `ui-audit` focus-invisible is **0** (F-01 rings now present), with no horizontal overflow, text spill, target-size, or small-text findings. 21 approval tests passed. 54/55 design-system + WCAG tests passed; the single feedback test is flaky and passed three consecutive reruns (and passes on main alone).
 - Main fast-forwarded locally to `d9a4b7b4` (`5ec62889..d9a4b7b4`); no push. The approval branch remains at the same tip. Final integration evidence is in `EVIDENCE.md` and the integrated screenshots/audit summary under `evidence/`.
 
+## Marketing follow-up (2026-10-22)
+
+- Reviewed the public control section and the existing claims ledger. The site described a single approval but did not name the new deadline-first queue, counts/filters, or one-decision-at-a-time behavior.
+- Added one benefit-card sentence and a short approval-rules disclosure note; no hero, CTA, provider, availability, pricing, or security claim changed. Updated `docs/marketing-site.md`, `README.md`, and `CHANGELOG.md`.
+- Built the site CSS (`npm run build:css:site`) for the new `.details-note` rule; the asset hash stamp changed.
+- Added `test_approval_triage_copy_is_truthful_and_responsive` and `test_approval_triage_marketing_evidence_is_complete`; **41** website/token tests passed.
+- Visual checks at 1440/768/390/320: no page overflow; text-spacing and effective-200% note checks; axe 0; `ui-audit` no horizontal/text-spill/target-size findings. Remaining candidates are pre-existing sticky-header/skip-link overlaps and hero layering.
+
 ## Things skipped / blockers
 
 - Figma Community previews are behind an AWS WAF challenge in this environment; the cover CDN returns HTTP 403 and pages return the challenge shell. Per the research gate, other accessible online interfaces were inspected instead (Linear, Atlassian Jira, GitHub; see `RESEARCH.md`).

@@ -82,6 +82,16 @@ The WCAG lane landed and `main` moved from `ceb9d36b` to `5ec62889` (F-01 focus 
 
 The earlier full e2e run predates this rebase; the full offline suite is unchanged because the rebase touches no Python package code. Main’s own WCAG lane supplied the design-system/WCAG suites above.
 
+## Marketing surface
+
+The public control section now names the triage behavior instead of leaving it implicit: the “Know when to step in” card says the soonest deadline and risk come first, and the approval-rules disclosure states deadline-first ordering, due-soon/high-risk counts, requests that leave the machine, one-decision-at-a-time, and no bulk approval. Claims authority and screenshots are in [`marketing/MARKETING.md`](marketing/MARKETING.md); before/after images and `validation.json` are under [`marketing/`](marketing/).
+
+- `tests/e2e/test_website.py` + `tests/test_site_tokens.py`: **41 passed**.
+- New `test_approval_triage_copy_is_truthful_and_responsive`: passed at 1440/768/390/320 with zero page overflow; it records screenshot hashes and source hash.
+- `ui-audit` on the built site: no horizontal overflow, text spill, target-size, small-text, or image findings. Remaining candidates are the pre-existing sticky-header/skip-link overlaps and intentional hero layering.
+- axe-core: **0 violations** at 1440/390/320.
+- No measured triage-time, bulk-approval, automatic-approval, or safety-guarantee claim was added.
+
 ## Known false positives / not run
 
 - `ui-audit` cannot infer modal semantics; its background-overlap counts are intentional. Confirmed against screenshots.
