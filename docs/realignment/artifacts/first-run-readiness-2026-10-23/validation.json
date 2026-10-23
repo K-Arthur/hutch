@@ -1,6 +1,6 @@
 {
   "test": "tests/e2e/test_design_system.py::test_first_run_draft_and_ai_readiness_survive_connections_and_failures",
-  "captured_at": "2026-10-23T09:50:22.240601+00:00",
+  "captured_at": "2026-10-23T10:04:39.045261+00:00",
   "browser": "Chromium 153.0.8010.12",
   "viewports": [
     [
@@ -22,7 +22,7 @@
   "readiness_fixture": "Deterministic preference, OpenCode and model-route responses; no provider call was made.",
   "source_sha256": {
     "src/hutch/server/pages.py": "7884021b4a97b41a26c49e4337e8f53fe245ff8682c5e820a613a4dc70263826",
-    "src/hutch/server/static/app.js": "d4dd261b317c80f9b1c6b2b4c044986be04420b7396d49daf1efdb887ebd8653",
+    "src/hutch/server/static/app.js": "6b2f7147117f593c5d8e05e5bbdca4d94febfb5ce9271be4cdb625ebe2316138",
     "src/hutch/server/static/persona.js": "47913767ed7ba2cc20675becf9594c8ddd81ab63da82b207705cf0a079b70299",
     "src/hutch/server/static/index.html": "766fec5709ebec17d989ca84cea7fafa74626c111275c247f3723544c8164db3",
     "src/hutch/server/static/style.css": "8ffc819391c8d44a521e7a53ffb69603443c1ea2695d516e8934b48aa27c8dc0",
@@ -32,9 +32,9 @@
     "src/hutch/server/static/brands/google-calendar-2026q2.png": "eac7b1d7c78a7c7fb40d74b6d879ba5fe781cbf2cd5f8d7d40f3c28fea73f77e",
     "src/hutch/server/static/brands/google-gmail-2026q2.png": "ab8e9e880a28e2bc29207a62394aa7d296f435113fcc922819dab629ffbd64e6",
     "src/hutch/server/static/brands/microsoft-outlook.svg": "4a3b6ab15d36e7c5317f75a83d1781708d68cce4d8b9073a3c82f0af662eaf18",
-    "website/index.html": "7febbcb40b884b9e7b17609ba91ea43d12352ebc11b0fa550c595c972d3c52ad",
+    "website/index.html": "f7d5d9673f392038c3a442b31ff961a22b88b9b70e18cfdfbf109241116b094f",
     "website/site.js": "51b1a0e6c99f9d74d980c568dfbcc6486eb43c247fe41217a7a49487fe6cefe0",
     "website/styles.css": "899fdc84936fcf5e0bc7c6769312933aec0ec2fbf53355574ea34515a8c1c955",
-    "tests/e2e/test_design_system.py": "f17cfdc8669249a99632339a0e989ba732a9c1f7c00064fb8741afc2f86e5061"
+    "tests/e2e/test_design_system.py": "d90dba43ec4b2e696350434d4327605dca60496d95ced940fb23f66099273cea"
   }
 }

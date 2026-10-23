@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-10-23T09:51:09.847287+00:00",
+  "captured_at": "2026-10-23T10:01:29.492261+00:00",
   "url": "http://127.0.0.1:18889/#/chat",
   "state_check": {
     "bots": [],
@@ -13,7 +13,7 @@
     "version": "153.0.8010.12",
     "playwright": "1.63.0"
   },
-  "git_revision": "ae3882d88fe673f7b4b2bd9a9c19183b61c95059",
+  "git_revision": "327f6bc31083f18818730f689b608b878e240dc2",
   "source_sha256": {
     "src/hutch/__init__.py": "568574ab401d0207b2e5bbf867341bdce1041794c04a41813720be38df26da74",
     "src/hutch/action_receipts.py": "a71c0241ad306fdb74624b81fd859bf0eeb76ab521f255663163287c87e9140c",
@@ -150,7 +150,7 @@
     "src/hutch/server/security.py": "40b500baa50faf9f84e1964c235700aa2ed03cebd8868945cb78efb9bcde427c",
     "src/hutch/server/skills_api.py": "ea8d1d5a477bac0bfc29189befb770c6284172176ddb51551478d363dd6a34cd",
     "src/hutch/server/sse.py": "1d1a56e4c080917989e01486c0e88d35d826a797745aefca0ec17d1a62f667fd",
-    "src/hutch/server/static/app.js": "d4dd261b317c80f9b1c6b2b4c044986be04420b7396d49daf1efdb887ebd8653",
+    "src/hutch/server/static/app.js": "6b2f7147117f593c5d8e05e5bbdca4d94febfb5ce9271be4cdb625ebe2316138",
     "src/hutch/server/static/brand-tokens.css": "2d78c988ad555c40c0e2b82f31206a3ec30b68d44403501b1bcf646d95f4b96f",
     "src/hutch/server/static/computer.css": "fad1429bf7e7ea76ecd2071e1726bc4c3105ad96744694eec90817fe3eebc6dd",
     "src/hutch/server/static/computer.js": "a777c0f18232d39bc334c14990d30f9271209dd17516322b4aae28e3776e0908",

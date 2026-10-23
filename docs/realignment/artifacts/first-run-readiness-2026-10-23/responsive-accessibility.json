@@ -636,8 +636,8 @@
   },
   "errors": [],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "d4dd261b317c80f9b1c6b2b4c044986be04420b7396d49daf1efdb887ebd8653",
+    "src/hutch/server/static/app.js": "6b2f7147117f593c5d8e05e5bbdca4d94febfb5ce9271be4cdb625ebe2316138",
     "src/hutch/server/static/style.css": "8ffc819391c8d44a521e7a53ffb69603443c1ea2695d516e8934b48aa27c8dc0",
-    "tests/e2e/test_design_system.py": "f17cfdc8669249a99632339a0e989ba732a9c1f7c00064fb8741afc2f86e5061"
+    "tests/e2e/test_design_system.py": "d90dba43ec4b2e696350434d4327605dca60496d95ced940fb23f66099273cea"
   }
 }
