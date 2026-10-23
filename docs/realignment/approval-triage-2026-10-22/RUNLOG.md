@@ -46,7 +46,7 @@
   - `app.js` `refreshApprovals`: kept `renderApprovalReceipts()` (hidden empty bucket, receipt focus restore) while `renderApprovalQueue()` retains `wireApprovals()`/`updateTtls()` and main’s `needsYouRouteOpening` flag.
 - Added a focus-return fallback: at phone width the original trigger can be in the closed sidebar, so closing now focuses the visible `#nav-toggle` instead of a hidden button.
 - Post-rebase matrix: axe **0** at 1440/390/320; `ui-audit` focus-invisible is **0** (F-01 rings now present), with no horizontal overflow, text spill, target-size, or small-text findings. 21 approval tests passed. 54/55 design-system + WCAG tests passed; the single feedback test is flaky and passed three consecutive reruns (and passes on main alone).
-- Main fast-forward: pending final documentation commit; branch is otherwise ready.
+- Main fast-forwarded locally to `d9a4b7b4` (`5ec62889..d9a4b7b4`); no push. The approval branch remains at the same tip. Final integration evidence is in `EVIDENCE.md` and the integrated screenshots/audit summary under `evidence/`.
 
 ## Things skipped / blockers
 
