@@ -788,11 +788,22 @@ def test_first_run_draft_and_ai_readiness_survive_connections_and_failures(brows
         status = page.locator("#first-run-readiness-status")
         expect(status).to_have_text("Choose AI")
         request = page.get_by_label("Your first request")
+        assert page.locator("#first-run-submit").inner_text().strip().startswith("Choose an AI service")
+
+        # The primary action must not be blocked by the required request field
+        # when AI setup is the next step.
+        page.locator("#first-run-submit").click()
+        page.get_by_role("heading", name="Apps & AI").wait_for()
+        assert page.evaluate("location.hash") == "#/connections"
+        page.go_back(wait_until="domcontentloaded")
+        request.wait_for()
+        expect(status).to_have_text("Choose AI")
+
         request.fill(request_text)
         assert page.locator("#first-run-clear").is_visible()
         page.screenshot(path=str(out / "first-run-setup-phone.png"), animations="disabled")
 
-        page.locator("#first-run-manage-ai").click()
+        page.locator("#first-run-submit").click()
         page.get_by_role("heading", name="Apps & AI").wait_for()
         assert json.loads(page.evaluate("sessionStorage.getItem('hutch-first-run-request')"))["request"] == request_text
 
@@ -802,7 +813,13 @@ def test_first_run_draft_and_ai_readiness_survive_connections_and_failures(brows
         expect(status).to_have_text("Ready")
         assert request.input_value() == request_text
         assert page.locator("#first-run-submit").inner_text().strip().startswith("Set up my assistant")
+        expect(page.locator("#first-run-ai-state")).to_have_attribute("role", "status")
+        expect(page.locator("#first-run-ai-state")).to_have_attribute("aria-live", "polite")
+        request.focus()
+        assert page.evaluate("document.activeElement.id") == "first-run-request"
+        button_box = page.locator("#first-run-submit").bounding_box()
         panel_box = page.locator("#first-run-readiness").bounding_box()
+        assert button_box and button_box["y"] + button_box["height"] <= 812, button_box
         assert panel_box and panel_box["y"] < 812, panel_box
         page.screenshot(path=str(out / "first-run-ready-phone.png"), animations="disabled")
 
@@ -810,6 +827,9 @@ def test_first_run_draft_and_ai_readiness_survive_connections_and_failures(brows
         page.get_by_role("heading", name="Create from this request").wait_for()
         assert page.locator("#setup-purpose").input_value() == request_text
         assert page.locator("#modal-confirm").inner_text() == "Create bot"
+        page.locator("#setup-customize").click()
+        page.locator("#setup-model").wait_for()
+        assert page.locator("#setup-model").input_value() == "opencode/test/readiness-model"
         page.get_by_role("button", name="Cancel").click()
         assert request.input_value() == request_text
 
@@ -858,6 +878,107 @@ def test_first_run_draft_and_ai_readiness_survive_connections_and_failures(brows
                 "OpenCode readiness is announced; panel begins inside the phone viewport",
                 "check failure offers retry and preserves request",
                 "clear request removes the tab-scoped draft",
+            ],
+            "readiness_fixture": "Deterministic preference, OpenCode and model-route responses; no provider call was made.",
+            "source_sha256": _visual_source_hashes(),
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        context.close()
+
+
+def test_first_run_readiness_distinguishes_saved_route_and_partial_states(browser, app_server):
+    """Keep saved, discovered-route, and partial-check states honest and usable."""
+    app_url, app = app_server
+    assert app.state.store.delete_bot("design-system-review")
+    out = artifact_path("first-run-readiness-2026-10-23")
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1280, "height": 800}, reduced_motion="reduce")
+    page = context.new_page()
+    errors: list[str] = []
+    external_requests: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external_requests.append(request.url)
+            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+    state = {"defaults": "", "routes": [], "opencode_fail": False}
+
+    def readiness_route(route):
+        path = urlsplit(route.request.url).path
+        if path == "/api/v1/preferences/model-defaults":
+            body = {"model": state["defaults"], "inference_mode": "hybrid",
+                    "configured": bool(state["defaults"])}
+        elif path == "/api/v1/opencode/status":
+            if state["opencode_fail"]:
+                route.fulfill(status=503, content_type="application/json",
+                              body=json.dumps({"detail": "Readiness fixture unavailable"}))
+                return
+            body = {"ready": False, "authenticated": False, "models": [], "integrations": []}
+        elif path == "/api/v1/model-routes":
+            body = state["routes"]
+        else:
+            route.continue_()
+            return
+        route.fulfill(status=200, content_type="application/json", body=json.dumps(body))
+
+    page.route("**/api/v1/**", readiness_route)
+    status = page.locator("#first-run-readiness-status")
+    request = page.get_by_label("Your first request")
+    try:
+        state["defaults"] = "openai/saved-route"
+        page.goto(f"{app_url}/#/chat", wait_until="domcontentloaded")
+        expect(status).to_have_text("Saved")
+        expect(page.locator("#first-run-ai-meta")).to_have_text("openai/saved-route")
+        assert "Using your saved workspace choice" in page.locator("#first-run-ai-state").inner_text()
+        page.screenshot(path=str(out / "first-run-saved-desktop.png"), animations="disabled")
+        request.fill("Saved choice request")
+        page.get_by_role("button", name="Set up my assistant").click()
+        page.get_by_role("heading", name="Create from this request").wait_for()
+        page.locator("#setup-customize").click()
+        page.locator("#setup-model").wait_for()
+        assert page.locator("#setup-model").input_value() == "openai/saved-route"
+        assert "Workspace default for new Bots: openai/saved-route" in page.locator("#setup-model-hint").inner_text()
+        page.get_by_role("button", name="Cancel").click()
+
+        state["defaults"] = ""
+        state["routes"] = [{"spec": "openai/ready-route", "label": "Ready route",
+                            "group": "Test provider", "state": "ready", "note": "fixture"}]
+        page.reload(wait_until="domcontentloaded")
+        request.wait_for()
+        expect(status).to_have_text("Ready")
+        expect(page.locator("#first-run-ai-meta")).to_have_text("openai/ready-route")
+        assert "Test provider has a ready model route" in page.locator("#first-run-ai-state").inner_text()
+        request.fill("Discovered route request")
+        page.get_by_role("button", name="Set up my assistant").click()
+        page.get_by_role("heading", name="Create from this request").wait_for()
+        page.locator("#setup-customize").click()
+        page.locator("#setup-model").wait_for()
+        assert page.locator("#setup-model").input_value() == "openai/ready-route"
+        assert "Chosen from the AI service checked on the welcome screen" in page.locator("#setup-model-hint").inner_text()
+        page.get_by_role("button", name="Cancel").click()
+
+        state["routes"] = []
+        state["opencode_fail"] = True
+        page.set_viewport_size({"width": 375, "height": 812})
+        page.reload(wait_until="domcontentloaded")
+        request.wait_for()
+        expect(status).to_have_text("Choose AI")
+        assert "could not check OpenCode" in page.locator("#first-run-ai-state").inner_text()
+        assert page.locator("#first-run-ai-retry").is_visible()
+        page.screenshot(path=str(out / "first-run-partial-phone.png"), animations="disabled")
+        request.fill("Partial check request")
+        page.locator("#first-run-submit").click()
+        page.get_by_role("heading", name="Apps & AI").wait_for()
+        assert json.loads(page.evaluate("sessionStorage.getItem('hutch-first-run-request')"))["request"] == "Partial check request"
+        assert not errors, errors
+        assert not external_requests, external_requests
+        (out / "validation-saved-route-partial.json").write_text(json.dumps({
+            "test": "tests/e2e/test_design_system.py::test_first_run_readiness_distinguishes_saved_route_and_partial_states",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "browser": f"{browser.browser_type.name.title()} {browser.version}",
+            "viewports": [[1280, 800], [375, 812]],
+            "checks": [
+                "saved workspace default renders as Saved and reaches setup",
+                "discovered ready route renders as Ready, reaches setup, and names its first-run source",
+                "a partial readiness failure says which check failed, offers Retry, and preserves the request",
             ],
             "readiness_fixture": "Deterministic preference, OpenCode and model-route responses; no provider call was made.",
             "source_sha256": _visual_source_hashes(),

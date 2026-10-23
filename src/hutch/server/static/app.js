@@ -1656,6 +1656,7 @@ let firstRunSelection = null;
 let firstRunReadinessState = "checking";
 let firstRunReadinessPromise = null;
 let firstRunReadinessGeneration = 0;
+let firstRunSubmitGeneration = 0;
 let rosterMenuCleanup = null;
 
 function closeRosterActionMenu(restoreFocus = false) {
@@ -3161,6 +3162,7 @@ function paintFirstRunReadiness(snapshot) {
   const submit = $("#first-run-submit");
   if (submit) {
     const ready = ["ready", "saved"].includes(snapshot.state);
+    submit.formNoValidate = !ready;
     submit.innerHTML = `${ready ? "Set up my assistant" : "Choose an AI service"} ${icon("arrow")}`;
   }
   panel.setAttribute("aria-busy", snapshot.state === "checking" ? "true" : "false");
@@ -3211,8 +3213,8 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
               <button class="first-run-clear" type="button" id="first-run-clear" hidden>Clear request</button>
             </div>
             <textarea id="first-run-request" rows="3" maxlength="20000" aria-describedby="first-run-request-hint" placeholder="For example, help me plan my week and keep track of the follow-ups." required></textarea>
-            <div class="first-run-examples" aria-label="Try a starting point">
-              <p class="first-run-examples-title">Or start with an idea</p>
+            <div class="first-run-examples" role="group" aria-labelledby="first-run-examples-title">
+              <p class="first-run-examples-title" id="first-run-examples-title">Or start with an idea</p>
               <div class="first-run-examples-grid">
                 <button class="first-run-example" type="button" data-first-run-example="plan">${icon("clock")}<span>Plan my week</span></button>
                 <button class="first-run-example" type="button" data-first-run-example="email">${icon("mail")}<span>Catch up on email</span></button>
@@ -3221,7 +3223,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
             </div>
             <div class="first-run-request-foot">
               <span class="hint" id="first-run-request-hint">Nothing runs until you ask.</span>
-              <button class="btn primary" type="submit" id="first-run-submit">Set up my assistant ${icon("arrow")}</button>
+              <button class="btn primary" type="submit" id="first-run-submit" formnovalidate>Set up my assistant ${icon("arrow")}</button>
             </div>
           </form>
           <aside class="first-run-readiness" id="first-run-readiness" aria-labelledby="first-run-readiness-title" aria-busy="true">
@@ -3268,21 +3270,40 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
     });
     $("#first-run-request-form")?.addEventListener("submit", async event => {
       event.preventDefault();
-      const text = request?.value.trim() || "";
-      if (!text) { request?.focus(); return; }
-      saveFirstRunDraft(request.value);
-      if (firstRunReadinessState === "checking" && firstRunReadinessPromise) {
-        try { await firstRunReadinessPromise; } catch { /* setup can still resolve its own choice */ }
+      const submit = $("#first-run-submit");
+      const invocation = ++firstRunSubmitGeneration;
+      const startingHash = location.hash;
+      if (submit) {
+        submit.disabled = true;
+        submit.setAttribute("aria-busy", "true");
       }
-      if (!firstRunSelection && ["setup", "error"].includes(firstRunReadinessState)) {
-        location.hash = "#/connections";
-        return;
+      try {
+        if (firstRunReadinessState === "checking" && firstRunReadinessPromise) {
+          try { await firstRunReadinessPromise; } catch { /* setup can still resolve its own choice */ }
+        }
+        if (invocation !== firstRunSubmitGeneration || location.hash !== startingHash
+            || !submit?.isConnected) return;
+        if (!firstRunSelection && ["setup", "error"].includes(firstRunReadinessState)) {
+          saveFirstRunDraft(request?.value || "");
+          location.hash = "#/connections";
+          return;
+        }
+        const text = request?.value.trim() || "";
+        if (!text) { request?.focus(); return; }
+        saveFirstRunDraft(request.value);
+        await promptNewBot("", "", null, text, firstRunSelection);
+      } finally {
+        if (submit?.isConnected) {
+          submit.disabled = false;
+          submit.removeAttribute("aria-busy");
+        }
       }
-      void promptNewBot("", "", null, text, firstRunSelection);
     });
     $("#first-run-connect-opencode")?.addEventListener("click", () => {
+      firstRunSubmitGeneration++;
       void openOpenCodeSetupDialog(() => { void refreshFirstRunReadiness(); });
     });
+    $("#first-run-manage-ai")?.addEventListener("click", () => { firstRunSubmitGeneration++; });
     $("#first-run-ai-retry")?.addEventListener("click", () => { void refreshFirstRunReadiness(); });
     const starterRequests = {
       plan: "Help me plan my week and keep track of the follow-ups.",

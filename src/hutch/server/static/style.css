@@ -2419,7 +2419,7 @@ body.paired-phone > :not(#phone-root) { display: none !important; }
 
 .first-run-scroll { display: grid; align-items: center; }
 .first-run-container { width: min(100%, 1120px); }
-.first-run-welcome { max-width: 1040px; margin: clamp(12px, 3vh, 28px) auto 0; gap: var(--s-4); }
+.welcome.first-run-welcome { width: min(100%, 1040px); max-width: 1040px; margin: clamp(12px, 3vh, 28px) auto 0; gap: var(--s-4); }
 .first-run-hero { gap: var(--s-2); justify-items: center; }
 .welcome-stage {
   position: relative; display: grid; place-items: center; width: 184px; height: 106px;
