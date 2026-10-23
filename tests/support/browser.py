@@ -1,6 +1,26 @@
 """Browser synchronization helpers compatible with Hutch's strict script CSP."""
 
 from time import monotonic, sleep
+import os
+
+
+def launch_browser(playwright):
+    """Use default builds, or one explicitly pinned Chromium executable for QA.
+
+    Do not silently choose an arbitrary cached version. Evidence must report the
+    actual browser version; a missing explicit executable is a failure, not a skip.
+    """
+    executable = os.environ.get("HUTCH_TEST_CHROMIUM_EXECUTABLE")
+    if executable:
+        return playwright.chromium.launch(executable_path=executable)
+    import pytest
+    errors = []
+    for engine in (playwright.chromium, playwright.firefox):
+        try:
+            return engine.launch()
+        except Exception as error:
+            errors.append(f"{engine.name}: {error}")
+    pytest.skip("no Playwright browser is installed: " + "; ".join(errors))
 
 
 def wait_for_page(page, expression, *, arg=None, timeout=30_000):

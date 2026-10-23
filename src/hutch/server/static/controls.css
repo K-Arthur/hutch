@@ -1,0 +1,104 @@
+/* Shared selection and popup anatomy; aliases consume the existing brand source.
+   Native select is the form/accessibility authority. Customizable select is a
+   progressive enhancement: unsupported engines retain the native system picker. */
+:root {
+  --control-surface: var(--color-semantic-panel);
+  --control-hover: var(--color-semantic-raised);
+  --control-text: var(--color-semantic-text);
+  --control-muted: var(--color-semantic-text-2);
+  --control-line: var(--color-semantic-border-emphasis);
+  --control-focus: var(--color-semantic-focus-ring);
+  --control-selected: var(--color-semantic-brand);
+  --control-radius: var(--radius-control, 8px);
+  --popup-radius: var(--radius-panel, 12px);
+  --popup-shadow: 0 12px 32px rgb(0 0 0 / 0.45);
+  --popup-row-height: 40px;
+}
+select {
+  min-block-size: 44px; max-inline-size: 100%;
+  border: 1px solid var(--control-line); border-radius: var(--control-radius);
+  background: var(--color-semantic-bg); color: var(--control-text);
+  padding: 8px 12px; font: 400 1rem/1.5 var(--font-body, system-ui, sans-serif);
+  cursor: pointer; color-scheme: dark;
+}
+select:focus-visible { outline: 2px solid var(--control-focus); outline-offset: 2px; }
+select:disabled { cursor: not-allowed; }
+select option, select optgroup { color: var(--control-text); background: var(--control-surface); }
+@supports (appearance: base-select) {
+  select, select::picker(select) { appearance: base-select; }
+  select { align-items: center; gap: 12px; }
+  select::picker-icon { color: var(--control-muted); flex: none; }
+  select:open { border-color: var(--control-focus); }
+  select::picker(select) {
+    margin-block: 6px; padding: 4px; border: 1px solid var(--control-line);
+    border-radius: var(--popup-radius); background: var(--control-surface);
+    box-shadow: var(--popup-shadow); color: var(--control-text);
+    max-block-size: min(24rem, 65dvh); max-inline-size: calc(100vw - 16px);
+    overflow-y: auto; overscroll-behavior: contain;
+    font: 400 0.875rem/1.5 var(--font-body, system-ui, sans-serif);
+  }
+  select option {
+    min-block-size: var(--popup-row-height); padding: 8px 12px;
+    gap: 12px; border-radius: var(--control-radius);
+    white-space: normal; overflow-wrap: anywhere;
+  }
+  select optgroup { padding: 4px; font-weight: 650; }
+  select optgroup > legend { padding: 8px 12px 4px; color: var(--control-muted); font-size: 0.75rem; }
+  select option:checked { background: var(--control-hover); }
+  select option::checkmark { color: var(--control-selected); }
+  select option:hover, select option:focus { background: var(--control-hover); }
+  select option:focus-visible { outline: 2px solid var(--control-focus); outline-offset: -2px; }
+  select option:disabled { color: var(--control-muted); opacity: 0.6; }
+}
+.hc-popup {
+  box-sizing: border-box; position: fixed !important; inset: auto;
+  margin: 0; padding: 4px; width: 280px; min-width: 0;
+  border: 1px solid var(--control-line); border-radius: var(--popup-radius);
+  background: var(--control-surface); color: var(--control-text);
+  box-shadow: var(--popup-shadow); overflow-y: auto; overscroll-behavior: contain;
+  font: 400 0.875rem/1.5 var(--font-body, system-ui, sans-serif);
+  z-index: 160;
+}
+.hc-popup[hidden] { display: none !important; }
+.hc-popup :is([role^="menuitem"], .conversation-action-item, .cmenu-files, .quick-prompts button) {
+  box-sizing: border-box; display: flex; align-items: center; gap: 12px;
+  inline-size: 100%; min-block-size: var(--popup-row-height); padding: 8px 12px;
+  border: 0; border-radius: var(--control-radius); background: transparent;
+  color: var(--control-text); text-align: start; text-decoration: none;
+  white-space: normal; overflow-wrap: anywhere; cursor: pointer;
+  font: inherit;
+}
+.hc-popup :is([role^="menuitem"], .conversation-action-item, .cmenu-files, .quick-prompts button):is(:hover, :focus-visible) {
+  background: var(--control-hover); text-decoration: none;
+}
+.hc-popup :focus-visible { outline: 2px solid var(--control-focus); outline-offset: -2px; }
+.hc-popup :is([role^="menuitem"], .conversation-action-item) svg { flex: none; width: 16px; height: 16px; color: var(--control-muted); }
+.hc-popup :is(.is-danger, [data-variant="danger"]) { color: var(--color-semantic-danger); }
+.hc-popup .is-danger svg { color: currentColor; }
+.hc-popup :is(.ms-sep, .cmenu-sep, .conversation-action-divider) { margin: 4px 8px; background: var(--color-semantic-border-strong); }
+.hc-popup :is(.ms-item-note, .cmenu-sub, .skill-picker-item small) { color: var(--control-muted); font-size: 0.75rem; line-height: 1.5; }
+.hc-popup .cmenu-h { margin: 8px 12px 4px; color: var(--control-muted); font-size: 0.75rem; text-transform: none; letter-spacing: normal; }
+.hc-popup .ms-item-main { min-width: 0; }
+.hc-popup .ms-item-name { font-size: 0.875rem; }
+.hc-popup .ms-item-check { flex: none; width: 16px; color: var(--control-selected); }
+.hc-popup .ms-item-check svg { color: inherit; }
+.hc-popup .skill-picker-item { align-items: flex-start; }
+.hc-popup .skill-picker-item input { flex: none; margin-block-start: 4px; width: 16px; height: 16px; accent-color: var(--control-selected); }
+.hc-popup .skill-picker-item span { min-width: 0; overflow-wrap: anywhere; }
+.hc-popup .skill-picker-item b { font-weight: 500; }
+.hc-popup .skill-picker-hint { margin: 4px 12px 8px; color: var(--control-muted); font-size: 0.75rem; }
+.hc-popup[data-popup-kind="dialog"] { width: 344px; }
+.hc-popup[data-popup-layout="sheet"] { width: calc(100% - 16px); }
+.hc-popup .cmenu-row, .hc-popup .cmenu-role-field { padding: 8px 12px; }
+.hc-popup .cmenu-row { min-height: 44px; }
+.hc-popup .cmenu-role-field select { min-height: 44px; font-size: 1rem; }
+.hc-popup .cmenu-facts { padding: 8px 12px; }
+.hc-popup .quick-prompts { display: grid; padding: 0; }
+@media (pointer: coarse), (max-width: 640px) {
+  :root { --popup-row-height: 44px; }
+}
+@media (forced-colors: active) {
+  .hc-popup, select { border-color: ButtonText; box-shadow: none; }
+  .hc-popup :focus-visible, select:focus-visible { outline-color: Highlight; }
+  .hc-popup [aria-checked="true"] { outline: 1px solid Highlight; }
+}

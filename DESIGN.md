@@ -302,6 +302,22 @@ language after explicit user direction ("right angles feel too off"):
   selects are 44px with 16px text so phone browsers do not zoom. Native selects
   open dark surfaces with legible options, and every label, help line, and
   control uses the shared type roles rather than one-off sizes.
+- **Dropdown family** — use shared `controls.css`/`controls.js`, not a local
+  lookalike. Actions are menus with roving focus; selected values are native
+  selects or searchable pickers; panels containing fields use normal form Tab
+  order, not menu semantics. Native form selects progressively adopt a styled
+  browser picker where `appearance: base-select` is supported; other engines
+  retain their native picker, labels, validation, reset and form submission.
+  Popup panels use the shared raised graphite surface, 12px radius, emphasis
+  border, 4px inset, 8px row radius and 40px rows (44px on phone/coarse pointers).
+  Labels are 14px system sans, field values at least 16px, secondary copy 12px.
+  Selection reserves a check lane; focus is azure and distinct from selection.
+  One popup tree is open at a time; Escape closes the innermost layer and restores
+  its trigger, while outside press does not steal the new target's focus. Keep
+  panels in their owner's DOM and use the browser top layer where supported,
+  with viewport-aware placement and bounded internal scrolling. An inline
+  disclosure, FAQ or navigation list is not an ARIA menu. Research, user approval
+  and validation scope: [dropdown standardization](docs/research/dropdown-standardization-2026-10-23.md).
 - **Status chip** — pill, mono 11px, dot + word always together (`● working`,
   `● needs you`, `✕ failed`); colour never carries state alone.
 - **App avatar/sigil** — one flat silhouette from a varied, curated set in one of

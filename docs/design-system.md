@@ -44,6 +44,24 @@ generated token files and the declared WCAG text pairs.
 
 ## Shared visual contract
 
+### Dropdowns and selection
+
+The [approved dropdown direction](research/dropdown-standardization-2026-10-23.md)
+uses `src/hutch/server/static/controls.css` and `controls.js` for both the SPA
+and Jinja pages. Native `<select>` remains the form authority; customizable
+browser pickers enhance its appearance without replacing names, values, reset,
+validation or `change` events. Unsupported engines keep their native picker.
+Action menus, selected-value pickers, multi-select checklists, form popovers,
+and inline disclosures share visual roles but retain distinct semantics.
+
+Use `hutchControls.popup({trigger, panel, kind, side, onClose})` for floating
+controls. Callers own data and actions; the controller owns placement, bounded
+scrolling, focus entry, menu arrows, dismissal and teardown. Keep the panel
+inside its owner, including a native modal; do not body-portal it or disable a
+modal focus trap to make it clickable. `destroy()` releases node listeners;
+detached open panels are cleaned up automatically. Normal inline `<details>`
+and marketing disclosures are not popup menus.
+
 | Role | Shared value | Use |
 |---|---|---|
 | Ground | `#05070a` | App frame and site background |
