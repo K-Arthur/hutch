@@ -1919,6 +1919,9 @@ function botHeading(ref) { return botIdentityParts(ref).name; }
 function botRole(ref) { return botIdentityParts(ref).role; }
 
 let assistantSetupPage = null;
+let assistantSetupGeneration = 0;
+
+window.addEventListener("pagehide", () => assistantSetupPage?.persist());
 
 async function renderAssistantSetupPage() {
   if (!assistantSetupPage) {
@@ -10719,15 +10722,36 @@ async function openOpenCodeSetupDialog(onReady) {
 }
 
 async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot = null, prefillPurpose = "", firstRunChoice = null) {
-  if (assistantSetupPage && !preselect && !sourceMessageId && !duplicateBot && !prefillPurpose) {
-    location.hash = "#/assistant/new";
+  const startsNewDraft = !!(preselect || sourceMessageId || duplicateBot || prefillPurpose || firstRunChoice);
+  if (assistantSetupPage?.isSubmitting()) {
+    toast("Assistant creation is still pending. Wait for its result before starting another setup.");
     return;
   }
+  if (assistantSetupPage && !startsNewDraft) {
+    if (location.hash === "#/assistant/new") await renderAssistantSetupPage();
+    else location.hash = "#/assistant/new";
+    return;
+  }
+  if (startsNewDraft && (assistantSetupPage || loadAssistantSetupDraft())) {
+    const confirmed = await confirmDialog({
+      title: "Replace your unsaved setup?",
+      body: "You already have an assistant setup in this tab. Replacing it discards that draft; Cancel keeps it available.",
+      confirmText: "Replace draft",
+      danger: true,
+    });
+    if (!confirmed) return;
+  }
+  const generation = ++assistantSetupGeneration;
   const returnRoute = location.hash === "#/assistant/new" ? "#/chat" : location.hash || "#/chat";
   const requestedFrom = location.hash;
   let templates;
   try { templates = await api("/bots/templates"); }
-  catch (err) { toast(`Bot setup is unavailable: ${err.message}`, true); return; }
+  catch (err) {
+    if (generation !== assistantSetupGeneration || location.hash !== requestedFrom) return;
+    if (requestedFrom === "#/assistant/new") view.innerHTML = errorState(err);
+    else toast(`Bot setup is unavailable: ${err.message}`, true);
+    return;
+  }
   let taskPresets = [];
   try { taskPresets = await api("/v1/task-presets"); }
   catch { /* choosing a task focus is optional; the server still validates a submitted profile */ }
@@ -10809,8 +10833,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       (openCodeDefault && !modelSuggestion ? "hybrid" : workspaceDefaults.inference_mode || "hybrid"),
     workspace_mode: duplicateBot?.workspace_mode === "fresh" ? "fresh" : "managed",
     // A duplicate is a safe configuration starting point, not a copy of authority.
-    tools: duplicateBot ? new Set() : chosenTemplate ? templateTools(chosenTemplate)
-      : (openCodeDefault && !modelSuggestion ? new Set(["read_file", "list_files", "write_file", "web_fetch"]) : new Set()),
+    tools: duplicateBot ? new Set() : chosenTemplate ? templateTools(chosenTemplate) : new Set(),
     memory_enabled: false,
     local_browser_handoff: false,
     cron: "", timezone: "UTC", catch_up: "coalesce", schedule_prompt: "",
@@ -10822,11 +10845,13 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
   let displayNameEdited = !!duplicateBot;
   let descriptionEdited = !!duplicateBot?.description;
   let addressEdited = false;
+  let draftClosed = false;
+  let persistTimer = 0;
   const restoredSetup = !preselect && !sourceMessageId && !duplicateBot && !prefillPurpose && !firstRunChoice
     ? loadAssistantSetupDraft() : null;
   if (restoredSetup) {
     const saved = restoredSetup.draft;
-    draft.step = Math.min(3, Math.max(0, Number(saved.step) || 0));
+    draft.step = Math.min(3, Math.max(0, Math.floor(Number(saved.step) || 0)));
     draft.forceAdvanced = !!saved.forceAdvanced;
     draft.runtime = typeof saved.runtime === "string" ? saved.runtime : draft.runtime;
     draft.purpose = typeof saved.purpose === "string" ? saved.purpose.slice(0, 20_000) : draft.purpose;
@@ -10853,9 +10878,13 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
         if (Number.isFinite(value) && value >= 0) draft.limits[key] = value;
       }
     }
-    if (restoredSetup.conversationSource && typeof restoredSetup.conversationSource === "object") {
+    if (restoredSetup.conversationSource && typeof restoredSetup.conversationSource.original_request === "string"
+        && Array.isArray(restoredSetup.conversationSource.context_candidates)
+        && restoredSetup.conversationSource.context_candidates.every(message => message && typeof message.id === "string" && typeof message.content === "string")) {
       conversationSource = restoredSetup.conversationSource;
     }
+    draft.useConversationSource = draft.useConversationSource && !!conversationSource;
+    draft.memory_enabled = draft.tools.has("remember") || draft.tools.has("recall");
     draft.purposeRefinementStatus = "Restored your unsaved setup from this tab. Nothing has been saved or created.";
     displayNameEdited = !!draft.display_name;
     descriptionEdited = !!draft.description;
@@ -10909,7 +10938,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     && question.options.length >= 2 && question.options.length <= 5
     && question.options.every(option => typeof option === "string" && option.trim() && option.length <= 240);
   const persistPurposeSetupDraft = () => {
-    if (!purposeSetupStorageKey || !conversationSource || !draft.useConversationSource) return;
+    if (draftClosed || !purposeSetupStorageKey || !conversationSource || !draft.useConversationSource) return;
     const pending = draft.purposeDraftPending;
     storageSet(purposeSetupStorageKey, JSON.stringify({
       version: 1, updated_at: Date.now(), conversation_id: conversationSource.conversation_id,
@@ -11113,6 +11142,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     draft.preset = config.preset || "";
     presetEdited = true;
     draft.model = config.model || "";
+    draft.runtime = config.runtime || "builtin";
     draft.inference_mode = config.inference_mode || "hybrid";
     draft.workspace_mode = config.workspace_mode || "managed";
     draft.tools = new Set(config.tools || []);
@@ -11174,6 +11204,8 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     if (tools) draft.tools = new Set($$("input[name=setup-tool]:checked", tools).map(input => input.value));
   };
   const persistSetupDraft = () => {
+    clearTimeout(persistTimer);
+    if (draftClosed || assistantSetupPage?.element !== element) return;
     snapshotFields();
     saveAssistantSetupDraft({
       conversationSource,
@@ -11563,7 +11595,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     </div>`;
     if (step === 3) content = reviewHtml();
     const root = assistantSetupPage?.element;
-    if (!root?.isConnected) return;
+    if (draftClosed || root !== element || !root?.isConnected) return;
     const body = $(".setup-page-body", root), title = $("#setup-page-title", root), confirm = $("#setup-page-confirm", root);
     if (!body || !title || !confirm) return;
     const sourceQuick = step === 0 && !draft.forceAdvanced && (conversationSource
@@ -11573,8 +11605,8 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       ? sourceQuick ? "Your request is already selected · no need to enter it again"
         : "Quick setup · safe defaults; customize anything before creating"
       : `Step ${step + 1} of ${stepTitles.length}`;
-    body.innerHTML = `<div class="bot-setup" aria-live="polite"><div class="setup-progress">${progress}</div>${back}${content}<p class="setup-error" id="bot-setup-error" role="alert" hidden></p></div>`;
-    body.scrollTop = 0;
+    body.innerHTML = `<div class="bot-setup"><div class="setup-progress" role="status">${progress}</div>${back}${content}<p class="setup-error" id="bot-setup-error" role="alert" hidden></p></div>`;
+    element.scrollTop = 0;
     confirm.textContent = step === 3 || (step === 0 && !draft.forceAdvanced && !!draft.model.trim())
       ? "Create bot" : step === 0 && !draft.forceAdvanced ? "Choose a model" : "Continue";
     confirm.disabled = false;
@@ -11760,14 +11792,12 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       if (draft.runtime === "opencode") {
         draft.inference_mode = "hybrid";
         draft.tools = new Set([...draft.tools].filter(tool => OPENCODE_TOOL_NAMES.has(tool)));
-        if (!draft.tools.size) {
-          draft.tools = new Set(["read_file", "list_files", "write_file", "web_fetch"]);
-        }
         draft.memory_enabled = false;
       }
       await renderStep();
     });
     $("#setup-connect-opencode")?.addEventListener("click", () => {
+      snapshotFields();
       void openOpenCodeSetupDialog(status => {
         draft.runtime = "opencode";
         draft.inference_mode = "hybrid";
@@ -11778,7 +11808,8 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     (step === 0 && draft.purposeClarificationQuestion ? $("#setup-clarification-question")
       : step === 0 && draft.purposeRefinement ? $("#setup-purpose-draft-review")
       : step === 0 ? (conversationSource && draft.useConversationSource && !draft.forceAdvanced
-      ? $("#setup-display_name") : $("#setup-purpose")) : step === 1 ? $("#setup-model") : $("input, textarea, select", body))?.focus();
+      ? $("#setup-display_name") : $("#setup-purpose")) : step === 1 ? $("#setup-model")
+      : step === 3 ? title : $("input, textarea, select", body))?.focus();
     persistSetupDraft();
   };
   const creationKey = async body => {
@@ -11826,20 +11857,29 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
         const bot = await api("/v1/bots", { method: "POST", headers: { "Idempotency-Key": key }, body });
         storageRemove("hutch-pending-bot-create");
         clearFirstRunDraft();
-        clearAssistantSetupDraft();
+        draftClosed = true;
+        clearTimeout(persistTimer);
+        if (assistantSetupPage?.element === element) clearAssistantSetupDraft();
         firstRunSelection = null;
         if (purposeSetupStorageKey) storageRemove(purposeSetupStorageKey);
-        assistantSetupPage = null;
+        if (assistantSetupPage?.element === element) assistantSetupPage = null;
         toast(`Bot “${bot.display_name || draft.display_name}” created. It has not started a run.`);
-        location.hash = `#/chat/${encodeURIComponent(bot.name)}`;
+        if (location.hash === "#/assistant/new" && generation === assistantSetupGeneration) {
+          location.hash = `#/chat/${encodeURIComponent(bot.name)}`;
+        }
         return true;
-      } catch (err) { setError(err.message); if (button) button.disabled = false; return false; }
+      } catch (err) {
+        if (assistantSetupPage?.element === element && element.isConnected) setError(err.message);
+        else toast(`Assistant was not created: ${err.message}`, true);
+        if (button) button.disabled = false;
+        return false;
+      }
   };
   const element = document.createElement("div");
-  if (location.hash !== requestedFrom) return;
+  if (location.hash !== requestedFrom || generation !== assistantSetupGeneration) return;
   element.className = "page-scroll";
   element.innerHTML = `<div class="container setup-page">
-    <div class="setup-step-head"><h2 class="page-title" id="setup-page-title">New assistant</h2></div>
+    <div class="setup-step-head"><h2 class="page-title" id="setup-page-title" tabindex="-1">New assistant</h2></div>
     ${restoredSetup ? `<p class="setup-restored" role="status">Restored your unsaved setup from this tab. Nothing has been saved or created.</p>` : ""}
     <div class="setup-page-body"></div>
     <div class="setup-page-actions">
@@ -11848,8 +11888,17 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       <button class="btn primary" id="setup-page-confirm" type="button">Continue</button>
     </div>
   </div>`;
-  assistantSetupPage = { element, render: renderStep, snapshot: snapshotFields, persist: persistSetupDraft };
   let submitting = false;
+  assistantSetupPage?.close();
+  assistantSetupPage = {
+    element, render: renderStep, snapshot: snapshotFields, persist: persistSetupDraft,
+    isSubmitting: () => submitting,
+    close: () => {
+      draftClosed = true;
+      clearTimeout(persistTimer);
+      if (purposeSetupStorageKey) storageRemove(purposeSetupStorageKey);
+    },
+  };
   $("#setup-page-confirm", element).addEventListener("click", async () => {
     if (submitting) return;
     submitting = true;
@@ -11857,13 +11906,15 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     finally { submitting = false; }
   });
   const discardDraft = () => {
+    if (submitting) return;
+    draftClosed = true;
+    clearTimeout(persistTimer);
     clearAssistantSetupDraft();
+    if (purposeSetupStorageKey) storageRemove(purposeSetupStorageKey);
     assistantSetupPage = null;
     location.hash = returnRoute.startsWith("#") ? returnRoute : "#/chat";
   };
-  $("#setup-discard", element)?.addEventListener("click", discardDraft);
   $("#setup-discard-actions", element)?.addEventListener("click", discardDraft);
-  let persistTimer = 0;
   const schedulePersist = () => {
     clearTimeout(persistTimer);
     persistTimer = setTimeout(persistSetupDraft, 250);

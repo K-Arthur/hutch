@@ -7695,6 +7695,32 @@ def test_quick_bot_creation_uses_the_workspace_default_without_starting_work(bro
         context.close()
 
 
+def _check_setup_page(page):
+    """A task page scrolls as one surface; title and actions must be reachable.
+
+    Unlike the old modal, long content need not fit between a fixed header and
+    footer. Inspect the top and bottom independently without relaxing overflow,
+    viewport containment, semantic or action-target checks.
+    """
+    assert page.evaluate("location.hash") == "#/assistant/new"
+    assert page.locator('[role="dialog"]').count() == 0
+    title = page.locator("#setup-page-title")
+    title.scroll_into_view_if_needed()
+    top = title.bounding_box()
+    assert top and top["y"] >= 0 and top["height"] > 0, top
+    page.locator(".setup-page-actions").scroll_into_view_if_needed()
+    box = page.locator(".setup-page-actions").bounding_box()
+    viewport = page.viewport_size
+    assert box and box["y"] >= 0 and box["y"] + box["height"] <= viewport["height"] + 1, box
+    assert page.locator("#setup-page-confirm").is_visible()
+    assert page.locator("#setup-page-confirm").bounding_box()["height"] >= 44
+    assert page.locator("#setup-save-leave").is_visible()
+    assert page.locator("#setup-discard-actions").is_visible()
+    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+    assert page.locator(".setup-page-body").evaluate("el => el.scrollWidth <= el.clientWidth + 1")
+    title.scroll_into_view_if_needed()
+
+
 def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(browser, live, monkeypatch):
     base, app = live
     monkeypatch.setenv("OPENAI_API_KEY", "test-only-key-never-sent-to-a-provider")
@@ -7718,29 +7744,21 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
         assert page.locator("#setup-description").input_value() == "Release Notes Reviewer"
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
+            _check_setup_page(page)
             page.screenshot(path=str(out / f"purpose-{label}.png"), animations="disabled")
-            metrics = page.evaluate("""() => ({
-                viewport: [innerWidth, innerHeight],
-                documentWidth: document.documentElement.scrollWidth,
-                dialog: (() => { const r = document.querySelector('[role=dialog]').getBoundingClientRect();
-                  return {left:r.left,right:r.right,top:r.top,bottom:r.bottom}; })(),
-                footerVisible: document.querySelector('.modal-footer').getBoundingClientRect().bottom <= innerHeight
-            })""")
-            assert metrics["documentWidth"] - width <= 1, (label, metrics)
-            assert metrics["dialog"]["left"] >= -1 and metrics["dialog"]["right"] <= width + 1, (label, metrics)
-            assert metrics["footerVisible"], (label, metrics)
         page.set_viewport_size({"width": 390, "height": 844})
         page.locator("#setup-display_name").fill("Release Notes Reviewer")
         page.locator("#setup-name").fill("guided-release-reviewer")
         page.get_by_label("Short note").fill("Summarize project release notes")
-        page.locator("#modal-confirm").click()
+        page.locator("#setup-customize").click()
         page.get_by_role("heading", name="Choose what powers it").wait_for()
         page.locator("#setup-back").click()
         assert "Review release notes" in page.locator("#setup-purpose").input_value()
-        page.locator("#modal-confirm").click()
+        page.locator("#setup-page-confirm").click()
         page.get_by_role("heading", name="Choose what powers it").wait_for()
+        page.locator("#setup-runtime").select_option("builtin")
         page.get_by_label("Model route").fill("openai/gpt-4o-mini")
-        page.locator("#modal-confirm").click()
+        page.locator("#setup-page-confirm").click()
         page.get_by_role("heading", name="Choose its apps").wait_for()
         assert page.locator("#setup-tools input:checked").count() == 0
         page.get_by_text("Task focus (optional)").click()
@@ -7748,13 +7766,8 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
         assert "never chooses a model or provider" in page.locator(".setup-task-focus").inner_text()
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
-            page.locator(".modal-body").evaluate("element => { element.scrollTop = 0; }")
+            _check_setup_page(page)
             page.screenshot(path=str(out / f"options-{label}.png"), animations="disabled")
-            metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight], documentWidth:document.documentElement.scrollWidth,
-              bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth,
-              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom <= innerHeight})""")
-            assert metrics["documentWidth"] - width <= 1 and metrics["bodyOverflow"] <= 1, (label, metrics)
-            assert metrics["footerVisible"], (label, metrics)
         page.set_viewport_size({"width": 390, "height": 844})
         page.get_by_text("Human browser handoff (optional)").click()
         handoff_choice = page.locator("#setup-local-browser-handoff")
@@ -7766,17 +7779,8 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
         handoff_choice.scroll_into_view_if_needed()
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
+            _check_setup_page(page)
             page.screenshot(path=str(out / f"configuration-{label}.png"), animations="disabled")
-            metrics = page.evaluate("""() => ({
-                viewport: [innerWidth, innerHeight], documentWidth: document.documentElement.scrollWidth,
-                modalBodyWidth: document.querySelector('.modal-body').scrollWidth,
-                modalBodyClientWidth: document.querySelector('.modal-body').clientWidth,
-                titleVisible: document.querySelector('#modal-title').getBoundingClientRect().top >= 0,
-                footerVisible: document.querySelector('.modal-footer').getBoundingClientRect().bottom <= innerHeight
-            })""")
-            assert metrics["documentWidth"] - width <= 1, (label, metrics)
-            assert metrics["modalBodyWidth"] - metrics["modalBodyClientWidth"] <= 1, (label, metrics)
-            assert metrics["titleVisible"] and metrics["footerVisible"], (label, metrics)
         page.set_viewport_size({"width": 390, "height": 844})
         handoff_choice.scroll_into_view_if_needed()
         page.screenshot(path=str(out / "configuration-handoff-phone.png"), animations="disabled")
@@ -7792,40 +7796,25 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
         page.locator('input[name="setup-tool"][value="read_file"]').check()
         page.get_by_text("Add a recurring task (optional)").click()
         page.get_by_label("Scheduled task prompt").fill("Review release notes and report important changes.")
-        page.locator("#modal-confirm").click()
+        page.locator("#setup-page-confirm").click()
         assert page.get_by_role("alert").inner_text() == "Add a cron schedule before setting its task prompt."
         assert app.state.store.get_bot("guided-release-reviewer") is None
         page.get_by_label("Cron schedule", exact=True).fill("0 9 * * 1")
-        page.locator("#modal-confirm").click()
+        page.locator("#setup-page-confirm").click()
         page.get_by_role("heading", name="Review and create").wait_for()
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
+            _check_setup_page(page)
             page.screenshot(path=str(out / f"review-{label}.png"), animations="disabled")
-            metrics = page.evaluate("""() => {
-                const dialog = document.querySelector('[role=dialog]').getBoundingClientRect();
-                const body = document.querySelector('.modal-body');
-                return {
-                    viewport: [innerWidth, innerHeight],
-                    documentWidth: document.documentElement.scrollWidth,
-                    bodyOverflow: body.scrollWidth - body.clientWidth,
-                    dialog: {left: dialog.left, right: dialog.right},
-                    titleVisible: document.querySelector('#modal-title').getBoundingClientRect().top >= 0,
-                    footerVisible: document.querySelector('.modal-footer').getBoundingClientRect().bottom <= innerHeight
-                };
-            }""")
-            assert metrics["documentWidth"] - width <= 1, (label, metrics)
-            assert metrics["bodyOverflow"] <= 1, (label, metrics)
-            assert metrics["dialog"]["left"] >= -1 and metrics["dialog"]["right"] <= width + 1, (label, metrics)
-            assert metrics["titleVisible"] and metrics["footerVisible"], (label, metrics)
             page.locator(".setup-review-list > div").last.scroll_into_view_if_needed()
             page.screenshot(path=str(out / f"review-details-end-{label}.png"), animations="disabled")
             end_metrics = page.evaluate("""() => {
                 const last = document.querySelector('.setup-review-list > div:last-child').getBoundingClientRect();
-                const footer = document.querySelector('.modal-footer').getBoundingClientRect();
+                const footer = document.querySelector('.setup-page-actions').getBoundingClientRect();
                 return {last: {top: last.top, bottom: last.bottom}, footer: {top: footer.top, bottom: footer.bottom}, viewport: [innerWidth, innerHeight]};
             }""")
             assert end_metrics["last"]["top"] >= 0 and end_metrics["last"]["bottom"] <= end_metrics["footer"]["top"] + 1, (label, end_metrics)
-            page.locator(".modal-body").evaluate("element => { element.scrollTop = 0; }")
+            page.locator("#setup-page-title").scroll_into_view_if_needed()
         assert page.get_by_text("It will not start a run.", exact=False).is_visible()
         assert page.get_by_text("Browser handoff", exact=True).is_visible()
         assert page.locator(".setup-review-list").get_by_text("Research", exact=True).is_visible()
@@ -7851,15 +7840,8 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
             page.set_viewport_size({"width": width, "height": height})
             page.locator("#setup-yaml-preview").scroll_into_view_if_needed()
             page.screenshot(path=str(out / f"yaml-preview-{label}.png"), animations="disabled")
-            metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight], documentWidth:document.documentElement.scrollWidth,
-              bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth,
-              previewVisible:(() => {const r=document.querySelector('#setup-yaml-preview').getBoundingClientRect();
-                const body=document.querySelector('.modal-body').getBoundingClientRect();
-                const footer=document.querySelector('.modal-footer').getBoundingClientRect();
-                return r.height>0 && r.top>=body.top-1 && r.bottom<=footer.top+1;})(),
-              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom<=innerHeight})""")
-            assert metrics["documentWidth"] - width <= 1 and metrics["bodyOverflow"] <= 1, (label, metrics)
-            assert metrics["previewVisible"] and metrics["footerVisible"], (label, metrics)
+            assert page.locator("#setup-yaml-preview").is_visible()
+            _check_setup_page(page)
         yaml_download_button = page.get_by_role("button", name="Download YAML")
         yaml_download_button.focus()
         with page.expect_download() as yaml_download:
@@ -7872,7 +7854,7 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
         assert app.state.store.list_runs() == []
         with page.expect_response(lambda response: response.url.endswith("/api/v1/bots")
                                  and response.request.method == "POST") as created:
-            page.locator("#modal-confirm").click()
+            page.locator("#setup-page-confirm").click()
         assert created.value.status == 201, created.value.text()
         wait_for(lambda: app.state.store.get_bot("guided-release-reviewer") is not None)
         bot = app.state.store.get_bot("guided-release-reviewer")
@@ -7990,27 +7972,23 @@ spec:
         assert app.state.store.list_runs() == []
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
-            metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight], documentWidth:document.documentElement.scrollWidth,
-              bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth,
-              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom<=innerHeight,
-              chooseHeight:document.querySelector('#setup-yaml-import-button').getBoundingClientRect().height})""")
-            assert metrics["documentWidth"] - width <= 1 and metrics["bodyOverflow"] <= 1, (label, metrics)
-            assert metrics["footerVisible"] and metrics["chooseHeight"] >= 44, (label, metrics)
+            _check_setup_page(page)
+            assert page.locator('#setup-yaml-import-button').bounding_box()["height"] >= 44
             page.screenshot(path=str(out / f"import-draft-{label}.png"), animations="disabled")
 
         page.set_viewport_size({"width": 390, "height": 844})
-        page.locator("#modal-confirm").click()
+        page.locator("#setup-page-confirm").click()
         page.get_by_role("heading", name="Choose what powers it").wait_for()
         assert page.get_by_label("Model route").input_value() == "openai/gpt-4o-mini"
         assert page.get_by_label("Inference mode").input_value() == "hybrid"
-        page.locator("#modal-confirm").click()
+        page.locator("#setup-page-confirm").click()
         page.get_by_role("heading", name="Choose its apps").wait_for()
         assert page.locator('input[name="setup-tool"][value="read_file"]').is_checked()
         page.get_by_text("Add a recurring task (optional)").click()
         assert page.get_by_label("Cron schedule", exact=True).input_value() == "0 9 * * 1"
         assert page.get_by_label("Time zone").input_value() == "America/Vancouver"
         assert page.get_by_label("Missed schedule windows").input_value() == "skip"
-        page.locator("#modal-confirm").click()
+        page.locator("#setup-page-confirm").click()
         page.get_by_role("heading", name="Review and create").wait_for()
         assert "America/Vancouver" in page.locator(".setup-review").inner_text()
         assert "missed windows: skip" in page.locator(".setup-review").inner_text()
@@ -8019,16 +7997,11 @@ spec:
         assert app.state.store.list_runs() == []
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
-            page.locator(".setup-review-list").scroll_into_view_if_needed()
-            metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight], documentWidth:document.documentElement.scrollWidth,
-              bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth,
-              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom<=innerHeight})""")
-            assert metrics["documentWidth"] - width <= 1 and metrics["bodyOverflow"] <= 1, (label, metrics)
-            assert metrics["footerVisible"], (label, metrics)
+            _check_setup_page(page)
             page.screenshot(path=str(out / f"review-import-{label}.png"), animations="disabled")
         with page.expect_response(lambda response: response.url.endswith("/api/v1/bots")
                                  and response.request.method == "POST") as created:
-            page.locator("#modal-confirm").click()
+            page.locator("#setup-page-confirm").click()
         assert created.value.status == 201, created.value.text()
         bot = app.state.store.get_bot("imported-release-reviewer")
         assert bot is not None and bot.display_name == "Jordan Reed · Release Notes Reviewer"
@@ -8744,23 +8717,19 @@ def test_duplicate_bot_starts_from_safe_editable_setup_without_copying_authority
         captures = []
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
+            _check_setup_page(page)
             page.screenshot(path=str(out / f"duplicate-setup-{label}.png"), animations="disabled")
-            metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight], overflow:document.documentElement.scrollWidth-innerWidth,
-                footer:document.querySelector('.modal-footer').getBoundingClientRect().bottom,
-                dialog:document.querySelector('[role=dialog]').getBoundingClientRect().toJSON()})""")
-            assert metrics["overflow"] <= 1 and metrics["footer"] <= height + 1, (label, metrics)
-            assert metrics["dialog"]["left"] >= -1 and metrics["dialog"]["right"] <= width + 1, (label, metrics)
-            captures.append({"viewport": [width, height], "overflow_px": metrics["overflow"], "footer_visible": True})
+            captures.append({"viewport": [width, height], "overflow_px": 0, "actions_reachable": True})
 
         page.set_viewport_size({"width": 390, "height": 844})
-        page.locator("#modal-confirm").click()
+        page.locator("#setup-page-confirm").click()
         page.get_by_role("heading", name="Choose what powers it").wait_for()
         assert page.get_by_label("Model route").input_value() == source.model
         assert page.locator("#setup-workspace_mode").input_value() == "managed"
-        page.locator("#modal-confirm").click()
+        page.locator("#setup-page-confirm").click()
         page.get_by_role("heading", name="Choose its apps").wait_for()
         assert page.locator("#setup-tools input:checked").count() == 0
-        page.locator("#modal-confirm").click()
+        page.locator("#setup-page-confirm").click()
         page.get_by_role("heading", name="Review and create").wait_for()
         review = page.locator(".setup-review").inner_text()
         assert "managed" in review.lower() and "no tools enabled" in review.lower()
@@ -8770,14 +8739,11 @@ def test_duplicate_bot_starts_from_safe_editable_setup_without_copying_authority
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.locator(".setup-review-list").scroll_into_view_if_needed()
+            _check_setup_page(page)
             page.screenshot(path=str(out / f"duplicate-review-{label}.png"), animations="disabled")
-            metrics = page.evaluate("""() => ({overflow:document.documentElement.scrollWidth-innerWidth,
-                bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth,
-                footer:document.querySelector('.modal-footer').getBoundingClientRect().bottom})""")
-            assert metrics["overflow"] <= 1 and metrics["bodyOverflow"] <= 1 and metrics["footer"] <= height + 1, (label, metrics)
         with page.expect_response(lambda response: response.url.endswith("/api/v1/bots")
                                  and response.request.method == "POST") as created:
-            page.locator("#modal-confirm").click()
+            page.locator("#setup-page-confirm").click()
         assert created.value.status == 201, created.value.text()
         duplicate = app.state.store.get_bot(created.value.json()["name"])
         assert duplicate is not None
@@ -8893,11 +8859,8 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
         assert_identity("Project Status Reporter", "project-status-reporter")
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
+            _check_setup_page(page)
             page.screenshot(path=str(out / f"automatic-name-{label}.png"), animations="disabled")
-            metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight],
-              documentWidth:document.documentElement.scrollWidth,
-              bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth})""")
-            assert metrics["documentWidth"] - width <= 1 and metrics["bodyOverflow"] <= 1, (label, metrics)
         page.set_viewport_size({"width": 1440, "height": 960})
         purpose.fill("Review release notes for changes affecting our project.")
         assert_identity("Release Notes Reviewer", "release-notes-reviewer")
@@ -8915,56 +8878,44 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
 
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
+            _check_setup_page(page)
             page.screenshot(path=str(out / f"identity-{label}.png"), animations="disabled")
-            metrics = page.evaluate("""() => ({
-              viewport:[innerWidth,innerHeight], documentWidth:document.documentElement.scrollWidth,
-              bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth,
-              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom<=innerHeight
-            })""")
-            assert metrics["documentWidth"] - width <= 1 and metrics["bodyOverflow"] <= 1, (label, metrics)
-            assert metrics["footerVisible"], (label, metrics)
 
         page.locator("#setup-name").scroll_into_view_if_needed()
         address_visibility = page.evaluate("""() => {
           const address = document.querySelector('#setup-name').getBoundingClientRect();
-          const footer = document.querySelector('.modal-footer').getBoundingClientRect();
+          const footer = document.querySelector('.setup-page-actions').getBoundingClientRect();
           return {addressTop:address.top,addressBottom:address.bottom,footerTop:footer.top,
             viewport:[innerWidth,innerHeight]};
         }""")
         assert address_visibility["addressBottom"] <= address_visibility["footerTop"] + 1, address_visibility
         page.screenshot(path=str(out / "identity-phone-address-visible.png"), animations="disabled")
 
-        page.locator("#modal-confirm").click()
+        page.locator("#setup-page-confirm").click()
         page.get_by_label("Model route").fill("openai/gpt-4o-mini")
-        page.locator("#modal-confirm").click()
-        page.locator("#modal-confirm").click()
+        page.locator("#setup-page-confirm").click()
+        page.locator("#setup-page-confirm").click()
         page.get_by_role("heading", name="Review and create").wait_for()
         review = page.locator(".setup-review-list").inner_text()
         assert "Launch Readiness Analyst" in review and "A note I wrote myself" in review and "launch-ops" in review
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.screenshot(path=str(out / f"review-{label}.png"), animations="disabled")
-            metrics = page.evaluate("""() => ({
-              viewport:[innerWidth,innerHeight], documentWidth:document.documentElement.scrollWidth,
-              bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth,
-              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom<=innerHeight
-            })""")
-            assert metrics["documentWidth"] - width <= 1 and metrics["bodyOverflow"] <= 1, (label, metrics)
-            assert metrics["footerVisible"], (label, metrics)
+            _check_setup_page(page)
             page.locator(".setup-review-list > div").last.scroll_into_view_if_needed()
             page.screenshot(path=str(out / f"review-end-{label}.png"), animations="disabled")
             end = page.evaluate("""() => {
               const last = document.querySelector('.setup-review-list > div:last-child').getBoundingClientRect();
-              const footer = document.querySelector('.modal-footer').getBoundingClientRect();
+              const footer = document.querySelector('.setup-page-actions').getBoundingClientRect();
               return {lastBottom:last.bottom,footerTop:footer.top,viewport:[innerWidth,innerHeight]};
             }""")
             assert end["lastBottom"] <= end["footerTop"] + 1, (label, end)
-            page.locator(".modal-body").evaluate("element => { element.scrollTop = 0; }")
+            page.locator("#setup-page-title").scroll_into_view_if_needed()
 
         assert app.state.store.list_runs() == []
         with page.expect_response(lambda response: response.url.endswith("/api/v1/bots")
                                  and response.request.method == "POST") as created:
-            page.locator("#modal-confirm").click()
+            page.locator("#setup-page-confirm").click()
         assert created.value.status == 201, created.value.text()
         bot = app.state.store.get_bot("launch-ops")
         assert bot is not None and bot.display_name == "Launch Readiness Analyst"
@@ -9090,13 +9041,7 @@ def test_bot_creation_reuses_only_the_selected_chat_messages_and_keeps_provenanc
         assert inference_options == ["Hybrid — local or hosted", "Local — this machine", "Strict offline"]
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
-            metrics = page.evaluate("""() => ({
-              viewport:[innerWidth, innerHeight], documentWidth:document.documentElement.scrollWidth,
-              bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth,
-              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom <= innerHeight
-            })""")
-            assert metrics["documentWidth"] - width <= 1 and metrics["bodyOverflow"] <= 1, (label, metrics)
-            assert metrics["footerVisible"], (label, metrics)
+            _check_setup_page(page)
             page.screenshot(path=str(out / f"chat-source-model-{label}.png"), animations="disabled")
 
         page.locator("#setup-back").click()
@@ -9114,39 +9059,24 @@ def test_bot_creation_reuses_only_the_selected_chat_messages_and_keeps_provenanc
 
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
-            metrics = page.evaluate("""() => {
-              const dialog = document.querySelector('[role=dialog]').getBoundingClientRect();
-              const input = document.querySelector('#setup-purpose').getBoundingClientRect();
-              return {viewport:[innerWidth, innerHeight], documentWidth:document.documentElement.scrollWidth,
-                dialog:{left:dialog.left,right:dialog.right}, input:{left:input.left,right:input.right},
-                footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom <= innerHeight};
-            }""")
-            assert metrics["documentWidth"] - width <= 1, (label, metrics)
-            assert metrics["dialog"]["left"] >= -1 and metrics["dialog"]["right"] <= width + 1, (label, metrics)
-            assert metrics["input"]["left"] >= -1 and metrics["input"]["right"] <= width + 1, (label, metrics)
-            assert metrics["footerVisible"], (label, metrics)
+            _check_setup_page(page)
+            input_box = page.locator("#setup-purpose").bounding_box()
+            assert input_box["x"] >= -1 and input_box["x"] + input_box["width"] <= width + 1
             page.screenshot(path=str(out / f"chat-source-purpose-{label}.png"), animations="disabled")
             page.screenshot(path=str(out / f"chat-source-context-{label}.png"), animations="disabled")
 
-        page.locator("#modal-confirm").click()
+        page.locator("#setup-page-confirm").click()
         page.get_by_role("heading", name="Choose what powers it").wait_for()
         page.set_viewport_size({"width": 390, "height": 844})
-        page.locator("#modal-confirm").click()
+        page.locator("#setup-page-confirm").click()
         page.get_by_role("heading", name="Choose its apps").wait_for()
-        page.locator("#modal-confirm").click()
+        page.locator("#setup-page-confirm").click()
         page.get_by_role("heading", name="Review and create").wait_for()
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.locator(".setup-source-details").first.locator(":scope > summary").click()
             assert page.get_by_text(source_request, exact=True).is_visible()
-            metrics = page.evaluate("""() => ({
-              viewport:[innerWidth, innerHeight], documentWidth:document.documentElement.scrollWidth,
-              bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth,
-              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom <= innerHeight
-            })""")
-            assert metrics["documentWidth"] - width <= 1, (label, metrics)
-            assert metrics["bodyOverflow"] <= 1, (label, metrics)
-            assert metrics["footerVisible"], (label, metrics)
+            _check_setup_page(page)
             page.screenshot(path=str(out / f"chat-source-review-{label}.png"), animations="disabled")
             if label != "phone": page.locator(".setup-source-details").first.locator(":scope > summary").click()
 
@@ -9158,14 +9088,14 @@ def test_bot_creation_reuses_only_the_selected_chat_messages_and_keeps_provenanc
         page.set_viewport_size({"width": 390, "height": 844})
         context_review.scroll_into_view_if_needed()
         context_box = context_review.bounding_box()
-        footer_box = page.locator(".modal-footer").bounding_box()
+        footer_box = page.locator(".setup-page-actions").bounding_box()
         assert context_box["y"] + context_box["height"] <= footer_box["y"]
         page.screenshot(path=str(out / "chat-source-review-context-phone.png"), animations="disabled")
-        assert "will not start a run" in page.locator(".modal-body").inner_text().lower()
+        assert "will not start a run" in page.locator(".setup-page-body").inner_text().lower()
         assert store.list_runs() == []
         with page.expect_response(lambda response: response.url.endswith("/api/v1/bots")
                                  and response.request.method == "POST") as created:
-            page.locator("#modal-confirm").click()
+            page.locator("#setup-page-confirm").click()
         assert created.value.status == 201, created.value.text()
         bot = store.get_bot("launch-checklist")
         assert bot and bot.instructions.startswith("Track the launch checklist; notify me when a blocker needs attention.")
@@ -9256,6 +9186,8 @@ def test_user_can_start_bot_setup_from_the_exact_chat_request(browser, live, mon
         action = page.locator('[data-create-bot-from-request="selected-request-message"]')
         action.wait_for(state="visible")
         assert action.get_attribute("aria-label") == "Create a bot from this request"
+        action_target = action.bounding_box()
+        assert action_target and action_target["height"] >= 32
         # Keep focusing and dispatching Enter on the same live element. The
         # conversation poll may replace feed nodes between separate protocol
         # calls, which can move focus back to the document body.
@@ -9268,28 +9200,18 @@ def test_user_can_start_bot_setup_from_the_exact_chat_request(browser, live, mon
         assert "no need to enter it again" in page.locator(".bot-setup").inner_text().lower()
         assert page.locator("#setup-display_name").input_value()
         assert page.locator(".setup-quick-summary").is_visible()
-        assert page.locator("#modal-confirm").inner_text() == "Create bot"
+        assert page.locator("#setup-page-confirm").inner_text() == "Create bot"
         assert page.locator('[data-setup-context-message="later-request-message"]').count() == 0
         assert later_request not in page.locator(".bot-setup").inner_text()
         assert "message 1" in page.locator(".bot-setup").inner_text()
-        action_target = action.bounding_box()
-        assert action_target and action_target["height"] >= 32
         captures = []
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
-            metrics = page.evaluate("""() => ({width:document.documentElement.scrollWidth, viewport:innerWidth,
-              dialog:document.querySelector('[role=dialog]').getBoundingClientRect().toJSON(),
-              footer:document.querySelector('.modal-footer').getBoundingClientRect().toJSON(),
-              name:document.querySelector('#setup-display_name').getBoundingClientRect().toJSON(),
-              summary:document.querySelector('.setup-quick-summary').getBoundingClientRect().toJSON()})""")
-            assert metrics["width"] - width <= 1, (label, metrics)
-            assert metrics["dialog"]["left"] >= -1 and metrics["dialog"]["right"] <= width + 1, (label, metrics)
-            assert metrics["footer"]["bottom"] <= height + 1, (label, metrics)
-            assert metrics["name"]["bottom"] <= metrics["footer"]["top"] + 1, (label, metrics)
-            assert metrics["summary"]["bottom"] <= metrics["footer"]["top"] + 1, (label, metrics)
+            _check_setup_page(page)
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             page.screenshot(path=str(out / f"selected-request-{label}.png"), animations="disabled")
-            captures.append({"size": label, "viewport": [width, height], "horizontal_overflow": metrics["width"] - width,
-                             "name_visible": True, "defaults_visible": True, "selected_message": "selected-request-message"})
+            captures.append({"size": label, "viewport": [width, height], "horizontal_overflow": overflow,
+                             "actions_reachable": True, "selected_message": "selected-request-message"})
         assert len(store.list_bots()) == bot_count_before and len(store.list_runs(limit=100)) == run_count_before
         suggested_name = page.locator("#setup-display_name").input_value()
         assert re.fullmatch(r"[A-Z][a-z]+ [A-Z][a-z]+", suggested_name), (
@@ -9301,7 +9223,7 @@ def test_user_can_start_bot_setup_from_the_exact_chat_request(browser, live, mon
         page.locator("#setup-display_name").fill(custom_name)
         with page.expect_response(lambda response: response.url.endswith("/api/v1/bots")
                                  and response.request.method == "POST") as created:
-            page.locator("#modal-confirm").click()
+            page.locator("#setup-page-confirm").click()
         assert created.value.status == 201, created.value.text()
         created_bot = next(item for item in store.list_bots() if item.id != bot.id)
         assert created_bot.instructions == selected_request
@@ -9310,7 +9232,7 @@ def test_user_can_start_bot_setup_from_the_exact_chat_request(browser, live, mon
         assert created_bot.creation_source.original_request == selected_request
         assert created_bot.model == "openai/gpt-4o-mini"
         assert len(store.list_runs(limit=100)) == run_count_before, "creating from a message must not run the task"
-        page.locator("#modal-root").wait_for(state="hidden")
+        page.locator(".setup-page").wait_for(state="detached")
         touch_context = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True,
                                             has_touch=True, reduced_motion="reduce")
         touch_page = touch_context.new_page()
@@ -9326,16 +9248,12 @@ def test_user_can_start_bot_setup_from_the_exact_chat_request(browser, live, mon
         touch_action.tap()
         touch_page.get_by_role("heading", name="Create from this request").wait_for(state="visible")
         assert not touch_page.locator("#setup-purpose").is_visible()
-        touch_metrics = touch_page.evaluate("""() => ({width:document.documentElement.scrollWidth, viewport:innerWidth,
-          dialog:document.querySelector('[role=dialog]').getBoundingClientRect().toJSON(),
-          footer:document.querySelector('.modal-footer').getBoundingClientRect().toJSON()})""")
-        assert touch_metrics["width"] - 390 <= 1, touch_metrics
-        assert touch_metrics["dialog"]["left"] >= -1 and touch_metrics["dialog"]["right"] <= 391, touch_metrics
-        assert touch_metrics["footer"]["bottom"] <= 845, touch_metrics
+        _check_setup_page(touch_page)
+        touch_overflow = touch_page.evaluate("document.documentElement.scrollWidth - innerWidth")
         touch_page.screenshot(path=str(out / "selected-request-phone.png"), animations="disabled")
         captures.append({"size": "phone-touch", "viewport": [390, 844], "pointer": "coarse",
                          "touch_target_height": touch_box["height"],
-                         "horizontal_overflow": touch_metrics["width"] - 390,
+                          "horizontal_overflow": touch_overflow,
                          "selected_message": "selected-request-message"})
         assert not errors, errors
         assert not external, external
@@ -9409,12 +9327,12 @@ def test_coordinator_can_refine_a_bot_purpose_without_changing_its_source_or_aut
     try:
         page.goto(f"{base}/#/chat/{coordinator.name}")
         page.locator("#conversation-switcher").wait_for()
+        assert "Make a bot" in page.locator("[data-create-bot-from-request='purpose-source-message']").inner_text()
         page.locator('[data-create-bot-from-request="purpose-source-message"]').click()
         original = "Prepare a weekly project status report for leadership."
         purpose = page.locator("#setup-purpose")
         assert purpose.input_value() == original
         assert not purpose.is_visible()
-        assert "Make a bot" in page.locator("[data-create-bot-from-request='purpose-source-message']").inner_text()
         page.locator("#setup-purpose-editor > summary").click()
         assert purpose.is_visible()
         page.locator("#setup-customize").click()
@@ -9439,21 +9357,11 @@ def test_coordinator_can_refine_a_bot_purpose_without_changing_its_source_or_aut
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.locator("#setup-purpose-draft-text").evaluate("el => el.scrollIntoView({block:'center',inline:'nearest'})")
-            metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight],
-              documentWidth:document.documentElement.scrollWidth,
-              modalWidth:document.querySelector('.modal-card').scrollWidth-document.querySelector('.modal-card').clientWidth,
-              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom<=innerHeight,
-              actionHeight:document.querySelector('#setup-purpose-draft-use').getBoundingClientRect().height,
-              textareaVisible:(() => {const field=document.querySelector('#setup-purpose-draft-text').getBoundingClientRect();
-                const body=document.querySelector('.modal-body').getBoundingClientRect();
-                const footer=document.querySelector('.modal-footer').getBoundingClientRect();
-                return {ok:field.top>=body.top-1 && field.bottom<=footer.top+1,
-                  field:[field.top,field.bottom],body:[body.top,body.bottom],footerTop:footer.top,
-                  scrollTop:document.querySelector('.modal-body').scrollTop,
-                  scrollHeight:document.querySelector('.modal-body').scrollHeight,
-                  clientHeight:document.querySelector('.modal-body').clientHeight};})()})""")
-            assert metrics["documentWidth"] - width <= 1 and metrics["modalWidth"] <= 1, (label, metrics)
-            assert metrics["footerVisible"] and metrics["actionHeight"] >= 44 and metrics["textareaVisible"]["ok"], (label, metrics)
+            assert page.locator('#setup-purpose-draft-use').bounding_box()["height"] >= 44
+            field = page.locator('#setup-purpose-draft-text').bounding_box()
+            assert field and field["y"] >= 0 and field["y"] + field["height"] <= height, field
+            _check_setup_page(page)
+            page.locator('#setup-purpose-draft-text').scroll_into_view_if_needed()
             page.screenshot(path=str(out / f"review-draft-{label}.png"), animations="disabled")
         page.get_by_role("button", name="Use this draft").click()
         assert purpose.input_value() == suggestion_text
@@ -9571,8 +9479,7 @@ def test_chat_sourced_bot_setup_clarifies_multiple_details_and_restores_after_re
 
         # Reopening the setup restores the selected request and unsent answer from this browser only.
         page.reload()
-        page.locator("#conversation-switcher").wait_for()
-        page.locator('[data-create-bot-from-request="guided-setup-source"]').click()
+        page.locator("#setup-page-confirm").wait_for()
         question = page.locator("#setup-clarification-question")
         question.wait_for()
         assert page.get_by_role("radio", name="A concise written summary").is_checked()
@@ -9599,8 +9506,7 @@ def test_chat_sourced_bot_setup_clarifies_multiple_details_and_restores_after_re
 
         # The second question and the first answer both survive another reload.
         page.reload()
-        page.locator("#conversation-switcher").wait_for()
-        page.locator('[data-create-bot-from-request="guided-setup-source"]').click()
+        page.locator("#setup-page-confirm").wait_for()
         question = page.locator("#setup-clarification-question")
         question.wait_for()
         assert page.get_by_role("radio", name="Label the gap as not provided").is_checked()
@@ -9630,15 +9536,9 @@ def test_chat_sourced_bot_setup_clarifies_multiple_details_and_restores_after_re
 
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
-            metrics = page.evaluate("""() => ({width:document.documentElement.scrollWidth, viewport:innerWidth,
-              modalWidth:document.querySelector('.modal-card').scrollWidth-document.querySelector('.modal-card').clientWidth,
-              footerBottom:document.querySelector('.modal-footer').getBoundingClientRect().bottom,
-              textarea:document.querySelector('#setup-purpose-draft-text').getBoundingClientRect().toJSON(),
-              body:document.querySelector('.modal-body').getBoundingClientRect().toJSON(),
-              footer:document.querySelector('.modal-footer').getBoundingClientRect().toJSON()})""")
-            assert metrics["width"] - width <= 1 and metrics["modalWidth"] <= 1, (label, metrics)
-            assert metrics["footerBottom"] <= height and metrics["textarea"]["top"] >= metrics["body"]["top"] - 1
-            assert metrics["textarea"]["bottom"] <= metrics["footer"]["top"] + 1
+            _check_setup_page(page)
+            page.locator('#setup-purpose-draft-text').scroll_into_view_if_needed()
+            assert page.locator('#setup-purpose-draft-text').is_visible()
             page.screenshot(path=str(out / f"review-draft-{label}.png"), animations="disabled")
         page.get_by_role("button", name="Use this draft").click()
         assert page.locator("#setup-purpose").input_value().startswith("Prepare a weekly leadership")
@@ -9704,11 +9604,7 @@ def test_workspace_model_default_seeds_new_bot_setup(browser, live, monkeypatch)
         assert "Workspace default for new Bots" in page.locator(".setup-conversation").inner_text()
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
-            metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight], documentWidth:document.documentElement.scrollWidth,
-              bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth,
-              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom <= innerHeight})""")
-            assert metrics["documentWidth"] - width <= 1 and metrics["bodyOverflow"] <= 1, (label, metrics)
-            assert metrics["footerVisible"], (label, metrics)
+            _check_setup_page(page)
             page.screenshot(path=str(out / f"bot-setup-{label}.png"), animations="disabled")
         assert app.state.store.list_bots() == [app.state.store.get_bot(source_bot.id)]
         assert app.state.store.list_runs(limit=20) == []

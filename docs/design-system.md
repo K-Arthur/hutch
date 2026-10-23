@@ -278,3 +278,10 @@ data movement, and status that overstates what the server confirmed. The
 complaint evidence and its confidence boundaries are in
 [`docs/research/complaints.md`](research/complaints.md). Treat individual reports
 as acceptance scenarios, not estimates of how common a problem is.
+### Setup recovery boundaries
+
+Assistant setup stays in the current tab through navigation and reload. Flush the
+latest edit before page exit, cancel pending persistence on discard/create, and
+ask before replacing an existing draft with a template, duplicate or chat source.
+A delayed create result must not take over the next page. Blank setups and runtime
+switches do not grant tools; only explicit selections or reviewed templates do.
