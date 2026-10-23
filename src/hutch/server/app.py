@@ -235,6 +235,7 @@ class BotCreate(BaseModel):
     name: str
     display_name: Optional[str] = Field(default=None, max_length=80)
     template: Optional[str] = None
+    runtime: Literal["builtin", "opencode"] = "builtin"
     preset: Optional[str] = Field(default=None, max_length=80)
     description: str = ""
     instructions: str = ""
@@ -412,7 +413,7 @@ class BotPatch(BaseModel):
     instructions: Optional[str] = None
     model: Optional[str] = None
     preset: Optional[str] = Field(default=None, max_length=80)
-    runtime: Optional[Literal["builtin"]] = None
+    runtime: Optional[Literal["builtin", "opencode"]] = None
     inference_mode: Optional[InferenceMode] = None
     tools: Optional[list[str]] = None
     skills: Optional[list[str]] = Field(default=None, max_length=MAX_SKILLS_PER_BOT)
@@ -1553,6 +1554,23 @@ class ConnectionAction(BaseModel):
     tokens: Optional[int] = None
 
 
+class OpenCodeKeyRequest(BaseModel):
+    integration_id: str = Field(min_length=1, max_length=100)
+    key: str = Field(min_length=1, max_length=4096)
+    label: str = Field(default="", max_length=80)
+
+
+class OpenCodeOAuthStart(BaseModel):
+    integration_id: str = Field(min_length=1, max_length=100)
+    method_id: str = Field(min_length=1, max_length=100)
+
+
+class OpenCodeOAuthComplete(BaseModel):
+    integration_id: str = Field(min_length=1, max_length=100)
+    attempt_id: str = Field(min_length=1, max_length=200)
+    code: str = Field(default="", max_length=4096)
+
+
 class ChatGPTSignInRequest(BaseModel):
     account_id: Optional[str] = None
 
@@ -1993,6 +2011,24 @@ def create_app() -> FastAPI:
     store = Store(config)
     engine = Engine(config, store)
     scheduler = engine.scheduler
+    opencode_setup: dict[str, Any] = {"server": None, "lock": threading.Lock()}
+
+    def setup_opencode_server():
+        """One private setup server so OAuth attempts survive polling."""
+        with opencode_setup["lock"]:
+            server = opencode_setup["server"]
+            if server is not None:
+                try:
+                    server.info()
+                    return server
+                except Exception:
+                    server.close()
+                    opencode_setup["server"] = None
+            from ..runtime.opencode_server import OpenCodeServer
+            server = OpenCodeServer(config.state_dir)
+            server.start()
+            opencode_setup["server"] = server
+            return server
 
     @contextlib.asynccontextmanager
     async def lifespan(app_: FastAPI):
@@ -2005,6 +2041,10 @@ def create_app() -> FastAPI:
             stop.set()
             store.bus.notify("work", remote=False)
             engine.shutdown()          # let in-flight runs record their outcome before the DB closes
+            with opencode_setup["lock"]:
+                if opencode_setup["server"] is not None:
+                    opencode_setup["server"].close()
+                    opencode_setup["server"] = None
             store.close()
 
     app = FastAPI(title="hutch", version=__version__, docs_url="/api/openapi.json", lifespan=lifespan,
@@ -3885,10 +3925,12 @@ def create_app() -> FastAPI:
         ]
 
     @app.get("/api/v1/model-routes")
-    def model_routes_v1(inference_mode: InferenceMode = InferenceMode.hybrid) -> list[dict]:
+    def model_routes_v1(inference_mode: InferenceMode = InferenceMode.hybrid,
+                        runtime: Literal["builtin", "opencode"] = "builtin") -> list[dict]:
         """Return route choices for setup without creating a bot or run."""
         from ..modelchoices import choices_json, model_choices
-        draft = Bot(name="bot-setup-draft", model="", tools=[], inference_mode=inference_mode)
+        draft = Bot(name="bot-setup-draft", model="", tools=[], inference_mode=inference_mode,
+                    runtime=RuntimeKind(runtime))
         return choices_json(model_choices(config, store, draft))
 
     _WORKSPACE_MODEL_DEFAULTS_KEY = "workspace:model-defaults"
@@ -4225,11 +4267,13 @@ def create_app() -> FastAPI:
         bot.instructions = body.instructions or bot.instructions
         if "preset" in body.model_fields_set:
             bot.preset = _checked_task_preset(body.preset)
+        bot.runtime = RuntimeKind(body.runtime)
         workspace_defaults = get_workspace_model_defaults()
         requested_model = body.model.strip()
         inherited_default = not requested_model and bool(workspace_defaults["model"])
-        bot.model = requested_model or workspace_defaults["model"]
-        selected_mode = body.inference_mode or InferenceMode(workspace_defaults["inference_mode"])
+        bot.model = requested_model or ("" if bot.runtime is RuntimeKind.opencode else workspace_defaults["model"])
+        selected_mode = body.inference_mode or (InferenceMode.hybrid if bot.runtime is RuntimeKind.opencode
+                                                 else InferenceMode(workspace_defaults["inference_mode"]))
         from ..providers.registry import validate_inference_mode, validate_offline_bot
         try:
             validate_inference_mode(selected_mode, bot.model, base_url=body.base_url)
@@ -7093,6 +7137,71 @@ def create_app() -> FastAPI:
             book.remove(name)
             return {"ok": True, "detail": f"Removed {name} and its stored key."}
         raise HTTPException(404, "Unknown action.")
+
+    # ------------------------------------------------------- OpenCode assistant
+    # OpenCode owns its provider credentials. Hutch never imports another
+    # OpenCode profile, and these routes never return a secret.
+
+    def _opencode_status() -> dict:
+        from ..code_handoff import CodeHandoffError
+        from ..runtime.opencode_server import OpenCodeServerError, status_summary
+        try:
+            return status_summary(setup_opencode_server())
+        except (OpenCodeServerError, CodeHandoffError) as exc:
+            raise HTTPException(503, str(exc)) from None
+
+    @app.get("/api/v1/opencode/status")
+    def opencode_status() -> dict:
+        return _opencode_status()
+
+    @app.post("/api/v1/opencode/connect/key")
+    def opencode_connect_key(body: OpenCodeKeyRequest) -> dict:
+        from ..code_handoff import CodeHandoffError
+        from ..runtime.opencode_server import OpenCodeServerError
+        try:
+            setup_opencode_server().connect_key(body.integration_id, body.key, label=body.label)
+        except (OpenCodeServerError, CodeHandoffError) as exc:
+            raise HTTPException(400, str(exc)) from None
+        return {"ok": True, "detail": "OpenCode saved this provider account in Hutch's private profile."}
+
+    @app.post("/api/v1/opencode/oauth/start")
+    def opencode_oauth_start(body: OpenCodeOAuthStart) -> dict:
+        from ..code_handoff import CodeHandoffError
+        from ..runtime.opencode_server import OpenCodeServerError
+        try:
+            attempt = setup_opencode_server().start_oauth(body.integration_id, body.method_id)
+        except (OpenCodeServerError, CodeHandoffError) as exc:
+            raise HTTPException(400, str(exc)) from None
+        return {"attempt": attempt}
+
+    @app.get("/api/v1/opencode/oauth/{integration_id}/{attempt_id}")
+    def opencode_oauth_status(integration_id: str, attempt_id: str) -> dict:
+        from ..code_handoff import CodeHandoffError
+        from ..runtime.opencode_server import OpenCodeServerError
+        try:
+            return {"attempt": setup_opencode_server().oauth_status(integration_id, attempt_id)}
+        except (OpenCodeServerError, CodeHandoffError) as exc:
+            raise HTTPException(400, str(exc)) from None
+
+    @app.post("/api/v1/opencode/oauth/complete")
+    def opencode_oauth_complete(body: OpenCodeOAuthComplete) -> dict:
+        from ..code_handoff import CodeHandoffError
+        from ..runtime.opencode_server import OpenCodeServerError
+        try:
+            setup_opencode_server().complete_oauth(body.integration_id, body.attempt_id, body.code)
+        except (OpenCodeServerError, CodeHandoffError) as exc:
+            raise HTTPException(400, str(exc)) from None
+        return {"ok": True, "detail": "OpenCode completed this sign-in."}
+
+    @app.delete("/api/v1/opencode/oauth/{integration_id}/{attempt_id}")
+    def opencode_oauth_cancel(integration_id: str, attempt_id: str) -> dict:
+        from ..code_handoff import CodeHandoffError
+        from ..runtime.opencode_server import OpenCodeServerError
+        try:
+            setup_opencode_server().cancel_oauth(integration_id, attempt_id)
+        except (OpenCodeServerError, CodeHandoffError) as exc:
+            raise HTTPException(400, str(exc)) from None
+        return {"ok": True, "detail": "OpenCode sign-in was cancelled."}
 
     # ------------------------------------------------------- pages + static
 

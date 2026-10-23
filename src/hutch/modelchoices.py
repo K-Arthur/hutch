@@ -23,13 +23,13 @@ from typing import Any, Optional
 from .connections import ConnectionBook
 from .fit import estimate_fit
 from .hardware import Hardware, probe
-from .models import Bot
+from .models import Bot, RuntimeKind
 from .providers.pricing import LOCAL_PROVIDERS, PriceBook
 from .providers.registry import is_local, parse_spec
 
 HOSTED_KEYS = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}
 LOCAL_RUNTIMES = {"ollama", "lmstudio", "llamacpp", "llama.cpp", "vllm"}
-KNOWN_PROVIDERS = LOCAL_PROVIDERS | set(HOSTED_KEYS) | {"openai-compatible"}
+KNOWN_PROVIDERS = LOCAL_PROVIDERS | set(HOSTED_KEYS) | {"openai-compatible", "opencode"}
 _TTL = 5.0
 _CACHE_MAX = 128
 OPENROUTER_POPULAR_LIMIT = 40
@@ -155,6 +155,40 @@ def _hosted_choices(bot: Bot, book: PriceBook) -> list[Choice]:
             spec=p.model, label=model, group="Hosted", state="ready" if has else "setup", hosted=True,
             note=(notes[0] if has else f"needs {env}"), fix="" if has else f"set {env} where hutch starts",
             detail=notes + [f"sends this chat to {provider}"]))
+    return out
+
+
+def _opencode_choices(config: Any, bot: Bot) -> list[Choice]:
+    """Models in the private OpenCode profile. Starts the owned local server only on request."""
+    from .runtime.opencode_server import OpenCodeServer, OpenCodeServerError
+
+    def discover():
+        server = OpenCodeServer(config.state_dir)
+        try:
+            server.start()
+            return server.models()
+        except OpenCodeServerError:
+            return []
+        finally:
+            server.close()
+
+    try:
+        models = _cached(f"opencode-models:{config.state_dir}", discover, ttl=60.0)
+    except Exception:
+        models = []
+    out: list[Choice] = []
+    for model in models:
+        note = "OpenCode-managed account"
+        if model.context:
+            note += f" · {model.context // 1024}k context"
+        if model.output:
+            note += f" · {model.output // 1024}k output"
+        out.append(Choice(spec=model.spec, label=model.name or model.model_id,
+                          group=f"OpenCode · {model.provider_id}", state="ready",
+                          note=note, hosted=True,
+                          detail=[f"OpenCode provider {model.provider_id}",
+                                  f"OpenCode model {model.model_id}",
+                                  "routes through the private OpenCode profile; model billing belongs to that account"]))
     return out
 
 
@@ -294,7 +328,10 @@ def model_choices(config: Any, store: Any, bot: Bot, hw: Optional[Hardware] = No
     choices.append(own)
     seen = {bot.model}
     allow_hosted_discovery = discover_hosted_models and bot.inference_mode.value not in ("local", "offline")
+    opencode = (_opencode_choices(config, bot)
+                if bot.runtime is RuntimeKind.opencode and allow_hosted_discovery else [])
     for c in (_local_choices(bot, hw, provider) + _hosted_choices(bot, book)
+              + opencode
               + _connection_choices(bot, store, cbook, known,
                                     discover_hosted_models=allow_hosted_discovery, model_query=model_query)):
         if bot.inference_mode.value in ("local", "offline") and not is_local(c.spec):
@@ -337,6 +374,16 @@ def validate_override(config: Any, store: Any, bot: Bot, spec: str, hw: Optional
     if provider == "mock":
         raise ModelNotUsable("Mock inference is test-only and cannot run user tasks",
                              "choose a configured Ollama, OpenAI, Anthropic, or compatible model route", 422)
+    if bot.runtime is RuntimeKind.opencode:
+        parts = spec.split("/")
+        if provider != "opencode" or len(parts) != 3 or not all(parts):
+            raise ModelNotUsable(
+                f"'{spec}' is not an OpenCode model route",
+                "choose a model from the OpenCode provider list (opencode/provider/model)", 422)
+        if bot.inference_mode.value in ("local", "offline"):
+            raise ModelNotUsable("OpenCode assistant routes require Hybrid inference mode",
+                                 "switch this Bot to Hybrid, or use a local model on the built-in runtime", 409)
+        return spec
     if bot.inference_mode.value in ("local", "offline") and not is_local(spec):
         label = "Strict offline" if bot.inference_mode.value == "offline" else "Local model routes"
         raise ModelNotUsable(

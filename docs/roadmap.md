@@ -114,8 +114,9 @@ pinned in the primary roster without hiding active work; pinning is a navigation
    prepare a durable task against the Bot's configured Git folder. The owner launches the installed OpenCode CLI locally from a
    Linux terminal; Hutch pins the branch to the reviewed commit and keeps the result in a separate worktree. OpenCode's own
    permission prompts, model sign-in and usage remain outside Hutch's broker and budget controls, and approved shell commands
-   retain the user's host authority. This does not enable OpenCode/Pi as Hutch-managed runtimes. Live CLI startup/model behavior
-   is still unverified; see the dated research and `/api/v1/code-handoffs` contract.
+   retain the user's host authority. This is separate from the OpenCode assistant runtime, which is now available through a
+   Hutch-owned private server, once/reject approval and usage reservation. Pi remains unavailable. Live CLI startup/model
+   behavior is still unverified; see the dated research and `/api/v1/code-handoffs` contract.
 
 Gmail search requires Google's restricted OAuth scope under the current provider documentation.
 Public support depends on completing the required Google app verification and any security
@@ -151,10 +152,10 @@ Strict Offline Linux runs; it does not complete the broader S6 collaboration pla
 
 - [x] Bot CRUD + starter templates (CLI, dashboard, REST)
 - [x] Built-in agent loop (OpenAI-compatible: OpenAI / Ollama / llama.cpp / LM Studio / custom base URL)
-- [x] Recover legacy Pi/OpenCode bot records by explicitly moving an idle bot to Hutch's built-in executor after its saved Hutch model route validates. This does not enable either external runtime or copy its credentials.
+- [x] Recover legacy Pi/OpenCode bot records by explicitly moving an idle bot to Hutch's built-in executor after its saved Hutch model route validates. This does not copy external credentials. The OpenCode assistant runtime is now separately enabled with an owned private profile; Pi remains disabled.
 - [x] Per-bot Hybrid and Local model routing; known hosted route/fallback switching is blocked in Local mode. Local tools may still use the network.
 - [x] Test-only deterministic scenario fixture — exercises policy and tool plumbing without a model; not packaged or selectable in production
-- [ ] External runtime adapters (Pi, OpenCode): currently fail closed. Offline bounded protocol helpers exist; process I/O drainers, loss-recoverable OpenCode events, permission brokering, sandboxed process ownership, shared budget reservations and route/session mapping are required before re-enabling.
+- [x] OpenCode assistant runtime: owned private server, explicit model route, once/reject permission brokering, durable message reconciliation, shared budget reservation and conversation/session mapping. Approved OpenCode tools run outside the built-in sandbox. [ ] Pi remains fail-closed until it can meet the same process, approval and usage boundary.
 - [x] Reviewed, owner-launched OpenCode CLI coding task: durable chat handoff, pinned isolated Git worktree, restrictive task profile, bounded iterations, verified process cleanup; no Hutch-managed runtime, brokered OpenCode approvals or Hutch usage cap
 - [x] Tools: shell (workspace-jailed, minimal env, HOME redirect), files (path jail),
       memory (SQLite facts), web_fetch (SSRF guards, clipping), browser (Playwright optional,
@@ -185,7 +186,7 @@ Strict Offline Linux runs; it does not complete the broader S6 collaboration pla
 - [ ] Vector memory (local embeddings, sqlite-vec) with inspectable recall
 - [ ] Webhook/event triggers (file-watch, HTTP inbox) alongside cron
 - [ ] Multi-step workflow templates (chained runs, hand-off artifacts) — *partly superseded*: dynamic workflows landed as saved, validated plans with bounded execution, verification and published artifacts (see `docs/workflows.md`). Existing routines can link to an activated immutable workflow revision and run it on schedule or with owner-triggered Run now; workflow-native triggers and general scheduling remain planned.
-- [ ] Pi/OpenCode adapters: match published RPC/CLI contracts; broker approvals and provider budgets; strict process containment
+- [x] OpenCode adapter: owned private server, explicit model route, permission brokering, durable reconciliation and shared usage reservation. [ ] Pi adapter and OS-contained OpenCode tool execution remain open.
 - [~] Bounded same-bot `delegate_task` preview: Strict Offline and process-executor only, always human-approved, private child workspaces, task-text-only context, bounded depth/steps/time and inherited usage reservations. Parallel children, specialist selection, artifact transfer, cross-bot delegation and a plan UI are not implemented; see `realignment/delegation.md`.
 - [~] Browser tool: same-session human handoff is experimental on a local Linux desktop; HTTP(S)/WebSocket DNS-pinned egress has local Chromium fixture coverage. Bounded HTTP handoff is locally verified with a process worker. Live headed challenges, non-HTTP traffic, physical phones and general download formats remain open. Immutable-ID profiles, reviewed workspace text uploads and bounded same-origin HTTP text downloads have real mixed-workflow coverage.
 

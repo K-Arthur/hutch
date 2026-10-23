@@ -91,8 +91,9 @@ Stop fences capture registration and kills owned capture processes too. Shared b
 quota and frame IDs across instances. Upload review allows one selected file across the whole form, before allocating its
 hash buffer. Managed downloads retain at most eight files / 16 MB per browser run, within the shared artifact limit.
 Clipboard, drag/held input and authenticated PTY transfer are unsupported. Strict Offline excludes browser/computer tools;
-its governed file/shell loop uses the configured loopback model broker in a network-isolated worker. OpenCode/Pi Bot
-executors still refuse before process creation until equivalent authority can be enforced.
+its governed file/shell loop uses the configured loopback model broker in a network-isolated worker. The OpenCode assistant
+runtime is available with once/reject permission brokering, but its approved tools run outside this built-in sandbox. Pi
+still refuses before process creation.
 
 ## Observation and images
 

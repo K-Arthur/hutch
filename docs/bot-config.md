@@ -178,10 +178,11 @@ Unavailable configured routes are not silently replaced: selecting one is refuse
 Strict Offline rejects any hosted role route, just as it rejects hosted fallbacks and escalation. The route mappings are
 saved through `PATCH /api/bots/<name>` as `task_routes` and can be inspected with the Bot resource.
 
-Pi and OpenCode executor records also remain readable, but those external executors are unavailable
-until Hutch can own their processes, broker permissions and reserve provider budgets. Settings can
-move an idle legacy bot to Hutch's built-in runtime after its saved model route is usable. This
-switch uses Hutch's model connection, tools and approval policy; credentials or sign-in state saved
+Legacy Pi and OpenCode executor records remain readable. The OpenCode assistant runtime is now
+available through a Hutch-owned private server with once/reject permission brokering and usage
+reservations; its approved tools run outside the built-in shell sandbox. Pi remains unavailable.
+Settings can move an idle legacy bot to Hutch's built-in runtime after its saved model route is usable.
+This switch uses Hutch's model connection, tools and approval policy; credentials or sign-in state saved
 by Pi or OpenCode are never imported. An active run or missing Hutch route blocks the switch.
 
 Separately, an owner may prepare a reviewed coding task from a completed Studio answer when this Bot uses an existing Git
@@ -192,8 +193,10 @@ run the card's `hutch code run <task-id>` command. Choose the model in OpenCode;
 permission prompts remain outside Hutch: commands approved there run with the Linux user's filesystem, process and network
 authority and are not contained by Hutch's bubblewrap shell sandbox. Hutch creates a separate worktree at the reviewed commit and
 does not change the source folder, commit, push, deploy or automatically apply the branch. Inspect it manually before use. Avoid
-secrets in the task. OpenCode runtime selection remains disabled; see the [handoff research](research/opencode-coding-handoff-2026-10-09.md)
-for the experimental boundary and verification gaps.
+secrets in the task. The full OpenCode assistant runtime is separate from this reviewed coding handoff: it uses its own
+private profile, brokers permission prompts through Hutch, and reserves usage. Its approved shell/edit actions still run
+with the Linux user's authority rather than inside the built-in bubblewrap sandbox; see ADR-0007 and the
+[handoff research](research/opencode-coding-handoff-2026-10-09.md) for the remaining boundary.
 
 Set the route policy with `hutch bot create helper --model ollama/llama3.2 --inference-mode local`
 or update it with `hutch bot update helper --inference-mode local`. The model must also be an
@@ -314,15 +317,22 @@ provider-side billing limits.
 
 ## Examples
 
-Weekly research bot on a local model, approvals on:
+OpenCode research assistant with a working folder, approvals on:
 
 ```bash
-hutch bot create weekly-research \
-  --template research-briefing \
-  --model ollama/llama3.2 \
-  --tools web_fetch,files,memory \
-  --cron "0 9 * * 1" --tz Europe/Berlin \
+hutch bot create research-assistant \
+  --template research-decisions \
+  --workdir ~/Documents/research \
+  --model opencode/anthropic/claude-haiku-5-5 \
   --approvals ask
+```
+
+Add a recurring run separately after the one-off task works:
+
+```bash
+hutch bot update research-assistant \
+  --cron "0 9 * * 1" --tz Europe/Berlin \
+  --schedule-prompt "Review the question in question.md and refresh decision-brief.md."
 ```
 
 Give scheduled work its own task prompt instead of using the bot's standing instructions:
@@ -340,12 +350,13 @@ Clear `--schedule-prompt` with an empty value to return to the standing-instruct
 Use `--clear-cron` to remove the first task. Use `hutch bot schedules remove` to remove any
 specific task stream.
 
-Trusted cleanup bot, auto-approve within policy:
+Data brief with local analysis commands, auto-approve within policy:
 
 ```bash
-hutch bot create tidy \
-  --template tidy-downloads \
-  --model openai/gpt-4o-mini \
+hutch bot create data-brief \
+  --template data-brief \
+  --workdir ~/Documents/data \
+  --model openai/gpt-5.4 \
   --approvals auto \
   --max-steps 12 --timeout-seconds 300 --daily-token-cap 50000
 ```
@@ -353,17 +364,24 @@ hutch bot create tidy \
 Inspect what a bot remembers and what it's been allowed to do:
 
 ```bash
-hutch bot show tidy          # bounded fact inventory + sticky allows + recent runs
-hutch bot forget tidy        # archive all facts; revoke sticky allows; history remains
+hutch bot show data-brief     # bounded fact inventory + sticky allows + recent runs
+hutch bot forget data-brief   # archive all facts; revoke sticky allows; history remains
 ```
 
 ## Templates
 
 Available from `hutch bot templates` (`src/hutch/templates.py`); `hutch init` creates no bots:
 
-- **research-briefing** — weekly web research → `report.md`, dedupes via memory (scheduled Mon 09:00 UTC)
-- **repo-sweeper** — on-demand TODO/FIXME sweep of the workspace repo, reports only
-- **tidy-downloads** — sorts workspace files; deliberately `ask` mode so you can watch approvals work
+- **personal-assistant** — everyday requests, plans and review-ready drafts
+- **day-planner** — tasks and constraints → a realistic prioritized plan
+- **inbox-followups** — exported messages → commitments and review-ready reply drafts
+- **research-decisions** — a decision question → a sourced `decision-brief.md`
+- **project-coordinator** — project notes and git history → `project-status.md`
+- **meeting-followthrough** — meeting notes → `actions.md`
+- **document-workbench** — notes and data → a finished DOCX or Markdown document
+- **data-brief** — CSV/Excel → a checkable `data-brief.md`
+
+See [templates](templates.md) for inputs, outputs and tool boundaries. No template starts with a schedule.
 
 Browser account profiles follow immutable bot IDs, so renaming an assistant retains its persistent login and recycling a
 name cannot borrow it. Legacy name-scoped profiles are left for manual backup/relogin. Browser uploads and downloads use

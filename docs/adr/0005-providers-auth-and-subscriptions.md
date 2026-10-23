@@ -28,7 +28,8 @@ sends `OPENAI_API_KEY` to whatever URL it is given (baseline lead 5).
    | Direct API: Anthropic, OpenAI, OpenAI-compatible with an explicit connection | supported (contract-tested with recorded fixtures; live only when a key is supplied) | |
    | Ollama native | supported (offline contract tests; live only where Ollama is installed) | |
    | OpenCode Go / Zen as a **provider connection** | experimental | Hutch does not reuse OpenCode's CLI sign-in; the user signs into OpenCode Go, copies its issued provider API key, and stores that key in Hutch. Hutch sends its own `User-Agent` and `x-opencode-session`; terms establish coding-agent traffic, not general assistant eligibility (B3). |
-   | OpenCode / Pi as **harness** | disabled; not supported executors | no approval broker, sandboxed process, or enforceable shared usage reservation; see ADR-0007 |
+   | OpenCode as **harness** | enabled through an owned private profile | explicit model selection, once/reject permission broker and shared usage reservation; approved tools run outside the built-in sandbox (ADR-0007) |
+   | Pi as **harness** | disabled | no per-action approval hook or shared usage reservation; see ADR-0007 |
    | Sign in with ChatGPT token sharing (local app) | experimental, opt-in and eligibility unconfirmed | Implemented as a separate PKCE/OIDC public-client route, owner-only local token store and fixed Responses API adapter (`store:false`, `stream:true`). Reauthorization retains the issued client and host IDs and uses OpenAI's `id_token_hint`; local functions use preview-supported `additional_tools` input items. Hutch omits preview-unsupported fields (B1, B2); the preview does not accept an output-token ceiling, so Hutch's usage admission is not a hard spend cap. No eligibility or live account use is claimed. |
    | Cookie scraping, spoofed client identity, credential laundering through a harness | blocked | never implemented |
 

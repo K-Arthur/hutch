@@ -9,8 +9,9 @@ checkpoint and request a fresh run; Hutch does not resume an old worker or repla
 
 Hosted agent products (OpenAI dots, Grok Bot) give each agent a computer in the vendor's cloud. hutch runs on your
 machine instead: the orchestrator, memory, logs and bots live in one directory on your disk, with models you choose, local
-(Ollama, llama.cpp, LM Studio) or hosted (Anthropic, OpenAI, any OpenAI-compatible API). The trade-off is that
-nothing runs while the machine is asleep.
+(Ollama, llama.cpp, LM Studio) or hosted (OpenCode, Anthropic, OpenAI, OpenRouter, any OpenAI-compatible API). OpenCode is
+the full assistant runtime: connect its provider by API key or supported sign-in, pick an `opencode/provider/model`, and
+keep Hutch's approval and usage controls around it. The trade-off is that nothing runs while the machine is asleep.
 
 **Status.** What works and what does not is tracked in [docs/realignment/baseline.md](docs/realignment/baseline.md) (measured
 today) and [docs/realignment/ledger.md](docs/realignment/ledger.md) (what is being fixed). Not published: the repository is private
@@ -134,7 +135,7 @@ Review the retained branch manually. Hutch does not apply or publish it; see [op
   the owned Chromium context sends HTTP(S) and WebSocket traffic through a local DNS-pinning proxy with implicit local bypass disabled.
   Local fixtures exercise the proxy; live public destinations and non-HTTP browser traffic are not verified. Physical-phone and live-network input remain unverified.
 - **Computer use (experimental)** — beyond the browser, a Bot may operate a native desktop application in a disposable, isolated KWin Wayland session Hutch starts for the run (separate display/input; apps have workspace-only user files, no network and bounded resources). Browser and desktop observations are bounded frames with honest freshness, sent only to routes that accept images (hosted routes need an explicit Bot setting); control ownership is generation-fenced; stop works while a call is hung. Verified on KDE Plasma Wayland with KWrite and real Chromium; the existing personal desktop, portal consent flow, GNOME and macOS/Windows are not implemented. Bounded authenticated human step control works in local HTTP/viewport and native-input tests; physical phones and live remote networks remain unverified. Run `hutch computer doctor`. See [docs/computer-use.md](docs/computer-use.md).
-- **External runtimes** — the Pi and OpenCode bot runtimes are recognized in old bot configs but disabled before starting a process. Hutch's permission broker, process containment and provider budget path for those runtimes are not ready. The experimental OpenCode coding handoff launches the user's interactive CLI separately; it does not make OpenCode a Hutch runtime.
+- **OpenCode assistant** — a full OpenCode runtime is available through a Hutch-owned private profile. Connect a provider by API key or the provider's supported sign-in, choose an `opencode/provider/model` route, and chat with Hutch-brokered approvals and usage reservations. OpenCode's own tools run with the user's OS authority after approval; they are not inside the built-in shell's bubblewrap sandbox. Pi remains disabled. The separate OpenCode coding handoff still launches the interactive CLI for a reviewed coding task.
 
 To opt a local Linux bot into the bounded child-task tool, use a supported numeric-loopback model route and verified Strict Offline
 host support, then run `hutch bot update <name> --inference-mode offline --sandbox strict --tools files,delegate_task`. Review the

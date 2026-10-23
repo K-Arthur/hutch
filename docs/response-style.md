@@ -18,7 +18,7 @@ On a completed built-in answer, **Shorter**, **Go deeper**, and **Less banter** 
 
 The **Helpful** and **Needs work** controls save a rating for that specific answer. A Needs work rating can include one fixed reason: accuracy, relevance, completeness, depth, tone or humor, safety or boundaries, or other. The reason is optional, and the owner can clear a rating. Feedback is stored in Hutch's local SQLite state, is excluded from conversation exports, and is not sent to a model. It does not update a saved response style, train a model, or infer durable preferences. The answer metadata exposes a monotonically increasing revision so conflicting edits can be detected; only the current rating is kept.
 
-Correction and feedback controls are currently limited to completed answers from Hutch's built-in runtime. Pi and OpenCode Bot execution remain disabled; their absence from these controls does not enable either adapter.
+Correction and feedback controls are currently limited to completed answers from Hutch's built-in runtime. The OpenCode assistant runtime is enabled, but it does not support these built-in answer-rewrite controls; its absence from them does not grant new tools or authority. Pi remains disabled.
 
 ## Local rollback
 

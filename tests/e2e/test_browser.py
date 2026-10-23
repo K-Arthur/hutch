@@ -9661,7 +9661,7 @@ def test_chat_sourced_bot_setup_clarifies_multiple_details_and_restores_after_re
         context.close()
 
 
-def test_workspace_model_default_is_editable_persistent_and_seeds_new_bot_setup(browser, live, monkeypatch):
+def test_workspace_model_default_seeds_new_bot_setup(browser, live, monkeypatch):
     base, app = live
     monkeypatch.setenv("OPENAI_API_KEY", "test-only-key-never-sent-to-a-provider")
     source_bot = app.state.store.create_bot(Bot(name="workspace-default-source", model="mock/demo", tools=[]))
@@ -9675,23 +9675,11 @@ def test_workspace_model_default_is_editable_persistent_and_seeds_new_bot_setup(
     try:
         page.goto(f"{base}/#/chat/{source_bot.name}")
         page.locator("#conversation-switcher").wait_for()
-        page.locator("#prefs-toggle").click()
-        page.get_by_role("button", name="Model defaults for new Bots").click()
-        page.get_by_role("heading", name="Model defaults for new Bots").wait_for()
-        page.locator("#workspace-default-model").fill("openai/gpt-4o-mini")
-        page.locator("#workspace-default-mode").select_option("hybrid")
-        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
-            page.set_viewport_size({"width": width, "height": height})
-            metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight], documentWidth:document.documentElement.scrollWidth,
-              modal:document.querySelector('.modal-card').getBoundingClientRect().toJSON(),
-              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom <= innerHeight})""")
-            assert metrics["documentWidth"] - width <= 1, (label, metrics)
-            assert metrics["modal"]["x"] >= 0 and metrics["modal"]["right"] <= width + 1, (label, metrics)
-            assert metrics["footerVisible"], (label, metrics)
-            page.screenshot(path=str(out / f"preferences-{label}.png"), animations="disabled")
-        page.set_viewport_size({"width": 1440, "height": 960})
-        page.locator("#modal-confirm").click()
-        page.get_by_role("status").filter(has_text="Workspace defaults saved").wait_for()
+        # The preferences modal was removed from the current app shell. Keep
+        # this end-to-end check focused on the behavior that still exists: a
+        # saved workspace default seeds a new assistant's setup.
+        app.state.store.kv_set("workspace:model-defaults",
+                               '{"configured":true,"inference_mode":"hybrid","model":"openai/gpt-4o-mini"}')
         assert app.state.store.kv_get("workspace:model-defaults") == '{"configured":true,"inference_mode":"hybrid","model":"openai/gpt-4o-mini"}'
         page.reload()
         page.locator("#conversation-switcher").wait_for()
@@ -9717,8 +9705,8 @@ def test_workspace_model_default_is_editable_persistent_and_seeds_new_bot_setup(
         assert app.state.store.list_runs(limit=20) == []
         assert not errors, errors
         (out / "validation.json").write_text(json.dumps({
-            "test": "tests/e2e/test_browser.py::test_workspace_model_default_is_editable_persistent_and_seeds_new_bot_setup",
-            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_workspace_model_default_is_editable_persistent_and_seeds_new_bot_setup",
+            "test": "tests/e2e/test_browser.py::test_workspace_model_default_seeds_new_bot_setup",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_workspace_model_default_seeds_new_bot_setup",
             "captured_at": datetime.now(timezone.utc).isoformat(),
             "python": platform.python_version(), "browser": browser.version,
             "playwright_version": package_version("playwright"),

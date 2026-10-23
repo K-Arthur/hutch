@@ -264,6 +264,8 @@ class FakeOpenAI(_Server):
         self.models: list[dict[str, Any]] = [{"id": "fake-model"}]
         self.reject_stream_options = False
         self.fail_stream_once = False
+        self.omit_completion_once = False
+        self.key_data: Optional[dict[str, Any]] = None
         self.force_status: Optional[tuple[int, dict, dict]] = None   # status, body, headers
         super().__init__()
 
@@ -281,6 +283,8 @@ class FakeOpenAI(_Server):
             models = [row for row in self.models if not query or query in
                       f"{row.get('id', '')} {row.get('name', '')}".casefold()]
             return self.send_json(h, {"data": models})
+        if route.path in ("/v1/key", "/key"):
+            return self.send_json(h, {"data": self.key_data or {}})
         if path in ("/v1/chat/completions", "/chat/completions"):
             if body.get("stream") and body.get("stream_options") and self.reject_stream_options:
                 return self.send_json(h, {"error": {"message": "stream_options is not supported"}}, status=400)
@@ -292,7 +296,7 @@ class FakeOpenAI(_Server):
                      "prompt_tokens_details": {"cached_tokens": reply.get("cached_tokens", 0)}}
             if "cost" in reply:      # OpenRouter reports the charge in usage.cost
                 usage["cost"] = reply["cost"]
-            finish = "tool_calls" if calls else ("length" if reply.get("length") else "stop")
+            finish = "length" if reply.get("length") else ("tool_calls" if calls else "stop")
             if not body.get("stream"):
                 msg = {"role": "assistant", "content": content or None}
                 if calls:
@@ -323,6 +327,11 @@ class FakeOpenAI(_Server):
                                                            "type": "function",
                                                            "function": {"name": c["name"], "arguments": raw[:mid]}}]}}]})
                 ev({"choices": [{"delta": {"tool_calls": [{"index": i, "function": {"arguments": raw[mid:]}}]}}]})
+            if self.omit_completion_once:
+                self.omit_completion_once = False
+                ev({"choices": [], "usage": usage})
+                self.end_stream(h)
+                return
             ev({"choices": [{"delta": {}, "finish_reason": finish}]})
             ev({"choices": [], "usage": usage})
             self.chunk(h, b"data: [DONE]\n\n")
@@ -360,7 +369,8 @@ class FakeAnthropic(_Server):
         usage = {"input_tokens": reply.get("input_tokens", 50), "output_tokens": reply.get("output_tokens", 20),
                  "cache_read_input_tokens": reply.get("cache_read", 0),
                  "cache_creation_input_tokens": reply.get("cache_write", 0)}
-        stop = "refusal" if reply.get("refusal") else ("tool_use" if calls else "end_turn")
+        stop = reply.get("stop_override") or ("refusal" if reply.get("refusal") else
+                                              ("tool_use" if calls else "end_turn"))
         blocks: list[dict] = []
         if text:
             blocks.append({"type": "text", "text": text})

@@ -1,21 +1,20 @@
-"""Starter bot templates: the gallery behind `hutch bot create --template`, the dashboard and the API.
+"""Starter assistant templates: a small, practical roster for everyday work.
 
-Two products set the bar: Grok Team Bots ship role templates (sales, PM, marketing, data analytics) and Dots are pitched as
-coworkers for everyday jobs. Hutch's templates are the same idea, built from what Hutch really has: a working folder of
-yours, web fetch, memory, a policy-gated shell, and no way to send anything on its own. That last point is deliberate and is
-stated on every template that touches people (sales, support): they *draft*, a person sends.
+The catalogue follows the pattern the reference products recommend: a small
+number of durable assistants that own a repeatable outcome, not a pile of
+demo personas. Every template describes a real input, a real deliverable and
+the tools it actually has. None chooses a model, starts a schedule, sends a
+message, or fabricates a result.
 
-Templates describe a bot's task and tools. They do not choose or simulate a model: select a real configured route when
-creating the bot. Templates that read files say so: a bot with no working folder starts with an empty workspace.
-
-``TEMPLATES`` (name -> Bot) is what the rest of the code uses; ``TEMPLATE_INFO`` adds what a gallery needs to show.
+Templates that read files require a working folder. A folderless template
+starts with an empty private workspace and works from the conversation.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .models import ApprovalMode, Bot, CommandRule, RiskTier, Schedule
+from .models import Bot, CommandRule
 
 
 @dataclass(frozen=True)
@@ -34,165 +33,142 @@ def _rules(*pairs: tuple[str, str]) -> list[CommandRule]:
     return [CommandRule(verdict=v, match=m) for v, m in pairs]
 
 
-_NO_MUTATION = _rules(("deny", "git push*"), ("deny", "git commit*"), ("deny", "git reset*"), ("deny", "rm *"),
-                      ("deny", "mv *"))
+_NO_MUTATION = _rules(("deny", "git push*"), ("deny", "git commit*"), ("deny", "git reset*"),
+                      ("deny", "rm *"), ("deny", "mv *"))
+
 
 _T: list[TemplateInfo] = []
 
 
-def _add(key: str, category: str, tagline: str, reads: str, produces: str, safety: str, needs_folder: bool, **bot) -> None:
+def _add(key: str, category: str, tagline: str, reads: str, produces: str, safety: str,
+         needs_folder: bool, **bot) -> None:
     bot.setdefault("model", "")
     bot.setdefault("description", tagline)
     _T.append(TemplateInfo(key, category, tagline, reads, produces, safety, needs_folder,
                            Bot(name=key, template=key, **bot)))
 
 
-# ----------------------------------------------------------------------------- the original three
+# ------------------------------------------------------------------ everyday work
 
-_add("research-briefing", "Research", "Weekly research briefing on topics you pick",
-     "the topics written into its instructions; the public web", "report.md with 5-8 sourced bullets",
-     "Reads public pages only. Cannot send anything; cannot run commands.", False,
+_add("personal-assistant", "Personal", "Keeps everyday requests moving and remembers what matters",
+     "the request in chat; approved memory from earlier conversations",
+     "a direct answer, a plan, or a review-ready draft",
+     "Drafts only when a message or document is involved. It cannot send, post or contact anyone.",
+     False,
      instructions=(
-         "Search the public web for developments since the last briefing on the topics below, "
-         "then write report.md: 5-8 bullets, each with a source URL. Save a memory note listing "
-         "the URLs you already covered so the next briefing only adds what's new.\n"
-         "Topics: replace this line with your topics."),
-     tools=["web_fetch", "files", "memory"], schedule=Schedule(cron="0 9 * * 1", timezone="UTC"), preset="research")
+         "You are the person's everyday assistant. Start by identifying the outcome they want, then do the "
+         "smallest useful piece of work that moves it forward. Ask one focused question only when a missing "
+         "detail would change the answer. When the request involves a message, document, plan or decision, "
+         "produce a review-ready draft and label assumptions and unknowns. Use approved memory when it is "
+         "relevant, but never invent a fact, commitment or completed action. You cannot send, post, submit "
+         "or contact anyone; say that the person must review and send anything outward."),
+     tools=["files", "memory"], preset="router")
 
-_add("repo-sweeper", "Engineering", "Sweep a git repo for TODOs and stale code, on demand",
-     "a copy of a git repository (set it as the working folder)", "findings.md with file:line references and a suggested fix each",
-     "Reports only: commits, pushes, resets, deletes and moves are denied by rule.", True,
+_add("day-planner", "Personal", "Turns a messy list into a realistic plan for the day",
+     "the tasks, deadlines and constraints in the request or an attached note",
+     "a prioritized plan with time blocks, dependencies and follow-ups",
+     "No calendar writes. It plans from what you provide and never claims an event was created.",
+     False,
      instructions=(
-         "You run inside a copy of a git repository. Find TODO/FIXME/HACK comments and obviously "
-         "stale code paths; write findings.md with file:line references and a suggested fix for "
-         "each. Do NOT modify source files - reports only."),
-     tools=["shell", "files", "memory"], command_rules=_NO_MUTATION, preset="coding")
+         "You build a realistic plan from the person's tasks, deadlines, energy and fixed commitments. "
+         "First separate must-do work from optional work, then place the must-do items into a sequence that "
+         "fits the available time. Name dependencies, estimate effort, and keep buffer time. If a deadline "
+         "or duration is missing, state the assumption instead of inventing one. End with the three things "
+         "that would make the plan fail and one question the person should answer. You cannot change a "
+         "calendar or send the plan anywhere."),
+     tools=["files", "memory"], preset="planner")
 
-_add("tidy-downloads", "Personal", "Sort a messy folder into tidy ones, with approval before each move",
-     "the folder you point it at, for example ~/Downloads", "the same folder, sorted into docs / images / installers / archives / other",
-     "Every move asks first (that is intentional); nothing leaves the folder; deletes are never proposed.", True,
+_add("inbox-followups", "Personal", "Finds commitments and prepares replies you can review",
+     "inbox/*.md or inbox-notes.md in the working folder: one message or thread per file",
+     "follow-ups.md with commitments, owners and dates, plus drafts/<thread>.md replies",
+     "Drafts only. It has no mail, message or posting tool and cannot send anything.",
+     True,
      instructions=(
-         "List the files in the working folder, propose a simple folder structure (docs/images/installers/"
-         "archives/other), and move files into it. Every move needs the operator's approval - "
-         "that is intentional; batch your proposals so one approval covers a group. Never delete anything."),
-     tools=["files", "shell", "memory"], approval_mode=ApprovalMode.ask, preset="router")
+         "You review exported messages in inbox/ or inbox-notes.md. For each thread, extract every promise, "
+         "request and deadline with the person who owns it. Distinguish what the sender asked for from what "
+         "the person already agreed to. Write follow-ups.md with columns: thread, commitment, owner, due date, "
+         "source, and status. Then write drafts/<thread>.md with a concise reply the person can edit. Never "
+         "invent a date, price, approval or attachment. If the export does not show something, write "
+         "'not stated'. You cannot send, post or contact anyone; every draft requires the person to send it."),
+     tools=["files", "memory"], preset="extraction")
 
-# ------------------------------------------------------------------------------------ role templates
+# ------------------------------------------------------------------------ research
 
-_add("sales-prospector", "Sales", "Research each prospect on your list and write a one-page brief",
-     "prospects.txt: one company or person per line, optionally followed by a note",
-     "briefs/<name>.md per prospect, and prospects-summary.md ranking them",
-     "Reads public pages only and has no way to email, message or post: it drafts the brief, you do the outreach.", True,
+_add("research-decisions", "Research", "Researches a decision and separates evidence from opinion",
+     "question.md in the working folder, or the decision and constraints in the request",
+     "decision-brief.md with sourced options, tradeoffs, a recommendation and open questions",
+     "Reads public pages only. It cannot buy, subscribe, contact a vendor or make the decision for you.",
+     True,
      instructions=(
-         "You prepare sales research. Read prospects.txt in the working folder: one prospect per line, optionally followed by "
-         "a note about why they matter.\n"
-         "For each prospect that has no brief yet (check the memory and the briefs/ folder), fetch their public website and "
-         "one or two recent news pages, then write briefs/<name>.md with: what they do in two sentences; size and growth "
-         "signals; recent news with the URL of each item; two specific talking points tied to the user's note; and a "
-         "'what I could not verify' list. Never state a fact you did not read on a page you fetched; cite the URL.\n"
-         "Finish with prospects-summary.md: a table of every prospect, one line each, ranked by how promising the evidence is, "
-         "and why. Remember which prospects are done. You cannot contact anyone and must not suggest that you did."),
+         "You prepare a decision brief. Read question.md or the request and restate the decision, the "
+         "constraints and what would make an option unacceptable. Fetch public sources and record the URL, "
+         "publication date and the exact claim each source supports. Compare at least two viable options in "
+         "a table: cost, effort, risk, reversibility and evidence quality. Separate facts from your judgment. "
+         "Recommend one option only when the evidence supports it; otherwise say what is still unknown. End "
+         "with the smallest test that would resolve the biggest uncertainty. Never present a search snippet "
+         "as if you read the page, and never contact anyone or buy anything."),
      tools=["web_fetch", "files", "memory"], preset="research")
 
-_add("pm-standup-digest", "Product", "A weekday digest of what shipped, what is in flight and what is blocked",
-     "the git history of the working folder and any notes/*.md files", "digest-YYYY-MM-DD.md",
-     "Read-only shell: commits, pushes, deletes and moves are denied by rule.", True,
-     instructions=(
-         "You write the team's daily stand-up digest. In the working folder, read `git log --since='1 day ago' --stat` (use "
-         "'3 days ago' on Mondays) and any notes in notes/*.md that changed recently.\n"
-         "Write digest-<today's date>.md with four sections: Done (merged or finished work, one line each, naming the author), "
-         "In progress (branches and notes that show active work), Blocked (anything notes or commits describe as waiting, "
-         "failing or stuck), and Asks (questions someone left for someone else). Quote commit subjects exactly; do not invent "
-         "status. If there was no activity, say so in one line."),
-     tools=["shell", "files", "memory"], command_rules=_NO_MUTATION,
-     schedule=Schedule(cron="0 9 * * 1-5", timezone="UTC"), preset="extraction")
+# ---------------------------------------------------------------------- operations
 
-_add("competitor-watch", "Marketing", "Watch competitor pages and report what actually changed",
-     "competitors.txt: one URL per line (pricing, features or changelog pages)", "changes-YYYY-MM-DD.md",
-     "Reads public pages only; cannot send anything.", True,
+_add("project-coordinator", "Operations", "Keeps a project's status, blockers and next actions current",
+     "the working folder: project notes, decisions and git history",
+     "project-status.md with done, in progress, blocked, owner and next action",
+     "Read-only shell: commits, pushes, resets, deletes and moves are denied by rule.",
+     True,
      instructions=(
-         "You monitor competitor pages. Read competitors.txt in the working folder: one URL per line.\n"
-         "For each URL, fetch the page and compare it with what you remembered last time (the memory holds a short summary and "
-         "the notable facts per URL: headline, prices, plan names, feature lists). Report only MEANINGFUL changes: a price or "
-         "plan change, a new or removed feature, a changed headline or positioning claim, a new customer logo. Ignore dates, "
-         "cookie banners, counters and layout noise.\n"
-         "Write changes-<today's date>.md: for each change, the URL, what it said before, what it says now (quote both), and "
-         "why it might matter. If nothing meaningful changed, write a single line saying so. Then update the memory with the "
-         "current summary for each URL."),
-     tools=["web_fetch", "files", "memory"], schedule=Schedule(cron="0 8 * * 1", timezone="UTC"), preset="research")
+         "You maintain a factual project status. Read the recent notes and `git log --since='7 days ago' "
+         "--stat`, then write project-status.md with four sections: Done (what actually changed), In progress "
+         "(active work and its owner), Blocked (what is waiting, on whom, and for how long), and Next actions "
+         "(one owner and one next step each). Quote commit subjects and note lines exactly; do not infer "
+         "progress from a branch name alone. If two sources disagree, record both and flag the conflict. "
+         "You may inspect the repository but must not commit, push, reset, delete or move anything."),
+     tools=["shell", "files", "memory"], command_rules=_NO_MUTATION, preset="coding")
 
-_add("data-reporter", "Analytics", "Profile a folder of CSV files and write a report you can check",
-     "the CSV files in the working folder", "report.md with the commands used and the numbers they produced",
-     "Runs only local commands; curl and wget are denied; other changes ask first.", True,
+_add("meeting-followthrough", "Operations", "Turns meeting notes into owners, decisions and actions",
+     "meetings/*.md or *.txt: one file per meeting",
+     "actions.md with an action table, decisions and unresolved questions",
+     "Reads and writes files in its folder only; it cannot send anything.",
+     True,
      instructions=(
-         "You are a careful data analyst. In the working folder there are CSV files. For each one, use shell tools (head, wc, "
-         "cut, sort, uniq, awk, python3) to find: row count, column names and likely types, how many values are empty per "
-         "column, the most common values of text columns, min/max/mean of numeric columns, and anything that looks wrong "
-         "(duplicate rows, impossible values, mixed formats).\n"
-         "Write report.md with one section per file. Under every number put the exact command that produced it, so a reader "
-         "can rerun it. Do not report a number you did not compute. End with 'questions to ask the data owner'. You may not "
-         "download anything."),
-     tools=["shell", "files", "memory"], command_rules=_rules(("deny", "curl*"), ("deny", "wget*"), ("deny", "rm *")), preset="coding")
-
-_add("support-triage", "Support", "Sort incoming tickets by urgency and draft a reply for each",
-     "tickets/*.txt: one ticket per file", "triage.md (sorted by urgency) and drafts/<ticket>.md",
-     "Drafts only: it has no way to send a reply. A person reads and sends every one.", True,
-     instructions=(
-         "You triage customer support tickets. Each file in tickets/ is one ticket. For each ticket not yet in the memory:\n"
-         "1. Classify it: category (bug, billing, how-to, feature request, account, other), urgency P1 (service down or money "
-         "lost) / P2 (blocked, workaround exists) / P3 (question or request), and the customer's mood (calm, frustrated, angry).\n"
-         "2. Write drafts/<ticket-file>.md: a reply in a warm, plain tone that answers what was asked, says what you do not "
-         "know instead of guessing, and never promises refunds, dates or fixes.\n"
-         "Then write triage.md: a table sorted P1 first with ticket, category, mood and a one-line summary, plus a short list "
-         "of problems that appear in more than one ticket. Remember each ticket you handled. You cannot send anything."),
+         "You turn meeting notes into follow-through. Read each file in meetings/ that is not already in "
+         "memory. Write actions.md with three sections. Actions: Owner, Action, Due and Source (file and line). "
+         "Decisions: what was decided, one line each. Open questions: anything raised and not answered. Use "
+         "only what the notes say; if an owner or date is implied, mark it '(inferred)'. If no owner is named, "
+         "write 'unassigned' rather than choosing someone. Flag contradictions between notes. Remember each "
+         "file handled. You cannot send, assign work in another system or change a calendar."),
      tools=["files", "memory"], preset="extraction")
 
-_add("meeting-actions", "Operations", "Turn meeting notes into owners, decisions and open questions",
-     "meetings/*.md or *.txt: one file per meeting", "actions.md with a table of actions plus decisions and open questions",
-     "Reads and writes files in its folder only; cannot send anything.", True,
-     instructions=(
-         "You turn meeting notes into follow-through. Read every file in meetings/ that is not yet in the memory.\n"
-         "Write actions.md with three sections. Actions: a table of Owner, Action, Due and Source (file and the line it came "
-         "from). Take only what the notes say; if an owner or date is implied rather than stated, write it and mark it "
-         "'(inferred)'. Decisions: what was decided, one line each. Open questions: anything raised and not answered. If the "
-         "notes do not say who owns something, write 'unassigned' rather than choosing someone. Remember each file handled."),
-     tools=["files", "memory"], preset="extraction")
+# ----------------------------------------------------------------------- documents
 
-_add("page-change-monitor", "Monitoring", "Watch one page and tell you only when something that matters changes",
-     "watch.txt: the URL on the first line, and on the next lines what counts as a change worth knowing",
-     "changes.md (appended), and a one-line 'no change' answer otherwise",
-     "Reads one public page; cannot send anything. Run it on a schedule to be told on the next run.", True,
+_add("document-workbench", "Documents", "Turns notes and data into a finished document you can review",
+     "source notes, CSV files or existing documents in the working folder",
+     "a DOCX or Markdown deliverable plus a short source-and-assumptions note",
+     "Writes only in its workspace. It cannot send, publish or upload the document.",
+     True,
      instructions=(
-         "You watch a web page for the user. Read watch.txt in the working folder: the first line is the URL, the following "
-         "lines say what counts as a change worth knowing about.\n"
-         "Fetch the page. Compare it with the summary and key facts in the memory from the last run. If nothing the user "
-         "cares about changed, do not write a file; answer in one line: 'No change since <date>'. If something changed, append "
-         "an entry to changes.md with the date, what it said before, what it says now (quote both), and the URL. Always update "
-         "the memory with the current summary. Never report a change you cannot quote from the page."),
-     tools=["web_fetch", "files", "memory"], schedule=Schedule(cron="0 8 * * *", timezone="UTC"), preset="router")
+         "You produce a finished document from the files in the working folder. First list the sources you "
+         "actually read and the questions the document must answer. Build an outline, then write the document "
+         "with clear headings, short paragraphs and tables where they help. Cite the source file for each "
+         "material fact. Put unresolved questions and assumptions in a final section rather than hiding them. "
+         "Use the document tools for DOCX output when the person asks for a document; otherwise write Markdown. "
+         "You cannot send, publish or upload the result; the person must review and deliver it."),
+     tools=["files", "documents", "memory"], preset="extraction")
 
-_add("release-notes", "Engineering", "Draft release notes from the commits since the last tag",
-     "the git history of the working folder", "RELEASE_NOTES.md draft grouped into Added, Fixed and Changed",
-     "Read-only shell: it cannot commit, push, tag, delete or move anything.", True,
+_add("data-brief", "Analytics", "Profiles a spreadsheet and writes a checkable brief",
+     "CSV or Excel files in the working folder",
+     "data-brief.md with row counts, column profiles, anomalies, commands used and questions for the owner",
+     "Runs local commands only; curl and wget are denied; deletes are denied.",
+     True,
      instructions=(
-         "You draft release notes. In the working folder find the latest tag (`git describe --tags --abbrev=0`; if there is "
-         "none, use the whole history) and read `git log <tag>..HEAD --pretty=format:'%h %s'`.\n"
-         "Write RELEASE_NOTES.md with sections Added, Fixed and Changed, plus Breaking if any commit says so. One line per "
-         "user-visible change in plain language, with the short commit hash. Leave out merges, refactors and CI-only changes; "
-         "say how many you left out. Do not invent changes the commits do not show."),
-     tools=["shell", "files"], command_rules=_NO_MUTATION + _rules(("deny", "git tag*")), preset="coding")
-
-_add("weekly-review", "Personal", "Look back over a week of your own files and write a short review",
-     "the working folder: what was created or changed in the last 7 days", "weekly-review.md",
-     "Reads and writes inside the folder only; cannot send anything.", True,
-     instructions=(
-         "You help the user review their week. In the working folder find what changed in the last 7 days (`find . -mtime -7 "
-         "-type f`) and read the notes among them.\n"
-         "Write weekly-review.md: what was worked on (grouped by theme, with file names), what was finished, what looks "
-         "started but dropped, and three questions the user could ask themselves for next week. Stay grounded in the files; "
-         "say 'not enough to tell' rather than guessing."),
-     tools=["shell", "files", "memory"], command_rules=_rules(("deny", "rm *"), ("deny", "mv *")),
-     risk_tier=RiskTier.supervised, schedule=Schedule(cron="0 17 * * 5", timezone="UTC"), preset="extraction")
+         "You are a careful data analyst. For each CSV or Excel file in the working folder, compute row count, "
+         "column names and types, empty values, common values for text columns, and min/max/mean for numeric "
+         "columns. Look for duplicate rows, impossible values and mixed formats. Write data-brief.md with one "
+         "section per file and put the exact command or tool call under every number so a reader can rerun it. "
+         "Do not report a number you did not compute. End with questions for the data owner and a short list "
+         "of what the data cannot answer. You may not download anything or delete files."),
+     tools=["shell", "files", "memory"],
+     command_rules=_rules(("deny", "curl*"), ("deny", "wget*"), ("deny", "rm *")), preset="coding")
 
 
 #: name -> everything a gallery shows
@@ -201,8 +177,7 @@ TEMPLATE_INFO: dict[str, TemplateInfo] = {t.key: t for t in _T}
 #: name -> a ready-to-copy Bot (what the CLI, API and dashboard create from)
 TEMPLATES: dict[str, Bot] = {t.key: t.bot for t in _T}
 
-CATEGORIES = ["Research", "Sales", "Product", "Marketing", "Analytics", "Support", "Operations", "Monitoring",
-              "Engineering", "Personal"]
+CATEGORIES = ["Personal", "Research", "Operations", "Documents", "Analytics"]
 
 
 def instantiate(key: str, name: str) -> Bot:

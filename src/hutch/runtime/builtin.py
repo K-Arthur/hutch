@@ -1464,6 +1464,15 @@ class BuiltinRuntime:
                 if stop():
                     raise RunAborted("stopped", "user requested stop") from exc
                 record_outcome(ctx.store, session.rung.provider, False, f"{exc.kind}: {exc}")
+                # Retain text the provider actually delivered. It is marked
+                # incomplete and never presented as a finished answer.
+                if exc.partial_content.strip() and not (
+                        exc.streaming_related and session.stream and not stream_retried):
+                    ctx.emit(Event(run_id=run.id, type=EventType.message,
+                                   data={"role": "assistant", "content": exc.partial_content,
+                                         "incomplete": True, "reason": exc.kind,
+                                         "provider": session.rung.spec,
+                                         "error": str(exc)[:500]}))
                 if is_preview:
                     raise RunAborted(_exit_reason(exc), f"preview request failed; Hutch did not retry: {exc}") from exc
                 if plan.strategy == "constrained" and exc.kind == "bad_request":
@@ -1669,7 +1678,17 @@ class BuiltinRuntime:
                 raise RunAborted("cost_cap", f"run spend ${run.cost_usd:.4f} reached its "
                                              f"${bot.limits.max_cost_usd:.2f} cap")
             if result.finish_reason == "length":
-                self._log(ctx, run, "note", f"the reply hit the per-turn cap of {self._turn_cap(bot, session.rung, run)} tokens")
+                # Arguments assembled from a truncated response may look valid
+                # while missing a required tail value. Never execute them.
+                if result.content:
+                    ctx.emit(Event(run_id=run.id, type=EventType.message,
+                                   data={"role": "assistant", "content": result.content,
+                                         "incomplete": True, "reason": "length"}))
+                raise RunAborted(
+                    "length",
+                    "the model's tool request hit the per-turn token cap before it finished; no tool was "
+                    "executed. The partial text is kept, but the run is incomplete. Retry with a shorter "
+                    "request or raise the per-turn token cap")
 
             # A question is a durable chat checkpoint. Do not run sibling calls
             # from the same provider batch, and do not ask the provider again

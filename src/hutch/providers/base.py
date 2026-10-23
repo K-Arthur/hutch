@@ -27,15 +27,21 @@ class ProviderError(Exception):
     """A model call failed. ``kind`` drives retry / fallback / the explanation shown to the user."""
 
     KINDS = ("unreachable", "timeout", "auth", "rate_limit", "server", "bad_request",
-             "context", "refused", "stream", "model_missing", "oom", "other")
+             "context", "refused", "stream", "model_missing", "oom", "incomplete", "other")
 
     def __init__(self, kind: str, message: str, *, provider: str = "", status: Optional[int] = None,
-                 retry_after: Optional[float] = None):
+                 retry_after: Optional[float] = None, partial_content: str = "",
+                 partial_usage: Optional[dict[str, int]] = None, partial_finish: str = ""):
         super().__init__(message)
         self.kind = kind if kind in self.KINDS else "other"
         self.provider = provider
         self.status = status
         self.retry_after = retry_after
+        #: Text the provider delivered before the failure. It is real output and
+        #: must be retained, but it is never a completed answer.
+        self.partial_content = partial_content
+        self.partial_usage = dict(partial_usage or {})
+        self.partial_finish = partial_finish
 
     @property
     def retryable(self) -> bool:

@@ -45,25 +45,31 @@ def test_get_runtime_dispatch():
     assert get_runtime(Bot(name="d", model="openai/gpt-4o-mini")).kind == "builtin"
 
 
-@pytest.mark.parametrize(
-    ("runtime", "message_fragment"),
-    [
-        (OpenCodeRuntime, "broker its tool permissions"),
-        (PiRuntime, "restricted capability set"),
-    ],
-)
-def test_external_executor_refuses_before_creating_a_process(monkeypatch, runtime, message_fragment):
+def test_pi_executor_refuses_before_creating_a_process(monkeypatch):
     def unexpected_process(*args, **kwargs):
         raise AssertionError("an unavailable external executor must not start a child process")
 
     monkeypatch.setattr(subprocess, "Popen", unexpected_process)
 
     with pytest.raises(RunAborted) as exc:
-        runtime().execute(run=None, ctx=None, tools={}, stop=lambda: False)
+        PiRuntime().execute(run=None, ctx=None, tools={}, stop=lambda: False)
 
     assert exc.value.reason == "unsupported"
-    assert message_fragment in exc.value.detail
+    assert "restricted capability set" in exc.value.detail
     assert "provider budget" in exc.value.detail
+
+
+def test_opencode_refuses_without_a_model_before_creating_a_process(store, config, tmp_path, monkeypatch):
+    ctx, run, _emitted = make_ctx(store, config, tmp_path)
+    ctx.bot.model = ""
+
+    def unexpected_process(*args, **kwargs):
+        raise AssertionError("OpenCode must not start without a selected model")
+
+    monkeypatch.setattr(subprocess, "Popen", unexpected_process)
+    with pytest.raises(RunAborted) as exc:
+        OpenCodeRuntime().execute(run=run, ctx=ctx, tools={}, stop=lambda: False)
+    assert exc.value.reason == "model_missing"
 
 
 def test_mock_and_unconfigured_routes_are_not_available_outside_the_test_harness(monkeypatch):
@@ -175,7 +181,7 @@ def test_builtin_loop_token_cap_aborts(store, config, tmp_path, monkeypatch):
     assert exc.value.reason == "token_cap"
 
 
-def test_external_runtimes_fail_closed_before_process_creation_until_governance_exists(
+def test_pi_runtime_fails_closed_before_process_creation_until_governance_exists(
     store, config, tmp_path, monkeypatch
 ):
     ctx, run, _ = make_ctx(store, config, tmp_path)
@@ -187,5 +193,12 @@ def test_external_runtimes_fail_closed_before_process_creation_until_governance_
     monkeypatch.setattr(subprocess, "Popen", unexpected_spawn)
     with pytest.raises(RunAborted, match="disabled until Hutch can contain"):
         PiRuntime(binary="not-a-real-pi-binary").execute(run, ctx, {}, stop=lambda: False)
-    with pytest.raises(RunAborted, match="disabled until Hutch can broker"):
+
+
+def test_opencode_missing_binary_is_an_actionable_unavailable_failure(store, config, tmp_path):
+    ctx, run, _ = make_ctx(store, config, tmp_path)
+    ctx.bot.model = "opencode/test/model"
+    with pytest.raises(RunAborted) as exc:
         OpenCodeRuntime(binary="not-a-real-opencode-binary").execute(run, ctx, {}, stop=lambda: False)
+    assert exc.value.reason == "unavailable"
+    assert "could not start" in exc.value.detail

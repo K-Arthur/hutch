@@ -93,6 +93,11 @@ class OpenAIChatStreamAssembler:
     def done(self) -> bool:
         return self._done
 
+    @property
+    def finish_seen(self) -> bool:
+        """Whether any choice supplied a terminal finish reason."""
+        return bool(self._finish)
+
     def mark_done(self) -> None:
         self._done = True
 

@@ -1618,6 +1618,7 @@ function confirmDialog({ title, body, confirmText = "Confirm", danger = false })
 /* --------------------------------------------------------------- router */
 
 let botsCache = [];
+let firstRunOpenCodeStatus = null;
 let rosterMenuCleanup = null;
 
 function closeRosterActionMenu(restoreFocus = false) {
@@ -3055,8 +3056,10 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
         </form>
         <div class="first-run-secondary">
           <span class="hint">Have an AI you like?</span>
-          <a href="#/connections">Choose it here</a>
+          <button class="btn ghost small" type="button" id="first-run-connect-opencode">Connect OpenCode</button>
+          <a href="#/connections">Use another provider</a>
         </div>
+        <p class="hint" id="first-run-ai-state" role="status" aria-live="polite">Checking which AI services are already available…</p>
         <ul class="first-run-promises" aria-label="How Hutch works">
           <li>${icon("chat")}Start with a conversation</li>
           <li>${icon("shield")}Review important actions</li>
@@ -3070,6 +3073,21 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
       const request = $("#first-run-request")?.value.trim() || "";
       if (!request) { $("#first-run-request")?.focus(); return; }
       void promptNewBot("", "", null, request);
+    });
+    const noteOpenCode = status => {
+      firstRunOpenCodeStatus = status;
+      const node = $("#first-run-ai-state");
+      if (!node) return;
+      node.textContent = status?.ready
+        ? `OpenCode is ready with ${status.models?.length || 0} model option${status.models?.length === 1 ? "" : "s"}. ${status.authenticated ? "A provider account is connected." : "Its available models can be used without a separate account."}`
+        : "No AI model is available yet. Connect OpenCode, or choose another provider, before the first answer.";
+    };
+    $("#first-run-connect-opencode")?.addEventListener("click", () => {
+      void openOpenCodeSetupDialog(noteOpenCode);
+    });
+    void api("/v1/opencode/status").then(noteOpenCode).catch(error => {
+      const node = $("#first-run-ai-state");
+      if (node) node.textContent = `OpenCode status unavailable: ${error.message} You can still connect another provider.`;
     });
     const starterRequests = {
       plan: "Help me plan my week and keep track of the follow-ups.",
@@ -4722,23 +4740,18 @@ function welcomeHtml() {
 }
 
 const TEMPLATE_TITLES = {
-  "tidy-downloads": "File organizer",
-  "meeting-actions": "Meeting follow-up",
-  "weekly-review": "Weekly review",
-  "research-briefing": "Research briefing",
-  "page-change-monitor": "Website change alerts",
-  "support-triage": "Support inbox helper",
-  "repo-sweeper": "Project health check",
-  "sales-prospector": "Prospect research",
-  "pm-standup-digest": "Team work update",
-  "competitor-watch": "Track important pages",
-  "data-reporter": "Spreadsheet summary",
-  "release-notes": "Release notes",
+  "personal-assistant": "Personal assistant",
+  "day-planner": "Day planner",
+  "inbox-followups": "Inbox and follow-ups",
+  "research-decisions": "Research and decisions",
+  "project-coordinator": "Project coordinator",
+  "meeting-followthrough": "Meeting follow-through",
+  "document-workbench": "Document workbench",
+  "data-brief": "Data brief",
 };
 const TEMPLATE_GALLERY_ORDER = [
-  "tidy-downloads", "meeting-actions", "weekly-review", "research-briefing",
-  "page-change-monitor", "support-triage", "data-reporter", "sales-prospector",
-  "pm-standup-digest", "competitor-watch", "release-notes", "repo-sweeper",
+  "personal-assistant", "day-planner", "inbox-followups", "research-decisions",
+  "project-coordinator", "meeting-followthrough", "document-workbench", "data-brief",
 ];
 
 async function wireWelcome() {
@@ -7467,7 +7480,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   catch (error) { taskPresetsError = error.message; }
   const runtimeNames = { builtin: "Hutch built-in", opencode: "OpenCode", pi: "Pi", mock: "Retired mock" };
   const runtimeName = runtimeNames[b.runtime] || b.runtime || "Unknown";
-  const runtimeUnavailable = b.runtime !== "builtin";
+  const runtimeUnavailable = !["builtin", "opencode"].includes(b.runtime);
   const runtimeSwitchBlocked = b.active_run_id ? "Stop or wait for the active run before switching runtimes."
     : !b.model || b.model.startsWith("mock/") ? "Save a real Hutch model route above before switching."
       : "";
@@ -7624,8 +7637,12 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
                 <input type="text" name="model" value="${esc(b.model || "")}" aria-labelledby="default-model-label" aria-describedby="default-model-hint">
                 <span class="hint" id="default-model-hint">Hybrid allows local and hosted routes; Local blocks hosted models but keeps tools online. Offline requires a host that verifies worker network isolation.</span>
               </label>
-              <label class="field">Execution runtime
-                <input type="text" disabled value="${esc(runtimeUnavailable ? `${runtimeName} (unavailable)` : runtimeName)}">
+              <label class="field" for="form-runtime">Execution runtime
+                <select id="form-runtime" name="runtime" ${runtimeUnavailable ? "disabled" : ""}>
+                  <option value="opencode" ${b.runtime === "opencode" ? "selected" : ""}>OpenCode assistant</option>
+                  <option value="builtin" ${b.runtime === "builtin" ? "selected" : ""}>Hutch built-in</option>
+                </select>
+                <span class="hint">${runtimeUnavailable ? `${esc(runtimeName)} is unavailable in Hutch.` : b.runtime === "opencode" ? "OpenCode runs with Hutch approval and usage controls." : "Direct provider chat through Hutch's own agent loop."}</span>
               </label>
             </div>
             ${runtimeUnavailable ? `<div class="runtime-recovery" id="runtime-recovery" role="status">
@@ -8077,7 +8094,8 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     const escalationTo = parseSpecs(fd.get("escalation"));
     const taskRoutes = Object.fromEntries($$("[data-task-route]", ev.target)
       .map(input => [input.dataset.taskRoute, input.value.trim()]).filter(([, spec]) => spec));
-    patch({ model: fd.get("model").trim(), inference_mode: fd.get("inference_mode"),
+    patch({ model: fd.get("model").trim(), runtime: fd.get("runtime") || b.runtime,
+      inference_mode: fd.get("inference_mode"),
       preset: fd.get("preset") || null, tool_protocol: choice, fallbacks,
       escalation: { ...(b.escalation || {}), to: escalationTo },
       task_routes: taskRoutes,
@@ -10165,6 +10183,7 @@ async function renderConnections() {
 
 const SETUP_TOOL_EXPANSIONS = { files: ["read_file", "list_files", "write_file"], memory: ["remember", "recall"],
   grounding: ["live_search", "inspect_media"] };
+const OPENCODE_TOOL_NAMES = new Set(["read_file", "list_files", "write_file", "shell", "web_fetch", "live_search"]);
 const BOT_SETUP_TOOLS = [
   ["read_file", "Read workspace files", "Open text files in this bot’s workspace."],
   ["list_files", "List workspace files", "See file names in this bot’s workspace."],
@@ -10272,6 +10291,169 @@ function templateTools(template) {
   return result;
 }
 
+/* OpenCode owns its provider login. This dialog lists the methods the
+   installed server actually reports; Hutch never asks a person to paste a
+   credential into a page it does not also own the destination of. */
+async function openOpenCodeSetupDialog(onReady) {
+  let status;
+  try { status = await api("/v1/opencode/status"); }
+  catch (error) {
+    openModal({
+      title: "OpenCode is not ready",
+      bodyHtml: `<p>${esc(error.message)}</p>
+        <p class="hint">Install or update the OpenCode CLI, then reopen this setup. Hutch uses its own private profile and does not read your personal OpenCode login.</p>`,
+      confirmText: "Close", onConfirm: () => true,
+    });
+    return;
+  }
+  let ready = Boolean(status.ready);
+  let activeAttempt = null;
+  const integrations = (status.integrations || []).filter(item =>
+    item.methods?.length && item.id !== "opencode");
+  let filter = "";
+  const methodButtons = row => (row.methods || []).map(method => {
+    if (method.type === "key") return `<button class="btn ghost small" type="button" data-oc-key="${esc(row.id)}">Use API key</button>`;
+    if (method.type === "oauth") return `<button class="btn ghost small" type="button" data-oc-oauth="${esc(row.id)}" data-oc-method="${esc(method.id)}">${esc(method.label || "Sign in")}</button>`;
+    if (method.type === "command") return `<span class="hint">Needs the provider's CLI sign-in</span>`;
+    if (method.type === "env") return `<span class="hint">Needs an environment variable: ${esc((method.names || []).join(", "))}</span>`;
+    return "";
+  }).join(" ");
+  const rowsHtml = () => {
+    const q = filter.trim().toLowerCase();
+    const matches = integrations.filter(item => !q || `${item.name} ${item.id}`.toLowerCase().includes(q));
+    const ordered = [...matches].sort((a, b) => Number(b.connected) - Number(a.connected) || a.name.localeCompare(b.name)).slice(0, 24);
+    if (!ordered.length) return `<p class="hint">No matching provider. Try another name.</p>`;
+    return ordered.map(row => `<article class="oc-provider-card" data-oc-row="${esc(row.id)}">
+      <div class="oc-provider-head">
+        <div class="provider-choice-copy"><strong>${esc(row.name)}</strong>
+          <small>${row.connected ? "Connected to this private profile" : "Not connected"}</small></div>
+        <div class="oc-provider-actions" role="group" aria-label="Connect ${esc(row.name)}">${methodButtons(row)}</div>
+      </div>
+      <div class="oc-connect-slot" data-oc-slot="${esc(row.id)}"></div>
+    </article>`).join("");
+  };
+  openModal({
+    title: "Connect OpenCode",
+    wide: true,
+    showCancel: false,
+    confirmText: "Done",
+    bodyHtml: `<div id="opencode-setup">
+      <p>OpenCode is Hutch's primary assistant. Choose the account you want it to use. Hutch creates a private OpenCode profile for this installation; it does not read or change your personal OpenCode setup.</p>
+      <label class="field" for="oc-provider-filter">Find a provider<input id="oc-provider-filter" type="search" autocomplete="off" placeholder="Search OpenAI, Anthropic, OpenRouter…"></label>
+      <div id="oc-provider-list" class="oc-provider-list" aria-live="polite">${rowsHtml()}</div>
+      <p class="hint" id="oc-setup-status" role="status" aria-live="polite"></p>
+      <p class="hint">An API key or sign-in is saved by OpenCode inside Hutch's private profile. Hutch never displays it again. If a provider is not listed, install or update the OpenCode CLI and reconnect.</p>
+    </div>`,
+    onConfirm: async () => {
+      if (ready) onReady?.(status);
+      return true;
+    },
+  });
+  const statusNode = $("#oc-setup-status");
+  const note = text => { if (statusNode) statusNode.textContent = text; };
+  const refreshAfterConnect = async () => {
+    note("Checking the private OpenCode profile…");
+    const refreshed = await api("/v1/opencode/status");
+    if (refreshed.ready) {
+      ready = true;
+      note(refreshed.authenticated ? "Connected. OpenCode has a usable model." : "OpenCode has a usable model available.");
+      toast("OpenCode is ready.");
+      onReady?.(refreshed);
+      return true;
+    }
+    note("The account was saved, but OpenCode does not list a usable model yet. Reopen setup after checking the provider account.");
+    return false;
+  };
+  const bindRows = () => {
+    $$("[data-oc-key]").forEach(button => button.addEventListener("click", () => {
+      const integrationId = button.dataset.ocKey;
+      const slot = $(`[data-oc-slot="${CSS.escape(integrationId)}"]`);
+      if (!slot) return;
+      slot.innerHTML = `<label class="field" for="oc-key-${esc(integrationId)}">API key
+        <input id="oc-key-${esc(integrationId)}" type="password" autocomplete="off" spellcheck="false"></label>
+        <button class="btn primary small" type="button" data-oc-save="${esc(integrationId)}">Save key</button>
+        <button class="btn ghost small" type="button" data-oc-cancel>Cancel</button>`;
+      $("[data-oc-save]", slot)?.addEventListener("click", async () => {
+        const input = $("input", slot);
+        const key = input?.value.trim() || "";
+        if (!key) { note("Paste the provider API key first."); input?.focus(); return; }
+        const save = $("[data-oc-save]", slot);
+        if (save) save.disabled = true;
+        note("Saving this account in the private OpenCode profile…");
+        try {
+          await api("/v1/opencode/connect/key", { method: "POST", body: {
+            integration_id: integrationId, key, label: "Hutch",
+          } });
+          input.value = "";
+          await refreshAfterConnect();
+        } catch (error) {
+          note(error.message);
+          if (save) save.disabled = false;
+        }
+      });
+      $("[data-oc-cancel]", slot)?.addEventListener("click", bindRows);
+      $("input", slot)?.focus();
+    }));
+    $$("[data-oc-oauth]").forEach(button => button.addEventListener("click", async () => {
+      const integrationId = button.dataset.ocOauth;
+      const methodId = button.dataset.ocMethod;
+      const slot = $(`[data-oc-slot="${CSS.escape(integrationId)}"]`);
+      if (!slot) return;
+      button.disabled = true;
+      note("Starting the provider sign-in…");
+      try {
+        const result = await api("/v1/opencode/oauth/start", { method: "POST", body: {
+          integration_id: integrationId, method_id: methodId,
+        } });
+        activeAttempt = { integrationId, attempt: result.attempt || {} };
+        const attempt = activeAttempt.attempt;
+        const url = typeof attempt.url === "string" ? attempt.url : "";
+        slot.innerHTML = `<p class="hint">${esc(attempt.instructions || "Complete the sign-in in your browser.")}</p>
+          ${url ? `<p><a href="${esc(url)}" target="_blank" rel="noopener noreferrer">Open provider sign-in</a></p>` : ""}
+          ${attempt.mode === "code" ? `<label class="field" for="oc-code-${esc(integrationId)}">Authorization code<input id="oc-code-${esc(integrationId)}" autocomplete="one-time-code"></label>
+            <button class="btn primary small" type="button" data-oc-complete>Finish sign-in</button>` : ""}
+          <button class="btn ghost small" type="button" data-oc-cancel>Cancel</button>`;
+        $("[data-oc-complete]", slot)?.addEventListener("click", async () => {
+          const code = $("input", slot)?.value.trim() || "";
+          try {
+            await api("/v1/opencode/oauth/complete", { method: "POST", body: {
+              integration_id: integrationId, attempt_id: attempt.attemptID, code,
+            } });
+            await refreshAfterConnect();
+          } catch (error) { note(error.message); }
+        });
+        $("[data-oc-cancel]", slot)?.addEventListener("click", async () => {
+          try { await api(`/v1/opencode/oauth/${encodeURIComponent(integrationId)}/${encodeURIComponent(attempt.attemptID)}`, { method: "DELETE" }); } catch { /* best effort */ }
+          activeAttempt = null; bindRows();
+        });
+        if (attempt.mode !== "code" && attempt.attemptID) {
+          note("Waiting for the provider sign-in to finish…");
+          const poll = setInterval(async () => {
+            if (!activeAttempt || activeAttempt.attempt.attemptID !== attempt.attemptID) { clearInterval(poll); return; }
+            try {
+              const current = await api(`/v1/opencode/oauth/${encodeURIComponent(integrationId)}/${encodeURIComponent(attempt.attemptID)}`);
+              const state = current.attempt?.status || "";
+              if (state === "complete") { clearInterval(poll); await refreshAfterConnect(); }
+              else if (state === "failed" || state === "expired") {
+                clearInterval(poll); note(current.attempt?.message || `Sign-in ${state}.`); button.disabled = false;
+              }
+            } catch (error) { clearInterval(poll); note(error.message); button.disabled = false; }
+          }, 1200);
+        }
+      } catch (error) {
+        note(error.message);
+        button.disabled = false;
+      }
+    }));
+  };
+  $("#oc-provider-filter")?.addEventListener("input", event => {
+    filter = event.currentTarget.value;
+    $("#oc-provider-list").innerHTML = rowsHtml();
+    bindRows();
+  });
+  bindRows();
+}
+
 async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot = null, prefillPurpose = "") {
   let templates;
   try { templates = await api("/bots/templates"); }
@@ -10321,6 +10503,12 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       }
     } catch { /* a source is optional; setup remains available without chat history */ }
   }
+  let openCodeStatus = firstRunOpenCodeStatus;
+  if (!botsCache.length && openCodeStatus === null) {
+    try { openCodeStatus = await api("/v1/opencode/status"); firstRunOpenCodeStatus = openCodeStatus; }
+    catch { openCodeStatus = null; }
+  }
+  const openCodeDefault = openCodeStatus?.ready ? openCodeStatus.models?.[0]?.spec || "" : "";
   let browserHandoffCapability = { status: "unavailable", reason: "The host has not confirmed local browser support." };
   try {
     const capabilities = await api("/v1/capabilities");
@@ -10335,19 +10523,24 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
   let modelSuggestionSource = duplicateBot ? "duplicate" : conversationSource?.model_suggestion ? "chat" : workspaceDefaults.model ? "workspace" : "";
   const draft = {
     step: 0, forceAdvanced: !!chosenTemplate || !!duplicateBot,
+    runtime: duplicateBot?.runtime || (!modelSuggestion && openCodeDefault ? "opencode" : "builtin"),
     purpose: duplicateBot?.instructions || conversationSource?.original_request || prefillPurpose || "",
     useConversationSource: !duplicateBot && !!conversationSource,
     selectedContextMessageIds: new Set(),
     template: chosenTemplate?.name || "", preset: duplicateBot?.preset || chosenTemplate?.preset || "", name: "",
     display_name: duplicateBot ? `${botHeading(duplicateBot)} copy`.slice(0, 80) : "",
-    description: duplicateBot?.description || "", model: modelSuggestion,
+    description: duplicateBot?.description || "",
+    model: modelSuggestion || (!duplicateBot ? openCodeDefault : ""),
     purposeRefinement: null, purposeRefinementStatus: "",
     purposeClarificationHistory: [], purposeClarificationQuestion: null,
     purposeClarificationChoice: "", purposeClarificationAnswer: "", purposeDraftPending: null,
-    inference_mode: duplicateBot?.inference_mode || conversationSource?.inference_mode_suggestion || workspaceDefaults.inference_mode || "hybrid",
+    inference_mode: duplicateBot?.inference_mode || conversationSource?.inference_mode_suggestion ||
+      (openCodeDefault && !modelSuggestion ? "hybrid" : workspaceDefaults.inference_mode || "hybrid"),
     workspace_mode: duplicateBot?.workspace_mode === "fresh" ? "fresh" : "managed",
     // A duplicate is a safe configuration starting point, not a copy of authority.
-    tools: duplicateBot ? new Set() : templateTools(chosenTemplate), memory_enabled: false,
+    tools: duplicateBot ? new Set() : chosenTemplate ? templateTools(chosenTemplate)
+      : (openCodeDefault && !modelSuggestion ? new Set(["read_file", "list_files", "write_file", "web_fetch"]) : new Set()),
+    memory_enabled: false,
     local_browser_handoff: false,
     cron: "", timezone: "UTC", catch_up: "coalesce", schedule_prompt: "",
     limits: { max_steps: 24, timeout_seconds: 900, daily_token_cap: 200000,
@@ -10587,6 +10780,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
   };
   const setupConfiguration = () => ({
     name: draft.name.trim(), display_name: draft.display_name.trim(), template: draft.template || null,
+    runtime: draft.runtime || "builtin",
     preset: draft.preset,
     description: draft.description.trim() || draft.purpose.trim().split("\n")[0].slice(0, 240),
     instructions: instructionsForDraft(), model: draft.model.trim(), inference_mode: draft.inference_mode,
@@ -10655,7 +10849,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     for (const key of ["name", "display_name", "description", "model", "cron", "timezone", "schedule_prompt"]) {
       const field = $(`#setup-${key}`); if (field) draft[key] = field.value;
     }
-    for (const key of ["inference_mode", "workspace_mode", "catch_up", "preset"]) {
+    for (const key of ["inference_mode", "workspace_mode", "catch_up", "preset", "runtime"]) {
       const field = $(`#setup-${key}`); if (field) draft[key] = field.value;
     }
     const handoff = $("#setup-local-browser-handoff");
@@ -10854,6 +11048,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
         ${sourceReview}
         ${contextReview}
         <div><dt>Starting point</dt><dd>${duplicateBot ? `Setup based on ${esc(duplicateBot.display_name || duplicateBot.name)}` : esc(template?.tagline || "Blank bot")}</dd></div>
+        <div><dt>Runtime</dt><dd>${draft.runtime === "opencode" ? "OpenCode assistant" : "Hutch built-in"}</dd></div>
         <div><dt>Model route</dt><dd>${esc(draft.model)}</dd></div>
         <div><dt>Task focus</dt><dd>${esc(taskFocus?.title || "Standard context policy")}</dd></div>
         <div><dt>Inference</dt><dd>${esc(draft.inference_mode)}</dd></div>
@@ -10943,16 +11138,25 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     </div>`;
     if (step === 1) {
       let routeOptions = [];
-      try { routeOptions = await api(`/v1/model-routes?inference_mode=${encodeURIComponent(draft.inference_mode)}`); }
+      try { routeOptions = await api(`/v1/model-routes?inference_mode=${encodeURIComponent(draft.inference_mode)}&runtime=${encodeURIComponent(draft.runtime)}`); }
       catch { /* the route can still be entered directly; creation validates it */ }
       if (draft.step !== 1) return;
       const readyRoutes = routeOptions.filter(route => route.state === "ready" && !route.spec.startsWith("mock/"));
       const options = readyRoutes.map(route => `<option value="${esc(route.spec)}" label="${esc(`${route.group}: ${route.note || route.label}`)}"></option>`).join("");
+      const opencode = draft.runtime === "opencode";
       content = `<div class="setup-conversation form-grid">
-        <p class="setup-assistant">${draft.model ? "Hutch found a configured route from this chat or your workspace. Review it below." : "Choose a configured model route. Safe defaults fill the other setup choices."} It becomes the Bot’s saved default; creating the Bot does not start a run.</p>
-        <label class="field" for="setup-model"><span id="setup-model-label">Model route</span><input id="setup-model" list="setup-model-routes" maxlength="240" autocomplete="off" placeholder="Choose or enter provider/model" value="${esc(draft.model)}" required aria-labelledby="setup-model-label" aria-describedby="setup-model-hint">
+        <p class="setup-assistant">${draft.model ? "Review the configured route below." : opencode ? "OpenCode needs a connected provider account and one of its models." : "Choose a configured model route. Safe defaults fill the other setup choices."} It becomes the Bot’s saved default; creating the Bot does not start a run.</p>
+        <label class="field" for="setup-runtime"><span id="setup-runtime-label">Assistant runtime</span><select id="setup-runtime" aria-labelledby="setup-runtime-label" aria-describedby="setup-runtime-hint">
+          <option value="opencode" ${opencode ? "selected" : ""}>OpenCode assistant — governed tools, provider sign-in or API key</option>
+          <option value="builtin" ${opencode ? "" : "selected"}>Hutch built-in — direct provider chat</option>
+        </select><span class="hint" id="setup-runtime-hint">OpenCode is the full assistant runtime. The built-in runtime is a lighter chat path with Hutch's own agent loop.</span></label>
+        ${opencode ? `<div class="setup-open-code" role="group" aria-label="OpenCode connection">
+          <button class="btn ghost small" type="button" id="setup-connect-opencode">Connect OpenCode provider</button>
+          <p class="hint">Hutch uses a private OpenCode profile. It never reads your personal OpenCode session. Tools and approvals remain governed by Hutch.</p>
+        </div>` : ""}
+        <label class="field" for="setup-model"><span id="setup-model-label">Model route</span><input id="setup-model" list="setup-model-routes" maxlength="240" autocomplete="off" placeholder="${opencode ? "opencode/provider/model" : "Choose or enter provider/model"}" value="${esc(draft.model)}" required aria-labelledby="setup-model-label" aria-describedby="setup-model-hint">
           <datalist id="setup-model-routes">${options}</datalist>
-          <span class="hint"><span id="setup-model-hint">${modelSuggestionSource === "chat" ? `Suggested from ${esc(conversationSource.source_bot_name)}’s current route and routing mode: ${esc(conversationSource.model_suggestion)}.` : modelSuggestionSource === "duplicate" ? `Copied from ${esc(duplicateBot?.display_name || duplicateBot?.name)}; confirm it is configured in Connections.` : modelSuggestionSource === "workspace" ? `Workspace default for new Bots: ${esc(workspaceDefaults.model)}.` : modelSuggestionSource === "import" ? `Imported route: ${esc(modelSuggestion)}. Confirm it is configured in Connections.` : "No workspace or chat model route is configured yet."} ${readyRoutes.length ? `${readyRoutes.length} ready route${readyRoutes.length === 1 ? "" : "s"} shown as suggestions.` : "No ready routes were found. Configure a provider or local model in Connections."} Hosted routes send prompts to that provider; local routes use this machine.</span> <a href="/#/connections" target="_blank" rel="noopener">Open Connections in another tab</a>.</span></label>
+          <span class="hint"><span id="setup-model-hint">${opencode ? (readyRoutes.length ? `${readyRoutes.length} OpenCode model route${readyRoutes.length === 1 ? "" : "s"} found in the private profile.` : "No OpenCode models are available yet. Connect a provider account, then reopen this step.") : `${modelSuggestionSource === "chat" ? `Suggested from ${esc(conversationSource.source_bot_name)}’s current route and routing mode: ${esc(conversationSource.model_suggestion)}.` : modelSuggestionSource === "duplicate" ? `Copied from ${esc(duplicateBot?.display_name || duplicateBot?.name)}; confirm it is configured in Connections.` : modelSuggestionSource === "workspace" ? `Workspace default for new Bots: ${esc(workspaceDefaults.model)}.` : modelSuggestionSource === "import" ? `Imported route: ${esc(modelSuggestion)}. Confirm it is configured in Connections.` : "No workspace or chat model route is configured yet."} ${readyRoutes.length ? `${readyRoutes.length} ready route${readyRoutes.length === 1 ? "" : "s"} shown as suggestions.` : "No ready routes were found. Configure a provider or local model in Connections."} Hosted routes send prompts to that provider; local routes use this machine.`} ${opencode ? "" : `<a href="/#/connections" target="_blank" rel="noopener">Open Connections in another tab</a>.`}</span></span></label>
         <label class="field" for="setup-inference_mode"><span id="setup-inference-mode-label">Inference mode</span><select id="setup-inference_mode" aria-labelledby="setup-inference-mode-label" aria-describedby="setup-inference-mode-hint">
           <option value="hybrid" ${draft.inference_mode === "hybrid" ? "selected" : ""}>Hybrid — local or hosted</option>
           <option value="local" ${draft.inference_mode === "local" ? "selected" : ""}>Local — this machine</option>
@@ -10987,8 +11191,9 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       </details>
       <details class="setup-schedule" id="setup-tools-details" ${draft.tools.size ? "open" : ""}>
         <summary>Enable tools (none enabled by default)</summary>
+        ${draft.runtime === "opencode" ? `<p class="hint">OpenCode uses its own tools. File read/write, shell and public-web options below are mapped to its permission profile; memory, browser, computer and delegation are not available in this runtime.</p>` : ""}
         <fieldset class="setup-tool-options" id="setup-tools"><legend>Tools and permissions</legend>
-          ${BOT_SETUP_TOOLS.map(([tool, label, help]) => `<label class="tool-option"><input type="checkbox" name="setup-tool" value="${esc(tool)}" ${draft.tools.has(tool) ? "checked" : ""}>
+          ${BOT_SETUP_TOOLS.filter(([tool]) => draft.runtime !== "opencode" || OPENCODE_TOOL_NAMES.has(tool)).map(([tool, label, help]) => `<label class="tool-option"><input type="checkbox" name="setup-tool" value="${esc(tool)}" ${draft.tools.has(tool) ? "checked" : ""}>
             <span class="tool-option-copy"><b>${esc(label)}</b><small>${esc(help)}</small></span></label>`).join("")}
         </fieldset>
       </details>
@@ -11220,6 +11425,28 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     }));
     $("#setup-inference_mode")?.addEventListener("change", async () => {
       snapshotFields(); draft.inference_mode = $("#setup-inference_mode").value; await renderStep();
+    });
+    $("#setup-runtime")?.addEventListener("change", async () => {
+      snapshotFields();
+      draft.runtime = $("#setup-runtime").value;
+      draft.model = "";
+      if (draft.runtime === "opencode") {
+        draft.inference_mode = "hybrid";
+        draft.tools = new Set([...draft.tools].filter(tool => OPENCODE_TOOL_NAMES.has(tool)));
+        if (!draft.tools.size) {
+          draft.tools = new Set(["read_file", "list_files", "write_file", "web_fetch"]);
+        }
+        draft.memory_enabled = false;
+      }
+      await renderStep();
+    });
+    $("#setup-connect-opencode")?.addEventListener("click", () => {
+      void openOpenCodeSetupDialog(status => {
+        draft.runtime = "opencode";
+        draft.inference_mode = "hybrid";
+        draft.model = status.models?.[0]?.spec || draft.model;
+        void renderStep();
+      });
     });
     (step === 0 && draft.purposeClarificationQuestion ? $("#setup-clarification-question")
       : step === 0 && draft.purposeRefinement ? $("#setup-purpose-draft-review")

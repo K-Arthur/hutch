@@ -212,6 +212,42 @@ def test_openai_stream_assembles_split_tool_arguments_and_exact_usage(oai):
     assert res.streamed is True
 
 
+def test_openai_stream_without_completion_marker_keeps_partial_text_and_fails(oai):
+    oai.script = lambda b: {"content": "unfinished answer", "prompt_tokens": 20, "completion_tokens": 4}
+    oai.omit_completion_once = True
+    p = OpenAICompatProvider(oai.url + "/v1", "k", "openai-compatible")
+    with pytest.raises(ProviderError) as e:
+        p.chat(ChatRequest(model="m", messages=[{"role": "user", "content": "go"}],
+                           allow_stream_retry=False))
+    assert e.value.kind == "stream" and "completion marker" in str(e.value)
+    assert e.value.partial_content == "unfinished answer"
+    assert e.value.partial_usage["prompt_tokens"] == 20
+
+
+def test_a_length_truncated_tool_call_is_never_reported_as_complete(oai):
+    oai.script = lambda b: {"content": "cut", "length": True,
+                            "tool_calls": [{"name": "write_file", "arguments": {"path": "x.md"}}]}
+    p = OpenAICompatProvider(oai.url + "/v1", "k", "openai-compatible")
+    res = p.chat(ChatRequest(model="m", messages=[{"role": "user", "content": "go"}], tools=[TOOL]))
+    assert res.finish_reason == "length" and res.tool_calls
+
+
+def test_openrouter_probe_verifies_the_key_before_trusting_the_public_catalog(oai):
+    oai.require_key = "or-secret"
+    oai.key_data = {"limit_remaining": 12.5, "is_free_tier": False,
+                    "effective_budget": {"remaining_usd": 8.25, "resets_at": "2026-11-01T00:00:00Z"}}
+    p = OpenAICompatProvider(oai.url + "/v1", "wrong", "openrouter")
+    ok, detail, names = p.probe_models()
+    assert not ok and "rejected" in detail
+    assert not oai.of("/v1/models"), "a rejected key must not fall through to the public catalog"
+
+    good = OpenAICompatProvider(oai.url + "/v1", "or-secret", "openrouter")
+    ok, detail, names = good.probe_models()
+    assert ok and names == ["fake-model"]
+    assert "$12.50 key credit remaining" in detail and "$8.25 before the next budget limit" in detail
+    assert [r["path"] for r in oai.requests][-2:] == ["/v1/key", "/v1/models"]
+
+
 def test_openai_rejecting_stream_options_falls_back_to_non_streaming(oai):
     oai.reject_stream_options = True
     p = OpenAICompatProvider(oai.url + "/v1", "", "llamacpp")
@@ -301,6 +337,16 @@ def test_claude_first_event_uses_first_token_timeout_not_idle_timeout(claude_srv
     assert not result.streamed
     assert any("no data for 0s" in note and "stream stalled" in note for note in result.notes)
     assert len(claude_srv.of("/v1/messages")) == 2  # first-token stall, then one non-stream retry
+
+
+def test_claude_pause_turn_is_incomplete_and_retains_delivered_text(claude_srv):
+    claude_srv.script = lambda b: {"content": "half an answer", "stop_override": "pause_turn"}
+    with pytest.raises(ProviderError) as e:
+        ClaudeProvider(api_key="sk-test", base_url=claude_srv.url).chat(
+            ChatRequest(model="claude-opus-5-5", messages=[{"role": "user", "content": "x"}]))
+    assert e.value.kind == "incomplete" and not e.value.retryable
+    assert e.value.partial_content == "half an answer"
+    assert len(claude_srv.of("/v1/messages")) == 1
 
 
 def test_claude_tool_use_round_trip_merges_parallel_results(claude_srv):
