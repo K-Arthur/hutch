@@ -12,7 +12,7 @@
   <link rel="preload" href="assets/fonts/archivo-latin-var.woff2?v=e3a28ead" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="tokens.css?v=2d78c988">
   <link rel="stylesheet" href="app.css?v=a726296a">
-    <link rel="stylesheet" href="styles.min.css?v=ba6bed99">
+    <link rel="stylesheet" href="styles.min.css?v=4316fccc">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -188,12 +188,30 @@
         <h2 class="section-heading">Turn one conversation into help you can return to.</h2>
         <p class="section-desc">Chat with Hutch in everyday language. When a kind of work comes up again, give it a name and a place of its own.</p>
       </div>
-      <ol class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <ol class="workflow-steps">
         <li class="card step-card">
           <div class="card-body step-body">
             <span class="step-n" aria-hidden="true">01</span>
             <h3 class="text-lg font-bold tracking-tight">Say what you need</h3>
             <p>Start in chat. If you turn a request into a dedicated assistant, Hutch carries your words into setup, suggests an editable name, and lets you create it without describing the work again.</p>
+          </div>
+        </li>
+        <li class="card step-card">
+          <div class="card-body step-body">
+            <span class="step-n" aria-hidden="true">02</span>
+            <h3 class="text-lg font-bold tracking-tight">Choose what happens next</h3>
+            <p>If Hutch needs your preference, it can offer clear choices right in chat. Your reply guides the conversation; it never approves an action. Review an approval in the chat or Needs you, then allow once or say no.</p>
+          </div>
+        </li>
+        <li class="card step-card">
+          <div class="card-body step-body">
+            <span class="step-n" aria-hidden="true">03</span>
+            <h3 class="text-lg font-bold tracking-tight">Come back to the result</h3>
+            <p>Find the answer and what Hutch did in the same conversation. Keep useful work nearby, share only the background you choose, and return to repeat requests when you need them.</p>
+          </div>
+        </li>
+      </ol>
+      <div class="workflow-explanations" aria-label="More about each step">
             <details class="page-details workflow-details">
               <summary>Customize the assistant when you want to</summary>
               <div class="details-copy">
@@ -202,13 +220,6 @@
                 <p><b>Experimental (built-in coordinator only):</b> request a tool-free purpose rewrite from the exact source; each request returns one response. Select earlier user messages if useful. Edit and apply the draft yourself; it lists unknowns rather than guessing. Drafting creates no assistant or permission changes. Normal route and fallback limits still apply; hosted providers may retain the text, and live quality is unverified.</p>
               </div>
             </details>
-          </div>
-        </li>
-        <li class="card step-card">
-          <div class="card-body step-body">
-            <span class="step-n" aria-hidden="true">02</span>
-            <h3 class="text-lg font-bold tracking-tight">Choose what happens next</h3>
-            <p>If Hutch needs your preference, it can offer clear choices right in chat. Your reply guides the conversation; it never approves an action. Review an approval in the chat or Needs you, then allow once or say no.</p>
             <details class="page-details workflow-details">
               <summary>How assistant handoffs and checkpoints work</summary>
               <div class="details-copy">
@@ -217,13 +228,6 @@
                 <p>Attach only the exact specialist reply you choose, as untrusted text; other chat history, files and permissions stay separate. You may also select up to eight current, approved coordinator facts for that task alone. They are not specialist memory; providers may retain submitted copies. The specialist's own memory and workspace may apply. Live provider execution is unverified.</p>
               </div>
             </details>
-          </div>
-        </li>
-        <li class="card step-card">
-          <div class="card-body step-body">
-            <span class="step-n" aria-hidden="true">03</span>
-            <h3 class="text-lg font-bold tracking-tight">Come back to the result</h3>
-            <p>Find the answer and what Hutch did in the same conversation. Keep useful work nearby, share only the background you choose, and return to repeat requests when you need them.</p>
             <details class="page-details workflow-details">
               <summary>More about history, files, and memory</summary>
               <div class="details-copy">
@@ -233,9 +237,7 @@
                 <p>Documents Hutch creates &mdash; PDF, DOCX, XLSX, PPTX, CSV, JSON, Markdown or a ZIP bundle &mdash; are stored on your machine as versioned files with recorded SHA-256 hashes. Downloads come straight from that local store, so a file does not expire with the chat that made it, and each preview says whether it is the extracted content or an approximate render.</p>
               </div>
             </details>
-          </div>
-        </li>
-      </ol>
+      </div>
 
       <aside class="workflow-preview" aria-labelledby="workflow-preview-title">
         <div class="workflow-preview-copy">
@@ -659,7 +661,7 @@
           <div class="collapse-content"><p>No. Hutch chat is text-only today: it does not attach or send image files. The Vision focus option only tunes context and model residency; it does not enable image input. Describe the image in text instead.</p></div>
         </details>
         <details class="collapse collapse-arrow faq-item">
-          <summary>What happens to files Hutch makes for me?</summary>
+          <summary class="collapse-title">What happens to files Hutch makes for me?</summary>
           <div class="collapse-content"><p>They are kept on your machine in Hutch&rsquo;s own document store, not in a temporary session that expires. Every download is checked against its recorded size and SHA-256 before it is served, revisions create new versions while older versions stay downloadable, and previews are labelled as extracted content or approximate renders rather than pretending to be the exact file.</p></div>
         </details>
         <details class="collapse collapse-arrow faq-item">

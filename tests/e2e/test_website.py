@@ -107,6 +107,31 @@ def _page(browser, *, width=1440, height=900, reduced_motion="no-preference", js
     return context, page, errors
 
 
+@pytest.mark.parametrize("width", [1440, 768, 390])
+def test_workflow_explanations_do_not_stretch_overview_cards(browser, site_url, width):
+    context, page, errors = _page(browser, width=width, reduced_motion="reduce")
+    try:
+        page.goto(site_url)
+        cards = page.locator(".step-card")
+        before = cards.evaluate_all("els => els.map(el => el.getBoundingClientRect().height)")
+        for summary in page.locator(".workflow-details > summary").all():
+            summary.focus()
+            page.keyboard.press("Enter")
+            assert summary.evaluate("el => el.parentElement.open")
+            after = cards.evaluate_all("els => els.map(el => el.getBoundingClientRect().height)")
+            assert after == pytest.approx(before, abs=0.1)
+            assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+            page.keyboard.press("Enter")
+            assert not summary.evaluate("el => el.parentElement.open")
+        sizes = page.locator(".faq-item > summary").evaluate_all(
+            "els => els.map(el => getComputedStyle(el).fontSize)"
+        )
+        assert len(set(sizes)) == 1
+        assert not errors
+    finally:
+        context.close()
+
+
 def test_landing_initial_transfer_stays_within_review_budget_and_art_loads_on_demand(browser, site_url):
     """Keep the hero pointer effect off the initial asset path."""
     context, page, errors = _page(browser, width=1440, height=900)

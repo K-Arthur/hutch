@@ -118,10 +118,10 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .page-details > summary:focus-visible { outline: 2px solid var(--color-semantic-focus-ring); outline-offset: 3px; }
 .details-copy { padding: var(--space-6); }
 .workflow-details { margin-top: var(--space-3); }
-.workflow-details > summary { min-height: 46px; padding: var(--space-3) 42px var(--space-3) var(--space-4); font-size: var(--text-size-xs); }
+.workflow-details > summary { min-height: 46px; padding: var(--space-4) var(--space-12) var(--space-4) var(--space-4); font-size: var(--text-size-base); }
 .workflow-details > summary::after { right: 14px; width: 20px; height: 20px; font-size: 17px; }
 .workflow-details .details-copy { display: grid; gap: var(--space-3); padding: var(--space-4); }
-.workflow-details p { color: var(--color-semantic-text-2); font-size: var(--text-size-xs); line-height: 1.65; }
+.workflow-details p { color: var(--color-semantic-text-2); font-size: var(--text-size-base); line-height: 1.65; }
 .workflow-preview { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-8); margin-top: var(--space-8); padding: clamp(var(--space-5), 4vw, var(--space-8)); border: 1px solid var(--color-semantic-border); border-inline-start: 3px solid var(--color-semantic-brand); border-radius: var(--radius-panel); background: var(--color-semantic-surface); }
 .workflow-preview-copy { min-width: 0; }
 .workflow-preview-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3); color: var(--color-semantic-text-3); font-size: var(--text-size-xs); font-weight: 650; }
@@ -320,12 +320,19 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .ev { display: inline-flex; align-items: center; gap: var(--space-2); font-family: var(--font-mono); font-size: 12px; color: var(--color-semantic-text-2); white-space: nowrap; }
 
 /* ------------------------------------------------------------ workflow */
+.workflow-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-6); }
+.workflow-explanations { margin-top: var(--space-6); border-top: 1px solid var(--color-semantic-border); }
+.workflow-explanations .workflow-details { margin: 0; border: 0; border-bottom: 1px solid var(--color-semantic-border); border-radius: 0; background: transparent; }
+.workflow-explanations .details-copy { max-width: 72ch; font-size: var(--text-size-base); line-height: 1.65; }
+@media (max-width: 900px) {
+  .workflow-steps { grid-template-columns: minmax(0, 1fr); }
+}
 .step-card { border: 1px solid var(--color-semantic-border); background: var(--color-semantic-surface); border-radius: var(--radius-panel); overflow: clip; }
 .step-shot { border-bottom: 1px solid var(--color-semantic-border-soft); background: var(--color-semantic-well); }
 .step-shot img { width: 100%; height: auto; }
 .step-body { display: flex; flex-direction: column; gap: var(--space-2); }
 .step-n { font-family: var(--font-mono); font-size: var(--text-size-2xs); font-weight: 700; color: var(--color-semantic-brand); letter-spacing: 0.06em; }
-.step-body p { flex-grow: 0; color: var(--color-semantic-text-2); font-size: var(--text-size-xs); line-height: 1.6; }
+.step-body p { flex-grow: 0; color: var(--color-semantic-text-2); font-size: var(--text-size-base); line-height: 1.6; }
 
 /* ------------------------------------------------------------ feature cards */
 .feature .card-body {

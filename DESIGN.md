@@ -237,6 +237,12 @@ prose, labels, or marketing.
 
 ## Layout
 
+- **Marketing explanations:** keep the short request-to-result overview separate
+  from long expandable explanations. Explanations occupy a shared reading-width
+  region below the overview; expanding one must not stretch sibling overview
+  cards. Use body-sized prose and keyboard-operable native disclosures, stacking
+  overview steps in reading order on smaller screens.
+
 - Desktop shell: `272px sidebar | 56px top bar | 1fr content`, optional
   `380px` context drawer (fixed overlay below 1100px, auto-opened above).
 - Sidebar docks to a 64px icon rail (logo becomes the expand control);
