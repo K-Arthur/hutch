@@ -1,0 +1,19 @@
+{
+  "completed_at": "2026-10-23T23:00:38.607141+00:00",
+  "source_fingerprint": "ed5bd89c821eb8a8dfec00ab4e308472f9d22cd115295cd6a956aa3bfdcca252",
+  "total_test_nodes": 3278,
+  "counts": {
+    "passed": 3260,
+    "skipped": 7,
+    "xfailed": 6,
+    "failed": 5
+  },
+  "failed": [
+    "tests/test_store_events.py::test_batched_writer_sustains_over_1000_events_per_second",
+    "tests/test_workflow_api.py::test_save_run_and_read_back_with_idempotency",
+    "tests/test_workflow_api.py::test_run_now_launches_the_routine_pinned_revision_idempotently_without_advancing_schedule",
+    "tests/test_workflow_api.py::test_question_answering_is_bound_to_its_own_id",
+    "tests/test_workflow_api.py::test_pause_holds_an_answered_wait_and_resume_continues_the_same_workflow"
+  ],
+  "scope": "Combined isolated run coverage, not one uninterrupted invocation; first complete files retained from f1, remainder journaled in serial batches."
+}

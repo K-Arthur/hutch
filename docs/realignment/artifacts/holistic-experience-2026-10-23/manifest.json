@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-10-23T22:24:13.374840+00:00",
+  "recorded_at": "2026-10-23T23:02:27.658841+00:00",
   "browser": "Chromium 156.0.8078.4",
   "scope": "Actual locally rendered UI with synthetic test records; computer frames are synthetic fixtures; first-run proof uses a genuinely empty database. No live provider inference, screen reader or physical-device checks.",
   "source_sha256": {
@@ -30,6 +30,7 @@
     "controls/native-select-phone.png": "72b23c1ee9977c96fd95e11c0f149f2e7f6d23b4135e41d853a363f0a9dbd9a7",
     "controls/provider-connect-phone.png": "bf9bedba35f0f6ae39c5256f4b008f93ade90948d4d4269c4e5b9c071a16a5d6",
     "detector.json": "f15307fcdef31bff9e645af4caab26f31f9a8354e6cea06fd89a4ee3ed4fc9f3",
+    "fast-validation.json": "3106ee118b3c1d720fe0cab43cedc73d54be0bdc01e7a1f35119b6eff89de883",
     "headers/runtime-1440.png": "aa6c404a841e078e75315b0cc6b8e93e92848e6e4a5a2d8572a9f7ab44c75ead",
     "headers/runtime-320.png": "a47d12182e8a7158e51f733885e50d5b03f67aabc534b6b877518d950a249932",
     "headers/runtime-390.png": "b887ebc94407bf0e45cd6fa83ca355b196404e9796c39e7ef6d5d90942e2eb3e",

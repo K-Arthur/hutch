@@ -20,8 +20,8 @@ Do not call isolated screenshots or passing first-run checks repo-wide validatio
 | A3 | Long setup/configuration on task pages, dialogs for short decisions; preserve navigation/drafts | Implemented and tested, including pending/failed/replaced/reloaded drafts |
 | A4 | Marketing follows same rules; expanded content works without stretching unrelated columns | Implemented; body-sized shared reading rows, real proof and evidence hashes verified |
 | A5 | Actual desktop/tablet/phone and loading/error/empty/focus/expanded-state inspection | Representative family/state coverage recorded; physical-device/screen-reader/native-zoom checks remain unrun |
-| A6 | Meaningful regressions + relevant suite + necessary code review | Focused browser suites pass; two-pass self-review recorded; isolated full fast and computer-phone reruns running; no final broad pass claimed |
-| A7 | Progressive commits and relevant documentation | Six implementation commits through 1d9b58da; final validation/integration record pending |
+| A6 | Meaningful regressions + relevant suite + necessary code review | Complete with disclosed limitations: combined fast coverage 3260 passed, 5 failed nodes; four workflow reruns pass, storage benchmark reproduces baseline failure; computer-control baseline failures remain; two-pass self-review recorded |
+| A7 | Progressive commits and relevant documentation | Six implementation commits through 1d9b58da plus 01afd3ca checkpoint; final validation recorded below |
 | A8 | Integrate into main/master, verify integration, remove task worktree/branch | Pending; do not integrate unfinished work |
 
 ## Source inventory / remaining review families
@@ -121,6 +121,17 @@ restart after printing 716 outcomes without failures. Stable collection contains
 3278 runnable test nodes. Retain 715 outcomes from completed files; rerun the partial
 boundary file and remainder in serial 80-test batches with per-test phase journals.
 This is combined coverage, not one uninterrupted full-suite pass.
+The remainder is now complete. Combined node outcomes: **3260 passed, 7 skipped,
+6 xfailed, 5 failed** across 3278 nodes. This folds teardown errors into their test
+nodes rather than counting them twice. Genuine aggregate output is retained at
+`artifacts/holistic-experience-2026-10-23/fast-validation.json`; external raw phase
+journal, batch logs and JUnit remain in `holistic-fast-validation/` as noted below.
+One failing node is the disk-backed benchmark below. Four workflow API nodes timed
+out or failed thread shutdown in batch 28 (3 call failures, 2 teardown errors).
+Focused checks passed unchanged on both the pre-overhaul archive (**4 passed**, 13.71s)
+and task tree (**4 passed**, 13.52s). The tests, workflow engine, supervisor and API
+are byte-identical between trees. Root cause of the batch failures is unresolved;
+do not erase the initial failures or call this a green uninterrupted full suite.
 The remaining subprocess durability cases passed with isolation (**4 passed**): queued
 event recovery, post-file-flush process death, and both effect-receipt crash boundaries.
 The disk-backed throughput gate measured **530 events/s** in the changed tree and
@@ -173,22 +184,20 @@ captures are historical, not current-state evidence. No further design/polish ro
   `/home/kevina/.local/share/opencode/hutch-visual-empty-20261023`. Do not run real
   model/provider tasks for visual QA. Use fixture servers for populated states.
   Processes may die on host restarts. Use independent fixture state for mutations/tests.
-- Active check: restart-safe remainder runner, shell `sh_16ae746210017r0gLHwi8jCR2m`.
-  Resume with `/home/kevina/CodingProjects/hutch/.venv/bin/python
-  /home/kevina/.local/share/opencode/hutch-resume-fast.py` from this worktree.
-  It validates a fingerprint of tracked product/test sources, keeps completed nodes,
-  and stores admission, per-phase reports, per-batch logs/JUnit and eventual result in
+- Completed restart-safe remainder runner: shell `sh_16ae746210017r0gLHwi8jCR2m`.
+  It validated a fingerprint of tracked product/test sources, kept completed nodes,
+  and stored admission, per-phase reports, per-batch logs/JUnit and final result in
   `/home/kevina/.local/share/opencode/holistic-fast-validation/`. It does not change
-  product behavior, assertions or benchmark mode. Only the incomplete remainder is run.
-  Do not rerun the whole suite after another restart. Isolated computer-phone (`c1`) returned
+  product behavior, assertions or benchmark mode. No more full-suite rerun planned.
+  Isolated computer-phone (`c1`) returned
   1 failure and 4 fixture errors:
   no controlled session is created and the worker ends before the expected human wait.
   The representative pre-overhaul comparison (`b1`) reproduces the same fixture error
   and process failure (**1 failed, 1 error**, 24.52s), now using correct child imports and
   short socket paths. These are pre-existing failures in this environment, not proven UI
   regressions; their deeper cause is not diagnosed. Do not claim this path works. Copied
-  evidence/site-token checks passed. Await the combined fast coverage result before merge.
-- Next: await/recover remaining fast checks, record their combined scope, then fast-forward main,
+  evidence/site-token checks passed. No claim of successful live computer control.
+- Next: commit the final validation record, fast-forward main,
   verify integration and all 12 unrelated file hashes, remove only the task worktree/branch.
   Main remains at f29b299b; preservation record:
   `/home/kevina/.local/share/opencode/holistic-main-before-merge.json`. Latest comparison

@@ -89,6 +89,23 @@ that on-disk production throughput was improved. All four remaining subprocess
 durability probes pass after correcting child import isolation; no safety code,
 threshold or assertion was relaxed.
 
+## Completed broad validation
+
+The interrupted isolated run plus restart-safe serial batches covered all **3278
+runnable fast-test nodes**: **3260 passed, 7 skipped, 6 xfailed, 5 failed nodes**.
+The original aggregate is retained in `fast-validation.json` with its source
+fingerprint. Per-phase journals and batch JUnit/logs are under
+`/home/kevina/.local/share/opencode/holistic-fast-validation/`. This is combined
+coverage, not one uninterrupted green invocation; teardown errors are folded into
+the associated node outcome in that aggregate.
+
+Besides the storage benchmark, four workflow API nodes timed out or failed thread
+shutdown in batch 28 (3 test-call failures and 2 teardown errors). A bounded
+focused rerun passed all four on the pre-overhaul archive and all four on the task
+tree. Tests, workflow engine, supervisor and API bytes are unchanged. The original
+failures remain recorded; their batch/timing cause is **not diagnosed**, and no
+timeout, assertion, safety boundary or product code was changed to hide them.
+
 The mechanical detector reported eight advisory items, not proof of visual
 quality. Provider sign-in artwork radius and neutral provider-artwork backgrounds
 are documented brand exceptions; 11px marketing table headings are an existing
