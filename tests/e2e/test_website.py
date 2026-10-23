@@ -607,6 +607,101 @@ def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
         context.close()
 
 
+def test_approval_triage_copy_is_truthful_and_responsive(browser, site_url):
+    context, page, errors = _page(browser, reduced_motion="reduce")
+    out = artifact_path("approval-triage/marketing")
+    out.mkdir(parents=True, exist_ok=True)
+    index = (SITE_DIR / "index.html").read_bytes()
+    captures = []
+    try:
+        page.goto(site_url, wait_until="networkidle")
+        benefit = page.locator(".benefit-card").filter(has_text="Know when to step in")
+        control = page.locator("#control")
+        benefit_text = benefit.inner_text().lower()
+        assert "soonest deadline and risk" in benefit_text
+        control.locator("details > summary").click()
+        note = control.locator(".details-note")
+        note_text = note.inner_text().lower()
+        assert note.is_visible()
+        assert "needs you orders them by soonest deadline, then high risk and outward effect" in note_text
+        assert "due-soon" in note_text
+        assert "high-risk" in note_text
+        assert "requests that leave the machine" in note_text
+        assert "one request at a time" in note_text
+        assert "no bulk approval" in note_text
+        assert "bulk" not in control.locator(".section-desc").inner_text().lower()
+        for label, width, height in (("desktop", 1440, 1000), ("tablet", 768, 1024),
+                                      ("phone", 390, 844), ("narrow", 320, 800)):
+            page.set_viewport_size({"width": width, "height": height})
+            control.scroll_into_view_if_needed()
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            path = out / f"approval-control-{label}.png"
+            control.screenshot(path=str(path), animations="disabled",
+                               style="body > header { display: none !important; } .skip-link { display: none !important; }")
+            benefit_path = out / f"approval-benefit-{label}.png"
+            benefit.screenshot(path=str(benefit_path), animations="disabled")
+            captures.append({"size": label, "viewport": [width, height], "overflow": overflow,
+                             "screenshot": path.name,
+                             "screenshot_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                             "benefit_screenshot": benefit_path.name,
+                             "benefit_sha256": hashlib.sha256(benefit_path.read_bytes()).hexdigest()})
+
+        # WCAG text-spacing override and an effective 200% viewport for the new note.
+        page.set_viewport_size({"width": 320, "height": 800})
+        page.add_style_tag(content=(
+            "* { letter-spacing: .12em !important; word-spacing: .16em !important; "
+            "line-height: 1.5 !important; } "
+            "p { margin-bottom: 2em !important; }"
+        ))
+        note.scroll_into_view_if_needed()
+        spacing_overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        note_box = note.bounding_box()
+        assert spacing_overflow <= 1, spacing_overflow
+        assert note_box and note_box["x"] >= 0 and note_box["x"] + note_box["width"] <= 321, note_box
+        note.screenshot(path=str(out / "approval-details-text-spacing-320.png"), animations="disabled")
+        page.set_viewport_size({"width": 720, "height": 480})
+        note.scroll_into_view_if_needed()
+        zoom_overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert zoom_overflow <= 1, zoom_overflow
+        note.screenshot(path=str(out / "approval-details-zoom-200-effective.png"), animations="disabled")
+        assert not errors, errors
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_website.py::test_approval_triage_copy_is_truthful_and_responsive",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "python": platform.python_version(), "browser": browser.version,
+            "index_sha256": hashlib.sha256(index).hexdigest(), "captures": captures,
+            "text_spacing": {"viewport": [320, 800], "overflow": spacing_overflow,
+                              "screenshot": "approval-details-text-spacing-320.png",
+                              "screenshot_sha256": hashlib.sha256(
+                                  (out / "approval-details-text-spacing-320.png").read_bytes()).hexdigest()},
+            "zoom_200_effective": {"viewport": [720, 480], "overflow": zoom_overflow,
+                                    "screenshot": "approval-details-zoom-200-effective.png",
+                                    "screenshot_sha256": hashlib.sha256(
+                                        (out / "approval-details-zoom-200-effective.png").read_bytes()).hexdigest()},
+            "anonymous": True, "page_errors": errors,
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        context.close()
+
+
+def test_approval_triage_marketing_evidence_is_complete():
+    root = ROOT / "docs/realignment/approval-triage-2026-10-22/marketing"
+    data = json.loads((root / "validation.json").read_text(encoding="utf-8"))
+    assert hashlib.sha256((SITE_DIR / "index.html").read_bytes()).hexdigest() == data["index_sha256"]
+    assert data["captures"] and len(data["captures"]) == 4
+    for capture in data["captures"]:
+        for name_key, hash_key in (("screenshot", "screenshot_sha256"),
+                                   ("benefit_screenshot", "benefit_sha256")):
+            path = root / capture[name_key]
+            assert path.is_file(), path
+            assert hashlib.sha256(path.read_bytes()).hexdigest() == capture[hash_key], path
+    for key in ("text_spacing", "zoom_200_effective"):
+        path = root / data[key]["screenshot"]
+        assert path.is_file(), path
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == data[key]["screenshot_sha256"], path
+
+
 def test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation(browser, site_url):
     context, page, errors = _page(browser, reduced_motion="reduce")
     out = artifact_path("bot-from-message/marketing")

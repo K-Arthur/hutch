@@ -164,6 +164,8 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .review-flow p { color: var(--color-semantic-text-2); font-size: var(--text-size-sm); line-height: 1.6; }
 .technical-details .details-copy { padding: var(--space-6); }
 .control-details .details-copy { padding: var(--space-6); }
+.details-note { max-width: 72ch; margin: 0 0 var(--space-5); color: var(--color-semantic-text-2); font-size: var(--text-size-sm); line-height: 1.65; }
+.details-note strong { color: var(--color-semantic-text); }
 @media (max-width: 760px) {
   .benefit-grid, .choice-grid, .review-flow { grid-template-columns: minmax(0,1fr); }
   .workflow-preview { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
