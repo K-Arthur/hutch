@@ -113,3 +113,62 @@ composer, and avoids a cosmetic reskin of every settings field.
 
 Implementation checkpoints and actual validation results are appended below. No test or
 post-change visual pass is claimed by this initial record.
+
+## Checkpoints
+
+### 1. Shared composer module + chat anatomy (committed `db23546c`)
+
+- Added `composer.css` (box, textarea, toolbar, send, util) and `composer.js`
+  (`mountAutogrow`, `mountEnterSubmit`, `isComposing`) as the one composer family.
+- Restructured the chat composer in `app.js` to the new anatomy: full-width
+  writing area (`composer-body`) with `+`/model/send in a `composer-toolbar`
+  below, per the shadcn/assistant-ui references. Removed the old inline
+  `.composer-row` and the duplicated block in `style.css` (committed `e848f0c5`).
+- Autogrow and Enter/IME handling now come from the shared module, so other
+  request surfaces adopt them without drift.
+
+### 2. Surface inventory + class split (committed `b8893e39`)
+
+- Inventoried all 27 `app.js` textareas plus the Jinja compose form. Split into
+  composer-boxes (chat, first-run, phone-start), the attachment row, and plain
+  form textareas that keep normal form semantics — recorded in the table above.
+
+### Visual + behavioral validation (this session, Chromium 156.0.8078.4)
+
+Opened the actual renders at 1440 / 900 / 390 / 320:
+
+- **Chat composer** (`composer-{desktop,phone,compact}-typed.png`): writing area
+  spans the full box; `+` lower-left, model chip + emerald send lower-right;
+  focus ring visible; no horizontal overflow; 44px send on phone/compact.
+- **Popovers** (`popover-plus-{desktop,phone}.png`, `popover-model-*`): the `+`
+  menu and model switcher still anchor above the box from the new bottom toolbar;
+  on phone the `+` menu becomes the bounded sheet with a "Done" header, fully
+  on-screen (not clipped). Escape restores focus to `#composer-menu-btn`.
+- **First-run** (`firstrun-desktop.png`): already at 16px text with a comfortable
+  writing area and a labeled primary action — adopted the shared writing-area
+  token without a cosmetic reskin.
+- **Keyboard**: tab order is textarea → `+` → model → send; Shift+Enter inserts a
+  newline; Enter opens the `+` dialog but does not toggle it while open.
+- **Resilience**: no horizontal overflow at 320px or at 200% root text size.
+- **Draft persistence**: survives reload for the same conversation.
+- **Honest failure path**: sending on the `mock/demo` route preserves the draft
+  and shows "Mock inference is test-only… Your draft is kept" (by design, not a
+  regression).
+- **e2e**: `tests/e2e/test_design_system.py -k "composer or first_run"` → 3 passed.
+
+### Chat vision — scoped, not yet implemented (pending clean file ownership)
+
+The runtime already has `image_url` media transmission (`builtin.py`, used by
+`inspect_media` frames) and the upload path carries `mime` + `state`, so chat
+vision is a genuine integration gap, not a missing capability. Wiring it is
+cross-cutting and additive: `ConversationMessageRequest` needs an attachment
+field (absent today), threaded through `submit_conversation_message` → `Run` →
+the runtime's media path → a vision-capability gate with an honest refusal when
+the selected route cannot receive images.
+
+This was **not** started because the three files it must touch
+(`server/app.py`, `store.py`, `runtime/builtin.py`) currently carry unrelated,
+uncommitted runtime/memory work on the shared branch. Starting it would risk
+entangling that work. Recommended as its own slice with clean ownership of
+those files, plus the real-image e2e (paste/drop/picker, real photo inputs,
+honest refusal on non-vision routes) already outlined above.
