@@ -395,6 +395,12 @@ class OpenCodeRuntime:
     def execute(self, run: Run, ctx: ToolContext, tools: dict[str, Tool],
                 stop: Callable[[], bool]) -> str:
         del tools  # OpenCode executes its own tools; Hutch brokers every permission and observes results.
+        if run.image_attachments:
+            # Admission refuses this too; keep the guarantee if a Bot's runtime
+            # changed after the message was admitted. Nothing is sent either way.
+            raise RunAborted("media_input",
+                             "this assistant runs on OpenCode, which receives text only; your message and "
+                             "its image(s) were not sent — remove the images or describe them in text")
         if stop() or ctx.gate.cancelled():
             raise RunAborted("stopped", "run stopped before OpenCode started")
         provider_id, model_id = _model_ref(ctx.bot.model, [])

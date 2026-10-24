@@ -646,6 +646,11 @@ class Run(BaseModel):
     persona_preview_revision: Optional[int] = Field(default=None, ge=0)
     tool_access: Literal["bot", "none"] = "bot"  # per-run capability ceiling, independent of execution purpose
     conversation_id: str = ""          # canonical conversation this run belongs to, if submitted through /api/v1
+    # Image attachments for THIS message only: the admission-verified upload snapshot
+    # ({id, conversation_id, filename, mime, byte_size, sha256, state}) that the runtime
+    # re-verifies against disk. Staged images travel with every message while they remain
+    # in the composer; see providers/attachments.py for validation and wire formatting.
+    image_attachments: list[dict[str, Any]] = Field(default_factory=list)
     conversation_context: list[dict[str, str]] = Field(default_factory=list, exclude=True)
     owner: str = ""                   # pid of the process executing this run (kept for compatibility; see lease_owner)
     # --- ownership (ADR-0001/0003). These mirror columns; the columns are authoritative.
@@ -688,8 +693,10 @@ class Run(BaseModel):
             raise ValueError("persona preview runs require a candidate style and saved-profile revision")
         if not is_preview and (self.persona_preview_style is not None or self.persona_preview_revision is not None):
             raise ValueError("preview style and revision are valid only on persona preview runs")
-        if is_preview and (self.conversation_id or self.conversation_context or self.skill_activation or self.rehearsal):
-            raise ValueError("persona preview runs cannot carry conversation, skills, or rehearsal context")
+        if is_preview and (self.conversation_id or self.conversation_context or self.skill_activation
+                           or self.rehearsal or self.image_attachments):
+            raise ValueError("persona preview runs cannot carry conversation, skills, image attachments, "
+                             "or rehearsal context")
         return self
 
     @field_validator("parent_run_id")

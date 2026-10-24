@@ -728,6 +728,10 @@ class ConversationMessageRequest(BaseModel):
     correction: Optional[Literal["shorter", "go_deeper", "less_banter"]] = None
     workspace_task_result_id: Optional[str] = Field(default=None, min_length=1, max_length=100)
     workspace_task_result_message_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
+    # Verified uploads from THIS conversation staged in the composer. Sent as image
+    # input with this message when the selected route accepts images; omitted for
+    # image-only messages (prompt may then be absent).
+    image_attachment_ids: list[str] = Field(default_factory=list, max_length=4)
 
 
 class PersonaFeedbackRequest(BaseModel):
@@ -3576,8 +3580,10 @@ def create_app() -> FastAPI:
         if body.correction and bot.runtime.value != "builtin":
             raise HTTPException(409, "answer rewrites are currently supported only by the built-in runtime")
         if body.correction and (body.rehearse or body.skills or body.workspace_task_result_id
-                                or body.workspace_task_result_message_id):
-            raise HTTPException(422, "answer rewrites cannot combine rehearsal, selected skills, or task references")
+                                or body.workspace_task_result_message_id
+                                or body.image_attachment_ids):
+            raise HTTPException(422, "answer rewrites cannot combine rehearsal, selected skills, task "
+                                     "references, or image attachments")
         correction_prompts = {
             "shorter": "Make this answer shorter.",
             "go_deeper": "Go deeper on this answer.",
@@ -3591,18 +3597,57 @@ def create_app() -> FastAPI:
                 raise HTTPException(422, "answer rewrites must select the assistant answer to revise")
         else:
             prompt = body.prompt or ""
-            if not prompt.strip():
+            if not prompt.strip() and not body.image_attachment_ids:
                 raise HTTPException(422, "a message prompt is required")
         # A restore hold governs the whole executor. Report it before model
         # setup or request-specific checks so a stale/unavailable route cannot
         # obscure the operator review that is currently required.
         store.assert_execution_ready()
+        # Image attachments: cheap, local, request-specific checks first — nothing
+        # leaves this process here, and a refused message never admits a run.
+        image_attachments: list[dict] = []
+        if body.image_attachment_ids:
+            from ..providers.attachments import validate_image_rows
+            requested: list[str] = []
+            seen_ids: set[str] = set()
+            for raw_id in body.image_attachment_ids:
+                upload_id = str(raw_id or "").strip()
+                if upload_id and upload_id not in seen_ids:
+                    seen_ids.add(upload_id)
+                    requested.append(upload_id)
+            rows = [store.get_upload(upload_id) for upload_id in requested]
+            image_attachments, problems = validate_image_rows(requested, rows, conversation_id=conversation_id)
+            if problems:
+                raise HTTPException(422, "; ".join(problems))
+            if bot.runtime.value != "builtin":
+                # OpenCode and friends receive text only; say so before any work starts.
+                raise HTTPException(422, f"the {bot.runtime.value} runtime cannot receive image input; "
+                                         "remove the images or describe them in text")
         from ..modelchoices import ModelNotUsable, validate_override
         try:
             selected_route = bot.task_routes.get(body.task_role, "") if body.task_role else ""
             model = validate_override(config, store, bot, body.model or selected_route)
         except ModelNotUsable as exc:
             raise HTTPException(exc.status, f"{exc} - {exc.fix}" if exc.fix else str(exc)) from None
+        if image_attachments:
+            # Wire/model capability for the resolved route, without a network request.
+            # Local model routes defer the per-model check (it queries /api/show) and the
+            # runtime re-verifies authoritatively once the model is online.
+            from ..providers.attachments import image_route_refusal
+            from ..runtime.ladder import Ladder, get_provider, make_rung
+            try:
+                ladder = Ladder(bot)
+                image_rung = make_rung(model, "primary")
+                image_provider = get_provider(image_rung.provider,
+                                              bot.base_url if image_rung.provider == ladder.primary.provider else None)
+            except Exception:
+                image_provider = None   # unresolvable here; the runtime still enforces this
+            if image_provider is not None:
+                refusal = image_route_refusal(image_provider, image_rung.model,
+                                              verify_model=not image_rung.local)
+                if refusal:
+                    raise HTTPException(422, f"{refusal}; choose a vision-capable route for this message "
+                                             "or remove the images and describe them in text")
         key = idempotency_key(request)
         request_body = body.model_dump(exclude={"reply_to_message_id", "workspace_task_result_id",
                                                 "workspace_task_result_message_id"})
@@ -3625,7 +3670,8 @@ def create_app() -> FastAPI:
                   skill_activation=activation,
                   persona_turn=body.persona if config.adaptive_persona_enabled else None,
                   execution_purpose="answer_rewrite" if body.correction else "task",
-                  tool_access="none" if body.correction else "bot", rewrite_kind=body.correction)
+                  tool_access="none" if body.correction else "bot", rewrite_kind=body.correction,
+                  image_attachments=image_attachments)
         task = Task(bot_id=bot.id, kind="on_demand", prompt=prompt)
         try:
             run_id, created = store.submit_conversation_message(

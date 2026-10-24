@@ -410,6 +410,46 @@ class BuiltinRuntime:
 
     # ----------------------------------------------------------- bring online
 
+    def _attach_chat_images(self, ctx: ToolContext, run: Run, messages: list[dict[str, Any]]) -> None:
+        """Attach this message's staged images to its user turn, before any estimate.
+
+        Runs before the token estimate and window check so image pressure counts in
+        both. A stored image that cannot be read or verified aborts the run: a message
+        never goes out missing an image the composer still shows. Whether the route
+        ACCEPTS the parts is checked in ``_verify_chat_images`` once a model is online.
+        """
+        from ..providers.attachments import chat_image_parts
+        parts, problems = chat_image_parts(list(run.image_attachments),
+                                           state_dir=ctx.config.state_dir,
+                                           conversation_id=run.conversation_id)
+        if problems:
+            raise RunAborted("media_input", "; ".join(problems))
+        if not parts:
+            raise RunAborted("media_input", "the attached images could not be read; nothing was sent")
+        text_parts = [{"type": "text", "text": run.prompt}] if run.prompt.strip() else []
+        # The last message is always this run's user turn (preview paths are excluded
+        # by the caller), so the prompt text and images travel as one multimodal turn.
+        messages[-1]["content"] = [*text_parts, *parts]
+        self._log(ctx, run, "media", f"{len(run.image_attachments)} image(s) attached to this message",
+                  prepared=len(run.image_attachments))
+
+    def _verify_chat_images(self, ctx: ToolContext, run: Run, session: Session) -> None:
+        """Authoritative capability gate: the route that came online must accept images.
+
+        Mirrors the inspect_media rule — capability is the provider's own signal, and
+        the recorded transmission count says what actually reached this request.
+        """
+        from ..providers.attachments import image_route_refusal
+        count = len(run.image_attachments)
+        refusal = image_route_refusal(session.provider, session.rung.model, verify_model=True)
+        if refusal:
+            raise RunAborted("media_input",
+                             f"{refusal}, so your message and its {count} image(s) were not sent to the "
+                             "model; choose a vision-capable route or describe the images in text")
+        self._log(ctx, run, "media",
+                  f"{count} attached image(s) included with this message to {session.rung.spec}",
+                  transmitted=count, prepared=count, route=session.rung.spec)
+
     def _bring_online(self, ctx: ToolContext, run: Run, ladder: Ladder, rung: Rung, messages: list[dict],
                       specs: list[dict], guard: Optional[SpendGuard] = None) -> Session:
         with self._inference(ctx, run, rung):
@@ -1163,6 +1203,8 @@ class BuiltinRuntime:
                                           [{"role": "system", "content": base_system},
                                            *run.conversation_context,
                                            {"role": "user", "content": run.prompt}])
+        if run.image_attachments and not is_preview:
+            self._attach_chat_images(ctx, run, messages)
         mt, tt = estimate_prompt_tokens(messages, provisional_specs)
         est_prompt = mt + tt
         if is_preview and est_prompt > PREVIEW_MAX_INPUT_TOKENS:
@@ -1170,6 +1212,8 @@ class BuiltinRuntime:
         run.model_used = ladder.primary.spec
 
         session = self._start(ctx, run, ladder, guard, messages, provisional_specs, stop, est_prompt)
+        if run.image_attachments and not is_preview:
+            self._verify_chat_images(ctx, run, session)
         if is_preview:
             session.stream = False
 
