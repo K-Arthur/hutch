@@ -1,11 +1,11 @@
 {
   "test": "tests/e2e/test_website.py::test_provider_availability_is_readable_without_horizontal_page_scroll",
-  "captured_at": "2026-10-23T22:00:09.658025+00:00",
-  "browser": "156.0.8078.4",
+  "captured_at": "2026-10-24T16:55:19.054225+00:00",
+  "browser": "155.0",
   "source_sha256": {
-    "website/index.html": "c7f0d130c2d80138780754cbff0599c989bfff4e23eed9ebe8e50a4d0d96996a",
-    "website/styles.css": "fbe151327292cdd30616c364df384ef6547d51a88fe19d6c0a69e523bae0ad88",
-    "website/styles.min.css": "dbe04e1c5455281c9b92b85dbcf631d0462cda758ce9415a631851bd0f985916"
+    "website/index.html": "716eeffea8dbd9c9504ec088782af891cfdd9fc7dc60461fb166bc7e154a17b6",
+    "website/styles.css": "fa6ca9ffcf7dcb607697727f1f7a8f7b9baad6b75cb2125419f9e57d477a0b99",
+    "website/styles.min.css": "8396aaee175dc434b0024caec38d67a86d16de0b86d7a8cbdcd7ac57c4d81488"
   },
   "viewports": [
     {

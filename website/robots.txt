@@ -1,0 +1,4 @@
+# No Sitemap directive yet: it requires an absolute URL and this site has no
+# public domain chosen. Add "Sitemap: https://<domain>/sitemap.xml" when one is.
+User-agent: *
+Allow: /

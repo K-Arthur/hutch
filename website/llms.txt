@@ -1,0 +1,25 @@
+# Hutch
+
+> Hutch is a local-first, MIT-licensed platform for personal AI assistants that run on your own Linux computer. You choose the models and connected apps; assistants ask for your approval before important actions. It is a private preview: there is no public download yet.
+
+Hutch keeps its control state — conversations, memory, logs, schedules and files — in one local state directory on the machine you control. Model calls go to whichever route you configured: a local runtime (Ollama, llama.cpp, LM Studio) or a hosted provider (OpenAI, Anthropic, OpenRouter, OpenAI-compatible endpoints, or OpenCode). Hosted providers receive the prompts and context Hutch sends them; network tools contact their own destinations.
+
+## Key facts
+
+- Status: private preview. Source and downloads are not public, and there is no hosted sign-up.
+- Platform: Linux (Python 3.11+). macOS and Windows executors are not implemented.
+- License: MIT. The software is free; hosted model usage is billed by your own provider account.
+- Assistants (called bots in the CLI): each has its own model, tools, schedule, memory and workspace.
+- Approvals: assistants ask before consequential actions; some shell command classes are always denied; there is no bulk approval.
+- Spend controls: estimated budgets, usage reservations and per-bot ceilings; provider billing stays authoritative.
+- Chat input: text plus PNG/JPEG/WebP image attachments (up to 4 per message, 1.5 MB each) on built-in runtimes with a vision-capable model route.
+- Schedules: IANA-timezone recurring tasks that catch up after sleep while the local service is running; nothing runs while the machine is off.
+- Evidence: what works, what is experimental and what is unavailable is documented in the repository (docs/realignment/baseline.md and docs/marketing-site.md).
+
+## Not claims
+
+- No public install command, package or download exists today.
+- Hutch does not operate models itself; it connects to model routes you configure.
+- Usage estimates are not provider-enforced spending limits.
+
+The product site is a single page; its full support table and FAQ are the canonical public summary of current capabilities.

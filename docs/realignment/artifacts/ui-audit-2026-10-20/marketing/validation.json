@@ -1,12 +1,12 @@
 {
   "test": "tests/e2e/test_website.py::test_home_loads_real_assets_and_truthful_availability",
-  "captured_at": "2026-10-23T21:59:31.191194+00:00",
-  "browser": "156.0.8078.4",
+  "captured_at": "2026-10-24T16:54:02.217350+00:00",
+  "browser": "155.0",
   "source_sha256": {
-    "website/index.html": "c7f0d130c2d80138780754cbff0599c989bfff4e23eed9ebe8e50a4d0d96996a",
-    "website/styles.css": "fbe151327292cdd30616c364df384ef6547d51a88fe19d6c0a69e523bae0ad88",
-    "website/styles.min.css": "dbe04e1c5455281c9b92b85dbcf631d0462cda758ce9415a631851bd0f985916",
-    "website/site.js": "51b1a0e6c99f9d74d980c568dfbcc6486eb43c247fe41217a7a49487fe6cefe0"
+    "website/index.html": "716eeffea8dbd9c9504ec088782af891cfdd9fc7dc60461fb166bc7e154a17b6",
+    "website/styles.css": "fa6ca9ffcf7dcb607697727f1f7a8f7b9baad6b75cb2125419f9e57d477a0b99",
+    "website/styles.min.css": "8396aaee175dc434b0024caec38d67a86d16de0b86d7a8cbdcd7ac57c4d81488",
+    "website/site.js": "5b30d3f5a02a2d1c5407f89a2ad09c9e9960f31269aba596268d46dfaf41c2d1"
   },
   "viewports": [
     {

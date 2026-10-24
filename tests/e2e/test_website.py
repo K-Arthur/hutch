@@ -9,6 +9,7 @@ import http.server
 import json
 import os
 import platform
+import re
 import socketserver
 import threading
 from datetime import datetime, timezone
@@ -195,7 +196,7 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     requests: list[str] = []
     page.on("request", lambda request: requests.append(request.url))
     page.goto(site_url, wait_until="networkidle")
-    assert page.title().startswith("hutch")
+    assert page.title().startswith("Hutch — local-first AI assistants")
     assert "A little help with what’s next." in page.inner_text("h1.hero-title")
     mascot = page.locator("img.weave-agent")
     assert mascot.count() == 1
@@ -1181,7 +1182,7 @@ def test_dropdown_alignment_keeps_site_navigation_and_disclosures_semantic(brows
             trigger.click()
             drawer = page.locator("#menu-drawer")
             assert drawer.get_attribute("role") is None, "native dialog semantics need no ARIA menu role"
-            assert drawer.get_by_role("link", name="See Hutch").is_visible()
+            assert drawer.get_by_role("link", name="Product tour").is_visible()
             assert drawer.get_by_role("menuitem").count() == 0
             for link in drawer.locator(".drawer-links a").all():
                 assert link.bounding_box()["height"] >= 44
@@ -1234,8 +1235,8 @@ def test_adaptive_response_style_marketing_is_labeled_and_fits(browser, site_url
     image_input.locator("summary").focus()
     page.keyboard.press("Enter")
     assert image_input.evaluate("element => element.open")
-    assert "text-only today" in image_input.inner_text().lower()
-    assert "does not enable image input" in image_input.inner_text().lower()
+    assert "up to 4 images of 1.5" in image_input.inner_text().lower()
+    assert "refuses the send before any run starts" in image_input.inner_text().lower()
 
     out = artifact_path("persona-marketing-2026-10-11")
     out.mkdir(parents=True, exist_ok=True)
@@ -1357,4 +1358,48 @@ def test_no_horizontal_overflow(browser, site_url, width):
     page.wait_for_timeout(250)
     overflow = page.evaluate("document.documentElement.scrollWidth - window.innerWidth")
     assert overflow <= 1, f"horizontal overflow at {width}px: {overflow}px"
+    context.close()
+
+
+def test_structured_data_and_discovery_metadata_match_the_page(browser, site_url):
+    """JSON-LD and discovery metadata stay truthful and in sync with the visible page."""
+    context, page, _ = _page(browser)
+    page.goto(site_url, wait_until="networkidle")
+
+    title = page.title()
+    assert title.startswith("Hutch — local-first AI assistants")
+    description = page.locator("meta[name=description]").get_attribute("content") or ""
+    assert "local-first" in description.lower()
+    assert "private preview" in description.lower()
+    assert page.locator("meta[name=theme-color]").get_attribute("content")
+    og_title = page.locator("meta[property='og:title']").get_attribute("content") or ""
+    assert og_title == title
+
+    blocks = page.locator("script[type='application/ld+json']")
+    assert blocks.count() == 2
+    parsed = [json.loads(blocks.nth(i).inner_text()) for i in range(blocks.count())]
+    software = next((b for b in parsed if b.get("@type") == "SoftwareApplication"), None)
+    faqpage = next((b for b in parsed if b.get("@type") == "FAQPage"), None)
+    assert software is not None and faqpage is not None
+
+    assert software["name"] == "Hutch"
+    assert software["operatingSystem"] == "Linux"
+    assert "MIT" in software["license"]
+    assert software["isAccessibleForFree"] is True
+    assert software["softwareVersion"]
+    assert software["dateModified"]
+    assert "local-first" in software["description"].lower()
+    assert "private preview" in software["description"].lower()
+    assert "cloud" not in software["description"].lower()
+
+    schema_questions = {q["name"] for q in faqpage["mainEntity"]}
+    dom_questions = {s.inner_text().strip() for s in page.locator("#faq summary.collapse-title").all()}
+    assert schema_questions == dom_questions, {
+        "only_in_schema": sorted(schema_questions - dom_questions),
+        "only_in_dom": sorted(dom_questions - schema_questions),
+    }
+    for entry in faqpage["mainEntity"]:
+        answer = entry["acceptedAnswer"]["text"]
+        assert len(answer) > 40, entry["name"]
+        assert not re.search(r"\b(powerful|innovative|next-generation|all-in-one)\b", answer, re.I)
     context.close()
