@@ -433,7 +433,7 @@ def test_submission_state_retains_ambiguity_and_refuses_retransmission(store, co
     store.transition_run(run.id, RunStatus.running, fence=claimed.fence)
     prepared = store.prepare_opencode_submission(run_id=run.id, fence=claimed.fence,
                                                  binding_key=conversation["id"], session_id="ses_one")
-    assert prepared["state"] == "prepared" and prepared["submission_id"].startswith("hutch_")
+    assert prepared["state"] == "prepared" and prepared["submission_id"].startswith("msg_hutch_")
     store.mark_opencode_submission(run_id=run.id, fence=claimed.fence, state="dispatched")
     retained = store.prepare_opencode_submission(run_id=run.id, fence=claimed.fence,
                                                  binding_key=conversation["id"], session_id="ses_one")

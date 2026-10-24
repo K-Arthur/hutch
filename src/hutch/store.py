@@ -5230,7 +5230,10 @@ class Store:
                 raise LeaseLost(run_id, "this run can no longer submit to OpenCode")
             row = db.execute("SELECT * FROM opencode_submissions WHERE run_id = ?", (run_id,)).fetchone()
             if row is None:
-                submission_id = "hutch_" + uuid.uuid4().hex
+                # OpenCode v2.1.4 validates the user-message ID shape on
+                # POST /prompt: it must start with ``msg_`` (live-verified
+                # 2026-10-24). Keep a Hutch-visible marker inside that shape.
+                submission_id = "msg_hutch_" + uuid.uuid4().hex
                 db.execute("INSERT INTO opencode_submissions(run_id, binding_key, session_id, submission_id, state, "
                            "detail, created_at, updated_at) VALUES (?, ?, ?, ?, 'prepared', '', ?, ?)",
                            (run_id, binding_key, session_id, submission_id, now, now))

@@ -9,6 +9,7 @@ path the built-in runtime uses. No credential ever enters the OpenCode process.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -410,3 +411,161 @@ def test_adapter_omits_the_memory_plugin_when_memory_is_disabled(
                         lambda *a, **k: (fake.init_kwargs.update(k), fake)[1])
     assert run_it(OpenCodeRuntime(), run, ctx, {}) == "ok"
     assert fake.init_kwargs.get("plugins") == []
+
+
+# ---------------------------------------------------------------- live free-model evidence
+
+LIVE_MODEL = os.environ.get("HUTCH_LIVE_OPENCODE_MODEL", "opencode/deepseek-v4.1-flash-free")
+
+
+def _zen_auth_entry():
+    """The opencode zen key from this host's own OpenCode profile. Never logged or asserted on."""
+    try:
+        data = json.loads((Path.home() / ".local" / "share" / "opencode" / "auth.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    entry = data.get("opencode-go")
+    return entry if isinstance(entry, dict) and isinstance(entry.get("key"), str) else None
+
+
+_LIVE_REQUIRED = "live OpenCode free-model evidence: set HUTCH_LIVE_OPENCODE=1 on a host with an opencode zen login"
+
+requires_live = pytest.mark.skipif(
+    not (os.environ.get("HUTCH_LIVE_OPENCODE") and _zen_auth_entry() is not None and shutil.which("opencode")),
+    reason=_LIVE_REQUIRED)
+
+
+def _install_zen_auth(config) -> None:
+    """Give the private run profile this host's zen key, and nothing else."""
+    entry = _zen_auth_entry()
+    assert entry is not None, "no opencode zen login on this host"
+    from hutch.code_handoff import opencode_profile_paths
+    directory = opencode_profile_paths(config.state_dir)["data_home"] / "opencode"
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    path = directory / "auth.json"
+    path.write_text(json.dumps({"opencode-go": entry}), encoding="utf-8")
+    os.chmod(path, 0o600)
+
+
+def _live_owner(store, run):
+    claimed = store.claim_run(run.id, "live-free-model-owner", 900)
+    assert claimed is not None
+    return store.transition_run(run.id, RunStatus.running, fence=claimed.fence)
+
+
+@requires_live
+def test_live_free_model_calls_the_run_bound_memory_bridge(store, config, tmp_path):
+    """A real free model, a real private OpenCode server, the real plugin, the real bridge.
+
+    The reviewed fact exists nowhere else: not in the admission context, not in
+    the workspace, not in any prompt. The model can only mention the launch
+    month by calling `recall` through the run-bound bridge (read-only: it
+    records a canonical tool-call event, not an effect receipt), and its
+    `remember` call must land as an unreviewed proposal with a done receipt —
+    never as recallable memory before a human reviews it.
+    """
+    import time
+    from hutch.models import ApprovalMode, EventType, Limits, RuntimeKind
+    from hutch.runtime.opencode import OpenCodeRuntime
+    from tests.test_runtime_builtin import build, run_it
+
+    _install_zen_auth(config)
+    ctx, run, _events, _tools = build(
+        store, config, tmp_path, model=LIVE_MODEL, tools=["memory"],
+        prompt=("Do three things, in order. 1) Call the recall tool with the query 'launch'. "
+                "2) Call the remember tool with key 'live-bridge-note' and value "
+                "'The live bridge check succeeded.' 3) Then state, in one short sentence, "
+                "which month the launch is planned for."),
+        runtime=RuntimeKind.opencode, mode=ApprovalMode.auto,
+        instructions="You must call the recall tool before answering. Never guess facts you did not recall.",
+        limits=Limits(max_steps=10, timeout_seconds=600, daily_token_cap=10_000_000))
+    bot = store.get_bot(ctx.bot.id)
+    store.upsert_bot(bot.model_copy(update={"memory_enabled": True}), preserve_schedules=True)
+    fact = store.remember(ctx.bot.id, "launch-window", "The launch is planned for November.")
+    store.review_fact(ctx.bot.id, fact.id, content_hash=fact.content_hash, action="approve", actor="live-fixture")
+    _live_owner(store, run)
+
+    started = time.monotonic()
+    try:
+        answer = run_it(OpenCodeRuntime(), run, ctx, {})
+        elapsed = round(time.monotonic() - started, 1)
+    except Exception as exc:
+        pytest.fail(f"live free-model bridge run failed after {round(time.monotonic() - started, 1)}s: "
+                    f"{type(exc).__name__}: {exc}")
+
+    recall_calls = [event for event in store.list_events(run.id)
+                    if event.type is EventType.tool_call and event.data.get("tool") == "recall"]
+    remember_receipts = [action for action in store.list_actions(run.id)
+                         if action["tool"] == "remember" and action["status"] == "done"]
+    proposal = store._db.execute("SELECT status FROM memory_facts WHERE bot_id = ? AND key = ?",
+                                 (ctx.bot.id, "live-bridge-note")).fetchone()
+    submission = store.opencode_submission(run.id)
+    print(f"\nLIVE[A3] model={LIVE_MODEL} elapsed={elapsed}s tokens={store.get_run(run.id).tokens} "
+          f"recall_events={len(recall_calls)} remember_receipts={len(remember_receipts)} "
+          f"proposal={proposal and proposal['status']} submission={submission and submission['state']} "
+          f"answer={answer!r}")
+    assert recall_calls, "the model must have dispatched recall through the run-bound bridge"
+    assert "November" in answer, "the answer must carry the recalled, provenance-bound fact"
+    assert remember_receipts, "the remember proposal must be receipt-backed like Builtin's"
+    assert proposal is not None and proposal["status"] == "proposed", \
+        "the live remember must land as an unreviewed proposal, never as approved memory"
+
+
+@requires_live
+def test_live_free_model_receives_prior_turns_in_a_new_session(store, config, tmp_path):
+    """A real free model answers from Hutch's provenance selection, not a native session.
+
+    The bot has no tools at all, so the only way the second run can know the
+    colour is the persisted admission selection the adapter delivered into a
+    brand-new native session (A1 reconstruction after restart/new session).
+    """
+    import time
+    from hutch.models import ApprovalMode, Limits, RuntimeKind
+    from hutch.runtime.opencode import OpenCodeRuntime
+    from hutch.tools.base import ToolContext
+    from hutch.approvals import ApprovalGate
+    from hutch.safety import PolicyEngine
+    from tests.test_runtime_builtin import run_it
+
+    _install_zen_auth(config)
+    bot = store.create_bot(Bot(name="live-continuity-probe", model=LIVE_MODEL, tools=[],
+                               approval_mode=ApprovalMode.auto, selfcheck=False,
+                               runtime=RuntimeKind.opencode,
+                               instructions="Answer briefly and directly.",
+                               limits=Limits(max_steps=4, timeout_seconds=600, daily_token_cap=10_000_000)))
+    conversation, _ = store.create_conversation(bot.id, "live continuity",
+                                                idem_key="live-conv", request_hash="live-conv")
+    workspace = tmp_path / "live-ws"
+    workspace.mkdir(exist_ok=True)
+
+    def turn(prompt, key):
+        run = Run(bot_id=bot.id, prompt=prompt)
+        store.submit_conversation_message(conversation["id"], prompt, run,
+                                          Task(bot_id=bot.id, prompt=prompt),
+                                          idem_key=key, request_hash=key)
+        _live_owner(store, run)
+
+        def emit(event):
+            store.append_event(event)
+
+        gate = ApprovalGate(store, bot, run, PolicyEngine(), emit, poll_seconds=0.05)
+        ctx = ToolContext(bot=bot, run=run, store=store, policy=gate.policy, gate=gate,
+                          config=config, workspace=workspace, emit=emit)
+        started = time.monotonic()
+        answer = run_it(OpenCodeRuntime(), run, ctx, {})
+        elapsed = round(time.monotonic() - started, 1)
+        return run, answer, elapsed
+
+    first_run, first_answer, first_elapsed = turn(
+        "My favourite deployment colour is teal. Acknowledge in one word.", "live-first")
+    store.flush_events()
+    second_run, second_answer, second_elapsed = turn(
+        "Without using any tools: which deployment colour did I mention, and what did you answer "
+        "the first time? One sentence.", "live-second")
+    store.flush_events()
+    print(f"\nLIVE[A1] model={LIVE_MODEL} t1={first_elapsed}s/{first_run.tokens}tok "
+          f"t2={second_elapsed}s/{second_run.tokens}tok "
+          f"first={first_answer!r} second={second_answer!r}")
+    assert "teal" in second_answer.lower(), \
+        "the second, fresh native session must know the prior turns from Hutch's selection"
+    assert second_run.conversation_context, "the second run must carry the persisted admission selection"

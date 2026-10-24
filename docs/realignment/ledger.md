@@ -47,7 +47,7 @@ continuations remain separate authorities; no new database, provider access, dep
 |---|---|---|
 | A1 | Admission provenance, newest bounded history, identity-based reply deduplication, explicit fact/reply/specialist snapshots, partial/empty/truncated assistant status and additive API/export fields. `tests/test_conversations.py`, `tests/test_runtime_builtin.py`, `tests/test_runtime_opencode.py`. | Historical rows default to no recorded qualification; no retrospective inference. Artifact references do not automatically disclose files. |
 | A2 | Schema v75 native cache affinity, exact run/context binding, stale/deleted-session rebuild and durable send identity/state. Ambiguous prior dispatch is refused before rebinding or reserving; final dispatch rechecks cancellation/fence. Restart-state evidence in `tests/test_memory_continuity.py`. | Native sessions are not reused across turns without a replace-context contract. Deterministic fixtures are not live native-process/model-quality certification. |
-| A3 | **Implemented and verified with stated limits.** A per-run `MemoryBridge` (abstract Unix socket in the run worker) authenticates callers by `SO_PEERCRED` uid + PID/starttime ancestry to the recorded OpenCode server, derives Bot/run/fence/conversation ambiently, rechecks fence/status/cancellation/lease/`memory_enabled`/tool list per call, and dispatches through the same `steps.call_tool` path Builtin uses. A generated V2 plugin exposes `recall`/`remember` (plus an RPC verifier sharing the same call path); no credential enters the OpenCode environment. `tests/test_opencode_memory_bridge.py` (13 tests) covers tree authorization, authority revocations, scoping/provenance/update/archive, receipts, hostile inputs, adapter wiring, and a **live OpenCode v2.1.4 round trip**. | A live *model* invoking the tools end-to-end is unrun (no authorized credentials); plugin-load failure fails soft (tools absent); the RPC verifier needs `events: {}` on v2.1.4. Direct SQLite, bearerless endpoints and model-selected identity remain forbidden. |
+| A3 | **Implemented and verified with stated limits.** A per-run `MemoryBridge` (abstract Unix socket in the run worker) authenticates callers by `SO_PEERCRED` uid + PID/starttime ancestry to the recorded OpenCode server, derives Bot/run/fence/conversation ambiently, rechecks fence/status/cancellation/lease/`memory_enabled`/tool list per call, and dispatches through the same `steps.call_tool` path Builtin uses. A generated V2 plugin exposes `recall`/`remember` (plus an RPC verifier sharing the same call path); no credential enters the OpenCode environment. `tests/test_opencode_memory_bridge.py` (13 offline tests) covers tree authorization, authority revocations, scoping/provenance/update/archive, receipts, hostile inputs and adapter wiring, and a live OpenCode v2.1.4 RPC round trip; two opt-in live tests additionally show a real free model invoking `recall`/`remember` through the bridge end-to-end (evidence below). | Free-model tool-calling is model-dependent: the live run is a single-host, single-model observation, not a reliability certification or a numeric quality target. Plugin-load failure fails soft (tools absent); the RPC verifier needs `events: {}` on v2.1.4. Direct SQLite, bearerless endpoints and model-selected identity remain forbidden. |
 | A4 | Schema v76 anchored task manifests, immutable revisions/CAS/explicit supersession, receipt-backed results distinct from commitments, bounded admission and omission qualification. Concurrent corrections and injected pointer-write failure are covered in `tests/test_memory_continuity.py`; existing fitting/compaction paths remain in use. Repeated compaction in one run writes one provenance manifest per cycle with canonical originals untouched, and hitting the per-run cap fails honestly instead of fabricating a fit (`tests/test_runtime_compaction.py`, two tests added 2026-10-24 after the v5 run; focused run 7 passed). | Backend Store maintenance interface only, not automatic extraction or a user editor. Unknown hosted windows remain best effort; this does not guarantee retention beyond a model's actual window. |
 | A5 | v74–v76 migration compatibility plus existing receipt/transcript recovery. New tests prove one logical child-result consumption after restart, cancelled-parent non-resumption, sealed late child replies and stale-parent rejection. | Logical delivery is distinct from external effect execution; no exactly-once network or power-loss claim. |
 
@@ -86,8 +86,33 @@ continuity contract: the test now injects a fixed `Hardware(os=Linux, ram_total=
 snapshot (the existing `test_workdir` pattern), so admission cannot depend on transient host headroom; **no
 continuity assertion was changed**. The exact 10-file batch re-ran **279 passed** afterwards
 (`batch-09-rerun.{log,xml}`). The two AF_UNIX path-length failures known from v4/v5 pass under this run's short
-basetemps (batch 10: 288 passed). Live-model evaluation remains unrun — no authorized credentials; browser e2e
-remains unrun — backend-only change with no browser-visible surface modified.
+basetemps (batch 10: 288 passed). Browser e2e remains unrun — backend-only change with no browser-visible surface
+modified. Live-model evidence arrived afterwards; see the next paragraph.
+
+**Live free-model validation (2026-10-24, owner-authorized).** With the owner's OpenCode zen login — copied as the
+single `opencode-go` entry, mode 0600, into the private run profile only, never into the repo, logs or prompts — two
+opt-in tests in `tests/test_opencode_memory_bridge.py` drove the REAL stack (`HUTCH_LIVE_OPENCODE=1 uv run pytest -q
+-s tests/test_opencode_memory_bridge.py -k live_free_model`; skipped by default with a stated reason) against
+`opencode/deepseek-v4.1-flash-free` (owner account, cost $0):
+
+- **A3 bridge, model-invoked:** the model called `recall(query="launch")` through the generated plugin (via Code
+  Mode), the run-bound bridge served the human-reviewed fact, and the answer carried it ("The launch is planned for
+  November."); its `remember` call produced a done receipt and an **unreviewed** `proposed` fact, not recallable
+  before human review. 11.0 s wall (including private-server start), 3,435 tokens, submission `acknowledged`,
+  1 recall tool-call event, 1 remember receipt.
+- **A1 continuity, fresh native session:** a toolless Bot's second run answered from Hutch's provenance selection
+  alone ("You mentioned teal as your favourite deployment colour, and I answered \"Teal.\"") in a brand-new session:
+  9.2 s / 2,165 tokens then 6.0 s / 2,577 tokens.
+- The live run found one real defect the deterministic fakes could not: OpenCode v2.1.4 validates the prompt
+  endpoint's user-message ID shape (`msg_` prefix). The durable send identity is now `msg_hutch_<hex>`
+  (`Store.prepare_opencode_submission`); A2 semantics are unchanged and the focused deterministic re-run passed
+  **63 tests** across `tests/test_runtime_opencode.py tests/test_memory_continuity.py tests/test_conversations.py`
+  plus **13 passed, 2 live-skipped** in the bridge file.
+- Limits, stated plainly: one host, one free model, one observation each; free-tier tool-calling reliability is
+  model-dependent and not certified here; no baseline comparison and no numeric quality target are inferred, and
+  SQLite-durability caveats from ADR-0003 still apply. The post-suite source delta is exactly this one-line prefix
+  change plus skip-gated live tests, re-verified by the focused runs named above; the full-suite totals in the
+  previous paragraph describe the tree before it.
 
 Earlier attempts are superseded, not counted: the first full run exhausted the shared `/tmp` tmpfs
 (`database or disk is full`); subsequent monolithic runs were cancelled by server restarts; two in-tree batched runs
