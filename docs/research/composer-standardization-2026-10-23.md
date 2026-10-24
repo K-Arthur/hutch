@@ -96,5 +96,20 @@ fields), one in `computer.js` (remote typing — out of composer scope), one in 
 (clipboard helper), plus the Jinja `/bots/{name}/run` compose form. The chat composer is the
 only surface with attachments, model/skill switches and a live run relationship today.
 
+### Surface classes (confirmed by source inventory)
+
+Not every textarea is a composer. Migrating ordinary form fields onto the chat box would strip
+their label/help semantics and add toolbar affordances they do not need. The plan therefore
+treats two classes:
+
+| Class | Surfaces | Adopts |
+|---|---|---|
+| **Composer box** | chat (`#composer-box`, app.js:3483), first-run request (`.first-run-request`, app.js:3226), phone start (`.phone-start-form`, app.js:12239) | Shared writing-area geometry, 1rem+ text, autogrow, Enter/IME rules. Keeps its own action: chat's circular send; first-run's labeled "Set up my assistant"; phone's labeled "Start work". |
+| **Attachment row** | workspace upload chips (`.composer-attachments` / `.upload-chip`, app.js:13265) | Composer-family chips; real thumbnails for images in the vision slice. |
+| **Plain form textarea** | assistant instructions, setup purpose/schedule, template editors, workflow inputs/answers, task briefs, receipt evidence, local_dev_origins, runtime source | Stays a normal `<textarea>` with form label/help semantics. Shares only type roles and focus, not the composer chrome. |
+
+This keeps the "unified family" promise scoped to surfaces that actually behave like a request
+composer, and avoids a cosmetic reskin of every settings field.
+
 Implementation checkpoints and actual validation results are appended below. No test or
 post-change visual pass is claimed by this initial record.
