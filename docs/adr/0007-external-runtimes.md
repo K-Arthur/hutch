@@ -43,10 +43,16 @@ the plugin's schema before the socket, and observes cancellation refuse live. So
 [RPC](https://opencode.ai/v2/docs/build/plugins/rpc) and [MCP servers](https://opencode.ai/v2/docs/mcp-servers),
 checked 2026-10-23/24.
 
-Limits: a live *model* invoking the tools end-to-end was not run (no authorized model credentials); the RPC
-verification surface requires an explicit `events: {}` map on v2.1.4 (`Rpc.define` without it fails plugin load), and
-if plugin loading ever fails, the failure is soft: memory tools are simply absent for that run, never half-exposed.
-The bridge is not a provider billing cap, not an OS sandbox for native tools, and grants no cross-conversation scope.
+Limits: the bridge is not a provider billing cap, not an OS sandbox for native tools, and grants no cross-conversation
+scope. Plugin-load failure fails soft (tools absent, never half-exposed), and the RPC verification surface requires an
+explicit `events: {}` map on v2.1.4. **Live free-model verification (2026-10-24, owner-authorized; evidence in the
+realignment ledger):** opt-in tests (`HUTCH_LIVE_OPENCODE=1`, skipped by default) drove OpenCode Zen's free
+`deepseek-v4.1-flash-free` through the real private server, plugin and bridge — model-invoked `recall` served the
+reviewed fact, `remember` stayed an unreviewed proposal with a done receipt, and a toolless fresh session answered
+from the provenance selection; the live run also caught the v2.1.4 `msg_` prompt-ID requirement, so the durable send
+identity is now `msg_hutch_<hex>`. An independent second owner-authorized session reproduced all three legs with zero
+unresolved usage reservations. One host, one free model, one observation per leg: this validates the path, not broad
+tool-calling reliability or model quality.
 
 **Conversation continuity (2026-10-23).** Both runtimes now consume the persisted admission selection rather than rebuilding a different page of history. SQLite schema v75 binds disposable native sessions to the Bot, conversation, route, workspace, agent/policy, admitted run and exact context hash, with a canonical-message high watermark. Without a verified native replace-context contract, sessions are not reused across turns: native tool output or earlier text must not silently expand a later run's bounded selection. Missing or mismatched caches rebuild; legacy JSON mapping files are no longer read or deleted. Prompt identity and `prepared`/`dispatched`/`acknowledged`/`rejected`/`uncertain` state are durable. A prior dispatch is refused before another session or usage hold is created; a missing native session cannot authorize retransmission. These records are not native tool receipts, a provider billing cap, or an authenticated Hutch memory bridge.
 

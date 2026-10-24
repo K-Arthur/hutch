@@ -113,6 +113,12 @@ opt-in tests in `tests/test_opencode_memory_bridge.py` drove the REAL stack (`HU
   SQLite-durability caveats from ADR-0003 still apply. The post-suite source delta is exactly this one-line prefix
   change plus skip-gated live tests, re-verified by the focused runs named above; the full-suite totals in the
   previous paragraph describe the tree before it.
+- Independent corroboration (2026-10-24, second owner-authorized session): an ad-hoc script driving the same
+  `deepseek-v4.1-flash-free` through the real adapter reproduced all three legs — model-invoked `recall` answering
+  from the reviewed fact, `remember` producing a proposal with a done receipt, and a no-tools continuity turn
+  answering from the persisted selection — with tokens settled and zero unresolved usage reservations. Same
+  single-observation limits apply; the script's reduced console-only auth copy and synthetic facts lived only in a
+  disposable cache profile and were removed afterwards.
 
 Earlier attempts are superseded, not counted: the first full run exhausted the shared `/tmp` tmpfs
 (`database or disk is full`); subsequent monolithic runs were cancelled by server restarts; two in-tree batched runs
