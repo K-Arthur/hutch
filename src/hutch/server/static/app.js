@@ -1767,7 +1767,7 @@ async function prepareBotTemplateDownload(bot, trigger) {
     openModal({
       title: "Share as template",
       bodyHtml: `<p>Review this setup, then download a YAML file you can share yourself. <b>Nothing is uploaded.</b></p>
-        <p class="hint">Provider URLs, local folders, schedules, memory values, and chat history are excluded. A folder-based Bot becomes a managed workspace in the template. Instructions and enabled tools are included, so check them for private details before sharing.</p>
+        <p class="hint">Provider URLs, local folders, schedules, memory values, and chat history are excluded. A folder-based assistant becomes a managed workspace in the template. Instructions and enabled tools are included, so check them for private details before sharing.</p>
         <pre class="setup-yaml-preview bot-template-preview" id="bot-template-preview" tabindex="0" aria-label="Reviewable Bot setup template">${esc(preview.yaml)}</pre>`,
       confirmText: "Download template",
       wide: true,
@@ -1924,7 +1924,7 @@ async function openConversation(id) {
   const conversation = await api(`/v1/conversations/${encodeURIComponent(id)}`);
   const bots = await api("/bots");
   const bot = bots.find(b => b.id === conversation.bot_id);
-  if (!bot) throw new Error("This conversation's bot is no longer available. Its history is retained in run history.");
+  if (!bot) throw new Error("This conversation's assistant is no longer available. Its history is retained in run history.");
   storageSet(`hutch-conversation:${bot.id}`, id);
   history.replaceState(null, "", `#/chat/${encodeURIComponent(bot.name)}`);
   await renderChatStudio(bot.name, id);
@@ -2338,7 +2338,7 @@ function renderRoster() {
     const open = !!store$.get("hutch:roster-hidden-open", false);
     sections.push(`<details class="roster-section roster-idle-details roster-hidden-details" id="roster-hidden-details" ${open ? "open" : ""}>
       <summary aria-controls="roster-hidden-bots">Hidden bots <span class="roster-count">${hiddenIdle.length}</span></summary>
-      <p class="roster-hidden-note">Hiding changes the roster only. Bot runs and schedules continue.</p>
+      <p class="roster-hidden-note">Hiding changes the roster only. Its runs and schedules continue.</p>
       <div class="roster-section roster-idle-list" id="roster-hidden-bots">${hiddenIdle.map(rowHtml).join("")}</div>
     </details>`);
   }
@@ -2582,7 +2582,7 @@ function updateBrowserAlertsUi() {
   button.textContent = enabled ? "Turn off alerts" : "Enable browser alerts";
   button.disabled = !enabled && Notification.permission === "denied";
   status.textContent = enabled
-    ? "On while Hutch is open. Alerts show no chat, bot or action details."
+    ? "On while Hutch is open. Alerts show no chat, assistant or action details."
     : Notification.permission === "denied"
       ? "Alerts are blocked by your browser. Change this site’s notification permission to enable them."
       : "Optional alerts while this page is in the background. Hutch must stay open; no chat or action text is included.";
@@ -2795,7 +2795,7 @@ function editStudioConversationSection(conversation) {
   closeStudioConversationMenu(false);
   openModal({
     title: conversation.section ? "Move chat to a section" : "New chat section",
-    bodyHtml: `<p>Group related conversations for this Bot. Reusing a name places chats together.</p>
+    bodyHtml: `<p>Group related conversations for this assistant. Reusing a name places chats together.</p>
       <label class="field" for="conversation-section-name">Section name
         <input id="conversation-section-name" type="text" maxlength="40" autocomplete="off" value="${esc(conversation.section || "")}" placeholder="For example, Client work">
       </label>
@@ -3007,7 +3007,7 @@ async function openSavedTaskTemplateLibrary({ returnFocus, onUse }) {
     if (edit) {
       openModal({
         title: "Edit saved request",
-        bodyHtml: `<p class="hint">This changes only the local reusable request. It does not change any Bot or past message.</p>
+        bodyHtml: `<p class="hint">This changes only the local reusable request. It does not change any assistant or past message.</p>
           <label class="field" for="saved-task-template-name">Request name
             <input id="saved-task-template-name" maxlength="80" value="${esc(template.name)}" required>
           </label>
@@ -3549,7 +3549,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
             <div class="composer-strip task-role-strip" id="task-role-flag" hidden></div>
             <div class="composer-strip" id="rehearse-flag" hidden>${icon("shield")} <b>Rehearsal</b> — writes and commands are simulated; model calls and reads still happen, and remote reads can have service-side effects.</div>
           </div>
-          <p class="visually-hidden" id="chat-help">Enter sends, Shift+Enter adds a newline. Your draft is kept for this bot if you navigate away.</p>
+          <p class="visually-hidden" id="chat-help">Enter sends, Shift+Enter adds a newline. Your draft is kept for this assistant if you navigate away.</p>
         </form>
       </footer>
     </section>`;
