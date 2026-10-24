@@ -49,6 +49,7 @@ class OpenCodeModel:
     context: int = 0
     output: int = 0
     capabilities: tuple[str, ...] = ()
+    input_modalities: tuple[str, ...] = ()    # from OpenCode's `capabilities.input`; includes "image" for vision models
 
     @property
     def spec(self) -> str:
@@ -276,11 +277,15 @@ class OpenCodeServer:
                 continue
             limit = row.get("limit") if isinstance(row.get("limit"), dict) else {}
             capabilities = row.get("capabilities") if isinstance(row.get("capabilities"), dict) else {}
+            raw_modalities = capabilities.get("input") if isinstance(capabilities.get("input"), list) else ()
+            input_modalities = tuple(sorted({str(item).lower() for item in raw_modalities
+                                             if isinstance(item, str)}))
             out.append(OpenCodeModel(
                 provider_id=provider_id, model_id=model_id,
                 name=str(row.get("name") or model_id)[:160],
                 context=int(limit.get("context") or 0), output=int(limit.get("output") or 0),
                 capabilities=tuple(sorted(k for k, v in capabilities.items() if v is True)),
+                input_modalities=input_modalities,
             ))
         return out
 
@@ -314,10 +319,15 @@ class OpenCodeServer:
             raise OpenCodeServerError("OpenCode created no readable session")
         return data
 
-    def prompt(self, session_id: str, text: str, *, message_id: str = "") -> dict[str, Any]:
+    def prompt(self, session_id: str, text: str, *, message_id: str = "",
+               files: Optional[list[dict[str, str]]] = None) -> dict[str, Any]:
         body: dict[str, Any] = {"text": text}
         if message_id:
             body["id"] = message_id
+        if files:
+            # V2 PromptInput.FileAttachment: {uri, name} references the model
+            # actually receives when its input modalities include images.
+            body["files"] = files
         value = self.request("POST", f"/api/session/{session_id}/prompt", json_body=body, timeout=30.0)
         data = value.get("data") if isinstance(value, dict) else None
         if not isinstance(data, dict):

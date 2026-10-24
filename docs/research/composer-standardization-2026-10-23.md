@@ -194,9 +194,49 @@ field (absent today), threaded through `submit_conversation_message` → `Run` �
 the runtime's media path → a vision-capability gate with an honest refusal when
 the selected route cannot receive images.
 
-This was **not** started because the three files it must touch
-(`server/app.py`, `store.py`, `runtime/builtin.py`) currently carry unrelated,
-uncommitted runtime/memory work on the shared branch. Starting it would risk
-entangling that work. Recommended as its own slice with clean ownership of
-those files, plus the real-image e2e (paste/drop/picker, real photo inputs,
-honest refusal on non-vision routes) already outlined above.
+Chat vision was subsequently **implemented** (commits `dcc85e85`, `a38d3192`,
+`34f4c197`): admission validation, the verification snapshot on the run, builtin
+delivery with honest capability gates, composer tray staging through picker,
+paste and drag-drop, transcript rendering from real bytes, and the e2e journeys
+described below. No live provider call was made in that slice; the approved
+route gate was exercised on 2026-10-24 with OpenCode's free tier — see the next
+section.
+
+### OpenCode model testing with the free tier (2026-10-24): the refusal was wrong
+
+Live protocol probe against a private `opencode serve` (isolated XDG profile, no
+host credentials, free port) corrected an assumption this slice had shipped on:
+
+- **The V2 prompt API carries files**: `POST /api/session/{id}/prompt` accepts
+  `files: [{uri, name, description?, mention?}]` (`PromptInput.FileAttachment`)
+  alongside `text` — image references reach the model; the path is not
+  text-only.
+- **Capability is per model**: `GET /api/model` reports `capabilities.input`
+  lists. Free tier observed: `big-pickle`, `flint-40b-free`, `beam-free` and the
+  `nemotron-3-*` models → `["text"]`; **`deepseek-v4.1-flash-free` and
+  `nemotron-3.5-super-vl-free` → `["text","image"]`; `glm-5.3-flash-free` →
+  image+video+pdf; `mimo-v2.6-flash-free` → image+audio+video**.
+- **Keyless free access works** in the private-profile environment: a real
+  `glm-5.3-flash-free` prompt returned its answer in ~2.5s at cost 0, and the
+  same model described the bundled Google Calendar PNG from a `file://`
+  reference ("the Google Calendar app icon — a blue calendar tile with 31").
+
+Changes: `OpenCodeModel` parses `input_modalities`; `prompt()` accepts verified
+file references; the runtime verifies each attachment (digest, size, id shape),
+stages a copy inside the run's own workspace (`hutch-attachments/` — the session
+denies external directories), and refuses non-image models at run start by name.
+The blanket "OpenCode receives text only" admission refusal is removed —
+capability now lives where it can actually be known: OpenCode's own model list.
+
+**Real end-to-end evidence through Hutch**
+(`test_real_opencode_free_vision_model_describes_a_real_image`, live calls, zero
+spend): the bundled 96×96 PNG was answered *"It's a calendar app icon —
+specifically the Google Calendar style with its signature blue background and
+the date '31.'"*, and the real 1440×1000 first-run capture was described as
+*"the Hutch app's assistant setup/onboarding screen… 'Your first request'
+box… 'AI Service' panel confirming OpenCode is ready with 9 model options"*
+(reading the screenshot's own text). The transmission record logged
+`{"transmitted": 1, "prepared": 1, "route": "opencode/glm-5.3-flash-free"}`,
+and `big-pickle` refused a real image with "does not accept image input".
+The runtime suites pass (107) alongside the pending runtime work; 24 hermetic
+unit tests cover parsing, file references, the capability gate and staging.

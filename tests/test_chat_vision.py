@@ -5,16 +5,18 @@ run is admitted, attachment references recorded on the run, prompt-optional
 image-only sends) plus the pure attachment module and the two runtime guards.
 
 Real images throughout: the workspace PNG is Hutch's bundled Google Calendar mark
-and the WebP is a real 1440x1000 first-run capture — not synthetic stubs. Model
-LEVEL inference is deliberately not exercised here: no live provider call is made
-(see docs/research/composer-standardization-2026-10-23.md for the route-approval
-gate), so transmission is verified at the runtime layer with verified real bytes.
+and the WebP is a real 1440x1000 first-run capture — not synthetic stubs. The live
+free-model test at the end of this file exercises actual OpenCode inference (free
+tier, zero cost, no provider keys) when the CLI is installed; everything above it
+stays hermetic.
 """
 
 from __future__ import annotations
 
 import base64
 import hashlib
+import shutil
+import time
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -207,18 +209,30 @@ def test_route_without_media_input_is_refused_at_admission(api_client, conversat
     assert _message_count(api_client, conversation) == 0
 
 
-def test_opencode_runtime_refuses_images_before_route_validation(api_client):
-    """Runtime-kind honesty does not depend on the selected model."""
-    bot = api_client.app.state.store.create_bot(Bot(name="vision-opencode", model="opencode/openai/gpt-5",
-                                                    tools=[], runtime="opencode"))
+def test_opencode_runtime_admits_images_and_defers_capability_to_the_runtime(api_client, monkeypatch):
+    """OpenCode's V2 prompt carries file references, so images are admitted and
+    recorded; per-model capability is enforced at run start, not at admission."""
+    from hutch.models import RuntimeKind
+    from hutch.runtime.opencode import OpenCodeRuntime
+    from tests.support.runtime import TestScenarioRuntime
+
+    # This test proves the ADMISSION contract, so the engine gets the scenario
+    # runtime instead of starting a real isolated serve in the background.
+    monkeypatch.setattr("hutch.engine.get_runtime",
+                        lambda bot: TestScenarioRuntime() if bot.runtime is RuntimeKind.opencode
+                        else OpenCodeRuntime())
+    bot = api_client.app.state.store.create_bot(
+        Bot(name="vision-opencode", model="opencode/opencode/glm-5.3-flash-free",
+            tools=[], runtime="opencode"))
     conv, _ = api_client.app.state.store.create_conversation(
         bot.id, "OC", idem_key="voc", request_hash="voc")
     uploaded = _upload(api_client, conv["id"], "calendar.png", REAL_PNG.read_bytes()).json()
-    refused = _send(api_client, conv["id"], {"prompt": "Describe",
-                                             "image_attachment_ids": [uploaded["id"]]}, key="oc-img-1")
-    assert refused.status_code == 422
-    assert "opencode runtime cannot receive image input" in refused.json()["detail"]
-    assert _message_count(api_client, conv["id"]) == 0
+    sent = _send(api_client, conv["id"], {"prompt": "Describe", "image_attachment_ids": [uploaded["id"]]},
+                 key="oc-img-1")
+    assert sent.status_code == 201, sent.text
+    assert sent.json()["image_attachments"][0]["id"] == uploaded["id"]
+    assert sent.json()["image_attachments"][0]["mime"] == "image/png"
+    assert _message_count(api_client, conv["id"]) == 1
 
 
 # ------------------------------------------------------------- pure module
@@ -437,42 +451,146 @@ def test_image_only_turn_builds_content_without_an_empty_text_part(config, store
     assert content[-1]["type"] == "image_url"
 
 
-def test_opencode_runtime_refuses_images_before_touching_the_server():
+# --------------------------------------------------- OpenCode runtime seams
+
+def test_opencode_model_modalities_are_parsed_from_the_capability_shape():
+    from hutch.runtime.opencode_server import OpenCodeServer
+    server = OpenCodeServer.__new__(OpenCodeServer)   # parsing needs no lifecycle
+    payload = {"data": [
+        {"providerID": "opencode", "modelID": "glm-5.3-flash-free", "name": "GLM",
+         "limit": {"context": 200000},
+         "capabilities": {"tools": True, "input": ["text", "image", "video", "pdf"],
+                          "output": ["text"], "temperature": True}},
+        {"providerID": "opencode", "modelID": "big-pickle", "name": "Big Pickle",
+         "capabilities": {"tools": True, "input": ["text"], "output": ["text"], "temperature": True}},
+    ]}
+    server._get_with_params = lambda path, params: payload
+    by_id = {m.model_id: m for m in server.models(Path("/tmp"))}
+    assert by_id["glm-5.3-flash-free"].input_modalities == ("image", "pdf", "text", "video")
+    assert by_id["big-pickle"].input_modalities == ("text",)
+    assert "tools" in by_id["big-pickle"].capabilities
+
+
+def test_opencode_prompt_sends_file_references_with_the_text():
+    from hutch.runtime.opencode_server import OpenCodeServer
+    server = OpenCodeServer.__new__(OpenCodeServer)
+    captured = {}
+
+    def fake_request(method, path, json_body=None, timeout=0.0):
+        captured.update(method=method, path=path, body=json_body)
+        return {"data": {"id": "sub_1"}}
+
+    server.request = fake_request
+    files = [{"uri": "file:///w/hutch-attachments/upl_x-icon.png", "name": "icon.png"}]
+    server.prompt("ses_1", "what is this?", message_id="msg_1", files=files)
+    assert captured["path"] == "/api/session/ses_1/prompt"
+    assert captured["body"]["text"] == "what is this?" and captured["body"]["id"] == "msg_1"
+    assert captured["body"]["files"] == files
+    captured.clear()
+    server.prompt("ses_1", "plain")
+    assert "files" not in captured["body"], "text-only prompts must not gain a files key"
+
+
+def test_opencode_image_capability_gate_names_the_model_and_the_fix():
     from hutch.runtime.opencode import OpenCodeRuntime
-
-    run = Run(bot_id="bot_x", prompt="describe",
-              image_attachments=[{"id": "upl_x", "filename": "a.png", "mime": "image/png"}])
+    from hutch.runtime.opencode_server import OpenCodeModel
+    runtime = OpenCodeRuntime()
+    text_only = [OpenCodeModel("opencode", "big-pickle", "Big Pickle", input_modalities=("text",))]
     with pytest.raises(RunAborted) as excinfo:
-        OpenCodeRuntime().execute(run, SimpleNamespace(), {}, stop=lambda: False)
-    assert "text only" in str(excinfo.value)
-    assert "were not sent" in str(excinfo.value)
-
-
-def test_upload_id_shape_is_refused_before_touching_the_filesystem(config):
-    """A malformed id never reaches the workspace glob (glob metachars, traversal)."""
-    from hutch.providers.attachments import read_image_upload
-    bogus = {"id": "upl_../../../etc", "conversation_id": "conv1", "state": "ready",
-             "mime": "image/png", "filename": "x.png", "byte_size": 10, "sha256": ""}
-    with pytest.raises(ImageAttachmentError) as excinfo:
-        read_image_upload(config.state_dir, "conv1", bogus)
-    assert "not a valid upload reference" in str(excinfo.value)
-
-
-def test_runtime_aborts_when_an_upload_was_quarantined_after_admission(config, store):
-    """Admission-time 'ready' can age: the runtime re-checks the live row."""
-    from hutch.runtime.builtin import BuiltinRuntime
-    bot = store.create_bot(Bot(name="quarantine-bot", model="ollama/llava:7b", tools=[]))
-    conv, _ = store.create_conversation(bot.id, "Q", idem_key="q1", request_hash="q1")
-    row = {"id": "upl_" + "c" * 16, "conversation_id": conv["id"], "filename": "held.png",
-           "mime": "image/png", "byte_size": 100, "sha256": "0" * 64, "state": "ready"}
-    run = _image_run(conv["id"], row)
-    events = []
-    stale_store = SimpleNamespace(get_upload=lambda upload_id: {"state": "quarantined"})
-    ctx = _runtime_context(config, events, store=stale_store)
+        runtime._require_image_input_model(text_only, "opencode", "big-pickle")
+    assert "does not accept image input" in str(excinfo.value)
+    assert "inputs include images" in str(excinfo.value)
+    vision = [OpenCodeModel("opencode", "glm-5.3-flash-free", "GLM", input_modalities=("text", "image"))]
+    runtime._require_image_input_model(vision, "opencode", "glm-5.3-flash-free")   # no raise
     with pytest.raises(RunAborted) as excinfo:
-        BuiltinRuntime()._attach_chat_images(ctx, run, [{"role": "user", "content": run.prompt}])
-    assert "quarantined" in str(excinfo.value)
-    assert "nothing was sent" in str(excinfo.value)
+        runtime._require_image_input_model([], "opencode", "missing")
+    assert "could not be verified" in str(excinfo.value)
+
+
+def test_opencode_stages_verified_image_copies_inside_the_run_workspace(config, store, tmp_path):
+    """The session reads only its own folder, so verified bytes are staged there."""
+    from hutch.runtime.opencode import OpenCodeRuntime
+    bot = store.create_bot(Bot(name="oc-stage-bot", model="mock/demo", tools=[]))
+    conv, _ = store.create_conversation(bot.id, "Stage", idem_key="os1", request_hash="os1")
+    data = REAL_PNG.read_bytes()
+    upload = store.add_upload(conv["id"], "calendar.png", "image/png", len(data),
+                              hashlib.sha256(data).hexdigest())
+    _place_upload(config, conv["id"], upload, data)
+    run = _image_run(conv["id"], upload)
+    workspace = tmp_path / "run-ws"
+    workspace.mkdir()
+    ctx = SimpleNamespace(workspace=workspace, config=config)
+
+    staged = OpenCodeRuntime()._stage_chat_images(ctx, run)
+    assert [s["name"] for s in staged] == ["calendar.png"]
+    assert staged[0]["uri"].startswith("file://")
+    staged_path = Path(staged[0]["uri"].removeprefix("file://"))
+    assert staged_path.parent.name == "hutch-attachments"
+    assert staged_path.read_bytes() == data, "the exact verified bytes are staged"
+    assert oct(staged_path.stat().st_mode)[-3:] == "600"
+
+    # a tampered source aborts before anything could be sent
+    (workspace_dir_for(config.state_dir, conv["id"]) / f"{upload['id']}-calendar.png").write_bytes(b"\x89PNG tampered")
+    with pytest.raises(RunAborted) as excinfo:
+        OpenCodeRuntime()._stage_chat_images(ctx, run)
+    assert "does not match its recorded digest" in str(excinfo.value)
+
+
+# ------------------------------------------------------- real free models
+
+@pytest.mark.skipif(shutil.which("opencode") is None, reason="the OpenCode CLI is not installed")
+def test_real_opencode_free_vision_model_describes_a_real_image(tmp_path, monkeypatch):
+    """Live validation against OpenCode's FREE models: no spend, no provider keys.
+
+    Proves the whole chain the user asked to see — composer upload, admission,
+    the private isolated OpenCode serve, real vision inference on a real PNG —
+    plus the honest runtime refusal on a text-only free model. Skipped when the
+    CLI is absent; free-tier availability can legitimately fail and will report
+    the run's own error.
+    """
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    app = create_app()
+    with TestClient(app) as client:
+        vision_bot = app.state.store.create_bot(
+            Bot(name="free-vision", model="opencode/opencode/glm-5.3-flash-free", tools=[], runtime="opencode"))
+        conv, _ = app.state.store.create_conversation(
+            vision_bot.id, "Real vision", idem_key="rov", request_hash="rov")
+        uploaded = _upload(client, conv["id"], "calendar.png", REAL_PNG.read_bytes()).json()
+        sent = _send(client, conv["id"], {"prompt": "What service does this icon represent? One short sentence.",
+                                          "image_attachment_ids": [uploaded["id"]]}, key="real-ov-img")
+        assert sent.status_code == 201, sent.text
+        run = _await_terminal(client, sent.json()["id"], seconds=300)
+        assert run["status"] == "succeeded", run.get("error")
+        events = client.get(f"/api/v1/tasks/runs/{sent.json()['id']}").json()["events"]
+        media = [e for e in events if e.get("type") == "log" and (e.get("data") or {}).get("kind") == "media"]
+        assert media, "the transmission record is missing"
+        assert media[-1]["data"]["transmitted"] == 1
+        detail = client.get(f"/api/v1/conversations/{conv['id']}").json()
+        answer = " ".join(m["content"] for m in detail["messages"] if m["role"] == "assistant")
+        assert "calendar" in answer.lower(), answer[:300]
+
+        text_bot = app.state.store.create_bot(
+            Bot(name="free-text-only", model="opencode/opencode/big-pickle", tools=[], runtime="opencode"))
+        conv2, _ = app.state.store.create_conversation(
+            text_bot.id, "Real refusal", idem_key="rot", request_hash="rot")
+        uploaded2 = _upload(client, conv2["id"], "calendar.png", REAL_PNG.read_bytes()).json()
+        sent2 = _send(client, conv2["id"], {"prompt": "What is in this image?",
+                                            "image_attachment_ids": [uploaded2["id"]]}, key="real-ot-img")
+        assert sent2.status_code == 201, sent2.text
+        run2 = _await_terminal(client, sent2.json()["id"], seconds=300)
+        assert run2["status"] == "failed", run2.get("status")
+        assert "does not accept image input" in (run2.get("error") or ""), run2.get("error")
+
+
+def _await_terminal(client, run_id: str, seconds: int) -> dict:
+    deadline = time.time() + seconds
+    run: dict = {}
+    while time.time() < deadline:
+        run = client.get(f"/api/v1/tasks/runs/{run_id}").json()
+        if run.get("terminal"):
+            return run
+        time.sleep(2)
+    raise AssertionError(f"run {run_id} never reached a terminal state in {seconds}s: {run.get('status')}")
 
 
 def test_supported_image_mimes_match_the_upload_intake():

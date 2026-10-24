@@ -390,17 +390,53 @@ class OpenCodeRuntime:
                                data={"tool": f"opencode:{name}", "ok": False, "output": text}))
             seen[call_id] = status
 
+    # ------------------------------------------------- chat image attachments
+
+    def _require_image_input_model(self, models: list[OpenCodeModel], provider_id: str, model_id: str) -> None:
+        """The listed model must accept image input; OpenCode reports this per model."""
+        row = next((m for m in models if m.provider_id == provider_id and m.model_id == model_id), None)
+        if row is None:
+            raise RunAborted("media_input",
+                             f"the image support of {provider_id}/{model_id} could not be verified because "
+                             "OpenCode does not list it; remove the images or reconnect the model")
+        if "image" not in row.input_modalities:
+            raise RunAborted("media_input",
+                             f"the model '{provider_id}/{model_id}' does not accept image input, so your message "
+                             "and its image(s) were not sent; choose a model whose inputs include images or "
+                             "describe the images in text")
+
+    def _stage_chat_images(self, ctx: ToolContext, run: Run) -> list[dict[str, str]]:
+        """Verify each attached image and stage a copy inside the run's own workspace.
+
+        The OpenCode session reads only inside its working folder (external
+        directories are denied by the agent's permissions), so verified bytes are
+        copied to ``<workspace>/hutch-attachments/<upload id>-<name>`` and passed
+        as file references. Any unreadable, tampered or oversized image aborts
+        before the prompt — a message never goes out missing an image the
+        composer still shows.
+        """
+        from ..providers.attachments import ImageAttachmentError, read_image_upload
+        staged: list[dict[str, str]] = []
+        for snapshot in run.image_attachments:
+            filename = str(snapshot.get("filename") or "image")
+            upload_id = str(snapshot.get("id") or "")
+            try:
+                data, _mime = read_image_upload(ctx.config.state_dir, run.conversation_id, snapshot)
+            except ImageAttachmentError as exc:
+                raise RunAborted("media_input", str(exc)) from exc
+            target_dir = ctx.workspace / "hutch-attachments"
+            target_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+            target = target_dir / f"{upload_id}-{filename}"
+            target.write_bytes(data)
+            target.chmod(0o600)
+            staged.append({"uri": target.resolve().as_uri(), "name": filename})
+        return staged
+
     # ------------------------------------------------------------------- execute
 
     def execute(self, run: Run, ctx: ToolContext, tools: dict[str, Tool],
                 stop: Callable[[], bool]) -> str:
         del tools  # OpenCode executes its own tools; Hutch brokers every permission and observes results.
-        if run.image_attachments:
-            # Admission refuses this too; keep the guarantee if a Bot's runtime
-            # changed after the message was admitted. Nothing is sent either way.
-            raise RunAborted("media_input",
-                             "this assistant runs on OpenCode, which receives text only; your message and "
-                             "its image(s) were not sent — remove the images or describe them in text")
         if stop() or ctx.gate.cancelled():
             raise RunAborted("stopped", "run stopped before OpenCode started")
         previous = ctx.store.opencode_submission(run.id)
@@ -462,11 +498,17 @@ class OpenCodeRuntime:
                 raise RunAborted("model_missing",
                                  f"OpenCode does not list {provider_id}/{model_id}. Reconnect the provider or "
                                  "choose one of its listed models.")
+            image_files: Optional[list[dict[str, str]]] = None
+            if run.image_attachments:
+                # Capability is verified against OpenCode's own per-model input
+                # modalities; the verified copies land inside the run workspace.
+                self._require_image_input_model(models, provider_id, model_id)
+                image_files = self._stage_chat_images(ctx, run)
             session_id, new_session, binding_key = self._session_for(server, ctx, run, provider_id, model_id, agent_id, agent)
             self._emit(ctx, run, "opencode", f"session {session_id} on {provider_id}/{model_id}",
                        session_id=session_id, new_session=new_session)
             prompt = self._prompt_text(ctx, run, new_session=new_session)
-            if not prompt.strip():
+            if not prompt.strip() and not image_files:
                 raise RunAborted("empty", "there is no request to send to OpenCode")
 
             reservation, prompt_tokens = self._reserve(ctx, run, prompt)
@@ -488,7 +530,8 @@ class OpenCodeRuntime:
                 # call.  A crash after it is ambiguous, so recovery refuses to
                 # repeat even a prompt whose effect may be non-idempotent.
                 ctx.store.mark_opencode_submission(run_id=run.id, fence=run.fence, state="dispatched")
-                admitted = server.prompt(session_id, prompt, message_id=str(submission["submission_id"]))
+                admitted = server.prompt(session_id, prompt, message_id=str(submission["submission_id"]),
+                                         files=image_files)
             except OpenCodeServerError as exc:
                 if exc.status and 400 <= exc.status < 500:
                     ctx.store.mark_opencode_submission(run_id=run.id, fence=run.fence, state="rejected", detail=str(exc))
@@ -503,6 +546,11 @@ class OpenCodeRuntime:
             ctx.store.mark_opencode_submission(run_id=run.id, fence=run.fence, state="acknowledged")
             if not ctx.store.start_usage_request(reservation.id, expected_fence=run.fence):
                 raise RunAborted("usage_reservation", "this OpenCode reservation was already used")
+            if image_files:
+                self._emit(ctx, run, "media",
+                           f"{len(image_files)} attached image(s) sent with this prompt to {provider_id}/{model_id}",
+                           transmitted=len(image_files), prepared=len(run.image_attachments),
+                           route=f"{provider_id}/{model_id}")
 
             seen_tools: dict[str, str] = {}
             handled_permissions: set[str] = set()

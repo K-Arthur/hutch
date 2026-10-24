@@ -3626,10 +3626,9 @@ def create_app() -> FastAPI:
             image_attachments, problems = validate_image_rows(requested, rows, conversation_id=conversation_id)
             if problems:
                 raise HTTPException(422, "; ".join(problems))
-            if bot.runtime.value != "builtin":
-                # OpenCode and friends receive text only; say so before any work starts.
-                raise HTTPException(422, f"the {bot.runtime.value} runtime cannot receive image input; "
-                                         "remove the images or describe them in text")
+            # Runtimes with per-model capability (OpenCode) enforce it at run
+            # start against their own model list; nothing is checked here so a
+            # temporarily unreachable catalog cannot block admission.
         from ..modelchoices import ModelNotUsable, validate_override
         try:
             selected_route = bot.task_routes.get(body.task_role, "") if body.task_role else ""

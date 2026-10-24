@@ -368,7 +368,7 @@ Conversation artifact discovery and explicit artifact-share grants are implement
 
 ## 5. Conversation resource (landed; broader S6 work pending)
 
-`POST /api/v1/conversations` takes `{bot, title}`. `POST /api/v1/conversations/{id}/messages` takes `{prompt?, model?, rehearse?, task_role?, skills?, image_attachment_ids?, …}`; `prompt` may be omitted only when verified image attachments are present. Images are validated against this conversation's own uploads and refused (422, before any run is admitted) when the route or runtime cannot accept them.
+`POST /api/v1/conversations` takes `{bot, title}`. `POST /api/v1/conversations/{id}/messages` takes `{prompt?, model?, rehearse?, task_role?, skills?, image_attachment_ids?, …}`; `prompt` may be omitted only when verified image attachments are present. Images are validated against this conversation's own uploads and refused (422, before any run is admitted) when the route cannot accept them; runtimes with per-model capability (OpenCode) enforce it at run start against their own model list.
 Both require an `Idempotency-Key`. The server atomically appends the user message, stores a bounded history snapshot on the run, and
 admits the run. `GET /api/v1/conversations/{id}?after=0&limit=100` returns ordered messages, `last_seq`, and `has_more`; default and
 maximum page size is 100. `GET /api/v1/conversations` accepts bounded pagination and `include_archived=true`; the default omits
