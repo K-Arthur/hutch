@@ -196,7 +196,8 @@ _KNOWN: dict[tuple[str, str], dict[str, Any]] = {
                               "hutch adapter review"),
         strict_tool_schema=_p("unsupported", "tool input schemas are validated server-side but not grammar-enforced",
                               "Anthropic docs"),
-        multimodal=_p("unknown", "images are not exposed on Hutch's chat path"),
+        multimodal=_p("documented", "images accompany chat messages on Claude models; checked at send time",
+                      "Anthropic vision docs"),
         notes=("Idle-turn and refusal stop reasons are typed and mapped to provider errors.",),
     ),
     ("openai", "official"): dict(
@@ -208,7 +209,8 @@ _KNOWN: dict[tuple[str, str], dict[str, Any]] = {
         constrained_attachment="response_format",
         strict_tool_schema=_p("documented", "strict requires additionalProperties:false and all fields required; not sent by Hutch",
                               "OpenAI function calling guide"),
-        multimodal=_p("unknown", "not exposed by Hutch's chat path"),
+        multimodal=_p("documented", "image input passes through on the documented image-model table; "
+                              "checked at send time", "OpenAI vision docs"),
         notes=("Hutch sends best-effort native tools; strict mode is reported, never silently imposed.",),
     ),
     ("openai", "*"): dict(  # named OpenAI-compatible connections are less certain
@@ -229,8 +231,8 @@ _KNOWN: dict[tuple[str, str], dict[str, Any]] = {
                               "Ollama structured outputs docs"),
         constrained_attachment="format_field",
         strict_tool_schema=_p("unsupported", "the chat template/parser owns extraction; no strict flag", "Ollama tool calling docs"),
-        multimodal=_p("documented", "images can accompany messages; Hutch does not expose them on this path yet",
-                      "Ollama vision docs"),
+        multimodal=_p("documented", "images accompany chat messages on models that report the vision "
+                              "capability; checked at send time", "Ollama vision docs"),
         notes=("Ollama Cloud models do not support structured outputs; constrained mode is unavailable for cloud-tagged names.",),
     ),
     ("ollama", "*"): dict(
@@ -268,7 +270,8 @@ _KNOWN: dict[tuple[str, str], dict[str, Any]] = {
         constrained_schema=_p("documented", "response_format json_schema; guided_* fields were removed in v0.12", "vLLM structured outputs docs"),
         constrained_attachment="response_format",
         strict_tool_schema=_p("documented", "per-tool strict / --tool-strict-level; not sent by Hutch", "vLLM tool calling docs"),
-        multimodal=_p("unknown", "Hutch does not expose images on this path"),
+        multimodal=_p("unsupported", "image input is refused: a custom OpenAI-compatible endpoint is "
+                              "not assumed to accept images"),
         notes=("Hutch does not enable vLLM strict tool mode: it would change the wire contract. Reported, not imposed.",),
     ),
     ("lmstudio", "*"): dict(
