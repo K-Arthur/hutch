@@ -36,6 +36,7 @@ resolution and style-only writes; runtime/API behavior and responsive actual-app
 
 ### Memory continuity A1–A5 (2026-10-23–24)
 
+Implementation commit `f3eb1078` on local `main`.
 Authority: the task-specific A1–A5 contract in `reports/Hutch memory implementation prompt.md`, baseline
 `f29b299b58b865053d48f4baa71601e191edb5cd`, ADR-0003/0007/0008/0019. At task start the historical ledger's
 commit/push/cleanup instructions were **not** authorization; on 2026-10-24 the user explicitly authorized completing
