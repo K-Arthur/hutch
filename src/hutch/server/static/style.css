@@ -7,7 +7,7 @@
      (dark ink on emerald, never white); azure #60a5fa = interaction
      (focus/selection/info) only; amber/rose = state, always with icon + word.
    · Geometry: one rounded scale — 8px controls, 12px panels, 18px bubbles,
-     22px composer/modals, 100px chips. Consistency carries it.
+     100px chips. Consistency carries it; no surface owns a private radius.
    · Type: system sans for language at real reading sizes; system mono strictly
      for measured values (ids, durations, counts) with tabular numerals.
    · Work history uses a clear, static timeline; motion is reserved for genuinely
@@ -106,9 +106,8 @@
 
   /* ── geometry: one rounded scale (defined in ui.css's layer) ─────── */
   --r-ctl: 0.5rem;       /* buttons, inputs, rows                         */
-  --r-panel: 0.75rem;    /* cards, panels, menus, popovers, tables        */
+  --r-panel: 0.75rem;    /* cards, panels, menus, popovers, tables, composer */
   --r-chat: 1.125rem;    /* chat bubbles and cards                        */
-  --r-composer: 1.375rem; /* larger composer and phone sheets             */
   --r-card: var(--r-chat);
   --r-chip: 100px;       /* chips/pills                                   */
 
@@ -1080,7 +1079,7 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
   position: absolute; left: 0; bottom: calc(100% + 10px); z-index: 30;
   width: 320px; max-width: calc(100vw - 32px);
   background: var(--overlay); border: 1px solid var(--line-strong);
-  border-radius: var(--r-card);
+  border-radius: var(--r-panel);   /* menus/popovers are panels, like .ms-menu */
   box-shadow: var(--sh-pop); padding: 6px 6px 8px;
 }
 .cmenu[hidden] { display: none; }
@@ -1578,7 +1577,7 @@ button.inline-link:hover { color: var(--text); }
   display: flex; flex-direction: column;
   background: var(--overlay);
   border: 1px solid var(--line-strong);
-  border-radius: var(--r-composer);
+  border-radius: var(--r-panel);
   box-shadow: var(--sh-pop);
   overflow: hidden;
   animation: modal-in var(--dur) var(--ease);   /* 0ms under reduced motion */
@@ -1962,7 +1961,7 @@ button.inline-link:hover { color: var(--text); }
   .approval-card-chat { padding: var(--s-3); }
   /* phone modals arrive as bottom sheets — thumb-reachable, full width */
   .modal-backdrop { place-items: end stretch; padding: 0; }
-  .modal-card { width: 100%; max-height: 93dvh; border-radius: var(--r-composer) var(--r-composer) 0 0; border-bottom: 0; }
+  .modal-card { width: 100%; max-height: 93dvh; border-radius: var(--r-panel) var(--r-panel) 0 0; border-bottom: 0; }
   .modal-card.modal-tall { max-height: 100dvh; }
   .modal-body { padding: var(--s-4); }
   .modal-footer { padding: var(--s-3) var(--s-4); }
@@ -3037,7 +3036,7 @@ details[open] > summary .summary-row-action .icon { transform: rotate(180deg); }
 .composer-attachments { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: var(--s-1); padding: var(--s-1) var(--s-2) 0; }
 .composer-attachments-chips { display: flex; flex-wrap: wrap; min-width: 0; gap: var(--s-1); }
 .upload-chip { display: inline-flex; align-items: center; gap: var(--s-1); min-width: 0; max-width: 100%;
-  padding: 4px var(--s-2); border: 1px solid var(--line); border-radius: var(--r-chip);
+  padding: 4px var(--s-2); border: 1px solid var(--line); border-radius: var(--r-ctl);
   background: var(--sunken); font-size: var(--fs-sm); }
 .upload-chip-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .upload-chip-size { flex: none; color: var(--text-3); white-space: nowrap; }

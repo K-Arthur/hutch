@@ -2,11 +2,17 @@
    request forms. Anatomy (shadcn Input Group / assistant-ui Composer adapted to
    Hutch's tokens, not their branding):
 
-     .composer-box            one rounded container (rounded.composer 22px)
+     .composer-box            one rounded container (rounded.panel 12px — the same
+                              shape as the first-run request box and every card)
        context region         attachments, reply/workspace references, mode chips
        .composer-body         full-width writing area (.composer-textarea)
        .composer-toolbar      left: utilities (+); right: skills, model, send
        status strips          rehearsal / task-role notices
+
+   Shape language: the composer is NOT an exception to the radius scale. Its box
+   is a panel (12px) and its actions are ordinary controls (8px rounded squares,
+   40px send / 32px utilities) — the same 8/12 world everything else uses. User
+   direction 2026-10-23 replaced the old 22px box and circular controls.
 
    The writing area is always above the toolbar, on every surface and width. Chat
    keeps Send enabled while a run is active so a follow-up queues; the header Stop
@@ -20,7 +26,7 @@
   position: relative;
   background: var(--panel);
   border: 1px solid var(--line-strong);
-  border-radius: var(--r-composer);
+  border-radius: var(--r-panel);          /* same shape as every card/panel, incl. first-run */
   box-shadow: var(--sh-2);
   transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
@@ -48,12 +54,14 @@
 .composer-tools { display: flex; align-items: center; gap: 6px; flex: none; }
 .composer-actions { display: flex; align-items: center; gap: 8px; flex: none; margin-left: auto; }
 
-/* circular chat actions: the composer's round language (named companion to the
-   16px box). Send = brand fill with dark ink; Stop = rose outline; both 36px. */
+/* ── composer actions: ordinary controls, not a private shape language ──
+   Send = primary-button proportions (40px, 8px radius) with brand fill and dark
+   ink; the + utility = icon-button proportions (32px, 8px radius). Stop keeps the
+   rose outline. No circles: the composer matches every other control in the app. */
 .composer-send {
   all: unset; box-sizing: border-box; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
-  width: 36px; height: 36px; border-radius: 50%;
+  width: 40px; height: 40px; border-radius: var(--r-ctl);
   background: var(--brand); color: var(--brand-ink);
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
 }
@@ -70,7 +78,7 @@
 
 .composer-util {
   all: unset; box-sizing: border-box; cursor: pointer;
-  display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%;
+  display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--r-ctl);
   color: var(--text-3);
 }
 .composer-util:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }

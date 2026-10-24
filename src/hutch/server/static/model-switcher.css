@@ -5,7 +5,7 @@
 .model-switch-slot { display: inline-flex; }
 .ms-btn {
   display: inline-flex; align-items: center; gap: 7px; max-width: 190px; min-height: 30px; padding: 0 10px 0 11px;
-  border-radius: var(--r-chip); border: 1px solid var(--line-strong); background: transparent;
+  border-radius: var(--r-ctl); border: 1px solid var(--line-strong); background: transparent;
   color: var(--text-2); font: 600 var(--fs-sm)/1.4 var(--font-ui); cursor: pointer;
 }
 .ms-btn:hover, .ms-btn[aria-expanded="true"] { color: var(--text); border-color: var(--line-hi); background: rgba(255, 255, 255, 0.04); }

@@ -91,7 +91,7 @@ and marketing disclosures are not popup menus.
 | Focus / information | `#60a5fa` | Focus rings, selection and informational emphasis |
 | Warning / danger | `#fbbf24` / `#f87171` | Human attention and failure/destructive states |
 | Hairline / strong / emphasis border | `rgba(255,255,255,.07)` / `.14` / `.22` | Card boundaries, controls, and hovered edges |
-| Control / panel / chat / composer / pill radius | `8 / 12 / 18 / 22 / 100px` | Shared geometry scale |
+| Control / panel / chat / pill radius | `8 / 12 / 18 / 100px` | Shared geometry scale; no surface owns a private radius (the composer box is a panel) |
 | Display / UI body / measured data | local Archivo / system sans / system mono | Brand headings, readable language, and machine values |
 | App type roles | `1rem` body / `1.0625rem` reading / `1.5rem` page title | Responsive hierarchy that respects browser text scaling |
 | App icon family | `16 / 20 / 24px`, `24px` view box | Local category vectors in 48px desktop/tablet tiles and compact 40px phone rows; exact service names and states stay visible |

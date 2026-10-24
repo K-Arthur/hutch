@@ -92,7 +92,6 @@ rounded:
   control: "8px"
   panel: "12px"
   chat: "18px"
-  composer: "22px"
   chip: "100px"
 spacing:
   xs: "4px"
@@ -291,9 +290,9 @@ language after explicit user direction ("right angles feel too off"):
 
 - **`rounded.control` 8px** — buttons, inputs, rows, icon buttons, filter pills.
 - **`rounded.panel` 12px** — cards, panels, menus, popovers, modals, toasts,
-  table wrappers, approval cards.
-- **`rounded.chat` 18px** — conversation bubbles (user bubble tail corner 6px);
-  composer 22px (`--r-composer`) as the one larger surface.
+  table wrappers, approval cards, and the composer box (every request surface
+  in the composer family shares this one shape).
+- **`rounded.chat` 18px** — conversation bubbles (user bubble tail corner 6px).
 - **`rounded.chip` 100px** — status chips, badges, counts, jump-to-latest, meter tracks.
 - Mascot identity shapes (sigils and faces) are artwork and may be any
   silhouette — they are not containers.
@@ -302,8 +301,10 @@ language after explicit user direction ("right angles feel too off"):
 
 - **Primary button** — emerald fill, `primary-ink` text, 8px radius, 40px tall;
   hover lifts to `#6ee7b7`; ghost variant is transparent with a hairline border;
-  danger is a rose outline. Icon buttons are 32px squares (circles only inside
-  the composer: send/stop/+).
+  danger is a rose outline. Icon buttons are 32px squares at the same 8px radius.
+  The composer's send and utility actions follow these exact proportions — the
+  composer owns no private button shape (user direction, 2026-10-23: the earlier
+  circular send/`+` exception was removed as inconsistent with the control scale).
 - **Controls** — routine buttons are at least 40px tall, compact desktop actions
   are 32px with 14px labels, and coarse-pointer actions are 44px; form fields and
   selects are 44px with 16px text so phone browsers do not zoom. Native selects
@@ -381,9 +382,13 @@ language after explicit user direction ("right angles feel too off"):
   successful assistant creation or that explicit action. Announce readiness
   changes in one polite status region without moving focus, and reserve stable
   space so late checks do not push the primary action.
-- **Composer** — 22px rounded box, 16–18px textarea, circular emerald send and
-  rose stop, a "+" popover holding only real capabilities (suggestions, rehearsal,
-  Enter-behaviour, live budget).
+- **Composer** — 12px rounded box (panel shape, matching the first-run request
+  box), 16–18px textarea in a full-width writing area above a toolbar of ordinary
+  8px-radius controls: 32px `+` utility left; skills, model trigger and 40px
+  emerald send (rose outlined stop) right. The `+` popover holds only real
+  capabilities (suggestions, rehearsal, Enter-behaviour, live budget).
+  Attachment chips are 8px rows with real thumbnails; only genuine status
+  badges keep the pill radius.
 - **Approval card** — a bordered system card while pending (plain-language
   action first, exact detail behind a disclosure, honest countdown); once decided
   it flattens to a single ledger row — history is text, not another box.
