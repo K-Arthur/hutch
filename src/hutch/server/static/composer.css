@@ -1,0 +1,98 @@
+/* Composer family — the one request-writing surface shared by chat and the other
+   request forms. Anatomy (shadcn Input Group / assistant-ui Composer adapted to
+   Hutch's tokens, not their branding):
+
+     .composer-box            one rounded container (rounded.composer 22px)
+       context region         attachments, reply/workspace references, mode chips
+       .composer-body         full-width writing area (.composer-textarea)
+       .composer-toolbar      left: utilities (+); right: skills, model, send
+       status strips          rehearsal / task-role notices
+
+   The writing area is always above the toolbar, on every surface and width. Chat
+   keeps Send enabled while a run is active so a follow-up queues; the header Stop
+   control is the cancellation path (deliberate divergence from reference UIs that
+   swap Send for Stop). Research and approval: docs/research/composer-standardization-2026-10-23.md
+*/
+
+.composer form { max-width: 780px; margin: 0 auto; }
+
+.composer-box {
+  position: relative;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-composer);
+  box-shadow: var(--sh-2);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.composer-box:focus-within { border-color: var(--focus-line); box-shadow: 0 0 0 3px var(--focus-wash), var(--sh-2); }
+.composer-box.has-error { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger), var(--sh-1); }
+
+/* ── writing area ── */
+.composer-body { padding: 10px 12px 2px; }
+.composer-textarea {
+  all: unset; box-sizing: border-box;
+  display: block; width: 100%; min-width: 0; resize: none;
+  font: 400 var(--fs-lg)/1.55 var(--sans);
+  color: var(--text);
+  max-height: 220px; overflow-y: auto;
+  padding: 4px 2px;
+}
+.composer-textarea::placeholder { color: var(--text-3); }
+.composer-textarea[disabled] { opacity: 0.55; }
+
+/* ── toolbar: utilities left, message actions right ── */
+.composer-toolbar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 8px 8px;
+}
+.composer-tools { display: flex; align-items: center; gap: 6px; flex: none; }
+.composer-actions { display: flex; align-items: center; gap: 8px; flex: none; margin-left: auto; }
+
+/* circular chat actions: the composer's round language (named companion to the
+   16px box). Send = brand fill with dark ink; Stop = rose outline; both 36px. */
+.composer-send {
+  all: unset; box-sizing: border-box; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--brand); color: var(--brand-ink);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+.composer-send:hover { background: var(--brand-hi); }
+.composer-send:active { transform: translateY(1px); }
+.composer-send:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.composer-send[disabled] { background: var(--raised); color: var(--text-3); cursor: not-allowed; }
+.composer-send svg { width: 17px; height: 17px; }
+.composer-send.stop { background: transparent; border: 1px solid rgba(248, 113, 113, 0.55); color: var(--danger); }
+.composer-send.stop:hover { background: rgba(248, 113, 113, 0.12); }
+.composer-send.sending { background: var(--raised); color: var(--text-2); }
+.composer-send.sending .spinner { border-color: rgba(255, 255, 255, 0.14); border-top-color: currentColor; }
+.composer-send[hidden] { display: none; }
+
+.composer-util {
+  all: unset; box-sizing: border-box; cursor: pointer;
+  display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%;
+  color: var(--text-3);
+}
+.composer-util:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
+.composer-util[aria-expanded="true"] { color: var(--text); background: var(--brand-wash); }
+.composer-util:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* the "+" trigger's owner; the popup controller anchors the panel itself */
+.cmenu-wrap { position: relative; flex: none; }
+
+/* ── responsive: named model/skill identity stays visible ── */
+@media (max-width: 640px), (pointer: coarse) {
+  .composer-toolbar { flex-wrap: wrap; row-gap: 6px; }
+  .composer-actions { flex-wrap: wrap; justify-content: flex-end; }
+  .composer-send { width: 44px; height: 44px; }
+  .composer-util { width: 44px; height: 44px; }
+}
+
+/* textareas inherit a phone font bump elsewhere; the composer keeps its own role */
+@media (max-width: 640px) {
+  .composer-textarea { font-size: 1rem; }
+}
+
+@media (forced-colors: active) {
+  .composer-box { border: 1px solid CanvasText; forced-color-adjust: none; }
+}

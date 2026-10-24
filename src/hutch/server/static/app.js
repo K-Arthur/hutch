@@ -3491,10 +3491,15 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
               <button class="btn ghost small" id="workspace-result-composer-clear" type="button" aria-label="Remove specialist result reference">Remove</button>
             </div>
             <div id="persona-turn-slot"></div>
-            <div class="composer-row">
-              <div class="cmenu-wrap">
-                <button class="composer-util" type="button" id="composer-menu-btn" aria-label="Message options" aria-haspopup="dialog" aria-expanded="false" aria-controls="composer-menu">${icon("plus")}</button>
-                <div class="cmenu" id="composer-menu" role="dialog" aria-modal="false" aria-label="Message options" hidden>
+            <div class="composer-body">
+              <label class="visually-hidden" for="chat-prompt">Message ${esc(bot.display_name || bot.name)}</label>
+              <textarea class="composer-textarea" id="chat-prompt" rows="1" placeholder="Message…" aria-describedby="chat-help" enterkeyhint="send"></textarea>
+            </div>
+            <div class="composer-toolbar">
+              <div class="composer-tools">
+                <div class="cmenu-wrap">
+                  <button class="composer-util" type="button" id="composer-menu-btn" aria-label="Message options" aria-haspopup="dialog" aria-expanded="false" aria-controls="composer-menu">${icon("plus")}</button>
+                  <div class="cmenu" id="composer-menu" role="dialog" aria-modal="false" aria-label="Message options" hidden>
                   <details class="cmenu-suggestions"><summary>Start from a suggestion</summary>
                   <div class="quick-prompts" id="quick-prompts">
                     <button type="button" data-quick="Sort this week's downloads and move invoices into folders">${icon("folder")} Sort downloads</button>
@@ -3515,10 +3520,10 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
                   <div class="cmenu-sep"></div>
                   <button class="cmenu-files" id="prompt-template-library-open" type="button">${icon("fileText")} Browse saved requests</button>
                   <button class="cmenu-files" id="prompt-template-import" type="button" aria-controls="task-template-file">Import task-template file</button>
-                  <input id="task-template-file" type="file" accept=".json,application/json" hidden>
+                  <input class="visually-hidden" id="task-template-file" type="file" accept=".json,application/json">
                   <button class="cmenu-files" id="conversation-files-open" type="button">${icon("folder")} Browse files in this chat</button>
                   <button class="cmenu-files" id="workspace-upload-open" type="button">${icon("fileText")} Attach a data file</button>
-                  <input id="workspace-upload-file" type="file" multiple hidden
+                  <input class="visually-hidden" id="workspace-upload-file" type="file" multiple
                     accept=".csv,.jpeg,.jpg,.json,.md,.png,.tsv,.txt,.webp">
                   <button class="cmenu-files" id="conversation-export-open" type="button">Export conversation as JSON</button>
                   <p class="hint cmenu-image-note" role="note">Files, including images, are stored in this chat’s workspace. Direct image input to the model isn’t supported here.</p>
@@ -3532,10 +3537,9 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
                     <span class="mono">${esc(detail.limits?.max_steps ?? "?")} steps max · ${esc((detail.tools || []).join(", ") || "no tools")}</span>
                   </div></details>
                   <button class="cmenu-files" id="preflight-open" type="button">Review cost and context before sending</button>
+                  </div>
                 </div>
               </div>
-              <label class="visually-hidden" for="chat-prompt">Message ${esc(bot.display_name || bot.name)}</label>
-              <textarea class="composer-textarea" id="chat-prompt" rows="1" placeholder="Message…" aria-describedby="chat-help" enterkeyhint="send"></textarea>
               <div class="composer-actions">
                 <span class="skill-switch-slot" id="skill-switch-slot"></span>
                 <span class="model-switch-slot" id="model-switch-slot"></span>
@@ -4105,12 +4109,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
     }
   }
   txt.value = loadDraft(composerDraftId);
-  const autogrow = () => { txt.style.height = "auto"; txt.style.height = Math.min(txt.scrollHeight, 220) + "px"; };
-  autogrow();
-  txt.addEventListener("input", () => {
-    autogrow();
-    saveDraft(composerDraftId, txt.value);
-  });
+  const { resize: autogrow } = window.hutchComposer.mountAutogrow(txt, { onInput: () => saveDraft(composerDraftId, txt.value) });
   const enterSends = () => $("#enter-send-setting").checked;
   $("#enter-send-setting").checked = store$.get(`hutch:enter-send:${bot.name}`, !matchMedia("(pointer: coarse)").matches);
   $("#enter-send-setting").addEventListener("change", ev => {
@@ -4194,11 +4193,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
     ev.preventDefault();
     toast("Image attachments aren’t available in chat yet. Describe the image in text instead.", true);
   });
-  txt.addEventListener("keydown", ev => {
-    if (ev.key !== "Enter" || ev.shiftKey) return;
-    if (ev.isComposing || ev.keyCode === 229) return;   // never submit mid-IME-composition
-    if (enterSends()) { ev.preventDefault(); submit(); }
-  });
+  window.hutchComposer.mountEnterSubmit(txt, { enterSends, submit });
   $("#quick-prompts").addEventListener("click", ev => {
     const chip = ev.target.closest("[data-quick]");
     if (!chip) return;
