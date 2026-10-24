@@ -12,7 +12,7 @@ Hutch keeps its control state — conversations, memory, logs, schedules and fil
 - Assistants (called bots in the CLI): each has its own model, tools, schedule, memory and workspace.
 - Approvals: assistants ask before consequential actions; some shell command classes are always denied; there is no bulk approval.
 - Spend controls: estimated budgets, usage reservations and per-bot ceilings; provider billing stays authoritative.
-- Chat input: text plus PNG/JPEG/WebP image attachments (up to 4 per message, 1.5 MB each) on built-in runtimes with a vision-capable model route.
+- Chat input: text plus PNG/JPEG/WebP image attachments (up to 4 per message, 1.5 MB each); built-in runtimes need a vision-capable model route, and the OpenCode runtime checks the selected model's declared image support.
 - Schedules: IANA-timezone recurring tasks that catch up after sleep while the local service is running; nothing runs while the machine is off.
 - Evidence: what works, what is experimental and what is unavailable is documented in the repository (docs/realignment/baseline.md and docs/marketing-site.md).
 

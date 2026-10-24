@@ -1,9 +1,9 @@
 {
   "test": "tests/e2e/test_website.py::test_approval_triage_copy_is_truthful_and_responsive",
-  "captured_at": "2026-10-24T16:40:44.361243+00:00",
+  "captured_at": "2026-10-24T17:03:22.442763+00:00",
   "python": "3.13.15",
   "browser": "155.0",
-  "index_sha256": "716eeffea8dbd9c9504ec088782af891cfdd9fc7dc60461fb166bc7e154a17b6",
+  "index_sha256": "9733c42c38455788ae773c143b97c31786bab58a0fce7e82ee101b73d8cf8fe8",
   "captures": [
     {
       "size": "desktop",

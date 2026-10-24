@@ -1236,7 +1236,7 @@ def test_adaptive_response_style_marketing_is_labeled_and_fits(browser, site_url
     page.keyboard.press("Enter")
     assert image_input.evaluate("element => element.open")
     assert "up to 4 images of 1.5" in image_input.inner_text().lower()
-    assert "refuses the send before any run starts" in image_input.inner_text().lower()
+    assert "a text-only model is refused with the model named" in image_input.inner_text().lower()
 
     out = artifact_path("persona-marketing-2026-10-11")
     out.mkdir(parents=True, exist_ok=True)

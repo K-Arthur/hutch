@@ -1,6 +1,6 @@
 {
   "test": "tests/e2e/test_website.py::test_landing_initial_transfer_stays_within_review_budget_and_art_loads_on_demand",
-  "captured_at": "2026-10-24T16:53:56.050535+00:00",
+  "captured_at": "2026-10-24T17:02:33.378213+00:00",
   "browser": "155.0",
   "viewport": [
     1440,
@@ -32,12 +32,12 @@
       "bytes": 7287
     },
     {
-      "url": "/assets/captures/setup-desktop.webp",
-      "bytes": 46496
-    },
-    {
       "url": "/assets/agent/f3-p1.webp",
       "bytes": 40300
+    },
+    {
+      "url": "/assets/captures/setup-desktop.webp",
+      "bytes": 46496
     }
   ],
   "initial_bytes": 318800,
@@ -55,7 +55,7 @@
     "/assets/fonts/archivo-latin-var.woff2"
   ],
   "source_sha256": {
-    "website/index.html": "716eeffea8dbd9c9504ec088782af891cfdd9fc7dc60461fb166bc7e154a17b6",
+    "website/index.html": "9733c42c38455788ae773c143b97c31786bab58a0fce7e82ee101b73d8cf8fe8",
     "website/styles.css": "fa6ca9ffcf7dcb607697727f1f7a8f7b9baad6b75cb2125419f9e57d477a0b99",
     "website/site.js": "5b30d3f5a02a2d1c5407f89a2ad09c9e9960f31269aba596268d46dfaf41c2d1"
   },
