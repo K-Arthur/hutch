@@ -419,6 +419,15 @@ class BuiltinRuntime:
         ACCEPTS the parts is checked in ``_verify_chat_images`` once a model is online.
         """
         from ..providers.attachments import chat_image_parts
+        # Admission verified these rows; re-check their live state in case one was
+        # quarantined or removed between admission and execution.
+        for snapshot in run.image_attachments:
+            current = ctx.store.get_upload(str(snapshot.get("id") or ""))
+            state = str((current or {}).get("state") or "no longer available")
+            if not current or state != "ready":
+                raise RunAborted("media_input",
+                                 f"attached image {snapshot.get('filename') or snapshot.get('id')} is "
+                                 f"{state}; nothing was sent")
         parts, problems = chat_image_parts(list(run.image_attachments),
                                            state_dir=ctx.config.state_dir,
                                            conversation_id=run.conversation_id)

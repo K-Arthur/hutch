@@ -206,6 +206,19 @@ def test_composer_stages_real_images_through_picker_paste_and_drop(browser, app_
 
         # Desktop capture of a populated real-image tray.
         assert page.evaluate("Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) <= innerWidth + 1")
+
+        # Preflight discloses that staged images sit outside the text-only estimate
+        # (the estimate endpoint receives prompt text, never attachments).
+        page.locator("#composer-menu-btn").click()
+        page.wait_for_timeout(250)
+        page.locator("#preflight-open").click()
+        page.locator("#modal-root .modal-card").wait_for(timeout=10_000)
+        preflight = page.locator("#modal-root .modal-card").inner_text()
+        assert "staged image" in preflight and "not included in this estimate" in preflight, preflight
+        assert page.locator("#modal-root .modal-card").inner_text().count("4 staged images") == 1
+        page.locator("#modal-close").click()
+        page.wait_for_timeout(250)
+
         page.screenshot(path=str(out / "tray-desktop.png"), animations="disabled")
 
         assert errors == [], errors

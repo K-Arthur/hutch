@@ -336,8 +336,11 @@ def test_chat_image_parts_refuses_tampered_and_missing_files(config, store):
 
 # --------------------------------------------------------- runtime layers
 
-def _runtime_context(config, events):
-    return SimpleNamespace(config=config, emit=events.append)
+def _runtime_context(config, events, store=None):
+    """The two runtime hooks use ctx.config, ctx.store (live state) and ctx.emit."""
+    if store is None:
+        store = SimpleNamespace(get_upload=lambda upload_id: {"state": "ready"})
+    return SimpleNamespace(config=config, store=store, emit=events.append)
 
 
 def _image_run(conv_id: str, row: dict, prompt: str = "What color is this?") -> Run:
@@ -443,6 +446,33 @@ def test_opencode_runtime_refuses_images_before_touching_the_server():
         OpenCodeRuntime().execute(run, SimpleNamespace(), {}, stop=lambda: False)
     assert "text only" in str(excinfo.value)
     assert "were not sent" in str(excinfo.value)
+
+
+def test_upload_id_shape_is_refused_before_touching_the_filesystem(config):
+    """A malformed id never reaches the workspace glob (glob metachars, traversal)."""
+    from hutch.providers.attachments import read_image_upload
+    bogus = {"id": "upl_../../../etc", "conversation_id": "conv1", "state": "ready",
+             "mime": "image/png", "filename": "x.png", "byte_size": 10, "sha256": ""}
+    with pytest.raises(ImageAttachmentError) as excinfo:
+        read_image_upload(config.state_dir, "conv1", bogus)
+    assert "not a valid upload reference" in str(excinfo.value)
+
+
+def test_runtime_aborts_when_an_upload_was_quarantined_after_admission(config, store):
+    """Admission-time 'ready' can age: the runtime re-checks the live row."""
+    from hutch.runtime.builtin import BuiltinRuntime
+    bot = store.create_bot(Bot(name="quarantine-bot", model="ollama/llava:7b", tools=[]))
+    conv, _ = store.create_conversation(bot.id, "Q", idem_key="q1", request_hash="q1")
+    row = {"id": "upl_" + "c" * 16, "conversation_id": conv["id"], "filename": "held.png",
+           "mime": "image/png", "byte_size": 100, "sha256": "0" * 64, "state": "ready"}
+    run = _image_run(conv["id"], row)
+    events = []
+    stale_store = SimpleNamespace(get_upload=lambda upload_id: {"state": "quarantined"})
+    ctx = _runtime_context(config, events, store=stale_store)
+    with pytest.raises(RunAborted) as excinfo:
+        BuiltinRuntime()._attach_chat_images(ctx, run, [{"role": "user", "content": run.prompt}])
+    assert "quarantined" in str(excinfo.value)
+    assert "nothing was sent" in str(excinfo.value)
 
 
 def test_supported_image_mimes_match_the_upload_intake():

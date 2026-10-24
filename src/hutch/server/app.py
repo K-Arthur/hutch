@@ -2198,6 +2198,9 @@ def create_app() -> FastAPI:
             "verified", "reason", "status_label", "terminal", "needs_person",
         }
         view = {key: value for key, value in run.model_dump().items() if key in fields}
+        # Review-only count: a paired phone must be able to tell that a run carries
+        # attachments (an image-only prompt renders empty), without exporting ids.
+        view["image_attachment_count"] = len(run.image_attachments or [])
         bot = store.get_bot(run.bot_id)
         unresolved = store.count_unresolved_actions(run.id)
         view.update({"bot_name": bot.name if bot else "?",

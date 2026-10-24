@@ -29,6 +29,8 @@ MAX_IMAGE_BYTES = 1_500_000
 IMAGE_MIMES = frozenset({"image/png", "image/jpeg", "image/webp"})
 
 _IMAGE_NAME_RE = re.compile(r"\.(png|jpe?g|webp)$", re.IGNORECASE)
+# The intake's server-generated id; also the only shape allowed into a glob pattern.
+_UPLOAD_ID_RE = re.compile(r"^upl_[0-9a-f]{16}$")
 
 
 class ImageAttachmentError(ValueError):
@@ -136,6 +138,10 @@ def read_image_upload(state_dir: Any, conversation_id: str, row: dict) -> tuple[
     upload_id = str(row.get("id") or "")
     if not upload_id:
         raise ImageAttachmentError("an attached image has no identifier; nothing was sent")
+    if not _UPLOAD_ID_RE.fullmatch(upload_id):
+        # Never hand an arbitrary string to a filesystem glob pattern.
+        raise ImageAttachmentError(f"attached image {upload_id!r} is not a valid upload reference; "
+                                   "nothing was sent")
     if str(row.get("conversation_id") or "") != conversation_id:
         raise ImageAttachmentError(f"attached image {upload_id} belongs to another chat; nothing was sent")
     if str(row.get("state") or "") != "ready":
