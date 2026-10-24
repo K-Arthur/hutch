@@ -19,6 +19,12 @@ Use Python 3.11+ and follow the surrounding code: four-space indentation, `snake
 
 Add or update focused pytest coverage for behavior changes. Use fixtures in `tests/fixtures/` for persisted-state compatibility and `tests/e2e/` for browser-visible flows. Run the relevant focused tests first, then `pytest --ignore=tests/e2e`; run browser tests when the change affects the UI or browser behavior. CI runs `pytest -q` on Python 3.11, 3.12, and 3.13.
 
+### Validation scratch-tree hygiene
+
+Long regression runs create large scratch trees: immutable tree snapshots (`~/.cache/hutch-tree-snapshot-v*`), per-batch pytest output (`~/.cache/hutch-pytest-snapshot-v*`), `pytest --basetemp` directories under `~/.hutch-tmp`, and one-off `~/.cache/hutch-*-validation-*` directories. Runs deliberately use a fresh versioned or suffixed name so they cannot clobber the previous run's evidence, so these accumulate across runs — tens of gigabytes is normal after a few full-suite passes.
+
+To reclaim the space, run `python scripts/prune_validation_tmp.py` (dry run, reports only) and add `--apply` to delete. It keeps the newest directory per family, skips anything modified within the last 24 hours, and skips directories with open file handles, so a live or in-flight run is never removed. Unrelated tasks' scratch trees are not touched. Prefer reusing one scratch root per task over minting a new versioned directory each run, and remove a task's scratch trees when its validation work completes.
+
 ## Commits and Pull Requests
 
 Recent commits use concise imperative summaries (for example, “Add skills API…” or “Fix template identity…”); follow that style and keep each commit focused. PRs should explain the behavior change, link relevant issues or design/ADR documents, and report checks run. Include screenshots for visible UI changes and update user or architecture documentation when behavior or safety boundaries change.
