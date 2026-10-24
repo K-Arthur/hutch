@@ -22,7 +22,8 @@ from hutch.store import (SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migra
                          _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33, _migrate_34, _migrate_45,
                          _migrate_35, _migrate_37, _migrate_40, _migrate_41, _migrate_46, _migrate_47,
                          _migrate_48, _migrate_51, _migrate_53, _migrate_57, _migrate_58, _migrate_59, _migrate_60,
-                         _migrate_68, _migrate_69, _migrate_70, _migrate_71, _migrate_73)
+                          _migrate_68, _migrate_69, _migrate_70, _migrate_71, _migrate_73, _migrate_74,
+                          _migrate_75, _migrate_76)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "state_v4.db.fixture"
 BRIEFING, SWEEPER = "bot_7eef563ee683", "bot_611a4b96d543"
@@ -58,6 +59,35 @@ def test_v73_integration_tables_are_empty_disabled_and_idempotent():
         db.execute("DELETE FROM bots WHERE id = 'bot-a'")
         assert db.execute("SELECT COUNT(*) FROM integration_tool_grants").fetchone()[0] == 0
         assert SCHEMA_VERSION >= 73
+    finally:
+        db.close()
+
+
+def test_v74_to_v76_add_context_and_cache_tables_without_rewriting_history():
+    db = sqlite3.connect(":memory:")
+    db.row_factory = sqlite3.Row
+    db.execute("PRAGMA foreign_keys=ON")
+    try:
+        db.execute("CREATE TABLE bots (id TEXT PRIMARY KEY)")
+        db.execute("CREATE TABLE conversations (id TEXT PRIMARY KEY)")
+        db.execute("CREATE TABLE runs (id TEXT PRIMARY KEY)")
+        db.execute("CREATE TABLE messages (id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, seq INTEGER NOT NULL, "
+                   "run_id TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT NOT NULL)")
+        db.execute("INSERT INTO bots VALUES ('bot-a')")
+        db.execute("INSERT INTO conversations VALUES ('conv-a')")
+        db.execute("INSERT INTO runs VALUES ('run-a')")
+        db.execute("INSERT INTO messages VALUES ('message-a', 'conv-a', 1, 'run-a', 'assistant', 'old text', 'now')")
+        _migrate_74(db)
+        _migrate_75(db)
+        _migrate_76(db)
+        assert tuple(db.execute("SELECT content, incomplete, incomplete_reason FROM messages").fetchone()) == (
+            "old text", 0, "")
+        assert {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")} >= {
+            "opencode_session_bindings", "opencode_submissions", "conversation_task_state",
+            "conversation_task_state_revisions"}
+        db.execute("INSERT INTO conversation_task_state_revisions VALUES ('conv-a', 1, NULL, 1, '{}', 'now')")
+        with pytest.raises(sqlite3.IntegrityError, match="immutable"):
+            db.execute("UPDATE conversation_task_state_revisions SET state_json='{}'")
     finally:
         db.close()
 
@@ -1165,7 +1195,7 @@ def test_v59_cost_followup_migrations_preserve_budget_rows_and_require_compactio
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == SCHEMA_VERSION == 73
+        assert upgraded.schema_version == SCHEMA_VERSION >= 73
         assert upgraded._db.execute("SELECT COUNT(*) FROM integrations").fetchone()[0] == 0
         assert upgraded._db.execute("SELECT COUNT(*) FROM integration_tool_grants").fetchone()[0] == 0
         assert upgraded.get_bot(bot.id).compaction == "ask"

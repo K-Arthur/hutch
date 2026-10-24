@@ -139,6 +139,25 @@ def test_hosted_window_notice_reports_unknown_without_enforcing(store, config, t
     assert "not enforced yet" in notice["note"]
 
 
+def test_builtin_context_keeps_partial_and_truncated_qualifications(store, config, tmp_path, ollama, monkeypatch):
+    monkeypatch.setenv("OLLAMA_HOST", ollama.url)
+    ctx, run, _, tools = build(store, config, tmp_path, tools=())
+    run.conversation_context = [{
+        "role": "assistant", "content": "partial historical answer", "context_version": 1,
+        "source_kind": "message", "truncated": True,
+        "source": {"message_id": "msg_partial", "incomplete": True, "reason": "length"},
+    }]
+    ollama.script = agent_script([{"content": "done"}])
+
+    assert run_it(runtime(), run, ctx, tools) == "done"
+    request = ollama.of("/api/chat")[0]["body"]
+    historical = next(message["content"] for message in request["messages"]
+                      if message["role"] == "assistant")
+    assert "incomplete assistant output (length)" in historical
+    assert "truncated historical content" in historical
+    assert historical.endswith("partial historical answer")
+
+
 def factory(ollama=None, oai=None, claude=None, lmstudio=None):
     def make(provider, base_url):
         if provider == "ollama":

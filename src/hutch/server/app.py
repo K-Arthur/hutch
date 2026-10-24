@@ -999,6 +999,8 @@ class ConversationMessageResource(BaseModel):
     workspace_task_result_truncated: bool = False
     choice_question_id: Optional[str] = None
     content_truncated: bool = False
+    incomplete: bool = False
+    incomplete_reason: str = ""
     persona_feedback: Optional[PersonaFeedbackResource] = None
 
 
@@ -1038,6 +1040,8 @@ class ConversationExportMessage(BaseModel):
     workspace_task_result_display_name: Optional[str] = None
     workspace_task_result_content: Optional[str] = None
     workspace_task_result_truncated: bool = False
+    incomplete: bool = False
+    incomplete_reason: str = ""
 
 
 class ConversationExportResource(BaseModel):

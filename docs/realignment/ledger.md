@@ -34,6 +34,65 @@ resolution and style-only writes; runtime/API behavior and responsive actual-app
 
 ## Current slices
 
+### Memory continuity A1–A5 (2026-10-23–24)
+
+Authority: the task-specific A1–A5 contract in `reports/Hutch memory implementation prompt.md`, baseline
+`f29b299b58b865053d48f4baa71601e191edb5cd`, ADR-0003/0007/0008/0019. At task start the historical ledger's
+commit/push/cleanup instructions were **not** authorization; on 2026-10-24 the user explicitly authorized completing
+the A3 bridge safety slice and committing these task files. Canonical messages, reviewed facts, receipts and existing
+continuations remain separate authorities; no new database, provider access, dependencies, or UI is introduced.
+
+| ID | Implemented boundary and evidence | Limit |
+|---|---|---|
+| A1 | Admission provenance, newest bounded history, identity-based reply deduplication, explicit fact/reply/specialist snapshots, partial/empty/truncated assistant status and additive API/export fields. `tests/test_conversations.py`, `tests/test_runtime_builtin.py`, `tests/test_runtime_opencode.py`. | Historical rows default to no recorded qualification; no retrospective inference. Artifact references do not automatically disclose files. |
+| A2 | Schema v75 native cache affinity, exact run/context binding, stale/deleted-session rebuild and durable send identity/state. Ambiguous prior dispatch is refused before rebinding or reserving; final dispatch rechecks cancellation/fence. Restart-state evidence in `tests/test_memory_continuity.py`. | Native sessions are not reused across turns without a replace-context contract. Deterministic fixtures are not live native-process/model-quality certification. |
+| A3 | **Implemented and verified with stated limits.** A per-run `MemoryBridge` (abstract Unix socket in the run worker) authenticates callers by `SO_PEERCRED` uid + PID/starttime ancestry to the recorded OpenCode server, derives Bot/run/fence/conversation ambiently, rechecks fence/status/cancellation/lease/`memory_enabled`/tool list per call, and dispatches through the same `steps.call_tool` path Builtin uses. A generated V2 plugin exposes `recall`/`remember` (plus an RPC verifier sharing the same call path); no credential enters the OpenCode environment. `tests/test_opencode_memory_bridge.py` (13 tests) covers tree authorization, authority revocations, scoping/provenance/update/archive, receipts, hostile inputs, adapter wiring, and a **live OpenCode v2.1.4 round trip**. | A live *model* invoking the tools end-to-end is unrun (no authorized credentials); plugin-load failure fails soft (tools absent); the RPC verifier needs `events: {}` on v2.1.4. Direct SQLite, bearerless endpoints and model-selected identity remain forbidden. |
+| A4 | Schema v76 anchored task manifests, immutable revisions/CAS/explicit supersession, receipt-backed results distinct from commitments, bounded admission and omission qualification. Concurrent corrections and injected pointer-write failure are covered in `tests/test_memory_continuity.py`; existing fitting/compaction paths remain in use. | Backend Store maintenance interface only, not automatic extraction or a user editor. Unknown hosted windows remain best effort; this does not guarantee retention beyond a model's actual window. |
+| A5 | v74–v76 migration compatibility plus existing receipt/transcript recovery. New tests prove one logical child-result consumption after restart, cancelled-parent non-resumption, sealed late child replies and stale-parent rejection. | Logical delivery is distinct from external effect execution; no exactly-once network or power-loss claim. |
+
+**Final regression evidence (2026-10-24).** The complete strict non-browser suite —
+`python -m pytest -q -W error::pytest.PytestUnhandledThreadExceptionWarning -W error::SyntaxWarning --ignore=tests/e2e` —
+ran to completion in 20 sequential ten-file groups against an **immutable snapshot of the final A1–A5+A3 tree**
+(`~/.cache/hutch-tree-snapshot-v5`, `tar` excluding `.venv`/`var`/`.git`/`node_modules`; imports verified to resolve
+to the snapshot's `src/hutch`). Result: **3,325 passed, 2 failed, 8 skipped, 6 xfailed in 1,481 s total batch wall
+time**, 19 of 20 batches green, snapshot fingerprint `e8f4e3e80daf…`. The two failures are the same known pair —
+`tests/test_native_containment.py::test_no_ipv4_ipv6_dns_or_host_unix_socket` and
+`tests/test_offline_mode.py::test_loopback_broker_refuses_a_request_after_close_starts` —
+`OSError: AF_UNIX path too long`: they bind Unix sockets under `--basetemp`, whose evidence-directory name exceeded
+Linux's 108-byte `sun_path`. Neither file is touched by this diff; both **pass on rerun with a short temp root**
+(`--basetemp=/home/kevina/.cache/t/bv5`: 2 passed in 1.55 s). Harness path-length artifact, not a product regression.
+The events/s throughput gate that was load-sensitive in the previous run passed inside this run's batch 16.
+Machine-local manifest with exact commands, per-batch JUnit/log paths and the snapshot source fingerprint:
+`~/.cache/hutch-pytest-snapshot-v5/manifest.json`.
+
+Earlier attempts are superseded, not counted: the first full run exhausted the shared `/tmp` tmpfs
+(`database or disk is full`); subsequent monolithic runs were cancelled by server restarts; two in-tree batched runs
+were invalidated when concurrently committed UI work changed the source fingerprint mid-run; a v3 snapshot run
+(3,286 passed, 2 failed) was superseded when this task closed its coverage gaps; and a v4 snapshot run
+(3,288 passed, 3 failed: the AF_UNIX pair plus the throughput gate under host load, which passed on its documented
+RAM-backed rerun) was superseded when the A3 bridge landed. No unrelated files were deleted to free space at any
+point.
+
+Focused evidence on the final diff: A3 bridge **13 passed** (`tests/test_opencode_memory_bridge.py`, including the
+live installed-CLI plugin round trip, no model call);
+`tests/test_runtime_opencode.py tests/test_conversations.py tests/test_memory_continuity.py tests/test_opencode_api.py
+tests/test_code_handoff.py` **79 passed** after bridge wiring; coverage additions **33 passed**;
+`tests/test_conversations.py tests/test_delegation.py tests/test_migration.py` **107 passed** after the
+artifact-pattern tightening; earlier exact-context/reply nodes **52 passed** and **5 passed**. The bridge and
+continuity test files are also inside the strict run above. Browser checks are not required by this backend-only
+change; no live model credentials were used.
+
+Offline selection microbenchmark, same baseline/corpus/host/budget: 140 synthetic messages plus one excluded-chat
+canary, 12-message/16,000-character selection, 20 warmups and 500 samples per version, Python 3.13.15 on x86_64
+Linux. Baseline/candidate p50 **0.0510/0.1205 ms**, p95 **0.0686/0.1615 ms**; estimated fresh OpenCode prompt
+**2,898/1,665 tokens**. The candidate retained the latest correction, both repeated-message identities and the
+empty-partial qualification; baseline OpenCode's first page lacked the correction. Neither leaked the excluded
+chat canary. Serialized selected context grew **2,273→5,256 bytes**; transcript-fixture DB grew
+**1,716,224→1,761,280 bytes**. The benchmark ran alongside regression work: these are selection-only observations,
+not an SLA or live inference measurement, and storage excludes full run snapshots/events/artifacts. No numeric
+target or model-quality improvement is inferred. Raw local evidence:
+`~/.cache/hutch-memory-benchmark-f72_xr2u/results.json`.
+
 Grounding slice, 2026-10-11 (branch `grounding/evidence`, worktree `.worktrees/grounding`): the
 integration base was re-derived from the actual repository — local `main` (`4ac6041`, documents
 pipeline) lacked both the Agent Skills work (`wcag22-audit-fixes`) and the tool-transpiler work

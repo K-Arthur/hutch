@@ -27,7 +27,7 @@ def contract_fixture():
 class FakeOpenCodeServer:
     """Deterministic stand-in for the owned local server, with no network or model call."""
 
-    def __init__(self, *_args, **_kwargs):
+    def __init__(self, *_args, **kwargs):
         self.process = None
         self.prompt_called = False
         self.permissions_calls = 0
@@ -35,6 +35,8 @@ class FakeOpenCodeServer:
         self.assistant: dict = {}
         self.pending: list[dict] = []
         self.fail_after_prompt = False
+        self.prompt_text = ""
+        self.init_kwargs = dict(kwargs)
 
     def start(self):
         return None
@@ -53,6 +55,7 @@ class FakeOpenCodeServer:
 
     def prompt(self, _session_id, _text, **_kwargs):
         self.prompt_called = True
+        self.prompt_text = _text
         return {"id": "msg_user"}
 
     def messages(self, _session_id, **_kwargs):
@@ -83,6 +86,25 @@ class FakeOpenCodeServer:
             "tokens": {"input": 10, "output": 1, "reasoning": 0, "cache": {"read": 0, "write": 0}},
             "cost": 0,
         }
+
+
+class MultiSessionFakeOpenCodeServer(FakeOpenCodeServer):
+    """Session cache fixture that can retain and then lose individual sessions."""
+
+    def __init__(self, *_args, **_kwargs):
+        super().__init__(*_args, **_kwargs)
+        self.created_sessions: list[str] = []
+        self.deleted_sessions: set[str] = set()
+
+    def create_session(self, **_kwargs):
+        session_id = f"ses_{len(self.created_sessions) + 1}"
+        self.created_sessions.append(session_id)
+        return {"id": session_id}
+
+    def session(self, session_id):
+        if session_id in self.deleted_sessions:
+            raise OpenCodeServerError("session no longer exists", status=404)
+        return {"id": session_id}
 
 
 def completed_assistant(text="OK", *, finish="stop", tokens=(120, 3, 40), cost=0.0):
@@ -145,6 +167,35 @@ def test_runtime_retains_truncated_output_but_never_reports_completion(store, co
     partial = [event for event in emitted if event.type is EventType.message
                and event.data.get("incomplete")]
     assert partial and partial[0].data["content"] == "half an answer"
+
+
+def test_runtime_uses_the_admitted_context_selection_not_a_native_history_page(
+        store, config, tmp_path, monkeypatch):
+    ctx, run, _emitted, tools = build(
+        store, config, tmp_path, model="opencode/test/model", tools=(),
+        runtime=RuntimeKind.opencode, mode=ApprovalMode.auto,
+        limits=Limits(max_steps=3, timeout_seconds=60, daily_token_cap=200_000))
+    run.conversation_context = [
+        {"role": "user", "content": "same wording", "context_version": 1, "source_kind": "message",
+         "source": {"message_id": "msg_one", "conversation_id": "conv", "seq": 61, "high_watermark": 64},
+         "truncated": False},
+        {"role": "user", "content": "same wording", "context_version": 1, "source_kind": "message",
+         "source": {"message_id": "msg_two", "conversation_id": "conv", "seq": 62, "high_watermark": 64},
+         "truncated": False},
+        {"role": "assistant", "content": "partial", "context_version": 1, "source_kind": "message",
+         "source": {"message_id": "msg_partial", "conversation_id": "conv", "seq": 64,
+                    "incomplete": True, "reason": "length", "high_watermark": 64}, "truncated": False},
+    ]
+    fake = FakeOpenCodeServer()
+    fake.assistant = completed_assistant("context received")
+    monkeypatch.setattr("hutch.runtime.opencode.OpenCodeServer", lambda *a, **k: fake)
+
+    assert run_it(OpenCodeRuntime(), run, ctx, tools) == "context received"
+    assert "<hutch_conversation_context_json>" in fake.prompt_text
+    assert fake.prompt_text.count("same wording") == 2
+    assert '"message_id":"msg_one"' in fake.prompt_text
+    assert '"message_id":"msg_two"' in fake.prompt_text
+    assert '"incomplete":true' in fake.prompt_text and '"reason":"length"' in fake.prompt_text
 
 
 def test_runtime_brokers_a_shell_permission_once_and_never_emits_always(
@@ -237,6 +288,175 @@ def test_runtime_marks_usage_uncertain_when_server_disappears_after_admission(
     assert exc.value.reason == "outcome_unknown"
     held = store.unresolved_usage_reservations()
     assert held and held[0]["status"] == "uncertain"
+    submission = store.opencode_submission(run.id)
+    # Prompt admission was acknowledged before the later session failure; the
+    # use of its subsequent work remains uncertain in the usage reservation.
+    assert submission and submission["state"] == "acknowledged"
+
+
+def test_session_binding_rebuilds_when_context_cursor_is_stale(store, config, tmp_path, monkeypatch):
+    ctx, run, _emitted, _tools = build(
+        store, config, tmp_path, model="opencode/test/model", tools=(),
+        runtime=RuntimeKind.opencode, mode=ApprovalMode.auto,
+        limits=Limits(max_steps=3, timeout_seconds=60, daily_token_cap=200_000))
+    run.conversation_id = "conv_cursor"
+    run.conversation_context = [{"role": "user", "content": "new canonical turn", "context_version": 1,
+                                "source_kind": "message",
+                                "source": {"message_id": "msg_new", "conversation_id": "conv_cursor",
+                                           "seq": 7, "high_watermark": 7}, "truncated": False}]
+    fake = FakeOpenCodeServer()
+    runtime = OpenCodeRuntime()
+    agent_id, agent = _agent_definition(ctx.bot.id, title=ctx.bot.name, instructions=ctx.bot.instructions,
+                                        provider_id="test", model_id="model", tool_names=set(),
+                                        workspace=str(ctx.workspace))
+    first, created, key = runtime._session_for(fake, ctx, run, "test", "model", agent_id, agent)
+    assert first == "ses_fake" and created is True
+    binding = store.opencode_session_binding(key)
+    assert binding and binding["sync_high_watermark"] == 7
+    store.bind_opencode_session(binding_key=key, bot_id=binding["bot_id"], route_hash=binding["route_hash"],
+                                workspace=binding["workspace"], policy_hash=binding["policy_hash"],
+                                agent_id=binding["agent_id"], session_id=binding["session_id"],
+                                sync_high_watermark=6)
+    second, rebuilt, _ = runtime._session_for(fake, ctx, run, "test", "model", agent_id, agent)
+    assert second == "ses_fake" and rebuilt is True
+
+
+def test_session_bindings_keep_route_affinity_and_rebuild_deleted_native_sessions(store, config, tmp_path):
+    ctx, run, _emitted, _tools = build(
+        store, config, tmp_path, model="opencode/test/model", tools=(),
+        runtime=RuntimeKind.opencode, mode=ApprovalMode.auto,
+        limits=Limits(max_steps=3, timeout_seconds=60, daily_token_cap=200_000))
+    run.conversation_id = "conv-route-affinity"
+    runtime = OpenCodeRuntime()
+    server = MultiSessionFakeOpenCodeServer()
+
+    agent_a_id, agent_a = _agent_definition(ctx.bot.id, title=ctx.bot.name, instructions=ctx.bot.instructions,
+                                             provider_id="test", model_id="model-a", tool_names=set(),
+                                             workspace=str(ctx.workspace))
+    first_a, created_a, key_a = runtime._session_for(server, ctx, run, "test", "model-a", agent_a_id, agent_a)
+    agent_b_id, agent_b = _agent_definition(ctx.bot.id, title=ctx.bot.name, instructions=ctx.bot.instructions,
+                                             provider_id="test", model_id="model-b", tool_names=set(),
+                                             workspace=str(ctx.workspace))
+    first_b, created_b, key_b = runtime._session_for(server, ctx, run, "test", "model-b", agent_b_id, agent_b)
+    reused_a, recreated_a, reused_key_a = runtime._session_for(
+        server, ctx, run, "test", "model-a", agent_a_id, agent_a)
+
+    assert (first_a, created_a) == ("ses_1", True)
+    assert (first_b, created_b) == ("ses_2", True)
+    assert key_a != key_b
+    assert (reused_a, recreated_a, reused_key_a) == ("ses_1", False, key_a)
+
+    server.deleted_sessions.add(first_a)
+    rebuilt_a, rebuilt, rebuilt_key = runtime._session_for(server, ctx, run, "test", "model-a", agent_a_id, agent_a)
+    assert (rebuilt_a, rebuilt, rebuilt_key) == ("ses_3", True, key_a)
+    assert store.opencode_session_binding(key_a)["session_id"] == "ses_3"
+
+
+def test_native_cache_cannot_add_history_outside_the_exact_admitted_run(store, config, tmp_path):
+    from hutch.models import Run
+
+    ctx, run, _events, _tools = build(store, config, tmp_path, model="opencode/test/model", tools=())
+    run.conversation_id = "conv-cache-bound"
+    run.conversation_context = [{"role": "user", "content": "first selection"}]
+    runtime = OpenCodeRuntime()
+    server = MultiSessionFakeOpenCodeServer()
+    agent_id, agent = _agent_definition(ctx.bot.id, title=ctx.bot.name, instructions=ctx.bot.instructions,
+                                        provider_id="test", model_id="model", tool_names=set(),
+                                        workspace=str(ctx.workspace))
+    first, _, first_key = runtime._session_for(server, ctx, run, "test", "model", agent_id, agent)
+    # Task-state edits and explicit context overrides can change selection
+    # without advancing a canonical-message high watermark.
+    run.conversation_context = [{"role": "user", "content": "corrected selection"}]
+    corrected, rebuilt, corrected_key = runtime._session_for(server, ctx, run, "test", "model", agent_id, agent)
+    assert rebuilt and corrected != first and corrected_key != first_key
+    other = Run(bot_id=run.bot_id, conversation_id=run.conversation_id, prompt=run.prompt,
+                conversation_context=run.conversation_context)
+    later, rebuilt, _ = runtime._session_for(server, ctx, other, "test", "model", agent_id, agent)
+    assert rebuilt and later != corrected
+
+
+@pytest.mark.parametrize("state", ["dispatched", "acknowledged", "uncertain"])
+def test_adapter_refuses_ambiguous_submission_before_rebinding_or_reserving(
+        store, config, tmp_path, monkeypatch, state):
+    from hutch.models import RunStatus
+
+    ctx, run, _events, tools = build(store, config, tmp_path, model="opencode/test/model", tools=())
+    owned = store.claim_run(run.id, "ambiguous-owner", 120)
+    store.transition_run(run.id, RunStatus.running, fence=owned.fence)
+    run.fence = owned.fence
+    store.prepare_opencode_submission(run_id=run.id, fence=run.fence,
+                                      binding_key="old-binding", session_id="deleted-native-session")
+    store.mark_opencode_submission(run_id=run.id, fence=run.fence, state="dispatched")
+    if state != "dispatched":
+        store.mark_opencode_submission(run_id=run.id, fence=run.fence, state=state)
+    fake = MultiSessionFakeOpenCodeServer()
+    monkeypatch.setattr("hutch.runtime.opencode.OpenCodeServer", lambda *a, **k: fake)
+
+    with pytest.raises(RunAborted) as caught:
+        run_it(OpenCodeRuntime(), run, ctx, tools)
+    assert caught.value.reason == "outcome_unknown"
+    assert not fake.prompt_called and not fake.created_sessions
+    assert not store.unresolved_usage_reservations(), "a local refusal must not create another charge hold"
+    assert store.opencode_submission(run.id)["session_id"] == "deleted-native-session"
+
+
+def test_corrupt_binding_row_rebuilds_instead_of_reusing_cache(store, config, tmp_path):
+    ctx, run, _events, _tools = build(store, config, tmp_path, model="opencode/test/model", tools=())
+    run.conversation_id = "conv-corrupt-binding"
+    runtime = OpenCodeRuntime()
+    server = MultiSessionFakeOpenCodeServer()
+    agent_id, agent = _agent_definition(ctx.bot.id, title=ctx.bot.name, instructions=ctx.bot.instructions,
+                                        provider_id="test", model_id="model", tool_names=set(),
+                                        workspace=str(ctx.workspace))
+    first, _, key = runtime._session_for(server, ctx, run, "test", "model", agent_id, agent)
+    # Model a corrupted or tampered affinity row: the derived key still matches,
+    # but stored affinity data can no longer be trusted.
+    with store._tx() as db:
+        db.execute("UPDATE opencode_session_bindings SET policy_hash='corrupt' WHERE binding_key=?", (key,))
+    second, rebuilt, same_key = runtime._session_for(server, ctx, run, "test", "model", agent_id, agent)
+    assert rebuilt and same_key == key and second != first
+    assert store.opencode_session_binding(key)["session_id"] == second
+    assert store.opencode_session_binding(key)["policy_hash"] != "corrupt"
+
+
+def test_submission_state_retains_ambiguity_and_refuses_retransmission(store, config, tmp_path):
+    from hutch.models import Bot, Run, RunStatus, Task
+
+    bot = store.create_bot(Bot(name="submission-state", model="mock/demo", tools=[]))
+    conversation, _ = store.create_conversation(bot.id, "submission", idem_key="submission-conversation",
+                                                request_hash="submission-conversation")
+    run = Run(bot_id=bot.id, prompt="Do the non-idempotent thing")
+    store.submit_conversation_message(conversation["id"], run.prompt, run, Task(bot_id=bot.id, prompt=run.prompt),
+                                      idem_key="submission-run", request_hash="submission-run")
+    claimed = store.claim_run(run.id, "submission-worker", 60)
+    assert claimed is not None
+    store.transition_run(run.id, RunStatus.running, fence=claimed.fence)
+    prepared = store.prepare_opencode_submission(run_id=run.id, fence=claimed.fence,
+                                                 binding_key=conversation["id"], session_id="ses_one")
+    assert prepared["state"] == "prepared" and prepared["submission_id"].startswith("hutch_")
+    store.mark_opencode_submission(run_id=run.id, fence=claimed.fence, state="dispatched")
+    retained = store.prepare_opencode_submission(run_id=run.id, fence=claimed.fence,
+                                                 binding_key=conversation["id"], session_id="ses_one")
+    assert retained["state"] == "dispatched"
+    store.mark_opencode_submission(run_id=run.id, fence=claimed.fence, state="uncertain", detail="response lost")
+    assert store.opencode_submission(run.id)["state"] == "uncertain"
+    with pytest.raises(ValueError, match="cannot become rejected"):
+        store.mark_opencode_submission(run_id=run.id, fence=claimed.fence, state="rejected")
+
+
+def test_stop_between_prepare_and_dispatch_refuses_the_native_call(store, config, tmp_path):
+    from hutch.lifecycle import LeaseLost
+    from hutch.models import RunStatus
+
+    _ctx, run, _events, _tools = build(store, config, tmp_path, model="opencode/test/model", tools=())
+    owned = store.claim_run(run.id, "stop-before-dispatch", 120)
+    store.transition_run(run.id, RunStatus.running, fence=owned.fence)
+    store.prepare_opencode_submission(run_id=run.id, fence=owned.fence,
+                                      binding_key="binding", session_id="session")
+    store.request_cancel_tree(run.id)
+    with pytest.raises(LeaseLost):
+        store.mark_opencode_submission(run_id=run.id, fence=owned.fence, state="dispatched")
+    assert store.opencode_submission(run.id)["state"] == "prepared"
 
 
 def test_sse_decoder_handles_chunked_crlf_multiline_data_and_unicode():

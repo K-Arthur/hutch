@@ -55,7 +55,8 @@ class OpenCodeModel:
         return f"opencode/{self.provider_id}/{self.model_id}"
 
 
-def _write_runtime_config(state_dir: Path, agents: dict[str, Any]) -> Path:
+def _write_runtime_config(state_dir: Path, agents: dict[str, Any],
+                          plugins: Optional[list[Any]] = None) -> Path:
     """Write the private runtime config containing this assistant's agent."""
     from ..code_handoff import opencode_profile_paths
     paths = opencode_profile_paths(state_dir)
@@ -65,7 +66,7 @@ def _write_runtime_config(state_dir: Path, agents: dict[str, Any]) -> Path:
         "share": "disabled",
         "autoupdate": False,
         "mcp": {},
-        "plugins": [],
+        "plugins": list(plugins or []),
         "agents": agents,
     }
     content = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
@@ -89,12 +90,14 @@ class OpenCodeServer:
 
     def __init__(self, state_dir: Path, *, executable: Optional[str] = None,
                  cwd: Optional[Path] = None, startup_timeout: float = 20.0,
-                 agents: Optional[dict[str, Any]] = None):
+                 agents: Optional[dict[str, Any]] = None,
+                 plugins: Optional[list[Any]] = None):
         self.state_dir = Path(state_dir)
         self.executable = executable or "opencode"
         self.cwd = Path(cwd) if cwd is not None else None
         self.startup_timeout = startup_timeout
         self.agents = agents or {}
+        self.plugins = list(plugins or [])
         self.process: Optional[subprocess.Popen] = None
         self.base_url = ""
         self._password = ""
@@ -131,7 +134,7 @@ class OpenCodeServer:
                 "Hutch requires OpenCode V2. The installed CLI is OpenCode V1; update it from "
                 "https://opencode.ai before connecting the assistant.")
         config_path = (write_profile_config(self.state_dir) if not self.agents
-                       else _write_runtime_config(self.state_dir, self.agents))
+                       else _write_runtime_config(self.state_dir, self.agents, self.plugins))
         env = safe_opencode_environment(config_path, state_dir=self.state_dir)
         # The coding-handoff profile disables catalog fetches so an interactive
         # task never changes account state. A connected assistant must be able

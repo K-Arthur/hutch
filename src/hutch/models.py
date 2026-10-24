@@ -651,7 +651,10 @@ class Run(BaseModel):
     # re-verifies against disk. Staged images travel with every message while they remain
     # in the composer; see providers/attachments.py for validation and wire formatting.
     image_attachments: list[dict[str, Any]] = Field(default_factory=list)
-    conversation_context: list[dict[str, str]] = Field(default_factory=list, exclude=True)
+    # A durable, bounded selection from canonical conversation evidence.  Items
+    # retain their source metadata for reconstruction/audit, while runtimes
+    # serialize only role/content to model providers.
+    conversation_context: list[dict[str, Any]] = Field(default_factory=list, exclude=True)
     owner: str = ""                   # pid of the process executing this run (kept for compatibility; see lease_owner)
     # --- ownership (ADR-0001/0003). These mirror columns; the columns are authoritative.
     fence: int = 0                    # bumped at every claim and recovery; a write with a stale fence is rejected
