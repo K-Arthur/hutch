@@ -165,11 +165,11 @@ Strict Offline Linux runs; it does not complete the broader S6 collaboration pla
 - [x] Human-in-the-loop approvals: fail-closed TTL, sticky always-allows, dashboard + CLI
 - [x] Scheduler: IANA-timezone cron, DST-gap/ambiguity handling, catch-up coalescing,
       skip policy with visible markers, per-bot single-instance lock
-- [x] Caps: max_steps, wall-clock kill, daily token cap
+- [x] Caps: max_steps, wall-clock timeout (in process mode the outer supervisor kills the owned worker after a grace period), daily token cap
 - [x] Atomic pre-call reservations for per-bot budgets and configured shared provider accounts; reconcile uncertain charges after checking the provider record. Currency limits remain price/prompt estimates.
 - [x] Append-only transcripts (SQLite + JSONL per run), staleness surfaced in dashboard
 - [x] Dashboard (live transcripts, approvals, meters, stop) + CLI + daemon
-- [x] Test suite (70 tests) covering safety parser, DST math, engine lifecycle, API, CLI
+- [x] Test suite covering safety parser, DST math, engine lifecycle, API and CLI — 70 tests at MVP, 3,325 passed alongside 2 known failures in the strict non-browser run of 2026-10-24 (evidence in `docs/realignment/ledger.md`)
 
 ## Phase 1 — hardening (next)
 
