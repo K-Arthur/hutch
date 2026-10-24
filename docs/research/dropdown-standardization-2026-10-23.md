@@ -59,12 +59,12 @@ All keep graphite, emerald actions, azure focus, system-sans labels, 8px control
 
 | ID | Required evidence | Status |
 |---|---|---|
-| D1 | Shared semantic control family; all select/menu consumers inventoried | In progress |
-| D2 | Chat/model/skill/roster focus, refresh, one-message state and mobile discovery | Pending |
-| D3 | Setup/settings/schedule/integration/filter/widget/server control coverage | Pending |
-| D4 | Marketing navigation/disclosures and affected real-product proof aligned | Pending |
-| D5 | Opened responsive captures, real public image/file scenario, keyboard/resilience checks | Pending |
-| D6 | Focused/full regression results, code review, docs and progressive local commits | Pending |
+| D1 | Shared semantic control family; all select/menu consumers inventoried | Implemented; native and popup behavior verified |
+| D2 | Chat/model/skill/roster focus, refresh, one-message state and mobile discovery | Focused browser checks pass |
+| D3 | Setup/settings/schedule/integration/filter/widget/server control coverage | Shared styling applies to all 66 declarations; representative journeys verified, broader route sweep pending |
+| D4 | Marketing navigation/disclosures and affected real-product proof aligned | Verified; unaffected genuine first-run proof retained |
+| D5 | Opened responsive captures, real public image/file scenario, keyboard/resilience checks | Verified at recorded scope; limitations below |
+| D6 | Focused/full regression results, code review, docs and progressive local commits | Three slices committed; final review corrections and full offline regression pending |
 
 Initial static inventory: 54 selects in `app.js`, two in `persona.js`, one in
 `widgets.js`, nine in Jinja templates; setup has a model datalist. Native select,
@@ -156,3 +156,78 @@ root-filesystem scratch, not the nearly full shared `/tmp` tmpfs.
 - Four existing design-system checks also passed after updating pure action-menu
   test queries to their correct `menuitem` role: settings header, shared tokens,
   settings disclosure axes and persona round-trip/conflict behavior.
+
+## Consumer matrix
+
+| Family | Consumers / authority | Migration and evidence |
+|---|---|---|
+| Native selected values | `app.js` (54 declarations: settings, routing, permissions, schedules, integration grants, conversation/filter/destination choices); `persona.js` (2 templates); `widgets.js` (timeline filter); Jinja templates (9) | All consume `controls.css`; names, values, `change`, required/disabled/reset and native form submission remain unchanged. Representative live workspace save/reload, nested chat choice, server/no-JS form-data and existing persona/settings tests pass. This is not an individual test of every enum in every state. |
+| Editable route | Setup `input[list]` | Preserves explicit input value and validation; accessible listbox suggestions, stable input focus, provider-qualified IDs, no-match state and 100-row bound verified. |
+| Pure actions | Roster, assistant settings, fleet card | Shared menu lifecycle; arrows/Home/End/typeahead, Escape/Tab, outside press and teardown. Existing pin/default/fleet checks remain applicable. |
+| Model choice | Composer menu + full modal | Five-choice quick path, canonical identities, current/default check, separate save-default action, searchable full list. Delayed discovery and detached-view guards protect state. |
+| Multi-select | Skills | Searchable checkbox form, not nested menuitem-checkbox/native-checkbox roles. Changes do not replace focused rows. Send/consume contract unchanged. |
+| Mixed forms | Composer and conversation options | Nonmodal dialog popovers with normal form Tab order, sticky Done, bounded scrolling; native picker Escape does not dismiss its parent. Optional content stays in inline disclosures. |
+| Inline disclosures / navigation | Settings, schedule assistant chooser, site FAQ and mobile navigation | Inline disclosure semantics retained; site section links remain links inside a native modal, with app-compatible geometry/focus. |
+
+## Distinct code-review passes
+
+Reviewed this task's committed delta from `eff7ebd2^` plus its in-scope uncommitted
+corrections. Excluded the unrelated memory/runtime/store/ADR working-tree changes.
+This was a **self-review**, not an independent-agent or security certification.
+
+Requirements pass found and corrected:
+
+- Async model discovery could increase popup height past the viewport: explicit
+  placement plus ResizeObserver; delayed OpenRouter regression passed afterward.
+- Native select Escape was intercepted by its parent popover: preserve browser
+  default dismissal and stop outer handlers; dedicated nested-select test passes.
+- A late “All models” response could open a dialog after leaving chat: detached
+  slot/search guards; delayed-response navigation regression passes.
+- Public-photo filename overflow hid the remove button: shrinkable grid/flex
+  tracks, full accessible filename and 44px remove control; real JPEG bounds pass.
+
+Standards/accessibility pass corrected the autocomplete's result status to be a
+persistent sibling of the owned listbox options, kept canonical provider IDs in
+the full model list, and removed hidden file inputs from popup Tab order. The
+control boundary now derives from existing colors and passes measured 3:1
+non-text contrast; text passes 4.5:1 in the targeted browser check.
+
+Latest new-control suite: **18 passed**, including real public JPEG storage,
+hostile modal clipping/scroll, no-JS server form values, 100-result bound, stale
+navigation, emulated missing Popover API, forced colors, reduced motion, and
+320px simultaneous WCAG text-spacing tolerance overrides. `node --check` passes
+for changed application scripts; `git diff --check` passes.
+
+Broad route sweep: `test_every_workspace_route_renders_independently_at_responsive_sizes`
+and `test_chat_library_recovers_history_beyond_quick_switcher_and_workspace_settings`
+**2 passed** (1440/900/390/320) — the native-select surface covers every
+settings, schedule, integration, filter, and history route without overflow.
+Guided assistant creation **1 passed** after making every "Model route" test
+query exact, so it targets the input and not the new suggestion listbox.
+
+Full offline suite (`pytest --ignore=tests/e2e`): **3284 passed, 8 skipped, 6 xfailed,
+4 failed** in 26m31s on root-filesystem scratch (the shared `/tmp` tmpfs was 97% full).
+All four failures were environment artifacts, not dropdown behavior: two
+`AF_UNIX path too long` from an over-long `TMPDIR` exceeding the 108-char socket
+limit, one 1000-events/s disk benchmark on the slow root fs instead of RAM, and one
+Playwright launch that bypassed the shared `launch_browser` helper. The two path and
+benchmark tests **3 passed** in 2.57s when re-run with a short RAM-backed `TMPDIR`.
+The fourth now routes through `launch_browser` and **1 passed** in 10.08s with the
+explicit QA executable. These four were environment-blocked before this work, so
+none is attributed to the dropdown changes.
+
+Mechanical Impeccable detector ran once across changed targets. It reported only
+three pre-existing advisories outside the changed controls: a 4px radius and
+`#e1e5e9` in `style.css`, and an 11px marketing metadata role already documented
+in `DESIGN.md`. They were not silently “fixed” as unrelated redesign work.
+
+### Verification limits
+
+Screenshots were opened and inspected, not merely saved. Checked 1440/900/390/320
+layouts and relevant expanded/selected/error/overflow states. Real public imagery
+supplements, rather than replaces, deterministic edge-case fixtures. No live model
+quality/vision, hosted-provider billing, physical phone, Safari/Firefox, assistive
+screen-reader or actual browser/text zoom pass is claimed. Text-spacing/reflow
+and forced-colors emulation do not establish complete WCAG conformance or a
+measured usability/aesthetic score. Browser-native select appearance is necessarily
+platform-dependent where customizable select is unsupported.

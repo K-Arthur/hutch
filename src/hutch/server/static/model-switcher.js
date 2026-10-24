@@ -156,7 +156,7 @@
         const encoded = params.toString();
         const suffix = encoded ? `?${encoded}` : "";
         const fresh = await api(`/bots/${encodeURIComponent(bot.name)}/models${suffix}`);
-        if (revision !== refreshRevision) return;
+        if (revision !== refreshRevision || !slot.isConnected) return;
         data = fresh;
         paintButton();
         announceSelection();
@@ -200,6 +200,7 @@
     // ------------------------------------------------------------- the full list
     async function openAll() {
       await refresh({ discover: true });               // the model picker is an explicit catalog request
+      if (!slot.isConnected) return;
       const cur = active();
       let draftSpec = cur;
       const row = m => {
@@ -212,6 +213,7 @@
               ${m.default ? '<span class="ms-tag">default</span>' : ""}
               ${m.hosted ? `<span class="ms-tag ms-hosted" title="This chat is sent to the provider">${ico("cloud", 11)} leaves this machine</span>` : ""}
               ${ok ? "" : `<span class="ms-tag ms-warn">${m.state === "wont_fit" ? "won't fit" : "needs setup"}</span>`}</span>
+            <span class="ms-row-note">${escHtml(m.spec)}</span>
             <span class="ms-row-note">${escHtml(sub)}</span></span></label>`;
       };
       const body = `
@@ -294,10 +296,11 @@
         }
         searchStatus.textContent = "Searching connected model catalogs…";
         searchTimer = setTimeout(async () => {
+          if (!search.isConnected) return;
           try {
             const params = new URLSearchParams({ discover: "1", q: query });
             const fresh = await api(`/bots/${encodeURIComponent(bot.name)}/models?${params.toString()}`);
-            if (revision !== searchRevision || search.value.trim() !== query) return;
+            if (!search.isConnected || revision !== searchRevision || search.value.trim() !== query) return;
             data = fresh;
             paintButton();
             renderGroups(data.models, query);

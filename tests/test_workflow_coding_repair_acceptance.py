@@ -22,6 +22,7 @@ from hutch.workflow import submit as wfsubmit
 from tests.fakes import FakeOllama
 from tests.test_workflow_engine import drive, make_bot
 from tests.support.artifacts import artifact_path
+from tests.support.browser import launch_browser
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -331,7 +332,7 @@ def test_disposable_multi_module_repair_runs_tests_and_inspects_ui(store, config
         measurements = []
         try:
             with sync_playwright() as playwright:
-                browser = playwright.chromium.launch(headless=True)
+                browser = launch_browser(playwright)
                 context = browser.new_context(viewport={"width": 1440, "height": 1000},
                                               reduced_motion="reduce")
                 context.tracing.start(screenshots=True, snapshots=True, sources=True)

@@ -6,7 +6,7 @@
   --control-hover: var(--color-semantic-raised);
   --control-text: var(--color-semantic-text);
   --control-muted: var(--color-semantic-text-2);
-  --control-line: var(--color-semantic-border-emphasis);
+  --control-line: color-mix(in srgb, var(--color-semantic-text-3) 70%, var(--control-surface));
   --control-focus: var(--color-semantic-focus-ring);
   --control-selected: var(--color-semantic-brand);
   --control-radius: var(--radius-control, 8px);

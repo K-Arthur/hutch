@@ -3515,10 +3515,10 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
                   <div class="cmenu-sep"></div>
                   <button class="cmenu-files" id="prompt-template-library-open" type="button">${icon("fileText")} Browse saved requests</button>
                   <button class="cmenu-files" id="prompt-template-import" type="button" aria-controls="task-template-file">Import task-template file</button>
-                  <input class="visually-hidden" id="task-template-file" type="file" accept=".json,application/json">
+                  <input id="task-template-file" type="file" accept=".json,application/json" hidden>
                   <button class="cmenu-files" id="conversation-files-open" type="button">${icon("folder")} Browse files in this chat</button>
                   <button class="cmenu-files" id="workspace-upload-open" type="button">${icon("fileText")} Attach a data file</button>
-                  <input class="visually-hidden" id="workspace-upload-file" type="file" multiple
+                  <input id="workspace-upload-file" type="file" multiple hidden
                     accept=".csv,.jpeg,.jpg,.json,.md,.png,.tsv,.txt,.webp">
                   <button class="cmenu-files" id="conversation-export-open" type="button">Export conversation as JSON</button>
                   <p class="hint cmenu-image-note" role="note">Files, including images, are stored in this chat’s workspace. Direct image input to the model isn’t supported here.</p>

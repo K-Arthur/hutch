@@ -150,10 +150,22 @@
     const item = [...live].at(-1);
     if (!item) return;
     if (event.key === "Escape") {
+      // Let the browser dismiss its own select picker, but do not let an outer
+      // app/modal handler consume that same Escape and cancel the form layer.
+      if (CSS.supports("selector(select:open)") && document.querySelector("select:open")) {
+        event.stopImmediatePropagation();
+        return;
+      }
       // An inline details section consumes its own first Escape, before its
       // enclosing form popover. Native select pickers retain browser handling.
       const nested = event.target.closest("details[open]");
-      if (nested && item.panel.contains(nested)) return;
+      if (nested && item.panel.contains(nested)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        nested.open = false;
+        nested.querySelector(":scope > summary")?.focus({ preventScroll: true });
+        return;
+      }
       event.preventDefault();
       event.stopImmediatePropagation();
       item.close(true);
@@ -196,12 +208,25 @@
     const control = popup({ trigger: input, panel, kind: "listbox", triggerKeys: false, matchWidth: true,
       onClose: () => { input.removeAttribute("aria-activedescendant"); active = -1; } });
     suggestions.set(input, control);
+    // Keep the persistent result announcement outside the listbox's owned
+    // options. Recreating a live region on every keystroke is not reliable.
+    panel.removeAttribute("role");
+    panel.removeAttribute("aria-label");
+    const list = document.createElement("div");
+    list.id = `${panel.id}-list`;
+    list.setAttribute("role", "listbox");
+    list.setAttribute("aria-label", "Available model routes");
+    const status = document.createElement("p");
+    status.className = "hc-popup-empty";
+    status.setAttribute("role", "status");
+    panel.append(list, status);
+    input.setAttribute("aria-controls", list.id);
 
     function render() {
       const query = input.value.trim().toLocaleLowerCase();
       const matches = [...datalist.options].filter(option => !option.disabled &&
         `${option.value} ${option.label}`.toLocaleLowerCase().includes(query));
-      panel.replaceChildren();
+      list.replaceChildren();
       rows = matches.slice(0, 100).map((option, index) => {
         const row = document.createElement("div");
         row.className = "hc-suggestion";
@@ -218,17 +243,13 @@
         }
         row.addEventListener("pointerdown", event => event.preventDefault());
         row.addEventListener("click", () => choose(index));
-        panel.append(row);
+        list.append(row);
         return { node: row, value: option.value };
       });
-      const status = document.createElement("p");
-      status.className = "hc-popup-empty";
-      status.setAttribute("role", "status");
       status.textContent = !matches.length
         ? "No available route matches. You can still enter an explicit route; Hutch checks it before saving."
         : matches.length > 100 ? `Showing 100 of ${matches.length} routes. Keep typing to narrow the list.`
         : `${matches.length} available ${matches.length === 1 ? "route" : "routes"}. Use arrow keys to explore, Enter to choose.`;
-      panel.append(status);
       active = -1;
       input.removeAttribute("aria-activedescendant");
     }

@@ -7510,7 +7510,7 @@ def test_tool_permissions_are_clear_and_save_at_desktop_tablet_and_phone(browser
             options = page.locator(".assistant-settings-menu > summary")
             if not options.evaluate("element => element.parentElement.open"):
                 options.click()
-            delete_button = page.get_by_role("button", name="Delete assistant")
+            delete_button = page.get_by_role("menuitem", name="Delete assistant")
             assert delete_button.is_visible()
             if label == "phone":
                 assert delete_button.locator("svg").is_visible()
@@ -7649,13 +7649,13 @@ def test_quick_bot_creation_uses_the_workspace_default_without_starting_work(bro
         page.set_viewport_size({"width": 1440, "height": 960})
         page.locator("#setup-customize").click()
         page.get_by_role("heading", name="Choose what powers it").wait_for()
-        assert page.get_by_label("Model route").input_value() == "openai/gpt-4o-mini"
+        assert page.get_by_label("Model route", exact=True).input_value() == "openai/gpt-4o-mini"
         assert page.locator("#setup-inference_mode").input_value() == "hybrid"
         page.get_by_role("link", name="Save draft and leave", exact=True).click()
         page.reload()
         page.locator("#topbar-new-bot").click()
         page.get_by_role("heading", name="Choose what powers it").wait_for()
-        assert page.get_by_label("Model route").input_value() == "openai/gpt-4o-mini"
+        assert page.get_by_label("Model route", exact=True).input_value() == "openai/gpt-4o-mini"
         assert "Restored your unsaved setup" in page.locator(".setup-restored").inner_text()
         page.get_by_role("button", name="Discard draft").click()
         page.locator("#topbar-new-bot").click()
@@ -7754,7 +7754,7 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
         page.locator("#setup-page-confirm").click()
         page.get_by_role("heading", name="Choose what powers it").wait_for()
         page.locator("#setup-runtime").select_option("builtin")
-        page.get_by_label("Model route").fill("openai/gpt-4o-mini")
+        page.get_by_label("Model route", exact=True).fill("openai/gpt-4o-mini")
         page.locator("#setup-page-confirm").click()
         page.get_by_role("heading", name="Choose its apps").wait_for()
         assert page.locator("#setup-tools input:checked").count() == 0
@@ -7976,7 +7976,7 @@ spec:
         page.set_viewport_size({"width": 390, "height": 844})
         page.locator("#setup-page-confirm").click()
         page.get_by_role("heading", name="Choose what powers it").wait_for()
-        assert page.get_by_label("Model route").input_value() == "openai/gpt-4o-mini"
+        assert page.get_by_label("Model route", exact=True).input_value() == "openai/gpt-4o-mini"
         assert page.get_by_label("Inference mode").input_value() == "hybrid"
         page.locator("#setup-page-confirm").click()
         page.get_by_role("heading", name="Choose its apps").wait_for()
@@ -8723,7 +8723,7 @@ def test_duplicate_bot_starts_from_safe_editable_setup_without_copying_authority
         page.set_viewport_size({"width": 390, "height": 844})
         page.locator("#setup-page-confirm").click()
         page.get_by_role("heading", name="Choose what powers it").wait_for()
-        assert page.get_by_label("Model route").input_value() == source.model
+        assert page.get_by_label("Model route", exact=True).input_value() == source.model
         assert page.locator("#setup-workspace_mode").input_value() == "managed"
         page.locator("#setup-page-confirm").click()
         page.get_by_role("heading", name="Choose its apps").wait_for()
@@ -8891,7 +8891,7 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
         page.screenshot(path=str(out / "identity-phone-address-visible.png"), animations="disabled")
 
         page.locator("#setup-page-confirm").click()
-        page.get_by_label("Model route").fill("openai/gpt-4o-mini")
+        page.get_by_label("Model route", exact=True).fill("openai/gpt-4o-mini")
         page.locator("#setup-page-confirm").click()
         page.locator("#setup-page-confirm").click()
         page.get_by_role("heading", name="Review and create").wait_for()
@@ -9033,7 +9033,7 @@ def test_bot_creation_reuses_only_the_selected_chat_messages_and_keeps_provenanc
         page.locator("#setup-display_name").fill("Launch Checklist Monitor")
         page.locator("#setup-name").fill("launch-checklist")
         page.locator("#setup-customize").click()
-        model_route = page.get_by_label("Model route")
+        model_route = page.get_by_label("Model route", exact=True)
         assert model_route.input_value() == "openai/gpt-4o-mini"
         assert "Suggested from chat-context-source’s current route" in page.locator(".setup-conversation").inner_text()
         inference_options = page.locator("#setup-inference_mode option").all_text_contents()
@@ -9599,7 +9599,7 @@ def test_workspace_model_default_seeds_new_bot_setup(browser, live, monkeypatch)
         page.locator("#setup-name").fill("workspace-default-child")
         page.locator("#setup-customize").click()
         page.get_by_role("heading", name="Choose what powers it").wait_for()
-        assert page.get_by_label("Model route").input_value() == "openai/gpt-4o-mini"
+        assert page.get_by_label("Model route", exact=True).input_value() == "openai/gpt-4o-mini"
         assert "Workspace default for new Bots" in page.locator(".setup-conversation").inner_text()
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
@@ -10693,19 +10693,19 @@ def test_fleet_appears_at_ten_bots_with_search_and_state_filters(browser, live):
     card = page.locator('[data-fleet-bot="fleet-9"]')
     card.locator("[data-fleet-options]").click()
     menu = card.locator(".fleet-card-menu-panel")
-    assert menu.get_by_role("button", name="Pause assistant").is_visible()
+    assert menu.get_by_role("menuitem", name="Pause assistant").is_visible()
     with page.expect_response(lambda response: response.url.endswith("/api/bots/fleet-9")
                              and response.request.method == "PATCH") as paused:
-        menu.get_by_role("button", name="Pause assistant").click()
+        menu.get_by_role("menuitem", name="Pause assistant").click()
     assert paused.value.status == 200
     wait_for(lambda: app.state.store.get_bot("fleet-9").paused)
     card = page.locator('[data-fleet-bot="fleet-9"]')
     card.locator("[data-fleet-options]").click()
     menu = card.locator(".fleet-card-menu-panel")
-    assert menu.get_by_role("button", name="Resume assistant").is_visible()
+    assert menu.get_by_role("menuitem", name="Resume assistant").is_visible()
     with page.expect_response(lambda response: response.url.endswith("/api/bots/fleet-9")
                              and response.request.method == "PATCH") as resumed:
-        menu.get_by_role("button", name="Resume assistant").click()
+        menu.get_by_role("menuitem", name="Resume assistant").click()
     assert resumed.value.status == 200
     wait_for(lambda: not app.state.store.get_bot("fleet-9").paused)
     page.close()

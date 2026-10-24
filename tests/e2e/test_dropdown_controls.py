@@ -10,6 +10,7 @@ import pytest
 
 pw = pytest.importorskip("playwright.sync_api")
 from hutch.models import Bot
+from hutch.connections import ConnectionBook
 from tests.e2e.test_browser import live  # real isolated HTTP app fixture
 from tests.e2e.test_skills_browser import seed_skill
 from tests.support.artifacts import artifact_path
@@ -226,6 +227,13 @@ def test_setup_model_suggestions_keep_typing_focus_and_explicit_values(browser, 
         out.mkdir(parents=True, exist_ok=True)
         field.fill("shared")
         page.screenshot(path=str(out / "provider-identity-phone.png"))
+        page.evaluate("""() => {
+          const list=document.querySelector('#setup-model-routes');list.replaceChildren();
+          for(let i=0;i<160;i++){const item=document.createElement('option');item.value='ollama/catalog-'+i;list.append(item);}
+        }""")
+        field.fill("catalog")
+        assert page.locator(".hc-suggestions").get_by_role("option").count() == 100
+        assert "Showing 100 of 160" in page.locator(".hc-suggestions [role=status]").inner_text()
     finally:
         page.close()
 
@@ -280,5 +288,136 @@ def test_public_image_workspace_journey_without_provider_calls(browser, live):
             "scope": "Real public JPEG through actual local upload endpoint and browser file chooser; durable draft reload and model popup. No mocked endpoint, provider inference, vision quality or image-chat support claimed.",
             "external_requests": [], "page_errors": errors,
         }, indent=2) + "\n")
+    finally:
+        context.close()
+
+
+def test_late_model_catalog_does_not_open_a_dialog_after_navigation(browser, live):
+    base, app = live
+    app.state.store.create_bot(Bot(name="late-catalog", model="mock/demo", tools=[]))
+    page = browser.new_page()
+    pending = []
+    try:
+        def delay_discovery(route):
+            if "discover=1" in route.request.url:
+                pending.append(route)
+            else:
+                route.continue_()
+        page.route("**/api/bots/late-catalog/models*", delay_discovery)
+        page.goto(base + "/#/chat/late-catalog")
+        page.locator(".ms-btn").click()
+        page.locator(".ms-more").click()
+        page.locator('.ws-foot a[href="#/settings"]').click()
+        page.locator("#workspace-settings-mode").wait_for()
+        assert pending
+        for route in pending:
+            route.fulfill(json={"default": "mock/demo", "models": []})
+        page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
+        assert page.locator("#modal-root [role=dialog]").count() == 0
+    finally:
+        page.close()
+
+
+def test_action_menu_has_a_non_popover_api_fallback(browser, live):
+    base, app = live
+    app.state.store.create_bot(Bot(name="fallback-control", model="mock/demo", tools=[]))
+    context = browser.new_context(viewport={"width": 390, "height": 844})
+    context.add_init_script("HTMLElement.prototype.showPopover = undefined")
+    page = context.new_page()
+    try:
+        page.goto(base + "/#/bot/fallback-control")
+        trigger = page.get_by_label("Assistant options", exact=True).first
+        trigger.click()
+        menu = page.get_by_role("menu", name="Assistant options")
+        menu.wait_for(state="visible")
+        assert_fits(page, menu)
+        page.keyboard.press("End")
+        assert page.get_by_role("menuitem", name="Delete assistant").evaluate("el => el === document.activeElement")
+        page.keyboard.press("Escape")
+        assert menu.is_hidden()
+    finally:
+        context.close()
+
+
+def test_server_select_form_remains_usable_without_javascript(browser, live):
+    base, app = live
+    ConnectionBook(app.state.config.state_dir).add("openai-api")
+    context = browser.new_context(viewport={"width": 390, "height": 844}, java_script_enabled=False)
+    page = context.new_page()
+    try:
+        page.goto(base + "/legacy/connections")
+        window = page.get_by_label("Window", exact=True).first
+        window.select_option("week")
+        form = window.locator("xpath=..")
+        data = form.evaluate("form => Object.fromEntries(new FormData(form))")
+        assert data["window"] == "week" and "csrf" in data
+        assert window.evaluate("el => getComputedStyle(el).fontSize") == "16px"
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+        out = artifact_path("dropdowns/server")
+        out.mkdir(parents=True, exist_ok=True)
+        window.click()
+        page.screenshot(path=str(out / "no-javascript-phone.png"))
+    finally:
+        context.close()
+
+
+def test_native_select_escape_closes_only_its_own_picker(browser, live):
+    base, app = live
+    app.state.store.create_bot(Bot(name="nested-selection", model="mock/demo", tools=[]))
+    page = browser.new_page(viewport={"width": 390, "height": 844})
+    try:
+        page.goto(base + "/#/chat/nested-selection")
+        page.locator("#studio-conversation-options").click()
+        picker = page.locator("#chat-workflow-mode")
+        picker.click()
+        assert picker.evaluate("el => el.matches(':open')")
+        page.keyboard.press("Escape")
+        assert not picker.evaluate("el => el.matches(':open')")
+        assert page.locator(".conversation-actions-panel").is_visible()
+        page.keyboard.press("Escape")
+        assert page.locator(".conversation-actions-panel").is_hidden()
+    finally:
+        page.close()
+
+
+@pytest.mark.parametrize("forced", [False, True])
+def test_popup_reflow_spacing_and_focus_survive_accessibility_preferences(browser, live, forced):
+    base, app = live
+    app.state.store.create_bot(Bot(name="resilient-controls", model="mock/demo", tools=[]))
+    context = browser.new_context(viewport={"width": 320, "height": 740}, reduced_motion="reduce",
+                                  forced_colors="active" if forced else "none")
+    page = context.new_page()
+    try:
+        page.goto(base + "/#/chat/resilient-controls")
+        page.locator("#composer-menu-btn").wait_for()
+        page.add_style_tag(content="""
+          * { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; }
+          p { margin-block-end: 2em !important; }
+        """)
+        page.locator("#composer-menu-btn").click()
+        popup = page.locator("#composer-menu")
+        assert_fits(page, popup)
+        page.get_by_role("button", name="Review cost and context before sending").scroll_into_view_if_needed()
+        assert_fits(page, page.get_by_role("button", name="Review cost and context before sending"))
+        assert popup.locator(".hc-popup-close").is_visible(), "sticky dismiss remains reachable after scrolling"
+        page.keyboard.press("Escape")
+        assert page.locator("#composer-menu-btn").evaluate("el => el === document.activeElement")
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+        if not forced:
+            # Canvas converts CSS color-mix output to sRGB for measured contrast.
+            ratios = page.evaluate("""() => {
+              const el=document.querySelector('#chat-workflow-mode');
+              const s=getComputedStyle(el), canvas=document.createElement('canvas'); canvas.width=canvas.height=1;
+              const ctx=canvas.getContext('2d');
+              const rgb=c=>{ctx.clearRect(0,0,1,1);ctx.fillStyle=c;ctx.fillRect(0,0,1,1);return [...ctx.getImageData(0,0,1,1).data].slice(0,3);};
+              const l=c=>rgb(c).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((v,x,i)=>v+x*[.2126,.7152,.0722][i],0);
+              const ratio=(a,b)=>{a=l(a);b=l(b);return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);};
+              return {text:ratio(s.color,s.backgroundColor),border:ratio(s.borderTopColor,s.backgroundColor)};
+            }""")
+            assert ratios["text"] >= 4.5 and ratios["border"] >= 3, ratios
+        out = artifact_path("dropdowns/resilience")
+        out.mkdir(parents=True, exist_ok=True)
+        page.locator("#composer-menu-btn").click()
+        page.screenshot(path=str(out / f"spacing-forced-{forced}.png"))
     finally:
         context.close()

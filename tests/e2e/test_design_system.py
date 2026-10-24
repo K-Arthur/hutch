@@ -277,8 +277,8 @@ def test_assistant_settings_header_groups_secondary_actions(browser, app_server)
             trigger = menu.locator("summary")
             assert trigger.get_attribute("aria-label") == "Assistant options"
             trigger.click()
-            assert page.get_by_role("link", name="Open chat", exact=True).is_visible()
-            assert page.get_by_role("button", name="Delete assistant", exact=True).is_visible()
+            assert page.get_by_role("menuitem", name="Open chat", exact=True).is_visible()
+            assert page.get_by_role("menuitem", name="Delete assistant", exact=True).is_visible()
             if name in {"desktop", "phone"}:
                 page.evaluate("document.activeElement instanceof HTMLElement && document.activeElement.blur()")
                 page.screenshot(path=str(out / f"settings-options-{name}.png"), animations="disabled")
@@ -1794,8 +1794,8 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                 menu_trigger.click()
                 menu = first_card.locator(".fleet-card-menu-panel")
                 menu.wait_for(state="visible")
-                assert menu.get_by_role("button", name="Pause assistant").is_visible()
-                assert menu.get_by_role("link", name="Assistant settings").is_visible()
+                assert menu.get_by_role("menuitem", name="Pause assistant").is_visible()
+                assert menu.get_by_role("menuitem", name="Assistant settings").is_visible()
                 assert page.evaluate("Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) <= innerWidth + 1")
                 page.screenshot(path=str(out / f"fleet-menu-{viewport_name}.png"), animations="disabled")
 
