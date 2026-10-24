@@ -198,6 +198,11 @@ that separate from the test artifact directory.
 
 Python ≥ 3.11. Linux first; macOS/Windows are roadmap items.
 
+## Contributing and security
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, tests, and documentation conventions, and
+[SECURITY.md](SECURITY.md) for private vulnerability reporting.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
