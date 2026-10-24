@@ -59,8 +59,11 @@ DOM focus stays in the input, suggestions keep full provider-qualified route
 values, Arrow keys explore and Enter explicitly accepts. Tab/Escape never
 silently choose a suggestion. A persistent result announcement sits outside the
 listbox; lists render at most 100 matches and state when typing can narrow them.
-The control border derives from 70% tertiary ink / 30% panel in sRGB to maintain
-measured non-text contrast rather than reusing a decorative hairline.
+Popup and field edges reuse the design system's shared white-alpha hairline
+tokens — `--color-semantic-border-strong` (`rgba(255,255,255,0.14)`) for outer
+edges and `--color-semantic-border` (`0.07`) for internal separators — so dropdowns
+match buttons, inputs and cards rather than carrying a one-off outline. Controls
+are identified by fill, azure focus ring and this shared hairline together.
 
 The marketing site deliberately does not load application popup JavaScript.
 Its native modal navigation and inline FAQ disclosures share surface, radius,

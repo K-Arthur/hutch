@@ -32,6 +32,30 @@ def assert_fits(page, popup):
     assert bounds["y"] + bounds["height"] <= page.viewport_size["height"] + 1, bounds
 
 
+def assert_uses_token(page, locator, border_token="--color-semantic-border-strong",
+                      bg_token="--color-semantic-panel"):
+    """The popup/field edge and surface must resolve to the same design-system
+    tokens the rest of the UI uses — not a one-off grey. Both expected and actual
+    go through the browser's colour normalisation, so no hex values are hardcoded."""
+    result = locator.evaluate("""(el, tok) => {
+      const cs = getComputedStyle(el);
+      const root = getComputedStyle(document.documentElement);
+      const norm = c => {
+        const p = document.createElement('span');
+        p.style.color = c; document.body.append(p);
+        const v = getComputedStyle(p).color; p.remove(); return v;
+      };
+      return {
+        border: cs.borderTopColor,
+        expectedBorder: norm(root.getPropertyValue(tok.border)),
+        bg: cs.backgroundColor,
+        expectedBg: norm(root.getPropertyValue(tok.bg)),
+      };
+    }""", {"border": border_token, "bg": bg_token})
+    assert result["border"] == result["expectedBorder"], result
+    assert result["bg"] == result["expectedBg"], result
+
+
 @pytest.mark.parametrize("width,height", [(1440, 960), (900, 1024), (390, 844), (320, 740)])
 def test_settings_select_retains_native_form_and_shared_picker(browser, live, width, height):
     base, app = live
@@ -357,6 +381,36 @@ def test_server_select_form_remains_usable_without_javascript(browser, live):
         out.mkdir(parents=True, exist_ok=True)
         window.click()
         page.screenshot(path=str(out / "no-javascript-phone.png"))
+    finally:
+        context.close()
+
+
+def test_popup_edges_and_surfaces_match_design_tokens(browser, live):
+    base, app = live
+    app.state.store.create_bot(Bot(name="token-match", model="mock/demo", tools=[]))
+    context = browser.new_context(viewport={"width": 390, "height": 844})
+    page = context.new_page()
+    try:
+        # App popover surface + edge.
+        page.goto(base + "/#/chat/token-match")
+        page.locator(".ms-btn").click()
+        page.locator(".ms-menu").wait_for(state="visible")
+        assert_uses_token(page, page.locator(".ms-menu"),
+                          bg_token="--color-semantic-panel")
+        page.keyboard.press("Escape")
+        # Composer sheet surface + edge.
+        page.locator("#composer-menu-btn").click()
+        page.locator("#composer-menu").wait_for(state="visible")
+        assert_uses_token(page, page.locator("#composer-menu"),
+                          bg_token="--color-semantic-panel")
+        page.keyboard.press("Escape")
+        # Server-rendered native select field uses the same edge token.
+        ConnectionBook(app.state.config.state_dir).add("openai-api")
+        page.goto(base + "/legacy/connections")
+        window = page.get_by_label("Window", exact=True).first
+        window.wait_for()
+        assert_uses_token(page, window, bg_token="--color-semantic-bg")
+        assert window.evaluate("el => getComputedStyle(el).minHeight") == "44px"
     finally:
         context.close()
 

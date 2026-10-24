@@ -188,15 +188,30 @@ Requirements pass found and corrected:
 
 Standards/accessibility pass corrected the autocomplete's result status to be a
 persistent sibling of the owned listbox options, kept canonical provider IDs in
-the full model list, and removed hidden file inputs from popup Tab order. The
-control boundary now derives from existing colors and passes measured 3:1
-non-text contrast; text passes 4.5:1 in the targeted browser check.
+the full model list, and removed hidden file inputs from popup Tab order. Text
+passes 4.5:1 in the targeted browser check.
 
-Latest new-control suite: **18 passed**, including real public JPEG storage,
+Follow-up visual review (user-reported colour mismatch, 2026-10-23): the first
+cut set `--control-line` to an opaque `color-mix(text-3 70%, panel)` ≈ `rgb(92,106,124)`
+to chase a standalone 3:1 boundary. That made every dropdown edge a bright grey
+that matched none of the design system's white-alpha hairlines — visible in the
+composer, model, skills, setup and server-page screenshots the user flagged. It
+was reverted to `--color-semantic-border-strong` (`rgba(255,255,255,0.14)`, the same
+`--line-strong` used by the pre-existing `.cmenu`/`.ms-menu`/inputs), with internal
+separators at `--color-semantic-border` (`0.07`, matching `.cmenu-sep`). The popup
+header title moved from muted to primary text for clearer hierarchy, and the three
+iconless composer actions (Import task-template, Export conversation, Review cost)
+received icons so the action list is visually consistent. A computed-style regression
+(`test_popup_edges_and_surfaces_match_design_tokens`) now asserts the app popover and
+server-page select resolve their border and surface to the same design-system tokens,
+normalised through the browser so no hex is hardcoded — this cannot drift again.
+
+Latest new-control suite: **19 passed**, including real public JPEG storage,
 hostile modal clipping/scroll, no-JS server form values, 100-result bound, stale
-navigation, emulated missing Popover API, forced colors, reduced motion, and
-320px simultaneous WCAG text-spacing tolerance overrides. `node --check` passes
-for changed application scripts; `git diff --check` passes.
+navigation, emulated missing Popover API, forced colors, reduced motion,
+320px simultaneous WCAG text-spacing tolerance overrides, and the new
+design-token edge/surface regression. `node --check` passes for changed
+application scripts; `git diff --check` passes.
 
 Broad route sweep: `test_every_workspace_route_renders_independently_at_responsive_sizes`
 and `test_chat_library_recovers_history_beyond_quick_switcher_and_workspace_settings`

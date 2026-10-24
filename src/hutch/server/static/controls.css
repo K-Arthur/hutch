@@ -6,7 +6,11 @@
   --control-hover: var(--color-semantic-raised);
   --control-text: var(--color-semantic-text);
   --control-muted: var(--color-semantic-text-2);
-  --control-line: color-mix(in srgb, var(--color-semantic-text-3) 70%, var(--control-surface));
+  /* Popover/field edges reuse the design system's white-alpha hairlines so
+     dropdowns match buttons, inputs and cards. A standalone opaque grey would
+     read as a foreign component; the system identifies controls by fill + focus
+     ring + this shared hairline, not a 3:1 outline unique to menus. */
+  --control-line: var(--color-semantic-border-strong);
   --control-focus: var(--color-semantic-focus-ring);
   --control-selected: var(--color-semantic-brand);
   --control-radius: var(--radius-control, 8px);
@@ -75,7 +79,7 @@ select option, select optgroup { color: var(--control-text); background: var(--c
 .hc-popup :is([role^="menuitem"], .conversation-action-item) svg { flex: none; width: 16px; height: 16px; color: var(--control-muted); }
 .hc-popup :is(.is-danger, [data-variant="danger"]) { color: var(--color-semantic-danger); }
 .hc-popup .is-danger svg { color: currentColor; }
-.hc-popup :is(.ms-sep, .cmenu-sep, .conversation-action-divider) { margin: 4px 8px; background: var(--color-semantic-border-strong); }
+.hc-popup :is(.ms-sep, .cmenu-sep, .conversation-action-divider) { margin: 4px 8px; background: var(--color-semantic-border); }
 .hc-popup :is(.ms-item-note, .cmenu-sub, .skill-picker-item small) { color: var(--control-muted); font-size: 0.75rem; line-height: 1.5; }
 .hc-popup .cmenu-h { margin: 8px 12px 4px; color: var(--control-muted); font-size: 0.75rem; text-transform: none; letter-spacing: normal; }
 .hc-popup .ms-item-main { min-width: 0; }
@@ -88,7 +92,7 @@ select option, select optgroup { color: var(--control-text); background: var(--c
 .hc-popup .skill-picker-item b { font-weight: 500; }
 .hc-popup .skill-picker-hint { margin: 4px 12px 8px; color: var(--control-muted); font-size: 0.75rem; }
 .hc-popup[data-popup-kind="dialog"] { width: 344px; }
-.hc-popup-header { position: sticky; top: -4px; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 12px 8px; border-bottom: 1px solid var(--color-semantic-border-strong); margin-bottom: 4px; color: var(--control-muted); background: var(--control-surface); font-weight: 650; }
+.hc-popup-header { position: sticky; top: -4px; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 12px 8px; border-bottom: 1px solid var(--color-semantic-border-strong); margin-bottom: 4px; color: var(--control-text); background: var(--control-surface); font-weight: 650; }
 .hc-popup-close { min-width: 44px; min-height: 40px; border: 0; border-radius: var(--control-radius); padding: 8px; color: var(--control-text); background: transparent; font: inherit; cursor: pointer; }
 .hc-popup-close:hover { background: var(--control-hover); }
 .hc-popup-search { box-sizing: border-box; width: calc(100% - 16px); min-height: 44px; margin: 8px; padding: 8px 12px; border: 1px solid var(--control-line); border-radius: var(--control-radius); color: var(--control-text); background: var(--color-semantic-bg); font: 400 1rem/1.5 var(--font-body, system-ui, sans-serif); }

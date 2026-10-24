@@ -3519,13 +3519,13 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
                   </label>
                   <div class="cmenu-sep"></div>
                   <button class="cmenu-files" id="prompt-template-library-open" type="button">${icon("fileText")} Browse saved requests</button>
-                  <button class="cmenu-files" id="prompt-template-import" type="button" aria-controls="task-template-file">Import task-template file</button>
-                  <input class="visually-hidden" id="task-template-file" type="file" accept=".json,application/json">
+                  <button class="cmenu-files" id="prompt-template-import" type="button" aria-controls="task-template-file">${icon("fileText")} Import task-template file</button>
+                  <input id="task-template-file" type="file" accept=".json,application/json" hidden>
                   <button class="cmenu-files" id="conversation-files-open" type="button">${icon("folder")} Browse files in this chat</button>
                   <button class="cmenu-files" id="workspace-upload-open" type="button">${icon("fileText")} Attach a data file</button>
-                  <input class="visually-hidden" id="workspace-upload-file" type="file" multiple
+                  <input id="workspace-upload-file" type="file" multiple hidden
                     accept=".csv,.jpeg,.jpg,.json,.md,.png,.tsv,.txt,.webp">
-                  <button class="cmenu-files" id="conversation-export-open" type="button">Export conversation as JSON</button>
+                  <button class="cmenu-files" id="conversation-export-open" type="button">${icon("fileText")} Export conversation as JSON</button>
                   <p class="hint cmenu-image-note" role="note">Files, including images, are stored in this chat’s workspace. Direct image input to the model isn’t supported here.</p>
                   <div class="cmenu-sep"></div>
                   <label class="cmenu-row"><input type="checkbox" id="rehearse-opt">
@@ -3536,7 +3536,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
                   <details class="cmenu-usage"><summary>Usage and limits</summary><div class="cmenu-facts">${budgetMeterHtml(detail)}
                     <span class="mono">${esc(detail.limits?.max_steps ?? "?")} steps max · ${esc((detail.tools || []).join(", ") || "no tools")}</span>
                   </div></details>
-                  <button class="cmenu-files" id="preflight-open" type="button">Review cost and context before sending</button>
+                  <button class="cmenu-files" id="preflight-open" type="button">${icon("chart")} Review cost and context before sending</button>
                   </div>
                 </div>
               </div>
@@ -4186,6 +4186,8 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
     }
   };
   form.addEventListener("submit", ev => { ev.preventDefault(); submit(); });
+  // Temporary: keep the honest refusal until the chat-vision slice wires real
+  // paste/drop/picker attachment handling into the shared composer module.
   txt.addEventListener("paste", ev => {
     const hasImage = Array.from(ev.clipboardData?.items || []).some(item =>
       item.kind === "file" && /^image\//i.test(item.type || ""));
@@ -4193,6 +4195,8 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
     ev.preventDefault();
     toast("Image attachments aren’t available in chat yet. Describe the image in text instead.", true);
   });
+  // Enter/IME behaviour is owned by the shared composer module so every surface
+  // matches (never submit mid-composition; Shift+Enter always newlines).
   window.hutchComposer.mountEnterSubmit(txt, { enterSends, submit });
   $("#quick-prompts").addEventListener("click", ev => {
     const chip = ev.target.closest("[data-quick]");
