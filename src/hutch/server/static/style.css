@@ -1630,6 +1630,12 @@ button.inline-link:hover { color: var(--text); }
 @keyframes toast-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
 :root.reduce-effects .toast { animation: none; }
+/* On chat routes the toast stack docks over the composer's send/model controls,
+   and error toasts persist until dismissed. The toast body is plain text, so
+   presses pass through it — a refused message must never block the retry —
+   while its close button stays clickable (pointer-events inherits). */
+body.has-composer .toast-root { pointer-events: none; }
+body.has-composer .toast-root .toast-close { pointer-events: auto; }
 
 /* ───────────────────────────── states ───────────────────────────── */
 

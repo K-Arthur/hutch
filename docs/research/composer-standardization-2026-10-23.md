@@ -156,6 +156,34 @@ Opened the actual renders at 1440 / 900 / 390 / 320:
   regression).
 - **e2e**: `tests/e2e/test_design_system.py -k "composer or first_run"` → 3 passed.
 
+### Radius amendment (user direction, 2026-10-23): the composer owns no private shape
+
+User review of the opened captures: the composer's edges were "far too rounded
+and not consistent with the overall design of everything else", calling out the
+box and its send button individually. The individual component inventory
+confirmed it — and found the miss was mine: the earlier pass verified anatomy,
+states and responsiveness but preserved the documented 22px/circle exceptions
+without re-judging them as a composition.
+
+| Composer component | Was | Now | Why |
+|---|---|---|---|
+| chat `.composer-box` | 22px (`--r-composer`) | **12px panel** | first-run request box was already 12px — two family members had different shapes; docs reserve 12 for cards/panels |
+| `.composer-send` | 36px circle | **40×40 @ 8px** | primary-button proportions; buttons are 8px rounded squares everywhere |
+| `+` `.composer-util` | 32px circle | **32×32 @ 8px** | `.icon-btn` proportions; the skill button beside it already rendered at 8px, so one toolbar mixed two shapes |
+| `.upload-chip` | 100px pill | **8px row** | the pill role is status chips/badges/counts; a file row is a row |
+| `.ms-btn` model trigger | 100px pill | **8px** | a control, not a badge |
+| `.cmenu` popover | 18px (`--r-card`) | **12px** | docs put menus/popovers at 12; its sibling `.ms-menu` was already 12 — two composer popovers disagreed |
+| `.modal-card` (desktop + phone sheet) | 22px | **12px** | same over-round family; docs already specified 12 for modals — this retired `--r-composer` entirely |
+| `.skill-status`, `.ms-tag`, status dots | pill | pill (kept) | genuine status/badge roles per `rounded.chip` |
+| `.bubble-image`, chip thumbnails | 8px | 8px | already on scale |
+
+`--r-composer` is removed from `style.css`, `app/src/input.css` and the compiled
+`ui.css` (rebuilt with `npm run build:css:app`); `DESIGN.md` frontmatter,
+Shapes, Primary button and Composer sections plus `docs/design-system.md`'s
+radius row now document the 8/12/18/100 scale with no per-surface exception.
+Out of scope and unchanged unless directed: conversation bubbles (18px) and the
+connection-setup cards that use `--r-card` (18px where docs say cards are 12).
+
 ### Chat vision — scoped, not yet implemented (pending clean file ownership)
 
 The runtime already has `image_url` media transmission (`builtin.py`, used by

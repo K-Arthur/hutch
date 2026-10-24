@@ -101,6 +101,43 @@
   .composer-textarea { font-size: 1rem; }
 }
 
+/* ── attachments: the composer tray and sent images ──
+   Tray contract: sendable images travel with every message until removed; other
+   files stay workspace-only. State is carried by words ("Uploading…"), never
+   colour alone. */
+.composer-box.is-dragover {
+  border-color: var(--brand-line);
+  box-shadow: 0 0 0 3px var(--brand-wash), var(--sh-2);
+}
+.upload-chip-thumb {
+  inline-size: 24px; block-size: 24px; flex: none;
+  border-radius: var(--r-ctl); border: 1px solid var(--line);
+  object-fit: cover; background: var(--sunken);
+}
+.upload-chip.is-uploading { border-style: dashed; color: var(--text-2); }
+.upload-chip.is-uploading .upload-chip-size { color: var(--text-3); }
+
+/* Sent images in the transcript: the full image, aspect preserved (no crop),
+   reviewable at a glance with the original filename as its accessible name. */
+.bubble-images {
+  display: flex; flex-wrap: wrap; gap: var(--s-1);
+  margin: 0 0 var(--s-1);
+}
+.bubble-image {
+  display: block; line-height: 0;
+  border: 1px solid var(--line); border-radius: var(--r-ctl);
+  overflow: hidden; background: var(--sunken);
+}
+.bubble-image img {
+  display: block; width: auto; height: auto;
+  max-inline-size: min(240px, 100%); max-block-size: 200px;
+}
+.bubble-image:hover { border-color: var(--line-hi); }
+.bubble-image:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (pointer: coarse) {
+  .bubble-image img { max-inline-size: min(200px, 100%); }
+}
+
 @media (forced-colors: active) {
   .composer-box { border: 1px solid CanvasText; forced-color-adjust: none; }
 }

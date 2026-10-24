@@ -3481,7 +3481,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
       <footer class="composer">
         <form id="chat-form" autocomplete="off">
           <div class="composer-box" id="composer-box">
-            ${hutchUploadsRow(hutchUploadsGet(selectedConversation.id))}
+            ${hutchUploadsRow(hutchUploadsGet(selectedConversation.id), "", selectedConversation.id)}
             <div class="reply-composer" id="reply-composer" hidden>
               <div class="reply-composer-preview" id="reply-composer-preview" role="status" aria-live="polite"></div>
               <button class="btn ghost small" id="reply-composer-clear" type="button" aria-label="Remove reply reference">Remove</button>
@@ -3526,7 +3526,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
                   <input id="workspace-upload-file" type="file" multiple hidden
                     accept=".csv,.jpeg,.jpg,.json,.md,.png,.tsv,.txt,.webp">
                   <button class="cmenu-files" id="conversation-export-open" type="button">${icon("fileText")} Export conversation as JSON</button>
-                  <p class="hint cmenu-image-note" role="note">Files, including images, are stored in this chat’s workspace. Direct image input to the model isn’t supported here.</p>
+                  <p class="hint cmenu-image-note" role="note">Images in this composer are sent with every message until you remove them (up to 4, 1.5 MB each). Other files stay in this chat’s workspace — mention them by name.</p>
                   <div class="cmenu-sep"></div>
                   <label class="cmenu-row"><input type="checkbox" id="rehearse-opt">
                     <span>Rehearse this run<span class="cmenu-sub">simulates writes and commands; model calls and reads still happen, and remote reads can have service-side effects</span></span></label>
@@ -4121,7 +4121,11 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
   rehearseOpt?.addEventListener("change", () => { rflag.hidden = !rehearseOpt.checked; });
   const submit = async () => {
     const text = txt.value.trim();
-    if (!text || inflight) return;
+    // Attachment-tray contract: images staged in the composer travel with every
+    // message until removed, so an image-only send is a complete request.
+    const stagedUploads = hutchUploadsGet(composerConversationId);
+    const imageAttachmentIds = stagedUploads.filter(isImageUploadEntry).map(upload => upload.id);
+    if ((!text && !imageAttachmentIds.length) || inflight) return;
     inflight = true;
     box.classList.remove("has-error");
     sendBtn.disabled = true;
@@ -4134,8 +4138,12 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
       ? {...selectedWorkspaceTaskResult} : null;
     lastPrompt = text;
     try {
-      const body = { prompt: text, rehearse: !!rehearseOpt?.checked, model: switcher?.selected() || null,
+      const body = { rehearse: !!rehearseOpt?.checked, model: switcher?.selected() || null,
                      task_role: selectedTaskRole || null, skills: skillPicker?.selected() || [] };
+      // The prompt key is omitted for an image-only message (the API accepts
+      // prompt-less sends only when images are attached).
+      if (text) body.prompt = text;
+      if (imageAttachmentIds.length) body.image_attachment_ids = imageAttachmentIds;
       if (replySnapshot) body.reply_to_message_id = replySnapshot;
       if (workspaceResultSnapshot) {
         body.workspace_task_result_id = workspaceResultSnapshot.id;
@@ -4163,7 +4171,8 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
       }
       const titleOption = conversationSwitcher?.selectedOptions?.[0];
       if (titleOption && titleOption.textContent.trim().endsWith("New conversation")) {
-        titleOption.textContent = text.slice(0, 72);
+        titleOption.textContent = text ? text.slice(0, 72)
+          : `${imageAttachmentIds.length} image${imageAttachmentIds.length === 1 ? "" : "s"} attached`;
       }
       if (body.rehearse) toast("Rehearsal started — model calls and reads still happen.");
       else if (ACTIVE.has(r.status) && activeRun) toast("Sent — queued behind the current run.");
@@ -4176,7 +4185,8 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
       refreshRoster();
     } catch (err) {
       box.classList.add("has-error");
-      toast(`Not sent: ${err.message}. Your draft is kept.`, true);
+      toast(`Not sent: ${err.message}. ${imageAttachmentIds.length && !text
+        ? "Your attachments are kept." : "Your draft is kept."}`, true);
     } finally {
       inflight = false;
       sendBtn.disabled = false;
@@ -4186,14 +4196,42 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
     }
   };
   form.addEventListener("submit", ev => { ev.preventDefault(); submit(); });
-  // Temporary: keep the honest refusal until the chat-vision slice wires real
-  // paste/drop/picker attachment handling into the shared composer module.
+  // Paste and drop stage real uploads through the same path as the file picker;
+  // a pasted screenshot blob gets the extension the upload intake requires.
   txt.addEventListener("paste", ev => {
-    const hasImage = Array.from(ev.clipboardData?.items || []).some(item =>
-      item.kind === "file" && /^image\//i.test(item.type || ""));
-    if (!hasImage) return;
+    const files = Array.from(ev.clipboardData?.items || [])
+      .filter(item => item.kind === "file")
+      .map(item => item.getAsFile())
+      .filter(file => file && /^image\//i.test(file.type || ""));
+    if (!files.length) return;
     ev.preventDefault();
-    toast("Image attachments aren’t available in chat yet. Describe the image in text instead.", true);
+    void stageWorkspaceFiles(files);
+  });
+  // Composer-level drop target: files land in the tray, not the browser window.
+  let dropDepth = 0;
+  const dropsFiles = ev => Array.from(ev.dataTransfer?.types || []).includes("Files");
+  box.addEventListener("dragenter", ev => {
+    if (!dropsFiles(ev)) return;
+    ev.preventDefault();
+    dropDepth += 1;
+    box.classList.add("is-dragover");
+  });
+  box.addEventListener("dragover", ev => {
+    if (!dropsFiles(ev)) return;
+    ev.preventDefault();
+    if (ev.dataTransfer) ev.dataTransfer.dropEffect = "copy";
+  });
+  box.addEventListener("dragleave", () => {
+    dropDepth = Math.max(0, dropDepth - 1);
+    if (!dropDepth) box.classList.remove("is-dragover");
+  });
+  box.addEventListener("drop", ev => {
+    const files = Array.from(ev.dataTransfer?.files || []);
+    if (!files.length) return;
+    ev.preventDefault();
+    dropDepth = 0;
+    box.classList.remove("is-dragover");
+    void stageWorkspaceFiles(files);
   });
   // Enter/IME behaviour is owned by the shared composer module so every surface
   // matches (never submit mid-composition; Shift+Enter always newlines).
@@ -5112,12 +5150,24 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHan
         <blockquote>${esc(userMessage.workspace_task_result_content || "")}${userMessage.workspace_task_result_truncated ? "… [shared response truncated]" : ""}</blockquote>
         <span>Shared from task ${esc(userMessage.workspace_task_result_id)}. Treated as untrusted reference text.</span>
       </details>` : "";
+  // Sent images render in the transcript from the run's recorded attachments
+  // (run_view flows the model_dump), so what was attached stays reviewable.
+  const sentImages = Array.isArray(run.image_attachments) ? run.image_attachments : [];
+  const bubbleImages = sentImages.length
+    ? `<div class="bubble-images" role="group" aria-label="Images attached to this message">${sentImages.map(attachment => {
+        const src = `/api/v1/conversations/${encodeURIComponent(run.conversation_id)}/uploads/${encodeURIComponent(attachment.id)}/content`;
+        return `<a class="bubble-image" href="${src}" target="_blank" rel="noopener"
+            title="Open ${esc(attachment.filename)} full size">
+          <img src="${src}" alt="${esc(attachment.filename)}" loading="lazy" decoding="async">
+        </a>`;
+      }).join("")}</div>`
+    : "";
   const stepCount = events.filter(e => e.type === "tool_call").length;
 
   const html = `
     <article class="thread${anim}" data-run-id="${esc(runId)}">
       <div class="msg you">
-        <div class="bubble">${replyPreview}${workspaceResultPreview}${esc(run.prompt)}</div>
+        <div class="bubble">${replyPreview}${workspaceResultPreview}${bubbleImages}${esc(run.prompt)}</div>
         <span class="stamp">${timeAgo(run.created_at)}${run.origin === "schedule" ? " · scheduled" : ""}</span>
         ${createBotAction}
       </div>
@@ -13254,17 +13304,67 @@ function hutchUploadsHumanSize(bytes) {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function hutchUploadsRow(uploads, status = "") {
-  if (!uploads.length && !status) return "";
-  const chips = uploads.map(upload => `<span class="upload-chip" role="listitem">
-    <span class="upload-chip-name" title="${esc(upload.filename)}">${esc(upload.filename)}</span>
+/* Image attachments for chat: the composer's tray is the set of files that
+   travel with the NEXT message — sendable images go with every message until
+   removed, other files stay workspace-only (mention them by name). */
+const CHAT_MAX_IMAGES = 4;
+const CHAT_MAX_IMAGE_BYTES = 1_500_000;          // mirrors providers/attachments.py
+const SENDABLE_IMAGE_TYPE = /^image\/(png|jpeg|webp)$/i;
+const SENDABLE_IMAGE_NAME = /\.(png|jpe?g|webp)$/i;
+
+function isImageUploadEntry(upload) {
+  if (!upload || typeof upload !== "object") return false;
+  const mime = String(upload.mime || "").toLowerCase();
+  if (mime) return SENDABLE_IMAGE_TYPE.test(mime);
+  // Chips stored before the mime field existed still recognise their extension.
+  return SENDABLE_IMAGE_NAME.test(String(upload.filename || ""));
+}
+
+function isSendableImageFile(file) {
+  const type = String(file?.type || "");
+  if (type) return SENDABLE_IMAGE_TYPE.test(type);
+  return SENDABLE_IMAGE_NAME.test(String(file?.name || ""));
+}
+
+/* Uploads still in flight, so a slow file shows a chip and a status instead of
+   a silent wait (the failure class users report as "upload freezes with no
+   feedback"). Keys are per conversation; entries are dropped on settle. */
+const uploadInFlight = new Map();
+
+function addInFlight(conversationId, entry) {
+  const list = uploadInFlight.get(conversationId) || [];
+  uploadInFlight.set(conversationId, [...list, entry]);
+}
+
+function clearInFlight(conversationId, key) {
+  const list = (uploadInFlight.get(conversationId) || []).filter(item => item.key !== key);
+  if (list.length) uploadInFlight.set(conversationId, list);
+  else uploadInFlight.delete(conversationId);
+}
+
+function hutchUploadsRow(uploads, status = "", conversationId = "") {
+  const inflight = conversationId ? (uploadInFlight.get(conversationId) || []) : [];
+  if (!uploads.length && !inflight.length && !status) return "";
+  const inflightChips = inflight.map(item => `<span class="upload-chip is-uploading" role="listitem">
+    <span class="upload-chip-name">${esc(item.filename)}</span>
+    <span class="upload-chip-size">Uploading…</span>
+  </span>`).join("");
+  const chips = inflightChips + uploads.map(upload => {
+    const image = isImageUploadEntry(upload);
+    const thumb = image && conversationId
+      ? `<img class="upload-chip-thumb" alt="" width="24" height="24" loading="lazy" decoding="async"
+           src="/api/v1/conversations/${encodeURIComponent(conversationId)}/uploads/${encodeURIComponent(upload.id)}/content">`
+      : "";
+    return `<span class="upload-chip${image ? " is-image" : ""}" role="listitem">
+    ${thumb}<span class="upload-chip-name" title="${esc(upload.filename)}">${esc(upload.filename)}</span>
     <span class="upload-chip-size">${esc(hutchUploadsHumanSize(upload.bytes))}</span>
     <button type="button" class="upload-chip-remove" data-upload-remove="${esc(upload.id)}"
-      aria-label="Remove ${esc(upload.filename)} from this message draft">${icon("x")}</button>
-  </span>`).join("");
+      aria-label="Remove ${esc(upload.filename)} from the composer">${icon("x")}</button>
+  </span>`;
+  }).join("");
   return `<div class="composer-attachments">
-    <div class="composer-attachments-chips" role="list" aria-label="Files attached to this chat's workspace">${chips}</div>
-    <p class="composer-attachments-hint">Files land in this chat's workspace; mention them by name in your message.
+    <div class="composer-attachments-chips" role="list" aria-label="Files in this composer">${chips}</div>
+    <p class="composer-attachments-hint">Images here are sent with every message until you remove them; other files stay in this chat’s workspace — mention them by name.
       <span class="composer-attachments-status" role="status" aria-live="polite">${esc(status)}</span></p>
   </div>`;
 }
@@ -13273,7 +13373,11 @@ function hutchUploadsSync(conversationId = currentConversationId, status = "") {
   const box = document.getElementById("composer-box");
   if (!box || !conversationId || conversationId !== currentConversationId) return;
   box.querySelector(".composer-attachments")?.remove();
-  box.insertAdjacentHTML("afterbegin", hutchUploadsRow(hutchUploadsGet(conversationId), status));
+  box.insertAdjacentHTML("afterbegin", hutchUploadsRow(hutchUploadsGet(conversationId), status, conversationId));
+  box.querySelectorAll(".upload-chip-thumb").forEach(img => {
+    // A missing thumbnail shows the filename alone; send re-verifies the bytes anyway.
+    img.addEventListener("error", () => img.remove(), { once: true });
+  });
 }
 
 async function hutchUploadsSend(conversationId, file) {
@@ -13298,6 +13402,70 @@ async function hutchUploadsSend(conversationId, file) {
   }
 }
 
+/* One staging path for the file picker, paste, and drag-drop: honest client-side
+   limits before any upload, a visible in-flight chip while it transfers, and the
+   server's own sniffing/verification as the final word. */
+async function stageWorkspaceFiles(files) {
+  const conversationId = currentConversationId;
+  if (!conversationId) {
+    announce("No conversation is open, so nothing was attached.");
+    return;
+  }
+  for (const file of files) {
+    const type = String(file.type || "");
+    const looksLikeImage = /^image\//i.test(type);
+    const image = isSendableImageFile(file);
+    if (looksLikeImage && !image) {
+      const msg = `${file.name || "That image"} is ${type}; PNG, JPEG and WebP are the accepted image types, so it was not attached.`;
+      toast(msg, true);
+      announce(msg);
+      continue;
+    }
+    if (image && file.size > CHAT_MAX_IMAGE_BYTES) {
+      const msg = `${file.name || "That image"} is ${hutchUploadsHumanSize(file.size)}; images are limited to ${(CHAT_MAX_IMAGE_BYTES / 1_000_000).toFixed(1)} MB and it was not attached.`;
+      toast(msg, true);
+      announce(msg);
+      continue;
+    }
+    const stagedImages = hutchUploadsGet(conversationId).filter(isImageUploadEntry).length
+      + (uploadInFlight.get(conversationId) || []).filter(item => item.image).length;
+    if (image && stagedImages >= CHAT_MAX_IMAGES) {
+      const msg = `A message can carry at most ${CHAT_MAX_IMAGES} images; remove one before adding ${file.name ? `"${file.name}"` : "another"}.`;
+      toast(msg, true);
+      announce(msg);
+      continue;
+    }
+    // The upload intake sniffs magic bytes against the filename's extension, and
+    // pasted screenshots are often nameless — give them the matching suffix.
+    let uploadFile = file;
+    if (!String(file.name || "").match(SENDABLE_IMAGE_NAME)) {
+      const ext = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" }[type.toLowerCase()];
+      if (ext) uploadFile = new File([file], `pasted-image.${ext}`, { type: type || `image/${ext}` });
+    }
+    const label = uploadFile.name || file.name || "file";
+    const flightKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    addInFlight(conversationId, { key: flightKey, filename: label, bytes: file.size, image });
+    hutchUploadsSync(conversationId, `Uploading ${label}…`);
+    announce(`Uploading ${label}…`);
+    const result = await hutchUploadsSend(conversationId, uploadFile);
+    clearInFlight(conversationId, flightKey);
+    if (result.error) {
+      hutchUploadsSync(conversationId, result.error);
+      toast(result.error, true);
+      announce(result.error);
+      continue;
+    }
+    const uploads = hutchUploadsGet(conversationId);
+    uploads.push({ id: result.upload.id, filename: result.upload.filename,
+                   mime: result.upload.mime, bytes: result.upload.bytes });
+    hutchUploadsPut(conversationId, uploads);
+    const done = `${image ? "Attached" : "Uploaded"} ${result.upload.filename}`;
+    hutchUploadsSync(conversationId, done);
+    announce(image ? `${result.upload.filename} is in the composer; it is sent with your next message`
+                   : `${result.upload.filename} is in this chat's workspace`);
+  }
+}
+
 document.addEventListener("click", event => {
   if (event.target.closest("#workspace-upload-open")) {
     document.getElementById("workspace-upload-file")?.click();
@@ -13315,29 +13483,9 @@ document.addEventListener("click", event => {
 document.addEventListener("change", async event => {
   const input = event.target.closest("#workspace-upload-file");
   if (!input || !input.files?.length) return;
-  const conversationId = currentConversationId;
-  if (!conversationId) {
-    announce("No conversation is open, so nothing was uploaded.");
-    input.value = "";
-    return;
-  }
-  const uploads = hutchUploadsGet(conversationId);
-  let status = "";
-  for (const file of input.files) {
-    announce(`Uploading ${file.name}…`);
-    const result = await hutchUploadsSend(conversationId, file);
-    if (result.error) {
-      status = result.error;
-      announce(result.error);
-    } else {
-      uploads.push({ id: result.upload.id, filename: result.upload.filename, bytes: result.upload.bytes });
-      status = `Uploaded ${result.upload.filename}`;
-      announce(`Uploaded ${result.upload.filename} to this chat's workspace`);
-    }
-  }
-  hutchUploadsPut(conversationId, uploads);
-  hutchUploadsSync(conversationId, status);
+  const files = Array.from(input.files);
   input.value = "";
+  await stageWorkspaceFiles(files);
 });
 
 void bootstrapHutchApp();
