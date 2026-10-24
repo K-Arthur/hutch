@@ -1,0 +1,84 @@
+{
+  "recorded_at": "2026-10-23T23:53:40.812943+00:00",
+  "browser": "Chromium 156.0.8078.4",
+  "method": "Actual isolated HTTP application and static site in Playwright; captures opened and inspected. Deterministic records/edge scenarios supplemented by an actual public NASA JPEG upload, with no inference run.",
+  "new_control_checks": "18 passed",
+  "site_checks": "8 passed",
+  "existing_design_system_checks": "4 passed",
+  "existing_model_roster_composer_fleet_checks": "10 passed; guided setup separately passed after exact-label selector correction",
+  "token_widget_server_unit_checks": "57 passed",
+  "offline_suite": "running; no final result claimed yet",
+  "scope_limits": [
+    "No live inference or model vision",
+    "No physical-device or screen-reader test",
+    "No Safari/Firefox run",
+    "No actual browser/text zoom pass",
+    "Missing Popover API fallback is emulated, not a separate-engine certification"
+  ],
+  "viewports": [
+    [
+      1440,
+      960
+    ],
+    [
+      900,
+      1024
+    ],
+    [
+      390,
+      844
+    ],
+    [
+      320,
+      740
+    ]
+  ],
+  "public_image": {
+    "source": "https://commons.wikimedia.org/wiki/File:Earth_Western_Hemisphere.jpg",
+    "download_url": "https://upload.wikimedia.org/wikipedia/commons/7/7b/Earth_Western_Hemisphere.jpg",
+    "credit": "NASA / Reto St\u00f6ckli / Robert Simmon; public domain per source",
+    "bytes": 593338,
+    "sha256": "b79e0577e7565a2c7e9f7165284ccb53ece2872ddc429c687b6d3ae1aaa85780",
+    "provider_runs": 0
+  },
+  "capture_sources": {
+    "before-native-select-desktop.png": "docs/realignment/artifacts/holistic-experience-2026-10-23/controls/native-select-desktop.png",
+    "after-native-select-desktop.png": "dropdowns/select/open-1440.png",
+    "skills-phone.png": "dropdowns/chat/skills-390.png",
+    "setup-route-phone.png": "dropdowns/setup/provider-identity-phone.png",
+    "public-image-model-picker-phone.png": "dropdowns/public-image/uploaded-with-model-picker-phone.png",
+    "marketing-navigation-phone.png": "dropdowns/marketing/navigation-390.png",
+    "text-spacing-320.png": "dropdowns/resilience/spacing-forced-False.png"
+  },
+  "capture_sha256": {
+    "before-native-select-desktop.png": "30902028e37383d09034a1c75df819a9260ea8d414000d27a95da6b6756730af",
+    "after-native-select-desktop.png": "c457cf99946f5358245c48d1a95c9652441c805c5b3ddfa7557a46729d70a26c",
+    "skills-phone.png": "610b6ef4afa7f724420fde501eb756f7fd8fd3c9b7a3b49b166b74120a878b7a",
+    "setup-route-phone.png": "fd3818f4a6b910f83c442e9d0073b1cf24de9fde7fe1df6f4f0f9086115a29e8",
+    "public-image-model-picker-phone.png": "6e8b76a27d03e06f1d92cae7c7a5879ee8026efc29f379b6b89f8fe5478031be",
+    "marketing-navigation-phone.png": "4b0dbaef55b45c17b0fc1fd6a751175ffd0cbd66d2ab00a2a669ab987058e3c6",
+    "text-spacing-320.png": "3c386e239c56537da3693f28a66dcccbaef8a270aa1c2b8fec2a409ecfebdde3"
+  },
+  "source_sha256": {
+    "src/hutch/server/static/controls.css": "2a8e9c3bcaa47fe92a5960911b9498409fb0320e4a02ba9655366615961481a6",
+    "src/hutch/server/static/controls.js": "583ae9bf72af42608c264e92102a344974c37a9b802389dcbed0d896202298c8",
+    "src/hutch/server/static/app.js": "63e207e11f2fff9130af88ee1fc62eeb3271568c635b4ef06ddb262a93bab404",
+    "src/hutch/server/static/style.css": "2c163afc5fc82eb861378e711310c480035aa6a6a167a9975989627bf74ef196",
+    "src/hutch/server/static/model-switcher.js": "5090bf49deddd0de75aeb6ad84a21a4ca5819456825c43f8d7b9322ff49e3f9d",
+    "src/hutch/server/static/model-switcher.css": "4434c45ed7aa9d55c12ee989582ceb4cb37a78153e0fb26d14a6dd5734e37f73",
+    "src/hutch/server/static/skills.js": "0168ddef72be925156bdc83dcac1144003bfa15155e4bbc0619f4677efeffbc5",
+    "src/hutch/server/static/skills.css": "275e83bf075e3e65787555f03bc2fb371357708e366348dfc4a9dfed33b572c2",
+    "src/hutch/server/static/index.html": "f1ec462eeddc3e15ed8e6c1629b05cd1fdb83e88d7cc8b5ed89e5c95ef2610e0",
+    "src/hutch/server/templates/base.html": "6f25f0f2284be98f77494e92d72e6d43d5e2a957b0278a38ae7bd9bdd0b7890b",
+    "website/styles.css": "fa6ca9ffcf7dcb607697727f1f7a8f7b9baad6b75cb2125419f9e57d477a0b99",
+    "website/styles.min.css": "8396aaee175dc434b0024caec38d67a86d16de0b86d7a8cbdcd7ac57c4d81488",
+    "website/index.html": "8fe2614003bbef2820865c0c26359e28fcf66674cfd3c67e3919d96cf80dcdac",
+    "website/site.js": "5b30d3f5a02a2d1c5407f89a2ad09c9e9960f31269aba596268d46dfaf41c2d1",
+    "tests/e2e/test_dropdown_controls.py": "01f7b39ae1ca4fb90c9447ad9a3d7fba9bccd6d31b5782c6f7a361af13ea0cd4",
+    "tests/e2e/test_website.py": "9609f7be7aff0d481874940c9da36b2145c64c3f64913373cd08a0a60301e8a7",
+    "tests/e2e/test_browser.py": "527008d0c977c67fd3627c7fad0b4caa15e53f9437ccca34d98601e92bf575cc",
+    "tests/e2e/test_design_system.py": "a9a897601ead99b0d7348fea0d70641a59209cfb51bcb039b0697cbdb5bc7e29",
+    "tests/support/browser.py": "79803a76d062f61d81f2bb331c6de0cb26257a74831955d4e5281bbc6c64bcc5"
+  },
+  "before_scope": "Existing 2026-10-23 native-select capture matched the initial source manifest; other captures are from this task. The before image is not represented as a post-change capture."
+}
