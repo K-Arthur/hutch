@@ -48,7 +48,7 @@ continuations remain separate authorities; no new database, provider access, dep
 | A1 | Admission provenance, newest bounded history, identity-based reply deduplication, explicit fact/reply/specialist snapshots, partial/empty/truncated assistant status and additive API/export fields. `tests/test_conversations.py`, `tests/test_runtime_builtin.py`, `tests/test_runtime_opencode.py`. | Historical rows default to no recorded qualification; no retrospective inference. Artifact references do not automatically disclose files. |
 | A2 | Schema v75 native cache affinity, exact run/context binding, stale/deleted-session rebuild and durable send identity/state. Ambiguous prior dispatch is refused before rebinding or reserving; final dispatch rechecks cancellation/fence. Restart-state evidence in `tests/test_memory_continuity.py`. | Native sessions are not reused across turns without a replace-context contract. Deterministic fixtures are not live native-process/model-quality certification. |
 | A3 | **Implemented and verified with stated limits.** A per-run `MemoryBridge` (abstract Unix socket in the run worker) authenticates callers by `SO_PEERCRED` uid + PID/starttime ancestry to the recorded OpenCode server, derives Bot/run/fence/conversation ambiently, rechecks fence/status/cancellation/lease/`memory_enabled`/tool list per call, and dispatches through the same `steps.call_tool` path Builtin uses. A generated V2 plugin exposes `recall`/`remember` (plus an RPC verifier sharing the same call path); no credential enters the OpenCode environment. `tests/test_opencode_memory_bridge.py` (13 tests) covers tree authorization, authority revocations, scoping/provenance/update/archive, receipts, hostile inputs, adapter wiring, and a **live OpenCode v2.1.4 round trip**. | A live *model* invoking the tools end-to-end is unrun (no authorized credentials); plugin-load failure fails soft (tools absent); the RPC verifier needs `events: {}` on v2.1.4. Direct SQLite, bearerless endpoints and model-selected identity remain forbidden. |
-| A4 | Schema v76 anchored task manifests, immutable revisions/CAS/explicit supersession, receipt-backed results distinct from commitments, bounded admission and omission qualification. Concurrent corrections and injected pointer-write failure are covered in `tests/test_memory_continuity.py`; existing fitting/compaction paths remain in use. | Backend Store maintenance interface only, not automatic extraction or a user editor. Unknown hosted windows remain best effort; this does not guarantee retention beyond a model's actual window. |
+| A4 | Schema v76 anchored task manifests, immutable revisions/CAS/explicit supersession, receipt-backed results distinct from commitments, bounded admission and omission qualification. Concurrent corrections and injected pointer-write failure are covered in `tests/test_memory_continuity.py`; existing fitting/compaction paths remain in use. Repeated compaction in one run writes one provenance manifest per cycle with canonical originals untouched, and hitting the per-run cap fails honestly instead of fabricating a fit (`tests/test_runtime_compaction.py`, two tests added 2026-10-24 after the v5 run; focused run 7 passed). | Backend Store maintenance interface only, not automatic extraction or a user editor. Unknown hosted windows remain best effort; this does not guarantee retention beyond a model's actual window. |
 | A5 | v74–v76 migration compatibility plus existing receipt/transcript recovery. New tests prove one logical child-result consumption after restart, cancelled-parent non-resumption, sealed late child replies and stale-parent rejection. | Logical delivery is distinct from external effect execution; no exactly-once network or power-loss claim. |
 
 **Final regression evidence (2026-10-24).** The complete strict non-browser suite —
@@ -65,6 +65,29 @@ Linux's 108-byte `sun_path`. Neither file is touched by this diff; both **pass o
 The events/s throughput gate that was load-sensitive in the previous run passed inside this run's batch 16.
 Machine-local manifest with exact commands, per-batch JUnit/log paths and the snapshot source fingerprint:
 `~/.cache/hutch-pytest-snapshot-v5/manifest.json`.
+
+**Post-v5 addition (2026-10-24):** a verification pass closed one acceptance sub-case the v5 run predates —
+`tests/test_runtime_compaction.py` gained `test_repeated_compaction_records_every_cycle_and_keeps_canonical_originals`
+and `test_compaction_stops_at_the_run_cap_and_fails_honestly_with_history_intact`. The change is test-only (no source
+file changed after the snapshot); the file's focused run passed **7 of 7**, and the two known AF_UNIX failures were
+re-verified independently (**2 passed** with `--basetemp=/home/kevina/.cache/t/verify-af`). The v5 full-suite result
+above therefore still describes every source file of the final tree.
+
+**Final full-suite on the completed tree (2026-10-24).** The complete strict non-browser suite then ran again in-tree
+after the post-v5 additions — 20 sequential ten-file groups with the same v5 flags, a short per-batch
+`--basetemp` on disk and per-batch temp cleanup (only 3.8 GB of disk was free; no snapshot duplication and no
+unrelated file was deleted), with the `src`+`tests` fingerprint rechecked before every batch. Result:
+**3,328 passed, 1 failed, 8 skipped, 6 xfailed** (manifest `~/.cache/hutch-pytest-final-20261024/manifest.json`,
+fingerprint `bca408caf1ffbb09`). The single failure was `tests/test_memory_continuity.py::
+test_a2_opencode_builtin_opencode_share_one_persisted_context`, refusing Builtin start with
+`weights alone are 4.7 GiB against 4.8 GiB usable`: the fake fixture declares ≈4.66 GiB and the host's live
+MemAvailable dipped under concurrent load while that batch ran. Root cause is environmental coupling, not the
+continuity contract: the test now injects a fixed `Hardware(os=Linux, ram_total=32 GiB, ram_available=24 GiB)`
+snapshot (the existing `test_workdir` pattern), so admission cannot depend on transient host headroom; **no
+continuity assertion was changed**. The exact 10-file batch re-ran **279 passed** afterwards
+(`batch-09-rerun.{log,xml}`). The two AF_UNIX path-length failures known from v4/v5 pass under this run's short
+basetemps (batch 10: 288 passed). Live-model evaluation remains unrun — no authorized credentials; browser e2e
+remains unrun — backend-only change with no browser-visible surface modified.
 
 Earlier attempts are superseded, not counted: the first full run exhausted the shared `/tmp` tmpfs
 (`database or disk is full`); subsequent monolithic runs were cancelled by server restarts; two in-tree batched runs

@@ -84,6 +84,64 @@ def test_compaction_off_blocks_with_options_and_preserves_history(store, config,
 
 
 
+def test_repeated_compaction_records_every_cycle_and_keeps_canonical_originals(store, config, tmp_path):
+    """A4: one run may compact repeatedly; only the model view shrinks, never canonical evidence."""
+    from hutch.models import EventType
+
+    ol, ctx, run, emitted, tools = _overflow_bot(store, config, tmp_path, rounds=8)
+    run = _running(store, ctx, run)
+    assert run_it(runtime(provider_factory=factory(ollama=ol)), run, ctx, tools) == "done after compaction"
+
+    manifests = store.run_compactions(run.id)
+    assert len(manifests) >= 2, "one run must record each of its repeated compaction cycles"
+    assert store.compaction_count(run.id) == len(manifests)
+    for manifest in manifests:
+        assert manifest["status"] == "compacted"
+        assert manifest["before_tokens"] > manifest["after_tokens"] > 0
+        assert manifest["summary_text"] and manifest["summary_digest"] and manifest["reservation_id"]
+        assert manifest["actions"], "every cycle keeps its unit-action provenance"
+
+    # Canonical evidence is append-only: compaction rewrote only this run's model view.
+    tool_results = [event for event in store.list_events(run.id)
+                    if event.type is EventType.tool_result and event.data.get("ok")]
+    assert len(tool_results) >= 8, "every read's original tool result stays in the event history"
+    assert any("file 0: a line of readable text" in str(event.data.get("output", ""))
+               for event in tool_results), "the first read must survive as canonical evidence"
+
+    final_view = str(_chat_requests(ol)[-1]["messages"])
+    assert "file 0: a line of readable text" not in final_view, \
+        "the oldest read must leave the model view after repeated compaction"
+    assert any(f"file {index}: a line of readable text" in final_view for index in (6, 7)), \
+        "recent reads must remain in the model view"
+    assert run.prompt in final_view, "the initial request survives every compaction verbatim"
+    assert "<compacted_history>" in final_view
+
+
+def test_compaction_stops_at_the_run_cap_and_fails_honestly_with_history_intact(store, config, tmp_path):
+    """A4: repeated compaction is bounded; at the cap the run fails loudly instead of fabricating a fit."""
+    from hutch.models import EventType
+    from hutch.runtime.builtin import MAX_COMPACTIONS_PER_RUN
+
+    ol, ctx, run, emitted, tools = _overflow_bot(store, config, tmp_path, rounds=18)
+    run = _running(store, ctx, run)
+    with pytest.raises(RunAborted) as failure:
+        run_it(runtime(provider_factory=factory(ollama=ol)), run, ctx, tools)
+    assert failure.value.reason == "context"
+    assert "Options:" in failure.value.detail and "history are intact" in failure.value.detail
+
+    manifests = store.run_compactions(run.id)
+    assert len(manifests) == MAX_COMPACTIONS_PER_RUN
+    assert all(manifest["status"] == "compacted" for manifest in manifests)
+    assert any(event.type.value == "log" and "already compacted" in str(event.data)
+               for event in store.list_events(run.id)), "the cap itself must be stated, not silent"
+
+    # The failed fit never rewrites originals: the earliest read's result is still canonical.
+    tool_results = [event for event in store.list_events(run.id)
+                    if event.type is EventType.tool_result and event.data.get("ok")]
+    assert any("file 0: a line of readable text" in str(event.data.get("output", ""))
+               for event in tool_results)
+
+
 def test_known_overflow_after_tool_result_escalates_before_sending_to_small_model(store, config, tmp_path, monkeypatch):
     from tests.fakes import FakeOpenAI
 

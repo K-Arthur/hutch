@@ -159,6 +159,7 @@ def test_a2_opencode_builtin_opencode_share_one_persisted_context(store, config,
     from hutch.runtime.builtin import BuiltinRuntime, reset_connection_cache
     from hutch.runtime.ladder import reset_provider_cache
     from hutch.runtime.opencode import OpenCodeRuntime
+    from hutch.hardware import Hardware
     from hutch.safety import PolicyEngine
     from hutch.tools.base import ToolContext
     from tests.fakes import FakeOllama, agent_script
@@ -218,7 +219,12 @@ def test_a2_opencode_builtin_opencode_share_one_persisted_context(store, config,
     monkeypatch.setenv("OLLAMA_HOST", ollama.url)
     ollama.script = agent_script([{"content": "Builtin answer two."}])
     try:
-        run_it(BuiltinRuntime(), second, context_for(second), {})
+        # This test's subject is cross-runtime continuity, not this host's live
+        # RAM: inject a fixed comfortable snapshot (the test_workdir pattern)
+        # so transient memory pressure on a busy machine cannot flip admission
+        # and fail an acceptance test for reasons unrelated to its contract.
+        run_it(BuiltinRuntime(hardware=Hardware(os="Linux", ram_total_gb=32, ram_available_gb=24)),
+               second, context_for(second), {})
     finally:
         ollama.close()
     store.flush_events()
