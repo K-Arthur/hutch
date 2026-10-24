@@ -1,7 +1,13 @@
 # Changelog
 
+All notable changes to hutch. Format follows Keep a Changelog; versioning is semantic.
+Publication status: nothing has been shipped — there is no tag, GitHub release, or package
+for 0.1.0 or for anything recorded after it, so all post-0.1.0 work sits under Unreleased.
+
 ## [Unreleased]
 - Normalize dashboard terminology to "assistant" in the remaining user-facing strings (import hint, conversation-missing error, sidebar hide note, alert-privacy note, section naming, saved-request hint, composer draft help); the CLI and operations pages keep "bot", as documented.
+- Add conversation continuity and run-bound OpenCode memory (schema v74–v76): runs carry the newest bounded chat history with admission provenance and identity-based reply deduplication, and a partial, empty or truncated assistant reply is reported as such instead of passing as complete. On the OpenCode runtime a per-run `MemoryBridge` (abstract Unix socket, peer-credential and process-ancestry authenticated to the recorded server) exposes scoped `recall`/`remember` tools bound to the exact Bot, run and conversation, with no credential in the model's environment. Compaction writes anchored, immutable task manifests (revisions, compare-and-swap, explicit supersession) so each summarization cycle stays auditable, and hitting the per-run cap fails honestly instead of fabricating a fit; the v74–v76 migrations add their context and cache tables without rewriting existing history. Offline coverage in `tests/test_memory_continuity.py` and `tests/test_opencode_memory_bridge.py` (13 tests), plus two opt-in live runs where a real free model called `recall`/`remember` through the bridge end to end. Limits: free-model tool-calling is model-dependent (a single-host, single-model observation, not a reliability certification), native sessions are not reused across turns without a replace-context contract, and nothing guarantees retention beyond a model's actual context window.
+- Add validation scratch-tree hygiene for contributors: `python scripts/prune_validation_tmp.py` reports (and with `--apply` removes) the versioned tree snapshots, per-batch pytest outputs and basetemp directories that long regression runs leave behind — keeping the newest directory per family, skipping anything modified in the last 24 hours or holding open file handles. Documented in `AGENTS.md`.
 - Make the marketing site state the category and deployment model up front: a local-first, MIT-licensed platform for personal AI assistants that run on your own Linux computer. The hero keeps its warm headline but gains a definitional sub-line, a category eyebrow and pillar-aligned promises (local state, model/app choice, ask-first approvals); the `<title>`, meta description and Open Graph text lead with the same facts. Navigation labels are now informative ("Product tour", "Models & data", "Approvals & limits"); the footer and availability copy use one stage term, "private preview". Add a "What is Hutch?", an "Is Hutch free?" and a factual "How is Hutch different from other AI assistants?" FAQ item, enrich the `SoftwareApplication` JSON-LD, add `FAQPage` schema kept in sync with the visible FAQ by a new test, and ship `website/robots.txt` and `website/llms.txt` (canonical URL, `og:url`/absolute `og:image` and `sitemap.xml` stay deferred until a public domain exists). Correct the chat image-input claims to the shipped contract — PNG/JPEG/WebP attachments, up to 4 images of 1.5 MB each, built-in runtimes needing a vision-capable route with admission refusals before a run, and OpenCode per-model image-support checks that name a text-only model — in the FAQ, the availability table and `docs/marketing-site.md`; refresh the approval-triage marketing evidence for the new source hash.
 
 - Bring the composer back onto the shared geometry scale after user review: the composer box is now a 12px panel (matching the first-run request box and every card), send and `+` are ordinary 40/32px controls with the standard 8px radius instead of circles, attachment chips and the model trigger use the control radius, composer popovers sit at the documented 12px, and the over-round 22px `--r-composer` token is retired from modals, `DESIGN.md` and the compiled app CSS. Genuine status badges keep the pill radius.
@@ -13,6 +19,8 @@
 - Complete provider onboarding and failure handling: OpenRouter now verifies the key through `/key` before trusting its public catalog and reports credit/budget state; OpenAI-compatible and Anthropic streams retain partial output but never report a missing completion marker, truncated tool call, or Anthropic `pause_turn` as success.
 - Replace the demo-style starter gallery with a small outcome-owning roster (personal assistant, day planner, inbox follow-ups, research decisions, project coordinator, meeting follow-through, document workbench and data brief). No template starts with a schedule or fabricates a model route.
 - Keep the **Needs you** queue triageable under load: order pending requests by the soonest decision deadline, then risk and outward effect; show due-soon, high-risk, and leaves-machine counts with filters; keep the close control in a sticky header; lead with uncertain action outcomes when no approvals are pending; and move the approval ID into review details. Per-request decisions are unchanged and there is still no bulk approval. The public control section now describes the same deadline-first queue and filters, without claiming a measured triage-time improvement.
+- Fix the measured UI-audit findings (2026-10-22) across desktop, tablet and phone: restore focus rings on shared buttons, keep the chat header and pending-work reminder from covering controls, keep keyboard focus on the reminder across status polls, make the phone navigation sheet keyboard-operable, make server-page tables keyboard-scrollable and RTL-safe, give touch text fields a 16px floor, stack tile badges and wrap long switch labels instead of widening the page, stop Work history and the header jumping while they load, show assistant names rather than storage slugs on Activity, give running-text links an underline, and give notices reading time instead of dismissing them immediately. Settings that act immediately now use switches, Work history's filter is a radio group, helper text holds the 72ch measure, Manage assistants has one primary action, and the empty action-outcomes bucket stays hidden. The `ui-audit` script now runs axe-core under the strict CSP and fails loudly when it cannot; the dated report with before/after evidence is in `docs/realignment/ui-audit-2026-10-22.md`.
+- Add a **Chat library** surface and **Workspace settings**: the library pages a bounded title search across distinct active, archived and imported buckets (imported chats stay separate because their provenance and editing limits differ) with an assistant filter, message counts and announced paging status, instead of loading the whole history into the client (`POST /api/v1/conversations/query`). Workspace settings hold defaults applied when an assistant is created — default model route, default routing mode and the motion preference — while existing assistants and chats keep their saved settings. Covered in `tests/test_conversations.py` and `tests/e2e/test_design_system.py`.
 - Harden prompt-injection and content boundaries: untrusted tool results cannot forge envelope framing, hidden HTML comments are assessed separately from visible source text, and stored SVG rejects external CSS fetches. Apply strict CSP to the local dashboard as well as paired sessions, and keep approvals bound to the exact executed effect. Adversarial containment and ingestion regressions cover the retained evidence and fail-closed paths.
 - Add scoped spend guardrails with route-bound approval pauses, ceilings, warning bands and quote provenance. Unknown prices follow the configured refuse/mark policy; provider-reported settlement remains distinct from estimates. The budget migration is additive at schema v57 and converges idempotently across the prior development migration layouts.
 - Add opt-in, auditable context compaction and per-message manual task-role routes. Context is re-fitted after tool results; failed fits can use the configured guarded escalation. OpenRouter metadata is bounded, strict quotes expire closed, and legacy automatic compaction now requires review (schema v60–v62; see ADR-0019).
@@ -24,7 +32,8 @@
 - Keep known connection models' billing notes visible when provider catalog discovery is unavailable, and report the discovery problem as supplemental detail.
 - Keep explicit hosted-model discovery results when the slower initial model catalog responds afterward; the composer now ignores superseded catalog responses.
 - Integrate output tables as additive schema v55 after mainline v51–v54. Both the historical output-v51 shape and current v54 databases upgrade idempotently while preserving user rows.
-- Decide and document the deployment topology (ADR-0018): one local engine per state directory, clients attach to it, a personal
+- Decide and document the deployment topology (ADR-0018, recorded in
+  [the runtime/background report](docs/realignment/runtime-background-report-2026-10-11.md)): one local engine per state directory, clients attach to it, a personal
   headless host is a supported profile of the same core, and shared multi-tenant hosting stays a separate release gate. Interface
   packaging is independent of execution lifetime.
 - Verify the managed service for real: install/restart complete with an HTTP readiness handshake that must match this state
@@ -100,13 +109,14 @@
   acceptance. Local adapter checks cover captured HTTP bodies for Ollama/OpenAI-compatible chat/OpenAI Responses and
   Anthropic's SDK message arguments.
   Real provider quality and adherence remain unverified.
-- Clarify that Hutch chat accepts text only: the local Vision focus adjusts context sizing but does not enable image
+- (Later superseded by the chat image-input entries above.) Clarify that Hutch chat accepts text only: the local Vision focus adjusts context sizing but does not enable image
   input. Pasting an image now keeps the user's text draft and explains that images cannot be attached, without posting
   a run. The supported-runtime matrix records the same limit.
 - Update the private-preview marketing workflow with the independent voice, depth and humor choices, an actual local
   settings capture and fixed written examples. The page states that humor defaults to off, preference changes do not
   make model calls, the explicit preview shows an estimate first, authority rules do not change, and live quality is
-  unverified. The FAQ and availability table explain that chat image input remains unavailable. Responsive browser
+  unverified. The FAQ and availability table explain that chat image input remains unavailable (that limit was later
+  lifted; the FAQ and availability table now carry the shipped image-input contract). Responsive browser
   captures and same-origin/no-inference checks are in `docs/realignment/artifacts/persona-marketing-2026-10-11/`.
 - Extend assistant settings with the independent v2 selectors and bounded customization beside standing
   directions. Conversation controls save scoped preferences with conflict recovery; next-reply controls stay
@@ -229,7 +239,7 @@
 - Task details keep the status and conversation in front. Run references, model usage, timing, and transcript verification stay available under **More details**.
 - Outlook Mail's optional send setup remains separate from read access and uses Microsoft's official sign-in button. Every new send still requires exact approval; fixtures cover grant, revoke, and disconnect without a live account.
 
-# Outlook email send preview (experimental, schema v46)
+### Outlook email send preview (experimental, schema v46)
 
 - Added a separate Microsoft delegated `Mail.Send` sign-in, token namespace and per-Bot grant. Every new plain-text message requires
   owner approval showing the exact account, recipients, subject and body, including in automatic mode; strict Offline does not expose
@@ -362,9 +372,6 @@
 - Show review/revision/archive in chat and paginated management while memory is disabled. Archive retains history and backups; permanent scoped deletion remains pending.
 - Import legacy facts as unreviewed and unscoped, preserve pre-upgrade backups, and verify fact hashes during held restoration.
 - Correct the typed resource-change contract to accept restore-state invalidations introduced in schema v14.
-
-All notable changes to hutch (formerly "openbot"). Format follows Keep a Changelog; versioning is semantic.
-
 
 - Connections can now save a public Google Desktop OAuth client ID locally for both Calendar and the Gmail private preview. The operator environment setting remains authoritative and read-only in the UI; credentials and OAuth tokens are never accepted by this setting. API persistence, environment precedence, fixture sign-in, and responsive setup screens are covered without a live Google account.
 - Schema v41 adds an owner-managed, empty-by-default specialist roster for coordinator tasks. Settings save the roster, the dispatch review lists only approved Bots, and storage rechecks membership atomically. Promoting a specialist removes it from the list without automatically approving the former coordinator; removing approval leaves existing tasks and history intact. API, migration, direct-dispatch and responsive browser coverage were added.
@@ -651,9 +658,10 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
   into the SPA since 27a73ed): the phone approval journey now targets `#/approvals`, and a live SPA
   transcript journey replaces the retired server SSE DOM test.
 
-### Recorded version marker: 0.1.0 — 2026-10-07 (publication unverified)
+## [0.1.0] — 2026-10-07
 
-First MVP.
+First MVP, recorded in this repository on 2026-10-07. No tag, GitHub release, or package was
+ever published for it, so treat it as the recorded baseline rather than a shipped release.
 
 ### Changed
 - **Renamed the project openbot → hutch** before any public push: "openbot" is taken on PyPI and
