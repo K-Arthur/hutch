@@ -1630,12 +1630,16 @@ button.inline-link:hover { color: var(--text); }
 @keyframes toast-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
 :root.reduce-effects .toast { animation: none; }
-/* On chat routes the toast stack docks over the composer's send/model controls,
-   and error toasts persist until dismissed. The toast body is plain text, so
-   presses pass through it — a refused message must never block the retry —
-   while its close button stays clickable (pointer-events inherits). */
+/* On chat routes the toast stack (root included) docks over the composer's send/model
+   controls. The root stays pointer-transparent so presses pass through the empty stack,
+   success notices re-enable themselves so the D-06 reading hold in app.js (dismissal
+   waits while hovered or focused) keeps working, and an error toast — which persists
+   until dismissed — stays plain-text pass-through so a refused message must never block
+   the retry, while its close button remains clickable (pointer-events inherits). */
 body.has-composer .toast-root { pointer-events: none; }
-body.has-composer .toast-root .toast-close { pointer-events: auto; }
+body.has-composer .toast-root .toast { pointer-events: auto; }
+body.has-composer .toast-root .toast.error { pointer-events: none; }
+body.has-composer .toast-root .toast.error .toast-close { pointer-events: auto; }
 
 /* ───────────────────────────── states ───────────────────────────── */
 

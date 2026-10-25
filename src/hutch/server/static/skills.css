@@ -40,8 +40,10 @@
 .skill-import-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); align-items: start; }
 .skill-import-form { display: flex; gap: 10px; align-items: flex-end; }
 .skill-import-form .field { flex: 1; min-width: 0; }
-/* The folder field and its button share one height so the row reads as one control. */
-.skill-import-form input, .skill-import-form .btn { min-height: 2.5rem; }
+/* The folder field and its button share one height so the row reads as one control.
+   44px (not 40px): the field's padding+border renders it at 42px, so the shared floor
+   must clear that — and 44px is the touch-target minimum used across the app (D-09/F-10). */
+.skill-import-form input, .skill-import-form .btn { min-height: 2.75rem; }
 .skill-import-bundled .btn-row { flex-wrap: wrap; }
 .skill-error { border-color: color-mix(in oklab, var(--danger) 45%, transparent); }
 

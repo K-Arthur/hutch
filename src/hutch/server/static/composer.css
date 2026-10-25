@@ -96,10 +96,8 @@
   .composer-util { width: 44px; height: 44px; }
 }
 
-/* textareas inherit a phone font bump elsewhere; the composer keeps its own role */
-@media (max-width: 640px) {
-  .composer-textarea { font-size: 1rem; }
-}
+/* The composer keeps its own size on phones: it is already larger than the
+   16px touch floor, which excludes it in style.css (F-10 follow-up). */
 
 /* ── attachments: the composer tray and sent images ──
    Tray contract: sendable images travel with every message until removed; other
