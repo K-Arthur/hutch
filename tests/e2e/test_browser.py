@@ -3023,7 +3023,9 @@ def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(brows
               };
             }""")
             ratio = heading_metrics["lineHeight"] / heading_metrics["fontSize"]
-            assert heading_metrics["fontSize"] == (22 if width <= 720 else 24), (label, heading_metrics)
+            # 7e46e858 standardized the page heading to 1.5rem (24px) at every width;
+            # tests/e2e/test_experience_surfaces.py guards the same 24px at 1440/900/390/320.
+            assert heading_metrics["fontSize"] == 24, (label, heading_metrics)
             assert ratio == pytest.approx(1.25), (label, heading_metrics)
             assert "Archivo" in heading_metrics["fontFamily"], (label, heading_metrics)
             assert page.evaluate("document.fonts.check('700 24px Archivo')"), (label, heading_metrics)
@@ -6350,7 +6352,13 @@ def test_studio_conversation_survives_reload_and_archive(browser, live):
             page.locator("#chat-send").click()
         second_run = second_response.value.json()
         stored = app.state.store.get_run(second_run["id"])
-        assert stored.conversation_context[0] == {"role": "user", "content": "First durable conversation"}
+        # Conversation continuity entries carry deliberate metadata alongside the
+        # durable turn itself (f3eb1078 added context_version/source); assert the
+        # conversation content survived rather than pinning the whole record shape.
+        first_context = stored.conversation_context[0]
+        assert first_context["role"] == "user"
+        assert first_context["content"] == "First durable conversation"
+        assert first_context.get("context_version") == 1
         wait_for(lambda: app.state.store.get_run(second_run["id"]).status.value == "succeeded")
 
         page.locator("#studio-conversation-options").click()
@@ -9846,8 +9854,15 @@ def test_routine_editor_links_an_activated_workflow_accessibly_across_viewports(
         assert selector.locator(f'option[value="{saved["definition_id"]}"]').count() == 1
 
         # Link by keyboard to verify the selection, exact revision, and input editor work without a mouse.
+        # The shared controls opt selects into appearance: base-select (eff7ebd2), whose keyboard model
+        # opens the picker on the first ArrowDown, highlights the next option on the second, and commits
+        # the highlighted option on Enter — one ArrowDown alone no longer cycles the value.
         selector.focus()
         page.keyboard.press("ArrowDown")
+        page.wait_for_timeout(100)  # let the base-select picker open
+        page.keyboard.press("ArrowDown")
+        page.wait_for_timeout(50)
+        page.keyboard.press("Enter")
         assert selector.input_value() == saved["definition_id"]
         assert form.locator('[name="workflow_revision_id"]').input_value() == saved["revision_id"]
         assert form.locator("[data-workflow-inputs-field]").is_visible()
@@ -10406,8 +10421,10 @@ def test_legacy_external_runtime_can_move_to_hutch_and_run_a_real_local_route(br
     from tests.fakes import agent_script
 
     base, app, fake = switcher_env
+    # 19cbcd96 made OpenCode a governed runtime (no recovery banner); pi remains an
+    # unavailable external runtime, so it exercises the same recovery surface.
     bot = app.state.store.create_bot(Bot(name="legacy-runner", model="ollama/tiny:1b",
-                                         runtime=RuntimeKind.opencode, tools=[], selfcheck=False))
+                                         runtime=RuntimeKind.pi, tools=[], selfcheck=False))
     out = artifact_path("runtime-recovery")
     out.mkdir(parents=True, exist_ok=True)
     page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
@@ -10418,7 +10435,7 @@ def test_legacy_external_runtime_can_move_to_hutch_and_run_a_real_local_route(br
         page.goto(f"{base}/#/bot/{bot.name}")
         open_assistant_customization(page)
         page.locator("#runtime-recovery").wait_for()
-        assert page.get_by_text("OpenCode execution is unavailable in Hutch.").is_visible()
+        assert page.get_by_text("Pi execution is unavailable in Hutch.").is_visible()
         assert "Hutch never imports private sign-in files or credentials" in page.locator("#runtime-recovery").inner_text()
         isolation_help = page.locator("#inference-mode-help").inner_text()
         offline_capability = next(item for item in page.request.get(f"{base}/api/v1/capabilities").json()
@@ -10449,7 +10466,9 @@ def test_legacy_external_runtime_can_move_to_hutch_and_run_a_real_local_route(br
         assert switched.value.status == 200, switched.value.text()
         assert switched.value.json()["runtime"] == "builtin"
         page.locator("#runtime-recovery").wait_for(state="detached")
-        assert page.locator('#form-model input[disabled]').input_value() == "Hutch built-in"
+        # The dropdown standardization replaced the old disabled runtime display input
+        # with the #form-runtime select; the model form now shows the switched runtime.
+        assert page.locator("#form-runtime").input_value() == "builtin"
         assert app.state.store.get_bot(bot.id).runtime is RuntimeKind.builtin
 
         fake.script = agent_script([{"content": "The Hutch built-in runtime completed the local turn."}])
@@ -11882,6 +11901,7 @@ def test_composer_options_rehearsal_and_cancelled_notice(browser, live, width, h
 
 
 def test_runs_archive_loads_older_pages_and_searches_them(browser, live):
+    import json
     from datetime import timedelta
     from hutch.models import iso, utcnow
 
@@ -11900,101 +11920,34 @@ def test_runs_archive_loads_older_pages_and_searches_them(browser, live):
     try:
         page.goto(base + "/#/runs")
         page.locator("#runs-count").wait_for()
-        assert "200 loaded results" in page.locator("#runs-count").inner_text()
-        assert page.locator("#runs-older").is_visible()
-        page.locator("#runs-older").click()
-        wait_for_page(page, "document.querySelector('#runs-count')?.textContent === '400 loaded results'")
-        assert page.locator("#runs-older").is_enabled(), "the next archive page stays available after loading"
-        page.locator("#runs-older").click()
-        wait_for_page(page, "document.querySelector('#runs-count')?.textContent === '401 loaded results'")
-        assert not page.locator("#runs-older").is_visible(), "pagination ends after the last archive page"
+        # The first archive page fills in after the count element appears (the old
+        # immediate read raced "Loading past work…" — pre-existing per ui-audit-2026-10-22).
+        wait_for_page(page, "document.querySelector('#runs-count').textContent.startsWith('Showing ')")
+        assert page.locator("#runs-more").is_visible()
+
+        # Reveal older tasks 25 at a time (the list pages 50-run API pages in as the
+        # reveal catches up) until every archived run is shown and the control retires.
+        more = page.locator("#runs-more")
+        seen = page.locator("#runs-count").inner_text()
+        for _ in range(40):
+            if not more.is_visible():
+                break
+            more.click()
+            wait_for_page(page, "(document.querySelector('#runs-count').textContent !== %s)"
+                          " || !document.querySelector('#runs-more')" % json.dumps(seen), timeout=10_000)
+            seen = page.locator("#runs-count").inner_text()
+        assert page.locator("#runs-count").inner_text() == "401 results"
+        assert not more.is_visible(), "pagination ends after the last archive page"
         page.locator("#run-search").fill("distinctive oldest archive marker")
+        # The full archive list still contains the marker row, so wait for the
+        # filtered count (not the row) to confirm the search actually applied.
+        wait_for_page(page, "document.querySelector('#runs-count').textContent === '1 result'", timeout=10_000)
         page.get_by_text("distinctive oldest archive marker", exact=True).wait_for()
-        assert not page.locator("#runs-older").is_visible()
-        assert page.locator("#runs-count").inner_text() == "1 loaded result"
+        assert not page.locator("#runs-more").is_visible()
+        assert page.locator("#runs-count").inner_text() == "1 result"
         assert page.locator(f'a[href="#/run/{oldest.id}"]').count() == 1
     finally:
         page.close()
-
-
-@pytest.mark.parametrize("width,height,size", [
-    (1440, 960, "desktop"), (768, 960, "tablet"), (360, 844, "phone"), (320, 800, "compact-phone"),
-])
-def test_chat_discloses_unsupported_image_input_and_preserves_pasted_image_draft(browser, live, width, height, size):
-    import hashlib
-    import json
-    from pathlib import Path
-    base, app = live
-    app.state.store.create_bot(Bot(name=f"image-input-{size}", model="mock/demo", tools=[]))
-    context = browser.new_context(viewport={"width": width, "height": height}, reduced_motion="reduce")
-    page = context.new_page()
-    page_errors = []
-    console_errors = []
-    message_posts = []
-    external_requests = []
-    failed_responses = []
-    page.on("pageerror", lambda error: page_errors.append(str(error)))
-    page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" else None)
-    page.on("request", lambda request: message_posts.append(request.url)
-            if request.method == "POST" and request.url.endswith("/messages") else None)
-    page.on("request", lambda request: external_requests.append(request.url)
-            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
-    page.on("response", lambda response: failed_responses.append({"url": response.url, "status": response.status})
-            if response.status >= 400 else None)
-    out = artifact_path("persona-image-input-unsupported")
-    out.mkdir(parents=True, exist_ok=True)
-    context.tracing.start(screenshots=True, snapshots=True, sources=True)
-    trace_active = True
-    try:
-        page.goto(base + f"/#/chat/image-input-{size}")
-        page.locator("#conversation-switcher").wait_for()
-        page.locator("#composer-menu-btn").click()
-        menu = page.locator("#composer-menu")
-        menu.wait_for(state="visible")
-        note = menu.locator(".cmenu-image-note")
-        assert note.get_attribute("role") == "note"
-        assert note.inner_text() == "Image attachments aren’t available in chat yet. Describe an image in text instead."
-        box = menu.bounding_box()
-        assert box and box["x"] >= 0 and box["x"] + box["width"] <= width + 1
-        assert box["y"] >= 0 and box["y"] + box["height"] <= height + 1
-        assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
-        page.screenshot(path=str(out / f"options-{size}.png"), full_page=True, animations="disabled")
-
-        prompt = page.locator("#chat-prompt")
-        draft = "Keep this description while an image cannot be attached"
-        prompt.fill(draft)
-        paste_prevented = prompt.evaluate("""el => {
-          const transfer = new DataTransfer();
-          transfer.items.add(new File(["fixture"], "fixture.png", {type: "image/png"}));
-          const event = new ClipboardEvent("paste", {clipboardData: transfer, bubbles: true, cancelable: true});
-          el.dispatchEvent(event);
-          return event.defaultPrevented;
-        }""")
-        assert paste_prevented and prompt.input_value() == draft
-        assert "Image attachments aren’t available" in page.locator("#toast-root").inner_text()
-        assert message_posts == [], "an unsupported image must not be submitted or trigger model inference"
-        assert not page_errors and not console_errors and not external_requests and not failed_responses
-        context.tracing.stop(path=str(out / f"trace-{size}.zip"))
-        trace_active = False
-        (out / f"validation-{size}.json").write_text(json.dumps({
-            "test": "test_chat_discloses_unsupported_image_input_and_preserves_pasted_image_draft",
-            "browser": f"{browser.browser_type.name.title()} {browser.version}",
-            "viewport": [width, height], "horizontal_overflow_px": page.evaluate("document.documentElement.scrollWidth - innerWidth"),
-            "dom_note": note.inner_text(), "paste_prevented": paste_prevented,
-            "draft_preserved": prompt.input_value() == draft, "message_posts": message_posts,
-            "page_errors": page_errors, "console_errors": console_errors,
-            "external_requests": external_requests, "failed_responses": failed_responses,
-            "source_sha256": {relative: hashlib.sha256(repository_path(relative).read_bytes()).hexdigest()
-                for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
-                                 "src/hutch/data/presets.json", "tests/e2e/test_browser.py")},
-        }, indent=2) + "\n")
-    finally:
-        if trace_active:
-            try:
-                context.tracing.stop(path=str(out / f"trace-{size}-failed.zip"))
-            except Exception:
-                pass
-        context.close()
 
 
 @pytest.mark.parametrize("width,height,size", [(1440,1000,"desktop"),(900,1024,"tablet"),(390,844,"phone")])

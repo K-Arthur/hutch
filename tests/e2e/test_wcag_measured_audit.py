@@ -443,10 +443,13 @@ def test_skills_header_and_import_row_are_aligned(audit_browser, audit_live):
     try:
         page.goto(base + "/#/skills")
         page.locator("#skills-bundled .btn").first.wait_for()
+        # 9280b251 moved the skills title/action row into the shared top context bar;
+        # the D-09 checks (title/action midline, row right edge, section gap, paired
+        # controls, bundled-button gaps) now measure that markup.
         m = page.evaluate("""() => { const r = s => document.querySelector(s).getBoundingClientRect();
           const bundled = [...document.querySelectorAll('#skills-bundled .btn')].map(b => b.getBoundingClientRect());
-          return {titleMid: r('.page-title').top + r('.page-title').height / 2, refreshMid: r('#skills-refresh').top + r('#skills-refresh').height / 2,
-                  refreshRight: r('#skills-refresh').right, rowRight: r('.page-title-row').right,
+          return {titleMid: r('#app-top-context .ctx-id').top + r('#app-top-context .ctx-id').height / 2, refreshMid: r('#skills-refresh').top + r('#skills-refresh').height / 2,
+                  refreshRight: r('#skills-refresh').right, rowRight: r('#app-top-context').right,
                   sectionGap: r('section.panel').top - r('.page-subtitle').bottom,
                   field: r('#skills-import-path input').height, button: r('#skills-import-path .btn').height,
                   bundledGaps: bundled.slice(1).map((b, i) => b.left - bundled[i].right)}; }""")

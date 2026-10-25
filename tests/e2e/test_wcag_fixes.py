@@ -362,6 +362,14 @@ def test_setup_and_settings_hints_are_descriptions_not_field_names(audit_browser
         check_field("#setup-display_name", "textbox", "Assistant name", "Rename it anytime")
         page.get_by_role("button", name="Fine-tune the details").click()
         page.locator("#setup-model").wait_for()
+        # 19cbcd96 defaults first-run setup to OpenCode when the host's OpenCode profile is
+        # ready (CI has none), which flips the model hint and Connections link to the OpenCode
+        # branch. Pin the runtime so this M-3 check does not depend on machine state.
+        if page.locator("#setup-runtime").input_value() != "builtin":
+            page.locator("#setup-runtime").select_option("builtin")
+            page.wait_for_function(
+                "() => (document.querySelector('#setup-model-hint')?.textContent || '')"
+                ".includes('Hosted routes send prompts')")
         check_field("#setup-model", "combobox", "Model route", "Hosted routes send prompts")
         assert "Open Connections" not in page.locator("#setup-model-hint").inner_text()
         assert page.get_by_role("link", name="Open Connections in another tab").is_visible()
@@ -382,7 +390,7 @@ def test_setup_and_settings_hints_are_descriptions_not_field_names(audit_browser
         check_field("#setup-timezone", "textbox", "Time zone", "IANA time zone")
         check_field("#setup-schedule_prompt", "textbox", "Scheduled task prompt", "needs a cron schedule")
 
-        page.get_by_role("button", name="Cancel").click()
+        page.get_by_role("button", name="Discard draft").click()  # the first-run overhaul replaced the old setup "Cancel"
         app.state.store.create_bot(Bot(name="access-hints", display_name="Access Hints",
                                        model="mock/demo", tools=[]))
         page.goto(base + "/#/bot/access-hints")
