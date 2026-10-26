@@ -4503,9 +4503,9 @@ class Store:
             if db.execute("SELECT 1 FROM bots WHERE id = ?", (bot_id,)).fetchone() is None:
                 raise KeyError(bot_id)
             home = db.execute(
-                "SELECT c.id FROM assistant_home_conversations h JOIN conversations c ON c.id = h.conversation_id "
-                "WHERE h.bot_id = ? AND c.archived = 0", (bot_id,)).fetchone()
-            if home:
+                "SELECT c.id, c.archived FROM assistant_home_conversations h JOIN conversations c ON c.id = h.conversation_id "
+                "WHERE h.bot_id = ?", (bot_id,)).fetchone()
+            if home and not home["archived"]:
                 return str(home["id"]), False
             ordinary = ("SELECT c.id FROM conversations c WHERE c.bot_id = ? AND c.archived = 0 AND c.is_legacy = 0 "
                         "AND NOT EXISTS (SELECT 1 FROM workspace_tasks t WHERE t.child_conversation_id = c.id) ")
@@ -4513,6 +4513,10 @@ class Store:
                 candidate = db.execute(ordinary + "AND c.id = ?", (bot_id, preferred_id)).fetchone()
                 if candidate is None:
                     raise ValueError("the selected home must be an active direct conversation of this assistant")
+            elif home:
+                # Archive is an explicit fresh start. Never inherit another
+                # historical transcript or its model override implicitly.
+                candidate = None
             else:
                 candidate = db.execute(ordinary + "ORDER BY c.updated_at DESC, c.id DESC LIMIT 1", (bot_id,)).fetchone()
             conversation_id = str(candidate["id"]) if candidate else f"conv_{uuid.uuid4().hex[:12]}"

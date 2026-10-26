@@ -3792,11 +3792,10 @@ def test_workflow_amendment_drain_control_is_owner_reviewable_and_responsive(bro
         else:
             raise AssertionError("the workflow did not park with its child active")
 
-        page.goto(f"{base}/#/chat/{bot.name}", wait_until="domcontentloaded")
+        page.goto(f"{base}/#/conversation/{conversation['id']}", wait_until="domcontentloaded")
         conversation_switcher = page.locator("#conversation-switcher")
         conversation_switcher.wait_for(state="visible")
-        if conversation_switcher.input_value() != conversation["id"]:
-            conversation_switcher.select_option(conversation["id"])
+        assert conversation_switcher.input_value() == conversation["id"]
         panel = page.locator("#workflow-panel")
         panel.wait_for(state="visible")
         pause_button = panel.get_by_role("button", name=re.compile(r"Pause (?:workflow|after current work)"))
@@ -6369,6 +6368,9 @@ def test_studio_conversation_survives_reload_and_archive(browser, live):
         assert first_context.get("context_version") == 1
         wait_for(lambda: app.state.store.get_run(second_run["id"]).status.value == "succeeded")
 
+        assert page.locator("#studio-archive-conversation").count() == 0
+        page.goto(f"{base}/#/conversation/{conversation_id}")
+        page.locator("#conversation-switcher").wait_for()
         page.locator("#studio-conversation-options").click()
         page.locator("#studio-conversation-more > summary").click()
         page.locator("#studio-archive-conversation").click()
@@ -6404,9 +6406,8 @@ def test_conversation_options_are_compact_persistent_and_recoverable(browser, li
     seeded_run = seeded.json()["id"]
     wait_for(lambda: store.get_run(seeded_run).terminal)
     assert store.get_conversation(first["id"])["unread"] == 1
-    page.goto(base + "/#/chat/conversation-options")
-    page.locator("#chat-prompt").wait_for()
-    page.locator("#conversation-switcher").select_option(first["id"])
+    page.goto(f"{base}/#/conversation/{first['id']}")
+    page.locator("#conversation-switcher").wait_for()
     page.locator("#chat-stream").get_by_text("Help me prepare a launch review.", exact=True).wait_for()
 
     artifacts = artifact_path("conversation-options")
@@ -6549,7 +6550,8 @@ def test_conversation_options_are_compact_persistent_and_recoverable(browser, li
     page.get_by_role("button", name="Archive conversation").click()
     wait_for(lambda: store.get_conversation(first["id"])["archived"] == 1)
     assert page.locator(f"#conversation-switcher option[value='{first['id']}']").count() == 1
-    page.locator("#conversation-switcher").select_option(first["id"])
+    page.goto(f"{base}/#/conversation/{first['id']}")
+    page.locator("#conversation-switcher").wait_for()
     wait_for_page(page, "id => document.querySelector('#conversation-switcher')?.value === id", arg=first["id"])
     page.locator("#studio-conversation-options").click()
     page.locator("#studio-conversation-more > summary").click()
@@ -10927,11 +10929,13 @@ def test_inline_chat_approval_is_one_click_and_preserves_conversation(browser, l
     assert page.locator("#studio-review-run").is_visible()
     page.locator("#studio-conversation-options").click()
     settings = page.locator('.conversation-actions-panel [data-conversation-action="settings"]')
+    settings.wait_for(state="visible")
     assert settings.is_visible() and settings.inner_text().strip() == "Assistant settings"
     assert settings.get_attribute("href") == "#/bot/chat-approval"
     page.locator("#studio-conversation-options").click()
     header = page.locator(".app-top").bounding_box()
-    for control in ("#conversation-switcher", "#studio-search-messages", "#studio-conversation-options",
+    assert not page.locator("#conversation-switcher").is_visible(), "main chat keeps history in secondary navigation"
+    for control in ("#studio-search-messages", "#studio-conversation-options",
                     "#studio-review-run", "#studio-stop-run"):
         box = page.locator(control).bounding_box()
         assert box["y"] >= header["y"] and box["y"] + box["height"] <= header["y"] + header["height"] + 1
@@ -10966,6 +10970,7 @@ def test_chat_header_uses_available_title_space_and_groups_assistant_settings(br
     page.screenshot(path=str(out / "desktop.png"), full_page=True)
     page.locator("#studio-conversation-options").click()
     settings = page.locator('.conversation-actions-panel [data-conversation-action="settings"]')
+    settings.wait_for(state="visible")
     assert settings.is_visible() and settings.inner_text().strip() == "Assistant settings"
     assert settings.get_attribute("href") == "#/bot/header-space"
     assert not page.locator("#studio-stop-run").is_visible()
@@ -10974,7 +10979,8 @@ def test_chat_header_uses_available_title_space_and_groups_assistant_settings(br
     page.wait_for_timeout(50)
     assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
     header = page.locator(".app-top").bounding_box()
-    for control in ("#conversation-switcher", "#studio-search-messages", "#studio-conversation-options"):
+    assert not page.locator("#conversation-switcher").is_visible(), "main chat keeps history in secondary navigation"
+    for control in ("#studio-search-messages", "#studio-conversation-options"):
         box = page.locator(control).bounding_box()
         assert box["y"] >= header["y"] and box["y"] + box["height"] <= header["y"] + header["height"] + 1
     page.screenshot(path=str(out / "phone-options.png"), full_page=True)
@@ -12319,8 +12325,8 @@ def test_scoped_fact_review_revision_conflict_and_memory_off(browser, live, widt
     out = artifact_path("fact-memory")
     out.mkdir(parents=True, exist_ok=True)
     try:
-        page.goto(base+'/#/chat/'+bot.name)
-        page.locator('#conversation-switcher').select_option(a['id'])
+        page.goto(f"{base}/#/conversation/{a['id']}")
+        page.locator('#conversation-switcher').wait_for()
         page.locator(f'[data-fact-card="{fact.id}"]').wait_for()
         assert 'PRIVATE B MUST NOT APPEAR IN A' not in page.locator('#chat-stream').inner_text()
         assert page.evaluate('window.__factInjected === undefined')
@@ -12424,8 +12430,8 @@ def test_explicit_cross_bot_fact_share_is_reviewable_revocable_and_responsive(br
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     trace_stopped = False
     try:
-        page.goto(f'{base}/#/chat/{source.name}')
-        page.locator('#conversation-switcher').select_option(source_conversation['id'])
+        page.goto(f"{base}/#/conversation/{source_conversation['id']}")
+        page.locator('#conversation-switcher').wait_for()
         page.locator('.fact-panel details summary').first.click()
         trigger = page.locator(f'[data-fact-share-create="{fact.id}"]')
         trigger.wait_for()
@@ -12475,8 +12481,8 @@ def test_explicit_cross_bot_fact_share_is_reviewable_revocable_and_responsive(br
         finally:
             persisted.close()
 
-        page.goto(f'{base}/#/chat/{target.name}')
-        page.locator('#conversation-switcher').select_option(target_conversation['id'])
+        page.goto(f"{base}/#/conversation/{target_conversation['id']}")
+        page.locator('#conversation-switcher').wait_for()
         page.locator('.fact-share-list summary').wait_for()
         page.locator('.fact-share-list summary').click()
         incoming = page.locator(f'[data-fact-share-card="{share["id"]}"]')

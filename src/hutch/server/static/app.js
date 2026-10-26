@@ -2139,6 +2139,10 @@ async function renderWorkspaceSettings() {
   });
 }
 
+function isConversationView(hash = location.hash || "#/chat") {
+  return /^#\/chat(?:\/|$)/.test(hash) || /^#\/conversation\/[\w-]+$/.test(hash);
+}
+
 const ROUTE_TITLES = { chat: "Chat", overview: "Activity", schedules: "Scheduled work",
   runtime: "Runtime", runs: "Work history", bots: "Assistants", connections: "Apps & AI",
   approvals: "Needs you", chats: "Conversation history", settings: "Settings" };
@@ -2167,7 +2171,7 @@ async function route(announce = false) {
     return;
   }
   updateRosterCurrentItem();
-  document.body.classList.toggle("has-composer", hash.startsWith("#/chat"));
+  document.body.classList.toggle("has-composer", isConversationView(hash));
   stopRunSubs();
   bumpSubOwner(routeOwner);
   studioGeneration++;
@@ -2282,7 +2286,7 @@ function renderRoster() {
   const visible = [...inRoster, ...hiddenSpotlight];
   const pinned = visible.filter(b => b.pinned).sort(byDisplayName);
   const remaining = visible.filter(b => !b.pinned).sort(byDisplayName);
-  const currentChatBot = /^#\/chat(?:\/|$)/.test(location.hash || "#/chat") ? currentStudioBot : null;
+  const currentChatBot = isConversationView() ? currentStudioBot : null;
   const needsYou = remaining.filter(b => botNeedsYou(b));
   const inProgress = remaining.filter(b => !botNeedsYou(b) && botState(b) !== "idle" && b.name !== currentChatBot);
   const current = remaining.filter(b => b.name === currentChatBot && !needsYou.includes(b) && !inProgress.includes(b));
@@ -2362,7 +2366,7 @@ function renderRoster() {
 }
 
 function updateRosterCurrentItem() {
-  const inChat = /^#\/chat(?:\/|$)/.test(location.hash || "#/chat");
+  const inChat = isConversationView();
   $$("#roster-list [data-switch-bot]").forEach(button => {
     const current = inChat && button.dataset.switchBot === currentStudioBot;
     if (current) button.setAttribute("aria-current", "true");
@@ -2382,8 +2386,8 @@ function rosterRowHtml(bot, currentStudioBot) {
     .filter(Boolean).join(" · ");
   const name = botHeading(bot);
   return `
-    <div class="roster-entry${bot.name === currentStudioBot && location.hash.startsWith("#/chat") ? " is-current" : ""}"><button class="roster-row" type="button" data-switch-bot="${esc(bot.name)}"
-      ${bot.name === currentStudioBot && location.hash.startsWith("#/chat") ? 'aria-current="true"' : ""}
+    <div class="roster-entry${bot.name === currentStudioBot && isConversationView() ? " is-current" : ""}"><button class="roster-row" type="button" data-switch-bot="${esc(bot.name)}"
+      ${bot.name === currentStudioBot && isConversationView() ? 'aria-current="true"' : ""}
       title="${esc(name)} — ${esc([subtitle, status !== visibleStatus ? status : ""].filter(Boolean).join(" · "))}">
       ${botAvatar(bot.name, 30, pip)}
       <span class="roster-id">
@@ -2711,7 +2715,7 @@ function renderAttention() {  const bar = $("#attention-bar");
   const onApprovals = needsYouDialog.open || needsYouRouteOpening;
   const shownRequests = $$("#chat-stream [data-approval-card]").filter(c => c.querySelector("[data-approve]:not([disabled])"));
   const shownReceipts = $$('#chat-stream [data-receipt-card]').filter(c => !c.dataset.receiptReviewed);
-  const allInChat = location.hash.startsWith("#/chat") && n && n <= shownRequests.length + shownReceipts.length;
+  const allInChat = isConversationView() && n && n <= shownRequests.length + shownReceipts.length;
   if (!n || onApprovals || allInChat || attentionDismissedCount === n) { bar.hidden = true; bar.dataset.message = ""; return; }
   bar.hidden = false;
   const message = unresolvedReceiptCount ? `${n} items need your review` : `${n} approval${n === 1 ? "" : "s"} need${n === 1 ? "s" : ""} you`;
@@ -3653,7 +3657,12 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
         await api(`/v1/conversations/${encodeURIComponent(currentConversationId)}/archive`, {
           method: "POST", headers: { "Idempotency-Key": newIdempotencyKey() }, body: { archived },
         });
-        if (archived) storageRemove(`hutch-conversation:${bot.id}`);
+        if (archived) {
+          storageRemove(`hutch-conversation:${bot.id}`);
+          // Leaving a historical URL is deliberate here: re-rendering that
+          // URL would immediately reopen the archived conversation.
+          history.replaceState(null, "", `#/chat/${encodeURIComponent(bot.name)}`);
+        }
         toast(archived ? "Conversation archived; restore it from Archived chats." : "Conversation restored.");
         await renderChatStudio(bot.name);
       } catch (error) {
@@ -6305,7 +6314,7 @@ function choiceCardHtml(e, state, conversationId) {
     return '<section class="choice-card" role="status"><b>Choice closed</b><p>This question is no longer accepting an answer.</p></section>';
   }
   const selectedConversation = currentConversations.find(item => item.id === conversationId);
-  const inConversation = location.hash.startsWith("#/chat") && currentConversationId === conversationId;
+  const inConversation = isConversationView() && currentConversationId === conversationId;
   const canAnswer = inConversation && !selectedConversation?.archived && !!activeChoiceSubmitHandler;
   if (!canAnswer) {
     return `<section class="choice-card" aria-label="Bot question">
@@ -10963,7 +10972,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
   try { workspaceDefaults = await api("/v1/preferences/model-defaults"); }
   catch (err) { toast(`Workspace model defaults could not be loaded; choose a route manually. ${err.message}`, true); }
   let conversationSource = null;
-  if (!duplicateBot && currentConversationId && currentStudioBot && /^#\/chat(?:\/|$)/.test(location.hash || "#/chat")) {
+  if (!duplicateBot && currentConversationId && currentStudioBot && isConversationView()) {
     try {
       const conversationId = currentConversationId;
       const summary = await api(`/v1/conversations/${encodeURIComponent(conversationId)}?after=0&limit=1`);
@@ -12191,7 +12200,7 @@ function refreshChangedResources(resources) {
     }
     if (["messages", "conversations", "runs", "approvals", "actions", "transcript_mirrors", "memory", "workspace_tasks", "code_handoffs"].some(r => changed.has(r))) {
       const visibleHash = location.hash || "#/chat";
-      if (/^#\/chat(?:\/|$)/.test(visibleHash) || /^#\/run\/[\w-]+$/.test(visibleHash)) scheduleFeedRender();
+      if (isConversationView(visibleHash) || /^#\/run\/[\w-]+$/.test(visibleHash)) scheduleFeedRender();
     }
   }, 250);
 }

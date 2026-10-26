@@ -131,3 +131,16 @@ def test_replaying_home_migration_keeps_existing_home_and_scope_guards(store):
     with pytest.raises(sqlite3.IntegrityError, match="ownership cannot change"):
         store._db.execute("UPDATE conversations SET bot_id=? WHERE id=?", (other.id, home))
     store._db.rollback()
+
+
+def test_archiving_a_home_does_not_promote_unrelated_history_to_the_main_chat(store):
+    bot = store.create_bot(Bot(name="fresh-after-archive", tools=[]))
+    home, _ = store.ensure_assistant_home_conversation(bot.id)
+    older = conversation(store, bot, "Separate research history")
+    with store._tx() as db:
+        db.execute("UPDATE conversations SET archived=1 WHERE id=?", (home,))
+    replacement, created = store.ensure_assistant_home_conversation(bot.id)
+    assert created and replacement not in {home, older["id"]}
+    assert store.list_conversation_messages(replacement) == []
+    assert not store.get_conversation(older["id"])["archived"]
+    assert store.get_conversation(home)["archived"]
