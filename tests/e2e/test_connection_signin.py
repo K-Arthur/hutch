@@ -198,7 +198,7 @@ def test_google_services_reuse_connection_and_disable_independently(browser, liv
     base, app = live
     aid = "gws_0123456789abcdef01234567"
     _atomic_private_json(app.state.config.state_dir / "google-workspace-accounts.json", {
-        aid: {"label": "Work account", "scopes": [FILE_SCOPE], "services": ["drive"], "revision": 0}})
+        aid: {"label": "Work account", "email": "owner@example.test", "scopes": [FILE_SCOPE], "services": ["drive"], "revision": 0}})
     monkeypatch.setattr("hutch.gsuite.client.WorkspaceSecretToolStore", MemorySecrets)
     context = browser.new_context(viewport={"width": width, "height": 950}, reduced_motion="reduce")
     page = context.new_page()
@@ -210,6 +210,7 @@ def test_google_services_reuse_connection_and_disable_independently(browser, liv
         card.get_by_role("button", name="Use this account", exact=True).click()
         expect(card.get_by_role("button", name="Disable Google Docs", exact=True)).to_be_visible()
         assert "Also enabled: Google Drive" in card.inner_text()
+        assert card.locator(".google-file-account-email").inner_text() == "owner@example.test"
         assert not app.state.store.list_google_calendar_grants()
         card.get_by_role("button", name="Disable Google Docs", exact=True).click()
         expect(card.get_by_role("button", name="Use this account", exact=True)).to_be_visible()

@@ -133,6 +133,7 @@ class WorkspaceAccount:
     scopes: tuple[str, ...]
     services: tuple[str, ...] | None = None
     revision: int = 0
+    email: str = ""
 
 
 class GoogleWorkspaceClient:
@@ -238,7 +239,8 @@ class GoogleWorkspaceClient:
             row.update(services=[item for item in SERVICES if item in services], revision=revision + 1)
             _atomic_private_json(self._accounts_path, accounts)
             return WorkspaceAccount(account_id, str(row.get("label", "Google account")),
-                                    tuple(row.get("scopes") or ()), self._services(row), revision + 1)
+                                    tuple(row.get("scopes") or ()), self._services(row), revision + 1,
+                                    str(row.get("email") or ""))
 
     def _require_service(self, account_id: str, service: str | None = None) -> None:
         row = self._read_accounts().get(account_id)
@@ -346,17 +348,39 @@ class GoogleWorkspaceClient:
             raise GoogleWorkspaceError(
                 "Google granted broader scopes than requested "
                 f"({', '.join(sorted(extra))}); reconnect and grant only the requested access")
+        email = ""
+        if service != "workspace":
+            # about.get accepts drive.file; no extra identity/profile scope or
+            # browser session import is needed to identify the selected account.
+            token = body.get("access_token")
+            if not isinstance(token, str) or not token:
+                raise GoogleWorkspaceError("Google returned no usable access token to identify the account")
+            try:
+                with self._http_factory() as http:
+                    identity = http.get(f"{self.drive_base}/about", params={"fields": "user(emailAddress)"},
+                                        headers={"Authorization": f"Bearer {token}"})
+                data = identity.json() if identity.status_code == 200 else {}
+                email = data.get("user", {}).get("emailAddress", "")
+            except (httpx.HTTPError, ValueError, AttributeError):
+                raise GoogleWorkspaceError("Google account identity could not be verified; start sign-in again") from None
+            if (not isinstance(email, str) or len(email) > 254
+                    or any(ord(char) < 32 or ord(char) == 127 for char in email)
+                    or not re.fullmatch(r"[^\s<>@]+@[^\s<>@]+", email)):
+                raise GoogleWorkspaceError("Google did not identify the selected account; start sign-in again")
+        label = str(entry.get("label") or "Google account")
+        if email and label in ("Google Workspace", "Google Drive", "Google Docs", "Google Sheets", "Google account"):
+            label = email
         account_id = "gws_" + secrets.token_hex(12)
-        account = WorkspaceAccount(account_id=account_id, label=str(entry.get("label") or "Google Workspace"),
+        account = WorkspaceAccount(account_id=account_id, label=label,
                                    scopes=tuple(sorted(scope_set)),
-                                   services=SERVICES if service == "workspace" else (service,))
+                                   services=SERVICES if service == "workspace" else (service,), email=email)
         self.secrets.put(account_id, json.dumps({"refresh_token": refresh_token,
                                                  "scopes": sorted(scope_set)}))
         try:
             with self._locked():
                 accounts = self._read_accounts()
                 accounts[account_id] = {"label": account.label, "scopes": list(account.scopes),
-                                       "services": list(account.services), "revision": 0,
+                                       "services": list(account.services), "revision": 0, "email": email,
                                        "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
                 _atomic_private_json(self._accounts_path, accounts)
         except BaseException:
@@ -367,7 +391,8 @@ class GoogleWorkspaceClient:
     def accounts(self) -> list[WorkspaceAccount]:
         return [WorkspaceAccount(account_id=aid, label=str(row.get("label", "Google Workspace")),
                                  scopes=tuple(row.get("scopes") or ()),
-                                 services=self._services(row), revision=int(row.get("revision", 0)))
+                                 services=self._services(row), revision=int(row.get("revision", 0)),
+                                 email=str(row.get("email") or ""))
                 for aid, row in self._read_accounts().items()]
 
     def disconnect(self, account_id: str) -> None:

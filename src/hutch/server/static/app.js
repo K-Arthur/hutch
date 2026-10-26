@@ -9182,10 +9182,10 @@ async function renderConnections() {
     const available = googleWorkspace.accounts.filter(account => !enabledFileServices(account).includes(service.id)
       && account.scopes.includes("https://www.googleapis.com/auth/drive.file"));
     const accountCard = (account, enabled) => `<article class="google-file-account">
-      <div class="google-file-account-head"><div><h3>${esc(account.label)}</h3><p class="hint">${enabled ? "Enabled for this service" : "Already connected to Hutch"}</p></div>
+      <div class="google-file-account-head"><div><h3>${esc(account.label)}</h3>${account.email && account.email !== account.label ? `<p class="hint google-file-account-email">${esc(account.email)}</p>` : ""}<p class="hint">${enabled ? "Enabled for this service" : "Already connected to Hutch"}</p></div>
         <button class="btn ${enabled ? "ghost" : "primary"}" type="button" data-google-file-service="${service.id}" data-google-file-account="${esc(account.account_id)}" data-google-file-enabled="${!enabled}" data-google-file-revision="${Number(account.revision || 0)}">${enabled ? `Disable ${esc(service.title)}` : "Use this account"}</button></div>
       <p class="hint">Also enabled: ${esc(enabledFileServices(account).filter(id => id !== service.id).map(fileServiceName).join(", ") || "No other file services")}</p>
-      <details class="google-file-account-details"><summary>Account details</summary><p class="hint">Account reference: <code>${esc(account.account_id)}</code></p>
+      <details class="google-file-account-details"><summary>Account details</summary>${account.email ? "" : '<p class="hint">This older connection has no verified account email. Reconnect to identify the selected Google account.</p>'}<p class="hint">Account reference: <code>${esc(account.account_id)}</code></p>
         <p class="hint">${account.scopes.some(scope => /auth\/(documents|spreadsheets)$/.test(scope)) ? "This older connection has broader Google permissions. Disconnect and reconnect to use per-file consent." : "Google permission: per-file access (drive.file)."}</p>
         <button class="btn danger" type="button" data-workspace-disconnect="${esc(account.account_id)}">Disconnect shared Google account</button></details>
     </article>`;

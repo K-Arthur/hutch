@@ -93,6 +93,8 @@ class _Handler(BaseHTTPRequestHandler):
             return self._sheets(method, path, body)
         if path.startswith("/upload/drive/v3/files"):
             return self._upload(body)
+        if path == "/drive/v3/about" and method == "GET":
+            return self._send(200, {"user": {"emailAddress": "owner@example.test"}})
         if "/drive/v3/files" in path:
             return self._drive(method, path, body)
         self._send(404, {"error": {"message": f"unknown route {path}"}})
@@ -645,3 +647,36 @@ def test_reconciliation_search_cannot_accept_a_partial_page(google):
     server.overrides["GET /drive/v3/files"] = (200, {"files": [], "nextPageToken": "more"})
     with pytest.raises(GoogleWorkspaceError, match="bounded result window"):
         client.find_files_by_app_key(account.account_id, "hutch_creation", "exact-identity")
+
+
+
+def test_new_file_sign_in_uses_verified_google_email_without_extra_scope(google):
+    server, client, secrets = google
+    server.token_scope = client_module.FILE_SCOPE
+    start = client.start("Google Docs", "http://127.0.0.1:9/cb", service="docs")
+    account = client.finish(start.state, "code", "http://127.0.0.1:9/cb")
+    assert account.label == account.email == "owner@example.test"
+    assert client.accounts()[0].email == "owner@example.test"
+    enabled = client.set_service(account.account_id, "sheets", enabled=True, expected_revision=0)
+    assert enabled.email == "owner@example.test"
+    identity_calls = [call for call in server.calls if call["path"].startswith("/drive/v3/about")]
+    assert len(identity_calls) == 1
+    assert parse_qs(urlsplit(identity_calls[0]["path"]).query) == {"fields": ["user(emailAddress)"]}
+    assert parse_qs(urlsplit(start.url).query)["scope"] == [client_module.FILE_SCOPE]
+    client.disconnect(account.account_id)
+    assert not client.accounts()
+    assert not secrets.values
+
+
+@pytest.mark.parametrize("payload", [{}, {"user": {}}, {"user": {"emailAddress": "wrong\nidentity@example.test"}}, {"user": []}, {"user": {"emailAddress": "hidden\x00@example.test"}}])
+def test_unverified_google_identity_does_not_install_a_connection(google, payload):
+    server, client, secrets = google
+    server.token_scope = client_module.FILE_SCOPE
+    server.overrides["GET /drive/v3/about"] = (200, payload)
+    start = client.start("Docs", "http://127.0.0.1:9/cb", service="docs")
+    with pytest.raises(GoogleWorkspaceError, match="(identify|verified)"):
+        client.finish(start.state, "code", "http://127.0.0.1:9/cb")
+    assert not client.accounts()
+    assert not secrets.values
+    with pytest.raises(GoogleWorkspaceError, match="expired"):
+        client.finish(start.state, "code", "http://127.0.0.1:9/cb")

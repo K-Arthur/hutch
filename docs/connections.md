@@ -543,6 +543,14 @@ connections using one shared file-account transport. New sign-ins request only
 and [Sheets API](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/create)
 both accept that narrow scope. A native Picker and full-Drive search are not implemented.
 
+New file-service sign-ins identify the selected Google account using the Drive API's
+[`about.get`](https://developers.google.com/workspace/drive/api/reference/rest/v3/about/get)
+with only `user(emailAddress)` fields. This accepts the existing `drive.file` scope; no
+OpenID/profile scope or browser credential import is added. Hutch stores that returned
+email as local account metadata and displays it beside an optional nickname. A missing
+or malformed identity prevents installing the new connection. Legacy combined accounts
+are not silently queried or relabeled.
+
 An existing file connection can be explicitly enabled for another service without
 another Google sign-in or broader provider consent. Enable/disable operations use a
 versioned contract and account revision check; disabling Docs leaves Drive and Sheets
