@@ -2378,6 +2378,26 @@ def _migrate_76(db: sqlite3.Connection) -> None:
                "conversation_task_state_revisions BEGIN SELECT RAISE(ABORT, 'task-state revisions are retained'); END")
 
 
+def _migrate_77(db: sqlite3.Connection) -> None:
+    """One durable direct conversation per assistant; never merge transcripts."""
+    db.execute("""CREATE TABLE assistant_home_conversations (
+        bot_id TEXT PRIMARY KEY REFERENCES bots(id) ON DELETE CASCADE,
+        conversation_id TEXT NOT NULL UNIQUE REFERENCES conversations(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL
+    )""")
+    for operation in ("INSERT", "UPDATE"):
+        db.execute(f"""CREATE TRIGGER assistant_home_scope_{operation.lower()}
+            BEFORE {operation} ON assistant_home_conversations
+            WHEN NOT EXISTS (SELECT 1 FROM conversations c WHERE c.id = NEW.conversation_id
+                             AND c.bot_id = NEW.bot_id AND c.is_legacy = 0)
+            BEGIN SELECT RAISE(ABORT, 'home conversation must belong to its assistant'); END""")
+    db.execute("""CREATE TRIGGER assistant_home_conversation_scope
+        BEFORE UPDATE OF bot_id, is_legacy ON conversations
+        WHEN EXISTS (SELECT 1 FROM assistant_home_conversations h WHERE h.conversation_id = OLD.id
+                     AND (h.bot_id != NEW.bot_id OR NEW.is_legacy != 0))
+        BEGIN SELECT RAISE(ABORT, 'home conversation ownership cannot change'); END""")
+
+
 def _integration_tool_names(db: sqlite3.Connection, bot_id: str) -> list[str]:
     """Return sorted names for grants on enabled, operation-authorized integrations only."""
     rows = db.execute("SELECT g.canonical_name FROM integration_tool_grants g "
@@ -2394,7 +2414,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
                _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53, _migrate_54,
-               _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59, _migrate_60, _migrate_61, _migrate_62, _migrate_63, _migrate_64, _migrate_65, _migrate_66, _migrate_67, _migrate_68, _migrate_69, _migrate_70, _migrate_71, _migrate_72, _migrate_73, _migrate_74, _migrate_75, _migrate_76]
+               _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59, _migrate_60, _migrate_61, _migrate_62, _migrate_63, _migrate_64, _migrate_65, _migrate_66, _migrate_67, _migrate_68, _migrate_69, _migrate_70, _migrate_71, _migrate_72, _migrate_73, _migrate_74, _migrate_75, _migrate_76, _migrate_77]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 EVENT_OUTBOX_SCHEMA_VERSION = 71
 
@@ -4451,6 +4471,50 @@ class Store:
             row = db.execute("SELECT * FROM conversations WHERE id = ?", (conversation_id,)).fetchone()
         self.bus.notify("conversations", f"conversation:{conversation_id}")
         return dict(row), True
+
+    def assistant_home_conversation_id(self, bot_id: str) -> Optional[str]:
+        """Read the active home pointer without creating or restoring any conversation."""
+        with self._lock:
+            row = self._db.execute(
+                "SELECT c.id FROM assistant_home_conversations h JOIN conversations c ON c.id = h.conversation_id "
+                "WHERE h.bot_id = ? AND c.archived = 0", (bot_id,)).fetchone()
+        return str(row["id"]) if row else None
+
+    def ensure_assistant_home_conversation(self, bot_id: str, preferred_id: Optional[str] = None) -> tuple[str, bool]:
+        """Bind a direct conversation once, atomically across processes and devices.
+
+        An existing active pointer always wins. First use can retain an explicitly
+        selected ordinary chat, otherwise the latest ordinary chat, or create an
+        empty one. Assigned-task threads and legacy/archived history are never
+        implicitly adopted. Archiving a home leaves its history intact and allows
+        a new home on the next explicit ensure request.
+        """
+        with self._tx() as db:
+            if db.execute("SELECT 1 FROM bots WHERE id = ?", (bot_id,)).fetchone() is None:
+                raise KeyError(bot_id)
+            home = db.execute(
+                "SELECT c.id FROM assistant_home_conversations h JOIN conversations c ON c.id = h.conversation_id "
+                "WHERE h.bot_id = ? AND c.archived = 0", (bot_id,)).fetchone()
+            if home:
+                return str(home["id"]), False
+            ordinary = ("SELECT c.id FROM conversations c WHERE c.bot_id = ? AND c.archived = 0 AND c.is_legacy = 0 "
+                        "AND NOT EXISTS (SELECT 1 FROM workspace_tasks t WHERE t.child_conversation_id = c.id) ")
+            if preferred_id:
+                candidate = db.execute(ordinary + "AND c.id = ?", (bot_id, preferred_id)).fetchone()
+                if candidate is None:
+                    raise ValueError("the selected home must be an active direct conversation of this assistant")
+            else:
+                candidate = db.execute(ordinary + "ORDER BY c.updated_at DESC, c.id DESC LIMIT 1", (bot_id,)).fetchone()
+            conversation_id = str(candidate["id"]) if candidate else f"conv_{uuid.uuid4().hex[:12]}"
+            stamp = iso(utcnow())
+            if candidate is None:
+                db.execute("INSERT INTO conversations (id, bot_id, title, created_at, updated_at) VALUES (?, ?, '', ?, ?)",
+                           (conversation_id, bot_id, stamp, stamp))
+            db.execute("DELETE FROM assistant_home_conversations WHERE bot_id = ?", (bot_id,))
+            db.execute("INSERT INTO assistant_home_conversations (bot_id, conversation_id, created_at) VALUES (?, ?, ?)",
+                       (bot_id, conversation_id, stamp))
+        self.bus.notify("conversations", f"conversation:{conversation_id}", "bots")
+        return conversation_id, True
 
     def get_conversation(self, conversation_id: str) -> Optional[dict[str, Any]]:
         with self._lock:

@@ -705,6 +705,11 @@ class ConversationCreate(BaseModel):
     title: str = Field(default="", max_length=120)
 
 
+class AssistantHomeEnsure(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    preferred_conversation_id: Optional[str] = Field(default=None, min_length=1, max_length=100)
+
+
 class ConversationTitleRequest(BaseModel):
     title: str = Field(min_length=1, max_length=120)
 
@@ -949,6 +954,11 @@ class ConversationResource(BaseModel):
     active_run_id: Optional[str] = None
     active_run_status: Optional[str] = None
     active_run_status_label: Optional[str] = None
+
+
+class AssistantHomeResource(BaseModel):
+    bot_id: str
+    conversation: Optional[ConversationResource]
 
 
 class ConversationPageResource(BaseModel):
@@ -3482,6 +3492,27 @@ def create_app() -> FastAPI:
             raise HTTPException(409, str(exc)) from None
         response.status_code = 201 if created else 200
         return store.get_conversation(row["id"])
+
+    @app.get("/api/v1/bots/{ref}/home-conversation", response_model=AssistantHomeResource)
+    def get_assistant_home(ref: str) -> dict:
+        bot = bot_or_404(ref)
+        conversation_id = store.assistant_home_conversation_id(bot.id)
+        return {"bot_id": bot.id, "conversation": store.get_conversation(conversation_id) if conversation_id else None}
+
+    @app.put("/api/v1/bots/{ref}/home-conversation", response_model=AssistantHomeResource)
+    def ensure_assistant_home(ref: str, body: AssistantHomeEnsure, request: Request, response: Response) -> dict:
+        # This is a naturally idempotent, create-once resource. It never replaces
+        # an active pointer, launches work or changes model/tool/context authority.
+        bot = bot_or_404(ref)
+        require_remote_start(bot, request)
+        try:
+            conversation_id, created = store.ensure_assistant_home_conversation(bot.id, body.preferred_conversation_id)
+        except KeyError:
+            raise HTTPException(404, "No such assistant") from None
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        response.status_code = 201 if created else 200
+        return {"bot_id": bot.id, "conversation": store.get_conversation(conversation_id)}
 
     @app.get("/api/v1/conversations/{conversation_id}/export", response_model=ConversationExportResource)
     def export_conversation(conversation_id: str, response: Response) -> ConversationExportResource:

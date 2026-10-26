@@ -1256,6 +1256,13 @@ def test_coordinator_dispatch_is_reviewed_atomic_and_stays_in_specialist_context
     assert record["checkpoints"][0]["event_type"] == "message"
     child = client.get(f"/api/v1/conversations/{record['child_conversation_id']}").json()
     assert child["bot_id"] == specialist["id"]
+    home_url = f"/api/v1/bots/{specialist['id']}/home-conversation"
+    refused_home = client.put(home_url, json={"preferred_conversation_id": record["child_conversation_id"]})
+    assert refused_home.status_code == 409, "a task's isolated context must not become the specialist's direct chat"
+    home_response = client.put(home_url, json={})
+    assert home_response.status_code == 201, home_response.text
+    specialist_home = home_response.json()["conversation"]
+    assert specialist_home["id"] != record["child_conversation_id"] and specialist_home["message_count"] == 0
     # Only user turns are checked here: the app engine may already be executing the child
     # run, so its own assistant reply is legitimate and must not make this assertion racy.
     assert [(message["role"], message["content"])

@@ -106,6 +106,25 @@ Existing Hutch bot defaults, explicit per-message task-role routes and run overr
 already cover parts of this model. Existing `workspace_tasks` are individual
 specialist assignments with linked independent conversations; they do not yet form
 a complete multi-assistant task inspector. The composer/selector and stable roster
-are being improved first. Persistent home selection, assignment overrides,
-multi-assignment task presentation and aggregate budget validation remain pending
-until their implementation and end-to-end evidence are recorded in the checkpoint.
+have been improved. The durable home pointer now has store/API support; frontend
+home selection, assignment overrides, multi-assignment task presentation and
+aggregate budget validation remain pending until their end-to-end evidence is
+recorded in the checkpoint.
+
+### Durable direct-chat API
+
+`GET /api/v1/bots/{ref}/home-conversation` returns the assistant ID and its active
+home conversation, or `null`, without creating state. `PUT` with `{}` explicitly
+ensures the naturally idempotent resource and returns 201 for a new binding or
+200 for an existing one. Optional `preferred_conversation_id` retains a selected
+ordinary chat on first use. An existing active home wins over later preferences;
+this endpoint cannot replace it. It launches no run and changes no authority.
+
+On first use without a preference, Hutch adopts the most recently updated active
+ordinary chat or creates an empty one. Legacy, archived and specialist-assignment
+threads are excluded. It never merges transcripts. Archiving a home leaves it in
+history; the next explicit ensure creates/adopts another active direct chat rather
+than silently restoring the archive. A coordinator change does not reassign any
+conversation or home pointer. SQLite enforces assistant ownership, and concurrent
+connections agree on one pointer. Migration 77 adds the mapping without binding or
+rewriting any existing conversation automatically.
