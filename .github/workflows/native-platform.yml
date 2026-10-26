@@ -3,15 +3,6 @@ name: Native platform boundaries
 # Manual while desktop ports are incomplete. No publication or signing authority.
 on:
   workflow_dispatch:
-    inputs:
-      runner_source:
-        description: Use registered self-hosted machines, or standard hosted machines after the repository is public
-        required: true
-        type: choice
-        default: self-hosted
-        options:
-          - self-hosted
-          - public-hosted
 
 permissions:
   contents: read
@@ -22,11 +13,11 @@ concurrency:
 
 jobs:
   boundaries:
-    # Standard hosted compute is allowed only after the planned public transition.
-    if: ${{ inputs.runner_source == 'self-hosted' || (inputs.runner_source == 'public-hosted' && !github.event.repository.private) }}
+    # Standard hosted compute is free for public repositories; never run this matrix while private.
+    if: ${{ !github.event.repository.private }}
     name: Boundaries (${{ matrix.target }})
     timeout-minutes: 15
-    runs-on: ${{ inputs.runner_source == 'public-hosted' && matrix.runner || fromJSON(matrix.self_hosted) }}
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       max-parallel: 2
@@ -34,16 +25,12 @@ jobs:
         include:
           - target: linux-x64
             runner: ubuntu-24.04
-            self_hosted: '["self-hosted", "Linux", "X64", "hutch-ubuntu24-x64"]'
           - target: windows-x64
             runner: windows-2025
-            self_hosted: '["self-hosted", "Windows", "X64", "hutch-windows-x64"]'
           - target: macos-arm64
             runner: macos-14
-            self_hosted: '["self-hosted", "macOS", "ARM64", "hutch-macos14-arm64"]'
           - target: macos-x64
             runner: macos-15-intel
-            self_hosted: '["self-hosted", "macOS", "X64", "hutch-macos14-x64"]'
     defaults:
       run:
         shell: bash

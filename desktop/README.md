@@ -101,43 +101,31 @@ registration or browser credentials are borrowed.
 
 ## Native boundary CI
 
-[Native platform boundaries](../.github/workflows/native-platform.yml) is manual,
-with two concurrent workers and 15-minute job deadlines. The default is the user's
-selected **self-hosted** route. Each runner needs its normal OS/architecture labels
-plus exactly one Hutch label:
+[Native platform boundaries](../.github/workflows/native-platform.yml) is a manual
+matrix of standard GitHub-hosted Ubuntu 24.04 x64, Windows Server 2025 x64,
+macOS 14 arm64 and macOS 15 Intel machines. Two workers run concurrently, with
+15-minute deadlines. Repository visibility must be public before any matrix job
+runs; skipped jobs are not acceptance evidence. No paid private-hosted fallback,
+self-hosted setup or runner registration is required. The user asked Hutch's
+implementation work to handle CI provisioning and confirmed no existing runners.
 
-| Native target | Required Hutch label | Host check |
-|---|---|---|
-| Ubuntu x64 | `hutch-ubuntu24-x64` | Ubuntu 24.04, x64, 64-bit Python |
-| Windows x64 | `hutch-windows-x64` | Windows, x64, 64-bit Python; actual version recorded |
-| macOS arm64 | `hutch-macos14-arm64` | macOS 14+, arm64, 64-bit Python |
-| macOS Intel | `hutch-macos14-x64` | macOS 14+, Intel, 64-bit Python |
+The host recorder validates OS, architecture, 64-bit Python and minimum Linux/macOS
+versions, instead of trusting an image label. Checks exercise native kernel locks,
+concurrent skills writes, Windows/macOS synthetic credential roundtrips and the
+real Windows Job Object test. Host/source identity, JUnit and bounded Rust evidence
+are emitted in job logs, which [do not use artifact-storage quota](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
+No Actions artifact upload, cache or signing/publication authority is granted by
+this native workflow. Actions are pinned to verified commit IDs, toolchains are
+explicit and Python dependencies use the frozen lockfile.
 
-The host recorder rejects mismatched OS/architecture, older macOS and a Linux
-machine merely labeled Ubuntu. Runners need Python/pip and rustup, network access
-to locked dependency sources and an Actions agent compatible with Node 24
-(minimum 2.327.1; 2.329.0+ if using authenticated Docker container actions).
-Do not register or relabel a machine without establishing its owner and host.
-GitHub currently reports zero registered runners for this repository; locations
-of the existing runners remain to be supplied. No runner configuration changed.
+The main Python/browser CI is also public-only, uses frozen dependencies and
+explicit read permissions, and can be dispatched manually after the transition.
+Its existing small benchmark cache is retained for real regression comparisons;
+benchmark evidence goes to logs. The repository cache is currently 1,237 bytes,
+within GitHub's documented per-repository included cache allowance. No quota or
+account spending setting was changed.
 
-The explicit `public-hosted` choice is prepared for the planned public transition.
-It uses only standard GitHub-hosted Ubuntu 24.04, Windows Server 2025, macOS 14
-arm64 and macOS 15 Intel images. A repository-visibility guard prevents this route
-from running on a private repository. There is no automatic hosted fallback.
-A skipped matrix is not acceptance evidence. A new workflow must exist on the
-private repository's default branch before manual dispatch; existing push CI can
-also consume minutes, so do not push that branch until its routing is resolved.
-
-Checks exercise real kernel locks/concurrent registry mutation, Windows/macOS
-synthetic credential roundtrips and the real Windows Job Object test. Actual OS,
-architecture, Python and source commit, JUnit and bounded Rust output are emitted
-in job logs, which [do not use artifact-storage quota](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
-No Actions artifact/cache upload or signing/publication authority is granted.
-Actions are pinned to verified commit IDs, toolchain versions are explicit and
-Python dependencies use the frozen lockfile.
-
-These primitive checks do not replace Windows 11 or macOS 14 Intel installed-app
-checks. Unix has no process-supervision tests in the small Rust crate yet. Source
-history, artifacts and licenses need review before the planned visibility and
-publication step. Missing native results remain release blockers.
+Windows Server and macOS 15 Intel checks do not replace Windows 11/macOS 14 Intel
+installed-app validation. Unix has no process-supervision tests in the small Rust
+crate yet. Source/history/license review precedes the planned public transition;
+missing native results remain explicit release blockers.
