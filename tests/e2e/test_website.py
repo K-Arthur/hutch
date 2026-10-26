@@ -257,7 +257,7 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     assert not external_requests, external_requests
     out = artifact_path("assistant-first-ui/marketing")
     out.mkdir(parents=True, exist_ok=True)
-    audit_out = ROOT / "docs/realignment/artifacts/ui-audit-2026-10-20/marketing"
+    audit_out = artifact_path("ui-audit/marketing")
     audit_out.mkdir(parents=True, exist_ok=True)
     viewports = (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844),
                  ("compact-phone", 320, 740))
@@ -485,6 +485,9 @@ def test_chatgpt_background_consent_marketing_copy_at_responsive_sizes(browser, 
         assert "completed hutch answer into a reviewed coding task" in coding_text
         assert "hutch code login" in coding_text
         assert "hutch's private profile" in coding_text
+        assert "one existing local opencode api login" in coding_text
+        assert "hutch's own tools, approvals and effect receipts" in coding_text
+        assert "unmanaged opencode subagents remain unavailable" in coding_text
         assert "separate worktree from the selected git commit" in coding_text
         assert "outside hutch's budget and sandbox" in coding_text
         for label, width, height in (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844)):
@@ -789,7 +792,7 @@ def test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation(browser, s
 
 def test_provider_availability_is_readable_without_horizontal_page_scroll(browser, site_url):
     context, page, errors = _page(browser, reduced_motion="reduce")
-    out = ROOT / "docs/realignment/artifacts/ui-audit-2026-10-20/availability"
+    out = artifact_path("ui-audit/availability")
     out.mkdir(parents=True, exist_ok=True)
     external = []
     page.on("request", lambda request: external.append(request.url)

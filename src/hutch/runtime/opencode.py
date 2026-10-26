@@ -70,10 +70,10 @@ def _agent_definition(bot_id: str, *, title: str, instructions: str,
     which OpenCode capabilities are enabled: no `shell` means shell execution
     is denied, no file-writing tool means edit/write are denied, and no web
     tool means web access is denied. Read-only workspace inspection remains
-    available. Memory is brokered through the run-bound bridge
-    (``opencode_memory``) when it was admitted at run start; tools Hutch
-    cannot broker inside OpenCode (browser, computer, delegation) are not
-    silently offered.
+    available. Admitted canonical tools, including browser text results, are
+    brokered through the run-bound bridge (``opencode_memory``). Native
+    computer control and unmanaged delegation are not silently offered;
+    visual-result pixels are not forwarded by the text bridge.
     """
     agent_id = f"hutch-{_safe_component(bot_id)}"
     edit_allowed = "write_file" in tool_names and "write_file" not in brokered_tools

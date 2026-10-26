@@ -1,0 +1,47 @@
+{
+  "test": "tests/e2e/test_website.py::test_home_loads_real_assets_and_truthful_availability",
+  "captured_at": "2026-10-26T11:10:41.534963+00:00",
+  "browser": "153.0.8010.12",
+  "source_sha256": {
+    "website/index.html": "4519aba815ea54ad130ee595fb6aa215b2c154756bc1bc48e80e055b8dfac9a7",
+    "website/styles.css": "fa6ca9ffcf7dcb607697727f1f7a8f7b9baad6b75cb2125419f9e57d477a0b99",
+    "website/styles.min.css": "8396aaee175dc434b0024caec38d67a86d16de0b86d7a8cbdcd7ac57c4d81488",
+    "website/site.js": "5b30d3f5a02a2d1c5407f89a2ad09c9e9960f31269aba596268d46dfaf41c2d1"
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "viewport": [
+        1440,
+        900
+      ],
+      "overflow": 0
+    },
+    {
+      "name": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "overflow": 0
+    },
+    {
+      "name": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "overflow": 0
+    },
+    {
+      "name": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "overflow": 0
+    }
+  ],
+  "external_requests": [],
+  "page_errors": []
+}
