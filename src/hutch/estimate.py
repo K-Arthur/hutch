@@ -100,7 +100,7 @@ class RunEstimator:
                  conversation_context: Optional[list[dict[str, str]]] = None,
                  conversation_id: str = "", skills: Optional[list[str]] = None, rehearse: bool = False):
         self.config, self.store, self.bot = config, store, bot
-        from .runtime.builtin import COORDINATOR_GUIDANCE, REHEARSAL_NOTE, SYSTEM_TEMPLATE
+        from .runtime.instructions import COORDINATOR_GUIDANCE, REHEARSAL_NOTE, SYSTEM_TEMPLATE
         coordination = COORDINATOR_GUIDANCE if store.workspace_coordinator_id() == bot.id else ""
         system = SYSTEM_TEMPLATE.format(name=bot.name, description=bot.description or "(none given)",
                                         instructions=bot.instructions or "(none given)", workspace="/workspace",
