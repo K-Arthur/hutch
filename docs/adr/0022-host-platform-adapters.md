@@ -72,3 +72,38 @@ exclusion when `fcntl` is unavailable. Unlock errors still close the owned handl
 allowing kernel cleanup and preventing a stuck registry lock. Linux cross-process
 registry contention and handle-error cleanup are exercised together with the existing
 skills/API suites; native Windows execution remains outstanding.
+
+### Native credential contract v1
+
+Google file/Calendar/Gmail and Notion stores, plus Microsoft Calendar/Mail stores,
+select Windows Credential Manager or macOS Keychain on those systems. Linux keeps
+its existing Secret Service CLI protocol. Values go through native APIs, never
+command arguments, SQLite, browser storage or fallback files. Errors omit backend
+arguments. Disconnect is idempotent only after a successful missing lookup;
+unavailable/locked stores do not become silently empty credentials.
+
+The adapter directly selects the pinned native keyring class. It never invokes
+backend discovery or loads the operator's keyring config, `KEYRING_PROPERTY_*`,
+`KEYCHAIN_PATH` or `PYTHON_KEYRING_BACKEND` choices. Constructors explicitly choose
+local per-user Windows persistence (no enterprise roaming) and the default macOS
+keychain. Each native service target includes its account reference: the Windows
+backend's service-level relocation cannot overwrite a different account during
+concurrent sign-ins. No unrelated credentials are enumerated or imported.
+
+Dependency: **keyring 25.7.0**, conditional on Windows/macOS. Verified the published
+wheel's SHA-256 against PyPI and read its included MIT license before integration:
+`be4a0b195f149690c166e850609a477c532ddbfbaed96a404d4e43f8d5e2689f`.
+Use is through the library, not copied implementation code. Source/API:
+[keyring v25.7.0](https://github.com/jaraco/keyring/tree/v25.7.0),
+[Windows backend](https://github.com/jaraco/keyring/blob/v25.7.0/keyring/backends/Windows.py),
+[macOS backend](https://github.com/jaraco/keyring/blob/v25.7.0/keyring/backends/macOS/__init__.py).
+The lockfile records its conditional transitive dependencies; frozen target builds
+explicitly include the selected native module and dependency license metadata.
+
+Linux contract tests use a synthetic vault to verify routing, namespace separation,
+error redaction and no subprocess/fallback. They are not Windows/macOS execution.
+Native CI contains a real synthetic credential roundtrip, update, deletion and
+idempotent disconnect; it must run on each OS. OS vault quotas, locked/cancelled
+prompts, packaged-app access identity and restart behavior remain native validation
+requirements. This adapter does not port POSIX private-file operations or enable
+the unsupported Windows/macOS worker engine.

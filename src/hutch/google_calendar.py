@@ -1,7 +1,7 @@
 """Local Google Calendar OAuth client with separately requested event creation.
 
 This module uses Google's installed-app authorization-code flow with PKCE. Only
-refresh credentials are retained, through the Linux Secret Service CLI; token
+refresh credentials are retained, through the selected operating-system credential store; token
 responses and calendar data are never written to Hutch's SQLite database or
 transcripts. API destinations are fixed Google hosts and redirects are disabled.
 """
@@ -9,7 +9,7 @@ transcripts. API destinations are fixed Google hosts and redirects are disabled.
 from __future__ import annotations
 
 import base64
-from .platforms import locking as fcntl
+from .platforms import locking as fcntl, credentials as native_credentials
 import hashlib
 import json
 import os
@@ -90,7 +90,7 @@ class SecretStore(Protocol):
 
 
 class SecretToolStore:
-    """Use Linux Secret Service through secret-tool without putting values in argv."""
+    """Use the selected OS secret store without values in argv or fallback files."""
 
     service = "hutch.google-calendar"
     feature_name = "Google Calendar"
@@ -102,6 +102,8 @@ class SecretToolStore:
 
     def available(self) -> bool:
         global _SECRET_PROBE_RESULT
+        if self._run is None and native_credentials.native_host():
+            return native_credentials.available()
         if shutil.which("secret-tool") is None:
             return False
         now = time.monotonic()
@@ -135,6 +137,16 @@ class SecretToolStore:
         return account_id
 
     def _call(self, args: list[str], *, input_text: str | None = None):
+        if self._run is None and native_credentials.native_host():
+            if len(args) < 5 or args[-4:-1] != ["service", self.service, "account"]:
+                raise GoogleCalendarError("invalid credential operation")
+            try:
+                # Existing methods append exactly one stdin newline. Values stay
+                # in memory and native API calls, never subprocess arguments.
+                value = input_text[:-1] if input_text is not None else None
+                return native_credentials.operate(args[0], self.service, self._account(args[-1]), value)
+            except native_credentials.NativeCredentialError as exc:
+                raise GoogleCalendarError(str(exc)) from None
         if not self.available():
             raise GoogleCalendarError("Linux Secret Service is unavailable; install and unlock secret-tool before connecting an account")
         try:

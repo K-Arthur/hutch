@@ -14,7 +14,7 @@ metadata; the spec now includes dependency metadata recursively.
 The frozen check was built with Python 3.13.15, PyInstaller 6.22.3 and glibc 2.44.
 It is not an Ubuntu 24.04 compatibility result. The native GUI, installed package,
 tray behavior and WebKit cookie/navigation journey still need actual validation.
-Windows/macOS execution and workspace/process/IPC boundaries remain unported.
+Windows/macOS execution and workspace/process/IPC boundaries remain unported. Native credential adapters are implemented but still need actual vault and packaged-app validation.
 No signing, notarization, updater or public download is enabled.
 
 ## Develop
@@ -104,7 +104,7 @@ registration or browser credentials are borrowed.
 [Native platform boundaries](../.github/workflows/native-platform.yml) is a manual,
 read-only-repository workflow with four bounded jobs: Ubuntu 24.04 x64, Windows
 Server 2025 x64, macOS 14 arm64 and macOS 15 Intel. It runs actual cross-process
-locks, concurrent skill-registry mutation and the Windows native Job Object test.
+locks, concurrent skill-registry mutation, Windows/macOS credential-vault roundtrips and the Windows native Job Object test.
 Unix has no process-supervision tests in that small crate yet. Source commit,
 actual OS/architecture/Python, JUnit and bounded Rust logs are retained as private
 artifacts for seven days. Actions are pinned to verified commit IDs; Python, uv

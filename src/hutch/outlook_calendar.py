@@ -1,8 +1,8 @@
 """Local, read-only Microsoft Outlook Calendar client.
 
 The owner connects through Microsoft identity platform's delegated authorization
-code flow with S256 PKCE. Hutch stores refresh credentials in Linux Secret
-Service, never SQLite or browser storage. Graph requests are fixed to the
+code flow with S256 PKCE. Hutch stores refresh credentials in the selected OS
+credential store, never SQLite or browser storage. Graph requests are fixed to the
 Microsoft Graph v1.0 host, redirects are disabled, and only basic event fields
 are requested.
 """
@@ -10,7 +10,7 @@ are requested.
 from __future__ import annotations
 
 import base64
-from .platforms import locking as fcntl
+from .platforms import locking as fcntl, credentials as native_credentials
 import hashlib
 import ipaddress
 import json
@@ -58,7 +58,7 @@ class SecretStore(Protocol):
 
 
 class SecretToolStore:
-    """Use Linux Secret Service through secret-tool without putting values in argv."""
+    """Use the selected OS credential store without values in argv or fallback files."""
 
     service = "hutch.outlook-calendar"
     feature = "Outlook Calendar"
@@ -82,6 +82,8 @@ class SecretToolStore:
 
     def available(self) -> bool:
         global _SECRET_PROBE_RESULT
+        if self._run is None and native_credentials.native_host():
+            return native_credentials.available()
         if shutil.which("secret-tool") is None:
             return False
         now = time.monotonic()
@@ -100,6 +102,14 @@ class SecretToolStore:
             return ready
 
     def _call(self, args: list[str], *, input_text: str | None = None):
+        if self._run is None and native_credentials.native_host():
+            if len(args) < 5 or args[-4:-1] != ["service", self.service, "account"]:
+                raise OutlookCalendarError("invalid credential operation")
+            try:
+                value = input_text[:-1] if input_text is not None else None
+                return native_credentials.operate(args[0], self.service, self._account(args[-1]), value)
+            except native_credentials.NativeCredentialError as exc:
+                raise OutlookCalendarError(str(exc)) from None
         if not self.available():
             raise OutlookCalendarError(
                 f"Linux Secret Service is unavailable; install and unlock secret-tool before connecting {self.feature}")

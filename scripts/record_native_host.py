@@ -25,7 +25,7 @@ def main() -> int:
         "machine": platform.machine(),
         "python": platform.python_version(),
         "python_bits": 64 if sys.maxsize > 2**32 else 32,
-        "scope": "kernel locks and skills registry; Windows Job Object on Windows only",
+        "scope": "kernel locks and skills registry; OS vault on Windows/macOS; Job Object on Windows only",
         "limitations": [
             "Not an installed desktop-package or GUI result",
             "Windows Server is not Windows 11 acceptance",

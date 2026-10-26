@@ -4,10 +4,16 @@ Built on the target OS; this does not cross-compile native dependencies.
 """
 from pathlib import Path
 import os
-from PyInstaller.utils.hooks import collect_all, copy_metadata
+import sys
+from PyInstaller.utils.hooks import collect_all, collect_submodules, copy_metadata
 
 root = Path(SPECPATH).parent
 data, binaries, imports = collect_all("hutch")
+# Explicitly include the selected native backend. Runtime selection never discovers plugins.
+if sys.platform in ("win32", "darwin"):
+    selected_keyring = "keyring.backends.Windows" if sys.platform == "win32" else "keyring.backends.macOS"
+    imports += collect_submodules(selected_keyring)
+    data += copy_metadata("keyring", recursive=True)
 oauth_input = os.environ.get("HUTCH_BUILD_OAUTH_APPS")
 if oauth_input:
     # Replace the empty development registration, never append a competing copy.

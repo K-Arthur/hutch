@@ -688,3 +688,13 @@ another phone. KDE Connect's status grants remain a separate, explicitly chosen 
 capability. Opening the directory reads saved grant metadata; it does not enumerate
 phones or change remote-access configuration. A late directory response cannot replace
 another page after navigation.
+
+## Native credential stores
+
+The Windows/macOS desktop ports select Windows Credential Manager or macOS Keychain
+for the Google, Microsoft and Notion secret-store paths. Linux retains Secret Service
+through `secret-tool`. Native adapters are implemented; actual native and packaged-app
+validation is still required, and this does not make the full desktop ports available.
+Hutch chooses the OS backend explicitly, ignores ambient keyring configuration, and
+uses no plaintext fallback. Unlock/permission/quota failures remain explicit errors.
+See [ADR 0022](adr/0022-host-platform-adapters.md#native-credential-contract-v1).
