@@ -4011,7 +4011,7 @@ def test_workflow_amendment_drain_control_is_owner_reviewable_and_responsive(bro
         assert preview["quiescence"]["owned_work_quiet"] is False
         assert preview["quiescence"]["carry_active_nodes"] == []
         assert [item["site_id"] for item in preview["quiescence"]["drainable_active_nodes"]] == ["work"]
-        assert dialog.get_by_role("button", name="Stop affected steps").is_visible()
+        pw.expect(dialog.get_by_role("button", name="Stop affected steps")).to_be_visible()
         assert dialog.get_by_role("button", name="Adoption unavailable").is_disabled()
         assert "unfinished model response" in dialog.inner_text()
         assert "tool-free child with no owned descendants" in dialog.inner_text()
@@ -4454,7 +4454,7 @@ def test_google_calendar_event_creation_scope_is_explicit_and_owner_only(browser
                 assert approval.get_by_role("button", name="Grant after review").bounding_box()["height"] >= 44
         page.set_viewport_size({"width": 1440, "height": 960})
         approval.get_by_role("button", name="Grant after review").click()
-        page.get_by_text("Can read and create events on Personal Calendar", exact=False).wait_for()
+        account.locator(".google-calendar-grants").get_by_text("Can read and create events on Personal Calendar", exact=False).wait_for()
         grant = app.state.store.google_calendar_grant(bot.id)
         assert grant and grant["allow_event_creation"] is True and grant["calendar_id"] == "primary"
         grant_summary = account.locator(".google-calendar-grants .device-row")
@@ -5938,8 +5938,7 @@ def test_spa_transcript_renders_a_live_run(browser, live, monkeypatch):
     errors: list[str] = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.goto(f"{base}/#/run/{run.id}")
-    page.wait_for_selector("#chat-stream .msg.agent .answer", timeout=30_000)
-    assert "done" in page.inner_text("#chat-stream")
+    pw.expect(page.locator("#chat-stream .msg.agent .answer")).to_have_text("done", timeout=30_000)
     assert not errors, errors
     ctx.close()
 
@@ -11027,7 +11026,7 @@ def test_fleet_appears_at_ten_bots_with_search_and_state_filters(browser, live):
     card = page.locator('[data-fleet-bot="fleet-9"]')
     card.locator("[data-fleet-options]").click()
     menu = card.locator(".fleet-card-menu-panel")
-    assert menu.get_by_role("menuitem", name="Pause assistant").is_visible()
+    pw.expect(menu.get_by_role("menuitem", name="Pause assistant")).to_be_visible()
     with page.expect_response(lambda response: response.url.endswith("/api/bots/fleet-9")
                              and response.request.method == "PATCH") as paused:
         menu.get_by_role("menuitem", name="Pause assistant").click()
