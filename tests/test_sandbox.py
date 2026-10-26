@@ -7,6 +7,7 @@ read ~/.ssh or open a socket. These tests are attempts to do exactly that, run f
 from __future__ import annotations
 
 import os
+import shlex
 import socket
 import subprocess
 import time
@@ -57,17 +58,23 @@ def test_the_shell_cannot_see_the_real_home_or_any_folder_outside_the_workspace(
     secret = tmp_path / "secret.txt"                                  # a canary outside the workspace
     secret.write_text("TOP-SECRET-CANARY")
     home = Path.home()
-    res, ws = shell(store, config, tmp_path, f"cat {secret}; ls {home}; ls /home; echo HOME=$HOME")
+    start, end = f"HOME-LIST-{uuid.uuid4().hex}", f"HOME-END-{uuid.uuid4().hex}"
+    res, ws = shell(store, config, tmp_path,
+        f"cat {shlex.quote(str(secret))}; echo {start}; ls -1A {shlex.quote(str(home))}; echo {end}; ls /home; echo HOME=$HOME")
     assert "TOP-SECRET-CANARY" not in res.output
     assert f"HOME={ws}" in res.output
     # The security property is "the real home's contents are not visible", not a specific
-    # error string: the sandbox's empty mount may legitimately expose only the directory
-    # name (e.g. 'kevina' under /home) without any of its entries. Check entries.
+    # error string. A home-nested workspace needs empty ancestor directories, but
+    # no other home entries. Inspect the listing itself: matching a home entry as
+    # a substring of HOME=/.../CodingProjects/... falsely reports "Projects".
+    assert start in res.output and end in res.output
+    listed = set(res.output.split(start, 1)[1].split(end, 1)[0].splitlines())
+    ancestor = ws.relative_to(home).parts[0] if ws.is_relative_to(home) else None
     try:
-        entries = [name for name in os.listdir(home) if name not in (".", "..")][:12]
+        entries = [name for name in os.listdir(home) if name not in (".", "..", ancestor)]
     except OSError:
         entries = []
-    leaked = [name for name in entries if name in res.output]
+    leaked = [name for name in entries if name in listed]
     assert not leaked, f"real home entries visible in the sandbox: {leaked}"
 
 
