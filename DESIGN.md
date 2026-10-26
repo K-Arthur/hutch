@@ -98,9 +98,12 @@ rounded:
 spacing:
   xs: "4px"
   sm: "8px"
+  snug: "12px"
   md: "16px"
   lg: "24px"
   xl: "32px"
+  xxl: "40px"
+  section: "56px"
 components:
   button-primary:
     backgroundColor: "{colors.primary}"
@@ -191,7 +194,8 @@ emerald is forbidden (≈2.5:1).
 **The Amber Rule.** Amber appears only where a person must act now — pending
 approvals, expiring deadlines under two minutes, the attention nav badge. Never as
 decoration, never on "done" or "failed".
-**The Scale Rule.** Every corner radius comes from `rounded.*`; no ad-hoc values.
+**The Scale Rule.** Every corner radius comes from `rounded.*`, every text size from the type scale and every
+padding or gap from the spacing scale; no ad-hoc values.
 **The Mono Rule.** Mono type is for code, commands, paths, identifiers and values the
 server measured — never for prose, labels, or marketing.
 **The Edge Rule.** A control that is identified by its boundary (text field, select,
@@ -234,7 +238,16 @@ on Activity. The header repeats none of them.
   0.75rem/1.45. Composer text stays at 1rem or above.
 - **Labels:** Geist with medium/semibold weight and restrained uppercase tracking
   only for compact group labels.
-- **Wordmark:** 1.0625rem/1 weight 650, tight tracking.
+- **The type scale.** Product text sets in six steps and nothing between them:
+  **12** caption and metadata (kbd, chips, group labels), **13** small copy and
+  mono, **14** labels and interface text (navigation, buttons, table cells),
+  **16** body, **18** section titles, modal titles and the wordmark, **24** page
+  titles and figures; **17** is reserved for long reading and the display band
+  (28–36, fluid) for occasional welcome emphasis. 11, 12.5, 13.5, 15 and 20px do
+  not exist in the product; `font-size: 0` is only how a header button collapses
+  to its icon on a narrow screen. Enforced by
+  `tests/e2e/test_type_and_spacing_scale.py`.
+- **Wordmark:** 1.125rem/1 weight 650, tight tracking.
 - **Mono:** commands, paths, code, ids, durations, tokens, budgets — tabular
   numerals, ligatures disabled. Prose never uses mono (The Mono Rule).
 - **Shared voice:** one family across app, supporting pages and marketing site, so the
@@ -275,6 +288,18 @@ on Activity. The header repeats none of them.
   state persists per browser. Expanded, it reads top to bottom: logo with the two global
   round actions (search opens the command palette, plus starts a conversation), quiet
   navigation rows, the assistant roster, and two pill links (Apps & AI, Settings).
+- **Spacing rhythm.** Everything sits on the 4px grid (4, 8, 12, 16, 24, 32, 40,
+  56; 1–2px only for hairlines and optical nudges). Roles, not taste, pick the step:
+  cards and panels pad **16** (12 for dense rows and nested blocks, 24 for hero,
+  empty and first-run surfaces); stacked cards are **16** apart, dense list rows
+  12 (8 on phones), page sections 32; a heading sits 8–12 above its content; a
+  control's icon-to-label gap is 8. Control heights form one ladder: **32** small
+  and inline, **36** header and toolbar controls, **40** primary and decision
+  actions, **44** fields and every control on a coarse pointer. A stack that already
+  has a row gap never also gives its children a bottom margin (that doubled the
+  space between connection cards). Geometry derived from a component (the avatar
+  gutter, an icon-input indent, composer clearance) is computed from that component,
+  not hand-tuned.
 - Conversation column: max 760px, composer pinned 24px above the safe area;
   feed scrolls internally (app frame never page-scrolls).
 - First run follows the width of its own pane (container query), not the window: at
@@ -387,8 +412,9 @@ chosen by the role of the shape and not by taste:
   per Bot (pin/unpin, settings) sits in its own 28px column so ordinary names stay whole
   at the 272px sidebar; hover and focus add contrast. Long names end with an ellipsis
   while the full name remains in the row title; idle Bots collapse into a searchable
-  group in workspaces with ten or more Bots. The roster filter hides until a first
-  assistant exists.
+  group in workspaces with ten or more Bots. Once something is pinned, the group
+  below it gets its own **All assistants** heading so the gap reads as a division. The roster filter hides
+  until a first assistant exists.
 - **Model picker** — a pill beside the composer actions shows the model in use (brand
   tint when it is a one-message override). Its menu groups choices by where they run
   (**On this machine**, **Hosted · leaves this machine**), each row an icon tile, the
@@ -400,13 +426,28 @@ chosen by the role of the shape and not by taste:
   schedule, run recency, estimated tokens and memory counts together under one
   **More details** disclosure. Do not repeat machine-oriented telemetry on every
   card by default; pause/resume and settings remain together in the card menu.
-- **Assistant settings** — start with the editable name and short description.
-  Keep standing directions and technical controls under one optional
-  **Customize how it works** disclosure; preserve its open state after a save so
-  people can adjust several related choices in one visit.
-  Use the shared 1040px rail, with fields responding to their panel's actual
-  width. Range inheritance and its slider/value occupy separate rows so labels
-  remain legible inside the secondary-column layout.
+- **Assistant settings** — seven panes behind a section rail: **Profile** (name,
+  look, role), **Behavior** (standing directions, response style, specialists),
+  **AI model**, **Tools and access**, **Schedule**, **Safety** (approvals,
+  command rules, always-allowed actions) and **Limits and memory**. The rail is an
+  ARIA tablist: vertical beside the pane from 760px of pane width, a scrolling
+  row (sticky, with `scroll-padding` so a focused field is never hidden under it)
+  below; arrows, Home and End move and select; the selected tab is always fully
+  visible; the choice survives the re-render a save triggers and is remembered
+  per assistant for the session. Every pane stays in the DOM so each form keeps
+  its id and handlers; only the selected pane is painted. A pane has one heading
+  and a line saying what it holds, then ordinary panels. The 1040px rail and
+  panel-width-responsive fields still apply; range inheritance and its
+  slider/value occupy separate rows.
+- **Chat and assistant options** — a popover of four labelled groups, each naming
+  what it acts on: **This chat** (rename, pin, mark unread, section, and under More
+  the export, reusable-request and archive actions), **Workflow** (the per-chat
+  mode as a labelled row with its explanation), **This assistant** (response
+  style, assistant settings) and **Go to** (main chat, conversation history).
+  Settings never hide among conversation actions, and a select is never a card
+  inside a menu.
+- **Needs-you reminder** — the strip under the header states the count once; its action wears the amber
+  wash and outline because a person is needed now, not the neutral ghost outline of other secondary actions.
 - **Settings disclosure row** — every collapsible settings row uses the shared
   skeleton: one grid of icon slot, copy, and trailing Show/Hide action, in a
   large panel-level size and a small in-panel size. Borders and fills belong to

@@ -95,6 +95,9 @@ and marketing disclosures are not popup menus.
 | Micro / control / panel / chat / pill radius | `4 / 8 / 12 / 20 / 100px` (`50%` for circles) | One shared scale for the dashboard and the site, chosen by role and stepping down when nested; no surface owns a private radius (`tests/e2e/test_radius_scale.py` enforces it) |
 | UI and headings / code and measured data | local Geist / Geist Mono | One family for language; mono for code, commands, paths and machine values |
 | App type roles | `1rem` body / `1.0625rem` reading / `1.5rem` page title | Responsive hierarchy that respects browser text scaling |
+| Product text steps | `12 / 13 / 14 / 16 / 18 / 24px` (17 for long reading, a 28–36 display band) | Caption, small, label, body, section, page title; nothing between them (`tests/e2e/test_type_and_spacing_scale.py`) |
+| Spacing scale | `4 / 8 / 12 / 16 / 24 / 32 / 40 / 56px` | Cards pad 16 (12 dense, 24 hero), stacked cards sit 16 apart, sections 32; 1–2px only for hairlines |
+| Control heights | `32 / 36 / 40 / 44px` | Small and inline / header and toolbar / primary and decisions / fields and coarse pointers |
 | App icon family | `16 / 20 / 24px`, `24px` view box | Local category vectors in 48px desktop/tablet tiles and compact 40px phone rows; exact service names and states stay visible |
 
 The app and marketing site share locally bundled Geist (and Geist Mono for code and
