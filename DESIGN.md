@@ -416,12 +416,23 @@ chosen by the role of the shape and not by taste:
   group in workspaces with ten or more Bots. Once something is pinned, the group
   below it gets its own **All assistants** heading so the gap reads as a division. The roster filter hides
   until a first assistant exists.
-- **Model picker** — a pill beside the composer actions shows the model in use (brand
-  tint when it is a one-message override). Its menu groups choices by where they run
-  (**On this machine**, **Hosted · leaves this machine**), each row an icon tile, the
-  model name, a default tag and one quiet line; a check marks the one in use. The
-  "Choose a model" dialog uses the same tile on card rows with the selection control at
-  the far edge, a search field with an icon, and the cost and fit line under each name.
+- **Model picker** — a pill beside the composer actions shows the mark and name of the
+  model in use (brand tint when it is a one-message override). Every model wears a
+  **vendor mark**: bundled artwork where a maker's brand rules allow it (OpenAI,
+  Anthropic), otherwise a monogram of the model family on a tile whose hue comes from
+  that family, so qwen, gemma and llama stay distinguishable; a small badge on the tile
+  says whether it runs **on this machine** or **leaves it**. Marks are decorative and
+  generated content, never part of a control's name; colour is identity, never status,
+  and the words still say where a model runs. The menu opens on **Quick picks** (the
+  default, what is in use, and the last four routes chosen for this assistant), then the
+  remaining usable routes grouped by where they run, then **All models** (key hint `/`)
+  and, when an override is active, Save as default. Rows carry **number keys 1-9** shown as
+  key hints on pointer devices (hidden on touch); the command palette's **Choose a model**
+  opens it from anywhere on a chat page. The "Choose a model" dialog uses the same marks on
+  card rows with the selection control at the far edge, opens with the search field focused
+  on pointer devices, shows a **Recent** group first, offers **All / Ready now / On this
+  machine / Hosted** filters, and takes the up and down arrows to move the choice and Enter
+  to use it without leaving the search field; each route is one radio, never repeated.
 - **Fleet card** — lead with the assistant's name, readiness, plain-language role,
   run cadence and action expectation. Keep provider/model identifiers, exact
   schedule, run recency, estimated tokens and memory counts together under one

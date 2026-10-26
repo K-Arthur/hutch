@@ -13527,6 +13527,8 @@ function startOwnerApp() {
     recentConversations: () => api("/v1/conversations?include_legacy=true&limit=40"),
     openNeedsYou: () => void openNeedsYou(),
     searchMessages: () => openConversationSearch(null),
+    hasModelPicker: () => !!window.hutchModelSwitcher?.available?.(),
+    openModelPicker: () => window.hutchModelSwitcher?.open?.(),
   });
   // The sidebar header carries the global search; the palette is the one place that searches everything.
   $("#ws-search")?.addEventListener("click", () => {

@@ -84,6 +84,7 @@
         { kind: "Go to", label: "Usage", icon: "chart", keywords: "tokens cost spending", run: () => { location.href = "/usage"; } },
       ];
       const actions = [
+        ...(ctx.hasModelPicker?.() ? [{ kind: "Action", label: "Choose a model", icon: "zap", keywords: "model switch change ai route provider", run: () => ctx.openModelPicker() }] : []),
         { kind: "Action", label: "New assistant", icon: "users", keywords: "create helper bot", run: () => { location.hash = "#/assistant/new"; } },
         { kind: "Action", label: "Search messages", icon: "search", keywords: "find text in chats", run: () => ctx.searchMessages() },
       ];
