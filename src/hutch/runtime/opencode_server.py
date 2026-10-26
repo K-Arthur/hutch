@@ -56,22 +56,30 @@ class OpenCodeModel:
         return f"opencode/{self.provider_id}/{self.model_id}"
 
 
+RUNTIME_CONTROL_VERSION = 1
+_MAINTENANCE_AGENTS = ('title', 'summary', 'compaction')
+
+
 def _write_runtime_config(state_dir: Path, agents: dict[str, Any],
                           plugins: Optional[list[Any]] = None) -> Path:
     """Write the private runtime config containing this assistant's agent."""
     from ..code_handoff import opencode_profile_paths
     paths = opencode_profile_paths(state_dir)
-    path = paths["root"] / "runtime-config.json"
+    # Each owned server watches its configuration. Sharing a filename lets a
+    # second Bot replace the first Bot's agent, route and run-bound bridge.
+    path = paths["root"] / f"runtime-config-{secrets.token_hex(16)}.json"
     payload = {
         "$schema": "https://opencode.ai/config.json",
         "share": "disabled",
-        "autoupdate": False,
+        "update": "disable",
+        "compaction": {"auto": False},
+        "warming": False,
         "mcp": {},
         "plugins": list(plugins or []),
-        "agents": agents,
+        "agents": {**agents, **{name: {"disabled": True} for name in _MAINTENANCE_AGENTS}},
     }
     content = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as stream:
             stream.write(content)
@@ -104,6 +112,7 @@ class OpenCodeServer:
         self._password = ""
         self._client = None
         self._stderr: list[str] = []
+        self._runtime_config: Optional[Path] = None
 
     # ---------------------------------------------------------------- lifecycle
 
@@ -133,6 +142,14 @@ class OpenCodeServer:
             return
         config_path = (write_profile_config(self.state_dir) if not self.agents
                        else _write_runtime_config(self.state_dir, self.agents, self.plugins))
+        self._runtime_config = config_path if self.agents else None
+        try:
+            self._start(config_path)
+        except BaseException:
+            self.close()
+            raise
+
+    def _start(self, config_path: Path) -> None:
         env = safe_opencode_environment(config_path, state_dir=self.state_dir)
         if self._version_major(self.executable, env=env) < 2:
             raise OpenCodeServerError(
@@ -155,11 +172,73 @@ class OpenCodeServer:
             )
         except OSError as exc:
             raise OpenCodeServerError("OpenCode could not be started; check that the CLI is installed") from exc
+        self._wait_ready()
+        if self.agents:
+            self._verify_runtime_controls(config_path, cwd)
+
+    def _verify_runtime_controls(self, config_path: Path, workspace: Path) -> None:
+        """Read-only preflight; unknown controls cannot precede a paid prompt.
+
+        Agent lists omit hidden maintenance agents. Check their explicit lookup
+        contracts and the location's loaded configuration instead.
+        """
+        message = "OpenCode maintenance generation controls could not be verified; no model request was sent"
+        params = {"location[directory]": str(workspace)}
         try:
-            self._wait_ready()
-        except BaseException:
-            self.close()
-            raise
+            # Agent/config endpoints can expose partial startup state. Model
+            # discovery has a documented plugin-activation barrier; it performs
+            # no inference and must settle before checking effective controls.
+            readiness = self._get_with_params('/api/model', params, timeout=5.0)
+            if not isinstance(readiness, dict) or not isinstance(readiness.get('data'), list):
+                raise ValueError('plugin activation did not settle')
+            entries = self._get_with_params('/api/config', params, timeout=5.0)
+            if not isinstance(entries, list):
+                raise ValueError('unreadable configuration list')
+            own_index = next(index for index, entry in enumerate(entries)
+                             if isinstance(entry, dict) and entry.get('type') == 'document'
+                             and entry.get('path') == str(config_path))
+            own = entries[own_index].get('info')
+            if not isinstance(own, dict) or own.get('update') != 'disable':
+                raise ValueError('runtime configuration not loaded')
+            if own.get('warming') is not False:
+                raise ValueError('background warming not disabled')
+            compaction = own.get('compaction')
+            if not isinstance(compaction, dict) or compaction.get('auto') is not False:
+                raise ValueError('automatic compaction not disabled')
+            definitions = own.get('agents')
+            if not isinstance(definitions, dict) or any(
+                    not isinstance(definitions.get(name), dict) or definitions[name].get('disabled') is not True
+                    for name in _MAINTENANCE_AGENTS):
+                raise ValueError('maintenance agent not disabled')
+            for entry in entries[own_index + 1:]:
+                info = entry.get('info') if isinstance(entry, dict) else None
+                if not isinstance(info, dict):
+                    continue  # directory-discovered agents are also checked by lookup below
+                if 'update' in info and info['update'] != 'disable':
+                    raise ValueError('later update override')
+                if 'warming' in info and info['warming'] is not False:
+                    raise ValueError('later warming override')
+                if 'compaction' in info:
+                    compact = info['compaction']
+                    if not isinstance(compact, dict) or ('auto' in compact and compact['auto'] is not False):
+                        raise ValueError('later compaction override')
+                later = info.get('agents', {})
+                if not isinstance(later, dict) or any(
+                        name in later and (not isinstance(later[name], dict) or later[name].get('disabled') is not True)
+                        for name in _MAINTENANCE_AGENTS):
+                    raise ValueError('later maintenance override')
+            for name in _MAINTENANCE_AGENTS:
+                try:
+                    self._get_with_params('/api/agent/' + name, params, timeout=5.0)
+                except OpenCodeServerError as error:
+                    body = json.loads(error.body)
+                    if (error.status == 404 and isinstance(body, dict)
+                            and body.get('_tag') == 'AgentNotFoundError' and body.get('agentID') == name):
+                        continue
+                    raise ValueError('unverified agent lookup') from None
+                raise ValueError('maintenance agent still registered')
+        except (OpenCodeServerError, ValueError, StopIteration, TypeError, KeyError):
+            raise OpenCodeServerError(message) from None
 
     def _wait_ready(self) -> None:
         deadline = time.monotonic() + self.startup_timeout
@@ -203,23 +282,31 @@ class OpenCodeServer:
                 pass
             self._client = None
         process, self.process = self.process, None
-        if process is None:
-            return
-        if process.poll() is None:
+        if process is not None and process.poll() is None:
             try:
                 process.terminate()
                 process.wait(timeout=2)
             except subprocess.TimeoutExpired:
                 try:
                     process.kill()
+                    process.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    pass
                 except OSError:
                     pass
             except OSError:
                 pass
-        try:
-            process.stderr.close()
-        except Exception:
-            pass
+        if process is not None:
+            try:
+                process.stderr.close()
+            except Exception:
+                pass
+        config, self._runtime_config = self._runtime_config, None
+        if config is not None:
+            try:
+                config.unlink(missing_ok=True)
+            except OSError:
+                pass
 
     # ------------------------------------------------------------------- HTTP
 
@@ -265,7 +352,7 @@ class OpenCodeServer:
         return [row for row in rows or [] if isinstance(row, dict)]
 
     def models(self, directory: Optional[Path] = None) -> list[OpenCodeModel]:
-        params = {"location.directory": str(directory)} if directory is not None else None
+        params = {"location[directory]": str(directory)} if directory is not None else None
         value = self.request("GET", "/api/model", timeout=30.0) if params is None else \
             self._get_with_params("/api/model", params)
         rows = value.get("data") if isinstance(value, dict) else None
@@ -290,9 +377,9 @@ class OpenCodeServer:
             ))
         return out
 
-    def _get_with_params(self, path: str, params: dict[str, str]) -> Any:
+    def _get_with_params(self, path: str, params: dict[str, str], *, timeout: float = 20.0) -> Any:
         try:
-            response = self._http().get(path, params=params)
+            response = self._http().get(path, params=params, timeout=timeout)
         except Exception as exc:
             raise OpenCodeServerError(f"OpenCode request failed: {type(exc).__name__}") from exc
         if response.status_code >= 400:

@@ -31,7 +31,7 @@ from ..tools import Tool, ToolContext
 from .base import RunAborted
 from .ladder import SpendGuard, make_rung
 from .opencode_protocol import OpenCodeProtocolError, parse_permission_request
-from .opencode_server import OpenCodeModel, OpenCodeServer, OpenCodeServerError
+from .opencode_server import OpenCodeModel, OpenCodeServer, OpenCodeServerError, RUNTIME_CONTROL_VERSION
 from .steps import StepTimer, finish_step
 
 _POLL_SECONDS = 0.35
@@ -250,7 +250,8 @@ class OpenCodeRuntime:
         conversation_key = run.conversation_id or f"run:{run.id}"
         workspace = str(ctx.workspace.resolve())
         route_hash = hashlib.sha256(f"{provider_id}\0{model_id}".encode()).hexdigest()
-        policy_hash = hashlib.sha256(json.dumps({"bot_id": ctx.bot.id, "agent": agent}, sort_keys=True,
+        policy_hash = hashlib.sha256(json.dumps({"bot_id": ctx.bot.id, "agent": agent,
+                                                "runtime_controls": RUNTIME_CONTROL_VERSION}, sort_keys=True,
                                                 separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
         # A native session may contain tool output or old text beyond Hutch's
         # next bounded selection. Until a native replace-context contract is
