@@ -129,3 +129,12 @@ Windows Server and macOS 15 Intel checks do not replace Windows 11/macOS 14 Inte
 installed-app validation. Unix has no process-supervision tests in the small Rust
 crate yet. Source/history/license review precedes the planned public transition;
 missing native results remain explicit release blockers.
+
+### Renderer dependencies and startup
+
+Document generators load per format. Missing native PDF graphics libraries must not
+prevent the backend, locks, credential store or other document formats from starting.
+`GET /api/v1/documents/readiness` reports an unavailable format and its dependency reason;
+a PDF request fails explicitly without changing format or promoting an artifact. This is
+not a replacement for bundling and testing Pango/GLib and fonts on each target OS. The
+current preview remains gated on complete native dependency packaging and installed tests.

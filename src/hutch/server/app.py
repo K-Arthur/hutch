@@ -49,7 +49,7 @@ from ..google_oauth_config import (GOOGLE_OAUTH_CLIENT_ID_KEY, GOOGLE_OAUTH_CLIE
                                    valid_google_oauth_client_id)
 from ..config import get_config
 from ..documents import DocumentIntegrityError, DocumentStorage, DocumentStorageError
-from ..documents.docgen import supported_formats
+from ..documents.docgen import supported_formats, renderer_unavailable_reason
 from ..documents.docgen.render import (LAYOUT_RENDER_FORMATS, STRUCTURE_PREVIEW_FORMATS,
                                        soffice_renderer_path)
 from ..durable_changes import SnapshotRequired
@@ -1159,6 +1159,7 @@ class DocumentFormatReadiness(BaseModel):
     generator: str = ""
     preview_mode: str = "download_only"
     renderer: str = ""
+    unavailable_reason: str = ""
 
 
 class DocumentsReadinessResource(BaseModel):
@@ -5763,6 +5764,11 @@ def create_app() -> FastAPI:
         renderer = soffice_renderer_path()
         formats = []
         for fmt in supported_formats():
+            unavailable_reason = renderer_unavailable_reason(fmt)
+            if unavailable_reason:
+                formats.append(DocumentFormatReadiness(format=fmt, available=False,
+                                                       unavailable_reason=unavailable_reason))
+                continue
             layouts = fmt in LAYOUT_RENDER_FORMATS and renderer is not None
             formats.append(DocumentFormatReadiness(
                 format=fmt, available=True,

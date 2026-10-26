@@ -39,6 +39,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6, verified 2026-10-26
+        id: python
         with:
           python-version: '3.13.15'
       - name: Install locked development environment
@@ -56,11 +57,15 @@ jobs:
         run: >-
           uv run --frozen --no-sync pytest -q
           tests/test_platform_locking.py tests/test_skills.py tests/test_native_credentials.py tests/test_native_host_record.py
-          -k 'platform_locking or concurrent_registry_mutations_serialize or native_credentials or native_host_record'
+          tests/test_document_renderer_loading.py
+          -k 'platform_locking or concurrent_registry_mutations_serialize or native_credentials or native_host_record or missing_pdf_native_libraries'
           --junitxml=.validation/native-platform/python.xml
       - name: Install pinned Rust toolchain
+        if: ${{ always() && !cancelled() && steps.python.outcome == 'success' }}
+        id: rust
         run: rustup toolchain install 1.97.1 --profile minimal --component clippy,rustfmt
       - name: Check native process guard
+        if: ${{ always() && !cancelled() && steps.rust.outcome == 'success' }}
         run: |
           cargo +1.97.1 fmt --manifest-path desktop/process-guard/Cargo.toml --all -- --check
           cargo +1.97.1 clippy --locked --manifest-path desktop/process-guard/Cargo.toml --all-targets -- -D warnings
