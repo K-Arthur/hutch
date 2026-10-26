@@ -51,8 +51,8 @@
    above the legacy card rules until the remaining settings surfaces migrate. */
 .connections-workspace { max-width: 1120px; }
 .connections-workspace [hidden] { display: none !important; }
-.connections-workspace .connections-intro { max-width: 68ch; margin: 8px 0 28px; }
-.connections-workspace .connections-intro h2 { margin: 0 0 8px; color: var(--text); font: 700 1.75rem/1.2 var(--font-ui); letter-spacing: -.025em; }
+.connections-workspace .connections-intro { max-width: 68ch; margin: var(--s-2) 0 var(--s-5); }
+.connections-workspace .connections-intro h2 { margin: 0 0 var(--s-2); color: var(--text); font: var(--weight-bold) var(--type-page-size)/var(--leading-heading) var(--font-display); letter-spacing: var(--tracking-heading); }
 .connections-workspace .connections-intro p { font-size: var(--fs-base); color: var(--text-2); }
 .connection-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding-bottom: 24px; border-bottom: 1px solid var(--line); }
 .connection-search { display: flex; align-items: center; gap: 10px; flex: 1 1 240px; max-width: 360px; padding-inline: 12px; border: 1px solid var(--line-strong); border-radius: var(--r-ctl); background: var(--sunken); color: var(--text-2); }
@@ -64,9 +64,9 @@
 .connection-filters button[aria-pressed="true"] { color: var(--text); background: var(--raised); }
 .connection-filters button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .connection-toolbar #connection-results { margin-left: auto; white-space: nowrap; }
-.connections-workspace .service-group { margin: 28px 0 36px; }
-.connections-workspace .service-group-heading { gap: 6px 16px; margin-bottom: 16px; }
-.connections-workspace .service-group-heading h2 { font-size: var(--fs-md); font-weight: 650; letter-spacing: 0; }
+.connections-workspace .service-group { margin: var(--s-5) 0 var(--s-6); }
+.connections-workspace .service-group-heading { gap: var(--s-2) var(--s-4); margin-bottom: var(--s-4); }
+.connections-workspace .service-group-heading h2 { font: var(--weight-semibold) var(--type-section-size)/var(--leading-heading) var(--font-display); letter-spacing: var(--tracking-heading); }
 .connections-workspace .service-group-heading p { color: var(--text-2); }
 .connections-workspace .service-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .connections-workspace .service-tile { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr auto; gap: 16px; padding: 20px; border-color: var(--line-strong); background: var(--panel); transition: border-color var(--dur-fast) var(--ease); }
@@ -82,12 +82,12 @@
 .connection-empty p { margin-bottom: 20px; color: var(--text-2); }
 .connection-back { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin: 0 0 20px; color: var(--text-2); text-decoration: none; }
 .connection-back:hover { color: var(--text); }
-.connection-detail { margin-bottom: 24px; }
-.connection-detail-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
-.connection-detail-heading h2 { flex: 1 1 200px; min-width: 0; color: var(--text); font: 700 1.5rem/1.25 var(--font-ui); letter-spacing: -.02em; overflow-wrap: anywhere; }
+.connection-detail { margin-bottom: var(--s-5); }
+.connection-detail-heading { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-3); }
+.connection-detail-heading h2 { flex: 1 1 200px; min-width: 0; color: var(--text); font: var(--weight-bold) var(--type-page-size)/var(--leading-heading) var(--font-display); letter-spacing: var(--tracking-heading); overflow-wrap: anywhere; }
 .connection-detail-heading h2:focus { outline: none; }
 .connection-detail > p { max-width: 64ch; margin-top: 16px; color: var(--text-2); line-height: 1.55; }
-.connection-steps { display: flex; flex-wrap: wrap; gap: 12px 28px; margin-top: 24px; padding: 16px 0; border-block: 1px solid var(--line); list-style: none; counter-reset: setup; color: var(--text-2); font-size: var(--fs-sm); }
+.connection-steps { display: flex; flex-wrap: wrap; gap: var(--s-3) var(--s-5); margin-top: var(--s-5); padding: var(--s-4) 0; border-block: 1px solid var(--line); list-style: none; counter-reset: setup; color: var(--text-2); font-size: var(--fs-sm); }
 .connection-steps li { display: flex; align-items: center; gap: 8px; counter-increment: setup; }
 .connection-steps li::before { content: counter(setup); display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid var(--line-strong); border-radius: 50%; font-size: var(--fs-xs); color: var(--text); }
 .connection-steps li.is-complete::before { content: none; }
@@ -98,10 +98,10 @@
 .connections-workspace .service-mark-notion { background: var(--sunken); border-color: var(--line); }
 .connections-workspace .service-mark-notion img { width: 30px; height: 30px; }
 /* File services share account transport, with separate readable service controls. */
-.connections-workspace .google-file-card { display: grid; gap: 32px; }
+.connections-workspace .google-file-card { display: grid; gap: var(--s-6); }
 .connections-workspace .google-file-card > .bot-head { margin-bottom: 0; }
-.google-file-overview { display: grid; grid-template-columns: 1.1fr 1fr; gap: 32px; align-items: start; }
-.google-file-card h2 { margin: 0; font: 600 var(--fs-lg)/1.4 var(--font-ui); color: var(--text); letter-spacing: normal; }
+.google-file-overview { display: grid; grid-template-columns: 1.1fr 1fr; gap: var(--s-6); align-items: start; }
+.google-file-card h2 { margin: 0; font: var(--weight-semibold) var(--type-section-size)/var(--leading-heading) var(--font-display); color: var(--text); letter-spacing: var(--tracking-heading); }
 .google-file-card h3 { margin: 0; font: 600 var(--fs-base)/1.45 var(--font-ui); color: var(--text); }
 .google-file-card p, .google-file-card li { font-size: var(--fs-sm); line-height: 1.6; }
 .google-file-card p { margin: 8px 0 0; }
@@ -137,14 +137,13 @@
   .connections-workspace .service-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 640px) {
-  .connections-workspace .connections-intro h2 { font-size: 1.5rem; }
   .connection-toolbar { gap: 12px; padding-bottom: 20px; }
   .connection-search { flex-basis: 100%; max-width: none; }
   .connection-filters { flex: 1; }
   .connection-filters button { flex: 1; min-height: 44px; padding-inline: 10px; }
   .connection-toolbar #connection-results { flex-basis: 100%; margin-left: 0; }
   .connections-workspace .service-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-  .connections-workspace .service-tile { padding: 18px; gap: 14px; }
+  .connections-workspace .service-tile { padding: var(--s-4); gap: var(--s-3); }
   .connection-detail-heading .service-state { margin-left: 60px; }
   .connection-steps { display: grid; gap: 12px; }
 }

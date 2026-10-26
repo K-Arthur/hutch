@@ -1,0 +1,21 @@
+{
+  "captured_on": "2026-10-26",
+  "fixture": "Synthetic isolated accounts; no external provider calls",
+  "checks": "8 passed, 178 deselected in 26.80s; directory navigation and independent Google service control at wide/narrow sizes, including text-spacing overrides",
+  "source_sha256": {
+    "app/src/input.css": "196198866bf5e25ef0be160d31b59ce3a052588304c5b2af1fcaf135f185c223",
+    "src/hutch/server/static/ui.css": "79e2e16216aa64dc1a6471f9962b1258d436b1a1b931953e28f7e19b33b0eb85",
+    "src/hutch/server/static/style.css": "097d331941c259cf748073bc12e88762ae48fb261c7d3bd2fd98cd7647f02e44",
+    "src/hutch/server/static/connection-browser.js": "d7b9a9230178699ad5bb0569531f813352cc41aaa1f21df84bd4931376d045f7"
+  },
+  "captures": [
+    "directory-desktop.png",
+    "directory-phone.png",
+    "drive-phone.png"
+  ],
+  "inspected": [
+    "directory-desktop.png",
+    "drive-phone.png"
+  ],
+  "limits": "Browser fixtures; no installed native GUI or live OAuth evidence"
+}
