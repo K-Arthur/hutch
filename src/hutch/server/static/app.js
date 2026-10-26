@@ -1369,6 +1369,9 @@ const BRAND_MARK_FILES = {
   gmail: "google-gmail-2026q2.png",
   outlook: "microsoft-outlook.svg",
   notion: "notion.ico",
+  drive: "google-drive.svg",
+  docs: "google-docs.svg",
+  sheets: "google-sheets.svg",
 };
 const TEMPLATE_MARKS = {
   "openai-api": "openai",
@@ -9161,15 +9164,56 @@ async function renderConnections() {
         ${esc(actionLabel)}${icon("arrow")}
       </button>
     </article>`;
+  const fileServices = [
+    { id: "drive", title: "Google Drive", description: "Upload files to a chosen folder, with a reviewed destination and verified result.",
+      lead: "Put finished work where it belongs.", tasks: ["Upload a prepared file to a selected folder", "Verify the uploaded file before reporting success"],
+      boundary: "Access stays limited to files created by Hutch or opened or shared with this app. Full-Drive search and a file picker are not available yet." },
+    { id: "docs", title: "Google Docs", description: "Turn research and drafts into documents. Review the content before it reaches Google.",
+      lead: "From a working draft to a useful document.", tasks: ["Create a document from an approved draft", "Update content with revision checks and read it back"],
+      boundary: "Hutch can work with documents created by Hutch or opened or shared with this app. This connection does not give access to every document in your account." },
+    { id: "sheets", title: "Google Sheets", description: "Create trackers and append structured rows, with validation and readback.",
+      lead: "Keep the numbers and the next steps together.", tasks: ["Create a spreadsheet with named sheets", "Append validated rows and check the stored result"],
+      boundary: "Hutch can work with spreadsheets created by Hutch or opened or shared with this app. This connection does not give access to every spreadsheet in your account." },
+  ];
+  const enabledFileServices = account => account.services ?? ["drive", "docs", "sheets"];
+  const fileServiceName = id => fileServices.find(item => item.id === id)?.title || id;
+  const googleFilePanel = service => {
+    const connected = googleWorkspace.accounts.filter(account => enabledFileServices(account).includes(service.id));
+    const available = googleWorkspace.accounts.filter(account => !enabledFileServices(account).includes(service.id)
+      && account.scopes.includes("https://www.googleapis.com/auth/drive.file"));
+    const accountCard = (account, enabled) => `<article class="google-file-account">
+      <div class="google-file-account-head"><div><h3>${esc(account.label)}</h3><p class="hint">${enabled ? "Enabled for this service" : "Already connected to Hutch"}</p></div>
+        <button class="btn ${enabled ? "ghost" : "primary"}" type="button" data-google-file-service="${service.id}" data-google-file-account="${esc(account.account_id)}" data-google-file-enabled="${!enabled}" data-google-file-revision="${Number(account.revision || 0)}">${enabled ? `Disable ${esc(service.title)}` : "Use this account"}</button></div>
+      <p class="hint">Also enabled: ${esc(enabledFileServices(account).filter(id => id !== service.id).map(fileServiceName).join(", ") || "No other file services")}</p>
+      <details class="google-file-account-details"><summary>Account details</summary><p class="hint">Account reference: <code>${esc(account.account_id)}</code></p>
+        <p class="hint">${account.scopes.some(scope => /auth\/(documents|spreadsheets)$/.test(scope)) ? "This older connection has broader Google permissions. Disconnect and reconnect to use per-file consent." : "Google permission: per-file access (drive.file)."}</p>
+        <button class="btn danger" type="button" data-workspace-disconnect="${esc(account.account_id)}">Disconnect shared Google account</button></details>
+    </article>`;
+    return `<section class="panel conn-card google-file-card" id="connection-google-${service.id}" aria-labelledby="google-${service.id}-title">
+      <div class="bot-head"><span class="bot-name" id="google-${service.id}-title">${service.title}</span><span class="tag">Preview</span></div>
+      <section class="google-file-accounts" aria-label="${service.title} accounts"><div class="google-file-section-head"><h2>${connected.length ? "Connected accounts" : "Connect an account"}</h2>
+        ${googleWorkspace.configured && googleWorkspace.secret_store_available ? `<button class="btn ${connected.length || available.length ? "ghost" : "primary"}" type="button" data-google-file-connect="${service.id}">${connected.length || available.length ? "Connect another Google account" : `Connect ${service.title}`}</button>` : ""}</div>
+        ${workspaceError ? `<p class="hint bad" role="alert">Could not load this connection: ${esc(workspaceError)}</p>` : ""}
+        ${!googleWorkspace.configured ? '<p class="hint" role="status">Google sign-in is not enabled in this build. Hutch’s publisher must configure its app registration.</p>' : !googleWorkspace.secret_store_available ? '<p class="hint" role="alert">Unlock the operating system’s secure credential store before connecting.</p>' : ""}
+        ${connected.map(account => accountCard(account, true)).join("") || `<p class="hint">No ${service.title} accounts connected.</p>`}
+        ${available.length ? `<div class="google-file-reuse"><h3>Use an existing Google connection</h3><p class="hint">Enable ${service.title} with its existing per-file permission. No new Google sign-in or assistant permissions.</p>${available.map(account => accountCard(account, false)).join("")}</div>` : ""}
+      </section>
+      <div class="google-file-overview"><div><h2>${service.lead}</h2><ul>${service.tasks.map(task => `<li>${task}</li>`).join("")}</ul></div>
+        <aside class="google-file-boundary"><h3>Your control</h3><p>${service.boundary}</p><p>Connecting an account does not give every assistant access. Assistants need workspace action tools; each execution still needs your approval of its exact account, destination and changes.</p></aside></div>
+      <details class="google-file-permissions"><summary>Permissions and shared sign-in</summary><p>New connections request only <code>drive.file</code>. Drive, Docs and Sheets can reuse that permission, but you enable each service separately in Hutch. Disabling this service keeps the others connected. Disconnecting the shared account removes local access for every file service using it and requests Google revocation. Google may also revoke other Hutch Google sign-ins; reconnect affected services if needed.</p><p>Sharing files with people needs separate authority. Existing cloud files remain when you disconnect.</p></details>
+    </section>`;
+  };
   const appTiles = [
     tile("calendar", "Google Calendar", "See upcoming events. An assistant can create an event only after you approve it.",
       googleCalendar.accounts.length ? "Connected" : googleCalendar.configured ? "Ready to connect" : "Not enabled in this build",
       googleCalendar.accounts.length ? "connected" : "setup", "google-calendar",
       googleCalendar.accounts.length ? "Manage access" : googleCalendar.configured ? "Connect Google" : "Connection details"),
-    tile("drive", "Google Drive, Docs & Sheets", "Create documents, spreadsheets and uploads through reviewed plans. Drive access stays limited to shared files.",
-      workspaceError ? "Could not load" : googleWorkspace.accounts.length ? "Connected" : googleWorkspace.configured ? "Ready to connect" : "Not enabled in this build",
-      googleWorkspace.accounts.length ? "connected" : "setup", "google-workspace",
-      googleWorkspace.accounts.length ? "Manage access" : "Connection details"),
+    ...fileServices.map(service => {
+      const connected = googleWorkspace.accounts.some(account => enabledFileServices(account).includes(service.id));
+      return tile(service.id, service.title, service.description,
+        workspaceError ? "Could not load" : connected ? "Connected" : googleWorkspace.configured ? "Ready to connect" : "Not enabled in this build",
+        connected ? "connected" : "setup", `google-${service.id}`, connected ? "Manage access" : "Connection details");
+    }),
     tile("notion", "Notion", "Search and read your workspace pages with the assistants you choose.",
       notionError ? "Could not load" : notion.accounts.length ? "Connected" : notion.secret_store_available ? "Ready to connect" : "Secure storage required",
       notion.accounts.length ? "connected" : "setup", "notion", notion.accounts.length ? "Manage access" : "Connect Notion"),
@@ -9311,15 +9355,7 @@ async function renderConnections() {
         </article>`).join("") || '<p class="hint">No Notion accounts connected.</p>'}
         ${notion.secret_store_available && notion.accounts.length ? '<button class="btn ghost" id="notion-connect" type="button">Connect another workspace</button>' : ""}
       </section>
-      <section class="panel conn-card" id="connection-google-workspace" aria-labelledby="google-workspace-title">
-        <div class="bot-head"><span class="bot-name" id="google-workspace-title">Google Drive, Docs &amp; Sheets</span><span class="tag">experimental</span></div>
-        <p>Create and update documents, create and append spreadsheet rows, or upload a local file. Each action plan shows its account, destination and exact changes before you approve it.</p>
-        <p class="hint">Drive uses <code>drive.file</code>: app-created files and files opened or shared with this app. This does not give Hutch full-Drive search. Docs and Sheets request their own broader document and spreadsheet scopes. Sharing files with people requires separate authority; this connection does not grant it.</p>
-        <p class="hint">Connecting adds an account on this computer; it does not grant every assistant general access. An assistant needs the workspace action tools, and executing a plan always requires your exact approval. Choose a connected account reference in the plan.</p>
-        ${workspaceError ? `<p class="hint bad" role="alert">Could not load this connection: ${esc(workspaceError)}</p>` : ""}
-        ${!googleWorkspace.configured ? '<p class="hint" role="status">Google sign-in is not enabled in this build. Hutch’s publisher must configure its app registration.</p>' : !googleWorkspace.secret_store_available ? '<p class="hint" role="alert">Unlock the operating system’s secure credential store before connecting.</p>' : '<button class="btn primary small" id="google-workspace-connect" type="button">Connect Google Workspace</button>'}
-        ${(googleWorkspace.accounts || []).map(account => `<div class="device-row"><div><strong>${esc(account.label)}</strong><p class="hint">Account reference: <code>${esc(account.account_id)}</code></p></div><button class="btn ghost small" type="button" data-workspace-disconnect="${esc(account.account_id)}">Disconnect Workspace</button></div>`).join("") || '<p class="hint">No Workspace accounts connected.</p>'}
-      </section>
+      ${fileServices.map(googleFilePanel).join("")}
       <section class="panel conn-card outlook-calendar-card" id="connection-gmail" aria-labelledby="google-mail-title">
         <div class="bot-head"><span class="bot-name" id="google-mail-title">Gmail</span>
           <span class="tag">experimental</span><span class="tag">Local inference only</span></div>
@@ -9548,14 +9584,14 @@ async function renderConnections() {
         } });
       return;
     }
-    if (["google-calendar", "gmail", "google-workspace"].includes(targetKey)) {
-      const service = targetKey === "gmail" ? googleMail : targetKey === "google-workspace" ? googleWorkspace : googleCalendar;
-      if (targetKey !== "google-workspace" && !service.accounts.length && service.configured && service.secret_store_available) {
+    if (["google-calendar", "gmail"].includes(targetKey)) {
+      const service = targetKey === "gmail" ? googleMail : googleCalendar;
+      if (!service.accounts.length && service.configured && service.secret_store_available) {
         if (targetKey === "google-calendar") $("#google-calendar-event-creation").checked = false;
         $(targetKey === "gmail" ? "#google-mail-connect" : "#google-calendar-connect")?.click();
         return;
       }
-      if (!service.accounts.length && !service.configured && !(targetKey === "google-workspace" && workspaceError)) {
+      if (!service.accounts.length && !service.configured) {
         location.hash = `#/connections?app=${encodeURIComponent(targetKey)}`;
         return;
       }
@@ -9751,23 +9787,31 @@ async function renderConnections() {
     } catch (error) { button.disabled = false; toast(error.message, true); }
   }));
 
-  $("#google-workspace-connect")?.addEventListener("click", async event => {
+  $$("[data-google-file-connect]").forEach(button => button.addEventListener("click", async event => {
     const button = event.currentTarget;
     const authWindow = window.open("about:blank", "_blank");
     if (!authWindow) { toast("Allow Hutch to open a browser tab, then try again.", true); return; }
     authWindow.opener = null;
     button.disabled = true;
     try {
-      const result = await api("/v1/connections/google-workspace/sign-in", { method: "POST", body: {} });
+      const result = await api("/v1/connections/google-workspace/sign-in", { method: "POST", body: { service: button.dataset.googleFileConnect, label: fileServiceName(button.dataset.googleFileConnect) } });
       const url = new URL(result.authorization_url);
       if (url.origin !== "https://accounts.google.com" || url.pathname !== "/o/oauth2/v2/auth" || url.username || url.password || url.hash || !url.search) throw new Error("Unexpected Google sign-in destination.");
       authWindow.location.replace(url.href);
-      toast("Approve Docs, Sheets and per-file Drive access in your browser, then reload Apps & AI.");
+      toast("Approve per-file access in your browser, then reload this connection.");
     } catch (error) { authWindow.close(); toast(error.message, true); }
     finally { button.disabled = false; }
-  });
+  }));
+  $$("[data-google-file-service]").forEach(button => button.addEventListener("click", async () => {
+    button.disabled = true;
+    try {
+      await api(`/v1/connections/google-workspace/accounts/${encodeURIComponent(button.dataset.googleFileAccount)}/services/${encodeURIComponent(button.dataset.googleFileService)}`, { method: "PUT", body: { contract_version: 1, enabled: button.dataset.googleFileEnabled === "true", expected_revision: Number(button.dataset.googleFileRevision) } });
+      toast(`${fileServiceName(button.dataset.googleFileService)} ${button.dataset.googleFileEnabled === "true" ? "enabled" : "disabled"}.`);
+      await renderConnections();
+    } catch (error) { button.disabled = false; toast(error.message, true); }
+  }));
   $$("[data-workspace-disconnect]").forEach(button => button.addEventListener("click", async () => {
-    if (!(await confirmDialog({ title: "Disconnect Google Workspace", body: "Clear this account’s local credentials and request Google revocation. Existing remote documents remain. Pending plans cannot use this account afterward.", confirmText: "Disconnect", danger: true }))) return;
+    if (!(await confirmDialog({ title: "Disconnect shared Google account", body: "Remove this account from Drive, Docs and Sheets in Hutch and request Google revocation. Pending plans cannot use it afterward. Existing cloud files remain. Google may also revoke other Hutch Google sign-ins. To keep other services connected, cancel and disable only this service instead.", confirmText: "Disconnect", danger: true }))) return;
     button.disabled = true;
     try {
       const result = await api(`/v1/connections/google-workspace/accounts/${encodeURIComponent(button.dataset.workspaceDisconnect)}/disconnect`, { method: "POST", body: {} });

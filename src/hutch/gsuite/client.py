@@ -6,10 +6,10 @@ and one atomic refresh per rotation window. Every write uses the identity/verifi
 rules from :mod:`hutch.gsuite.requests`; ambiguous outcomes are reported as such and
 reconciled by stable identity before any retry:
 
-* Drive creates use ``files.generateIds`` so the caller already knows the id a lost
-  response would have produced; reconciliation is a ``files.get`` on that id.
-* Spreadsheet creation (server-assigned id) tags the file with a Hutch app property, so a
-  lost response reconciles through a bounded ``files.list`` appProperties query.
+* Media uploads use ``files.generateIds`` and reconcile by that known id.
+* Docs/Sheets use server-assigned ids and an app property set in the creation
+  request. A lost response reconciles through a bounded exact-identity search;
+  zero or multiple matches remain uncertain and are never replayed automatically.
 * Appends reconcile by reading a bounded window for the exact intended row instead of
   re-appending.
 
@@ -26,6 +26,7 @@ import re
 import secrets
 import threading
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -35,6 +36,7 @@ from urllib.parse import quote, urlencode, urlsplit
 import httpx
 
 from ..google_calendar import OAuthStart, SecretStore, SecretToolStore, GoogleCalendarError
+from ..platforms import locking
 from . import requests as ws
 
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -44,6 +46,9 @@ CALLBACK_PATH = "/api/v1/connections/google-workspace/callback"
 STATE_TTL_SECONDS = 600
 ACCOUNT_RE = re.compile(r"^gws_[0-9a-f]{24}$")
 REQUESTED_SCOPES = ws.GOOGLE_WORKSPACE_SCOPES
+FILE_SCOPE = "https://www.googleapis.com/auth/drive.file"
+SERVICES = ("drive", "docs", "sheets")
+SERVICE_CONTRACT_VERSION = 1
 #: OpenID noise Google may return with a granted scope string; not an expansion of access.
 _ALLOWED_EXTRA_SCOPES = {"openid", "email", "profile"}
 
@@ -126,6 +131,8 @@ class WorkspaceAccount:
     account_id: str
     label: str
     scopes: tuple[str, ...]
+    services: tuple[str, ...] | None = None
+    revision: int = 0
 
 
 class GoogleWorkspaceClient:
@@ -192,31 +199,84 @@ class GoogleWorkspaceClient:
     def _read_accounts(self) -> dict[str, Any]:
         return _read_private_json(self._accounts_path)
 
+    @contextmanager
+    def _locked(self):
+        self.state_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        fd = os.open(self.state_dir / "google-workspace.lock",
+                     os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0), 0o600)
+        try:
+            locking.flock(fd, locking.LOCK_EX)
+            yield
+        finally:
+            os.close(fd)
+
+    @staticmethod
+    def _services(row: dict[str, Any]) -> tuple[str, ...]:
+        # Missing metadata is the existing combined connection. An explicit empty
+        # list means disabled, and must never be interpreted as a legacy account.
+        values = row.get("services", SERVICES)
+        if not isinstance(values, (list, tuple)):
+            return ()
+        return tuple(service for service in SERVICES if service in values)
+
+    def set_service(self, account_id: str, service: str, *, enabled: bool,
+                    expected_revision: int) -> WorkspaceAccount:
+        if service not in SERVICES:
+            raise GoogleWorkspaceError("unknown Google file service")
+        with self._locked():
+            accounts = self._read_accounts()
+            row = accounts.get(account_id)
+            if not isinstance(row, dict):
+                raise GoogleWorkspaceError("this Google file account is not connected")
+            revision = int(row.get("revision", 0))
+            if revision != expected_revision:
+                raise GoogleWorkspaceError("account settings changed; reload before trying again")
+            if enabled and FILE_SCOPE not in row.get("scopes", ()):
+                raise GoogleWorkspaceError("this account needs per-file Google consent; reconnect")
+            services = set(self._services(row))
+            services.add(service) if enabled else services.discard(service)
+            row.update(services=[item for item in SERVICES if item in services], revision=revision + 1)
+            _atomic_private_json(self._accounts_path, accounts)
+            return WorkspaceAccount(account_id, str(row.get("label", "Google account")),
+                                    tuple(row.get("scopes") or ()), self._services(row), revision + 1)
+
+    def _require_service(self, account_id: str, service: str | None = None) -> None:
+        row = self._read_accounts().get(account_id)
+        if not isinstance(row, dict):
+            raise GoogleWorkspaceError("this Google file account is not connected")
+        enabled = self._services(row)
+        if not enabled or (service and service not in enabled):
+            raise GoogleWorkspaceError(f"Google {service or 'file services'} is disabled for this account")
+
     # ------------------------------------------------------------------ OAuth
 
-    def start(self, label: str, redirect_uri: str) -> OAuthStart:
+    def start(self, label: str, redirect_uri: str, *, service: str = "workspace") -> OAuthStart:
         if not self.client_id:
             raise GoogleWorkspaceError(
                 "no Google OAuth client id is configured; set HUTCH_GOOGLE_OAUTH_CLIENT_ID or "
                 "save one in Connections before connecting Workspace")
         if not redirect_uri.startswith("http://127.0.0.1:") and not redirect_uri.startswith("http://localhost:"):
             raise GoogleWorkspaceError("the OAuth redirect must be loopback")
+        if service not in (*SERVICES, "workspace"):
+            raise GoogleWorkspaceError("unknown Google file service")
+        scopes = REQUESTED_SCOPES if service == "workspace" else (FILE_SCOPE,)
         verifier = _b64url(secrets.token_bytes(48))
         challenge = _b64url(hashlib.sha256(verifier.encode("ascii")).digest())
         state = secrets.token_urlsafe(24)
-        pending = _read_private_json(self._pending_path)
-        now = time.time()
-        pending = {k: v for k, v in pending.items()
-                   if isinstance(v, dict) and now - float(v.get("created_at", 0)) < STATE_TTL_SECONDS}
-        pending[state] = {"verifier": verifier, "redirect_uri": redirect_uri,
-                          "label": str(label or "Google Workspace")[:120], "created_at": now,
-                          "scopes": list(REQUESTED_SCOPES)}
-        _atomic_private_json(self._pending_path, pending)
+        with self._locked():
+            pending = _read_private_json(self._pending_path)
+            now = time.time()
+            pending = {k: v for k, v in pending.items()
+                       if isinstance(v, dict) and now - float(v.get("created_at", 0)) < STATE_TTL_SECONDS}
+            pending[state] = {"verifier": verifier, "redirect_uri": redirect_uri,
+                              "label": str(label or "Google account")[:120], "created_at": now,
+                              "scopes": list(scopes), "service": service, "client_id": self.client_id}
+            _atomic_private_json(self._pending_path, pending)
         query = urlencode({
             "client_id": self.client_id,
             "redirect_uri": redirect_uri,
             "response_type": "code",
-            "scope": " ".join(REQUESTED_SCOPES),
+            "scope": " ".join(scopes),
             "access_type": "offline",
             "prompt": "consent select_account",
             "state": state,
@@ -226,18 +286,28 @@ class GoogleWorkspaceClient:
         return OAuthStart(url=f"{AUTH_URL}?{query}", state=state)
 
     def cancel(self, state: str) -> None:
-        pending = _read_private_json(self._pending_path)
-        if state in pending:
-            pending.pop(state)
-            _atomic_private_json(self._pending_path, pending)
+        with self._locked():
+            pending = _read_private_json(self._pending_path)
+            if state in pending:
+                pending.pop(state)
+                _atomic_private_json(self._pending_path, pending)
 
     def finish(self, state: str, code: str, redirect_uri: str) -> WorkspaceAccount:
-        pending = _read_private_json(self._pending_path)
-        entry = pending.pop(state, None)
-        if not isinstance(entry, dict):
-            raise GoogleWorkspaceError("this Workspace authorization attempt has expired; start again")
-        # Consume the state now: an attempt is single-use even when the exchange fails.
-        _atomic_private_json(self._pending_path, pending)
+        with self._locked():
+            pending = _read_private_json(self._pending_path)
+            entry = pending.pop(state, None)
+            if not isinstance(entry, dict):
+                raise GoogleWorkspaceError("this Workspace authorization attempt has expired; start again")
+            # Consume once before the network exchange, including failed attempts.
+            _atomic_private_json(self._pending_path, pending)
+        service = entry.get("service", "workspace")
+        if service not in (*SERVICES, "workspace"):
+            raise GoogleWorkspaceError("unknown Google file service")
+        requested = REQUESTED_SCOPES if service == "workspace" else (FILE_SCOPE,)
+        if set(entry.get("scopes", ())) != set(requested):
+            raise GoogleWorkspaceError("the OAuth permission request changed; start again")
+        if entry.get("client_id", self.client_id) != self.client_id:
+            raise GoogleWorkspaceError("the Google app registration changed; start again")
         if time.time() - float(entry.get("created_at", 0)) > STATE_TTL_SECONDS:
             raise GoogleWorkspaceError("this Workspace authorization attempt has expired; start again")
         if entry.get("redirect_uri") != redirect_uri:
@@ -266,30 +336,38 @@ class GoogleWorkspaceClient:
         if not refresh_token:
             raise GoogleWorkspaceError(
                 "Google returned no refresh token; revoke the app's access and connect again")
-        missing = set(REQUESTED_SCOPES) - scope_set
+        missing = set(requested) - scope_set
         if missing:
             raise GoogleWorkspaceError(
                 "Google did not grant the requested Workspace scopes "
                 f"({', '.join(sorted(missing))}); disconnect and reconnect")
-        extra = scope_set - set(REQUESTED_SCOPES) - _ALLOWED_EXTRA_SCOPES
+        extra = scope_set - set(requested) - _ALLOWED_EXTRA_SCOPES
         if extra:
             raise GoogleWorkspaceError(
                 "Google granted broader scopes than requested "
                 f"({', '.join(sorted(extra))}); reconnect and grant only the requested access")
         account_id = "gws_" + secrets.token_hex(12)
         account = WorkspaceAccount(account_id=account_id, label=str(entry.get("label") or "Google Workspace"),
-                                   scopes=tuple(sorted(scope_set)))
+                                   scopes=tuple(sorted(scope_set)),
+                                   services=SERVICES if service == "workspace" else (service,))
         self.secrets.put(account_id, json.dumps({"refresh_token": refresh_token,
                                                  "scopes": sorted(scope_set)}))
-        accounts = self._read_accounts()
-        accounts[account_id] = {"label": account.label, "scopes": list(account.scopes),
-                                "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
-        _atomic_private_json(self._accounts_path, accounts)
+        try:
+            with self._locked():
+                accounts = self._read_accounts()
+                accounts[account_id] = {"label": account.label, "scopes": list(account.scopes),
+                                       "services": list(account.services), "revision": 0,
+                                       "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+                _atomic_private_json(self._accounts_path, accounts)
+        except BaseException:
+            self.secrets.delete(account_id)
+            raise
         return account
 
     def accounts(self) -> list[WorkspaceAccount]:
         return [WorkspaceAccount(account_id=aid, label=str(row.get("label", "Google Workspace")),
-                                 scopes=tuple(row.get("scopes") or ()))
+                                 scopes=tuple(row.get("scopes") or ()),
+                                 services=self._services(row), revision=int(row.get("revision", 0)))
                 for aid, row in self._read_accounts().items()]
 
     def disconnect(self, account_id: str) -> None:
@@ -307,9 +385,10 @@ class GoogleWorkspaceClient:
                 except httpx.HTTPError:
                     pass  # local removal proceeds even if Google revocation cannot be reached
         self.secrets.delete(account_id)
-        accounts = self._read_accounts()
-        accounts.pop(account_id, None)
-        _atomic_private_json(self._accounts_path, accounts)
+        with self._locked():
+            accounts = self._read_accounts()
+            accounts.pop(account_id, None)
+            _atomic_private_json(self._accounts_path, accounts)
         with _ACCESS_LOCK:
             _ACCESS_CACHE.pop((account_id, self.client_id), None)
 
@@ -369,14 +448,26 @@ class GoogleWorkspaceClient:
                  json_body: Optional[dict] = None, content: Optional[bytes] = None,
                  headers: Optional[dict] = None, purpose: str = "Google Workspace request",
                  expected: tuple[int, ...] = (200, 201, 204)) -> httpx.Response:
+        service = None
+        if url.startswith(self.docs_base + "/"):
+            service = "docs"
+        elif url.startswith(self.sheets_base + "/"):
+            service = "sheets"
+        elif url.startswith(self.upload_base + "/"):
+            service = "drive"
+        elif method == "POST" and url == self.drive_base + "/files":
+            mime = (json_body or {}).get("mimeType")
+            service = "docs" if mime == ws.DOC_MIME else "sheets" if mime == ws.SHEET_MIME else "drive"
         write = method in ("POST", "PATCH", "PUT", "DELETE")
 
         def send(token: str) -> httpx.Response:
+            self._require_service(account_id, service)
             merged = {"Authorization": f"Bearer {token}", **(headers or {})}
             with self._http_factory() as http:
                 return http.request(method, url, params=params, json=json_body,
                                     content=content, headers=merged)
 
+        self._require_service(account_id, service)
         try:
             response = send(self.access_token(account_id))
             if response.status_code == 401:
@@ -430,10 +521,12 @@ class GoogleWorkspaceClient:
         params = {
             "q": f"appProperties has {{ key='{safe_key}' and value='{safe_value}' }} and trashed = false",
             "pageSize": 10,
-            "fields": "files(id,name,mimeType,parents,size,md5Checksum,createdTime,appProperties)",
+            "fields": "nextPageToken,files(id,name,mimeType,parents,size,md5Checksum,createdTime,appProperties)",
         }
         data = self._json("GET", f"{self.drive_base}/files", account_id, params=params,
                           purpose="Drive reconciliation search")
+        if data.get("nextPageToken"):
+            raise GoogleWorkspaceError("Drive reconciliation search exceeded its bounded result window")
         return list(data.get("files") or [])
 
     def move_file(self, account_id: str, file_id: str, *, add_parent: str,
@@ -450,31 +543,55 @@ class GoogleWorkspaceClient:
                           params={"fields": "id,appProperties"},
                           json_body={"appProperties": properties}, purpose="Drive tagging")
 
+    def _create_workspace_file(self, account_id: str, *, title: str, mime_type: str,
+                               parent_folder_id: str, properties: dict[str, str]) -> dict[str, Any]:
+        # Google does not accept pre-generated IDs for Docs or Sheets. Bind a
+        # fresh identity in the creation itself; never retry an uncertain create.
+        creation_key = secrets.token_hex(24)
+        metadata = ws.drive_create_file_metadata(
+            title, mime_type=mime_type, parent_id=parent_folder_id or "root",
+            app_properties={**properties, "hutch_creation": creation_key})
+        try:
+            created = self._json("POST", f"{self.drive_base}/files", account_id,
+                                 params={"supportsAllDrives": "true", "fields": "id,name,mimeType,parents,webViewLink,appProperties"},
+                                 json_body=metadata, purpose="Google file creation")
+        except GoogleWorkspaceOutcomeUnknown:
+            try:
+                matches = self.find_files_by_app_key(account_id, "hutch_creation", creation_key)
+                if len(matches) != 1:
+                    raise GoogleWorkspaceError("creation identity did not resolve to exactly one file")
+                candidate = matches[0]
+                if (candidate.get("name") != title or candidate.get("mimeType") != mime_type
+                        or candidate.get("appProperties", {}).get("hutch_creation") != creation_key
+                        or candidate.get("trashed")
+                        or (parent_folder_id and parent_folder_id not in candidate.get("parents", []))):
+                    raise GoogleWorkspaceError("creation identity did not match the approved file")
+                created = self.file_metadata(account_id, str(candidate.get("id") or ""))
+                if any(created.get(key) != candidate.get(key)
+                       for key in ("id", "name", "mimeType", "parents", "appProperties")):
+                    raise GoogleWorkspaceError("creation metadata changed during reconciliation")
+            except GoogleWorkspaceError as exc:
+                raise GoogleWorkspaceOutcomeUnknown(
+                    "Google file creation could not be reconciled; inspect Drive before retrying. "
+                    f"Creation reference: {creation_key}") from exc
+            created["reconciled"] = True
+        if not isinstance(created.get("id"), str) or not created["id"]:
+            raise GoogleWorkspaceOutcomeUnknown(
+                f"Google file creation returned no usable id; inspect Drive. Creation reference: {creation_key}")
+        return created
+
     # ------------------------------------------------------------------ Docs
 
     def create_document(self, account_id: str, *, title: str, body_text: str = "",
                         parent_folder_id: str = "") -> dict[str, Any]:
         """Create a genuine Google Doc (Drive-native), write the body, and read it back."""
+        self._require_service(account_id, "docs")
         if len(body_text) > ws.MAX_DOC_INSERT_CHARS:
             raise GoogleWorkspaceError("the document body exceeds the insert budget")
-        file_id = self.generate_file_id(account_id)
-        metadata = ws.drive_create_file_metadata(
-            title, mime_type=ws.DOC_MIME, parent_id=parent_folder_id or "root",
-            app_properties={"hutch_created": "1"})
-        metadata["id"] = file_id
-        try:
-            created = self._json("POST", f"{self.drive_base}/files", account_id,
-                                 params={"supportsAllDrives": "true", "fields": "id,name,parents,webViewLink"},
-                                 json_body=metadata, purpose="Docs creation")
-        except GoogleWorkspaceOutcomeUnknown:
-            # The id was ours: reconcile by looking for exactly that file.
-            existing = self._json("GET", f"{self.drive_base}/files/{file_id}", account_id,
-                                  params={"fields": "id,name,parents,trashed,webViewLink"},
-                                  purpose="Docs reconciliation")
-            if existing.get("trashed"):
-                raise
-            created = existing
-        actual_id = str(created.get("id") or file_id)
+        created = self._create_workspace_file(account_id, title=title, mime_type=ws.DOC_MIME,
+                                              parent_folder_id=parent_folder_id,
+                                              properties={"hutch_created": "1"})
+        actual_id = created["id"]
         result: dict[str, Any] = {
             "document_id": actual_id,
             "title": str(created.get("name") or title),
@@ -518,31 +635,15 @@ class GoogleWorkspaceClient:
 
     def create_spreadsheet(self, account_id: str, *, title: str, sheet_titles: list[str],
                            parent_folder_id: str = "", hutch_key: str = "") -> dict[str, Any]:
-        """Create a spreadsheet with a caller-known file id, then name its sheets.
-
-        Creating through Drive with ``files.generateIds`` gives the same id-based
-        reconciliation as documents. Sheet names are applied with a batchUpdate; the
-        default sheet is renamed rather than orphaned where possible.
-        """
+        """Create a server-assigned spreadsheet and verify its requested sheet names."""
+        self._require_service(account_id, "sheets")
         ws.sheets_create_payload(title, sheet_titles)  # validation only
-        file_id = self.generate_file_id(account_id)
         properties = {"hutch_created": "1"}
         if hutch_key:
             properties["hutch_key"] = hutch_key
-        metadata = ws.drive_create_file_metadata(title, mime_type=ws.SHEET_MIME,
-                                                 parent_id=parent_folder_id or "root",
-                                                 app_properties=properties)
-        metadata["id"] = file_id
-        try:
-            self._json("POST", f"{self.drive_base}/files", account_id,
-                       params={"supportsAllDrives": "true", "fields": "id,name,webViewLink"},
-                       json_body=metadata, purpose="Sheets creation")
-        except GoogleWorkspaceOutcomeUnknown:
-            existing = self._json("GET", f"{self.drive_base}/files/{file_id}", account_id,
-                                  params={"fields": "id,name,trashed,webViewLink"},
-                                  purpose="Sheets reconciliation")
-            if existing.get("trashed"):
-                raise
+        created = self._create_workspace_file(account_id, title=title, mime_type=ws.SHEET_MIME,
+                                              parent_folder_id=parent_folder_id, properties=properties)
+        file_id = created["id"]
 
         current = self._json("GET", f"{self.sheets_base}/spreadsheets/{file_id}", account_id,
                              params={"fields": "spreadsheetId,sheets.properties"},
@@ -681,6 +782,9 @@ class GoogleWorkspaceClient:
     def upload_file(self, account_id: str, *, name: str, parent_id: str, content: bytes,
                     mime_type: str, app_properties: Optional[dict[str, str]] = None) -> dict[str, Any]:
         """Upload small media to an explicit folder, with id-based reconciliation."""
+        self._require_service(account_id, "drive")
+        if mime_type.startswith("application/vnd.google-apps."):
+            raise GoogleWorkspaceError("use a Docs or Sheets action to create a Google Workspace file")
         metadata = ws.drive_create_file_metadata(name, mime_type=mime_type, parent_id=parent_id,
                                                  app_properties=app_properties)
         file_id = self.generate_file_id(account_id)

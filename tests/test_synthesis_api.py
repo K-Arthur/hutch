@@ -111,3 +111,23 @@ def test_workspace_connection_surface_and_callback_redirect(api, monkeypatch):
         assert callback.status_code == 303
         assert "google_workspace_result=error" in callback.headers["location"]
         assert callback.headers["cache-control"] == "no-store"
+
+
+def test_google_file_service_updates_are_versioned_and_revision_bound(api):
+    from hutch.gsuite.client import FILE_SCOPE, _atomic_private_json
+    client, store, config = api
+    account_id = "gws_0123456789abcdef01234567"
+    _atomic_private_json(config.state_dir / "google-workspace-accounts.json", {
+        account_id: {"label": "Files", "scopes": [FILE_SCOPE], "services": ["drive"], "revision": 0}})
+    path = f"/api/v1/connections/google-workspace/accounts/{account_id}/services/docs"
+    body = {"contract_version": 1, "enabled": True, "expected_revision": 0}
+    assert client.put(path, json={**body, "contract_version": 2}).status_code == 422
+    response = client.put(path, json=body)
+    assert response.status_code == 200
+    assert response.json()["account"]["services"] == ["drive", "docs"]
+    assert client.put(path, json=body).status_code == 409
+    listing = client.get("/api/v1/connections/google-workspace").json()
+    assert listing["service_contract_version"] == 1
+    assert listing["accounts"][0]["revision"] == 1
+    assert all(row["scopes"] == [FILE_SCOPE] for row in listing["service_profiles"].values())
+    assert not store.list_google_calendar_grants()

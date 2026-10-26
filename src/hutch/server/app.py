@@ -1611,7 +1611,14 @@ class GoogleCalendarSignInRequest(BaseModel):
 
 
 class GoogleWorkspaceSignInRequest(BaseModel):
+    service: Literal["workspace", "drive", "docs", "sheets"] = "workspace"
     label: str = Field(default="Google Workspace", min_length=1, max_length=80)
+
+
+class GoogleFileServiceRequest(BaseModel):
+    contract_version: Literal[1] = 1
+    enabled: bool
+    expected_revision: int = Field(ge=0)
 
 
 class GoogleWorkspaceAuthorizationResource(BaseModel):
@@ -6378,7 +6385,7 @@ def create_app() -> FastAPI:
     def google_workspace_connections() -> dict:
         from dataclasses import asdict
 
-        from ..gsuite.client import GoogleWorkspaceClient
+        from ..gsuite.client import GoogleWorkspaceClient, FILE_SCOPE, SERVICES
         from ..gsuite.requests import GOOGLE_WORKSPACE_SCOPES
         client_id = effective_google_oauth_client_id()
         book = GoogleWorkspaceClient(config.state_dir, client_id or "unset")
@@ -6387,6 +6394,8 @@ def create_app() -> FastAPI:
             "secret_store_available": bool(book.secrets.available()),
             "accounts": [asdict(account) for account in book.accounts()],
             "scopes": list(GOOGLE_WORKSPACE_SCOPES),
+            "service_contract_version": 1,
+            "service_profiles": {service: {"scopes": [FILE_SCOPE]} for service in SERVICES},
             "callback_path": GoogleWorkspaceClient.callback_path,
             "detail": ("Docs, Sheets and per-file Drive access (drive.file); sharing is never "
                        "requested here and remains a separate action."),
@@ -6400,7 +6409,8 @@ def create_app() -> FastAPI:
         try:
             book = GoogleWorkspaceClient(config.state_dir, effective_google_oauth_client_id())
             callback = book.callback_uri(request)
-            result = book.start(body.label, callback)
+            result = (book.start(body.label, callback) if body.service == "workspace"
+                      else book.start(body.label, callback, service=body.service))
         except GoogleWorkspaceError as exc:
             raise HTTPException(409, str(exc)) from None
         response.headers["Cache-Control"] = "no-store"
@@ -6436,6 +6446,19 @@ def create_app() -> FastAPI:
             response.headers["Location"] = (
                 f"/?google_workspace_result=error&detail={quote(detail)}#/connections")
         return response
+
+    @app.put("/api/v1/connections/google-workspace/accounts/{account_id}/services/{service}")
+    def google_file_service(account_id: str, service: Literal["drive", "docs", "sheets"],
+                            body: GoogleFileServiceRequest) -> dict:
+        from dataclasses import asdict
+        from ..gsuite.client import GoogleWorkspaceClient, GoogleWorkspaceError
+        try:
+            book = GoogleWorkspaceClient(config.state_dir, effective_google_oauth_client_id())
+            account = book.set_service(account_id, service, enabled=body.enabled,
+                                       expected_revision=body.expected_revision)
+        except GoogleWorkspaceError as exc:
+            raise HTTPException(409, str(exc)) from None
+        return {"contract_version": 1, "account": asdict(account)}
 
     @app.post("/api/v1/connections/google-workspace/accounts/{account_id}/disconnect")
     def google_workspace_disconnect(account_id: str) -> dict:

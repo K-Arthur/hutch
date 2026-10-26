@@ -14,7 +14,7 @@ can reuse Google's account session, but cannot grant Hutch calendar access by it
 The current development manifest has no registered IDs, so live sign-in remains blocked.
 Google consent-screen verification and public eligibility have not been established.
 
-Developers can expand **More account settings → Developer settings for Google** to save their own
+Developers can open **Apps & AI → Google Calendar → Developer settings for Google** to save their own
 public Desktop client ID locally. Never enter a client secret or token. Operator environment
 `HUTCH_GOOGLE_OAUTH_CLIENT_ID` takes precedence, followed by the saved override, then the build's
 public registration. Clearing an override returns to the build default. Calendar, Workspace and
@@ -535,13 +535,28 @@ owner-launched terminal workflow and is not a runtime adapter.
 
 ## Google Drive, Docs and Sheets (experimental)
 
-Open **Apps & AI → Google Drive, Docs & Sheets → Connection details** to inspect the
-permissions, connect an account or disconnect it. No nickname is required. This uses
-Hutch's existing installed-app PKCE transport and the same publisher registration as
-Calendar, with separate account credentials. Docs and Sheets request document and
-spreadsheet scopes; Drive requests `drive.file`, which covers app-created and explicitly
-opened/shared files, not full-Drive discovery. The UI states those differences before
-sign-in. A native desktop Picker and full-Drive search are not implemented.
+Open **Apps & AI → Google Drive**, **Google Docs**, or **Google Sheets** for that
+service's capabilities, account controls and permissions. They are separate product
+connections using one shared file-account transport. New sign-ins request only
+`drive.file`: files created by Hutch or explicitly opened/shared with the app. Google's
+[Docs API](https://developers.google.com/workspace/docs/api/reference/rest/v1/documents/create)
+and [Sheets API](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/create)
+both accept that narrow scope. A native Picker and full-Drive search are not implemented.
+
+An existing file connection can be explicitly enabled for another service without
+another Google sign-in or broader provider consent. Enable/disable operations use a
+versioned contract and account revision check; disabling Docs leaves Drive and Sheets
+unchanged. Assistants still need their existing tools and exact action-plan approval.
+Disconnecting the shared Google account removes local file-service access for all three
+and attempts Google revocation. Google may revoke other grants to the same app identity;
+review the account's connected-app settings if other Google connections stop working.
+Calendar and Gmail remain separate consent/credential flows. Nicknames are optional.
+
+Existing combined connections keep their enabled capabilities and original OAuth scopes;
+the UI identifies their broader consent. Disconnect and reconnect for narrow per-file
+consent. No credentials are silently reauthorized or migrated. The legacy sign-in API
+without a service selection retains its original combined-scope contract for compatibility;
+the product UI always selects one service and requests only `drive.file`.
 
 Assistants need `workspace_actions` tools. They prepare a plan with the connected account
 reference, exact destination and changes, then request fresh approval to execute it.
@@ -550,6 +565,14 @@ Sharing or notifying people requires separate authority. Disconnecting clears lo
 credentials and attempts Google revocation; existing cloud files remain. The callback
 reports success/cancellation and removes its status query from browser history. Live
 Google account validation remains blocked by the missing publisher registration.
+
+Docs and Sheets creation uses server-assigned IDs. Google explicitly
+[does not support pre-generated IDs for these file types](https://developers.google.com/workspace/drive/api/guides/create-file#generate_ids_to_use_with_your_files).
+Hutch sets a random creation identity in the initial file metadata and reconciles a lost
+response with a bounded exact-property search and metadata readback. Missing, multiple,
+truncated or mismatched results stay uncertain; the create is never automatically replayed.
+Media uploads retain their supported pre-generated-ID path. Upload conversion to native
+Workspace MIME types is rejected; use the corresponding Docs or Sheets action instead.
 
 ## Hutch on your phone (experimental)
 

@@ -95,6 +95,35 @@
 .connection-reference code { display: block; max-width: 100%; overflow-wrap: anywhere; padding-bottom: 8px; }
 .connections-workspace .service-mark-notion { background: var(--sunken); border-color: var(--line); }
 .connections-workspace .service-mark-notion img { width: 30px; height: 30px; }
+/* File services share account transport, with separate readable service controls. */
+.connections-workspace .google-file-card { display: grid; gap: 32px; }
+.connections-workspace .google-file-card > .bot-head { margin-bottom: 0; }
+.google-file-overview { display: grid; grid-template-columns: 1.1fr 1fr; gap: 32px; align-items: start; }
+.google-file-card h2 { margin: 0; font: 600 var(--fs-lg)/1.4 var(--font-ui); color: var(--text); letter-spacing: normal; }
+.google-file-card h3 { margin: 0; font: 600 var(--fs-base)/1.45 var(--font-ui); color: var(--text); }
+.google-file-card p, .google-file-card li { font-size: var(--fs-sm); line-height: 1.6; }
+.google-file-card p { margin: 8px 0 0; }
+.google-file-overview ul { margin: 16px 0 0; padding-left: 20px; color: var(--text-2); display: grid; gap: 8px; }
+.google-file-boundary { border-left: 1px solid var(--line); padding-left: 20px; color: var(--text-2); }
+.google-file-accounts { border-top: 1px solid var(--line); padding-top: 24px; }
+.google-file-section-head, .google-file-account-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.google-file-account { margin-top: 16px; padding: 20px; border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--panel); overflow-wrap: anywhere; }
+.google-file-account-head > div { flex: 1 1 160px; min-width: 0; }
+.google-file-card .btn { min-height: 44px; height: auto; padding: 10px 16px; white-space: normal; line-height: 1.4; }
+.google-file-card details { font-size: var(--fs-sm); line-height: 1.6; }
+.google-file-card summary { min-height: 44px; padding-block: 12px; cursor: pointer; color: var(--text-2); }
+.google-file-account-details { margin-top: 12px; border-top: 1px solid var(--line); }
+.google-file-account-details .btn { margin-top: 16px; }
+.google-file-reuse { margin-top: 24px; }
+.google-file-permissions { border-top: 1px solid var(--line); }
+@media (max-width: 640px) {
+  .google-file-overview { grid-template-columns: 1fr; gap: 24px; }
+  .google-file-boundary { padding-left: 16px; }
+  .google-file-section-head { align-items: start; }
+  .google-file-account { padding: 16px; }
+  .google-file-account-head > .btn { width: 100%; }
+}
+
 .connections-workspace .connection-management.is-focused { margin-top: 0; border: 0; }
 .connections-workspace .connection-management.is-focused > summary { display: none; }
 .connections-workspace .connection-management.is-focused .connection-management-content { gap: 24px; }

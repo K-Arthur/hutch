@@ -2,7 +2,9 @@
 (() => {
   const SECTIONS = Object.freeze({
     "google-calendar": ["connection-google-calendar"],
-    "google-workspace": ["connection-google-workspace"],
+    "google-drive": ["connection-google-drive"],
+    "google-docs": ["connection-google-docs"],
+    "google-sheets": ["connection-google-sheets"],
     notion: ["connection-notion"],
     gmail: ["connection-gmail"],
     "outlook-calendar": ["connection-outlook-calendar", "connection-outlook-mail"],
@@ -19,7 +21,7 @@
     const detail = root.querySelector("[data-connection-detail]");
     if (!directory || !manager || !heading || !detail) return;
     const params = new URLSearchParams((location.hash.split("?")[1] || ""));
-    const requested = params.get("app") || "";
+    const requested = params.get("app") === "google-workspace" ? "google-drive" : params.get("app") || "";
     const selected = Object.hasOwn(SECTIONS, requested) ? requested : "";
     const entries = [...directory.querySelectorAll("[data-connection-entry]")];
     const entry = entries.find(node => node.dataset.connectionEntry === selected);
@@ -53,6 +55,10 @@
         steps.children[0].textContent = "Account connected";
         steps.children[0].classList.add("is-complete");
         steps.children[1].textContent = "Manage assistant access";
+      }
+      if (["google-drive", "google-docs", "google-sheets"].includes(selected)) {
+        steps.children[1].textContent = "Review an action plan";
+        steps.children[2].textContent = "Approve exact changes";
       }
       root.querySelector("#connection-detail-description").textContent = entry.querySelector("p")?.textContent || "";
       root.querySelectorAll(".connection-management-content > *").forEach(node => {

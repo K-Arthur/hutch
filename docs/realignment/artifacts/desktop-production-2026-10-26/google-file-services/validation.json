@@ -1,0 +1,22 @@
+{
+  "source_sha256": {
+    "app/src/input.css": "df4ae93026cd900ab8e66d969e129593d54b5fa22f24d88bb7f519d1f9eb1940",
+    "src/hutch/gsuite/client.py": "039b6dfe070808bf1acb6289da95ac8d4633712857e3026804b2fcf76993127a",
+    "src/hutch/server/app.py": "b71dc1d2b6f3f940432f9e834a7c42990f627cfd1ba69f691120bb59f5e9e42e",
+    "src/hutch/server/static/app.js": "b8857dfc34e208465177474b97b197ab5a5ae91d7cc721b228163c877b75a818",
+    "src/hutch/server/static/connection-browser.js": "71393e886c2a98d02e3d6d00b2e2a7fb73c389985f73e942841a1e7c42f442fe",
+    "src/hutch/server/static/ui.css": "2a7cf4cb02472a957261dba5818c8370626f9da7424f4e60757f2ad49fcd5cfa"
+  },
+  "evidence": "Synthetic accounts and local fake Google HTTP endpoints; no live OAuth/provider effects. Chromium 153.0.8010.12.",
+  "checks": {
+    "google_boundary": "86 passed",
+    "final_client_reconciliation": "25 passed, including metadata change during reconciliation",
+    "directory_workspace_browser": "22 passed, 164 deselected",
+    "complete_signin_browser": "11 passed",
+    "final_responsive_review": "3 passed, 8 deselected",
+    "css_build": "passed",
+    "design_detector": "no findings",
+    "javascript_syntax": "passed"
+  },
+  "scope": "Separate Drive/Docs/Sheets setup, narrow per-file OAuth, explicit revision-bound service reuse/disable, reviewed action boundaries and lost-response creation reconciliation. No full-app accessibility or production readiness claim."
+}

@@ -186,6 +186,10 @@ class _Handler(BaseHTTPRequestHandler):
             return self._send(200, {"ids": [f"file_{server.id_counter:04d}"]})
         if method == "POST" and path.endswith("/files"):
             metadata = json.loads(body or b"{}")
+            if metadata.get("mimeType") in ("application/vnd.google-apps.document", "application/vnd.google-apps.spreadsheet") and "id" in metadata:
+                return self._send(400, {"error": {"message": "pre-generated ids unsupported for Workspace files"}})
+            if "id" not in metadata:
+                server.id_counter += 1
             file_id = str(metadata.get("id") or f"file_{server.id_counter:04d}")
             server.files[file_id] = {  # type: ignore[attr-defined]
                 "id": file_id, "name": metadata.get("name", ""),
@@ -199,7 +203,19 @@ class _Handler(BaseHTTPRequestHandler):
                     {"sheetId": 1, "title": "Sheet1", "index": 0}]}
             if metadata.get("mimeType") == "application/vnd.google-apps.document":
                 server.docs.setdefault(file_id, "")  # type: ignore[attr-defined]
+            if getattr(server, "drop_after_create", False):
+                server.drop_after_create = False
+                self.close_connection = True
+                return
             return self._send(200, server.files[file_id])
+        if method == "GET" and path.endswith("/files"):
+            q = parse_qs(urlsplit(self.path).query).get("q", [""])[0]
+            import re
+            match = re.search(r"key='([^']+)' and value='([^']+)'", q)
+            files = [value for value in server.files.values() if match
+                     and value.get("appProperties", {}).get(match[1]) == match[2]
+                     and not value.get("trashed")]
+            return self._send(200, {"files": files})
         if method == "GET" and "/files/" in path:
             file_id = path.rsplit("/", 1)[-1]
             stored = server.files.get(file_id)  # type: ignore[attr-defined]
@@ -437,8 +453,9 @@ def test_outcome_unknown_when_create_response_is_lost(google):
     account = _connect(server, client, secrets)
     server.drops.add("POST /drive/v3/files")
     server.drops.add("GET /drive/v3/files/file_0001")
-    with pytest.raises(GoogleWorkspaceError):
+    with pytest.raises(GoogleWorkspaceOutcomeUnknown, match="could not be reconciled"):
         client.create_document(account.account_id, title="lost")
+    assert sum(call["method"] == "POST" and call["path"].startswith("/drive/v3/files?") for call in server.calls) == 1
 
 
 def test_plan_executes_workspace_journey_and_reuses_on_retry(google, store, tmp_path):
@@ -493,3 +510,138 @@ def test_plan_executes_workspace_journey_and_reuses_on_retry(google, store, tmp_
                          approved_hash=plan.approval_scope_hash)
     assert again.status == "completed"
     assert [c for c in server.calls if c["method"] in ("POST", "PATCH")] == writes
+
+
+@pytest.mark.parametrize("service", ["drive", "docs", "sheets"])
+def test_per_file_sign_in_enables_only_requested_service_and_can_reuse_account(google, service):
+    server, client, secrets = google
+    server.token_scope = client_module.FILE_SCOPE
+    start = client.start("Work", "http://127.0.0.1:9/cb", service=service)
+    assert parse_qs(urlsplit(start.url).query)["scope"] == [client_module.FILE_SCOPE]
+    account = client.finish(start.state, "code", "http://127.0.0.1:9/cb")
+    assert account.services == (service,)
+    other = "sheets" if service != "sheets" else "docs"
+    before = list(server.calls)
+    with pytest.raises(GoogleWorkspaceError, match="disabled"):
+        client._request("GET", f"{client.sheets_base if other == 'sheets' else client.docs_base}/anything", account.account_id)
+    assert server.calls == before  # no refresh or provider request for disabled service
+    updated = client.set_service(account.account_id, other, enabled=True, expected_revision=0)
+    assert set(updated.services) == {service, other}
+    assert updated.revision == 1
+    assert server.calls == before  # service reuse requires no new OAuth grant
+    with pytest.raises(GoogleWorkspaceError, match="settings changed"):
+        client.set_service(account.account_id, service, enabled=False, expected_revision=0)
+    disabled = client.set_service(account.account_id, service, enabled=False, expected_revision=1)
+    assert disabled.services == (other,)
+    assert secrets.get(account.account_id)
+    client.set_service(account.account_id, other, enabled=False, expected_revision=2)
+    with pytest.raises(GoogleWorkspaceError, match="disabled"):
+        client.generate_file_id(account.account_id)
+
+
+def test_narrow_docs_connection_creates_and_verifies_document_without_drive_service(google):
+    server, client, secrets = google
+    server.token_scope = client_module.FILE_SCOPE
+    start = client.start("Docs", "http://127.0.0.1:9/cb", service="docs")
+    account = client.finish(start.state, "code", "http://127.0.0.1:9/cb")
+    result = client.create_document(account.account_id, title="Reviewed brief", body_text="Approved content")
+    assert result["verification"] == []
+    assert server.docs[result["document_id"]] == "Approved content"
+    with pytest.raises(GoogleWorkspaceError, match="sheets is disabled"):
+        client.create_spreadsheet(account.account_id, title="Tracker", sheet_titles=["Deals"])
+    with pytest.raises(GoogleWorkspaceError, match="drive is disabled"):
+        client.upload_file(account.account_id, name="file.txt", parent_id="folder", content=b"content", mime_type="text/plain")
+
+
+def test_sign_in_state_binds_client_and_scope_and_is_consumed_once(google):
+    server, client, secrets = google
+    start = client.start("Docs", "http://127.0.0.1:9/cb", service="docs")
+    client.client_id = "different-client"
+    with pytest.raises(GoogleWorkspaceError, match="registration changed"):
+        client.finish(start.state, "code", "http://127.0.0.1:9/cb")
+    with pytest.raises(GoogleWorkspaceError, match="expired"):
+        client.finish(start.state, "code", "http://127.0.0.1:9/cb")
+    assert not server.calls
+    assert not secrets.values
+
+
+def test_parallel_oauth_starts_preserve_each_service_state(google):
+    from concurrent.futures import ThreadPoolExecutor
+    _, client, _ = google
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        starts = list(pool.map(lambda service: client.start(service, "http://127.0.0.1:9/cb", service=service),
+                               client_module.SERVICES))
+    pending = json.loads(client._pending_path.read_text())
+    assert {start.state for start in starts} == set(pending)
+    assert {row["service"] for row in pending.values()} == set(client_module.SERVICES)
+
+
+def test_legacy_combined_account_keeps_services_until_explicitly_disabled(google):
+    _, client, secrets = google
+    aid = "gws_0123456789abcdef01234567"
+    client_module._atomic_private_json(client._accounts_path, {aid: {"label": "Old account", "scopes": SCOPES.split()}})
+    assert client.accounts()[0].services == client_module.SERVICES
+    updated = client.set_service(aid, "docs", enabled=False, expected_revision=0)
+    assert updated.services == ("drive", "sheets")
+    with pytest.raises(GoogleWorkspaceError, match="docs is disabled"):
+        client.read_document(aid, "document-id")
+
+
+@pytest.mark.parametrize("kind", ["docs", "sheets"])
+def test_workspace_create_reconciles_committed_lost_response_without_duplicate(google, kind):
+    server, client, secrets = google
+    account = _connect(server, client, secrets)
+    server.drop_after_create = True
+    if kind == "docs":
+        result = client.create_document(account.account_id, title="One brief", body_text="Verified content")
+        assert server.docs[result["document_id"]] == "Verified content"
+    else:
+        result = client.create_spreadsheet(account.account_id, title="One tracker", sheet_titles=["Deals"])
+        assert result["sheets"] == {"Deals": 1}
+    assert result["verification"] == []
+    assert len(server.files) == 1
+    assert sum(call["method"] == "POST" and call["path"].startswith("/drive/v3/files?") for call in server.calls) == 1
+    assert not any("generateIds" in call["path"] for call in server.calls)
+
+
+def test_workspace_upload_conversion_is_rejected_before_dispatch(google):
+    server, client, secrets = google
+    account = _connect(server, client, secrets)
+    before = list(server.calls)
+    with pytest.raises(GoogleWorkspaceError, match="Docs or Sheets action"):
+        client.upload_file(account.account_id, name="Doc", parent_id="folder", content=b"text",
+                           mime_type="application/vnd.google-apps.document")
+    assert server.calls == before
+
+
+@pytest.mark.parametrize("fault", ["multiple", "truncated", "wrong-parent", "changed-readback"])
+def test_workspace_uncertain_creation_rejects_unverifiable_identity(google, monkeypatch, fault):
+    server, client, secrets = google
+    account = _connect(server, client, secrets)
+    server.drop_after_create = True
+    original = client.find_files_by_app_key
+    def find(account_id, key, value):
+        rows = original(account_id, key, value)
+        if fault == "multiple":
+            return rows + rows
+        if fault == "truncated":
+            raise GoogleWorkspaceError("Drive reconciliation search exceeded its bounded result window")
+        if fault == "changed-readback":
+            readback = client.file_metadata
+            monkeypatch.setattr(client, "file_metadata", lambda *args: {**readback(*args), "name": "Changed title"})
+        else:
+            rows[0]["parents"] = ["wrong-folder"]
+        return rows
+    monkeypatch.setattr(client, "find_files_by_app_key", find)
+    with pytest.raises(GoogleWorkspaceOutcomeUnknown, match="could not be reconciled"):
+        client.create_document(account.account_id, title="Uncertain", parent_folder_id="approved-folder")
+    assert len(server.files) == 1
+    assert all(text == "" for text in server.docs.values())
+
+
+def test_reconciliation_search_cannot_accept_a_partial_page(google):
+    server, client, secrets = google
+    account = _connect(server, client, secrets)
+    server.overrides["GET /drive/v3/files"] = (200, {"files": [], "nextPageToken": "more"})
+    with pytest.raises(GoogleWorkspaceError, match="bounded result window"):
+        client.find_files_by_app_key(account.account_id, "hutch_creation", "exact-identity")

@@ -1,6 +1,9 @@
 """Normal account connection reuses the system-browser OAuth flow without setup forms."""
 from urllib.parse import parse_qs, urlsplit
 
+import pytest
+from playwright.sync_api import expect
+
 from tests.e2e.test_browser import browser, live  # noqa: F401
 from tests.test_google_calendar import MemorySecrets
 from tests.test_oauth_apps import publisher_apps  # noqa: F401
@@ -66,7 +69,8 @@ def test_microsoft_tile_asks_purpose_then_opens_signin_without_nickname(browser,
         context.close()
 
 
-def test_workspace_connection_exposes_scope_and_opens_real_pkce_without_nickname(browser, live, publisher_apps, monkeypatch):
+@pytest.mark.parametrize("service,title", [("drive", "Google Drive"), ("docs", "Google Docs"), ("sheets", "Google Sheets")])
+def test_workspace_connection_exposes_scope_and_opens_real_pkce_without_nickname(browser, live, publisher_apps, monkeypatch, service, title):
     base, _ = live
     monkeypatch.setattr("hutch.gsuite.client.WorkspaceSecretToolStore", MemorySecrets)
     context = browser.new_context(viewport={"width": 1440, "height": 900}, reduced_motion="reduce")
@@ -74,20 +78,22 @@ def test_workspace_connection_exposes_scope_and_opens_real_pkce_without_nickname
     page = context.new_page()
     try:
         page.goto(base + "/#/connections")
-        page.locator('[data-connection-open="google-workspace"]').click()
-        card = page.locator("#connection-google-workspace")
+        page.locator(f'[data-connection-open="google-{service}"]').click()
+        card = page.locator(f"#connection-google-{service}")
         card.wait_for()
-        assert "does not give Hutch full-Drive search" in card.inner_text()
-        assert "broader document and spreadsheet scopes" in card.inner_text()
+        assert page.locator("#connection-detail-heading h2").inner_text() == title
+        assert "your approval of its exact account" in card.inner_text()
+        card.locator(".google-file-permissions").get_by_text("Permissions and shared sign-in", exact=True).click()
+        assert "only drive.file" in card.inner_text()
+        assert "Disabling this service keeps the others connected." in card.inner_text()
         with page.expect_popup() as popup_info:
-            card.get_by_role("button", name="Connect Google Workspace").click()
+            card.get_by_role("button", name=f"Connect {title}").click()
         popup = popup_info.value
         popup.wait_for_url("https://accounts.google.com/**")
         query = parse_qs(urlsplit(popup.url).query)
         assert query["code_challenge_method"] == ["S256"]
-        assert set(query["scope"][0].split()) == {
-            "https://www.googleapis.com/auth/documents", "https://www.googleapis.com/auth/spreadsheets",
-            "https://www.googleapis.com/auth/drive.file"}
+        assert query["scope"] == ["https://www.googleapis.com/auth/drive.file"]
+        assert popup.evaluate("window.opener === null")
         assert query["redirect_uri"][0].endswith("/api/v1/connections/google-workspace/callback")
         popup.close()
         out = artifact_path("workspace-connect")
@@ -96,7 +102,7 @@ def test_workspace_connection_exposes_scope_and_opens_real_pkce_without_nickname
             page.set_viewport_size({"width": width, "height": height})
             card.scroll_into_view_if_needed()
             assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
-            page.screenshot(path=str(out / f"workspace-{width}.png"), animations="disabled")
+            page.screenshot(path=str(out / f"{service}-{width}.png"), animations="disabled")
     finally:
         context.close()
 
@@ -116,13 +122,14 @@ def test_workspace_connected_account_can_be_revoked_and_callback_status_is_consu
     page = context.new_page()
     try:
         page.goto(base + "/?google_workspace_result=connected#/connections")
-        page.locator('[data-connection-open="google-workspace"]').click()
-        page.locator("#connection-google-workspace").wait_for()
+        page.locator('[data-connection-open="google-drive"]').click()
+        page.locator("#connection-google-drive").wait_for()
         assert "google_workspace_result" not in page.url
-        assert page.locator("#connection-google-workspace strong").inner_text() == "Work <account>"
-        page.get_by_role("button", name="Disconnect Workspace", exact=True).click()
+        assert page.locator("#connection-google-drive .google-file-account h3").inner_text() == "Work <account>"
+        page.locator("#connection-google-drive .google-file-account-details summary").click()
+        page.get_by_role("button", name="Disconnect shared Google account", exact=True).click()
         page.locator("#modal-confirm").click()
-        page.wait_for_function("() => document.querySelector('#connection-google-workspace')?.textContent.includes('No Workspace accounts connected.')")
+        page.wait_for_function("() => document.querySelector('#connection-google-drive')?.textContent.includes('No Google Drive accounts connected.')")
         assert removed == ["gws_0123456789abcdef01234567"]
     finally:
         context.close()
@@ -180,6 +187,42 @@ def test_phone_pairing_code_is_deliberate_ephemeral_and_never_in_a_url(browser, 
         assert page.locator("#modal-confirm").is_disabled()
         page.locator("#modal-close").click()
         assert page.locator("#phone-pair-result").count() == 0
+        assert not errors
+    finally:
+        context.close()
+
+
+@pytest.mark.parametrize("width", [1440, 390, 320])
+def test_google_services_reuse_connection_and_disable_independently(browser, live, publisher_apps, monkeypatch, width):
+    from hutch.gsuite.client import FILE_SCOPE, _atomic_private_json
+    base, app = live
+    aid = "gws_0123456789abcdef01234567"
+    _atomic_private_json(app.state.config.state_dir / "google-workspace-accounts.json", {
+        aid: {"label": "Work account", "scopes": [FILE_SCOPE], "services": ["drive"], "revision": 0}})
+    monkeypatch.setattr("hutch.gsuite.client.WorkspaceSecretToolStore", MemorySecrets)
+    context = browser.new_context(viewport={"width": width, "height": 950}, reduced_motion="reduce")
+    page = context.new_page()
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    try:
+        page.goto(base + "/#/connections?app=google-docs")
+        card = page.locator("#connection-google-docs")
+        card.get_by_role("button", name="Use this account", exact=True).click()
+        expect(card.get_by_role("button", name="Disable Google Docs", exact=True)).to_be_visible()
+        assert "Also enabled: Google Drive" in card.inner_text()
+        assert not app.state.store.list_google_calendar_grants()
+        card.get_by_role("button", name="Disable Google Docs", exact=True).click()
+        expect(card.get_by_role("button", name="Use this account", exact=True)).to_be_visible()
+        page.goto(base + "/#/connections?app=google-drive")
+        expect(page.get_by_role("button", name="Disable Google Drive", exact=True)).to_be_visible()
+        out = artifact_path("google-file-services")
+        out.mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=str(out / f"drive-normal-{width}.png"), full_page=True, animations="disabled")
+        page.add_style_tag(content=".connections-workspace * { letter-spacing: .12em !important; word-spacing: .16em !important; line-height: 1.5 !important; }")
+        assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+        out = artifact_path("google-file-services")
+        out.mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=str(out / f"drive-connected-{width}.png"), full_page=True, animations="disabled")
         assert not errors
     finally:
         context.close()
