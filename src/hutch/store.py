@@ -1804,6 +1804,12 @@ def _ensure_grounding_schema(db: sqlite3.Connection) -> None:
     _create_grounding_schema(db)
 
 
+def _ensure_conversation_persona(db: sqlite3.Connection) -> None:
+    columns = {row[1] for row in db.execute("PRAGMA table_info(conversations)")}
+    if "persona" not in columns:
+        db.execute("ALTER TABLE conversations ADD COLUMN persona TEXT NOT NULL DEFAULT ''")
+
+
 def _migrate_52(db: sqlite3.Connection) -> None:
     """Repair both historical schema-v51 shapes and retain mainline source migration.
 
@@ -1812,9 +1818,7 @@ def _migrate_52(db: sqlite3.Connection) -> None:
     source tables and repairs the conversation column without discarding state.
     """
     _migrate_51(db)
-    columns = {row[1] for row in db.execute("PRAGMA table_info(conversations)")}
-    if "persona" not in columns:
-        db.execute("ALTER TABLE conversations ADD COLUMN persona TEXT NOT NULL DEFAULT ''")
+    _ensure_conversation_persona(db)
     _ensure_event_source_tables(db)
 
 
@@ -2408,6 +2412,17 @@ def _migrate_78(db: sqlite3.Connection) -> None:
     _ensure_persona_feedback(db)
 
 
+def _migrate_79(db: sqlite3.Connection) -> None:
+    """Complete response-style storage on development profiles with a missing column.
+
+    A later stamped alternate lineage can lack v52's conversation column even
+    after the v78 feedback-table repair. Add only missing storage; preserve all
+    existing style values and transcripts. The normal upgrade backup applies.
+    """
+    _ensure_conversation_persona(db)
+    _ensure_persona_feedback(db)
+
+
 def _integration_tool_names(db: sqlite3.Connection, bot_id: str) -> list[str]:
     """Return sorted names for grants on enabled, operation-authorized integrations only."""
     rows = db.execute("SELECT g.canonical_name FROM integration_tool_grants g "
@@ -2424,7 +2439,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
                _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53, _migrate_54,
-               _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59, _migrate_60, _migrate_61, _migrate_62, _migrate_63, _migrate_64, _migrate_65, _migrate_66, _migrate_67, _migrate_68, _migrate_69, _migrate_70, _migrate_71, _migrate_72, _migrate_73, _migrate_74, _migrate_75, _migrate_76, _migrate_77, _migrate_78]
+               _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59, _migrate_60, _migrate_61, _migrate_62, _migrate_63, _migrate_64, _migrate_65, _migrate_66, _migrate_67, _migrate_68, _migrate_69, _migrate_70, _migrate_71, _migrate_72, _migrate_73, _migrate_74, _migrate_75, _migrate_76, _migrate_77, _migrate_78, _migrate_79]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 EVENT_OUTBOX_SCHEMA_VERSION = 71
 
