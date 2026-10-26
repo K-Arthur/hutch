@@ -1,0 +1,123 @@
+{
+  "contract_version": 1,
+  "run_url": "https://github.com/K-Arthur/hutch/actions/runs/40418955378",
+  "source": "9f0bc48d1345886af2e6b017e1327baccb52b5f2",
+  "jobs": [
+    {
+      "target": "macos-x64",
+      "url": "https://github.com/K-Arthur/hutch/actions/runs/40418955378/job/121908224787",
+      "conclusion": "success",
+      "host": {
+        "contract_version": 1,
+        "commit": "9f0bc48d1345886af2e6b017e1327baccb52b5f2",
+        "system": "Darwin",
+        "release": "24.6.0",
+        "os_version": "15.7.9",
+        "machine": "x86_64",
+        "python": "3.13.15",
+        "python_bits": 64,
+        "scope": "kernel locks and skills registry; OS vault on Windows/macOS; Job Object on Windows only",
+        "limitations": [
+          "Not an installed desktop-package or GUI result",
+          "Windows Server is not Windows 11 acceptance",
+          "macOS 15 Intel is not macOS 14 Intel acceptance",
+          "Non-Windows Rust process-guard has no supervision tests yet"
+        ],
+        "target": "macos-x64"
+      },
+      "summaries": [
+        "29 passed, 50 deselected in 13.55s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+      ]
+    },
+    {
+      "target": "windows-x64",
+      "url": "https://github.com/K-Arthur/hutch/actions/runs/40418955378/job/121908225089",
+      "conclusion": "success",
+      "host": {
+        "contract_version": 1,
+        "commit": "9f0bc48d1345886af2e6b017e1327baccb52b5f2",
+        "system": "Windows",
+        "release": "2025Server",
+        "os_version": "10.0.26100",
+        "machine": "AMD64",
+        "python": "3.13.15",
+        "python_bits": 64,
+        "scope": "kernel locks and skills registry; OS vault on Windows/macOS; Job Object on Windows only",
+        "limitations": [
+          "Not an installed desktop-package or GUI result",
+          "Windows Server is not Windows 11 acceptance",
+          "macOS 15 Intel is not macOS 14 Intel acceptance",
+          "Non-Windows Rust process-guard has no supervision tests yet"
+        ],
+        "target": "windows-x64"
+      },
+      "summaries": [
+        "29 passed, 50 deselected in 13.27s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s"
+      ]
+    },
+    {
+      "target": "macos-arm64",
+      "url": "https://github.com/K-Arthur/hutch/actions/runs/40418955378/job/121908225337",
+      "conclusion": "success",
+      "host": {
+        "contract_version": 1,
+        "commit": "9f0bc48d1345886af2e6b017e1327baccb52b5f2",
+        "system": "Darwin",
+        "release": "23.6.0",
+        "os_version": "14.8.9",
+        "machine": "arm64",
+        "python": "3.13.15",
+        "python_bits": 64,
+        "scope": "kernel locks and skills registry; OS vault on Windows/macOS; Job Object on Windows only",
+        "limitations": [
+          "Not an installed desktop-package or GUI result",
+          "Windows Server is not Windows 11 acceptance",
+          "macOS 15 Intel is not macOS 14 Intel acceptance",
+          "Non-Windows Rust process-guard has no supervision tests yet"
+        ],
+        "target": "macos-arm64"
+      },
+      "summaries": [
+        "29 passed, 50 deselected in 7.84s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+      ]
+    },
+    {
+      "target": "linux-x64",
+      "url": "https://github.com/K-Arthur/hutch/actions/runs/40418955378/job/121908225409",
+      "conclusion": "success",
+      "host": {
+        "contract_version": 1,
+        "commit": "9f0bc48d1345886af2e6b017e1327baccb52b5f2",
+        "system": "Linux",
+        "release": "6.17.0-1022-azure",
+        "os_version": "ubuntu 24.04",
+        "machine": "x86_64",
+        "python": "3.13.15",
+        "python_bits": 64,
+        "scope": "kernel locks and skills registry; OS vault on Windows/macOS; Job Object on Windows only",
+        "limitations": [
+          "Not an installed desktop-package or GUI result",
+          "Windows Server is not Windows 11 acceptance",
+          "macOS 15 Intel is not macOS 14 Intel acceptance",
+          "Non-Windows Rust process-guard has no supervision tests yet"
+        ],
+        "target": "linux-x64"
+      },
+      "summaries": [
+        "28 passed, 1 skipped, 50 deselected in 11.58s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+      ]
+    }
+  ],
+  "limitations": [
+    "Selected primitive checks only; no installed desktop or GUI result",
+    "Windows Server is not Windows 11 acceptance",
+    "macOS 15 Intel is not macOS 14 Intel acceptance",
+    "Windows worker/workspace/IPC ports remain incomplete; wake acceleration unavailable",
+    "No non-Windows Rust process-supervision tests or speedup claim"
+  ]
+}
