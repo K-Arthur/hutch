@@ -98,3 +98,28 @@ empty packaged manifest. `--require-oauth` refuses a missing registration before
 This gate checks configuration, not ownership, live consent, verification or provider approval;
 those remain release checks. Runtime operator overrides remain available. No third-party app
 registration or browser credentials are borrowed.
+
+## Native boundary CI
+
+[Native platform boundaries](../.github/workflows/native-platform.yml) is a manual,
+read-only-repository workflow with four bounded jobs: Ubuntu 24.04 x64, Windows
+Server 2025 x64, macOS 14 arm64 and macOS 15 Intel. It runs actual cross-process
+locks, concurrent skill-registry mutation and the Windows native Job Object test.
+Unix has no process-supervision tests in that small crate yet. Source commit,
+actual OS/architecture/Python, JUnit and bounded Rust logs are retained as private
+artifacts for seven days. Actions are pinned to verified commit IDs; Python, uv
+and Rust versions are explicit and Python dependencies use the frozen lockfile.
+
+Before dispatch, verify included runner capacity and that paid overages are
+disabled, then set `included_runner_budget_verified`. False leaves the matrix
+skipped; **skipped jobs are not acceptance evidence**. This flag records an
+operator prerequisite; it cannot enforce provider billing. The current login's
+billing API returned 404 requiring additional user scope; no scope expansion,
+workflow dispatch or runner charge was performed. Do not dispatch solely because
+workflow syntax passes locally. A new workflow must be registered on the private
+repository's default branch before manual dispatch; existing push CI can also use
+runner minutes, so account limits must be verified before pushing that branch.
+
+These runners do not replace Windows 11 or macOS 14 Intel installed-package/GUI
+checks. No app bundle, release, signing secret, personal profile or provider
+credential is uploaded. Missing native results remain release blockers.
