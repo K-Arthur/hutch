@@ -40,6 +40,7 @@ let currentConversations = [];
 let currentWorkspaceTasks = [];
 let currentCodeHandoffs = [];
 let studioGeneration = 0;
+let connectionsGeneration = 0;
 let studioConversationMenuCleanup = null;
 let activeReplySelectionHandler = null;
 let activeAnswerCorrectionHandler = null;
@@ -1367,6 +1368,7 @@ const BRAND_MARK_FILES = {
   calendar: "google-calendar-2026q2.png",
   gmail: "google-gmail-2026q2.png",
   outlook: "microsoft-outlook.svg",
+  notion: "notion.ico",
 };
 const TEMPLATE_MARKS = {
   "openai-api": "openai",
@@ -1914,7 +1916,7 @@ const routes = [
   [/^#\/runs(?:\?(.*))?$/, m => renderRuns(m ? m[1] : ""), "runs"],
   [/^#\/skills$/, () => window.hutchSkills.renderSkillsPage(), "skills"],
   [/^#\/approvals$/, renderApprovals, "chat"],
-  [/^#\/connections$/, renderConnections, "connections"],
+  [/^#\/connections(?:\?.*)?$/, renderConnections, "connections"],
   [/^#\/bot\/([\w-]+)$/, m => renderBotDetail(decodeURIComponent(m[1])), "chat"],
   [/^#\/run\/([\w-]+)(?:\?(.*))?$/, m => renderRunDetail(m[1], new URLSearchParams(m ? m[2] || "" : "")), "runs"],
 ];
@@ -8893,9 +8895,14 @@ async function openKDEConnectSetup(button, bots) {
 }
 
 async function renderConnections() {
+  const requestedHash = location.hash;
+  if (!/^#\/connections(?:\?|$)/.test(requestedHash)) return;
+  const generation = ++connectionsGeneration;
+  const stillCurrent = () => generation === connectionsGeneration && location.hash === requestedHash;
   let data;
   try { data = await api("/connections"); }
-  catch (err) { view.innerHTML = errorState(err); return; }
+  catch (err) { if (stillCurrent()) view.innerHTML = errorState(err); return; }
+  if (!stillCurrent()) return;
   const modelCapabilityRequest = api("/v1/model-capabilities?direction=desc&limit=5")
     .then(page => ({ page, error: "" }))
     .catch(err => ({ page: null, error: err.message }));
@@ -8912,6 +8919,7 @@ async function renderConnections() {
   catch (err) { devicesError = err.message; }
   let phoneSetup = { ready: false, pair_url: "", detail: "Could not load phone connection setup. Reload to try again." };
   try { phoneSetup = await api("/v1/pairing/setup"); } catch { /* keep visible failure and existing device controls */ }
+  if (!stillCurrent()) return;
   setTopContext(`<div class="ctx-id"><h1>Apps &amp; AI</h1></div>`);
   const conns = data.connections || [];
   const googleOAuthClient = data.google_oauth_client || {
@@ -8919,14 +8927,17 @@ async function renderConnections() {
     detail: "Google sign-in is not enabled in this Hutch build.",
   };
   const googleCalendar = data.google_calendar || { configured: false, secret_store_available: false, accounts: [], grants: [] };
-  let googleWorkspace;
-  let workspaceError = "";
-  try { googleWorkspace = await api("/v1/connections/google-workspace"); }
-  catch (error) { workspaceError = error.message; }
-  googleWorkspace ||= { configured: false, secret_store_available: false, accounts: [] };
-  let notion = { secret_store_available: false, accounts: [], grants: [] };
-  let notionError = "";
-  try { notion = await api("/v1/connections/notion"); } catch (error) { notionError = error.message; }
+  const [workspaceResult, notionConnectionResult, deviceConnectionResult] = await Promise.allSettled([
+    api("/v1/connections/google-workspace"), api("/v1/connections/notion"), api("/v1/connections/kdeconnect"),
+  ]);
+  const googleWorkspace = workspaceResult.status === "fulfilled" ? workspaceResult.value
+    : { configured: false, secret_store_available: false, accounts: [] };
+  const workspaceError = workspaceResult.status === "rejected" ? workspaceResult.reason.message : "";
+  const notion = notionConnectionResult.status === "fulfilled" ? notionConnectionResult.value
+    : { secret_store_available: false, accounts: [], grants: [] };
+  const notionError = notionConnectionResult.status === "rejected" ? notionConnectionResult.reason.message : "";
+  const deviceConnection = deviceConnectionResult.status === "fulfilled" ? deviceConnectionResult.value : { available: false, grants: [] };
+  if (!stillCurrent()) return;
   const googleMail = data.google_mail || { configured: false, secret_store_available: false, accounts: [], grants: [] };
   const googleMailBots = bots.filter(bot => bot.inference_mode === "local");
   const googleMailSend = data.google_mail_send || { configured: false, secret_store_available: false, accounts: [], grants: [] };
@@ -9143,7 +9154,7 @@ async function renderConnections() {
   }).join("");
   const chatgptAccounts = data.chatgpt_accounts || [];
   const tile = (kind, title, description, state, stateKind, action = "manage", actionLabel = "Manage") => `
-    <article class="service-tile">
+    <article class="service-tile" data-connection-entry="${esc(action)}" data-connection-title="${esc(title)}" data-connection-state="${esc(stateKind)}">
       <div class="service-tile-top">${serviceMark(kind)}<h3>${esc(title)}</h3><span class="service-state ${stateKind}">${esc(state)}</span></div>
       <p>${esc(description)}</p>
       <button class="service-tile-action" type="button" data-connection-open="${esc(action)}">
@@ -9155,16 +9166,16 @@ async function renderConnections() {
       googleCalendar.accounts.length ? "Connected" : googleCalendar.configured ? "Ready to connect" : "Not enabled in this build",
       googleCalendar.accounts.length ? "connected" : "setup", "google-calendar",
       googleCalendar.accounts.length ? "Manage access" : googleCalendar.configured ? "Connect Google" : "Connection details"),
-    tile("drive", "Google Drive, Docs & Sheets", "Create documents, spreadsheets and uploads through a reviewed action plan. Drive access is limited to files shared with this app.",
+    tile("drive", "Google Drive, Docs & Sheets", "Create documents, spreadsheets and uploads through reviewed plans. Drive access stays limited to shared files.",
       workspaceError ? "Could not load" : googleWorkspace.accounts.length ? "Connected" : googleWorkspace.configured ? "Ready to connect" : "Not enabled in this build",
       googleWorkspace.accounts.length ? "connected" : "setup", "google-workspace",
       googleWorkspace.accounts.length ? "Manage access" : "Connection details"),
-    tile("notion", "Notion", "Search and read workspace pages. Choose which assistant can use each account; edits are not enabled.",
-      notionError ? "Could not load" : notion.accounts.length ? "Connected" : notion.secret_store_available ? "Read preview" : "Secure storage required",
-      notion.accounts.length ? "connected" : "preview", "notion", notion.accounts.length ? "Manage access" : "Connection details"),
+    tile("notion", "Notion", "Search and read your workspace pages with the assistants you choose.",
+      notionError ? "Could not load" : notion.accounts.length ? "Connected" : notion.secret_store_available ? "Ready to connect" : "Secure storage required",
+      notion.accounts.length ? "connected" : "setup", "notion", notion.accounts.length ? "Manage access" : "Connect Notion"),
     tile("gmail", "Gmail", "Find emails without sending, editing, or deleting messages.",
       googleMail.accounts.length ? "Connected" : googleMail.configured ? "Limited preview" : "Not enabled in this build",
-      googleMail.accounts.length ? "connected" : "preview", "gmail",
+      googleMail.accounts.length ? "connected" : googleMail.configured ? "preview" : "setup", "gmail",
       googleMail.accounts.length ? "Manage access" : googleMail.configured ? "Connect Google" : "Connection details"),
     tile("outlook", "Microsoft Outlook", "Use mail or calendar, then choose which assistant can reach each account.",
       outlookCalendar.accounts.length || outlookMail.accounts.length || outlookMailSend.accounts.length ? "Connected"
@@ -9175,9 +9186,10 @@ async function renderConnections() {
   ].join("");
   const phoneTile = tile("phone", "Hutch on your phone", "Follow work, review approvals and stop runs from your phone. This connects your phone to Hutch; it does not read phone apps or messages.",
     devices.length ? `${devices.length} paired` : phoneSetup.ready ? "Ready to pair" : "Private connection required",
-    devices.length ? "connected" : "setup", "phone", phoneSetup.ready ? "Pair a phone" : "Connection details")
+    devices.length ? "connected" : "setup", "phone", devices.length ? "Manage devices" : phoneSetup.ready ? "Pair a phone" : "Connection details")
     + tile("local", "KDE Connect", "Let an assistant check a paired device’s connection and reported battery. Set up pairing in KDE Connect first.",
-      "Linux integration", "setup", "kdeconnect", "Choose device access");
+      deviceConnectionResult.status === "rejected" ? "Could not load" : deviceConnection.grants.length ? "Status access enabled" : deviceConnection.available ? "Pair in KDE Connect first" : "Linux only",
+      deviceConnection.grants.length ? "connected" : "setup", "kdeconnect", "Choose device access");
   const modelTiles = [
     tile("chatgpt", "ChatGPT", "Sign in with ChatGPT where available. Your existing chats stay separate.",
       chatgptAccounts.some(account => account.connected && account.plan_usage) ? "Connected"
@@ -9190,10 +9202,22 @@ async function renderConnections() {
       conns.length ? "connected" : "setup", "models", conns.length ? "Add or manage providers" : "Connect a provider"),
   ].join("");
   view.innerHTML = `
-    <div class="page-scroll"><div class="container">
-      <div class="connections-intro">
-        <p>Connect an app your assistant should use. You choose which assistant gets access, and can change that choice anytime.</p>
+    <div class="page-scroll"><div class="container connections-workspace">
+      <div data-connection-directory>
+      <header class="connections-intro">
+        <h2>Connect your work</h2>
+        <p>Bring your apps, devices and AI together. You choose what each assistant can use.</p>
+      </header>
+      <div class="connection-toolbar">
+        <label class="connection-search" for="connection-search">${icon("search")}<span class="visually-hidden">Find an app or device</span><input id="connection-search" type="search" placeholder="Find an app or device…" autocomplete="off"></label>
+        <div class="connection-filters" role="group" aria-label="Filter connections">
+          <button type="button" data-connection-filter="all" aria-pressed="true">All</button>
+          <button type="button" data-connection-filter="connected" aria-pressed="false">Connected</button>
+          <button type="button" data-connection-filter="setup" aria-pressed="false">Not connected</button>
+        </div>
+        <span class="hint" id="connection-results" role="status"></span>
       </div>
+      <section class="connection-empty" id="connection-empty" hidden><h3>No matching connections</h3><p>Try a different name or view all connections.</p><button type="button" class="btn ghost" id="connection-clear-filters">Clear filters</button></section>
       <section class="service-group" aria-labelledby="app-connections-heading">
         <div class="service-group-heading"><h2 id="app-connections-heading">Your apps</h2><p>Documents, calendar and email, with you in control.</p></div>
         <div class="service-grid">${appTiles}</div>
@@ -9207,6 +9231,14 @@ async function renderConnections() {
         <div class="service-grid">${modelTiles}</div>
         <p class="local-model-note">Each assistant can have its own reply service. You can change it anytime.</p>
       </section>
+      </div>
+      <header class="connection-detail" data-connection-detail hidden>
+        <a class="connection-back" href="#/connections">${icon("arrowLeft")} All connections</a>
+        <div class="connection-detail-heading" id="connection-detail-heading"></div>
+        <p id="connection-detail-description"></p>
+        <button class="btn primary" type="button" data-connection-open="phone-pair" hidden>Pair another phone</button>
+        <ol class="connection-steps" aria-label="Connection setup"><li>Connect your account</li><li>Choose assistant access</li><li>Use in chat</li></ol>
+      </header>
       <details class="connection-management summary-row-sm" id="connection-management" ${connectionManagerOpen ? "open" : ""}>
         <summary><span class="summary-row-copy"><strong>More account settings</strong><small>Access, permissions and setup details</small></span><span class="summary-row-action"><span class="when-closed">Show</span><span class="when-open">Hide</span>${icon("down")}</span></summary>
         <div class="connection-management-content">
@@ -9271,12 +9303,13 @@ async function renderConnections() {
       </section>
       <section class="panel conn-card" id="connection-notion" aria-labelledby="notion-title">
         <div class="bot-head"><span class="bot-name" id="notion-title">Notion</span><span class="tag">experimental · read access</span></div>
-        <p>Connect in your signed-in browser, then choose an assistant and its search or page-reading tools. No personal integration token or developer setup is needed.</p>
-        <p class="hint">Notion’s OAuth consent can authorize broader workspace access than the read tools Hutch exposes. Hutch does not enable edits, comments, deletion or connected-source search. Selected assistants may pass returned pages to their configured model providers and retain them in run history. Read queries use your tool grant; future writes need a separate reviewed action.</p>
-        ${notionError ? `<p class="hint bad" role="alert">Could not load Notion: ${esc(notionError)}</p>` : !notion.secret_store_available ? '<p class="hint" role="status">Unlock the operating system’s secure credential store before connecting Notion.</p>' : '<button class="btn primary small" id="notion-connect" type="button">Connect Notion</button>'}
-        ${notion.accounts.map(account => `<article class="google-calendar-account"><div class="device-row"><div><strong>${esc(account.workspace_name || account.label)}</strong><p class="hint">${esc(account.id)}</p></div><div class="card-actions"><button class="btn ghost small" type="button" data-notion-access="${esc(account.id)}">Choose assistant access</button><button class="btn ghost small" type="button" data-notion-disconnect="${esc(account.id)}">Disconnect Notion</button></div></div>
+        <p>${notion.accounts.length ? "Choose who can use each workspace. Access is revocable at any time." : "Sign in with your Notion account, then choose an assistant. No token or developer setup needed."}</p>
+        <p class="hint">Hutch offers search and page reads only. Notion’s consent may allow broader access. Pages may reach your selected assistants’ model providers and stay in run history; edits and connected-source search are unavailable.</p>
+        ${notionError ? `<p class="hint bad" role="alert">Could not load Notion: ${esc(notionError)}</p>` : !notion.secret_store_available ? '<p class="hint" role="status">Unlock the operating system’s secure credential store before connecting Notion.</p>' : !notion.accounts.length ? '<button class="btn primary" id="notion-connect" type="button">Connect Notion</button>' : ""}
+        ${notion.accounts.map(account => `<article class="google-calendar-account"><div class="device-row"><div><strong>${esc(account.workspace_name || account.label)}</strong><details class="connection-reference"><summary>Connection details</summary><code>${esc(account.id)}</code></details></div><div class="card-actions"><button class="btn primary small" type="button" data-notion-access="${esc(account.id)}">Choose assistant access</button><button class="btn ghost small" type="button" data-notion-disconnect="${esc(account.id)}">Disconnect Notion</button></div></div>
           ${notionGrantRows(account.id)}
         </article>`).join("") || '<p class="hint">No Notion accounts connected.</p>'}
+        ${notion.secret_store_available && notion.accounts.length ? '<button class="btn ghost" id="notion-connect" type="button">Connect another workspace</button>' : ""}
       </section>
       <section class="panel conn-card" id="connection-google-workspace" aria-labelledby="google-workspace-title">
         <div class="bot-head"><span class="bot-name" id="google-workspace-title">Google Drive, Docs &amp; Sheets</span><span class="tag">experimental</span></div>
@@ -9314,7 +9347,7 @@ async function renderConnections() {
           <div class="outlook-calendar-details-body">
           <p class="hint">This is a separate Google connection with <code>gmail.send</code> only. It cannot read or search your mailbox. An assistant can prepare one plain-text message; you approve the exact sender, recipients, subject and message each time, even in automatic mode. No attachments, CC, BCC, replies or forwards.</p>
           <p class="hint"><strong>Google permission:</strong> <code>gmail.send</code> is sensitive and requires additional OAuth app verification for public distribution. It is separate from restricted <code>gmail.readonly</code>. Hutch is a private preview; no live Google account or consent flow has been verified.</p>
-          ${!googleMailSend.configured ? '<p class="hint" role="status">Add the Google Desktop OAuth client ID in the shared setup above to connect a send-only account.</p>' : ''}
+          ${!googleMailSend.configured ? '<p class="hint" role="status">Google sign-in is not enabled in this build. Hutch’s publisher must configure its registration before connecting a send-only account.</p>' : ''}
           ${googleMailSend.configured && !googleMailSend.secret_store_available ? '<p class="hint" role="alert">Unavailable because Linux Secret Service is missing. Install and unlock <code>secret-tool</code> before connecting. Refresh tokens stay outside SQLite and browser storage.</p>' : ''}
           ${googleMailSend.configured && googleMailSend.secret_store_available ? `<div class="google-calendar-connect outlook-calendar-connect">
             <details class="connection-nickname"><summary>Nickname (optional)</summary><label class="field" for="google-mail-send-label">Account label
@@ -9413,7 +9446,7 @@ async function renderConnections() {
           </div>
         </details>
       </section>
-      <details class="device-manager summary-row-sm">
+      <details class="device-manager summary-row-sm" id="connection-phone-devices">
         <summary><span class="summary-row-copy"><strong>Paired devices</strong><small>${devices.length} paired</small></span><span class="summary-row-action"><span class="when-closed">Show</span><span class="when-open">Hide</span>${icon("down")}</span></summary>
         <p class="hint">A paired browser can access this Hutch host while it is online. Use <strong>Pair a phone</strong> in Your devices above to create a one-time code, then open the displayed private HTTPS address on the phone. For another device, Hutch must use <code>--allow-remote</code> with trusted TLS certificates; keep it on a private network.</p>
         ${devicesError ? `<p class="hint bad" role="alert">Could not load paired devices: ${esc(devicesError)}</p>` : devices.length ? `
@@ -9447,7 +9480,7 @@ async function renderConnections() {
           ${c.quota_tokens ? `<div class="meter-track meter-full"><div class="meter-fill" style="width:${Math.min(100, c.used / c.quota_tokens * 100)}%"></div></div>` : ""}
           ${c.terms_notice ? `<p class="hint">${esc(c.terms_notice)}</p>` : ""}
           ${c.auth_type === "chatgpt-siws" ? '<p class="hint">The provider does not accept a per-response output-token ceiling here. Hutch records estimates and provider-reported usage; it cannot guarantee a hard cap.</p>' : ""}
-          ${c.get_key_url && c.template === "opencode-go" ? `<p class="hint"><a href="${esc(c.get_key_url)}" target="_blank" rel="noopener noreferrer">Get an OpenCode Go API key</a>. Sign in to Go, subscribe if needed, copy its provider-issued key, and paste it here. This is key-based access; Hutch does not read OpenCode's private auth file or browser session.</p>` : ""}
+          ${c.get_key_url && c.template === "opencode-go" ? `<p class="hint"><a href="${esc(c.get_key_url)}" target="_blank" rel="noopener noreferrer">Get an OpenCode Go API key</a>. Sign in to Go, copy its provider-issued key, and paste it here. To import one existing account instead, choose Use existing OpenCode login when adding a provider. Browser sessions stay separate.</p>` : ""}
           <div class="card-actions">
             <button class="btn ghost small" data-conn-action="test">${icon("zap")} Test</button>
             ${c.auth_type === "chatgpt-siws" ? "" : '<button class="btn ghost small" data-conn-action="key">Set key</button>'}
@@ -9479,16 +9512,21 @@ async function renderConnections() {
   $("#outlook-mail-access").open = outlookMailAccessOpen;
   $("#outlook-mail-send-access").open = outlookMailSendAccessOpen;
   $("#google-mail-access").open = googleMailAccessOpen;
+  window.hutchConnections?.mount($(".connections-workspace"));
   $$("[data-connection-open]").forEach(button => button.addEventListener("click", () => {
     const targetKey = button.dataset.connectionOpen;
     if (targetKey === "kdeconnect") {
       void openKDEConnectSetup(button, bots);
       return;
     }
-    if (targetKey === "phone") {
+    if (targetKey === "phone" && devices.length) {
+      location.hash = "#/connections?app=phone";
+      return;
+    }
+    if (targetKey === "phone" || targetKey === "phone-pair") {
       openModal({ title: "Use Hutch on your phone", returnFocus: button,
         confirmText: phoneSetup.ready ? "Create pairing code" : "Close", showCancel: phoneSetup.ready,
-        bodyHtml: `<p>${esc(phoneSetup.detail)}</p><p>Pairing grants monitoring and review. Starting new work is a separate choice, and each assistant must also allow remote starts.</p>${phoneSetup.ready ? '<label class="phone-pair-start"><input id="phone-pair-start" type="checkbox"><span>Also allow requests to start work</span></label>' : '<p>This development build needs a private HTTPS host connection before a phone can reach it. It stays local until that is configured.</p>'}<p>Paired browsers cannot administer integrations or pair another device. Revoke devices under More account settings, then Paired devices.</p><div id="phone-pair-result" role="status" aria-live="polite"></div>`,
+        bodyHtml: `<p>${esc(phoneSetup.detail)}</p><p>Pairing grants monitoring and review. Starting new work is a separate choice, and each assistant must also allow remote starts.</p>${phoneSetup.ready ? '<label class="phone-pair-start"><input id="phone-pair-start" type="checkbox"><span>Also allow requests to start work</span></label>' : '<p>This development build needs a private HTTPS host connection before a phone can reach it. It stays local until that is configured.</p>'}<p>Paired browsers cannot administer integrations or pair another device. Use Manage devices in Hutch on your phone’s connection page to revoke a paired browser.</p><div id="phone-pair-result" role="status" aria-live="polite"></div>`,
         onConfirm: async () => {
           if (!phoneSetup.ready) return true;
           const confirm = $("#modal-confirm");
@@ -9518,8 +9556,7 @@ async function renderConnections() {
         return;
       }
       if (!service.accounts.length && !service.configured && !(targetKey === "google-workspace" && workspaceError)) {
-        openModal({ title: "Google connection", returnFocus: button, confirmText: "Close", showCancel: false,
-          bodyHtml: "<p>This development build does not include Hutch’s Google app registration.</p><p>A released Hutch app should let you choose your signed-in Google account and approve access directly. Creating a Cloud project or entering a client ID belongs to publisher setup.</p><p>Your browser sign-in stays in your browser; connecting an app still needs Google’s permission.</p>" });
+        location.hash = `#/connections?app=${encodeURIComponent(targetKey)}`;
         return;
       }
     }
@@ -9536,29 +9573,10 @@ async function renderConnections() {
       return;
     }
     if (targetKey === "models") {
-      const manager = $("#connection-management");
-      if (manager) manager.open = true;
-      $("#btn-add-conn")?.click();
+      location.hash = "#/connections?app=models";
       return;
     }
-    const sectionId = ({
-      "chatgpt": "connection-chatgpt",
-      "google-calendar": "connection-google-calendar",
-      "google-workspace": "connection-google-workspace",
-      "notion": "connection-notion",
-      "gmail": "connection-gmail",
-      "outlook-calendar": "connection-outlook-calendar",
-    })[targetKey] || "connection-outlook-mail";
-    const manager = $("#connection-management");
-    const section = document.getElementById(sectionId);
-    if (!manager || !section) return;
-    manager.open = true;
-    section.setAttribute("tabindex", "-1");
-    section.scrollIntoView({
-      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-      block: "start",
-    });
-    section.focus({ preventScroll: true });
+    location.hash = `#/connections?app=${encodeURIComponent(targetKey)}`;
   }));
 
   const beginChatGPTSignIn = async (accountId = "", button = null) => {
@@ -9659,6 +9677,10 @@ async function renderConnections() {
     }
   });
   $("[data-google-oauth-setup-link]")?.addEventListener("click", () => {
+    if (!location.hash.startsWith("#/connections?app=google-calendar")) {
+      location.hash = "#/connections?app=google-calendar&developer=1";
+      return;
+    }
     const setup = $("#google-oauth-setup");
     if (!setup) return;
     setup.open = true;
@@ -10681,6 +10703,7 @@ async function renderConnections() {
     });
   });
   const modelCapabilityResult = await modelCapabilityRequest;
+  if (!stillCurrent()) return;
   const modelCapabilityResults = $("#model-capability-results");
   if (modelCapabilityResults?.isConnected) {
     modelCapabilityResults.innerHTML = modelCapabilityResultsMarkup(modelCapabilityResult.page, modelCapabilityResult.error);

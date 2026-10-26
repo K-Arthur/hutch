@@ -15,6 +15,7 @@ are not a legal opinion or a grant of trademark rights.
 | Gmail | `google-gmail-2026q2.png` | Google Workspace [branding kit](https://knowledge.workspace.google.com/admin/getting-started/brand-your-internal-communications-with-google-workspace), 2026 Q2 color icon at 2× web resolution. Use the approved artwork unchanged beside **Gmail**. |
 | Google Calendar | `google-calendar-2026q2.png` | The same Google Workspace branding kit, 2026 Q2 color icon at 2× web resolution. Use unchanged beside **Google Calendar**. |
 | Microsoft Outlook | `microsoft-outlook.svg` | Microsoft's [Fluent product icon asset](https://static2.sharepointonline.com/files/fabric/assets/brand-icons/product-fluent/svg/outlook_48x1.svg). Use only as a functional account-access cue, on a neutral background, with the full name **Microsoft Outlook** nearby. |
+| Notion | `notion.ico` | Unmodified icon published at [Notion's own site](https://www.notion.com/front-static/favicon.ico), retrieved 2026-10-26. Use only beside **Notion** to identify the account connector, without endorsement claims. SHA-256: `541fc85f92e348bcf46f70944b95fd558d16adbc5a0698eaa1239dccd8c9e455`. |
 
 Google's published guidance permits Google icons and logos in materials made
 for an organization in conjunction with its deployment, requires approved

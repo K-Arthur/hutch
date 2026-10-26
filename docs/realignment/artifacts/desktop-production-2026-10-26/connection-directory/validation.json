@@ -1,0 +1,41 @@
+{
+  "scope": "Controlled directory/connector UI fixtures; no live account or physical-phone acceptance",
+  "checks": {
+    "connector_family": {
+      "passed": 26,
+      "seconds": 91.07
+    },
+    "final_directory_race_and_device_revocation": {
+      "passed": 6,
+      "seconds": 20.65
+    },
+    "css_build": "passed",
+    "javascript_syntax": "passed",
+    "detector": "clean after radius token fix"
+  },
+  "viewports": [
+    1440,
+    900,
+    390,
+    320
+  ],
+  "captures_opened": [
+    "directory-desktop.png",
+    "notion-phone.png"
+  ],
+  "limitations": [
+    "text-spacing tolerance tested; real browser zoom not established",
+    "full regression and rebuilt desktop packages required for the final release"
+  ],
+  "source_sha256": {
+    "src/hutch/server/static/connection-browser.js": "3272b85604666ca945142f1bea27429fd1be5327a2260fae157986674608e612",
+    "src/hutch/server/static/app.js": "be4091922e1909ccd62901ea0309f467fce8bb6e7bb93b68851803c3efbd36e2",
+    "src/hutch/server/static/index.html": "3b937029b4ee7c40a8cfa7d3c8312e57c9e6c73c9eed9a65c0e2c784861e6e99",
+    "app/src/input.css": "7628b7e4c3335297779dec3b8534f5023364de8b65f0109136967d86a303ded5",
+    "src/hutch/server/static/ui.css": "5a6ed942b2a90fe3df20350c2bf3851bd3ac148aca561bb7f63462fa96084857",
+    "src/hutch/server/static/brands/notion.ico": "541fc85f92e348bcf46f70944b95fd558d16adbc5a0698eaa1239dccd8c9e455",
+    "tests/e2e/test_browser.py": "ad303c077740083c5bad5cad83a1486e8a6f7617ec519b81b97a822ae7a9b5d0",
+    "tests/e2e/test_connection_signin.py": "404f1f8801b2cdacf24711b118f567622bccb2d8a8cd55ea82389e15c13c34b3",
+    "tests/e2e/test_notion_connection.py": "7686fd1b2c8558f946b90c354536c7d0eb5803e227e6d82693473631837b86ab"
+  }
+}

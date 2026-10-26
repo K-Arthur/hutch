@@ -225,7 +225,7 @@ Sending uses a separate Outlook sign-in and credential namespace from `Mail.Read
 delegated `Mail.Send` plus `offline_access`. Hutch will not upgrade a read-only sign-in or infer
 send permission from a broad account grant. Refresh credentials are stored in Linux Secret Service;
 SQLite stores only the account label and each Bot's explicit grant. The optional setup is inside
-**Apps & AI → More account settings → Outlook Mail → Set up optional email sending**. It has its own
+**Apps & AI → Microsoft Outlook → Set up optional email sending**. It has its own
 sign-in, account record and Bot grant; it does not upgrade or reuse the Mail.Read connection. It has
 not been exercised with a real Microsoft account.
 
@@ -340,7 +340,7 @@ storage. A key pasted through this dialog takes precedence over that connection'
 environment variable, so Hutch uses the key the owner just chose. **Remove key**
 clears the local key and restores the environment variable if configured. A
 provider catalog error does not discard the connection: the UI says it could
-not verify the list, and the connection appears in **More account settings** for
+not verify the list, and the connection appears under **AI model providers** for
 testing or key replacement. No provider account or inference request was used
 for visual validation. See the [multi-provider UX review](research/multi-provider-platform-review-2026-10-10.md)
 and [brand asset provenance](brand-assets.md).
@@ -565,7 +565,7 @@ phone, enter the single-use code within 60 seconds and enroll a passkey. The cod
 only in that dialog; Hutch does not place it in a URL, browser storage or clipboard.
 Starting work is unchecked by default and also requires the local per-assistant setting.
 Paired phones cannot create pairing codes or administer integrations. Existing device
-revocation remains under **More account settings → Paired devices**.
+revocation is available under **Hutch on your phone → Manage devices**.
 
 The UI refuses code creation when remote access, the canonical HTTPS/passkey origin or
 the hostname allowlist is missing. It never enables a listener or installs certificates
@@ -574,7 +574,7 @@ phones, live private networks and production certificate management remain unver
 
 ## Notion search and page reads (experimental)
 
-Open **Apps & AI → Notion → Connection details → Connect Notion**. Hutch registers
+Open **Apps & AI → Notion → Connect Notion**. Hutch registers
 a public client with Notion's official hosted MCP service and opens browser OAuth with
 PKCE; no personal token or publisher client ID is needed for this flow. Finish sign-in,
 reload Apps & AI and choose **Choose assistant access**. Select an assistant and the
@@ -635,3 +635,25 @@ Controlled subprocess, API, canonical receipt/bridge and responsive UI checks co
 slice. A harmless local D-Bus protocol probe confirms the machine-readable response shape;
 physical Android/iOS behavior and other Linux distributions have not been validated.
 See the [integration coverage audit](realignment/integration-coverage-2026-10-26.md).
+
+## Finding and managing connections
+
+**Apps & AI** is a searchable directory of apps, devices and model services. Filter by
+connected or not connected, or search by name/capability. Empty results have a clear
+reset action. Selecting an app's settings opens a focused page with its accounts,
+assistant permissions and disconnect controls; unrelated provider forms stay out of view.
+Focused URLs such as `#/connections?app=notion` survive reload and browser Back/Forward.
+**All connections** returns to the directory. Configured Google/Microsoft quick sign-in
+still opens the actual provider consent flow directly and never requires an account nickname.
+
+Connected Notion workspaces emphasize **Choose assistant access**; adding another workspace
+is a separate secondary action. OAuth connection and assistant authority remain separate.
+Connection references and provider diagnostics are available on purpose. Gmail's developer
+registration link opens the shared Google settings page; released apps should carry their
+own publisher registrations rather than require users to register apps themselves.
+
+**Hutch on your phone → Manage devices** keeps revocation accessible and offers pairing
+another phone. KDE Connect's status grants remain a separate, explicitly chosen device
+capability. Opening the directory reads saved grant metadata; it does not enumerate
+phones or change remote-access configuration. A late directory response cannot replace
+another page after navigation.

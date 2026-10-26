@@ -160,6 +160,112 @@ def test_kdeconnect_device_access_is_deliberate_scoped_recoverable_and_revocable
         page.close()
 
 
+@pytest.mark.parametrize("width,height", [(1440, 1000), (900, 1024), (390, 844), (320, 844)])
+def test_connection_directory_search_and_focused_setup_preserve_navigation(browser, live, width, height):
+    base, _ = live
+    page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+    errors, external = [], []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external.append(request.url)
+            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+    page.route("**/api/v1/connections/notion", lambda route: route.fulfill(json={
+        "secret_store_available": True, "accounts": [{"id": "notion_0123456789abcdef01234567", "label": "Research notes"}],
+        "grants": [], "read_only": True}))
+    out = artifact_path("connection-directory"); out.mkdir(parents=True, exist_ok=True)
+    try:
+        page.goto(base + "/#/connections")
+        page.get_by_role("heading", name="Connect your work", exact=True).wait_for()
+        assert not page.locator("#connection-management").is_visible()
+        assert page.get_by_role("button", name="Connected", exact=True).get_attribute("aria-pressed") == "false"
+        assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+        page.screenshot(path=str(out / f"{width}-directory.png"), full_page=True)
+        page.get_by_role("button", name="Connected", exact=True).click()
+        assert page.locator("[data-connection-entry]:visible").count() == 1
+        assert page.locator('[data-connection-entry="notion"]').is_visible()
+        page.locator("#connection-search").fill("no matching app")
+        page.get_by_role("heading", name="No matching connections", exact=True).wait_for()
+        page.get_by_role("button", name="Clear filters", exact=True).click()
+        assert page.locator("#connection-search").evaluate("e => e === document.activeElement")
+        page.locator("#connection-search").fill("Notion")
+        assert page.locator("[data-connection-entry]:visible").count() == 1
+        page.locator('[data-connection-open="notion"]').click()
+        page.wait_for_url("**/#/connections?app=notion")
+        page.locator("#connection-detail-heading h2").get_by_text("Notion", exact=True).wait_for()
+        page.get_by_text("Research notes", exact=True).wait_for()
+        assert not page.locator("#connection-google-calendar").is_visible()
+        assert not page.locator("[data-connection-directory]").is_visible()
+        assert page.locator("#notion-connect").is_visible()
+        assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+        page.screenshot(path=str(out / f"{width}-notion.png"), full_page=True)
+        page.reload()
+        page.get_by_text("Research notes", exact=True).wait_for()
+        page.get_by_role("link", name="All connections", exact=True).click()
+        page.get_by_role("heading", name="Connect your work", exact=True).wait_for()
+        page.go_back()
+        page.get_by_text("Research notes", exact=True).wait_for()
+        # Tolerance of user text-spacing overrides is supplementary to the
+        # real narrow viewports; it is not a browser-zoom conformance claim.
+        page.add_style_tag(content=".connections-workspace * {line-height:1.5!important;letter-spacing:.12em!important;word-spacing:.16em!important}.connections-workspace p {margin-block-end:2em!important}")
+        assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+        assert page.locator("#notion-connect").is_visible()
+        assert not errors and not external
+    finally:
+        page.close()
+
+
+def test_slow_connection_load_cannot_overwrite_a_new_destination(browser, live):
+    base, _ = live
+    page = browser.new_page()
+    pending = []
+    page.route("**/api/connections", lambda route: pending.append(route))
+    try:
+        page.goto(base + "/#/settings")
+        page.get_by_role("button", name="Save workspace settings", exact=True).wait_for()
+        # Retain the actual renderer promise so the assertion waits for the
+        # entire stale render, rather than racing its response/microtasks.
+        with page.expect_request(lambda request: request.url.endswith("/api/connections")):
+            page.evaluate("() => { history.replaceState(null, '', '#/connections'); window.__heldConnectionRender = renderConnections(); }")
+        page.locator('.ws-foot a[href="#/settings"]').click()
+        page.get_by_role("button", name="Save workspace settings", exact=True).wait_for()
+        assert pending
+        with page.expect_response(lambda response: response.url.endswith("/api/connections")) as delivered:
+            pending.pop().continue_()
+        assert delivered.value.status == 200
+        page.evaluate("async () => { await window.__heldConnectionRender; }")
+        # The response is delivered through the real server, but its old render
+        # has no authority to replace the settings page or move keyboard focus.
+        page.wait_for_function("() => location.hash === '#/settings' && !!document.querySelector('#workspace-settings-form')")
+        assert page.get_by_role("button", name="Save workspace settings", exact=True).is_visible()
+        assert not page.locator(".connections-workspace").count()
+    finally:
+        page.close()
+
+
+def test_connection_directory_keeps_paired_device_revocation_reachable(browser, live):
+    base, app = live
+    store = app.state.store
+    enrollment, outcome = store.exchange_pairing_code(store.create_pairing_code(), "Test review phone", "directory-fixture")
+    assert outcome == "ok"
+    paired = store.finish_passkey_enrollment(enrollment["token"], {
+        "credential_id": secrets.token_bytes(24), "public_key": b"directory-fixture-public-key", "sign_count": 0,
+        "backup_eligible": True, "backed_up": True, "user_handle": store.webauthn_user_handle(),
+    })
+    page = browser.new_page(viewport={"width": 390, "height": 844})
+    try:
+        page.goto(base + "/#/connections")
+        page.locator('[data-connection-open="phone"]').get_by_text("Manage devices", exact=True).click()
+        page.wait_for_url("**/#/connections?app=phone")
+        page.get_by_text("Test review phone", exact=True).wait_for()
+        assert page.get_by_role("button", name="Pair another phone", exact=True).is_visible()
+        page.locator("[data-device-revoke]").click()
+        page.get_by_role("button", name="Revoke device", exact=True).click()
+        page.get_by_text("No active paired devices.", exact=True).wait_for()
+        assert not store.authenticate_session(paired["session_token"])
+        assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+    finally:
+        page.close()
+
+
 def test_paired_phone_uses_supervision_view_and_hides_data_after_revocation(browser, live):
     base, app = live
     store = app.state.store
@@ -3424,9 +3530,15 @@ def test_provider_connections_fit_phone_viewports_and_capture_signin_states(brow
         page.get_by_role("heading", name="Apps & AI").wait_for()
         assert page.locator(".service-tile .service-mark-chatgpt img").evaluate(
             "img => img.complete && img.naturalWidth === 721")
-        page.locator("#connection-management > summary").click()
-        page.get_by_text("Sign in with ChatGPT", exact=True).wait_for()
-        page.get_by_text("Sign in to Go, subscribe if needed, copy its provider-issued key", exact=False).wait_for()
+        page.locator('[data-connection-open="chatgpt"]').click()
+        page.locator("#connection-detail-heading h2").get_by_text("ChatGPT", exact=True).wait_for()
+        chatgpt_button = page.get_by_role("button", name="Continue with ChatGPT")
+        assert chatgpt_button.is_visible() and not chatgpt_button.is_enabled()
+        assert page.get_by_text("no provider-enforced output-token limit", exact=False).is_visible()
+        page.get_by_role("link", name="All connections", exact=True).click()
+        page.locator('[data-connection-open="models"]').click()
+        page.locator("#connection-detail-heading h2").wait_for()
+        page.get_by_text("Sign in to Go, copy its provider-issued key", exact=False).wait_for()
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024),
                                      ("phone", 390, 844), ("compact-phone", 320, 740)):
             page.set_viewport_size({"width": width, "height": height})
@@ -3438,10 +3550,7 @@ def test_provider_connections_fit_phone_viewports_and_capture_signin_states(brow
             ).evaluate_all("els => els.map(el => ({selector: el.className, overflow: el.scrollWidth - el.clientWidth}))"
                            ".filter(item => item.overflow > 1)")
             assert not nested_overflow, (label, nested_overflow)
-        chatgpt_button = page.get_by_role("button", name="Continue with ChatGPT")
-        assert chatgpt_button.is_visible() and not chatgpt_button.is_enabled()
-        assert page.get_by_text("no provider-enforced output-token limit", exact=False).is_visible()
-        assert page.get_by_text("Hutch does not read OpenCode's private auth file", exact=False).is_visible()
+        assert page.get_by_text("choose Use existing OpenCode login when adding a provider", exact=False).is_visible()
         assert not errors, errors
         (out / "connections-validation.json").write_text(json.dumps({
             "test": "tests/e2e/test_browser.py::test_provider_connections_fit_phone_viewports_and_capture_signin_states",
@@ -4014,8 +4123,8 @@ def test_model_capability_observations_show_unknown_and_latest_evidence(browser,
         route.fulfill(json={"items": capability_state["items"], "next_after_id": None})
     page.route("**/api/v1/model-capabilities**", capability_response)
     try:
-        page.goto(base + "/#/connections")
-        page.locator("#connection-management > summary").click()
+        page.goto(base + "/#/connections?app=models")
+        page.locator("#connection-detail-heading h2").wait_for()
         panel = page.get_by_role("region", name="Model tool-call observations")
         panel.wait_for()
         loading_state = panel.locator("#model-capability-results [role=status]")
@@ -4036,7 +4145,7 @@ def test_model_capability_observations_show_unknown_and_latest_evidence(browser,
 
         capability_state["error"] = True
         page.reload()
-        page.locator("#connection-management > summary").click()
+        page.locator("#connection-detail-heading h2").wait_for()
         panel = page.get_by_role("region", name="Model tool-call observations")
         error_state = panel.locator("#model-capability-results [role=alert]")
         error_state.wait_for()
@@ -4054,7 +4163,7 @@ def test_model_capability_observations_show_unknown_and_latest_evidence(browser,
             "observed_at": datetime.now(timezone.utc).isoformat(), "status": "observed",
             "scope": "exact connection, account, model, and route revision"}]
         page.reload()
-        page.locator("#connection-management > summary").click()
+        page.locator("#connection-detail-heading h2").wait_for()
         panel = page.get_by_role("region", name="Model tool-call observations")
         panel.get_by_text("fixture-route · fixture-model", exact=True).wait_for()
         panel.get_by_text("list_files", exact=True).wait_for()
@@ -4161,9 +4270,9 @@ def test_google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone(browser
     out = artifact_path("google-calendar")
     out.mkdir(parents=True, exist_ok=True)
     try:
-        page.goto(base + "/#/connections")
+        page.goto(base + "/#/connections?app=google-calendar")
         page.get_by_role("heading", name="Apps & AI").wait_for()
-        page.locator("#connection-management > summary").click()
+        page.locator("#connection-detail-heading h2").wait_for()
         page.get_by_text("Connect with Google's official installed-app flow", exact=False).wait_for()
         assert page.get_by_role("button", name="Connect Google Calendar").is_enabled()
         page.get_by_role("button", name="Load calendars").click()
@@ -4310,9 +4419,9 @@ def test_google_calendar_event_creation_scope_is_explicit_and_owner_only(browser
     out.mkdir(parents=True, exist_ok=True)
     captures = []
     try:
-        page.goto(base + "/#/connections")
+        page.goto(base + "/#/connections?app=google-calendar")
         page.get_by_role("heading", name="Apps & AI").wait_for()
-        page.locator("#connection-management > summary").click()
+        page.locator("#connection-detail-heading h2").wait_for()
         account = page.locator(f'[data-google-calendar-account="{write_account_id}"]')
         create_access = account.locator("[data-google-calendar-create-access]")
         assert create_access.is_disabled()
@@ -4413,9 +4522,9 @@ def test_gmail_preview_discloses_restricted_scope_and_requires_local_setup(brows
     page.on("request", lambda request: external.append(request.url)
             if not request.url.startswith(base) else None)
     try:
-        page.goto(base + "/#/connections")
+        page.goto(base + "/#/connections?app=gmail")
         page.get_by_role("heading", name="Apps & AI").wait_for()
-        page.locator("#connection-management > summary").click()
+        page.locator("#connection-detail-heading h2").wait_for()
         card = page.locator('[aria-labelledby="google-mail-title"]')
         card.wait_for()
         text = card.inner_text().lower()
@@ -4425,8 +4534,10 @@ def test_gmail_preview_discloses_restricted_scope_and_requires_local_setup(brows
         assert "account-wide" in text and "cannot send" in text
         assert card.get_by_role("button").count() == 0
         page.locator("#google-mail-access summary").click()
-        page.locator("#google-oauth-setup > summary").click()
         assert "publisher must configure its registration" in card.inner_text().lower()
+        assert card.get_by_role("link", name="Review Google's Gmail scope requirements").count() == 1
+        card.get_by_role("button", name="Developer settings").click()
+        page.wait_for_url("**/#/connections?app=google-calendar&developer=1")
         setup = page.locator("#google-oauth-setup")
         setup.wait_for()
         assert setup.get_by_label("Google Desktop OAuth client ID").is_visible()
@@ -4434,10 +4545,8 @@ def test_gmail_preview_discloses_restricted_scope_and_requires_local_setup(brows
         assert save_button.is_enabled()
         assert "never paste a client secret" in setup.inner_text().lower()
         assert "one client id is shared by calendar" in setup.inner_text().lower()
-        card.get_by_role("button", name="Developer settings").click()
-        assert page.url.endswith("#/connections")
+        assert page.url.endswith("#/connections?app=google-calendar&developer=1")
         assert page.locator("#google-oauth-client-id").evaluate("element => document.activeElement === element")
-        assert card.get_by_role("link", name="Review Google's Gmail scope requirements").count() == 1
         captures = []
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024),
                                      ("phone", 390, 844), ("compact-phone", 320, 740)):
@@ -4450,13 +4559,16 @@ def test_gmail_preview_discloses_restricted_scope_and_requires_local_setup(brows
                 if width <= 360:
                     assert save_box["height"] == 44
             page.screenshot(path=str(out / f"client-setup-{label}.png"), animations="disabled")
-            card.scroll_into_view_if_needed()
+            page.goto(base + "/#/connections?app=gmail")
+            card.wait_for()
             page.screenshot(path=str(out / f"unconfigured-{label}.png"), animations="disabled")
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert overflow <= 1, (label, overflow)
             captures.append({"size": label, "viewport": [width, height],
                              "scenes": ["Google client setup", "unconfigured Gmail"],
                              "horizontal_overflow": overflow})
+            page.goto(base + "/#/connections?app=google-calendar&developer=1")
+            setup.wait_for()
         assert not errors, errors
         assert not external, external
         (out / "unconfigured-validation.json").write_text(json.dumps({
@@ -4491,9 +4603,9 @@ def test_google_oauth_environment_override_is_readonly_in_connections(browser, l
     page.on("request", lambda request: external.append(request.url)
             if not request.url.startswith(base) else None)
     try:
-        page.goto(base + "/#/connections")
+        page.goto(base + "/#/connections?app=google-calendar")
         page.get_by_role("heading", name="Apps & AI").wait_for()
-        page.locator("#connection-management > summary").click()
+        page.locator("#connection-detail-heading h2").wait_for()
         setup = page.locator("#google-oauth-setup")
         setup.locator("summary").click()
         field = setup.get_by_label("Google Desktop OAuth client ID")
@@ -4602,12 +4714,13 @@ def test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone(browser, l
     out.mkdir(parents=True, exist_ok=True)
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
-        page.goto(base + "/#/connections")
-        page.locator("#connection-management > summary").click()
+        page.goto(base + "/#/connections?app=gmail")
+        page.locator("#connection-detail-heading h2").wait_for()
         card = page.locator('[aria-labelledby="google-mail-title"]')
         card.wait_for()
         page.locator("#google-mail-access summary").click()
-        page.locator("#google-oauth-setup > summary").click()
+        card.get_by_role("button", name="Developer settings").click()
+        page.locator("#google-oauth-client-id").wait_for()
         page.locator("#google-oauth-client-id").fill("fixture-client.apps.googleusercontent.com")
         page.locator("#google-oauth-client-save").click()
         client_change_review = page.locator(".modal-card[role='dialog']")
@@ -4624,6 +4737,10 @@ def test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone(browser, l
         page.set_viewport_size({"width": 1440, "height": 960})
         page.get_by_role("button", name="Save new ID").click()
         page.get_by_text("Ready for Google sign-in.", exact=True).wait_for()
+        page.goto(base + "/#/connections?app=gmail")
+        card.wait_for()
+        if not page.locator("#google-mail-access").evaluate("element => element.open"):
+            page.locator("#google-mail-access > summary").click()
         page.locator("#google-mail-connect").wait_for(state="visible")
         assert app.state.store.kv_get("connections:google_oauth_client_id") == \
             "fixture-client.apps.googleusercontent.com"
@@ -4932,9 +5049,9 @@ def test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewport
     out = artifact_path("outlook-calendar")
     out.mkdir(parents=True, exist_ok=True)
     try:
-        page.goto(base + "/#/connections")
+        page.goto(base + "/#/connections?app=outlook-calendar")
         page.get_by_role("heading", name="Apps & AI").wait_for()
-        page.locator("#connection-management > summary").click()
+        page.locator("#connection-detail-heading h2").wait_for()
         card = page.locator('[aria-labelledby="outlook-calendar-title"]')
         assert "Calendars.ReadBasic" in card.inner_text()
         assert "Microsoft consent applies to the signed-in account" in card.inner_text()
@@ -5075,9 +5192,9 @@ def test_outlook_calendar_event_creation_is_separate_approved_and_responsive(bro
     out = artifact_path("outlook-calendar-write")
     out.mkdir(parents=True, exist_ok=True)
     try:
-        page.goto(base + "/#/connections")
+        page.goto(base + "/#/connections?app=outlook-calendar")
         page.get_by_role("heading", name="Apps & AI").wait_for()
-        page.locator("#connection-management > summary").click()
+        page.locator("#connection-detail-heading h2").wait_for()
         card = page.locator('[aria-labelledby="outlook-calendar-title"]')
         card.locator("#outlook-calendar-access > summary").click()
         card.get_by_text("Add event creation (optional)").click()
@@ -5141,7 +5258,7 @@ def test_outlook_calendar_event_creation_is_separate_approved_and_responsive(bro
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             if not page.locator("#connection-management").evaluate("element => element.open"):
-                page.locator("#connection-management > summary").click()
+                page.locator("#connection-detail-heading h2").wait_for()
             card = page.locator('[aria-labelledby="outlook-calendar-title"]')
             if not card.locator("#outlook-calendar-access").evaluate("element => element.open"):
                 card.locator("#outlook-calendar-access > summary").click()
@@ -5233,9 +5350,9 @@ def test_outlook_mail_grant_and_consent_boundary_fit_all_viewports(browser, live
             if not request.url.startswith(base) else None)
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
-        page.goto(base + "/#/connections")
+        page.goto(base + "/#/connections?app=outlook-calendar")
         page.get_by_role("heading", name="Apps & AI").wait_for()
-        page.locator("#connection-management > summary").click()
+        page.locator("#connection-detail-heading h2").wait_for()
         card = page.locator(".outlook-mail-card")
         card.wait_for()
         assert "Mail.Read" in card.inner_text()
@@ -5392,9 +5509,9 @@ def test_outlook_mail_send_access_is_separate_and_responsive(browser, live, monk
             if not request.url.startswith(base) else None)
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
-        page.goto(base + "/#/connections")
+        page.goto(base + "/#/connections?app=outlook-calendar")
         page.get_by_role("heading", name="Apps & AI").wait_for()
-        page.locator("#connection-management > summary").click()
+        page.locator("#connection-detail-heading h2").wait_for()
         card = page.locator(".outlook-mail-card")
         page.locator("#outlook-mail-access > summary").click()
         send_access = page.locator("#outlook-mail-send-access")
@@ -5540,9 +5657,9 @@ def test_google_mail_send_access_is_send_only_and_responsive(browser, live, monk
             if not request.url.startswith(base) else None)
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
-        page.goto(base + "/#/connections")
+        page.goto(base + "/#/connections?app=gmail")
         page.get_by_role("heading", name="Apps & AI").wait_for()
-        page.locator("#connection-management > summary").click()
+        page.locator("#connection-detail-heading h2").wait_for()
         page.locator("#google-mail-access > summary").click()
         send_access = page.locator("#google-mail-send-access")
         send_access.locator(":scope > summary").click()
@@ -5642,8 +5759,8 @@ def test_opt_in_chatgpt_signin_is_fixture_intercepted_and_responsive(browser, li
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
-        page.goto(base + "/#/connections")
-        page.locator("#connection-management > summary").click()
+        page.goto(base + "/#/connections?app=chatgpt")
+        page.locator("#connection-detail-heading h2").wait_for()
         button = page.get_by_role("button", name="Continue with ChatGPT")
         button.wait_for(state="visible")
         page.get_by_role("heading", name="Apps & AI").wait_for()

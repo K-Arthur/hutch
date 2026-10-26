@@ -35,7 +35,8 @@ def test_notion_signin_grant_and_revoke_are_visible_scoped_and_responsive(browse
         page.goto(base + "/#/connections")
         page.locator('[data-connection-open="notion"]').click()
         card = page.locator("#connection-notion")
-        assert "No personal integration token" in card.inner_text()
+        card.wait_for()
+        assert "No token or developer setup needed" in card.inner_text()
         with page.expect_popup() as popup_info:
             page.get_by_role("button", name="Connect Notion", exact=True).click()
         popup = popup_info.value
@@ -49,7 +50,7 @@ def test_notion_signin_grant_and_revoke_are_visible_scoped_and_responsive(browse
         assert "notion_result" not in popup.url and "fixture-code" not in popup.url
         popup.close()
         page.reload()
-        page.locator('[data-connection-open="notion"]').click()
+        page.locator("#connection-detail-heading h2").get_by_text("Notion", exact=True).wait_for()
         page.get_by_role("button", name="Choose assistant access", exact=True).click()
         page.get_by_role("dialog").wait_for()
         assert page.locator("#notion-grant-bot").input_value() == bot.id

@@ -76,7 +76,7 @@ def test_workspace_connection_exposes_scope_and_opens_real_pkce_without_nickname
         page.goto(base + "/#/connections")
         page.locator('[data-connection-open="google-workspace"]').click()
         card = page.locator("#connection-google-workspace")
-        assert card.is_visible()
+        card.wait_for()
         assert "does not give Hutch full-Drive search" in card.inner_text()
         assert "broader document and spreadsheet scopes" in card.inner_text()
         with page.expect_popup() as popup_info:
@@ -117,6 +117,7 @@ def test_workspace_connected_account_can_be_revoked_and_callback_status_is_consu
     try:
         page.goto(base + "/?google_workspace_result=connected#/connections")
         page.locator('[data-connection-open="google-workspace"]').click()
+        page.locator("#connection-google-workspace").wait_for()
         assert "google_workspace_result" not in page.url
         assert page.locator("#connection-google-workspace strong").inner_text() == "Work <account>"
         page.get_by_role("button", name="Disconnect Workspace", exact=True).click()
