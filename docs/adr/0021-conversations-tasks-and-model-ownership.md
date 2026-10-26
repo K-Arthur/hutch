@@ -106,10 +106,17 @@ Existing Hutch bot defaults, explicit per-message task-role routes and run overr
 already cover parts of this model. Existing `workspace_tasks` are individual
 specialist assignments with linked independent conversations; they do not yet form
 a complete multi-assistant task inspector. The composer/selector and stable roster
-have been improved. The durable home pointer now has store/API support; frontend
-home selection, assignment overrides, multi-assignment task presentation and
-aggregate budget validation remain pending until their end-to-end evidence is
-recorded in the checkpoint.
+have been improved. Durable home selection now has store/API/frontend support:
+main and specialist chats persist across reloads and browser profiles, and earlier
+conversations retain explicit historical routes. Assignment overrides, complete
+multi-assignment task presentation and aggregate budget validation remain pending
+until their end-to-end evidence is recorded in the checkpoint.
+
+Completed task inspection retains unchanged widget DOM and keyboard focus when
+other tasks change. Transcript-file delivery status updates independently, including
+catch-up and errors; it never substitutes for committed database history. A new
+recorded correction, approval state or other changed task data still refreshes the
+inspection. Active tasks continue receiving their normal progress updates.
 
 ### Durable direct-chat API
 

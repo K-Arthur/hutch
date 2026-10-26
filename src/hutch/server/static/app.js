@@ -5048,8 +5048,14 @@ async function wireWelcome() {
 /* One attempt in a conversation: the prompt bubble, the visible work,
    the answer. Tool activity is a quiet collapsed strip — approvals are never
    hidden inside it. */
-async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHandoffs = []) {
-  const run = await api(`/runs/${runId}`);
+function runMirrorNoticeHtml(mirror) {
+  return mirror?.error || mirror?.worker_error
+    ? `<p class="run-notice" role="status">Transcript file needs attention: ${esc(mirror.error || mirror.worker_error)}. Database history remains available.</p>`
+    : mirror?.pending ? '<p class="hint" role="status">Transcript file is catching up. History shown here is committed in the database.</p>' : "";
+}
+
+async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHandoffs = [], snapshot = null) {
+  const run = snapshot || await api(`/runs/${runId}`);
   const events = run.events || [];
   const resolvedMap = new Map();
   for (const e of events) {
@@ -5199,9 +5205,7 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHan
         ${relatedTasks}
         ${relatedCodeTasks}
         ${choiceCards.join("")}
-        ${run.transcript_mirror?.error || run.transcript_mirror?.worker_error
-          ? `<p class="run-notice" role="status">Transcript file needs attention: ${esc(run.transcript_mirror.error || run.transcript_mirror.worker_error)}. Database history remains available.</p>`
-          : run.transcript_mirror?.pending ? '<p class="hint" role="status">Transcript file is catching up. History shown here is committed in the database.</p>' : ""}
+        <div data-run-mirror-notice="${esc(runId)}">${runMirrorNoticeHtml(run.transcript_mirror)}</div>
         ${run.error ? run.status === 'outcome_unknown' && !run.unresolved_action_count && run.reviewed_actions?.length
           ? `<details class="run-notice"><summary>Original execution report</summary><p>${esc(run.error)}</p></details>`
           : `<div class="run-error ${run.status === "stopped" || run.status === "skipped" ? "run-notice" : run.status === "outcome_unknown" ? "run-review" : ""}">${icon("alert")}<span><b>${esc(run.status_label || activityLabel)}:</b> ${esc(run.error)}</span></div>` : ""}
@@ -8681,17 +8685,33 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
 
 /* ------------------------------------------------------------- run detail */
 
+const runDetailSnapshots = new WeakMap();
+let runDetailRequest = 0;
+
 async function renderRunDetail(runId, params = new URLSearchParams()) {
   const generation = studioGeneration;
+  const request = ++runDetailRequest;
   const stillCurrent = () => generation === studioGeneration
+    && request === runDetailRequest
     && (location.hash === `#/run/${runId}` || location.hash.startsWith(`#/run/${runId}?`));
   feedMode = "run";
   const r = await api(`/runs/${runId}`, { signal: routeOwner.abort?.signal });
   if (!stillCurrent()) return;
   // Control may have started while this refresh awaited the API. Recheck before replacing any controller DOM.
   if (window.HutchComputer?.hasControl(runId)) return;
+  const snapshot = JSON.stringify([generation, params.toString(), { ...r, transcript_mirror: undefined }]);
+  if (!ACTIVE.has(r.status) && runDetailSnapshots.get(view.firstElementChild) === snapshot) {
+    const mirrorNotice = $("[data-run-mirror-notice]", view);
+    const notice = runMirrorNoticeHtml(r.transcript_mirror);
+    if (mirrorNotice && mirrorNotice.innerHTML !== notice) mirrorNotice.innerHTML = notice;
+    updateTtls();
+    return; // Global changes must preserve unchanged widgets, selection and focus.
+  }
   currentStudioBot = r.bot_name;
   currentRunId = runId;
+  // Render the header and transcript from the same authoritative response.
+  const block = await runBlockHtml(runId, null, [], [], r);
+  if (!stillCurrent() || window.HutchComputer?.hasControl(runId)) return;
   setTopContext(`
     <div class="ctx-id"><h1>Task details</h1>
       <div class="ctx-meta">${statusChip(r.status, r.status_label)}</div></div>
@@ -8778,7 +8798,6 @@ async function renderRunDetail(runId, params = new URLSearchParams()) {
     </div></div>`;
   // append the transcript block below the stats
   const stream = $("#chat-stream");
-  const block = await runBlockHtml(runId);
   if (!stillCurrent() || !stream.isConnected) return;
   stream.insertAdjacentHTML("beforeend", block);
   window.HutchComputer?.mount(stream, runId, { api });   // owned computer-session panel and human step control
@@ -8828,6 +8847,7 @@ async function renderRunDetail(runId, params = new URLSearchParams()) {
   wireApprovals();
   wireFeedInteractions();
   updateTtls();
+  runDetailSnapshots.set(view.firstElementChild, snapshot);
 }
 
 /* ---------------------------------------------------------- connections */

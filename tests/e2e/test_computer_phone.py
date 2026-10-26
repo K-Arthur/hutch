@@ -47,7 +47,11 @@ class _Page(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if self.path == "/trace" and hasattr(self.server, "trace"):
-            self.server.trace.append(json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0")))))
+            event = json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0"))))
+            self.server.trace.append(event)
+            if (event.get('event') == 'keydown' and event.get('key') == 'Enter'
+                    and event.get('target') == 'continue' and event.get('password_matches') is True):
+                self.server.submit_trace.set()
         self.send_response(204)
         self.end_headers()
 
@@ -60,6 +64,7 @@ def controlled(live, tmp_path):
     config = get_config()
     origin = ThreadingHTTPServer(("127.0.0.1", 0), _Page)
     origin.signed_in = threading.Event()
+    origin.submit_trace = threading.Event()
     origin.trace = []
     serving = threading.Thread(target=origin.serve_forever, daemon=True)
     serving.start()
@@ -70,7 +75,8 @@ def controlled(live, tmp_path):
     store.upsert_bot(bot)
     run = store.create_run(Run(bot_id=bot.id, prompt="Complete the controlled login", status=RunStatus.running))
     finish, ready = threading.Event(), threading.Event()
-    effects, failures = {"receipt": origin.signed_in, "trace": origin.trace}, []
+    effects, failures = {"receipt": origin.signed_in, "trace": origin.trace,
+                         "submit_trace": origin.submit_trace}, []
     tool = BrowserTool()
 
     def worker():
@@ -203,6 +209,9 @@ def test_login_control_from_panel_reaches_owned_headless_session_and_hands_back(
         panel.get_by_label("Key to send").select_option("enter")
         panel.get_by_role("button", name="Send key").click()
         assert effects["receipt"].wait(5), f"controlled page did not receive expected form submission; safe trace: {effects['trace']}"
+        # Fetches for /receipt and /trace are independent requests. Receipt
+        # arrival alone does not establish that the key trace has arrived.
+        assert effects['submit_trace'].wait(5), 'the origin did not record the intended submit key'
         assert any(item.get("event") == "keydown" and item.get("key") == "Tab"
                    and item.get("target") == "password" and item.get("password_matches") is True
                    for item in effects["trace"]), "human text was not delivered into the password field"
