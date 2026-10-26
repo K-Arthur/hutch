@@ -10072,6 +10072,7 @@ def test_custom_openai_compatible_route_has_egress_disclosure(browser, switcher_
         button.wait_for()
         button.click()
         page.locator(".ms-more").click()
+        page.locator(".ms-advanced summary").click()
         field = page.locator(".ms-custom")
         field.wait_for()
         disclosure = page.locator("#ms-custom-egress-note")
@@ -10238,7 +10239,7 @@ def test_all_models_dialog_filters_explains_and_applies(browser, switcher_env, r
     dlg = page.locator(".modal-card")
     dlg.wait_for()
     text = dlg.inner_text()
-    assert "Choose a model for the next message" in text and "huge:70b" in text
+    assert "Choose a model" in text and "For your next message only" in text and "huge:70b" in text
     assert "won't fit" in text, "a model that does not fit is shown, with the reason, but cannot be chosen"
     assert page.locator('input[name="ms-pick"][value="ollama/huge:70b"]').is_disabled()
     assert "anthropic" in text.lower() and "ANTHROPIC_API_KEY" in text
@@ -10259,7 +10260,8 @@ def test_all_models_dialog_filters_explains_and_applies(browser, switcher_env, r
     assert page.locator(".ms-menu").is_hidden() and "small:2b" in page.locator(".ms-btn").inner_text()
 
 
-def test_openrouter_models_are_searchable_from_the_chat_picker(browser, switcher_env, request, monkeypatch):
+@pytest.mark.parametrize("connection_name", ["openrouter", "research-models"])
+def test_openrouter_models_are_searchable_from_the_chat_picker(browser, switcher_env, request, monkeypatch, connection_name):
     from tests.fakes import FakeOpenAI
 
     base, app, _fake = switcher_env
@@ -10275,8 +10277,8 @@ def test_openrouter_models_are_searchable_from_the_chat_picker(browser, switcher
     ]
     request.addfinalizer(router.close)
     book = ConnectionBook(app.state.config.state_dir)
-    book.add("openrouter", base_url=router.url + "/v1")
-    book.set_key("openrouter", "router-e2e-secret")
+    book.add("openrouter", name=connection_name, base_url=router.url + "/v1")
+    book.set_key(connection_name, "router-e2e-secret")
     from hutch.modelchoices import reset_cache
     reset_cache()
 
@@ -10297,7 +10299,7 @@ def test_openrouter_models_are_searchable_from_the_chat_picker(browser, switcher
 
     monkeypatch.setattr(modelchoices, "model_choices", delayed_initial_choices)
 
-    out = artifact_path("openrouter-model-search")
+    out = artifact_path(f"openrouter-model-search-{connection_name}")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -10311,7 +10313,7 @@ def test_openrouter_models_are_searchable_from_the_chat_picker(browser, switcher
         assert initial_started.wait(timeout=5), "mount-time model catalog request did not start"
         assert router.requests == [], "opening a chat must not refresh provider catalogs"
         button.click()
-        openrouter_model = page.locator('.ms-menu [data-spec="openrouter/anthropic/claude-sonnet-4"]')
+        openrouter_model = page.locator(f'.ms-menu [data-spec="{connection_name}/anthropic/claude-sonnet-4"]')
         openrouter_model.wait_for()
         with page.expect_response(lambda response: "/api/bots/chatty/models" in response.url
                                   and "discover=1" not in response.url) as initial_response:
@@ -10320,11 +10322,11 @@ def test_openrouter_models_are_searchable_from_the_chat_picker(browser, switcher
         page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
         openrouter_model.wait_for()
         catalog = page.request.get(f"{base}/api/bots/chatty/models?discover=1").json()
-        assert any(row["spec"] == "openrouter/anthropic/claude-sonnet-4" for row in catalog["models"]), catalog
+        assert any(row["spec"] == f"{connection_name}/anthropic/claude-sonnet-4" for row in catalog["models"]), catalog
         with page.expect_response(lambda response: "/api/bots/chatty/models?discover=1" in response.url) as all_models_response:
             page.locator(".ms-more").click()
         all_models = all_models_response.value.json()
-        assert any(row["spec"] == "openrouter/anthropic/claude-sonnet-4" for row in all_models["models"]), all_models
+        assert any(row["spec"] == f"{connection_name}/anthropic/claude-sonnet-4" for row in all_models["models"]), all_models
         dialog = page.locator(".modal-card")
         dialog.wait_for()
         # The catalog is below the initial viewport in the scrollable model list;
@@ -10347,7 +10349,7 @@ def test_openrouter_models_are_searchable_from_the_chat_picker(browser, switcher
             page.screenshot(path=str(out / f"search-{label}.png"), animations="disabled")
             captures.append({"viewport": [width, height], "modal": box})
 
-        page.locator('input[name="ms-pick"][value="openrouter/deepseek/deepseek-chat-v3"]').check()
+        page.locator(f'input[name="ms-pick"][value="{connection_name}/deepseek/deepseek-chat-v3"]').check()
         page.locator("#modal-confirm").click()
         assert "is-custom" in button.get_attribute("class")
         assert app.state.store.get_bot("chatty").model == "ollama/tiny:1b"
@@ -10386,6 +10388,111 @@ def test_switcher_fits_a_phone_screen(browser, switcher_env, request):
     box = page.locator(".ms-menu").bounding_box()
     assert box["x"] >= 0 and box["x"] + box["width"] <= 390, box
     assert page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth") <= 1
+
+
+def test_roster_keeps_named_groups_when_assistant_status_changes(browser, live):
+    base, app = live
+    store = app.state.store
+    for bot in [Bot(name="hutch", display_name="Hutch", model="mock/demo", tools=[]),
+                Bot(name="research", display_name="Research Desk", model="mock/demo", tools=[], roster_section="Client work"),
+                Bot(name="writer", display_name="Writer", model="mock/demo", tools=[])]:
+        store.create_bot(bot)
+    store.set_workspace_coordinator("hutch")
+    page = browser.new_page(viewport={"width": 1440, "height": 900}, reduced_motion="reduce")
+    try:
+        page.goto(base + "/#/chat/hutch")
+        section = page.locator('[data-roster-section="Client work"]')
+        section.locator("summary").wait_for()
+        research = store.get_bot("research")
+        research.paused = True
+        store.upsert_bot(research)
+        section.locator('[data-switch-bot="research"] .roster-sub').filter(has_text="Paused").wait_for()
+        assert section.locator('[data-switch-bot="research"]').is_visible()
+        assert page.locator('#roster-list [data-switch-bot="research"]').count() == 1
+        assert page.locator('#roster-list .roster-section-title').filter(has_text="In progress").count() == 0
+        research.paused = False
+        store.upsert_bot(research)
+        wait_for(lambda: "Paused" not in section.inner_text())
+        assert section.locator('[data-switch-bot="research"]').is_visible()
+    finally:
+        page.close()
+
+
+def test_model_picker_details_scope_and_small_positive_prices(browser, switcher_env):
+    """The visible choice remains reviewable on narrow screens and never rounds a charge to free."""
+    base, app, _fake = switcher_env
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    fail_catalog = False
+
+    def catalog(route):
+        if fail_catalog:
+            route.fulfill(status=503, json={"detail": "synthetic catalog outage"})
+            return
+        response = route.fetch()
+        body = response.json()
+        for model in body["models"]:
+            if model["spec"] == "ollama/small:2b":
+                # Display-only boundary fixture; no inference or pricing assertion about Ollama.
+                model["worst_case_usd"] = 0.00003
+        route.fulfill(response=response, json=body)
+
+    page.route("**/api/bots/chatty/models**", catalog)
+    out = artifact_path("model-picker-scope")
+    out.mkdir(parents=True, exist_ok=True)
+    captures = []
+    try:
+        page.goto(f"{base}/#/chat/chatty")
+        button = page.locator(".ms-btn")
+        button.click()
+        page.locator(".ms-more").click()
+        assert page.locator(".ms-advanced").get_attribute("open") is None
+        radio = page.locator('input[name="ms-pick"][value="ollama/small:2b"]')
+        radio.focus()
+        page.keyboard.press("Space")
+        row = page.locator('.ms-row:has(input[value="ollama/small:2b"])')
+        assert "estimated less than $0.0001 per run" in row.inner_text()
+        assert "$0.00 per run" not in row.inner_text()
+        assert "Next message: small:2b" in page.locator(".ms-selection").inner_text()
+        page.locator(".ms-selection-details summary").click()
+        assert "ollama/small:2b" in page.locator(".ms-selection-info").inner_text()
+        for width, height in ((1440, 960), (768, 1024), (320, 900)):
+            page.set_viewport_size({"width": width, "height": height})
+            modal = page.locator(".modal-card").bounding_box()
+            assert modal and modal["x"] >= 0 and modal["x"] + modal["width"] <= width + 1
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+            page.screenshot(path=str(out / f"selected-{width}.png"), animations="disabled")
+            captures.append({"viewport": [width, height], "modal": modal})
+        spacing = page.add_style_tag(content="""
+            * { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; }
+            p { margin-block-end: 2em !important; }
+        """)
+        page.locator("#modal-confirm").scroll_into_view_if_needed()
+        assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+        assert page.locator("#modal-confirm").is_visible()
+        page.screenshot(path=str(out / "text-spacing-320.png"), animations="disabled")
+        spacing.evaluate("element => element.remove()")
+        page.locator("#modal-confirm").click()
+        assert "small:2b" in button.get_attribute("aria-label")
+        assert app.state.store.get_bot("chatty").model == "ollama/tiny:1b"
+
+        fail_catalog = True
+        button.click()
+        page.locator(".ms-refresh-error").wait_for()
+        page.locator(".ms-more").click()
+        assert "Could not refresh models" in page.locator(".ms-search-status").inner_text()
+        assert "Next message: small:2b" in page.locator(".ms-selection").inner_text()
+        assert not errors, errors
+        assert app.state.store.list_runs(limit=10) == []
+        (out / "validation.json").write_text(json.dumps({
+            "browser": browser.version, "captures": captures, "page_errors": errors,
+            "scenario": "synthetic low-positive price display, keyboard choice, saved-default separation and catalog outage",
+            "inference_calls": 0,
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        context.close()
 
 
 def test_retired_mock_route_is_visibly_unavailable_in_the_model_picker(browser, live):

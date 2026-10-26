@@ -2288,7 +2288,6 @@ function renderRoster() {
   const inProgress = remaining.filter(b => !botNeedsYou(b) && botState(b) !== "idle" && b.name !== currentChatBot);
   const current = remaining.filter(b => b.name === currentChatBot && !needsYou.includes(b) && !inProgress.includes(b));
   const spotlight = new Set([...needsYou, ...inProgress, ...current]);
-  const idle = remaining.filter(b => !spotlight.has(b));
   const bots = [...(coordinatorMatch ? [coordinatorMatch] : []), ...pinned, ...remaining, ...hiddenIdle];
   if (!bots.length) {
     list.innerHTML = `<div class="roster-empty">${botsCache.length ? "No assistant matches." : "No assistants yet — create one."}</div>`;
@@ -2297,15 +2296,10 @@ function renderRoster() {
   const rowHtml = b => rosterRowHtml(b, currentStudioBot);
   const sections = [];
   if (coordinatorMatch) sections.push(`<div class="roster-section roster-coordinator">${rowHtml(coordinatorMatch)}</div>`);
-  if (needsYou.length) sections.push(`<section class="roster-section" aria-label="Bots that need you">
-    <h3 class="roster-section-title">Needs you</h3>${needsYou.map(rowHtml).join("")}</section>`);
   if (pinned.length) sections.push(`<section class="roster-section" aria-label="Pinned bots">
     <h3 class="roster-section-title">Pinned</h3>${pinned.map(rowHtml).join("")}</section>`);
-  if (inProgress.length) sections.push(`<section class="roster-section" aria-label="Bots in progress">
-    <h3 class="roster-section-title">In progress</h3>${inProgress.map(rowHtml).join("")}</section>`);
-  if (current.length) sections.push(`<section class="roster-section" aria-label="Current chat bot">${current.map(rowHtml).join("")}</section>`);
   const bySection = new Map();
-  for (const bot of idle.filter(item => item.roster_section)) {
+  for (const bot of remaining.filter(item => item.roster_section)) {
     const label = bot.roster_section.trim();
     const key = label.toLocaleLowerCase();
     const group = bySection.get(key) || { label, bots: [] };
@@ -2313,25 +2307,28 @@ function renderRoster() {
     bySection.set(key, group);
   }
   for (const [key, group] of [...bySection.entries()].sort((a, b) => a[1].label.localeCompare(b[1].label))) {
-    const open = !!store$.get(`hutch:roster-section:${key}`, false);
+    const open = !!store$.get(`hutch:roster-section:${key}`, false) || group.bots.some(b => spotlight.has(b));
     sections.push(`<details class="roster-section roster-idle-details roster-custom-details" data-roster-section="${esc(group.label)}" ${open ? "open" : ""}>
       <summary aria-label="${esc(group.label)}, ${group.bots.length} Bots">${esc(group.label)} <span class="roster-count">${group.bots.length}</span></summary>
       <div class="roster-section roster-idle-list">${group.bots.map(rowHtml).join("")}</div></details>`);
   }
-  if (idle.length) {
-    const ungrouped = idle.filter(item => !item.roster_section);
+  if (remaining.length) {
+    const ungrouped = remaining.filter(item => !item.roster_section);
     const largeFleet = botsCache.length >= 10;
     if (!ungrouped.length) {
       // Every idle Bot is already reachable through a named section.
     } else if (largeFleet) {
+      const active = ungrouped.filter(item => spotlight.has(item));
+      const rest = ungrouped.filter(item => !spotlight.has(item));
+      if (active.length) sections.push(`<section class="roster-section" aria-label="Active assistants">${active.map(rowHtml).join("")}</section>`);
       const allOpen = !!store$.get("hutch:roster-idle-open", false);
-      sections.push(`<details class="roster-section roster-idle-details" id="roster-idle-details" ${allOpen ? "open" : ""}>
-        <summary aria-controls="roster-idle-bots">All bots <span class="roster-count">${ungrouped.length}</span></summary>
-        <div class="roster-section roster-idle-list" id="roster-idle-bots">${ungrouped.map(rowHtml).join("")}</div>
+      if (rest.length) sections.push(`<details class="roster-section roster-idle-details" id="roster-idle-details" ${allOpen ? "open" : ""}>
+        <summary aria-controls="roster-idle-bots">More assistants <span class="roster-count">${rest.length}</span></summary>
+        <div class="roster-section roster-idle-list" id="roster-idle-bots">${rest.map(rowHtml).join("")}</div>
       </details>`);
     } else {
       sections.push(`<section class="roster-section" aria-label="All bots">
-        ${pinned.length || needsYou.length || inProgress.length ? '<h3 class="roster-section-title">All bots</h3>' : ""}${ungrouped.map(rowHtml).join("")}</section>`);
+        ${ungrouped.map(rowHtml).join("")}</section>`);
     }
   }
   if (hiddenIdle.length) {
@@ -3539,10 +3536,10 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
                   <button class="cmenu-files" id="preflight-open" type="button">${icon("chart")} Review cost and context before sending</button>
                   </div>
                 </div>
+                <span class="model-switch-slot" id="model-switch-slot"></span>
               </div>
               <div class="composer-actions">
                 <span class="skill-switch-slot" id="skill-switch-slot"></span>
-                <span class="model-switch-slot" id="model-switch-slot"></span>
                 <button class="composer-send" id="chat-send" type="submit" aria-label="Send message">${icon("up")}</button>
               </div>
             </div>

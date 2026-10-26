@@ -1,0 +1,9 @@
+{
+  "app/src/model-switcher.css": "37976db92f2b70a95535325e0cb94f1de26d387377655d8cc0f83271a15f5cc4",
+  "app/src/input.css": "1e96b721a5e93b34ca647734dbbd91d9cfb785f16f017f825f45ae3b2602ab42",
+  "src/hutch/server/static/model-switcher.js": "8781c32de09cff800194a6701b5c00ca00a51773592fc4f978abd849dc000be7",
+  "src/hutch/server/static/model-switcher.css": "1c85a2563ed1891ed5ab3c68d5e29925c594c488fa932d0cc8742f550e05793e",
+  "src/hutch/server/static/app.js": "6e9ad158060d68e5974b5ae2b02a1ecb95d33f7586d7c83d40a1a8770ac9e973",
+  "src/hutch/modelchoices.py": "fc76a6b0517c89025f73ae5f5ab2377a81f713866c17063b4aa2fd16a8d5df1d",
+  "tests/e2e/test_browser.py": "c78db57c302a01008148d0066b8e2f441fa9fc426d6f701637a8372f06b09f33"
+}

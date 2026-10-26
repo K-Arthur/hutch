@@ -159,6 +159,12 @@ The deterministic test scenario runtime lives under `tests/` and is not included
 
 ### Manual task-role routes
 
+Hutch's main assistant and each specialist have independent saved model settings. Changing one assistant's default
+does not update other assistants. A task involving several assistants can therefore use different models for their
+contributions. The existing reviewed specialist handoff currently uses the specialist's saved route; per-assignment
+overrides and a combined task inspector are planned in [ADR 0021](adr/0021-conversations-tasks-and-model-ownership.md).
+Do not treat the following per-message role mapping as a global model for a multi-assistant task.
+
 The built-in Studio lets an operator configure an exact `provider/model` route for each of seven task roles: `banter`,
 `classification`, `extraction`, `summarization`, `synthesis_research`, `code_analysis`, and `verification`. Blank routes use the Bot's
 saved model. In chat, selecting a role applies its configured route to one message; an explicit composer model override has

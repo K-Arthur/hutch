@@ -75,6 +75,7 @@ class Choice:
     hosted: bool = False         # the chat leaves this machine
     worst_case_usd: Optional[float] = None   # legacy name; local one-run cost estimate when priced
     detail: list[str] = field(default_factory=list)
+    catalog_search: bool = False  # explicit capability, independent of connection's chosen name
 
 
 class ModelNotUsable(ValueError):
@@ -282,6 +283,7 @@ def _connection_choices(bot: Bot, store: Any, book: ConnectionBook, extra: set[s
                     detail.append(f"OpenRouter lists a {catalog_row['context_length']:,}-token context window; upstream availability may vary.")
             out.append(Choice(spec=spec, label=(catalog_row["name"] if catalog_row else short_label(spec)),
                               group=c.title, state=state, hosted=True,
+                              catalog_search=c.template == "openrouter" and bool(c.models_endpoint),
                               note=note, fix=fix,
                               detail=detail +
                                      (["Responses preview does not accept a provider-enforced output-token limit; Hutch estimates usage"]
@@ -340,6 +342,7 @@ def model_choices(config: Any, store: Any, bot: Bot, hw: Optional[Hardware] = No
             # the bot's own model keeps its place but gains the real state/notes
             mine = next(x for x in choices if x.spec == c.spec)
             mine.state, mine.fix, mine.detail = c.state, c.fix, c.detail
+            mine.hosted, mine.catalog_search = c.hosted, c.catalog_search
             mine.note = c.note or mine.note
             continue
         seen.add(c.spec)
@@ -349,7 +352,9 @@ def model_choices(config: Any, store: Any, bot: Bot, hw: Optional[Hardware] = No
             e = est.for_model(c.spec)
             c.worst_case_usd = e.worst_case_usd
             if e.worst_case_usd is not None:
-                c.detail.append(f"estimated ${e.worst_case_usd:.2f} for one run of up to {e.steps} steps; provider billing can differ")
+                amount = ("less than $0.0001" if 0 < e.worst_case_usd < 0.0001
+                          else f"${e.worst_case_usd:.4f}")
+                c.detail.append(f"estimated {amount} for one run of up to {e.steps} steps; provider billing can differ")
     return choices
 
 

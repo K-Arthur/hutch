@@ -165,7 +165,8 @@ def test_connection_models_known_from_bots_appear_with_their_state(env, monkeypa
     assert plan.state == "ready" and "flat-rate" in plan.note
 
 
-def test_openrouter_model_catalog_is_fetched_only_on_request_and_searches_with_its_key(env, monkeypatch):
+@pytest.mark.parametrize("connection_name", ["openrouter", "research-models"])
+def test_openrouter_model_catalog_is_fetched_only_on_request_and_searches_with_its_key(env, monkeypatch, connection_name):
     from urllib.parse import parse_qs, urlsplit
     from hutch.providers import ChatRequest
     from hutch.providers.connection import provider_for_connection
@@ -183,8 +184,8 @@ def test_openrouter_model_catalog_is_fetched_only_on_request_and_searches_with_i
     ]
     try:
         book = ConnectionBook(env.config.state_dir)
-        book.add("openrouter", base_url=router.url + "/v1")
-        book.set_key("openrouter", "router-secret")
+        book.add("openrouter", name=connection_name, base_url=router.url + "/v1")
+        book.set_key(connection_name, "router-secret")
         monkeypatch.setenv("OPENAI_API_KEY", "must-not-be-sent-to-openrouter")
         bot = mkbot(env, model="ollama/fake:8b")
         reset_cache()
@@ -195,8 +196,9 @@ def test_openrouter_model_catalog_is_fetched_only_on_request_and_searches_with_i
 
         choices = model_choices(env.config, env.store, bot, discover_hosted_models=True)
         by = {choice.spec: choice for choice in choices}
-        sonnet = by["openrouter/anthropic/claude-sonnet-4"]
+        sonnet = by[f"{connection_name}/anthropic/claude-sonnet-4"]
         assert sonnet.label == "Claude Sonnet 4" and sonnet.group == "OpenRouter"
+        assert sonnet.catalog_search, "search depends on the connection template, not its name"
         assert "catalog" in sonnet.note and "$3" in sonnet.note
         assert any("does not verify" in detail for detail in sonnet.detail)
         request = router.requests[-1]
@@ -206,16 +208,22 @@ def test_openrouter_model_catalog_is_fetched_only_on_request_and_searches_with_i
 
         reset_cache()
         result = env.get("/api/bots/chatty/models?discover=1&q=deepseek").json()
-        assert [row["spec"] for row in result["models"] if row["spec"].startswith("openrouter/")] == [
-            "openrouter/deepseek/deepseek-chat-v3"]
+        assert [row["spec"] for row in result["models"] if row["spec"].startswith(connection_name + "/")] == [
+            f"{connection_name}/deepseek/deepseek-chat-v3"]
+        assert next(row for row in result["models"] if row["spec"].startswith(connection_name + "/"))["catalog_search"]
         query_request = router.requests[-1]
         assert parse_qs(urlsplit(query_request["path"]).query)["q"] == ["deepseek"]
         assert query_request["headers"]["authorization"] == "Bearer router-secret"
         assert validate_override(env.config, env.store, bot,
-                                 "openrouter/anthropic/claude-sonnet-4") == "openrouter/anthropic/claude-sonnet-4"
+                                 f"{connection_name}/anthropic/claude-sonnet-4") == f"{connection_name}/anthropic/claude-sonnet-4"
         assert "router-secret" not in env.get("/api/bots/chatty/models?discover=1").text
 
-        result = provider_for_connection(book, "openrouter", "anthropic/claude-sonnet-4").chat(
+        # The default model keeps the catalog's search capability after de-duplication.
+        bot.model = sonnet.spec
+        own = model_choices(env.config, env.store, bot, discover_hosted_models=True)[0]
+        assert own.default and own.catalog_search and own.hosted
+
+        result = provider_for_connection(book, connection_name, "anthropic/claude-sonnet-4").chat(
             ChatRequest(model="anthropic/claude-sonnet-4", messages=[{"role": "user", "content": "hello"}],
                         max_tokens=23, stream=False))
         sent = router.of("/v1/chat/completions")[-1]

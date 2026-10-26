@@ -1,0 +1,44 @@
+{
+  "browser": "153.0.8010.12",
+  "captures": [
+    {
+      "viewport": [
+        1440,
+        960
+      ],
+      "modal": {
+        "x": 330,
+        "y": 48,
+        "width": 780,
+        "height": 864
+      }
+    },
+    {
+      "viewport": [
+        768,
+        1024
+      ],
+      "modal": {
+        "x": 16,
+        "y": 72,
+        "width": 736,
+        "height": 880
+      }
+    },
+    {
+      "viewport": [
+        320,
+        900
+      ],
+      "modal": {
+        "x": 0,
+        "y": 63,
+        "width": 320,
+        "height": 837
+      }
+    }
+  ],
+  "page_errors": [],
+  "scenario": "synthetic low-positive price display, keyboard choice, saved-default separation and catalog outage",
+  "inference_calls": 0
+}

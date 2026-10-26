@@ -21,6 +21,8 @@
   const escHtml = s => String(s ?? "").replace(/[&<>"']/g, c =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const shortName = spec => String(spec).split("/").slice(1).join("/") || String(spec);
+  const dollars = value => value === 0 ? "$0" : value < 0.0001 ? "less than $0.0001"
+    : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 4 }).format(value);
 
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -43,7 +45,7 @@
     slot.innerHTML = `
       <div class="ms-wrap">
         <button type="button" class="ms-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="ms-menu-${escHtml(bot.name)}">
-          <span class="ms-dot" aria-hidden="true"></span><span class="ms-label"></span>${ico("chevron", 14)}
+          <span class="ms-route-icon" aria-hidden="true"></span><span class="ms-label"></span>${ico("chevron", 14)}
         </button>
         <div class="ms-menu" id="ms-menu-${escHtml(bot.name)}" role="menu" aria-label="Choose a model" hidden></div>
       </div>`;
@@ -58,6 +60,7 @@
       const m = find(spec);
       const custom = spec !== data.default;
       label.textContent = m ? m.label : shortName(spec);
+      slot.querySelector(".ms-route-icon").innerHTML = ico(m?.hosted === false ? "chip" : "cloud");
       btn.classList.toggle("is-custom", custom);
       btn.title = custom ? `One-message override: ${spec}. The Bot default stays ${data.default}; this override clears after the next message is accepted.`
                          : `Model: ${spec} (this Bot's default). Choose another route for one message or save it as the Bot default.`;
@@ -120,7 +123,7 @@
       return `<button type="button" class="ms-item" role="menuitemradio" tabindex="-1" aria-checked="${on}" data-spec="${escHtml(m.spec)}" ${usable(m) ? "" : 'disabled aria-disabled="true"'}>
         <span class="ms-item-main"><span class="ms-item-name">${escHtml(m.label)}</span>
           ${m.default ? '<span class="ms-tag">default</span>' : ""}
-          <span class="ms-item-note">${escHtml(m.spec)}</span>
+          <span class="ms-item-note">${escHtml(m.hosted ? `${m.group} · leaves this machine` : "On this machine")}</span>
           ${m.note ? `<span class="ms-item-note">${escHtml(m.note)}</span>` : ""}</span>
         <span class="ms-item-check">${on ? ico("check", 16) : ""}</span></button>`;
     }
@@ -169,7 +172,9 @@
           if (had) (items().find(i => (spec && i.dataset.spec === spec) || (more && i.hasAttribute("data-more"))) ||
                     items().find(i => saveDefault && i.hasAttribute("data-save-default")) || items()[0])?.focus();
         }
+        return true;
       } catch {
+        if (revision !== refreshRevision || !slot.isConnected) return;
         if (!menu.hidden && !menu.querySelector(".ms-refresh-error")) {
           const status = document.createElement("p");
           status.className = "ms-refresh-error hc-popup-empty";
@@ -178,6 +183,7 @@
           menu.append(status);
           popup.place();
         }
+        return false;
       }
     }
 
@@ -199,36 +205,39 @@
 
     // ------------------------------------------------------------- the full list
     async function openAll() {
-      await refresh({ discover: true });               // the model picker is an explicit catalog request
+      const refreshed = await refresh({ discover: true }); // explicit catalog request, no inference
       if (!slot.isConnected) return;
       const cur = active();
       let draftSpec = cur;
       const row = m => {
         const ok = usable(m);
         let sub = ok ? (m.note || "") : (m.fix || m.note || "");     // the fix already says why it is off
-        if (ok && m.worst_case_usd != null) sub += ` - estimated $${m.worst_case_usd.toFixed(2)} per run`;
+        if (ok && m.worst_case_usd != null) sub += ` · estimated ${dollars(m.worst_case_usd)} per run`;
         return `<label class="ms-row ${ok ? "" : "is-off"}" data-text="${escHtml((m.spec + " " + m.label + " " + m.group).toLowerCase())}">
           <input type="radio" name="ms-pick" value="${escHtml(m.spec)}" ${ok ? "" : "disabled"} ${m.spec === draftSpec ? "checked" : ""}>
           <span class="ms-row-main"><span class="ms-row-name">${escHtml(m.label)}
               ${m.default ? '<span class="ms-tag">default</span>' : ""}
               ${m.hosted ? `<span class="ms-tag ms-hosted" title="This chat is sent to the provider">${ico("cloud", 11)} leaves this machine</span>` : ""}
               ${ok ? "" : `<span class="ms-tag ms-warn">${m.state === "wont_fit" ? "won't fit" : "needs setup"}</span>`}</span>
-            <span class="ms-row-note">${escHtml(m.spec)}</span>
             <span class="ms-row-note">${escHtml(sub)}</span></span></label>`;
       };
       const body = `
         <div class="ms-all">
+          <p class="ms-scope">For your next message only. ${escHtml(bot.display_name || bot.name)} keeps its saved model for future messages and scheduled work.</p>
           <input type="text" role="searchbox" class="ms-search" placeholder="Search available models" aria-label="Search available models" autocomplete="off" spellcheck="false" enterkeyhint="search">
-          <p class="ms-search-status" role="status" aria-live="polite"></p>
+          <p class="ms-search-status" role="status" aria-live="polite">${refreshed ? "" : "Could not refresh models. Showing the last available choices; check the connection and reopen to retry."}</p>
           <div class="ms-groups" role="radiogroup" aria-label="Models"></div>
-          <label class="ms-other">Another model <span class="muted">(provider/model, for example a model on one of your connections)</span>
+          <div class="ms-selection" role="status" aria-live="polite"></div>
+          <details class="ms-selection-details"><summary>Selected route and details</summary><div class="ms-selection-info"></div></details>
+          <details class="ms-advanced"><summary>Enter a model ID</summary>
+          <label class="ms-other">Another model <span class="muted">(provider/model, on one of your connections)</span>
             <input type="text" class="ms-custom mono" aria-describedby="ms-custom-egress-note" placeholder="opencode-go/glm-5.3" autocomplete="off" spellcheck="false">
-            <span id="ms-custom-egress-note" class="muted">An openai-compatible route uses its configured endpoint and may send this chat off this machine. Confirm the provider endpoint for this Bot or Hutch installation before selecting it.</span></label>
+            <span id="ms-custom-egress-note" class="muted">An openai-compatible route uses its configured endpoint and may send this chat off this machine. Confirm the provider endpoint for this Bot or Hutch installation before selecting it.</span></label></details>
           <p class="ms-foot"><a href="/models">Hardware fit, task presets and prices</a> &middot;
             <a href="/connections">Connections</a></p>
         </div>`;
       openModal({
-        title: "Choose a model for the next message", bodyHtml: body, confirmText: "Use this model", returnFocus: btn,
+        title: "Choose a model", bodyHtml: body, confirmText: "Use for next message", returnFocus: btn, wide: true,
         onConfirm: () => {
           const root = document.getElementById("modal-root");
           const custom = root.querySelector(".ms-custom").value.trim();
@@ -255,9 +264,24 @@
       const search = root.querySelector(".ms-search");
       const groupList = root.querySelector(".ms-groups");
       const searchStatus = root.querySelector(".ms-search-status");
+      const custom = root.querySelector(".ms-custom");
+      const selection = root.querySelector(".ms-selection");
+      const selectionInfo = root.querySelector(".ms-selection-info");
+      const paintSelection = () => {
+        const spec = custom.value.trim() || draftSpec;
+        const model = find(spec);
+        selection.textContent = `Next message: ${model?.label || shortName(spec)}`;
+        const details = model?.detail || ["Custom route; availability and permissions are checked when you send."];
+        selectionInfo.innerHTML = `<code>${escHtml(spec)}</code><ul>${details.map(line => `<li>${escHtml(line)}</li>`).join("")}</ul>`;
+      };
       groupList.addEventListener("change", event => {
-        if (event.target.matches('input[name="ms-pick"]')) draftSpec = event.target.value;
+        if (event.target.matches('input[name="ms-pick"]')) {
+          draftSpec = event.target.value;
+          custom.value = "";
+          paintSelection();
+        }
       });
+      custom.addEventListener("input", paintSelection);
       const renderGroups = (models, query = "") => {
         const groups = [];
         for (const model of models) {
@@ -283,6 +307,7 @@
         root.querySelector(".ms-empty").hidden = any;
       };
       renderGroups(data.models);
+      paintSelection();
       let searchTimer = 0;
       let searchRevision = 0;
       search.addEventListener("input", () => {
@@ -290,7 +315,7 @@
         renderGroups(data.models, query);
         if (searchTimer) clearTimeout(searchTimer);
         const revision = ++searchRevision;
-        if (query.length < 2 || !data.models.some(model => model.spec.startsWith("openrouter/"))) {
+        if (query.length < 2 || !data.models.some(model => model.catalog_search)) {
           searchStatus.textContent = "";
           return;
         }
@@ -304,6 +329,7 @@
             data = fresh;
             paintButton();
             renderGroups(data.models, query);
+            paintSelection();
             searchStatus.textContent = "";
           } catch {
             if (revision === searchRevision) {

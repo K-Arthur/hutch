@@ -2,7 +2,8 @@
 
 ## Switching models in the chat
 
-The Studio composer has a model pill beside Send. Its menu lists the bot's own model first (marked *default*, with a
+The Studio composer has a model control beside message options. Its icon distinguishes a listed local route from a
+hosted route; its full accessible name identifies the model and selection scope. Its menu lists the bot's own model first (marked *default*, with a
 check on the one in use), then what is usable right now, then **All models**. Each entry has one line of secondary
 text that says something true on this machine:
 
@@ -16,11 +17,15 @@ text that says something true on this machine:
 **All models** opens a searchable dialog with everything, grouped. Models that cannot be used are shown with the
 reason and the fix (`the weights alone are 40 GiB against 3.5 GiB usable`, `set ANTHROPIC_API_KEY where hutch
 starts`) instead of being hidden. Anything that sends the chat off the machine carries a **leaves this machine** tag.
-A field at the bottom takes any `provider/model`, for connection models that are not listed.
+The dialog says explicitly that the choice applies to the next message. **Selected route and details** shows the exact
+route and catalog/estimate qualifications; **Enter a model ID** opens the advanced field for models that are not listed.
+Small positive estimates are not rounded to `$0.00`. Catalog refresh failures retain the previous choices and display
+an error. These choices are revalidated when sending; selecting a model never dispatches inference.
 
 OpenRouter is available as a first-party connection. Opening the composer model picker fetches its 40 most-popular
 text models; typing at least two characters searches OpenRouter's catalog and returns matching entries. The chat
-page itself does not contact OpenRouter to refresh that list. Catalog pricing and context size are reported values,
+page itself does not contact OpenRouter to refresh that list. Catalog search also works when the OpenRouter connection
+has a custom name. Catalog pricing and context size are reported values,
 not guarantees of upstream availability. Separately, before admission to a paid OpenRouter route, Hutch reads the
 public model-endpoint metadata and uses a five-minute quote; the response is capped at 1 MB, 512 endpoints and 64
 pricing overrides per endpoint, and compressed responses are rejected. Strict USD ceilings refuse when fresh
