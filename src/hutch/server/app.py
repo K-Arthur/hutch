@@ -43,6 +43,7 @@ from ..approvals import resolve_approval, resolve_approval_ex
 from ..action_receipts import ActionConflict
 from ..fact_memory import FactConflict
 from ..instance import instance_info
+from ..oauth_apps import outlook_oauth_client_id
 from ..google_oauth_config import (GOOGLE_OAUTH_CLIENT_ID_KEY, GOOGLE_OAUTH_CLIENT_ID_PATTERN,
                                    google_oauth_client_settings, resolve_google_oauth_client_id,
                                    valid_google_oauth_client_id)
@@ -1600,12 +1601,12 @@ class ChatGPTSignInRequest(BaseModel):
 
 
 class GoogleCalendarSignInRequest(BaseModel):
-    label: str = Field(min_length=1, max_length=80)
+    label: str = Field(default="Google Calendar", min_length=1, max_length=80)
     allow_event_creation: bool = False
 
 
 class GoogleWorkspaceSignInRequest(BaseModel):
-    label: str = Field(min_length=1, max_length=80)
+    label: str = Field(default="Google Workspace", min_length=1, max_length=80)
 
 
 class GoogleWorkspaceAuthorizationResource(BaseModel):
@@ -1647,7 +1648,7 @@ class GoogleCalendarResource(BaseModel):
 
 class GoogleOAuthClientSettingsResource(BaseModel):
     client_id: str
-    source: Literal["environment", "hutch", "unset"]
+    source: Literal["environment", "hutch", "distribution", "unset"]
     editable: bool
     configured: bool
     valid: bool
@@ -1697,7 +1698,7 @@ class GoogleCalendarDisconnectResource(BaseModel):
 
 
 class GoogleMailSignInRequest(BaseModel):
-    label: str = Field(min_length=1, max_length=80)
+    label: str = Field(default="Gmail", min_length=1, max_length=80)
 
 
 class GoogleMailGrantRequest(BaseModel):
@@ -1745,7 +1746,7 @@ class GoogleMailSendGrantResource(BaseModel):
 
 
 class GoogleMailSendSignInRequest(BaseModel):
-    label: str = Field(min_length=1, max_length=80)
+    label: str = Field(default="Gmail sending", min_length=1, max_length=80)
     from_address: str = Field(min_length=3, max_length=254)
 
 
@@ -1794,7 +1795,7 @@ class GoogleMailDisconnectResource(BaseModel):
 
 
 class OutlookCalendarSignInRequest(BaseModel):
-    label: str = Field(min_length=1, max_length=80)
+    label: str = Field(default="Outlook Calendar", min_length=1, max_length=80)
 
 
 class OutlookCalendarGrantRequest(BaseModel):
@@ -1857,7 +1858,7 @@ class OutlookCalendarDisconnectResource(BaseModel):
 
 
 class OutlookCalendarWriteSignInRequest(BaseModel):
-    label: str = Field(min_length=1, max_length=80)
+    label: str = Field(default="Outlook event creation", min_length=1, max_length=80)
 
 
 class OutlookCalendarWriteGrantRequest(BaseModel):
@@ -1911,7 +1912,7 @@ class OutlookCalendarWriteDisconnectResource(BaseModel):
 
 
 class OutlookMailSignInRequest(BaseModel):
-    label: str = Field(min_length=1, max_length=80)
+    label: str = Field(default="Outlook Mail", min_length=1, max_length=80)
 
 
 class OutlookMailGrantRequest(BaseModel):
@@ -1959,7 +1960,7 @@ class OutlookMailSendGrantResource(BaseModel):
 
 
 class OutlookMailSendSignInRequest(BaseModel):
-    label: str = Field(min_length=1, max_length=80)
+    label: str = Field(default="Outlook sending", min_length=1, max_length=80)
 
 
 class OutlookMailSendGrantRequest(BaseModel):
@@ -6150,12 +6151,12 @@ def create_app() -> FastAPI:
         google_mail_send_book = GoogleMailSendBook(config.state_dir, effective_google_oauth_client_id())
         google_oauth = google_oauth_client_settings(store)
         from ..outlook_calendar import OutlookCalendarBook
-        outlook_book = OutlookCalendarBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+        outlook_book = OutlookCalendarBook(config.state_dir, outlook_oauth_client_id())
         from ..outlook_calendar_write import OutlookCalendarWriteBook
-        outlook_write_book = OutlookCalendarWriteBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+        outlook_write_book = OutlookCalendarWriteBook(config.state_dir, outlook_oauth_client_id())
         from ..outlook_mail import OutlookMailBook, OutlookMailSendBook
-        outlook_mail_book = OutlookMailBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
-        outlook_mail_send_book = OutlookMailSendBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+        outlook_mail_book = OutlookMailBook(config.state_dir, outlook_oauth_client_id())
+        outlook_mail_send_book = OutlookMailSendBook(config.state_dir, outlook_oauth_client_id())
         return {"connections": out, "templates": templates, "errors": book.errors,
                 "chatgpt_enabled": chatgpt_plan_signin_enabled(), "chatgpt_accounts": accounts,
                 "google_oauth_client": google_oauth,
@@ -6173,19 +6174,19 @@ def create_app() -> FastAPI:
                                      "secret_store_available": google_mail_send_book.secrets.available(),
                                      "accounts": google_mail_send_book.accounts(),
                                      "grants": store.list_google_mail_send_grants()},
-                "outlook_calendar": {"configured": bool(os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "").strip()),
+                "outlook_calendar": {"configured": bool(outlook_oauth_client_id()),
                                      "secret_store_available": outlook_book.secrets.available(),
                                      "accounts": outlook_book.accounts(),
                                      "grants": store.list_outlook_calendar_grants()},
-                "outlook_calendar_write": {"configured": bool(os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "").strip()),
+                "outlook_calendar_write": {"configured": bool(outlook_oauth_client_id()),
                                            "secret_store_available": outlook_write_book.secrets.available(),
                                            "accounts": outlook_write_book.accounts(),
                                            "grants": store.list_outlook_calendar_write_grants()},
-                "outlook_mail": {"configured": bool(os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "").strip()),
+                "outlook_mail": {"configured": bool(outlook_oauth_client_id()),
                                  "secret_store_available": outlook_mail_book.secrets.available(),
                                  "accounts": outlook_mail_book.accounts(),
                                  "grants": store.list_outlook_mail_grants()},
-                "outlook_mail_send": {"configured": bool(os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "").strip()),
+                "outlook_mail_send": {"configured": bool(outlook_oauth_client_id()),
                                       "secret_store_available": outlook_mail_send_book.secrets.available(),
                                       "accounts": outlook_mail_send_book.accounts(),
                                       "grants": store.list_outlook_mail_send_grants()}}
@@ -6663,7 +6664,7 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/connections/outlook-calendar", response_model=OutlookCalendarResource)
     def outlook_calendar_connections() -> dict:
         from ..outlook_calendar import OutlookCalendarBook
-        client_id = os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "")
+        client_id = outlook_oauth_client_id()
         book = OutlookCalendarBook(config.state_dir, client_id)
         return {"configured": bool(client_id.strip()), "secret_store_available": book.secrets.available(),
                 "accounts": book.accounts(), "grants": store.list_outlook_calendar_grants()}
@@ -6673,7 +6674,7 @@ def create_app() -> FastAPI:
     def outlook_calendar_sign_in(request: Request, body: OutlookCalendarSignInRequest, response: Response) -> dict:
         from ..outlook_calendar import OutlookCalendarBook, OutlookCalendarError
         try:
-            book = OutlookCalendarBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+            book = OutlookCalendarBook(config.state_dir, outlook_oauth_client_id())
             result = book.start(body.label, book.callback_uri(request))
         except OutlookCalendarError as exc:
             raise HTTPException(409, str(exc)) from None
@@ -6685,7 +6686,7 @@ def create_app() -> FastAPI:
     def outlook_calendar_calendars(account_id: str) -> dict:
         from ..outlook_calendar import OutlookCalendarBook, OutlookCalendarError
         try:
-            book = OutlookCalendarBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+            book = OutlookCalendarBook(config.state_dir, outlook_oauth_client_id())
             return {"calendars": book.list_calendars(account_id)}
         except OutlookCalendarError as exc:
             raise HTTPException(422, str(exc)) from None
@@ -6697,7 +6698,7 @@ def create_app() -> FastAPI:
         if bot is None:
             raise HTTPException(404, "No Bot with that name or ID exists")
         try:
-            book = OutlookCalendarBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+            book = OutlookCalendarBook(config.state_dir, outlook_oauth_client_id())
             calendars = book.list_calendars(body.account_id)
         except OutlookCalendarError as exc:
             raise HTTPException(422, str(exc)) from None
@@ -6726,7 +6727,7 @@ def create_app() -> FastAPI:
         from ..outlook_calendar import OutlookCalendarBook, OutlookCalendarError
         try:
             result = OutlookCalendarBook(config.state_dir,
-                os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "")).disconnect(account_id)
+                outlook_oauth_client_id()).disconnect(account_id)
         except OutlookCalendarError as exc:
             raise HTTPException(422, str(exc)) from None
         if not result["removed"]:
@@ -6751,7 +6752,7 @@ def create_app() -> FastAPI:
                 values[key] = entries[0] if entries else ""
             if not values["state"]:
                 raise OutlookCalendarError("Microsoft did not return sign-in state; start again")
-            book = OutlookCalendarBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+            book = OutlookCalendarBook(config.state_dir, outlook_oauth_client_id())
             if values["error"]:
                 book.cancel(values["state"])
                 raise OutlookCalendarError("Outlook Calendar access was not granted; no account was connected")
@@ -6768,7 +6769,7 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/connections/outlook-calendar-write", response_model=OutlookCalendarWriteResource)
     def outlook_calendar_write_connections() -> dict:
         from ..outlook_calendar_write import OutlookCalendarWriteBook
-        client_id = os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "")
+        client_id = outlook_oauth_client_id()
         book = OutlookCalendarWriteBook(config.state_dir, client_id)
         return {"configured": bool(client_id.strip()), "secret_store_available": book.secrets.available(),
                 "accounts": book.accounts(), "grants": store.list_outlook_calendar_write_grants()}
@@ -6780,7 +6781,7 @@ def create_app() -> FastAPI:
         from ..outlook_calendar import OutlookCalendarError
         from ..outlook_calendar_write import OutlookCalendarWriteBook
         try:
-            book = OutlookCalendarWriteBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+            book = OutlookCalendarWriteBook(config.state_dir, outlook_oauth_client_id())
             result = book.start(body.label, book.callback_uri(request))
         except OutlookCalendarError as exc:
             raise HTTPException(409, str(exc)) from None
@@ -6794,7 +6795,7 @@ def create_app() -> FastAPI:
         from ..outlook_calendar import OutlookCalendarError
         from ..outlook_calendar_write import OutlookCalendarWriteBook
         try:
-            book = OutlookCalendarWriteBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+            book = OutlookCalendarWriteBook(config.state_dir, outlook_oauth_client_id())
             return {"calendars": book.list_calendars(account_id)}
         except OutlookCalendarError as exc:
             raise HTTPException(422, str(exc)) from None
@@ -6809,7 +6810,7 @@ def create_app() -> FastAPI:
             raise HTTPException(404, "No Bot with that name or ID exists")
         try:
             book = OutlookCalendarWriteBook(config.state_dir,
-                os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+                outlook_oauth_client_id())
             accounts = book.accounts()
             account = next((item for item in accounts if item["id"] == body.account_id), None)
             if account is None:
@@ -6844,7 +6845,7 @@ def create_app() -> FastAPI:
         from ..outlook_calendar_write import OutlookCalendarWriteBook
         try:
             result = OutlookCalendarWriteBook(config.state_dir,
-                os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "")).disconnect(account_id)
+                outlook_oauth_client_id()).disconnect(account_id)
         except OutlookCalendarError as exc:
             raise HTTPException(422, str(exc)) from None
         if not result["removed"]:
@@ -6871,7 +6872,7 @@ def create_app() -> FastAPI:
             if not values["state"]:
                 raise OutlookCalendarError("Microsoft did not return sign-in state; start again")
             book = OutlookCalendarWriteBook(config.state_dir,
-                os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+                outlook_oauth_client_id())
             if values["error"]:
                 book.cancel(values["state"])
                 raise OutlookCalendarError("Outlook Calendar event-creation access was not granted; no account was connected")
@@ -6888,7 +6889,7 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/connections/outlook-mail", response_model=OutlookMailResource)
     def outlook_mail_connections() -> dict:
         from ..outlook_mail import OutlookMailBook
-        client_id = os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "")
+        client_id = outlook_oauth_client_id()
         book = OutlookMailBook(config.state_dir, client_id)
         return {"configured": bool(client_id.strip()), "secret_store_available": book.secrets.available(),
                 "accounts": book.accounts(), "grants": store.list_outlook_mail_grants()}
@@ -6898,7 +6899,7 @@ def create_app() -> FastAPI:
         from ..outlook_mail import OutlookMailBook
         from ..outlook_calendar import OutlookCalendarError
         try:
-            book = OutlookMailBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+            book = OutlookMailBook(config.state_dir, outlook_oauth_client_id())
             result = book.start(body.label, book.callback_uri(request))
         except OutlookCalendarError as exc:
             raise HTTPException(409, str(exc)) from None
@@ -6914,7 +6915,7 @@ def create_app() -> FastAPI:
         if bot is None:
             raise HTTPException(404, "No Bot with that name or ID exists")
         try:
-            book = OutlookMailBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+            book = OutlookMailBook(config.state_dir, outlook_oauth_client_id())
             account = book._account(body.account_id)
         except OutlookCalendarError as exc:
             raise HTTPException(422, str(exc)) from None
@@ -6939,7 +6940,7 @@ def create_app() -> FastAPI:
         from ..outlook_calendar import OutlookCalendarError
         try:
             result = OutlookMailBook(config.state_dir,
-                os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "")).disconnect(account_id)
+                outlook_oauth_client_id()).disconnect(account_id)
         except OutlookCalendarError as exc:
             raise HTTPException(422, str(exc)) from None
         if not result["removed"]:
@@ -6965,7 +6966,7 @@ def create_app() -> FastAPI:
                 values[key] = entries[0] if entries else ""
             if not values["state"]:
                 raise OutlookCalendarError("Microsoft did not return sign-in state; start again")
-            book = OutlookMailBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+            book = OutlookMailBook(config.state_dir, outlook_oauth_client_id())
             if values["error"]:
                 book.cancel(values["state"])
                 raise OutlookCalendarError("Outlook Mail access was not granted; no account was connected")
@@ -6982,7 +6983,7 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/connections/outlook-mail-send", response_model=OutlookMailSendResource)
     def outlook_mail_send_connections() -> dict:
         from ..outlook_mail import OutlookMailSendBook
-        client_id = os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "")
+        client_id = outlook_oauth_client_id()
         book = OutlookMailSendBook(config.state_dir, client_id)
         return {"configured": bool(client_id.strip()), "secret_store_available": book.secrets.available(),
                 "accounts": book.accounts(), "grants": store.list_outlook_mail_send_grants()}
@@ -6993,7 +6994,7 @@ def create_app() -> FastAPI:
         from ..outlook_mail import OutlookMailSendBook
         from ..outlook_calendar import OutlookCalendarError
         try:
-            book = OutlookMailSendBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+            book = OutlookMailSendBook(config.state_dir, outlook_oauth_client_id())
             result = book.start(body.label, book.callback_uri(request))
         except OutlookCalendarError as exc:
             raise HTTPException(409, str(exc)) from None
@@ -7010,7 +7011,7 @@ def create_app() -> FastAPI:
         if bot is None:
             raise HTTPException(404, "No Bot with that name or ID exists")
         try:
-            book = OutlookMailSendBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+            book = OutlookMailSendBook(config.state_dir, outlook_oauth_client_id())
             account = book._account(body.account_id)
             if MAIL_SEND_SCOPE not in account.get("scopes", []):
                 raise OutlookCalendarError("This connection did not grant Mail.Send; sign in with send access first")
@@ -7036,7 +7037,7 @@ def create_app() -> FastAPI:
         from ..outlook_calendar import OutlookCalendarError
         try:
             result = OutlookMailSendBook(config.state_dir,
-                os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "")).disconnect(account_id)
+                outlook_oauth_client_id()).disconnect(account_id)
         except OutlookCalendarError as exc:
             raise HTTPException(422, str(exc)) from None
         if not result["removed"]:
@@ -7062,7 +7063,7 @@ def create_app() -> FastAPI:
                 values[key] = entries[0] if entries else ""
             if not values["state"]:
                 raise OutlookCalendarError("Microsoft did not return sign-in state; start again")
-            book = OutlookMailSendBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+            book = OutlookMailSendBook(config.state_dir, outlook_oauth_client_id())
             if values["error"]:
                 book.cancel(values["state"])
                 raise OutlookCalendarError("Outlook Mail sending access was not granted; no account was connected")

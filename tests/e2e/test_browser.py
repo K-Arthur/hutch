@@ -4118,6 +4118,7 @@ def test_google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone(browser
             captures.append({"size": label, "viewport": [width, height], "scenes": ["overview", "granted account"],
                              "horizontal_overflow": overflow})
         assert page.get_by_role("button", name="Revoke Bot access").bounding_box()["height"] >= 44
+        page.locator(".connection-nickname:has(#google-calendar-label) > summary").click()
         page.locator("#google-calendar-label").fill("Work")
         page.get_by_role("button", name="Connect Google Calendar").click()
         page.get_by_text("Finish Google read-only sign-in in the new browser tab", exact=False).wait_for()
@@ -4286,6 +4287,7 @@ def test_google_calendar_event_creation_scope_is_explicit_and_owner_only(browser
                              "horizontal_overflow": overflow})
 
         assert page.locator("#google-calendar-event-creation").is_enabled()
+        page.locator(".connection-nickname:has(#google-calendar-label) > summary").click()
         page.locator("#google-calendar-label").fill("Write-enabled account")
         page.locator("#google-calendar-event-creation").check()
         page.get_by_role("button", name="Connect Google Calendar").click()
@@ -4345,7 +4347,7 @@ def test_gmail_preview_discloses_restricted_scope_and_requires_local_setup(brows
         assert card.get_by_role("button").count() == 0
         page.locator("#google-mail-access summary").click()
         page.locator("#google-oauth-setup > summary").click()
-        assert "add a valid google desktop oauth client id" in card.inner_text().lower()
+        assert "publisher must configure its registration" in card.inner_text().lower()
         setup = page.locator("#google-oauth-setup")
         setup.wait_for()
         assert setup.get_by_label("Google Desktop OAuth client ID").is_visible()
@@ -4353,7 +4355,7 @@ def test_gmail_preview_discloses_restricted_scope_and_requires_local_setup(brows
         assert save_button.is_enabled()
         assert "never paste a client secret" in setup.inner_text().lower()
         assert "one client id is shared by calendar" in setup.inner_text().lower()
-        card.get_by_role("button", name="Open Google setup").click()
+        card.get_by_role("button", name="Developer settings").click()
         assert page.url.endswith("#/connections")
         assert page.locator("#google-oauth-client-id").evaluate("element => document.activeElement === element")
         assert card.get_by_role("link", name="Review Google's Gmail scope requirements").count() == 1
@@ -4548,6 +4550,7 @@ def test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone(browser, l
             "fixture-client.apps.googleusercontent.com"
         page.get_by_role("button", name="Dismiss notification").first.click()
         page.get_by_role("button", name="Connect Gmail").wait_for()
+        page.locator(".connection-nickname:has(#google-mail-label) > summary").click()
         page.locator("#google-mail-label").fill("Work")
         page.get_by_role("button", name="Connect Gmail").click()
         page.get_by_text("Finish Google sign-in in the new browser tab", exact=False).wait_for()
@@ -4858,12 +4861,13 @@ def test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewport
         assert "Microsoft consent applies to the signed-in account" in card.inner_text()
         assert "event bodies, attachments and extensions are not available" in card.inner_text()
         page.locator("#outlook-calendar-access > summary").click()
-        assert "common" in card.inner_text()
-        assert "cannot expand that choice" in card.inner_text()
+        assert "Choose your signed-in Microsoft account in the browser" in card.inner_text()
+        assert "which assistant can use it" in card.inner_text()
         calendar_signin = page.locator("#outlook-calendar-connect")
         assert calendar_signin.is_enabled()
         assert calendar_signin.get_attribute("aria-label") == "Sign in with Microsoft"
         assert calendar_signin.locator("img").evaluate("img => img.complete && img.naturalWidth === 215")
+        page.locator(".connection-nickname:has(#outlook-calendar-label) > summary").click()
         page.locator("#outlook-calendar-label").fill("Work")
         calendar_signin.click()
         page.get_by_text("Finish Microsoft sign-in in the new browser tab", exact=False).wait_for()
@@ -5027,6 +5031,7 @@ def test_outlook_calendar_event_creation_is_separate_approved_and_responsive(bro
 
         page.set_viewport_size({"width": 1440, "height": 960})
 
+        page.locator(".connection-nickname:has(#outlook-calendar-write-label) > summary").click()
         page.locator("#outlook-calendar-write-label").fill("Work events")
         signin = page.locator("#outlook-calendar-write-connect")
         assert signin.is_enabled()
@@ -5163,6 +5168,7 @@ def test_outlook_mail_grant_and_consent_boundary_fit_all_viewports(browser, live
         assert mail_signin.is_enabled()
         assert mail_signin.get_attribute("aria-label") == "Sign in with Microsoft"
         assert mail_signin.locator("img").evaluate("img => img.complete && img.naturalWidth === 215")
+        page.locator(".connection-nickname:has(#outlook-mail-label) > summary").click()
         page.locator("#outlook-mail-label").fill("Work")
         mail_signin.click()
         page.get_by_text("Finish Microsoft sign-in in the new browser tab", exact=False).wait_for()
@@ -5313,13 +5319,14 @@ def test_outlook_mail_send_access_is_separate_and_responsive(browser, live, monk
         card = page.locator(".outlook-mail-card")
         page.locator("#outlook-mail-access > summary").click()
         send_access = page.locator("#outlook-mail-send-access")
-        send_access.locator("summary").click()
+        send_access.locator(":scope > summary").click()
         assert "Mail.Send" in send_access.inner_text()
         assert "Every send requires your exact approval" in send_access.inner_text()
         send_signin = page.locator("#outlook-mail-send-connect")
         assert send_signin.get_attribute("aria-label") == "Sign in with Microsoft"
         assert send_signin.is_enabled()
         assert send_signin.locator("img").evaluate("img => img.complete && img.naturalWidth === 215")
+        page.locator(".connection-nickname:has(#outlook-mail-send-label) > summary").click()
         page.locator("#outlook-mail-send-label").fill("Second sender")
         send_signin.click()
         wait_for_page(page, "window.__outlookMailSendOAuth.url !== null")
@@ -5348,7 +5355,7 @@ def test_outlook_mail_send_access_is_separate_and_responsive(browser, live, monk
             page.set_viewport_size({"width": width, "height": height})
             while page.locator(".toast-close").count():
                 page.locator(".toast-close").first.click()
-            send_access.locator("summary").evaluate("el => el.scrollIntoView({block: 'start'})")
+            send_access.locator(":scope > summary").evaluate("el => el.scrollIntoView({block: 'start'})")
             page.screenshot(path=str(output / f"send-access-{label}.png"), animations="disabled")
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert overflow <= 1, (label, overflow)
@@ -5459,11 +5466,12 @@ def test_google_mail_send_access_is_send_only_and_responsive(browser, live, monk
         page.locator("#connection-management > summary").click()
         page.locator("#google-mail-access > summary").click()
         send_access = page.locator("#google-mail-send-access")
-        send_access.locator("summary").click()
+        send_access.locator(":scope > summary").click()
         assert "gmail.send" in send_access.inner_text()
         assert "sensitive" in send_access.inner_text()
         assert "cannot read or search your mailbox" in send_access.inner_text()
 
+        page.locator(".connection-nickname:has(#google-mail-send-label) > summary").click()
         page.locator("#google-mail-send-label").fill("Second sender")
         page.locator("#google-mail-send-from").fill("owner@example.test")
         page.locator("#google-mail-send-connect").click()
@@ -5494,7 +5502,7 @@ def test_google_mail_send_access_is_send_only_and_responsive(browser, live, monk
             page.set_viewport_size({"width": width, "height": height})
             while page.locator(".toast-close").count():
                 page.locator(".toast-close").first.click()
-            send_access.locator("summary").evaluate("el => el.scrollIntoView({block: 'start'})")
+            send_access.locator(":scope > summary").evaluate("el => el.scrollIntoView({block: 'start'})")
             page.screenshot(path=str(output / f"send-only-{label}.png"), animations="disabled")
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert overflow <= 1, (label, overflow)

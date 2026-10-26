@@ -79,3 +79,22 @@ that vector. No Hermes IDE code or competitor artwork was copied.
 See [ADR 0020](../docs/adr/0020-canonical-opencode-tools-and-desktop-host.md) and the
 [production checkpoint](../docs/realignment/desktop-production-2026-10-26.md) for
 remaining acceptance and test evidence.
+
+## Publisher OAuth registrations
+
+Account authorization should open the signed-in system browser; end users do not register
+Hutch in a Cloud console. The development `src/hutch/data/oauth-apps.json` intentionally has
+empty public application IDs. Supply an independently registered Google Desktop app and/or
+Microsoft public-client app when preparing a build:
+
+```sh
+uv run python scripts/build_desktop_backend.py --output /path/to/fresh-build \
+  --oauth-apps /path/to/public-oauth-apps.json --require-oauth google microsoft
+```
+
+The input shape is `{"version":1,"apps":{"google":{"client_id":"…apps.googleusercontent.com"},"microsoft":{"client_id":"UUID"}}}`.
+It accepts only public IDs, rejects secret/token fields and oversized files, and replaces the
+empty packaged manifest. `--require-oauth` refuses a missing registration before packaging.
+This gate checks configuration, not ownership, live consent, verification or provider approval;
+those remain release checks. Runtime operator overrides remain available. No third-party app
+registration or browser credentials are borrowed.

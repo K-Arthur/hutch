@@ -181,7 +181,8 @@ class OutlookCalendarBook:
         self.pending_dir = self.root / "pending"
         self.accounts_path = self.root / "accounts.json"
         self.lock_path = self.root / ".lock"
-        self.client_id = str(client_id or "").strip()
+        from .oauth_apps import outlook_oauth_client_id
+        self.client_id = str(client_id or outlook_oauth_client_id()).strip()
         if len(self.client_id) > 512 or any(ord(c) < 32 for c in self.client_id):
             raise self.error_type(f"Set HUTCH_OUTLOOK_OAUTH_CLIENT_ID to a Microsoft public-client application ID for {self.feature}")
         self.secrets = secrets_store or self.secret_store_type()
@@ -239,7 +240,7 @@ class OutlookCalendarBook:
     def _require_client_id(self) -> None:
         if not self.client_id:
             raise self.error_type(
-                f"{self.feature} is not configured; set HUTCH_OUTLOOK_OAUTH_CLIENT_ID to a Microsoft public-client application ID and restart Hutch")
+                "Microsoft sign-in is not enabled in this Hutch build")
 
     def start(self, label: str, redirect_uri: str) -> OAuthStart:
         self._require_client_id()

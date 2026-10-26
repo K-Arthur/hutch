@@ -1,16 +1,25 @@
 # Connections: subscription plans and custom endpoints
 
-## Google Calendar lookup and event creation (experimental, local setup required)
+## Google Calendar lookup and event creation (experimental, publisher registration required)
 
-Hutch implements read-only Google Calendar lookup for the built-in runtime. Owners may separately
-opt into creating guest-free events after reviewing each exact action in chat. In Connections, enter
-the public client ID for an OAuth client of type **Desktop app**, then enable the Calendar API in
-the Google Cloud project. The ID is shared with the separate Gmail preview; do not enter a client
-secret or token. Hutch stores this non-secret setting in its local SQLite configuration. Operators
-can instead set `HUTCH_GOOGLE_OAUTH_CLIENT_ID` before starting Hutch; that value takes precedence
-and the Connections field becomes read-only. A real Google account was not used in local
-verification; Google consent-screen verification and public eligibility are not claimed. See IG-5
-in [requirements](requirements.md#connections-and-integrations-added-at-the-product-owners-request-2026-10-07).
+Hutch implements read-only Calendar lookup and separately approved, guest-free event creation.
+The normal flow is **Apps & AI → Google Calendar → Connect Google → choose your account →
+approve → select a calendar and assistant**. An account nickname is optional. The tile starts
+read-only authorization even if an earlier advanced form requested event creation.
+
+Hutch's publisher supplies its public Google Desktop OAuth registration with the application.
+A checkout with no registration shows **Not enabled in this build**; that is unfinished publisher
+setup, not a requirement for every user to create a Cloud project. Being signed into the browser
+can reuse Google's account session, but cannot grant Hutch calendar access by itself.
+The current development manifest has no registered IDs, so live sign-in remains blocked.
+Google consent-screen verification and public eligibility have not been established.
+
+Developers can expand **More account settings → Developer settings for Google** to save their own
+public Desktop client ID locally. Never enter a client secret or token. Operator environment
+`HUTCH_GOOGLE_OAUTH_CLIENT_ID` takes precedence, followed by the saved override, then the build's
+public registration. Clearing an override returns to the build default. Calendar, Workspace and
+the separate Gmail preview share this app identity, but retain separate consent and credentials.
+See IG-5 in [requirements](requirements.md#connections-and-integrations-added-at-the-product-owners-request-2026-10-07).
 
 Sign in from the Hutch host at
 `http://127.0.0.1:<port>` on the Connections page; Hutch opens Google in a separate browser tab.
@@ -109,7 +118,7 @@ references: [Google Calendar scopes](https://developers.google.com/workspace/cal
 Gmail sending uses a separate local PKCE account and Secret Service entry with only
 `https://www.googleapis.com/auth/gmail.send`. It cannot read, search, modify, or delete mailbox
 messages. Enable the Gmail API and use the same owner-configured Google Desktop OAuth client ID as
-the read-only search connection. In Connections, enter an account label and the sender address you
+the read-only search connection. In Connections, optionally name the account and enter the sender address you
 intend to use. Google must permit that address for the account; Hutch does not request mailbox
 settings access to discover or validate aliases. An OAuth project in Testing has Google's 100-user
 limit and seven-day refresh-token expiration.
@@ -130,11 +139,11 @@ revoked independently. See [Google's scope table](https://developers.google.com/
 [message send method](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/send),
 and [message-format guide](https://developers.google.com/workspace/gmail/api/guides/sending).
 
-## Outlook Calendar event lookup (experimental, local setup required)
+## Outlook Calendar event lookup (experimental, publisher registration required)
 
 The Connections page can connect a Microsoft work, school, or personal account through the local
 public-client authorization-code flow when the app registration supports that account type. This is
-an experimental read-only capability, separate from the Outlook Mail connection below. It remains unavailable until the operator configures `HUTCH_OUTLOOK_OAUTH_CLIENT_ID`
+an experimental read-only capability, separate from the Outlook Mail connection below. It remains unavailable until the publisher supplies a Microsoft public-client registration (or an operator sets `HUTCH_OUTLOOK_OAUTH_CLIENT_ID`)
 for a Microsoft Entra public-client application and runs Hutch on Linux with an unlocked Secret
 Service. No Microsoft account, tenant, consent screen, or live Graph request was used in verification.
 
@@ -185,7 +194,7 @@ is `outcome_unknown`; check the calendar before trying again. Hutch does not aut
 does not expose event editing, deletion, invitations or Strict Offline access. No Microsoft account,
 tenant policy, live consent screen, or live Graph write has been verified.
 
-## Outlook Mail search (experimental, local setup required)
+## Outlook Mail search (experimental, publisher registration required)
 
 Outlook Mail uses its own Microsoft public-client registration, callback, token namespace, and
 per-Bot grant. It does not reuse an Outlook Calendar token or calendar consent. Configure

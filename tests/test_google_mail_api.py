@@ -179,7 +179,7 @@ def test_google_oauth_client_setup_is_local_persisted_and_environment_managed(tm
         assert initial.json() == {
             "client_id": "", "source": "unset", "editable": True, "configured": False,
             "valid": False,
-            "detail": "Enter a Google Desktop OAuth client ID ending in .apps.googleusercontent.com.",
+            "detail": "Google sign-in is not enabled in this Hutch build.",
         }
         invalid = client.put("/api/v1/connections/google-oauth-client", json={"client_id": "not-a-client"})
         assert invalid.status_code == 422
