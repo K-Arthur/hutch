@@ -1,9 +1,9 @@
 /* Computer-session panel (run view). Uses the app's tokens; status never relies on color alone. */
 .computer-panel {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   margin: 0 0 16px;
-  padding: 14px 16px;
+  padding: 16px 16px;
   border: 1px solid var(--line-strong);
   border-radius: var(--r-panel);
   background: var(--panel);
@@ -16,7 +16,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 3px 10px;
+  padding: 4px 12px;
   border: 1px solid var(--brand-line);
   border-radius: var(--r-chip);
   background: var(--brand-wash);
@@ -49,7 +49,7 @@
 .computer-owner[data-owner="paused"] { border-color: var(--warn); background: transparent; }
 .computer-owner[data-owner="recovery_required"] { border-color: var(--danger); background: transparent; }
 .computer-owner-detail, .computer-reason, .computer-env, .computer-limits { margin: 0; overflow-wrap: anywhere; }
-.computer-frame { margin: 0; display: grid; gap: 6px; min-width: 0; }
+.computer-frame { margin: 0; display: grid; gap: 8px; min-width: 0; }
 .computer-img {
   display: block;
   width: 100%;
@@ -67,14 +67,14 @@
 .computer-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .computer-missing { margin: 0; padding: 12px; border: 1px dashed var(--line-strong); border-radius: var(--r-ctl); color: var(--text-2); }
 .computer-history-wrap summary { cursor: pointer; font-size: 0.875rem; }
-.computer-history { margin: 8px 0 0; padding-left: 20px; font-size: 0.875rem; color: var(--text-2); }
+.computer-history { margin: 8px 0 0; padding-left: 24px; font-size: 0.875rem; color: var(--text-2); }
 .computer-history li { overflow-wrap: anywhere; }
 @media (max-width: 480px) {
   .computer-panel { padding: 12px; }
   .computer-actions .btn { flex: 1 1 100%; min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { .computer-img { transition: none; } }
-.computer-capabilities { padding-left: 20px; font-size: 0.875rem; }
+.computer-capabilities { padding-left: 24px; font-size: 0.875rem; }
 .computer-capabilities li { margin-block: 12px; overflow-wrap: anywhere; }
 .computer-capabilities p { margin-block: 4px; color: var(--text-2); }
 #form-computer .btn { min-height: 44px; }

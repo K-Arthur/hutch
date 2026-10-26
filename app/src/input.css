@@ -31,11 +31,11 @@
   text-transform: none; letter-spacing: normal;
   font: 600 var(--fs-xs)/1.4 var(--font-ui); color: var(--text-2);
 }
-.workspace .roster-head { margin-bottom: 10px; }
+.workspace .roster-head { margin-bottom: 12px; }
 .workspace .roster-section + .roster-section { margin-top: 12px; }
 .composer-toolbar .composer-tools { min-width: 0; display: flex; align-items: center; gap: 4px; }
 .composer-toolbar .composer-actions { margin-left: auto; }
-.connection-nickname > summary { min-height: 44px; padding-block: 10px; cursor: pointer; color: var(--text-2); font-size: var(--fs-sm); }
+.connection-nickname > summary { min-height: 44px; padding-block: 12px; cursor: pointer; color: var(--text-2); font-size: var(--fs-sm); }
 .connection-nickname .field { padding-top: 8px; }
 /* Long availability labels must not squeeze product names into single letters. */
 @container (max-width: 18rem) {
@@ -47,10 +47,10 @@
     .service-tile .service-tile-top { grid-template-columns: 40px minmax(0, 1fr); }
   }
 }
-.phone-pair-start { display: flex; align-items: flex-start; gap: 10px; min-height: 44px; padding-block: 10px; }
-.phone-pair-start input { flex-shrink: 0; margin-top: 5px; }
+.phone-pair-start { display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding-block: 12px; }
+.phone-pair-start input { flex-shrink: 0; margin-top: 4px; }
 .notion-tool-definitions pre { max-width: 100%; max-height: 260px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-xs); }
-.notion-tool-definitions summary { min-height: 44px; padding-block: 10px; cursor: pointer; }
+.notion-tool-definitions summary { min-height: 44px; padding-block: 12px; cursor: pointer; }
 
 /* Connections use a directory -> focused setup flow. Scope these relationships
    above the legacy card rules until the remaining settings surfaces migrate. */
@@ -269,9 +269,9 @@
   .panel-title { font-size: var(--text-size-section); font-weight: 650; margin-bottom: 0.75rem; }
 
   .chip, .status, .tag {
-    display: inline-flex; align-items: center; gap: 5px;
+    display: inline-flex; align-items: center; gap: 4px;
     font: 600 0.6875rem/1 var(--font-mono);
-    padding: 4px 9px;
+    padding: 4px 8px;
     border: 1px solid rgb(255 255 255 / 0.14);
     border-radius: var(--r-chip);
     color: rgb(240 244 249 / 0.75); background: transparent; white-space: nowrap;

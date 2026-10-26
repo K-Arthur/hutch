@@ -29,7 +29,7 @@
 .widget-kind {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font: var(--weight-semibold) var(--fs-sm)/var(--leading-label) var(--font-ui);
   color: var(--text);
 }
@@ -70,7 +70,7 @@
 .widget-fallback-head {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 8px;
   margin: 0 0 var(--s-2);
   color: var(--text);
   font-size: var(--fs-sm);
@@ -96,7 +96,7 @@
 .widget-scroll-table table { font-size: var(--fs-sm); }
 .widget-scroll-table th, .widget-scroll-table td {
   border-bottom: 1px solid var(--line);
-  padding: 6px var(--s-2);
+  padding: 8px var(--s-2);
   text-align: left;
   vertical-align: top;
 }
@@ -121,7 +121,7 @@
 .widget-sort {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   background: none;
   border: 0;
   padding: 2px 0;
@@ -140,7 +140,7 @@ th[aria-sort="descending"] .widget-sort svg { color: var(--brand-hi); }
   font: var(--weight-regular) var(--fs-2xs)/1 var(--mono);
   border: 1px solid var(--line);
   border-radius: var(--r-chip);
-  padding: 1px 6px;
+  padding: 1px 8px;
 }
 
 /* ── chart ──────────────────────────────────────────────────────────── */
@@ -182,7 +182,7 @@ th[aria-sort="descending"] .widget-sort svg { color: var(--brand-hi); }
 }
 .widget-field {
   display: grid;
-  gap: 3px;
+  gap: 4px;
   font: var(--weight-medium) var(--fs-2xs)/var(--leading-label) var(--font-ui);
   color: var(--text-3);
   text-transform: uppercase;
@@ -200,7 +200,7 @@ th[aria-sort="descending"] .widget-sort svg { color: var(--brand-hi); }
 .widget-check {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: var(--fs-sm);
   color: var(--text-2);
   min-height: 32px;
@@ -217,7 +217,7 @@ th[aria-sort="descending"] .widget-sort svg { color: var(--brand-hi); }
 .widget-tl-group-head {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   margin: 0 0 var(--s-2);
   font: var(--weight-semibold) var(--fs-sm)/var(--leading-heading) var(--font-ui);
   color: var(--text);
@@ -252,7 +252,7 @@ th[aria-sort="descending"] .widget-sort svg { color: var(--brand-hi); }
   margin-top: 2px;
 }
 .widget-missing { color: var(--text-3); font-style: italic; }
-.widget-ranking { display: flex; gap: 6px; align-items: baseline; }
+.widget-ranking { display: flex; gap: 8px; align-items: baseline; }
 .widget-ranking svg { flex: none; translate: 0 2px; color: var(--brand); }
 
 /* ── flowchart ──────────────────────────────────────────────────────── */

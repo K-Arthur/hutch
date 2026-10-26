@@ -34,7 +34,7 @@
 .composer-box.has-error { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger), var(--sh-1); }
 
 /* ── writing area ── */
-.composer-body { padding: 10px 12px 2px; }
+.composer-body { padding: 12px 12px 2px; }
 .composer-textarea {
   all: unset; box-sizing: border-box;
   display: block; width: 100%; min-width: 0; resize: none;
@@ -48,10 +48,10 @@
 
 /* ── toolbar: utilities left, message actions right ── */
 .composer-toolbar {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; align-items: center; gap: 8px;
   padding: 4px 8px 8px;
 }
-.composer-tools { display: flex; align-items: center; gap: 6px; flex: none; }
+.composer-tools { display: flex; align-items: center; gap: 8px; flex: none; }
 .composer-actions { display: flex; align-items: center; gap: 8px; flex: none; margin-left: auto; }
 
 /* ── composer actions: ordinary controls, not a private shape language ──
@@ -90,7 +90,7 @@
 
 /* ── responsive: named model/skill identity stays visible ── */
 @media (max-width: 640px), (pointer: coarse) {
-  .composer-toolbar { flex-wrap: wrap; row-gap: 6px; }
+  .composer-toolbar { flex-wrap: wrap; row-gap: 8px; }
   .composer-actions { flex-wrap: wrap; justify-content: flex-end; }
   .composer-send { width: 44px; height: 44px; }
   .composer-util { width: 44px; height: 44px; }

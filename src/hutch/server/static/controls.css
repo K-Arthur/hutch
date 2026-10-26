@@ -35,7 +35,7 @@ select option, select optgroup { color: var(--control-text); background: var(--c
   select::picker-icon { color: var(--control-muted); flex: none; }
   select:open { border-color: var(--control-focus); }
   select::picker(select) {
-    margin-block: 6px; padding: 4px; border: 1px solid var(--control-line);
+    margin-block: 8px; padding: 4px; border: 1px solid var(--control-line);
     border-radius: var(--popup-radius); background: var(--control-surface);
     box-shadow: var(--popup-shadow); color: var(--control-text);
     max-block-size: min(24rem, 65dvh); max-inline-size: calc(100vw - 16px);

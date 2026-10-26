@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from tests.e2e.settings_pane import open_assistant_customization
 from tests.support.browser import launch_browser, wait_for_page
 
 import hashlib
@@ -1037,46 +1038,58 @@ def test_assistant_settings_keep_everyday_edits_up_front(browser, app_server):
             assert page.get_by_role("heading", name="About this assistant").is_visible()
             assert page.get_by_label("Assistant name").is_visible()
             assert page.get_by_label("What it helps with").is_visible()
-            basics = page.locator(".assistant-settings-basics")
-            advanced = page.locator("#assistant-more-settings")
-            basics_box = basics.bounding_box()
-            advanced_box = advanced.bounding_box()
-            assert basics_box and advanced_box
-            assert abs(basics_box["x"] - advanced_box["x"]) <= 1, (label, basics_box, advanced_box)
-            assert abs(basics_box["width"] - advanced_box["width"]) <= 1, (label, basics_box, advanced_box)
+            # Settings are grouped into panes behind a section rail (an ARIA tablist); Profile shows first.
+            rail = page.get_by_role("tablist", name="Assistant settings sections")
+            tabs = rail.get_by_role("tab")
+            assert tabs.all_inner_texts() == ["Profile", "Behavior", "AI model", "Tools and access", "Schedule", "Safety",
+                                              "Limits and memory"], tabs.all_inner_texts()
+            assert tabs.nth(0).get_attribute("aria-selected") == "true"
+            assert page.get_by_role("tabpanel").count() == 1, "only the selected pane is exposed"
             assert page.locator("#btn-set-workspace-coordinator").count() == 0
-            assert not page.locator("#assistant-more-settings").evaluate("el => el.open")
             assert not page.locator("#form-model").is_visible()
             assert not page.locator("#form-instructions").is_visible()
-            summary = page.locator("#assistant-more-settings > summary")
-            assert "Customize how it works" in summary.inner_text()
-            assert "Choose its AI, apps, schedule, safety, and saved notes" in summary.inner_text()
-            assert summary.get_by_text("More settings", exact=True).is_visible()
-            assert not summary.get_by_text("Hide settings", exact=True).is_visible()
+            rail_box, pane_box = rail.bounding_box(), page.locator("#settings-pane-profile").bounding_box()
+            assert rail_box and pane_box
+            if label == "phone":   # narrow panes: the rail is a row above the pane, sharing its width
+                assert rail_box["y"] + rail_box["height"] <= pane_box["y"] + 1, (label, rail_box, pane_box)
+                assert abs(rail_box["width"] - pane_box["width"]) <= 1, (label, rail_box, pane_box)
+            elif label == "desktop":   # wide panes: the rail sits beside the pane
+                assert rail_box["x"] + rail_box["width"] <= pane_box["x"] + 1, (label, rail_box, pane_box)
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
-            assert overflow <= 1, (label, "collapsed settings", overflow)
+            assert overflow <= 1, (label, "profile pane", overflow)
             page.screenshot(path=str(out / f"settings-simple-{label}.png"), full_page=True, animations="disabled")
 
-            summary.focus()
-            page.keyboard.press("Space")
-            assert page.locator("#assistant-more-settings").evaluate("el => el.open")
-            assert summary.get_by_text("Hide settings", exact=True).is_visible()
-            assert not summary.get_by_text("More settings", exact=True).is_visible()
+            # Keyboard: arrows move through the rail and select the pane they land on; Home and End jump.
+            tabs.nth(0).focus()
+            page.keyboard.press("ArrowDown")
+            assert tabs.nth(1).get_attribute("aria-selected") == "true"
+            assert tabs.nth(1).evaluate("el => el === document.activeElement")
             assert page.locator("#form-instructions").is_visible()
             assert page.get_by_label("Standing directions").is_visible()
-            assert page.locator("#form-model").is_visible()
-            assert page.locator("#form-tools").is_visible()
+            assert not page.locator("#form-identity").is_visible()
+            page.keyboard.press("End")
+            assert tabs.nth(6).get_attribute("aria-selected") == "true"
+            assert page.locator("#assistant-usage-limits").is_visible()
+            page.keyboard.press("Home")
+            assert tabs.nth(0).get_attribute("aria-selected") == "true"
+            assert page.locator("#form-identity").is_visible()
             assert page.locator(".settings-panel-icon svg").count() >= 8
-            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
-            assert overflow <= 1, (label, "custom settings", overflow)
-            if label in {"desktop", "phone"}:
-                page.screenshot(path=str(out / f"settings-customize-{label}.png"), full_page=True, animations="disabled")
-            summary.focus()
-            page.keyboard.press("Space")
-            assert not page.locator("#assistant-more-settings").evaluate("el => el.open")
+            for key, form in (("model", "#form-model"), ("tools", "#form-tools"), ("safety", "#form-risk")):
+                tab = rail.locator(f'[data-settings-tab="{key}"]')
+                tab.click()
+                assert tab.get_attribute("aria-selected") == "true"
+                assert page.locator(form).is_visible(), (label, key)
+                tab_box, shell_box = tab.bounding_box(), rail.bounding_box()
+                assert tab_box["x"] >= shell_box["x"] - 1 and tab_box["x"] + tab_box["width"] <= shell_box["x"] + shell_box["width"] + 1, (
+                    label, key, "the selected tab must be fully inside the rail", tab_box, shell_box)
+                overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+                assert overflow <= 1, (label, key, "settings pane overflow", overflow)
+                if key == "tools" and label in {"desktop", "phone"}:
+                    page.screenshot(path=str(out / f"settings-customize-{label}.png"), full_page=True, animations="disabled")
+            rail.locator('[data-settings-tab="profile"]').click()
             page.evaluate("document.activeElement?.blur()")
             evidence.append({"viewport": [width, height], "overflow": overflow,
-                             "advanced_controls": "keyboard disclosure works"})
+                             "advanced_controls": "section rail with keyboard navigation works"})
 
         assert not external_requests, external_requests
         assert not errors, errors
@@ -1196,9 +1209,7 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
         # This catches the old bug where every chooser button inherited the orb
         # eye positions even though the silhouettes themselves were different.
         page.goto(f"{app_url}/#/bot/mascot-0")
-        details = page.locator("#assistant-more-settings")
-        details.wait_for(state="attached")
-        details.locator(":scope > summary").click()
+        open_assistant_customization(page, "profile")
         page.locator("[data-idp-shapes] .shp svg").first.wait_for()
         picker_faces = page.locator("[data-idp-shapes] .shp svg").evaluate_all("""svgs => svgs.map(svg => ({
           head: svg.querySelector(':scope > path')?.getAttribute('d'),
@@ -2061,29 +2072,20 @@ def test_connection_and_assistant_settings_share_disclosure_axes(browser, app_se
 
             page.goto(f"{app_url}/#/bot/design-system-review")
             page.get_by_role("heading", name="Design Partner").wait_for()
-            more = page.locator("#assistant-more-settings > summary")
-            more.click()
-            page.wait_for_timeout(150)
+            open_assistant_customization(page, "limits")
             usage = page.locator("#assistant-usage-limits > summary")
             usage.click()
             page.wait_for_timeout(150)
             alignment = page.evaluate("""() => {
               const padLeft = el => getComputedStyle(el.querySelector(':scope > summary')).paddingLeft;
-              const more = document.querySelector('#assistant-more-settings');
-              const grid = more.querySelector('.detail-grid');
               const usage = document.querySelector('#assistant-usage-limits');
               const usageForm = document.querySelector('#form-limits');
               return {
-                moreSummaryVsGrid: more.querySelector(':scope > summary').getBoundingClientRect().left
-                  - grid.getBoundingClientRect().left,
-                morePadVsGrid: parseInt(padLeft(more)) - parseInt(getComputedStyle(grid).paddingLeft),
                 usageSummaryVsForm: usage.querySelector(':scope > summary').getBoundingClientRect().left
                   - usageForm.getBoundingClientRect().left,
                 usagePadVsForm: parseInt(padLeft(usage)) - parseInt(getComputedStyle(usageForm).paddingLeft),
               };
             }""")
-            assert abs(alignment["moreSummaryVsGrid"]) <= 1, (label, "more-settings summary shares the panel edge", alignment)
-            assert abs(alignment["morePadVsGrid"]) <= 1, (label, "more-settings summary padding matches panel content", alignment)
             assert abs(alignment["usageSummaryVsForm"]) <= 1, (label, "usage summary shares its panel edge", alignment)
             assert abs(alignment["usagePadVsForm"]) <= 1, (label, "usage summary padding matches its form", alignment)
             if label in {"desktop", "phone"}:
@@ -2181,7 +2183,7 @@ def test_adaptive_persona_controls_round_trip_recover_conflicts_and_stay_local(b
     try:
         page.goto(f"{app_url}/#/bot/design-system-review", wait_until="domcontentloaded")
         page.get_by_role("heading", name="Design Partner").wait_for()
-        page.locator("#assistant-more-settings").evaluate("el => { el.open = true; }")
+        open_assistant_customization(page, "behavior")
         form = page.locator("#persona-form-slot .persona-form")
         form.wait_for()
         assert form.locator('[data-persona-field="preset"]').input_value() == "inherit"
@@ -2236,7 +2238,7 @@ def test_adaptive_persona_controls_round_trip_recover_conflicts_and_stay_local(b
         for label, width, height in viewports:
             page.set_viewport_size({"width": width, "height": height})
             page.goto(f"{app_url}/#/bot/design-system-review", wait_until="domcontentloaded")
-            page.locator("#assistant-more-settings").evaluate("el => { el.open = true; }")
+            open_assistant_customization(page, "behavior")
             page.locator("#persona-form-slot .persona-form").wait_for()
             page.locator("main#view > .page-scroll").evaluate("el => el.scrollTo(0, 0)")
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
@@ -2248,7 +2250,7 @@ def test_adaptive_persona_controls_round_trip_recover_conflicts_and_stay_local(b
 
         page.set_viewport_size({"width": 360, "height": 844})
         page.goto(f"{app_url}/#/bot/design-system-review", wait_until="domcontentloaded")
-        page.locator("#assistant-more-settings").evaluate("el => { el.open = true; }")
+        open_assistant_customization(page, "behavior")
         page.locator("#persona-form-slot .persona-form").wait_for()
         page.locator("#persona-customize-title").evaluate("el => el.scrollIntoView({block: 'start'})")
         page.screenshot(path=str(out / "settings-custom-phone.png"), animations="disabled")
@@ -2495,7 +2497,7 @@ def test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive(br
     try:
         page.goto(f"{app_url}/#/bot/design-system-review", wait_until="domcontentloaded")
         page.get_by_role("heading", name="Design Partner").wait_for()
-        page.locator("#assistant-more-settings").evaluate("el => { el.open = true; }")
+        open_assistant_customization(page, "behavior")
         form = page.locator("#persona-form-slot .persona-form")
         preview = form.locator(".persona-live-preview")
         preview.wait_for()
@@ -2646,7 +2648,7 @@ def test_static_persona_examples_are_labeled_local_and_responsive(browser, app_s
     try:
         page.goto(f"{app_url}/#/bot/design-system-review", wait_until="domcontentloaded")
         page.get_by_role("heading", name="Design Partner").wait_for()
-        page.locator("#assistant-more-settings").evaluate("el => { el.open = true; }")
+        open_assistant_customization(page, "behavior")
         form = page.locator("#persona-form-slot .persona-form")
         examples = form.locator("[data-persona-examples]")
         examples.wait_for()
@@ -2777,7 +2779,7 @@ def test_adaptive_persona_rollback_is_visible_read_only_and_preserves_local_draf
     try:
         page.goto(f"{app_url}/#/bot/design-system-review", wait_until="domcontentloaded")
         page.get_by_role("heading", name="Design Partner").wait_for()
-        page.locator("#assistant-more-settings").evaluate("el => { el.open = true; }")
+        open_assistant_customization(page, "behavior")
         form = page.locator("#persona-form-slot .persona-form")
         form.wait_for()
         assert form.locator("[data-persona-disabled]").is_visible()

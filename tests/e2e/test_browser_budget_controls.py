@@ -42,7 +42,7 @@ def test_budget_bands_preflight_and_context_are_usable_at_every_width(browser, l
                 if request.method == "POST" and "/estimate" in request.url else None)
         try:
             page.goto(f"{base}/#/bot/{bot.name}")
-            open_assistant_customization(page)
+            open_assistant_customization(page, "model")
             if label == "desktop":
                 page.fill('[data-task-route="code_analysis"]', "mock/demo")
                 page.click("#form-model button[type=submit]")
@@ -54,7 +54,7 @@ def test_budget_bands_preflight_and_context_are_usable_at_every_width(browser, l
                         break
                     page.wait_for_timeout(100)
                 assert saved_routes == {"code_analysis": "mock/demo"}, "the task route did not save through Bot settings"
-                open_assistant_customization(page)
+                open_assistant_customization(page, "model")
             route_input = page.locator('[data-task-route="code_analysis"]')
             route_input.wait_for(state="visible")
             route_geometry = wait_for_page_value(page, """() => {
@@ -88,7 +88,7 @@ def test_budget_bands_preflight_and_context_are_usable_at_every_width(browser, l
             assert (policy.warn_usd, policy.pause_usd, policy.ceiling_usd) == (0.05, 0.10, 0.15)
 
             page.reload()
-            open_assistant_customization(page)
+            open_assistant_customization(page, "limits")
             disclosure = page.locator("#assistant-usage-limits")
             disclosure.wait_for(state="attached")
             if not disclosure.evaluate("element => element.open"):

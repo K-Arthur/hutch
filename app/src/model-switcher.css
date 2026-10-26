@@ -4,7 +4,7 @@
 .composer-box { position: relative; }
 .model-switch-slot { display: inline-flex; }
 .ms-btn {
-  display: inline-flex; align-items: center; gap: 8px; max-width: 260px; min-height: 40px; padding: 0 10px;
+  display: inline-flex; align-items: center; gap: 8px; max-width: 260px; min-height: 40px; padding: 0 12px;
   border-radius: var(--r-ctl); border: 1px solid transparent; background: transparent;
   color: var(--text-2); font: 600 var(--fs-sm)/1.4 var(--font-ui); cursor: pointer;
 }
@@ -23,8 +23,8 @@
 }
 .ms-menu[hidden] { display: none; }
 .ms-item {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left;
-  padding: 9px 10px; border: 0; border-radius: var(--r-ctl); background: transparent; color: var(--text); cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; text-align: left;
+  padding: 8px 12px; border: 0; border-radius: var(--r-ctl); background: transparent; color: var(--text); cursor: pointer;
   font: inherit; min-height: 44px;
   transition: background var(--dur-fast) var(--ease);
 }
@@ -34,12 +34,12 @@
 .ms-item-name { font-size: var(--fs-base); overflow-wrap: anywhere; }
 .ms-item-note { flex-basis: 100%; font-size: var(--fs-xs); color: var(--text-3); }
 .ms-item-check { color: var(--brand); display: inline-flex; flex: none; width: 16px; }
-.ms-sep { height: 1px; margin: 4px 6px; background: var(--line); }
+.ms-sep { height: 1px; margin: 4px 8px; background: var(--line); }
 .ms-more .ms-item-name { color: var(--text); }
 .ms-save-default { color: var(--brand-hi); }
 .ms-save-default .ms-item-name { font-weight: 700; }
 .ms-tag {
-  display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px;
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px;
   border: 1px solid var(--line); border-radius: var(--r-chip);
   font: var(--fs-2xs)/1.4 var(--font-ui); color: var(--text-2); background: var(--panel);
 }
@@ -50,7 +50,7 @@
 .ms-all { display: flex; flex-direction: column; gap: 12px; width: 100%; min-width: 0; }
 .ms-scope { margin: 0; color: var(--text-2); font-size: var(--fs-sm); line-height: 1.6; }
 .ms-search, .ms-custom {
-  width: 100%; min-height: 44px; padding: 9px 12px;
+  width: 100%; min-height: 44px; padding: 8px 12px;
   background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-ctl);
   color: var(--text); font: inherit; font-size: var(--fs-md);
   transition: border-color var(--dur-fast) var(--ease);
@@ -61,14 +61,14 @@
 .ms-search-status { min-height: 1.4em; margin: -4px 0 0; font-size: var(--fs-xs); color: var(--text-3); }
 .ms-groups { max-height: 40dvh; overflow: auto; padding: 4px; border-block: 1px solid var(--line); scrollbar-gutter: stable; }
 .ms-group { margin-bottom: 12px; }
-.ms-group h4 { margin: 12px 10px 6px; font: 600 var(--fs-sm)/1.4 var(--font-ui); color: var(--text-2); }
-.ms-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px 10px; min-height: 64px; border: 1px solid transparent; border-radius: var(--r-ctl); cursor: pointer; transition: background var(--dur-fast) var(--ease); }
+.ms-group h4 { margin: 12px 12px 8px; font: 600 var(--fs-sm)/1.4 var(--font-ui); color: var(--text-2); }
+.ms-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px 12px; min-height: 64px; border: 1px solid transparent; border-radius: var(--r-ctl); cursor: pointer; transition: background var(--dur-fast) var(--ease); }
 .ms-row:hover { background: var(--raised); }
 .ms-row:has(input:checked) { background: var(--brand-wash); border-color: var(--brand-line); }
 .ms-row[hidden], .ms-group[hidden], .ms-empty[hidden] { display: none; }
 /* radios are drawn here: the browser's default renders unchecked ones as solid discs on this dark theme */
 .ms-row input[type="radio"] {
-  appearance: none; -webkit-appearance: none; flex: none; width: 16px; height: 16px; margin: 3px 0 0; padding: 0;
+  appearance: none; -webkit-appearance: none; flex: none; width: 16px; height: 16px; margin: 4px 0 0; padding: 0;
   border-radius: 50%; border: 1.5px solid var(--text-3); background: transparent; cursor: pointer;
 }
 .ms-row input[type="radio"]:checked { border-color: var(--brand); background: radial-gradient(circle, var(--brand) 0 4px, transparent 5px); }
@@ -76,14 +76,14 @@
 .ms-row input[type="radio"]:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ms-row.is-off { cursor: not-allowed; }
 .ms-row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.ms-row-name { font-size: var(--fs-base); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; overflow-wrap: anywhere; }
+.ms-row-name { font-size: var(--fs-base); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; overflow-wrap: anywhere; }
 .ms-row-note { font-size: var(--fs-sm); color: var(--text-2); overflow-wrap: anywhere; }
 .ms-selection { font-size: var(--fs-sm); font-weight: 600; overflow-wrap: anywhere; }
 .ms-selection-details, .ms-advanced { font-size: var(--fs-sm); color: var(--text-2); }
-.ms-selection-details summary, .ms-advanced summary { cursor: pointer; min-height: 32px; padding-block: 6px; }
+.ms-selection-details summary, .ms-advanced summary { cursor: pointer; min-height: 32px; padding-block: 8px; }
 .ms-selection-details summary:focus-visible, .ms-advanced summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ms-selection-info { padding: 8px 0; overflow-wrap: anywhere; line-height: 1.6; }
-.ms-selection-info ul { padding-left: 20px; margin-block: 8px 0; }
+.ms-selection-info ul { padding-left: 24px; margin-block: 8px 0; }
 .ms-selection-info code { font-size: var(--fs-xs); }
 .ms-advanced[open] .ms-other { padding-block: 8px; }
 .ms-other { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); }
@@ -92,7 +92,7 @@
 .ms-foot a { color: var(--focus); }
 
 @media (max-width: 560px) {
-  .ms-btn { max-width: 180px; min-height: 44px; padding: 0 6px; gap: 5px; }
+  .ms-btn { max-width: 180px; min-height: 44px; padding: 0 8px; gap: 4px; }
   .ms-menu { left: 0; right: 0; width: auto; max-width: none; }
 }
 @media (pointer: coarse) {

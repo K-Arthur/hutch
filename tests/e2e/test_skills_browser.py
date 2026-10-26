@@ -18,6 +18,7 @@ import uvicorn  # noqa: E402
 from hutch.models import Bot  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
 from hutch.skills import SkillRegistry  # noqa: E402
+from tests.e2e.settings_pane import open_assistant_customization  # noqa: E402
 from tests.support.artifacts import artifact_path
 from tests.support.browser import launch_browser
 
@@ -73,13 +74,6 @@ def seed_skill(state_dir: Path, name: str = "workspace-summary", description: st
     if trust:
         registry.trust(name)
 
-
-def open_assistant_customization(page):
-    details = page.locator("#assistant-more-settings")
-    details.wait_for(state="attached")
-    if not details.evaluate("element => element.open"):
-        details.locator(":scope > summary").click()
-    assert details.evaluate("element => element.open")
 
 
 def test_skills_library_review_inspect_and_trust(browser, live, tmp_path):
@@ -159,7 +153,7 @@ def test_bot_skills_assignment_and_readiness(browser, live, tmp_path, width, hei
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
         page.goto(base + "/#/bot/skill-helper")
-        open_assistant_customization(page)
+        open_assistant_customization(page, "tools")
         page.locator("#bot-skills-section").wait_for()
         panel = page.locator("#bot-skills-section")
         panel.get_by_text("Ready to run").wait_for()
@@ -195,7 +189,7 @@ def test_bot_skills_panel_explains_a_revoked_skill(browser, live, tmp_path):
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
         page.goto(base + "/#/bot/revoked-helper")
-        open_assistant_customization(page)
+        open_assistant_customization(page, "tools")
         panel = page.locator("#bot-skills-section")
         panel.wait_for()
         panel.get_by_text("disabled", exact=False).first.wait_for()

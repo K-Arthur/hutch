@@ -4,6 +4,7 @@ import json
 
 from playwright.sync_api import expect
 
+from tests.e2e.settings_pane import open_assistant_customization
 from tests.e2e.test_design_system import app_server, browser  # noqa: F401
 from tests.support.artifacts import artifact_path
 
@@ -217,9 +218,7 @@ def test_settings_panel_controls_fit_their_actual_column_width(browser, app_serv
         for width, height in ((1440, 960), (1280, 800), (900, 1024), (390, 844), (320, 740)):
             page.set_viewport_size({"width": width, "height": height})
             page.goto(f"{base}/#/bot/design-system-review")
-            details = page.locator("#assistant-more-settings")
-            if not details.evaluate("el => el.open"):
-                details.locator(":scope > summary").click()
+            open_assistant_customization(page, "behavior")
             form = page.locator("#persona-form-slot .persona-form")
             expect(form).to_be_visible()
             page.evaluate("document.fonts.ready")

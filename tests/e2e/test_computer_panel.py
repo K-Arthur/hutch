@@ -5,6 +5,7 @@ Set HUTCH_EVIDENCE_DIR to keep the screenshots (they are how the layout is inspe
 
 from __future__ import annotations
 
+from tests.e2e.settings_pane import open_assistant_customization
 from tests.support.browser import wait_for_page
 
 import os
@@ -122,7 +123,7 @@ def test_computer_settings_round_trip_and_readiness_at_each_width(browser, live,
     page.on("pageerror", lambda err: errors.append(str(err)))
     try:
         page.goto(f"{base}/#/bot/{bot.name}")
-        page.locator("#assistant-more-settings > summary").click()
+        open_assistant_customization(page, "tools")
         form = page.locator("#form-computer")
         form.get_by_label("Local web apps").fill("http://localhost:3000\nhttp://127.0.0.1:5000")
         form.get_by_label("Allowed desktop applications").fill("kwrite")
@@ -138,7 +139,7 @@ def test_computer_settings_round_trip_and_readiness_at_each_width(browser, live,
         assert saved.computer_apps == ["kwrite"] and saved.observation_to_hosted
         assert saved.remote_computer_access == "control"
         page.reload()
-        page.locator("#assistant-more-settings > summary").click()
+        open_assistant_customization(page, "tools")
         form = page.locator("#form-computer")
         assert form.get_by_label("Allow observations to hosted AI").is_checked()
         assert form.get_by_label("Computer access from paired devices").input_value() == "control"

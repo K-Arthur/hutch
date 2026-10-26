@@ -22,6 +22,7 @@ import uvicorn  # noqa: E402
 
 from hutch.models import ApprovalMode, Bot  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
+from tests.e2e.settings_pane import open_assistant_customization  # noqa: E402
 from tests.support.artifacts import artifact_path
 
 
@@ -70,13 +71,6 @@ def wait_for(fn, timeout=20.0):
     raise AssertionError("timed out")
 
 
-def open_assistant_customization(page):
-    details = page.locator("#assistant-more-settings")
-    details.wait_for(state="attached")
-    if not details.evaluate("element => element.open"):
-        details.locator(":scope > summary").click()
-    assert details.evaluate("element => element.open")
-
 
 def test_tool_compatibility_reports_evidence_and_saves_the_choice(browser, live):
     base, app = live
@@ -96,7 +90,7 @@ def test_tool_compatibility_reports_evidence_and_saves_the_choice(browser, live)
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
             page.goto(f"{base}/#/bot/tool-compat-bot")
-            open_assistant_customization(page)
+            open_assistant_customization(page, "model")
             select = page.locator('#form-model select[name="tool_protocol"]')
             select.wait_for()
             assert select.input_value() == "auto"
@@ -125,7 +119,7 @@ def test_tool_compatibility_reports_evidence_and_saves_the_choice(browser, live)
             assert "Constrained JSON" in result.inner_text() or select.input_value() == "constrained"
 
             page.reload()
-            open_assistant_customization(page)
+            open_assistant_customization(page, "model")
             wait_for(lambda: page.locator('#form-model select[name="tool_protocol"]').count() == 1)
             assert page.locator('#form-model select[name="tool_protocol"]').input_value() == "constrained"
             page.locator("#tool-compat > summary").click()
@@ -161,7 +155,7 @@ def test_tool_compatibility_reports_evidence_and_saves_the_choice(browser, live)
             page.set_viewport_size({"width": 900, "height": 1024})
             page.goto(f"{base}/#/bots")
             page.goto(f"{base}/#/bot/lmstudio-bot")
-            open_assistant_customization(page)
+            open_assistant_customization(page, "model")
             blocked_select = page.locator('#form-model select[name="tool_protocol"]')
             blocked_select.wait_for()
             page.locator("#tool-compat > summary").click()

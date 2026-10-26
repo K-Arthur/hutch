@@ -2154,7 +2154,7 @@ async function renderChatLibrary() {
       const labels = new Map(bots.map(item => [item.id, item.display_name || item.name]));
       results.innerHTML = page.items.length ? page.items.map(item => `<a class="chat-library-row" href="#/conversation/${esc(item.id)}">
         <span class="chat-library-copy"><strong>${esc(item.title || "Untitled conversation")}</strong><small>${esc(labels.get(item.bot_id) || "Unavailable assistant")} · ${esc(formatConversationDate(item.updated_at))}</small></span>
-        <span class="chat-library-meta">${item.is_legacy ? "Imported" : item.archived ? "Archived" : `${item.message_count} messages`} ${icon("arrow")}</span>
+        <span class="chat-library-meta">${item.is_legacy ? "Imported" : item.archived ? "Archived" : `${item.message_count} ${item.message_count === 1 ? "message" : "messages"}`} ${icon("arrow")}</span>
       </a>`).join("") : `<div class="empty-state"><p>Try another assistant, title, or history bucket.</p></div>`;
       const first = page.total ? offset + 1 : 0;
       status.textContent = page.total ? `Showing ${first}–${offset + page.items.length} of ${page.total} chats.` : "No chats found.";
@@ -2390,7 +2390,7 @@ function renderRoster() {
   const rowHtml = b => rosterRowHtml(b, currentStudioBot);
   const sections = [];
   if (coordinatorMatch) sections.push(`<div class="roster-section roster-coordinator">${rowHtml(coordinatorMatch)}</div>`);
-  if (pinned.length) sections.push(`<section class="roster-section" aria-label="Pinned bots">
+  if (pinned.length) sections.push(`<section class="roster-section" aria-label="Pinned assistants">
     <h3 class="roster-section-title">Pinned</h3>${pinned.map(rowHtml).join("")}</section>`);
   const bySection = new Map();
   for (const bot of remaining.filter(item => item.roster_section)) {
@@ -2421,8 +2421,9 @@ function renderRoster() {
         <div class="roster-section roster-idle-list" id="roster-idle-bots">${rest.map(rowHtml).join("")}</div>
       </details>`);
     } else {
-      sections.push(`<section class="roster-section" aria-label="All bots">
-        ${ungrouped.map(rowHtml).join("")}</section>`);
+      // A heading only where it separates something: the pinned group above needs a name for the rest.
+      sections.push(`<section class="roster-section" aria-label="All assistants">
+        ${pinned.length ? '<h3 class="roster-section-title">All assistants</h3>' : ""}${ungrouped.map(rowHtml).join("")}</section>`);
     }
   }
   if (hiddenIdle.length) {
@@ -3533,12 +3534,25 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
       <details class="conversation-actions" id="studio-conversation-actions">
         <summary class="icon-btn" id="studio-conversation-options" aria-label="Chat and assistant options" title="Chat and assistant options">${icon("moreHorizontal")}</summary>
         <div class="conversation-actions-panel" aria-label="Chat and assistant options">
-          ${!directChat ? `<a class="conversation-action-item" href="#/chat/${esc(bot.name)}">${icon("chat")} Return to main chat</a>` : ""}
-          <a class="conversation-action-item" href="#/chats">${icon("clock")} Conversation history</a>
+          <div class="conversation-action-group" role="group" aria-labelledby="conversation-group-chat">
+            <div class="conversation-action-label" id="conversation-group-chat">This chat</div>
           <button class="conversation-action-item" id="studio-rename-conversation" data-conversation-action="rename" type="button">${icon("chat")} Rename conversation</button>
           <button class="conversation-action-item" id="studio-conversation-pin" data-conversation-action="pin" type="button">${icon("pin")} ${selectedConversation.pinned ? "Unpin conversation" : "Pin conversation"}</button>
           <button class="conversation-action-item" id="studio-conversation-unread" data-conversation-action="unread" type="button">${icon("mail")} ${selectedConversation.unread ? "Mark read" : "Mark unread"}</button>
           <button class="conversation-action-item" id="studio-conversation-section" data-conversation-action="section" type="button">${icon("folder")} ${selectedConversation.section ? "Move to a section" : "New section"}</button>
+          <details class="conversation-action-more" id="studio-conversation-more">
+            <summary class="conversation-action-item" aria-label="More conversation actions" aria-expanded="false" aria-controls="studio-conversation-more-panel">${icon("moreHorizontal")} More</summary>
+            <div class="conversation-action-more-panel" id="studio-conversation-more-panel">
+              <button class="conversation-action-item" id="studio-conversation-template-save" data-conversation-action="template-save" type="button">${icon("fileText")} Save reusable request</button>
+              <button class="conversation-action-item" id="studio-conversation-template-download" data-conversation-action="template-download" type="button">${icon("fileText")} Download task template</button>
+              <button class="conversation-action-item" id="studio-conversation-export" data-conversation-action="export" type="button">${icon("fileText")} Export conversation</button>
+              ${!directChat && !selectedConversation.is_legacy ? `<span class="conversation-action-divider" aria-hidden="true"></span>
+                <button class="conversation-action-item" id="studio-archive-conversation" data-conversation-action="archive" type="button" ${activeRun ? "hidden" : ""}>${icon("inbox")} ${selectedConversation.archived ? "Restore conversation" : "Archive conversation"}</button>` : ""}
+            </div>
+          </details>
+          </div>
+          <div class="conversation-action-group" role="group" aria-labelledby="conversation-group-workflow">
+            <div class="conversation-action-label" id="conversation-group-workflow">Workflow</div>
           <div class="conversation-workflow-policy">
             <label for="chat-workflow-mode">Workflow mode for this chat</label>
             <select id="chat-workflow-mode" aria-describedby="chat-workflow-mode-help" ${workflowPolicyError ? "disabled" : ""}>
@@ -3551,19 +3565,17 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
               ? "Auto stays inside this assistant’s saved workflow and budget limits."
               : "Suggest never starts a workflow. Auto needs an assistant-level reviewed scope."))}</p>
           </div>
-          <details class="conversation-action-more" id="studio-conversation-more">
-            <summary class="conversation-action-item" aria-label="More conversation actions" aria-expanded="false" aria-controls="studio-conversation-more-panel">${icon("moreHorizontal")} More</summary>
-            <div class="conversation-action-more-panel" id="studio-conversation-more-panel">
-              <button class="conversation-action-item" id="studio-conversation-template-save" data-conversation-action="template-save" type="button">${icon("fileText")} Save reusable request</button>
-              <button class="conversation-action-item" id="studio-conversation-template-download" data-conversation-action="template-download" type="button">${icon("fileText")} Download task template</button>
-              <button class="conversation-action-item" id="studio-conversation-export" data-conversation-action="export" type="button">${icon("fileText")} Export conversation</button>
-              ${!directChat && !selectedConversation.is_legacy ? `<span class="conversation-action-divider" aria-hidden="true"></span>
-                <button class="conversation-action-item" id="studio-archive-conversation" data-conversation-action="archive" type="button" ${activeRun ? "hidden" : ""}>${icon("inbox")} ${selectedConversation.archived ? "Restore conversation" : "Archive conversation"}</button>` : ""}
-            </div>
-          </details>
+          </div>
+          <div class="conversation-action-group" role="group" aria-labelledby="conversation-group-assistant">
+            <div class="conversation-action-label" id="conversation-group-assistant">This assistant</div>
           <div id="persona-chat-options-slot"></div>
-          <span class="conversation-action-divider" aria-hidden="true"></span>
           <a class="conversation-action-item" data-conversation-action="settings" href="#/bot/${esc(bot.name)}">${icon("sliders")} Assistant settings</a>
+          </div>
+          <div class="conversation-action-group" role="group" aria-labelledby="conversation-group-go">
+            <div class="conversation-action-label" id="conversation-group-go">Go to</div>
+          ${!directChat ? `<a class="conversation-action-item" href="#/chat/${esc(bot.name)}">${icon("chat")} Return to main chat</a>` : ""}
+          <a class="conversation-action-item" href="#/chats">${icon("clock")} Conversation history</a>
+          </div>
         </div>
       </details>
       <button class="btn ghost small" id="studio-review-run" type="button" aria-label="Review approval in this conversation" title="Jump to approval in this conversation" ${activeRun?.status === "waiting_approval" ? "" : "hidden"}>${icon("shield")} Review</button>
@@ -8275,10 +8287,43 @@ function scheduleEditorHtml(schedule, index, status = null, workflowDefinitions 
   </details>`;
 }
 
+// Assistant settings are grouped into panes behind a section rail (an ARIA tablist). Every pane stays in the
+// DOM so each form keeps its id and handlers; only one is visible. The choice survives the re-render each save
+// triggers and is remembered per assistant for the session.
+const assistantSettingsSections = new Map();
+function mountSettingsTabs(shell, botName) {
+  if (!shell) return;
+  const tabs = [...shell.querySelectorAll("[data-settings-tab]")];
+  const panes = [...shell.querySelectorAll("[data-settings-pane]")];
+  const show = (key, { focus = false } = {}) => {
+    assistantSettingsSections.set(botName, key);
+    tabs.forEach(tab => {
+      const on = tab.dataset.settingsTab === key;
+      tab.setAttribute("aria-selected", on ? "true" : "false");
+      tab.tabIndex = on ? 0 : -1;
+      if (on && focus) tab.focus();
+      // in the narrow row layout the selected tab must never sit half off the edge
+      if (on) tab.scrollIntoView({ block: "nearest", inline: "center" });
+    });
+    panes.forEach(pane => { pane.hidden = pane.dataset.settingsPane !== key; });
+  };
+  show(assistantSettingsSections.get(botName) || "profile");
+  tabs.forEach((tab, index) => {
+    tab.addEventListener("click", () => show(tab.dataset.settingsTab));
+    tab.addEventListener("keydown", event => {
+      const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[event.key];
+      const target = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1
+        : step ? (index + step + tabs.length) % tabs.length : -1;
+      if (target < 0) return;
+      event.preventDefault();
+      show(tabs[target].dataset.settingsTab, { focus: true });
+    });
+  });
+}
+
 async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) {
   const generation = ++botDetailRenderGeneration;
   const route = `#/bot/${encodeURIComponent(name)}`;
-  const keepCustomizationOpen = location.hash === route && $("#assistant-more-settings")?.open === true;
   const b = await api(`/bots/${encodeURIComponent(name)}`);
   let taskPresets = [];
   let taskPresetsError = "";
@@ -8383,9 +8428,24 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
               </div>
             </details>
           </section>` : "";
+  if (specialistRosterError) assistantSettingsSections.set(name, "behavior");   // an unloaded roster must not stay hidden
+  const settingsSection = assistantSettingsSections.get(name) || "profile";
   view.innerHTML = `
     <div class="page-scroll"><div class="container assistant-settings-page">
       <p class="crumb"><a href="#/chat/${esc(b.name)}">Chats</a> / Assistant settings</p>
+      <div class="settings-shell" id="assistant-more-settings">
+        <div class="settings-rail" role="tablist" aria-label="Assistant settings sections" aria-orientation="vertical">
+            <button type="button" class="settings-tab" role="tab" id="settings-tab-profile" aria-controls="settings-pane-profile" data-settings-tab="profile" aria-selected="${settingsSection === "profile" ? "true" : "false"}" tabindex="${settingsSection === "profile" ? "0" : "-1"}">${icon("bot")}<span>Profile</span></button>
+            <button type="button" class="settings-tab" role="tab" id="settings-tab-behavior" aria-controls="settings-pane-behavior" data-settings-tab="behavior" aria-selected="${settingsSection === "behavior" ? "true" : "false"}" tabindex="${settingsSection === "behavior" ? "0" : "-1"}">${icon("chat")}<span>Behavior</span></button>
+            <button type="button" class="settings-tab" role="tab" id="settings-tab-model" aria-controls="settings-pane-model" data-settings-tab="model" aria-selected="${settingsSection === "model" ? "true" : "false"}" tabindex="${settingsSection === "model" ? "0" : "-1"}">${icon("zap")}<span>AI model</span></button>
+            <button type="button" class="settings-tab" role="tab" id="settings-tab-tools" aria-controls="settings-pane-tools" data-settings-tab="tools" aria-selected="${settingsSection === "tools" ? "true" : "false"}" tabindex="${settingsSection === "tools" ? "0" : "-1"}">${icon("wrench")}<span>Tools and access</span></button>
+            <button type="button" class="settings-tab" role="tab" id="settings-tab-schedule" aria-controls="settings-pane-schedule" data-settings-tab="schedule" aria-selected="${settingsSection === "schedule" ? "true" : "false"}" tabindex="${settingsSection === "schedule" ? "0" : "-1"}">${icon("calendar")}<span>Schedule</span></button>
+            <button type="button" class="settings-tab" role="tab" id="settings-tab-safety" aria-controls="settings-pane-safety" data-settings-tab="safety" aria-selected="${settingsSection === "safety" ? "true" : "false"}" tabindex="${settingsSection === "safety" ? "0" : "-1"}">${icon("shield")}<span>Safety</span></button>
+            <button type="button" class="settings-tab" role="tab" id="settings-tab-limits" aria-controls="settings-pane-limits" data-settings-tab="limits" aria-selected="${settingsSection === "limits" ? "true" : "false"}" tabindex="${settingsSection === "limits" ? "0" : "-1"}">${icon("chart")}<span>Limits and memory</span></button>
+        </div>
+        <div class="settings-panes">
+        <section class="settings-pane" role="tabpanel" id="settings-pane-profile" aria-labelledby="settings-tab-profile" data-settings-pane="profile" ${settingsSection === "profile" ? "" : "hidden"}>
+          <header class="settings-pane-head"><h2>Profile</h2><p>Its name, look and role.</p></header>
       <form class="panel form-grid assistant-settings-basics" id="form-identity">
         <div class="assistant-settings-intro">
           ${botAvatar(b.name, 48)}
@@ -8400,25 +8460,11 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
         </label>
         <div class="btn-row"><button class="btn primary small" type="submit">Save details</button></div>
       </form>
-      <details class="assistant-more-settings summary-row" id="assistant-more-settings">
-        <summary>
-          <span class="assistant-settings-summary-icon">${icon("sliders")}</span>
-          <span class="summary-row-copy"><strong>Customize how it works</strong><small>Choose its AI, apps, schedule, safety, and saved notes</small></span>
-          <span class="summary-row-action"><span class="when-closed">More settings</span><span class="when-open">Hide settings</span>${icon("down")}</span>
-        </summary>
-      <div class="detail-grid">
-        <div>
-          <form class="panel form-grid" id="form-instructions">
-            <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("chat")}</span>How it should help</div>
-            <p class="hint">These are the standing directions it follows in every conversation. Requests you already gave it stay here, ready for you to refine when you want.</p>
-            <label class="field" for="assistant-instructions">Standing directions
-              <textarea id="assistant-instructions" name="instructions" rows="7" placeholder="Add guidance for how this assistant should work">${esc(b.instructions || "")}</textarea>
-            </label>
-            <div class="btn-row"><button class="btn primary small" type="submit">Save directions</button></div>
-          </form>
-
-          <div id="persona-form-slot"></div>
-
+          <div class="panel" id="idp-panel">
+            <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("bot")}</span>Look and feel</div>
+            ${identityPickerHtml()}
+            <p class="hint idp-note">Chosen immediately — the roster updates everywhere.</p>
+          </div>
           ${b.is_workspace_coordinator || botsCache.length > 1 ? `<section class="panel" aria-labelledby="workspace-coordinator-title">
             <div class="panel-title" id="workspace-coordinator-title">Main assistant</div>
             <p class="hint">Choose which assistant opens as your main conversation. You can still chat with all of them directly. This role does not add app access or permissions.</p>
@@ -8427,15 +8473,23 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
                   <button class="btn ghost small" type="button" id="btn-clear-workspace-coordinator">Clear selection</button></div>`
               : `<button class="btn ghost small" type="button" id="btn-set-workspace-coordinator">Make this the main assistant</button>`}
           </section>` : ""}
-
+<p><a href="#/runs?q=${encodeURIComponent(b.name)}">See this assistant’s work history</a></p>
+        </section>
+        <section class="settings-pane" role="tabpanel" id="settings-pane-behavior" aria-labelledby="settings-tab-behavior" data-settings-pane="behavior" ${settingsSection === "behavior" ? "" : "hidden"}>
+          <header class="settings-pane-head"><h2>Behavior</h2><p>How it talks and what it follows.</p></header>
+          <form class="panel form-grid" id="form-instructions">
+            <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("chat")}</span>How it should help</div>
+            <p class="hint">These are the standing directions it follows in every conversation. Requests you already gave it stay here, ready for you to refine when you want.</p>
+            <label class="field" for="assistant-instructions">Standing directions
+              <textarea id="assistant-instructions" name="instructions" rows="7" placeholder="Add guidance for how this assistant should work">${esc(b.instructions || "")}</textarea>
+            </label>
+            <div class="btn-row"><button class="btn primary small" type="submit">Save directions</button></div>
+          </form>
+          <div id="persona-form-slot"></div>
           ${specialistRosterHtml}
-
-          <div class="panel" id="idp-panel">
-            <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("bot")}</span>Look and feel</div>
-            ${identityPickerHtml()}
-            <p class="hint idp-note">Chosen immediately — the roster updates everywhere.</p>
-          </div>
-
+        </section>
+        <section class="settings-pane" role="tabpanel" id="settings-pane-model" aria-labelledby="settings-tab-model" data-settings-pane="model" ${settingsSection === "model" ? "" : "hidden"}>
+          <header class="settings-pane-head"><h2>AI model</h2><p>Which AI answers, and how it is chosen.</p></header>
           <form class="panel form-grid" id="form-model">
             <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("zap")}</span>AI service and model</div>
             <div class="form-grid row2">
@@ -8519,7 +8573,6 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             </label>
             <div class="btn-row"><button class="btn primary small" type="submit">Save model settings</button></div>
           </form>
-
           ${(b.chatgpt_background || []).length ? `<section class="panel" aria-labelledby="background-plan-consent-title">
             <div class="panel-title" id="background-plan-consent-title">ChatGPT plan for unattended runs</div>
             <p class="hint">Scheduled tasks and coordinator-assigned specialist tasks can run while you are away. Hutch requires a separate, explicit permission for each ChatGPT account used by this Bot. It covers only this Bot’s current model, fallback and escalation routes. Changing those routes or disconnecting the account removes the permission.</p>
@@ -8531,7 +8584,9 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
                   : `<button class="btn ${route.state === "allowed" ? "ghost" : "primary"} small" type="button" data-background-provider="${esc(route.provider)}" data-route-fingerprint="${esc(route.route_fingerprint)}" data-consent-state="${esc(route.state)}">${route.state === "allowed" ? "Revoke" : "Review and allow"}</button>`}
               </div>`).join("")}</div>
           </section>` : ""}
-
+        </section>
+        <section class="settings-pane" role="tabpanel" id="settings-pane-tools" aria-labelledby="settings-tab-tools" data-settings-pane="tools" ${settingsSection === "tools" ? "" : "hidden"}>
+          <header class="settings-pane-head"><h2>Tools and access</h2><p>What it can use on this computer and in your apps.</p></header>
           <section class="panel" aria-labelledby="tool-settings-title">
             <div class="panel-title settings-panel-title" id="tool-settings-title"><span class="settings-panel-icon">${icon("check")}</span>What it can do</div>
             <p class="hint" id="tool-settings-help">Choose which actions this assistant may use. Important actions still come to you for review. Offline mode removes web browsing.</p>
@@ -8546,9 +8601,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
               <div class="btn-row tool-options-actions"><button class="btn primary small" type="submit">Save tools</button></div>
             </form>
           </section>
-
           <div id="bot-skills-section"></div>
-
           <form class="panel form-grid" id="form-computer" aria-labelledby="computer-settings-title">
             <div class="panel-title settings-panel-title" id="computer-settings-title"><span class="settings-panel-icon">${icon("sliders")}</span>Computer access</div>
             <p class="hint">Browser profiles belong to this assistant. Native apps use a separate Linux display and input session. Enable the relevant tool above; saving these choices does not start a session.</p>
@@ -8572,7 +8625,9 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             <div class="btn-row"><button class="btn primary small" type="submit">Save computer access</button><button class="btn ghost small" type="button" id="computer-doctor">Check host readiness</button></div>
             <p class="hint" id="computer-readiness" role="status"></p><details id="computer-readiness-details" hidden><summary>Capability details and setup steps</summary><ul class="computer-capabilities"></ul></details>
           </form>
-
+        </section>
+        <section class="settings-pane" role="tabpanel" id="settings-pane-schedule" aria-labelledby="settings-tab-schedule" data-settings-pane="schedule" ${settingsSection === "schedule" ? "" : "hidden"}>
+          <header class="settings-pane-head"><h2>Schedule</h2><p>Work it starts on its own.</p></header>
           <section class="panel schedule-manager" id="schedule-manager" aria-labelledby="schedule-manager-title">            <div class="schedule-manager-head">
               <div>
                 <div class="panel-title settings-panel-title" id="schedule-manager-title"><span class="settings-panel-icon">${icon("calendar")}</span>Work on a schedule</div>
@@ -8587,7 +8642,9 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
                 : `<div class="empty-state schedule-empty"><p>No recurring tasks yet.</p><p class="hint">Add one when this bot should work on a regular schedule.</p></div>`}
             </div>
           </section>
-
+        </section>
+        <section class="settings-pane" role="tabpanel" id="settings-pane-safety" aria-labelledby="settings-tab-safety" data-settings-pane="safety" ${settingsSection === "safety" ? "" : "hidden"}>
+          <header class="settings-pane-head"><h2>Safety</h2><p>When it has to ask you first.</p></header>
           <form class="panel form-grid" id="form-risk">
             <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("shield")}</span>Approvals and workspace</div>
             <div class="form-grid row2">
@@ -8629,7 +8686,6 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
               </button>
             </div>
           </form>
-
           <div class="panel">
             <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("sliders")}</span>Extra command rules</div>
             <div class="settings-list" id="rules-list">
@@ -8647,18 +8703,16 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
               <div class="btn-row"><button class="btn primary small">Add rule</button></div>
             </form>
           </div>
-
           <div class="panel">
-            <div class="panel-title">Estimate this task</div>
-            <label class="field">Prompt sample
-              <input type="text" id="estimate-prompt" placeholder="e.g. sort this week's downloads">
-            </label>
-            <div class="btn-row" style="margin-top:8px;"><button class="btn ghost small" id="btn-estimate">Estimate tokens and cost ${icon("chart")}</button></div>
-            <div id="estimate-out" class="mono hint" style="margin-top:8px;"></div>
+            <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("check")}</span>Always-allowed actions (${b.sticky_allows.length})</div>
+            ${b.sticky_allows.map(s => `
+              <div class="allow-item"><code>${esc(s)}</code>
+                <button class="chip-del" aria-label="Revoke ${esc(s)}" data-revoke-sticky="${esc(s)}">${icon("x")}</button>
+              </div>`).join("") || `<p class="empty-inline">None — every risky command asks.</p>`}
           </div>
-        </div>
-
-        <div>
+        </section>
+        <section class="settings-pane" role="tabpanel" id="settings-pane-limits" aria-labelledby="settings-tab-limits" data-settings-pane="limits" ${settingsSection === "limits" ? "" : "hidden"}>
+          <header class="settings-pane-head"><h2>Limits and memory</h2><p>Usage limits and the notes it has kept.</p></header>
           <div class="panel assistant-usage-panel">
             <details class="assistant-usage-details summary-row" id="assistant-usage-limits">
               <summary>
@@ -8711,7 +8765,14 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             <div class="assistant-usage-today"><span>Estimated AI use today</span><strong>${fmtTokens(b.tokens_today)} tokens</strong>
               <span class="hint" id="assistant-usage-today-extra"></span></div>
           </div>
-
+          <div class="panel">
+            <div class="panel-title">Estimate this task</div>
+            <label class="field">Prompt sample
+              <input type="text" id="estimate-prompt" placeholder="e.g. sort this week's downloads">
+            </label>
+            <div class="btn-row" style="margin-top:8px;"><button class="btn ghost small" id="btn-estimate">Estimate tokens and cost ${icon("chart")}</button></div>
+            <div id="estimate-out" class="mono hint" style="margin-top:8px;"></div>
+          </div>
           <div class="panel">
             <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("fileText")}</span>Saved notes (${b.memory_count})</div>
             <label class="field" for="memory-toggle"><span id="memory-learning-label">Memory and learning</span><select id="memory-toggle" aria-labelledby="memory-learning-label" aria-describedby="memory-learning-help memory-learning-privacy">
@@ -8729,22 +8790,12 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
               <span class="hint">${factsPage.facts.length ? `${factOffset + 1}–${factOffset + factsPage.facts.length}` : 'No facts in this window'}</span>
               <button class="btn ghost small" id="facts-next" type="button" ${factsPage.next_offset === null ? 'disabled' : ''}>Next facts</button></div>
           </div>
-
-          <div class="panel">
-            <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("check")}</span>Always-allowed actions (${b.sticky_allows.length})</div>
-            ${b.sticky_allows.map(s => `
-              <div class="allow-item"><code>${esc(s)}</code>
-                <button class="chip-del" aria-label="Revoke ${esc(s)}" data-revoke-sticky="${esc(s)}">${icon("x")}</button>
-              </div>`).join("") || `<p class="empty-inline">None — every risky command asks.</p>`}
-          </div>
-
-<p><a href="#/runs?q=${encodeURIComponent(b.name)}">See this assistant’s work history</a></p>
+        </section>
         </div>
       </div>
-      </details>
     </div></div>`;
 
-  if (keepCustomizationOpen) $("#assistant-more-settings").open = true;
+  mountSettingsTabs($("#assistant-more-settings"), b.name);
 
   // wiring
   mountIdentityPicker($("#idp-panel"), b.name, pair => { sigilSet(b.name, pair); refreshRoster(); });

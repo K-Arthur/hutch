@@ -8,6 +8,7 @@ is stated in the evidence record instead of being faked.
 """
 
 from __future__ import annotations
+from tests.e2e.settings_pane import open_assistant_customization  # noqa: E402
 
 import json
 import threading
@@ -73,13 +74,6 @@ def live(tmp_path, monkeypatch):
     t.join(timeout=10)
     assert not t.is_alive()
 
-
-def open_assistant_customization(page):
-    details = page.locator("#assistant-more-settings")
-    details.wait_for(state="attached")
-    if not details.evaluate("element => element.open"):
-        details.locator(":scope > summary").click()
-    assert details.evaluate("element => element.open")
 
 
 def test_skills_soak_under_churn(browser, live, tmp_path):
@@ -176,7 +170,7 @@ def test_skills_soak_under_churn(browser, live, tmp_path):
                 page.get_by_role("heading", name="Skills", exact=True).wait_for()
                 navigations += 1
                 page.goto(base + "/#/bot/soak-bot")
-                open_assistant_customization(page)
+                open_assistant_customization(page, "tools")
                 page.locator("#bot-skills-section").wait_for()
                 navigations += 1
                 page.goto(base + "/#/chat/soak-bot")

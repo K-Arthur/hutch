@@ -29,6 +29,7 @@ import uvicorn  # noqa: E402
 from hutch.models import ApprovalMode, Bot, Event, EventType, Run, RunStatus, RuntimeKind, Schedule, Task  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
 from hutch.connections import ConnectionBook  # noqa: E402
+from tests.e2e.settings_pane import open_assistant_customization  # noqa: E402
 from tests.support.artifacts import artifact_path, repository_path
 from tests.support.browser import launch_browser, wait_for_page_value
 
@@ -2554,7 +2555,7 @@ def test_chatgpt_background_permission_is_explicit_responsive_and_reversible(bro
     viewports = (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844))
     try:
         page.goto(f"{base}/#/bot/{bot.name}")
-        open_assistant_customization(page)
+        open_assistant_customization(page, "model")
         page.get_by_role("heading", name="Weekly Project Reviewer").wait_for()
         panel = page.get_by_role("region", name="ChatGPT plan for unattended runs")
         assert "Permission required" in panel.inner_text()
@@ -5904,13 +5905,6 @@ def wait_for(fn, timeout=20.0):
     raise AssertionError("timed out")
 
 
-def open_assistant_customization(page):
-    details = page.locator("#assistant-more-settings")
-    details.wait_for(state="attached")
-    if not details.evaluate("element => element.open"):
-        details.locator(":scope > summary").click()
-    assert details.evaluate("element => element.open")
-
 
 def test_spa_transcript_renders_a_live_run(browser, live, monkeypatch):
     """The server transcript page now redirects into the SPA (single UI, 27a73ed).
@@ -7671,7 +7665,7 @@ def test_bot_usage_limits_are_optional_clear_and_use_everyday_time_units(browser
         disclosure.wait_for(state="attached")
         initially_open = disclosure.evaluate("element => ({open: element.open, html: element.outerHTML.slice(0, 150)})")
         assert not initially_open["open"], f"usage settings should start collapsed: {initially_open}"
-        open_assistant_customization(page)
+        open_assistant_customization(page, "limits")
         expected_steps, expected_duration = "24 work steps", "15 min per task"
         expected_timeout_minutes = "15"
         for label, (width, height) in viewports.items():
@@ -7770,7 +7764,7 @@ def test_tool_permissions_are_clear_and_save_at_desktop_tablet_and_phone(browser
 
     try:
         page.goto(f"{base}/#/bot/{bot.name}")
-        open_assistant_customization(page)
+        open_assistant_customization(page, "tools")
         page.locator("#form-tools").wait_for()
         delegate = page.locator('#form-tools input[name="tools"][value="delegate_task"]')
         assert not delegate.is_checked()
@@ -7822,7 +7816,7 @@ def test_tool_permissions_are_clear_and_save_at_desktop_tablet_and_phone(browser
         page.keyboard.press("Enter")
         wait_for(lambda: "delegate_task" in app.state.store.get_bot(bot.name).tools)
         page.reload()
-        open_assistant_customization(page)
+        open_assistant_customization(page, "tools")
         page.locator('#form-tools input[name="tools"][value="delegate_task"]:checked').wait_for()
         panel = page.locator('section[aria-labelledby="tool-settings-title"]')
         position_panel("end")
@@ -8335,7 +8329,7 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
         page.goto(f"{base}/#/bot/{coordinator.name}")
-        open_assistant_customization(page)
+        open_assistant_customization(page, "behavior")
         page.get_by_role("heading", name="About this assistant", exact=True).wait_for()
         roster_panel = page.locator("#workspace-specialist-roster")
         roster_details = page.locator("#workspace-specialist-settings")
@@ -8396,7 +8390,7 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
         specialist_options.wait_for(state="visible")
         specialist_options.click()
         page.get_by_role("menuitem", name="Assistant settings").click()
-        open_assistant_customization(page)
+        open_assistant_customization(page, "profile")
         page.get_by_role("button", name="Make this the main assistant").click()
         page.get_by_role("heading", name="Make this your main assistant?").wait_for()
         page.locator("#modal-confirm").click()
@@ -9931,7 +9925,7 @@ def test_multiple_scheduled_tasks_can_be_managed_from_bot_settings(browser, live
 
         # Hash-only navigation was unreliable under full-suite load; exercise the route directly.
         page.goto(f"{base}/#/bot/scheduled-research")
-        open_assistant_customization(page)
+        open_assistant_customization(page, "schedule")
         page.locator("#form-schedule").wait_for()
         prompt = page.locator('#form-schedule [name="schedule_prompt"]')
         assert prompt.input_value() == "Review release notes and report important changes."
@@ -9988,7 +9982,7 @@ def test_multiple_scheduled_tasks_can_be_managed_from_bot_settings(browser, live
         assert page.locator('#form-schedule [name="schedule_prompt"]').input_value() \
             == "Check the weekly security feed and list actionable changes."
         page.reload()
-        open_assistant_customization(page)
+        open_assistant_customization(page, "schedule")
         page.locator("#form-schedule").wait_for()
         assert page.locator("[data-schedule-form]").count() == 2
         assert next(item.name for item in app.state.store.get_bot("scheduled-research").schedules
@@ -10119,7 +10113,7 @@ def test_routine_editor_links_an_activated_workflow_accessibly_across_viewports(
     captures = []
     try:
         page.goto(f"{base}/#/bot/{bot.name}")
-        open_assistant_customization(page)
+        open_assistant_customization(page, "schedule")
         form = page.locator("#form-schedule")
         form.wait_for()
         selector = form.locator("[data-schedule-workflow-definition]")
@@ -10242,7 +10236,7 @@ def test_model_route_setting_explains_host_gated_offline_mode_and_saves_on_phone
     errors: list[str] = []
     page.on("pageerror", lambda exc: errors.append(str(exc)))
     page.goto(f"{base}/#/bot/route-bot")
-    open_assistant_customization(page)
+    open_assistant_customization(page, "model")
     mode = page.locator('#form-model select[name="inference_mode"]')
     task_focus = page.locator('#form-model select[name="preset"]')
     mode.wait_for()
@@ -10814,7 +10808,7 @@ def test_legacy_external_runtime_can_move_to_hutch_and_run_a_real_local_route(br
     captures = []
     try:
         page.goto(f"{base}/#/bot/{bot.name}")
-        open_assistant_customization(page)
+        open_assistant_customization(page, "model")
         page.locator("#runtime-recovery").wait_for()
         assert page.get_by_text("Pi execution is unavailable in Hutch.").is_visible()
         assert "Hutch never imports private sign-in files or credentials" in page.locator("#runtime-recovery").inner_text()
@@ -10907,7 +10901,7 @@ def test_small_workspace_has_one_roster_and_legacy_routes_do_not_trap_back(brows
     assert page.get_by_role("button", name="Context", exact=True).count() == 0
     page.locator("[data-bot-options='one-bot']").click()
     page.get_by_role("menuitem", name="Assistant settings").click()
-    open_assistant_customization(page)
+    open_assistant_customization(page, "profile")
     page.get_by_role("heading", name="About this assistant", exact=True).wait_for()
     assert page.get_by_text("Recent runs", exact=True).count() == 0
     page.goto(base + "/#/overview")
@@ -10937,7 +10931,7 @@ def test_bot_workspace_modes_are_clear_and_persist_across_settings(browser, live
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
         page.goto(base + "/#/bot/workspace-helper")
-        open_assistant_customization(page)
+        open_assistant_customization(page, "safety")
         page.get_by_role("heading", name="About this assistant", exact=True).wait_for()
         mode = page.locator('#form-risk [name="workspace_mode"]')
         assert mode.input_value() == "fresh"
@@ -11017,7 +11011,7 @@ def test_local_browser_handoff_setting_is_explicit_and_persists(browser, live, w
     page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
     try:
         page.goto(base + "/#/bot/local-handoff")
-        open_assistant_customization(page)
+        open_assistant_customization(page, "safety")
         page.get_by_role("heading", name="About this assistant", exact=True).wait_for()
         handoff = page.locator('#form-risk [name="local_browser_handoff"]')
         assert handoff.input_value() == "false"
@@ -12061,7 +12055,7 @@ def test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus(br
     page.evaluate("id => { location.hash = '#/run/' + id; }", run.id)
     wait_for_page(page, "feedMode === 'run'")
     page.evaluate("location.hash = '#/bot/resource-replay'")
-    open_assistant_customization(page)
+    open_assistant_customization(page, "behavior")
     settings = page.locator('#form-instructions textarea[name="instructions"]')
     settings.fill("Unsaved instructions stay intact")
     settings.focus()
@@ -12079,7 +12073,7 @@ def test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus(br
     assert held, "hold a run response across navigation"
     page.evaluate("location.hash = '#/bot/resource-replay'")
     page.get_by_role("heading", name="About this assistant", exact=True).wait_for()
-    open_assistant_customization(page)
+    open_assistant_customization(page, "behavior")
     settings.fill("Late run responses cannot replace this form")
     for route in held:
         route.continue_()
@@ -12642,7 +12636,7 @@ def test_scoped_fact_review_revision_conflict_and_memory_off(browser, live, widt
             page.locator('#nav-toggle').click()
         page.locator(f'[data-bot-options="{bot.name}"]').click()
         page.get_by_role('menuitem', name='Assistant settings').click()
-        open_assistant_customization(page)
+        open_assistant_customization(page, "limits")
         page.locator('#memory-toggle').wait_for()
         with page.expect_response(lambda response: response.request.method == 'PATCH'
                                   and response.url.endswith('/api/bots/' + bot.name)) as changed_memory:
@@ -12820,7 +12814,7 @@ def test_bot_memory_export_explains_scope_and_downloads_complete_json(browser, l
     trace_stopped = False
     try:
         page.goto(f'{base}/#/bot/{bot.name}')
-        open_assistant_customization(page)
+        open_assistant_customization(page, "limits")
         download_button = page.get_by_role('button', name='Download memory JSON')
         download_button.wait_for()
         page.locator('#memory-toggle').wait_for()

@@ -19,6 +19,7 @@ from hutch.models import (ApprovalRequest, Bot, Event, EventType, Run, RunStatus
                           RuntimeKind, Task, iso, utcnow)
 from hutch.server.app import create_app
 from hutch.approvals import action_fingerprint
+from tests.e2e.settings_pane import open_assistant_customization
 from tests.support.artifacts import artifact_path
 
 
@@ -394,11 +395,13 @@ def test_setup_and_settings_hints_are_descriptions_not_field_names(audit_browser
         app.state.store.create_bot(Bot(name="access-hints", display_name="Access Hints",
                                        model="mock/demo", tools=[]))
         page.goto(base + "/#/bot/access-hints")
-        page.locator("#assistant-more-settings > summary").click()
+        open_assistant_customization(page, "profile")
         check_field('#form-identity input[name="display_name"]', "textbox", "Assistant name", "Shown in your chats")
+        open_assistant_customization(page, "model")
         check_field('#form-model input[name="model"]', "textbox", "Default model", "Hybrid allows")
         check_field('#form-model select[name="inference_mode"]', "combobox", "Model routing", "model service")
         check_field('#form-model select[name="preset"]', "combobox", "Task focus for local models", "context sizing")
+        open_assistant_customization(page, "safety")
         check_field('#form-risk select[name="workspace_mode"]', "combobox", "Workspace", "Changing modes")
         check_field('#form-risk select[name="local_browser_handoff"]', "combobox", "Local browser handoff", "browser")
 
