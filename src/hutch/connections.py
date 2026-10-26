@@ -93,6 +93,7 @@ class Connection:
     model_protocol_hint: str = ""
     auth_type: str = "api_key"
     auth_account_id: str = ""
+    openrouter_policy: dict[str, Any] = field(default_factory=dict)
     output_token_limit_enforced: bool = True
     prefer_stored_key: bool = False
 
@@ -211,10 +212,14 @@ class ConnectionBook:
             raise ValueError("quota tokens must be non-negative")
         if not math.isfinite(quota_warn_at) or not 0 <= quota_warn_at <= 1:
             raise ValueError("quota warn_at must be between 0 and 1")
+        from .providers.openrouter_policy import validate_policy
+        routing = validate_policy(merged.get("openrouter_policy"))
+        if routing and (row.get("template") != "openrouter" or proto != "openai-chat"):
+            raise ValueError("OpenRouter routing controls require an OpenRouter connection")
         return Connection(
             name=name, template=row.get("template", ""), title=merged.get("title", name), protocol=proto,
             base_url=merged["base_url"].rstrip("/"), api_key_env=merged.get("api_key_env", ""), billing=billing,
-            account_id=account_id, account_daily_cost_cap_usd=account_cap,
+            account_id=account_id, account_daily_cost_cap_usd=account_cap, openrouter_policy=routing,
             anthropic_base_url=(merged.get("anthropic_base_url") or "").rstrip("/"),
             session_header=merged.get("session_header", ""),
             user_agent=(merged.get("user_agent") or f"hutch/{_version()}").replace("{version}", _version()),

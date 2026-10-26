@@ -26,7 +26,7 @@ from typing import Any, Callable, Optional
 class ProviderError(Exception):
     """A model call failed. ``kind`` drives retry / fallback / the explanation shown to the user."""
 
-    KINDS = ("unreachable", "timeout", "auth", "rate_limit", "server", "bad_request",
+    KINDS = ("unreachable", "timeout", "auth", "quota", "rate_limit", "server", "bad_request",
              "context", "refused", "stream", "model_missing", "oom", "incomplete", "other")
 
     def __init__(self, kind: str, message: str, *, provider: str = "", status: Optional[int] = None,

@@ -1221,6 +1221,7 @@ class ConnectionResource(BaseModel):
     account_daily_cost_used_usd: float
     account_daily_cost_reserved_usd: float
     models_endpoint: bool
+    openrouter_policy: dict[str, Any] = Field(default_factory=dict)
 
 
 class CapabilityResource(BaseModel):
@@ -1553,6 +1554,7 @@ class ConnectionCreate(BaseModel):
     api_key_env: Optional[str] = None
     api_key: Optional[str] = None
     discover_models: bool = False
+    openrouter_policy: Optional[dict[str, Any]] = None
 
 
 class ConnectionAction(BaseModel):
@@ -3126,6 +3128,7 @@ def create_app() -> FastAPI:
                          "account_id": conn.account_id,
                          "account_daily_cost_cap_usd": account_cap,
                          "configured_account_daily_cost_cap_usd": conn.account_daily_cost_cap_usd,
+                         "openrouter_policy": conn.openrouter_policy,
                          "model_protocols": conn.model_protocols, "billing": conn.billing,
                          "auth_type": conn.auth_type,
                          "output_token_limit_enforced": conn.output_token_limit_enforced,
@@ -7129,7 +7132,8 @@ def create_app() -> FastAPI:
                 generated_suffix += 1
         try:
             overrides: dict[str, Any] = {"base_url": body.base_url or None,
-                                         "api_key_env": body.api_key_env or None}
+                                         "api_key_env": body.api_key_env or None,
+                                         "openrouter_policy": body.openrouter_policy}
             if generated_suffix > 2:
                 overrides["title"] = f"{template.get('title', body.template)} {generated_suffix - 1}"
             c = book.add(body.template, name, **overrides)

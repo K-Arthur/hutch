@@ -285,6 +285,19 @@ on completion endpoints. Hutch now detects that key type during the connection
 check and tells the person to create a normal inference key instead of
 reporting a false success.
 
+OpenRouter connections may carry an operator-configured `openrouter_policy` in
+`connections.json` or `POST /api/connections`. Supported controls are `order`,
+`allow_fallbacks`, `require_parameters`, `data_collection`, `zdr`, and `max_price`.
+For example, `{"data_collection":"deny","require_parameters":true,"max_price":{"prompt":1,"completion":2}}`
+restricts endpoint data handling and sets input/output price ceilings in USD per
+million tokens. An optional `request` price ceiling is USD per request; zero is
+a real ceiling for free-only routes. These filters do not replace Hutch's usage
+reservations or guarantee the final bill. A renamed OpenRouter connection keeps
+the same authenticated checks, catalog support, and provider-reported usage
+settlement. An exhausted credit balance or explicitly exhausted quota is not
+retried as a transient throttle; switching to a different paid route still uses
+the normal authorization and budget checks.
+
 ## Connect a model provider in one step
 
 On a device that has never installed OpenCode or Ollama, use a hosted API-key route first; Hutch does not bundle either runtime. OpenCode requires the **V2** CLI on `PATH`, and Ollama requires a running local server plus downloaded models. See [runtime prerequisites](runtime-setup.md). From **Apps & AI → AI model providers → Connect a provider**, choose OpenAI API,

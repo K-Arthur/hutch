@@ -20,6 +20,7 @@ from typing import Any, Optional
 
 from .base import (ChatRequest, ChatResult, Health, ModelMeta, Provider, ProviderError, ToolCall,
                    Watchdog, abort_response, parse_tool_args_state, record_adapter_receipt)
+from .openrouter_policy import validate_policy
 
 PRESET_URLS = {
     "openai": "https://api.openai.com/v1",
@@ -53,11 +54,16 @@ class OpenAICompatProvider(Provider):
             re.fullmatch(re.escape(name) + r"-\d{4}-\d{2}-\d{2}", model) for name in _VISION_MODELS))
 
     def __init__(self, base_url: str, api_key: str = "", provider_name: str = "openai-compatible",
-                 headers: Optional[dict[str, str]] = None, session_header: str = "", auth_hint: str = ""):
+                 headers: Optional[dict[str, str]] = None, session_header: str = "", auth_hint: str = "",
+                 openrouter: Optional[bool] = None, routing_policy: Optional[dict] = None):
         from .registry import is_official_endpoint, reject_endpoint_credentials
         self.base_url = reject_endpoint_credentials(base_url).rstrip("/")
         self._official_openai = is_official_endpoint("openai", self.base_url)
-        self._uses_completion_token_field = self._official_openai or provider_name == "openrouter"
+        self._openrouter = provider_name == "openrouter" if openrouter is None else openrouter
+        self._uses_completion_token_field = self._official_openai or self._openrouter
+        self.routing_policy = validate_policy(routing_policy)
+        if self.routing_policy and not self._openrouter:
+            raise ValueError("OpenRouter routing controls cannot be sent to another provider")
         self.api_key = api_key
         self.auth_hint = auth_hint        # why an ambient key was withheld, appended to auth failures
         self.name = provider_name
@@ -88,10 +94,13 @@ class OpenAICompatProvider(Provider):
     # --------------------------------------------------------------- errors
 
     def _error_from_response(self, resp) -> ProviderError:
+        code = ""
         try:
             text = resp.read().decode("utf-8", "replace") if hasattr(resp, "read") else resp.text
             j = json.loads(text)
             detail = (j.get("error") or {}).get("message") if isinstance(j.get("error"), dict) else j.get("error", text)
+            if isinstance(j.get("error"), dict):
+                code = str(j["error"].get("code") or j["error"].get("type") or "").lower()
         except Exception:
             detail = f"HTTP {resp.status_code}"
         low = str(detail).lower()
@@ -102,6 +111,12 @@ class OpenAICompatProvider(Provider):
                                  provider=self.name, status=st)
         if st == 404 and "model" in low:
             return ProviderError("model_missing", str(detail), provider=self.name, status=st)
+        if st == 402 or (st == 429 and (code in {"insufficient_quota", "billing_hard_limit_reached",
+                                                                "insufficient_credits", "quota_exhausted"}
+                or any(phrase in low for phrase in ("insufficient credits", "insufficient balance",
+                                                    "quota exhausted", "credits exhausted")))):
+            return ProviderError("quota", f"{self.name} has no available credit or quota: {detail}",
+                                 provider=self.name, status=st)
         if st == 429:
             ra = resp.headers.get("retry-after")
             return ProviderError("rate_limit", f"{self.name} rate-limited the request: {detail}", provider=self.name,
@@ -147,7 +162,7 @@ class OpenAICompatProvider(Provider):
         before choosing a paid model.
         """
         account = ""
-        if self.name == "openrouter":
+        if self._openrouter:
             try:
                 key_response = self._http().get("/key", timeout=self._timeout(read=8.0))
             except Exception as exc:
@@ -222,7 +237,7 @@ class OpenAICompatProvider(Provider):
 
     def list_openrouter_catalog(self, query: str = "", limit: int = 40) -> list[dict[str, Any]]:
         """Read OpenRouter's text-model catalog for the model picker; never makes an inference request."""
-        if self.name != "openrouter":
+        if not self._openrouter:
             raise ProviderError("bad_request", "the OpenRouter catalog is available only on its named connection",
                                 provider=self.name)
         params: dict[str, str] = {"sort": "most-popular", "output_modalities": "text"}
@@ -293,10 +308,12 @@ class OpenAICompatProvider(Provider):
             body["max_completion_tokens" if self._uses_completion_token_field else "max_tokens"] = int(req.max_tokens)
         if req.temperature is not None:
             body["temperature"] = req.temperature
-        if self.name == "openrouter":
+        if self._openrouter:
             # OpenRouter only adds its billed `usage.cost` field when this is requested.
             # Without it, presets/dynamic model routes can have tokens but no dependable settlement.
             body["usage"] = {"include": True}
+            if self.routing_policy:
+                body["provider"] = validate_policy(self.routing_policy)
         if stream:
             body["stream_options"] = {"include_usage": True}
         return body

@@ -737,7 +737,7 @@ class BuiltinRuntime:
                 return self._switch(ctx, run, ladder, guard, esc, f"context overflow: {exc}", "escalation", messages,
                                     specs, est_prompt)
             return None
-        if exc.retryable or exc.kind in ("model_missing", "auth"):
+        if exc.retryable or exc.kind in ("model_missing", "auth", "quota"):
             nxt = ladder.next_fallback()
             if nxt is not None:
                 return self._switch(ctx, run, ladder, guard, nxt, str(exc), "fallback", messages, specs, est_prompt)
@@ -810,7 +810,7 @@ class BuiltinRuntime:
             except ProviderError as exc:
                 if stop():
                     raise RunAborted("stopped", "user requested stop") from exc
-                if not exc.retryable and exc.kind not in ("model_missing", "auth"):
+                if not exc.retryable and exc.kind not in ("model_missing", "auth", "quota"):
                     raise RunAborted(_exit_reason(exc), f"cannot start on {rung.spec}: {exc}") from exc
                 nxt = ladder.next_fallback()
                 if nxt is None:

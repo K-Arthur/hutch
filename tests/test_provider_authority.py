@@ -97,6 +97,8 @@ def test_hosted_to_different_hosted_fallback_does_not_send_without_a_decision(st
 @pytest.mark.parametrize(("status", "message", "headers", "expected_attempts"), [
     (401, "invalid API key", {}, 1),
     (429, "quota exceeded", {"retry-after": "1"}, 2),
+    (429, "insufficient credits", {"retry-after": "1"}, 1),
+    (402, "credit balance exhausted", {}, 1),
 ])
 def test_provider_auth_or_quota_rejection_waits_for_review_before_paid_fallback(
         store, config, tmp_path, status, message, headers, expected_attempts):
