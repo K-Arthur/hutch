@@ -7,7 +7,7 @@ participate in this lock; this is not protection from a hostile workspace owner.
 from __future__ import annotations
 
 from contextlib import contextmanager
-import fcntl
+from ..platforms import locking as fcntl
 import hashlib
 import os
 from pathlib import Path

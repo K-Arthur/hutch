@@ -32,7 +32,7 @@ Design constraints this module owns:
 from __future__ import annotations
 
 import hashlib
-import fcntl
+from ..platforms import locking as fcntl
 import json
 import os
 import re

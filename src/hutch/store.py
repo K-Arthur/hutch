@@ -16,7 +16,7 @@ versioned with ``PRAGMA user_version``; upgrades back the database up first.
 from __future__ import annotations
 
 import atexit
-import fcntl
+from .platforms import locking as fcntl
 import hashlib
 import hmac
 import json

@@ -9,7 +9,7 @@ transcripts. API destinations are fixed Google hosts and redirects are disabled.
 from __future__ import annotations
 
 import base64
-import fcntl
+from .platforms import locking as fcntl
 import hashlib
 import json
 import os

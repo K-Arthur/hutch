@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any, Iterator
 from urllib.parse import urlencode, urlsplit
 
-import fcntl
+from .platforms import locking as fcntl
 import httpx
 
 AUTH_ORIGIN = "https://auth.openai.com"

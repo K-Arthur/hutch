@@ -7,7 +7,7 @@ successful write. Corrupt/partial mirrors are preserved before reconstruction.
 """
 from __future__ import annotations
 
-import fcntl
+from .platforms import locking as fcntl
 from collections import OrderedDict
 import json
 import os
