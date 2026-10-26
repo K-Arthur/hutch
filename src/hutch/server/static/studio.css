@@ -1004,10 +1004,14 @@ dialog.palette::backdrop { background: rgb(0 0 0 / 0.55); }
 @media (pointer: coarse) { .settings-tab { min-height: 44px; } }
 .settings-panes { min-width: 0; }
 .settings-pane[hidden] { display: none; }
-.settings-pane { display: grid; gap: var(--s-4); }
+.settings-pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }   /* a zoomed form must be able to shrink */
 .settings-pane > * { min-width: 0; margin: 0; }
 .settings-pane-head h2 { margin: 0; font: var(--weight-semibold) var(--fs-lg)/1.25 var(--font-display); letter-spacing: -0.02em; }
 .settings-pane-head p { margin: var(--s-1) 0 0; color: var(--text-2); font-size: var(--fs-sm); }
+/* between a phone strip and the side rail the tabs wrap onto two rows instead of hiding behind a scroll */
+@container settings (min-width: 520px) and (max-width: 759.98px) {
+  .settings-rail { flex-wrap: wrap; overflow: visible; }
+}
 @container settings (min-width: 760px) {
   .settings-shell { grid-template-columns: 208px minmax(0, 1fr); gap: var(--s-6); }
   .settings-rail { flex-direction: column; overflow: visible; top: var(--s-4); padding: var(--s-2); }
@@ -1046,3 +1050,18 @@ dialog.palette::backdrop { background: rgb(0 0 0 / 0.55); }
 /* The rail sticks to the top of the scroller on narrow panes; keep focused and scrolled-to fields clear of it
    (WCAG 2.2 Focus Not Obscured). */
 .page-scroll:has(.settings-shell) { scroll-padding-top: calc(var(--s-8) + var(--s-3)); }
+
+/* A form's tracks may shrink below its widest field. Text controls are "compressible replaced elements": a percentage
+   width makes their minimum contribution zero, where their intrinsic width (about 20 characters) used to force a form
+   wider than the screen at 200% text size. */
+.form-grid, label.field, .task-routing-settings { grid-template-columns: minmax(0, 1fr); }
+:is(.form-grid, label.field, .task-routing-settings) :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), select, textarea) { width: 100%; min-width: 0; }
+
+/* The coordinator's specialist-roster row cannot fit icon, copy, count and action on one line in a narrow pane. */
+@container settings (max-width: 480px) {
+  .summary-row-3col > summary { grid-template-columns: minmax(0, 1fr) auto; }
+  .summary-row-3col > summary .summary-row-action { grid-column: 1 / -1; justify-self: start; }
+}
+
+/* Identifiers in hints and settings (model routes, paths) wrap instead of widening the page. */
+:is(.hint, .settings-panes) code { overflow-wrap: anywhere; }

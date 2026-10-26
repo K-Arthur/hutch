@@ -39,7 +39,7 @@
       dismiss.type = "button";
       dismiss.className = "hc-popup-close";
       dismiss.textContent = "Done";
-      dismiss.setAttribute("aria-label", `Close ${title.textContent.toLowerCase()}`);
+      dismiss.setAttribute("aria-label", `Done, close ${title.textContent.toLowerCase()}`);   // begins with the visible word (WCAG 2.5.3)
       dismiss.addEventListener("click", () => close(true), options);
       header.append(title, dismiss);
       panel.prepend(header);
