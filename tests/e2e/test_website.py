@@ -164,7 +164,7 @@ def test_landing_initial_transfer_stays_within_review_budget_and_art_loads_on_de
         }""", arg=center_frame_source)
         assert not errors, errors
         assert all(url.startswith(site_url) for url in requests), requests
-        out = ROOT / "docs/realignment/artifacts/ui-audit-2026-10-20"
+        out = artifact_path("ui-audit/transfer")
         out.mkdir(parents=True, exist_ok=True)
         (out / "transfer-budgets.json").write_text(json.dumps({
             "test": "tests/e2e/test_website.py::test_landing_initial_transfer_stays_within_review_budget_and_art_loads_on_demand",
@@ -211,7 +211,7 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     assert "carries your words into assistant setup" in page.inner_text("#proof")
     assert "2026-10-23" in page.inner_text("#proof")
     assert page.locator("#gate-card, #gate-demo, #gate-allow, #gate-deny").count() == 0
-    assert page.locator("#get").get_by_text("Public access", exact=True).count() == 1
+    assert page.locator("#get").get_by_text("Public source", exact=True).count() == 1
     assert page.locator("#get .ev").filter(has_text="Experimental").count() >= 1
     assert page.locator("#get .ev").filter(has_text="Unavailable").count() >= 1
     workflow_details = page.locator(".workflow-details")
@@ -242,8 +242,8 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     assert "can i review cost and context before sending?" in text
     assert "bounded recent conversation context" in text
     assert "questions about what an assistant can do" in text
-    assert "the source is private" in text
-    assert "no anonymous download, public release, or hosted sign-up today" in text
+    assert "public on github" in text
+    assert "no packaged desktop installers or hosted sign-up today" in text
     assert "not a virtual machine" in text
     assert "dns pinning is fixture-tested" in text and "browser field detection" in text
     assert "sign in with chatgpt is an opt-in local preview" in text
@@ -251,7 +251,7 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     assert "does not enforce hutch's output-token allowance" in text
     assert "scheduled or coordinator-assigned work needs your express permission for each bot and connected account" in text
     assert "chatgpt sign-in is not implemented" not in text
-    assert "github.com/k-arthur/hutch" not in page.content().lower()
+    assert page.locator('a[href="https://github.com/K-Arthur/hutch"]').count() >= 1
     assert not errors, errors
     external_requests = [url for url in requests if urlsplit(url).netloc not in {urlsplit(site_url).netloc, ""}]
     assert not external_requests, external_requests
@@ -524,7 +524,7 @@ def test_chatgpt_background_consent_marketing_copy_at_responsive_sizes(browser, 
         context.close()
 
 
-def test_internal_links_resolve_and_external_links_are_public_reports(browser, site_url):
+def test_internal_links_resolve_and_external_links_point_to_public_source(browser, site_url):
     context, page, _ = _page(browser)
     page.goto(site_url, wait_until="networkidle")
     broken = page.evaluate("""() => [...document.querySelectorAll('a[href^="#"]')]
@@ -532,8 +532,32 @@ def test_internal_links_resolve_and_external_links_are_public_reports(browser, s
       .filter(href => href.length > 1 && !document.getElementById(decodeURIComponent(href.slice(1))))""")
     assert not broken, broken
     external = page.locator("a[href^='https://']").evaluate_all("els => els.map(a => a.href)")
-    assert external == [], external
+    assert set(external) == {"https://github.com/K-Arthur/hutch", "https://github.com/K-Arthur/hutch#quickstart"}
     context.close()
+
+
+def test_desktop_manifest_reports_no_installers_before_artifacts_exist(browser, site_url):
+    context, page, errors = _page(browser)
+    try:
+        page.goto(site_url, wait_until="networkidle")
+        manifest_link = page.locator('link[rel="alternate"][type="application/json"]')
+        response = page.request.get(site_url + manifest_link.get_attribute("href"))
+        assert response.status == 200
+        manifest = response.json()
+        assert manifest["contract_version"] == 1 and manifest["channel"] == "preview"
+        assert manifest["source"] == {"repository": "https://github.com/K-Arthur/hutch",
+                                     "setup": "https://github.com/K-Arthur/hutch#quickstart", "license": "MIT"}
+        targets = {(p["os"], p["minimum_version"], p["architecture"]) for p in manifest["platforms"]}
+        assert len(manifest["platforms"]) == len(targets) == 4
+        assert targets == {("Windows", "11", "x86_64"), ("macOS", "14", "aarch64"),
+                           ("macOS", "14", "x86_64"), ("Ubuntu", "24.04", "x86_64")}
+        assert all(platform["artifacts"] == [] for platform in manifest["platforms"])
+        assert "Desktop installers are not available yet" in page.locator("#get").inner_text()
+        assert page.locator('#get a[href="https://github.com/K-Arthur/hutch"]').count() >= 1
+        assert page.locator('a[download], a[href*="/releases/download/"]').count() == 0
+        assert not errors
+    finally:
+        context.close()
 
 
 def test_static_site_makes_no_external_requests(browser, site_url):
@@ -710,10 +734,10 @@ def test_approval_triage_copy_is_truthful_and_responsive(browser, site_url):
         context.close()
 
 
-def test_approval_triage_marketing_evidence_is_complete():
+def test_archived_approval_triage_marketing_evidence_is_complete():
     root = ROOT / "docs/realignment/approval-triage-2026-10-22/marketing"
     data = json.loads((root / "validation.json").read_text(encoding="utf-8"))
-    assert hashlib.sha256((SITE_DIR / "index.html").read_bytes()).hexdigest() == data["index_sha256"]
+    assert hashlib.sha256((root / data["source_file"]).read_bytes()).hexdigest() == data["index_sha256"]
     assert data["captures"] and len(data["captures"]) == 4
     for capture in data["captures"]:
         for name_key, hash_key in (("screenshot", "screenshot_sha256"),
@@ -806,7 +830,7 @@ def test_provider_availability_is_readable_without_horizontal_page_scroll(browse
         table = page.locator("#get .availability")
         rows = table.locator("tbody tr")
         expected = {
-            "Public access": "no anonymous download, public release, or hosted sign-up",
+            "Public source": "no packaged desktop installers or hosted sign-up",
             "Documents": "versioned revisions and in-app previews",
             "Workflows": "auto does not create new plans",
             "AI services": "eligibility for hutch is unconfirmed",
@@ -829,7 +853,7 @@ def test_provider_availability_is_readable_without_horizontal_page_scroll(browse
         for label, width, height in (("desktop", 1440, 900), ("tablet", 900, 1024),
                                      ("phone", 390, 844), ("compact-phone", 320, 740)):
             page.set_viewport_size({"width": width, "height": height})
-            page.get_by_role("heading", name="Hutch is still a private preview.").scroll_into_view_if_needed()
+            page.get_by_role("heading", name="The source is open. Desktop apps are next.").scroll_into_view_if_needed()
             page.screenshot(path=str(out / f"availability-{label}.png"), full_page=True, animations="disabled")
             table.screenshot(path=str(out / f"availability-table-{label}.png"), animations="disabled",
                              style="body > header { display: none !important; } .skip-link { display: none !important; }")
@@ -987,7 +1011,7 @@ def test_dynamic_workflow_marketing_is_truthful_and_responsive(browser, site_url
         preview_text = preview.inner_text().lower()
         workflow_copy_words = len(preview_text.split())
         assert workflow_copy_words <= 100, "the workflow explanation should stay concise"
-        for phrase in ("private preview", "saved steps, started by you", "planned steps stay distinct from discovered instances",
+        for phrase in ("development preview", "saved steps, started by you", "planned steps stay distinct from discovered instances",
                        "answer each pending question", "pause lets active work settle before the next step is held",
                        "resume or stop from chat",
                        "completed step is not necessarily verified", "a qualified selector for the exact model profile",
@@ -1384,7 +1408,7 @@ def test_structured_data_and_discovery_metadata_match_the_page(browser, site_url
     assert title.startswith("Hutch — local-first AI assistants")
     description = page.locator("meta[name=description]").get_attribute("content") or ""
     assert "local-first" in description.lower()
-    assert "private preview" in description.lower()
+    assert "development preview" in description.lower()
     assert page.locator("meta[name=theme-color]").get_attribute("content")
     og_title = page.locator("meta[property='og:title']").get_attribute("content") or ""
     assert og_title == title
@@ -1403,7 +1427,7 @@ def test_structured_data_and_discovery_metadata_match_the_page(browser, site_url
     assert software["softwareVersion"]
     assert software["dateModified"]
     assert "local-first" in software["description"].lower()
-    assert "private preview" in software["description"].lower()
+    assert "development preview" in software["description"].lower()
     assert "cloud" not in software["description"].lower()
 
     schema_questions = {q["name"] for q in faqpage["mainEntity"]}

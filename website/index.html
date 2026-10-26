@@ -4,22 +4,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Hutch — local-first AI assistants that run on your machine</title>
-  <meta name="description" content="Hutch is a local-first, MIT-licensed platform for personal AI assistants that run on your own Linux computer. You choose the models, and assistants ask before important actions. Private preview.">
+  <meta name="description" content="Hutch is a local-first, MIT-licensed platform for personal AI assistants that run on your own Linux computer. You choose the models, and assistants ask before important actions. Development preview.">
+  <link rel="alternate" type="application/json" href="downloads.json?v=34dc6a4b" title="Hutch desktop release manifest">
   <meta name="theme-color" content="#080c12">
   <meta property="og:title" content="Hutch — local-first AI assistants that run on your machine">
-  <meta property="og:description" content="Personal AI assistants that run on your own computer, with the models you choose and approvals before important actions. Local-first, MIT-licensed, private preview.">
+  <meta property="og:description" content="Personal AI assistants that run on your own computer, with the models you choose and approvals before important actions. Local-first, MIT-licensed, development preview.">
   <meta property="og:type" content="website">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 28 9v14L16 30 4 23V9z' fill='none' stroke='%2334d399' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%2334d399'/%3E%3C/svg%3E">
   <link rel="preload" href="assets/fonts/archivo-latin-var.woff2?v=e3a28ead" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="tokens.css?v=2d78c988">
   <link rel="stylesheet" href="app.css?v=77f792b2">
-    <link rel="stylesheet" href="styles.min.css?v=8396aaee">
+    <link rel="stylesheet" href="styles.min.css?v=a51bffe3">
   <script type="application/ld+json">
 {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "Hutch",
-    "description": "Hutch is a local-first, MIT-licensed platform for personal AI assistants that run on your own Linux computer. You choose the models and connected apps; assistants ask for approval before important actions, usage limits are enforced with estimated budgets, and every run keeps a verifiable transcript stored locally. Private preview.",
+    "description": "Hutch is a local-first, MIT-licensed platform for personal AI assistants that run on your own Linux computer. You choose the models and connected apps; assistants ask for approval before important actions, usage limits are enforced with estimated budgets, and every run keeps a verifiable transcript stored locally. Development preview.",
     "applicationCategory": "ProductivityApplication",
     "operatingSystem": "Linux",
     "softwareVersion": "0.1.0",
@@ -33,7 +34,7 @@
       "Hash-verified transcripts and locally stored, versioned document files",
       "Recurring tasks with IANA-timezone schedules that catch up after sleep"
     ],
-    "dateModified": "2026-10-24"
+    "dateModified": "2026-10-26"
   }
   </script>
   <script type="application/ld+json">
@@ -46,7 +47,7 @@
         "name": "What is Hutch?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Hutch is a local-first, MIT-licensed platform for personal AI assistants (called bots in its command-line tools) that runs on your own Linux computer, not in a vendor’s cloud. You start with a conversation, turn work you repeat into a named assistant with its own model, tools, schedule and memory, and connect only the apps you choose. Assistants ask for your approval before important actions, spend limits are enforced with estimated budgets, and every run keeps a verifiable transcript on your machine. Hutch is currently a private preview: there is no public download yet, and it needs a Linux host plus a model route you configure yourself."
+          "text": "Hutch is a local-first, MIT-licensed platform for personal AI assistants (called bots in its command-line tools) that runs on your own Linux computer, not in a vendor’s cloud. You start with a conversation, turn work you repeat into a named assistant with its own model, tools, schedule and memory, and connect only the apps you choose. Assistants ask for your approval before important actions, spend limits are enforced with estimated budgets, and every run keeps a verifiable transcript on your machine. Hutch is currently a development preview with public MIT-licensed source. There are no packaged desktop installers yet; source setup needs a Linux host plus a model route you configure yourself."
         }
       },
       {
@@ -150,7 +151,7 @@
         "name": "What happens if I stop a workflow or Hutch restarts?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "A pause request does not cancel active work: the current node and owned child work settle before the next step is held. If the run is already parked, it pauses immediately. Pending questions remain answerable, and no downstream step starts until you resume it from the same chat. Stop cancels work owned by that workflow and keeps its status visible until cleanup is verified. After a restart, settled steps and completed effect receipts are reused; if an external effect is uncertain, Hutch holds retry for reconciliation. Some recovery paths remain under evaluation in this private preview."
+          "text": "A pause request does not cancel active work: the current node and owned child work settle before the next step is held. If the run is already parked, it pauses immediately. Pending questions remain answerable, and no downstream step starts until you resume it from the same chat. Stop cancels work owned by that workflow and keeps its status visible until cleanup is verified. After a restart, settled steps and completed effect receipts are reused; if an external effect is uncertain, Hutch holds retry for reconciliation. Some recovery paths remain under evaluation in this development preview."
         }
       },
       {
@@ -421,7 +422,7 @@
 
       <aside class="workflow-preview" aria-labelledby="workflow-preview-title">
         <div class="workflow-preview-copy">
-          <p class="workflow-preview-status"><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Private preview</span><span>Saved steps, started by you</span></p>
+          <p class="workflow-preview-status"><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Development preview</span><span>Saved steps, started by you</span></p>
           <h3 id="workflow-preview-title">Keep a multi-step plan and its progress in the same chat.</h3>
           <p>Review and start saved workflows in chat. Planned steps stay distinct from discovered instances; answer each pending question. Pause lets active work settle before the next step is held. Resume or stop from chat. A completed step is not necessarily verified.</p>
           <p class="workflow-preview-limit">Chat route cards and Auto require a qualified selector for the exact model profile; neither tested local profile qualified. Auto does not create new plans. An owner can link an activated workflow to a routine; enabling stays separate.</p>
@@ -767,12 +768,16 @@
   <section class="band" id="get">
     <div class="wrap">
       <div class="section-head">
-        <h2 class="section-heading">Hutch is still a private preview.</h2>
-        <p class="section-desc">The app is not open to download yet. We’re checking the core experience and connected-app setup before inviting people in.</p>
+        <h2 class="section-heading">The source is open. Desktop apps are next.</h2>
+        <p class="section-desc">Explore the MIT-licensed source and run the Linux development preview. Windows, macOS and packaged Linux desktop apps are still in progress.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="https://github.com/K-Arthur/hutch">View source on GitHub</a>
+          <a class="btn btn-outline" href="https://github.com/K-Arthur/hutch#quickstart">Linux setup</a>
+        </div>
       </div>
       <div class="preview-banner">
         <span class="preview-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4 28 26H4L16 4Z"/><path d="M16 12v6m0 4h.01"/></svg></span>
-        <div><h3>Not available to install today</h3><p>The product image above is a real local capture. It does not connect to a live hosted Hutch service, and no public sign-up or download is available.</p></div>
+        <div><h3>Desktop installers are not available yet</h3><p>The product image above is a real local capture. Hutch has no hosted sign-up. Source setup requires a Linux computer and a model route you configure.</p></div>
       </div>
       <details class="page-details availability-details">
         <summary>See supported devices, apps, and preview limits</summary>
@@ -785,10 +790,10 @@
               <tr><th scope="col">Area and availability</th><th scope="col">What this means today</th></tr>
             </thead>
             <tbody>
-              <tr><th scope="row" class="av-area"><span class="av-k">Public access</span><span class="ev"><span class="dot dot-warn" aria-hidden="true"></span>Unavailable</span></th><td class="av-v">The source is private. There is no anonymous download, public release, or hosted sign-up today.</td></tr>
+              <tr><th scope="row" class="av-area"><span class="av-k">Public source</span><span class="ev"><span class="dot dot-ok" aria-hidden="true"></span>Available</span></th><td class="av-v">MIT-licensed development source is <a href="https://github.com/K-Arthur/hutch">public on GitHub</a>. There are no packaged desktop installers or hosted sign-up today.</td></tr>
               <tr><th scope="row" class="av-area"><span class="av-k">Core app</span><span class="ev"><span class="dot dot-ok" aria-hidden="true"></span>Supported</span></th><td class="av-v">The Linux executor, local SQLite state, and lifecycle/control flows have fixture coverage. To run a task, configure a model route.</td></tr>
               <tr><th scope="row" class="av-area"><span class="av-k">Documents</span><span class="ev"><span class="dot dot-ok" aria-hidden="true"></span>Supported</span></th><td class="av-v">Local generation of PDF, DOCX, XLSX, PPTX, CSV, JSON, Markdown, YAML and ZIP bundles from reviewed content, with SHA-256-verified downloads, versioned revisions and in-app previews. PDF previews use page images; other formats use extracted structure. Office layout renders need LibreOffice on the host.</td></tr>
-              <tr><th scope="row" class="av-area"><span class="av-k">Workflows</span><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></th><td class="av-v">Owner-started saved workflows are in the private preview. An owner can link an activated saved method to an existing routine; it pins the exact revision and checked inputs, and enabling the routine stays separate. Run now starts one copy without advancing the schedule; the existing local supervisor and host must be running. Chat route cards and Auto starts of activated saved methods require selector qualification for the exact model profile; the two local profiles tested did not qualify. Auto does not create new plans, and live provider execution remains unverified.</td></tr>
+              <tr><th scope="row" class="av-area"><span class="av-k">Workflows</span><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></th><td class="av-v">Owner-started saved workflows are in the development preview. An owner can link an activated saved method to an existing routine; it pins the exact revision and checked inputs, and enabling the routine stays separate. Run now starts one copy without advancing the schedule; the existing local supervisor and host must be running. Chat route cards and Auto starts of activated saved methods require selector qualification for the exact model profile; the two local profiles tested did not qualify. Auto does not create new plans, and live provider execution remains unverified.</td></tr>
               <tr><th scope="row" class="av-area"><span class="av-k">Chat image input</span><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></th><td class="av-v">Chat accepts PNG, JPEG or WebP attachments (up to 4 images, 1.5&nbsp;MB each). Staged images stay in the conversation workspace and travel with every message until removed. Built-in runtimes need a vision-capable model route and refuse unsupported sends before a run starts; the OpenCode runtime checks the selected model’s image support and names a text-only model in its refusal. Preflight estimates remain text-only.</td></tr>
               <tr><th scope="row" class="av-area"><span class="av-k">AI services</span><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></th><td class="av-v">Configured hosted and local model routes are available in preview. OpenCode supports provider keys and supported sign-ins in a private Hutch-managed profile, plus OpenCode Go API keys. Sign in with ChatGPT is an opt-in local preview; eligibility for Hutch is unconfirmed and its Responses API does not enforce Hutch's output-token allowance.</td></tr>
               <tr><th scope="row" class="av-area"><span class="av-k">OpenCode assistant</span><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></th><td class="av-v">An owned private server runs OpenCode; supported Linux actions use Hutch tools, approvals, receipts and usage reservations. Native read-only inspection remains OpenCode-owned; native computer control and unmanaged subagents are unavailable. Visual tool artifacts stay local; their pixels are not yet forwarded to the model. The separate coding handoff remains experimental; Pi is unavailable.</td></tr>
@@ -814,7 +819,7 @@
           <div class="term-body">
             <p><b>Preview:</b> the application capture is from an empty state directory. Running work requires a configured local service or provider route.</p>
             <p><b>Linux host:</b> required for the supported executor and optional bubblewrap isolation.</p>
-            <p><b>Public installation:</b> not available while source access is private.</p>
+            <p><b>Source setup:</b> follow the <a href="https://github.com/K-Arthur/hutch#quickstart">Linux quickstart</a>. Native desktop installers remain under development.</p>
             <p><a href="#proof">View the labelled product capture</a> or <a href="#runs">read the support boundaries</a>.</p>
           </div>
         </aside>
@@ -834,7 +839,7 @@
       <div class="faq-list">
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">What is Hutch?</summary>
-          <div class="collapse-content"><p>Hutch is a local-first, MIT-licensed platform for personal AI assistants (called bots in its command-line tools) that runs on your own Linux computer, not in a vendor’s cloud. You start with a conversation, turn work you repeat into a named assistant with its own model, tools, schedule and memory, and connect only the apps you choose. Assistants ask for your approval before important actions, spend limits are enforced with estimated budgets, and every run keeps a verifiable transcript on your machine. Hutch is currently a private preview: there is no public download yet, and it needs a Linux host plus a model route you configure yourself.</p></div>
+          <div class="collapse-content"><p>Hutch is a local-first, MIT-licensed platform for personal AI assistants (called bots in its command-line tools) that runs on your own Linux computer, not in a vendor’s cloud. You start with a conversation, turn work you repeat into a named assistant with its own model, tools, schedule and memory, and connect only the apps you choose. Assistants ask for your approval before important actions, spend limits are enforced with estimated budgets, and every run keeps a verifiable transcript on your machine. Hutch is currently a development preview with public MIT-licensed source. There are no packaged desktop installers yet; source setup needs a Linux host plus a model route you configure yourself.</p></div>
         </details>
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">Is Hutch free?</summary>
@@ -886,7 +891,7 @@
         </details>
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">What happens if I stop a workflow or Hutch restarts?</summary>
-          <div class="collapse-content"><p>A pause request does not cancel active work: the current node and owned child work settle before the next step is held. If the run is already parked, it pauses immediately. Pending questions remain answerable, and no downstream step starts until you resume it from the same chat. Stop cancels work owned by that workflow and keeps its status visible until cleanup is verified. After a restart, settled steps and completed effect receipts are reused; if an external effect is uncertain, Hutch holds retry for reconciliation. Some recovery paths remain under evaluation in this private preview.</p></div>
+          <div class="collapse-content"><p>A pause request does not cancel active work: the current node and owned child work settle before the next step is held. If the run is already parked, it pauses immediately. Pending questions remain answerable, and no downstream step starts until you resume it from the same chat. Stop cancels work owned by that workflow and keeps its status visible until cleanup is verified. After a restart, settled steps and completed effect receipts are reused; if an external effect is uncertain, Hutch holds retry for reconciliation. Some recovery paths remain under evaluation in this development preview.</p></div>
         </details>
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">What is the difference between a workflow and a routine?</summary>
@@ -924,9 +929,9 @@
       </div>
       <div class="cta-copy">
         <h2 class="section-heading">A calmer way to keep work moving.</h2>
-        <p class="section-desc">Hutch is a private preview today. See what it can do, learn what works now, and check back when access opens.</p>
+        <p class="section-desc">Explore the source, try the Linux development preview, and follow progress toward native desktop apps.</p>
         <div class="hero-actions">
-          <a class="btn btn-primary" href="#get">Check preview status</a>
+          <a class="btn btn-primary" href="https://github.com/K-Arthur/hutch">Explore the source</a>
           <a class="btn btn-outline" href="#proof">See the app</a>
         </div>
       </div>
@@ -944,7 +949,7 @@
           </span>
           <p class="max-w-[36ch] text-sm leading-relaxed text-ink-3">Local-first AI assistants that run on your own computer. Start in chat, choose the models and apps you use, and approve important actions.</p>
           <p class="flex flex-wrap gap-2">
-            <span class="badge badge-outline gap-2"><span class="dot dot-warn" aria-hidden="true"></span>Private preview</span>
+            <span class="badge badge-outline gap-2"><span class="dot dot-warn" aria-hidden="true"></span>Development preview</span>
             <span class="badge badge-outline">v0.1.0</span>
           </p>
         </aside>
@@ -966,14 +971,14 @@
         </nav>
         <nav aria-labelledby="f-project">
           <h2 class="footer-title" id="f-project">Project</h2>
-          <span class="text-ink-3">Private preview</span>
+          <a class="link link-hover" href="https://github.com/K-Arthur/hutch">Source on GitHub</a>
           <span class="text-ink-3">Linux computer required today</span>
-          <span class="text-ink-3">No public download yet</span>
+          <span class="text-ink-3">No desktop installer yet</span>
           <a class="link link-hover" href="THIRD_PARTY_NOTICES.txt?v=3ea9d84b">Third-party licenses</a>
         </nav>
       </div>
       <div class="footer-base">
-        <p>&copy; 2026 hutch &middot; MIT-licensed source &middot; private preview</p>
+        <p>&copy; 2026 hutch &middot; MIT-licensed source &middot; development preview</p>
         <p><a href="#top">Back to top</a></p>
       </div>
     </div>

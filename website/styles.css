@@ -72,6 +72,7 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
   text-wrap: balance;
 }
 .section-desc { color: var(--color-semantic-text-2); max-width: var(--size-measure); font-size: var(--text-size-base); margin-top: var(--space-4); }
+.section-head > .hero-actions { margin-top: var(--space-5); }
 
 /* Plain-language sections still show real product personality through icons
    and small scenes; the long-form support notes remain available on demand. */

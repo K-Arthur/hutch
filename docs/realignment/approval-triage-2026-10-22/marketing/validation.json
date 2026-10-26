@@ -73,5 +73,7 @@
     "screenshot_sha256": "6b214edf1afc078d0f3cadf449d710c6b6f86d8d377957a0d4b5f6357fb2ce6a"
   },
   "anonymous": true,
-  "page_errors": []
+  "page_errors": [],
+  "source_file": "source-index.html",
+  "source_git_blob": "2e4fcc4f343767b70b4f6ba05d483ac2153cc0fd"
 }

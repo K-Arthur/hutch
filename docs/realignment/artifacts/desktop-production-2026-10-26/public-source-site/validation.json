@@ -1,0 +1,24 @@
+{
+  "captures": [
+    {
+      "width": 1440,
+      "browser": "153.0.8010.12",
+      "overflow": 0,
+      "description_to_actions_gap": 20,
+      "capture": "public-source-1440.png"
+    },
+    {
+      "width": 320,
+      "browser": "153.0.8010.12",
+      "overflow": 0,
+      "description_to_actions_gap": 20,
+      "capture": "public-source-320.png"
+    }
+  ],
+  "text_spacing_320": "passed",
+  "anonymous_source_readback": "HTTP 200, exact README bytes at published source commit 6116d2d6",
+  "website_index_sha256": "796040e286277f242b8bb3dc2a88f291057cfb4f5d19a96feb48918cbe88986f",
+  "downloads_sha256": "34dc6a4bd3ff19fc2a6e3fa9f4a8517cf071ef1d420c34f7dc49c31f3a54bb9b",
+  "styles_sha256": "b0a4b3411b996bbe350c3e999cfd3b54d6fdfaf3dbaa856c7a42032caf45860f",
+  "capture_scope": "Availability-section crops; fixed global header hidden only during element screenshots. Existing browser journeys retain the header."
+}

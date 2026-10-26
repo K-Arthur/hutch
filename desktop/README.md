@@ -138,3 +138,12 @@ prevent the backend, locks, credential store or other document formats from star
 a PDF request fails explicitly without changing format or promoting an artifact. This is
 not a replacement for bundling and testing Pango/GLib and fonts on each target OS. The
 current preview remains gated on complete native dependency packaging and installed tests.
+
+### Public download manifest
+
+`website/downloads.json` is contract v1 for the preview channel. Its four platform
+entries are release targets; all artifact lists are empty because no installers have
+been published. The marketing page links to the public source and Linux source setup,
+not fabricated installer URLs. Only add an actual release artifact after its native
+installed checks, checksum and dependency/license inventory are available; production
+promotion also needs signing/notarization, safe update recovery and live acceptance.

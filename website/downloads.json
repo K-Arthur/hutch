@@ -1,0 +1,39 @@
+{
+  "contract_version": 1,
+  "channel": "preview",
+  "source": {
+    "repository": "https://github.com/K-Arthur/hutch",
+    "setup": "https://github.com/K-Arthur/hutch#quickstart",
+    "license": "MIT"
+  },
+  "platforms": [
+    {
+      "id": "windows-x64",
+      "os": "Windows",
+      "minimum_version": "11",
+      "architecture": "x86_64",
+      "artifacts": []
+    },
+    {
+      "id": "macos-arm64",
+      "os": "macOS",
+      "minimum_version": "14",
+      "architecture": "aarch64",
+      "artifacts": []
+    },
+    {
+      "id": "macos-x64",
+      "os": "macOS",
+      "minimum_version": "14",
+      "architecture": "x86_64",
+      "artifacts": []
+    },
+    {
+      "id": "ubuntu-x64",
+      "os": "Ubuntu",
+      "minimum_version": "24.04",
+      "architecture": "x86_64",
+      "artifacts": []
+    }
+  ]
+}
