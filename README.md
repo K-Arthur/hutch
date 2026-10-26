@@ -7,16 +7,18 @@ your own machine, each with its own model, tools, schedule, memory and workspace
 step/time/token caps and run transcripts. For eligible failed or stopped built-in specialist tasks, an owner can review a safe
 checkpoint and request a fresh run; Hutch does not resume an old worker or replay actions.
 
-Hosted agent products (OpenAI dots, Grok Bot) give each agent a computer in the vendor's cloud. hutch runs on your
-machine instead: the orchestrator, memory, logs and bots live in one directory on your disk, with models you choose, local
-(Ollama, llama.cpp, LM Studio) or hosted (OpenCode, Anthropic, OpenAI, OpenRouter, any OpenAI-compatible API). OpenCode is
-the full assistant runtime: connect its provider by API key or supported sign-in, pick an `opencode/provider/model`, and
-keep Hutch's approval and usage controls around it. The trade-off is that nothing runs while the machine is asleep.
+Hutch keeps the orchestrator, memory, logs and Bots on your machine. Models can run locally
+(Ollama, llama.cpp, LM Studio) or use Anthropic, OpenAI, OpenRouter or another configured
+OpenAI-compatible endpoint. OpenCode is an optional assistant runtime: connect its provider,
+pick an `opencode/provider/model` route, and use Hutch's approval and usage controls.
+Scheduled work runs while the Hutch host is awake and its background process is running.
 
 **Status.** What works and what does not is tracked in [docs/realignment/ledger.md](docs/realignment/ledger.md) (the continuously
 updated evidence log) and [docs/realignment/baseline.md](docs/realignment/baseline.md) (the original measured snapshot from
-2026-10-07, kept as a dated record). Not published: the repository is private
-and there is no PyPI release, so install from a source checkout.
+2026-10-07, kept as a dated record). A public repository and desktop previews are being prepared.
+The repository is currently private and there is no PyPI release or public desktop download;
+the supported installation path remains a Linux source checkout. See the
+[current production checkpoint](docs/realignment/desktop-production-2026-10-26.md) for release gates.
 
 ```
 $ uv run hutch run tidy-downloads "sort this week's downloads"
@@ -140,7 +142,7 @@ Review the retained branch manually. Hutch does not apply or publish it; see [op
   the owned Chromium context sends HTTP(S) and WebSocket traffic through a local DNS-pinning proxy with implicit local bypass disabled.
   Local fixtures exercise the proxy; live public destinations and non-HTTP browser traffic are not verified. Physical-phone and live-network input remain unverified.
 - **Computer use (experimental)** — beyond the browser, a Bot may operate a native desktop application in a disposable, isolated KWin Wayland session Hutch starts for the run (separate display/input; apps have workspace-only user files, no network and bounded resources). Browser and desktop observations are bounded frames with honest freshness, sent only to routes that accept images (hosted routes need an explicit Bot setting); control ownership is generation-fenced; stop works while a call is hung. Verified on KDE Plasma Wayland with KWrite and real Chromium; the existing personal desktop, portal consent flow, GNOME and macOS/Windows are not implemented. Bounded authenticated human step control works in local HTTP/viewport and native-input tests; physical phones and live remote networks remain unverified. Run `hutch computer doctor`. See [docs/computer-use.md](docs/computer-use.md).
-- **OpenCode assistant** — a full OpenCode **V2** runtime is available through a Hutch-owned private profile. Install the OpenCode CLI first; Hutch does not import your existing local login. Connect a provider by API key or the provider's supported sign-in, choose an `opencode/provider/model` route, and chat with Hutch-brokered approvals and usage reservations. OpenCode's own tools run with the user's OS authority after approval; they are not inside the built-in shell's bubblewrap sandbox. Pi remains disabled. The separate OpenCode coding handoff still launches the interactive CLI for a reviewed coding task. See [runtime prerequisites](docs/runtime-setup.md).
+- **OpenCode assistant** — a full OpenCode **V2** runtime is available through a Hutch-owned private profile. Install the OpenCode CLI first. In Apps & AI, **Use an existing OpenCode login** can transfer one explicitly selected API-key credential into Hutch’s isolated profile. OAuth accounts use their supported sign-in flow. Connect a provider this way or by a new API key/sign-in, choose an `opencode/provider/model` route, and chat with Hutch-brokered approvals and usage reservations. OpenCode's own tools run with the user's OS authority after approval; they are not inside the built-in shell's bubblewrap sandbox. Pi remains disabled. The separate OpenCode coding handoff still launches the interactive CLI for a reviewed coding task. See [runtime prerequisites](docs/runtime-setup.md).
 
 To opt a local Linux bot into the bounded child-task tool, use a supported numeric-loopback model route and verified Strict Offline
 host support, then run `hutch bot update <name> --inference-mode offline --sandbox strict --tools files,delegate_task`. Review the
@@ -208,3 +210,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, tests, and documentation conve
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+Third-party notices for bundled frontend assets are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Native dependency inventories remain a release gate.

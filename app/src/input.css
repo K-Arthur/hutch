@@ -7,11 +7,12 @@
  * and maps them into daisyUI's component roles. This keeps Studio, server pages,
  * and marketing colors, focus, and geometry on one checked source.
  */
-@import "tailwindcss";
+@import "tailwindcss" source(none);
 @import "open-props/style";
 @import "../../src/hutch/server/static/brand-tokens.css";
-@source "../src/hutch/server/static";
-@source "../src/hutch/server/templates";
+@source "../../src/hutch/server/static/*.html";
+@source "../../src/hutch/server/static/*.js";
+@source "../../src/hutch/server/templates";
 
 @plugin "daisyui" {
   themes: false;
@@ -89,7 +90,8 @@
 .connection-steps { display: flex; flex-wrap: wrap; gap: 12px 28px; margin-top: 24px; padding: 16px 0; border-block: 1px solid var(--line); list-style: none; counter-reset: setup; color: var(--text-2); font-size: var(--fs-sm); }
 .connection-steps li { display: flex; align-items: center; gap: 8px; counter-increment: setup; }
 .connection-steps li::before { content: counter(setup); display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid var(--line-strong); border-radius: 50%; font-size: var(--fs-xs); color: var(--text); }
-.connection-steps li.is-complete::before { content: "✓"; color: var(--brand-hi); border-color: var(--brand-line); }
+.connection-steps li.is-complete::before { content: none; }
+.connection-step-check { display: grid; place-items: center; width: 24px; height: 24px; flex: none; color: var(--brand-hi); border: 1px solid var(--brand-line); border-radius: 50%; }
 .connection-reference { color: var(--text-2); font-size: var(--fs-xs); }
 .connection-reference summary { min-height: 32px; padding-block: 6px; cursor: pointer; }
 .connection-reference code { display: block; max-width: 100%; overflow-wrap: anywhere; padding-bottom: 8px; }

@@ -54,6 +54,11 @@
       } else if (entry.dataset.connectionState === "connected") {
         steps.children[0].textContent = "Account connected";
         steps.children[0].classList.add("is-complete");
+        const check = document.createElement("span");
+        check.className = "connection-step-check";
+        check.setAttribute("aria-hidden", "true");
+        check.innerHTML = window.icon("check");
+        steps.children[0].prepend(check);
         steps.children[1].textContent = "Manage assistant access";
       }
       if (["google-drive", "google-docs", "google-sheets"].includes(selected)) {

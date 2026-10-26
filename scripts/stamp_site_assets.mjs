@@ -18,6 +18,11 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const htmlPath = join(root, "website", "index.html");
 const siteRoot = join(root, "website");
 
+// Keep the complete bundled CSS notices with both distributed frontends.
+const notices = readFileSync(join(root, "THIRD_PARTY_NOTICES.md"), "utf8");
+writeFileSync(join(siteRoot, "THIRD_PARTY_NOTICES.txt"), notices);
+writeFileSync(join(root, "src/hutch/server/static/THIRD_PARTY_NOTICES.txt"), notices);
+
 const hash = (file) =>
   createHash("sha256").update(readFileSync(file)).digest("hex").slice(0, 8);
 

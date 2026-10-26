@@ -8,9 +8,10 @@
  * 8px controls / 12px panels / 100px chips, one dark theme, amber = status only.
  */
 
-@import "tailwindcss";
+@import "tailwindcss" source(none);
 @source "../index.html";
 @source "../styles.css";
+@source "../site.js";
 
 @plugin "daisyui" {
   themes: false;
