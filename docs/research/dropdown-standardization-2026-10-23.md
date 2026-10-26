@@ -84,6 +84,11 @@ or post-change visual passes are claimed by this initial record.
 - Native select remains authoritative; `appearance: base-select` customizes the
   browser picker where supported rather than hiding/reimplementing form controls.
   Other engines retain a usable native fallback. No new dependency was installed.
+  Keyboard consequence (found when a routine-editor e2e failure triaged on
+  2026-10-25): under `base-select` a closed select's first ArrowDown opens the
+  picker instead of cycling the value, so keyboard selection flows are
+  Down → Down → Enter (see
+  `tests/e2e/test_browser.py::test_routine_editor_links_an_activated_workflow_accessibly_across_viewports`).
 - Explicit QA executable: cached Chromium **156.0.8078.4**, configured through
   `HUTCH_TEST_CHROMIUM_EXECUTABLE`; default Playwright expects a missing build.
 - `tests/e2e/test_dropdown_controls.py`: **6 passed**; genuine settings save/reload

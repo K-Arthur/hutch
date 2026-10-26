@@ -7,7 +7,7 @@ Hutch is a Python package under `src/hutch/`, organized around the CLI, server, 
 ## Build, Test, and Development
 
 - `uv sync --extra dev` creates or updates `.venv` and installs the package with test dependencies; it safely reuses an existing environment.
-- `uv run pytest --ignore=tests/e2e` runs the fast local suite without requiring browser binaries. Run `uv run pytest -q` for the full suite used in CI; browser tests may require Playwright browsers.
+- `uv run pytest --ignore=tests/e2e` runs the fast local suite without requiring browser binaries. Run `uv run pytest -q` for the full suite used in CI; browser tests require the Chromium revision the locked Playwright expects — install it with `uv run python -m playwright install chromium`. A shared `~/.cache/ms-playwright` holding only other revisions makes the product's own browser tool fail with `BrowserUnavailable` / missing-executable errors before most browser tests start (triaged 2026-10-25).
 - `uv run hutch init && uv run hutch serve` initializes local state and starts the dashboard at `http://127.0.0.1:8787`. Prefix project commands with `uv run` unless `.venv/bin` is on `PATH`.
 - `npm install && npm run build:css` builds both the marketing-site and dashboard CSS. Use `npm run watch:css` or `npm run watch:css:app` while editing the corresponding styles.
 
