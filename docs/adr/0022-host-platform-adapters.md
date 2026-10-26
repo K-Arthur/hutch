@@ -107,3 +107,13 @@ idempotent disconnect; it must run on each OS. OS vault quotas, locked/cancelled
 prompts, packaged-app access identity and restart behavior remain native validation
 requirements. This adapter does not port POSIX private-file operations or enable
 the unsupported Windows/macOS worker engine.
+
+### Wake acceleration on unsupported transports
+
+Windows exposes `AF_UNIX` but does not provide the Unix datagram transport used by
+WakeHub. An unavailable accelerator must not attempt POSIX directory descriptors or
+relax their security checks. It now creates no socket/directory, returns unavailable
+from listen, and preserves the existing in-process notifications and waiter safety
+timeouts. `/api/v1/capabilities` discloses this gap. This is startup isolation, not a
+Windows native IPC implementation; native cross-process acceleration remains a release
+porting requirement. Unix ownership, symlink refusal and mode checks stay unchanged.

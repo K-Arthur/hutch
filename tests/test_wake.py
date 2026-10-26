@@ -6,6 +6,25 @@ import pytest
 from hutch.wake import _sock_dir
 
 
+def test_unavailable_datagrams_keep_local_wakeups_without_creating_a_posix_directory(tmp_path, monkeypatch):
+    from hutch.wake import Bus, WakeHub
+    monkeypatch.setattr('hutch.wake.datagram_transport_available', lambda: False)
+    def unexpected_directory(_):
+        raise AssertionError('unavailable transport must not create or weaken a filesystem boundary')
+    monkeypatch.setattr('hutch.wake._sock_dir', unexpected_directory)
+    bus = Bus()
+    hub = WakeHub(tmp_path, bus)
+    bus.attach_hub(hub)
+    assert hub.listen() is False
+    assert hub.dir is None and hub.path is None
+    seen = bus.version('approval:test')
+    bus.notify('approval:test')
+    assert bus.wait('approval:test', seen, 0) == seen + 1
+    hub.close()
+    hub.close()
+    assert not list(tmp_path.iterdir())
+
+
 def _configure_fallback(monkeypatch, base, state_dir):
     monkeypatch.delenv("HUTCH_WAKE_DIR", raising=False)
     monkeypatch.delenv("XDG_RUNTIME_DIR", raising=False)

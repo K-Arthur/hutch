@@ -3058,6 +3058,7 @@ def create_app() -> FastAPI:
                                     bool(allowed_hosts_from_env()))
         from ..sandbox import offline_egress_status
         from ..tools.browser import local_handoff_status
+        from ..wake import datagram_transport_available
         offline = offline_egress_status()
         handoff_ok, handoff_reason = local_handoff_status()
         offline_reason = ("Hutch's isolated worker blocked TCP to tested IPv4/IPv6 loopback and host-interface listeners, "
@@ -3066,6 +3067,10 @@ def create_app() -> FastAPI:
                           "inference service may still have its own network access." if offline.ok else
                           offline.reason)
         return [
+            {"id": "cross_process_wake", "status": "experimental" if datagram_transport_available() else "unavailable",
+             "reason": ("Private Unix datagrams accelerate state notifications; waiters retain safety timeouts" if datagram_transport_available() else
+                        "Native cross-process wake IPC is not implemented on this host; in-process notifications and existing safety timeouts remain"),
+             "verification": "wake_transport_boundary_tests"},
             {"id": "process_executor", "status": "supported" if linux else "unavailable",
              "reason": "Linux process groups and boot/start identity are supported" if linux else
                        "Only Linux is supported for process execution", "verification": "offline_process_tests"},

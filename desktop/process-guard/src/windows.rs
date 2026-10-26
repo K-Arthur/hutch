@@ -65,7 +65,8 @@ mod tests {
         time::Duration,
     };
     use windows_sys::Win32::{
-        Foundation::WAIT_OBJECT_0,
+        Foundation::{WAIT_OBJECT_0, WAIT_TIMEOUT},
+        System::JobObjects::IsProcessInJob,
         System::Threading::{
             OpenProcess, WaitForSingleObject, PROCESS_QUERY_LIMITED_INFORMATION,
             PROCESS_SYNCHRONIZE,
@@ -74,6 +75,15 @@ mod tests {
 
     #[test]
     fn dropping_the_job_ends_root_and_later_descendants() {
+        exercise_tree_termination(false);
+    }
+
+    #[test]
+    fn explicit_termination_ends_root_and_later_descendants() {
+        exercise_tree_termination(true);
+    }
+
+    fn exercise_tree_termination(explicit: bool) {
         // Python is a developer/test prerequisite, not an end-user dependency.
         // The fixture waits before it can spawn a descendant, exactly like the
         // trusted desktop backend's pre-bootstrap stdin boundary.
@@ -118,11 +128,33 @@ mod tests {
         // SAFETY: OpenProcess returned a new handle; hold it across death so a
         // reused numeric PID cannot make the assertion pass for another process.
         let descendant = unsafe { OwnedHandle::from_raw_handle(raw) };
-        drop(job);
-        assert_eq!(
-            unsafe { WaitForSingleObject(descendant.as_raw_handle(), 5000) },
-            WAIT_OBJECT_0
-        );
-        assert!(!root.wait().unwrap().success());
+        for handle in [root.as_raw_handle(), descendant.as_raw_handle()] {
+            let mut belongs = 0;
+            assert_ne!(
+                unsafe { IsProcessInJob(handle, job.handle.as_raw_handle(), &mut belongs) },
+                0
+            );
+            assert_ne!(
+                belongs, 0,
+                "both live processes must belong to this exact job"
+            );
+            assert_eq!(unsafe { WaitForSingleObject(handle, 0) }, WAIT_TIMEOUT);
+        }
+        if explicit {
+            job.terminate()
+                .expect("explicit job termination must succeed");
+        } else {
+            drop(job);
+        }
+        for handle in [root.as_raw_handle(), descendant.as_raw_handle()] {
+            assert_eq!(unsafe { WaitForSingleObject(handle, 5000) }, WAIT_OBJECT_0);
+        }
+        // A signaled process handle proves termination. Kill-on-close is not
+        // specified to produce a failing Rust ExitStatus; the native run returned
+        // status zero. Explicit TerminateJobObject uses our requested code instead.
+        let status = root.wait().unwrap();
+        if explicit {
+            assert_eq!(status.code(), Some(1));
+        }
     }
 }

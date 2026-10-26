@@ -28,6 +28,12 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 
+def datagram_transport_available() -> bool:
+    # Windows exposes AF_UNIX but not Unix datagram sockets. Existing waiters
+    # retain their safety timeout when this best-effort accelerator is absent.
+    return os.name != "nt" and hasattr(socket, "AF_UNIX")
+
+
 class Bus:
     """Versioned in-process topics. Cheap enough to notify on every state change."""
 
@@ -169,8 +175,8 @@ class WakeHub:
 
     def __init__(self, state_dir: Path, bus: Bus) -> None:
         self.bus = bus
-        self.dir = _sock_dir(state_dir)
-        self.path = self.dir / f"{os.getpid()}-{id(self) & 0xffff:x}.sock"
+        self.dir = _sock_dir(state_dir) if datagram_transport_available() else None
+        self.path = self.dir / f"{os.getpid()}-{id(self) & 0xffff:x}.sock" if self.dir else None
         self._sock: Optional[socket.socket] = None
         self._thread: Optional[threading.Thread] = None
         self._stop = threading.Event()
@@ -180,7 +186,7 @@ class WakeHub:
     # ------------------------------------------------------------ listening
 
     def listen(self) -> bool:
-        if not hasattr(socket, "AF_UNIX"):
+        if self.path is None:
             return False
         try:
             self.path.unlink(missing_ok=True)
@@ -214,14 +220,17 @@ class WakeHub:
                 self._sock.close()
             except OSError:
                 pass
-        try:
-            self.path.unlink(missing_ok=True)
-        except OSError:
-            pass
+        if self.path is not None:
+            try:
+                self.path.unlink(missing_ok=True)
+            except OSError:
+                pass
 
     # -------------------------------------------------------------- pinging
 
     def _peers(self) -> list[Path]:
+        if self.dir is None:
+            return []
         try:
             return [p for p in self.dir.glob("*.sock") if p != self.path]
         except OSError:
@@ -235,6 +244,8 @@ class WakeHub:
         review topics always refresh that discovery instead of waiting for the
         waiter's safety poll.
         """
+        if self.dir is None:
+            return
         topics = tuple(topics)
         now = time.monotonic()
         urgent = any(topic.startswith(("approval:", "human:")) for topic in topics)

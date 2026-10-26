@@ -58,7 +58,8 @@ jobs:
           uv run --frozen --no-sync pytest -q
           tests/test_platform_locking.py tests/test_skills.py tests/test_native_credentials.py tests/test_native_host_record.py
           tests/test_document_renderer_loading.py
-          -k 'platform_locking or concurrent_registry_mutations_serialize or native_credentials or native_host_record or missing_pdf_native_libraries'
+          tests/test_wake.py
+          -k 'platform_locking or concurrent_registry_mutations_serialize or native_credentials or native_host_record or missing_pdf_native_libraries or unavailable_datagrams'
           --junitxml=.validation/native-platform/python.xml
       - name: Install pinned Rust toolchain
         if: ${{ always() && !cancelled() && steps.python.outcome == 'success' }}
