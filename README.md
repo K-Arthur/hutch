@@ -2,7 +2,7 @@
 
 > Your bots. Your machine. Your rules.
 
-hutch is a **local-first, MIT-licensed multi-bot platform in private preview** (early software, Linux first). Run named AI bots on
+hutch is a **local-first, MIT-licensed multi-bot platform in development preview** (early software, Linux first). Run named AI bots on
 your own machine, each with its own model, tools, schedule, memory and workspace, with human approval gates,
 step/time/token caps and run transcripts. For eligible failed or stopped built-in specialist tasks, an owner can review a safe
 checkpoint and request a fresh run; Hutch does not resume an old worker or replay actions.
@@ -15,9 +15,10 @@ Scheduled work runs while the Hutch host is awake and its background process is 
 
 **Status.** What works and what does not is tracked in [docs/realignment/ledger.md](docs/realignment/ledger.md) (the continuously
 updated evidence log) and [docs/realignment/baseline.md](docs/realignment/baseline.md) (the original measured snapshot from
-2026-10-07, kept as a dated record). A public repository and desktop previews are being prepared.
-The repository is currently private and there is no PyPI release or public desktop download;
-the supported installation path remains a Linux source checkout. See the
+2026-10-07, kept as a dated record). Desktop previews are being prepared.
+There is no PyPI release or public desktop download; the supported installation path remains a Linux source checkout.
+Windows/macOS worker execution and installed-package acceptance are incomplete. Source availability does not imply
+a production-ready desktop release. See the
 [current production checkpoint](docs/realignment/desktop-production-2026-10-26.md) for release gates.
 
 ```
@@ -40,7 +41,7 @@ answers, and their limits, are in [docs/safety.md](docs/safety.md).
 ## Quickstart
 
 ```bash
-cd hutch                       # your source checkout (the repository is private)
+cd hutch                       # your source checkout
 uv sync --extra dev            # creates or updates .venv and installs Hutch with dev dependencies
 uv run hutch init              # create local state; no bots or runs are fabricated
 uv run hutch serve             # dashboard → http://127.0.0.1:8787

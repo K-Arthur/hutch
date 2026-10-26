@@ -1,0 +1,48 @@
+{
+  "source_candidate": "5069178b",
+  "reviewed_on": "2026-10-26",
+  "scope": "Local source-publication preparation; no visibility change or remote CI yet",
+  "history_scan": {
+    "candidate": "1899bfc1",
+    "commits": 1090,
+    "bytes": 29208332,
+    "remaining_findings": 0,
+    "tool": "gitleaks 8.30.1",
+    "exceptions": "Exact historical fingerprints in .gitleaksignore; new-commit synthetic credential probe still detected"
+  },
+  "archive_scan": {
+    "archives": 571,
+    "entries": 64655,
+    "text_entries": 17036,
+    "unique_texts": 8622,
+    "text_bytes": 446919440,
+    "nontext_entries": 47619,
+    "raw_findings": 84,
+    "reviewed_classifications": {
+      "effect_identity_sha256": 76,
+      "embedded_synthetic_fixture_boundary_prose": 7,
+      "tokenizer_profile_sha256": 1
+    },
+    "unreviewed_findings": 0,
+    "redacted_report_sha256": "3d6d04ebe5a09a275976539cb856693cab598f6107f787145388b7e40a8784a4",
+    "ignores_added": false
+  },
+  "archive_network_review": {
+    "records": 38999,
+    "local_or_synthetic_hosts": 38999,
+    "other_hosts": 0,
+    "authorization_headers": 0
+  },
+  "account_address_review": {
+    "current_tracked_text_occurrences": 0,
+    "archive_text_occurrences": 0,
+    "address_omitted": true
+  },
+  "licenses": "THIRD_PARTY_NOTICES.md and linked bundled license files; full native bundle inventories remain a release gate",
+  "limits": [
+    "Secret scanning does not certify all private data absent.",
+    "Binary screenshots were not exhaustively OCR audited; trace network payloads came only from local/synthetic hosts.",
+    "No functional Windows/macOS installed preview, signing, safe updates or live-service workflow acceptance.",
+    "No desktop release or comparative quality claim."
+  ]
+}
