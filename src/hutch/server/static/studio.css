@@ -1039,3 +1039,10 @@ dialog.palette::backdrop { background: rgb(0 0 0 / 0.55); }
 
 /* A stack that already has a row gap must not also give each child a bottom margin (that doubled the space). */
 .connection-management-content > :is(.panel, .device-manager) { margin-block: 0; }
+
+/* A title-only header row keeps its text on the menu button's centre line on phones. */
+@media (max-width: 640px) { .app-top-context { min-height: 40px; } }
+
+/* The rail sticks to the top of the scroller on narrow panes; keep focused and scrolled-to fields clear of it
+   (WCAG 2.2 Focus Not Obscured). */
+.page-scroll:has(.settings-shell) { scroll-padding-top: calc(var(--s-8) + var(--s-3)); }
