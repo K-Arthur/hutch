@@ -118,3 +118,16 @@ def test_home_migration_preserves_existing_chat_without_automatic_binding(config
         assert config.db_path.with_suffix(".db.bak-v76").is_file()
     finally:
         upgraded.close()
+
+
+def test_replaying_home_migration_keeps_existing_home_and_scope_guards(store):
+    from hutch.store import _migrate_77
+    bot = store.create_bot(Bot(name="replayed-home", tools=[]))
+    other = store.create_bot(Bot(name="other-home", tools=[]))
+    home, _ = store.ensure_assistant_home_conversation(bot.id)
+    _migrate_77(store._db)
+    store._db.commit()
+    assert store.assistant_home_conversation_id(bot.id) == home
+    with pytest.raises(sqlite3.IntegrityError, match="ownership cannot change"):
+        store._db.execute("UPDATE conversations SET bot_id=? WHERE id=?", (other.id, home))
+    store._db.rollback()
