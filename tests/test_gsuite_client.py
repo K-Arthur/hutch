@@ -60,7 +60,15 @@ class _Handler(BaseHTTPRequestHandler):
         return self.rfile.read(length) if length else b""
 
     def _send(self, status: int, payload: dict | None):
+        key = f"{self.command} {urlsplit(self.path).path}"
+        if key in getattr(self.server, "drops_after_commit", set()):
+            self.server.drops_after_commit.remove(key)
+            self.close_connection = True
+            return
         body = json.dumps(payload or {}).encode()
+        if key in getattr(self.server, "invalid_after_commit", set()):
+            self.server.invalid_after_commit.remove(key)
+            body = b"["
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
@@ -370,6 +378,103 @@ def test_create_document_writes_with_tab_and_reads_back(google):
     assert stored["parents"] == ["folder-1"]
     assert stored["mimeType"] == "application/vnd.google-apps.document"
     assert "Agenda:" in server.docs[result["document_id"]]
+
+
+@pytest.mark.parametrize("kind", ["docs", "sheets"])
+@pytest.mark.parametrize("fault", ["initial-read", "write-rejected", "write-not-landed", "final-read", "incomplete-content"])
+def test_partial_workspace_creation_preserves_identity_and_cannot_recreate_on_retry(google, store, monkeypatch, kind, fault):
+    server, client, secrets = google
+    account = _connect(server, client, secrets)
+    path = "/v1/documents/file_0001" if kind == "docs" else "/v4/spreadsheets/file_0001"
+    if fault == "initial-read":
+        server.overrides[f"GET {path}"] = (503, {})
+    elif fault == "write-rejected":
+        server.overrides[f"POST {path}:batchUpdate"] = (400, {})
+    elif fault == "write-not-landed":
+        server.drops.add(f"POST {path}:batchUpdate")
+    else:
+        original = client._json
+        reads = 0
+        def readback(method, url, *args, **kwargs):
+            nonlocal reads
+            result = original(method, url, *args, **kwargs)
+            if method == "GET" and url.endswith(path):
+                reads += 1
+                if reads == 2:
+                    if fault == "final-read":
+                        raise GoogleWorkspaceError("readback unavailable")
+                    if kind == "docs":
+                        result["tabs"][0]["documentTab"]["body"]["content"][0]["paragraph"]["elements"][0]["textRun"]["content"] = "Approved headline\n"
+                    else:
+                        result["sheets"] = result["sheets"][:1]
+            return result
+        monkeypatch.setattr(client, "_json", readback)
+    plan = build_plan("Create reviewed artifact", [{
+        "kind": "cloud_create", "id": "create", "title": "Reviewed artifact",
+        "target": {"service": kind, "account": account.account_id, "parent_id": "folder-1"},
+        "inputs": {"title": "Reviewed artifact", "body_text": "Approved headline\nEssential final detail", "sheet_titles": ["Deals", "Summary"]},
+    }])
+    executors = workspace_executors(client)
+    execute_plan(plan, store=store, executors=executors, approved_hash=plan.approval_scope_hash)
+    step = plan.steps[0]
+    assert step.status == "uncertain"
+    assert step.remote_id == "file_0001"
+    effect = store.find_synthesis_effect(step.idempotency_key)
+    assert effect["status"] == "uncertain" and effect["remote_id"] == "file_0001"
+    before = list(server.calls)
+    execute_plan(plan, store=store, executors=executors, approved_hash=plan.approval_scope_hash, retry_failed=True)
+    assert server.calls == before
+    assert len(server.files) == 1
+
+
+@pytest.mark.parametrize("kind", ["docs", "sheets"])
+@pytest.mark.parametrize("fault", ["lost", "unreadable"])
+def test_committed_body_write_with_lost_response_reconciles_without_replay(google, kind, fault):
+    server, client, secrets = google
+    account = _connect(server, client, secrets)
+    path = "/v1/documents/file_0001" if kind == "docs" else "/v4/spreadsheets/file_0001"
+    setattr(server, "drops_after_commit" if fault == "lost" else "invalid_after_commit", {f"POST {path}:batchUpdate"})
+    if kind == "docs":
+        result = client.create_document(account.account_id, title="Brief", body_text="All lines\nIncluding this last one")
+        assert server.docs[result["document_id"]] == "All lines\nIncluding this last one"
+    else:
+        result = client.create_spreadsheet(account.account_id, title="Tracker", sheet_titles=["Deals", "Summary"])
+        assert set(result["sheets"]) == {"Deals", "Summary"}
+    assert result["verification"] == [] and result["reconciled"] is True
+    assert sum(c["method"] == "POST" and c["path"].startswith(path + ":batchUpdate") for c in server.calls) == 1
+
+
+@pytest.mark.parametrize("field,value", [("parents", ["wrong-folder"]), ("name", "Changed"), ("mimeType", "text/plain"), ("appProperties", {})])
+def test_successful_create_response_must_match_review_before_body_write(google, monkeypatch, field, value):
+    server, client, secrets = google
+    account = _connect(server, client, secrets)
+    original = client._json
+    def altered(method, url, *args, **kwargs):
+        result = original(method, url, *args, **kwargs)
+        if method == "POST" and url == client.drive_base + "/files":
+            result[field] = value
+        return result
+    monkeypatch.setattr(client, "_json", altered)
+    with pytest.raises(GoogleWorkspaceOutcomeUnknown) as exc:
+        client.create_document(account.account_id, title="Approved", body_text="Private body", parent_folder_id="folder-1")
+    assert exc.value.remote_id == "file_0001"
+    assert server.docs["file_0001"] == ""
+
+
+def test_root_destination_alias_resolves_before_creation(google):
+    server, client, secrets = google
+    account = _connect(server, client, secrets)
+    server.overrides["GET /drive/v3/files/root"] = (200, {"id": "actual-root", "mimeType": "application/vnd.google-apps.folder"})
+    result = client.create_document(account.account_id, title="At root", parent_folder_id="root")
+    assert server.files[result["document_id"]]["parents"] == ["actual-root"]
+
+
+def test_requested_sheet_order_can_reuse_default_title_later(google):
+    server, client, secrets = google
+    account = _connect(server, client, secrets)
+    result = client.create_spreadsheet(account.account_id, title="Ordered", sheet_titles=["Summary", "Sheet1"])
+    assert list(result["sheets"]) == ["Summary", "Sheet1"]
+    assert result["verification"] == []
 
 
 def test_401_once_refreshes_then_retries(google):

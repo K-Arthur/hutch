@@ -66,7 +66,7 @@ def workspace_executors(client: GoogleWorkspaceClient, *,
                 parent_folder_id=step.target.parent_id,
             )
         except GoogleWorkspaceOutcomeUnknown as exc:
-            return _fail(str(exc), uncertain=True)
+            return _fail(str(exc), uncertain=True, remote_id=exc.remote_id)
         except GoogleWorkspaceError as exc:
             return _fail(str(exc))
         return ExecutorResult(ok=True, remote_id=result["document_id"], result=result,
@@ -82,7 +82,7 @@ def workspace_executors(client: GoogleWorkspaceClient, *,
                 hutch_key=str(inputs.get("hutch_key") or ""),
             )
         except GoogleWorkspaceOutcomeUnknown as exc:
-            return _fail(str(exc), uncertain=True)
+            return _fail(str(exc), uncertain=True, remote_id=exc.remote_id)
         except GoogleWorkspaceError as exc:
             return _fail(str(exc))
         return ExecutorResult(ok=True, remote_id=result["spreadsheet_id"], result=result,

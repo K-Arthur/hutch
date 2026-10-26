@@ -63,6 +63,10 @@ class GoogleWorkspaceError(ValueError):
 class GoogleWorkspaceOutcomeUnknown(GoogleWorkspaceError):
     """A write may have reached Google but no verifiable response returned."""
 
+    def __init__(self, message: str, *, remote_id: str = ""):
+        super().__init__(message)
+        self.remote_id = remote_id
+
 
 class WorkspaceSecretToolStore(SecretToolStore):
     """Secret Service store namespaced to the Workspace connection."""
@@ -520,8 +524,12 @@ class GoogleWorkspaceClient:
         try:
             data = response.json()
         except ValueError as exc:
+            if method in ("POST", "PATCH", "PUT", "DELETE"):
+                raise GoogleWorkspaceOutcomeUnknown("Google returned an unreadable write response") from exc
             raise GoogleWorkspaceError("Google returned an unreadable response") from exc
         if not isinstance(data, dict):
+            if method in ("POST", "PATCH", "PUT", "DELETE"):
+                raise GoogleWorkspaceOutcomeUnknown("Google returned an unexpected write response shape")
             raise GoogleWorkspaceError("Google returned an unexpected response shape")
         return data
 
@@ -572,6 +580,12 @@ class GoogleWorkspaceClient:
                                parent_folder_id: str, properties: dict[str, str]) -> dict[str, Any]:
         # Google does not accept pre-generated IDs for Docs or Sheets. Bind a
         # fresh identity in the creation itself; never retry an uncertain create.
+        if parent_folder_id == "root":
+            root = self.file_metadata(account_id, "root")
+            if (not isinstance(root.get("id"), str) or not root["id"]
+                    or root.get("mimeType") != "application/vnd.google-apps.folder" or root.get("trashed")):
+                raise GoogleWorkspaceError("the selected Drive root could not be resolved before creation")
+            parent_folder_id = root["id"]
         creation_key = secrets.token_hex(24)
         metadata = ws.drive_create_file_metadata(
             title, mime_type=mime_type, parent_id=parent_folder_id or "root",
@@ -581,28 +595,41 @@ class GoogleWorkspaceClient:
                                  params={"supportsAllDrives": "true", "fields": "id,name,mimeType,parents,webViewLink,appProperties"},
                                  json_body=metadata, purpose="Google file creation")
         except GoogleWorkspaceOutcomeUnknown:
+            remote_id = ""
             try:
                 matches = self.find_files_by_app_key(account_id, "hutch_creation", creation_key)
                 if len(matches) != 1:
                     raise GoogleWorkspaceError("creation identity did not resolve to exactly one file")
                 candidate = matches[0]
+                if not isinstance(candidate, dict) or not isinstance(candidate.get("appProperties"), dict):
+                    raise GoogleWorkspaceError("creation identity returned malformed metadata")
                 if (candidate.get("name") != title or candidate.get("mimeType") != mime_type
                         or candidate.get("appProperties", {}).get("hutch_creation") != creation_key
                         or candidate.get("trashed")
                         or (parent_folder_id and parent_folder_id not in candidate.get("parents", []))):
                     raise GoogleWorkspaceError("creation identity did not match the approved file")
-                created = self.file_metadata(account_id, str(candidate.get("id") or ""))
+                if not isinstance(candidate.get("id"), str) or not re.fullmatch(r"[A-Za-z0-9_-]+", candidate["id"]):
+                    raise GoogleWorkspaceError("creation identity returned no usable file id")
+                remote_id = candidate["id"]
+                created = self.file_metadata(account_id, remote_id)
                 if any(created.get(key) != candidate.get(key)
                        for key in ("id", "name", "mimeType", "parents", "appProperties")):
                     raise GoogleWorkspaceError("creation metadata changed during reconciliation")
             except GoogleWorkspaceError as exc:
                 raise GoogleWorkspaceOutcomeUnknown(
                     "Google file creation could not be reconciled; inspect Drive before retrying. "
-                    f"Creation reference: {creation_key}") from exc
+                    f"Creation reference: {creation_key}", remote_id=remote_id) from exc
             created["reconciled"] = True
-        if not isinstance(created.get("id"), str) or not created["id"]:
+        if not isinstance(created.get("id"), str) or not re.fullmatch(r"[A-Za-z0-9_-]+", created["id"]):
             raise GoogleWorkspaceOutcomeUnknown(
                 f"Google file creation returned no usable id; inspect Drive. Creation reference: {creation_key}")
+        if (created.get("name") != title or created.get("mimeType") != mime_type
+                or created.get("appProperties") != metadata["appProperties"]
+                or created.get("trashed")
+                or (parent_folder_id and created.get("parents") != [parent_folder_id])):
+            raise GoogleWorkspaceOutcomeUnknown(
+                "The created file metadata does not match the reviewed destination or identity; "
+                "no content was written. Inspect this file before retrying.", remote_id=created["id"])
         return created
 
     # ------------------------------------------------------------------ Docs
@@ -617,30 +644,49 @@ class GoogleWorkspaceClient:
                                               parent_folder_id=parent_folder_id,
                                               properties={"hutch_created": "1"})
         actual_id = created["id"]
+        try:
+            return self._populate_document(account_id, created, body_text)
+        except (ValueError, KeyError, TypeError, AttributeError) as exc:
+            raise GoogleWorkspaceOutcomeUnknown(
+                "The document exists, but its complete contents could not be verified. "
+                "Inspect the existing document before retrying; Hutch will not create another copy.",
+                remote_id=actual_id) from exc
+
+    def _populate_document(self, account_id: str, created: dict[str, Any], body_text: str) -> dict[str, Any]:
+        actual_id = created["id"]
         result: dict[str, Any] = {
             "document_id": actual_id,
-            "title": str(created.get("name") or title),
+            "title": str(created["name"]),
             "web_view_link": str(created.get("webViewLink") or ""),
             "tab_id": "",
             "verification": [],
         }
         document = self.read_document(account_id, actual_id)
+        if document.get("documentId") != actual_id:
+            raise GoogleWorkspaceError("document readback returned a different identity")
         tabs = ws.walk_tabs(document)
-        if not tabs or not tabs[0]["tab_id"]:
-            result["verification"].append("the new document reported no tabs")
-            return result
+        if len(tabs) != 1 or not tabs[0]["tab_id"]:
+            raise GoogleWorkspaceError("the new document did not report exactly one usable tab")
         tab_id = tabs[0]["tab_id"]
         result["tab_id"] = tab_id
         if body_text:
             requests = ws.docs_insert_text_requests(body_text, tab_id=tab_id)
-            self._json("POST", f"{self.docs_base}/documents/{actual_id}:batchUpdate", account_id,
-                       json_body=ws.docs_batch_update_body(
-                           requests, required_revision_id=str(document.get("revisionId") or "")),
-                       purpose="Docs body write")
+            revision = document.get("revisionId")
+            if not isinstance(revision, str) or not revision:
+                raise GoogleWorkspaceError("the new document reported no revision for the body write")
+            try:
+                self._json("POST", f"{self.docs_base}/documents/{actual_id}:batchUpdate", account_id,
+                           json_body=ws.docs_batch_update_body(requests, required_revision_id=revision),
+                           purpose="Docs body write")
+            except GoogleWorkspaceOutcomeUnknown:
+                # Read the same file; never replay an insert after a lost response.
+                result["reconciled"] = True
             document = self.read_document(account_id, actual_id)
-        problems = ws.docs_verify_text(document, tab_id=tab_id,
-                                       expected=body_text.split("\n", 1)[0][:80] if body_text else "")
-        result["verification"] = problems
+        if document.get("documentId") != actual_id or len(ws.walk_tabs(document)) != 1:
+            raise GoogleWorkspaceError("document readback returned a different identity")
+        problems = ws.docs_verify_text(document, tab_id=tab_id, expected=body_text, exact=True)
+        if problems:
+            raise GoogleWorkspaceError("; ".join(problems))
         result["revision_id"] = str(document.get("revisionId") or "")
         return result
 
@@ -669,48 +715,60 @@ class GoogleWorkspaceClient:
         created = self._create_workspace_file(account_id, title=title, mime_type=ws.SHEET_MIME,
                                               parent_folder_id=parent_folder_id, properties=properties)
         file_id = created["id"]
+        try:
+            return self._configure_spreadsheet(account_id, file_id, sheet_titles)
+        except (ValueError, KeyError, TypeError, AttributeError) as exc:
+            raise GoogleWorkspaceOutcomeUnknown(
+                "The spreadsheet exists, but its complete sheet setup could not be verified. "
+                "Inspect the existing spreadsheet before retrying; Hutch will not create another copy.",
+                remote_id=file_id) from exc
 
+    def _configure_spreadsheet(self, account_id: str, file_id: str, sheet_titles: list[str]) -> dict[str, Any]:
         current = self._json("GET", f"{self.sheets_base}/spreadsheets/{file_id}", account_id,
                              params={"fields": "spreadsheetId,sheets.properties"},
                              purpose="Sheets naming read")
-        existing_titles = [str((s.get("properties") or {}).get("title", ""))
-                           for s in current.get("sheets") or []]
+        sheets = current.get("sheets") or []
+        if current.get("spreadsheetId") != file_id or len(sheets) != 1:
+            raise GoogleWorkspaceError("the new spreadsheet has an unexpected identity or initial sheet setup")
+        initial = sheets[0].get("properties") or {}
+        default_sheet_id = initial.get("sheetId")
+        if type(default_sheet_id) is not int or default_sheet_id < 0 or initial.get("index") != 0:
+            raise GoogleWorkspaceError("the new spreadsheet has no usable initial sheet")
         requests: list[dict[str, Any]] = []
-        wanted = list(sheet_titles)
-        default_sheet_id = None
-        for s in current.get("sheets") or []:
-            props = s.get("properties") or {}
-            if props.get("index") == 0:
-                default_sheet_id = props.get("sheetId")
-        if default_sheet_id is not None and existing_titles:
-            default_title = existing_titles[0]
-            if wanted and default_title not in wanted:
-                requests.append({"updateSheetProperties": {
-                    "properties": {"sheetId": default_sheet_id, "title": wanted[0]},
-                    "fields": "title"}})
-                existing_titles[0] = wanted[0]
-                wanted = wanted[1:]
-        for t in wanted:
-            if t not in existing_titles:
-                requests.append({"addSheet": {"properties": {"title": t}}})
+        if initial.get("title") != sheet_titles[0]:
+            requests.append({"updateSheetProperties": {
+                "properties": {"sheetId": default_sheet_id, "title": sheet_titles[0]},
+                "fields": "title"}})
+        for title in sheet_titles[1:]:
+            requests.append({"addSheet": {"properties": {"title": title}}})
         if requests:
-            self._json("POST", f"{self.sheets_base}/spreadsheets/{file_id}:batchUpdate", account_id,
-                       json_body={"requests": requests}, purpose="Sheets naming")
+            try:
+                self._json("POST", f"{self.sheets_base}/spreadsheets/{file_id}:batchUpdate", account_id,
+                           json_body={"requests": requests}, purpose="Sheets naming")
+            except GoogleWorkspaceOutcomeUnknown:
+                # Naming/addSheet is not replayed. The readback must prove all names.
+                reconciled = True
+            else:
+                reconciled = False
+        else:
+            reconciled = False
         final = self._json("GET", f"{self.sheets_base}/spreadsheets/{file_id}", account_id,
                            params={"fields": "spreadsheetId,sheets.properties,spreadsheetUrl"},
                            purpose="Sheets read-back")
         mapping = {str((s.get("properties") or {}).get("title", "")):
                    int((s.get("properties") or {}).get("sheetId", 0))
                    for s in final.get("sheets") or []}
-        verification: list[str] = []
-        for t in sheet_titles:
-            if t not in mapping:
-                verification.append(f"sheet {t!r} is missing from the created spreadsheet")
+        final_indices = [(s.get("properties") or {}).get("index") for s in final.get("sheets") or []]
+        if (current.get("spreadsheetId") != file_id or final.get("spreadsheetId") != file_id
+                or list(mapping) != sheet_titles or len(mapping) != len(final.get("sheets") or [])
+                or len(set(mapping.values())) != len(mapping) or final_indices != list(range(len(sheet_titles)))):
+            raise GoogleWorkspaceError("the created spreadsheet readback does not match the reviewed sheet setup")
         return {
             "spreadsheet_id": file_id,
             "web_view_link": str(final.get("spreadsheetUrl") or ""),
             "sheets": mapping,
-            "verification": verification,
+            "verification": [],
+            "reconciled": reconciled,
         }
 
     def resolve_sheet(self, account_id: str, spreadsheet_id: str, *, sheet_id: Optional[int] = None,

@@ -252,7 +252,7 @@ def docs_content_text(tab: dict[str, Any]) -> str:
     return "".join(parts)
 
 
-def docs_verify_text(document: dict[str, Any], *, tab_id: str, expected: str) -> list[str]:
+def docs_verify_text(document: dict[str, Any], *, tab_id: str, expected: str, exact: bool = False) -> list[str]:
     """Problems (empty == verified) that the expected text is present in that tab."""
     tabs = walk_tabs(document)
     match = [t for t in tabs if t["tab_id"] == tab_id]
@@ -261,6 +261,10 @@ def docs_verify_text(document: dict[str, Any], *, tab_id: str, expected: str) ->
     for tab in _iter_tab_objects(document.get("tabs") or []):
         if (tab.get("tabProperties") or {}).get("tabId") == tab_id:
             text = docs_content_text(tab)
+            if exact:
+                # Docs retains a final paragraph newline, including for an empty
+                # document. Preserve every requested byte and allow only that sentinel.
+                return [] if text in (expected, expected + "\n") else [f"complete text differs in tab {tab_id}"]
             return [] if expected in text else [f"expected text not found in tab {tab_id}"]
     return [f"tab {tab_id} has no readable content"]
 

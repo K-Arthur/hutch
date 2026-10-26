@@ -579,6 +579,15 @@ Docs and Sheets creation uses server-assigned IDs. Google explicitly
 Hutch sets a random creation identity in the initial file metadata and reconciles a lost
 response with a bounded exact-property search and metadata readback. Missing, multiple,
 truncated or mismatched results stay uncertain; the create is never automatically replayed.
+If the file exists but a later content write, sheet setup or readback fails, the durable
+action record retains its remote ID and stays uncertain, including on an explicit retry.
+Inspect that existing file before reconciling the action. A lost content-write response
+is reconciled only by reading the same file: a new Doc must contain the complete requested
+text (allowing Google's terminal paragraph newline), and a new spreadsheet must contain
+all requested sheet names in order. Hutch never replays an uncertain insert or creates a
+replacement file automatically. Metadata must match the reviewed identity and destination
+before any content write. These are local fault-test guarantees; live account acceptance
+remains pending.
 Media uploads retain their supported pre-generated-ID path. Upload conversion to native
 Workspace MIME types is rejected; use the corresponding Docs or Sheets action instead.
 

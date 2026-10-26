@@ -134,6 +134,16 @@ def test_docs_batch_body_and_read_back():
     assert docs_verify_text(doc, tab_id="t.zzz", expected="x")
 
 
+@pytest.mark.parametrize("expected,actual,verified", [
+    ("", "\n", True), ("A\nB", "A\nB\n", True), ("A\nB\n", "A\nB\n\n", True),
+    ("A\nB", "A\n", False), ("A", "prefix A", False), ("A", "A\n\n", False),
+])
+def test_complete_document_verification_only_allows_the_terminal_paragraph_newline(expected, actual, verified):
+    doc = _document()
+    doc["tabs"][0]["documentTab"]["body"]["content"] = [{"paragraph": {"elements": [{"textRun": {"content": actual}}]}}]
+    assert (docs_verify_text(doc, tab_id="t.aaa", expected=expected, exact=True) == []) is verified
+
+
 # ---------------------------------------------------------------------------
 # Sheets
 
