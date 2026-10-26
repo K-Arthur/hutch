@@ -45,7 +45,7 @@
       list = dialog.querySelector("#palette-list");
       status = dialog.querySelector("#palette-status");
 
-      input.addEventListener("input", render);
+      input.addEventListener("input", () => { active = 0; render(); });   // a new query starts at its best match
       input.addEventListener("keydown", event => {
         if (event.key === "ArrowDown") { event.preventDefault(); move(1); }
         else if (event.key === "ArrowUp") { event.preventDefault(); move(-1); }
@@ -84,7 +84,6 @@
         { kind: "Go to", label: "Usage", icon: "chart", keywords: "tokens cost spending", run: () => { location.href = "/usage"; } },
       ];
       const actions = [
-        { kind: "Action", label: "New conversation", icon: "plus", keywords: "chat start fresh", run: () => ctx.newConversation() },
         { kind: "Action", label: "New assistant", icon: "users", keywords: "create helper bot", run: () => { location.hash = "#/assistant/new"; } },
         { kind: "Action", label: "Search messages", icon: "search", keywords: "find text in chats", run: () => ctx.searchMessages() },
       ];

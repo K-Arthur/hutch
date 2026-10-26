@@ -146,6 +146,44 @@ for (const [name, input] of [
 ]) {
   check(`${name} is inert`, () => assertStructurallySafe(md.render(input)));
 }
+/* ── regressions found in code review: content must never vanish or be rewritten ───────────── */
+check("a list whose first item is indented keeps every later item", () => {
+  const html = md.render("  - a\n- b\n- c");
+  assert.deepEqual([...html.matchAll(/<li>([^<]*)/g)].map(m => m[1]), ["a", "b", "c"], html);
+});
+check("mixed two- and four-space nesting keeps a shallower sibling after a deep run", () => {
+  const html = md.render("- a\n    - b\n        - c\n  - d");
+  assert.deepEqual([...html.matchAll(/<li>([^<]*)/g)].map(m => m[1]), ["a", "b", "c", "d"], html);
+  assert.match(html, /<li>a<ul><li>b<ul><li>c<\/li><\/ul><\/li><li>d<\/li><\/ul><\/li>/);
+});
+check("an indented fence belongs to its list item and keeps its code block and copy control", () => {
+  const html = md.render("1. step\n   ```\n   code\n   ```\n2. next");
+  assert.match(html, /<li>step<div class="md-code" data-md-code>/);
+  assert.match(html, /data-md-copy/);
+  assert.match(html, /<code translate="no">code<\/code>/);
+  assert.match(html, /<\/div><\/li><li>next<\/li>/);
+});
+check("a heading ends in # only when the hashes are a closing run", () => {
+  const html = md.render("## Learning C#\n### F#\n## closed ##");
+  assert.match(html, />Learning C#</);
+  assert.match(html, />F#</);
+  assert.match(html, />closed</);
+  assert.ok(!html.includes("closed #"), html);
+});
+check("a URL followed by a code span keeps both intact", () => {
+  const html = md.render("Visit https://a.com`x` ok");
+  assert.match(html, /<a href="https:\/\/a\.com" [^>]*>https:\/\/a\.com<\/a><code>x<\/code>/);
+});
+check("a prose line with a pipe above a rule is a paragraph and a rule, not an empty table", () => {
+  const html = md.render("text | here\n---");
+  assert.equal(html, "<p>text | here</p><hr>");
+});
+check("a table needs a delimiter row as wide as its header", () => {
+  assert.ok(!md.render("a | b | c\n--|--").includes("<table"));
+  assert.ok(md.render("a | b\n--|--\n1 | 2").includes("<table"));
+  assert.ok(md.render("| a |\n|---|\n| 1 |").includes("<table"));
+});
+
 check("large input renders quickly", () => {
   const big = Array.from({ length: 4000 }, (_, i) => `- item **${i}** with \`code\` and [link](https://example.com/${i})`).join("\n");
   const started = performance.now();

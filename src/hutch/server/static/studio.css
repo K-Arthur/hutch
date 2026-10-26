@@ -1067,3 +1067,6 @@ label.field { align-content: start; }
 
 /* Identifiers in hints and settings (model routes, paths) wrap instead of widening the page. */
 :is(.hint, .settings-panes) code { overflow-wrap: anywhere; }
+
+/* A gate's file preview says when it shows only the start of a very large write. */
+.gate-preview-note { margin: 0; padding: var(--s-2) var(--s-3); border-top: 1px solid var(--line); }

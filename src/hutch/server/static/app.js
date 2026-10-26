@@ -6385,7 +6385,9 @@ function toolOutputHtml(output, ok = true) {
       <div class="md-code-head"><span class="md-code-lang">${ok ? "result" : "error"}</span>
         <button type="button" class="md-copy" data-md-copy aria-label="Copy output">Copy</button></div>
       <pre tabindex="0"><code>${esc(text)}</code></pre>
-      ${long ? `<button class="tool-line-more" type="button" data-show-more>Show ${(text.length - OUTPUT_CLIP > 0 ? text.length - OUTPUT_CLIP : "all").toLocaleString("en-US")} more characters</button>` : ""}
+      ${long ? `<button class="tool-line-more" type="button" data-show-more>${text.length > OUTPUT_CLIP
+        ? `Show ${(text.length - OUTPUT_CLIP).toLocaleString("en-US")} more characters`
+        : `Show all ${text.split("\n").length} lines`}</button>` : ""}
     </div>
   </div>`;
 }
@@ -6736,6 +6738,7 @@ function gatePreviewHtml(tool, detail) {
         <pre tabindex="0" aria-label="Content to be written"><code>${esc(truncate(detail.content, 20000))}</code></pre>
         ${long ? '<button class="tool-line-more" type="button" data-show-more>Show more</button>' : ""}
       </div>
+      ${detail.content.length > 20000 ? `<p class="hint gate-preview-note">Showing the first 20,000 of ${detail.content.length.toLocaleString("en-US")} characters; allowing writes all of it.</p>` : ""}
     </div>`;
   }
   return "";
@@ -6905,6 +6908,15 @@ function renderChatEvent(e, resolvedMap, activeHumanEventSeq = null, choiceState
       return "";   // message / tool_call / tool_result / approval_resolved are consumed elsewhere
   }
 }
+
+// Approval cards also render outside #chat-stream (the Needs you queue); the stream wires its own clipped blocks,
+// so this handles every other one and a reviewer can always read the whole content they are approving.
+document.addEventListener("click", ev => {
+  const more = ev.target.closest?.("[data-show-more]");
+  if (!more || more.closest("#chat-stream")) return;
+  const block = more.closest("[data-md-code]");
+  if (block) applyShowMore(more, block.dataset.clipped === "true");
+});
 
 function wireApprovals() {
   $$("[data-approve]").forEach(btn => {
@@ -8295,6 +8307,16 @@ function mountSettingsTabs(shell, botName) {
   if (!shell) return;
   const tabs = [...shell.querySelectorAll("[data-settings-tab]")];
   const panes = [...shell.querySelectorAll("[data-settings-pane]")];
+  const rail = shell.querySelector('[role="tablist"]');
+  // In the narrow row layout the selected tab must never sit half off the edge. Scroll the rail itself: scrollIntoView
+  // would also scroll the page, throwing a reader back to the top after every save.
+  const centerInRail = tab => {
+    if (rail.scrollWidth <= rail.clientWidth + 1) return;
+    rail.scrollTo({ left: tab.offsetLeft - (rail.clientWidth - tab.offsetWidth) / 2 });
+  };
+  const syncOrientation = () => rail.setAttribute("aria-orientation", getComputedStyle(rail).flexDirection === "column" ? "vertical" : "horizontal");
+  syncOrientation();
+  if (typeof ResizeObserver === "function") new ResizeObserver(syncOrientation).observe(rail);
   const show = (key, { focus = false } = {}) => {
     assistantSettingsSections.set(botName, key);
     tabs.forEach(tab => {
@@ -8302,8 +8324,7 @@ function mountSettingsTabs(shell, botName) {
       tab.setAttribute("aria-selected", on ? "true" : "false");
       tab.tabIndex = on ? 0 : -1;
       if (on && focus) tab.focus();
-      // in the narrow row layout the selected tab must never sit half off the edge
-      if (on) tab.scrollIntoView({ block: "nearest", inline: "center" });
+      if (on) centerInRail(tab);
     });
     panes.forEach(pane => { pane.hidden = pane.dataset.settingsPane !== key; });
   };
@@ -13497,17 +13518,6 @@ function armShellTimers() {
 
 function startOwnerApp() {
   $("#topbar-new-bot")?.addEventListener("click", () => void promptNewBot());
-  const newConversation = async () => {
-    const bot = botsCache.find(item => item.name === currentStudioBot)
-      || botsCache.find(item => item.is_workspace_coordinator) || botsCache[0];
-    if (!bot) { location.hash = "#/assistant/new"; return; }
-    try {
-      const conversation = await createStudioConversation(bot);
-      storageSet(`hutch-conversation:${bot.id}`, conversation.id);
-      if (location.hash.startsWith("#/chat")) await renderChatStudio(bot.name);
-      else location.hash = `#/chat/${encodeURIComponent(bot.name)}`;
-    } catch (error) { toast(`Could not create a conversation: ${error.message}`, true); }
-  };
   const palette = window.HutchPalette?.init({
     icon,
     bots: () => botsCache,
@@ -13517,16 +13527,11 @@ function startOwnerApp() {
     recentConversations: () => api("/v1/conversations?include_legacy=true&limit=40"),
     openNeedsYou: () => void openNeedsYou(),
     searchMessages: () => openConversationSearch(null),
-    newConversation,
   });
-  // The sidebar header carries the two global actions; the palette is the one place that searches everything.
+  // The sidebar header carries the global search; the palette is the one place that searches everything.
   $("#ws-search")?.addEventListener("click", () => {
     $("#ws-close")?.click();
     palette?.open();
-  });
-  $("#ws-new-chat")?.addEventListener("click", () => {
-    $("#ws-close")?.click();
-    void newConversation();
   });
   route();
   void loadStatusInfo();

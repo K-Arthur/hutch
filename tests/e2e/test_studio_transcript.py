@@ -264,3 +264,44 @@ def test_expanded_bubble_step_and_output_survive_live_updates(context, app_serve
     expect(page.locator(".tool-line .tool-out").first).to_have_attribute("data-clipped", "false")
     expect(page.locator(".tool-line [data-raw-toggle]").first).to_have_attribute("aria-pressed", "true")
     assert not errors, errors
+
+
+def test_clipped_output_names_what_it_hides_and_opens_in_place(context, app_server):
+    """A short, many-line output is clipped by lines, so its button says so instead of counting characters."""
+    base, app = app_server
+    output = "\n".join(f"line {n:02d} ok" for n in range(1, 21))
+    conversation, _ = _seed(app, "clip", "List the lines", [("run_shell", {"command": "seq 20"}, output, True, 0.2)],
+                            answer="Done.")
+    page, errors = _open(context, base, conversation)
+    stream = page.locator("#chat-stream details.tool-stream").first
+    if not stream.evaluate("el => el.open"):
+        stream.locator("summary").click()
+    page.locator("#chat-stream .tool-line-head").first.click()
+    more = page.locator("#chat-stream .tool-res [data-show-more]").first
+    expect(more).to_have_text("Show all 20 lines")
+    more.click()
+    expect(more).to_have_text("Show less")
+    assert page.locator("#chat-stream .tool-res [data-md-code]").first.get_attribute("data-clipped") == "false"
+    assert not errors, errors
+
+
+def test_a_long_file_write_can_be_read_in_full_from_the_needs_you_queue(context, app_server):
+    """The approval's Show more must work outside the chat stream too, and a huge write says it is clipped."""
+    base, app = app_server
+    content = "\n".join(f"row {n:03d}" for n in range(1, 80)) + "\n" + "x" * 21000
+    conversation, _ = _seed(app, "queue-clip", "Save the report", [("list_files", {"path": "."}, "(empty)", True, 0.1)],
+                            approval=dict(tool="files", action="write report.md", rule="ask:file-write", risk="medium",
+                                          sticky_key="files:write", detail={"path": "report.md", "content": content, "revision": {"exists": False}}))
+    page = context.new_page()
+    page.goto(f"{base}/#/chat", wait_until="domcontentloaded")
+    page.locator("#needs-you-open").click()
+    card = page.locator("#needs-you [data-approval-card]").first
+    card.wait_for()
+    block = card.locator("[data-md-code]").first
+    assert block.get_attribute("data-clipped") == "true"
+    more = card.locator("[data-show-more]").first
+    more.click()
+    assert block.get_attribute("data-clipped") == "false"
+    expect(more).to_have_text("Show less")
+    expect(card.locator(".gate-preview-note")).to_contain_text("first 20,000 of")
+    assert conversation

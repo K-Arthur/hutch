@@ -34,6 +34,8 @@
   // they can never collide with escaped user text.
   const PH = "";
 
+  const BARE_URL = new RegExp(`(^|[\\s(])(https?:\\/\\/[^\\s<>"'\`${PH}]+[^\\s<>"'\`${PH}.,;:!?)\\]])`, "g");
+
   function inline(text) {
     const stash = [];
     const hold = html => { stash.push(html); return `${PH}${stash.length - 1}${PH}`; };
@@ -56,8 +58,8 @@
         return hold(`<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${emphasis(shown)}</a>`);
       });
 
-    // bare URLs
-    s = s.replace(/(^|[\s(])(https?:\/\/[^\s<>"'`]+[^\s<>"'`.,;:!?)\]])/g, (_, lead, url) => {
+    // bare URLs (the private-use placeholder is never part of one)
+    s = s.replace(BARE_URL, (_, lead, url) => {
       const href = safeHref(url.replace(/&amp;/g, "&"));
       if (!href) return lead + url;
       return `${lead}${hold(`<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${url}</a>`)}`;
@@ -79,7 +81,7 @@
   /* ───────────────────────────── blocks ───────────────────────────── */
 
   const FENCE = /^ {0,3}(`{3,}|~{3,})\s*([\w+#.-]*)[^\n]*$/;
-  const HEADING = /^ {0,3}(#{1,6})\s+(.+?)\s*#*\s*$/;
+  const HEADING = /^ {0,3}(#{1,6})\s+(.+?)(?:\s+#+)?\s*$/;
   const RULE = /^ {0,3}([-*_])(?:\s*\1){2,}\s*$/;
   const QUOTE = /^ {0,3}>\s?(.*)$/;
   const LIST = /^(\s*)([-*+]|\d{1,9}[.)])\s+(.*)$/;
@@ -107,9 +109,14 @@
       `<pre tabindex="0"><code translate="no">${esc(body)}</code></pre></div>`;
   }
 
+  function tableStarts(line, next) {
+    if (!line.includes("|") || next === undefined || !TABLE_SEP.test(next) || !next.includes("-")) return false;
+    const columns = splitRow(next).length;
+    return columns === splitRow(line).length && (columns > 1 || next.includes("|"));
+  }
+
   function isBlockStart(line, next) {
-    return FENCE.test(line) || HEADING.test(line) || RULE.test(line) || QUOTE.test(line) || LIST.test(line)
-      || (line.includes("|") && next !== undefined && TABLE_SEP.test(next) && next.includes("-"));
+    return FENCE.test(line) || HEADING.test(line) || RULE.test(line) || QUOTE.test(line) || LIST.test(line) || tableStarts(line, next);
   }
 
   function renderList(lines, start) {
@@ -123,8 +130,21 @@
         const ordered = /\d/.test(m[2]);
         // A different list type at the top level starts a new list (CommonMark).
         if (items.length && indent <= items[0].indent && ordered !== items[0].ordered) break;
-        items.push({ indent, ordered, marker: m[2], text: m[3], extra: [] });
+        items.push({ indent, ordered, marker: m[2], text: m[3], extra: [], blocks: [] });
         i++;
+        continue;
+      }
+      const fence = items.length && /^(\s{2,})(`{3,}|~{3,})\s*([\w+#.-]*)[^\n]*$/.exec(lines[i]);
+      if (fence) {
+        const closing = new RegExp(`^\\s*${fence[2][0]}{${fence[2].length},}\\s*$`);
+        const body = [];
+        i++;
+        while (i < lines.length && !closing.test(lines[i])) {
+          body.push(lines[i].slice(Math.min(fence[1].length, lines[i].length - lines[i].trimStart().length)));
+          i++;
+        }
+        i++; // closing fence (or EOF)
+        items[items.length - 1].blocks.push(codeBlock(fence[3] || "", body.join("\n")));
         continue;
       }
       if (lines[i].trim() === "") {
@@ -135,18 +155,22 @@
       if (/^\s{2,}\S/.test(lines[i]) && items.length) { items[items.length - 1].extra.push(lines[i].trim()); i++; continue; }
       break;
     }
-    const build = (from, baseIndent) => {
+    // Nesting level from a stack of indents: deeper nests, equal is a sibling, shallower pops back
+    // (an item less indented than the first is a top-level sibling, not dropped).
+    const stack = [];
+    for (const item of items) {
+      while (stack.length && item.indent < stack[stack.length - 1]) stack.pop();
+      if (!stack.length || item.indent > stack[stack.length - 1]) stack.push(item.indent);
+      item.level = stack.length - 1;
+    }
+    const build = (from, level) => {
       let html = "";
       let k = from;
       const ordered = items[from].ordered;
       const startNum = ordered ? parseInt(items[from].marker, 10) : null;
       html += ordered ? `<ol${startNum && startNum !== 1 ? ` start="${startNum}"` : ""}>` : "<ul>";
-      while (k < items.length && items[k].indent >= baseIndent) {
-        if (items[k].indent > baseIndent) {
-          // nested list belongs to the previous <li>; handled by the recursive call below
-          k++;
-          continue;
-        }
+      while (k < items.length && items[k].level >= level) {
+        if (items[k].level > level) { k++; continue; }
         const item = items[k];
         let body = inline([item.text, ...item.extra].join("\n")).replace(/\n/g, "<br>");
         let taskBox = "";
@@ -156,17 +180,16 @@
           body = inline([item.text.slice(task[0].length), ...item.extra].join("\n")).replace(/\n/g, "<br>");
           taskBox = `<span class="md-task${done ? " done" : ""}" role="img" aria-label="${done ? "Done" : "Not done"}"></span>`;
         }
-        let nested = "";
         let n = k + 1;
-        while (n < items.length && items[n].indent > baseIndent) n++;
-        if (n > k + 1) nested = build(k + 1, items[k + 1].indent);
-        html += `<li${task ? ' class="md-task-item"' : ""}>${taskBox}${body}${nested}</li>`;
+        while (n < items.length && items[n].level > level) n++;
+        const nested = n > k + 1 ? build(k + 1, items[k + 1].level) : "";
+        html += `<li${task ? ' class="md-task-item"' : ""}>${taskBox}${body}${item.blocks.join("")}${nested}</li>`;
         k = n;
       }
       html += ordered ? "</ol>" : "</ul>";
       return html;
     };
-    return { html: build(0, items[0].indent), next: i };
+    return { html: build(0, 0), next: i };
   }
 
   function render(source) {
@@ -203,7 +226,7 @@
         out.push(`<blockquote>${render(inner.join("\n"))}</blockquote>`);
         continue;
       }
-      if (line.includes("|") && i + 1 < lines.length && TABLE_SEP.test(lines[i + 1]) && lines[i + 1].includes("-")) {
+      if (tableStarts(line, lines[i + 1])) {
         const head = splitRow(line);
         const aligns = splitRow(lines[i + 1]).map(c => /^:-+:$/.test(c) ? "center" : /-+:$/.test(c) ? "right" : /^:-+/.test(c) ? "left" : "");
         i += 2;

@@ -286,7 +286,8 @@ on Activity. The header repeats none of them.
   and options control; keep the shared text scale instead of shrinking labels.
 - Sidebar docks to a 64px icon rail (logo becomes the expand control);
   state persists per browser. Expanded, it reads top to bottom: logo with the two global
-  round actions (search opens the command palette, plus starts a conversation), quiet
+  round search action (it opens the command palette; an assistant's chat is persistent, so there is no
+  new-conversation button), quiet
   navigation rows, the assistant roster, and two pill links (Apps & AI, Settings).
 - **Spacing rhythm.** Everything sits on the 4px grid (4, 8, 12, 16, 24, 32, 40,
   56; 1–2px only for hairlines and optical nudges). Roles, not taste, pick the step:

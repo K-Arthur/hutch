@@ -43,7 +43,10 @@ def test_palette_opens_with_a_shortcut_and_is_a_labelled_combobox(page):
     names = [text.strip() for text in page.locator("dialog.palette").get_by_role("option").all_inner_texts()]
     assert any("Research Desk" in name for name in names), names
     assert any(name.startswith("Settings") for name in names), names
-    assert any(name.startswith("New conversation") for name in names), names
+    assert any(name.startswith("New assistant") for name in names), names
+    # An assistant's chat is persistent: there is no "new conversation" action to offer, here or in the sidebar header.
+    assert "New conversation" not in names, names           # (an untitled recent chat has a hint line, an action does not)
+    assert page.locator("#ws-new-chat").count() == 0
     # the active descendant always points at an option that exists
     active = box.get_attribute("aria-activedescendant")
     assert active and page.locator(f"#{active}").get_attribute("role") == "option"
@@ -87,3 +90,18 @@ def test_palette_arrow_keys_wrap_and_empty_state_is_announced(page):
     expect(page.locator(".palette-empty")).to_contain_text("No match")
     page.keyboard.press("Control+k")         # the same shortcut toggles it closed
     expect(page.locator("dialog.palette")).not_to_be_visible()
+
+
+def test_a_new_query_starts_at_its_best_match(page):
+    """Arrowing down and then narrowing the list must not leave the highlight on a stale row."""
+    page, _ = page
+    page.locator("#chat-prompt").focus()
+    page.keyboard.press("Control+k")
+    page.get_by_role("combobox", name="Search assistants, conversations and pages").wait_for()
+    for _ in range(4):
+        page.keyboard.press("ArrowDown")
+    assert page.locator("dialog.palette [role=option][aria-selected=true]").get_attribute("data-palette-index") == "4"
+    page.keyboard.type("research")
+    selected = page.locator("dialog.palette [role=option][aria-selected=true]")
+    assert selected.get_attribute("data-palette-index") == "0"
+    expect(selected).to_contain_text("Research Desk")

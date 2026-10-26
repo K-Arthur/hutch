@@ -68,7 +68,7 @@ Updated because the design they encoded was replaced on purpose:
 | `test_queued_chat_keeps_earlier_approval_and_live_status_fresh` | Scoped "Done" to the turn header (each step also carries a visually hidden state word). |
 | `test_shared_design_tokens_render_consistently_across_all_surfaces` | Pinned values moved to the new graphite tokens. |
 | `test_popup_edges_and_surfaces_match_design_tokens` | Form fields use the 3:1 edge token; menus keep the strong border token. |
-| `test_open_phone_sheet_reaches_every_destination_and_wraps` | Needs you is the sixth Tab stop (Search and New now precede the navigation), not the fourth. |
+| `test_open_phone_sheet_reaches_every_destination_and_wraps` | Needs you is reached within six Tab stops (the Search action now precedes the navigation), not the fourth. |
 | `test_every_workspace_route_renders_independently_at_responsive_sizes` | The long fixture name is longer (Geist is narrower, so the old name no longer needed an ellipsis); the phone "New" button must be a labelled button wider than the 44px icon form. |
 | `test_approval_triage_marketing_evidence_is_complete` | Evidence regenerated from the current site with the producer test (see below). It already failed on `main` at `b8bb7310` because that commit changed `index.html` after the evidence was captured. |
 
