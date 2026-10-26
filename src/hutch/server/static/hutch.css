@@ -3,10 +3,16 @@
    and 3D mascot while consuming the same generated semantic token source. */
 
 @font-face {
-  font-family: "Archivo";
-  src: url("/static/fonts/archivo-latin-var.woff2") format("woff2");
+  font-family: "Geist";
+  src: url("/static/fonts/geist-latin-var.woff2") format("woff2");
   font-weight: 100 900;
-  font-stretch: 62% 125%;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist Mono";
+  src: url("/static/fonts/geist-mono-latin-var.woff2") format("woff2");
+  font-weight: 100 900;
   font-style: normal;
   font-display: swap;
 }

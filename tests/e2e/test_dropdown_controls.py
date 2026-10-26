@@ -409,7 +409,8 @@ def test_popup_edges_and_surfaces_match_design_tokens(browser, live):
         page.goto(base + "/legacy/connections")
         window = page.get_by_label("Window", exact=True).first
         window.wait_for()
-        assert_uses_token(page, window, bg_token="--color-semantic-bg")
+        # Form fields use the 3:1 control edge (WCAG 1.4.11); popups keep the quieter strong border.
+        assert_uses_token(page, window, bg_token="--color-semantic-bg", border_token="--color-semantic-border-edge")
         assert window.evaluate("el => getComputedStyle(el).minHeight") == "44px"
     finally:
         context.close()

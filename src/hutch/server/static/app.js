@@ -1357,6 +1357,23 @@ const ICON_PATHS = {
   refresh: '<path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/>',
   trash: '<path d="M3 6h18M8 6V4h8v2m3 0-.9 14H5.9L5 6m4 4v6m6-6v6"/>',
   pin: '<path d="M16 3 21 8l-4 1-4 4v4l-2 2-2-6-6-6 2-2 6 6 4-4z"/><path d="m2 22 7-7"/>',
+  terminal: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>',
+  code: '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
+  filePlus: '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="12" x2="12" y1="18" y2="12"/><line x1="9" x2="15" y1="15" y2="15"/>',
+  folderOpen: '<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>',
+  bookmark: '<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>',
+  globe: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
+  wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  copy: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+  externalLink: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+  helpCircle: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  lock: '<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  shieldAlert: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
+  image: '<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+  cornerDownLeft: '<polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/>',
+  command: '<path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/>',
+  pencil: '<path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/>',
 };
 
 function icon(name, cls = "") {
@@ -1495,7 +1512,7 @@ function sigilEyes(shapeIndex) {
     const d = `M${cx} ${cy - ry}C${cx + rx * k} ${cy - ry} ${cx + rx} ${cy - ry * k} ${cx + rx} ${cy}C${cx + rx} ${cy + ry * k} ${cx + rx * k} ${cy + ry} ${cx} ${cy + ry}C${cx - rx * k} ${cy + ry} ${cx - rx} ${cy + ry * k} ${cx - rx} ${cy}C${cx - rx} ${cy - ry * k} ${cx - rx * k} ${cy - ry} ${cx} ${cy - ry}Z`;
     return '<path data-sigil-eye="' + name + '" data-contrast-ink="#0b1511" d="' + d + '" ' + metadata + ' transform="' + transform + '" fill="#0b1511" aria-hidden="true"/>';
   };
-  return '<g aria-hidden="true">' + eye("left", left) + eye("right", right) + '</g>';
+  return '<g class="sig-eyes" aria-hidden="true">' + eye("left", left) + eye("right", right) + '</g>';
 }
 
 function sigilBody(pair) {
@@ -1506,7 +1523,7 @@ function sigilBody(pair) {
 }
 
 function avatarFromPair(pair, size, state = "") {
-  return `<span class="avatar" style="--av:${size}px" aria-hidden="true"><svg class="sig" viewBox="0 0 64 64">${sigilBody(pair)}</svg>${state ? `<span class="a-pip ${esc(state)}"></span>` : ""}</span>`;
+  return `<span class="avatar" data-state="${esc(state || "idle")}" style="--av:${size}px" aria-hidden="true"><svg class="sig" viewBox="0 0 64 64">${sigilBody(pair)}</svg>${state ? `<span class="a-pip ${esc(state)}"></span>` : ""}</span>`;
 }
 
 function botAvatar(name, size = 32, state = "") {
@@ -1593,7 +1610,7 @@ function openModal({ title, bodyHtml, onConfirm, onCancel, confirmText = "Confir
     <div class="modal-backdrop" data-modal-backdrop>
       <div class="modal-card${wide ? " modal-wide" : ""}${tall ? " modal-tall" : ""}" role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <div class="modal-header">
-          <h3 id="modal-title">${esc(title)}</h3>
+          <h2 id="modal-title">${esc(title)}</h2>
           <button class="icon-btn" id="modal-close" aria-label="Close dialog">${icon("x")}</button>
         </div>
         <div class="modal-body">${bodyHtml}</div>
@@ -2166,14 +2183,14 @@ async function renderWorkspaceSettings() {
   view.innerHTML = `<div class="page-scroll"><div class="container workspace-settings-page">
     <p class="page-subtitle">These defaults apply when you create an assistant. Existing assistants and chats keep their saved settings.</p>
     <form class="panel form-grid workspace-settings-form" id="workspace-settings-form">
-      <h3 class="panel-title">Model defaults for new assistants</h3>
+      <h2 class="panel-title">Model defaults for new assistants</h2>
       <label class="field" for="workspace-settings-model">Default model route
         <input id="workspace-settings-model" type="text" maxlength="200" autocomplete="off" placeholder="Choose or enter provider/model" value="${esc(defaults.model || "")}">
         <span class="hint">Leave empty to choose a route for each new assistant.</span></label>
       <label class="field" for="workspace-settings-mode">Default routing
         <select id="workspace-settings-mode"><option value="hybrid" ${defaults.inference_mode === "hybrid" ? "selected" : ""}>Hybrid — local or hosted</option><option value="local" ${defaults.inference_mode === "local" ? "selected" : ""}>Local — this machine</option><option value="offline" ${defaults.inference_mode === "offline" ? "selected" : ""}>Strict Offline — host-gated</option></select></label>
       <p class="hint">Hosted routes send prompts to their provider. Local routing keeps inference on this machine while tools may still use the network.</p>
-      <h3 class="panel-title">Appearance</h3>
+      <h2 class="panel-title">Appearance</h2>
       <label class="field" for="workspace-settings-effects">Effects
         <select id="workspace-settings-effects"><option value="system" ${currentEffects === null ? "selected" : ""}>Follow system setting</option><option value="reduce" ${currentEffects === "true" ? "selected" : ""}>Reduce effects</option><option value="full" ${currentEffects === "false" ? "selected" : ""}>Show effects</option></select>
         <span class="hint">The dark workspace theme is fixed. This only controls nonessential motion.</span></label>
@@ -2329,6 +2346,12 @@ function renderRoster() {
   const focusedBot = list.contains(focus) ? focus.dataset.switchBot : null;
   const focusedOptions = list.contains(focus) ? focus.dataset.botOptions : menuBot;
   $("#fleet-nav").hidden = botsCache.length < 10;
+  // Nothing to search before the first assistant exists.
+  const rosterSearch = $("#bot-search");
+  if (rosterSearch) {
+    rosterSearch.hidden = !botsCache.length;
+    if (!botsCache.length) rosterSearch.value = "";
+  }
   const q = ($("#bot-search")?.value || "").trim().toLowerCase();
   const coordinator = botsCache.find(b => b.is_workspace_coordinator);
   const matches = b => !q || `${b.display_name || b.name} ${b.name} ${b.description || ""}`.toLowerCase().includes(q);
@@ -2452,15 +2475,18 @@ function rosterRowHtml(bot, currentStudioBot) {
   const coordinatorLabel = bot.is_workspace_coordinator && role.toLowerCase() !== "workspace coordinator" ? "Coordinator" : "";
   const subtitle = [visibleStatus, role, coordinatorLabel, bot.sidebar_hidden ? "Hidden" : ""]
     .filter(Boolean).join(" · ");
+  const stateClass = botNeedsYou(bot) ? "waiting" : state === "running" ? "running" : state === "paused" ? "paused" : "";
+  const subtitleHtml = [visibleStatus ? (stateClass ? `<span class="roster-state ${stateClass}">${esc(visibleStatus)}</span>` : esc(visibleStatus)) : "",
+    esc(role), esc(coordinatorLabel), bot.sidebar_hidden ? "Hidden" : ""].filter(Boolean).join(" · ");
   const name = botHeading(bot);
   return `
     <div class="roster-entry${bot.name === currentStudioBot && isConversationView() ? " is-current" : ""}"><button class="roster-row" type="button" data-switch-bot="${esc(bot.name)}"
       ${bot.name === currentStudioBot && isConversationView() ? 'aria-current="true"' : ""}
       title="${esc(name)} — ${esc([subtitle, status !== visibleStatus ? status : ""].filter(Boolean).join(" · "))}">
-      ${botAvatar(bot.name, 30, pip)}
+      ${botAvatar(bot.name, bot.is_workspace_coordinator ? 44 : 40, pip)}
       <span class="roster-id">
         <span class="roster-name">${esc(name)}</span>
-        <span class="roster-sub">${esc(subtitle)}</span>
+        <span class="roster-sub">${subtitleHtml}</span>
       </span>
     </button><button class="icon-btn roster-options" type="button" data-bot-options="${esc(bot.name)}"
       aria-label="Options for ${esc(name)}" aria-haspopup="menu" aria-expanded="false"
@@ -2763,15 +2789,13 @@ $('#restore-report-open').addEventListener('click', async () => {
 function renderWorkflow(stats) {
   const el = $("#workflow");
   if (!el) return;
-  const parts = [];
   const r = stats.working_runs || 0, w = stats.waiting_runs || 0;
   const q = stats.queued_tasks || 0, p = stats.pending_approvals || 0;
-  if (r) parts.push(`<span class="w working"><span class="wdot"></span>${r} working</span>`);
-  if (w) parts.push(`<span class="w waiting"><span class="wdot"></span>${w} waiting</span>`);
-  if (q) parts.push(`<span class="w queued"><span class="wdot"></span>${q} queued</span>`);
-  if (p) parts.push(`<a class="w needs" href="#/approvals"><span class="wdot"></span>${p} need${p === 1 ? "s" : ""} you</a>`);
-  el.innerHTML = parts.join("");
-  el.hidden = parts.length === 0;
+  // Approvals that need a person have their own surfaces (the reminder, the Needs you
+  // badge and the request itself), so the header states only what is running.
+  const detail = [r && `${r} working`, w && `${w} waiting`, q && `${q} queued`, p && `${p} need${p === 1 ? "s" : ""} you`].filter(Boolean).join(" · ");
+  el.innerHTML = r ? `<a class="w working" href="#/overview" title="${esc(detail)}" aria-label="${esc(detail)}. Open activity."><span class="wdot" aria-hidden="true"></span>${r} working</a>` : "";
+  el.hidden = !r;
 }
 
 // The bar keeps pending approval discoverable from any surface (terminal,
@@ -3286,15 +3310,12 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
     view.innerHTML = `<div class="page-scroll first-run-scroll"><div class="container first-run-container">
       <section class="welcome first-run-welcome" aria-labelledby="first-run-title">
         <div class="welcome-hero first-run-hero">
-          <div class="welcome-stage" aria-hidden="true">
-            <span class="welcome-app-mark welcome-app-calendar">${serviceMark("calendar")}</span>
-            <span class="welcome-app-mark welcome-app-mail">${serviceMark("gmail")}</span>
-            <span class="welcome-app-mark welcome-app-ai">${serviceMark("chatgpt")}</span>
-            <div class="hero-agent first-run-mascot">${avatarFromPair([0, 0], 144)}</div>
+          <div class="hero-agent first-run-mascot" aria-hidden="true">${avatarFromPair([0, 0], 144)}</div>
+          <div class="first-run-headline">
+            <p class="first-run-eyebrow">Your personal assistant</p>
+            <h1 id="first-run-title">What would you like help with?</h1>
+            <p class="first-run-copy">Start with a request. Hutch carries it into setup for review.</p>
           </div>
-          <p class="first-run-eyebrow">Your personal assistant</p>
-          <h1 id="first-run-title">What would you like help with?</h1>
-          <p class="first-run-copy">Start with a request. Hutch carries it into setup for review.</p>
         </div>
         <div class="first-run-workbench">
           <form class="first-run-request" id="first-run-request-form">
@@ -3316,28 +3337,38 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
               <button class="btn primary" type="submit" id="first-run-submit" formnovalidate>Set up my assistant ${icon("arrow")}</button>
             </div>
           </form>
-          <aside class="first-run-readiness" id="first-run-readiness" aria-labelledby="first-run-readiness-title" aria-busy="true">
-            <div class="first-run-readiness-head">
-              <h2 id="first-run-readiness-title">AI service</h2>
-              <span class="first-run-readiness-status" id="first-run-readiness-status" data-state="checking">
-                <span class="first-run-readiness-dot" aria-hidden="true"></span><span id="first-run-readiness-status-text">Checking</span>
-              </span>
-            </div>
-            <p class="first-run-readiness-copy" id="first-run-ai-state" role="status" aria-live="polite" aria-atomic="true">Looking for a saved model or a ready connection…</p>
-            <p class="first-run-readiness-meta" id="first-run-ai-meta"></p>
-            <div class="first-run-readiness-actions">
-              <button class="btn ghost small" type="button" id="first-run-connect-opencode">Connect OpenCode</button>
-              <a href="#/connections" id="first-run-manage-ai">Use another provider</a>
-            </div>
-            <button class="btn ghost small first-run-ai-retry" type="button" id="first-run-ai-retry" hidden>Check again</button>
-          </aside>
+          <div class="first-run-rail">
+            <aside class="first-run-readiness" id="first-run-readiness" aria-labelledby="first-run-readiness-title" aria-busy="true">
+              <div class="first-run-readiness-head">
+                <h2 id="first-run-readiness-title" class="first-run-label">AI service</h2>
+                <span class="first-run-readiness-status" id="first-run-readiness-status" data-state="checking">
+                  <span class="first-run-readiness-dot" aria-hidden="true"></span><span id="first-run-readiness-status-text">Checking</span>
+                </span>
+              </div>
+              <p class="first-run-readiness-copy" id="first-run-ai-state" role="status" aria-live="polite" aria-atomic="true">Looking for a saved model or a ready connection…</p>
+              <p class="first-run-readiness-meta" id="first-run-ai-meta"></p>
+              <div class="first-run-readiness-actions">
+                <button class="btn ghost small" type="button" id="first-run-connect-opencode">Connect OpenCode</button>
+                <a href="#/connections" id="first-run-manage-ai">Use another provider</a>
+              </div>
+              <button class="btn ghost small first-run-ai-retry" type="button" id="first-run-ai-retry" hidden>Check again</button>
+            </aside>
+            <section class="first-run-how" aria-labelledby="first-run-how-title">
+              <h2 id="first-run-how-title" class="first-run-label">How Hutch works</h2>
+              <ul class="first-run-promises">
+                <li><span class="first-run-step-ico" aria-hidden="true">${icon("chat")}</span><span>Start with a conversation</span></li>
+                <li><span class="first-run-step-ico" aria-hidden="true">${icon("shield")}</span><span>Review important actions</span></li>
+                <li><span class="first-run-step-ico" aria-hidden="true">${icon("layers")}</span><span>Choose the apps and AI you use</span>
+                  <span class="first-run-apps" aria-hidden="true">
+                    <span class="welcome-app-mark">${serviceMark("calendar")}</span>
+                    <span class="welcome-app-mark">${serviceMark("gmail")}</span>
+                    <span class="welcome-app-mark">${serviceMark("chatgpt")}</span>
+                  </span></li>
+              </ul>
+            </section>
+            <p class="first-run-note">Your request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.</p>
+          </div>
         </div>
-        <ul class="first-run-promises" aria-label="How Hutch works">
-          <li>${icon("chat")}Start with a conversation</li>
-          <li>${icon("shield")}Review important actions</li>
-          <li>${icon("layers")}Choose the apps and AI you use</li>
-        </ul>
-        <p class="first-run-note">Your request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.</p>
       </section>
     </div></div>`;
     const request = $("#first-run-request");
@@ -3481,20 +3512,20 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
   const assistantRole = botRole(bot);
   setTopContext(`
     <div class="ctx-id">
-      ${botAvatar(bot.name, 30, state === "running" ? "running" : state === "paused" ? "paused" : "")}
+      ${botAvatar(bot.name, 32, bot.paused ? "paused" : avatarStateFor(activeRun?.status || ""))}
         <div class="ctx-heading">
           <h1 title="${esc(assistantName)}">${esc(assistantName)}</h1>
         <span class="ctx-subtitle" title="${esc(assistantRole)}">AI assistant${assistantRole ? ` · ${esc(assistantRole)}` : ""}</span>
         </div>
         <div class="ctx-meta${bot.is_workspace_coordinator ? " workspace-coordinator-meta" : ""}">
-          ${bot.is_workspace_coordinator ? '<span class="tag" id="workspace-coordinator-pill" aria-label="Workspace coordinator"><span class="coordinator-label-wide">Workspace coordinator</span><span class="coordinator-label-compact" aria-hidden="true">Coordinator</span></span>' : ""}
+          ${bot.is_workspace_coordinator ? '<span class="tag" id="workspace-coordinator-pill"><span class="coordinator-label-wide">Workspace coordinator</span><span class="coordinator-label-compact">Coordinator</span></span>' : ""}
           ${bot.paused ? '<span class="tag">paused</span>' : ""}
-        ${activeRun ? statusChip(activeRun.status, activeRun.status_label) : ""}
       </div>
     </div>
     <div class="ctx-actions">
       ${!directChat ? '<label class="visually-hidden" for="conversation-switcher">Conversation history</label>' : ""}
       <select class="conversation-select" id="conversation-switcher" aria-label="Conversation history" ${directChat ? "hidden" : ""}>
+        <button type="button"><selectedcontent></selectedcontent></button>
         ${conversationOptionsHtml(currentConversations, currentConversationId)}
       </select>
       <button class="icon-btn studio-search-button" id="studio-search-messages" type="button"
@@ -3620,6 +3651,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
             <div class="composer-strip" id="rehearse-flag" hidden>${icon("shield")} <b>Rehearsal</b> — writes and commands are simulated; model calls and reads still happen, and remote reads can have service-side effects.</div>
           </div>
           <p class="visually-hidden" id="chat-help">Enter sends, Shift+Enter adds a newline. Your draft is kept for this assistant if you navigate away.</p>
+          <p class="composer-hint" aria-hidden="true"><kbd>Enter</kbd> to send · <kbd>Shift</kbd> + <kbd>Enter</kbd> for a new line · <kbd>${/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? "Cmd" : "Ctrl"}</kbd> <kbd>K</kbd> to jump</p>
         </form>
       </footer>
     </section>`;
@@ -4440,8 +4472,13 @@ function syncStudioRunControls(run) {
   if (archive) archive.hidden = !!active;
   const review = $("#studio-review-run");
   if (review) review.hidden = run?.status !== "waiting_approval";
-  const meta = $(".ctx-meta");
-  if (meta) meta.innerHTML = active ? statusChip(run.status, run.status_label) : "";
+  const face = $(".app-top-context .ctx-id > .avatar");
+  if (face && face.dataset.state !== "paused") {
+    const next = active ? avatarStateFor(run.status) : "";
+    face.dataset.state = next || "idle";
+    face.querySelector(".a-pip")?.remove();
+    if (next) face.insertAdjacentHTML("beforeend", `<span class="a-pip ${next}"></span>`);
+  }
 }
 
 function statusChipTag(mode) {
@@ -4723,6 +4760,7 @@ async function renderChatFeed() {
   const runIds = [...new Set(messages.filter(m => m.role === "user" && m.run_id).map(m => m.run_id))];
   if (authority.active_run_id && !runIds.includes(authority.active_run_id)) runIds.unshift(authority.active_run_id);
   if (!runIds.length) {
+    primedConversations.add(conversationId);
     const nextHtml = welcomeHtml() + factPanelHtml(factPage.facts || [], factPage.error, factShares);
     // Polling can return the same snapshot many times. Avoid replacing the
     // transcript DOM on a no-op refresh: doing so drops focus and invalidates
@@ -4758,6 +4796,11 @@ async function renderChatFeed() {
     shown.splice(0, shown.length >= 6 ? 1 : 0, authority.active_run_id);
   }
   currentRunId = authority.active_run_id || authority.latest_run_id || null;
+  const firstPaint = !primedConversations.has(conversationId);
+  if (firstPaint) {
+    primedConversations.add(conversationId);
+    shown.forEach(id => seenThreads.add(id));
+  }
   const parts = [];
   for (const runId of shown) {
     let html;
@@ -4824,6 +4867,7 @@ async function renderChatFeed() {
     const id = d.closest("[data-run-id]").dataset.runId;
     if (activityState.has(id)) d.open = activityState.get(id);
   });
+  restoreFeedToggles(stream);
   if (focusedApproval && !focused.isConnected) {
     const card = $$("[data-approval-card]", stream).find(c => c.dataset.approvalCard === focusedApproval);
     const target = focusedChoice !== undefined
@@ -4872,6 +4916,10 @@ async function renderChatFeed() {
       scroll.scrollTop += nextOffset - scrollAnchorOffset;
     } else scroll.scrollTop = scrollTopBefore;
   } else scroll.scrollTop = scrollTopBefore;
+  if (firstPaint) {
+    // A request that needs a person is what the conversation is waiting on: open with it in view.
+    $('.approval-card-chat:not(.resolved) [data-approve]', stream)?.closest('.approval-card-chat')?.scrollIntoView({ block: "center", behavior: "instant" });
+  }
 
   // The working indicator lives in a stable slot AFTER the feed: full re-renders
   // replace the transcript every event batch, so keeping its slot stable avoids
@@ -5151,10 +5199,75 @@ const seenRunStatus = new Map();
 // A pending specialist question is announced once, when its task card first shows it.
 const seenTaskQuestions = new Set();
 
+// Per-view toggles (a long request, "Show more" on an output, Raw/Formatted) live in the DOM, and the feed
+// replaces its HTML on every event batch. Remember them by position so a live run never snaps them shut.
+const feedToggles = new Map();
+function feedToggleKey(el, kind) {
+  const runBlock = el.closest("[data-run-id]");
+  const line = el.closest("[data-tool-line]");
+  const scope = line || runBlock || document;
+  const index = [...scope.querySelectorAll(`[data-${kind}]`)].indexOf(el);
+  return `${runBlock?.dataset.runId || ""}|${line?.dataset.toolLine || ""}|${kind}|${index}`;
+}
+function rememberFeedToggle(el, kind, on) {
+  const key = feedToggleKey(el, kind);
+  feedToggles.delete(key);
+  feedToggles.set(key, on);
+  if (feedToggles.size > 400) feedToggles.delete(feedToggles.keys().next().value);
+}
+function applyBubbleToggle(toggle, open) {
+  const message = toggle.closest(".msg.you");
+  message.dataset.expanded = String(open);
+  toggle.setAttribute("aria-expanded", String(open));
+  toggle.textContent = open ? "Show less" : "Show more";
+}
+function applyShowMore(button, expanded) {
+  const block = button.closest("[data-md-code]");
+  if (!block) return;
+  block.dataset.clipped = expanded ? "false" : "true";
+  if (!button.dataset.moreLabel) button.dataset.moreLabel = button.textContent;
+  button.textContent = expanded ? "Show less" : button.dataset.moreLabel;
+  button.setAttribute("aria-expanded", String(expanded));
+}
+function applyRawToggle(toggle, showRaw) {
+  const section = toggle.closest(".tool-req");
+  toggle.setAttribute("aria-pressed", String(showRaw));
+  toggle.textContent = showRaw ? "Formatted" : "Raw";
+  section.querySelector('[data-view="formatted"]').hidden = showRaw;
+  section.querySelector('[data-view="raw"]').hidden = !showRaw;
+}
+function restoreFeedToggles(stream) {
+  if (!feedToggles.size) return;
+  for (const [kind, apply] of [["bubble-toggle", applyBubbleToggle], ["show-more", applyShowMore], ["raw-toggle", applyRawToggle]]) {
+    stream.querySelectorAll(`[data-${kind}]`).forEach(el => {
+      const on = feedToggles.get(feedToggleKey(el, kind));
+      if (on !== undefined) apply(el, on);
+    });
+  }
+}
+
+// Starting points, offered only when this assistant has the tools they need.
+const WELCOME_IDEAS = [
+  { needs: [], icon: "calendar", title: "Plan my week", prompt: "Help me plan my week and keep track of the follow-ups." },
+  { needs: ["files", "documents"], icon: "fileText", title: "Summarize a document", prompt: "Summarize the document I attach in five bullet points and list any open questions." },
+  { needs: ["browser", "web"], icon: "search", title: "Research a topic", prompt: "Research this week’s news on a topic I choose and write a short summary with sources." },
+  { needs: ["shell"], icon: "terminal", title: "Check a project folder", prompt: "Inspect this repository for TODOs and report what you find." },
+  { needs: ["files"], icon: "folder", title: "Tidy a folder", prompt: "Sort this week’s downloads and move invoices into folders. Ask before moving anything." },
+  { needs: [], icon: "pencil", title: "Draft a message", prompt: "Help me draft a short, friendly message. Ask me who it is for first." },
+];
+const WELCOME_TOOL_WORDS = { shell: "commands", files: "files", memory: "notes", documents: "documents", browser: "the browser", web: "the web", computer: "the computer" };
+
+function welcomeIdeas(bot) {
+  const tools = new Set(bot.tools || []);
+  return WELCOME_IDEAS.filter(idea => !idea.needs.length || idea.needs.some(need => tools.has(need))).slice(0, 4);
+}
+
 function welcomeHtml() {
   const b = botsCache.find(x => x.name === currentStudioBot);
   if (!b) return "";
   const description = String(b.description || "").trim();
+  const words = [...new Set((b.tools || []).map(tool => WELCOME_TOOL_WORDS[tool]).filter(Boolean))];
+  const can = words.length ? `Can use ${words.length > 1 ? `${words.slice(0, -1).join(", ")} and ${words.at(-1)}` : words[0]}` : "";
   return `
     <div class="welcome">
       <div class="welcome-hero">
@@ -5164,7 +5277,20 @@ function welcomeHtml() {
         <h2>${esc(botDisplayName(b))}</h2>
         ${description ? `<p class="hint">${esc(description)}</p>` : ""}
       </div>
-      <p class="welcome-intro">Send me a message below. I’ll ask before anything that needs your okay.</p>
+      <p class="welcome-intro">What would you like to work on?</p>
+      <ul class="welcome-trust" aria-label="How this assistant works">
+        <li>${icon("shield")}<span>${esc(botActionSummary(b.approval_mode))}</span></li>
+        ${can ? `<li>${icon("wrench")}<span>${esc(can)}</span></li>` : ""}
+      </ul>
+      <section class="welcome-ideas" aria-labelledby="welcome-ideas-title">
+        <h3 id="welcome-ideas-title">Try one of these</h3>
+        <div class="welcome-ideas-grid">
+          ${welcomeIdeas(b).map(idea => `<button class="welcome-idea" type="button" data-welcome-prompt="${esc(idea.prompt)}">
+            <span class="welcome-idea-ico" aria-hidden="true">${icon(idea.icon)}</span>
+            <span class="welcome-idea-copy"><span class="welcome-idea-title">${esc(idea.title)}</span><span class="welcome-idea-prompt">${esc(idea.prompt)}</span></span>
+          </button>`).join("")}
+        </div>
+      </section>
       <details class="tpl-gal" id="tpl-gal" hidden>
         <summary class="tpl-gal-summary">
           <span class="tpl-gal-copy">
@@ -5195,6 +5321,15 @@ const TEMPLATE_GALLERY_ORDER = [
 ];
 
 async function wireWelcome() {
+  // An idea fills the composer for editing; it never sends anything by itself.
+  $$("[data-welcome-prompt]").forEach(button => button.addEventListener("click", () => {
+    const field = $("#chat-prompt");
+    if (!field) return;
+    field.value = button.dataset.welcomePrompt;
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    field.focus();
+    field.setSelectionRange(field.value.length, field.value.length);
+  }));
   /* Explore-agents gallery: real templates from the API, fetched lazily —
      never seeded. Picking one opens the create dialog with it preselected. */
   try {
@@ -5230,6 +5365,23 @@ function runMirrorNoticeHtml(mirror) {
     : mirror?.pending ? '<p class="hint" role="status">Transcript file is catching up. History shown here is committed in the database.</p>' : "";
 }
 
+// Assistant text is untrusted: markdown.js escapes everything and builds only its own tags.
+function renderAnswerHtml(text) {
+  const markdown = window.HutchMarkdown;
+  if (markdown && typeof markdown.render === "function") {
+    try { return markdown.render(text); } catch (error) { console.error("markdown render failed", error); }
+  }
+  return `<p>${esc(text).replace(/\n/g, "<br>")}</p>`;
+}
+
+// One of the avatar's motion states (running / waiting / blocked), or "" for a calm face.
+function avatarStateFor(status, waitingForChoice = false) {
+  if (waitingForChoice || ["waiting_approval", "waiting_human", "waiting_for_answer"].includes(status)) return "waiting";
+  if (status === "running" || status === "loading_model") return "running";
+  if (["failed", "outcome_unknown"].includes(status)) return "blocked";
+  return "";
+}
+
 async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHandoffs = [], snapshot = null) {
   const run = snapshot || await api(`/runs/${runId}`);
   const events = run.events || [];
@@ -5240,8 +5392,27 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHan
   for (const [id, state] of Object.entries(run.approval_states || {})) {
     if (state.result !== "pending") resolvedMap.set(id, state);
   }
-  const items = groupToolItems(pairToolEvents(events));
+  const items = pairToolEvents(events);
   const dur = fmtDur((run.finished_at ? new Date(run.finished_at) : Date.now()) - new Date(run.created_at));
+  // "Worked for" is elapsed time minus what the run spent waiting on a person (from the
+  // recorded request and decision timestamps) or in the queue. Measured tool time includes
+  // that wait, so it cannot be used directly.
+  let waitedMs = 0;
+  for (const e of events) {
+    if (e.type !== "approval_request") continue;
+    const decided = resolvedMap.get((e.data || {}).approval_id);
+    const asked = Date.parse(e.ts || ""), answered = Date.parse(decided?.resolved_at || "");
+    if (Number.isFinite(asked) && Number.isFinite(answered) && answered > asked) waitedMs += answered - asked;
+  }
+  for (const e of events) {
+    if (e.type !== "approval_resolved") continue;
+    const request = events.find(item => item.type === "approval_request" && (item.data || {}).approval_id === (e.data || {}).approval_id);
+    if (!request || resolvedMap.get((e.data || {}).approval_id)?.resolved_at) continue;
+    const asked = Date.parse(request.ts || ""), answered = Date.parse(e.ts || "");
+    if (Number.isFinite(asked) && Number.isFinite(answered) && answered > asked) waitedMs += answered - asked;
+  }
+  const elapsedMs = (run.finished_at ? Date.parse(run.finished_at) : Date.now()) - Date.parse(run.created_at);
+  const workedMs = Math.max(0, elapsedMs - waitedMs - (run.queue_ms || 0));
   const running = ACTIVE.has(run.status);
   const waitingForChoice = Object.values(run.choice_states || {}).some(state => state.status === "pending");
   const activityLabel = statusInfo[run.status]?.label || "Status unavailable";
@@ -5254,7 +5425,7 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHan
   const steps = [], cards = [], choiceCards = [];
   items.forEach(item => {
     const html = renderFeedItem(item, runId, resolvedMap, activeHumanEventSeq,
-      run.choice_states || {}, run.conversation_id || "");
+      run.choice_states || {}, run.conversation_id || "", run.status);
     if (item.kind === "event" && item.e.type === "choice_requested") choiceCards.push(html);
     else (item.kind === "event" && (item.e.type === "approval_request" || item.e.type === "human_needed") ? cards : steps).push(html);
   });
@@ -5289,7 +5460,7 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHan
           aria-label="Rewrite this answer with less banter; tools and external actions will not be repeated" ${correctionBusy ? 'aria-disabled="true" aria-busy="true"' : ""}>${correctionBusyKind === "less_banter" ? "Starting…" : "Less banter"}</button>` : "";
   const replyAction = botMessage ? `<div class="answer-actions" data-answer-actions role="group"
       aria-label="Adjust this answer. Rewrites do not run tools or external actions again.">
-      ${correctionActions}<button class="btn ghost small" type="button" data-reply-message="${esc(botMessage.id)}" aria-label="Reply to ${esc(botName)} message">Reply to this</button></div>` : "";
+      ${correctionActions}<button class="btn ghost small" type="button" data-reply-message="${esc(botMessage.id)}" aria-label="Reply to this answer from ${esc(botName)}">Reply to this</button></div>` : "";
   const feedbackReasons = [["accuracy", "Accuracy"], ["relevance", "Relevance"], ["completeness", "Completeness"],
     ["depth", "Depth"], ["tone_or_humor", "Tone or humor"], ["safety", "Safety or boundaries"], ["other", "Other"]];
   const feedbackActions = run.status === "succeeded" && botMessage?.content && botMessage.content.length <= 12_000
@@ -5313,8 +5484,10 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHan
           aria-label="Clear answer feedback" ${feedbackPending ? 'aria-disabled="true" aria-busy="true"' : ""}>Clear</button>` : ""}
         <span class="answer-feedback-note" role="status" aria-live="polite">${feedbackPending ? "Saving locally…" : feedbackRating ? "Feedback saved locally; never changes saved response style." : "Local only; never changes saved response style."}</span>
       </div>` : "";
-  const createBotAction = userMessage ? `<div class="request-actions"><button class="btn ghost small" type="button"
-      data-create-bot-from-request="${esc(userMessage.id)}" aria-label="Create a bot from this request">Make a bot</button></div>` : "";
+  const createBotAction = userMessage ? `<button class="btn ghost small bubble-action" type="button"
+      data-create-bot-from-request="${esc(userMessage.id)}" aria-label="Make a bot from this request">Make a bot</button>` : "";
+  // A very long request is clamped (the full text stays in the DOM and in the transcript).
+  const longRequest = run.prompt.length > 600 || run.prompt.split("\n").length > 9;
   const coordinator = botsCache.find(bot => bot.name === currentStudioBot);
   const prepareTaskAction = coordinator?.is_workspace_coordinator && run.status === "succeeded"
     && userMessage && botMessage && !waitingForChoice
@@ -5348,35 +5521,50 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHan
       }).join("")}</div>`
     : "";
   const stepCount = events.filter(e => e.type === "tool_call").length;
+  // What the helper is doing right now, from the newest call that has no result yet.
+  const openCall = [...items].reverse().find(it => it.kind === "tool" && it.call && !it.result);
+  const openPres = openCall ? toolPresentation(openCall.call.d.tool, openCall.call.d.args) : null;
+  const liveLabel = run.status === "running"
+    ? (openPres ? `${openPres.running}${openPres.subject ? ` ${openPres.subject}` : ""}` : "Thinking") : "";
+  const stackedTools = [...new Set(items.filter(it => it.kind === "tool").map(it => toolPresentation((it.call || it.result).d.tool, it.call?.d.args).icon))]
+    .slice(0, 5).map(name => icon(name)).join("");
 
   const html = `
     <article class="thread${anim}" data-run-id="${esc(runId)}">
       <div class="msg you">
-        <div class="bubble">${replyPreview}${workspaceResultPreview}${bubbleImages}${esc(run.prompt)}</div>
-        <span class="stamp">${timeAgo(run.created_at)}${run.origin === "schedule" ? " · scheduled" : ""}</span>
-        ${createBotAction}
+        <div class="bubble${longRequest ? " is-long" : ""}" id="bubble-${esc(runId)}">${replyPreview}${workspaceResultPreview}${bubbleImages}${esc(run.prompt)}</div>
+        ${longRequest ? `<button class="bubble-toggle" type="button" data-bubble-toggle aria-expanded="false" aria-controls="bubble-${esc(runId)}">Show more</button>` : ""}
+        <div class="bubble-meta"><span class="stamp">${timeAgo(run.created_at)}${run.origin === "schedule" ? " · scheduled" : ""}</span>${createBotAction}</div>
       </div>
-      <div class="msg agent">
+      <div class="msg agent" data-run-status="${esc(run.status)}" style="--helper:${ID_COLORS[sigilPair(sourceBot?.name || run.bot_name || currentStudioBot || botName)[0]]}">
         <div class="mhead">
-          ${botAvatar(sourceBot?.name || run.bot_name || currentStudioBot || botName, 26, run.status === "running" ? "running" : "")}
+          ${botAvatar(sourceBot?.name || run.bot_name || currentStudioBot || botName, 28, avatarStateFor(run.status, waitingForChoice))}
           <b>${esc(botName)}</b>
           ${waitingForChoice
             ? statusChip("waiting_for_answer", "Waiting for your choice")
             : statusChip(run.status, run.status_label)}
+          ${liveLabel ? `<span class="mlive" aria-hidden="true" title="${esc(liveLabel)}">${esc(liveLabel)}</span>` : ""}
           ${running ? `<button class="btn ghost small" data-stop-run="${esc(runId)}" ${run.status === "cancelling" ? "disabled" : ""}>${run.status === "cancelling" ? "Stopping" : "Stop"}</button>` : ""}
           <a class="mrun" href="#/run/${esc(runId)}" aria-label="View work details" title="View work details">${icon("fileText")}</a>
         </div>
+        ${stepCount || running || cards.length || run.unknown_actions?.length || run.reviewed_actions?.length || run.status === "waiting_resources" ? `<div class="work">
+        ${stepCount || running ? `
+        <details class="tool-stream" ${running || stepCount < 4 ? "open" : ""}>
+          <summary><span class="ts-ico" aria-hidden="true">${run.status === "running" ? '<span class="tool-spin"></span>' : icon("gear")}</span>
+            <span class="ts-title">${run.status === "running" ? "Working" : running ? esc(activityLabel) : `Worked for ${fmtDur(workedMs)}`}</span>
+            ${stepCount ? `<span class="ts-meta">${stepCount} step${stepCount === 1 ? "" : "s"}</span>` : ""}
+            ${waitedMs >= 1000 ? `<span class="ts-meta ts-wait" title="Time spent waiting for a decision">waited ${esc(fmtDur(waitedMs))} for you</span>` : ""}
+            <span class="ts-stack" aria-hidden="true">${stackedTools}</span>
+            ${icon("caret", "tool-caret")}</summary>
+          ${steps.join("")}
+        </details>` : ""}
         ${cards.join("")}
         ${(run.unknown_actions || []).map(receiptCardHtml).join("")}
         ${(run.reviewed_actions || []).map(receiptCardHtml).join("")}
         ${run.unresolved_action_count > 5 ? `<p class="hint">${run.unresolved_action_count - 5} more action receipts need review. <button class="btn ghost small" data-receipt-queue type="button">Open Needs you</button></p>` : ""}
         ${run.status === "waiting_resources" && run.reason ? `<p class="run-wait">${esc(run.reason)}</p>` : ""}
-        ${stepCount || running ? `
-        <details class="tool-stream" ${running || stepCount < 4 ? "open" : ""}>
-          <summary>${icon("gear")}${running ? esc(activityLabel) : `${stepCount} step${stepCount === 1 ? "" : "s"}`}${stepCount && !running ? ` · ${dur}` : ""} ${icon("caret", "tool-caret")}</summary>
-          ${steps.join("")}
-        </details>` : ""}
-        ${message && message.data?.content ? `<div class="answer">${esc(message.data.content)}</div>${replyAction}${feedbackActions}${prepareTaskAction}${prepareCodeTaskAction}` : ""}
+        </div>` : ""}
+        ${message && message.data?.content ? `<div class="answer md">${renderAnswerHtml(message.data.content)}</div>${replyAction}${feedbackActions}${prepareTaskAction}${prepareCodeTaskAction}` : ""}
         ${groundingEntryHtml(events, runId)}
         ${relatedTasks}
         ${relatedCodeTasks}
@@ -5823,6 +6011,9 @@ async function prepareWorkspaceTask(button) {
 }
 
 const seenThreads = new Set();
+// A conversation's existing turns appear at once; only turns that arrive after its first paint animate in.
+const primedConversations = new Set();
+const revealedRunGates = new Set();
 
 const receiptOutcomes = { confirmed_done: 'Effect confirmed', confirmed_failed: 'Failure confirmed', not_applied: 'No effect found' };
 function receiptCardHtml(action) {
@@ -5899,50 +6090,219 @@ async function reviewReceipt(id, trigger) {
 }
 
 /* Merge tool_call + tool_result pairs; runs of 4+ collapse under one group row. */
+/* ---------------------------------------------------------------- tool steps
+   A helper's work is a thread of steps. Each tool call is one step: an icon, a
+   plain-language title, the subject it acted on, a status node and the measured
+   duration. Expanding a step shows the exact request and result. Everything shown
+   here comes from recorded events — nothing is inferred or invented. */
+
+// Pairs each call with its result. A call stays open across interleaved events
+// (an approval request, a log line, a step record) so an approval gate never
+// leaves a phantom "running" row behind or a result without its request.
 function pairToolEvents(events) {
   const items = [];
-  let pending = null;
+  const waiting = [];
   for (const e of events) {
     const d = e.data || {};
     if (e.type === "tool_call") {
-      if (pending) items.push({ kind: "tool", call: pending, result: null });
-      pending = { e, d };
+      const item = { kind: "tool", call: { e, d }, result: null };
+      waiting.push(item);
+      items.push(item);
     } else if (e.type === "tool_result") {
-      items.push({ kind: "tool", call: pending, result: { e, d } });
-      pending = null;
+      let at = d.call_id !== undefined && d.call_id !== null
+        ? waiting.findIndex(it => it.call.d.call_id === d.call_id) : -1;
+      if (at < 0) at = waiting.findIndex(it => it.call.d.tool === d.tool);
+      if (at < 0) { items.push({ kind: "tool", call: null, result: { e, d } }); continue; }
+      waiting.splice(at, 1)[0].result = { e, d };
     } else {
-      if (pending) { items.push({ kind: "tool", call: pending, result: null }); pending = null; }
       items.push({ kind: "event", e, d });
     }
   }
-  if (pending) items.push({ kind: "tool", call: pending, result: null });
   return items;
-}
-
-const TOOL_GROUP_THRESHOLD = 4;
-
-function groupToolItems(items) {
-  const out = [];
-  let run = [];
-  const flush = () => {
-    if (run.length >= TOOL_GROUP_THRESHOLD) out.push({ kind: "group", items: run });
-    else out.push(...run);
-    run = [];
-  };
-  for (const it of items) {
-    if (it.kind === "tool" && it.result?.d?.workflow_recommendation) {
-      flush();
-      out.push(it); // keep a workflow card visible even when surrounding tools collapse
-    } else if (it.kind === "tool") run.push(it);
-    else { flush(); out.push(it); }
-  }
-  flush();
-  return out;
 }
 
 function expandedStore(runId) {
   try { return new Set(JSON.parse(localStorage.getItem(`hutch-expanded:${runId}`)) || []); }
   catch { return new Set(); }
+}
+
+// Present-tense title while a step runs, past tense once it has a result. `subject`
+// names the argument that says what the step acted on.
+const TOOL_PRESENTATION = {
+  shell: { icon: "terminal", running: "Running a command", done: "Ran a command", subject: "command", kind: "command" },
+  run_python: { icon: "code", running: "Running Python", done: "Ran Python", subject: "code", kind: "command" },
+  read_file: { icon: "fileText", running: "Reading", done: "Read", subject: "path" },
+  list_files: { icon: "folderOpen", running: "Listing files in", done: "Listed files in", subject: "path", fallback: "the workspace" },
+  write_file: { icon: "filePlus", running: "Writing", done: "Wrote", subject: "path", kind: "file" },
+  remember: { icon: "bookmark", running: "Proposing a note", done: "Proposed a note", subject: "key" },
+  recall: { icon: "brain", running: "Recalling notes", done: "Recalled notes", subject: "query" },
+  web_fetch: { icon: "globe", running: "Fetching", done: "Fetched", subject: "url", kind: "url" },
+  live_search: { icon: "search", running: "Searching the web for", done: "Searched the web for", subject: "question" },
+  browser: { icon: "globe", running: "Using the browser", done: "Used the browser", subject: "url", kind: "url" },
+  computer: { icon: "monitor", running: "Using the computer", done: "Used the computer", subject: "action" },
+  google_mail_search: { icon: "mail", running: "Searching Gmail", done: "Searched Gmail", subject: "query" },
+  google_mail_send: { icon: "mail", running: "Sending an email", done: "Sent an email", subject: "subject" },
+  outlook_mail_search: { icon: "mail", running: "Searching Outlook mail", done: "Searched Outlook mail", subject: "query" },
+  outlook_mail_send: { icon: "mail", running: "Sending an email", done: "Sent an email", subject: "subject" },
+  google_calendar_events: { icon: "calendar", running: "Checking your calendar", done: "Checked your calendar" },
+  google_calendar_create_event: { icon: "calendar", running: "Adding a calendar event", done: "Added a calendar event", subject: "summary" },
+  outlook_calendar_events: { icon: "calendar", running: "Checking your calendar", done: "Checked your calendar" },
+  outlook_calendar_create_event: { icon: "calendar", running: "Adding a calendar event", done: "Added a calendar event", subject: "subject" },
+  create_document: { icon: "fileText", running: "Creating a document", done: "Created a document", subject: "title" },
+  revise_document: { icon: "fileText", running: "Revising a document", done: "Revised a document", subject: "title" },
+  inspect_document: { icon: "fileText", running: "Reading a document", done: "Read a document", subject: "title" },
+  create_media: { icon: "image", running: "Creating media", done: "Created media", subject: "prompt" },
+  inspect_media: { icon: "image", running: "Looking at media", done: "Looked at media", subject: "path" },
+  delegate_task: { icon: "users", running: "Handing off a task", done: "Handed off a task", subject: "title" },
+  ask_user_choice: { icon: "helpCircle", running: "Asking you a question", done: "Asked you a question", subject: "question" },
+  use_skill: { icon: "sparkles", running: "Using a skill", done: "Used a skill", subject: "name" },
+  recommend_workflow: { icon: "layers", running: "Weighing a workflow", done: "Weighed a workflow" },
+  draft_workflow: { icon: "layers", running: "Drafting a workflow", done: "Drafted a workflow" },
+};
+
+// A subject is shown on one line: the first non-empty line, marked when more follows.
+function oneLine(text, limit = 240) {
+  const lines = String(text).split("\n").map(line => line.replace(/\s+/g, " ").trim()).filter(Boolean);
+  if (!lines.length) return "";
+  return truncate(lines[0] + (lines.length > 1 ? " …" : ""), limit);
+}
+
+function toolPresentation(tool, args) {
+  const meta = TOOL_PRESENTATION[tool] || null;
+  const human = String(tool || "tool").replace(/[_-]+/g, " ").trim() || "tool";
+  const scalar = key => {
+    const value = args && typeof args === "object" ? args[key] : undefined;
+    return typeof value === "string" || typeof value === "number" ? String(value) : "";
+  };
+  let subject = meta?.subject ? scalar(meta.subject) : "";
+  if (!subject && args && typeof args === "object") {
+    for (const value of Object.values(args)) {
+      if (typeof value === "string" && value.trim()) { subject = value; break; }
+    }
+  }
+  if (!subject && meta?.fallback) subject = meta.fallback;
+  if (meta?.kind === "url" && /^https?:\/\//i.test(subject)) {
+    try { const url = new URL(subject); subject = url.host + (url.pathname === "/" ? "" : url.pathname); } catch { /* keep as written */ }
+  }
+  return {
+    icon: meta?.icon || "wrench",
+    running: meta?.running || `Running ${human}`,
+    done: meta?.done || `Ran ${human}`,
+    kind: meta?.kind || "generic",
+    subject: oneLine(subject),
+  };
+}
+
+// Measured from the two recorded events; null when either timestamp is missing.
+function toolStepDurationMs(call, res) {
+  const a = Date.parse(call?.e?.ts || ""), b = Date.parse(res?.e?.ts || "");
+  return Number.isFinite(a) && Number.isFinite(b) && b >= a ? b - a : null;
+}
+
+// The shell tool reports "exit=N" as the first line of its output.
+function shellExitCode(output) {
+  const match = /^exit=(-?\d+)/.exec(String(output || ""));
+  return match ? Number(match[1]) : null;
+}
+
+const toolLabel = key => String(key).replace(/[_-]+/g, " ").replace(/^./, c => c.toUpperCase());
+
+function toolValueHtml(value) {
+  if (typeof value === "string") {
+    const text = truncate(value, 600);
+    return value.length > 120 || value.includes("\n")
+      ? `<pre class="tval">${esc(text)}</pre>` : `<span class="tval-inline">${esc(text)}</span>`;
+  }
+  if (value === null || value === undefined) return '<span class="tval-inline muted">none</span>';
+  return `<code class="tval-inline">${esc(truncate(JSON.stringify(value), 400))}</code>`;
+}
+
+// What the step asked for, in the shape that reads best for that kind of tool.
+function toolRequestHtml(args, pres) {
+  const object = args && typeof args === "object" && !Array.isArray(args) ? args : {};
+  const raw = esc(JSON.stringify(args ?? {}, null, 2));
+  let lead = "";
+  const skip = new Set();
+  if (pres.kind === "command") {
+    const text = String(object.command ?? object.code ?? "");
+    skip.add("command"); skip.add("code");
+    if (text) lead = `<pre class="tcmd" tabindex="0"><code>${esc(truncate(text, 6000))}</code></pre>`;
+  } else if (pres.kind === "file" && typeof object.content === "string") {
+    skip.add("content");
+    const lines = object.content.split("\n").length;
+    lead = `<div class="md-code tool-out" data-md-code${object.content.length > OUTPUT_CLIP || lines > 12 ? ' data-clipped="true"' : ""}>
+        <div class="md-code-head"><span class="md-code-lang">${lines} line${lines === 1 ? "" : "s"} · ${object.content.length.toLocaleString("en-US")} chars</span>
+          <button type="button" class="md-copy" data-md-copy aria-label="Copy file content">Copy</button></div>
+        <pre tabindex="0"><code>${esc(truncate(object.content, 20000))}</code></pre>
+        ${object.content.length > OUTPUT_CLIP || lines > 12 ? '<button class="tool-line-more" type="button" data-show-more>Show more</button>' : ""}
+      </div>`;
+  }
+  const rows = Object.entries(object).filter(([key]) => !skip.has(key)).slice(0, 10)
+    .map(([key, value]) => `<div class="tkv-row"><dt>${esc(toolLabel(key))}</dt><dd>${toolValueHtml(value)}</dd></div>`).join("");
+  const formatted = `${lead}${rows ? `<dl class="tkv">${rows}</dl>` : ""}` || '<p class="hint">No arguments.</p>';
+  return `<div class="tool-line-section tool-req">
+      <span class="tool-line-label">Input</span>
+      <button class="tool-raw-toggle" type="button" data-raw-toggle aria-pressed="false">Raw</button>
+      <div data-view="formatted">${formatted}</div>
+      <pre class="traw" data-view="raw" tabindex="0" hidden>${raw}</pre>
+    </div>`;
+}
+
+function renderFeedItem(item, runId, resolvedMap, activeHumanEventSeq, choiceStates = {}, conversationId = "", runStatus = "running") {
+  if (item.kind === "tool") return toolLineHtml(item, item.call?.e ?? item.result.e, runId, true, runStatus);
+  return renderChatEvent(item.e, resolvedMap, activeHumanEventSeq, choiceStates, conversationId);
+}
+
+function toolLineHtml(item, anchorEvent, runId, includeFileAttachments = true, runStatus = "running") {
+  const idx = anchorEvent.seq ?? anchorEvent.ts;
+  const call = item.call, res = item.result;
+  const tool = (res || call).d.tool;
+  const args = call?.d.args ?? {};
+  const pres = toolPresentation(tool, args);
+  const waiting = !res && ["waiting_approval", "waiting_human"].includes(runStatus);
+  const running = !res && !waiting && ACTIVE.has(runStatus);
+  const interrupted = !res && !waiting && !running;
+  const ok = res ? res.d.ok !== false : true;
+  const state = waiting ? "waiting" : running ? "running" : interrupted ? "interrupted" : ok ? "success" : "error";
+  const stateWord = { waiting: "Waiting for you", running: "Running", interrupted: "No result recorded", success: "Done", error: "Failed" }[state];
+  const duration = toolStepDurationMs(call, res);
+  const exit = tool === "shell" && res ? shellExitCode(res.d.output) : null;
+  const t = (res || call).e.ts?.slice(11, 19) || "";
+  const open = expandedStore(runId).has(String(idx));
+  const title = running || waiting ? pres.running : pres.done;
+  const verdict = running ? '<span class="tool-spin" aria-hidden="true"></span>'
+    : waiting ? icon("hourglass") : interrupted ? icon("pause") : icon(ok ? "check" : "x");
+  const workflowRecommendation = res?.d?.workflow_recommendation;
+  const recommendationCard = workflowRecommendation && workflowRecommendation.route !== "direct"
+    ? workflowRecommendationHtml(workflowRecommendation) : "";
+  const controls = `tlb-${esc(String(idx))}${res?.d.artifact ? ` tla-${esc(String(idx))}` : ""}`;
+
+  return `<div class="tool-line-wrap">
+    <div class="tool-line ${state}" data-tool-line="${esc(String(idx))}" data-tool-kind="${esc(pres.kind)}">
+      <button class="tool-line-head" type="button" aria-expanded="${open}" aria-controls="${controls}" data-tool-toggle="${esc(String(idx))}">
+        <span class="tool-grid" title="${esc(t)}">
+          <span class="tool-ico" aria-hidden="true">${icon(pres.icon)}<span class="tool-verdict" data-state="${state}">${verdict}</span></span>
+          <span class="tool-name">${esc(title)}</span>
+          <span class="tool-args"><span class="tool-args-text" translate="no">${esc(pres.subject)}</span>${res?.d.artifact ? `<span class="tool-src-flag" title="Full output saved as an artifact">source</span>` : ""}</span>
+          <span class="tool-meta">
+            ${state === "error" ? '<span class="tag danger tool-fail">Failed</span>' : state === "waiting" ? '<span class="tag warn tool-fail">Needs you</span>' : ""}
+            ${exit !== null ? `<span class="tool-exit${exit ? " bad" : ""}">exit ${exit}</span>` : ""}
+            ${duration !== null ? `<time class="tool-time">${esc(fmtDur(duration))}</time>` : ""}
+          </span>
+          <span class="tool-caret" aria-hidden="true">${icon("caret")}</span>
+          <span class="visually-hidden">${esc(stateWord)}</span>
+        </span>
+      </button>
+      <div class="tool-line-body" id="tlb-${esc(String(idx))}" ${open ? "" : "hidden"}>
+        ${toolRequestHtml(args, pres)}
+        ${res ? toolOutputHtml(res.d.output, ok) : `<div class="tool-line-section"><span class="tool-line-label">Output</span><p class="hint">${esc(waiting ? "Waiting for your decision before this can run." : running ? "Running…" : "No result was recorded for this step.")}</p></div>`}
+      </div>
+      ${res?.d.artifact ? `<div class="tool-artifact-actions" id="tla-${esc(String(idx))}" ${open ? "" : "hidden"}>${artifactDownloadHtml(runId, res.d)}${sourceCardHtml(res.d, runId)}</div>` : ""}
+    </div>
+    ${hutchWidgetsFeedItemHtml(res ? res.d : null, { runId })}
+    ${recommendationCard}
+    ${includeFileAttachments ? createdFilesHtml(runId, [{ result: res }]) : ""}
+  </div>`;
 }
 
 // Working indicator: deliberately aria-hidden — the status chip and the bounded
@@ -5951,54 +6311,6 @@ function typingHtml() {
   return `<div class="typing" aria-hidden="true">
     <span class="typing-dots"><span></span><span></span><span></span></span>
     <span class="typing-label">Working…</span>
-  </div>`;
-}
-
-function renderFeedItem(item, runId, resolvedMap, activeHumanEventSeq, choiceStates = {}, conversationId = "") {
-  if (item.kind === "tool") return toolLineHtml(item, item.call?.e ?? item.result.e, runId);
-  if (item.kind === "group") return toolGroupHtml(item, runId);
-  return renderChatEvent(item.e, resolvedMap, activeHumanEventSeq, choiceStates, conversationId);
-}
-
-function toolLineHtml(item, anchorEvent, runId, includeFileAttachments = true) {
-  const idx = anchorEvent.seq ?? anchorEvent.ts;
-  const call = item.call, res = item.result;
-  const tool = (res || call).d.tool;
-  const running = !res;
-  const ok = res ? res.d.ok !== false : true;
-  const cls = running ? "running" : ok ? "success" : "error";
-  const argsStr = JSON.stringify(call?.d.args ?? {});
-  const summary = res ? summarizeOutput(res.d.output) || argsStr : argsStr;
-  const t = (res || call).e.ts?.slice(11, 19) || "";
-  const open = expandedStore(runId).has(String(idx));
-  const verdict = running
-    ? '<span class="spin-line" role="status" aria-label="running"></span>'
-    : icon(ok ? "check" : "x");
-  const workflowRecommendation = res?.d?.workflow_recommendation;
-  const recommendationCard = workflowRecommendation && workflowRecommendation.route !== "direct"
-    ? workflowRecommendationHtml(workflowRecommendation) : "";
-
-  return `<div class="tool-line-wrap">
-    <div class="tool-line ${cls}" data-tool-line="${esc(String(idx))}">
-      <button class="tool-line-head" type="button" aria-expanded="${open}" aria-controls="tlb-${esc(String(idx))}${res?.d.artifact ? ` tla-${esc(String(idx))}` : ""}" data-tool-toggle="${esc(String(idx))}">
-        <span class="tool-grid" title="${t}">
-          <span class="tool-verdict">${verdict}</span>
-          <span class="tool-name">${esc(tool)}</span>
-          <span class="tool-args"><span class="tool-args-text">${esc(truncate(summary, 90))}</span>${res?.d.artifact ? `<span class="tool-src-flag" title="Full output saved as an artifact">source</span>` : ""}</span>
-        </span>
-      </button>
-      <div class="tool-line-body" id="tlb-${esc(String(idx))}" ${open ? "" : "hidden"}>
-        <div class="tool-line-section">
-          <span class="tool-line-label">Input</span>
-          ${esc(JSON.stringify(call?.d.args ?? {}, null, 2))}
-        </div>
-        ${res ? toolOutputHtml(res.d.output) : '<div class="tool-line-section"><span class="tool-line-label">Output</span>pending…</div>'}
-      </div>
-      ${res?.d.artifact ? `<div class="tool-artifact-actions" id="tla-${esc(String(idx))}" ${open ? "" : "hidden"}>${artifactDownloadHtml(runId, res.d)}${sourceCardHtml(res.d, runId)}</div>` : ""}
-      ${hutchWidgetsFeedItemHtml(res ? res.d : null, { runId })}
-    </div>
-    ${recommendationCard}
-    ${includeFileAttachments ? createdFilesHtml(runId, [{ result: res }]) : ""}
   </div>`;
 }
 
@@ -6050,17 +6362,20 @@ function sourceCardHtml(d, runId) {
 
 const OUTPUT_CLIP = 600;
 
-function toolOutputHtml(output) {
-  const text = output || "(no output)";
-  if (text.length <= OUTPUT_CLIP) {
-    return `<div class="tool-line-section"><span class="tool-line-label">Output</span>${esc(text)}</div>`;
-  }
-  return `
-    <div class="tool-line-section">
-      <span class="tool-line-label">Output</span>
-      <span data-out-clip>${esc(text.slice(0, OUTPUT_CLIP))}</span><span data-out-full hidden>…${esc(text.slice(OUTPUT_CLIP))}</span>
-      <button class="tool-line-more" type="button" data-show-more>Show ${text.length - OUTPUT_CLIP} more characters</button>
-    </div>`;
+// Output is rendered once, in full; long output is clipped by CSS and opened in
+// place, so Copy always copies everything that was recorded.
+function toolOutputHtml(output, ok = true) {
+  const text = output ? String(output) : "(no output)";
+  const long = text.length > OUTPUT_CLIP || text.split("\n").length > 12;
+  return `<div class="tool-line-section tool-res${ok ? "" : " bad"}">
+    <span class="tool-line-label">Output</span>
+    <div class="md-code tool-out" data-md-code${long ? ' data-clipped="true"' : ""}>
+      <div class="md-code-head"><span class="md-code-lang">${ok ? "result" : "error"}</span>
+        <button type="button" class="md-copy" data-md-copy aria-label="Copy output">Copy</button></div>
+      <pre tabindex="0"><code>${esc(text)}</code></pre>
+      ${long ? `<button class="tool-line-more" type="button" data-show-more>Show ${(text.length - OUTPUT_CLIP > 0 ? text.length - OUTPUT_CLIP : "all").toLocaleString("en-US")} more characters</button>` : ""}
+    </div>
+  </div>`;
 }
 
 function artifactDownloadHtml(runId, result) {
@@ -6107,30 +6422,6 @@ function createdFilesHtml(runId, items) {
       return "";
     }).join("")}
   </div>`;
-}
-
-function toolGroupHtml(item, runId) {
-  const open = localStorage.getItem(`hutch-group:${runId}`) === "1";
-  const tools = item.items.map(it => (it.result || it.call).d.tool);
-  const uniq = [...new Set(tools)];
-  const label = uniq.length <= 3 ? uniq.join(", ") : `${uniq.slice(0, 3).join(", ")} +${uniq.length - 3}`;
-  const done = item.items.filter(it => it.result).length;
-  const summary = `${done}/${item.items.length} tool steps — ${label}`;
-  const allOk = done === item.items.length && item.items.every(it => (it.result?.d.ok ?? true) !== false);
-  return `
-    <div class="tool-group ${open ? "open" : ""}" data-tool-group>
-      <div class="feed-divider">
-        <button class="feed-pill" type="button" aria-expanded="${open}" data-group-toggle>
-          ${icon(allOk ? "check" : "zap")}
-          <span>${esc(summary)}</span>
-          <span class="tool-caret">${icon("caret")}</span>
-        </button>
-      </div>
-      <div class="tool-group-items" ${open ? "" : "hidden"}>
-        ${item.items.map(it => toolLineHtml(it, it.call?.e ?? it.result.e, runId, false)).join("")}
-      </div>
-    </div>
-    ${createdFilesHtml(runId, item.items)}`;
 }
 
 function wireFeedInteractions() {
@@ -6192,22 +6483,26 @@ function wireFeedInteractions() {
     if (stop) { requestStop(stop.dataset.stopRun, stop); return; }
     const more = ev.target.closest("[data-show-more]");
     if (more) {
-      const full = more.parentElement.querySelector("[data-out-full]");
-      const clip = more.parentElement.querySelector("[data-out-clip]");
-      const show = full.hidden;
-      full.hidden = !show; clip.hidden = show;
-      more.textContent = show ? "Show less" : more.textContent;
+      const block = more.closest("[data-md-code]");
+      if (block) {
+        const expanded = block.dataset.clipped === "true";
+        applyShowMore(more, expanded);
+        rememberFeedToggle(more, "show-more", expanded);
+      }
       return;
     }
-    const groupBtn = ev.target.closest("[data-group-toggle]");
-    if (groupBtn) {
-      const group = groupBtn.closest("[data-tool-group]");
-      const open = !group.classList.contains("open");
-      group.classList.toggle("open", open);
-      groupBtn.setAttribute("aria-expanded", String(open));
-      group.querySelector(".tool-group-items").hidden = !open;
-      const blockRun = group.closest("[data-run-id]")?.dataset.runId || currentRunId;
-      try { localStorage.setItem(`hutch-group:${blockRun}`, open ? "1" : "0"); } catch {}
+    const bubbleToggle = ev.target.closest("[data-bubble-toggle]");
+    if (bubbleToggle) {
+      const open = bubbleToggle.closest(".msg.you").dataset.expanded !== "true";
+      applyBubbleToggle(bubbleToggle, open);
+      rememberFeedToggle(bubbleToggle, "bubble-toggle", open);
+      return;
+    }
+    const rawToggle = ev.target.closest("[data-raw-toggle]");
+    if (rawToggle) {
+      const showRaw = rawToggle.getAttribute("aria-pressed") !== "true";
+      applyRawToggle(rawToggle, showRaw);
+      rememberFeedToggle(rawToggle, "raw-toggle", showRaw);
       return;
     }
     const lineBtn = ev.target.closest("[data-tool-toggle]");
@@ -6216,7 +6511,6 @@ function wireFeedInteractions() {
       const body = document.getElementById(lineBtn.getAttribute("aria-controls"));
       const open = lineBtn.getAttribute("aria-expanded") !== "true";
       lineBtn.setAttribute("aria-expanded", String(open));
-      line.classList.toggle("open", open);
       if (body) body.hidden = !open;
       const artifacts = line.querySelector(".tool-artifact-actions");
       if (artifacts) artifacts.hidden = !open;
@@ -6304,7 +6598,7 @@ function approvalReasonText(rule, tool) {
 
 // One approval, rendered identically in the feed and the queue: plain-language
 // action first, exact detail behind a disclosure, honest expiry/scope notes.
-function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
+function approvalCardHtml(a, { botName = "", resolved = "", inChat = false } = {}) {
   const id = a.approval_id || a.id;
   if (resolved && resolved !== "pending") return approvalResolvedHtml(a, resolved, botName);
 
@@ -6350,27 +6644,36 @@ function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
     a.account ? ["Account", a.account] : null,
     a.destination ? ["Destination", a.destination] : null,
     a.revision ? ["Revision", a.revision] : null,
-    rule && !formTarget ? ["Why you are asked", approvalReasonText(rule, tool)] : null,
     ["Effect", outward
       ? "Sends data out of this machine — Stop cannot recall it once it has gone"
       : "Check the exact arguments below. Changes may need manual undo."],
   ].filter(Boolean).map(([k, v]) =>
     `<div class="review-row"><span class="review-key">${esc(k)}</span><span>${esc(v)}</span></div>`).join("");
 
+  const isCommand = action.startsWith("$ ") || (tool === "shell" && typeof detailObject?.command === "string");
+  const preview = gatePreviewHtml(tool, detailObject);
+  const riskLabel = { high: "High risk", medium: "Medium risk", low: "Low risk" }[risk] || `${risk} risk`;
+  const why = rule && !formTarget ? approvalReasonText(rule, tool) : "";
+
   return `
-    <div class="approval-card-chat risk-${esc(risk)} ${outward ? "outward" : ""} ${expired ? "expired" : ""}"
+    <div class="approval-card-chat gate risk-${esc(risk)} ${outward ? "outward" : ""} ${expired ? "expired" : ""}" role="group" aria-labelledby="approval-action-${esc(id)}"
          data-approval-card="${esc(id)}" data-action-hash="${esc(a.action_hash || "")}" ${deadline ? `data-deadline="${deadline}"` : ""}>
-      <div class="approval-badge-bar">
-        <div class="approval-head-left">
-          <span class="chip">${icon("shield")} Approval required</span>
+      <div class="gate-head">
+        <span class="gate-icon" aria-hidden="true">${icon("shieldAlert", "icon-md")}</span>
+        <div class="gate-heading">
+          <span class="gate-kicker chip">Approval required</span>
           ${botName ? `<b class="approval-bot">${esc(botName)}</b>` : ""}
-          ${toolLabel ? `<span class="tag">${esc(toolLabel)}</span>` : ""}
-          <span class="tag ${risk === "high" ? "danger" : ""}">${esc(risk)} risk</span>
-          ${outward ? `<span class="tag danger" title="Leaves this machine; always-allow is not offered">leaves machine</span>` : ""}
         </div>
         <span class="ttl-countdown">${icon("hourglass")}<span data-ttl-text>${esc(ttlText)}</span></span>
       </div>
-      <div class="approval-action-text" id="approval-action-${esc(id)}">${esc(action)}</div>
+      <div class="approval-action-text${isCommand ? " is-command" : ""}" id="approval-action-${esc(id)}">${esc(action)}</div>
+      ${why ? `<p class="gate-why">${esc(why)}</p>` : ""}
+      ${preview}
+      <div class="gate-tags">
+        ${toolLabel ? `<span class="tag">${esc(toolLabel)}</span>` : ""}
+        <span class="tag ${risk === "high" ? "danger" : ""}">${esc(riskLabel.toLowerCase())}</span>
+        ${outward ? `<span class="tag danger" title="Leaves this machine; always-allow is not offered">leaves machine</span>` : `<span class="tag" title="This action stays on this computer">stays on this computer</span>`}
+      </div>
       <span class="visually-hidden" id="approval-id-${esc(id)}">Approval ID <code class="mono">${esc(id)}</code></span>
       <details class="approval-review">
         <summary>Review details</summary>
@@ -6394,17 +6697,36 @@ function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
         </details>` : ""}
       </details>
       ${canAlways
-        ? `<p class="hint approval-scope">Always-allow remembers <code class="mono">${esc(stickyKey)}</code> for this bot. Revoke it any time in the bot's standing permissions.</p>`
+        ? `<p class="hint approval-scope">Always allow remembers <code class="mono">${esc(stickyKey)}</code> for this assistant. You can revoke it any time in its permissions.</p>`
         : outward
           ? `<p class="hint approval-scope">This action leaves the machine, so always-allow is not offered — you decide each time.</p>`
           : ""}
       <div class="approval-buttons" data-approval="${esc(id)}">
         <button class="btn primary small" data-approve="1" aria-describedby="approval-action-${esc(id)} approval-id-${esc(id)}">Allow once</button>
         ${canAlways ? `<button class="btn ghost small" data-approve="always" aria-describedby="approval-action-${esc(id)} approval-id-${esc(id)}">Always allow for this bot</button>` : ""}
-        <button class="btn ghost small" data-approve="0" aria-describedby="approval-action-${esc(id)} approval-id-${esc(id)}">Deny</button>
-        ${runId ? `<a class="btn ghost small" href="${esc(contextHref)}">${a.conversation_id ? "Open conversation" : "Open run"}</a>` : ""}
+        <button class="btn danger small gate-deny" data-approve="0" aria-describedby="approval-action-${esc(id)} approval-id-${esc(id)}">Deny</button>
+        ${runId && !inChat ? `<a class="btn ghost small gate-open" href="${esc(contextHref)}">${a.conversation_id ? "Open conversation" : "Open run"}</a>` : ""}
       </div>
     </div>`;
+}
+
+// The exact thing being approved, shown up front when it is short and readable:
+// the content of a file write. Commands already read as the headline (`$ cmd`).
+function gatePreviewHtml(tool, detail) {
+  if (!detail || typeof detail !== "object") return "";
+  if (typeof detail.path === "string" && typeof detail.content === "string") {
+    const exists = detail.revision && typeof detail.revision === "object" ? detail.revision.exists : null;
+    const long = detail.content.length > OUTPUT_CLIP || detail.content.split("\n").length > 10;
+    return `<div class="gate-preview" data-kind="file">
+      <div class="gate-preview-head"><span class="gate-path" translate="no">${esc(truncate(detail.path, 200))}</span>
+        ${exists === false ? '<span class="tag ok">New file</span>' : exists === true ? '<span class="tag warn">Replaces an existing file</span>' : ""}</div>
+      <div class="md-code tool-out" data-md-code${long ? ' data-clipped="true"' : ""}>
+        <pre tabindex="0" aria-label="Content to be written"><code>${esc(truncate(detail.content, 20000))}</code></pre>
+        ${long ? '<button class="tool-line-more" type="button" data-show-more>Show more</button>' : ""}
+      </div>
+    </div>`;
+  }
+  return "";
 }
 
 // Server-authoritative resolution: names who decided and when, so two devices
@@ -6545,7 +6867,7 @@ function renderChatEvent(e, resolvedMap, activeHumanEventSeq = null, choiceState
       const deadline = d.expires_at ? new Date(d.expires_at).getTime()
         : (e.ts ? new Date(e.ts).getTime() + 10 * 60 * 1000 : 0);
       return approvalCardHtml({ ...d, deadline, run_id: e.run_id || currentRunId },
-        { botName: currentStudioBot || "" });
+        { botName: currentStudioBot || "", inChat: true });
     }
     case "human_needed": {
       const eventSeq = Number(e.seq);
@@ -6565,7 +6887,7 @@ function renderChatEvent(e, resolvedMap, activeHumanEventSeq = null, choiceState
     case "log": {
       const note = (d.note || d.message || "").trim();
       if (!note) return "";   // empty log notes must not leave an orphan row
-      return `<div class="tool-line"><div class="tool-grid tool-log"><span class="tool-verdict"></span><span class="tool-args">${esc(truncate(note, 140))}</span></div></div>`;
+      return `<div class="tool-note"><span class="tool-note-dot" aria-hidden="true"></span><span>${esc(truncate(note, 140))}</span></div>`;
     }
     default:
       return "";   // message / tool_call / tool_result / approval_resolved are consumed elsewhere
@@ -7588,7 +7910,7 @@ function approvalOverviewHtml(pending, stats) {
   ];
   const filterRow = pending.length
     ? `<div class="approvals-filters" role="group" aria-label="Filter requests">
-      ${filters.map(([key, label, count]) => `<button type="button" class="approval-filter" data-approval-filter="${key}" aria-pressed="${String(approvalFilter === key)}" aria-label="${label}: ${count} request${count === 1 ? "" : "s"}">${label}<span class="count">${count}</span></button>`).join("")}
+      ${filters.map(([key, label, count]) => `<button type="button" class="approval-filter" data-approval-filter="${key}" aria-pressed="${String(approvalFilter === key)}" aria-label="${label} ${count} request${count === 1 ? "" : "s"}">${label} <span class="count">${count}</span></button>`).join("")}
     </div>` : "";
   return `<p class="approvals-summary">${summary.join(" · ")}</p>
     ${filterRow}
@@ -8939,6 +9261,7 @@ async function renderRunDetail(runId, params = new URLSearchParams()) {
   currentStudioBot = r.bot_name;
   currentRunId = runId;
   // Render the header and transcript from the same authoritative response.
+  seenThreads.add(runId);   // a task you opened is already there: no slide-in
   const block = await runBlockHtml(runId, null, [], [], r);
   if (!stillCurrent() || window.HutchComputer?.hasControl(runId)) return;
   setTopContext(`
@@ -9029,6 +9352,11 @@ async function renderRunDetail(runId, params = new URLSearchParams()) {
   const stream = $("#chat-stream");
   if (!stillCurrent() || !stream.isConnected) return;
   stream.insertAdjacentHTML("beforeend", block);
+  if (!revealedRunGates.has(runId)) {
+    // Opening a task that is waiting on a person: bring the request into view once, never on a live refresh.
+    const gate = $('.approval-card-chat:not(.resolved) [data-approve]', stream)?.closest('.approval-card-chat');
+    if (gate) { revealedRunGates.add(runId); gate.scrollIntoView({ block: "center", behavior: "instant" }); }
+  }
   window.HutchComputer?.mount(stream, runId, { api });   // owned computer-session panel and human step control
   void renderEvidencePanel(runId, r.events || [], params);
   const verifyButton = $(`[data-verify-run-history]`, stream);
@@ -13118,6 +13446,37 @@ function armShellTimers() {
 
 function startOwnerApp() {
   $("#topbar-new-bot")?.addEventListener("click", () => void promptNewBot());
+  const newConversation = async () => {
+    const bot = botsCache.find(item => item.name === currentStudioBot)
+      || botsCache.find(item => item.is_workspace_coordinator) || botsCache[0];
+    if (!bot) { location.hash = "#/assistant/new"; return; }
+    try {
+      const conversation = await createStudioConversation(bot);
+      storageSet(`hutch-conversation:${bot.id}`, conversation.id);
+      if (location.hash.startsWith("#/chat")) await renderChatStudio(bot.name);
+      else location.hash = `#/chat/${encodeURIComponent(bot.name)}`;
+    } catch (error) { toast(`Could not create a conversation: ${error.message}`, true); }
+  };
+  const palette = window.HutchPalette?.init({
+    icon,
+    bots: () => botsCache,
+    botName: bot => botHeading(bot),
+    botRole: bot => botRole(bot),
+    avatar: name => botAvatar(name, 24),
+    recentConversations: () => api("/v1/conversations?include_legacy=true&limit=40"),
+    openNeedsYou: () => void openNeedsYou(),
+    searchMessages: () => openConversationSearch(null),
+    newConversation,
+  });
+  // The sidebar header carries the two global actions; the palette is the one place that searches everything.
+  $("#ws-search")?.addEventListener("click", () => {
+    $("#ws-close")?.click();
+    palette?.open();
+  });
+  $("#ws-new-chat")?.addEventListener("click", () => {
+    $("#ws-close")?.click();
+    void newConversation();
+  });
   route();
   void loadStatusInfo();
   void refreshRoster();

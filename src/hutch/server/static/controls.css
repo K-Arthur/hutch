@@ -11,6 +11,7 @@
      read as a foreign component; the system identifies controls by fill + focus
      ring + this shared hairline, not a 3:1 outline unique to menus. */
   --control-line: var(--color-semantic-border-strong);
+  --control-edge: var(--color-semantic-border-edge);   /* field boundary: 3:1 (WCAG 1.4.11) */
   --control-focus: var(--color-semantic-focus-ring);
   --control-selected: var(--color-semantic-brand);
   --control-radius: var(--radius-control, 8px);
@@ -20,7 +21,7 @@
 }
 select {
   min-block-size: 44px; max-inline-size: 100%;
-  border: 1px solid var(--control-line); border-radius: var(--control-radius);
+  border: 1px solid var(--control-edge); border-radius: var(--control-radius);
   background: var(--color-semantic-bg); color: var(--control-text);
   padding: 8px 12px; font: 400 1rem/1.5 var(--font-body, system-ui, sans-serif);
   cursor: pointer; color-scheme: dark;
@@ -95,12 +96,12 @@ select option, select optgroup { color: var(--control-text); background: var(--c
 .hc-popup-header { position: sticky; top: -4px; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 12px 8px; border-bottom: 1px solid var(--color-semantic-border-strong); margin-bottom: 4px; color: var(--control-text); background: var(--control-surface); font-weight: 650; }
 .hc-popup-close { min-width: 44px; min-height: 40px; border: 0; border-radius: var(--control-radius); padding: 8px; color: var(--control-text); background: transparent; font: inherit; cursor: pointer; }
 .hc-popup-close:hover { background: var(--control-hover); }
-.hc-popup-search { box-sizing: border-box; width: calc(100% - 16px); min-height: 44px; margin: 8px; padding: 8px 12px; border: 1px solid var(--control-line); border-radius: var(--control-radius); color: var(--control-text); background: var(--color-semantic-bg); font: 400 1rem/1.5 var(--font-body, system-ui, sans-serif); }
+.hc-popup-search { box-sizing: border-box; width: calc(100% - 16px); min-height: 44px; margin: 8px; padding: 8px 12px; border: 1px solid var(--control-edge); border-radius: var(--control-radius); color: var(--control-text); background: var(--color-semantic-bg); font: 400 1rem/1.5 var(--font-body, system-ui, sans-serif); }
 .hc-popup-empty { margin: 8px 12px; color: var(--control-muted); }
 .hc-popup [hidden] { display: none !important; }
 .hc-popup-label { padding: 8px 12px 4px; color: var(--control-muted); font-size: 0.75rem; }
 .hc-suggestion { display: grid; gap: 2px; min-height: var(--popup-row-height); padding: 8px 12px; border-radius: var(--control-radius); overflow-wrap: anywhere; cursor: pointer; }
-.hc-autocomplete-input { box-sizing: border-box; width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--control-line); border-radius: var(--control-radius); background: var(--color-semantic-bg); color: var(--control-text); font: 400 1rem/1.5 var(--font-body, system-ui, sans-serif); }
+.hc-autocomplete-input { box-sizing: border-box; width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--control-edge); border-radius: var(--control-radius); background: var(--color-semantic-bg); color: var(--control-text); font: 400 1rem/1.5 var(--font-body, system-ui, sans-serif); }
 .hc-autocomplete-input:focus-visible { outline: 2px solid var(--control-focus); outline-offset: 2px; }
 .hc-suggestion small { color: var(--control-muted); font-size: 0.75rem; }
 .hc-suggestion:hover, .hc-suggestion[aria-selected="true"] { background: var(--control-hover); }

@@ -80,7 +80,7 @@ recognizable app marks, a simple 2D identity in the product, and concise, task-f
 screens. Put model, permission, workspace, and execution details in contextual settings
 for people who choose to tune them. Keep the original, more detailed 3D mascot for marketing.
 Use the shared graphite surfaces, emerald actions, azure focus, semantic status colors,
-system-sans prose, and rounded geometry documented in `DESIGN.md`. Icons clarify actions
+Geist type, and rounded geometry documented in `DESIGN.md`. Icons clarify actions
 and destinations; service marks always sit beside their names. Motion stays short, useful,
 state-linked, and respectful of reduced-motion and forced-colors settings.
 - Accessibility: WCAG 2.2 AA target everywhere; 24×24 AA minimum with Hutch's 44×44

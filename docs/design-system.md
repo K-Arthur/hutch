@@ -90,15 +90,18 @@ and marketing disclosures are not popup menus.
 | Brand | `#34d399` with ink `#052e21` | Primary action and Hutch identity |
 | Focus / information | `#60a5fa` | Focus rings, selection and informational emphasis |
 | Warning / danger | `#fbbf24` / `#f87171` | Human attention and failure/destructive states |
-| Hairline / strong / emphasis border | `rgba(255,255,255,.07)` / `.14` / `.22` | Card boundaries, controls, and hovered edges |
-| Control / panel / chat / pill radius | `8 / 12 / 18 / 100px` | Shared geometry scale; no surface owns a private radius (the composer box is a panel) |
-| Display / UI body / measured data | local Archivo / system sans / system mono | Brand headings, readable language, and machine values |
+| Hairline / strong / emphasis border | `rgba(255,255,255,.07)` / `.12` / `.22` | Card boundaries and hovered edges (decorative) |
+| Control edge | `rgba(255,255,255,.38)` | Boundary of text fields, selects and the composer; ≥3:1 on every surface (WCAG 1.4.11) |
+| Control / panel / chat / pill radius | `8 / 12 / 20 / 100px` | Shared geometry scale; no surface owns a private radius (bubbles and the composer share the chat radius) |
+| UI and headings / code and measured data | local Geist / Geist Mono | One family for language; mono for code, commands, paths and machine values |
 | App type roles | `1rem` body / `1.0625rem` reading / `1.5rem` page title | Responsive hierarchy that respects browser text scaling |
 | App icon family | `16 / 20 / 24px`, `24px` view box | Local category vectors in 48px desktop/tablet tiles and compact 40px phone rows; exact service names and states stay visible |
 
-The app and marketing site share locally bundled Archivo for display, page, and
-section headings, and system sans for interface and reading text. The app loads
-the same licensed font locally, without a remote request. The site keeps the
+The app and marketing site share locally bundled Geist (and Geist Mono for code and
+measured values). Both are SIL OFL Latin subsets served from `static/fonts/` and
+`website/assets/fonts/` with their licence beside them; neither surface makes a remote
+font request. The neutral graphite palette and the control `edge` come from
+`website/tokens.json` like every other shared value. The site keeps the
 locally bundled 3D Hutch mascot. The app uses compact flat 2D assistant characters.
 Each head shape has two balanced, near-round ink eyes directly on its colour;
 eye size, spacing, height, and subtle inward tilt follow that shape's usable
@@ -251,15 +254,15 @@ recorded usage is a guaranteed bill or that an accepted send was delivered.
 
 The site keeps its editorial page composition and larger original 3D mascot.
 System sans body text, brand/focus/status colors, controls, panel corners, and
-semantic labels carry through from the app. Use Archivo where display hierarchy
-needs its distinctive voice. Marketing claims, screenshots, CTAs, and support
+semantic labels carry through from the app. Display hierarchy comes from Geist
+weight, size and tracking. Marketing claims, screenshots, CTAs, and support
 labels must reflect verified product behavior; do not use executor credentials,
 local-host access, or fixture-only states in public flows.
 
 ## Typography, spacing, and behavior
 
-- The app uses system sans for interface text and locally bundled Archivo for
-  display and heading roles. Named roles include `1rem` interface
+- The app uses locally bundled Geist for interface text and headings, and Geist Mono
+  for code. Named roles include `1rem` interface
   body at `1.55` leading; `1.0625rem` reading text at `1.65`; `1.5rem` page titles;
   and `1.125rem` section titles. Use rem units so user text scaling remains
   effective.
@@ -269,9 +272,8 @@ local-host access, or fixture-only states in public flows.
   roles, and one current-color stroke. Provider art is a separate asset with
   provider-specific usage rules; do not draw lookalike logos or recolor official
   marks.
-- Display and section headings use Archivo in both app and marketing. IDs,
-  timestamps, budgets, code, and measured values use the mono stack; prose does
-  not.
+- Display and section headings use Geist in both app and marketing. Commands, paths,
+  code, IDs, budgets and measured values use Geist Mono; prose does not.
 - Use the 4px spacing rhythm, preserving compact field groups and clear space
   between separate sections. Share alignment edges across repeated cards and
   page headings.

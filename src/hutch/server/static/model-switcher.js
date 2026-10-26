@@ -118,13 +118,17 @@
       }
     }
 
+    const where = m => m.hosted ? `${m.group} · leaves this machine` : "On this machine";
+
     function item(m) {
       const on = active() === m.spec;
-      return `<button type="button" class="ms-item" role="menuitemradio" tabindex="-1" aria-checked="${on}" data-spec="${escHtml(m.spec)}" ${usable(m) ? "" : 'disabled aria-disabled="true"'}>
-        <span class="ms-item-main"><span class="ms-item-name">${escHtml(m.label)}</span>
-          ${m.default ? '<span class="ms-tag">default</span>' : ""}
-          <span class="ms-item-note">${escHtml(m.hosted ? `${m.group} · leaves this machine` : "On this machine")}</span>
-          ${m.note ? `<span class="ms-item-note">${escHtml(m.note)}</span>` : ""}</span>
+      // One quiet line under the name: what the model is for, or where it runs. The menu's section headings
+      // say where each group runs; the same words stay in the accessible name so nothing is lost to a screen reader.
+      return `<button type="button" class="ms-item" role="menuitemradio" tabindex="-1" aria-checked="${on}" data-spec="${escHtml(m.spec)}" title="${escHtml(m.spec)}" ${usable(m) ? "" : 'disabled aria-disabled="true"'}>
+        <span class="ms-item-ico" aria-hidden="true">${ico(m.hosted ? "cloud" : "chip", 16)}</span>
+        <span class="ms-item-main"><span class="ms-item-line"><span class="ms-item-name">${escHtml(m.label)}</span>
+          ${m.default ? '<span class="ms-tag">default</span>' : ""}</span>
+          <span class="ms-item-note">${escHtml(m.note || where(m))}</span>${m.note ? `<span class="visually-hidden"> ${escHtml(where(m))}</span>` : ""}</span>
         <span class="ms-item-check">${on ? ico("check", 16) : ""}</span></button>`;
     }
 
@@ -137,7 +141,9 @@
       const cur = find(active());
       if (cur && usable(cur) && !shown.includes(cur)) shown.splice(1, 0, cur);   // the one in use is always visible
       const hidden = data.models.length - shown.length;
-      menu.innerHTML = '<div class="hc-popup-label">Model for the next message</div>' + shown.map(item).join("") +
+      const section = (label, list) => list.length ? `<div class="ms-section" role="presentation">${label}</div>${list.map(item).join("")}` : "";
+      menu.innerHTML = '<div class="hc-popup-label">Model for the next message</div>' +
+        section("On this machine", shown.filter(m => !m.hosted)) + section("Hosted · leaves this machine", shown.filter(m => m.hosted)) +
         `<div class="ms-sep" role="separator"></div>
          <button type="button" class="ms-item ms-more" role="menuitem" tabindex="-1" data-more>
            <span class="ms-item-main"><span class="ms-item-name">All models</span>
@@ -215,6 +221,7 @@
         if (ok && m.worst_case_usd != null) sub += ` · estimated ${dollars(m.worst_case_usd)} per run`;
         return `<label class="ms-row ${ok ? "" : "is-off"}" data-text="${escHtml((m.spec + " " + m.label + " " + m.group).toLowerCase())}">
           <input type="radio" name="ms-pick" value="${escHtml(m.spec)}" ${ok ? "" : "disabled"} ${m.spec === draftSpec ? "checked" : ""}>
+          <span class="ms-row-ico" aria-hidden="true">${ico(m.hosted ? "cloud" : "chip", 18)}</span>
           <span class="ms-row-main"><span class="ms-row-name">${escHtml(m.label)}
               ${m.default ? '<span class="ms-tag">default</span>' : ""}
               ${m.hosted ? `<span class="ms-tag ms-hosted" title="This chat is sent to the provider">${ico("cloud", 11)} leaves this machine</span>` : ""}
@@ -292,7 +299,7 @@
         const rank = { "This bot": 0, "On this machine": 1, "Hosted": 2 };
         groups.sort((a, b) => (rank[a.name] ?? 3) - (rank[b.name] ?? 3));
         groupList.innerHTML = groups.map(group =>
-          `<section class="ms-group"><h4>${escHtml(group.name)}</h4>${group.list.map(row).join("")}</section>`).join("") +
+          `<section class="ms-group"><h3>${escHtml(group.name)}</h3>${group.list.map(row).join("")}</section>`).join("") +
           '<p class="ms-empty" hidden>No model matches. Try a different name or enter its ID below.</p>';
         const q = query.trim().toLowerCase();
         let any = false;

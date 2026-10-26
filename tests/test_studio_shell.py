@@ -48,9 +48,15 @@ def test_daemon_badge_does_not_hardcode_live(client):
     assert 'id="daemon-pill" class="pill pulse"' not in html
 
 
+def _studio_css(client) -> str:
+    """The workspace stylesheet is split: shared tokens/chrome in style.css, the chat
+    workspace (thread, steps, gates) in studio.css. Contracts hold across both."""
+    return client.get("/static/style.css").text + client.get("/static/studio.css").text
+
+
 def test_static_assets_expose_new_behaviour(client):
     js = client.get("/static/app.js").text
-    css = client.get("/static/style.css").text
+    css = _studio_css(client)
     assert "function announce(" in js
     assert "function pollHealth(" in js
     assert "function typingHtml(" in js
@@ -74,7 +80,7 @@ def test_approval_review_surface_is_shared(client):
 
 
 def test_approval_review_and_attention_styles(client):
-    css = client.get("/static/style.css").text
+    css = _studio_css(client)
     assert ".approval-review" in css
     assert ".review-row" in css
     assert ".approval-card-chat.resolved" in css

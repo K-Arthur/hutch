@@ -25,12 +25,12 @@
 .composer-box {
   position: relative;
   background: var(--panel);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--edge);
   border-radius: var(--r-panel);          /* same shape as every card/panel, incl. first-run */
   box-shadow: var(--sh-2);
   transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
-.composer-box:focus-within { border-color: var(--focus-line); box-shadow: 0 0 0 3px var(--focus-wash), var(--sh-2); }
+.composer-box:focus-within { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus), 0 0 0 4px var(--focus-wash), var(--sh-2); }
 .composer-box.has-error { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger), var(--sh-1); }
 
 /* ── writing area ── */

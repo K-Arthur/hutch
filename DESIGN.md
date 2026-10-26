@@ -5,21 +5,22 @@ colors:
   primary: "#34d399"
   primary-ink: "#052e21"
   primary-deep: "#10b981"
-  surface-ground: "#05070a"
-  surface-panel: "#080c12"
-  surface-raised: "#10161f"
-  surface-sidebar: "#030508"
-  surface-sunken: "#020406"
-  bubble-user: "#1d2735"
+  surface-ground: "#09090b"
+  surface-panel: "#101013"
+  surface-raised: "#17171b"
+  surface-sidebar: "#070709"
+  surface-sunken: "#060608"
+  bubble-user: "#1c1c21"
   selection: "rgba(96, 165, 250, 0.30)"
   line: "rgba(255, 255, 255, 0.07)"
-  line-strong: "rgba(255, 255, 255, 0.14)"
+  line-strong: "rgba(255, 255, 255, 0.12)"
+  edge: "rgba(255, 255, 255, 0.38)"
   border-emphasis: "rgba(255, 255, 255, 0.22)"
   hairline-top: "rgba(255, 255, 255, 0.06)"
   track: "rgba(255, 255, 255, 0.09)"
-  text-primary: "#f0f4f9"
-  text-secondary: "#9daebf"
-  text-tertiary: "#7d8ea4"
+  text-primary: "#ededf0"
+  text-secondary: "#a3a3ae"
+  text-tertiary: "#8e8e99"
   focus: "#60a5fa"
   focus-ink: "#05070a"
   success: "#34d399"
@@ -27,63 +28,63 @@ colors:
   error: "#f87171"
 typography:
   display:
-    fontFamily: 'Archivo, ui-sans-serif, system-ui, "Segoe UI", sans-serif'
+    fontFamily: 'Geist, ui-sans-serif, system-ui, "Segoe UI", sans-serif'
     fontSize: "clamp(1.75rem, 3vw, 2.25rem)"
     fontWeight: 700
     lineHeight: 1.12
     letterSpacing: "-0.035em"
   page-title:
-    fontFamily: 'Archivo, ui-sans-serif, system-ui, "Segoe UI", sans-serif'
+    fontFamily: 'Geist, ui-sans-serif, system-ui, "Segoe UI", sans-serif'
     fontSize: "1.5rem"
     fontWeight: 700
     lineHeight: 1.25
     letterSpacing: "-0.02em"
   section-title:
-    fontFamily: 'Archivo, ui-sans-serif, system-ui, "Segoe UI", sans-serif'
+    fontFamily: 'Geist, ui-sans-serif, system-ui, "Segoe UI", sans-serif'
     fontSize: "1.125rem"
     fontWeight: 650
     lineHeight: 1.25
     letterSpacing: "-0.02em"
   body:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
+    fontFamily: 'Geist, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
     fontSize: "1rem"
     fontWeight: 400
     lineHeight: 1.55
     letterSpacing: "normal"
   reading:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
+    fontFamily: 'Geist, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
     fontSize: "1.0625rem"
     fontWeight: 400
     lineHeight: 1.65
   label:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
+    fontFamily: 'Geist, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
     fontSize: "0.875rem"
     fontWeight: 650
     lineHeight: 1.4
   caption:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
+    fontFamily: 'Geist, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
     fontSize: "0.75rem"
     fontWeight: 400
     lineHeight: 1.45
   brand:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
+    fontFamily: 'Geist, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
     fontSize: "1.25rem"
     fontWeight: 700
     lineHeight: 1
   marketing-display:
-    fontFamily: "Archivo, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif"
     fontSize: "clamp(44px, 5.8vw, 80px)"
     fontWeight: 800
     lineHeight: "0.99"
   marketing-display-min:
     fontSize: "clamp(40px, 10.5vw, 44px)"
   metadata:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
+    fontFamily: 'Geist, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
     fontSize: "0.75rem"
     fontWeight: 400
     lineHeight: 1.45
   mono:
-    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace'
+    fontFamily: '"Geist Mono", ui-monospace, SFMono-Regular, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace'
     fontSize: "0.8125rem"
     fontWeight: 400
     lineHeight: "1.5"
@@ -91,7 +92,7 @@ typography:
 rounded:
   control: "8px"
   panel: "12px"
-  chat: "18px"
+  chat: "20px"
   chip: "100px"
 spacing:
   xs: "4px"
@@ -176,8 +177,12 @@ can access or what the machine has actually confirmed.
 - Layered graphite surfaces keep long sessions comfortable. Emerald is the brand
   and primary action; azure is interaction; amber means a person needs to act; rose
   means failure. Text and familiar icons reinforce each color's meaning.
-- Mono type is reserved for measured values such as IDs, durations, and budgets.
-  Prose and instructions use the familiar system sans.
+- A helper's work is a **thread**: its avatar anchors a spine, every tool call is a
+  step on it, and a request for permission is a **gate** the thread stops at until
+  a person decides. The avatar's face carries state (calm, scanning, looking for
+  you, worried, asleep); identity colour tints the thread and never means status.
+- Mono type is for code, commands, file paths, identifiers and measured values
+  (Geist Mono, tabular). Prose, labels and instructions use Geist.
 
 **The Measure Rule.** Reading text caps at ~72ch; anything wider is layout debt.
 **The One-Ink Rule.** Emerald fills always carry near-black ink (#052e21); white on
@@ -186,8 +191,14 @@ emerald is forbidden (≈2.5:1).
 approvals, expiring deadlines under two minutes, the attention nav badge. Never as
 decoration, never on "done" or "failed".
 **The Scale Rule.** Every corner radius comes from `rounded.*`; no ad-hoc values.
-**The Measured Rule.** Mono type is only for values the server measured — never for
-prose, labels, or marketing.
+**The Mono Rule.** Mono type is for code, commands, paths, identifiers and values the
+server measured — never for prose, labels, or marketing.
+**The Edge Rule.** A control that is identified by its boundary (text field, select,
+composer) uses `edge` (≥3:1 on every surface, WCAG 1.4.11). Cards and dividers keep
+the quiet hairline; they are decoration, not identification.
+**The One-Home Rule.** Each fact lives in one place: state in the avatar and the turn's
+status word; "needs you" in the gate, the reminder strip and the nav badge; run counts
+on Activity. The header repeats none of them.
 
 ## Colors
 
@@ -197,17 +208,22 @@ prose, labels, or marketing.
   a brand statement and never a status colour.
 - **Amber `#fbbf24`** — person-needed-now only (The Amber Rule).
 - **Rose `#f87171`** — failure: errors, denied outcomes, destructive actions.
-- **Neutrals** — ground `#05070a` → panel `#080c12` → raised `#10161f`, text
-  `#f0f4f9` / `#9daebf` / `#7d8ea4`, lines `rgba(255,255,255,0.07/0.14/0.22)`.
+- **Neutrals** — neutral graphite: ground `#09090b` → panel `#101013` → raised
+  `#17171b` (sidebar `#070709`, code wells `#060608`), text `#ededf0` / `#a3a3ae` /
+  `#8e8e99`, hairlines `rgba(255,255,255,0.07/0.12/0.22)` and the control `edge`
+  `rgba(255,255,255,0.38)`. Every text token is ≥5.0:1 on every workspace surface
+  (verified by `scripts/build_site_tokens.py --check` and a pixel-sampled audit).
   Shared semantic values live in `website/tokens.json`, compile into the app and
   server pages, and are mapped into each DaisyUI theme. Marketing can use deeper
   layers, but it keeps the same ground, surface, panel, brand, focus, and borders.
 
 ## Typography
 
-- **App family:** system sans for interface text and locally bundled Archivo
-  for display, page, and section headings. The type hierarchy scales with browser
-  text settings; neither app nor site fetches a remote font.
+- **Family:** Geist (variable, SIL OFL, Latin subset) for interface text, headings
+  and the wordmark, and Geist Mono for code, commands, paths and measured values.
+  Both are bundled locally (`static/fonts/`, `website/assets/fonts/`, licence beside
+  them); neither app nor site fetches a remote font. The hierarchy scales with
+  browser text settings.
 - **Display:** clamp(1.75rem, 3vw, 2.25rem), weight 700, 1.12 leading and
   −0.035em tracking for occasional welcome or feature emphasis.
 - **Page title:** 1.5rem/1.25 weight 700, −0.02em tracking. **Section title:**
@@ -215,15 +231,14 @@ prose, labels, or marketing.
 - **Body:** 1rem/1.55 for interface prose; longer reading and conversation
   passages use 1.0625rem/1.65. Labels use 0.875rem/1.4; compact metadata uses
   0.75rem/1.45. Composer text stays at 1rem or above.
-- **Labels:** system sans with medium/semibold weight and restrained uppercase
-  tracking only for compact group labels. Mono is reserved for measured data.
-- **Wordmark:** 1.25rem/1 weight 700, system sans.
-- **Mono:** ids, durations, tokens, budgets, code, timestamps — always with tabular
-  numerals and ligatures disabled. Prose never uses mono (The Measured Rule).
-- **Shared voice:** locally bundled Archivo is used for display, page, and
-  section headings in the app, supporting pages, and marketing site. Body copy
-  remains system sans, so the product feels related without turning every screen
-  into a display face.
+- **Labels:** Geist with medium/semibold weight and restrained uppercase tracking
+  only for compact group labels.
+- **Wordmark:** 1.0625rem/1 weight 650, tight tracking.
+- **Mono:** commands, paths, code, ids, durations, tokens, budgets — tabular
+  numerals, ligatures disabled. Prose never uses mono (The Mono Rule).
+- **Shared voice:** one family across app, supporting pages and marketing site, so the
+  product feels related; hierarchy comes from weight, size and tracking, not from a
+  second display face.
 - **Marketing micro type:** 11px is limited to compact table labels and numbered
   proof captions; 12px is the smallest metadata size. Both remain secondary.
 - **Icons:** actions and categories use one local 24×24 outline-vector family,
@@ -256,15 +271,19 @@ prose, labels, or marketing.
   Reserve enough name width for wider native system fonts alongside the avatar
   and options control; keep the shared text scale instead of shrinking labels.
 - Sidebar docks to a 64px icon rail (logo becomes the expand control);
-  state persists per browser.
+  state persists per browser. Expanded, it reads top to bottom: logo with the two global
+  round actions (search opens the command palette, plus starts a conversation), quiet
+  navigation rows, the assistant roster, and two pill links (Apps & AI, Settings).
 - Conversation column: max 760px, composer pinned 24px above the safe area;
   feed scrolls internally (app frame never page-scrolls).
-- First run pairs the request card with the AI-service panel above the **1100px**
-  shell/content breakpoint; below it, the panel stacks after the request in DOM
-  and reading order. The phone layout keeps the setup action in the initial
-  viewport and exposes the readiness heading before the fold.
-- On short desktop windows, the first-run welcome compresses its decorative stage
-  and spacing so the initial setup action stays in the first screen.
+- First run follows the width of its own pane (container query), not the window: at
+  **660px and wider** the request card sits left and a rail (AI service, how Hutch
+  works, note) sits right; narrower, everything stacks in reading order. The phone
+  layout keeps the setup action in the initial viewport and exposes the readiness
+  heading before the fold; landscape phones go single-column so the request and its
+  action fit above the fold.
+- On short windows the first-run hero and spacing compress so the initial setup action
+  stays in the first screen.
 - Operational pages: one 1040px content container and 32px desktop gutters
   (24px or less on phones), shared by the workspace and server-rendered
   technical pages. Page titles live once in the context header; content starts
@@ -294,7 +313,7 @@ language after explicit user direction ("right angles feel too off"):
 - **`rounded.panel` 12px** — cards, panels, menus, popovers, modals, toasts,
   table wrappers, approval cards, and the composer box (every request surface
   in the composer family shares this one shape).
-- **`rounded.chat` 18px** — conversation bubbles (user bubble tail corner 6px).
+- **`rounded.chat` 20px** — conversation bubbles and the composer (user bubble tail corner 6px).
 - **`rounded.chip` 100px** — status chips, badges, counts, jump-to-latest, meter tracks.
 - Mascot identity shapes (sigils and faces) are artwork and may be any
   silhouette — they are not containers.
@@ -318,8 +337,9 @@ language after explicit user direction ("right angles feel too off"):
   order, not menu semantics. Native form selects progressively adopt a styled
   browser picker where `appearance: base-select` is supported; other engines
   retain their native picker, labels, validation, reset and form submission.
-  Popup panels use the shared raised graphite surface, 12px radius, emphasis
-  border, 4px inset, 8px row radius and 40px rows (44px on phone/coarse pointers).
+  Popup panels use the shared raised graphite surface, emphasis border and 4px inset
+  (the model menu uses an 18px radius and 12px rows with a 32px icon tile); rows are
+  40px (44px on phone/coarse pointers; the model menu's two-line rows are 52px).
   Labels are 14px system sans, field values at least 16px, secondary copy 12px.
   Selection reserves a check lane; focus is azure and distinct from selection.
   One popup tree is open at a time; Escape closes the innermost layer and restores
@@ -328,8 +348,13 @@ language after explicit user direction ("right angles feel too off"):
   with viewport-aware placement and bounded internal scrolling. An inline
   disclosure, FAQ or navigation list is not an ARIA menu. Research, user approval
   and validation scope: [dropdown standardization](docs/research/dropdown-standardization-2026-10-23.md).
-- **Status chip** — pill, mono 11px, dot + word always together (`● working`,
-  `● needs you`, `✕ failed`); colour never carries state alone.
+- **Status chip** — pill, 12px, dot + word always together (`● working`,
+  `● needs you`, `✕ failed`); colour never carries state alone. Inside a turn header
+  it drops the pill and reads as a quiet word with a dot.
+- **Avatar state** — the face is the status: eyes scan while working, look out and
+  widen while waiting for a person, droop when blocked, close when paused. Motion is
+  compositor-only, gated on reduced motion and Reduce effects; static states (asleep,
+  worried) still read without motion, and a pip carries the state's colour.
 - **App avatar/sigil** — one flat silhouette from a varied, curated set in one of
   eight identity colours with two balanced, near-round ink eyes drawn directly
   on the colour. Every silhouette has a face-safe zone that determines the eye
@@ -343,11 +368,21 @@ language after explicit user direction ("right angles feel too off"):
 - **Identity picker** — colour and shape options use 44px touch targets. On phone
   widths, each eight-option row becomes a balanced four-by-two grid; the colour
   remains a 26px swatch inside its larger button.
-- **Bot roster controls** — one always-visible, low-emphasis options button per
-  Bot contains pin/unpin and settings. Hover and focus add contrast; display
-  names stay on one line and long names end with an ellipsis while the full name
-  remains available in the row title; idle Bots collapse into a searchable group
-  in workspaces with ten or more Bots.
+- **Bot roster** — a row is a 40px avatar, the name on one line, and a one-line status
+  or role, with soft fills for hover and selection (a thin brand marker on the current
+  row) instead of outlines. The workspace coordinator is the home card: a 44px avatar in
+  a bordered tile at the top of the list. One always-visible, low-emphasis options button
+  per Bot (pin/unpin, settings) sits in its own 28px column so ordinary names stay whole
+  at the 272px sidebar; hover and focus add contrast. Long names end with an ellipsis
+  while the full name remains in the row title; idle Bots collapse into a searchable
+  group in workspaces with ten or more Bots. The roster filter hides until a first
+  assistant exists.
+- **Model picker** — a pill beside the composer actions shows the model in use (brand
+  tint when it is a one-message override). Its menu groups choices by where they run
+  (**On this machine**, **Hosted · leaves this machine**), each row an icon tile, the
+  model name, a default tag and one quiet line; a check marks the one in use. The
+  "Choose a model" dialog uses the same tile on card rows with the selection control at
+  the far edge, a search field with an icon, and the cost and fit line under each name.
 - **Fleet card** — lead with the assistant's name, readiness, plain-language role,
   run cadence and action expectation. Keep provider/model identifiers, exact
   schedule, run recency, estimated tokens and memory counts together under one
@@ -372,9 +407,12 @@ language after explicit user direction ("right angles feel too off"):
   start work. Use compact rows with a small, shape-aware 2D assistant identity;
   prioritize everyday jobs with short result names and keep storage IDs such as
   `repo-sweeper` out of visible titles.
-- **First-run request and AI readiness** — pair the first request with one
-  quiet AI-service panel on wide layouts; stack them in reading order below the
-  shell breakpoint. State the actual service or saved workspace choice, not a
+- **First-run request and AI readiness** — a left-aligned hero (mascot beside the
+  eyebrow, headline and one line of copy), the request card (inset field, starter
+  chips, primary action with its "Nothing runs until you ask." line), and a rail with
+  the AI-service panel and a short "How Hutch works" list whose last row shows the
+  service marks. On wide panes they sit side by side; below that they stack in reading
+  order. State the actual service or saved workspace choice, not a
   claim that inference has been tested. Use the words **Ready**, **Saved**,
   **Choose AI**, and **Check failed** with a decorative dot; color never carries
   the state alone. A missing service keeps the action on choosing or connecting
@@ -384,24 +422,48 @@ language after explicit user direction ("right angles feel too off"):
   successful assistant creation or that explicit action. Announce readiness
   changes in one polite status region without moving focus, and reserve stable
   space so late checks do not push the primary action.
-- **Composer** — 12px rounded box (panel shape, matching the first-run request
-  box), 16–18px textarea in a full-width writing area above a toolbar of ordinary
-  8px-radius controls: 32px `+` utility left; skills, model trigger and 40px
-  emerald send (rose outlined stop) right. The `+` popover holds only real
+- **Composer** — 20px rounded box (chat radius, shared with bubbles) with an `edge`
+  border, 17px textarea in a full-width writing area above a toolbar: 34px `+`
+  utility left; skills, model trigger and 38px emerald send (rose outlined stop)
+  right. A quiet keyboard hint sits under it on pointer devices. The `+` popover holds only real
   capabilities (suggestions, rehearsal, Enter-behaviour, live budget).
   Attachment chips are 8px rows with real thumbnails; only genuine status
   badges keep the pill radius.
-- **Approval card** — a bordered system card while pending (plain-language
-  action first, exact detail behind a disclosure, honest countdown); once decided
-  it flattens to a single ledger row — history is text, not another box.
-- **Tool lines** — borderless monospace rows under a collapsed "N steps" summary;
-  every command and result is visible, expansion adds raw input/output in place.
-  When output was truncated, the row carries a `source` flag and a rounded source
-  card linking the saved artifact — the full output the model was not shown.
+- **Gate (approval card)** — a bordered card with an amber wash (rose for high risk)
+  while pending: kicker + assistant + honest countdown, the plain-language action
+  (commands in a mono well), the reason, the **exact content up front** (a file
+  write shows its path, "New file / Replaces an existing file" and a clipped preview),
+  scope tags (tool, risk, stays on this computer / leaves machine), details behind a
+  disclosure, then Allow once (primary), Always allow (only when the server offers
+  it) and Deny. There is no single-key approve shortcut: approval is always a focused
+  button. Once decided it flattens to one ledger row on the thread.
+- **Thread and steps** — a turn is avatar → spine → steps → answer. A "Worked for 14s ·
+  5 steps" row (elapsed time minus recorded waits for a person, which it names) opens
+  the steps; each step is a quiet row (tool icon with a state badge, plain-language
+  title, mono subject, exit code, measured duration) that opens into a card showing the
+  exact request (commands as `$ cmd`, files with a content preview, arguments as a
+  table, raw JSON on request) and the full output with Copy. Errors and waits carry a
+  word, not only a colour. When output was truncated the step carries a `source` flag
+  and a source card linking the saved artifact.
+- **Chat bubbles** — your message is a soft 20px bubble (one corner at 6px) on a
+  graphite gradient with an inset highlight; very long requests clamp to ~14 lines
+  with Show more. Time and the secondary "Make a bot" action share one meta row (the
+  action appears on hover/focus, always on touch). The assistant's answer is not a
+  bubble: it is Markdown text on the thread, 16px/1.7, ≤70ch.
+- **Answer text** — rendered by the in-house escape-first Markdown subset
+  (`static/markdown.js`): paragraphs, headings (h2–h4 under the page h1), lists,
+  tasks, tables, quotes, rules, links (http/https/mailto only; images are never
+  fetched) and fenced code with a language label and Copy.
+- **Welcome** — avatar, name and role, "What would you like to work on?", honest
+  trust chips (how it asks before acting, which tools it can use) and up to four
+  starting points offered only for tools the assistant has. A starting point fills the
+  composer; it never sends.
 - **KPI strip** — one bordered row of four measurements, mono, compact.
-- **Workflow header status** — counts real activity (working/queued/needs-you)
-  from `/api/stats`; hidden when idle, spoken loudly only when the executor is
-  degraded.
+- **Header** — one row: avatar (state-bearing), name and role; the conversation picker
+  as a title chip (a customizable-select `<button><selectedcontent>` so long titles
+  truncate), search, a menu, and Review/Stop only while actionable. A quiet "N working"
+  link appears only while something runs. Needs-you lives in the reminder strip (in
+  flow under the header, never over content) and the nav badge, not in the header.
 - **Activity and task review** — show only sections that contain active work.
   Use one clear-state with chat/history links when all sections are empty. Keep
   usage, timing, machine references, and transcript checks in optional details;
@@ -412,14 +474,18 @@ language after explicit user direction ("right angles feel too off"):
 **Do**
 - Take every radius from `rounded.*`; keep the pill only for chips.
 - Pair every icon with a word for state; give every control a visible focus ring.
-- Use mono only for machine-measured values.
+- Use mono for code, commands, paths and machine-measured values — not prose.
+- Give every control an accessible name that contains its visible text (WCAG 2.5.3).
 - Show real server state: if the API cannot confirm it, say "unknown".
 - Keep motion short, functional and state-linked; honour reduced motion and the
   Reduce effects override (the typing dots are the one live animation).
 
 **Don't**
 - Never put white on emerald, or amber on something that isn't person-needed.
-- Never box tool calls, or wrap decided approvals in cards.
+- Never wrap a *decided* approval in a card (it becomes a ledger row), and never hide
+  a pending gate behind a disclosure or a collapsed summary.
+- Never animate text opacity (it drops contrast below AA mid-animation); animate the
+  avatar, the spine node or an icon instead.
 - Never run ambient loops, pulsing dots on idle state, or animated backgrounds
   behind work.
 - Never show a count, status or receipt the server did not produce.

@@ -68,7 +68,8 @@ def test_open_phone_sheet_reaches_every_destination_and_wraps(audit_browser, aud
         tab_to(page, "#nav-toggle")
         page.keyboard.press("Enter")
         page.locator("#workspace.open").wait_for()
-        assert tab_to(page, "#needs-you-open", 10) <= 4
+        # Search and New (the two global actions) now precede the navigation, so Needs you is the sixth stop, not the fourth.
+        assert tab_to(page, "#needs-you-open", 10) <= 6
         previous = None
         for _ in range(40):
             current = page.evaluate("document.activeElement.className")

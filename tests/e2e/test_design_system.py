@@ -340,7 +340,7 @@ def _measure_tokens(page, surface: str) -> dict:
         bodyFont: body.fontFamily,
         bodyFontSize: body.fontSize,
         headingFont: getComputedStyle(document.querySelector('h1, .hero-title, .section-heading') || document.body).fontFamily,
-        displayFontReady: document.fonts.check('700 32px Archivo'),
+        displayFontReady: document.fonts.check('700 32px Geist'),
         typography: {
           tokens: Object.fromEntries([
             '--font-ui', '--font-display', '--mono', '--type-display-size', '--type-page-size',
@@ -473,8 +473,8 @@ def test_shared_design_tokens_render_consistently_across_all_surfaces(browser, a
 
             views = {"studio": studio, "connections": connections, "marketing": marketing}
             for name, view in views.items():
-                assert view["shared"]["--color-semantic-bg"] == "#05070a", (label, name, view)
-                assert view["shared"]["--color-semantic-surface"] == "#080c12", (label, name, view)
+                assert view["shared"]["--color-semantic-bg"] == "#09090b", (label, name, view)
+                assert view["shared"]["--color-semantic-surface"] == "#0f0f12", (label, name, view)
                 assert view["shared"]["--color-semantic-brand"] == "#34d399", (label, name, view)
                 assert view["shared"]["--color-semantic-focus-ring"] == "#60a5fa", (label, name, view)
                 assert view["shared"]["--color-semantic-border-emphasis"] in {
@@ -483,12 +483,12 @@ def test_shared_design_tokens_render_consistently_across_all_surfaces(browser, a
                 assert view["shared"]["--radius-control"] == "8px", (label, name, view)
                 assert view["shared"]["--radius-panel"] == "12px", (label, name, view)
                 assert "system-ui" in view["bodyFont"], (label, name, view["bodyFont"])
-                assert "Archivo" in view["headingFont"], (label, name, view["headingFont"])
-                assert view["displayFontReady"], (label, name, "local Archivo font did not load")
+                assert "Geist" in view["headingFont"], (label, name, view["headingFont"])
+                assert view["displayFontReady"], (label, name, "local Geist font did not load")
                 assert view["button"]["background"] == "rgb(52, 211, 153)", (label, name, view["button"])
                 assert view["button"]["color"] == "rgb(5, 46, 33)", (label, name, view["button"])
                 assert view["button"]["radius"] == "8px", (label, name, view["button"])
-                assert view["panel"]["background"] == "rgb(8, 12, 18)", (label, name, view["panel"])
+                assert view["panel"]["background"] == "rgb(15, 15, 18)", (label, name, view["panel"])
                 if name != "marketing":
                     type_tokens = view["typography"]["tokens"]
                     assert type_tokens["--type-body-size"] == "1rem", (label, name, type_tokens)
@@ -496,7 +496,7 @@ def test_shared_design_tokens_render_consistently_across_all_surfaces(browser, a
                     assert type_tokens["--type-label-size"] == "0.875rem", (label, name, type_tokens)
                     assert type_tokens["--type-caption-size"] == "0.75rem", (label, name, type_tokens)
                     assert type_tokens["--type-mono-size"] == "0.8125rem", (label, name, type_tokens)
-                    assert "Archivo" in type_tokens["--font-display"], (label, name, type_tokens)
+                    assert "Geist" in type_tokens["--font-display"], (label, name, type_tokens)
                     assert [type_tokens["--icon-sm"], type_tokens["--icon-md"], type_tokens["--icon-lg"]] == ["16px", "20px", "24px"]
                     assert type_tokens["--icon-stroke"] == "1.75px", (label, name, type_tokens)
                     roles = view["typography"]["roles"]
@@ -509,7 +509,7 @@ def test_shared_design_tokens_render_consistently_across_all_surfaces(browser, a
                     assert roles["mono"]["size"] == "13px", (label, name, roles["mono"])
                     assert "monospace" in roles["mono"]["family"], (label, name, roles["mono"])
                 assert view["panel"]["radius"] == "12px", (label, name, view["panel"])
-            assert "Archivo" in marketing["displayFont"], marketing["displayFont"]
+            assert "Geist" in marketing["displayFont"], marketing["displayFont"]
             assert max(page.evaluate("document.documentElement.scrollWidth - innerWidth"), 0) <= 1, label
             evidence.append({"size": label, "viewport": [width, height], "views": views})
 
@@ -1532,7 +1532,7 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
     ]
     display_names = [
         "Research Partner", "Release Notes Reviewer", "Calendar Planner", "Inbox Organizer",
-        "Customer Operations and Knowledge Research Analyst", "Coding Partner", "Quality Reviewer",
+        "Customer Operations and Knowledge Research Analyst for Regional Escalations", "Coding Partner", "Quality Reviewer",
         "Policy Researcher", "Project Planner", "Content Editor",
     ]
     for name, display_name in zip(bot_names, display_names, strict=True):
@@ -1634,7 +1634,7 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                     assert metrics["workspace"], (surface_name, viewport_name, "workspace shell missing")
                 if surface_name == "fleet":
                     assert metrics["menuControls"] == 11, metrics
-                    assert "Customer Operations and Knowledge Research Analyst" not in metrics["visibleBotNames"]
+                    assert "Customer Operations and Knowledge Research Analyst for Regional Escalations" not in metrics["visibleBotNames"]
                     # The long role name is intentionally visible through All bots, whose sidebar is collapsed by default.
                     assert page.locator("#roster-idle-details summary").count() == 1
                     first_card = page.locator(".bot-card").first
@@ -1649,7 +1649,7 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                     assert first_card.locator(".bot-desc").is_visible()
                     long_card = page.locator('[data-fleet-bot="customer-operations-analyst"]')
                     long_name = long_card.locator(".bot-name")
-                    assert long_name.get_attribute("title") == "Customer Operations and Knowledge Research Analyst"
+                    assert long_name.get_attribute("title") == "Customer Operations and Knowledge Research Analyst for Regional Escalations"
                     assert long_name.evaluate("el => getComputedStyle(el).whiteSpace") == "nowrap"
                     assert long_name.evaluate("el => getComputedStyle(el).textOverflow") == "ellipsis"
                     card_bounds = long_card.evaluate("el => { const r = el.getBoundingClientRect(); return {left:r.left, right:r.right, width:r.width, viewport:innerWidth} }")
@@ -1672,7 +1672,7 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                         assert page.locator("#app-top-context h1").evaluate("el => el.scrollWidth <= el.clientWidth")
                         if viewport_name == "phone":
                             assert create_button.inner_text().strip() == "New"
-                            assert create_box["width"] > 80, create_box
+                            assert create_box["width"] > 64, create_box   # a labelled button, clearly wider than the 44px icon-only form
                         else:
                             assert create_button.evaluate("el => getComputedStyle(el).fontSize") == "0px"
                 if surface_name == "studio":
@@ -1709,9 +1709,9 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                         assert choice.evaluate("el => getComputedStyle(el).whiteSpace") == "nowrap"
                         assert choice.locator("span").evaluate("el => getComputedStyle(el).textOverflow") == "ellipsis"
                     long_schedule_choice = page.locator(
-                        '.schedule-empty-bots a[aria-label="Set up Customer Operations and Knowledge Research Analyst"]'
+                        '.schedule-empty-bots a[aria-label="Set up Customer Operations and Knowledge Research Analyst for Regional Escalations"]'
                     )
-                    assert long_schedule_choice.get_attribute("title") == "Customer Operations and Knowledge Research Analyst"
+                    assert long_schedule_choice.get_attribute("title") == "Customer Operations and Knowledge Research Analyst for Regional Escalations"
                     assert long_schedule_choice.locator("span").evaluate("el => el.scrollWidth > el.clientWidth")
                     assert long_schedule_choice.evaluate("el => el.getBoundingClientRect().height <= 45")
                     if viewport_name in {"phone", "compact-phone"}:

@@ -381,10 +381,12 @@ def test_delegated_wait_status_is_responsive_and_reviewable(browser, live, monke
           return {color: style.color, borderColor: style.borderColor};
         }""")
         assert waiting_style["color"] == "rgb(251, 191, 36)"
+        # The wait is stated once, on the task ("Waiting for delegated work" above). The header no longer repeats
+        # waiting/queued counts, and with nothing actively working it says nothing at all.
         header_status = page.locator("#workflow")
-        header_status.get_by_text("1 waiting", exact=True).wait_for()
-        header_status.get_by_text("1 queued", exact=True).wait_for()
-        assert header_status.get_by_text("working", exact=False).count() == 0
+        assert header_status.is_hidden()
+        assert header_status.get_by_text("waiting", exact=False).count() == 0
+        assert header_status.get_by_text("queued", exact=False).count() == 0
         for width, height, label in ((1440, 1000, "desktop-1440"), (768, 1024, "tablet-768"),
                                      (360, 800, "phone-360"), (320, 800, "compact-320")):
             page.set_viewport_size({"width": width, "height": height})
@@ -3213,8 +3215,8 @@ def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(brows
             # tests/e2e/test_experience_surfaces.py guards the same 24px at 1440/900/390/320.
             assert heading_metrics["fontSize"] == 24, (label, heading_metrics)
             assert ratio == pytest.approx(1.25), (label, heading_metrics)
-            assert "Archivo" in heading_metrics["fontFamily"], (label, heading_metrics)
-            assert page.evaluate("document.fonts.check('700 24px Archivo')"), (label, heading_metrics)
+            assert "Geist" in heading_metrics["fontFamily"], (label, heading_metrics)
+            assert page.evaluate("document.fonts.check('700 24px Geist')"), (label, heading_metrics)
             body_metrics = page.locator("body").evaluate("""element => {
               const style = getComputedStyle(element);
               return {
@@ -9464,7 +9466,7 @@ def test_user_can_start_bot_setup_from_the_exact_chat_request(browser, live, mon
         page.goto(f"{base}/#/chat/{bot.name}")
         action = page.locator('[data-create-bot-from-request="selected-request-message"]')
         action.wait_for(state="visible")
-        assert action.get_attribute("aria-label") == "Create a bot from this request"
+        assert action.get_attribute("aria-label") == "Make a bot from this request"   # contains its visible text (WCAG 2.5.3)
         action_target = action.bounding_box()
         assert action_target and action_target["height"] >= 32
         # Keep focusing and dispatching Enter on the same live element. The
@@ -11841,12 +11843,13 @@ def test_queued_chat_keeps_earlier_approval_and_live_status_fresh(browser, live)
     wait_for_page(page, "document.querySelectorAll('#chat-stream [data-run-id]').length === 2")
     assert "Queued" in second.inner_text()
     assert page.locator("#studio-stop-run").get_attribute("data-stop-target") == first_run
-    assert "Waiting for you" in page.locator(".ctx-meta").inner_text()
+    assert "Waiting for you" in page.locator(f'#chat-stream [data-run-id="{first_run}"] .mhead .status').inner_text()
     assert not page.locator("#typing-slot .typing").count()
     # The older active run must not enter the terminal HTML cache when currentRunId changes.
     page.locator(f'[data-approval-card="{first_approval}"] [data-approve="1"]').click()
     first = page.locator(f'[data-run-id="{first_run}"]')
-    first.get_by_text("Done", exact=True).wait_for()
+    # The turn header states the outcome once; each step also carries a visually hidden "Done" for screen readers.
+    first.locator(".mhead .status").get_by_text("Done", exact=True).wait_for()
     second.locator("[data-approval-card] [data-approve='0']").wait_for()
     second.locator("[data-approval-card] [data-approve='0']").click()
     page.close()
@@ -11957,7 +11960,9 @@ def test_untrusted_run_content_is_text_not_executable_html(browser, live, monkey
         page.locator(f'[data-run-id="{run.id}"] .tool-line-head').click()
         tool = page.locator(f'[data-run-id="{run.id}"] .tool-line-section').filter(has_text="Output")
         assert payload in tool.text_content()
-        assert answer.locator("*").count() == 0
+        # Answers render as safe Markdown, so a plain paragraph wrapper is expected; nothing the payload says may become an element.
+        assert answer.locator("*:not(p)").count() == 0
+        assert answer.locator("p").count() == 1
         assert page.locator(f'[data-run-id="{run.id}"] .tool-line-section img, [data-run-id="{run.id}"] .tool-line-section svg[onload]').count() == 0
         assert page.locator(f'[data-run-id="{run.id}"] a[href^="javascript:"]').count() == 0
         page.screenshot(path=str(out / f"{size}.png"), full_page=True, animations="disabled")
@@ -12027,7 +12032,7 @@ def test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus(br
     request = store.pending_approvals()[0]
     card = page.locator(f'#chat-stream [data-approval-card="{request.id}"]')
     card.locator('[data-approve="1"]').wait_for(timeout=15000)
-    assert "Waiting for you" in page.locator(".ctx-meta").inner_text()
+    assert "Waiting for you" in page.locator(f'#chat-stream [data-run-id="{run.id}"] .mhead .status').inner_text()
     assert page.locator("#chat-prompt").input_value() == "My unsent draft stays here"
     assert page.locator("#chat-prompt").evaluate("e => e === document.activeElement")
     assert gap_count, "exercise explicit reconciliation before live replay"
@@ -12118,7 +12123,7 @@ def test_old_active_approval_survives_chat_window_and_header_stop_targets_it(bro
     card = page.locator(f'#chat-stream [data-approval-card="{request.id}"]')
     card.locator("[data-approve='1']").wait_for()
     assert page.locator("#studio-stop-run").get_attribute("data-stop-target") == runs[0].id
-    assert "Waiting for you" in page.locator(".ctx-meta").inner_text()
+    assert "Waiting for you" in page.locator(f'#chat-stream [data-run-id="{runs[0].id}"] .mhead .status').inner_text()
     assert not page.locator("#typing-slot .typing").count()
     assert page.locator("#chat-stream [data-run-id]").count() == 6
     page.route(f"**/api/runs/{runs[0].id}", lambda route: route.abort())
@@ -13046,7 +13051,7 @@ def test_bot_message_reply_is_keyboard_accessible_editable_and_persisted(browser
     if size == "phone":
         details_bounds = details_link.bounding_box()
         assert details_bounds["width"] >= 44 and details_bounds["height"] >= 44
-    reply = page.get_by_role("button", name=f"Reply to {bot_label} message")
+    reply = page.get_by_role("button", name=f"Reply to this answer from {bot_label}")
     reply.wait_for(state="visible")
     reply.focus()
     page.keyboard.press("Enter")
@@ -13058,7 +13063,7 @@ def test_bot_message_reply_is_keyboard_accessible_editable_and_persisted(browser
     assert page.locator("#chat-prompt").evaluate("el => el === document.activeElement")
     page.locator("#chat-prompt").fill("Can you explain that result?")
     if size == "phone":
-        assert page.get_by_role("button", name=f"Reply to {bot_label} message").bounding_box()["height"] >= 44
+        assert page.get_by_role("button", name=f"Reply to this answer from {bot_label}").bounding_box()["height"] >= 44
         assert page.locator("#reply-composer-clear").bounding_box()["height"] >= 44
     page.screenshot(path=str(out / f"preview-{size}.png"), full_page=True, animations="disabled")
     page.reload(wait_until="domcontentloaded")

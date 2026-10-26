@@ -150,21 +150,18 @@ def test_error_toasts_are_assertive_with_24px_dismiss(audit_browser, audit_live)
         page.close()
 
 
-def test_workflow_pill_meets_target_minimum(audit_browser, audit_live):
-    """F-5: the 'needs you' workflow link is at least 24px tall on desktop."""
+def test_reminder_review_action_meets_target_minimum(audit_browser, audit_live):
+    """F-5: the one 'needs you' indicator in the header area (the reminder strip) has a Review action
+    at least 24px tall on desktop. The header itself no longer repeats the count (DESIGN.md One-Home Rule)."""
     base, app = audit_live
     seed_pending_approval(app.state.store)
     page = audit_browser.new_page(viewport={"width": 1440, "height": 960})
     try:
         wait_live(page, base)
-        pill = page.locator(".workflow a.w.needs")
-        height = page.wait_for_function("""() => {
-          const element = document.querySelector('.workflow a.w.needs');
-          if (!element?.isConnected) return false;
-          const measured = element.getBoundingClientRect().height;
-          return measured >= 24 ? measured : false;
-        }""").json_value()
-        assert height >= 24
+        page.locator("#attention-bar:not([hidden])").wait_for()
+        height = page.locator("#attention-review").bounding_box()["height"]
+        assert height >= 24, height
+        assert page.locator(".workflow a.w.needs").count() == 0, "the header must not repeat the needs-you count"
     finally:
         page.close()
 
