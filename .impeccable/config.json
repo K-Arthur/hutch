@@ -75,6 +75,15 @@
         ],
         "createdAt": "2026-10-19T08:04:42.004Z",
         "reason": "Intentional workflow-preview callout accent retained from the previously reviewed implementation (efdb613e) and consistent with the marketing surface brief's emerald brand accent."
+      },
+      {
+        "rule": "organic-clip-path",
+        "value": "*",
+        "files": [
+          "src/hutch/server/static/index.html"
+        ],
+        "createdAt": "2026-10-26T15:31:48.177Z",
+        "reason": "Agent review: linked style.css:553-556 intentionally draws a symmetric geometric X for failed-status chips, matching DESIGN.md:330 and preserving a non-color status distinction; it is not an organic contour. This rule has no extractable value, so scope the exception to the reported HTML file."
       }
     ]
   }
