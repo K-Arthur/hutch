@@ -894,6 +894,11 @@ class TaskTemplateResource(BaseModel):
     updated_at: str
 
 
+class PairingCodeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    allow_start: bool = False
+
+
 class PairingExchangeRequest(BaseModel):
     code: str = Field(min_length=14, max_length=24)
     label: str = Field(default="Phone", max_length=80)
@@ -2816,6 +2821,35 @@ def create_app() -> FastAPI:
         return {"event_cursor": snap["event_cursor"], "replay_after": snap["event_cursor"],
                 "change_cursor": snap["change_cursor"], "limit": limit,
                 "items": items, "totals": totals, "truncated": truncated, "next": next_urls}
+
+    def phone_pairing_setup() -> dict:
+        from .passkeys import relying_party, PasskeyConfigError
+        if os.environ.get("HUTCH_REMOTE_ENABLED") != "1":
+            return {"ready": False, "pair_url": "", "detail": "Private HTTPS access is not configured on this host. Pairing does not enable remote access automatically."}
+        try:
+            rp_id, origin = relying_party()
+        except PasskeyConfigError:
+            return {"ready": False, "pair_url": "", "detail": "Configure a canonical private HTTPS address and passkey identity on this host before pairing."}
+        allowed = {host.strip().lower() for host in os.environ.get("HUTCH_ALLOWED_HOSTS", "").split(",")}
+        if rp_id not in allowed:
+            return {"ready": False, "pair_url": "", "detail": "The private HTTPS hostname must be allowed by this host before pairing."}
+        return {"ready": True, "pair_url": origin + "/pair", "detail": "Open this address on your phone, enter the one-use code, then enroll a passkey. The host must stay online and reachable."}
+
+    @app.get("/api/v1/pairing/setup")
+    def get_phone_pairing_setup(response: Response) -> dict:
+        response.headers["Cache-Control"] = "no-store"
+        return phone_pairing_setup()
+
+    @app.post("/api/v1/pairing/codes")
+    def create_phone_pairing_code(body: PairingCodeRequest, response: Response) -> dict:
+        setup = phone_pairing_setup()
+        if not setup["ready"]:
+            raise HTTPException(409, setup["detail"])
+        code = store.create_pairing_code(allow_start=body.allow_start)
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        return {"code": code, "expires_in_seconds": 60, "pair_url": setup["pair_url"],
+                "capabilities": ["monitor", "review"] + (["start"] if body.allow_start else [])}
 
     @app.post("/api/v1/pairing/exchange", response_model=PairingExchangeResource)
     def exchange_pairing(body: PairingExchangeRequest, request: Request, response: Response) -> dict:

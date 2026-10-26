@@ -1208,15 +1208,19 @@ function toast(msg, isError = false) {
 const chatgptCallback = new URLSearchParams(location.search);
 const chatgptResult = chatgptCallback.get("chatgpt_result");
 const googleCalendarResult = chatgptCallback.get("google_calendar_result");
+const googleWorkspaceResult = chatgptCallback.get("google_workspace_result");
 const googleMailResult = chatgptCallback.get("google_mail_result");
 const googleMailSendResult = chatgptCallback.get("google_mail_send_result");
 const outlookCalendarResult = chatgptCallback.get("outlook_calendar_result");
 const outlookCalendarWriteResult = chatgptCallback.get("outlook_calendar_write_result");
 const outlookMailResult = chatgptCallback.get("outlook_mail_result");
 const outlookMailSendResult = chatgptCallback.get("outlook_mail_send_result");
-if (chatgptResult || googleCalendarResult || googleMailResult || googleMailSendResult || outlookCalendarResult || outlookCalendarWriteResult || outlookMailResult || outlookMailSendResult) {
+if (chatgptResult || googleWorkspaceResult || googleCalendarResult || googleMailResult || googleMailSendResult || outlookCalendarResult || outlookCalendarWriteResult || outlookMailResult || outlookMailSendResult) {
   const detail = chatgptCallback.get("detail");
-  const message = googleMailSendResult
+  const message = googleWorkspaceResult
+    ? googleWorkspaceResult === "connected" ? "Google Drive, Docs and Sheets connected. Workspace actions still need exact plan approval."
+      : detail || "Google Workspace sign-in did not complete. Try again from Apps & AI."
+    : googleMailSendResult
     ? googleMailSendResult === "connected" ? "Gmail send-only account connected. Grant one assistant permission to prepare messages; each send still needs your approval."
       : detail || "Gmail send-only sign-in did not complete. Start again from Connections."
     : outlookMailSendResult
@@ -1240,7 +1244,7 @@ if (chatgptResult || googleCalendarResult || googleMailResult || googleMailSendR
     : chatgptResult === "connected" ? "ChatGPT plan route connected."
     : chatgptResult === "identity-only" ? "ChatGPT signed in, but plan use was not granted. Reauthorize to use it for models."
     : detail || "ChatGPT sign-in did not complete. Start again from Connections.";
-  setTimeout(() => toast(message, chatgptResult === "error" || googleCalendarResult === "error" || googleMailResult === "error" || outlookCalendarResult === "error" || outlookCalendarWriteResult === "error" || outlookMailResult === "error" || outlookMailSendResult === "error"), 0);
+  setTimeout(() => toast(message, googleWorkspaceResult === "error" || chatgptResult === "error" || googleCalendarResult === "error" || googleMailResult === "error" || outlookCalendarResult === "error" || outlookCalendarWriteResult === "error" || outlookMailResult === "error" || outlookMailSendResult === "error"), 0);
   history.replaceState(null, "", `${location.pathname}${location.hash || "#/connections"}`);
 }
 
@@ -1389,6 +1393,8 @@ function serviceMark(kind) {
     outlook: "inbox",
     hosted: "cloud",
     local: "monitor",
+    drive: "folder",
+    phone: "monitor",
   };
   const glyph = serviceIcons[kind] || "sparkles";
   return `<span class="service-mark service-mark-${esc(kind)}" data-service-category="${esc(kind)}" aria-hidden="true">${icon(glyph, "service-glyph")}</span>`;
@@ -8831,6 +8837,8 @@ async function renderConnections() {
   let devicesError = "";
   try { devices = await api("/v1/devices"); }
   catch (err) { devicesError = err.message; }
+  let phoneSetup = { ready: false, pair_url: "", detail: "Could not load phone connection setup. Reload to try again." };
+  try { phoneSetup = await api("/v1/pairing/setup"); } catch { /* keep visible failure and existing device controls */ }
   setTopContext(`<div class="ctx-id"><h1>Apps &amp; AI</h1></div>`);
   const conns = data.connections || [];
   const googleOAuthClient = data.google_oauth_client || {
@@ -8838,6 +8846,11 @@ async function renderConnections() {
     detail: "Google sign-in is not enabled in this Hutch build.",
   };
   const googleCalendar = data.google_calendar || { configured: false, secret_store_available: false, accounts: [], grants: [] };
+  let googleWorkspace;
+  let workspaceError = "";
+  try { googleWorkspace = await api("/v1/connections/google-workspace"); }
+  catch (error) { workspaceError = error.message; }
+  googleWorkspace ||= { configured: false, secret_store_available: false, accounts: [] };
   const googleMail = data.google_mail || { configured: false, secret_store_available: false, accounts: [], grants: [] };
   const googleMailBots = bots.filter(bot => bot.inference_mode === "local");
   const googleMailSend = data.google_mail_send || { configured: false, secret_store_available: false, accounts: [], grants: [] };
@@ -9062,6 +9075,10 @@ async function renderConnections() {
       googleCalendar.accounts.length ? "Connected" : googleCalendar.configured ? "Ready to connect" : "Not enabled in this build",
       googleCalendar.accounts.length ? "connected" : "setup", "google-calendar",
       googleCalendar.accounts.length ? "Manage access" : googleCalendar.configured ? "Connect Google" : "Connection details"),
+    tile("drive", "Google Drive, Docs & Sheets", "Create documents, spreadsheets and uploads through a reviewed action plan. Drive access is limited to files shared with this app.",
+      workspaceError ? "Could not load" : googleWorkspace.accounts.length ? "Connected" : googleWorkspace.configured ? "Ready to connect" : "Not enabled in this build",
+      googleWorkspace.accounts.length ? "connected" : "setup", "google-workspace",
+      googleWorkspace.accounts.length ? "Manage access" : "Connection details"),
     tile("gmail", "Gmail", "Find emails without sending, editing, or deleting messages.",
       googleMail.accounts.length ? "Connected" : googleMail.configured ? "Limited preview" : "Not enabled in this build",
       googleMail.accounts.length ? "connected" : "preview", "gmail",
@@ -9073,6 +9090,9 @@ async function renderConnections() {
       outlookCalendar.accounts.length || outlookMail.accounts.length || outlookMailSend.accounts.length ? "Manage access"
         : outlookCalendar.configured && outlookCalendar.secret_store_available ? "Connect Microsoft" : "Connection details"),
   ].join("");
+  const phoneTile = tile("phone", "Hutch on your phone", "Follow work, review approvals and stop runs from your phone. This connects your phone to Hutch; it does not read phone apps or messages.",
+    devices.length ? `${devices.length} paired` : phoneSetup.ready ? "Ready to pair" : "Private connection required",
+    devices.length ? "connected" : "setup", "phone", phoneSetup.ready ? "Pair a phone" : "Connection details");
   const modelTiles = [
     tile("chatgpt", "ChatGPT", "Sign in with ChatGPT where available. Your existing chats stay separate.",
       chatgptAccounts.some(account => account.connected && account.plan_usage) ? "Connected"
@@ -9090,8 +9110,12 @@ async function renderConnections() {
         <p>Connect an app your assistant should use. You choose which assistant gets access, and can change that choice anytime.</p>
       </div>
       <section class="service-group" aria-labelledby="app-connections-heading">
-        <div class="service-group-heading"><h2 id="app-connections-heading">Your apps</h2><p>Calendar and email, with you in control.</p></div>
+        <div class="service-group-heading"><h2 id="app-connections-heading">Your apps</h2><p>Documents, calendar and email, with you in control.</p></div>
         <div class="service-grid">${appTiles}</div>
+      </section>
+      <section class="service-group" aria-labelledby="phone-connection-heading">
+        <div class="service-group-heading"><h2 id="phone-connection-heading">Your devices</h2><p>Stay in control while away from this computer.</p></div>
+        <div class="service-grid">${phoneTile}</div>
       </section>
       <section class="service-group" aria-labelledby="model-connections-heading">
         <div class="service-group-heading"><h2 id="model-connections-heading">How Hutch replies</h2><p>Choose a service you know, or use one on this computer.</p></div>
@@ -9159,6 +9183,15 @@ async function renderConnections() {
         </div>
         ${googleCalendarAccountsHtml || '<p class="hint">No Google Calendar accounts connected.</p>'}
         ${orphanCalendarGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanCalendarGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-google-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
+      </section>
+      <section class="panel conn-card" id="connection-google-workspace" aria-labelledby="google-workspace-title">
+        <div class="bot-head"><span class="bot-name" id="google-workspace-title">Google Drive, Docs &amp; Sheets</span><span class="tag">experimental</span></div>
+        <p>Create and update documents, create and append spreadsheet rows, or upload a local file. Each action plan shows its account, destination and exact changes before you approve it.</p>
+        <p class="hint">Drive uses <code>drive.file</code>: app-created files and files opened or shared with this app. This does not give Hutch full-Drive search. Docs and Sheets request their own broader document and spreadsheet scopes. Sharing files with people requires separate authority; this connection does not grant it.</p>
+        <p class="hint">Connecting adds an account on this computer; it does not grant every assistant general access. An assistant needs the workspace action tools, and executing a plan always requires your exact approval. Choose a connected account reference in the plan.</p>
+        ${workspaceError ? `<p class="hint bad" role="alert">Could not load this connection: ${esc(workspaceError)}</p>` : ""}
+        ${!googleWorkspace.configured ? '<p class="hint" role="status">Google sign-in is not enabled in this build. Hutch’s publisher must configure its app registration.</p>' : !googleWorkspace.secret_store_available ? '<p class="hint" role="alert">Unlock the operating system’s secure credential store before connecting.</p>' : '<button class="btn primary small" id="google-workspace-connect" type="button">Connect Google Workspace</button>'}
+        ${(googleWorkspace.accounts || []).map(account => `<div class="device-row"><div><strong>${esc(account.label)}</strong><p class="hint">Account reference: <code>${esc(account.account_id)}</code></p></div><button class="btn ghost small" type="button" data-workspace-disconnect="${esc(account.account_id)}">Disconnect Workspace</button></div>`).join("") || '<p class="hint">No Workspace accounts connected.</p>'}
       </section>
       <section class="panel conn-card outlook-calendar-card" id="connection-gmail" aria-labelledby="google-mail-title">
         <div class="bot-head"><span class="bot-name" id="google-mail-title">Gmail</span>
@@ -9354,14 +9387,39 @@ async function renderConnections() {
   $("#google-mail-access").open = googleMailAccessOpen;
   $$("[data-connection-open]").forEach(button => button.addEventListener("click", () => {
     const targetKey = button.dataset.connectionOpen;
-    if (["google-calendar", "gmail"].includes(targetKey)) {
-      const service = targetKey === "gmail" ? googleMail : googleCalendar;
-      if (!service.accounts.length && service.configured && service.secret_store_available) {
+    if (targetKey === "phone") {
+      openModal({ title: "Use Hutch on your phone", returnFocus: button,
+        confirmText: phoneSetup.ready ? "Create pairing code" : "Close", showCancel: phoneSetup.ready,
+        bodyHtml: `<p>${esc(phoneSetup.detail)}</p><p>Pairing grants monitoring and review. Starting new work is a separate choice, and each assistant must also allow remote starts.</p>${phoneSetup.ready ? '<label class="phone-pair-start"><input id="phone-pair-start" type="checkbox"><span>Also allow requests to start work</span></label>' : '<p>This development build needs a private HTTPS host connection before a phone can reach it. It stays local until that is configured.</p>'}<p>Paired browsers cannot administer integrations or pair another device. Revoke devices in More account settings → Paired devices.</p><div id="phone-pair-result" role="status" aria-live="polite"></div>`,
+        onConfirm: async () => {
+          if (!phoneSetup.ready) return true;
+          const confirm = $("#modal-confirm");
+          if (confirm.disabled) return false;
+          confirm.disabled = true;
+          try {
+            const result = await api("/v1/pairing/codes", { method: "POST", body: { allow_start: !!$("#phone-pair-start")?.checked } });
+            // The code is intentionally shown once in the live dialog only; never
+            // put it in a URL, localStorage, logs, or the clipboard automatically.
+            const panel = $("#phone-pair-result");
+            if (panel) panel.innerHTML = `<p>Open <a href="${esc(result.pair_url)}" target="_blank" rel="noopener noreferrer">${esc(result.pair_url)}</a> on your phone and enter:</p><p><strong>${esc(result.code)}</strong></p><p>This code expires in ${Number(result.expires_in_seconds)} seconds and works once. Then enroll your phone’s passkey.</p>`;
+            confirm.textContent = "Code created";
+          } catch (error) {
+            const panel = $("#phone-pair-result");
+            if (panel) panel.textContent = error.message;
+            if (confirm.isConnected) confirm.disabled = false;
+          }
+          return false;
+        } });
+      return;
+    }
+    if (["google-calendar", "gmail", "google-workspace"].includes(targetKey)) {
+      const service = targetKey === "gmail" ? googleMail : targetKey === "google-workspace" ? googleWorkspace : googleCalendar;
+      if (targetKey !== "google-workspace" && !service.accounts.length && service.configured && service.secret_store_available) {
         if (targetKey === "google-calendar") $("#google-calendar-event-creation").checked = false;
         $(targetKey === "gmail" ? "#google-mail-connect" : "#google-calendar-connect")?.click();
         return;
       }
-      if (!service.accounts.length && !service.configured) {
+      if (!service.accounts.length && !service.configured && !(targetKey === "google-workspace" && workspaceError)) {
         openModal({ title: "Google connection", returnFocus: button, confirmText: "Close", showCancel: false,
           bodyHtml: "<p>This development build does not include Hutch’s Google app registration.</p><p>A released Hutch app should let you choose your signed-in Google account and approve access directly. Creating a Cloud project or entering a client ID belongs to publisher setup.</p><p>Your browser sign-in stays in your browser; connecting an app still needs Google’s permission.</p>" });
         return;
@@ -9388,6 +9446,7 @@ async function renderConnections() {
     const sectionId = ({
       "chatgpt": "connection-chatgpt",
       "google-calendar": "connection-google-calendar",
+      "google-workspace": "connection-google-workspace",
       "gmail": "connection-gmail",
       "outlook-calendar": "connection-outlook-calendar",
     })[targetKey] || "connection-outlook-mail";
@@ -9507,6 +9566,31 @@ async function renderConnections() {
     setup.scrollIntoView({ behavior: "auto", block: "center" });
     $("#google-oauth-client-id")?.focus({ preventScroll: true });
   });
+
+  $("#google-workspace-connect")?.addEventListener("click", async event => {
+    const button = event.currentTarget;
+    const authWindow = window.open("about:blank", "_blank");
+    if (!authWindow) { toast("Allow Hutch to open a browser tab, then try again.", true); return; }
+    authWindow.opener = null;
+    button.disabled = true;
+    try {
+      const result = await api("/v1/connections/google-workspace/sign-in", { method: "POST", body: {} });
+      const url = new URL(result.authorization_url);
+      if (url.origin !== "https://accounts.google.com" || url.pathname !== "/o/oauth2/v2/auth" || url.username || url.password || url.hash || !url.search) throw new Error("Unexpected Google sign-in destination.");
+      authWindow.location.replace(url.href);
+      toast("Approve Docs, Sheets and per-file Drive access in your browser, then reload Apps & AI.");
+    } catch (error) { authWindow.close(); toast(error.message, true); }
+    finally { button.disabled = false; }
+  });
+  $$("[data-workspace-disconnect]").forEach(button => button.addEventListener("click", async () => {
+    if (!(await confirmDialog({ title: "Disconnect Google Workspace", body: "Clear this account’s local credentials and request Google revocation. Existing remote documents remain. Pending plans cannot use this account afterward.", confirmText: "Disconnect", danger: true }))) return;
+    button.disabled = true;
+    try {
+      const result = await api(`/v1/connections/google-workspace/accounts/${encodeURIComponent(button.dataset.workspaceDisconnect)}/disconnect`, { method: "POST", body: {} });
+      toast(result.detail || "Workspace disconnected.");
+      await renderConnections();
+    } catch (error) { button.disabled = false; toast(error.message, true); }
+  }));
 
   $("#google-calendar-connect")?.addEventListener("click", async event => {
     const button = event.currentTarget;

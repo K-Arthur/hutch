@@ -27,6 +27,7 @@ Status: partial implementation (2026-10-09). Slice: S8. Automated boundary tests
   accepted only from that socket peer. Uvicorn proxy rewriting remains disabled. No unauthenticated forwarded headers, owner token,
   or WebSocket is accepted as remote identity. The recommended initial remote path is Tailscale Serve forwarding to Hutch on
   loopback, with tailnet access rules restricted to the operator; LAN access requires a trusted HTTPS certificate.
+* The local Apps & AI phone entry and `POST /api/v1/pairing/codes` now expose code creation without a CLI command after the existing private HTTPS/passkey configuration is ready. `GET /api/v1/pairing/setup` explains missing host prerequisites. Both endpoints are unavailable to paired principals; codes are no-store responses and Start remains an explicit option. Neither endpoint changes network configuration.
 * `hutch pairing create` issues a single-use 60-second code; `--allow-start` can add the Start capability. Code exchange creates only a
   five-minute enrollment cookie with a 16-challenge registration ceiling. Passkey registration requires user verification and exact
   RP/origin validation; successful registration creates a separately revocable credential and HttpOnly session cookie. Synced

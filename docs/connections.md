@@ -532,3 +532,42 @@ owner-launched terminal workflow and is not a runtime adapter.
 - A broken stream keeps its uncertain usage reservation. A retry needs its own reservation;
   reconcile the first from a provider record after the run is terminal. Currency remains a
   price-based estimate, not a guaranteed provider bill.
+
+## Google Drive, Docs and Sheets (experimental)
+
+Open **Apps & AI → Google Drive, Docs & Sheets → Connection details** to inspect the
+permissions, connect an account or disconnect it. No nickname is required. This uses
+Hutch's existing installed-app PKCE transport and the same publisher registration as
+Calendar, with separate account credentials. Docs and Sheets request document and
+spreadsheet scopes; Drive requests `drive.file`, which covers app-created and explicitly
+opened/shared files, not full-Drive discovery. The UI states those differences before
+sign-in. A native desktop Picker and full-Drive search are not implemented.
+
+Assistants need `workspace_actions` tools. They prepare a plan with the connected account
+reference, exact destination and changes, then request fresh approval to execute it.
+Successful effects are read back and journaled; uncertain effects are not retried blindly.
+Sharing or notifying people requires separate authority. Disconnecting clears local
+credentials and attempts Google revocation; existing cloud files remain. The callback
+reports success/cancellation and removes its status query from browser history. Live
+Google account validation remains blocked by the missing publisher registration.
+
+## Hutch on your phone (experimental)
+
+The **Your devices** section in Apps & AI exposes phone supervision directly. It connects a
+phone browser to the Hutch host for monitoring, exact approval decisions, stop/resume and
+optionally starting work. It does not grant access to the phone's apps, messages, contacts
+or files.
+
+First configure private HTTPS access and the passkey hostname as described in
+[ADR 0010](adr/0010-api-transport-and-remote-supervision.md). Then choose **Pair a phone →
+Create pairing code** on the local host. Open the displayed private `/pair` address on the
+phone, enter the single-use code within 60 seconds and enroll a passkey. The code is shown
+only in that dialog; Hutch does not place it in a URL, browser storage or clipboard.
+Starting work is unchecked by default and also requires the local per-assistant setting.
+Paired phones cannot create pairing codes or administer integrations. Existing device
+revocation remains under **More account settings → Paired devices**.
+
+The UI refuses code creation when remote access, the canonical HTTPS/passkey origin or
+the hostname allowlist is missing. It never enables a listener or installs certificates
+automatically. Configuration readiness does not prove network reachability. Physical
+phones, live private networks and production certificate management remain unverified.
