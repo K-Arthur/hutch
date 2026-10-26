@@ -447,6 +447,18 @@ def _install_zen_auth(config) -> None:
     os.chmod(path, 0o600)
 
 
+@pytest.fixture()
+def live_opencode_auth(config):
+    """A copied login belongs only to this test; remove the private profile after it closes."""
+    _install_zen_auth(config)
+    try:
+        yield
+    finally:
+        profile = config.state_dir / "opencode-profile"
+        if profile.exists():
+            shutil.rmtree(profile)
+
+
 def _live_owner(store, run):
     claimed = store.claim_run(run.id, "live-free-model-owner", 900)
     assert claimed is not None
@@ -454,7 +466,7 @@ def _live_owner(store, run):
 
 
 @requires_live
-def test_live_free_model_calls_the_run_bound_memory_bridge(store, config, tmp_path):
+def test_live_free_model_calls_the_run_bound_memory_bridge(store, config, tmp_path, live_opencode_auth):
     """A real free model, a real private OpenCode server, the real plugin, the real bridge.
 
     The reviewed fact exists nowhere else: not in the admission context, not in
@@ -469,7 +481,6 @@ def test_live_free_model_calls_the_run_bound_memory_bridge(store, config, tmp_pa
     from hutch.runtime.opencode import OpenCodeRuntime
     from tests.test_runtime_builtin import build, run_it
 
-    _install_zen_auth(config)
     ctx, run, _events, _tools = build(
         store, config, tmp_path, model=LIVE_MODEL, tools=["memory"],
         prompt=("Do three things, in order. 1) Call the recall tool with the query 'launch'. "
@@ -512,7 +523,7 @@ def test_live_free_model_calls_the_run_bound_memory_bridge(store, config, tmp_pa
 
 
 @requires_live
-def test_live_free_model_receives_prior_turns_in_a_new_session(store, config, tmp_path):
+def test_live_free_model_receives_prior_turns_in_a_new_session(store, config, tmp_path, live_opencode_auth):
     """A real free model answers from Hutch's provenance selection, not a native session.
 
     The bot has no tools at all, so the only way the second run can know the
@@ -527,7 +538,6 @@ def test_live_free_model_receives_prior_turns_in_a_new_session(store, config, tm
     from hutch.safety import PolicyEngine
     from tests.test_runtime_builtin import run_it
 
-    _install_zen_auth(config)
     bot = store.create_bot(Bot(name="live-continuity-probe", model=LIVE_MODEL, tools=[],
                                approval_mode=ApprovalMode.auto, selfcheck=False,
                                runtime=RuntimeKind.opencode,

@@ -1,0 +1,1 @@
+Synthetic product: Cedar, a local document assistant. Verified features: drafts document briefs; requires review before sharing; local state. Competitor Birch: browser-only, $12/month. Source https://example.com/fixture/birch . Competitor Elm: hosted, $20/month. Source https://example.com/fixture/elm . No evidence that any product is SOC2 certified or has better conversion rates.

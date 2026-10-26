@@ -1,0 +1,10 @@
+{
+  "case": "sales",
+  "route": "opencode/opencode/deepseek-v4.1-flash-free",
+  "scope": "synthetic local artifacts; external services unverified",
+  "passed": true,
+  "answer": "Done. `outreach.csv` contains exactly one eligible row (Cedar / Dee) with status `draft_needs_approval`, and `founder-summary.md` names the three suppression reasons (Birch: do-not-contact, Elm: active deal, Fir: existing customer) and states nothing was sent. No emails invented or messages sent.",
+  "done_receipts": 2,
+  "elapsed_seconds": 11.81,
+  "tokens": 5731
+}

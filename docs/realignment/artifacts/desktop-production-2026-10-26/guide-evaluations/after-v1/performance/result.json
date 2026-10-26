@@ -1,0 +1,10 @@
+{
+  "case": "performance",
+  "route": "opencode/opencode/deepseek-v4.1-flash-free",
+  "scope": "synthetic local artifacts; external services unverified",
+  "passed": true,
+  "answer": "Done \u2014 two files written, no campaigns touched.\n\n**metrics.csv** (2 rows, one per campaign):\n- Search: CTR 0.1000, CVR 0.0200, CPA 15.0000, ROAS 3.3333, alert `over_budget`\n- Social: CTR 0.0200, CVR 0.0000, CPA blank (undefined, 0 conversions), ROAS 0.0000, alert `zero_conversions`\n\n**recommendations.md**: verify what period `spend` covers before acting on the over_budget flag (300 vs a 250 *daily* budget may be a false positive); don't scale Search on ROAS alone since no margin/COGS data exists, so profitability is unproven; investigate Social's conversion tracking before pausing \u2014 zero conversions could be a measurement gap; every spend change is listed as a proposal requiring explicit human approval, with campaigns left unchanged.",
+  "done_receipts": 2,
+  "elapsed_seconds": 16.04,
+  "tokens": 7481
+}

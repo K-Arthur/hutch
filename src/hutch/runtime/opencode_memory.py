@@ -1,8 +1,8 @@
-"""Run-bound authenticated memory bridge for OpenCode (ADR-0007 A3).
+"""Run-bound authenticated canonical tool bridge for OpenCode.
 
 The bridge is a per-run abstract Unix socket owned by the run worker that
 hosts one OpenCode server. It exists so OpenCode can genuinely exercise the
-SAME reviewed-memory operations the built-in runtime uses, without placing a
+SAME reviewed operations the built-in runtime uses, without placing a
 credential inside the OpenCode process.
 
 Trust model:
@@ -60,19 +60,30 @@ def _proc_ppid_starttime(pid: int) -> Optional[tuple[int, int]]:
         return None
 
 
-class MemoryBridge:
-    """One per-run loopback bridge between the OpenCode process tree and Hutch's memory tools."""
+class RunToolBridge:
+    """A run-owned bridge to canonical Hutch tools; authority is rechecked per call."""
+
+    _scope_label = "canonical tools"
+    request_limit = 128 * 1024
 
     def __init__(self, store: Store, run: Run, *, workspace: Path, config: Any,
-                 allowed_tools: frozenset[str]):
-        if not allowed_tools or not allowed_tools <= _MEMORY_TOOL_NAMES:
-            raise ValueError("the memory bridge admits only reviewed memory tools")
+                 allowed_tools: frozenset[str], context=None):
+        from ..integrations.catalog import is_known_tool_name
+        supported = self.supported_tools(allowed_tools, is_known_tool_name)
+        if not allowed_tools or not allowed_tools <= supported:
+            raise ValueError(f"the bridge admits only reviewed {self._scope_label}")
         self.store = store
         self.run_id = run.id
         self.fence = run.fence
         self.workspace = Path(workspace)
         self.config = config
         self.allowed_tools = frozenset(allowed_tools)
+        self.context = context
+        initial_bot = store.get_bot(run.bot_id)
+        self._execution_bot = context.bot if context is not None else initial_bot
+        self._initial_policy = self._policy_snapshot(initial_bot)
+        self._calls = 0
+        self._instances: dict[str, Any] = {}
         self.socket_name = "hutch-mb-" + os.urandom(16).hex()
         self._trusted: dict[int, int] = {}
         self._trust_lock = threading.Lock()
@@ -80,6 +91,21 @@ class MemoryBridge:
         self._listener: Optional[socket.socket] = None
         self._thread: Optional[threading.Thread] = None
         self.refusals = 0
+
+    @staticmethod
+    def _policy_snapshot(bot) -> str:
+        if bot is None:
+            return ""
+        fields = ("risk_tier", "approval_mode", "command_rules", "inference_mode", "limits",
+                  "workdir", "workspace_mode", "observation_to_hosted")
+        doc = bot.model_dump(mode="json")
+        return json.dumps({name: doc.get(name) for name in fields}, sort_keys=True)
+
+    @staticmethod
+    def supported_tools(names, is_known) -> frozenset[str]:
+        # Delegation and native computer use need their own runtime capability
+        # qualification; never infer them from the presence of a registry name.
+        return frozenset(name for name in names if is_known(name) and name not in {"delegate_task", "computer"})
 
     # ---------------------------------------------------------------- lifecycle
     def start(self) -> None:
@@ -186,13 +212,13 @@ class MemoryBridge:
                                  "output": "error: this caller is not authorized for this run's memory bridge"})
             return
         buffered = b""
-        while b"\n" not in buffered and len(buffered) <= MAX_REQUEST_BYTES:
-            chunk = conn.recv(min(4096, MAX_REQUEST_BYTES + 1 - len(buffered)))
+        while b"\n" not in buffered and len(buffered) <= self.request_limit:
+            chunk = conn.recv(min(4096, self.request_limit + 1 - len(buffered)))
             if not chunk:
                 break
             buffered += chunk
         line, _sep, _rest = buffered.partition(b"\n")
-        if not _sep or len(buffered) > MAX_REQUEST_BYTES or not line:
+        if not _sep or len(buffered) > self.request_limit or not line:
             self.refusals += 1
             self._respond(conn, {"ok": False, "output": "error: bridge request exceeded its bound or was incomplete"})
             return
@@ -241,11 +267,19 @@ class MemoryBridge:
         bot = self.store.get_bot(run.bot_id)
         if bot is None:
             return refuse("this run's bot no longer exists")
-        if not bot.memory_enabled:
-            return refuse("fact memory is disabled for this bot")
+        if self._policy_snapshot(bot) != self._initial_policy:
+            return refuse("this bot's execution policy changed; restart the task under the current policy")
+        if self._execution_bot is None:
+            return refuse("the original execution scope is unavailable")
         from ..tools import expand_tools
-        if not (set(expand_tools(list(bot.tools))) & {name}):
-            return refuse(f"tool '{name}' is no longer enabled for this bot")
+        original = self._execution_bot
+        original_tools = set(expand_tools(list(original.tools)))
+        bot = original.model_copy(update={
+            "tools": [tool for tool in expand_tools(list(bot.tools)) if tool in original_tools],
+            "memory_enabled": original.memory_enabled and bot.memory_enabled,
+        })
+        if name in _MEMORY_TOOL_NAMES and not bot.memory_enabled:
+            return refuse("fact memory is disabled for this bot")
 
         def emit(event) -> None:
             try:
@@ -255,19 +289,41 @@ class MemoryBridge:
 
         policy = PolicyEngine(bot.risk_tier, bot.command_rules)
         gate = ApprovalGate(self.store, bot, run, policy, emit, poll_seconds=0.05)
+        # Closing a server or losing the original run must release approval waits.
+        original_cancelled = gate.cancelled
+        gate.cancelled = lambda: self._stop.is_set() or original_cancelled() or bool(
+            self.context is not None and (self.context.closed or self.context.gate.cancelled()))
         from ..tools.base import ToolContext
-        ctx = ToolContext(bot=bot, run=run, store=self.store, policy=policy, gate=gate,
-                          config=self.config, workspace=self.workspace, emit=emit)
-        tools = build_tools(sorted(_MEMORY_TOOL_NAMES & self.allowed_tools), ctx,
+        if self.context is not None:
+            from dataclasses import replace
+            ctx = replace(self.context, bot=bot, run=run, gate=gate, policy=policy, emit=emit)
+        else:
+            ctx = ToolContext(bot=bot, run=run, store=self.store, policy=policy, gate=gate,
+                              config=self.config, workspace=self.workspace, emit=emit)
+        tools = build_tools(list(bot.tools), ctx,
                             memory_enabled=bot.memory_enabled)
+        if name not in tools:
+            return refuse(f"tool '{name}' is no longer enabled or granted for this bot")
+        if self._calls >= int(bot.limits.max_steps):
+            return refuse("this run's bridge tool-call limit was reached")
+        self._calls += 1
+        ctx.tool_call_index = self._calls
+        from ..integrations.catalog import CONNECTION_TOOLS
+        if name not in CONNECTION_TOOLS:
+            # Browser sessions must stay on this one bridge thread. Account
+            # tools are instead reconstructed above from fresh grants per call.
+            tools[name] = self._instances.setdefault(name, tools[name])
         try:
-            result = call_tool(run, ctx, tools, name, args, output_chars=2_000)
+            result = call_tool(run, ctx, {name: tools[name]}, name, args, output_chars=12_000)
         except Exception as exc:       # RunAborted (receipt loss) must surface as an honest error
             from .base import RunAborted
             if isinstance(exc, RunAborted):
                 return refuse(str(exc.detail or exc.reason))
-            return refuse("the memory tool could not complete safely")
+            return refuse("the tool could not complete safely")
         payload: dict[str, Any] = {"ok": bool(result.ok), "output": str(result.output)}
+        if result.data.get("images") or result.data.get("attachments"):
+            payload["output"] += ("\n[Hutch returned text and recorded the visual artifact locally. "
+                                  "This bridge did not transmit image pixels to the model; do not claim visual inspection.]")
         if isinstance(result.data, dict):
             try:
                 encoded = json.dumps(result.data, ensure_ascii=False)
@@ -276,6 +332,17 @@ class MemoryBridge:
             except (TypeError, ValueError):
                 pass
         return payload
+
+
+class MemoryBridge(RunToolBridge):
+    """Compatibility facade with the original memory-only constructor contract."""
+
+    _scope_label = "memory tools"
+    request_limit = MAX_REQUEST_BYTES
+
+    @staticmethod
+    def supported_tools(names, is_known) -> frozenset[str]:
+        return _MEMORY_TOOL_NAMES
 
 
 def _now_iso() -> str:
@@ -410,11 +477,57 @@ export default Plugin.define({
 
 def write_memory_plugin(profile_root: Path, socket_name: str) -> Path:
     """Write the generated plugin bundle that exposes bridge tools to OpenCode."""
-    directory = Path(profile_root) / "plugins" / "hutch-memory-bridge"
+    del socket_name          # configuration carries the socket name; the plugin source is generic
+    return _write_plugin(profile_root, "hutch-memory-bridge", MEMORY_PLUGIN_SOURCE)
+
+
+TOOL_PLUGIN_SOURCE = MEMORY_PLUGIN_SOURCE.split("export const HutchMemoryRpc", 1)[0].replace(
+    "10_000", "900_000") + r'''
+export default Plugin.define({
+  id: "hutch-tool-bridge",
+  async setup(ctx) {
+    const options = ctx.options as {
+      socket?: string
+      tools?: Array<{ name: string; description: string; input: unknown }>
+    } | undefined
+    const socketName = String(options?.socket || "")
+    const definitions = options?.tools || []
+    if (!socketName || !definitions.length) return
+    const rpc = Rpc.define({
+      id: "hutch-tool-bridge",
+      methods: Object.fromEntries(definitions.map(tool => [tool.name, {
+        input: tool.input,
+        output: { type: "object", properties: { ok: {type: "boolean"}, output: {type: "string"} },
+                  required: ["ok", "output"] },
+      }])),
+      events: {},
+    })
+    await ctx.rpc.register(rpc, Object.fromEntries(definitions.map(tool => [tool.name,
+      async (input: unknown) => await bridgeCall(socketName, tool.name, input)])))
+    ctx.tool.transform(editor => {
+      for (const tool of definitions) editor.add({
+        ...tool,
+        execute: async (input: unknown) => {
+          const response = await bridgeCall(socketName, tool.name, input)
+          return {content: [{type: "text", text: response.output}]}
+        },
+      })
+    })
+  },
+})
+'''
+
+
+def write_tool_plugin(profile_root: Path) -> Path:
+    return _write_plugin(profile_root, "hutch-tool-bridge", TOOL_PLUGIN_SOURCE)
+
+
+def _write_plugin(profile_root: Path, name: str, source: str) -> Path:
+    directory = Path(profile_root) / "plugins" / name
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     os.chmod(directory, 0o700)
     path = directory / "index.ts"
-    payload = MEMORY_PLUGIN_SOURCE.encode("utf-8")
+    payload = source.encode("utf-8")
     temp = directory / f".index.ts.{os.getpid()}.tmp"
     fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0), 0o600)
     try:
@@ -428,5 +541,4 @@ def write_memory_plugin(profile_root: Path, socket_name: str) -> Path:
             temp.unlink(missing_ok=True)
         except OSError:
             pass
-    del socket_name          # configuration carries the socket name; the plugin source is generic
     return path

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 import time
 from typing import Any, Callable, Optional
@@ -58,7 +59,7 @@ def _model_ref(bot_model: str, models: list[OpenCodeModel]) -> tuple[str, str]:
 
 def _agent_definition(bot_id: str, *, title: str, instructions: str,
                       provider_id: str, model_id: str, tool_names: set[str],
-                      workspace: str) -> tuple[str, dict[str, Any]]:
+                      workspace: str, brokered_tools: frozenset[str] = frozenset()) -> tuple[str, dict[str, Any]]:
     """Return a stable agent ID and its V2 inline config.
 
     The V2 config schema uses an ``agents`` object with a ``system`` field.
@@ -75,10 +76,9 @@ def _agent_definition(bot_id: str, *, title: str, instructions: str,
     silently offered.
     """
     agent_id = f"hutch-{_safe_component(bot_id)}"
-    edit_allowed = bool(tool_names & {"write_file", "revise_document", "create_document",
-                                      "create_media", "render_diagram", "run_python"})
-    shell_allowed = "shell" in tool_names
-    web_allowed = bool(tool_names & {"web_fetch", "live_search", "inspect_media"})
+    edit_allowed = "write_file" in tool_names and "write_file" not in brokered_tools
+    shell_allowed = "shell" in tool_names and "shell" not in brokered_tools
+    web_allowed = bool((tool_names - brokered_tools) & {"web_fetch", "live_search", "inspect_media"})
     deny = {"action": "external_directory", "resource": "*", "effect": "deny"}
     task_deny = {"action": "task", "resource": "*", "effect": "deny"}
     permissions = [
@@ -179,14 +179,16 @@ def _assistant_text(message: dict[str, Any]) -> str:
     return "".join(parts)
 
 
-def _assistant_usage(message: dict[str, Any]) -> tuple[int, int, int, float]:
+def _assistant_usage(message: dict[str, Any]) -> tuple[int, int, int, Optional[float]]:
     tokens = message.get("tokens") if isinstance(message.get("tokens"), dict) else {}
     cache = tokens.get("cache") if isinstance(tokens.get("cache"), dict) else {}
     cost = message.get("cost")
     try:
-        cost_value = float(cost) if cost is not None else 0.0
-    except (TypeError, ValueError):
-        cost_value = 0.0
+        cost_value = float(cost) if cost is not None and not isinstance(cost, bool) else None
+        if cost_value is not None and (not math.isfinite(cost_value) or cost_value < 0):
+            cost_value = None
+    except (TypeError, ValueError, OverflowError):
+        cost_value = None
     return (int(tokens.get("input") or 0), int(tokens.get("output") or 0),
             int(cache.get("read") or 0), cost_value)
 
@@ -367,7 +369,7 @@ class OpenCodeRuntime:
             self._emit(ctx, run, "opencode", f"permission approved once: {action}", ok=True)
 
     def _emit_tools(self, ctx: ToolContext, run: Run, message: dict[str, Any],
-                    seen: dict[str, str]) -> None:
+                    seen: dict[str, str], brokered: frozenset[str] = frozenset()) -> None:
         for block in message.get("content") or []:
             if not isinstance(block, dict) or block.get("type") != "tool":
                 continue
@@ -375,6 +377,12 @@ class OpenCodeRuntime:
             name = str(block.get("name") or "tool")
             state = block.get("state") if isinstance(block.get("state"), dict) else {}
             status = str(state.get("status") or "streaming")
+            if name in brokered:
+                # The canonical pipeline records redacted arguments, real
+                # outcomes, artifacts and receipts. Never duplicate native raw
+                # arguments or report an ok=true transport response as success.
+                seen[call_id] = status
+                continue
             previous = seen.get(call_id)
             if status in {"running", "completed", "error"} and previous not in {"running", "completed", "error"}:
                 ctx.emit(Event(run_id=run.id, type=EventType.tool_call,
@@ -436,7 +444,6 @@ class OpenCodeRuntime:
 
     def execute(self, run: Run, ctx: ToolContext, tools: dict[str, Tool],
                 stop: Callable[[], bool]) -> str:
-        del tools  # OpenCode executes its own tools; Hutch brokers every permission and observes results.
         if stop() or ctx.gate.cancelled():
             raise RunAborted("stopped", "run stopped before OpenCode started")
         previous = ctx.store.opencode_submission(run.id)
@@ -455,21 +462,34 @@ class OpenCodeRuntime:
         fresh_bot = ctx.store.get_bot(ctx.bot.id)
         admitted_memory = ({name for name in reviewed_tools if name in {"recall", "remember"}}
                            if fresh_bot and fresh_bot.memory_enabled else set())
+        from .opencode_memory import RunToolBridge
+        from ..integrations.catalog import is_known_tool_name
+        admitted = RunToolBridge.supported_tools(frozenset(tools), is_known_tool_name)
+        admitted = frozenset(name for name in admitted if name not in {"recall", "remember"}) | frozenset(admitted_memory)
+        from .instructions import build_system_prompt
         agent_id, agent = _agent_definition(ctx.bot.id, title=ctx.bot.name,
-                                            instructions=ctx.bot.instructions,
+                                            instructions=build_system_prompt(ctx),
                                             provider_id=provider_id, model_id=model_id,
-                                            tool_names=reviewed_tools, workspace=str(ctx.workspace))
-        from .opencode_memory import MemoryBridge, write_memory_plugin
+                                            tool_names=reviewed_tools, workspace=str(ctx.workspace),
+                                            brokered_tools=admitted)
+        from .opencode_memory import MemoryBridge, write_memory_plugin, write_tool_plugin
         from ..code_handoff import opencode_profile_paths
         bridge: Optional[MemoryBridge] = None
         plugins: list[Any] = []
-        if admitted_memory:
-            bridge = MemoryBridge(ctx.store, run, workspace=ctx.workspace, config=ctx.config,
-                                  allowed_tools=frozenset(admitted_memory))
+        if admitted:
+            memory_only = admitted <= {"recall", "remember"}
+            bridge_class = MemoryBridge if memory_only else RunToolBridge
+            bridge = bridge_class(ctx.store, run, workspace=ctx.workspace, config=ctx.config,
+                                  allowed_tools=admitted, context=ctx)
             bridge.start()
-            plugin_path = write_memory_plugin(
-                opencode_profile_paths(ctx.config.state_dir)["root"], bridge.socket_name)
-            plugins = [{"package": str(plugin_path.parent), "options": {"socket": bridge.socket_name}}]
+            root = opencode_profile_paths(ctx.config.state_dir)["root"]
+            plugin_path = write_memory_plugin(root, bridge.socket_name) if memory_only else write_tool_plugin(root)
+            options = {"socket": bridge.socket_name}
+            if not memory_only:
+                options["tools"] = [{"name": name, "description": tools[name].description,
+                                     "input": tools[name].parameters} for name in sorted(admitted) if name in tools]
+            plugins = [{"package": str(plugin_path.parent), "options": options}]
+            agent["system"] += "\nUse Hutch's named tools for reviewed actions and durable artifacts. Tool failures are not completed work."
         server = OpenCodeServer(ctx.config.state_dir, executable=self.binary, cwd=ctx.workspace,
                                 agents={agent_id: agent}, plugins=plugins)
         process = None
@@ -603,7 +623,7 @@ class OpenCodeRuntime:
                     if message.get("type") != "assistant":
                         continue
                     message_id = str(message.get("id") or "")
-                    self._emit_tools(ctx, run, message, seen_tools)
+                    self._emit_tools(ctx, run, message, seen_tools, admitted)
                     completed = isinstance(message.get("time"), dict) and bool(message["time"].get("completed"))
                     if not completed or message_id in accounted:
                         continue
@@ -626,10 +646,10 @@ class OpenCodeRuntime:
                     finish_step(
                         run, ctx, timer, model=ctx.bot.model, prompt_tokens=input_tokens,
                         completion_tokens=output_tokens, cached_tokens=cached_tokens,
-                        cost_usd=cost, account_id="opencode",
+                        cost_usd=cost if cost is not None else 0.0, account_id="opencode",
                         reservation_id=reservation.id if use_reservation else None,
-                        cost_source="provider" if cost else "unknown",
-                        reported_cost_usd=cost if cost else None,
+                        cost_source="provider" if cost is not None else "unknown",
+                        reported_cost_usd=cost,
                     )
                     if use_reservation:
                         first_accounting = False

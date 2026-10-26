@@ -1,0 +1,10 @@
+{
+  "case": "marketing",
+  "route": "opencode/opencode/deepseek-v4.1-flash-free",
+  "scope": "synthetic local artifacts; external services unverified",
+  "passed": true,
+  "answer": "Wrote `positioning.md` in the working folder.\n\n- **Positioning:** \"draft, review, then send\" \u2014 built on Cedar's verified features (drafts briefs, review before sharing, local state), with price as the wedge rather than unverified security claims.\n- **Campaign 1:** \"Draft, Review, Send\" \u2014 three-step workflow walkthrough.\n- **Campaign 2:** \"The Honest Shortlist\" \u2014 comparison against Birch ($12/mo, browser-only) and Elm ($20/mo, hosted), with deliberately blank certification/performance cells.\n- **Sources:** both fixture URLs (`example.com/fixture/birch`, `example.com/fixture/elm`) included.\n- **Marked:** synthetic fixture, draft for review, no certification or performance claims; explicit guardrails listed.",
+  "done_receipts": 1,
+  "elapsed_seconds": 18.4,
+  "tokens": 6597
+}

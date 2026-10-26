@@ -250,6 +250,26 @@ def test_opencode_agent_permissions_follow_the_reviewed_tool_list():
     assert ("shell", "ask") in allowed_rules and ("bash", "ask") in allowed_rules
     assert ("edit", "ask") in allowed_rules and ("webfetch", "ask") in allowed_rules
 
+    _agent_id, documents = _agent_definition(
+        "b", title="B", instructions="help", provider_id="test", model_id="model",
+        tool_names={"create_document", "revise_document", "create_media", "run_python"}, workspace="/tmp/ws")
+    assert all(rule["effect"] == "deny" for rule in documents["permissions"]
+               if rule["action"] in {"edit", "write"})
+
+    _agent_id, brokered = _agent_definition(
+        "b", title="B", instructions="help", provider_id="test", model_id="model",
+        tool_names={"write_file", "shell", "web_fetch"}, workspace="/tmp/ws",
+        brokered_tools=frozenset({"write_file", "shell", "web_fetch"}))
+    assert all(rule["effect"] == "deny" for rule in brokered["permissions"]
+               if rule["action"] in {"edit", "write", "bash", "shell", "webfetch", "websearch"})
+
+
+@pytest.mark.parametrize("value,expected", [(0, 0.0), (0.001, 0.001), (None, None),
+    ("invalid", None), (float("nan"), None), (-1, None), (True, None)])
+def test_opencode_reported_zero_cost_is_distinct_from_missing_or_invalid_usage(value, expected):
+    from hutch.runtime.opencode import _assistant_usage
+    assert _assistant_usage({"tokens": None, "cost": value}) == (0, 0, 0, expected)
+
 
 def test_runtime_marks_a_stop_during_a_running_tool_as_unknown(store, config, tmp_path, monkeypatch):
     ctx, run, _emitted, tools = build(

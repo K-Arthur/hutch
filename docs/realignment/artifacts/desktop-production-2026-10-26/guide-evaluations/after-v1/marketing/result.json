@@ -1,0 +1,10 @@
+{
+  "case": "marketing",
+  "route": "opencode/opencode/deepseek-v4.1-flash-free",
+  "scope": "synthetic local artifacts; external services unverified",
+  "passed": true,
+  "answer": "Read `input.txt` and wrote `positioning.md`.\n\n**What's in it:**\n- **Positioning:** \"Draft locally. Review before you share.\" \u2014 built only on the three verified features, framed as a hypothesis to validate.\n- **Two campaign drafts:** \"Review Before Send\" (workflow-led) and \"Local State, Local Drafts\" (control-led), each with hook, format, CTA, and open items needing approval.\n- **Sources:** both fixture URLs (Birch $12/mo, Elm $20/mo).\n- **Explicit synthetic-fixture statement** at the top, plus a \"what we cannot claim\" section excluding SOC 2/certification, conversion or performance comparisons, and implied security guarantees. Prices flagged as unverified fixtures.\n\nNo networks, shell commands, or non-workspace access used.",
+  "done_receipts": 1,
+  "elapsed_seconds": 14.79,
+  "tokens": 6572
+}

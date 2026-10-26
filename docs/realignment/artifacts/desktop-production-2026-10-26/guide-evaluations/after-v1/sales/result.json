@@ -1,0 +1,10 @@
+{
+  "case": "sales",
+  "route": "opencode/opencode/deepseek-v4.1-flash-free",
+  "scope": "synthetic local artifacts; external services unverified",
+  "passed": true,
+  "answer": "Done. Created two files in the workspace:\n\n- **outreach.csv** \u2014 exactly one eligible row: `d, Cedar, Dee`, status `draft_needs_approval`, with a generic draft that contains no email address.\n- **founder-summary.md** \u2014 names the three suppression reasons (do-not-contact: Birch/Ada; active deal: Elm/Ben; existing customer: Fir/Cam), states plainly that nothing was sent, and flags that no contact emails, ICP, or firmographic evidence were provided \u2014 so eligibility means \"not suppressed,\" not qualified fit.",
+  "done_receipts": 2,
+  "elapsed_seconds": 12.31,
+  "tokens": 6030
+}

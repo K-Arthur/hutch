@@ -1,0 +1,10 @@
+{
+  "case": "performance",
+  "route": "opencode/opencode/deepseek-v4.1-flash-free",
+  "scope": "synthetic local artifacts; external services unverified",
+  "passed": true,
+  "answer": "Done \u2014 two files written and verified in the working folder.\n\n**metrics.csv** (one row per campaign):\n- Search: CTR 0.1, CVR 0.02, CPA 15, ROAS 3.3333, `over_budget` (spend 300 vs daily budget 250)\n- Social: CTR 0.02, CVR 0, CPA empty (undefined, 0 conversions), ROAS 0, `zero_conversions`\n\nFractional rates, \u22644 decimal places, no percentages.\n\n**recommendations.md**: advisory draft covering the Search over-budget reconciliation and the Social zero-conversion diagnosis (tracking check first, then time-boxed reduction rather than immediate pause). Every proposed spend change explicitly requires approval, with guardrails on specifying budget, date, and owner, changing one campaign at a time, and reverting underperformers.\n\nNo campaigns were modified.",
+  "done_receipts": 2,
+  "elapsed_seconds": 17.12,
+  "tokens": 7163
+}

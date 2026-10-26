@@ -1,0 +1,3 @@
+campaign,impressions,clicks,spend,conversions,revenue,daily_budget
+Search,10000,1000,300,20,1000,250
+Social,20000,400,150,0,0,200
