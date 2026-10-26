@@ -31,7 +31,9 @@
   // Anything without artwork gets a monogram of its model family on a tile whose hue comes from that family, so
   // qwen, gemma and llama stay distinguishable at a glance. Colour here is identity only, never status.
   const BRAND_FILES = { openai: "openai-white-monoblossom.svg", anthropic: "anthropic-symbol-ivory.svg" };
-  const BRAND_FAMILY = [[/^(gpt|chatgpt|codex|o\d)/, "openai"], [/^claude/, "anthropic"]];
+  // The route names its maker: a provider or connection such as openai, chatgpt, anthropic or claude, or the vendor segment of
+  // connection/vendor/model. A local runtime never carries a maker's artwork, whatever the model is called.
+  const brandOfMaker = maker => /^(openai|chatgpt)/.test(maker) ? "openai" : /^(anthropic|claude)/.test(maker) ? "anthropic" : "";
   const LOCAL_RUNTIMES = new Set(["ollama", "llamacpp", "llama.cpp", "lmstudio", "vllm", "mock"]);
   const hash = text => [...String(text)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
   function markOf(spec) {
@@ -39,10 +41,10 @@
     const model = (parts.length >= 3 ? parts.slice(2).join("/") : parts.slice(1).join("/")).toLowerCase();
     const family = (model.match(/^[a-z]+/) || [""])[0];
     const maker = (parts.length >= 3 ? parts[1] : parts[0]).toLowerCase();          // openrouter/anthropic/x, opencode/openai/x
-    let brand = BRAND_FILES[maker] ? maker : "";
-    if (!brand) for (const [pattern, name] of BRAND_FAMILY) if (pattern.test(model)) brand = name;
+    const local = LOCAL_RUNTIMES.has(parts[0].toLowerCase());
+    const brand = local ? "" : brandOfMaker(maker);
     const name = family || maker || "?";
-    return { brand, letter: name[0].toUpperCase(), hue: hash(name) % 360, local: LOCAL_RUNTIMES.has(parts[0].toLowerCase()) };
+    return { brand, letter: name[0].toUpperCase(), hue: hash(name) % 360, local };
   }
   // hosted: true/false when the catalog says, otherwise inferred from the runtime in the route.
   function markHtml(spec, hosted) {
@@ -68,8 +70,8 @@
     const key = `hutch.model.${bot.id}.${conversationId || "none"}`;
     // The last few routes chosen for this assistant (not the saved default): a one-key way back to what you just used.
     const recentKey = `hutch.model.recent.${bot.id}`;
-    const recent = () => { try { return JSON.parse(store.get(recentKey) || "[]").filter(spec => typeof spec === "string").slice(0, 4); } catch { return []; } };
-    const remember = spec => store.set(recentKey, JSON.stringify([spec, ...recent().filter(item => item !== spec)].slice(0, 4)));
+    const recent = () => { try { return JSON.parse(store.get(recentKey) || "[]").filter(spec => typeof spec === "string").slice(0, 8); } catch { return []; } };
+    const remember = spec => { if (find(spec)) store.set(recentKey, JSON.stringify([spec, ...recent().filter(item => item !== spec)].slice(0, 8))); };
     let data = { default: bot.model, models: [{ spec: bot.model, label: shortName(bot.model), group: "This bot",
                                                   state: "ready", default: true, note: "this bot's own model" }] };
     let selected = store.get(key) || "";
@@ -78,6 +80,8 @@
     const find = spec => data.models.find(m => m.spec === spec);
     const active = () => (selected && (find(selected) || /\//.test(selected))) ? selected : data.default;
     const usable = m => m && m.state === "ready";
+    // Up to four recent routes that exist and can be used now: a retired or typed-in route never takes a slot.
+    const recentModels = () => recent().map(find).filter(m => m && usable(m) && !m.default).slice(0, 4);
     const announceSelection = () => onSelectionChange?.(selected && selected !== data.default ? selected : "");
 
     slot.innerHTML = `
@@ -90,8 +94,9 @@
     const btn = slot.querySelector(".ms-btn");
     const menu = slot.querySelector(".ms-menu");
     const label = slot.querySelector(".ms-label");
+    const keyOf = new Map();                       // route -> number key, for as long as the menu stays open
     const popup = window.hutchControls.popup({ trigger: btn, panel: menu, kind: "menu", side: "top",
-      onOpen: () => { renderMenu(); void refresh({ discover: true }); } });
+      onOpen: () => { keyOf.clear(); renderMenu(); void refresh({ discover: true }); } });
 
     function paintButton() {
       const spec = active();
@@ -107,14 +112,19 @@
         : `Model: ${m ? m.label : shortName(spec)}. Bot default. Change model.`);
     }
 
-    function choose(spec) {
+    // The one place a chosen route is applied, for the menu and the dialog alike.
+    function applySelection(spec) {
       selected = spec === data.default ? "" : spec;
       store.set(key, selected);
       if (selected) remember(spec);
       paintButton();
       announceSelection();
-      closeMenu(true);
       if (selected) toast(`${shortName(spec)} is selected for the next message in this conversation. Bot default stays ${shortName(data.default)}.`);
+    }
+
+    function choose(spec) {
+      applySelection(spec);
+      closeMenu(true);
     }
 
     function consumeOverride(spec) {
@@ -180,7 +190,7 @@
       const addQuick = m => { if (m && !quick.includes(m) && (usable(m) || m.default)) quick.push(m); };
       addQuick(def);
       addQuick(cur);
-      for (const spec of recent()) addQuick(find(spec));
+      for (const m of recentModels()) addQuick(m);
       const showQuick = quick.length > 1;
       const shown = [...quick];
       for (const m of ready) if (shown.length < COMPACT_MAX && !shown.includes(m)) shown.push(m);
@@ -200,13 +210,24 @@
           <button type="button" class="ms-item ms-save-default" role="menuitem" tabindex="-1" data-save-default>
            <span class="ms-item-main"><span class="ms-item-name">Save as Bot default</span>
              <span class="ms-item-note">${escHtml(shortName(active()))}; future chats and scheduled runs use this route.</span></span></button>` : ""}`;
-      // Number keys: the first nine routes, in the order they are shown.
-      menu.querySelectorAll('.ms-item[role="menuitemradio"]').forEach((it, index) => {
-        if (index > 8) return;
-        it.dataset.key = String(index + 1);
-        it.setAttribute("aria-keyshortcuts", String(index + 1));
-        it.querySelector(".ms-key").textContent = String(index + 1);
-      });
+      // Number keys go to usable routes only, and a route keeps its key while the menu is open: the catalog refresh that
+      // follows opening re-renders the rows, and a digit must still mean the row the reader saw.
+      const rows = [...menu.querySelectorAll('.ms-item[role="menuitemradio"]')];
+      const taken = new Set(rows.map(it => keyOf.get(it.dataset.spec)).filter(Boolean));
+      for (const it of rows) {
+        let number = !it.disabled && keyOf.get(it.dataset.spec);
+        if (!it.disabled && !number) {
+          number = [1, 2, 3, 4, 5, 6, 7, 8, 9].find(n => !taken.has(n));
+          if (number) { keyOf.set(it.dataset.spec, number); taken.add(number); }
+        }
+        if (number) {
+          it.dataset.key = String(number);
+          it.setAttribute("aria-keyshortcuts", String(number));
+          it.querySelector(".ms-key").textContent = String(number);
+        } else {
+          it.querySelector(".ms-key")?.remove();
+        }
+      }
     }
 
     const items = () => Array.from(menu.querySelectorAll(".ms-item"));
@@ -258,8 +279,8 @@
     btn.addEventListener("click", () => (menu.hidden ? openMenu() : closeMenu(true)));
     // Capture phase, so a number or "/" is ours before the popup's own type-ahead sees it.
     menu.addEventListener("keydown", event => {
-      if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
-      if (/^[1-9]$/.test(event.key)) {
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (!event.shiftKey && /^[1-9]$/.test(event.key)) {
         const it = menu.querySelector(`.ms-item[data-key="${event.key}"]`);
         if (it && !it.disabled) { event.preventDefault(); event.stopImmediatePropagation(); choose(it.dataset.spec); }
       } else if (event.key === "/") {
@@ -332,12 +353,7 @@
             toast("Write it as provider/model, for example opencode-go/glm-5.3", true);
             return false;
           }
-          selected = spec === data.default ? "" : spec;
-          store.set(key, selected);
-          if (selected) remember(spec);
-          paintButton();
-          announceSelection();
-          if (selected) toast(`${shortName(spec)} is selected for the next message in this conversation. Bot default stays ${shortName(data.default)}.`);
+          applySelection(spec);
           return true;
         },
       });
@@ -368,8 +384,7 @@
         const q = query.trim().toLowerCase();
         const groups = [];
         // Recent: the routes chosen lately for this assistant, usable ones only, shown first when nothing is being searched.
-        const lately = !q && filter === "all"
-          ? recent().map(find).filter(model => model && usable(model) && !model.default) : [];
+        const lately = !q && filter === "all" ? recentModels() : [];
         if (lately.length) groups.push({ name: "Recent", list: lately });
         for (const model of models) {
           if (lately.includes(model)) continue;
@@ -408,6 +423,8 @@
           if (!rows.length) return;
           event.preventDefault();
           if (!rows.some(radio => radio.checked)) { rows[0].checked = true; rows[0].dispatchEvent(new Event("change", { bubbles: true })); }
+          custom.value = "";                      // a model ID typed earlier must not outrank the row chosen here
+          paintSelection();
           document.getElementById("modal-confirm")?.click();
           return;
         }
@@ -421,7 +438,9 @@
       });
       renderGroups(data.models);
       paintSelection();
+      // openModal focuses its first field; on touch that would raise the keyboard before anyone chose to search.
       if (matchMedia("(pointer: fine)").matches) search.focus({ preventScroll: true });
+      else { const all = root.querySelector(".ms-all"); all.tabIndex = -1; all.focus({ preventScroll: true }); }
       let searchTimer = 0;
       let searchRevision = 0;
       search.addEventListener("input", () => {

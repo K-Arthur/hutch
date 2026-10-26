@@ -166,3 +166,146 @@ def test_the_palette_opens_the_picker_on_a_chat_page_and_only_there(picker):
     page.keyboard.press("Control+k")
     page.get_by_role("combobox", name="Search assistants, conversations and pages").fill("choose a model")
     assert page.locator("dialog.palette").get_by_role("option", name="Choose a model").count() == 0
+
+
+# ───────────── regressions found in the second code review ─────────────
+
+def _model(spec, **extra):
+    return {"spec": spec, "label": spec.split("/", 1)[1], "group": "On this machine", "state": "ready", "hosted": False, **extra}
+
+
+@pytest.fixture()
+def open_picker(browser, app_server):
+    """Open the picker against a catalog of the test's own, as a pointer or a touch device."""
+    base, app = app_server
+    contexts = []
+
+    def _open(catalog, *, touch=False, handler=None):
+        context = browser.new_context(viewport={"width": 390 if touch else 1280, "height": 844 if touch else 900},
+                                      is_mobile=touch, has_touch=touch, reduced_motion="reduce")
+        contexts.append(context)
+        page = context.new_page()
+        page.route("**/api/bots/*/models*", handler or (lambda route: route.fulfill(
+            status=200, content_type="application/json", body=json.dumps(catalog))))
+        page.goto(f"{base}/#/chat/design-system-review", wait_until="domcontentloaded")
+        page.locator(".ms-btn").wait_for()
+        return page, app.state.store.get_bot("design-system-review").id
+
+    yield _open
+    for context in contexts:
+        context.close()
+
+
+def test_a_mark_names_the_routes_maker_not_the_model_name(open_picker):
+    catalog = {"default": "ollama/qwen3:8b", "models": [
+        _model("ollama/qwen3:8b", group="This bot", default=True),
+        _model("ollama/gpt-oss:20b"),                                     # an open-weights model on a local runtime
+        _model("lmstudio/claude-distill-7b"),                              # a local fine-tune that borrows a name
+        _model("openai/gpt-5.1", group="Hosted", hosted=True),
+        _model("chatgpt/gpt-5.1", group="ChatGPT", hosted=True),           # the maker's own plan, named by its connection
+        _model("openrouter/anthropic/claude-sonnet-5-5", group="Hosted", hosted=True),
+        _model("openrouter/deepseek/deepseek-v3.2", group="Hosted", hosted=True),
+    ]}
+    page, _ = open_picker(catalog)
+    page.locator(".ms-btn").click()
+    page.keyboard.press("/")                                           # the full list shows every route (the menu shows five)
+    page.locator(".ms-all").wait_for()
+    row = lambda spec: page.locator(f'.ms-row:has(input[value="{spec}"]) .ms-mark')
+    brand = lambda spec: row(spec).locator("img").count()
+    assert brand("ollama/gpt-oss:20b") == 0 and brand("lmstudio/claude-distill-7b") == 0, "a local runtime never wears a maker's artwork"
+    assert brand("openai/gpt-5.1") == 1 and brand("chatgpt/gpt-5.1") == 1
+    assert row("openrouter/anthropic/claude-sonnet-5-5").locator("img").get_attribute("src").endswith("anthropic-symbol-ivory.svg")
+    assert brand("openrouter/deepseek/deepseek-v3.2") == 0
+    assert row("ollama/gpt-oss:20b").locator(".ms-mark-letter").get_attribute("data-letter") == "G"
+
+
+def test_enter_in_search_uses_the_highlighted_row_not_a_model_id_typed_earlier(open_picker):
+    page, _ = open_picker(CATALOG)
+    page.locator(".ms-btn").click()
+    page.keyboard.press("/")
+    page.locator(".ms-all").wait_for()
+    page.locator(".ms-advanced summary").click()
+    page.locator(".ms-custom").fill("someone/else-model")
+    search = page.locator(".ms-search")
+    search.fill("llama")
+    search.press("ArrowDown")                                      # chooses llama3.1:8b (clears the typed ID)
+    page.locator(".ms-custom").fill("someone/else-model")          # typed again afterwards, then back to the list
+    search.focus()
+    search.press("Enter")
+    page.locator(".ms-btn.is-custom").wait_for()
+    assert page.locator(".ms-btn .ms-label").inner_text() == "llama3.1:8b"
+
+
+def test_number_keys_keep_their_route_when_the_catalog_refresh_reorders_the_menu(open_picker):
+    held = []
+    first = {"seen": False}
+
+    def handler(route):
+        if "discover=1" in route.request.url and first["seen"]:
+            held.append(route)                                     # the refresh opening the menu triggers: answer it later
+        else:
+            first["seen"] = True
+            route.fulfill(status=200, content_type="application/json", body=json.dumps(CATALOG))
+
+    page, _ = open_picker(CATALOG, handler=handler)
+    page.locator(".ms-btn").click()
+    page.locator(".ms-menu .ms-item").first.wait_for()
+    keys = lambda: dict(page.locator(".ms-menu .ms-item[data-key]").evaluate_all("els => els.map(el => [el.dataset.spec, el.dataset.key])"))
+    before = keys()
+    assert before and held, "the refresh must be pending for this to test anything"
+    reordered = {**CATALOG, "models": [CATALOG["models"][0], *reversed(CATALOG["models"][1:])]}
+    held[0].fulfill(status=200, content_type="application/json", body=json.dumps(reordered))
+    page.wait_for_timeout(300)
+    after = keys()
+    assert all(after.get(spec) == key for spec, key in before.items()), (before, after)
+
+
+def test_slash_works_where_it_needs_shift_and_unusable_rows_get_no_number(open_picker):
+    catalog = {"default": "ollama/qwen3:8b", "models": [
+        _model("ollama/qwen3:8b", group="This bot", default=True, state="setup", fix="Install it first."),
+        _model("ollama/llama3.1:8b"), _model("openai/gpt-5.1", group="Hosted", hosted=True)]}
+    page, _ = open_picker(catalog)
+    page.locator(".ms-btn").click()
+    page.locator(".ms-menu .ms-item").first.wait_for()
+    default_row = page.locator('.ms-menu .ms-item[data-spec="ollama/qwen3:8b"]')
+    assert default_row.is_disabled() and default_row.locator(".ms-key").count() == 0 and default_row.get_attribute("data-key") is None
+    assert page.locator('.ms-menu .ms-item[data-key="1"]').get_attribute("data-spec") == "ollama/llama3.1:8b"
+    # on German and Nordic layouts "/" is Shift+7: the key arrives with shiftKey set
+    page.locator('.ms-menu .ms-item[data-key="1"]').focus()
+    page.evaluate("document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key: '/', shiftKey: true, bubbles: true}))")
+    page.locator(".ms-all").wait_for()
+
+
+def test_the_full_list_does_not_raise_the_keyboard_on_a_touch_screen(open_picker):
+    page, _ = open_picker(CATALOG, touch=True)
+    page.locator(".ms-btn").click()
+    page.locator('.ms-menu [data-more]').click()
+    page.locator(".ms-all").wait_for()
+    assert page.evaluate("document.activeElement?.classList.contains('ms-search')") is False
+    assert page.evaluate("document.querySelector('#modal-root').contains(document.activeElement)"), "focus stays inside the dialog"
+
+
+def test_stale_and_typed_routes_never_use_up_a_recent_slot(open_picker):
+    page, bot_id = open_picker(CATALOG)
+    page.evaluate("""id => localStorage.setItem(`hutch.model.recent.${id}`, JSON.stringify([
+      'old/retired-1', 'old/retired-2', 'typed/custom-3', 'ollama/gemma3:27b', 'ollama/llama3.1:8b']))""", bot_id)
+    page.reload()
+    page.locator(".ms-btn").wait_for()
+    page.locator(".ms-btn").click()
+    page.locator(".ms-menu .ms-item").first.wait_for()
+    names = page.locator('.ms-menu .ms-section:has-text("Quick picks") ~ .ms-item[role=menuitemradio] .ms-item-name').all_inner_texts()
+    assert "llama3.1:8b" in names[:3], names        # the one valid recent shows although four stale ones come before it
+    assert not any("retired" in name or "custom" in name or "gemma" in name for name in names), names   # and none of them appears
+
+
+def test_the_pill_keeps_a_readable_where_it_runs_badge(open_picker):
+    page, _ = open_picker(CATALOG)
+    badge = page.locator(".ms-btn .ms-mark-where")
+    box = badge.bounding_box()
+    assert box["width"] >= 12 and box["height"] >= 12, box
+    icon = badge.locator(".ms-ico").bounding_box()
+    assert icon["width"] >= 8, icon
+    colours = page.evaluate("""() => { const probe = document.createElement('i'); probe.style.color = 'var(--text-2)'; document.body.append(probe);
+      const two = getComputedStyle(probe).color; probe.remove();
+      return [getComputedStyle(document.querySelector('.ms-btn .ms-mark-where .ms-ico')).color, two]; }""")
+    assert colours[0] == colours[1], colours        # the chevron rules no longer recolour the badge

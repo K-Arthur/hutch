@@ -2,10 +2,15 @@
 
 ## Switching models in the chat
 
-The Studio composer has a model control beside message options. Its icon distinguishes a listed local route from a
-hosted route; its full accessible name identifies the model and selection scope. Its menu lists the bot's own model first (marked *default*, with a
-check on the one in use), then what is usable right now, then **All models**. Each entry has one line of secondary
-text that says something true on this machine:
+The Studio composer has a model control beside message options. Every model wears a **vendor mark** (bundled OpenAI and
+Anthropic artwork, a monogram of the model family otherwise) with a small badge that distinguishes a listed local route from a
+hosted route; the mark is decorative, and the control's full accessible name identifies the model and selection scope.
+Its menu opens on **Quick picks** once there is something to pick from: the bot's own model first (marked *default*), the one
+in use (with a check), and the last four routes you chose for this assistant (kept in this browser, per assistant). Then come
+the remaining usable models grouped by where they run, then **All models**. The first nine rows have number keys (1-9, shown
+as key hints on pointer devices), `/` opens the searchable list, and **Choose a model** in the command palette (Ctrl or
+Cmd K) opens the menu from anywhere on a chat page. Each entry has one line of secondary text that says something true on
+this machine:
 
 | Entry | Secondary line |
 |---|---|
@@ -14,7 +19,9 @@ text that says something true on this machine:
 | connection model | `flat-rate plan` / `pay per token`, or what is missing (key, acknowledged terms) |
 | OpenRouter model | provider-reported catalog price and name when listed; the model's own usage and tool behavior still need verification |
 
-**All models** opens a searchable dialog with everything, grouped. Models that cannot be used are shown with the
+**All models** opens a searchable dialog with everything, grouped, with the search field focused on pointer devices. A
+**Recent** group comes first, **All / Ready now / On this machine / Hosted** filters narrow the list, and the up and down
+arrows choose while Enter uses the choice without leaving the search field. Models that cannot be used are shown with the
 reason and the fix (`the weights alone are 40 GiB against 3.5 GiB usable`, `set ANTHROPIC_API_KEY where hutch
 starts`) instead of being hidden. Anything that sends the chat off the machine carries a **leaves this machine** tag.
 The dialog says explicitly that the choice applies to the next message. **Selected route and details** shows the exact

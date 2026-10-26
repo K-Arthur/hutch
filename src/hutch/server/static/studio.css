@@ -905,8 +905,8 @@ dialog.palette::backdrop { background: rgb(0 0 0 / 0.55); }
 }
 .ms-btn:hover, .ms-btn[aria-expanded="true"] { color: var(--text); background: rgb(255 255 255 / 0.1); border-color: var(--edge); }
 .ms-btn.is-custom { color: var(--brand-hi); background: var(--brand-wash); border-color: var(--brand-line); }
-.ms-btn .ms-ico { color: var(--text-3); }
-.ms-btn.is-custom .ms-ico { color: var(--brand-hi); }
+.ms-btn > .ms-ico { color: var(--text-3); }
+.ms-btn.is-custom > .ms-ico { color: var(--brand-hi); }
 
 .ms-menu { width: 348px; padding: 8px; background: var(--control-surface, var(--color-semantic-panel)); border: 1px solid var(--control-line, var(--color-semantic-border-strong)); border-radius: var(--r-panel); box-shadow: var(--popup-shadow, var(--sh-pop)); }
 .ms-menu .hc-popup-label { padding: 8px 12px 2px; color: var(--text-3); font: 600 var(--fs-xs)/1.4 var(--font-ui); }
@@ -1091,15 +1091,16 @@ label.field { align-content: start; }
   background: var(--panel); border: 1px solid var(--line-strong); color: var(--text-2); }
 .ms-mark-where .ms-ico { width: 8px; height: 8px; }
 .ms-mark-where.is-hosted { color: var(--text-2); }
-.ms-btn .ms-route-icon { display: inline-grid; width: 20px; height: 20px; }
+.ms-btn .ms-route-icon { display: inline-grid; width: 22px; height: 22px; }
 .ms-btn .ms-mark { border-radius: var(--r-micro); }
 .ms-btn .ms-mark-letter { font-size: var(--fs-2xs); }
-.ms-btn .ms-mark-where { width: 10px; height: 10px; right: -3px; bottom: -3px; border-width: 1px; }
-.ms-btn .ms-mark-where .ms-ico { width: 6px; height: 6px; }
+.ms-btn .ms-mark-where { width: 13px; height: 13px; right: -4px; bottom: -4px; }
+.ms-btn .ms-mark-where .ms-ico { width: 8px; height: 8px; }
 .ms-item-end { display: inline-flex; align-items: center; gap: 8px; }
 .ms-key { min-width: 20px; padding: 1px 8px; border: 1px solid var(--line-strong); border-radius: var(--r-micro); background: var(--sunken); color: var(--text-2); font: 500 var(--fs-2xs)/1.4 var(--font-ui); text-align: center; }
 @media (pointer: coarse) { .ms-key { display: none; } }
 .ms-hint { margin: 0; color: var(--text-3); font-size: var(--fs-xs); }
+@media (pointer: coarse) { .ms-hint { display: none; } }       /* arrow keys mean nothing on a touch screen; still the field's described-by text */
 .ms-filters { display: flex; flex-wrap: wrap; gap: 8px; }
 .ms-chip { min-height: 32px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: var(--r-chip); background: transparent; color: var(--text-2); font: 550 var(--fs-xs)/1 var(--font-ui); cursor: pointer; }
 .ms-chip:hover { color: var(--text); background: var(--raised); }
