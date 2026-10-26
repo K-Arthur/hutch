@@ -248,13 +248,11 @@ def validate_value(schema: dict[str, Any], value: Any) -> list[str]:
     if report.unsupported:
         detail = "; ".join(report.unsupported[:_MAX_PROBLEMS])
         return [f"this schema cannot be fully checked locally ({detail}); the value was not accepted"]
-    if _HAVE_JSONSCHEMA:
-        problems = _validate_with_jsonschema_any(schema, value)
-        if problems:
-            return problems
     problems: list[str] = []
     _errors(value, schema, "", schema, problems, depth=0, ref_seen=frozenset())
-    return problems[:_MAX_PROBLEMS]
+    if problems:
+        return problems[:_MAX_PROBLEMS]
+    return _validate_with_jsonschema_any(schema, value) if _HAVE_JSONSCHEMA else []
 
 
 def _validate_with_jsonschema_any(schema: dict[str, Any], value: Any) -> list[str]:

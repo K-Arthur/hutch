@@ -200,3 +200,12 @@ def test_repaired_values_still_pass_the_canonical_validator():
 
 def test_engine_name_is_available_for_diagnostics():
     assert schema_engine() in ("jsonschema-2020-12", "hutch-bounded-v1")
+
+
+@pytest.mark.parametrize("full_validator", [False, True])
+def test_value_repair_diagnostics_stay_stable_when_sdk_installs_jsonschema(monkeypatch, full_validator):
+    import hutch.toolcalling.validate as validation
+    monkeypatch.setattr(validation, "_HAVE_JSONSCHEMA", full_validator)
+    problems = validation.validate_value({"type": "integer", "minimum": 300}, 2)
+    assert len(problems) == 1 and ">= 300" in problems[0]
+    assert validation.validate_value({"type": "integer", "minimum": 300}, 301) == []
