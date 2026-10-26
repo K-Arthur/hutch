@@ -91,3 +91,42 @@ def test_unix_keeps_the_exact_existing_flock_implementation():
         assert locking.flock is fcntl.flock
         assert locking.LOCK_EX == fcntl.LOCK_EX and locking.LOCK_NB == fcntl.LOCK_NB
     assert locking.CONTRACT_VERSION == 1
+
+
+def test_skills_registry_lock_excludes_a_separate_registry_process(tmp_path):
+    from hutch.skills import _FileLock
+    program = '''
+import sys
+from pathlib import Path
+from hutch.skills import _FileLock, SkillError
+try:
+    with _FileLock(Path(sys.argv[1]), timeout=.05):
+        print('acquired', flush=True)
+except SkillError:
+    print('blocked', flush=True)
+    sys.exit(23)
+'''
+    path = tmp_path / "registry.lock"
+    with _FileLock(path):
+        result = subprocess.run([sys.executable, "-c", program, str(path)], capture_output=True, text=True, timeout=8)
+        assert result.returncode == 23 and result.stdout.strip() == "blocked", result.stderr
+    result = subprocess.run([sys.executable, "-c", program, str(path)], capture_output=True, text=True, timeout=8)
+    assert result.returncode == 0 and result.stdout.strip() == "acquired", result.stderr
+
+
+def test_skills_registry_closes_handle_even_if_unlock_reports_an_error(tmp_path, monkeypatch):
+    from hutch.skills import _FileLock
+    lock = _FileLock(tmp_path / "registry.lock")
+    lock.__enter__()
+    stream = lock._handle
+    original = locking.flock
+    def unlock_error(fd, operation):
+        if operation == locking.LOCK_UN:
+            raise OSError("injected unlock failure")
+        return original(fd, operation)
+    monkeypatch.setattr(locking, "flock", unlock_error)
+    with pytest.raises(OSError, match="injected unlock failure"):
+        lock.__exit__(None, None, None)
+    assert stream.closed
+    assert lock._handle is None
+    assert child(tmp_path / "registry.lock", "exclusive").returncode == 0

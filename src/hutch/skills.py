@@ -37,6 +37,8 @@ from typing import Any, Iterable, Optional
 
 import yaml
 
+from .platforms import locking
+
 SKILL_FILENAME = "SKILL.md"
 REGISTRY_VERSION = 1
 
@@ -621,14 +623,10 @@ class _FileLock:
     def __enter__(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._handle = self.path.open("a+")
-        try:
-            import fcntl
-        except ImportError:  # pragma: no cover - Linux-first product; keep Windows importable
-            return self
         deadline = time.monotonic() + self.timeout
         while True:
             try:
-                fcntl.flock(self._handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                locking.flock(self._handle.fileno(), locking.LOCK_EX | locking.LOCK_NB)
                 return self
             except OSError:
                 if time.monotonic() > deadline:
@@ -640,12 +638,10 @@ class _FileLock:
     def __exit__(self, *exc):
         if self._handle is not None:
             try:
-                import fcntl
-                fcntl.flock(self._handle.fileno(), fcntl.LOCK_UN)
-            except ImportError:  # pragma: no cover
-                pass
-            self._handle.close()
-            self._handle = None
+                locking.flock(self._handle.fileno(), locking.LOCK_UN)
+            finally:
+                self._handle.close()
+                self._handle = None
         return False
 
 

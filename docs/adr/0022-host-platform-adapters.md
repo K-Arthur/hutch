@@ -66,3 +66,9 @@ for required native ownership, not a measured Python speed replacement.
 Sources: [Windows Job Objects](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects),
 [assignment requirements](https://learn.microsoft.com/en-us/windows/win32/api/jobapi2/nf-jobapi2-assignprocesstojobobject),
 [Rust owned handles](https://doc.rust-lang.org/std/os/windows/io/struct.OwnedHandle.html).
+
+The skill registry now uses the same kernel lock adapter rather than silently omitting
+exclusion when `fcntl` is unavailable. Unlock errors still close the owned handle,
+allowing kernel cleanup and preventing a stuck registry lock. Linux cross-process
+registry contention and handle-error cleanup are exercised together with the existing
+skills/API suites; native Windows execution remains outstanding.
