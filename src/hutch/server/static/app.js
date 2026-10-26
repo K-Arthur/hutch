@@ -8877,7 +8877,8 @@ async function openKDEConnectSetup(button, bots) {
         if (!deviceId || !botId) { status.textContent = "Choose both a device and an assistant."; return false; }
         await api("/v1/connections/kdeconnect/grants", { method: "POST", body: { device_id: deviceId, bot: botId } });
         toast("Device status access saved. Ask the selected assistant about its connection or battery.");
-        return true;
+        // A late result must not close a different dialog opened in the meantime.
+        return confirm.isConnected;
       } catch (error) { if (status.isConnected) status.textContent = error.message; return false; }
       finally { if (confirm.isConnected) confirm.disabled = false; }
     },

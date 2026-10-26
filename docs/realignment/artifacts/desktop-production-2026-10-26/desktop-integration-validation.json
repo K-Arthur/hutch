@@ -1,0 +1,119 @@
+{
+  "scope": "Local Linux development backend and controlled integration validation; not an installed native GUI or a public release",
+  "source_commit": "20eccbe842adbad14be5fde256ce38addb1a67d1",
+  "platform": {
+    "os": "Linux",
+    "machine": "x86_64",
+    "glibc": "2.44",
+    "python": "3.13.15",
+    "pyinstaller": "6.22.3",
+    "mcp_sdk": "2.3.0"
+  },
+  "schema": 79,
+  "artifact": {
+    "directory": "/home/kevina/.hutch-tmp/hp26/pkg-release-candidate/backend",
+    "executable_sha256": "aca11e2c19bce9bc6650665b01215aba9da8b01ce5a50ac06f2a55b2532e5075",
+    "bundle_entry_count": 1279,
+    "bundle_regular_file_bytes": 315473299,
+    "bundle_manifest_sha256": "b87d2009a19b9ccf1890b56852908090a3ad64d849ab3c6d0712c54d14d9956f"
+  },
+  "checks": [
+    {
+      "source_commit": "f5522db2",
+      "scope": "full nonbrowser suite, explicit RAM-backed event benchmark",
+      "passed": 3442,
+      "skipped": 17,
+      "xfailed": 6,
+      "duration_seconds": 1453.21
+    },
+    {
+      "source_commit": "b0df67cf",
+      "scope": "full affected chat browser module",
+      "passed": 167,
+      "duration_seconds": 683.34
+    },
+    {
+      "source_commit": "4c57d20a",
+      "scope": "final reviewed native device adapter/API/bridge tests",
+      "passed": 20,
+      "duration_seconds": 7.72
+    },
+    {
+      "source_commit": "4c57d20a",
+      "scope": "responsive device selection/retry/grant/revoke browser checks",
+      "passed": 2,
+      "duration_seconds": 6.22
+    },
+    {
+      "source_commit": "4c57d20a",
+      "scope": "responsive marketing availability table",
+      "passed": 1,
+      "duration_seconds": 5.09
+    },
+    {
+      "source_commit": "72552744",
+      "scope": "feedback/style repair, migration, home and KDE Connect family",
+      "passed": 74,
+      "duration_seconds": 15.59
+    },
+    {
+      "source_commit": "20eccbe8",
+      "scope": "real open-SSE shutdown regression and CLI neighbors",
+      "passed": 17,
+      "duration_seconds": 23.82
+    },
+    {
+      "source_commit": "20eccbe8",
+      "scope": "current source/frozen sidecar, worker file receipt, private lifecycle, modern/legacy SDK protocol fixtures, device metadata without enumeration",
+      "passed": 10,
+      "duration_seconds": 34.89
+    }
+  ],
+  "profile_readback": {
+    "schema": 79,
+    "sqlite_quick_check": "ok",
+    "original_messages_unchanged": 6,
+    "backup_mode": "0600",
+    "health_conversation_style_notion_device_endpoints": "HTTP 200; no message contents exported"
+  },
+  "limitations": [
+    "Google and Microsoft publisher registrations absent in the development manifest; live consent unverified",
+    "Notion live account validation unverified",
+    "Physical phones and other Linux distributions unverified",
+    "Windows/macOS native packages and installed Linux GUI not validated",
+    "GitHub/Slack/Telegram/Ads connectors and scoped Drive browsing remain incomplete",
+    "Business workflow model evaluations not run in this integration slice; OpenRouter spend USD 0"
+  ],
+  "build_warnings": [
+    "Unused pycparser lextab/yacctab hidden imports absent",
+    "Linux build cannot find Windows user32"
+  ],
+  "source_sha256": {
+    "src/hutch/integrations/kdeconnect.py": "24deed1a5ee73fa8e2204acb79b30842c96622f64e7f8b002bb869cb436a7831",
+    "src/hutch/integrations/kdeconnect_access.py": "c3315182a6f602c233debfc78d414549f988c36c69e66fa251796cc99ef07307",
+    "src/hutch/integrations/notion.py": "ede2be19da8bd47c2c36ba0a212511c3f54fe832d788addade0271263ff32fe3",
+    "src/hutch/integrations/notion_mcp.py": "802b2b3fc132ba176967aeaf81295dc8347aa5c7331d490da7b9caba03b43b71",
+    "src/hutch/integrations/notion_access.py": "4c56fa014df90d92d0da964569ec2cb05ba32a5c140d723002bd8a01709c442c",
+    "src/hutch/tools/kdeconnect.py": "b89cd33b3bf57e5b096a7c6c9a537260be638a0aa0a2aa0304df4f34a4e8954d",
+    "src/hutch/tools/notion.py": "1174e7866f55ddd4b6d17d14ff44dfe0a334a3922d8f73b5f866ff8a98db61b2",
+    "src/hutch/server/kdeconnect_api.py": "9c62a191521ae4a16d8f5df822d5fed43bedcfbc6e5909b7c34c4c09bd180b1c",
+    "src/hutch/server/notion_api.py": "713b01e4280524626ec8d006aed65f31ede6cbec2562981641933906b515153a",
+    "src/hutch/server/static/app.js": "40785883cb973a7218c2fba50489d869ef254268d3b4f5ddb55f68cb548401b9",
+    "src/hutch/server/app.py": "e14c1393117e7ce9c294229fcf872e23f436da8ecbea4e9cb3f848562f1ab460",
+    "src/hutch/store.py": "de2dafc1c3a23840193f6bde88e473329511001145fe8b419efa2a835c11e3d2",
+    "src/hutch/cli.py": "40cc5a175d1d561959283d334e4fef63dfb083209fa25a7ef47a535d40753933",
+    "src/hutch/readiness.py": "16a1a155614f6e9e242bfb1d0038633b5820a44fe762b802bf2802f2a3974cce",
+    "src/hutch/runtime/opencode.py": "7ebfc5251c61a8c2e412549c6d2796adb0a1238c328ef4b21b39a8e3be870d23",
+    "src/hutch/runtime/opencode_memory.py": "8d71e6a34499bdbeebdf2d66a4da4a21267f23d8b0db6e279f83a28d5861c4f7",
+    "src/hutch/tools/__init__.py": "5042ba170db93e3e6fb48b10564a0ecd6bf81bc9512193141c4f0f766372a32e",
+    "tests/test_desktop_sidecar.py": "aa6affdb184a085cb4856c15033f238f8f84234b095b9156dd10825fdaa23cbb",
+    "tests/test_kdeconnect.py": "ceb493e74238d89250daf6eb030e5c1e1532d4aa1e5ad7d043f1aa9c5ae51b93",
+    "tests/test_serve_lifecycle.py": "9a960c3ffdbf3fb520c33e62e288fca237dcced815335c76003e0dba389b9ef2",
+    "tests/test_feedback_storage_repair.py": "68037af0d6c568ac91d9db536603507f79bfe24d6a362534815b9de6d3d0d003",
+    "tests/e2e/test_browser.py": "3ae7f284a3aac4fd216c4b98357a892f71a93c00f3adafb8d3357dfaef8d3438",
+    "tests/e2e/test_website.py": "e5fefb77c6eb8b5db231f2642c64952ce5136d679ee0671ae5a20439a495dfa5",
+    "website/index.html": "b7a85b490f53aa4a23373936416013469959e98763f035294c095734a969cc7b",
+    "desktop/backend.spec": "87d3a955138c97888793f8b0464a552987477c06afdc34ffdd8e9cdd2e2060c7",
+    "uv.lock": "1eca1c66648f49b21114a17985dc16a19f6e43a78d693a80f18e0a3162811001"
+  }
+}

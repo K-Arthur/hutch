@@ -106,6 +106,8 @@ def test_kdeconnect_device_access_is_deliberate_scoped_recoverable_and_revocable
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("request", lambda request: external.append(request.url)
             if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+    held_grant = []
+    page.route("**/api/v1/connections/kdeconnect/grants", lambda route: held_grant.append(route))
     out = artifact_path("kdeconnect-access"); out.mkdir(parents=True, exist_ok=True)
     try:
         page.goto(base + "/#/connections")
@@ -132,8 +134,19 @@ def test_kdeconnect_device_access_is_deliberate_scoped_recoverable_and_revocable
         assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
         page.screenshot(path=str(out / f"{width}-select.png"), full_page=True)
         page.locator("#modal-confirm").click()
-        page.locator("#modal-root .modal-card").wait_for(state="detached")
+        wait_for(lambda: bool(held_grant))
+        # Closing the pending setup and opening another dialog must not let
+        # its late result close the new one. The submitted grant still resolves.
+        page.locator("#modal-close").click()
+        page.locator('[data-connection-open="phone"]').click()
+        page.get_by_role("heading", name="Use Hutch on your phone", exact=True).wait_for()
+        with page.expect_response(lambda response: response.url.endswith("/api/v1/connections/kdeconnect/grants")) as saved:
+            held_grant[0].continue_()
+        assert saved.value.status == 200
+        page.get_by_text("Device status access saved.", exact=False).wait_for()
+        assert page.get_by_role("heading", name="Use Hutch on your phone", exact=True).is_visible()
         assert len(access.bindings(app.state.store, bot.id)) == 1
+        page.locator("#modal-close").click()
         button.click()
         remove = page.locator('[data-kdeconnect-revoke="phone_123"]')
         remove.wait_for()
