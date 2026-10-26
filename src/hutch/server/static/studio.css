@@ -1055,6 +1055,8 @@ dialog.palette::backdrop { background: rgb(0 0 0 / 0.55); }
    width makes their minimum contribution zero, where their intrinsic width (about 20 characters) used to force a form
    wider than the screen at 200% text size. */
 .form-grid, label.field, .task-routing-settings { grid-template-columns: minmax(0, 1fr); }
+/* A field beside a taller one keeps its control at its own height: spare space falls below the hint, not between rows. */
+label.field { align-content: start; }
 :is(.form-grid, label.field, .task-routing-settings) :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), select, textarea) { width: 100%; min-width: 0; }
 
 /* The coordinator's specialist-roster row cannot fit icon, copy, count and action on one line in a narrow pane. */
