@@ -90,6 +90,7 @@ typography:
     lineHeight: "1.5"
     letterSpacing: "normal"
 rounded:
+  micro: "4px"
   control: "8px"
   panel: "12px"
   chat: "20px"
@@ -307,16 +308,27 @@ on Activity. The header repeats none of them.
 ## Shapes
 
 One rounded scale, applied honestly — this replaced an earlier all-square
-language after explicit user direction ("right angles feel too off"):
+language after explicit user direction ("right angles feel too off"). Five steps,
+chosen by the role of the shape and not by taste:
 
-- **`rounded.control` 8px** — buttons, inputs, rows, icon buttons, filter pills.
-- **`rounded.panel` 12px** — cards, panels, menus, popovers, modals, toasts,
-  table wrappers, approval cards, and the composer box (every request surface
-  in the composer family shares this one shape).
-- **`rounded.chat` 20px** — conversation bubbles and the composer (user bubble tail corner 6px).
-- **`rounded.chip` 100px** — status chips, badges, counts, jump-to-latest, meter tracks.
+- **`rounded.micro` 4px** — keycaps, inline code and the user bubble's tail corner.
+- **`rounded.control` 8px** — buttons, text fields, selects, icon buttons, filter
+  pills, navigation rows up to ~40px, icon tiles, and blocks nested inside a panel
+  (tool output, command previews).
+- **`rounded.panel` 12px** — cards, menus, popovers, modals, the command palette,
+  toasts, table wrappers, code blocks, approval cards, and rows from ~48px (the
+  roster, run and chat-library rows).
+- **`rounded.chat` 20px** — conversation bubbles and the composer box.
+- **`rounded.chip` 100px** — status chips, badges, counts, the model pill, round
+  header buttons, jump-to-latest, meter tracks. Perfect circles (avatars, status
+  dots, spinner) use `50%`.
+- **Nesting steps down, never up.** A shape inside another uses the same step or the
+  next one down (chat → panel → control → micro) so inner and outer corners stay
+  concentric; a control never has a larger radius than the panel that holds it.
 - Mascot identity shapes (sigils and faces) are artwork and may be any
   silhouette — they are not containers.
+- Enforced by `tests/e2e/test_radius_scale.py`, which fails with the selector of
+  any painted corner or stylesheet literal that is off the scale.
 
 ## Components
 
@@ -338,7 +350,7 @@ language after explicit user direction ("right angles feel too off"):
   browser picker where `appearance: base-select` is supported; other engines
   retain their native picker, labels, validation, reset and form submission.
   Popup panels use the shared raised graphite surface, emphasis border and 4px inset
-  (the model menu uses an 18px radius and 12px rows with a 32px icon tile); rows are
+  (the model menu is a 12px panel with 8px rows and a 32px icon tile); rows are
   40px (44px on phone/coarse pointers; the model menu's two-line rows are 52px).
   Labels are 14px system sans, field values at least 16px, secondary copy 12px.
   Selection reserves a check lane; focus is azure and distinct from selection.
@@ -422,7 +434,7 @@ language after explicit user direction ("right angles feel too off"):
   successful assistant creation or that explicit action. Announce readiness
   changes in one polite status region without moving focus, and reserve stable
   space so late checks do not push the primary action.
-- **Composer** — 20px rounded box (chat radius, shared with bubbles) with an `edge`
+- **Composer** — 20px rounded box (`rounded.chat`, shared with bubbles) with an `edge`
   border, 17px textarea in a full-width writing area above a toolbar: 34px `+`
   utility left; skills, model trigger and 38px emerald send (rose outlined stop)
   right. A quiet keyboard hint sits under it on pointer devices. The `+` popover holds only real
@@ -445,7 +457,7 @@ language after explicit user direction ("right angles feel too off"):
   table, raw JSON on request) and the full output with Copy. Errors and waits carry a
   word, not only a colour. When output was truncated the step carries a `source` flag
   and a source card linking the saved artifact.
-- **Chat bubbles** — your message is a soft 20px bubble (one corner at 6px) on a
+- **Chat bubbles** — your message is a soft 20px bubble (one corner at 4px) on a
   graphite gradient with an inset highlight; very long requests clamp to ~14 lines
   with Show more. Time and the secondary "Make a bot" action share one meta row (the
   action appears on hover/focus, always on touch). The assistant's answer is not a
@@ -472,7 +484,7 @@ language after explicit user direction ("right angles feel too off"):
 ## Do's and Don'ts
 
 **Do**
-- Take every radius from `rounded.*`; keep the pill only for chips.
+- Take every radius from `rounded.*`; keep the pill only for chips and round buttons.
 - Pair every icon with a word for state; give every control a visible focus ring.
 - Use mono for code, commands, paths and machine-measured values — not prose.
 - Give every control an accessible name that contains its visible text (WCAG 2.5.3).

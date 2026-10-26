@@ -100,8 +100,10 @@
   --size-rail: 2px;
   --size-target: 44px;
   /* radius */
+  --radius-chat: 20px;
   --radius-chip: 100px;
   --radius-control: 8px;
+  --radius-micro: 4px;
   --radius-panel: 12px;
   /* motion */
   --motion-dur-base: 240ms;

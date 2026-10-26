@@ -92,7 +92,7 @@ and marketing disclosures are not popup menus.
 | Warning / danger | `#fbbf24` / `#f87171` | Human attention and failure/destructive states |
 | Hairline / strong / emphasis border | `rgba(255,255,255,.07)` / `.12` / `.22` | Card boundaries and hovered edges (decorative) |
 | Control edge | `rgba(255,255,255,.38)` | Boundary of text fields, selects and the composer; ≥3:1 on every surface (WCAG 1.4.11) |
-| Control / panel / chat / pill radius | `8 / 12 / 20 / 100px` | Shared geometry scale; no surface owns a private radius (bubbles and the composer share the chat radius) |
+| Micro / control / panel / chat / pill radius | `4 / 8 / 12 / 20 / 100px` (`50%` for circles) | One shared scale for the dashboard and the site, chosen by role and stepping down when nested; no surface owns a private radius (`tests/e2e/test_radius_scale.py` enforces it) |
 | UI and headings / code and measured data | local Geist / Geist Mono | One family for language; mono for code, commands, paths and machine values |
 | App type roles | `1rem` body / `1.0625rem` reading / `1.5rem` page title | Responsive hierarchy that respects browser text scaling |
 | App icon family | `16 / 20 / 24px`, `24px` view box | Local category vectors in 48px desktop/tablet tiles and compact 40px phone rows; exact service names and states stay visible |

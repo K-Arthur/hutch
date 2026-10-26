@@ -42,8 +42,11 @@ def test_generated_css_carries_the_brand_accent():
     assert "--color-semantic-border-edge: rgba(255,255,255,0.38);" in css
     assert '--font-body: "Geist"' in css and '--font-mono: "Geist Mono"' in css
     assert "--color-semantic-focus-ring: #60a5fa;" in css
+    # One corner scale for the dashboard and the site (DESIGN.md "The Scale Rule").
+    assert "--radius-micro: 4px;" in css
     assert "--radius-control: 8px;" in css
     assert "--radius-panel: 12px;" in css
+    assert "--radius-chat: 20px;" in css
     assert "--radius-chip: 100px;" in css
 
 

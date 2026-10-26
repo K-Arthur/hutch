@@ -205,9 +205,10 @@
 /* App-specific component layer: the classes app.js emits, expressed once in
    terms of the theme — utilities for spacing/radius/color, no magic numbers. */
 @layer components {
-  /* Shared shape roles: controls 8, surfaces 12, chat 18, pills 100.
-     No surface owns a private radius — the composer is a panel too. */
+  /* Shared shape roles: micro 4, controls 8, panels 12, chat 20, pills 100.
+     No surface owns a private radius; see DESIGN.md "The Scale Rule". */
   :root {
+    --r-micro: 0.25rem;
     --r-ctl: 0.5rem;
     --r-panel: 0.75rem;
     --r-chat: 1.25rem;

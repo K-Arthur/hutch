@@ -18,7 +18,7 @@
   gap: 8px;
   padding: 3px 10px;
   border: 1px solid var(--brand-line);
-  border-radius: 999px;
+  border-radius: var(--r-chip);
   background: var(--brand-wash);
   color: var(--text);
   font-size: 0.875rem;

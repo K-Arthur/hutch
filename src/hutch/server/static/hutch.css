@@ -46,7 +46,7 @@
   --r: var(--radius-panel);
   --r-sm: var(--radius-control);
   --r-btn: var(--radius-control);
-  --r-xs: var(--radius-control);
+  --r-xs: var(--radius-micro);
   --r-full: var(--radius-chip);
   --gutter: 32px;
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
