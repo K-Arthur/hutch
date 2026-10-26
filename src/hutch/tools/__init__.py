@@ -149,6 +149,8 @@ def build_tools(names: list[str], ctx: ToolContext, *, memory_enabled: bool | No
         tools.update(construct_connection_tools(ctx.store, ctx.bot, local_gmail_ok=local_gmail_ok))
         from .notion import construct_notion_tools
         tools.update(construct_notion_tools(ctx.store, ctx.bot, getattr(ctx, "run", None)))
+        from .kdeconnect import construct_kdeconnect_tools
+        tools.update(construct_kdeconnect_tools(ctx.store, ctx.bot, getattr(ctx, "run", None)))
     return tools
 
 

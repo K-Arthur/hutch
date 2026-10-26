@@ -72,6 +72,8 @@ class RunToolBridge:
         from ..integrations.notion_access import names_for_run
         bot = store.get_bot(run.bot_id)
         integration_names = names_for_run(store, bot, run) if bot else set()
+        from ..integrations.kdeconnect_access import bindings_for_run as device_bindings
+        integration_names |= {item["canonical_name"] for item in device_bindings(store, bot, run)} if bot else set()
         supported = self.supported_tools(allowed_tools, lambda name: is_known_tool_name(name) or name in integration_names)
         if not allowed_tools or not allowed_tools <= supported:
             raise ValueError(f"the bridge admits only reviewed {self._scope_label}")

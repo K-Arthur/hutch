@@ -129,6 +129,7 @@ Review the retained branch manually. Hutch does not apply or publish it; see [op
   bound to the active human-needed event so an old action cannot skip a later challenge. Built-in
   chat runs can ask a bounded single- or multi-select question; answers resume with a normal chat
   message and never approve an action. The standalone OpenCode coding handoff remains separate. The experimental governed OpenCode assistant runtime uses supported canonical tools on Linux; Pi remains unavailable as a Hutch-managed runtime.
+- **KDE Connect status (experimental, Linux)** — select a paired device and assistant in Apps & AI to allow bounded connection/battery reads. Revocable grants and run-scoped tools work through the built-in and governed OpenCode paths. No phone content, pairing, messages or remote commands are exposed. Physical device validation remains open. See [connections](docs/connections.md#kde-connect-device-status-experimental-linux).
 - **Phone supervision (experimental)** — start pairing from Apps & AI under Your devices after private host setup. Private HTTPS and an explicitly enabled passkey session provide bot/run status, transcript
   review, Allow once/Deny, Stop/Resume, and optional starts for locally enabled Bots. Pairing, Bot settings, secrets, schedules, and
   computer permission settings remain local-owner tasks. Explicitly enabled bounded computer input is available to authorized Review sessions. Remote access stays disabled by default; live network and iOS/Android validation

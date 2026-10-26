@@ -466,6 +466,8 @@ class OpenCodeRuntime:
         from ..integrations.catalog import is_known_tool_name
         from ..integrations.notion_access import names_for_run
         integration_names = names_for_run(ctx.store, ctx.bot, run)
+        from ..integrations.kdeconnect_access import bindings_for_run as device_bindings
+        integration_names |= {item["canonical_name"] for item in device_bindings(ctx.store, ctx.bot, run)}
         admitted = RunToolBridge.supported_tools(frozenset(tools), lambda name: is_known_tool_name(name) or name in integration_names)
         admitted = frozenset(name for name in admitted if name not in {"recall", "remember"}) | frozenset(admitted_memory)
         from .instructions import build_system_prompt

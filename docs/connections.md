@@ -608,3 +608,30 @@ storage. Windows/macOS credential stores and live Notion account validation rema
 Controlled tests exercise OAuth, JSON/SSE wire transport, modern/legacy negotiation, grant
 revocation, schema changes, cancellation and the real browser/API path. These are not a
 claim that a live Notion account has been connected or that public distribution is ready.
+
+## KDE Connect device status (experimental, Linux)
+
+Open **Apps & AI → Your devices → KDE Connect → Choose device access**. Pair your phone
+using KDE Connect itself first. Choose **Find paired devices**, select a device and an
+assistant, then **Allow status reads**. Opening Apps & AI or the setup dialog does not
+enumerate devices. A retry is available if KDE Connect is not running.
+
+The assistant can read only that device's pairing/reachability and last reported battery.
+Battery data is not guaranteed fresh; offline devices and missing/disabled battery plugins
+return an unavailable value rather than a fabricated zero. Device names are untrusted data.
+Status can reach the assistant's selected model provider and be retained in run history.
+Only built-in and governed OpenCode assistants outside Strict Offline mode are eligible.
+Existing runs cannot acquire a new device grant midway through execution.
+
+Reopen **Choose device access** to remove an assistant's grant. This takes effect on its
+next protected call, including a held tool; a read whose grant or pairing is revoked before
+completion withholds its result. Removing access leaves KDE Connect pairing intact.
+This adapter never pairs/unpairs devices, activates the daemon, changes plugins, rings a
+phone, sends messages, reads notifications/clipboard/files, or invokes remote commands.
+It uses bounded, cancellable `/usr/bin/busctl` calls on the local user's D-Bus session.
+Paired Hutch supervision browsers cannot administer these grants or enumerate devices.
+
+Controlled subprocess, API, canonical receipt/bridge and responsive UI checks cover this
+slice. A harmless local D-Bus protocol probe confirms the machine-readable response shape;
+physical Android/iOS behavior and other Linux distributions have not been validated.
+See the [integration coverage audit](realignment/integration-coverage-2026-10-26.md).

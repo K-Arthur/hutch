@@ -8835,6 +8835,62 @@ function modelCapabilityResultsMarkup(page, error) {
     <p class="hint">Showing the latest ${page.items.length} recorded observation${page.items.length === 1 ? "" : "s"}. An absent record means unknown; it does not mean the model failed a test.</p>`;
 }
 
+async function openKDEConnectSetup(button, bots) {
+  button.disabled = true;
+  let connection;
+  try { connection = await api("/v1/connections/kdeconnect"); }
+  catch (error) { toast(error.message, true); return; }
+  finally { button.disabled = false; }
+  const eligible = bots.filter(bot => bot.inference_mode !== "offline" && ["builtin", "opencode"].includes(bot.runtime));
+  let devices = null;
+  openModal({ title: "KDE Connect device access", returnFocus: button,
+    confirmText: connection.available ? "Find paired devices" : "Close", showCancel: !!connection.available,
+    bodyHtml: `<p>Read a device’s connection and last reported battery. Choose one device and assistant. Status may go to that assistant’s model provider and run history.</p>
+      <p class="hint">This grants status reads only. Removing access here leaves KDE Connect pairing intact.</p>
+      ${!connection.available ? '<p role="status">This connection needs Linux with busctl installed. Pair the device in the KDE Connect app first.</p>' : '<p>Pair your phone in KDE Connect first, then choose Find paired devices.</p>'}
+      <div id="kdeconnect-device-fields"></div><p class="hint" id="kdeconnect-status" role="status"></p>
+      <div aria-label="Current device status access">${(connection.grants || []).map(grant => `<div class="device-row"><div><strong>${esc(grant.label)}</strong><p class="hint">${esc(bots.find(bot => bot.id === grant.bot_id)?.display_name || bots.find(bot => bot.id === grant.bot_id)?.name || "Assistant")} · status and battery only</p></div><button class="btn ghost small" type="button" data-kdeconnect-revoke="${esc(grant.device_id)}" data-kdeconnect-bot="${esc(grant.bot_id)}">Remove access</button></div>`).join("") || '<p class="hint">No assistant has device status access.</p>'}</div>`,
+    onConfirm: async () => {
+      if (!connection.available) return true;
+      const confirm = $("#modal-confirm"), status = $("#kdeconnect-status"), fields = $("#kdeconnect-device-fields");
+      if (confirm.disabled) return false;
+      confirm.disabled = true;
+      try {
+        if (!devices) {
+          status.textContent = "Looking for devices already paired in KDE Connect…";
+          const result = await api("/v1/connections/kdeconnect/discover", { method: "POST", body: {} });
+          if (!fields.isConnected) return false;
+          if (!result.devices?.length) { status.textContent = "No paired devices found. Pair your phone in KDE Connect, then try again."; return false; }
+          devices = result.devices;
+          fields.innerHTML = `<label class="field">Paired device<select id="kdeconnect-device"><option value="">Choose a device…</option>${devices.map(device => `<option value="${esc(device.device_id)}">${esc(device.name)} · ${device.reachable ? "connected" : "offline"}${device.battery ? ` · ${Number(device.battery.percent)}% reported battery` : ""}</option>`).join("")}</select></label>
+            <label class="field">Assistant<select id="kdeconnect-bot"><option value="">Choose an assistant…</option>${eligible.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}</option>`).join("")}</select></label>`;
+          confirm.textContent = "Allow status reads";
+          status.textContent = eligible.length ? "Select a device and assistant to allow status reads." : "Create a built-in or OpenCode assistant outside Strict Offline mode first.";
+          fields.addEventListener("change", () => {
+            status.textContent = $("#kdeconnect-device")?.value && $("#kdeconnect-bot")?.value
+              ? "Ready to allow status reads for this device and assistant." : "Choose both a device and an assistant.";
+          });
+          $("#kdeconnect-device")?.focus();
+          return false;
+        }
+        const deviceId = $("#kdeconnect-device")?.value, botId = $("#kdeconnect-bot")?.value;
+        if (!deviceId || !botId) { status.textContent = "Choose both a device and an assistant."; return false; }
+        await api("/v1/connections/kdeconnect/grants", { method: "POST", body: { device_id: deviceId, bot: botId } });
+        toast("Device status access saved. Ask the selected assistant about its connection or battery.");
+        return true;
+      } catch (error) { if (status.isConnected) status.textContent = error.message; return false; }
+      finally { if (confirm.isConnected) confirm.disabled = false; }
+    },
+  });
+  $$("#modal-root [data-kdeconnect-revoke]").forEach(control => control.addEventListener("click", async () => {
+    control.disabled = true;
+    try {
+      await api(`/v1/connections/kdeconnect/devices/${encodeURIComponent(control.dataset.kdeconnectRevoke)}/grants/${encodeURIComponent(control.dataset.kdeconnectBot)}`, { method: "DELETE" });
+      control.textContent = "Access removed";
+    } catch (error) { toast(error.message, true); if (control.isConnected) control.disabled = false; }
+  }));
+}
+
 async function renderConnections() {
   let data;
   try { data = await api("/connections"); }
@@ -9118,7 +9174,9 @@ async function renderConnections() {
   ].join("");
   const phoneTile = tile("phone", "Hutch on your phone", "Follow work, review approvals and stop runs from your phone. This connects your phone to Hutch; it does not read phone apps or messages.",
     devices.length ? `${devices.length} paired` : phoneSetup.ready ? "Ready to pair" : "Private connection required",
-    devices.length ? "connected" : "setup", "phone", phoneSetup.ready ? "Pair a phone" : "Connection details");
+    devices.length ? "connected" : "setup", "phone", phoneSetup.ready ? "Pair a phone" : "Connection details")
+    + tile("local", "KDE Connect", "Let an assistant check a paired device’s connection and reported battery. Set up pairing in KDE Connect first.",
+      "Linux integration", "setup", "kdeconnect", "Choose device access");
   const modelTiles = [
     tile("chatgpt", "ChatGPT", "Sign in with ChatGPT where available. Your existing chats stay separate.",
       chatgptAccounts.some(account => account.connected && account.plan_usage) ? "Connected"
@@ -9422,6 +9480,10 @@ async function renderConnections() {
   $("#google-mail-access").open = googleMailAccessOpen;
   $$("[data-connection-open]").forEach(button => button.addEventListener("click", () => {
     const targetKey = button.dataset.connectionOpen;
+    if (targetKey === "kdeconnect") {
+      void openKDEConnectSetup(button, bots);
+      return;
+    }
     if (targetKey === "phone") {
       openModal({ title: "Use Hutch on your phone", returnFocus: button,
         confirmText: phoneSetup.ready ? "Create pairing code" : "Close", showCancel: phoneSetup.ready,

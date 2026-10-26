@@ -7352,6 +7352,8 @@ def create_app() -> FastAPI:
 
     from .notion_api import install_notion_routes
     install_notion_routes(app, store, config)
+    from .kdeconnect_api import install_kdeconnect_routes
+    install_kdeconnect_routes(app, store)
     from .skills_api import install_skills_routes
     install_skills_routes(app, store, config)
     from .pages import register_pages

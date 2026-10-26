@@ -17,7 +17,7 @@ is gated separately from fixture validation.
 | Core | Local files / PDF / office / CSV | Existing workspace/document tools and artifacts | End-to-end artifact evaluation; retain workspace and formula-injection boundaries |
 | Core | Web research / browser | Existing governed tools and local login handoff | Source-quality/live workflow evaluation; retain explicit human credentials |
 | Core | Phone supervision | Passkey API/browser surface; now discoverable with host-side code creation | Physical Android/iOS and private-network validation |
-| Next | Linux apps and paired phone data | Generic computer/shell tools are not specialized account connectors | Explicit app adapters; KDE Connect device consent and capability checks, read-first inventory; no silent SMS/notification capture |
+| Next | Linux apps and paired phone data | KDE Connect paired-device connection/battery reads, explicit per-device/per-assistant grants, bounded native IPC and canonical receipts; fixture/UI validated | Physical phone/distribution validation; further adapters need separate scope and acceptance; no SMS/notification access |
 | Next | Tasks and knowledge | Native durable work/memory exists; no cross-service task sync | Notion first; assess Todoist/Linear against actual target-user workflows rather than adding duplicate task systems |
 | Next | Performance marketing | Local reports/CSV and plan contracts; no live Ads reporting connector | Read-only Google Ads reporting, explicit account selection and budget-independent evaluation |
 | Later | Cross-channel chat / contacts / other clouds | Not implied by a Google sign-in | Add only specific useful scopes/transports with their own acceptance evidence |
@@ -37,11 +37,10 @@ is gated separately from fixture validation.
   create a personal integration and copy a token. Its advertised OAuth metadata supports
   S256 PKCE and client registration. Hutch now implements this public-client flow with controlled provider fixtures; live account validation remains open.
 - [KDE Connect](https://github.com/KDE/kdeconnect-kde) and
-  [its user guide](https://userbase.kde.org/KDEConnect) are the candidate for selected Linux/phone
-  capabilities. Phone supervision and access to phone data are different directions of
+  [its user guide](https://userbase.kde.org/KDEConnect) supply the published interfaces for the narrow Linux connection/battery-status adapter. Phone supervision and access to phone data are different directions of
   trust. Device pairing alone must not authorize sending messages or copying notifications.
 
-Every added connector must have a complete sign-in, select, execute, receipt/readback,
-cancel/error, refresh and revoke path. External content remains untrusted; OAuth consent
+Every account-backed connector must have a complete sign-in, select, execute, receipt/readback,
+cancel/error, refresh and revoke path. Native device adapters use existing OS pairing and need explicit Hutch grants, cancellation and revocation without pretending to supply OAuth. External content remains untrusted; OAuth consent
 does not confer blanket assistant authority. No accounts have been newly connected,
 messages sent, purchases made or cloud registrations borrowed during this audit.

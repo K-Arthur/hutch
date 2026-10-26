@@ -80,6 +80,73 @@ def test_executor_health_status_uses_a_steady_indicator(browser, live):
         page.close()
 
 
+@pytest.mark.parametrize("width,height", [(1440, 1000), (390, 844)])
+def test_kdeconnect_device_access_is_deliberate_scoped_recoverable_and_revocable(browser, live, monkeypatch, width, height):
+    from hutch.integrations import kdeconnect as kde, kdeconnect_access as access
+    base, app = live
+    bot = app.state.store.create_bot(Bot(name="device-helper", display_name="Phone helper", model="mock/demo", tools=[]))
+    calls = []
+    failure = [True]
+    device = {"device_id": "phone_123", "name": "Test phone <img src=x onerror=window.deviceInjected=1>",
+              "paired": True, "reachable": True, "battery": {"percent": 73, "charging": False}}
+    def discover():
+        calls.append("discover")
+        if failure[0]:
+            raise kde.KDEConnectError("KDE Connect is unavailable. Open KDE Connect and check the device connection.")
+        return [device]
+    def status(device_id):
+        assert device_id == "phone_123"
+        calls.append("status")
+        return device
+    monkeypatch.setattr(kde, "available", lambda: True)
+    monkeypatch.setattr(kde, "discover", discover)
+    monkeypatch.setattr(kde, "device_status", status)
+    page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+    errors, external = [], []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external.append(request.url)
+            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+    out = artifact_path("kdeconnect-access"); out.mkdir(parents=True, exist_ok=True)
+    try:
+        page.goto(base + "/#/connections")
+        button = page.locator('[data-connection-open="kdeconnect"]')
+        button.wait_for()
+        assert not calls
+        button.click()
+        page.get_by_role("heading", name="KDE Connect device access", exact=True).wait_for()
+        assert not calls and not access.bindings(app.state.store)
+        page.locator("#modal-confirm").click()
+        page.locator("#kdeconnect-status").get_by_text("KDE Connect is unavailable.", exact=False).wait_for()
+        assert not access.bindings(app.state.store)
+        failure[0] = False
+        page.locator("#modal-confirm").click()
+        page.locator("#kdeconnect-device").wait_for()
+        assert not page.locator("#kdeconnect-device").input_value()
+        assert not page.locator("#kdeconnect-bot").input_value()
+        page.locator("#modal-confirm").click()
+        page.get_by_text("Choose both a device and an assistant.", exact=True).wait_for()
+        assert not access.bindings(app.state.store)
+        page.locator("#kdeconnect-device").select_option("phone_123")
+        page.locator("#kdeconnect-bot").select_option(bot.id)
+        assert page.evaluate("window.deviceInjected === undefined")
+        assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+        page.screenshot(path=str(out / f"{width}-select.png"), full_page=True)
+        page.locator("#modal-confirm").click()
+        page.locator("#modal-root .modal-card").wait_for(state="detached")
+        assert len(access.bindings(app.state.store, bot.id)) == 1
+        button.click()
+        remove = page.locator('[data-kdeconnect-revoke="phone_123"]')
+        remove.wait_for()
+        assert "Phone helper" in page.locator("#modal-root").inner_text()
+        remove.click()
+        page.get_by_role("button", name="Access removed", exact=True).wait_for()
+        assert not access.bindings(app.state.store)
+        assert calls == ["discover", "discover", "status"]
+        assert not errors and not external
+    finally:
+        page.close()
+
+
 def test_paired_phone_uses_supervision_view_and_hides_data_after_revocation(browser, live):
     base, app = live
     store = app.state.store

@@ -46,6 +46,10 @@ def test_desktop_sidecar_has_private_readiness_and_stops_when_host_closes(tmp_pa
             assert client.get("/").status_code == 200
             assert client.get("/static/app.js").status_code == 200
             assert client.get("/static/model-switcher.css").status_code == 200
+            devices = client.get("/api/v1/connections/kdeconnect")
+            assert devices.status_code == 200
+            assert devices.json()["read_only"] is True and devices.json()["grants"] == []
+            assert "devices" not in devices.json(), "opening setup must not enumerate the host's phones"
             assert client.post("/api/v1/conversations", headers={"Origin": "https://attacker.example"},
                                json={}).status_code == 403
         process.stdin.close()

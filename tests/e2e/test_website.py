@@ -895,9 +895,17 @@ def test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_
         assert "experimental" in row.inner_text().lower()
         assert "consent is account-wide and unverified" in text
         paired = page.locator("#get .availability tbody tr").filter(has_text="Paired access and browser")
-        assert "linux credential/captcha handoff" in paired.inner_text().lower()
+        assert "linux browser handoff" in paired.inner_text().lower()
+        assert "private https/passkey host setup" in paired.inner_text().lower()
         assert "browser field detection" in paired.inner_text().lower()
-        assert "outlook calendar lookup and optional guest-free event creation on one selected calendar" in text
+        device_row = page.locator("#get .availability tbody tr").filter(has_text="KDE Connect")
+        assert device_row.count() == 1
+        device_text = device_row.inner_text().lower()
+        assert "experimental" in device_text and "explicit per-device and assistant grants" in device_text
+        assert "does not expose phone content or remote commands" in device_text
+        assert "physical phone validation remains open" in device_text
+        assert "outlook calendar reads use the selected assistant grant" in text
+        assert "guest-free event creation needs exact approval each time" in text
         assert "exact approval each time" in text
         assert "microsoft consent is account-wide and unverified" in text
         assert "outlook mail provides read-only previews" in text
@@ -915,6 +923,7 @@ def test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_
             page.screenshot(path=str(out / f"availability-viewport-{label}.png"), animations="disabled")
             page.locator("#get .availability").screenshot(
                 path=str(out / f"availability-table-{label}.png"), animations="disabled")
+            device_row.screenshot(path=str(out / f"kdeconnect-{label}.png"), animations="disabled")
             metrics = wrapper.evaluate("element => ({scrollWidth: element.scrollWidth, clientWidth: element.clientWidth})")
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert overflow <= 1, (label, overflow)

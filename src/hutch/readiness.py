@@ -83,8 +83,11 @@ def bot_readiness(store, config, bot: Bot) -> dict:
     # ------------------------------------------------------------------ tools
     offline = getattr(bot.inference_mode, "value", "") == "offline"
     from .integrations.notion_access import bindings as notion_bindings
+    from .integrations.kdeconnect_access import bindings as device_bindings
+    from .integrations.kdeconnect import available as device_transport_available
     notion_grants = notion_bindings(store, bot.id)
-    integration_names = {grant["canonical_name"] for grant in notion_grants}
+    device_names = {grant["canonical_name"] for grant in device_bindings(store, bot.id)}
+    integration_names = {grant["canonical_name"] for grant in notion_grants} | device_names
     enabled = list(dict.fromkeys(expand_tools(list(bot.tools or [])) + sorted(integration_names)))
     tool_items: list[dict] = []
     for name in enabled:
@@ -97,6 +100,8 @@ def bot_readiness(store, config, bot: Bot) -> dict:
             status, detail = "warning", "withheld in Strict Offline mode"
         if not bot.memory_enabled and name in {"remember", "recall"}:
             status, detail = "warning", "withheld because memory is disabled for this Bot"
+        if name in device_names and not device_transport_available():
+            status, detail = "warning", "KDE Connect status needs Linux with /usr/bin/busctl; tool withheld here"
         tool_items.append({"name": name, "status": status, "detail": detail})
     if not enabled:
         tool_items.append({"name": "tools", "status": "warning",

@@ -616,3 +616,25 @@ confers assistant operation authority.
 Sources: [Notion client implementation](https://developers.notion.com/guides/mcp/build-mcp-client),
 [official SDK client](https://py.sdk.modelcontextprotocol.io/client/),
 [reverified protocol revision](https://modelcontextprotocol.io/specification/2026-07-28).
+
+
+## Native KDE Connect status addendum (2026-10-26)
+
+A fixed in-process adapter exposes one empty-argument `device-status` tool per explicitly
+granted device. Canonical integration rows use `in_process` transport, no credential secret,
+a device/capability/schema revision, and per-assistant grants. The same admission snapshot,
+current-grant checks, policy decision and effect receipt path governs built-in and OpenCode
+execution. D-Bus is not exposed as a general model tool. Discovery requires an explicit
+local-owner action and does not grant operation authority.
+
+The subprocess uses fixed `/usr/bin/busctl` reads against `org.kde.kdeconnect` on the user
+bus, disables service activation/interactive authorization, restricts inherited environment,
+and enforces output/deadline/cancellation bounds with child reaping. Pairing is checked
+before and after status reads. No phone content or mutation methods are part of the adapter.
+Removing a Hutch grant does not unpair the user's device. Strict Offline and unsupported
+runtime paths withhold the tools; no specialized OS support is implied elsewhere.
+
+This independently written adapter uses published interface contracts; it does not copy
+KDE implementation code. Sources: [device properties](https://github.com/KDE/kdeconnect-kde/blob/master/core/device.h),
+[battery properties](https://github.com/KDE/kdeconnect-kde/blob/master/plugins/battery/batteryplugin.h),
+[daemon/CLI interface usage](https://github.com/KDE/kdeconnect-kde/blob/master/cli/kdeconnect-cli.cpp).
