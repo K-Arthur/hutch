@@ -94,8 +94,11 @@ def kernel_env(workspace: Path, generation: int) -> dict[str, str]:
     source_root = Path(__file__).resolve().parents[2]   # .../src (this file is src/hutch/workspace/manager.py)
     python_path = [str(source_root)]
     package_dir = sysconfig_purelib()
-    if package_dir and Path(package_dir).is_dir() and not Path(package_dir).is_relative_to("/usr"):
-        python_path.append(package_dir)
+    package_path = Path(package_dir).resolve() if package_dir else None
+    # Match the canonical venv prefix mounted read-only by the sandbox. The
+    # caller may have launched through a symlink that is absent inside it.
+    if package_path and package_path.is_dir() and not package_path.is_relative_to("/usr"):
+        python_path.append(str(package_path))
     return {
         "PATH": sandbox.DEFAULT_PATH,
         "HOME": str(workspace),

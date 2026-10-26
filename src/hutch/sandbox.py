@@ -165,8 +165,11 @@ def offline_worker_environment(source: dict[str, str], state_dir: str, lease_sec
     # gets the same dependencies without executing venv activation hooks.
     package_dir = sysconfig.get_paths().get("purelib", "")
     python_path = [source_root]
-    if package_dir and Path(package_dir).is_dir() and not Path(package_dir).is_relative_to("/usr"):
-        python_path.append(package_dir)
+    package_path = Path(package_dir).resolve() if package_dir else None
+    # Match the canonical venv prefix mounted read-only by the sandbox. The
+    # caller may have launched through a symlink that is absent inside it.
+    if package_path and package_path.is_dir() and not package_path.is_relative_to("/usr"):
+        python_path.append(str(package_path))
     return {
         "PATH": DEFAULT_PATH, "HOME": "/tmp/hutch-home", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8",
         "PYTHONPATH": os.pathsep.join(python_path), "PYTHONUNBUFFERED": "1", "VIRTUAL_ENV": sys.prefix,
