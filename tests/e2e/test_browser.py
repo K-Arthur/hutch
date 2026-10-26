@@ -6579,6 +6579,61 @@ def test_studio_conversation_survives_reload_and_archive(browser, live):
         context.close()
 
 
+def test_late_archive_response_does_not_replace_a_newly_opened_historical_chat(browser, live):
+    base, app = live
+    bot = app.state.store.create_bot(Bot(name="archive-navigation-race", model="mock/demo", tools=[]))
+    conversation, _ = app.state.store.create_conversation(bot.id, "Research", idem_key="archive-race", request_hash="archive-race")
+    page = browser.new_page()
+    held = []
+    try:
+        page.goto(f"{base}/#/conversation/{conversation['id']}")
+        page.locator("#chat-prompt").wait_for()
+        page.evaluate("""() => {
+          const fetch = window.fetch;
+          window.archiveResponseConsumed = false;
+          window.archiveRequestHeld = false;
+          window.fetch = async (...args) => {
+            const response = await fetch(...args);
+            if (String(args[0]).endsWith('/archive')) {
+              const json = response.json.bind(response);
+              response.json = async () => {
+                const body = await json(); window.archiveResponseConsumed = true; return body;
+              };
+            }
+            return response;
+          };
+        }""")
+        def hold_archive(route):
+            response = route.fetch()
+            held.append((route, response))
+            page.evaluate("window.archiveRequestHeld = true")
+        page.route("**/api/v1/conversations/*/archive", hold_archive)
+        page.locator("#studio-conversation-options").click()
+        page.locator("#studio-conversation-more > summary").click()
+        page.get_by_role("button", name="Archive conversation", exact=True).click()
+        wait_for_page(page, "() => window.archiveRequestHeld === true")
+        assert page.locator("#studio-archive-conversation").is_disabled()
+        assert len(held) == 1
+        assert app.state.store.get_conversation(conversation['id'])["archived"] == 1
+        # Hash-only navigation preserves the old document and its pending fetch.
+        # The request has committed, but its original caller has no response yet.
+        page.goto(f"{base}/#/chat/{bot.name}")
+        wait_for_page(page, "id => document.querySelector('#conversation-switcher')?.value !== id", arg=conversation['id'])
+        page.goto(f"{base}/#/conversation/{conversation['id']}")
+        wait_for_page(page, "id => document.querySelector('#conversation-switcher')?.value === id", arg=conversation['id'])
+        route, response = held.pop()
+        route.fulfill(response=response)
+        wait_for_page(page, "() => window.archiveResponseConsumed === true")
+        pw.expect(page).to_have_url(f"{base}/#/conversation/{conversation['id']}")
+        page.locator("#studio-conversation-options").click()
+        page.locator("#studio-conversation-more > summary").click()
+        pw.expect(page.get_by_role("button", name="Restore conversation", exact=True)).to_be_visible()
+    finally:
+        for route, response in held:
+            route.fulfill(response=response)
+        page.close()
+
+
 def test_conversation_options_are_compact_persistent_and_recoverable(browser, live, tmp_path, request):
     base, app = live
     store = app.state.store
@@ -6753,6 +6808,8 @@ def test_conversation_options_are_compact_persistent_and_recoverable(browser, li
     page.locator("#studio-conversation-more > summary").click()
     page.get_by_role("button", name="Restore conversation").click()
     wait_for(lambda: store.get_conversation(first["id"])["archived"] == 0)
+    pw.expect(page).to_have_url(f"{base}/#/conversation/{first['id']}")
+    pw.expect(page.locator("#conversation-switcher")).to_have_value(first["id"])
     assert not errors, errors
     assert not external_requests, external_requests
     repo = Path(__file__).resolve().parents[2]
@@ -11033,9 +11090,10 @@ def test_fleet_appears_at_ten_bots_with_search_and_state_filters(browser, live):
     assert paused.value.status == 200
     wait_for(lambda: app.state.store.get_bot("fleet-9").paused)
     card = page.locator('[data-fleet-bot="fleet-9"]')
+    pw.expect(card.locator('[data-action="toggle-pause"]')).to_have_attribute("data-paused", "true")
     card.locator("[data-fleet-options]").click()
     menu = card.locator(".fleet-card-menu-panel")
-    assert menu.get_by_role("menuitem", name="Resume assistant").is_visible()
+    pw.expect(menu.get_by_role("menuitem", name="Resume assistant")).to_be_visible()
     with page.expect_response(lambda response: response.url.endswith("/api/bots/fleet-9")
                              and response.request.method == "PATCH") as resumed:
         menu.get_by_role("menuitem", name="Resume assistant").click()

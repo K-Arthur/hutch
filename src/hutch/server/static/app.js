@@ -3656,12 +3656,17 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
     }
     if (kind === "archive") {
       const archived = !selectedConversation.archived;
+      const archiveConversationId = selectedConversation.id;
+      const archiveGeneration = studioGeneration;
+      const archiveRoute = location.hash;
       action.disabled = true;
       closeStudioConversationMenu(false);
       try {
-        await api(`/v1/conversations/${encodeURIComponent(currentConversationId)}/archive`, {
+        await api(`/v1/conversations/${encodeURIComponent(archiveConversationId)}/archive`, {
           method: "POST", headers: { "Idempotency-Key": newIdempotencyKey() }, body: { archived },
         });
+        if (archiveGeneration !== studioGeneration || currentConversationId !== archiveConversationId
+            || location.hash !== archiveRoute) return;
         if (archived) {
           storageRemove(`hutch-conversation:${bot.id}`);
           // Leaving a historical URL is deliberate here: re-rendering that
@@ -3669,7 +3674,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
           history.replaceState(null, "", `#/chat/${encodeURIComponent(bot.name)}`);
         }
         toast(archived ? "Conversation archived; restore it from Archived chats." : "Conversation restored.");
-        await renderChatStudio(bot.name);
+        await renderChatStudio(bot.name, archived ? null : archiveConversationId);
       } catch (error) {
         toast(`Could not update this conversation: ${error.message}`, true);
         action.disabled = false;
@@ -12294,9 +12299,17 @@ function wireCommon() {
     btn.addEventListener("click", async () => {
       const bot = btn.dataset.bot;
       const paused = btn.dataset.paused !== "true";
-      await api(`/bots/${encodeURIComponent(bot)}`, { method: "PATCH", body: { paused } });
-      toast(paused ? "Paused" : "Resumed");
-      route(); refreshRoster();
+      const actionRoute = location.hash;
+      btn.disabled = true;
+      try {
+        await api(`/bots/${encodeURIComponent(bot)}`, { method: "PATCH", body: { paused } });
+        toast(paused ? "Paused" : "Resumed");
+        if (location.hash === actionRoute && btn.isConnected) await route();
+        await refreshRoster();
+      } catch (error) {
+        btn.disabled = false;
+        toast(`Could not update this assistant: ${error.message}`, true);
+      }
     });
   });
 }
