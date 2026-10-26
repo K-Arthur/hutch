@@ -198,8 +198,8 @@ measured user-research threshold.
 
 ## Screenshot provenance
 
-`website/assets/captures/setup-desktop.webp` (1440×1000) and `setup-phone.webp` (390×844) show the actual application with a
-new, empty temporary state directory, refreshed on 2026-10-23. They contain no seeded bots, conversations, runs, approvals,
+`website/assets/captures/setup-desktop.webp` (1440×1000) and `setup-phone.webp` (390×1200) show the actual application with a
+new, empty temporary state directory, refreshed on 2026-10-26 after the first-run intro was reworked. They contain no seeded bots, conversations, runs, approvals,
 credentials, provider output or external action. The desktop, tablet, phone and compact-phone source captures, browser versions,
 timestamps and source hashes are retained under `docs/realignment/artifacts/no-mock-setup/`; visual validation is recorded in
 `docs/realignment/visual-validation.md`. These images are screenshots of the app, not evidence of a live provider call. The mascot is an original Blender render
@@ -236,9 +236,9 @@ references, cycles, duplicate names and the declared text/background contrast pa
 |---|---|
 | `website/assets/agent/f*-p*.webp` (7x3 look-at-cursor frames) | Original Blender render: `scripts/render_hutch_agent.py` (bpy 5.0.1, Cycles CPU, 96 samples, denoise, transparent film; no chroma keying). Blue palette; an `--palette emerald` variant exists in the script. The body follows a pointer turn at 34%, the visor/cap/face group at 72%, pivoting at the neck. Post: 16px alpha-blur glow pass, unified 620x880 canvas, webp q82. Regenerate with the venv noted in the script docstring. |
 | `website/assets/hutch-agent.webp` | Copy of the centre frame (`f3-p1`), used as the still hero and CTA artwork. |
-| `website/assets/captures/setup-*.webp` | Sanitized app captures from an empty temporary state directory; no mock run, personal data, provider request or external effect. |
+| `website/assets/captures/setup-*.webp` | Sanitized captures of the redesigned app from an empty temporary state directory (`docs/realignment/capture_first_run.py`, desktop 1440×1000 and phone 390×1200); no mock run, personal data, provider request or external effect. |
 | `website/assets/captures/response-style-*.webp` | Cropped desktop/phone views from the actual settings capture at `docs/realignment/artifacts/persona-ui-v2-2026-10-11/`; the fictional `Design Partner` has no model route, request or output. The examples beside it are authored HTML text. |
-| `website/assets/fonts/archivo-latin-var.woff2` | Archivo (OFL) latin variable subset, self-hosted; licence beside it. |
+| `website/assets/fonts/geist-latin-var.woff2`, `geist-mono-latin-var.woff2` | Geist and Geist Mono (SIL OFL, © Vercel in collaboration with basement.studio), Latin variable subsets made with `pyftsubset`, self-hosted; licence in `OFL-geist.txt`. |
 
 Pointer behaviour is an enhancement: it starts only on `(pointer: fine)` devices with at least 4 cores, no `saveData`, and no
 reduced-motion preference; the frame grid is fetched on idle after first paint, and any failed frame leaves the still image in

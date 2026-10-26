@@ -11,10 +11,16 @@
  */
 
 @font-face {
-  font-family: "Archivo";
-  src: url("assets/fonts/archivo-latin-var.woff2?v=e3a28ead") format("woff2");
+  font-family: "Geist";
+  src: url("assets/fonts/geist-latin-var.woff2?v=62cce206") format("woff2");   /* same URL as the <link rel="preload"> in index.html, so the font is fetched once */
   font-weight: 100 900;
-  font-stretch: 62% 125%;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist Mono";
+  src: url("assets/fonts/geist-mono-latin-var.woff2") format("woff2");
+  font-weight: 100 900;
   font-style: normal;
   font-display: swap;
 }
@@ -64,10 +70,9 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .section-heading {
   font-family: var(--font-display);
   font-size: var(--text-size-2xl);
-  font-weight: 700;
-  font-variation-settings: "wdth" 110, "wght" 760;
+  font-weight: 650;
   line-height: var(--text-lh-snug);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.035em;
   max-width: 22ch;
   text-wrap: balance;
 }
@@ -208,8 +213,8 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .hero-title {
   font-family: var(--font-display);
   font-size: var(--text-size-marketing-hero);
-  font-variation-settings: "wdth" 112, "wght" 820;
-  line-height: .99; letter-spacing: -0.04em;
+  font-weight: 700;
+  line-height: 1; letter-spacing: -0.05em;
   margin-bottom: var(--space-6);
   text-wrap: balance;
   max-width: 14ch;

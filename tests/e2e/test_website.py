@@ -140,7 +140,7 @@ def test_landing_initial_transfer_stays_within_review_budget_and_art_loads_on_de
         by_path = {entry["url"]: entry["bytes"] for entry in initial}
         total_bytes = sum(entry["bytes"] for entry in initial)
         sprite_paths = [entry["url"] for entry in initial if "/assets/agent/f" in entry["url"]]
-        font_paths = [entry["url"] for entry in initial if entry["url"].endswith("archivo-latin-var.woff2")]
+        font_paths = [entry["url"] for entry in initial if entry["url"].endswith("geist-latin-var.woff2")]
         assert len(sprite_paths) <= 2, sprite_paths
         assert len(font_paths) == 1, font_paths
         assert by_path["/site.js"] <= 100 * 1024

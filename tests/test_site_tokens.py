@@ -35,9 +35,12 @@ def test_generated_css_carries_the_brand_accent():
     assert "--color-semantic-brand: #34d399;" in css
     assert "--color-semantic-on-brand: #052e21;" in css
     # Shared Studio, server-page, and marketing geometry stays in sync.
-    assert "--color-semantic-surface: #080c12;" in css
+    assert "--color-semantic-surface: #0f0f12;" in css
     assert "--color-semantic-border: rgba(255,255,255,0.07);" in css
     assert "--color-semantic-border-emphasis: rgba(255,255,255,0.22);" in css
+    # Form controls are identified by their boundary, which must reach 3:1 (WCAG 1.4.11).
+    assert "--color-semantic-border-edge: rgba(255,255,255,0.38);" in css
+    assert '--font-body: "Geist"' in css and '--font-mono: "Geist Mono"' in css
     assert "--color-semantic-focus-ring: #60a5fa;" in css
     assert "--radius-control: 8px;" in css
     assert "--radius-panel: 12px;" in css
@@ -79,7 +82,7 @@ def test_studio_stylesheet_references_only_defined_tokens():
     import re
 
     static = ROOT / "src/hutch/server/static"
-    definition_files = ["ui.css", "brand-tokens.css", "style.css", "model-switcher.css"]
+    definition_files = ["ui.css", "brand-tokens.css", "style.css", "studio.css", "model-switcher.css"]
     inline_files = ["app.js", "model-switcher.js", "index.html"]
     defined: set[str] = set()
     for name in definition_files + inline_files:
@@ -90,7 +93,7 @@ def test_studio_stylesheet_references_only_defined_tokens():
         defined |= set(re.findall(r"(--[a-z0-9-]+)\s*:", text))
         defined |= set(re.findall(r"@property\s*(--[a-z0-9-]+)", text))
     missing: list[str] = []
-    for name in ["style.css", "model-switcher.css"]:
+    for name in ["style.css", "studio.css", "model-switcher.css"]:
         text = (static / name).read_text()
         for match in re.finditer(r"var\(\s*(--[a-z0-9-]+)\s*(,)?", text):
             token, has_fallback = match.group(1), bool(match.group(2))

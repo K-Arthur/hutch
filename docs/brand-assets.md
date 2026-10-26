@@ -29,3 +29,9 @@ marks to functional use and asks for the full product name nearby. OpenRouter
 specifies background-specific variants and prohibits altering its marks. Recheck
 the linked vendor guidance before changing or adding an asset. No remote image
 requests are made at runtime.
+
+## Typefaces
+
+| Font | Local asset | Source and licence |
+|---|---|---|
+| Geist, Geist Mono | `src/hutch/server/static/fonts/geist-latin-var.woff2`, `geist-mono-latin-var.woff2` and the same pair under `website/assets/fonts/` | Vercel's Geist family (npm package `geist` 1.8.2), SIL Open Font License 1.1, copyright © 2023 Vercel in collaboration with basement.studio. Latin, Latin-1, Latin Extended-A, punctuation, arrows and a few symbols were subset with fontTools `pyftsubset` (variable weight axis and OpenType features kept). The licence text is `OFL-geist.txt` beside each pair. Replaces the earlier Archivo files; no remote font request is made. |
