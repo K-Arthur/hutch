@@ -26,6 +26,8 @@ struct Ready {
 
 struct Backend {
     child: Child,
+    #[cfg(windows)]
+    job: Option<hutch_process_guard::windows::OwnedJob>,
 }
 
 #[derive(Default)]
@@ -45,9 +47,16 @@ impl Backend {
         let deadline = Instant::now() + Duration::from_secs(15);
         while Instant::now() < deadline {
             if self.child.try_wait().ok().flatten().is_some() {
+                #[cfg(windows)]
+                self.job.take(); // close also ends any descendant left behind
                 return;
             }
             std::thread::sleep(Duration::from_millis(50));
+        }
+        #[cfg(windows)]
+        if let Some(job) = self.job.take() {
+            let _ = job.terminate();
+            drop(job); // kill-on-close still applies if explicit termination failed
         }
         let _ = self.child.kill();
         let _ = self.child.wait();
@@ -137,7 +146,20 @@ fn launch_backend(app: &tauri::AppHandle) -> Result<(Backend, Ready, String), St
     let child = command
         .spawn()
         .map_err(|_| "The bundled Hutch backend could not start".to_string())?;
-    let mut backend = Backend { child };
+    let mut backend = Backend {
+        child,
+        #[cfg(windows)]
+        job: None,
+    };
+    #[cfg(windows)]
+    {
+        // The trusted sidecar waits on stdin. Establish kernel ownership before
+        // it receives permission to initialize the server or spawn workers.
+        backend.job = Some(
+            hutch_process_guard::windows::OwnedJob::attach_waiting_child(&backend.child)
+                .map_err(|_| "Windows could not establish Hutch process ownership".to_string())?,
+        );
+    }
     let bootstrap = serde_json::json!({"token": token, "nonce": nonce});
     writeln!(backend.child.stdin.as_mut().unwrap(), "{bootstrap}")
         .map_err(|_| "The private startup handshake failed".to_string())?;

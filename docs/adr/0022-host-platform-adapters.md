@@ -42,3 +42,27 @@ Original Hutch implementation based on the published
 [UnlockFileEx contract](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-unlockfileex),
 and [Python flock contract](https://docs.python.org/3/library/fcntl.html).
 No upstream implementation code was copied.
+
+
+### Windows desktop owner contract v1
+
+The Rust `hutch-process-guard` crate owns an unnamed, non-inheritable Job Object
+with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`. The desktop host assigns its owned
+Child handle before sending the sidecar's private startup handshake. Later
+children inherit job membership; breakaway is not enabled. Setup failure closes
+the job and stops the still-unbootstrapped child. Quit requests graceful Python
+shutdown first, with native job termination/close as the fallback. Job close also
+cleans descendants left after the root has exited. Numeric PID enumeration is not
+used for termination.
+
+The crate is separate from WebKit/Tauri so its real Win32 code and test targets can
+be type-checked from the development host. The Windows native test holds a
+verified process handle across descendant death and verifies kill-on-close for a
+root and a child spawned after assignment. Cross-check/Clippy are not execution
+of that test; a Windows runner remains required. This does not port the Python
+worker engine, secure workspace operations or credentials by itself. Rust is used
+for required native ownership, not a measured Python speed replacement.
+
+Sources: [Windows Job Objects](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects),
+[assignment requirements](https://learn.microsoft.com/en-us/windows/win32/api/jobapi2/nf-jobapi2-assignprocesstojobobject),
+[Rust owned handles](https://doc.rust-lang.org/std/os/windows/io/struct.OwnedHandle.html).

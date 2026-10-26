@@ -7,6 +7,7 @@ build/
 dist/
 .venv/
 desktop/target/
+desktop/process-guard/target/
 desktop/binaries/
 desktop/gen/
 venv/

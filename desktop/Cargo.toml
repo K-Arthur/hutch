@@ -9,6 +9,7 @@ description = "Hutch native desktop host"
 tauri-build = "=2.7.1"
 
 [dependencies]
+hutch-process-guard = { path = "process-guard" }
 tauri = { version = "=2.12.2", features = ["tray-icon"] }
 tauri-plugin-single-instance = "=2.5.4"
 tauri-plugin-opener = "=2.5.4"
