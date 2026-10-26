@@ -4,11 +4,14 @@ name: Native platform boundaries
 on:
   workflow_dispatch:
     inputs:
-      included_runner_budget_verified:
-        description: Included runner minutes and zero paid overage have been verified for this run
+      runner_source:
+        description: Use registered self-hosted machines, or standard hosted machines after the repository is public
         required: true
-        type: boolean
-        default: false
+        type: choice
+        default: self-hosted
+        options:
+          - self-hosted
+          - public-hosted
 
 permissions:
   contents: read
@@ -19,23 +22,28 @@ concurrency:
 
 jobs:
   boundaries:
-    if: ${{ inputs.included_runner_budget_verified }}
+    # Standard hosted compute is allowed only after the planned public transition.
+    if: ${{ inputs.runner_source == 'self-hosted' || (inputs.runner_source == 'public-hosted' && !github.event.repository.private) }}
     name: Boundaries (${{ matrix.target }})
     timeout-minutes: 15
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ inputs.runner_source == 'public-hosted' && matrix.runner || fromJSON(matrix.self_hosted) }}
     strategy:
       fail-fast: false
       max-parallel: 2
       matrix:
         include:
-          - target: ubuntu-24.04-x64
+          - target: linux-x64
             runner: ubuntu-24.04
-          - target: windows-server-2025-x64
+            self_hosted: '["self-hosted", "Linux", "X64", "hutch-ubuntu24-x64"]'
+          - target: windows-x64
             runner: windows-2025
-          - target: macos-14-arm64
+            self_hosted: '["self-hosted", "Windows", "X64", "hutch-windows-x64"]'
+          - target: macos-arm64
             runner: macos-14
-          - target: macos-15-intel
+            self_hosted: '["self-hosted", "macOS", "ARM64", "hutch-macos14-arm64"]'
+          - target: macos-x64
             runner: macos-15-intel
+            self_hosted: '["self-hosted", "macOS", "X64", "hutch-macos14-x64"]'
     defaults:
       run:
         shell: bash
@@ -53,14 +61,15 @@ jobs:
       - name: Record native host and source
         env:
           HUTCH_SOURCE_COMMIT: ${{ github.sha }}
+          HUTCH_NATIVE_TARGET: ${{ matrix.target }}
         run: |
           mkdir -p .validation/native-platform
           uv run --frozen --no-sync python scripts/record_native_host.py --output .validation/native-platform/host.json
       - name: Exercise kernel locks, native credentials and concurrent skill writes
         run: >-
           uv run --frozen --no-sync pytest -q
-          tests/test_platform_locking.py tests/test_skills.py tests/test_native_credentials.py
-          -k 'platform_locking or concurrent_registry_mutations_serialize or native_credentials'
+          tests/test_platform_locking.py tests/test_skills.py tests/test_native_credentials.py tests/test_native_host_record.py
+          -k 'platform_locking or concurrent_registry_mutations_serialize or native_credentials or native_host_record'
           --junitxml=.validation/native-platform/python.xml
       - name: Install pinned Rust toolchain
         run: rustup toolchain install 1.97.1 --profile minimal --component clippy,rustfmt
@@ -69,12 +78,6 @@ jobs:
           cargo +1.97.1 fmt --manifest-path desktop/process-guard/Cargo.toml --all -- --check
           cargo +1.97.1 clippy --locked --manifest-path desktop/process-guard/Cargo.toml --all-targets -- -D warnings
           cargo +1.97.1 test --locked --manifest-path desktop/process-guard/Cargo.toml -- --nocapture > .validation/native-platform/process-guard.log 2>&1
-      - name: Retain bounded private evidence
+      - name: Emit bounded evidence in job logs
         if: ${{ always() }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7, verified 2026-10-26
-        with:
-          name: native-boundaries-${{ matrix.target }}
-          path: .validation/native-platform/
-          retention-days: 7
-          include-hidden-files: true
-          if-no-files-found: error
+        run: python scripts/record_native_host.py --emit .validation/native-platform
