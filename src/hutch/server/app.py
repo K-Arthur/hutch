@@ -1573,6 +1573,10 @@ class OpenCodeOAuthStart(BaseModel):
     method_id: str = Field(min_length=1, max_length=100)
 
 
+class OpenCodeLocalLoginRequest(BaseModel):
+    provider_id: str = Field(min_length=1, max_length=100, pattern=r"^[a-z0-9][a-z0-9._-]*$")
+
+
 class OpenCodeOAuthComplete(BaseModel):
     integration_id: str = Field(min_length=1, max_length=100)
     attempt_id: str = Field(min_length=1, max_length=200)
@@ -7191,8 +7195,8 @@ def create_app() -> FastAPI:
         raise HTTPException(404, "Unknown action.")
 
     # ------------------------------------------------------- OpenCode assistant
-    # OpenCode owns its provider credentials. Hutch never imports another
-    # OpenCode profile, and these routes never return a secret.
+    # OpenCode owns its provider credentials. Reusing one local API login is
+    # explicit; no other personal profile state is imported or returned.
 
     def _opencode_status() -> dict:
         from ..code_handoff import CodeHandoffError
@@ -7205,6 +7209,25 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/opencode/status")
     def opencode_status() -> dict:
         return _opencode_status()
+
+    @app.get("/api/v1/opencode/local-logins")
+    def opencode_local_logins() -> dict:
+        from ..runtime.opencode_login import LocalLoginError, local_logins
+        try:
+            return {"logins": local_logins()}
+        except LocalLoginError as exc:
+            raise HTTPException(400, str(exc)) from None
+
+    @app.post("/api/v1/opencode/connect/local")
+    def opencode_connect_local(body: OpenCodeLocalLoginRequest) -> dict:
+        from ..code_handoff import CodeHandoffError
+        from ..runtime.opencode_login import LocalLoginError, reuse_local_login
+        from ..runtime.opencode_server import OpenCodeServerError
+        try:
+            reuse_local_login(setup_opencode_server(), body.provider_id)
+        except (LocalLoginError, OpenCodeServerError, CodeHandoffError) as exc:
+            raise HTTPException(400, str(exc)) from None
+        return {"ok": True, "detail": "The selected API login was saved in Hutch's private OpenCode profile."}
 
     @app.post("/api/v1/opencode/connect/key")
     def opencode_connect_key(body: OpenCodeKeyRequest) -> dict:

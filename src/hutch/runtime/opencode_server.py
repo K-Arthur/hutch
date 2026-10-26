@@ -115,10 +115,11 @@ class OpenCodeServer:
         self.close()
 
     @staticmethod
-    def _version_major(executable: str) -> int:
+    def _version_major(executable: str, *, env: Optional[dict[str, str]] = None) -> int:
         try:
             result = subprocess.run([executable, "--version"], capture_output=True, text=True,
-                                    timeout=5, check=False)
+                                    timeout=5, check=False, env=env,
+                                    cwd=env.get("HOME") if env else None)
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise OpenCodeServerError("OpenCode CLI could not be checked; install or repair it") from exc
         text = (result.stdout + "\n" + result.stderr).strip()
@@ -130,13 +131,13 @@ class OpenCodeServer:
     def start(self) -> None:
         if self.process is not None:
             return
-        if self._version_major(self.executable) < 2:
-            raise OpenCodeServerError(
-                "Hutch requires OpenCode V2. The installed CLI is OpenCode V1; update it from "
-                "https://opencode.ai before connecting the assistant.")
         config_path = (write_profile_config(self.state_dir) if not self.agents
                        else _write_runtime_config(self.state_dir, self.agents, self.plugins))
         env = safe_opencode_environment(config_path, state_dir=self.state_dir)
+        if self._version_major(self.executable, env=env) < 2:
+            raise OpenCodeServerError(
+                "Hutch requires OpenCode V2. The installed CLI is OpenCode V1; update it from "
+                "https://opencode.ai before connecting the assistant.")
         # The coding-handoff profile disables catalog fetches so an interactive
         # task never changes account state. A connected assistant must be able
         # to read the models this profile is actually authorised to use.

@@ -10577,7 +10577,7 @@ async function openOpenCodeSetupDialog(onReady) {
     openModal({
       title: "OpenCode is not ready",
       bodyHtml: `<p>${esc(error.message)}</p>
-        <p class="hint">Install or update the OpenCode V2 CLI, then reopen this setup. Hutch does not bundle the CLI. It uses its own private profile and does not read your personal OpenCode login.</p>`,
+        <p class="hint">Install or update the OpenCode V2 CLI, then reopen this setup. Hutch uses its own private profile. You can choose an existing API login during setup.</p>`,
       confirmText: "Close", onConfirm: () => true,
     });
     return;
@@ -10614,7 +10614,9 @@ async function openOpenCodeSetupDialog(onReady) {
     showCancel: false,
     confirmText: "Done",
     bodyHtml: `<div id="opencode-setup">
-      <p>OpenCode is Hutch's primary assistant. Choose the account you want it to use. Hutch requires OpenCode V2 and creates a private OpenCode profile for this installation; it does not read or change your personal OpenCode setup. Your existing local OpenCode login and browser session are not imported.</p>
+      <p>Choose the account you want OpenCode to use. Hutch requires OpenCode V2 and creates a private profile for this installation.</p>
+      <button class="btn ghost small" type="button" id="oc-find-local">Use an existing OpenCode login</button>
+      <div id="oc-local-logins" class="oc-provider-list" aria-live="polite"></div>
       <label class="field" for="oc-provider-filter">Find a provider<input id="oc-provider-filter" type="search" autocomplete="off" placeholder="Search OpenAI, Anthropic, OpenRouter…"></label>
       <div id="oc-provider-list" class="oc-provider-list" aria-live="polite">${rowsHtml()}</div>
       <p class="hint" id="oc-setup-status" role="status" aria-live="polite"></p>
@@ -10630,8 +10632,13 @@ async function openOpenCodeSetupDialog(onReady) {
   const refreshAfterConnect = async () => {
     note("Checking the private OpenCode profile…");
     const refreshed = await api("/v1/opencode/status");
-    if (refreshed.ready) {
-      ready = true;
+    status = refreshed;
+    ready = Boolean(refreshed.ready);
+    integrations.splice(0, integrations.length, ...(refreshed.integrations || []).filter(item =>
+      item.methods?.length && item.id !== "opencode"));
+    const providerList = $("#oc-provider-list");
+    if (providerList) { providerList.innerHTML = rowsHtml(); bindRows(); }
+    if (ready) {
       note(refreshed.authenticated ? "Connected. OpenCode has a usable model." : "OpenCode has a usable model available.");
       toast("OpenCode is ready.");
       onReady?.(refreshed);
@@ -10640,6 +10647,34 @@ async function openOpenCodeSetupDialog(onReady) {
     note("The account was saved, but OpenCode does not list a usable model yet. Reopen setup after checking the provider account.");
     return false;
   };
+  $("#oc-find-local")?.addEventListener("click", async event => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    note("Checking local OpenCode logins…");
+    try {
+      const result = await api("/v1/opencode/local-logins");
+      const target = $("#oc-local-logins");
+      if (!target) return;
+      const logins = result.logins || [];
+      target.innerHTML = logins.length ? `<p class="hint">Only the API login you select is copied. Your personal profile stays unchanged. Browser sign-ins need a fresh sign-in below.</p>` + logins.map(login =>
+        `<article class="oc-provider-card"><div class="oc-provider-head">
+          <div class="provider-choice-copy"><strong>${esc(login.provider_id)}</strong><small>${esc(login.detail)}</small></div>
+          ${login.reusable ? `<button class="btn ghost small" type="button" data-oc-local="${esc(login.provider_id)}">Use this login</button>` : ""}
+        </div></article>`).join("") : `<p class="hint">No local login was found. Connect a provider below.</p>`;
+      note("");
+      $$("[data-oc-local]", target).forEach(use => use.addEventListener("click", async () => {
+        const buttons = $$("[data-oc-local]", target);
+        buttons.forEach(item => { item.disabled = true; });
+        note("Connecting the selected local account…");
+        try {
+          await api("/v1/opencode/connect/local", {method: "POST", body: {provider_id: use.dataset.ocLocal}});
+          await refreshAfterConnect();
+        } catch (error) { note(error.message); }
+        finally { buttons.forEach(item => { item.disabled = false; }); }
+      }));
+    } catch (error) { note(error.message); }
+    finally { button.disabled = false; }
+  });
   const bindRows = () => {
     $$("[data-oc-key]").forEach(button => button.addEventListener("click", () => {
       const integrationId = button.dataset.ocKey;

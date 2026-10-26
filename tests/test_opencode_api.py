@@ -53,6 +53,19 @@ def test_opencode_v1_is_rejected_before_starting_a_server(tmp_path, monkeypatch)
     assert server.process is None
 
 
+def test_version_check_uses_the_same_private_profile_as_the_server(tmp_path, monkeypatch):
+    seen = {}
+    def version(command, **kwargs):
+        seen.update(kwargs)
+        return type("Result", (), {"returncode": 0, "stdout": "opencode v1.18.0", "stderr": ""})()
+    monkeypatch.setattr("hutch.runtime.opencode_server.subprocess.run", version)
+    with pytest.raises(OpenCodeServerError, match="OpenCode V2"):
+        OpenCodeServer(tmp_path / "private-state").start()
+    assert str(tmp_path / "private-state") in seen["env"]["HOME"]
+    assert seen["cwd"] == seen["env"]["HOME"]
+    assert "OPENROUTER_API_KEY" not in seen["env"]
+
+
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
@@ -92,3 +105,21 @@ def test_opencode_oauth_start_returns_only_the_attempt_descriptor(client):
     assert response.status_code == 200
     assert response.json()["attempt"]["attemptID"] == "att_1"
     assert client.fake_opencode.oauth == [("openai", "browser")]
+
+
+def test_local_login_routes_transfer_only_selected_key(client, tmp_path, monkeypatch):
+    import json
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    auth = tmp_path / "opencode" / "auth.json"
+    auth.parent.mkdir()
+    auth.write_text(json.dumps({"openai": {"type": "api", "key": "selected-only"},
+                                "other": {"type": "api", "key": "never-import"}}))
+    auth.chmod(0o600)
+    response = client.get("/api/v1/opencode/local-logins")
+    assert response.status_code == 200
+    assert "selected-only" not in response.text and "never-import" not in response.text
+    response = client.post("/api/v1/opencode/connect/local", json={"provider_id": "openai"})
+    assert response.status_code == 200
+    assert client.fake_opencode.keys == [("openai", "selected-only")]
+    assert "selected-only" not in response.text
+    assert client.post("/api/v1/opencode/connect/local", json={"provider_id": "../auth"}).status_code == 422
