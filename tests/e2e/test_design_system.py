@@ -131,7 +131,7 @@ def test_studio_template_gallery_survives_background_refresh(browser, app_server
                 page.goto(f"{app_url}/#/chat/design-system-review", wait_until="domcontentloaded")
             else:
                 page.reload(wait_until="domcontentloaded")
-            page.locator("#conversation-switcher").wait_for(timeout=15_000)
+            page.locator("#chat-prompt").wait_for(timeout=15_000)
             disclosure = page.locator("#tpl-gal")
             disclosure.wait_for(state="visible", timeout=15_000)
             assert disclosure.evaluate("el => el instanceof HTMLDetailsElement && !el.open")
@@ -401,11 +401,11 @@ def test_shared_design_tokens_render_consistently_across_all_surfaces(browser, a
             page.set_viewport_size({"width": width, "height": height})
 
             page.goto(f"{app_url}/#/chat/design-system-review")
-            page.locator("#conversation-switcher").wait_for()
+            page.locator("#chat-prompt").wait_for()
             page.evaluate("document.fonts.ready")
             studio_shell = _measure_operator_shell(page)
             assert studio_shell == {
-                "workspace": True, "brand": "hutch", "studioLink": "Chats",
+                "workspace": True, "brand": "hutch", "studioLink": "Chat",
                 "connectionsLink": "Apps & AI", "context": True, "view": True,
             }, (label, studio_shell)
             studio = _measure_tokens(page, "studio")
@@ -658,33 +658,38 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
             assert page.get_by_role("heading", name="Your apps").is_visible()
             assert page.get_by_role("heading", name="How Hutch replies").is_visible()
             cards = page.locator(".service-tile")
-            assert cards.count() == 5
+            assert cards.count() == 11
             assert page.locator(".service-tile .service-mark img[src='/static/brands/openai-white-monoblossom.svg']").count() == 1
-            assert page.locator(".service-tile .service-mark img").count() == 4
+            assert page.locator(".service-tile .service-mark img").count() == 8
             assert page.locator(".service-tile .service-mark img").evaluate_all(
                 "els => els.every(img => img.complete && img.naturalWidth > 0 && new URL(img.src).origin === location.origin)"
             )
             service_icons = page.locator(".service-tile .service-mark svg")
-            assert service_icons.evaluate_all("els => els.map(el => el.dataset.icon)") == ["cloud"]
+            assert service_icons.evaluate_all("els => els.map(el => el.dataset.icon)") == ["monitor", "monitor", "cloud"]
             assert service_icons.evaluate_all("els => els.every(el => !el.querySelector('text') && el.getAttribute('stroke') === 'currentColor')")
             assert page.locator(".service-tile .service-mark").evaluate_all(
                 "els => els.map(el => el.dataset.serviceCategory)"
-            ) == ["calendar", "gmail", "outlook", "chatgpt", "hosted"]
+            ) == ["calendar", "drive", "docs", "sheets", "notion", "gmail", "outlook", "phone", "local", "chatgpt", "hosted"]
             assert not page.locator("#connection-management").evaluate("el => el.open")
             assert not page.get_by_role("button", name="Add a custom service").is_visible()
             restricted_scope = page.get_by_text("gmail.readonly", exact=True).all()
             assert not any(item.is_visible() for item in restricted_scope), label
             tile_labels = cards.locator("h3").all_text_contents()
-            assert tile_labels == ["Google Calendar", "Gmail", "Microsoft Outlook", "ChatGPT", "AI model providers"]
+            assert tile_labels == ["Google Calendar", "Google Drive", "Google Docs", "Google Sheets", "Notion", "Gmail", "Microsoft Outlook", "Hutch on your phone", "KDE Connect", "ChatGPT", "AI model providers"]
             icon_widths = page.locator(".service-mark").evaluate_all("els => els.map(el => Math.round(el.getBoundingClientRect().width))")
-            expected_mark_width = 40 if width <= 640 else 48
-            assert icon_widths == [expected_mark_width] * 5, (label, icon_widths)
+            expected_mark_width = 44
+            assert icon_widths == [expected_mark_width] * 11, (label, icon_widths)
             if width <= 640:
-                card_heights = cards.evaluate_all("els => els.map(el => Math.round(el.getBoundingClientRect().height))")
                 action_heights = cards.locator(".service-tile-action").evaluate_all(
                     "els => els.map(el => Math.round(el.getBoundingClientRect().height))"
                 )
-                assert max(card_heights) <= 190, (label, card_heights)
+                # Longer device explanations wrap naturally; keep every line
+                # above its action rather than imposing the former five-card height.
+                assert cards.evaluate_all("""els => els.every(card => {
+                  const copy = card.querySelector('p').getBoundingClientRect();
+                  const action = card.querySelector('.service-tile-action').getBoundingClientRect();
+                  return copy.bottom <= action.top && action.bottom <= card.getBoundingClientRect().bottom;
+                })"""), label
                 assert min(action_heights) >= 44, (label, action_heights)
             assert page.locator(".service-mark").evaluate_all("els => els.every(el => getComputedStyle(el).color !== 'rgb(240, 244, 249)')")
             assert cards.locator(".service-tile-top").evaluate_all("rows => rows.every(row => row.querySelector('h3') && row.querySelector('.service-mark') && row.querySelector('.service-state'))")
@@ -696,13 +701,14 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
         page.set_viewport_size({"width": 1440, "height": 960})
         page.goto(f"{app_url}/#/connections")
         app_scroll.evaluate("el => { el.scrollTop = 0; }")
-        page.locator(".service-tile").filter(has_text="Google Calendar").get_by_role("button", name="Check setup").click()
+        page.locator('[data-connection-open="google-calendar"]').click()
+        expect(page.locator("#connection-detail-heading h2")).to_have_text("Google Calendar")
         assert page.locator("#connection-management").evaluate("el => el.open")
-        assert page.locator("#connection-google-calendar").evaluate("el => document.activeElement === el")
+        expect(page.locator("#connection-detail-heading h2")).to_be_focused()
         page.locator("#connection-google-calendar").scroll_into_view_if_needed()
         page.screenshot(path=str(out / "google-calendar-access-desktop.png"), animations="disabled")
         page.goto(f"{app_url}/#/connections")
-        page.locator(".service-tile").filter(has_text="AI model providers").get_by_role("button", name="Connect a provider").click()
+        _open_provider_setup(page)
         assert page.locator("#connection-management").evaluate("el => el.open")
         assert page.get_by_role("heading", name="Connect an AI provider").is_visible()
         page.locator("#modal-close").click()
@@ -1359,7 +1365,7 @@ def test_chat_message_search_is_scoped_responsive_and_opens_its_conversation(bro
         for label, (width, height) in sizes.items():
             page.set_viewport_size({"width": width, "height": height})
             page.goto(f"{app_url}/#/chat/design-system-review")
-            page.locator("#conversation-switcher").wait_for()
+            page.locator("#chat-prompt").wait_for()
             search_button = page.get_by_role("button", name="Search chats")
             search_button.click()
             dialog = page.get_by_role("dialog", name="Search chats")
@@ -1412,7 +1418,7 @@ def test_chat_message_search_is_scoped_responsive_and_opens_its_conversation(bro
                 expect(dialog.locator(".message-search-result")).to_have_count(1)
                 dialog.locator(".message-search-result").click()
                 expect(page.locator("#conversation-switcher")).to_have_value(second["id"])
-                assert page.evaluate("location.hash") == "#/chat/search-travel-planner"
+                assert page.evaluate("location.hash") == f"#/conversation/{second['id']}"
 
         assert not external_requests, external_requests
         assert not errors, errors
@@ -1535,7 +1541,7 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
     store.append_event(Event(run_id=run.id, type=EventType.message,
         data={"role": "assistant", "content": completed_answer}))
 
-    out = ROOT / "docs/realignment/artifacts/ui-audit-2026-10-20/app-surfaces"
+    out = artifact_path("ui-audit/app-surfaces")
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(
         viewport={"width": 1440, "height": 960}, reduced_motion="reduce", forced_colors="none"
@@ -1556,7 +1562,7 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
         "compact-phone": (320, 740),
     }
     surfaces = [
-        ("studio", f"{app_url}/#/chat/design-system-review", "#conversation-switcher"),
+        ("studio", f"{app_url}/#/chat/design-system-review", "#chat-prompt"),
         ("chat-library", f"{app_url}/#/chats", "#chat-library-query"),
         ("activity", f"{app_url}/#/overview", ".ov-all-clear"),
         ("schedules", f"{app_url}/#/schedules", ".schedule-overview"),
@@ -1818,8 +1824,7 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
             "individual_surfaces": [name for name, _, _ in surfaces] + ["Schedule assistant chooser", "Fleet details disclosure", "Fleet action menu", "Long assistant name on phone and compact phone"],
             "visual_review": "Open each desktop, tablet, and phone screenshot individually; 320px compact-phone has overflow assertions.",
             "reference_access": {
-                "figma": "MCP node retrieval hit the Starter-plan limit; the open browser canvas exposed the supplied community file's Settings and Edit Profile frames, which were inspected individually. The supplied ChatGPT screenshots, not Figma frames, informed list, chat, and per-chat menu review.",
-                "mobbin": "The screen searches returned a paid-plan requirement; no Mobbin result was used.",
+                "current_run": "Current product regression captures only; no new Figma or Mobbin reference retrieval.",
             },
             "source_sha256": _visual_source_hashes(),
         }, indent=2) + "\n", encoding="utf-8")
@@ -1829,7 +1834,14 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                 context.tracing.stop(path=str(out / "trace-failed.zip"))
             except Exception:
                 pass
-    context.close()
+        context.close()
+
+
+def _open_provider_setup(page):
+    """Discovery opens the focused provider page; adding an account is explicit."""
+    page.locator('[data-connection-open="models"]').click()
+    expect(page.locator("#connection-detail-heading h2")).to_have_text("AI model providers")
+    page.locator("#btn-add-conn").click()
 
 
 def test_model_provider_connect_flow_is_compact_and_responsive(browser, app_server):
@@ -1853,8 +1865,7 @@ def test_model_provider_connect_flow_is_compact_and_responsive(browser, app_serv
             page.set_viewport_size({"width": width, "height": height})
             page.goto(f"{app_url}/#/connections")
             page.get_by_role("heading", name="Apps & AI").wait_for()
-            card = page.locator(".service-tile").filter(has_text="AI model providers")
-            card.get_by_role("button", name="Connect a provider").click()
+            _open_provider_setup(page)
             dialog = page.get_by_role("dialog", name="Connect an AI provider")
             dialog.wait_for()
             choices = dialog.locator("[data-quick-provider]")
@@ -1896,9 +1907,8 @@ def test_model_provider_connect_flow_is_compact_and_responsive(browser, app_serv
                              "document_overflow": page.evaluate("document.documentElement.scrollWidth - innerWidth")})
 
         page.set_viewport_size({"width": 1440, "height": 960})
-        page.locator(".service-tile").filter(has_text="AI model providers").get_by_role(
-            "button", name="Connect a provider"
-        ).click()
+        page.goto(f"{app_url}/#/connections")
+        _open_provider_setup(page)
         page.locator('[data-quick-provider="openai-api"]').click()
         key_value = "fixture-only-provider-key"
         key = page.locator("#provider-api-key")
@@ -1958,8 +1968,9 @@ def test_connection_and_assistant_settings_share_disclosure_axes(browser, app_se
 
     The Apps & AI connection cards must not nest one disclosure inside another
     (a separate connection with its own sign-in is a peer of the access it
-    relates to, never its child), every in-card disclosure summary must share
-    the same padding and minimum height, and the assistant-settings rows must
+    relates to, never its child), permission disclosure summaries must share
+    the same padding and minimum height. Optional account nicknames remain
+    subordinate fields. The assistant-settings rows must
     align their copy with the panel content beside them. Guards the
     .summary-row skeleton introduced in October 2026 against silent drift.
     """
@@ -1982,63 +1993,64 @@ def test_connection_and_assistant_settings_share_disclosure_axes(browser, app_se
     try:
         for label, width, height in dimensions:
             page.set_viewport_size({"width": width, "height": height})
-            page.goto(f"{app_url}/#/connections")
-            page.get_by_role("heading", name="Apps & AI").wait_for()
-            page.locator("#connection-management > summary").click()
-            page.locator("#outlook-calendar-access > summary").click()
-            page.wait_for_timeout(150)
+            for service in ("outlook-calendar", "gmail"):
+                page.goto(f"{app_url}/#/connections?app={service}")
+                page.get_by_role("heading", name="Apps & AI").wait_for()
+                expect(page.locator("#connection-detail-heading h2")).to_have_text(
+                    "Microsoft Outlook" if service == "outlook-calendar" else "Gmail")
+                page.wait_for_timeout(150)
 
-            trees = page.evaluate("""() => {
-              const rows = [];
-              document.querySelectorAll('.connection-management-content details').forEach(d => {
-                let depth = 0, node = d.parentElement;
-                while (node && !node.classList.contains('connection-management-content')) {
-                  if (node.tagName === 'DETAILS') depth += 1;
-                  node = node.parentElement;
-                }
-                rows.push({id: d.id, depth});
-              });
-              return rows;
-            }""")
-            nested = [row for row in trees if row["depth"] > 0]
-            assert not nested, (label, "disclosures nested inside disclosures", nested)
+                trees = page.evaluate("""() => {
+                  const rows = [];
+                  document.querySelectorAll('.connection-management-content > section:not([hidden]) details:not(.connection-nickname)').forEach(d => {
+                    let depth = 0, node = d.parentElement;
+                    while (node && !node.classList.contains('connection-management-content')) {
+                      if (node.tagName === 'DETAILS') depth += 1;
+                      node = node.parentElement;
+                    }
+                    rows.push({id: d.id, depth});
+                  });
+                  return rows;
+                }""")
+                nested = [row for row in trees if row["depth"] > 0]
+                assert not nested, (label, "disclosures nested inside disclosures", nested)
 
-            siblings = page.evaluate("""() => {
-              const pairs = [];
-              for (const [readId, peerId] of [
-                ['outlook-calendar-access', 'outlook-calendar-write-access'],
-                ['outlook-mail-access', 'outlook-mail-send-access'],
-                ['google-mail-access', 'google-mail-send-access'],
-              ]) {
-                const read = document.getElementById(readId);
-                const peer = document.getElementById(peerId);
-                pairs.push({pair: `${readId}+${peerId}`, sameDepth: !!read && !!peer && read.parentElement === peer.parentElement});
-              }
-              return pairs;
-            }""")
-            broken = [pair for pair in siblings if not pair["sameDepth"]]
-            assert not broken, (label, "peer connections are not siblings", broken)
+                siblings = page.evaluate("""() => {
+                  const pairs = [];
+                  for (const [readId, peerId] of [
+                    ['outlook-calendar-access', 'outlook-calendar-write-access'],
+                    ['outlook-mail-access', 'outlook-mail-send-access'],
+                    ['google-mail-access', 'google-mail-send-access'],
+                  ]) {
+                    const read = document.getElementById(readId);
+                    const peer = document.getElementById(peerId);
+                    pairs.push({pair: `${readId}+${peerId}`, sameDepth: !!read && !!peer && read.parentElement === peer.parentElement});
+                  }
+                  return pairs;
+                }""")
+                broken = [pair for pair in siblings if not pair["sameDepth"]]
+                assert not broken, (label, "peer connections are not siblings", broken)
 
-            axes = page.evaluate("""() => {
-              const summaries = [...document.querySelectorAll('.connection-management-content details > summary')];
-              const samples = summaries.map(el => {
-                const box = el.getBoundingClientRect();
-                const style = getComputedStyle(el);
-                return {left: box.left, pad: style.paddingLeft, minH: style.minHeight, h: box.height};
-              });
-              const byKey = key => [...new Set(samples.map(s => s[key]))];
-              return {count: samples.length, pads: byKey('pad'), minHs: byKey('minH'),
-                      smallTargets: samples.filter(s => s.h < 24).length};
-            }""")
-            assert axes["count"] >= 7, (label, "expected the in-card disclosures to render", axes)
-            assert len(axes["pads"]) == 1, (label, "in-card summaries share one left padding", axes["pads"])
-            assert len(axes["minHs"]) == 1, (label, "in-card summaries share one min-height", axes["minHs"])
-            assert axes["smallTargets"] == 0, (label, "summary rows below a 24px target", axes)
+                axes = page.evaluate("""() => {
+                  const summaries = [...document.querySelectorAll('.connection-management-content > section:not([hidden]) details:not(.connection-nickname) > summary')];
+                  const samples = summaries.map(el => {
+                    const box = el.getBoundingClientRect();
+                    const style = getComputedStyle(el);
+                    return {left: box.left, pad: style.paddingLeft, minH: style.minHeight, h: box.height};
+                  });
+                  const byKey = key => [...new Set(samples.map(s => s[key]))];
+                  return {count: samples.length, pads: byKey('pad'), minHs: byKey('minH'),
+                          smallTargets: samples.filter(s => s.h < 24).length};
+                }""")
+                assert axes["count"] >= (4 if service == "outlook-calendar" else 2), (label, "expected the in-card disclosures to render", axes)
+                assert len(axes["pads"]) == 1, (label, "in-card summaries share one left padding", axes["pads"])
+                assert len(axes["minHs"]) == 1, (label, "in-card summaries share one min-height", axes["minHs"])
+                assert axes["smallTargets"] == 0, (label, "summary rows below a 24px target", axes)
 
-            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
-            assert overflow <= 1, (label, "connections overflow", overflow)
-            if label in {"desktop", "phone"}:
-                page.screenshot(path=str(out / f"apps-ai-{label}.png"), full_page=True, animations="disabled")
+                overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+                assert overflow <= 1, (label, "connections overflow", overflow)
+                if label in {"desktop", "phone"}:
+                    page.screenshot(path=str(out / f"{service}-{label}.png"), full_page=True, animations="disabled")
 
             page.goto(f"{app_url}/#/bot/design-system-review")
             page.get_by_role("heading", name="Design Partner").wait_for()
@@ -2074,9 +2086,8 @@ def test_connection_and_assistant_settings_share_disclosure_axes(browser, app_se
                              "document_overflow": overflow, "in_card_summaries": axes["count"]})
 
         page.set_viewport_size({"width": 1440, "height": 960})
-        page.goto(f"{app_url}/#/connections")
-        page.get_by_role("heading", name="Apps & AI").wait_for()
-        page.locator("#connection-management > summary").click()
+        page.goto(f"{app_url}/#/connections?app=outlook-calendar")
+        expect(page.locator("#connection-detail-heading h2")).to_have_text("Microsoft Outlook")
         page.locator("#outlook-calendar-access > summary").click()
         page.evaluate("document.querySelector('#outlook-calendar-write-access > summary').focus()")
         page.keyboard.press("Enter")
@@ -2087,8 +2098,8 @@ def test_connection_and_assistant_settings_share_disclosure_axes(browser, app_se
         page.wait_for_timeout(150)
         assert not page.locator("#outlook-calendar-write-access").evaluate("el => el.open")
 
-        page.locator(".service-tile").filter(has_text="AI model providers").get_by_role(
-            "button", name="Connect a provider").click()
+        page.goto(f"{app_url}/#/connections")
+        _open_provider_setup(page)
         key_height = page.locator("#provider-api-key").evaluate("el => el.getBoundingClientRect().height")
         assert key_height >= 44, ("provider key input joins the 44px touch scale", key_height)
         page.get_by_role("button", name="Close dialog").click()

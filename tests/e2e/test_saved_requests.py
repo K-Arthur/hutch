@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 import pytest
 
 pw = pytest.importorskip("playwright.sync_api")
+expect = pw.expect
 import uvicorn  # noqa: E402
 
 from hutch.models import Bot  # noqa: E402
@@ -88,8 +89,8 @@ def test_saved_request_library_is_private_reusable_and_reviewed(browser, live, t
         run_id = seeded.json()["id"]
         _wait_for(lambda: store.get_run(run_id).terminal)
 
-        page.goto(base + "/#/chat/saved-request-review")
-        page.locator("#conversation-switcher").select_option(conversation["id"])
+        page.goto(f"{base}/#/conversation/{conversation['id']}")
+        expect(page.locator("#conversation-switcher")).to_have_value(conversation["id"])
         page.locator("#chat-stream").get_by_text("Help me prepare a launch review.", exact=True).wait_for()
         page.locator("#studio-conversation-options").click()
         page.locator("#studio-conversation-more > summary").click()
