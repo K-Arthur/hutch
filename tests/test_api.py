@@ -1779,4 +1779,11 @@ def test_versioned_connections_schedules_and_capabilities_are_typed_and_secret_f
     assert capabilities["phone_control"]["status"] == "experimental"
     assert capabilities["phone_control"]["verification"] == "paired_phone_api_and_browser_fixtures"
     assert "computer interaction is unavailable" in capabilities["phone_control"]["reason"].lower()
-    assert capabilities["external_runtimes"]["status"] == "unavailable"
+    import platform
+    external = capabilities["external_runtimes"]
+    assert external["status"] == ("experimental" if platform.system() == "Linux" else "unavailable")
+    if platform.system() == "Linux":
+        assert "run-bound canonical tool bridge" in external["reason"]
+        assert "outside Hutch's built-in sandbox" in external["reason"]
+        assert "Pi remains unavailable" in external["reason"]
+        assert external["verification"] == "opencode_bridge_permission_budget_tests"

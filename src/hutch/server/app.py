@@ -3092,9 +3092,14 @@ def create_app() -> FastAPI:
              "reason": handoff_reason if not handoff_ok else
                       "Local Linux desktop only: Hutch pauses the owned browser process while a person completes a challenge; phone supervision does not provide remote browser control",
              "verification": "host_display_and_playwright_check" if handoff_ok else "host_prerequisite_check"},
-            {"id": "external_runtimes", "status": "unavailable",
-             "reason": "Pi and OpenCode lack governed permission, sandbox and budget integration",
-             "verification": "adapter_start_refusal_tests"},
+            {"id": "external_runtimes", "status": "experimental" if linux else "unavailable",
+             "reason": ("OpenCode on Linux has a run-bound canonical tool bridge, exact-action approvals, "
+                        "receipts, cancellation and usage reservations. It requires a compatible separately installed CLI "
+                        "and an explicitly selected login. Native OpenCode shell execution is outside Hutch's built-in "
+                        "sandbox and always requires review; native computer control and unmanaged delegation are unavailable. "
+                        "Pi remains unavailable." if linux else
+                        "External runtimes require Hutch's Linux worker ownership and IPC boundaries; Windows/macOS execution is not ported"),
+             "verification": "opencode_bridge_permission_budget_tests" if linux else "not_tested"},
         ]
 
     @app.get("/api/v1/compatibility", response_model=CompatibilityMatrixResource)
