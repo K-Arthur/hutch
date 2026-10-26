@@ -269,20 +269,6 @@ document.addEventListener("keydown", ev => {
   menu.querySelector("summary")?.focus({ preventScroll: true });
 });
 
-async function createStudioConversation(bot) {
-  const storageKey = `hutch-pending-conversation:${bot.id}`;
-  let key = storageGet(storageKey);
-  if (!key) {
-    key = newIdempotencyKey();
-    storageSet(storageKey, key);
-  }
-  const conversation = await api("/v1/conversations", {
-    method: "POST", headers: { "Idempotency-Key": key }, body: { bot: bot.id, title: "" },
-  });
-  storageRemove(storageKey);
-  return conversation;
-}
-
 function conversationArtifactSize(bytes) {
   const value = Number(bytes);
   if (!Number.isFinite(value) || value < 0) return "Size unavailable";
@@ -1926,7 +1912,7 @@ async function openConversation(id) {
   const bot = bots.find(b => b.id === conversation.bot_id);
   if (!bot) throw new Error("This conversation's assistant is no longer available. Its history is retained in run history.");
   storageSet(`hutch-conversation:${bot.id}`, id);
-  history.replaceState(null, "", `#/chat/${encodeURIComponent(bot.name)}`);
+  history.replaceState(null, "", `#/conversation/${encodeURIComponent(id)}`);
   await renderChatStudio(bot.name, id);
 }
 
@@ -2140,9 +2126,9 @@ async function renderWorkspaceSettings() {
   });
 }
 
-const ROUTE_TITLES = { chat: "Chats", overview: "Activity", schedules: "Scheduled work",
+const ROUTE_TITLES = { chat: "Chat", overview: "Activity", schedules: "Scheduled work",
   runtime: "Runtime", runs: "Work history", bots: "Assistants", connections: "Apps & AI",
-  approvals: "Needs you", chats: "Chat library", settings: "Settings" };
+  approvals: "Needs you", chats: "Conversation history", settings: "Settings" };
 
 function routeTitle(hash) {
   if (hash.startsWith("#/conversation/")) return "Conversation";
@@ -3197,6 +3183,11 @@ async function refreshFirstRunReadiness() {
 }
 
 async function renderChatStudio(preferredBot = null, requestedConversationId = null) {
+  // Direct assistant routes always resolve the durable home. Historical/task
+  // routes keep their explicit identity through reloads and settings updates.
+  const explicitConversation = location.hash.match(/^#\/conversation\/([\w-]+)$/);
+  requestedConversationId ||= explicitConversation?.[1] || null;
+  const directChat = !requestedConversationId;
   const generation = ++studioGeneration;
   const fetchedBots = await api("/bots");
   if (generation !== studioGeneration) return;
@@ -3343,10 +3334,10 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
       throw new Error(`That conversation is unavailable: ${error.message}`);
     }
   }
-  let bot = (requestedConversation && botsCache.find(item => item.id === requestedConversation.bot_id)) ||
-            botsCache.find(b => b.name === preferredBot) ||
-            botsCache.find(b => b.name === currentStudioBot) ||
+  let bot = requestedConversation ? botsCache.find(item => item.id === requestedConversation.bot_id)
+          : botsCache.find(b => b.name === preferredBot) ||
             botsCache.find(b => b.is_workspace_coordinator) ||
+            botsCache.find(b => b.name === "hutch") ||
             botsCache[0];
   if (requestedConversation && !bot) {
     throw new Error("This conversation's assistant is no longer available. Its history is retained in work history.");
@@ -3357,24 +3348,16 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
   if (generation !== studioGeneration) return;
   currentConversations = await api(`/v1/conversations?bot=${encodeURIComponent(bot.id)}&include_legacy=true&include_archived=true&limit=100`);
   if (generation !== studioGeneration) return;
-  const rememberedConversation = requestedConversationId || storageGet(`hutch-conversation:${bot.id}`);
+  const rememberedConversation = requestedConversationId;
   if (requestedConversation && !currentConversations.some(item => item.id === requestedConversation.id)) {
     currentConversations.unshift(requestedConversation);
   }
-  if (!requestedConversation && rememberedConversation && !currentConversations.some(item => item.id === rememberedConversation)) {
-    try {
-      requestedConversation = await api(`/v1/conversations/${encodeURIComponent(rememberedConversation)}`);
-      if (requestedConversation.bot_id === bot.id) currentConversations.unshift(requestedConversation);
-      else requestedConversation = null;
-    } catch {
-      storageRemove(`hutch-conversation:${bot.id}`);
-    }
-  }
   let selectedConversation = currentConversations.find(c => c.id === rememberedConversation) || null;
-  if (!selectedConversation) selectedConversation = currentConversations.find(c => !c.archived && !c.is_legacy) || null;
   if (!selectedConversation) {
-    selectedConversation = await createStudioConversation(bot);
-    currentConversations.unshift(selectedConversation);
+    const home = await api(`/v1/bots/${encodeURIComponent(bot.id)}/home-conversation`, { method: "PUT", body: {} });
+    selectedConversation = home.conversation;
+    if (!selectedConversation) throw new Error("This assistant's main chat could not be opened. Try again.");
+    if (!currentConversations.some(item => item.id === selectedConversation.id)) currentConversations.unshift(selectedConversation);
   }
   if (generation !== studioGeneration) return;
   if (currentConversationId !== selectedConversation.id && selectedConversation.unread) {
@@ -3422,8 +3405,8 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
       </div>
     </div>
     <div class="ctx-actions">
-      <label class="visually-hidden" for="conversation-switcher">Conversation</label>
-      <select class="conversation-select" id="conversation-switcher" aria-label="Conversation">
+      ${!directChat ? '<label class="visually-hidden" for="conversation-switcher">Conversation history</label>' : ""}
+      <select class="conversation-select" id="conversation-switcher" aria-label="Conversation history" ${directChat ? "hidden" : ""}>
         ${conversationOptionsHtml(currentConversations, currentConversationId)}
       </select>
       <button class="icon-btn studio-search-button" id="studio-search-messages" type="button"
@@ -3431,7 +3414,8 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
       <details class="conversation-actions" id="studio-conversation-actions">
         <summary class="icon-btn" id="studio-conversation-options" aria-label="Chat and assistant options" title="Chat and assistant options">${icon("moreHorizontal")}</summary>
         <div class="conversation-actions-panel" aria-label="Chat and assistant options">
-          <button class="conversation-action-item" id="studio-new-conversation" data-conversation-action="new" type="button">${icon("plus")} New conversation</button>
+          ${!directChat ? `<a class="conversation-action-item" href="#/chat/${esc(bot.name)}">${icon("chat")} Return to main chat</a>` : ""}
+          <a class="conversation-action-item" href="#/chats">${icon("clock")} Conversation history</a>
           <button class="conversation-action-item" id="studio-rename-conversation" data-conversation-action="rename" type="button">${icon("chat")} Rename conversation</button>
           <button class="conversation-action-item" id="studio-conversation-pin" data-conversation-action="pin" type="button">${icon("pin")} ${selectedConversation.pinned ? "Unpin conversation" : "Pin conversation"}</button>
           <button class="conversation-action-item" id="studio-conversation-unread" data-conversation-action="unread" type="button">${icon("mail")} ${selectedConversation.unread ? "Mark read" : "Mark unread"}</button>
@@ -3454,7 +3438,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
               <button class="conversation-action-item" id="studio-conversation-template-save" data-conversation-action="template-save" type="button">${icon("fileText")} Save reusable request</button>
               <button class="conversation-action-item" id="studio-conversation-template-download" data-conversation-action="template-download" type="button">${icon("fileText")} Download task template</button>
               <button class="conversation-action-item" id="studio-conversation-export" data-conversation-action="export" type="button">${icon("fileText")} Export conversation</button>
-              ${!selectedConversation.is_legacy ? `<span class="conversation-action-divider" aria-hidden="true"></span>
+              ${!directChat && !selectedConversation.is_legacy ? `<span class="conversation-action-divider" aria-hidden="true"></span>
                 <button class="conversation-action-item" id="studio-archive-conversation" data-conversation-action="archive" type="button" ${activeRun ? "hidden" : ""}>${icon("inbox")} ${selectedConversation.archived ? "Restore conversation" : "Archive conversation"}</button>` : ""}
             </div>
           </details>
@@ -3567,7 +3551,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
         toast(`This chat is still marked unread because its read state could not be updated: ${error.message}`, true);
       }
     }
-    await renderChatStudio(bot.name);
+    await openConversation(selectedId);
   });
   studioConversationMenuCleanup?.();
   const conversationActions = $("#studio-conversation-actions");
@@ -3602,19 +3586,6 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
     const action = event.target.closest("[data-conversation-action]");
     if (!action || action.disabled) return;
     const kind = action.dataset.conversationAction;
-    if (kind === "new") {
-      closeStudioConversationMenu(false);
-      action.disabled = true;
-      try {
-        const conversation = await createStudioConversation(bot);
-        storageSet(`hutch-conversation:${bot.id}`, conversation.id);
-        await renderChatStudio(bot.name);
-      } catch (error) {
-        toast(`Could not create a conversation: ${error.message}`, true);
-        action.disabled = false;
-      }
-      return;
-    }
     if (kind === "section") {
       editStudioConversationSection(selectedConversation);
       return;

@@ -2969,7 +2969,7 @@ def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(brows
         for label, (width, height) in sizes.items():
             page.set_viewport_size({"width": width, "height": height})
             page.goto(f"{base}/#/chat/dashboard-polish")
-            page.locator("#conversation-switcher").wait_for()
+            page.locator("#chat-prompt").wait_for()
             page.locator("#chat-scroll").wait_for()
             page.evaluate("""() => {
               const slot = document.createElement('div');
@@ -5871,7 +5871,7 @@ def test_truncated_tool_source_card_opens_verified_plain_text_at_all_viewports(b
         page.on("pageerror", lambda error: errors.append(str(error)))
         try:
             page.goto(f"{base}/#/chat/{bot.name}")
-            page.locator("#conversation-switcher").wait_for()
+            page.locator("#chat-prompt").wait_for()
             page.locator(".tool-src-flag").wait_for()
             row = page.locator(".tool-line[data-tool-line]").first
             assert row.locator(".tool-src-flag").inner_text() == "source"
@@ -5967,7 +5967,7 @@ def test_generated_workspace_file_is_downloadable_from_its_chat(browser, live, m
     desktop_errors = []
     desktop_page.on("pageerror", lambda error: desktop_errors.append(str(error)))
     desktop_page.goto(f"{base}/#/chat/{bot.name}")
-    desktop_page.locator("#conversation-switcher").wait_for()
+    desktop_page.locator("#chat-prompt").wait_for()
     assert desktop_page.locator("#conversation-switcher").input_value() == conversation["id"]
     event = next(e for e in store.list_events(run_id) if e.type is EventType.tool_result)
     descriptor = event.data["workspace_file"]
@@ -5986,7 +5986,7 @@ def test_generated_workspace_file_is_downloadable_from_its_chat(browser, live, m
         try:
             if name != "desktop":
                 page.goto(f"{base}/#/chat/{bot.name}")
-                page.locator("#conversation-switcher").wait_for()
+                page.locator("#chat-prompt").wait_for()
             page.locator(".tool-line[data-tool-line]").wait_for()
             assert page.locator(".tool-line[data-tool-line] .tool-line-body").is_hidden(), "tool details should remain collapsed"
             link = page.locator(".workspace-file-attachments a")
@@ -6060,7 +6060,7 @@ def test_conversation_file_browser_explains_the_empty_state(browser, live):
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
         page.goto(f"{base}/#/chat/{bot.name}")
-        page.locator("#conversation-switcher").wait_for()
+        page.locator("#chat-prompt").wait_for()
         assert page.locator("#conversation-switcher").input_value() == conversation["id"]
         page.locator("#composer-menu-btn").click()
         page.get_by_role("button", name="Browse files in this chat").click()
@@ -6117,7 +6117,7 @@ def test_verified_artifact_can_be_shared_with_another_chat_and_revoked(browser, 
         for name, width, height in (("desktop", 1440, 960), ("tablet", 768, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.goto(f"{base}/#/chat/{source_bot.name}")
-            page.locator("#conversation-switcher").wait_for()
+            page.locator("#chat-prompt").wait_for()
             assert page.locator("#conversation-switcher").input_value() == source["id"]
             page.locator("#composer-menu-btn").click()
             page.get_by_role("button", name="Browse files in this chat").click()
@@ -6196,7 +6196,7 @@ def test_verified_artifact_can_be_shared_with_another_chat_and_revoked(browser, 
             source_files.get_by_role("button", name="Done").click()
 
             page.goto(f"{base}/#/chat/{target_bot.name}")
-            page.locator("#conversation-switcher").wait_for()
+            page.locator("#chat-prompt").wait_for()
             assert page.locator("#conversation-switcher").input_value() == target["id"]
             page.locator("#composer-menu-btn").click()
             page.get_by_role("button", name="Browse files in this chat").click()
@@ -6280,7 +6280,7 @@ def test_conversation_file_browser_loads_the_next_cursor_page(browser, live):
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
         page.goto(f"{base}/#/chat/{bot.name}")
-        page.locator("#conversation-switcher").wait_for()
+        page.locator("#chat-prompt").wait_for()
         assert page.locator("#conversation-switcher").input_value() == conversation["id"]
         page.locator("#composer-menu-btn").click()
         page.get_by_role("button", name="Browse files in this chat").click()
@@ -6328,7 +6328,7 @@ def test_studio_conversation_survives_reload_and_archive(browser, live):
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
         page.goto(base + "/#/chat/durable-chat")
-        page.locator("#conversation-switcher").wait_for()
+        page.locator("#chat-prompt").wait_for()
         conversation_id = page.locator("#conversation-switcher").input_value()
 
         page.locator("#chat-prompt").fill("First durable conversation")
@@ -6342,7 +6342,7 @@ def test_studio_conversation_survives_reload_and_archive(browser, live):
         page.locator(".msg.agent .answer").filter(has_text="First durable conversation").wait_for()
 
         page.reload()
-        page.locator("#conversation-switcher").wait_for()
+        page.locator("#chat-prompt").wait_for()
         page.locator("#chat-stream").get_by_text("First durable conversation", exact=True).wait_for()
         page.locator(".msg.agent .answer").filter(has_text="First durable conversation").wait_for()
 
@@ -6397,7 +6397,7 @@ def test_conversation_options_are_compact_persistent_and_recoverable(browser, li
     wait_for(lambda: store.get_run(seeded_run).terminal)
     assert store.get_conversation(first["id"])["unread"] == 1
     page.goto(base + "/#/chat/conversation-options")
-    page.locator("#conversation-switcher").wait_for()
+    page.locator("#chat-prompt").wait_for()
     page.locator("#conversation-switcher").select_option(first["id"])
     page.locator("#chat-stream").get_by_text("Help me prepare a launch review.", exact=True).wait_for()
 
@@ -6533,7 +6533,7 @@ def test_conversation_options_are_compact_persistent_and_recoverable(browser, li
     wait_for_page(page, "document.querySelector('#conversation-switcher')?.innerText.includes('Launch review notes')")
     assert "Launch review notes" in page.locator("#conversation-switcher").inner_text()
     page.reload()
-    page.locator("#conversation-switcher").wait_for()
+    page.locator("#chat-prompt").wait_for()
     assert "Launch review notes" in page.locator("#conversation-switcher").inner_text()
 
     page.locator("#studio-conversation-options").click()
@@ -6610,7 +6610,7 @@ def test_bot_menu_downloads_a_reviewable_local_setup_template(browser, live, tmp
     page.set_default_timeout(8000)
     page.context.tracing.start(screenshots=True, snapshots=True, sources=False)
     page.goto(base + "/#/chat/template-export")
-    page.locator("#conversation-switcher").wait_for()
+    page.locator("#chat-prompt").wait_for()
     page.locator('[data-bot-options="template-export"]').click()
     page.get_by_role("menuitem", name="Share as template").click()
     page.get_by_role("heading", name="Share as template").wait_for()
@@ -6680,7 +6680,7 @@ def test_conversation_export_shows_scope_and_downloads_json(browser, live, tmp_p
     trace_stopped = False
     try:
         page.goto(f"{base}/#/chat/{bot.name}")
-        page.locator("#conversation-switcher").wait_for()
+        page.locator("#chat-prompt").wait_for()
         assert page.locator("#conversation-switcher").input_value() == conversation["id"]
         page.locator("#composer-menu-btn").click()
         page.locator("#conversation-export-open").click()
@@ -6998,7 +6998,7 @@ def test_studio_resumes_only_the_active_human_wait_with_v1_command(browser, live
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
         page.goto(f"{base}/#/chat/{bot.name}")
-        page.locator("#conversation-switcher").wait_for()
+        page.locator("#chat-prompt").wait_for()
         assert page.locator("#conversation-switcher").input_value() == conversation["id"]
         run_card = page.locator(f'#chat-stream [data-run-id="{run.id}"]')
         run_card.locator(".run-cause").nth(1).wait_for(state="visible")
@@ -8540,7 +8540,7 @@ def test_large_idle_roster_stays_compact_and_remains_searchable_and_keyboard_acc
             page.set_viewport_size({"width": 1440, "height": 960})
             page.locator("#workspace").evaluate("el => el.classList.remove('open')")
             page.reload()
-            page.locator("#conversation-switcher").wait_for()
+            page.locator("#chat-prompt").wait_for()
             page.locator("#roster-idle-details").evaluate("el => el.open = true")
             action = page.locator("[data-bot-options='release-helper-0']")
             assert page.evaluate("matchMedia('(hover:hover) and (pointer:fine)').matches")
@@ -9017,7 +9017,7 @@ def test_bot_creation_reuses_only_the_selected_chat_messages_and_keeps_provenanc
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
         page.goto(f"{base}/#/chat/{source_bot.name}")
-        page.locator("#conversation-switcher").wait_for()
+        page.locator("#chat-prompt").wait_for()
         page.locator("#topbar-new-bot").click()
         page.get_by_role("heading", name="Create from this request").wait_for()
         source_toggle = page.locator("#setup-use-source")
@@ -9333,7 +9333,7 @@ def test_coordinator_can_refine_a_bot_purpose_without_changing_its_source_or_aut
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
         page.goto(f"{base}/#/chat/{coordinator.name}")
-        page.locator("#conversation-switcher").wait_for()
+        page.locator("#chat-prompt").wait_for()
         assert "Make a bot" in page.locator("[data-create-bot-from-request='purpose-source-message']").inner_text()
         page.locator('[data-create-bot-from-request="purpose-source-message"]').click()
         original = "Prepare a weekly project status report for leadership."
@@ -9463,7 +9463,7 @@ def test_chat_sourced_bot_setup_clarifies_multiple_details_and_restores_after_re
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
         page.goto(f"{base}/#/chat/{coordinator.name}")
-        page.locator("#conversation-switcher").wait_for()
+        page.locator("#chat-prompt").wait_for()
         bot_count = len(store.list_bots())
         run_count = len(store.list_runs(limit=100))
         page.locator('[data-create-bot-from-request="guided-setup-source"]').click()
@@ -9590,7 +9590,7 @@ def test_workspace_model_default_seeds_new_bot_setup(browser, live, monkeypatch)
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
         page.goto(f"{base}/#/chat/{source_bot.name}")
-        page.locator("#conversation-switcher").wait_for()
+        page.locator("#chat-prompt").wait_for()
         # The preferences modal was removed from the current app shell. Keep
         # this end-to-end check focused on the behavior that still exists: a
         # saved workspace default seeds a new assistant's setup.
@@ -9598,7 +9598,7 @@ def test_workspace_model_default_seeds_new_bot_setup(browser, live, monkeypatch)
                                '{"configured":true,"inference_mode":"hybrid","model":"openai/gpt-4o-mini"}')
         assert app.state.store.kv_get("workspace:model-defaults") == '{"configured":true,"inference_mode":"hybrid","model":"openai/gpt-4o-mini"}'
         page.reload()
-        page.locator("#conversation-switcher").wait_for()
+        page.locator("#chat-prompt").wait_for()
         page.locator("#topbar-new-bot").click()
         page.get_by_role("heading", name="Set up your assistant").wait_for()
         page.locator("#setup-purpose").fill("Prepare a weekly project summary.")
@@ -10118,9 +10118,10 @@ def test_composer_switcher_menu_check_keyboard_and_per_message_override(browser,
     chosen = btn.inner_text().strip()
     assert chosen == "small:2b"
     assert "is-custom" in btn.get_attribute("class")
-    page.locator("#studio-conversation-options").click()
-    page.locator("#studio-new-conversation").click()
-    wait_for_page(page, "old => document.querySelector('#conversation-switcher').value !== old", arg=first_conversation)
+    historical, _ = app.state.store.create_conversation(app.state.store.get_bot("chatty").id,
+        "Retained earlier chat", idem_key="picker-history", request_hash="picker-history")
+    page.goto(f"{base}/#/conversation/{historical['id']}")
+    wait_for_page(page, "id => document.querySelector('#conversation-switcher')?.value === id", arg=historical["id"])
     assert "tiny:1b" in page.locator(".ms-btn").get_attribute("aria-label")
     assert "is-custom" not in page.locator(".ms-btn").get_attribute("class")
     page.locator("#conversation-switcher").select_option(first_conversation)
@@ -10626,7 +10627,7 @@ def test_small_workspace_has_one_roster_and_legacy_routes_do_not_trap_back(brows
     page = browser.new_page(viewport={"width": 1200, "height": 800})
     request.addfinalizer(page.close)
     page.goto(base + "/#/chat/one-bot")
-    page.locator("#conversation-switcher").wait_for()
+    page.locator("#chat-prompt").wait_for()
     assert not page.locator("#fleet-nav").is_visible()
     assert not page.locator("#monitor-nav").get_attribute("open")
     assert page.get_by_text("Manage all bots", exact=True).count() == 0
@@ -10640,7 +10641,7 @@ def test_small_workspace_has_one_roster_and_legacy_routes_do_not_trap_back(brows
     page.get_by_role("heading", name="Activity", exact=True).wait_for()
     page.evaluate("location.hash = '#/bots'")
     page.wait_for_url("**/#/chat")
-    page.locator("#conversation-switcher").wait_for()
+    page.locator("#chat-prompt").wait_for()
     page.go_back()
     page.get_by_role("heading", name="Activity", exact=True).wait_for()
     page.close()
@@ -10801,11 +10802,11 @@ def test_fleet_appears_at_ten_bots_with_search_and_state_filters(browser, live):
         app.state.store.create_bot(Bot(name=f"fleet-{i}", model="mock/demo", tools=[], paused=i == 2))
     page = browser.new_page(viewport={"width": 1200, "height": 800})
     page.goto(base + "/#/chat")
-    page.locator("#conversation-switcher").wait_for()
+    page.locator("#chat-prompt").wait_for()
     assert page.locator("#fleet-nav").is_hidden()
     app.state.store.create_bot(Bot(name="fleet-9", model="mock/demo", tools=[]))
     page.reload()
-    page.locator("#conversation-switcher").wait_for()
+    page.locator("#chat-prompt").wait_for()
     page.locator("#monitor-nav > summary").click()
     page.get_by_role("link", name="Manage assistants", exact=True).click()
     page.locator("#fleet-search").wait_for()
@@ -10843,7 +10844,7 @@ def test_bot_and_conversation_switches_isolate_unsent_drafts(browser, live):
         app.state.store.create_bot(Bot(name=name, model="mock/demo", tools=[]))
     page = browser.new_page(viewport={"width": 1200, "height": 800})
     page.goto(base + "/#/chat/draft-a")
-    page.locator("#conversation-switcher").wait_for()
+    page.locator("#chat-prompt").wait_for()
     first = page.locator("#conversation-switcher").input_value()
     page.locator("#chat-prompt").fill("Private draft for A")
     # No debounce wait: immediate navigation must preserve the draft in its own context.
@@ -10854,12 +10855,13 @@ def test_bot_and_conversation_switches_isolate_unsent_drafts(browser, live):
     assert page.locator("#chat-prompt").input_value() == ""
     page.locator('[data-switch-bot="draft-a"]').click()
     page.wait_for_url("**/#/chat/draft-a")
-    page.locator("#conversation-switcher").wait_for(state="visible")
+    page.locator("#chat-prompt").wait_for()
     wait_for_page(page, "id => document.querySelector('#conversation-switcher')?.value === id", arg=first)
     assert page.locator("#chat-prompt").input_value() == "Private draft for A"
-    page.locator("#studio-conversation-options").click()
-    page.locator("#studio-new-conversation").click()
-    wait_for_page(page, "id => document.querySelector('#conversation-switcher')?.value !== id", arg=first)
+    historical, _ = app.state.store.create_conversation(app.state.store.get_bot("draft-a").id,
+        "Retained earlier chat", idem_key="draft-history", request_hash="draft-history")
+    page.goto(f"{base}/#/conversation/{historical['id']}")
+    wait_for_page(page, "id => document.querySelector('#conversation-switcher')?.value === id", arg=historical["id"])
     assert page.locator("#chat-prompt").input_value() == ""
     page.locator("#conversation-switcher").select_option(first)
     wait_for_page(page, "document.querySelector('#chat-prompt')?.value === 'Private draft for A'")
@@ -10872,7 +10874,7 @@ def test_inline_chat_approval_is_one_click_and_preserves_conversation(browser, l
                                    approval_mode=ApprovalMode.ask))
     page = browser.new_page(viewport={"width": 390, "height": 844})
     page.goto(base + "/#/chat/chat-approval")
-    page.locator("#conversation-switcher").wait_for()
+    page.locator("#chat-prompt").wait_for()
     conversation = page.locator("#conversation-switcher").input_value()
     page.locator("#chat-prompt").fill("write a report")
     page.locator("#chat-send").click()
@@ -11516,7 +11518,7 @@ def test_needs_you_drawer_preserves_review_focus_and_reports_refresh_failure(bro
     wait_for(lambda: app.state.store.get_run(run.id).status is RunStatus.waiting_approval)
     page = browser.new_page(viewport={"width": 390, "height": 844})
     page.goto(base + "/#/chat/drawer-bot")
-    page.locator("#conversation-switcher").wait_for()
+    page.locator("#chat-prompt").wait_for()
     page.locator("#nav-toggle").click()
     page.locator("#needs-you-open").click()
     card = page.locator("#needs-you [data-approval-card]").first
@@ -11550,7 +11552,7 @@ def test_queued_chat_keeps_earlier_approval_and_live_status_fresh(browser, live)
                                    approval_mode=ApprovalMode.ask))
     page = browser.new_page(viewport={"width": 1200, "height": 900})
     page.goto(base + "/#/chat/queue-chat")
-    page.locator("#conversation-switcher").wait_for()
+    page.locator("#chat-prompt").wait_for()
     page.locator("#chat-prompt").fill("write a report")
     page.locator("#chat-send").click()
     card = page.locator("#chat-stream [data-approval-card]").first
@@ -11945,7 +11947,7 @@ def test_composer_options_rehearsal_and_cancelled_notice(browser, live, width, h
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.goto(base + "/#/chat/composer-fixture")
-    page.locator("#conversation-switcher").wait_for()
+    page.locator("#chat-prompt").wait_for()
     assert not page.locator("#studio-stop-run").is_visible()
     assert page.locator("#chat-stop").count() == 0, "do not duplicate the primary Stop beside Send"
     page.locator("#composer-menu-btn").click()
@@ -12883,7 +12885,7 @@ def test_chat_choice_question_is_selectable_and_readable_at_all_viewports(browse
             ["Risks", "Timeline", "Owners"], fence=claimed.fence)
         store.transition_run(run.id, RunStatus.succeeded, fence=claimed.fence)
         page.goto(f"{base}/#/chat/{bot.name}")
-        page.locator("#conversation-switcher").wait_for()
+        page.locator("#chat-prompt").wait_for()
         assert page.locator("#conversation-switcher").input_value() == conversation["id"]
         run_card = page.locator(f'#chat-stream [data-run-id="{run.id}"]')
         form = run_card.locator("[data-choice-form]")

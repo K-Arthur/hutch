@@ -78,3 +78,9 @@ Google Ads test accounts cannot provide real serving metrics: live reporting nee
 ## Verification commands
 
 Use the existing `.venv` (`uv run --frozen --no-sync ...`) and locked dependencies. Focused pytest before `pytest --ignore=tests/e2e`, then relevant browser/full suite. `npm run build:css` for source CSS changes. New native code needs Rust checks and installed OS validation. Review committed changes from the starting revision plus staged, unstaged and task-owned untracked files. Never weaken tests or mark a check passed because it was skipped.
+
+### Persistent chat frontend and regression follow-up
+
+- Direct assistant routes now open their durable main chat; explicit historical URLs survive reloads. Conversation history is secondary navigation, and returning to Chat opens the coordinator. Existing history and per-conversation model choices remain. Focused browser checks: **4 passed, 164 deselected in 19.64s** (persistent identity, model menu, draft/override isolation, small roster). JS syntax check passed. Task aggregation is still pending.
+- Review checked direct versus historical identity, deleted-assistant handling, browser-local storage independence and retained history; no remaining finding in this slice.
+- The detached `b8bb7310` regression finished with **9 failed, 3381 passed, 12 skipped, 6 xfailed in 1069.32s**. Eight failures were Unix socket paths exceeding the platform limit under the long scratch root; the affected delegation/containment/offline files passed with a short scratch root: **41 passed in 22.16s**. The ninth was a sandbox test matching `Projects` inside a workspace path; exact delimited directory listings fix this false positive, with **19 passed in 4.78s** at the original long root. These reruns explain the failures; they do not turn the original suite into a clean pass. Logs remain under ignored `.validation/desktop-production/`.

@@ -23,7 +23,7 @@
          On phones this becomes a labeled overlay sheet. -->
     <aside class="workspace" id="workspace" aria-label="Workspace">
       <header class="ws-brand">
-        <a class="brand" href="#/chat" aria-label="hutch — open chats">
+        <a class="brand" href="#/chat" aria-label="hutch — open main chat">
           <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true">
             <path d="M16 2 28 9v14L16 30 4 23V9z" fill="none" stroke="var(--brand)" stroke-width="2.5"/>
             <circle cx="16" cy="16" r="4" fill="var(--brand)"/>
@@ -39,11 +39,11 @@
       </header>
 
       <nav class="ws-nav" aria-label="Primary">
-        <a href="#/chat" data-nav="chat"><span class="nav-ico" aria-hidden="true"></span><span>Chats</span></a>
-        <a href="#/chats" data-nav="chats"><span class="nav-ico" aria-hidden="true"></span><span>Chat library</span></a>
+        <a href="#/chat" data-nav="chat"><span class="nav-ico" aria-hidden="true"></span><span>Chat</span></a>
         <button type="button" id="needs-you-open"><span class="nav-ico" aria-hidden="true"></span><span>Needs you</span><span id="approval-badge" class="badge hidden">0</span></button>
         <details id="monitor-nav">
           <summary><span class="nav-ico" aria-hidden="true"></span><span>More</span></summary>
+          <a href="#/chats" data-nav="chats"><span class="nav-ico" aria-hidden="true"></span>Conversation history</a>
           <a href="#/overview" data-nav="overview"><span class="nav-ico" aria-hidden="true"></span>Activity</a>
           <a href="#/schedules" data-nav="schedules"><span class="nav-ico" aria-hidden="true"></span>Scheduled work</a>
           <a href="#/runs" data-nav="runs"><span class="nav-ico" aria-hidden="true"></span>Work history</a>
