@@ -2575,7 +2575,10 @@ def serve(host: str = typer.Option("127.0.0.1"), port: int = typer.Option(8787),
     scheme = "https" if tls_cert else "http"
     console.print(f"[bold]hutch[/bold] dashboard → {scheme}://{host}:{port}")
     uvicorn.run("hutch.server.app:create_app", factory=True, host=host, port=port, log_level="warning",
-                ssl_certfile=tls_cert, ssl_keyfile=tls_key, proxy_headers=False)
+                ssl_certfile=tls_cert, ssl_keyfile=tls_key, proxy_headers=False,
+                # An open dashboard EventSource otherwise holds shutdown forever,
+                # leaving the scheduler/store alive after the listener closes.
+                timeout_graceful_shutdown=10)
 
 
 @skills_app.command("list")

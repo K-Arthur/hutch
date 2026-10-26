@@ -104,6 +104,12 @@ unregistered staging file after a 24-hour grace period; ordinary request failure
 
 ## Stop and incomplete cleanup
 
+Stopping `hutch serve` gives active HTTP requests up to 10 seconds to drain, then
+cancels remaining requests such as dashboard event streams so application shutdown
+can close the scheduler and store. Reconnecting browsers reconcile durable history;
+they do not automatically replay uncertain writes. Closing a browser alone still
+leaves accepted work running.
+
 Run status remains `Stopping` or `Recovering` when an owned process is still alive or its identity cannot be verified. Hutch records
 the process IDs and retries cleanup after the short recovery lease. Do not delete process records or mark a run stopped manually.
 Inspect the latest run events and worker log (`hutch bot show <name>` and the bot's `runs/<run-id>/worker.log`). If a host policy
