@@ -69,7 +69,10 @@ class RunToolBridge:
     def __init__(self, store: Store, run: Run, *, workspace: Path, config: Any,
                  allowed_tools: frozenset[str], context=None):
         from ..integrations.catalog import is_known_tool_name
-        supported = self.supported_tools(allowed_tools, is_known_tool_name)
+        from ..integrations.notion_access import names_for_run
+        bot = store.get_bot(run.bot_id)
+        integration_names = names_for_run(store, bot, run) if bot else set()
+        supported = self.supported_tools(allowed_tools, lambda name: is_known_tool_name(name) or name in integration_names)
         if not allowed_tools or not allowed_tools <= supported:
             raise ValueError(f"the bridge admits only reviewed {self._scope_label}")
         self.store = store

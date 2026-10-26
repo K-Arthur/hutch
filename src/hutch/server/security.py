@@ -247,7 +247,8 @@ class SecurityMiddleware:
                                   "/api/v1/connections/outlook-calendar/callback",
                                   "/api/v1/connections/outlook-calendar-write/callback",
                                   "/api/v1/connections/outlook-mail/callback",
-                                  "/api/v1/connections/outlook-mail-send/callback"):
+                                  "/api/v1/connections/outlook-mail-send/callback",
+                                  "/api/v1/connections/notion/callback"):
             # Authorization codes and state values must not survive in
             # Uvicorn's access-log scope, including rejected callback requests.
             query = scope.get("query_string", b"")

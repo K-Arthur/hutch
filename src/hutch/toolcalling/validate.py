@@ -226,13 +226,14 @@ def validate_call(schema: dict[str, Any], args: Any) -> list[str]:
         detail = "; ".join(report.unsupported[:_MAX_PROBLEMS])
         return [f"this tool's registered argument schema cannot be fully checked locally ({detail}); "
                 "the call was not executed"]
-    if _HAVE_JSONSCHEMA:
-        problems = _validate_with_jsonschema(schema, args)
-        if problems:
-            return problems
+    # Keep canonical repair messages independent of optional SDK dependencies.
+    # The full Draft validator remains an additional refusal check; it cannot
+    # turn a rejection from the bounded validator into acceptance.
     problems: list[str] = []
     _errors(args, schema, "", schema, problems, depth=0, ref_seen=frozenset())
-    return problems[:_MAX_PROBLEMS]
+    if problems:
+        return problems[:_MAX_PROBLEMS]
+    return _validate_with_jsonschema(schema, args) if _HAVE_JSONSCHEMA else []
 
 
 def validate_value(schema: dict[str, Any], value: Any) -> list[str]:

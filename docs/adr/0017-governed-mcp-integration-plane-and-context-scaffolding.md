@@ -585,3 +585,34 @@ First-hand regression reports:
 - Old skill invocations re-executed after compaction: https://github.com/anthropics/claude-code/issues/40193
 - Long-lived NotebookLM MCP authentication recovery: https://github.com/teng-lin/notebooklm-py/issues/2161
 - NotebookLM login/backend availability mismatch: https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/292
+
+## Notion connector implementation addendum (2026-10-26)
+
+The first executable hosted MCP connector is Notion search/fetch, using the pinned official
+Python SDK 2.3.0, public DCR/PKCE, existing canonical integration/grant tables and OS token
+storage. This is a deliberately narrower provider connector; arbitrary stdio/HTTP server
+installation and the rest of S2–S10 are not implemented by this addition.
+
+The SDK's auto mode probes modern discovery and negotiates legacy initialize when needed.
+Notion documents a legacy-compatible stateless Streamable HTTP endpoint that can emit a
+session ID. The SDK handles that legacy session header; modern requests retain stateless
+metadata. This is a documented legacy compatibility exception to the modern-only no-session
+rule above, not permission to resume arbitrary SSE transports. GET/SSE fallback endpoints
+are not configured; JSON and SSE responses on the single `/mcp` endpoint are supported.
+
+Synchronous API/worker callers use a fresh `anyio.run` loop on their calling worker thread
+per operation, rather than sharing a long-lived loop/client across forks. The async SDK
+transport remains owned and closed within that scope. Modern JSON, legacy JSON/SSE,
+cancellation and HTTP destination/cap fixtures verify this bridge. Protected calls compare
+the full reviewed schema and recheck the current grant immediately before dispatch.
+
+Explicit read grants cover searches/fetches with low-risk policy authorization and canonical
+receipts. No MCP annotation can classify a write as a read: the provider connector's fixed
+read-tool allowlist excludes writes and connected-source search. A future write slice needs
+its own exact approval, effect/reconciliation and verification contract. Provider descriptions
+are not copied into the model's instruction surface. Neither connection nor tool discovery
+confers assistant operation authority.
+
+Sources: [Notion client implementation](https://developers.notion.com/guides/mcp/build-mcp-client),
+[official SDK client](https://py.sdk.modelcontextprotocol.io/client/),
+[reverified protocol revision](https://modelcontextprotocol.io/specification/2026-07-28).

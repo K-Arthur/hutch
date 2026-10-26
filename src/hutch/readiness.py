@@ -82,10 +82,13 @@ def bot_readiness(store, config, bot: Bot) -> dict:
 
     # ------------------------------------------------------------------ tools
     offline = getattr(bot.inference_mode, "value", "") == "offline"
-    enabled = expand_tools(list(bot.tools or []))
+    from .integrations.notion_access import bindings as notion_bindings
+    notion_grants = notion_bindings(store, bot.id)
+    integration_names = {grant["canonical_name"] for grant in notion_grants}
+    enabled = list(dict.fromkeys(expand_tools(list(bot.tools or [])) + sorted(integration_names)))
     tool_items: list[dict] = []
     for name in enabled:
-        if not is_known_tool_name(name):
+        if not is_known_tool_name(name) and name not in integration_names:
             tool_items.append({"name": name, "status": "missing", "detail": "unknown tool name"})
             continue
         detail = ""
@@ -145,6 +148,9 @@ def bot_readiness(store, config, bot: Bot) -> dict:
             connection_items.append({"name": name, "status": "ok", "detail": f"{CONNECTION_SERVICE_LABELS.get(service, service)} granted for this Bot"})
         else:
             connection_items.append({"name": name, "status": "missing", "detail": f"requires {description}"})
+    for grant in notion_grants:
+        connection_items.append({"name": grant["canonical_name"], "status": "ok",
+                                 "detail": "Notion read access granted in Apps & AI"})
     for requirement in registry.binding_requirements(bot):
         for service in requirement["requires_connections"]:
             label = CONNECTION_SERVICE_LABELS.get(service, service)

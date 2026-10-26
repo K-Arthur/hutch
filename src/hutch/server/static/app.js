@@ -1209,15 +1209,19 @@ const chatgptCallback = new URLSearchParams(location.search);
 const chatgptResult = chatgptCallback.get("chatgpt_result");
 const googleCalendarResult = chatgptCallback.get("google_calendar_result");
 const googleWorkspaceResult = chatgptCallback.get("google_workspace_result");
+const notionResult = chatgptCallback.get("notion_result");
 const googleMailResult = chatgptCallback.get("google_mail_result");
 const googleMailSendResult = chatgptCallback.get("google_mail_send_result");
 const outlookCalendarResult = chatgptCallback.get("outlook_calendar_result");
 const outlookCalendarWriteResult = chatgptCallback.get("outlook_calendar_write_result");
 const outlookMailResult = chatgptCallback.get("outlook_mail_result");
 const outlookMailSendResult = chatgptCallback.get("outlook_mail_send_result");
-if (chatgptResult || googleWorkspaceResult || googleCalendarResult || googleMailResult || googleMailSendResult || outlookCalendarResult || outlookCalendarWriteResult || outlookMailResult || outlookMailSendResult) {
+if (chatgptResult || notionResult || googleWorkspaceResult || googleCalendarResult || googleMailResult || googleMailSendResult || outlookCalendarResult || outlookCalendarWriteResult || outlookMailResult || outlookMailSendResult) {
   const detail = chatgptCallback.get("detail");
-  const message = googleWorkspaceResult
+  const message = notionResult
+    ? notionResult === "connected" ? "Notion connected. Choose an assistant and review its read access in Apps & AI."
+      : detail || "Notion sign-in did not complete. Try again from Apps & AI."
+    : googleWorkspaceResult
     ? googleWorkspaceResult === "connected" ? "Google Drive, Docs and Sheets connected. Workspace actions still need exact plan approval."
       : detail || "Google Workspace sign-in did not complete. Try again from Apps & AI."
     : googleMailSendResult
@@ -1244,7 +1248,7 @@ if (chatgptResult || googleWorkspaceResult || googleCalendarResult || googleMail
     : chatgptResult === "connected" ? "ChatGPT plan route connected."
     : chatgptResult === "identity-only" ? "ChatGPT signed in, but plan use was not granted. Reauthorize to use it for models."
     : detail || "ChatGPT sign-in did not complete. Start again from Connections.";
-  setTimeout(() => toast(message, googleWorkspaceResult === "error" || chatgptResult === "error" || googleCalendarResult === "error" || googleMailResult === "error" || outlookCalendarResult === "error" || outlookCalendarWriteResult === "error" || outlookMailResult === "error" || outlookMailSendResult === "error"), 0);
+  setTimeout(() => toast(message, notionResult === "error" || googleWorkspaceResult === "error" || chatgptResult === "error" || googleCalendarResult === "error" || googleMailResult === "error" || outlookCalendarResult === "error" || outlookCalendarWriteResult === "error" || outlookMailResult === "error" || outlookMailSendResult === "error"), 0);
   history.replaceState(null, "", `${location.pathname}${location.hash || "#/connections"}`);
 }
 
@@ -1608,6 +1612,9 @@ function openModal({ title, bodyHtml, onConfirm, onCancel, confirmText = "Confir
     else if (FACT_BUTTONS.some(([field]) => modalReturnFocus?.dataset[field])) {
       const [field, selector] = FACT_BUTTONS.find(([field]) => modalReturnFocus.dataset[field]);
       ($$(selector).find(button => button.dataset[field] === modalReturnFocus.dataset[field]) || $('#chat-prompt'))?.focus();
+    }
+    else if (modalReturnFocus?.dataset.notionAccess) {
+      ($$('[data-notion-access]').find(button => button.dataset.notionAccess === modalReturnFocus.dataset.notionAccess) || $('#notion-connect') || $('#nav-toggle'))?.focus();
     }
     else if (modalReturnFocus?.dataset.backgroundProvider) {
       ($$('[data-background-provider]').find(button =>
@@ -8851,6 +8858,9 @@ async function renderConnections() {
   try { googleWorkspace = await api("/v1/connections/google-workspace"); }
   catch (error) { workspaceError = error.message; }
   googleWorkspace ||= { configured: false, secret_store_available: false, accounts: [] };
+  let notion = { secret_store_available: false, accounts: [], grants: [] };
+  let notionError = "";
+  try { notion = await api("/v1/connections/notion"); } catch (error) { notionError = error.message; }
   const googleMail = data.google_mail || { configured: false, secret_store_available: false, accounts: [], grants: [] };
   const googleMailBots = bots.filter(bot => bot.inference_mode === "local");
   const googleMailSend = data.google_mail_send || { configured: false, secret_store_available: false, accounts: [], grants: [] };
@@ -9061,6 +9071,10 @@ async function renderConnections() {
   }).join("");
   const orphanOutlookMailSendGrants = (outlookMailSend.grants || []).filter(grant =>
     !(outlookMailSend.accounts || []).some(account => account.id === grant.account_id));
+  const notionGrantRows = account => [...new Set(notion.grants.filter(grant => grant.account_id === account).map(grant => grant.bot_id))].map(bot => {
+    const names = notion.grants.filter(grant => grant.account_id === account && grant.bot_id === bot).map(grant => grant.name).join(", ");
+    return `<div class="device-row"><p class="hint">${esc(botLabels.get(bot) || bot)} · ${esc(names)}</p><button class="btn ghost small" type="button" data-notion-revoke="${esc(account)}" data-notion-bot="${esc(bot)}">Revoke assistant access</button></div>`;
+  }).join("");
   const chatgptAccounts = data.chatgpt_accounts || [];
   const tile = (kind, title, description, state, stateKind, action = "manage", actionLabel = "Manage") => `
     <article class="service-tile">
@@ -9079,6 +9093,9 @@ async function renderConnections() {
       workspaceError ? "Could not load" : googleWorkspace.accounts.length ? "Connected" : googleWorkspace.configured ? "Ready to connect" : "Not enabled in this build",
       googleWorkspace.accounts.length ? "connected" : "setup", "google-workspace",
       googleWorkspace.accounts.length ? "Manage access" : "Connection details"),
+    tile("notion", "Notion", "Search and read workspace pages. Choose which assistant can use each account; edits are not enabled.",
+      notionError ? "Could not load" : notion.accounts.length ? "Connected" : notion.secret_store_available ? "Read preview" : "Secure storage required",
+      notion.accounts.length ? "connected" : "preview", "notion", notion.accounts.length ? "Manage access" : "Connection details"),
     tile("gmail", "Gmail", "Find emails without sending, editing, or deleting messages.",
       googleMail.accounts.length ? "Connected" : googleMail.configured ? "Limited preview" : "Not enabled in this build",
       googleMail.accounts.length ? "connected" : "preview", "gmail",
@@ -9183,6 +9200,15 @@ async function renderConnections() {
         </div>
         ${googleCalendarAccountsHtml || '<p class="hint">No Google Calendar accounts connected.</p>'}
         ${orphanCalendarGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanCalendarGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-google-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
+      </section>
+      <section class="panel conn-card" id="connection-notion" aria-labelledby="notion-title">
+        <div class="bot-head"><span class="bot-name" id="notion-title">Notion</span><span class="tag">experimental · read access</span></div>
+        <p>Connect in your signed-in browser, then choose an assistant and its search or page-reading tools. No personal integration token or developer setup is needed.</p>
+        <p class="hint">Notion’s OAuth consent can authorize broader workspace access than the read tools Hutch exposes. Hutch does not enable edits, comments, deletion or connected-source search. Selected assistants may pass returned pages to their configured model providers and retain them in run history. Read queries use your tool grant; future writes need a separate reviewed action.</p>
+        ${notionError ? `<p class="hint bad" role="alert">Could not load Notion: ${esc(notionError)}</p>` : !notion.secret_store_available ? '<p class="hint" role="status">Unlock the operating system’s secure credential store before connecting Notion.</p>' : '<button class="btn primary small" id="notion-connect" type="button">Connect Notion</button>'}
+        ${notion.accounts.map(account => `<article class="google-calendar-account"><div class="device-row"><div><strong>${esc(account.workspace_name || account.label)}</strong><p class="hint">${esc(account.id)}</p></div><div class="card-actions"><button class="btn ghost small" type="button" data-notion-access="${esc(account.id)}">Choose assistant access</button><button class="btn ghost small" type="button" data-notion-disconnect="${esc(account.id)}">Disconnect Notion</button></div></div>
+          ${notionGrantRows(account.id)}
+        </article>`).join("") || '<p class="hint">No Notion accounts connected.</p>'}
       </section>
       <section class="panel conn-card" id="connection-google-workspace" aria-labelledby="google-workspace-title">
         <div class="bot-head"><span class="bot-name" id="google-workspace-title">Google Drive, Docs &amp; Sheets</span><span class="tag">experimental</span></div>
@@ -9447,6 +9473,7 @@ async function renderConnections() {
       "chatgpt": "connection-chatgpt",
       "google-calendar": "connection-google-calendar",
       "google-workspace": "connection-google-workspace",
+      "notion": "connection-notion",
       "gmail": "connection-gmail",
       "outlook-calendar": "connection-outlook-calendar",
     })[targetKey] || "connection-outlook-mail";
@@ -9566,6 +9593,69 @@ async function renderConnections() {
     setup.scrollIntoView({ behavior: "auto", block: "center" });
     $("#google-oauth-client-id")?.focus({ preventScroll: true });
   });
+
+  $("#notion-connect")?.addEventListener("click", async event => {
+    const button = event.currentTarget;
+    const authWindow = window.open("about:blank", "_blank");
+    if (!authWindow) { toast("Allow Hutch to open a browser tab, then try again.", true); return; }
+    authWindow.opener = null;
+    button.disabled = true;
+    try {
+      const result = await api("/v1/connections/notion/sign-in", { method: "POST", body: {} });
+      const url = new URL(result.authorization_url);
+      if (url.origin !== "https://mcp.notion.com" || url.pathname !== "/authorize" || url.username || url.password || url.hash || !url.search) throw new Error("Unexpected Notion sign-in destination.");
+      authWindow.location.replace(url.href);
+      toast("Finish Notion sign-in in your browser, then reload Apps & AI to choose assistant access.");
+    } catch (error) { authWindow.close(); toast(error.message, true); }
+    finally { button.disabled = false; }
+  });
+  $$("[data-notion-access]").forEach(button => button.addEventListener("click", async () => {
+    button.disabled = true;
+    try {
+      const account = button.dataset.notionAccess;
+      const discovery = await api(`/v1/connections/notion/accounts/${encodeURIComponent(account)}/discover`, { method: "POST", body: {} });
+      const eligible = bots.filter(bot => bot.inference_mode !== "offline" && ["builtin", "opencode"].includes(bot.runtime || "builtin"));
+      const names = Object.keys(discovery.tools || {}).filter(name => ["notion-search", "notion-fetch"].includes(name));
+      if (!names.length) throw new Error("Notion returned no compatible read tools. No assistant access was added.");
+      if (!eligible.length) throw new Error("Create an assistant with online integration access first. Strict Offline assistants cannot use Notion.");
+      openModal({ title: "Notion assistant access", returnFocus: button, confirmText: "Grant read access",
+        bodyHtml: `${discovery.grants_invalidated ? '<p role="status">Notion’s tool definitions changed. Previous assistant grants were removed; review them again.</p>' : ""}<p>This grant lets the selected assistant search or read pages accessible through this Notion account. Pages may go to that assistant’s configured model providers and remain in run history. It cannot edit Notion through this connector.</p><label class="field">Assistant<select id="notion-grant-bot">${eligible.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}</option>`).join("")}</select></label><fieldset><legend>Read tools</legend>${names.map(name => `<label class="phone-pair-start"><input type="checkbox" data-notion-tool="${esc(name)}" checked><span>${name === "notion-search" ? "Search workspace pages" : "Read a page"}</span></label>`).join("")}</fieldset><details class="notion-tool-definitions"><summary>Tool definitions</summary><pre>${esc(JSON.stringify(discovery.tools, null, 2))}</pre></details><p id="notion-grant-status" class="hint" role="status"></p>`,
+        onConfirm: async () => {
+          const tools = $$("#modal-root [data-notion-tool]:checked").map(input => input.dataset.notionTool);
+          const confirm = $("#modal-confirm");
+          if (confirm.disabled) return false;
+          confirm.disabled = true;
+          try {
+            await api(`/v1/connections/notion/accounts/${encodeURIComponent(account)}/grants`, { method: "POST", body: { bot: $("#notion-grant-bot").value, tools, revision: discovery.revision } });
+            toast("Notion read access granted for new work.");
+            await renderConnections();
+            return true;
+          } catch (error) {
+            const status = $("#notion-grant-status");
+            if (status) status.textContent = error.message;
+            if (confirm.isConnected) confirm.disabled = false;
+            return false;
+          }
+        } });
+    } catch (error) { toast(error.message, true); }
+    finally { if (button.isConnected) button.disabled = false; }
+  }));
+  $$("[data-notion-revoke]").forEach(button => button.addEventListener("click", async () => {
+    button.disabled = true;
+    try {
+      await api(`/v1/connections/notion/accounts/${encodeURIComponent(button.dataset.notionRevoke)}/grants/${encodeURIComponent(button.dataset.notionBot)}`, { method: "DELETE" });
+      await renderConnections();
+    } catch (error) { button.disabled = false; toast(error.message, true); }
+  }));
+  $$("[data-notion-disconnect]").forEach(button => button.addEventListener("click", async () => {
+    if (!(await confirmDialog({ title: "Disconnect Notion", body: "Remove local credentials and all assistant grants for this Notion account, then request provider revocation. Your Notion pages stay unchanged.", confirmText: "Disconnect", danger: true }))) return;
+    button.disabled = true;
+    try {
+      const result = await api(`/v1/connections/notion/accounts/${encodeURIComponent(button.dataset.notionDisconnect)}/disconnect`, { method: "POST", body: {} });
+      toast(result.detail);
+      await renderConnections();
+    } catch (error) { button.disabled = false; toast(error.message, true); }
+  }));
 
   $("#google-workspace-connect")?.addEventListener("click", async event => {
     const button = event.currentTarget;

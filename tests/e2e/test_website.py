@@ -812,6 +812,8 @@ def test_provider_availability_is_readable_without_horizontal_page_scroll(browse
             "AI services": "eligibility for hutch is unconfirmed",
             "OpenCode assistant": "owned private server",
             "Google Calendar": "each event needs exact approval",
+            "Google Drive, Docs and Sheets": "full-drive search and a desktop file picker are not implemented",
+            "Notion": "live account sign-in is unverified",
             "Gmail search": "owner oauth and loopback local routes",
             "Outlook": "microsoft consent is account-wide and unverified",
             "Scheduling and delegation": "do not grant extra permissions",

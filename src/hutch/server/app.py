@@ -7350,6 +7350,8 @@ def create_app() -> FastAPI:
 
     # ------------------------------------------------------- pages + static
 
+    from .notion_api import install_notion_routes
+    install_notion_routes(app, store, config)
     from .skills_api import install_skills_routes
     install_skills_routes(app, store, config)
     from .pages import register_pages

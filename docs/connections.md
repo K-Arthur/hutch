@@ -571,3 +571,40 @@ The UI refuses code creation when remote access, the canonical HTTPS/passkey ori
 the hostname allowlist is missing. It never enables a listener or installs certificates
 automatically. Configuration readiness does not prove network reachability. Physical
 phones, live private networks and production certificate management remain unverified.
+
+## Notion search and page reads (experimental)
+
+Open **Apps & AI → Notion → Connection details → Connect Notion**. Hutch registers
+a public client with Notion's official hosted MCP service and opens browser OAuth with
+PKCE; no personal token or publisher client ID is needed for this flow. Finish sign-in,
+reload Apps & AI and choose **Choose assistant access**. Select an assistant and the
+search/page-read tools to grant. Strict Offline assistants are excluded.
+
+Notion's `default` OAuth grant can authorize broader workspace access than Hutch's read
+tools expose. Hutch only offers discovered `notion-search` and `notion-fetch`; it does not
+expose writes, comments, deletion, connected-source search, sampling, roots or interactive
+MCP apps. Results can go to the selected assistant's configured model providers and remain
+in history. Explicit read grants cover normal reads, with policy authorization recorded
+for the canonical action receipt; there is no repeated approval form for each search.
+
+The official SDK is pinned to `mcp==2.3.0`. It negotiates modern `2026-07-28` and legacy
+Streamable HTTP servers. Requests stay at `https://mcp.notion.com/mcp`; redirects, arbitrary
+server endpoints and compressed responses are refused. Response/event bytes, schema size,
+list pagination and request time are bounded. Server instructions, annotation claims and
+external asset URLs never become execution authority. Canonical names are account-bound
+`mcp__notion_<account>__<tool>` and per-assistant grants use the existing integration tables.
+
+New grants apply to new work; a running task cannot gain integrations absent from its immutable admission snapshot. The built-in runtime and the governed Linux OpenCode bridge use the same bound tools and receipts. OpenCode bridge fixture coverage is not a live model evaluation.
+
+Every call refreshes discovery and compares the reviewed schema before its read; a changed
+manifest invalidates grants when discovered from setup. Removing access takes effect for
+already constructed tools before the next read. Cancellation closes an in-flight read; it
+does not claim a remote action was undone. Revoke one assistant or disconnect the account
+from this panel. Disconnect disables all local grants and clears local tokens before
+requesting provider revocation; an unconfirmed remote revocation is reported explicitly.
+Tokens and refresh rotation stay in Linux Secret Service, not SQLite, URLs or browser
+storage. Windows/macOS credential stores and live Notion account validation remain open.
+
+Controlled tests exercise OAuth, JSON/SSE wire transport, modern/legacy negotiation, grant
+revocation, schema changes, cancellation and the real browser/API path. These are not a
+claim that a live Notion account has been connected or that public distribution is ready.

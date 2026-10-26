@@ -11,7 +11,7 @@ is gated separately from fixture validation.
 | Core | Gmail | Local-only search preview; separately approved sending | Restricted-scope release review; live evaluation |
 | Core | Google Drive, Docs, Sheets | PKCE account transport and governed plan writes/readback; now visible in Apps & AI | Publisher registration, desktop file Picker, scoped existing-file browsing/read/search; live tests |
 | Core | Microsoft mail/calendar | Native narrow reads and separate approved writes; simplified sign-in | Publisher app and non-Linux secure stores; live tests |
-| Core | Notion | Missing executable connection | Official hosted MCP OAuth, selected assistant/tool access, bounded reads and reviewed writes, refresh/revoke and schema-change handling |
+| Core | Notion | Official hosted MCP OAuth, per-assistant search/fetch grants, bounded reads, refresh/revoke and schema checks; fixture/browser validated | Live account validation, other-OS credential stores and separately reviewed writes |
 | Core | GitHub | Local code tools exist; no governed repository account connector | App/device sign-in, selected repositories, issue/PR/diff reads and separately approved writes; no implicit push/merge |
 | Core | Slack / Telegram | Missing durable inbound/outbound gateway adapters | Account/workspace/channel allowlists, durable delivery, duplicate/replay handling and per-bot routing (P5) |
 | Core | Local files / PDF / office / CSV | Existing workspace/document tools and artifacts | End-to-end artifact evaluation; retain workspace and formula-injection boundaries |
@@ -35,7 +35,7 @@ is gated separately from fixture validation.
 - [Notion hosted MCP](https://developers.notion.com/guides/mcp/get-started-with-mcp)
   uses browser OAuth at `https://mcp.notion.com/mcp`; a normal user should not have to
   create a personal integration and copy a token. Its advertised OAuth metadata supports
-  S256 PKCE and client registration. Hutch does not yet implement this flow.
+  S256 PKCE and client registration. Hutch now implements this public-client flow with controlled provider fixtures; live account validation remains open.
 - [KDE Connect](https://github.com/KDE/kdeconnect-kde) and
   [its user guide](https://userbase.kde.org/KDEConnect) are the candidate for selected Linux/phone
   capabilities. Phone supervision and access to phone data are different directions of

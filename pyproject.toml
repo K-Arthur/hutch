@@ -37,6 +37,7 @@ dependencies = [
     "pypdf>=6.20",
     "pypdfium2>=5.14",
     "python-multipart>=0.0.20",
+    "mcp==2.3.0",
 ]
 
 [project.optional-dependencies]

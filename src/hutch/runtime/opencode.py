@@ -464,7 +464,9 @@ class OpenCodeRuntime:
                            if fresh_bot and fresh_bot.memory_enabled else set())
         from .opencode_memory import RunToolBridge
         from ..integrations.catalog import is_known_tool_name
-        admitted = RunToolBridge.supported_tools(frozenset(tools), is_known_tool_name)
+        from ..integrations.notion_access import names_for_run
+        integration_names = names_for_run(ctx.store, ctx.bot, run)
+        admitted = RunToolBridge.supported_tools(frozenset(tools), lambda name: is_known_tool_name(name) or name in integration_names)
         admitted = frozenset(name for name in admitted if name not in {"recall", "remember"}) | frozenset(admitted_memory)
         from .instructions import build_system_prompt
         agent_id, agent = _agent_definition(ctx.bot.id, title=ctx.bot.name,
