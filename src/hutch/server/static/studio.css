@@ -1070,3 +1070,7 @@ label.field { align-content: start; }
 
 /* A gate's file preview says when it shows only the start of a very large write. */
 .gate-preview-note { margin: 0; padding: var(--s-2) var(--s-3); border-top: 1px solid var(--line); }
+
+/* Chips on the connection pages wrap inside the available width instead of pushing the page sideways at large text. */
+.connections-workspace :is(.connection-detail-heading .service-state, .conn-card .bot-head .tag) { max-width: 100%; white-space: normal; }
+@media (max-width: 640px) { .connection-detail-heading .service-state { max-width: calc(100% - 60px); } }
