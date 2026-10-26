@@ -114,3 +114,57 @@ def test_desktop_launches_owned_worker_and_records_a_real_file_effect(tmp_path, 
             process.kill()
             process.wait(timeout=5)
         fake.close()
+
+
+@pytest.mark.parametrize("legacy", [False, True])
+def test_packaged_notion_sdk_negotiates_and_reads_through_its_own_protocol_schemas(sidecar_command, tmp_path, legacy):
+    """Packaging must preserve dynamically selected modern/legacy MCP wire models."""
+    script = r'''
+import json, os
+from importlib.metadata import version
+import httpx
+from hutch.integrations.notion_mcp import NotionMCP, revision
+legacy = os.environ['HUTCH_TEST_LEGACY_MCP'] == '1'
+schema = {'type': 'object', 'properties': {'query': {'type': 'string'}}, 'required': ['query']}
+class Book:
+    def access_token(self, account):
+        assert account == 'fixture-account'
+        return 'packaged-fixture-token'
+async def handle(request):
+    assert str(request.url) == 'https://mcp.notion.com/mcp'
+    assert request.headers['authorization'] == 'Bearer packaged-fixture-token'
+    if request.method == 'GET':
+        return httpx.Response(405)
+    if request.method == 'DELETE':
+        return httpx.Response(204)
+    body = json.loads(request.content)
+    method = body['method']
+    if method == 'server/discover':
+        if legacy:
+            return httpx.Response(400, json={'jsonrpc':'2.0','id':body['id'],'error':{'code':-32601,'message':'legacy'}})
+        result = {'supportedVersions':['2026-07-28'],'capabilities':{'tools':{}}}
+    elif method == 'initialize':
+        result = {'protocolVersion':'2025-06-18','capabilities':{'tools':{}},'serverInfo':{'name':'fixture','version':'1'}}
+    elif method == 'notifications/initialized':
+        return httpx.Response(202)
+    elif method == 'tools/list':
+        result = {'tools':[{'name':'notion-search','inputSchema':schema}]}
+    elif method == 'tools/call':
+        assert body['params']['name'] == 'notion-search'
+        result = {'content':[{'type':'text','text':'Verified packaged Notion read'}],'isError':False}
+    else:
+        raise AssertionError(method)
+    if not legacy:
+        result.update(ttlMs=0,cacheScope='private',resultType='complete')
+    return httpx.Response(200,json={'jsonrpc':'2.0','id':body['id'],'result':result})
+client = NotionMCP(Book(),'fixture-account',transport=httpx.MockTransport(handle))
+catalog = client.discover()
+result = client.call('notion-search',{'query':'meeting notes'},revision(catalog['tools']['notion-search']))
+assert result['ok'] and result['output'] == 'Verified packaged Notion read'
+print(json.dumps({'sdk':version('mcp'),'protocol':result['protocol'],'ok':result['ok']}))
+'''
+    result = subprocess.run([sidecar_command[0], "-c", script], capture_output=True, text=True, timeout=30,
+                            env={**os.environ, "HUTCH_STATE_DIR": str(tmp_path / "state"),
+                                 "HUTCH_TEST_LEGACY_MCP": "1" if legacy else "0"})
+    assert result.returncode == 0, result.stderr[-3000:]
+    assert json.loads(result.stdout) == {"sdk": "2.3.0", "protocol": "2025-06-18" if legacy else "2026-07-28", "ok": True}

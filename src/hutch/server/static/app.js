@@ -9347,7 +9347,7 @@ async function renderConnections() {
       </section>
       <details class="device-manager summary-row-sm">
         <summary><span class="summary-row-copy"><strong>Paired devices</strong><small>${devices.length} paired</small></span><span class="summary-row-action"><span class="when-closed">Show</span><span class="when-open">Hide</span>${icon("down")}</span></summary>
-        <p class="hint">A paired browser can access this Hutch host while it is online. On the host, run <code>hutch pairing create</code>, then open <a href="/pair">/pair</a> on the device and enter the one-time code. For another device, Hutch must use <code>--allow-remote</code> with trusted TLS certificates; keep it on a private network.</p>
+        <p class="hint">A paired browser can access this Hutch host while it is online. Use <strong>Pair a phone</strong> in Your devices above to create a one-time code, then open the displayed private HTTPS address on the phone. For another device, Hutch must use <code>--allow-remote</code> with trusted TLS certificates; keep it on a private network.</p>
         ${devicesError ? `<p class="hint bad" role="alert">Could not load paired devices: ${esc(devicesError)}</p>` : devices.length ? `
           <div class="device-list" aria-label="Active paired devices">${devices.map(device => `
             <div class="device-row" data-device="${esc(device.id)}">
@@ -9416,7 +9416,7 @@ async function renderConnections() {
     if (targetKey === "phone") {
       openModal({ title: "Use Hutch on your phone", returnFocus: button,
         confirmText: phoneSetup.ready ? "Create pairing code" : "Close", showCancel: phoneSetup.ready,
-        bodyHtml: `<p>${esc(phoneSetup.detail)}</p><p>Pairing grants monitoring and review. Starting new work is a separate choice, and each assistant must also allow remote starts.</p>${phoneSetup.ready ? '<label class="phone-pair-start"><input id="phone-pair-start" type="checkbox"><span>Also allow requests to start work</span></label>' : '<p>This development build needs a private HTTPS host connection before a phone can reach it. It stays local until that is configured.</p>'}<p>Paired browsers cannot administer integrations or pair another device. Revoke devices in More account settings → Paired devices.</p><div id="phone-pair-result" role="status" aria-live="polite"></div>`,
+        bodyHtml: `<p>${esc(phoneSetup.detail)}</p><p>Pairing grants monitoring and review. Starting new work is a separate choice, and each assistant must also allow remote starts.</p>${phoneSetup.ready ? '<label class="phone-pair-start"><input id="phone-pair-start" type="checkbox"><span>Also allow requests to start work</span></label>' : '<p>This development build needs a private HTTPS host connection before a phone can reach it. It stays local until that is configured.</p>'}<p>Paired browsers cannot administer integrations or pair another device. Revoke devices under More account settings, then Paired devices.</p><div id="phone-pair-result" role="status" aria-live="polite"></div>`,
         onConfirm: async () => {
           if (!phoneSetup.ready) return true;
           const confirm = $("#modal-confirm");

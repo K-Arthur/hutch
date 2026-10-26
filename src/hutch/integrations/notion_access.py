@@ -118,9 +118,12 @@ def revoke(store, account_id, bot_ref=None):
 
 def bindings_for_run(store, bot, run) -> list[dict]:
     """An in-flight run cannot gain integrations that were absent at admission."""
+    run_id = getattr(run, "id", None)
+    if not isinstance(run_id, str) or not run_id:
+        return []
     reader = getattr(store, "run_capability_snapshot", None)
-    snapshot = (reader(run.id) if callable(reader) else None) or {}
-    if (run.tool_access == "none" or snapshot.get("snapshot_version") != 1 or
+    snapshot = (reader(run_id) if callable(reader) else None) or {}
+    if (getattr(run, "tool_access", "none") == "none" or snapshot.get("snapshot_version") != 1 or
             snapshot.get("bot_id") != bot.id or run.bot_id != bot.id):
         return []
     captured = snapshot.get("integration_tools", [])

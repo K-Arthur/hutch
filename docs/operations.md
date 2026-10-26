@@ -159,7 +159,7 @@ hutch serve --host 192.168.1.10 --port 8787 --allow-remote \
 Renew the certificate before expiry and verify the renewed certificate chain, hostname, and passkey origin from the phone before
 resuming access. Hutch refuses wildcard and public-address binds.
 
-On the host, `hutch pairing create` prints a single-use code valid for 60 seconds. Submit it only in `/pair` on your private HTTPS
+After private host setup, use **Apps & AI / Your devices / Pair a phone / Create pairing code** to display a single-use code valid for 60 seconds. The local CLI alternative is `hutch pairing create`. Submit it only in `/pair` on your private HTTPS
 Hutch origin. The code creates a five-minute enrollment-only cookie with a 16-challenge registration limit; if that limit is reached,
 request a fresh pairing code. A successful WebAuthn registration creates a separate revocable
 passkey credential and eight-hour maximum session. Login requires user verification. Synced passkeys work, so the credential label
