@@ -6,6 +6,9 @@ __pycache__/
 build/
 dist/
 .venv/
+desktop/target/
+desktop/binaries/
+desktop/gen/
 venv/
 .python-version
 

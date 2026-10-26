@@ -58,7 +58,11 @@ were rerun after shared guidance and the reviewed outputs marked those premises
 unknown. These runs do not prove live-service integration parity, generalized
 quality, repeated reliability, or comparative superiority over Grok Bot.
 
-The Python desktop readiness/authentication/host-loss tests pass, and the Rust
-host passes `cargo check` on this Linux host. Frozen packaging, installed native
-GUI journeys, OS keychains, Windows/macOS process and workspace boundaries,
-native peer authentication, release signing and update recovery remain gates.
+The Rust host passes build, three boundary tests and Clippy with warnings denied.
+Six source/frozen-backend checks validate private readiness, authentication,
+assets, malformed handshakes, an actual owned worker's file output and receipt,
+and host-pipe shutdown. The first frozen startup failed on missing dependency
+metadata; the packager now includes it recursively. This is a glibc 2.44 local
+build, not an Ubuntu 24.04 installed-package result. Native GUI journeys, OS
+keychains, Windows/macOS process and workspace boundaries, native peer
+authentication, release signing and update recovery remain gates.

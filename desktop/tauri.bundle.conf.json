@@ -1,0 +1,8 @@
+{
+  "bundle": {
+    "active": true,
+    "targets": ["deb", "appimage"],
+    "resources": { "binaries/backend/": "backend/" },
+    "icon": ["icons/icon.png", "icons/icon.ico", "icons/icon.icns"]
+  }
+}

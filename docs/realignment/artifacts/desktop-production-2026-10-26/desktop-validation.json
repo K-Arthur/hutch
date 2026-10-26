@@ -1,0 +1,28 @@
+{
+  "scope": "local Linux foundation; native GUI and installed/other-OS packages unverified",
+  "platform": "Linux x86_64 glibc 2.44",
+  "python": "3.13.15",
+  "pyinstaller": "6.22.3",
+  "frozen_executable_sha256": "0209418f18defeac675d128285b82c540a63a3ef9da0bd808ec3dafd859626af",
+  "checks": {
+    "cargo_test": {
+      "passed": 3
+    },
+    "cargo_clippy": "passed with warnings denied",
+    "cargo_build": "passed",
+    "source_and_frozen_sidecar_pytest": {
+      "passed": 6,
+      "duration_seconds": 28.97
+    }
+  },
+  "source_sha256": {
+    "desktop/src/main.rs": "00680f7b671675f20ac1620ff99e2ad4bcb093cbcef3de86ee9e381bc64272a2",
+    "desktop/backend.spec": "9cbb3d6e0be136be1f179edc37bd59fe30958f1a176c9a3d0fa4daa1fd32ca3a",
+    "desktop/backend_entry.py": "527c6882e5be372eb46437c2fe8177c4651d4fb2645783e72dddeb9e8924ed52",
+    "src/hutch/desktop.py": "6f4c1e44d7f9f31a6d3e93f38df874cb4d048e8ef069d758f64c9d9d885f2fa3",
+    "tests/test_desktop_sidecar.py": "c9215d82e746cad459607dec588b5ea0996e83d81ab49fad2509be1e49da47de",
+    "desktop/Cargo.toml": "964581e290e00cf5688d5f68fdc4e3049b81edf1536ab24d2e5dc4990c9f1061",
+    "pyproject.toml": "f9a1276a09ae7c7029f875bd6a1e714c9db31e211d402642217ec421fabe27ca",
+    "uv.lock": "d932719657a1f522768c51bedaec2f00193c8027b5dbb522ace04a79cd1309ec"
+  }
+}
