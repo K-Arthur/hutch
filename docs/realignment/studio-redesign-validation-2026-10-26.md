@@ -1,9 +1,11 @@
 # Studio redesign: validation record (2026-10-26)
 
 Scope: the dashboard redesign requested on 2026-10-26 (tool-calling and approval UI, header, colors and WCAG, chat
-bubbles, marketing site, first-run intro and fit, model picker and dialog, sidebar). Work lives on branch
-`ui/studio-redesign`, based on `main` at `b8bb7310`. Nothing is committed or pushed. Design rules are in `DESIGN.md`;
-the change summary is the first `CHANGELOG.md` entries under Unreleased.
+bubbles, marketing site, first-run intro and fit, model picker and dialog, sidebar), and its second round the same day
+(one scale for corners, type and spacing; assistant settings and the options popover rearranged; the model picker made
+quicker and easier to recognise; the remaining surfaces). Work was done on branch `ui/studio-redesign` (17 focused
+commits) and rebased onto `main`; it was landed by fast-forward once the checks below passed on the landing tree. Design
+rules are in `DESIGN.md`; the change summary is the first `CHANGELOG.md` entry under Unreleased.
 
 Screenshots referenced below are in `docs/realignment/artifacts/studio-redesign-2026-10-26/` (`before/` and `after/`).
 All were opened and inspected; a screenshot existing is not treated as validation.
@@ -114,39 +116,50 @@ Added: `tests/e2e/test_studio_transcript.py` (Markdown inertness and Copy, step 
 
 ## Failures not caused by this work
 
-- `tests/e2e/test_experience_surfaces.py::test_typed_output_widgets_fit_the_run_transcript_at_responsive_sizes` fails the same way at the base commit (the element-screenshot wait never sees the card as visible).
-- Six backend tests fail identically on a clean checkout of `main` at `b8bb7310` (checked in a temporary worktree): `test_runtime_builtin.py` (2), `test_toolcalling_validation.py` (2), `test_workflow_csv_acceptance.py` (1), `test_workflow_engine.py` (1).
+At the start of the second round, a full browser run on a clean checkout of `main` (`1b95633a`) had 14 failures (13 failed,
+1 teardown error), mostly in `test_design_system.py`, the typed-output widget test, the approval-triage evidence consumer and
+four in `test_browser.py`. `main` has since changed that picture (the design-system failures pass on the final tree), so the
+final comparison below is against the tree itself, not that list.
+
+In the final full runs two backend tests failed under load and pass in isolation, on a clean checkout of `main` and on this
+branch alike, which changes no backend code: `tests/test_offline_mode.py::test_loopback_broker_refuses_a_request_after_close_starts`
+and `tests/test_workspace_protocol.py::test_single_line_spin_deadline_is_bounded_by_an_outer_process[signal]`. They are timing
+and signal tests and the machine was busy with other agents' work; I treat them as load flakes and say so rather than
+re-running until green.
 
 ## Not tested, or limited
 
 - No screen reader (NVDA, VoiceOver, TalkBack) was run; accessibility claims rest on axe, the accessibility tree, keyboard walks and the measurements above.
 - Chromium only; Firefox and WebKit were not run. The customizable select (`appearance: base-select`) degrades to the native picker elsewhere by design.
 - No physical phone or tablet; narrow sizes use emulation and 200% text size, which is stricter on text and looser on pixel scaling than 400% browser zoom.
-- No user research or independent design review. The scores below are my own judgment from the evidence.
-- The model picker was exercised with a mocked catalog for screenshots and audits; live provider catalogs were not contacted.
-- The other agent's work is in flight on the same surfaces (ADR 0021 and P13 in `desktop-production-2026-10-26.md`: a "Chat with Hutch" and Tasks daily path). This branch keeps every route, id and role and restyles around them, but the two will need reconciling.
+- No user research or independent design review. The scores below are my own judgment from the evidence; the two `/code-review` passes were by a model, not a person.
+- The model picker was exercised with a synthetic catalog for screenshots, audits and tests; live provider catalogs were not contacted.
+- The vendor marks use artwork already bundled for connections; no new brand asset was added, and none is fetched at runtime.
+- `main` moved throughout the work (it gained dozens of commits, including a redesign of the connections flow and a persistent-chat model). The branch was rebased repeatedly, resolving real conflicts in `app.js`, `input.css`, `test_browser.py` and the site index. One of those resolutions was wrong and caught before landing: `git checkout --theirs` on the site index discarded `main`'s other edits to that file. The final tree was verified against `main` line by line (the index differs only in the graphite `theme-color`, the Geist preload and cache stamps). (No test pins that; it was checked by diffing against `main`.)
+- The full browser and backend suites ran once on a pinned snapshot a few commits before the landing tree; the landing tree (after two more small rebases and the test fixes below) was re-checked with a targeted run, not a third full run.
 
 ## Self-assessment against the PRODUCT.md gates
 
 | Gate | Score | Basis |
 | --- | --- | --- |
-| Aesthetic (at least 90) | about 90 | One shape language across thread, gates, bubbles, sidebar, picker and intro; checked in opened screenshots at 320, 375, 390, 768, 1024, 1280x720, 1440 and landscape phone. At the gate, not above it: no external review, and the sidebar still carries a list of destinations that the Muse reference does not. |
-| Functionality (at least 95) | about 95 | Existing behavior and every role, id and decision semantic are preserved; the e2e suite exercises them; the validation above found and fixed ten defects. At the gate, not above it: the pre-existing failures listed above (one e2e, six backend) remain open, and the environments listed under "Not tested" were not covered. |
+| Aesthetic (at least 90) | about 91 | One shape, type and spacing language enforced by guards rather than by hand; the thread, gates, bubbles, sidebar, settings, popover, picker, intro and connections read as one product in opened screenshots at 320 to 1440. At the gate, not far above it: no external review, and the sidebar still carries a list of destinations that the Muse reference does not. |
+| Functionality (at least 95) | about 95 | Every role, id and decision semantic is preserved; the suites exercise them; validation found and fixed the defects listed above. At the gate, not above it: the environments under "Not tested" were not covered, and the final full runs were on a snapshot rather than the landing tree. |
 
 Both are unreviewed estimates, and the overall score is the lower of the two. Whether this matches the quality of the Grok and Muse references is your call; the screenshots are the thing to compare.
 
 ## Final suite results
 
-Both runs were on the final tree (after the last code, test and doc edits), with temp, basetemp and artifact paths on the
-disk volume. The Chromium revision is the one the locked Playwright expects.
+Temp, basetemp and artifact paths were on the disk volume; the Chromium revision is the one the locked Playwright expects.
 
-| Suite | Command | Result |
+| Run | Command | Result |
 | --- | --- | --- |
-| Browser | `pytest -q tests/e2e` | 394 passed, 1 skipped, 1 failed (23 min). The failure is `test_typed_output_widgets_fit_the_run_transcript_at_responsive_sizes`, which fails the same way at the base commit. |
-| Everything else | `pytest -q --ignore=tests/e2e` | 3384 passed, 15 skipped, 6 xfailed, 6 failed (19 min). The six failures are the backend tests listed above, which also fail on a clean checkout of `main` at `b8bb7310`. |
+| Browser, full, on the rebased tree | `pytest -q tests/e2e` | 445 passed, 1 skipped, 6 failed (26 min). Causes: three tests in `test_learning.py` and one in `test_browser_budget_controls.py` used the old accordion or never selected the pane that owns the field (Memory and learning and the usage limits are in Limits and memory); `test_tool_compatibility.py` raced a page transition (the shared helper now retries its click); and `test_archived_approval_triage_marketing_evidence_is_complete`, because `main` had turned that directory into a frozen archive and my earlier regeneration of its eleven files made it inconsistent (restored to `main`'s version). All six were fixed in the test layer or by restoring the archive, with no assertion weakened. |
+| Backend, full | `pytest -q --ignore=tests/e2e` | 3626 passed, 20 skipped, 6 xfailed, 2 failed (18 min); the two failures are the load flakes described above. |
+| Landing tree, targeted | the three scale guards, the picker, settings-rail, palette and transcript tests, Markdown and site-token tests, `test_learning`, `test_browser_budget_controls`, `test_tool_compatibility`, `test_website`, `test_design_system`, and the browser tests for options, workspace modes, handoff, replay, replies, settings, memory and schedules | 149 passed, 0 failed (8 min) |
+| Lab audits on the rebased tree | axe on 20 routes at 1440 and 390; the new surfaces; the picker states; fit on all routes, on every settings pane and the popover, and on all 88 connection detail pages, in eight view configurations | 0 axe violations; 988 contrast samples with 0 failures (and 522 overlay samples where the only two readings are the sidebar badge behind a modal backdrop); 0 fit findings |
 
-For comparison, the first full browser run after the redesign had 24 failures and 1 teardown error; triage of those produced
-the fixes and test updates above. The baseline (before any change) had 5 browser failures: the typed-output test above;
-two popup-visibility races, which the hardened tests now cover; and two others (a generated-file download test and a
-computer-use login test) that pass on the final tree. I did not investigate why those two failed at the baseline, so I
-cannot say whether they were load-dependent.
+An earlier full browser run on the same tree had 13 failures that were real and are fixed: three tests waited for the Profile
+pane's heading after switching panes; the regrouped options popover, taller than the old list, became a bottom sheet that
+covered its own trigger on small screens (a sheet is now capped to leave the header uncovered); and the settings page
+remembered the last pane for the whole session, so navigating away and back reopened it on Behavior (only a save's re-render
+keeps the pane now, and a fresh visit opens on Profile).
