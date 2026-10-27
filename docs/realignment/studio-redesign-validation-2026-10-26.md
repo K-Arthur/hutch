@@ -79,6 +79,7 @@ Second iteration:
 14. **Code review, app:** approval gates' "Show more" did nothing outside the chat stream (the Needs you queue), and a very large write gave no sign it was clipped; "Show all more characters" for short multi-line output; the palette kept a stale highlight when the query changed; the settings rail scrolled the page instead of only itself and announced the wrong orientation on phones.
 15. **Text at 200%:** shared form grids and labelled fields let an input's intrinsic width push forms past the screen; long model ids in hints, connection chips and filter buttons could not wrap.
 16. **Smaller:** doubled spacing between connection cards (32 instead of 16), a field beside a taller one stretching its select to 59px, a sticky rail that could hide a focused field, the model pill's monogram entering its visible text (axe, fixed by generating it with CSS), Skills headings in the muted colour, title-only phone headers off the menu button's centre line, "1 messages", a shared icon for Conversation history and Work history, Activity KPIs flush against the cards above, Apps & AI status chips wrapping in a narrow column.
+17. **Popover flip-flop on phones (found by the final suite, caused by my own earlier fix):** the shared popup placed a panel as a bottom sheet or an anchored menu by measuring its current size. The sheet is capped to stay clear of its trigger, so a panel that was already a sheet measured shorter, was re-placed as anchored, grew, and was re-placed as a sheet on the next resize notification, alternating every frame (the options popover at every phone height from 560px up, with the header and content heights of the conversation-options test). Taps could land on a row that had just moved, which showed as a click timeout in `test_conversation_options_are_compact_persistent_and_recoverable`. That test passed in two earlier full runs and then failed four times in a row, so it was not treated as noise: the placement now measures the panel at its natural size, and `tests/e2e/test_popup_layout.py` samples 24 frames at every height from 560 to 992px and fails on the previous code with the two alternating states.
 
 ## Tests changed, and why
 
@@ -94,7 +95,7 @@ Updated because the design they encoded was replaced on purpose:
 | `test_popup_edges_and_surfaces_match_design_tokens` | Form fields use the 3:1 edge token; menus keep the strong border token. |
 | `test_open_phone_sheet_reaches_every_destination_and_wraps` | Needs you is reached within six Tab stops (the Search action now precedes the navigation), not the fourth. |
 | `test_every_workspace_route_renders_independently_at_responsive_sizes` | The long fixture name is longer (Geist is narrower, so the old name no longer needed an ellipsis); the phone "New" button must be a labelled button wider than the 44px icon form. |
-| `test_approval_triage_marketing_evidence_is_complete` | Evidence regenerated from the current site with the producer test (see below). It already failed on `main` at `b8bb7310` because that commit changed `index.html` after the evidence was captured. |
+| `test_approval_triage_marketing_evidence_is_complete` (now `test_archived_approval_triage_marketing_evidence_is_complete`) | `main` turned `docs/realignment/approval-triage-2026-10-22/marketing` into a frozen archive that is checked against its own snapshot of the page, and its producer test now writes elsewhere. My earlier regeneration of those eleven files made the archive inconsistent, so it was dropped and the archive restored to `main`'s version. |
 
 Second iteration, updated because the structure they encoded was replaced on purpose:
 
@@ -110,7 +111,13 @@ Added in the second iteration: `test_radius_scale.py`, `test_type_and_spacing_sc
 Hardened (same assertions, retrying wait instead of an instant check on a popup that opens asynchronously):
 `test_inline_chat_approval_is_one_click_and_preserves_conversation`,
 `test_chat_header_uses_available_title_space_and_groups_assistant_settings` and
-`test_fleet_appears_at_ten_bots_with_search_and_state_filters`.
+`test_fleet_appears_at_ten_bots_with_search_and_state_filters`. `test_conversation_options_are_compact_persistent_and_recoverable` now waits for each
+conversation switch to replace the view (a new `switch_conversation` helper) and for the asynchronous task-template import
+to fill the composer. It used to wait for text that the old view also contained and then click Options on a view that was
+about to be rebuilt; it passed 8 of 8 on clean `main` and failed 2 of 8 here, because the redesigned view is rebuilt a
+little later (a conversation switch takes about 79 and 127ms against 67 and 95ms on `main` in two interleaved runs). The
+generation guards in `renderChatStudio` were checked and are doing their job: the superseded render returns without
+painting, and the render that landed after the click was the current one. It passes 12 of 12 under a load average of 11.
 
 Added: `tests/e2e/test_studio_transcript.py` (Markdown inertness and Copy, step cards, gate content and decisions, long-request clamp and labels, header facts once, persistence across live updates), `tests/e2e/test_studio_palette.py`, `tests/test_studio_markdown.py` with `tests/support/markdown_check.mjs` (36 checks, mutation-verified), and updated `tests/test_studio_shell.py` and `tests/test_site_tokens.py`.
 
@@ -121,11 +128,15 @@ At the start of the second round, a full browser run on a clean checkout of `mai
 four in `test_browser.py`. `main` has since changed that picture (the design-system failures pass on the final tree), so the
 final comparison below is against the tree itself, not that list.
 
-In the final full runs two backend tests failed under load and pass in isolation, on a clean checkout of `main` and on this
-branch alike, which changes no backend code: `tests/test_offline_mode.py::test_loopback_broker_refuses_a_request_after_close_starts`
-and `tests/test_workspace_protocol.py::test_single_line_spin_deadline_is_bounded_by_an_outer_process[signal]`. They are timing
-and signal tests and the machine was busy with other agents' work; I treat them as load flakes and say so rather than
-re-running until green.
+One browser test was already failing on `main`'s tip when the branch was rebased onto it: `test_design_system.py::test_assistant_first_run_and_app_catalog_use_familiar_visual_language` pinned eleven connection tiles and `main`'s Telegram commit made it twelve (it was not updated there). I updated its expectations (count, the new `send` glyph, the `telegram` mark category, the tile label and the widths) rather than leave a red test under the redesign; each expectation matches what the page renders, and no assertion was loosened.
+
+Intermittent failures that are not from this work, each checked against a clean checkout of `main`'s tip (`05aa6489`) rather than assumed:
+
+- `test_paired_phone_keeps_mixed_question_and_approval_pending_in_either_order[decision_order1]` fails now and then waiting 30 seconds for the answer response: 1 of 6 runs on clean `main`, 1 of 5 here, plus once in the final full run. I did not change it and did not find its cause.
+- `tests/test_store_events.py::test_batched_writer_sustains_over_1000_events_per_second` is a throughput test; it fails in isolation on clean `main` and here when the machine is loaded (load average 4.7 to 11 from other agents' work).
+- `tests/test_workspace_protocol.py::test_single_line_spin_deadline_is_bounded_by_an_outer_process[signal]` and `tests/test_offline_mode.py::test_loopback_broker_refuses_a_request_after_close_starts` are timing and signal tests that failed in one full run each and pass in isolation on both trees. This branch changes no backend code.
+
+I report them as load-sensitive and did not re-run until green.
 
 ## Not tested, or limited
 
@@ -136,14 +147,14 @@ re-running until green.
 - The model picker was exercised with a synthetic catalog for screenshots, audits and tests; live provider catalogs were not contacted.
 - The vendor marks use artwork already bundled for connections; no new brand asset was added, and none is fetched at runtime.
 - `main` moved throughout the work (it gained dozens of commits, including a redesign of the connections flow and a persistent-chat model). The branch was rebased repeatedly, resolving real conflicts in `app.js`, `input.css`, `test_browser.py` and the site index. One of those resolutions was wrong and caught before landing: `git checkout --theirs` on the site index discarded `main`'s other edits to that file. The final tree was verified against `main` line by line (the index differs only in the graphite `theme-color`, the Geist preload and cache stamps). (No test pins that; it was checked by diffing against `main`.)
-- The full browser and backend suites ran once on a pinned snapshot a few commits before the landing tree; the landing tree (after two more small rebases and the test fixes below) was re-checked with a targeted run, not a third full run.
+- The final full browser and backend suites ran on the landing tree except for one later change: the options test's waits (a test-only edit), which was run 12 times alone rather than in a third full suite.
 
 ## Self-assessment against the PRODUCT.md gates
 
 | Gate | Score | Basis |
 | --- | --- | --- |
 | Aesthetic (at least 90) | about 91 | One shape, type and spacing language enforced by guards rather than by hand; the thread, gates, bubbles, sidebar, settings, popover, picker, intro and connections read as one product in opened screenshots at 320 to 1440. At the gate, not far above it: no external review, and the sidebar still carries a list of destinations that the Muse reference does not. |
-| Functionality (at least 95) | about 95 | Every role, id and decision semantic is preserved; the suites exercise them; validation found and fixed the defects listed above. At the gate, not above it: the environments under "Not tested" were not covered, and the final full runs were on a snapshot rather than the landing tree. |
+| Functionality (at least 95) | about 95 | Every role, id and decision semantic is preserved; the suites exercise them; validation found and fixed the defects listed above. At the gate, not above it: the environments under "Not tested" were not covered, and one phone test is intermittently red on `main` as well as here. |
 
 Both are unreviewed estimates, and the overall score is the lower of the two. Whether this matches the quality of the Grok and Muse references is your call; the screenshots are the thing to compare.
 
@@ -153,10 +164,10 @@ Temp, basetemp and artifact paths were on the disk volume; the Chromium revision
 
 | Run | Command | Result |
 | --- | --- | --- |
-| Browser, full, on the rebased tree | `pytest -q tests/e2e` | 445 passed, 1 skipped, 6 failed (26 min). Causes: three tests in `test_learning.py` and one in `test_browser_budget_controls.py` used the old accordion or never selected the pane that owns the field (Memory and learning and the usage limits are in Limits and memory); `test_tool_compatibility.py` raced a page transition (the shared helper now retries its click); and `test_archived_approval_triage_marketing_evidence_is_complete`, because `main` had turned that directory into a frozen archive and my earlier regeneration of its eleven files made it inconsistent (restored to `main`'s version). All six were fixed in the test layer or by restoring the archive, with no assertion weakened. |
-| Backend, full | `pytest -q --ignore=tests/e2e` | 3626 passed, 20 skipped, 6 xfailed, 2 failed (18 min); the two failures are the load flakes described above. |
-| Landing tree, targeted | the three scale guards, the picker, settings-rail, palette and transcript tests, Markdown and site-token tests, `test_learning`, `test_browser_budget_controls`, `test_tool_compatibility`, `test_website`, `test_design_system`, and the browser tests for options, workspace modes, handoff, replay, replies, settings, memory and schedules | 149 passed, 0 failed (8 min) |
-| Lab audits on the rebased tree | axe on 20 routes at 1440 and 390; the new surfaces; the picker states; fit on all routes, on every settings pane and the popover, and on all 88 connection detail pages, in eight view configurations | 0 axe violations; 988 contrast samples with 0 failures (and 522 overlay samples where the only two readings are the sidebar badge behind a modal backdrop); 0 fit findings |
+| Browser, full, first pass on the rebased tree | `pytest -q tests/e2e` | 445 passed, 1 skipped, 6 failed (26 min). Causes: three tests in `test_learning.py` and one in `test_browser_budget_controls.py` used the old accordion or never selected the pane that owns the field (Memory and learning and the usage limits are in Limits and memory); `test_tool_compatibility.py` raced a page transition (the shared helper now retries its click); and `test_archived_approval_triage_marketing_evidence_is_complete`, because `main` had turned that directory into a frozen archive and my earlier regeneration of its eleven files made it inconsistent (restored to `main`'s version). All six were fixed in the test layer or by restoring the archive, with no assertion weakened. |
+| Browser, full, on the landing tree (`0989a590`, rebased onto `main`'s Telegram commit) | `pytest -q tests/e2e` | 452 passed, 1 skipped, 2 failed (32 min). The options test: a test race, fixed in the test layer (see "Hardened"), then 12 of 12. The paired-phone test: the inherited intermittent failure described above. This run also found the popover flip-flop (defect 17), fixed in `controls.js` with a regression test, and the stale Telegram tile count (see above). |
+| Backend, full, on the landing tree | `pytest -q --ignore=tests/e2e` | 3673 passed, 20 skipped, 6 xfailed, 2 failed (25 min); both failures are the load-sensitive tests described above. |
+| Lab audits on the rebased tree | axe on 20 routes at 1440 and 390; the new surfaces; the picker states; fit on all routes, on every settings pane and the popover, on all 88 connection detail pages and on `main`'s new Telegram setup page, in eight view configurations (axe on Telegram at 1440, 390 and 320 only) | 0 axe violations; 988 contrast samples with 0 failures (and 522 overlay samples where the only two readings are the sidebar badge behind a modal backdrop); 0 fit findings |
 
 An earlier full browser run on the same tree had 13 failures that were real and are fixed: three tests waited for the Profile
 pane's heading after switching panes; the regrouped options popover, taller than the old list, became a bottom sheet that

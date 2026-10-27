@@ -5895,6 +5895,19 @@ def wait_for_page(page, expression, *, arg=None, timeout=30000):
     return wait_for(lambda: page.evaluate(expression, arg), timeout=timeout / 1000)
 
 
+def switch_conversation(page, conversation_id):
+    """Select a conversation and wait until its view has replaced the old one.
+
+    Switching rebuilds the whole conversation view. The old view still holds the old transcript and the select already
+    shows the new value, so waiting for either can finish before the new view exists, and a click made then lands on
+    a view that is about to be replaced. The switcher is a new element once the switch has painted.
+    """
+    page.evaluate("window.__previousSwitcher = document.querySelector('#conversation-switcher')")
+    page.locator("#conversation-switcher").select_option(conversation_id)
+    wait_for_page(page, "id => { const s = document.querySelector('#conversation-switcher'); "
+                        "return Boolean(s && s !== window.__previousSwitcher && s.value === id); }", arg=conversation_id)
+
+
 def wait_for(fn, timeout=20.0):
     end = time.time() + timeout
     while time.time() < end:
@@ -6699,11 +6712,9 @@ def test_conversation_options_are_compact_persistent_and_recoverable(browser, li
     page.locator("#studio-conversation-options").click()
     page.get_by_role("button", name="Mark unread").click()
     wait_for(lambda: store.get_conversation(first["id"])["unread"] == 1)
-    page.locator("#conversation-switcher").select_option(second["id"])
-    wait_for_page(page, "id => document.querySelector('#conversation-switcher')?.value === id", arg=second["id"])
+    switch_conversation(page, second["id"])
     assert store.get_conversation(first["id"])["unread"] == 1
-    page.locator("#conversation-switcher").select_option(first["id"])
-    wait_for_page(page, "id => document.querySelector('#conversation-switcher')?.value === id", arg=first["id"])
+    switch_conversation(page, first["id"])
     wait_for(lambda: store.get_conversation(first["id"])["unread"] == 0)
     page.locator("#chat-stream").get_by_text("Help me prepare a launch review.", exact=True).wait_for()
 
@@ -6762,7 +6773,7 @@ def test_conversation_options_are_compact_persistent_and_recoverable(browser, li
     page.locator("#composer-menu-btn").click()
     page.get_by_role("button", name="Import task-template file").click()
     page.locator("#task-template-file").set_input_files(template_path)
-    assert page.locator("#chat-prompt").input_value() == "Help me prepare a launch review."
+    pw.expect(page.locator("#chat-prompt")).to_have_value("Help me prepare a launch review.")   # the file is read asynchronously
     assert [run.id for run in store.list_runs()] == runs_before_template_import
     wait_for_page(page, "document.querySelector('#live-status')?.textContent.includes('Nothing was sent')")
 
