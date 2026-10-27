@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import base64
+import csv
+import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -80,6 +83,20 @@ def test_installed_desktop_owns_a_private_working_webview(tmp_path):
                 assert not (isinstance(value, dict) and value.get('error')), 'native script returned a WebDriver error'
                 return value
 
+            def execute_async(script, args=()):
+                result = client.post(f'/session/{session}/execute/async', json={'script': script, 'args': list(args)})
+                assert result.status_code == 200, 'native async script command failed'
+                value = result.json()['value']
+                assert not (isinstance(value, dict) and value.get('error')), 'native async script returned a WebDriver error'
+                return value
+
+            def app_api(path, options=None):
+                result = execute_async('''const done = arguments[arguments.length-1];
+                  api(arguments[0], arguments[1]).then(value => done({ok:true, value}))
+                    .catch(() => done({ok:false}));''', (path, options or {}))
+                assert result.get('ok') is True, 'owned native app API request failed'
+                return result['value']
+
             deadline = time.monotonic() + 45
             while not execute("return !!document.querySelector('#first-run-readiness');"):
                 assert time.monotonic() < deadline, 'installed app did not open its first-run workspace'
@@ -107,11 +124,68 @@ def test_installed_desktop_owns_a_private_working_webview(tmp_path):
             out = artifact_path('native-desktop')
             out.mkdir(parents=True, exist_ok=True)
             (out / 'installed-connections.png').write_bytes(pixels)
+            # Prove the bundled Python contains the actual pure workflow module,
+            # and WebKit can review/save its result. The named local route is
+            # deliberately unused: no installed model or account is required.
+            report_bot = app_api('/bots', {'method':'POST', 'body': {
+                'name':'native-report-check', 'model':'ollama/unused-native-fixture',
+                'tools':[], 'instructions':'Native deterministic report fixture.',
+            }})
+            assert report_bot['name'] == 'native-report-check'
+            execute("location.hash = '#/chat/native-report-check'; return true;")
+            deadline = time.monotonic() + 20
+            while not execute("return !!document.querySelector('#composer-menu-btn');"):
+                assert time.monotonic() < deadline, 'native report chat did not render'
+                time.sleep(.1)
+            execute("document.querySelector('#composer-menu-btn').click(); document.querySelector('#campaign-report-open').click(); return true;")
+            source = ('campaign,impressions,clicks,spend,conversions,revenue,daily_budget\n'
+                      'Search,10000,1000,300,20,1000,250\nSocial,20000,400,150,0,0,200\n')
+            execute('''const field=document.querySelector('#campaign-source'); field.value=arguments[0];
+              field.dispatchEvent(new Event('input',{bubbles:true}));
+              document.querySelector('#modal-confirm').click(); return true;''', (source,))
+            deadline = time.monotonic() + 20
+            while not execute("return document.querySelector('#campaign-preview')?.hidden === false;"):
+                assert time.monotonic() < deadline, 'native report preview did not render'
+                time.sleep(.1)
+            assert execute("return document.querySelector('#campaign-preview').textContent.includes('Reporting period unknown');")
+            assert execute("return document.querySelector('#campaign-preview tbody tr:nth-child(2) td:nth-child(4)').textContent;") == '—'
+            assert not app_api('/v1/workflows/runs?bot=native-report-check')['items']
+            execute("document.querySelector('#modal-confirm').click(); return true;")
+            deadline = time.monotonic() + 20
+            report_detail = None
+            while time.monotonic() < deadline:
+                reports = app_api('/v1/workflows/runs?bot=native-report-check')['items']
+                if reports:
+                    assert len(reports) == 1
+                    report_detail = app_api('/v1/workflows/runs/' + reports[0]['id'])
+                    if report_detail['workflow']['status'] in ('succeeded', 'failed', 'stopped'):
+                        break
+                time.sleep(.1)
+            assert report_detail and report_detail['workflow']['status'] == 'succeeded', 'native report did not complete'
+            assert report_detail['attempt']['tokens'] == 0 and report_detail['attempt']['cost_usd'] == 0
+            verification = next(node for node in report_detail['nodes'] if node['site_id'] == 'verify')
+            assert verification['result']['verified'] is True
+            artifacts = report_detail['workflow']['result']['artifacts']
+            assert len(artifacts) == 3
+            metrics = next(artifact for artifact in artifacts if artifact['name'] == 'campaign-metrics')
+            download_path = ('/api/v1/tasks/runs/' + metrics['run_id'] + '/artifacts/'
+                             + Path(metrics['artifact']).name)
+            download = execute_async('''const done=arguments[arguments.length-1];
+              fetch(arguments[0],{credentials:'same-origin'}).then(async response =>
+                done({status:response.status,text:await response.text()})).catch(()=>done({status:0}));''', (download_path,))
+            assert download['status'] == 200
+            assert hashlib.sha256(download['text'].encode()).hexdigest() == metrics['sha256']
+            rows = list(csv.DictReader(io.StringIO(download['text'])))
+            assert rows[0]['campaign'] == 'Search' and rows[0]['cpa'] == '15' and rows[0]['alert'] == ''
+            assert rows[1]['campaign'] == 'Social' and rows[1]['cpa'] == '' and rows[1]['alert'] == 'zero_conversions'
             (out / 'validation.json').write_text(json.dumps({
                 'contract_version': 1, 'application': Path(application).name,
                 'scope': 'actual installed Linux webview, private first-run profile; no inference or connected accounts',
                 'http_only_owner_cookie': True, 'external_client_refused': True,
                 'separate_google_services': True, 'horizontal_overflow': False,
+                'campaign_report': {'preview_before_admission':True, 'artifacts':3,
+                                    'download_sha256_verified':True, 'undefined_cpa_preserved':True,
+                                    'unknown_period_not_inferred':True, 'model_tokens':0},
                 'limits': ['No tray/menu or sleep/wake interaction', 'No live service/model or native worker acceptance',
                            'No screenshot visual inspection claimed by this automated test'],
             }, indent=2) + '\n')
