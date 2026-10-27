@@ -245,6 +245,15 @@ cannot guarantee that an outside provider never bills more than the limit. Use t
 separate external ceiling. A local model says "no per-token cost", a flat-rate plan says that calls still count against its
 declared allowance, and a hosted model with no price row is refused while a currency limit is set.
 
+In **Apps & AI → Model accounts → Spending limits**, set optional USD warning, approval and stop thresholds
+for a billing account shared by multiple model connections. Choose **Each local day** or **Across all days**;
+the latter includes the account's entire retained ledger in this Hutch profile, across Bots and tasks. The preview
+shows recorded spending plus unresolved holds for the selected period. Blank removes a band; a zero stop permits
+only requests with a known zero quote. Existing per-run, per-Bot and legacy daily limits still apply independently.
+Saving from an outdated form is refused: reload the current limits before editing again. These controls govern
+Hutch's estimates, not your provider balance or activity in other applications. They do not establish that a
+native third-party runtime has reserved a maximum for every auxiliary call.
+
 ## Usage
 
 `/usage` answers "where did the money and the allowance go": measured spend and tokens by **local calendar day** (the same day the

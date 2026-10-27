@@ -54,3 +54,23 @@ contract through `allow_stream_retry`, disabled by the builtin runtime.
 Automated tests cover competing SQLite connections and spawned processes, account-shared token windows, exact settlement, uncertain holds,
 terminal-only reconciliation, migration, the typed API, and the dashboard. No live provider account, provider-side
 budget enforcement, pricing accuracy, or external-runtime billing behavior has been verified.
+
+## Shared account period and editing revision (2026-10-26)
+
+Explicit account policies may now choose `lifetime` as well as the existing `local_day` default. Admission and
+preflight use all measured usage for that account plus every reserved/uncertain hold for a lifetime policy;
+the same SQLite admission transaction prevents separate Bots or Store connections from racing the limit.
+Daily legacy caps remain independent. No schema migration is required: the existing table already admits this
+reset value. Bot policies remain daily, run/conversation policies retain their existing lifetime semantics.
+
+The versioned budget GET adds prospective totals for both account periods. PUT accepts an optional
+`expected_revision` (zero for an absent policy), checked in the write transaction; mismatch returns 409.
+The dashboard supplies it, while existing callers may omit it for compatibility. The connection directory
+exposes the actual account identity and uses shared-account token usage, matching enforcement rather than
+displaying separate alias counters. No credential or model permission is changed.
+
+Lifetime policies require this supporting application version. Do not roll back to an older application against
+a database containing one: older policy validation does not accept the new application-level option. Follow
+the matching backup/recovery procedure and reconcile any charges incurred after the backup; restoring a
+database must never be mistaken for refunding provider charges. These estimates still require verified price
+bounds and runtime-specific dispatch accounting before the evaluation can claim a bounded live spend.

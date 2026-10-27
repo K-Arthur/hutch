@@ -2519,6 +2519,10 @@ class UsageBudgetRefusal(ValueError):
     """The requested model call cannot be reserved under a configured token or currency cap."""
 
 
+class BudgetPolicyConflict(ValueError):
+    """A stale form cannot replace a newer spending policy."""
+
+
 class UsageQuoteUnavailable(UsageBudgetRefusal):
     """A currency threshold applies and no price basis could be established; admission fails closed."""
 
@@ -10408,6 +10412,8 @@ class Store:
                         "account": account_totals}
         if "conversation" in policies:
             observations["conversation"] = self._conversation_totals(db, conversation_id)
+        if "account" in policies and policies['account'].reset == 'lifetime':
+            observations['account'] = self._account_lifetime_totals(db, policies['account'].scope_id)
         cost_unknown = 0
         if quote.usd is None:
             # An unpriced call can never satisfy a ceiling: the number would be invented. Soft bands may
@@ -10499,8 +10505,8 @@ class Store:
                 run_held = float(db.execute("SELECT COALESCE(SUM(reserved_cost_usd), 0) FROM usage_reservations "
                                             "WHERE run_id = ? AND status IN ('reserved','uncertain')",
                                             (run_id,)).fetchone()[0] or 0.0)
-                # Bot and account scopes are enforced over the local day (the only windows offered for
-                # them), so the preflight must use the same window as admission — never lifetime totals.
+                # Legacy daily caps keep their window. An explicit lifetime
+                # account policy recomputes its totals in _enforce_budget_bands.
                 bot_measured = float(db.execute("SELECT COALESCE(SUM(cost_usd), 0) FROM usage "
                                                 "WHERE bot_id = ? AND ts >= ? AND ts < ?",
                                                 (bot_id, day_start, day_end)).fetchone()[0] or 0.0)
@@ -10531,7 +10537,8 @@ class Store:
 
     def set_budget_policy(self, *, scope_kind: str, scope_id: str, warn_usd: Optional[float] = None,
                           pause_usd: Optional[float] = None, ceiling_usd: Optional[float] = None,
-                          reset: Optional[str] = None, unknown_price: str = "refuse") -> "BudgetPolicy":
+                          reset: Optional[str] = None, unknown_price: str = "refuse",
+                          expected_revision: Optional[int] = None) -> "BudgetPolicy":
         """Create or replace one scope's warn/pause/ceiling bands. Revision bumps; warnings re-arm."""
         from .models import BudgetPolicy
         if reset is None:
@@ -10540,6 +10547,10 @@ class Store:
         policy = BudgetPolicy(scope_kind=scope_kind, scope_id=scope_id, warn_usd=warn_usd, pause_usd=pause_usd,
                               ceiling_usd=ceiling_usd, reset=reset, unknown_price=unknown_price)
         with self._tx() as db:
+            current = db.execute('SELECT revision FROM budget_policies WHERE scope_kind = ? AND scope_id = ?',
+                                 (scope_kind, scope_id)).fetchone()
+            if expected_revision is not None and expected_revision != (int(current['revision']) if current else 0):
+                raise BudgetPolicyConflict('Spending limits changed. Reload them before saving again.')
             exists = {"run": "SELECT 1 FROM runs WHERE id = ?", "conversation": "SELECT 1 FROM conversations WHERE id = ?",
                       "bot": "SELECT 1 FROM bots WHERE id = ?"}.get(scope_kind)
             if exists is not None and db.execute(exists, (scope_id,)).fetchone() is None:
@@ -10600,11 +10611,34 @@ class Store:
             cutoff = iso(utcnow() - timedelta(days=35))
             db.execute("DELETE FROM budget_pause_releases WHERE created_at < ?", (cutoff,))
 
+    @staticmethod
+    def _account_lifetime_totals(db: sqlite3.Connection, account_id: str) -> tuple[float, float]:
+        # One snapshot includes every Bot and retry on this billing group.
+        # Uncertain holds never expire merely because a day/window changes.
+        row = db.execute("SELECT (SELECT COALESCE(SUM(cost_usd),0) FROM usage WHERE account_id = ?) AS spent, "
+                         "(SELECT COALESCE(SUM(reserved_cost_usd),0) FROM usage_reservations WHERE account_id = ? "
+                         "AND status IN ('reserved','uncertain')) AS held", (account_id, account_id)).fetchone()
+        return float(row['spent']), float(row['held'])
+
+    def account_budget_periods(self, account_id: str) -> dict:
+        """Preview both selectable windows in one SQLite snapshot; holds never age out."""
+        start, end = local_day_bounds(utcnow())
+        with self._lock:
+            row = self._db.execute(
+                "SELECT COALESCE(SUM(CASE WHEN ts >= ? AND ts < ? THEN cost_usd ELSE 0 END),0) AS today, "
+                "COALESCE(SUM(cost_usd),0) AS lifetime, "
+                "(SELECT COALESCE(SUM(reserved_cost_usd),0) FROM usage_reservations WHERE account_id = ? "
+                "AND status IN ('reserved','uncertain')) AS held FROM usage WHERE account_id = ?",
+                (start, end, account_id, account_id)).fetchone()
+        return {period: {'spent_usd': float(row[column]), 'held_usd': float(row['held'])}
+                for period, column in (('local_day', 'today'), ('lifetime', 'lifetime'))}
+
     def scope_spend(self, *, scope_kind: str, scope_id: str, account_id: str = "") -> tuple[float, float]:
         """(measured, held) USD for display. Enforcement recomputes inside the admission transaction.
 
-        Run and conversation scopes are lifetime figures; bot and account scopes are the current local day,
-        matching the daily legacy caps. Holds are never windowed (ADR-0011).
+        Run/conversation scopes are lifetime; Bot scopes are the local day.
+        Account scopes use their selected daily/lifetime policy. Legacy daily
+        caps remain independent. Holds are never windowed (ADR-0011).
         """
         if scope_kind == "run":
             measured = float(self._db.execute("SELECT COALESCE(SUM(cost_usd), 0) FROM usage WHERE run_id = ?",
@@ -10629,6 +10663,10 @@ class Store:
                         (scope_id,)).fetchone()[0] or 0.0))
         if scope_kind == "account":
             account = account_id or scope_id
+            policy = self.get_budget_policy('account', scope_id)
+            if policy is not None and policy.reset == 'lifetime':
+                with self._lock:
+                    return self._account_lifetime_totals(self._db, account)
             return (float(self._db.execute(
                         "SELECT COALESCE(SUM(cost_usd), 0) FROM usage WHERE account_id = ? AND ts >= ? AND ts < ?",
                         (account, day_start, day_end)).fetchone()[0] or 0.0),

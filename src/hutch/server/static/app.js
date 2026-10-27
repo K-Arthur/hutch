@@ -4420,6 +4420,103 @@ async function loadBotBudget(bot) {
   } catch { /* the fields simply stay empty; saving them later is still possible */ }
 }
 
+let accountSpendingGeneration = 0;
+async function openAccountSpending(connection, connections, returnFocus) {
+  const generation = ++accountSpendingGeneration;
+  const routeAtStart = location.hash;
+  const connectionsAtStart = connectionsGeneration;
+  const dialogAtStart = $('#modal-root .modal-card');
+  const accountId = connection.account_id;
+  if (!accountId) return;
+  returnFocus.disabled = true;
+  try {
+    const data = await api(`/v1/budgets?scope_kind=account&scope_id=${encodeURIComponent(accountId)}`);
+    if (generation !== accountSpendingGeneration || location.hash !== routeAtStart
+        || connectionsGeneration !== connectionsAtStart || $('#modal-root .modal-card') !== dialogAtStart) return;
+    const policy = data.policy || {};
+    const shared = connections.filter(item => item.account_id === accountId);
+    const amount = value => value === null || value === undefined ? '' : String(value);
+    let form, error, save, saving = false;
+    openModal({
+      title: 'Shared model spending', confirmText: 'Save limits', returnFocus,
+      bodyHtml: `<p>Set limits on Hutch’s estimated spending for every assistant and task using <strong>${esc(shared.map(item => item.title || item.name).join(', '))}</strong>.</p>
+        <form class="form-grid" id="account-spending-form">
+          <label class="field" for="account-budget-period"><span id="account-budget-period-label">Budget period</span>
+            <select id="account-budget-period" aria-labelledby="account-budget-period-label" aria-describedby="account-budget-totals">
+              <option value="local_day" ${policy.reset !== 'lifetime' ? 'selected' : ''}>Each local day</option>
+              <option value="lifetime" ${policy.reset === 'lifetime' ? 'selected' : ''}>Across all days</option>
+            </select></label>
+          <p class="hint" id="account-budget-totals" aria-live="polite"></p>
+          <label class="field" for="account-budget-warn">Warn me at (USD)<input id="account-budget-warn" type="number" min="0" step="any" value="${esc(amount(policy.warn_usd))}" placeholder="No warning"></label>
+          <label class="field" for="account-budget-pause">Ask before exceeding (USD)<input id="account-budget-pause" type="number" min="0" step="any" value="${esc(amount(policy.pause_usd))}" placeholder="No pause threshold"></label>
+          <label class="field" for="account-budget-ceiling">Stop before exceeding (USD)<input id="account-budget-ceiling" type="number" min="0" step="any" value="${esc(amount(policy.ceiling_usd))}" placeholder="No hard stop"></label>
+        </form>
+        <p class="hint account-spending-note">Blank disables a band. A zero stop admits only known free requests. Unresolved holds stay included across days.</p>
+        <p class="hint">Provider billing can differ. Other apps and your provider’s balance aren’t included.</p>
+        <p id="account-spending-error" class="hint" role="status" tabindex="-1" hidden></p>
+        <button type="button" class="btn ghost small" id="account-spending-reload" hidden>Reload saved limits</button>`,
+      onConfirm: async () => {
+        if (saving || !form.reportValidity()) return false;
+        saving = true; save.disabled = true; error.hidden = true;
+        save.textContent = 'Saving…'; save.setAttribute('aria-busy', 'true');
+        const band = id => { const value = $(id, form).value.trim(); return value === '' ? null : Number(value); };
+        const fields = $$('input,select', form);
+        try {
+          const body = {
+            scope_kind: 'account', scope_id: accountId, reset: $('#account-budget-period', form).value,
+            warn_usd: band('#account-budget-warn'), pause_usd: band('#account-budget-pause'),
+            ceiling_usd: band('#account-budget-ceiling'), unknown_price: policy.unknown_price || 'refuse',
+            expected_revision: policy.revision || 0,
+          };
+          fields.forEach(field => { field.disabled = true; });
+          const saved = await api('/v1/budgets', {method: 'PUT', body});
+          toast(`Shared spending limits saved ${saved.reset === 'lifetime' ? 'across all days' : 'for each local day'}.`);
+          return true;
+        } catch (failure) {
+          if (error.isConnected) {
+            error.hidden = false;
+            error.textContent = `Could not confirm this save: ${failure.message} Reload saved limits before retrying.`;
+            $('#account-spending-reload').hidden = false;
+            error.focus();
+          }
+          return false;
+        } finally {
+          saving = false;
+          fields.forEach(field => { if (field.isConnected) field.disabled = false; });
+          if (save.isConnected) { save.disabled = false; save.textContent = 'Save limits'; save.removeAttribute('aria-busy'); }
+        }
+      },
+    });
+    form = $('#account-spending-form'); error = $('#account-spending-error'); save = $('#modal-confirm');
+    const period = $('#account-budget-period', form);
+    const refreshTotals = () => {
+      const totals = data.periods?.[period.value] || data;
+      $('#account-budget-totals').textContent = `${fmtUsd(totals.spent_usd || 0)} recorded + ${fmtUsd(totals.held_usd || 0)} held ${period.value === 'lifetime' ? 'across all days in this profile' : 'for this local day'}.`;
+    };
+    period.onchange = refreshTotals; refreshTotals();
+    form.onsubmit = event => { event.preventDefault(); save.click(); };
+    $('#account-spending-reload').onclick = async event => {
+      if (saving) return;
+      const reload = event.currentTarget;
+      reload.disabled = true;
+      try { await openAccountSpending(connection, connections, returnFocus); }
+      finally { if (reload.isConnected) reload.disabled = false; }
+    };
+  } catch (failure) {
+    if (generation !== accountSpendingGeneration || location.hash !== routeAtStart
+        || connectionsGeneration !== connectionsAtStart) return;
+    const inlineError = dialogAtStart?.querySelector('#account-spending-error');
+    if (inlineError?.isConnected) {
+      inlineError.hidden = false;
+      inlineError.textContent = `Could not load spending limits: ${failure.message}`;
+      inlineError.focus();
+    } else if ($('#modal-root .modal-card') === dialogAtStart) {
+      toast(`Could not load spending limits: ${failure.message}`, true);
+    }
+  }
+  finally { if (returnFocus.isConnected) returnFocus.disabled = false; }
+}
+
 async function preflightHtml(bot, conversationId = "", selection = {}) {
   try {
     const body = { conversation_id: conversationId, prompt: selection.prompt || "" };
@@ -9584,7 +9681,7 @@ async function renderConnections() {
             </div>`).join("")}</div>` : `<p class="hint">No active paired devices.</p>`}
       </details>
       <div class="custom-service-heading">
-        <div><h3>Connected model services</h3><p class="hint">Manage model accounts, allowances and advanced endpoints.</p></div>
+        <div><h3>Model accounts</h3><p class="hint">Manage spending, allowances and advanced endpoints.</p></div>
         <button class="btn ghost small" id="btn-add-conn" type="button">${icon("plus")} Connect a provider</button>
       </div>
       ${conns.length ? conns.map(c => `
@@ -9612,6 +9709,7 @@ async function renderConnections() {
             ${c.auth_type === "chatgpt-siws" ? "" : '<button class="btn ghost small" data-conn-action="key">Set key</button>'}
             ${c.ack === "required" || c.ack === "stale" ? `<button class="btn warn small" data-conn-action="ack">Accept terms</button>` : ""}
             <button class="btn ghost small" data-conn-action="allowance">Allowance</button>
+            <button class="btn ghost small" data-conn-action="spending" aria-label="Spending limits for ${esc(c.title || c.name)}" ${c.account_id ? '' : 'disabled title="Billing group unavailable in this backend"'}>Spending limits</button>
             ${c.auth_type === "chatgpt-siws" ? "" : '<button class="btn ghost small" data-conn-action="clear-key">Remove key</button>'}
             <button class="btn danger small" data-conn-action="remove">Remove</button>
           </div>
@@ -10756,6 +10854,11 @@ async function renderConnections() {
     $$(".card-actions [data-conn-action]", card).forEach(btn => {
       btn.addEventListener("click", async () => {
         const action = btn.dataset.connAction;
+        if (action === 'spending') {
+          const connection = conns.find(item => item.name === name);
+          if (connection) await openAccountSpending(connection, conns, btn);
+          return;
+        }
         if (action === "key") {
           openModal({
             title: `API key for ${name}`,

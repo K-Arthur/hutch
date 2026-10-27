@@ -103,6 +103,7 @@
 .connections-workspace .service-mark-notion { background: var(--sunken); border-color: var(--line); }
 .connections-workspace .service-mark-notion img { width: 30px; height: 30px; }
 .learning-preferences { margin-block: var(--s-4); }
+.account-spending-note { margin-top: var(--s-3); }
 .learning-preferences h3 { margin: 0; font-size: var(--fs-base); font-weight: var(--weight-semibold); }
 .learning-preferences > p { margin-block: var(--s-1) var(--s-3); }
 .learning-preferences ul { margin: 0; padding: 0; list-style: none; }

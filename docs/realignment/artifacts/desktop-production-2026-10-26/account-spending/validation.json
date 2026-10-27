@@ -1,0 +1,34 @@
+{
+  "scope": "synthetic historical ledger; no credentials/model calls",
+  "viewports": [
+    [
+      1440,
+      960
+    ],
+    [
+      390,
+      844
+    ],
+    [
+      320,
+      740
+    ]
+  ],
+  "page_errors": [],
+  "computed_styles": {
+    "inputSize": "16px",
+    "selectSize": "16px",
+    "selectHeight": 44,
+    "noteGap": "12px"
+  },
+  "text_spacing_override": "1.5 / 2em / .12em / .16em at 320 CSS px",
+  "browser_zoom_200_percent": "not verified by this headless journey",
+  "tested": [
+    "period preview",
+    "shared aliases",
+    "saved limits",
+    "stale revision conflict",
+    "503 recovery",
+    "late response cannot replace chat"
+  ]
+}

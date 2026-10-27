@@ -474,6 +474,7 @@ class BudgetPolicyUpdate(BaseModel):
     ceiling_usd: Optional[float] = Field(default=None, ge=0)
     reset: Optional[Literal["run_lifetime", "conversation_lifetime", "local_day", "rolling_24h", "lifetime"]] = None
     unknown_price: Literal["refuse", "mark"] = "refuse"
+    expected_revision: Optional[int] = Field(default=None, ge=0)
 
 
 class WorkspaceModelDefaultsUpdate(BaseModel):
@@ -5094,6 +5095,10 @@ def create_app() -> FastAPI:
     def get_budget(scope_kind: Literal["run", "conversation", "bot", "account"], scope_id: str) -> dict:
         """One scope's warn/pause/ceiling bands and its current measured + held spend."""
         policy = store.get_budget_policy(scope_kind, scope_id)
+        if scope_kind == 'account':
+            periods = store.account_budget_periods(scope_id)
+            totals = periods[policy.reset if policy else 'local_day']
+            return {'policy': policy.model_dump() if policy else None, **totals, 'periods': periods}
         measured, held = store.scope_spend(scope_kind=scope_kind, scope_id=scope_id)
         return {"policy": policy.model_dump() if policy is not None else None,
                 "spent_usd": measured, "held_usd": held}
@@ -5105,10 +5110,14 @@ def create_app() -> FastAPI:
         if reset is None:
             reset = {"run": "run_lifetime", "conversation": "conversation_lifetime"}.get(body.scope_kind, "local_day")
         try:
+            from ..store import BudgetPolicyConflict
             policy = store.set_budget_policy(scope_kind=body.scope_kind, scope_id=body.scope_id,
                                              warn_usd=body.warn_usd, pause_usd=body.pause_usd,
                                              ceiling_usd=body.ceiling_usd, reset=reset,
-                                             unknown_price=body.unknown_price)
+                                             unknown_price=body.unknown_price,
+                                             expected_revision=body.expected_revision)
+        except BudgetPolicyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
         return policy.model_dump()
@@ -6199,9 +6208,10 @@ def create_app() -> FastAPI:
         out = []
         template_rows = book.templates()
         for name, c in book.configured().items():
-            used = store.usage_tokens_since(name, c.quota.seconds) if c.quota.tokens else 0
+            used = store.account_usage_tokens_since(c.account_id, c.quota.seconds) if c.quota.tokens else 0
             out.append({
                 "name": name, "title": c.title, "template": c.template, "protocol": c.protocol,
+                "account_id": c.account_id,
                 "provider_mark": (template_rows.get(c.template) or {}).get("provider_mark", ""),
                 "base_url": c.base_url, "api_key_env": c.api_key_env, "billing": c.billing,
                 "has_key": book.has_key(name), "key_source": book.key_source(name),

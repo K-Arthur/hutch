@@ -252,7 +252,7 @@ class BudgetPolicy(BaseModel):
             "run": {"run_lifetime"},
             "conversation": {"conversation_lifetime"},
             "bot": {"local_day"},
-            "account": {"local_day"},
+            "account": {"local_day", "lifetime"},
         }[self.scope_kind]
         if self.reset not in allowed_resets:
             raise ValueError(f"{self.scope_kind} policies support {sorted(allowed_resets)}; other reset "
