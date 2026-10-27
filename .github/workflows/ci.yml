@@ -56,10 +56,15 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install uv==0.12.24
       - run: uv sync --frozen --extra dev
+      - name: Identify the actual benchmark machine and interpreter
+        id: benchmark_profile
+        run: |
+          bench_profile="$(uv run --frozen --no-sync python -m benchmarks.run --profile-key)"
+          printf 'key=%s\n' "$bench_profile" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: benchmarks/baselines/ci.json
-          key: bench-baseline-${{ runner.os }}-${{ runner.arch }}-v1
+          key: bench-baseline-${{ runner.os }}-${{ runner.arch }}-v2-${{ steps.benchmark_profile.outputs.key }}
       - run: uv run --frozen --no-sync python -m benchmarks.run --record-if-missing --check
         env:
           HUTCH_BENCH_BASELINE: ci

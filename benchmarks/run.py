@@ -6,7 +6,9 @@
 
 The execution step uses the repository's test-only scenario fixture; it is a control-path
 measurement and does not measure production model performance. Numbers are machine-specific: baselines are keyed by
-$HUTCH_BENCH_BASELINE (default "local"), so CI records its own on first run and compares afterwards.
+$HUTCH_BENCH_BASELINE (default "local"). CI caches by actual CPU/cores/Python/OS/sample schema;
+a first compatible-profile run records an initial measurement, then later code revisions compare against it.
+Missing or incompatible metadata fails comparison; it is not reported as a code regression.
 The draft's targets are *proposals*; they are printed next to each metric but only the regression
 gate fails the build.
 """
@@ -241,8 +243,27 @@ def baseline_path() -> Path:
     return ROOT / "baselines" / f"{os.environ.get('HUTCH_BENCH_BASELINE', 'local')}.json"
 
 
+def profile_key(meta: dict) -> str:
+    """Keep unlike machines/interpreters out of one regression comparison."""
+    fields = ('cpu', 'cores', 'python', 'platform', 'sample_schema')
+    if any(key not in meta or meta[key] in ('', None, 'unknown') for key in fields):
+        raise ValueError('benchmark profile is missing verified machine/interpreter metadata')
+    try:
+        if int(meta['cores']) < 1 or int(meta['sample_schema']) < 1:
+            raise ValueError
+    except (ValueError, TypeError):
+        raise ValueError('benchmark profile needs a positive core count and sample schema') from None
+    selected = {key: str(meta[key]) for key in fields}
+    return hashlib.sha256(json.dumps(selected, sort_keys=True, separators=(',', ':')).encode()).hexdigest()[:24]
+
+
 def compare(current: dict, baseline: dict) -> list[str]:
     """Return human-readable regressions (empty list = pass)."""
+    try:
+        if profile_key(current.get('meta', {})) != profile_key(baseline.get('meta', {})):
+            return ['incompatible benchmark profiles; compare matching CPU, cores, Python, OS and sample schema']
+    except ValueError as error:
+        return [str(error)]
     bad = []
     for name, (unit, better, floor, _target) in METRICS.items():
         missing = []
@@ -295,8 +316,12 @@ def main() -> int:
     ap.add_argument("--check", action="store_true", help="fail on a >20%% regression vs the baseline")
     ap.add_argument("--record-if-missing", action="store_true", help="CI: record a baseline on first run")
     ap.add_argument("--quick", action="store_true", help="fewer samples (smoke test)")
+    ap.add_argument('--profile-key', action='store_true', help='print only the machine/interpreter cache identity')
     args = ap.parse_args()
 
+    if args.profile_key:
+        print(profile_key(machine()))
+        return 0
     result = measure(quick=args.quick)
     RESULTS.mkdir(exist_ok=True)
     (RESULTS / "latest.json").write_text(json.dumps(result, indent=2) + "\n")
@@ -316,7 +341,7 @@ def main() -> int:
             return 2
         bad = compare(result, baseline)
         if bad:
-            print("\nPERFORMANCE REGRESSION (>20%):", *bad, sep="\n  ", file=sys.stderr)
+            print("\nBENCHMARK CHECK FAILED (20% regression gate):", *bad, sep="\n  ", file=sys.stderr)
             return 1
         print("\nno regression beyond 20%")
     return 0

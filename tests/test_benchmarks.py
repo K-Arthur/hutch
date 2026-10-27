@@ -2,11 +2,32 @@ from __future__ import annotations
 
 import pytest
 
-from benchmarks.run import METRICS, _percentile, compare, summarize_samples
+from benchmarks.run import METRICS, _percentile, compare, profile_key, summarize_samples
 
 
 def _r(**m):
-    return {"metrics": {name: 1.0 for name in METRICS} | m}
+    return {"metrics": {name: 1.0 for name in METRICS} | m,
+            'meta': {'cpu': 'Fixture CPU', 'cores': '4', 'python': '3.12.15',
+                     'platform': 'Linux fixture', 'sample_schema': 2}}
+
+
+@pytest.mark.parametrize('field,value', [('cpu', 'Other CPU'), ('cores', '2'), ('python', '3.13.15'),
+                                       ('platform', 'Other kernel'), ('sample_schema', 3)])
+def test_mismatched_profiles_are_not_reported_as_comparable_performance(field, value):
+    current, baseline = _r(), _r()
+    baseline['meta'][field] = value
+    assert 'incompatible benchmark profiles' in compare(current, baseline)[0]
+
+
+def test_cache_identity_does_not_reset_for_source_or_measurement_date_changes():
+    meta = _r()['meta']
+    assert profile_key(meta) == profile_key({**meta, 'source_revision': 'new source', 'measured_on': 'later'})
+
+
+def test_missing_or_unknown_machine_metadata_fails_closed():
+    with pytest.raises(ValueError, match='missing verified'):
+        profile_key({**_r()['meta'], 'cpu': 'unknown'})
+    assert compare({'metrics': _r()['metrics']}, _r())
 
 
 def test_twenty_percent_slower_cli_is_a_regression():
