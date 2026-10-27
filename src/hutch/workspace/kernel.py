@@ -44,7 +44,9 @@ watchdog thread (deadline), the SIGINT handler, and the reader thread (for
 their flag, raising into the cell. An opt-in cooperative line-event tracer
 (``enable_tracer``; used by tests, where real signal delivery is
 unavailable) additionally makes flag-only interruption stop pure-Python
-spin loops. A single C-level call that never returns cannot be interrupted —
+spin loops. Submitted-cell frames include opcode events: Python 3.11 may
+otherwise emit no further line event for a one-line spin. This optional
+diagnostic path is off in normal workers. A single C-level call that never returns cannot be interrupted —
 the parent's watchdog then terminates the process and reports an honest
 fabricated receipt whose counters admit the output was lost.
 """
@@ -125,9 +127,11 @@ class _Capture(io.TextIOBase):
 
 
 class _Tracer:
-    """Cooperative interruption: raises the classified interrupt on the next
-    line event. Cheap by design (two comparisons per line); covers the case
-    where ``interrupt_main`` is unavailable or stubbed."""
+    """Cooperative interruption when ``interrupt_main`` is unavailable/stubbed.
+
+    Cell opcode events cover single-line loops without expanding tracing in
+    imported modules. This is opt-in diagnostic behavior, not containment.
+    """
 
     __slots__ = ("kernel",)
 
@@ -135,7 +139,9 @@ class _Tracer:
         self.kernel = kernel
 
     def __call__(self, frame, event, arg):
-        if event != "line":
+        if event == 'call' and frame.f_code.co_filename == '<cell>':
+            frame.f_trace_opcodes = True
+        if event not in ('line', 'opcode'):
             return self
         kernel = self.kernel
         if kernel._budget_spent:
@@ -153,7 +159,8 @@ class Kernel:
 
     ``proto_write(str)`` and ``readline()`` are the protocol channel;
     ``interrupt_main`` defaults to ``_thread.interrupt_main`` and is
-    injectable so tests can run a kernel without signal delivery.
+    injectable so tests can run a kernel without signal delivery. This trusted
+    callback must be nonblocking, like the default signal dispatcher.
     """
 
     def __init__(self, *, workspace: str, generation: int,
@@ -198,6 +205,7 @@ class Kernel:
         self._emitted_errors: list[str] = []
         self._pending_snapshot: dict[str, tuple[int, int, int]] = {}
         self._shutdown = threading.Event()
+        self._deadline_lock = threading.Lock()
         self._queue: "list[dict[str, Any]]" = []
         self._queue_cv = threading.Condition()
 
@@ -409,12 +417,15 @@ class Kernel:
         table: dict[str, Any] | None = None
 
         self._inflight = {"id": rid, "ordinal": ordinal}
+        active_cell = self._inflight
+        watchdog_cancelled = threading.Event()
         watchdog = None
         real_stdout, real_stderr = sys.stdout, sys.stderr
         sys.stdout, sys.stderr = out_cap, err_cap
         try:
             if deadline_ms:
-                watchdog = threading.Thread(target=self._watchdog, args=(deadline_ms,),
+                watchdog = threading.Thread(target=self._watchdog,
+                                            args=(self._deadline, watchdog_cancelled, active_cell),
                                             name="hutch-kernel-watchdog", daemon=True)
                 watchdog.start()
             if self._enable_tracer:
@@ -433,9 +444,15 @@ class Kernel:
             error = {"type": type(exc).__name__, "value": str(exc)[:2000],
                      "redacted_traceback": protocol.redacted_traceback(exc, self.workspace)}
         finally:
+            # A previous cell's timer may not interrupt a later request. Fence
+            # cancellation against deadline dispatch and stop its owned thread.
+            with self._deadline_lock:
+                watchdog_cancelled.set()
+                self._deadline = None
+                self._inflight = None
+            if watchdog is not None:
+                watchdog.join(timeout=.1)
             sys.stdout, sys.stderr = real_stdout, real_stderr
-            self._deadline = None
-            self._inflight = None
 
         produced = protocol.produced_files_between(
             self._pending_snapshot, protocol.snapshot_workspace(_path(self.workspace)),
@@ -496,17 +513,21 @@ class Kernel:
             return eval(expression, ns)  # noqa: S307 - same reasoning
         return None
 
-    def _watchdog(self, deadline_ms: int) -> None:
+    def _watchdog(self, end: float, cancelled: threading.Event, active_cell: dict) -> None:
         """Backstop for cells the line-event tracer cannot see (a single
         blocking C call): spend the deadline, then interrupt the main thread."""
-        end = time.monotonic() + deadline_ms / 1000.0
-        while not self._shutdown.wait(timeout=max(0.0, min(end - time.monotonic(), 0.05))):
+        while not cancelled.wait(timeout=max(0.0, min(end - time.monotonic(), 0.05))):
+            if self._shutdown.is_set():
+                return
             if time.monotonic() >= end:
-                self._deadline_breached = True
-                try:
-                    self._interrupt_main()
-                except RuntimeError:
-                    pass
+                with self._deadline_lock:
+                    if cancelled.is_set() or self._inflight is not active_cell:
+                        return
+                    self._deadline_breached = True
+                    try:
+                        self._interrupt_main()
+                    except RuntimeError:
+                        pass
                 return
 
     def _classify_interrupt(self, exc: BaseException, out: "_Capture", err: "_Capture") \

@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
@@ -414,6 +416,69 @@ def test_deadline_terminates_a_spinning_cell_with_status_timeout(tmp_path):
     assert response["receipt"]["status"] == "timeout"
     assert elapsed < 5
     assert response["error"]["type"] == "TimeoutError"
+
+
+@pytest.mark.parametrize('mode', ['cooperative', 'signal'])
+def test_single_line_spin_deadline_is_bounded_by_an_outer_process(tmp_path, mode):
+    """An interpreter tracing regression must fail, rather than hang the suite."""
+    program = '''
+import json,sys
+from hutch.workspace.kernel import Kernel
+cooperative=sys.argv[2]=='cooperative'
+kernel=Kernel(workspace=sys.argv[1],generation=1,proto_write=lambda _:None,
+              readline=lambda:'',interrupt_main=(lambda:None) if cooperative else None,enable_tracer=cooperative)
+response=kernel.handle_request({'op':'exec','id':'wx_spin','code':'while True: pass','timeout_ms':100})
+print(json.dumps(response['receipt']['status']))
+'''
+    completed = subprocess.run([sys.executable, '-c', program, str(tmp_path), mode],
+                               capture_output=True, text=True, timeout=4, check=True)
+    assert json.loads(completed.stdout) == 'timeout'
+
+
+def test_completed_cell_cancels_its_deadline_watchdog(tmp_path, monkeypatch):
+    kernel, _ = bare_kernel(tmp_path)
+    interrupts, finished = [], threading.Event()
+    monkeypatch.setattr(kernel, '_interrupt_main', lambda: interrupts.append('late interrupt'))
+    original = kernel._watchdog
+
+    def watch(*args):
+        try:
+            original(*args)
+        finally:
+            finished.set()
+
+    monkeypatch.setattr(kernel, '_watchdog', watch)
+    assert run_exec(kernel, '40 + 2', timeout_ms=100)['receipt']['status'] == 'ok'
+    assert finished.wait(2), 'a finished cell must not leave a live deadline thread'
+    assert interrupts == [] and not kernel._deadline_breached
+
+
+def test_delayed_old_watchdog_cannot_interrupt_a_later_cell(tmp_path, monkeypatch):
+    kernel, _ = bare_kernel(tmp_path)
+    entered, release, finished = threading.Event(), threading.Event(), threading.Event()
+    interrupts = []
+    monkeypatch.setattr(kernel, '_interrupt_main', lambda: interrupts.append('stale interrupt'))
+    original = kernel._watchdog
+
+    def held(*args):
+        entered.set()
+        assert release.wait(2)
+        try:
+            original(*args)
+        finally:
+            finished.set()
+
+    monkeypatch.setattr(kernel, '_watchdog', held)
+    try:
+        assert run_exec(kernel, '1', timeout_ms=50)['receipt']['status'] == 'ok'
+        assert entered.is_set()
+        monkeypatch.setattr(kernel, '_watchdog', original)
+        kernel.namespace['release_old_timer'] = release.set
+        response = run_exec(kernel, 'release_old_timer(); import time; time.sleep(.05); 42', timeout_ms=1000)
+        assert response['receipt']['status'] == 'ok'
+        assert finished.wait(1) and interrupts == [] and not kernel._deadline_breached
+    finally:
+        release.set()
 
 
 def test_serve_loop_answers_requests_in_order_and_stops_at_eof(tmp_path):
