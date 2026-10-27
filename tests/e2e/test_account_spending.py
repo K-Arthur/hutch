@@ -136,8 +136,8 @@ def test_shared_account_spending_preview_save_conflict_and_recovery(browser, app
                        'late response cannot replace chat']}, indent=2) + '\n')
     finally:
         try:
-            page.unroute_all(behavior='wait')
             for route, _ in held:
                 route.abort()
+            page.unroute_all(behavior='wait')
         finally:
             context.close()

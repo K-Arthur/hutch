@@ -173,9 +173,9 @@ def test_learning_settings_recover_errors_and_do_not_replace_a_new_chat(browser,
         assert app.state.store.get_bot(bot.id).memory_enabled is False
     finally:
         try:
-            page.unroute_all(behavior='wait')
             for route, _ in held:
                 route.abort()
+            page.unroute_all(behavior='wait')
         finally:
             context.close()
 

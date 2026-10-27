@@ -1,0 +1,26 @@
+{
+  "scope": "actual UI with one held synthetic conversation read; no inference",
+  "viewports": [
+    [
+      1440,
+      960
+    ],
+    [
+      320,
+      740
+    ]
+  ],
+  "computed_styles": {
+    "fontSize": "14px",
+    "padding": "8px 16px"
+  },
+  "draft_preserved": true,
+  "native_fields_disabled": true,
+  "summary_inert_and_not_focusable": true,
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "55b0a4c0d6c1ece31cfda9330566ffb6449a298a65add89b095302cb88ae9627",
+    "app/src/input.css": "48e62250212ddddfcd4b497a556425fea703a6bbc397338553703b5a46282550",
+    "src/hutch/server/static/ui.css": "f3431a745b457ca7bcce0412838b1c898585d4567e18ecd25b3ef7e2bbb8f62b"
+  },
+  "visual_review": "Opened actual wide and 320px pending viewports; typed draft retained and loading status visible. No browser zoom or native loading-state acceptance claimed."
+}

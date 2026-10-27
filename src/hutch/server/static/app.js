@@ -40,6 +40,8 @@ let currentConversations = [];
 let currentWorkspaceTasks = [];
 let currentCodeHandoffs = [];
 let studioGeneration = 0;
+let conversationOpenGeneration = 0;
+let restoreConversationOpenControls = null;
 let connectionsGeneration = 0;
 let studioConversationMenuCleanup = null;
 let activeReplySelectionHandler = null;
@@ -1935,13 +1937,55 @@ const routes = [
 ];
 
 async function openConversation(id) {
-  const conversation = await api(`/v1/conversations/${encodeURIComponent(id)}`);
-  const bots = await api("/bots");
-  const bot = bots.find(b => b.id === conversation.bot_id);
-  if (!bot) throw new Error("This conversation's assistant is no longer available. Its history is retained in run history.");
-  storageSet(`hutch-conversation:${bot.id}`, id);
-  history.replaceState(null, "", `#/conversation/${encodeURIComponent(id)}`);
-  await renderChatStudio(bot.name, id);
+  const generation = ++conversationOpenGeneration, requestedHash = location.hash;
+  restoreConversationOpenControls?.();
+  const controls = ["#conversation-switcher", "#studio-conversation-options", "#chat-prompt", "#chat-send"]
+    .map(selector => $(selector)).filter(Boolean).map(element => ({ element,
+      disabled: "disabled" in element ? element.disabled : null, inert: element.inert,
+      ariaDisabled: element.getAttribute("aria-disabled") }));
+  controls.forEach(({element, disabled}) => {
+    if (disabled !== null) element.disabled = true;
+    element.inert = true;
+    element.setAttribute("aria-disabled", "true");
+  });
+  const studio = $(".studio"), chatScroll = $("#chat-scroll"), busy = chatScroll?.getAttribute("aria-busy");
+  chatScroll?.setAttribute("aria-busy", "true");
+  const notice = document.createElement("p");
+  notice.className = "conversation-opening";
+  notice.setAttribute("role", "status");
+  notice.textContent = "Opening conversation…";
+  studio?.prepend(notice);
+  const restore = () => {
+    notice.remove();
+    controls.forEach(({element, disabled, inert, ariaDisabled}) => {
+      if (!element.isConnected) return;
+      if (disabled !== null) element.disabled = disabled;
+      element.inert = inert;
+      if (ariaDisabled === null) element.removeAttribute("aria-disabled"); else element.setAttribute("aria-disabled", ariaDisabled);
+    });
+    if (chatScroll?.isConnected) {
+      if (busy === null) chatScroll.removeAttribute("aria-busy"); else chatScroll.setAttribute("aria-busy", busy);
+    }
+  };
+  restoreConversationOpenControls = restore;
+  const stillCurrent = () => generation === conversationOpenGeneration && location.hash === requestedHash;
+  try {
+    const conversation = await api(`/v1/conversations/${encodeURIComponent(id)}`);
+    if (!stillCurrent()) return false;
+    const bots = await api("/bots");
+    if (!stillCurrent()) return false;
+    const bot = bots.find(b => b.id === conversation.bot_id);
+    if (!bot) throw new Error("This conversation's assistant is no longer available. Its history is retained in run history.");
+    storageSet(`hutch-conversation:${bot.id}`, id);
+    history.replaceState(null, "", `#/conversation/${encodeURIComponent(id)}`);
+    await renderChatStudio(bot.name, id);
+    return true;
+  } finally {
+    if (generation === conversationOpenGeneration) {
+      restore();
+      restoreConversationOpenControls = null;
+    }
+  }
 }
 
 function openConversationSearch(trigger) {
@@ -3229,9 +3273,10 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
   const explicitConversation = location.hash.match(/^#\/conversation\/([\w-]+)$/);
   requestedConversationId ||= explicitConversation?.[1] || null;
   const directChat = !requestedConversationId;
-  const generation = ++studioGeneration;
+  const generation = ++studioGeneration, openingGeneration = conversationOpenGeneration;
+  const stillBuilding = () => generation === studioGeneration && openingGeneration === conversationOpenGeneration;
   const fetchedBots = await api("/bots");
-  if (generation !== studioGeneration) return;
+  if (!stillBuilding()) return;
   botsCache = fetchedBots;
   renderRoster();
   if (!botsCache.length) {
@@ -3386,9 +3431,10 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
   currentStudioBot = bot.name;
   updateRosterCurrentItem();
   const detail = await api(`/bots/${encodeURIComponent(bot.name)}`);
-  if (generation !== studioGeneration) return;
-  currentConversations = await api(`/v1/conversations?bot=${encodeURIComponent(bot.id)}&include_legacy=true&include_archived=true&limit=100`);
-  if (generation !== studioGeneration) return;
+  if (!stillBuilding()) return;
+  const fetchedConversations = await api(`/v1/conversations?bot=${encodeURIComponent(bot.id)}&include_legacy=true&include_archived=true&limit=100`);
+  if (!stillBuilding()) return;
+  currentConversations = fetchedConversations;
   const rememberedConversation = requestedConversationId;
   if (requestedConversation && !currentConversations.some(item => item.id === requestedConversation.id)) {
     currentConversations.unshift(requestedConversation);
@@ -3400,7 +3446,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
     if (!selectedConversation) throw new Error("This assistant's main chat could not be opened. Try again.");
     if (!currentConversations.some(item => item.id === selectedConversation.id)) currentConversations.unshift(selectedConversation);
   }
-  if (generation !== studioGeneration) return;
+  if (!stillBuilding()) return;
   if (currentConversationId !== selectedConversation.id && selectedConversation.unread) {
     try {
       Object.assign(selectedConversation, await api(`/v1/conversations/${encodeURIComponent(selectedConversation.id)}/preferences`, {
@@ -3410,6 +3456,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
       toast(`This chat is still marked unread because its read state could not be updated: ${error.message}`, true);
     }
   }
+  if (!stillBuilding()) return;
   currentConversationId = selectedConversation.id;
   storageSet(`hutch-conversation:${bot.id}`, currentConversationId);
   const activeRun = selectedConversation.active_run_id ? {
@@ -3425,7 +3472,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
   } catch (error) {
     workflowPolicyError = error.message || "Workflow settings could not be loaded.";
   }
-  if (generation !== studioGeneration) return;
+  if (!stillBuilding()) return;
   const workflowModeOption = (value, label, disabled = false) =>
     `<option value="${value}" ${workflowPolicy.override === value ? "selected" : ""} ${disabled ? "disabled" : ""}>${esc(label)}</option>`;
 
@@ -3581,18 +3628,12 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
   const conversationSwitcher = $("#conversation-switcher");
   conversationSwitcher?.addEventListener("change", async ev => {
     const selectedId = ev.target.value;
-    storageSet(`hutch-conversation:${bot.id}`, selectedId);
-    const target = currentConversations.find(item => item.id === selectedId);
-    if (target?.unread) {
-      try {
-        Object.assign(target, await api(`/v1/conversations/${encodeURIComponent(selectedId)}/preferences`, {
-          method: "PATCH", headers: { "Idempotency-Key": newIdempotencyKey() }, body: { unread: false },
-        }));
-      } catch (error) {
-        toast(`This chat is still marked unread because its read state could not be updated: ${error.message}`, true);
-      }
+    try {
+      await openConversation(selectedId);
+    } catch (error) {
+      if (conversationSwitcher.isConnected && conversationSwitcher.value === selectedId) conversationSwitcher.value = currentConversationId || "";
+      toast(`This chat could not be opened: ${error.message}`, true);
     }
-    await openConversation(selectedId);
   });
   studioConversationMenuCleanup?.();
   const conversationActions = $("#studio-conversation-actions");

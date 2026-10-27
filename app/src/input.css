@@ -339,3 +339,6 @@
 
 #channel-delivery-outcome { min-height: 44px; font-size: 1rem; }
 #channel-delivery-evidence { min-height: 6rem; font-size: 1rem; }
+
+.conversation-opening { margin: 0; padding: 8px 16px; border-bottom: 1px solid var(--line); color: var(--text-2); font-size: var(--fs-sm); line-height: 1.5; }
+#studio-conversation-options[aria-disabled="true"] { opacity: .6; cursor: progress; }
