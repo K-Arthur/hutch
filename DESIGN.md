@@ -445,8 +445,8 @@ chosen by the role of the shape and not by taste:
   ARIA tablist: vertical beside the pane from 760px of pane width, a scrolling
   row (sticky, with `scroll-padding` so a focused field is never hidden under it)
   below; arrows, Home and End move and select; the selected tab is always fully
-  visible; the choice survives the re-render a save triggers and is remembered
-  per assistant for the session. Every pane stays in the DOM so each form keeps
+  visible; the choice survives the re-render a save triggers, and a fresh visit
+  opens on Profile. Every pane stays in the DOM so each form keeps
   its id and handlers; only the selected pane is painted. A pane has one heading
   and a line saying what it holds, then ordinary panels. The 1040px rail and
   panel-width-responsive fields still apply; range inheritance and its

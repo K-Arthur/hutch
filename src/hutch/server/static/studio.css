@@ -1107,3 +1107,7 @@ label.field { align-content: start; }
 .ms-chip[aria-pressed="true"] { color: var(--text); background: var(--brand-wash); border-color: var(--brand-line); }
 .ms-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 @media (pointer: coarse) { .ms-chip { min-height: 44px; } }
+
+/* On a small screen the options popover becomes a bottom sheet. It must never reach the header: the control that opened it
+   is also the one that closes it. The popup script sizes a sheet to the whole viewport, hence !important. */
+.conversation-actions-panel[data-popup-layout="sheet"] { max-height: calc(100dvh - 136px) !important; }

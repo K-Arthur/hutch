@@ -8329,8 +8329,8 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
         page.goto(f"{base}/#/bot/{coordinator.name}")
-        open_assistant_customization(page, "behavior")
         page.get_by_role("heading", name="About this assistant", exact=True).wait_for()
+        open_assistant_customization(page, "behavior")
         roster_panel = page.locator("#workspace-specialist-roster")
         roster_details = page.locator("#workspace-specialist-settings")
         roster_summary = roster_details.locator("summary")
@@ -10931,8 +10931,8 @@ def test_bot_workspace_modes_are_clear_and_persist_across_settings(browser, live
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
         page.goto(base + "/#/bot/workspace-helper")
-        open_assistant_customization(page, "safety")
         page.get_by_role("heading", name="About this assistant", exact=True).wait_for()
+        open_assistant_customization(page, "safety")
         mode = page.locator('#form-risk [name="workspace_mode"]')
         assert mode.input_value() == "fresh"
         if width <= 390:
@@ -11011,8 +11011,8 @@ def test_local_browser_handoff_setting_is_explicit_and_persists(browser, live, w
     page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
     try:
         page.goto(base + "/#/bot/local-handoff")
-        open_assistant_customization(page, "safety")
         page.get_by_role("heading", name="About this assistant", exact=True).wait_for()
+        open_assistant_customization(page, "safety")
         handoff = page.locator('#form-risk [name="local_browser_handoff"]')
         assert handoff.input_value() == "false"
         assert handoff.get_attribute("aria-describedby") == "browser-handoff-help"

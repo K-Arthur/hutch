@@ -2247,6 +2247,8 @@ async function route(announce = false) {
     return;
   }
   updateRosterCurrentItem();
+  // A fresh visit to an assistant's settings opens on Profile; only the re-render a save triggers keeps the pane.
+  if (!/^#\/bot\//.test(hash)) assistantSettingsSections.clear();
   document.body.classList.toggle("has-composer", isConversationView(hash));
   stopRunSubs();
   bumpSubOwner(routeOwner);
