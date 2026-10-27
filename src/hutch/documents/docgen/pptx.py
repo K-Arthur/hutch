@@ -38,7 +38,10 @@ LONG_BULLET_CHARS = 200
 #: probed real TTFs, first existing wins — fit_text must compute from true metrics
 _FONT_CANDIDATES: tuple[tuple[str, str], ...] = (
     ("/usr/share/fonts/liberation/LiberationSans-Regular.ttf", "Liberation Sans"),
+    ("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", "Liberation Sans"),
+    ("/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf", "Liberation Sans"),
     ("/usr/share/fonts/TTF/DejaVuSans.ttf", "DejaVu Sans"),
+    ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "DejaVu Sans"),
 )
 
 _TITLE_FIT_MAX_PT = 40

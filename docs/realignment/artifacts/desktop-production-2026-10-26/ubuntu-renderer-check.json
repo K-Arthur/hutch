@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "source_base": "a483281b",
+  "source_scope": "working font-discovery change plus otherwise unchanged selected renderer/extraction tests and lockfile",
+  "environment": {
+    "kind": "isolated Docker container, not native desktop acceptance",
+    "image": "ubuntu@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac",
+    "python": "Ubuntu Python 3.12",
+    "uv": "0.12.24",
+    "system_packages": {
+      "bubblewrap": "0.9.0-1ubuntu0.3",
+      "poppler-utils": "24.02.0-1ubuntu9.11",
+      "libharfbuzz-subset0": "8.3.0-2build2",
+      "fonts-liberation": "1:2.1.5-3",
+      "fonts-dejavu-core": "2.37-8"
+    },
+    "mounts": "src/tests and project metadata read-only; no host credentials, home or Docker socket mounted"
+  },
+  "test_command": "uv run --frozen --no-sync pytest -q tests/test_docgen_pdf.py tests/test_docgen_pptx.py tests/test_documents_pipeline.py tests/test_jobs.py::test_ocr_missing_dependency_blocks_without_losing_extraction tests/test_offline_mode.py::test_offline_worker_scope_has_full_namespaces_and_uses_a_private_broker_mount",
+  "result": {
+    "passed": 56,
+    "failed": 0,
+    "seconds": 37.45
+  },
+  "sha256": {
+    "src/hutch/documents/docgen/pptx.py": "26762f6f8f2853154fbf0c6c40494bbf4c85a72211817b0d561dd9113996e5a5",
+    "src/hutch/documents/docgen/pdfdoc.py": "7e3cde1a7c099bee7d3db8e699e731984096e68f182d9ee94b4472e351dcebe0",
+    "tests/test_docgen_pdf.py": "45a00105e34a83f4067ddc9e9c337acb7f0b37cd720d93caa5c97ee4ad1e8d29",
+    "tests/test_docgen_pptx.py": "07e0252d14222a565bfe5dad0ef0eb87de949541ef995aef8e94e57de77524c1",
+    "tests/test_documents_pipeline.py": "6145d3cf68a822024abbd3d3f39c8d51ae6c31075924876e7c7ca05b4670871b",
+    "tests/test_jobs.py": "ee4e390cdac04b635f3dcb2d5fc1e61ae387baa4d4bcefd095f2e6f96b2c2ebc",
+    "tests/test_offline_mode.py": "d4681f8e23d97b09855468a4ccf27de1fcf3d350a160c9d66b07c00b3749a846",
+    "uv.lock": "e7349451f7d2649902c35c3f98ef80cd5784ef96c423acfcefb62f2aaf5fdf51"
+  },
+  "limitations": [
+    "No installed desktop GUI/package test",
+    "No claim of native namespace containment from a command-construction check",
+    "No live credentials or model/service calls",
+    "No Windows/macOS renderer acceptance"
+  ],
+  "local_log": ".validation/desktop-production/ubuntu-container-validation.log"
+}

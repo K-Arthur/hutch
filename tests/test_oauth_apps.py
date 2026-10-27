@@ -73,7 +73,8 @@ def test_google_registration_precedence_and_reset_return_to_build_default(publis
 
 def test_publisher_google_connect_needs_no_nickname_and_keeps_pkce_and_read_scope(publisher_apps, tmp_path, monkeypatch):
     monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
-    monkeypatch.setattr("hutch.google_calendar.SecretToolStore", MemorySecrets)
+    monkeypatch.setattr("hutch.google_calendar.SecretToolStore.available", lambda *_: False)
+    monkeypatch.setattr("hutch.google_calendar.GoogleCalendarBook.secret_store_type", MemorySecrets)
     with TestClient(create_app(), base_url="http://127.0.0.1:18787") as client:
         settings = client.get("/api/v1/connections/google-oauth-client").json()
         assert settings["configured"] and settings["source"] == "distribution"

@@ -551,6 +551,10 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
+    # Capture a fresh device explicitly, without probing an installed developer
+    # runtime or inheriting its temporary free-model catalog and startup latency.
+    page.route("**/api/v1/opencode/status", lambda route: route.fulfill(json={"ready": False, "models": []}))
+    page.route("**/api/v1/model-routes?*", lambda route: route.fulfill(json=[]))
     errors: list[str] = []
     external_requests: list[str] = []
     page.on("pageerror", lambda error: errors.append(str(error)))
@@ -632,6 +636,8 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
 
         page.route("**/api/v1/opencode/status", ready_opencode)
         page.goto(f"{app_url}/#/chat")
+        # Repeating the same fragment does not reload the earlier readiness state.
+        page.reload()
         expect(page.locator("#first-run-readiness-status")).to_have_text("Ready")
         page.get_by_label("Your first request").fill(request_text)
         page.get_by_role("button", name="Set up my assistant").click()

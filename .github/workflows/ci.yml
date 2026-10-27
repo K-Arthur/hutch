@@ -19,6 +19,7 @@ jobs:
     if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-24.04
     strategy:
+      fail-fast: false
       matrix:
         python: ["3.11", "3.12", "3.13"]
     steps:
@@ -30,6 +31,11 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: python -m pip install uv==0.12.24
       - run: uv sync --frozen --extra dev --extra browser
+      - name: Install renderer, extraction and sandbox dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y bubblewrap poppler-utils libharfbuzz-subset0 fonts-liberation fonts-dejavu-core
+          dpkg-query -W bubblewrap poppler-utils libharfbuzz-subset0 fonts-liberation fonts-dejavu-core
       - run: uv run --frozen --no-sync python -m playwright install --with-deps chromium
       - run: uv run --frozen --no-sync pytest -q
 

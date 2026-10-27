@@ -8490,6 +8490,7 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
             else:
                 page.locator("#nav-toggle").click()
         name_labels.first.wait_for(state="visible")
+        page.evaluate("document.fonts.ready")
         wait_for_page(page, """() => {
           const name = document.querySelector('#roster-list .roster-name');
           if (!name) return false;

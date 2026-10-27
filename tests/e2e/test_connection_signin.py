@@ -12,7 +12,8 @@ from tests.support.artifacts import artifact_path
 
 def test_google_calendar_tile_connects_without_a_nickname_or_write_escalation(browser, live, publisher_apps, monkeypatch):
     base, app = live
-    monkeypatch.setattr("hutch.google_calendar.SecretToolStore", MemorySecrets)
+    monkeypatch.setattr("hutch.google_calendar.SecretToolStore.available", lambda *_: False)
+    monkeypatch.setattr("hutch.google_calendar.GoogleCalendarBook.secret_store_type", MemorySecrets)
     context = browser.new_context(viewport={"width": 1440, "height": 900}, reduced_motion="reduce")
     context.route("https://accounts.google.com/**", lambda route: route.fulfill(body="Fixture Google consent"))
     page = context.new_page()

@@ -357,9 +357,6 @@ def test_chat_code_handoff_is_reviewed_idempotent_and_does_not_expose_host_paths
 @pytest.mark.skipif(not hasattr(os, "tcsetpgrp") or sys.platform != "linux", reason="Linux controlling TTY required")
 def test_hutch_code_run_interrupts_fake_opencode_and_retains_verified_changes(client, tmp_path, monkeypatch):
     """Exercise the real CLI, process group, persisted status, and retained worktree without a model call."""
-    project, source_readme, conversation_id, handoff_id = _prepare_cli_handoff(
-        client, tmp_path, key_prefix="code-run")
-
     fake_bin = tmp_path / "fake-bin"
     fake_bin.mkdir()
     fake_opencode = fake_bin / "opencode"
@@ -396,6 +393,10 @@ while True:
 """, encoding="utf-8")
     fake_opencode.chmod(0o755)
     monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ.get('PATH', '')}")
+
+    project, source_readme, conversation_id, handoff_id = _prepare_cli_handoff(
+        client, tmp_path, key_prefix="code-run")
+
 
     runner = r'''import sys
 from hutch.cli import main
@@ -479,12 +480,14 @@ raise SystemExit(0)
     assert source_readme.read_text() == "A tiny coding fixture.\n"
 
 
-def test_code_reconcile_keeps_live_runner_then_marks_gone_runner_interrupted(client, tmp_path):
+def test_code_reconcile_keeps_live_runner_then_marks_gone_runner_interrupted(client, tmp_path, monkeypatch):
     """Reconciliation must neither signal a live recorded group nor leave a dead owner stuck."""
     from hutch import procguard
 
     if not procguard.pidfd_available():
         pytest.skip("verified Linux pidfd signaling is required")
+    # This scenario verifies process identity and reconciliation, not CLI discovery.
+    monkeypatch.setattr(code_handoff, "inspect_opencode", lambda: ("/fixture/opencode", "2.0.24"))
     _project, _source_readme, conversation_id, handoff_id = _prepare_cli_handoff(
         client, tmp_path, key_prefix="code-reconcile")
     worker = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"], start_new_session=True)

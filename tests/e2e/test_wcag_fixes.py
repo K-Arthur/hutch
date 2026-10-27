@@ -345,8 +345,18 @@ def test_setup_and_settings_hints_are_descriptions_not_field_names(audit_browser
     """M-3: form hints stay available without becoming long accessible names."""
     base, app = audit_live
     page = audit_browser.new_page()
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
     try:
-        wait_live(page, base)
+        # This accessibility journey needs one synthetic ready route, independently
+        # of whichever runtimes happen to be installed on the developer's machine.
+        page.route("**/api/v1/model-routes?*", lambda route: route.fulfill(
+            json=[{"spec": "openai-api/fixture-model", "state": "ready", "label": "Fixture model"}]))
+        page.route("**/api/v1/opencode/status", lambda route: route.fulfill(json={"ready": False, "models": []}))
+        try:
+            wait_live(page, base)
+        except Exception:
+            pytest.fail(f"setup did not become live; page errors: {errors}")
         page.get_by_label("Your first request").fill("Help me plan my week.")
         page.get_by_role("button", name="Set up my assistant").click()
         page.locator("#setup-display_name").wait_for()
@@ -362,14 +372,7 @@ def test_setup_and_settings_hints_are_descriptions_not_field_names(audit_browser
         check_field("#setup-display_name", "textbox", "Assistant name", "Rename it anytime")
         page.get_by_role("button", name="Fine-tune the details").click()
         page.locator("#setup-model").wait_for()
-        # 19cbcd96 defaults first-run setup to OpenCode when the host's OpenCode profile is
-        # ready (CI has none), which flips the model hint and Connections link to the OpenCode
-        # branch. Pin the runtime so this M-3 check does not depend on machine state.
-        if page.locator("#setup-runtime").input_value() != "builtin":
-            page.locator("#setup-runtime").select_option("builtin")
-            page.wait_for_function(
-                "() => (document.querySelector('#setup-model-hint')?.textContent || '')"
-                ".includes('Hosted routes send prompts')")
+        assert page.locator("#setup-runtime").input_value() == "builtin"
         check_field("#setup-model", "combobox", "Model route", "Hosted routes send prompts")
         assert "Open Connections" not in page.locator("#setup-model-hint").inner_text()
         assert page.get_by_role("link", name="Open Connections in another tab").is_visible()
@@ -410,5 +413,6 @@ def test_setup_and_settings_hints_are_descriptions_not_field_names(audit_browser
         check_field('.settings input[name="workdir"]', "textbox", "Existing folder (folder mode)", "must already exist")
         check_field('.settings select[name="risk_tier"]', "combobox", "Risk tier", "blocked at every tier")
         check_field('.settings textarea[name="command_rules"]', "textbox", "Command rules", "first match wins")
+        assert not errors, errors
     finally:
         page.close()

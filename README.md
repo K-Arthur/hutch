@@ -179,9 +179,22 @@ provider billing and live compatibility remain unverified.
 
 ## Development
 
+Ubuntu 24.04 regression hosts need the renderer, extraction and sandbox packages
+in addition to Python dependencies:
+
+```bash
+sudo apt-get update
+sudo apt-get install --no-install-recommends -y bubblewrap poppler-utils libharfbuzz-subset0 fonts-liberation fonts-dejavu-core
+```
+
+Playwright's `--with-deps` option installs its additional browser libraries.
+Installing bubblewrap does not prove that the host permits its required namespaces;
+Hutch still checks containment and fails closed when unavailable. Credential tests
+use isolated synthetic stores; real account connections require an unlocked OS vault.
+
 ```bash
 uv sync --extra dev --extra browser
-uv run playwright install chromium
+uv run python -m playwright install --with-deps chromium
 uv run pytest --ignore=tests/e2e   # includes one browser-dependent coding-repair acceptance test
 uv run pytest -q
 uv run hutch init && uv run hutch serve   # opens the real empty setup state; no sample activity is seeded
