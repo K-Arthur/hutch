@@ -290,6 +290,35 @@
   .tag.info { color: var(--color-secondary); }
 }
 
+/* Campaign review uses the shared modal, with distinct source and result groups. */
+.campaign-report-form { display: grid; gap: var(--s-5); min-width: 0; }
+.campaign-report-form p { margin: 0; line-height: 1.55; }
+.campaign-report-lead { font-size: 1rem; max-width: 60ch; }
+.campaign-report-scope { color: var(--text-2); font-size: .875rem; }
+.campaign-report-source { display: grid; gap: 12px; min-width: 0; }
+.campaign-report-form .field { display: grid; gap: 8px; margin: 0; font-size: .875rem; font-weight: 600; min-width: 0; }
+.campaign-report-form .hint { font-size: .875rem; font-weight: 400; }
+.campaign-report-form textarea, .campaign-report-form input[type=number] { width: 100%; min-width: 0; font-size: 1rem; min-height: 44px; }
+.campaign-report-form textarea { line-height: 1.5; resize: vertical; }
+.campaign-report-form .btn { min-height: 44px; white-space: normal; }
+.campaign-report-dialog .modal-footer .btn, .campaign-report-dialog .modal-header .icon-btn { min-height: 44px; }
+.campaign-report-source > div { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.campaign-report-form summary { min-height: 44px; padding-block: 10px; cursor: pointer; font-size: .875rem; }
+.campaign-report-form details p + p { margin-block-start: 12px; }
+.campaign-report-columns { overflow-wrap: anywhere; }
+#campaign-file-name { overflow-wrap: anywhere; min-width: 0; }
+#campaign-preview { display: grid; gap: 16px; border-block-start: 1px solid var(--line); padding-block-start: 24px; min-width: 0; }
+#campaign-preview[hidden] { display: none; }
+#campaign-preview h3 { margin: 0; font-size: 1.125rem; line-height: 1.4; }
+.campaign-report-table { overflow-x: auto; max-width: 100%; border: 1px solid var(--line); border-radius: 8px; }
+.campaign-report-table table { width: 100%; border-collapse: collapse; font-size: .875rem; font-variant-numeric: tabular-nums; }
+.campaign-report-table th, .campaign-report-table td { padding: 12px; border-block-end: 1px solid var(--line); text-align: end; vertical-align: top; }
+.campaign-report-table th:first-child { text-align: start; overflow-wrap: anywhere; max-width: 20rem; min-width: 8rem; }
+.campaign-report-table th { font-weight: 600; }
+.campaign-report-table thead th { text-transform: none; letter-spacing: normal; font-family: inherit; font-size: .875rem; }
+.campaign-report-error { color: var(--danger); font-size: .875rem; overflow-wrap: anywhere; }
+.campaign-report-error:empty { display: none; }
+
 /* Channel setup shares connection typography, rhythm and comfortable targets. */
 .channel-panel { display: grid; gap: var(--s-5); }
 .channel-intro { display: grid; gap: 8px; max-width: 68ch; }

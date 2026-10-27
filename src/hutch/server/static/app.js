@@ -3587,6 +3587,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
                     <span class="cmenu-sub" id="chat-task-role-help">One message only. A configured task route is explicit; automatic classification is not enabled.</span>
                   </label>
                   <div class="cmenu-sep"></div>
+                  <button class="cmenu-files" id="campaign-report-open" type="button" ${selectedConversation.archived ? "disabled" : ""}>${icon("fileText")} Create a campaign report</button>
                   <button class="cmenu-files" id="prompt-template-library-open" type="button">${icon("fileText")} Browse saved requests</button>
                   <button class="cmenu-files" id="prompt-template-import" type="button" aria-controls="task-template-file">${icon("fileText")} Import task-template file</button>
                   <input id="task-template-file" type="file" accept=".json,application/json" hidden>
@@ -4323,6 +4324,12 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
     if (open) composerPopup.open(); else composerPopup.close(false);
   };
   const taskTemplateFile = $("#task-template-file");
+  $("#campaign-report-open")?.addEventListener("click", () => {
+    setMenu(false);
+    if (txt.disabled) return;
+    openCampaignReport({ returnFocus: menuBtn, bot: currentStudioBot,
+      conversationId: composerConversationId, generation: studioGeneration });
+  });
   $("#prompt-template-library-open")?.addEventListener("click", () => {
     setMenu(false);
     void openSavedTaskTemplateLibrary({

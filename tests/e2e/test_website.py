@@ -214,6 +214,11 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     assert page.locator("#get").get_by_text("Public source", exact=True).count() == 1
     assert page.locator("#get .ev").filter(has_text="Experimental").count() >= 1
     assert page.locator("#get .ev").filter(has_text="Unavailable").count() >= 1
+    campaign = page.locator("#get tr").filter(has=page.get_by_text("Campaign metrics", exact=True)).text_content()
+    assert "Experimental" in campaign and "use no model calls" in campaign
+    assert "preserve undefined values" in campaign and "explicit reporting window" in campaign
+    assert "does not connect to Google Ads or change campaigns" in campaign
+    assert "remain unverified" in campaign
     workflow_details = page.locator(".workflow-details")
     assert workflow_details.count() == 3
     assert all(not detail.evaluate("el => el.open") for detail in workflow_details.all())
@@ -833,6 +838,7 @@ def test_provider_availability_is_readable_without_horizontal_page_scroll(browse
             "Public source": "no packaged desktop installers or hosted sign-up",
             "Documents": "versioned revisions and in-app previews",
             "Workflows": "auto does not create new plans",
+            "Campaign metrics": "live reporting and complete marketing workflows remain unverified",
             "AI services": "eligibility for hutch is unconfirmed",
             "OpenCode assistant": "owned private server",
             "Google Calendar": "each event needs exact approval",
@@ -845,7 +851,7 @@ def test_provider_availability_is_readable_without_horizontal_page_scroll(browse
             "Other platforms and runtimes": "unavailable",
         }
         for area, phrase in expected.items():
-            row = rows.filter(has_text=area)
+            row = rows.filter(has=page.get_by_text(area, exact=True))
             assert row.count() == 1, area
             assert phrase in row.inner_text().lower(), (area, phrase)
             assert row.locator(".ev").count() == 1, area

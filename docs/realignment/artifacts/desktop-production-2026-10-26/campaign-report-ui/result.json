@@ -1,0 +1,22 @@
+{
+  "viewports": [
+    1440,
+    768,
+    390,
+    320
+  ],
+  "zero_model_calls": true,
+  "saved_artifacts": 3,
+  "byte_readback_verified": true,
+  "keyboard_table_scroll": true,
+  "text_scale": "supplementary 200% root size, not native zoom",
+  "styles": {
+    "input": "16px",
+    "label": "14px",
+    "help": "14px",
+    "body": "16px",
+    "tableHeader": "14px",
+    "groupGap": "24px"
+  },
+  "page_errors": []
+}

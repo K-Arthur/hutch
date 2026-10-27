@@ -16,7 +16,7 @@ classifier call, and Suggest never starts work. Auto can start only an activated
 inside the Bot's explicit workflow and budget limits; consequential actions still need their own
 approval.
 
-Workflows are in private preview. The owner can start a reviewed saved workflow from Studio,
+Workflows are in development preview. The owner can start a reviewed saved workflow from Studio,
 the API or CLI. Chat recommendations and Auto saved-workflow launch now use an exact-profile
 selector gate, but neither Qwen3 local profile tested in the bounded campaign qualified, so those
 paths are blocked for the tested checkpoints. Auto does not start a newly generated plan. The
@@ -512,3 +512,13 @@ provider data, attribution or financial recommendations. The built-in plan facto
 `hutch.workflow.campaigns.campaign_report_plan()` publishes local draft artifacts
 and verifies their saved bytes using the existing engine, with no tool/model
 authority. Any campaign change remains a separate approval-bound action.
+
+From chat, open **Message options → Create a campaign report**. Paste or choose a
+CSV up to 64 KB, specify reporting days only when known, and preview the metrics.
+Changing the source or period invalidates the preview. Saving is blocked during
+file import. Preview starts nothing; **Save local report** uses normal workflow
+admission, saves the reusable definition for manual use with automatic use off,
+and publishes metrics CSV, calculation JSON and report notes in the same chat.
+The original source remains in local workflow history. This method uses no model
+requests and does not connect to Google Ads or change campaigns. Live reporting
+and complete performance-marketing acceptance remain unverified.

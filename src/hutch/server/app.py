@@ -127,6 +127,7 @@ REMOTE_ROUTE_CAPABILITIES: dict[tuple[str, str], Optional[str]] = {
     ("POST", "/api/v1/tasks/runs"): "start",
     ("POST", "/api/v1/search/messages"): "monitor",
     # Local-owner-only surfaces (registered but explicitly unreachable from paired phones):
+    ("POST", "/api/v1/workflows/starters/campaign-report/preview"): None,
     ("GET", "/api/v1/runtime"): None,
     ("POST", "/api/v1/runtime/service/install"): None,
     ("POST", "/api/v1/runtime/service/restart"): None,

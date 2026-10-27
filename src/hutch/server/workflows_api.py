@@ -402,6 +402,17 @@ class SubmitPlanRequest(BaseModel):
     auto: bool = False
 
 
+class CampaignReportPreviewRequest(BaseModel):
+    source_csv: str = Field(min_length=1, max_length=65536)
+    reporting_days: int = Field(default=0, ge=0, le=3660, strict=True)
+
+
+class CampaignReportPreviewResource(BaseModel):
+    contract_version: int = 1
+    plan: dict[str, Any]
+    report: dict[str, Any]
+
+
 class RunSavedRequest(BaseModel):
     bot: str = Field(min_length=1, max_length=120)
     conversation_id: str = Field(default="", max_length=100)
@@ -620,6 +631,20 @@ def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key:
 
     def _idempotency(request: Request, payload: Any) -> tuple[str, str]:
         return idempotency_key(request), request_digest(payload)
+
+    @app.post("/api/v1/workflows/starters/campaign-report/preview",
+              response_model=CampaignReportPreviewResource)
+    def preview_campaign_report(payload: CampaignReportPreviewRequest) -> CampaignReportPreviewResource:
+        from ..workflow.campaigns import campaign_report, campaign_report_plan
+        try:
+            if len(payload.source_csv.encode("utf-8")) > 65536:
+                raise HTTPException(422, "Choose a campaign CSV of 64 KB or less.")
+            report = campaign_report(payload.source_csv, payload.reporting_days)
+        except UnicodeEncodeError:
+            raise HTTPException(422, "The campaign CSV must contain valid UTF-8 text.") from None
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        return CampaignReportPreviewResource(plan=campaign_report_plan(), report=report)
 
     @app.get("/api/v1/workflows", response_model=WorkflowDefinitionPage)
     def list_workflows(limit: int = 50, offset: int = 0) -> WorkflowDefinitionPage:

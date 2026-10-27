@@ -46,7 +46,7 @@ def _metrics(values: dict[str, Decimal]) -> dict[str, str | None]:
 
 
 def _parse(text: str, fields: list[str]) -> list[dict[str, str]]:
-    # Reuse the workflow parser's byte/row/shape bounds, with strict quoting.
+    # Reuse the workflow parser's text/row/shape bounds, with strict quoting.
     from .ops import MAX_TEXT, _op_parse_csv
     if len(text) > MAX_TEXT:
         raise ValueError("the CSV text is too large")
