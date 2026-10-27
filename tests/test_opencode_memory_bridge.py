@@ -418,43 +418,58 @@ def test_adapter_omits_the_memory_plugin_when_memory_is_disabled(
 LIVE_MODEL = os.environ.get("HUTCH_LIVE_OPENCODE_MODEL", "opencode/deepseek-v4.1-flash-free")
 
 
-def _zen_auth_entry():
-    """The opencode zen key from this host's own OpenCode profile. Never logged or asserted on."""
+def _go_login_available():
+    """Use the bounded product inventory; the collection gate never returns a key."""
+    from hutch.runtime.opencode_login import LocalLoginError, local_logins
     try:
-        data = json.loads((Path.home() / ".local" / "share" / "opencode" / "auth.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    entry = data.get("opencode-go")
-    return entry if isinstance(entry, dict) and isinstance(entry.get("key"), str) else None
+        return any(row['provider_id'] == 'opencode-go' and row['reusable'] for row in local_logins())
+    except LocalLoginError:
+        return False
 
 
-_LIVE_REQUIRED = "live OpenCode free-model evidence: set HUTCH_LIVE_OPENCODE=1 on a host with an opencode zen login"
+_LIVE_REQUIRED = "live OpenCode free-model evidence: set HUTCH_LIVE_OPENCODE=1 on a host with a selected reusable OpenCode Go login"
 
 requires_live = pytest.mark.skipif(
-    not (os.environ.get("HUTCH_LIVE_OPENCODE") and _zen_auth_entry() is not None and shutil.which("opencode")),
+    not (os.environ.get("HUTCH_LIVE_OPENCODE") == '1' and _go_login_available() and shutil.which("opencode")),
     reason=_LIVE_REQUIRED)
 
 
-def _install_zen_auth(config) -> None:
-    """Give the private run profile this host's zen key, and nothing else."""
-    entry = _zen_auth_entry()
-    assert entry is not None, "no opencode zen login on this host"
-    from hutch.code_handoff import opencode_profile_paths
-    directory = opencode_profile_paths(config.state_dir)["data_home"] / "opencode"
-    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-    path = directory / "auth.json"
-    path.write_text(json.dumps({"opencode-go": entry}), encoding="utf-8")
-    os.chmod(path, 0o600)
-
-
 @pytest.fixture()
-def live_opencode_auth(config):
-    """A copied login belongs only to this test; remove the private profile after it closes."""
-    _install_zen_auth(config)
+def live_opencode_auth(config, store):
+    """Selected login only, fresh zero-rate qualification, zero-dollar ledger, cleanup."""
+    from hutch.connections import ConnectionBook
+    from hutch.providers.pricing import PriceBook
+    from hutch.runtime.opencode import _model_ref
+    from hutch.runtime.opencode_login import reuse_local_login
+    from hutch.runtime.opencode_server import OpenCodeServer
+    from tests.support.artifacts import artifact_path
+    from tests.support.live_models import qualify_free_model
+
+    server = OpenCodeServer(config.state_dir, cwd=config.state_dir)
     try:
+        try:
+            server.start()
+            # Exercise the product's provider-scoped import API; do not copy a
+            # personal auth/config file into a version-dependent CLI location.
+            reuse_local_login(server, 'opencode-go')
+            provider, model = _model_ref(LIVE_MODEL, [])
+            if provider != 'opencode':
+                pytest.fail('Only the public free route is qualified here; Go entitlement/billing remains separate')
+            payload = server.request('GET', '/api/model', timeout=30)
+            qualification = qualify_free_model(payload.get('data', []), provider, model)
+        finally:
+            server.close()
+        ConnectionBook(config.state_dir).add('openai-api', 'opencode', account_id='live-evaluation')
+        PriceBook(config.state_dir / 'prices.json').set_price(
+            LIVE_MODEL, 0, 0, cache_read=0, cache_write=0,
+            source='Isolated free evaluation: current native zero-rate metadata at ' + qualification['checked_at'])
+        store.set_budget_policy(scope_kind='account', scope_id='live-evaluation', reset='lifetime', ceiling_usd=0)
+        out = artifact_path('opencode-free-qualification')
+        out.mkdir(parents=True, exist_ok=True)
+        (out / 'metadata.json').write_text(json.dumps(qualification, indent=2) + '\n')
         yield
     finally:
-        profile = config.state_dir / "opencode-profile"
+        profile = config.state_dir / 'opencode-profile'
         if profile.exists():
             shutil.rmtree(profile)
 

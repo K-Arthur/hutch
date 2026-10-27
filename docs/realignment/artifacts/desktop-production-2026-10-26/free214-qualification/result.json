@@ -1,0 +1,27 @@
+{
+  "contract_version": 1,
+  "runtime_source_commit": "96eaf915",
+  "route": "opencode/deepseek-v4.1-flash-free",
+  "scope": "synthetic approved launch-month fact and run-bound memory bridge",
+  "qualification": "fresh metadata passed; functional live qualification incomplete",
+  "result": "failed",
+  "error": "Free usage limit reached",
+  "model_request_attempts": 1,
+  "reported_tokens": 0,
+  "reported_cost_usd": 0,
+  "ledger_account": "live-evaluation",
+  "lifetime_ceiling_usd": 0,
+  "reservation": {
+    "status": "uncertain",
+    "reserved_cost_usd": 0
+  },
+  "canonical_tool_calls": 0,
+  "artifact_quality": "not assessed; no model work completed",
+  "temporary_login_profile_removed": true,
+  "paid_fallback": false,
+  "limits": [
+    "Metadata zero rates do not prove remote account entitlement or provider billing",
+    "Selected Go login was reused through the product API; paid Go routes were not evaluated",
+    "No Grok Bot comparison or external-service acceptance"
+  ]
+}

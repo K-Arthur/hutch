@@ -1,0 +1,10 @@
+{
+  "contract_version": 1,
+  "provider": "opencode",
+  "model": "deepseek-v4.1-flash-free",
+  "context": 200000,
+  "output": 32000,
+  "checked_at": "2026-10-27T02:01:02.994114+00:00",
+  "advertised_cost_usd": 0,
+  "scope": "synthetic evaluation only; metadata is not remote entitlement or billing proof"
+}
