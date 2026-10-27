@@ -116,6 +116,22 @@ def test_installed_desktop_owns_a_private_working_webview(tmp_path):
                            'No screenshot visual inspection claimed by this automated test'],
             }, indent=2) + '\n')
         except BaseException:
+            if session:
+                try:
+                    # This is a fresh credential-free profile. Return only
+                    # display text and URL components without query/fragment;
+                    # never emit cookie values or serialized page internals.
+                    view = execute('''return {origin: location.origin, path: location.pathname,
+                      title: document.title, text: document.body?.innerText?.slice(0, 2000)};''')
+                    cookies = client.get(f'/session/{session}/cookie', timeout=5)
+                    names = []
+                    if cookies.status_code == 200:
+                        names = [{key: row.get(key) for key in ('name', 'domain', 'path', 'httpOnly', 'sameSite')}
+                                 for row in cookies.json().get('value', []) if isinstance(row, dict)]
+                    diagnostic = json.dumps({'native_view': view, 'cookie_attributes_only': names})
+                    print(re.sub(r'\b[0-9a-fA-F]{32,}\b', '<redacted identifier>', diagnostic))
+                except Exception:
+                    print('Native display diagnostics unavailable; no page or cookie values emitted.')
             # No account/model credentials enter this fresh profile. Still
             # withhold long opaque identifiers from bounded startup diagnostics.
             diagnostic = log.read_text(errors='replace')[-8000:]
