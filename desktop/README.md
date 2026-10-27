@@ -22,6 +22,13 @@ Unix group supervision and Windows/macOS native-vault roundtrips. See the
 [source-bound evidence](../docs/realignment/artifacts/desktop-production-2026-10-26/native-boundaries-fe55b94f.json).
 Python worker execution, workspace and peer-identity boundaries remain unported
 on Windows/macOS. Packaged vault identity, restart and sleep/wake remain unverified.
+WebKit's Strict-cookie startup transition is now reproduced with a real ephemeral
+WebKitGTK context: the cookie is stored but withheld on the first cross-site navigation.
+The host permits one initial retry from its owned login origin; accepted first loads and
+later logouts do not retry. HttpOnly/SameSite=Strict, port/origin checks and private stdin
+bootstrap remain intact. Four Rust host tests, Clippy and the native cookie probe pass;
+a fresh installed Ubuntu result is still required.
+
 No signing, notarization, updater or public download is enabled.
 
 ## Develop

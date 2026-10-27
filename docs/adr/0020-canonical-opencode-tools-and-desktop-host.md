@@ -72,3 +72,20 @@ metadata; the packager now includes it recursively. This is a glibc 2.44 local
 build, not an Ubuntu 24.04 installed-package result. Native GUI journeys, OS
 keychains, Windows/macOS process and workspace boundaries, native peer
 authentication, release signing and update recovery remain gates.
+
+
+### WebKit Strict-cookie first navigation
+
+Actual installed Ubuntu WebKit reached the protected login page, rather than the owner dashboard.
+A native WebKitGTK 2.54.1 probe reproduced the browser behavior: adding the HttpOnly Strict cookie
+succeeds, but the initial navigation from the bundled custom-scheme startup page omits it. A second
+same-origin navigation includes it. The host now consumes a one-shot initial-navigation marker on
+the first completed owned-backend load. Only a plain `/login` at the exact owned origin may retry
+that backend root once. Foreign origins/ports do not consume the marker; an immediately accepted
+root clears it, and later logouts do not re-authenticate. Query/fragment login flows do not retry.
+The cookie remains HttpOnly and SameSite=Strict; no owner token/digest enters a URL or JavaScript.
+
+`probe_webkit_cookie_bootstrap.py` uses system PyGObject, DBus/Xvfb and an ephemeral context with a
+synthetic cookie. It is validation tooling, not a new application dependency or installed-package
+acceptance. Host tests cover origin binding, the one-hop bound and later logout behavior. Actual
+Ubuntu installed/native checks must still pass; local WebKit semantics do not prove other OS GUIs.

@@ -12,7 +12,7 @@ use std::{
 };
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::webview::{Cookie, NewWindowResponse};
+use tauri::webview::{Cookie, NewWindowResponse, PageLoadEvent};
 use tauri::{Manager, RunEvent, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use tauri_plugin_opener::OpenerExt;
 
@@ -42,6 +42,7 @@ struct Backend {
 struct HostState {
     backend: Mutex<Option<Backend>>,
     closing: AtomicBool,
+    initial_navigation: AtomicBool,
 }
 
 #[derive(Default)]
@@ -152,6 +153,24 @@ fn is_backend_url(url: &tauri::Url, backend: Option<&tauri::Url>) -> bool {
         && backend.is_some_and(|origin| url.origin() == origin.origin())
 }
 
+fn owner_session_retry(
+    url: &tauri::Url,
+    backend: Option<&tauri::Url>,
+    initial_navigation: &AtomicBool,
+) -> Option<tauri::Url> {
+    if !is_backend_url(url, backend) || !initial_navigation.swap(false, Ordering::AcqRel) {
+        return None;
+    }
+    // WebKit withholds a Strict cookie on the first cross-site navigation
+    // from the bundled startup origin. Once the owned login page has loaded,
+    // one same-origin navigation can use it. Never re-authenticate a later
+    // logout, retry a foreign origin, weaken SameSite, or put tokens in a URL.
+    if url.path() == "/login" && url.query().is_none() && url.fragment().is_none() {
+        return backend.cloned();
+    }
+    None
+}
+
 fn launch_backend(app: &tauri::AppHandle) -> Result<(Backend, Ready, String), String> {
     let token = random_secret();
     let nonce = random_secret();
@@ -222,6 +241,7 @@ fn main() {
             // Readiness is learned on a background thread; the startup window,
             // menu and Quit remain responsive if the backend fails to initialize.
             let navigation_app = app.handle().clone();
+            let session_app = app.handle().clone();
             let popup_app = app.handle().clone();
             let opener = app.handle().clone();
             let window =
@@ -236,6 +256,30 @@ fn main() {
                         let state = navigation_app.state::<HostOrigin>();
                         let allowed = state.0.lock().ok().and_then(|origin| origin.clone());
                         is_backend_url(url, allowed.as_ref())
+                    })
+                    .on_page_load(move |window, payload| {
+                        if !matches!(payload.event(), PageLoadEvent::Finished) {
+                            return;
+                        }
+                        let state = session_app.state::<HostState>();
+                        if state.closing.load(Ordering::Acquire) {
+                            return;
+                        }
+                        let origin = session_app
+                            .state::<HostOrigin>()
+                            .0
+                            .lock()
+                            .ok()
+                            .and_then(|origin| origin.clone());
+                        if let Some(target) = owner_session_retry(
+                            payload.url(),
+                            origin.as_ref(),
+                            &state.initial_navigation,
+                        ) {
+                            if window.navigate(target).is_err() {
+                                let _ = window.set_title("Hutch — startup needs attention");
+                            }
+                        }
                     })
                     .on_new_window(move |url, _features| {
                         let state = popup_app.state::<HostOrigin>();
@@ -298,6 +342,7 @@ fn main() {
                                 .build(),
                         )
                         .map_err(|_| "Hutch could not establish the private desktop session")?;
+                    state.initial_navigation.store(true, Ordering::Release);
                     window
                         .navigate(target)
                         .map_err(|_| "Hutch could not open its local workspace")?;
@@ -355,6 +400,28 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn strict_cookie_bootstrap_is_one_hop_on_the_owned_initial_origin_only() {
+        let origin = tauri::Url::parse("http://127.0.0.1:48000").unwrap();
+        let login = origin.join("/login").unwrap();
+        let initial = AtomicBool::new(true);
+        let foreign = tauri::Url::parse("http://127.0.0.1:48001/login").unwrap();
+        assert!(owner_session_retry(&foreign, Some(&origin), &initial).is_none());
+        assert!(initial.load(Ordering::Acquire));
+        assert_eq!(
+            owner_session_retry(&login, Some(&origin), &initial),
+            Some(origin.clone())
+        );
+        assert!(!initial.load(Ordering::Acquire));
+        assert!(owner_session_retry(&login, Some(&origin), &initial).is_none());
+
+        let accepted_immediately = AtomicBool::new(true);
+        assert!(owner_session_retry(&origin, Some(&origin), &accepted_immediately).is_none());
+        assert!(owner_session_retry(&login, Some(&origin), &accepted_immediately).is_none());
+        let query = origin.join("/login?other-flow=1").unwrap();
+        assert!(owner_session_retry(&query, Some(&origin), &AtomicBool::new(true)).is_none());
+    }
 
     #[test]
     fn readiness_is_bound_to_the_launched_process() {

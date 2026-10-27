@@ -1,0 +1,26 @@
+{
+  "contract_version": 1,
+  "cookie_attributes": [
+    {
+      "http_only": true,
+      "name": "hutch_probe",
+      "strict": true
+    }
+  ],
+  "cookies_before_navigation": 1,
+  "native_add_success": true,
+  "passed": true,
+  "requests": [
+    {
+      "path": "/",
+      "probe_cookie_received": false
+    },
+    {
+      "path": "/",
+      "probe_cookie_received": true
+    }
+  ],
+  "scope": "native cookie semantics; not installed Hutch GUI acceptance",
+  "webkit": "2.54.1",
+  "source_sha256": "306c9f7ecf60b9b7ff58850dc2045021a13174047e7daeb571fea04ffcc9debc"
+}
