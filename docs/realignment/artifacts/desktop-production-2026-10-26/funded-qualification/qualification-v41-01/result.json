@@ -1,0 +1,89 @@
+{
+  "contract_version": 1,
+  "case": "qualification-v41-01",
+  "route": "evaluation-router/deepseek/deepseek-v4.1-flash",
+  "scope": "synthetic canonical provider/runtime/tools qualification; no UI or external-service acceptance",
+  "permission": "only preauthorized local fixture reads/writes; isolated Bot auto mode",
+  "functional_checks_passed": true,
+  "artifact_quality": "not a business-workflow assessment",
+  "routing_policy": {
+    "allow_fallbacks": false,
+    "order": [
+      "deepinfra/fp8"
+    ],
+    "require_parameters": true,
+    "data_collection": "deny",
+    "zdr": true,
+    "max_price": {
+      "prompt": 0.35,
+      "completion": 0.8,
+      "request": 0
+    }
+  },
+  "qualification_ceiling_usd": 1.0,
+  "fixture_sha256": "eb201c86232dad531a355938221cda28d539a01354a3f667cfc4a16e231fee6d",
+  "done_write_receipts": 1,
+  "answer": "Done.\n\n- **Read** `fixture.json`: two items \u2014 3 \u00d7 $7 = $21 and 2 \u00d7 $5 = $10.\n- **Calculated** total = $31 (arithmetic on the fixture values, not an external fact).\n- **Wrote** `result.json` with exactly `{\"total_usd\": 31, \"source\": \"fixture.json\", \"draft\": true}`.\n\nNo other files created or services accessed. Output is a draft; figures are only as valid as the fixture data.",
+  "runtime_elapsed_seconds": 3.616,
+  "run_status": "succeeded",
+  "settled_tokens": 2831,
+  "run_cost_usd": 0.00026252,
+  "account_spent_usd": 0.000821792,
+  "account_held_usd": 0.0,
+  "requests": [
+    {
+      "sequence": 1,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.00055928,
+      "account_held_usd": 0.4755456,
+      "credit_verified": true
+    },
+    {
+      "sequence": 2,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.00068626,
+      "account_held_usd": 0.4755456,
+      "credit_verified": true
+    },
+    {
+      "sequence": 3,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.000743666,
+      "account_held_usd": 0.4755456,
+      "credit_verified": true
+    }
+  ],
+  "usage": [
+    {
+      "prompt_tokens": 760,
+      "completion_tokens": 49,
+      "cost_usd": 0.00012698,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.00012698
+    },
+    {
+      "prompt_tokens": 855,
+      "completion_tokens": 100,
+      "cost_usd": 5.7406e-05,
+      "cost_source": "provider",
+      "reported_cost_usd": 5.74056e-05
+    },
+    {
+      "prompt_tokens": 949,
+      "completion_tokens": 118,
+      "cost_usd": 7.8126e-05,
+      "cost_source": "provider",
+      "reported_cost_usd": 7.81256e-05
+    }
+  ],
+  "held_requests": [],
+  "event_chain_ok": true,
+  "credit_readback": {
+    "http_status": 200,
+    "delta_matches_ledger_within_10nano_usd": true,
+    "ledger_minus_credit_delta_usd": "2.000006E-9",
+    "scope": "Independent cumulative official credit delta; balances omitted. Ledger retained as conservative budget authority."
+  },
+  "runtime_source_commit": "0f8133c8ac7d228331376214e536f1172b02e784",
+  "harness_sha256": "0e5081ecc62efaa2d6b9d6e37cbd25ebfa9d29d1f317a6379e563e6c7120e436"
+}

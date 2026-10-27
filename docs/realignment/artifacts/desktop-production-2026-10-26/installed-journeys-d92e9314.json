@@ -1,0 +1,30 @@
+[
+  {
+    "contract_version": 1,
+    "application": "hutch-desktop",
+    "scope": "actual installed Linux webview, private first-run profile; no inference or connected accounts",
+    "http_only_owner_cookie": true,
+    "external_client_refused": true,
+    "separate_google_services": true,
+    "horizontal_overflow": false,
+    "limits": [
+      "No tray/menu or sleep/wake interaction",
+      "No live service/model or native worker acceptance",
+      "No screenshot visual inspection claimed by this automated test"
+    ]
+  },
+  {
+    "contract_version": 1,
+    "application": "Hutch_0.1.0_amd64.AppImage",
+    "scope": "actual installed Linux webview, private first-run profile; no inference or connected accounts",
+    "http_only_owner_cookie": true,
+    "external_client_refused": true,
+    "separate_google_services": true,
+    "horizontal_overflow": false,
+    "limits": [
+      "No tray/menu or sleep/wake interaction",
+      "No live service/model or native worker acceptance",
+      "No screenshot visual inspection claimed by this automated test"
+    ]
+  }
+]

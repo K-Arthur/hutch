@@ -5,7 +5,7 @@ existing Python server; it does not replace the agent loop or claim a speedup.
 
 ## Current evidence
 
-On the development Linux host, the native host builds, passes three Rust boundary
+On the development Linux host, the native host builds, passes four Rust boundary
 tests, and passes Clippy with warnings denied. Source and frozen backends pass
 readiness, authentication, asset, malformed-input, owned-worker, file-effect,
 receipt and host-loss checks. The first frozen startup exposed missing XlsxWriter
@@ -14,8 +14,12 @@ metadata; the spec now includes dependency metadata recursively.
 The original local frozen check used Python 3.13.15, PyInstaller 6.22.3 and glibc 2.44.
 Separately, Ubuntu 24.04 hosted validation now builds the Debian/AppImage packages,
 installs the Debian package, and passes ten actual source/frozen sidecar and worker checks.
-The first installed webview check stopped on an unsupported test-driver argument;
-its corrected rerun is pending. No native GUI or tray acceptance is claimed yet.
+The installed Debian and extract-and-run AppImage webview journeys both passed at
+`d92e9314` in [40438221361](https://github.com/K-Arthur/hutch/actions/runs/40438221361).
+They verify private first-run setup, HttpOnly owner authentication, external-client
+refusal, separate Google service cards and the default window's horizontal fit.
+This is not tray/menu, sleep/wake, clean-user VM or AppImage FUSE acceptance.
+The runner packages were not uploaded and are not available downloads.
 Actual four-host primitive validation passed on Ubuntu, Windows Server 2025,
 macOS 14 arm64 and macOS 15 Intel: process locks, Windows Job Objects,
 Unix group supervision and Windows/macOS native-vault roundtrips. See the
@@ -26,8 +30,10 @@ WebKit's Strict-cookie startup transition is now reproduced with a real ephemera
 WebKitGTK context: the cookie is stored but withheld on the first cross-site navigation.
 The host permits one initial retry from its owned login origin; accepted first loads and
 later logouts do not retry. HttpOnly/SameSite=Strict, port/origin checks and private stdin
-bootstrap remain intact. Four Rust host tests, Clippy and the native cookie probe pass;
-a fresh installed Ubuntu result is still required.
+bootstrap remain intact. Four Rust host tests, Clippy, the native cookie probe and
+both installed Ubuntu journeys pass on the recorded source. The bounded inventory
+has 43 Python license-metadata review flags; it is not a completed binary SBOM or
+license review. [Build and checksum record](../docs/realignment/artifacts/desktop-production-2026-10-26/desktop-build-d92e9314.json).
 
 No signing, notarization, updater or public download is enabled.
 

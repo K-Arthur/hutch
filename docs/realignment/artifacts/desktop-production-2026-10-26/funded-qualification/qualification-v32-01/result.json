@@ -1,0 +1,62 @@
+{
+  "contract_version": 1,
+  "case": "qualification-v32-01",
+  "route": "evaluation-router/deepseek/deepseek-v3.2",
+  "scope": "synthetic canonical provider/runtime/tools qualification; no UI or external-service acceptance",
+  "permission": "only preauthorized local fixture reads/writes; isolated Bot auto mode",
+  "functional_checks_passed": false,
+  "artifact_quality": "not a business-workflow assessment",
+  "routing_policy": {
+    "allow_fallbacks": false,
+    "order": [
+      "deepseek"
+    ],
+    "require_parameters": true,
+    "data_collection": "deny",
+    "zdr": true,
+    "max_price": {
+      "prompt": 0.35,
+      "completion": 0.8,
+      "request": 0
+    }
+  },
+  "qualification_ceiling_usd": 1.0,
+  "fixture_sha256": "eb201c86232dad531a355938221cda28d539a01354a3f667cfc4a16e231fee6d",
+  "error_type": "RunAborted",
+  "error": "model call failed (evaluation-router/deepseek/deepseek-v3.2): evaluation-router returned HTTP 404: No endpoints found for deepseek/deepseek-v3.2. Every candidate endpoint was removed during routing: Filter by Max Price removed digitalocean, google-vertex, phala, mara, sambanova; Filter by Tool Compatibility removed baidu/fp8; Filter by Data Policy removed gmicloud/fp8, atlas-cloud/fp8; Filter by Fallback removed siliconflow/fp8, deepinfra/fp4, venice.",
+  "runtime_elapsed_seconds": 0.316,
+  "run_status": "failed",
+  "settled_tokens": 0,
+  "run_cost_usd": 0.0,
+  "account_spent_usd": 0.0,
+  "account_held_usd": 0.165888,
+  "requests": [
+    {
+      "sequence": 1,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.0,
+      "account_held_usd": 0.165888,
+      "credit_verified": true
+    }
+  ],
+  "usage": [],
+  "held_requests": [
+    {
+      "id": "rsv_4eb12ded11f9",
+      "run_id": "run_3d8f45aac2c3",
+      "bot_id": "bot_d56631d88a33",
+      "provider": "evaluation-router",
+      "account_id": "evaluation",
+      "model": "deepseek/deepseek-v3.2",
+      "reserved_tokens": 2791,
+      "reserved_cost_usd": 0.165888,
+      "status": "uncertain",
+      "created_at": "2026-10-27T02:43:05.498225+00:00",
+      "reason": "provider outcome is uncertain (server)",
+      "cost_unknown": 0,
+      "quote_source": "openrouter",
+      "quote_verified_on": "2026-10-27T02:43:05.463851+00:00"
+    }
+  ],
+  "event_chain_ok": true
+}

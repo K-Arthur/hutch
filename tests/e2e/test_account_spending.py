@@ -110,6 +110,7 @@ def test_shared_account_spending_preview_save_conflict_and_recovery(browser, app
 
         def hold_limits(route):
             held.append((route, route.fetch()))
+            page.evaluate("window.accountBudgetHeld = true")
 
         page.route('**/api/v1/budgets?*', hold_limits)
         page.evaluate('''() => {
@@ -117,7 +118,7 @@ def test_shared_account_spending_preview_save_conflict_and_recovery(browser, app
           openAccountSpending = (...args) => window.pendingSpending = original(...args);
         }''')
         open_limits.click()
-        page.wait_for_function('() => !!window.pendingSpending')
+        page.wait_for_function('() => window.accountBudgetHeld === true')
         assert len(held) == 1
         page.evaluate("location.hash = '#/chat/account-spending-fixture'")
         expect(page.locator('#chat-prompt')).to_be_visible()
@@ -134,6 +135,9 @@ def test_shared_account_spending_preview_save_conflict_and_recovery(browser, app
             'tested': ['period preview', 'shared aliases', 'saved limits', 'stale revision conflict', '503 recovery',
                        'late response cannot replace chat']}, indent=2) + '\n')
     finally:
-        for route, _ in held:
-            route.abort()
-        context.close()
+        try:
+            page.unroute_all(behavior='wait')
+            for route, _ in held:
+                route.abort()
+        finally:
+            context.close()

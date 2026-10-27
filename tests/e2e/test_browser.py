@@ -6725,7 +6725,7 @@ def test_conversation_options_are_compact_persistent_and_recoverable(browser, li
     assert page.get_by_role("button", name="Download task template").is_visible()
     page.keyboard.press("Escape")
     assert page.locator("#studio-conversation-actions").is_visible()
-    assert more_actions.get_attribute("aria-expanded") == "false"
+    pw.expect(more_actions).to_have_attribute("aria-expanded", "false")
     assert more_actions.evaluate("el => el === document.activeElement")
     page.keyboard.press("Escape")
     assert page.locator("#studio-conversation-actions[open]").count() == 0
@@ -7783,7 +7783,7 @@ def test_tool_permissions_are_clear_and_save_at_desktop_tablet_and_phone(browser
             if not options.evaluate("element => element.parentElement.open"):
                 options.click()
             delete_button = page.get_by_role("menuitem", name="Delete assistant")
-            assert delete_button.is_visible()
+            pw.expect(delete_button).to_be_visible()
             if label == "phone":
                 assert delete_button.locator("svg").is_visible()
                 box = delete_button.bounding_box()
@@ -9767,9 +9767,8 @@ def test_chat_sourced_bot_setup_clarifies_multiple_details_and_restores_after_re
         page.screenshot(path=str(out / "question-phone-restored.png"), animations="disabled")
         page.get_by_role("button", name="Continue with this answer").click()
         question = page.locator("#setup-clarification-question")
-        question.wait_for()
+        pw.expect(question).to_contain_text("What should the Bot do when an update is missing?")
         assert len(calls) == 2
-        assert "What should the Bot do when an update is missing?" in question.inner_text()
         assert calls[1]["clarification_history"] == [{
             "question": "What should leadership receive?",
             "answer": "A concise written summary — A three-bullet note in chat, please."}]

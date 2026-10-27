@@ -1,4 +1,5 @@
 """An additive repair reopens retained conversations without resetting user state."""
+from contextlib import closing
 import sqlite3
 
 import pytest
@@ -25,12 +26,14 @@ def test_missing_feedback_table_in_v77_gets_backup_and_keeps_conversation_histor
     original.submit_conversation_message(conv["id"], prompt, Run(bot_id=bot.id, prompt=prompt),
         Task(bot_id=bot.id, prompt=prompt), idem_key="retained-message", request_hash="retained-message")
     assert original.list_conversation_messages(conv["id"])[0]["content"] == prompt
-    original._db.execute("DROP TABLE persona_feedback")
-    original._db.execute("PRAGMA user_version=77")
-    original._db.commit()
-    with pytest.raises(sqlite3.OperationalError, match="persona_feedback"):
-        original.list_conversation_messages(conv["id"])
+    # Construct the legacy database offline; a live Store owns background writers.
     original.close()
+    with closing(sqlite3.connect(config.db_path)) as legacy:
+        legacy.execute("DROP TABLE persona_feedback")
+        legacy.execute("PRAGMA user_version=77")
+        legacy.commit()
+        with pytest.raises(sqlite3.OperationalError, match="persona_feedback"):
+            legacy.execute("SELECT * FROM persona_feedback").fetchall()
     repaired = Store(config)
     try:
         assert repaired.schema_version == SCHEMA_VERSION
@@ -55,12 +58,13 @@ def test_v78_legacy_profile_missing_persona_column_is_repaired_without_history_r
     prompt = "Preserve this history during response-style repair."
     original.submit_conversation_message(conv["id"], prompt, Run(bot_id=bot.id, prompt=prompt),
         Task(bot_id=bot.id, prompt=prompt), idem_key="legacy-turn", request_hash="legacy-turn")
-    original._db.execute("ALTER TABLE conversations DROP COLUMN persona")
-    original._db.execute("PRAGMA user_version=78")
-    original._db.commit()
-    with pytest.raises(sqlite3.OperationalError, match="persona"):
-        original.read_conversation_persona(conv["id"])
     original.close()
+    with closing(sqlite3.connect(config.db_path)) as legacy:
+        legacy.execute("ALTER TABLE conversations DROP COLUMN persona")
+        legacy.execute("PRAGMA user_version=78")
+        legacy.commit()
+        with pytest.raises(sqlite3.OperationalError, match="persona"):
+            legacy.execute("SELECT persona FROM conversations").fetchall()
     repaired = Store(config)
     try:
         assert repaired.read_conversation_persona(conv["id"]) == (None, 0)

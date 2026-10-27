@@ -1,0 +1,9 @@
+{
+  "contract_version": 1,
+  "case": "qualification-v32-01",
+  "explicit_router_rejection": true,
+  "independent_credit_unchanged": true,
+  "terminal_no_charge_reconciled": true,
+  "new_qualified_endpoint_tag": "deepinfra/fp4",
+  "privacy_and_price_filters_retained": true
+}
