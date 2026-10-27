@@ -8553,7 +8553,10 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
         page.get_by_role("button", name=f"Options for {long_name}").click()
         menu = page.get_by_role("menu")
         assert menu.get_by_role("menuitem", name="Assistant settings").is_visible()
-        menu.get_by_role("menuitem", name="Pin to sidebar").click()
+        with page.expect_response(lambda response: response.url.endswith('/api/bots/research-helper')
+                                  and response.request.method == 'PATCH') as pinned:
+            menu.get_by_role("menuitem", name="Pin to sidebar").click()
+        assert pinned.value.status == 200, pinned.value.text()
         assert store.get_bot("research-helper").pinned is True
         page.locator("[data-switch-bot='website-auditor']").hover()
         page.locator("[data-bot-options='website-auditor']").click()

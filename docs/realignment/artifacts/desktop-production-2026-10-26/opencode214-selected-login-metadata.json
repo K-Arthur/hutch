@@ -1,0 +1,173 @@
+{
+  "contract_version": 1,
+  "scope": "metadata only, selected existing Go login; no session or inference",
+  "connected": true,
+  "models": [
+    {
+      "providerID": "opencode-go",
+      "modelID": "iceman-contributor-free",
+      "id": "iceman-contributor-free",
+      "name": "Iceman Contributor Free",
+      "cost": [
+        {
+          "input": 0,
+          "output": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      ],
+      "limit": {
+        "context": 262144,
+        "output": 131072
+      },
+      "capabilities": {
+        "tools": true,
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "status": "active"
+    },
+    {
+      "providerID": "opencode",
+      "modelID": "deepseek-v4.1-flash-free",
+      "id": "deepseek-v4.1-flash-free",
+      "name": "DeepSeek V4.1 Flash Free",
+      "cost": [
+        {
+          "input": 0,
+          "output": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      ],
+      "limit": {
+        "context": 200000,
+        "output": 32000
+      },
+      "capabilities": {
+        "tools": true,
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ],
+        "temperature": true
+      },
+      "status": "active"
+    },
+    {
+      "providerID": "opencode-go",
+      "modelID": "deepseek-v4.1-flash",
+      "id": "deepseek-v4.1-flash",
+      "name": "DeepSeek V4.1 Flash",
+      "cost": [
+        {
+          "input": 0.15,
+          "output": 0.6,
+          "cache": {
+            "read": 0.003,
+            "write": 0
+          }
+        }
+      ],
+      "limit": {
+        "context": 1000000,
+        "output": 384000
+      },
+      "capabilities": {
+        "tools": true,
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ],
+        "temperature": true
+      },
+      "status": "active"
+    },
+    {
+      "providerID": "opencode",
+      "modelID": "glm-5.3-flash-free",
+      "id": "glm-5.3-flash-free",
+      "name": "GLM-5.3-Flash Free",
+      "cost": [
+        {
+          "input": 0,
+          "output": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      ],
+      "limit": {
+        "context": 200000,
+        "output": 32000
+      },
+      "capabilities": {
+        "tools": true,
+        "input": [
+          "text",
+          "image",
+          "video"
+        ],
+        "output": [
+          "text"
+        ],
+        "temperature": true
+      },
+      "status": "active"
+    },
+    {
+      "providerID": "opencode-go",
+      "modelID": "glm-5.3-flash",
+      "id": "glm-5.3-flash",
+      "name": "GLM-5.3-Flash",
+      "cost": [
+        {
+          "input": 0.15,
+          "output": 0.5,
+          "cache": {
+            "read": 0.03,
+            "write": 0
+          }
+        }
+      ],
+      "limit": {
+        "context": 1000000,
+        "output": 131072
+      },
+      "capabilities": {
+        "tools": true,
+        "input": [
+          "text",
+          "image",
+          "video"
+        ],
+        "output": [
+          "text"
+        ],
+        "temperature": true
+      },
+      "status": "active"
+    }
+  ],
+  "temporary_profile": "removed after server closure",
+  "limits": [
+    "Connection saved by isolated API; not proof of remote account validity or entitlement",
+    "No session, model prompt, tool call or inference performed",
+    "Public free trial quota failure is recorded separately; Go paid candidates remain unevaluated"
+  ]
+}

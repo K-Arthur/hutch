@@ -2,6 +2,13 @@
 
 Status: implementation in progress (2026-10-26). Extends ADR 0004 and ADR 0020.
 
+Current evidence update: [four-host run 40429581126](https://github.com/K-Arthur/hutch/actions/runs/40429581126)
+passed actual Windows/macOS/Linux locking, Rust ownership and Windows/macOS native-vault primitives.
+[Source-bound records and limitations](../realignment/artifacts/desktop-production-2026-10-26/native-boundaries-fe55b94f.json)
+supersede the initial local-only evidence statements below. This does not validate installed GUI packages,
+Windows 11/macOS 14 Intel specifically, Python worker ports, vault prompts/restart or sleep/wake.
+
+
 ## Decision
 
 Put OS-specific primitives under `hutch.platforms`. Preserve the existing Linux

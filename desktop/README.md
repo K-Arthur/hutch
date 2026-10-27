@@ -11,10 +11,17 @@ readiness, authentication, asset, malformed-input, owned-worker, file-effect,
 receipt and host-loss checks. The first frozen startup exposed missing XlsxWriter
 metadata; the spec now includes dependency metadata recursively.
 
-The frozen check was built with Python 3.13.15, PyInstaller 6.22.3 and glibc 2.44.
-It is not an Ubuntu 24.04 compatibility result. The native GUI, installed package,
-tray behavior and WebKit cookie/navigation journey still need actual validation.
-Python worker execution, workspace and peer-identity boundaries remain unported on Windows/macOS. The Rust host has Windows Job Object ownership and Unix inherited-process-group supervision; native macOS validation of the latter is pending. Native credential adapters are implemented but still need actual vault and packaged-app validation.
+The original local frozen check used Python 3.13.15, PyInstaller 6.22.3 and glibc 2.44.
+Separately, Ubuntu 24.04 hosted validation now builds the Debian/AppImage packages,
+installs the Debian package, and passes ten actual source/frozen sidecar and worker checks.
+The first installed webview check stopped on an unsupported test-driver argument;
+its corrected rerun is pending. No native GUI or tray acceptance is claimed yet.
+Actual four-host primitive validation passed on Ubuntu, Windows Server 2025,
+macOS 14 arm64 and macOS 15 Intel: process locks, Windows Job Objects,
+Unix group supervision and Windows/macOS native-vault roundtrips. See the
+[source-bound evidence](../docs/realignment/artifacts/desktop-production-2026-10-26/native-boundaries-fe55b94f.json).
+Python worker execution, workspace and peer-identity boundaries remain unported
+on Windows/macOS. Packaged vault identity, restart and sleep/wake remain unverified.
 No signing, notarization, updater or public download is enabled.
 
 ## Develop
@@ -38,7 +45,7 @@ app focuses the existing window. **Quit Hutch and stop its work** closes the hos
 pipe, requests normal server/worker shutdown, and has a bounded kill fallback.
 An error remains visible in the startup window instead of crashing setup.
 
-On Linux/macOS the trusted sidecar starts in a distinct POSIX process group before exec. The Rust owner keeps its Child private, observes exit with `waitid(...WNOWAIT)`, signals the original group before reaping, and can terminate the exact root if it changes groups. This avoids signalling a recycled group after a root wait. Five Linux tests cover inherited children, graceful/forced exit, sibling isolation, moved roots and spawn failure; macOS remains pending native CI. Group supervision is lifecycle cleanup, not a sandbox or coverage of detached descendants. Linux containment remains in place; unsupported Windows/macOS advanced tools stay unavailable. The graceful wait is 15 seconds, followed by termination and a bounded five-second exit-confirmation wait; an unconfirmed exit is reported, not treated as verified cleanup. An error-path Drop may retry termination. `libc` 0.2.190 is pinned in both Rust lockfiles (MIT OR Apache-2.0); it was already a transitive desktop dependency.
+On Linux/macOS the trusted sidecar starts in a distinct POSIX process group before exec. The Rust owner keeps its Child private, observes exit with `waitid(...WNOWAIT)`, signals the original group before reaping, and can terminate the exact root if it changes groups. This avoids signalling a recycled group after a root wait. Five real Unix tests cover inherited children, graceful/forced exit, sibling isolation, moved roots and spawn failure on Linux and both native macOS runners. Group supervision is lifecycle cleanup, not a sandbox or coverage of detached descendants. Linux containment remains in place; unsupported Windows/macOS advanced tools stay unavailable. The graceful wait is 15 seconds, followed by termination and a bounded five-second exit-confirmation wait; an unconfirmed exit is reported, not treated as verified cleanup. An error-path Drop may retry termination. `libc` 0.2.190 is pinned in both Rust lockfiles (MIT OR Apache-2.0); it was already a transitive desktop dependency.
 
 ## Freeze and verify the backend
 
