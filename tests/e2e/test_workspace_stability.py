@@ -103,3 +103,31 @@ def test_late_assistant_directory_cannot_redirect_an_open_settings_page(browser,
         for route, _ in held:
             route.abort()
         context.close()
+
+
+def test_unchanged_roster_refresh_preserves_open_menu_and_focus(browser, app_server, monkeypatch):
+    base, app = app_server
+    monkeypatch.setattr(app.state.engine, 'tick', lambda: None)
+    bot = app.state.store.create_bot(Bot(name='stable-roster', model='mock/demo', tools=[]))
+    context = browser.new_context(reduced_motion='reduce')
+    page = context.new_page()
+    try:
+        page.goto(base + '/#/chat/' + bot.name)
+        expect(page.locator('#chat-prompt')).to_be_visible()
+        page.locator('[data-bot-options="stable-roster"]').click()
+        menu = page.locator('#roster-action-menu')
+        expect(menu).to_be_visible()
+        menu.get_by_role('menuitem', name='Pin to sidebar', exact=True).focus()
+        state = page.evaluate('''() => {
+          const row = document.querySelector('[data-switch-bot="stable-roster"]');
+          const menu = document.querySelector('#roster-action-menu');
+          const focused = document.activeElement;
+          renderRoster();
+          return {row: row.isConnected, menu: menu.isConnected, focus: focused === document.activeElement};
+        }''')
+        assert state == {'row': True, 'menu': True, 'focus': True}
+        # Search changes still repaint the directory instead of freezing it.
+        page.locator('#bot-search').fill('no-match-for-this-assistant')
+        expect(page.get_by_text('No assistant matches.', exact=True)).to_be_visible()
+    finally:
+        context.close()

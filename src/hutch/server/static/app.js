@@ -2254,6 +2254,15 @@ async function refreshRoster() {
   });
 }
 
+const rosterMarkup = new WeakMap();
+function replaceRosterMarkup(list, markup) {
+  if (rosterMarkup.get(list) === markup) return false;
+  closeRosterActionMenu(false);
+  list.innerHTML = markup;
+  rosterMarkup.set(list, markup);
+  return true;
+}
+
 function renderRoster() {
   const list = $("#roster-list");
   if (!list) return;
@@ -2265,7 +2274,6 @@ function renderRoster() {
         : focus?.matches?.("#roster-action-menu [data-menu-hide]") ? "hide" : null;
   const focusedBot = list.contains(focus) ? focus.dataset.switchBot : null;
   const focusedOptions = list.contains(focus) ? focus.dataset.botOptions : menuBot;
-  closeRosterActionMenu(false);
   $("#fleet-nav").hidden = botsCache.length < 10;
   const q = ($("#bot-search")?.value || "").trim().toLowerCase();
   const coordinator = botsCache.find(b => b.is_workspace_coordinator);
@@ -2277,9 +2285,10 @@ function renderRoster() {
   if (q) {
     const rows = allMatching.filter(b => b.id !== coordinator?.id).sort(byDisplayName);
     const rowHtml = b => rosterRowHtml(b, currentStudioBot);
-    list.innerHTML = `${coordinatorMatch ? `<div class="roster-section roster-coordinator">${rosterRowHtml(coordinatorMatch, currentStudioBot)}</div>` : ""}
+    const markup = `${coordinatorMatch ? `<div class="roster-section roster-coordinator">${rosterRowHtml(coordinatorMatch, currentStudioBot)}</div>` : ""}
       ${rows.length ? `<section class="roster-section" aria-label="Bot search results"><h3 class="roster-section-title">Search results</h3>${rows.map(rowHtml).join("")}</section>`
       : `<div class="roster-empty">No assistant matches.</div>`}`;
+    if (!replaceRosterMarkup(list, markup)) { updateRosterCurrentItem(); return; }
     wireRosterRows(list);
     wireRosterMenuButtons(list, menuBot, focusedMenuAction);
     return;
@@ -2347,7 +2356,7 @@ function renderRoster() {
       <div class="roster-section roster-idle-list" id="roster-hidden-bots">${hiddenIdle.map(rowHtml).join("")}</div>
     </details>`);
   }
-  list.innerHTML = sections.join("");
+  if (!replaceRosterMarkup(list, sections.join(""))) { updateRosterCurrentItem(); return; }
   const idleDetails = $("#roster-idle-details");
   if (idleDetails) {
     if (q) idleDetails.open = true;

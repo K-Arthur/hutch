@@ -1367,7 +1367,7 @@ def test_workflow_studio_lists_and_resolves_every_pending_question(browser, live
             first.get_by_role("button", name="Send answer").click()
         assert answer_response.value.status == 200, answer_response.value.text()
         panel.locator(f'[data-question-id="{pending_questions[1]["id"]}"]').wait_for(state="visible")
-        assert panel.locator("[data-workflow-question-form]").count() == 1
+        pw.expect(panel.locator("[data-workflow-question-form]")).to_have_count(1)
         panel.get_by_text("1 pending question", exact=True).wait_for()
         panel.get_by_text("Current reason: waiting for 1 answer(s)", exact=True).wait_for()
         assert "2 discovered instances" in panel.locator(".workflow-panel-meta").inner_text()
@@ -6720,7 +6720,7 @@ def test_conversation_options_are_compact_persistent_and_recoverable(browser, li
     page.locator("#studio-conversation-options").click()
     more_actions = page.locator("#studio-conversation-more > summary")
     more_actions.click()
-    assert more_actions.get_attribute("aria-expanded") == "true"
+    pw.expect(more_actions).to_have_attribute("aria-expanded", "true")
     assert page.get_by_role("button", name="Save reusable request").is_visible()
     assert page.get_by_role("button", name="Download task template").is_visible()
     page.keyboard.press("Escape")
@@ -9008,7 +9008,7 @@ def test_duplicate_bot_starts_from_safe_editable_setup_without_copying_authority
         page.get_by_role("heading", name="Review and create").wait_for()
         review = page.locator(".setup-review").inner_text()
         assert "managed" in review.lower() and "no tools enabled" in review.lower()
-        assert "Recurring task\nNone" in review and "Memory\nDisabled" in review
+        assert "Recurring task\nNone" in review and "Memory and learning\nDisabled" in review
         assert app.state.store.get_bot("release-reviewer-copy") is None
         assert app.state.store.list_runs() == []
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
