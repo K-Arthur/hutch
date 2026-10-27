@@ -48,6 +48,12 @@ host adds single-instance behavior and native tray/menu controls. Rust is used
 for native integration; no unmeasured speedup or Rust agent-loop replacement is
 claimed. ADR 0016's performance requirement remains in force.
 
+### Unix lifecycle ownership
+
+The trusted sidecar starts with [`CommandExt::process_group(0)`](https://doc.rust-lang.org/std/os/unix/process/trait.CommandExt.html#method.process_group), before exec. Its Child is private to the Rust owner; callers receive only the startup pipes and PID. `waitid` with `WNOWAIT` observes exit without releasing the kernel PID reservation. Cleanup signals the original group while that root remains unreaped, then confirms/reaps the root. A moved root is terminated directly without signalling its new group. Idempotent stop and Drop preserve this ownership order; startup failure uses the same cleanup. Graceful shutdown is bounded, followed by forced termination and bounded exit confirmation. Failure remains an error.
+
+This is required native lifecycle integration, not a performance-driven Rust replacement or an OS sandbox. It covers inherited process-group descendants, not detached sessions. The existing Linux worker containment/verification is unchanged; Windows/macOS advanced worker and peer-identity ports remain separate gates. Five Linux Rust checks cover graceful exit with a live inherited child, forced deadline, independent sibling groups, moved-root cleanup, repeated stop and missing executables. Actual macOS primitive and GUI/installed-package evidence is still required.
+
 ## Evidence and outstanding work
 
 The installed OpenCode V2.1.4 plugin RPC wrote fixture files through the actual

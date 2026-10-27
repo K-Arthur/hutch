@@ -5,5 +5,8 @@ edition = "2021"
 license = "MIT"
 description = "Native ownership boundaries for Hutch desktop processes"
 
+[target.'cfg(unix)'.dependencies]
+libc = "=0.2.190"
+
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading"] }

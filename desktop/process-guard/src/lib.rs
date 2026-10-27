@@ -3,5 +3,8 @@
 
 pub const CONTRACT_VERSION: u32 = 1;
 
+#[cfg(unix)]
+pub mod unix;
+
 #[cfg(windows)]
 pub mod windows;

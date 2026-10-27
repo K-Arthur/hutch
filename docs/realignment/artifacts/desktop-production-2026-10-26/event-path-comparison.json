@@ -1,0 +1,41 @@
+{
+  "contract": "same host, interpreter, filesystem and harness; 20,000 events per sample; alternating source order",
+  "python": "3.13.15 (main, Sep  1 2026, 14:18:08) [Clang 22.1.3 ]",
+  "samples": {
+    "a1f1362f49579a6d0532f8e3fb0bb992c4d7c70f": [
+      754.7025549227584,
+      948.6144265823598,
+      985.4395777060745,
+      1072.9272930392542,
+      1142.3856028959717
+    ],
+    "438202d9e6586cbc0cad277eec557783d4ba6066": [
+      814.6334788171868,
+      829.6785533947349,
+      1087.523322992931,
+      1098.9149101506914,
+      1051.0857626066506
+    ]
+  },
+  "sources": {
+    "a1f1362f49579a6d0532f8e3fb0bb992c4d7c70f": {
+      "store_sha256": "6fbe5f6c0ff18fb6268ca25415b2c324c996b0986e8d4f453c79c0322d325a88"
+    },
+    "438202d9e6586cbc0cad277eec557783d4ba6066": {
+      "store_sha256": "bdd10283f76218768ef62baf42c4008358500f4c25701cc133939268fe615402"
+    }
+  },
+  "medians": {
+    "a1f1362f49579a6d0532f8e3fb0bb992c4d7c70f": 985.4395777060745,
+    "438202d9e6586cbc0cad277eec557783d4ba6066": 1051.0857626066506
+  },
+  "limitations": [
+    "Ambient development activity was not fully quiescent",
+    "Filesystem warm-up visible across samples",
+    "Python 3.13.15 on development host, not hosted Python 3.12",
+    "Not a Rust adoption or speedup claim",
+    "Does not erase the failed mixed-hardware hosted gate"
+  ],
+  "harness_source": "benchmarks/run.py at c4713dbe; bench_events n=20000 runs=1 for each fresh sample state",
+  "harness_sha256": "3bb324906865e4d690d96bdbdc0cb6797d1d9d3c44979eebaaad1bdc70f733dd"
+}

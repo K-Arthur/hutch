@@ -3,18 +3,26 @@
 use serde::Deserialize;
 use std::{
     io::{BufRead, BufReader, Read, Write},
-    process::{Child, Command, Stdio},
+    process::{Command, Stdio},
     sync::{
         atomic::{AtomicBool, Ordering},
         mpsc, Mutex,
     },
-    time::{Duration, Instant},
+    time::Duration,
 };
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::webview::{Cookie, NewWindowResponse};
 use tauri::{Manager, RunEvent, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use tauri_plugin_opener::OpenerExt;
+
+#[cfg(not(unix))]
+use std::time::Instant;
+
+#[cfg(unix)]
+use hutch_process_guard::unix::OwnedProcess as BackendChild;
+#[cfg(not(unix))]
+use std::process::Child as BackendChild;
 
 #[derive(Deserialize)]
 struct Ready {
@@ -25,7 +33,7 @@ struct Ready {
 }
 
 struct Backend {
-    child: Child,
+    child: BackendChild,
     #[cfg(windows)]
     job: Option<hutch_process_guard::windows::OwnedJob>,
 }
@@ -44,22 +52,31 @@ impl Backend {
         if let Some(mut input) = self.child.stdin.take() {
             let _ = input.write_all(b"quit\n");
         }
-        let deadline = Instant::now() + Duration::from_secs(15);
-        while Instant::now() < deadline {
-            if self.child.try_wait().ok().flatten().is_some() {
-                #[cfg(windows)]
-                self.job.take(); // close also ends any descendant left behind
-                return;
+        #[cfg(unix)]
+        {
+            if self.child.stop(Duration::from_secs(15)).is_err() {
+                eprintln!("Hutch could not confirm backend process shutdown.");
             }
-            std::thread::sleep(Duration::from_millis(50));
         }
-        #[cfg(windows)]
-        if let Some(job) = self.job.take() {
-            let _ = job.terminate();
-            drop(job); // kill-on-close still applies if explicit termination failed
+        #[cfg(not(unix))]
+        {
+            let deadline = Instant::now() + Duration::from_secs(15);
+            while Instant::now() < deadline {
+                if self.child.try_wait().ok().flatten().is_some() {
+                    #[cfg(windows)]
+                    self.job.take(); // close also ends any descendant left behind
+                    return;
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            #[cfg(windows)]
+            if let Some(job) = self.job.take() {
+                let _ = job.terminate();
+                drop(job); // kill-on-close still applies if explicit termination failed
+            }
+            let _ = self.child.kill();
+            let _ = self.child.wait();
         }
-        let _ = self.child.kill();
-        let _ = self.child.wait();
     }
 }
 
@@ -143,6 +160,10 @@ fn launch_backend(app: &tauri::AppHandle) -> Result<(Backend, Ready, String), St
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit());
+    #[cfg(unix)]
+    let child = BackendChild::spawn(&mut command)
+        .map_err(|_| "The bundled Hutch backend could not start".to_string())?;
+    #[cfg(not(unix))]
     let child = command
         .spawn()
         .map_err(|_| "The bundled Hutch backend could not start".to_string())?;

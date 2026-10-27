@@ -14,7 +14,7 @@ metadata; the spec now includes dependency metadata recursively.
 The frozen check was built with Python 3.13.15, PyInstaller 6.22.3 and glibc 2.44.
 It is not an Ubuntu 24.04 compatibility result. The native GUI, installed package,
 tray behavior and WebKit cookie/navigation journey still need actual validation.
-Windows/macOS execution and workspace/process/IPC boundaries remain unported. Native credential adapters are implemented but still need actual vault and packaged-app validation.
+Python worker execution, workspace and peer-identity boundaries remain unported on Windows/macOS. The Rust host has Windows Job Object ownership and Unix inherited-process-group supervision; native macOS validation of the latter is pending. Native credential adapters are implemented but still need actual vault and packaged-app validation.
 No signing, notarization, updater or public download is enabled.
 
 ## Develop
@@ -37,6 +37,8 @@ The startup window opens before backend readiness. Close hides it; reopening the
 app focuses the existing window. **Quit Hutch and stop its work** closes the host
 pipe, requests normal server/worker shutdown, and has a bounded kill fallback.
 An error remains visible in the startup window instead of crashing setup.
+
+On Linux/macOS the trusted sidecar starts in a distinct POSIX process group before exec. The Rust owner keeps its Child private, observes exit with `waitid(...WNOWAIT)`, signals the original group before reaping, and can terminate the exact root if it changes groups. This avoids signalling a recycled group after a root wait. Five Linux tests cover inherited children, graceful/forced exit, sibling isolation, moved roots and spawn failure; macOS remains pending native CI. Group supervision is lifecycle cleanup, not a sandbox or coverage of detached descendants. Linux containment remains in place; unsupported Windows/macOS advanced tools stay unavailable. The graceful wait is 15 seconds, followed by termination and a bounded five-second exit-confirmation wait; an unconfirmed exit is reported, not treated as verified cleanup. An error-path Drop may retry termination. `libc` 0.2.190 is pinned in both Rust lockfiles (MIT OR Apache-2.0); it was already a transitive desktop dependency.
 
 ## Freeze and verify the backend
 
