@@ -1,0 +1,83 @@
+name: Installed Linux desktop validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-linux-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  installed:
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13.15'
+      - name: Install native build and WebKit validation prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf libssl-dev pkg-config build-essential webkit2gtk-driver xvfb xauth dbus-x11 bubblewrap poppler-utils libharfbuzz-subset0 fonts-liberation fonts-dejavu-core
+          python -m pip install uv==0.12.24
+          uv sync --frozen --extra dev --extra browser --extra desktop
+          rustup toolchain install 1.97.1 --profile minimal --component clippy,rustfmt
+          rustup override set 1.97.1
+      - name: Install pinned build and external test drivers
+        run: |
+          cargo install tauri-cli --version 2.12.4 --locked
+          cargo install tauri-driver --version 2.1.0 --locked
+      - name: Check native host and freeze bundled Python
+        env:
+          HUTCH_NATIVE_TARGET: linux-x64
+          HUTCH_SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          uv run --frozen --no-sync python scripts/record_native_host.py --output .validation/desktop-host.json
+          cat .validation/desktop-host.json
+          cargo test --locked --manifest-path desktop/Cargo.toml
+          cargo clippy --locked --manifest-path desktop/Cargo.toml --all-targets -- -D warnings
+          uv run --frozen --no-sync python scripts/build_desktop_backend.py
+      - name: Exercise actual frozen backend and owned worker
+        env:
+          HUTCH_FROZEN_BACKEND: ${{ github.workspace }}/desktop/binaries/backend/hutch-backend
+        run: uv run --frozen --no-sync pytest -q tests/test_desktop_sidecar.py
+      - name: Build unsigned Linux packages
+        working-directory: desktop
+        run: cargo tauri build --ci --config tauri.bundle.conf.json -- --locked
+      - name: Install the exact Debian package and exercise its webview
+        env:
+          HUTCH_TEST_ARTIFACTS_DIR: ${{ github.workspace }}/.validation
+        run: |
+          mapfile -t packages < <(find desktop/target/release/bundle/deb -maxdepth 1 -name '*.deb' -type f)
+          mapfile -t appimages < <(find desktop/target/release/bundle/appimage -maxdepth 1 -name '*.AppImage' -type f)
+          test "${#packages[@]}" -eq 1
+          test "${#appimages[@]}" -eq 1
+          sudo apt-get install -y "$(realpath "${packages[0]}")"
+          test -x /usr/bin/hutch-desktop
+          HUTCH_DESKTOP_BINARY=/usr/bin/hutch-desktop dbus-run-session -- xvfb-run -a uv run --frozen --no-sync pytest -q tests/native/test_desktop_webdriver.py
+      - name: Exercise the exact AppImage through its extraction runtime
+        env:
+          HUTCH_TEST_ARTIFACTS_DIR: ${{ github.workspace }}/.validation/appimage
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+        run: |
+          mapfile -t appimages < <(find desktop/target/release/bundle/appimage -maxdepth 1 -name '*.AppImage' -type f)
+          test "${#appimages[@]}" -eq 1
+          HUTCH_DESKTOP_BINARY="$(realpath "${appimages[0]}")" dbus-run-session -- xvfb-run -a uv run --frozen --no-sync pytest -q tests/native/test_desktop_webdriver.py
+      - name: Emit package checksums and bounded inventory
+        run: |
+          uv run --frozen --no-sync python scripts/record_desktop_build.py --bundle desktop/target/release/bundle --output .validation/desktop-build.json
+          cat .validation/desktop-build.json
+      - name: Emit available native validation records
+        if: ${{ always() }}
+        run: |
+          test ! -e .validation/native-desktop/validation.json || cat .validation/native-desktop/validation.json
+          test ! -e .validation/appimage/native-desktop/validation.json || cat .validation/appimage/native-desktop/validation.json
+
+# Build/test only: no release writes, signing, artifact upload, cache or model credentials.

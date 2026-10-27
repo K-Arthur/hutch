@@ -149,3 +149,34 @@ been published. The marketing page links to the public source and Linux source s
 not fabricated installer URLs. Only add an actual release artifact after its native
 installed checks, checksum and dependency/license inventory are available; production
 promotion also needs signing/notarization, safe update recovery and live acceptance.
+
+
+## Installed Ubuntu validation
+
+The manual `.github/workflows/desktop-linux.yml` workflow builds on Ubuntu 24.04,
+freezes the Python backend, runs source/frozen sidecar and worker checks, and
+builds both unsigned `.deb` and AppImage files. It installs the exact Debian
+artifact, then drives that installed app and the exact AppImage in a real
+WebKit webview under an isolated D-Bus/Xvfb session. AppImage uses its documented
+extract-and-run runtime; this does not validate a FUSE mount. No account keys,
+personal browser profiles, model calls or embedded test-control plugin are used.
+
+The opt-in `tests/native/test_desktop_webdriver.py` requires
+`HUTCH_DESKTOP_BINARY`, `tauri-driver` 2.1.0 and the OS `WebKitWebDriver`.
+It checks private first-run startup, the HttpOnly owner cookie, unauthenticated
+external-client refusal, real Apps & AI navigation and separate Google services.
+It records a screenshot for later visual inspection and verifies cleanup of its
+owned driver process tree. The local host lacks WebKitWebDriver, so the native
+journey is unverified until that workflow actually passes; a skipped local check
+is not acceptance. Tray/menu, sleep/wake and native worker containment remain
+separate checks. See [Tauri's native-driver setup](https://v2.tauri.app/develop/tests/webdriver/manual-setup/).
+
+`record_desktop_build.py` hashes the actual two package files, records their
+source revision and inventories installed Python and resolved Linux Rust license
+metadata. It refuses missing/duplicate formats and escaped/symlinked package
+files, and flags missing/truncated license metadata for review. This build
+inventory includes development dependencies; it is not an exact binary SBOM or
+a completed native-library/license review. The workflow publishes no release,
+uploads no Actions artifacts, uses no signing credentials and does not activate
+download links. Passing build/install tests alone does not make Hutch production
+ready or make Windows/macOS packages available.

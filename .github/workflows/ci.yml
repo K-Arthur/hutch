@@ -37,7 +37,8 @@ jobs:
           sudo apt-get install --no-install-recommends -y bubblewrap poppler-utils libharfbuzz-subset0 fonts-liberation fonts-dejavu-core
           dpkg-query -W bubblewrap poppler-utils libharfbuzz-subset0 fonts-liberation fonts-dejavu-core
       - run: uv run --frozen --no-sync python -m playwright install --with-deps chromium
-      - run: uv run --frozen --no-sync pytest -q
+      - name: Run full regression with bounded stall diagnostics
+        run: uv run --frozen --no-sync pytest -q -o faulthandler_timeout=180
 
   benchmarks:
     timeout-minutes: 20
