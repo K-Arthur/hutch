@@ -22,6 +22,26 @@ Accepted brief: user conversation of 2026-10-26, including the final implementat
 
 Audience: individuals and solo professionals. Desktop first, then breadth. Supervised defaults plus revocable, precise automation grants. Unsigned previews precede production signing/notarization and safe update recovery. The user's subsequent public-repository direction supersedes the earlier private-only restriction: source/history/artifact/license review completed and `K-Arthur/hutch` is now public. Standard public hosted CI is authorized; no private paid fallback, release installer or hosted marketing deployment is implied. Credentials and unrelated local files remain private. No live ads/budget changes or unreviewed outreach/publication. Advanced unsupported OS tools remain unavailable. Hardware, training, extra channels/voice, ACP/TUI expansion and remote backends follow the validated core.
 
+## Current continuation
+
+As of `173f2622`: Telegram private-text preview, grounded business guidance and
+conversation navigation fixes are committed. The correctly imported immutable
+`05aa6489` local nonbrowser suite passed **3,672 / 20 skipped / 6 xfailed**; its
+Ubuntu installed Debian/AppImage run also passed. Later affected runtime checks
+passed **118**, navigation checks **5**, and held-response cleanup checks **4**.
+The next combined main CI result is pending. All P1–P13 obligations remain active.
+
+Three paid local business baselines are preserved with actual artifacts and a
+failed marketing grounding review. Cumulative ledger spend is **USD0.002729993**,
+held **USD0**, under the authorized **USD10** total. Current shared baseline phase
+policy is lifetime USD2 above its starting spend, revision2. The temporary key
+remains only in the private isolated evaluation profile; final tests and cleanup
+remain due. Next: run the paired final reasoning checks on the same pinned route
+after source verification, then continue the incomplete coordinator, channels,
+learning drafts, integrations, native ports and release gates. Current OpenCode
+free quota / paid native accounting and external OAuth/live-service prerequisites
+remain explicit limitations, not completed acceptance.
+
 ## Authoritative pointers
 
 - Project: `AGENTS.md`, `PRODUCT.md`, `DESIGN.md`, `docs/architecture.md`, `docs/runtime-setup.md`.
@@ -617,3 +637,10 @@ Current slice: rebuild Apps & AI as searchable discovery plus focused service se
 - Conversation opening now binds a request generation and originating route before network waits, rejects stale responses, fences older studio construction and publishes fetched conversation state only after ownership checks. Native context/send controls stay disabled while pending; the native details summary uses actual inert plus ARIA (it has no HTML disabled semantics). The visible 14px loading status stays outside the busy message region. Failure restores the prior controls, selected conversation and unsent draft. Removed the redundant pre-navigation unread PATCH; the existing scoped studio read transition remains. No provider/model, permission or persistent history change.
 - Final delayed controls/settings/newer-request/failure plus the complete original options journey **5 passed, 175 deselected in 24.44s**. These retain the original pin/unread/section/export assertions. New checks include nonfocusable inert summary, disabled send/draft, failed-read draft retention and actual next-menu visibility. Spending/learning response teardown **4 passed in 18.72s** after matching abort-before-drain ordering; a failed assertion must not deadlock on its own held response. JavaScript syntax, CSS build and whitespace checks passed; changed-target detector has no findings/new suppression. [Opened source-bound captures](artifacts/desktop-production-2026-10-26/conversation-loading/). Actual browser zoom/native loading-state acceptance remains unverified.
 - Requirements review checked latest destination wins, no wrong-context send/options during loading, exact original unread behavior, error recovery and retained draft. Standards review checked request/route fences around each awaited build, original control-state restoration across overlapping opens, detached DOM handling, bounded native/ARIA semantics, safe status text and cleanup without disposed contexts. No remaining finding in this slice; the next combined full hosted run remains required.
+
+
+### Source-pinned local and installed Ubuntu regression is green
+
+- Immutable `05aa6489` local nonbrowser run, verified `hutch.__file__` under the detached checkout and fresh RAM benchmark root: **3,672 passed, 20 skipped, 6 xfailed in 1676.30s**. `.validation/desktop-production/nonbrowser-05aa6489.log`. This includes the committed Telegram slice and billing corrections; it predates the latest compact grounding guidance and navigation changes, whose affected checks are recorded separately. No combined-source or skipped-feature acceptance is implied. Removed only the two completed older task scratch trees after checking process cwd/open handles; their logs and immutable commit references remain.
+- [Installed Ubuntu run 40445593343](https://github.com/K-Arthur/hutch/actions/runs/40445593343), exact `05aa6489a61f2c8c34f5b577ae7513f192ca6444`, succeeded: **4 Rust tests**, Clippy, **10 actual source/frozen checks in 24.94s**, Debian installed webview **1 in 6.08s**, extract-and-run AppImage webview **1 in 7.60s**. [Journey records](artifacts/desktop-production-2026-10-26/installed-journeys-05aa6489.json), [package/checksum/dependency inventory](artifacts/desktop-production-2026-10-26/desktop-build-05aa6489.json).
+- Native assertions cover private first-run, Strict/HttpOnly owner-cookie authority, independent unauthenticated-client refusal, separate Google service cards and default native-window horizontal fit. They do not cover live Telegram, native menu/tray/sleep, clean-user VM, AppImage FUSE, full other-OS ports or later-source equivalence. The **43 Python license-metadata review flags remain open**; the inventory is not a finished binary SBOM/license review. No installer/artifact was uploaded or published, and the download manifest remains unavailable. Native signing, safe updates, Windows/macOS installed execution and complete live workflow acceptance remain production gates.

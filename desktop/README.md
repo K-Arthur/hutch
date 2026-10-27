@@ -15,11 +15,12 @@ The original local frozen check used Python 3.13.15, PyInstaller 6.22.3 and glib
 Separately, Ubuntu 24.04 hosted validation now builds the Debian/AppImage packages,
 installs the Debian package, and passes ten actual source/frozen sidecar and worker checks.
 The installed Debian and extract-and-run AppImage webview journeys both passed at
-`d92e9314` in [40438221361](https://github.com/K-Arthur/hutch/actions/runs/40438221361).
+`05aa6489` in [40445593343](https://github.com/K-Arthur/hutch/actions/runs/40445593343).
 They verify private first-run setup, HttpOnly owner authentication, external-client
 refusal, separate Google service cards and the default window's horizontal fit.
 This is not tray/menu, sleep/wake, clean-user VM or AppImage FUSE acceptance.
-The runner packages were not uploaded and are not available downloads.
+The runner packages were not uploaded and are not available downloads. Later
+conversation-navigation and instruction changes require a final combined candidate check.
 Actual four-host primitive validation passed on Ubuntu, Windows Server 2025,
 macOS 14 arm64 and macOS 15 Intel: process locks, Windows Job Objects,
 Unix group supervision and Windows/macOS native-vault roundtrips. See the
@@ -33,7 +34,7 @@ later logouts do not retry. HttpOnly/SameSite=Strict, port/origin checks and pri
 bootstrap remain intact. Four Rust host tests, Clippy, the native cookie probe and
 both installed Ubuntu journeys pass on the recorded source. The bounded inventory
 has 43 Python license-metadata review flags; it is not a completed binary SBOM or
-license review. [Build and checksum record](../docs/realignment/artifacts/desktop-production-2026-10-26/desktop-build-d92e9314.json).
+license review. [Build and checksum record](../docs/realignment/artifacts/desktop-production-2026-10-26/desktop-build-05aa6489.json).
 
 No signing, notarization, updater or public download is enabled.
 
