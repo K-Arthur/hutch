@@ -251,8 +251,10 @@ prose, labels, or marketing.
   Technical boundaries also use body-sized shared-width rows; do not shrink
   important limitations to metadata or stretch a parallel code panel to match them.
 
-- Desktop shell: `272px sidebar | 56px top bar | 1fr content`, optional
+- Desktop shell: `304px expanded sidebar above 1000px (272px on smaller layouts) | 56px top bar | 1fr content`, optional
   `380px` context drawer (fixed overlay below 1100px, auto-opened above).
+  Reserve enough name width for wider native system fonts alongside the avatar
+  and options control; keep the shared text scale instead of shrinking labels.
 - Sidebar docks to a 64px icon rail (logo becomes the expand control);
   state persists per browser.
 - Conversation column: max 760px, composer pinned 24px above the safe area;

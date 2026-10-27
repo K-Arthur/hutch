@@ -22,6 +22,11 @@
 
 /* Stable roster hierarchy; status belongs to each assistant's row. These shell
    rules are unlayered because the legacy stylesheet is loaded after ui.css. */
+@media (min-width: 1001px) {
+  /* System font metrics vary across OSes. Keep ordinary names readable beside
+     the avatar and options control without reducing the shared type scale. */
+  .app-shell:not(.collapsed) { grid-template-columns: 304px minmax(0, 1fr); }
+}
 .workspace .roster-title, .workspace .roster-section-title {
   text-transform: none; letter-spacing: normal;
   font: 600 var(--fs-xs)/1.4 var(--font-ui); color: var(--text-2);

@@ -1,0 +1,33 @@
+{
+  "contract": "No-op schedule reconciliation preserves DOM identity, focus and expanded timing details; real updates remain visible; old directory responses cannot redirect settings; wider system fonts fit ordinary desktop names.",
+  "checks": {
+    "browser": "9 passed, 171 deselected in 22.86s",
+    "scheduler_and_tokens": "35 passed in 5.72s",
+    "javascript_syntax": "passed",
+    "css_build": "passed"
+  },
+  "reproductions": {
+    "unchanged_schedule": "1 failed: row identity, focus and timing details all lost",
+    "font": "1 failed: 185px text in 169px available at unchanged 14px scale",
+    "directory": "1 failed: held older directory response redirected active settings to #/chat"
+  },
+  "capture": {
+    "viewport": [
+      1440,
+      960
+    ],
+    "font_override": "DejaVu Sans system font",
+    "opened_and_inspected": true
+  },
+  "source_sha256": {
+    "app/src/input.css": "7e15c35d66cc3c381dbf19c046f2c9c3238bb258bdccd43bc62c50975a3ed8b7",
+    "src/hutch/server/static/ui.css": "00a3fd54612f380c1829437f94e256dde38da8c37094c75180bbe08755ea9167",
+    "src/hutch/server/static/app.js": "e7eea5e732e20267475908be55805311b523e259d1520a1e93f7e912a158af5c",
+    "tests/e2e/test_workspace_stability.py": "741a31b72e538bac53497981eddd8e0f74d297617a188c99710ae1bf7e8ab367"
+  },
+  "limitations": [
+    "Synthetic local fixtures; no live service/model calls",
+    "Not native GUI or installed-package evidence",
+    "200% browser zoom not validated in this slice"
+  ]
+}

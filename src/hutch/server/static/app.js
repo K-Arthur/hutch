@@ -6539,6 +6539,7 @@ async function renderOverview(preservePosition = false) {
 const SCHEDULE_PAGE_SIZE = 100;
 let scheduleOverview = { rows: [], bots: [], control: null, hasMore: false, generation: 0 };
 let scheduleControlPending = false;
+const schedulePaintSnapshots = new WeakMap();
 
 function scheduleNextTime(row) {
   if (!row.next_fire) return "Next time unavailable";
@@ -6575,6 +6576,9 @@ function paintSchedules() {
   const restoreFocusId = document.activeElement?.id?.startsWith("schedule-")
     ? document.activeElement.id : null;
   const { rows, bots, control, hasMore } = scheduleOverview;
+  const expanded = new Set($$('.schedule-overview-row').filter(row => row.querySelector('details')?.open)
+    .map(row => row.dataset.scheduleId));
+  const previousScroll = $('.page-scroll', view)?.scrollTop || 0;
   const paused = !!control?.paused;
   const empty = rows.length === 0;
   const emptyDetails = bots.length === 1
@@ -6590,13 +6594,13 @@ function paintSchedules() {
           }).join("")}</div>
         </details>`
     : `<a class="btn primary" href="#/chat">Create an assistant</a>`;
-  setTopContext(`<div class="ctx-id"><h1>Scheduled work</h1></div>
+  const headerHtml = `<div class="ctx-id"><h1>Scheduled work</h1></div>
     <div class="ctx-actions schedule-control-actions">
       <button class="switch" id="schedule-control-toggle" type="button" role="switch" aria-checked="${!paused}"
         ${scheduleControlPending ? 'aria-disabled="true" aria-busy="true"' : ""}>
         <span>Automatic starts</span><span class="switch-track" aria-hidden="true"></span><span class="switch-state" aria-hidden="true">${paused ? "Off" : "On"}</span>
-      </button></div>`);
-  view.innerHTML = `
+      </button></div>`;
+  const bodyHtml = `
     <div class="page-scroll"><div class="container schedule-overview">
       <p class="schedule-overview-note">See what’s coming up. Pausing prevents new scheduled starts; anything already in progress can finish.</p>
       ${paused ? `<p class="schedule-paused-note" role="status">Scheduled starts are paused. When you resume, each task follows its saved choice for missed times.</p>` : ""}
@@ -6643,6 +6647,23 @@ function paintSchedules() {
         </div>
         ${hasMore ? `<div class="schedule-overview-more"><button class="btn ghost" id="schedule-load-more" type="button">Load 100 more</button></div>` : ""}`}
     </div></div>`;
+
+  // Reconciliation reads may finish after a command has already painted the
+  // same state. Preserve the live rows, expanded details and focused controls.
+  const previousPaint = schedulePaintSnapshots.get(view);
+  if ($('.schedule-overview', view) && previousPaint?.headerHtml === headerHtml
+      && previousPaint.bodyHtml === bodyHtml) return;
+  const focused = document.activeElement;
+  const focusedAttribute = ['data-schedule-run-now', 'data-schedule-skip-next']
+    .find(attribute => focused?.hasAttribute(attribute));
+  const focusedValue = focusedAttribute ? focused.getAttribute(focusedAttribute) : null;
+  setTopContext(headerHtml);
+  view.innerHTML = bodyHtml;
+  schedulePaintSnapshots.set(view, {headerHtml, bodyHtml});
+  $$('.schedule-overview-row').forEach(row => {
+    if (expanded.has(row.dataset.scheduleId)) row.querySelector('details').open = true;
+  });
+  $('.page-scroll', view).scrollTop = previousScroll;
 
   const toggle = $("#schedule-control-toggle");
   toggle?.addEventListener("click", async () => {
@@ -6723,9 +6744,12 @@ function paintSchedules() {
   // resolving. Keep keyboard focus on the replacement control across either
   // repaint so background updates do not strand the user on the document.
   if (restoreFocusId) document.getElementById(restoreFocusId)?.focus({ preventScroll: true });
+  else if (focusedAttribute) $$(`[${focusedAttribute}]`, view)
+    .find(button => button.getAttribute(focusedAttribute) === focusedValue)?.focus({preventScroll: true});
 }
 
 async function renderSchedules() {
+  if (location.hash !== '#/schedules') return;
   const generation = ++scheduleOverview.generation;
   const routeAtStart = location.hash;
   const alreadyVisible = routeAtStart === "#/schedules" && !!$(".schedule-overview", view);
@@ -6746,7 +6770,11 @@ async function renderSchedules() {
 /* -------------------------------------------------------------- bots list */
 
 async function renderBots() {
+  const requestedHash = location.hash;
+  const generation = studioGeneration;
+  if (requestedHash !== '#/bots') return;
   const bots = await api("/bots");
+  if (location.hash !== requestedHash || studioGeneration !== generation) return;
   botsCache = bots;
   if (bots.length < 10) {
     history.replaceState(null, "", "#/chat");
