@@ -17,8 +17,8 @@ physical-device validation is not available in this preview.
 
 ## Product Purpose
 
-Hutch is a local-first personal-assistant app in private preview; there is no public source
-checkout or release today. A person starts with a conversation, can turn an existing request into
+Hutch is a local-first personal-assistant app in preview. Its source repository is public;
+no desktop installer release has been published yet. A person starts with a conversation, can turn an existing request into
 a task-specific assistant without repeating it, and stays in control when a task needs a decision.
 The app can keep work and its history on a computer the person controls while connecting to a
 chosen local or hosted model. Advanced configuration is available on purpose, not imposed on the

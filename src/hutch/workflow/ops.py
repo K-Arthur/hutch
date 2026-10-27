@@ -46,6 +46,8 @@ TRANSFORM_OPS: dict[str, set[str]] = {
     "group_count": {"items", "by"},
     "bar_chart_svg": {"values", "title"},
     "document_coverage": {"discovered", "reviews", "skipped", "failures", "listing_complete"},
+    "campaign_report": {"text", "reporting_days"},
+    "validate_campaign_report": {"text", "reporting_days", "metrics_csv"},
     "join_text": {"items", "separator", "of"},
     "merge": {"values"},
     "to_markdown_table": {"items", "fields"},
@@ -62,6 +64,19 @@ def apply_op(op: str, args: dict[str, Any]) -> Any:
         raise ValueError(f"unknown transform op {op!r}")
     handler = globals()["_op_" + op]
     return handler(args)
+
+
+def _op_campaign_report(args: dict[str, Any]) -> dict[str, Any]:
+    from .campaigns import campaign_report
+    text = _require(args, "text", (str,))
+    return campaign_report(text, args.get("reporting_days", 0))
+
+
+def _op_validate_campaign_report(args: dict[str, Any]) -> dict[str, Any]:
+    from .campaigns import validate_campaign_report
+    return validate_campaign_report(_require(args, "text", (str,)),
+                                    _require(args, "metrics_csv", (str,)),
+                                    args.get("reporting_days", 0))
 
 
 # --------------------------------------------------------------------- helpers

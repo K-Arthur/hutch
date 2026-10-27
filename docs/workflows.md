@@ -488,3 +488,27 @@ attempt can run.
   tool-enabled children, descendants, queued work, and general live-run draining remain unavailable.
   Reuse of other node types also remains unavailable. Terminal-run amendment adoption is intentionally unsupported:
   the API returns 409 and leaves the terminal result intact; start a new run from the saved definition.
+
+## Deterministic campaign reports
+
+The `campaign_report` transform accepts `text` containing exactly the CSV columns
+`campaign,impressions,clicks,spend,conversions,revenue,daily_budget`, plus optional
+`reporting_days` (0 means unknown). Use one export with matching units and scope;
+this narrow v1 format does not combine currencies, periods or duplicate campaign
+rows. It rejects negative/nonfinite/scientific notation, fractional impression or
+click counts, clicks exceeding impressions and spreadsheet-formula campaign names.
+At most 5,000 rows and six fractional input digits are supported.
+
+It returns exact-source SHA-256, rows, weighted aggregate metrics, `metrics_csv`
+and `report_markdown`. CTR/CVR are fractions; CPA and ROAS are undefined when their
+denominator is zero, preserved as null/empty CSV rather than zero. Metrics round
+half up to four decimal places. `over_budget` is emitted only when supplied whole
+reporting days establish a comparable window with constant daily budgets. Unknown
+windows cannot establish pacing or daily overspend. ROAS does not establish profit.
+
+`validate_campaign_report` accepts the same source/period and a `metrics_csv` to
+check the exact campaign set, metrics and flags. It does not certify prose, currency,
+provider data, attribution or financial recommendations. The built-in plan factory
+`hutch.workflow.campaigns.campaign_report_plan()` publishes local draft artifacts
+and verifies their saved bytes using the existing engine, with no tool/model
+authority. Any campaign change remains a separate approval-bound action.

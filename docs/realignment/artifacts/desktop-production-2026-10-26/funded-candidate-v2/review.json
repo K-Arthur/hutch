@@ -1,0 +1,112 @@
+{
+  "contract_version": 1,
+  "source_commit": "967cd5f73e23c553e82b793f5e7e9800c544722b",
+  "scope": "Candidate v2 partial local synthetic repetitions; not live external or whole-workflow acceptance",
+  "route": "evaluation-router/deepseek/deepseek-v4.1-flash",
+  "endpoint": "deepinfra/fp8",
+  "account_spent_usd": 0.011956399,
+  "held_usd": 0.0,
+  "official_credit_readback": {
+    "checked": true,
+    "ledger_minus_credit_delta_usd": "2.0000006E-8",
+    "rounding_bound_usd": "6.2E-8",
+    "balances_omitted": true
+  },
+  "phase": {
+    "contract_version": 1,
+    "phase": "final",
+    "allowance_usd": 5,
+    "start_spent_usd": 0.002729993,
+    "cumulative_ceiling_usd": 5.002729993,
+    "total_evaluation_ceiling_usd": 10,
+    "policy_revision": 3,
+    "no_uncertain_charges_at_start": true,
+    "unused_baseline_allowance_rolled_over": false
+  },
+  "cases": [
+    {
+      "case": "final2-marketing-01",
+      "functional_checks_passed": true,
+      "requests": 3,
+      "tokens": 4694,
+      "elapsed_seconds": 10.896,
+      "ledger_cost_usd": "0.000747869",
+      "review_dimensions": {
+        "grounding": 2,
+        "coverage": 5,
+        "usefulness": 3,
+        "clarity": 4,
+        "authority": 4
+      },
+      "quality_score": 72,
+      "local_quality_pass": false,
+      "finding": "Campaign A claims every brief is human-approved before it leaves the workspace; review-before-sharing does not establish no inference egress.",
+      "whole_workflow_acceptance": false
+    },
+    {
+      "case": "final2-marketing-02",
+      "functional_checks_passed": true,
+      "requests": 3,
+      "tokens": 5782,
+      "elapsed_seconds": 20.126,
+      "ledger_cost_usd": "0.001060069",
+      "review_dimensions": {
+        "grounding": 3,
+        "coverage": 5,
+        "usefulness": 4,
+        "clarity": 3,
+        "authority": 5
+      },
+      "quality_score": 80,
+      "local_quality_pass": false,
+      "finding": "Calls the review workflow a differentiator without evidence about competitor review flows; also verbose for a concise recommendation.",
+      "whole_workflow_acceptance": false
+    },
+    {
+      "case": "final2-marketing-03",
+      "functional_checks_passed": true,
+      "requests": 3,
+      "tokens": 4957,
+      "elapsed_seconds": 20.482,
+      "ledger_cost_usd": "0.000822209",
+      "review_dimensions": {
+        "grounding": 2,
+        "coverage": 5,
+        "usefulness": 3,
+        "clarity": 4,
+        "authority": 4
+      },
+      "quality_score": 72,
+      "local_quality_pass": false,
+      "finding": "Read it before it goes anywhere repeats an unsupported egress guarantee; separate unknowns do not repair the hook.",
+      "whole_workflow_acceptance": false
+    },
+    {
+      "case": "final2-performance-01",
+      "functional_checks_passed": false,
+      "requests": 3,
+      "tokens": 5098,
+      "elapsed_seconds": 14.141,
+      "ledger_cost_usd": "0.000897949",
+      "review_dimensions": {
+        "grounding": 2,
+        "coverage": 5,
+        "usefulness": 2,
+        "clarity": 3,
+        "authority": 5
+      },
+      "quality_score": 68,
+      "local_quality_pass": false,
+      "finding": "Critical artifact error: Social CPA is 0 in CSV but undefined in prose; canonical runtime success is not correctness.",
+      "whole_workflow_acceptance": false
+    }
+  ],
+  "not_run": [
+    "final2-performance-02",
+    "final2-performance-03",
+    "final2-sales-01",
+    "final2-sales-02",
+    "final2-sales-03"
+  ],
+  "stop_reason": "Independent CSV readback found undefined CPA serialized as zero; no automatic retry or further dispatch."
+}

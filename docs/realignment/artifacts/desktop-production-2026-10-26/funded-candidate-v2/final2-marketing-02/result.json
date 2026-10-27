@@ -1,0 +1,95 @@
+{
+  "contract_version": 1,
+  "case": "final2-marketing-02",
+  "route": "evaluation-router/deepseek/deepseek-v4.1-flash",
+  "scope": "synthetic guide-derived local final repetition; no UI, external-service or whole-workflow acceptance",
+  "permission": "only preauthorized local fixture reads/writes; isolated Bot auto mode",
+  "functional_checks_passed": true,
+  "artifact_quality": "independent review required; functional checks alone are not 85/100 acceptance",
+  "phase": {
+    "contract_version": 1,
+    "phase": "final",
+    "allowance_usd": 5,
+    "start_spent_usd": 0.002729993,
+    "cumulative_ceiling_usd": 5.002729993,
+    "total_evaluation_ceiling_usd": 10,
+    "policy_revision": 3,
+    "no_uncertain_charges_at_start": true,
+    "unused_baseline_allowance_rolled_over": false
+  },
+  "runtime_source_commit": "967cd5f73e23c553e82b793f5e7e9800c544722b",
+  "harness_sha256": "3d50467908749b0e0090b61a73f0c6bbb8c071e1ba43f807d3b0a65114d53f64",
+  "routing_policy": {
+    "allow_fallbacks": false,
+    "order": [
+      "deepinfra/fp8"
+    ],
+    "require_parameters": true,
+    "data_collection": "deny",
+    "zdr": true,
+    "max_price": {
+      "prompt": 0.35,
+      "completion": 0.8,
+      "request": 0
+    }
+  },
+  "qualification_ceiling_usd": 5.002729993,
+  "fixture_sha256": "3e4817b7fa3163d6351416ff7ab21d80e0beb1cc899ef5042375826301193f18",
+  "input_sha256": "d18497bfb61a045360a901c35f9f99cc84a6847d3f9d3920e827fe18628f5026",
+  "done_write_receipts": 1,
+  "answer": "Created `positioning.md` in the workspace from `input.txt`.\n\n**Summary:**\n- **Fixture statement:** clearly labeled the entire document as a synthetic fixture; Birch, Elm, and Cedar are placeholders.\n- **Positioning recommendation:** position Cedar as a draft-and-review local document assistant \u2014 \"draft the brief, then review before you share\" \u2014 grounded only in the two verified fixture features.\n- **Two campaign ideas:** (1) \"Review Before You Share\" workflow-led; (2) \"Pick the Setup That Fits Your Workflow\" neutral comparison. Both marked as drafts with no outcome, certification, or performance claims.\n- **Sources:** https://example.com/fixture/birch and https://example.com/fixture/elm, noted as unverified fixture placeholders.\n- **Guardrails:** explicitly flagged that \"local state\" does not prove local inference, offline use, residency, or no egress; no SOC2 or conversion-rate evidence exists; no price data for Cedar; the $8/month Birch-vs-Elm price gap does not prove savings. Added a pre-use verification checklist.\n\nNo network access or shell commands were used.",
+  "runtime_elapsed_seconds": 20.126,
+  "run_status": "succeeded",
+  "settled_tokens": 5782,
+  "run_cost_usd": 0.00106007,
+  "account_spent_usd": 0.010236241,
+  "account_held_usd": 0.0,
+  "requests": [
+    {
+      "sequence": 1,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.009176172,
+      "account_held_usd": 0.479232,
+      "credit_verified": true
+    },
+    {
+      "sequence": 2,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.009308752,
+      "account_held_usd": 0.479232,
+      "credit_verified": true
+    },
+    {
+      "sequence": 3,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.009929938,
+      "account_held_usd": 0.479232,
+      "credit_verified": true
+    }
+  ],
+  "usage": [
+    {
+      "prompt_tokens": 803,
+      "completion_tokens": 48,
+      "cost_usd": 0.00013258,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.00013258
+    },
+    {
+      "prompt_tokens": 946,
+      "completion_tokens": 1412,
+      "cost_usd": 0.000621186,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.0006211856
+    },
+    {
+      "prompt_tokens": 2331,
+      "completion_tokens": 242,
+      "cost_usd": 0.000306303,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.0003063032
+    }
+  ],
+  "held_requests": [],
+  "event_chain_ok": true
+}

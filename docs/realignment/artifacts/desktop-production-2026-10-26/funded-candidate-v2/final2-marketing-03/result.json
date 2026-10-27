@@ -1,0 +1,95 @@
+{
+  "contract_version": 1,
+  "case": "final2-marketing-03",
+  "route": "evaluation-router/deepseek/deepseek-v4.1-flash",
+  "scope": "synthetic guide-derived local final repetition; no UI, external-service or whole-workflow acceptance",
+  "permission": "only preauthorized local fixture reads/writes; isolated Bot auto mode",
+  "functional_checks_passed": true,
+  "artifact_quality": "independent review required; functional checks alone are not 85/100 acceptance",
+  "phase": {
+    "contract_version": 1,
+    "phase": "final",
+    "allowance_usd": 5,
+    "start_spent_usd": 0.002729993,
+    "cumulative_ceiling_usd": 5.002729993,
+    "total_evaluation_ceiling_usd": 10,
+    "policy_revision": 3,
+    "no_uncertain_charges_at_start": true,
+    "unused_baseline_allowance_rolled_over": false
+  },
+  "runtime_source_commit": "967cd5f73e23c553e82b793f5e7e9800c544722b",
+  "harness_sha256": "3d50467908749b0e0090b61a73f0c6bbb8c071e1ba43f807d3b0a65114d53f64",
+  "routing_policy": {
+    "allow_fallbacks": false,
+    "order": [
+      "deepinfra/fp8"
+    ],
+    "require_parameters": true,
+    "data_collection": "deny",
+    "zdr": true,
+    "max_price": {
+      "prompt": 0.35,
+      "completion": 0.8,
+      "request": 0
+    }
+  },
+  "qualification_ceiling_usd": 5.002729993,
+  "fixture_sha256": "3e4817b7fa3163d6351416ff7ab21d80e0beb1cc899ef5042375826301193f18",
+  "input_sha256": "d18497bfb61a045360a901c35f9f99cc84a6847d3f9d3920e827fe18628f5026",
+  "done_write_receipts": 1,
+  "answer": "Read `input.txt` and wrote `positioning.md` in the workspace.\n\nContents: a review-first positioning recommendation for the synthetic product Cedar; two distinct draft campaign ideas (\"Nothing ships unreviewed\" and \"Drafting vs. the finished brief\"); both source URLs (example.com/fixture/birch and /elm); and an explicit statement that Cedar/Birch/Elm are synthetic fixtures with no certification, performance, savings, or data-handling claims made.\n\nNote: I could not verify anything about the fixtures beyond `input.txt`, so all campaign material is marked as draft pending review. No claims about SOC 2, conversion, price advantage, offline use, residency, or egress were included.",
+  "runtime_elapsed_seconds": 20.482,
+  "run_status": "succeeded",
+  "settled_tokens": 4957,
+  "run_cost_usd": 0.00082221,
+  "account_spent_usd": 0.011058450000000001,
+  "account_held_usd": 0.0,
+  "requests": [
+    {
+      "sequence": 1,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.010236241,
+      "account_held_usd": 0.638976,
+      "credit_verified": true
+    },
+    {
+      "sequence": 2,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.010368821,
+      "account_held_usd": 0.638976,
+      "credit_verified": true
+    },
+    {
+      "sequence": 3,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.010845527,
+      "account_held_usd": 0.638976,
+      "credit_verified": true
+    }
+  ],
+  "usage": [
+    {
+      "prompt_tokens": 803,
+      "completion_tokens": 48,
+      "cost_usd": 0.00013258,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.00013258
+    },
+    {
+      "prompt_tokens": 946,
+      "completion_tokens": 1068,
+      "cost_usd": 0.000476706,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.0004767056
+    },
+    {
+      "prompt_tokens": 1943,
+      "completion_tokens": 149,
+      "cost_usd": 0.000212923,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.0002129232
+    }
+  ],
+  "held_requests": [],
+  "event_chain_ok": true
+}

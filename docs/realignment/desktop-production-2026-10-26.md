@@ -24,23 +24,27 @@ Audience: individuals and solo professionals. Desktop first, then breadth. Super
 
 ## Current continuation
 
-As of `173f2622`: Telegram private-text preview, grounded business guidance and
-conversation navigation fixes are committed. The correctly imported immutable
-`05aa6489` local nonbrowser suite passed **3,672 / 20 skipped / 6 xfailed**; its
-Ubuntu installed Debian/AppImage run also passed. Later affected runtime checks
-passed **118**, navigation checks **5**, and held-response cleanup checks **4**.
-The next combined main CI result is pending. All P1–P13 obligations remain active.
+As of `967cd5f7` plus the campaign-arithmetic slice: the correctly imported immutable
+`05aa6489` local nonbrowser suite passed **3,672 / 20 skipped / 6 xfailed**, and its
+Ubuntu installed Debian/AppImage webviews passed. Main CI at `100a4d3e` is still
+running; later source changes are not covered by that installed-package result.
+All P1–P13 obligations remain active.
 
-Three paid local business baselines are preserved with actual artifacts and a
-failed marketing grounding review. Cumulative ledger spend is **USD0.002729993**,
-held **USD0**, under the authorized **USD10** total. Current shared baseline phase
-policy is lifetime USD2 above its starting spend, revision2. The temporary key
-remains only in the private isolated evaluation profile; final tests and cleanup
-remain due. Next: run the paired final reasoning checks on the same pinned route
-after source verification, then continue the incomplete coordinator, channels,
-learning drafts, integrations, native ports and release gates. Current OpenCode
-free quota / paid native accounting and external OAuth/live-service prerequisites
-remain explicit limitations, not completed acceptance.
+Paid local baselines and both failed candidates are retained. Candidate v1 passed
+nine functional checks but failed four quality reviews. Candidate v2 stopped after
+four cases: all three marketing artifacts still fail grounding, and performance
+wrote undefined CPA as zero despite contrary prose. Five planned v2 cases were not
+run. Cumulative ledger spend is **USD0.011956399**, held **USD0**, independently
+checked against official credit with bounded rounding differences. The final-phase
+policy remains revision3, lifetime ceiling USD5.002729993; it was not reset. The
+temporary key remains only in the private isolated test profile. No paid calls are
+running. OpenCode quota/native accounting and external OAuth/live prerequisites
+remain limitations, not completed acceptance.
+
+Next: expose deterministic campaign calculations through the existing reviewed
+workflow UI, continue coordinator/channels/learning/integrations/platform ports,
+and complete applicable checks and release gates. Do not substitute more prompt
+caveats or agent completion messages for artifact correctness.
 
 ## Authoritative pointers
 
@@ -653,3 +657,11 @@ Current slice: rebuild Apps & AI as searchable discovery plus focused service se
 - Cumulative paid ledger is **USD0.008428303**, held **USD0**. Independent official credit delta differs by about USD0.000000016; actual difference and a bounded per-row/API rounding allowance are recorded without balances. Current final phase policy is lifetime starting spend + **USD5** (`USD5.002729993` cumulative ceiling), revision3. It includes these repetitions and repairs, and will not reset for the next candidate. Overall authorization remains **USD10**; no purchase, recharge, unrelated paid route or paid native OpenCode call.
 - The six existing strict expected failures were audited with `--runxfail`: **6 failed in 6.02s**. Three compaction fixtures fail before their intended behavior because they never claim the current owner fence; their old comments incorrectly say compaction does not exist. Valid runtime compaction tests do exist separately. The other three reach real current gaps: 290 visible tools without progressive bounds, no persisted generic ConnectionBook auth generation/CAS, and no generic external read-back evidence field in the illustrative job tool receipt. No marker/assertion was removed, and no blanket all-critical-checks pass is claimed. Convert stale fixtures into meaningful current regressions and address the applicable remaining integration boundaries; NotebookLM-specific behavior remains unavailable.
 - Requirements review inspected every final Markdown/CSV, not just the functional booleans; the failed benefit, CTA and time-window implications are explicit. Standards review checked unchanged route/fixtures/output limits, no key/balance in portable evidence, source/harness hashes, paid summary/retry reservation coverage, no phase reset and bounded dispatch. Broader P1–P13 work continues.
+
+### Failed candidate v2 and deterministic campaign arithmetic
+
+- Retained the actual four candidate-v2 artifacts, usage, source/harness hashes and independent quality review under `artifacts/desktop-production-2026-10-26/funded-candidate-v2/`. The first performance CSV stores Social CPA as zero; the independent readback stopped further paid cases. The runtime's succeeded status is not artifact acceptance. Marketing still contains unsupported egress/differentiator language. No pass or superiority claim is made.
+- Added pure `campaign_report` and `validate_campaign_report` transforms to the existing workflow operation table. Fixed-point Decimal arithmetic preserves undefined metrics as null/empty CSV, uses weighted totals and half-up four-decimal rounding, and refuses invalid/duplicate/formula-named campaign rows. Budget comparisons require operator-supplied matching whole reporting days and constant daily budgets; unknown windows remain explicit. Source hashes identify exact UTF-8 input. Currency, attribution and profitability remain unverified.
+- A four-node plan uses the same durable interpreter and artifact publisher, no models/tools/remote writes, and rereads saved artifact bytes through existing verification. The CSV validator checks identity, arithmetic and flags, not model prose or external truth. It shares the deterministic arithmetic implementation; this is not an independent second financial algorithm. Independent fixture expectations test the outputs.
+- Test-first check: 12 failed / 9 passed before implementation (the negative-input cases initially passed only because the operations did not exist). First integrated check found an invalid display-name slug, corrected without weakening the compiler. Final campaign/operation/plan family: **66 passed in 1.73s**, including actual engine submission/publication/hash readback with zero tokens/cost. Expanded campaign/operation/plan/engine checks: **110 passed in 30.81s**. Frontend exposure remains next, not claimed complete.
+- Distinct requirements review covered undefined denominators, unknown windows, unchanged historical fixtures, weighted totals and no new authority. Standards review found a generated-ratio/validator-bound mismatch at very large valid ratios; corrected with a bounded metric-specific range and regression. No remaining finding in this backend slice; live report acceptance remains unverified.
