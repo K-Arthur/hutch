@@ -1,11 +1,10 @@
-"""ADR-0017 S0 failing regression skeletons: one test per integration/compaction failure mode.
+"""ADR-0017 integration contracts: current compaction checks and remaining skeletons.
 
-ADR-0017 §5 S0 ("Preflight and failing regressions first") requires this dedicated file of failing
-regression skeletons written from the cited failure reports, each marked
-``@pytest.mark.xfail(strict=True, reason="ADR-0017 S<n>")`` where S<n> is the slice the ADR assigns
-the fix. Strict xfail keeps the per-slice T-FULL-REGRESSION gate meaningful while the skeletons are
-red: an unexpected failure still fails the gate, a skeleton that goes green prematurely fails strict
-mode, and the owning slice removes its marker as the regression is implemented (ADR-0017 §5 S6).
+ADR-0017 §5 S0 required failing skeletons before implementation. The three S6
+compaction contracts now use current owner fencing, persistent events, real
+compaction manifests and finite scripted HTTP responses. The remaining S5/S7
+contracts retain strict xfail markers; their gaps are not declared implemented.
+An unexpected pass still fails that gate until the owning implementation lands.
 
 Failure mode -> slice mapping (each test cites its ADR text in place):
 
@@ -30,9 +29,10 @@ Failure mode -> slice mapping (each test cites its ADR text in place):
     artifact"; §11 "Nothing is declared successful from ... passing mocks alone". The media mirror
     of the same guard is S8; S7 lands first and this skeleton pins the shared receipt-level rule.)
 
-Every test exercises REAL code from the merged tree (the builtin loop over scripted fake model
-servers per tests/fakes.py, the real compiler/store/connection machinery) and asserts the FUTURE
-required behavior, so each one is red today for the documented reason.
+The first three exercise implemented compaction through a leased runtime and bounded
+scripted HTTP responses. Their original fixtures predated owner fencing and compaction.
+The final three remain strict expected failures for their documented integration gaps.
+These are controlled Hutch regressions inspired by reports, not reproduced upstream defects.
 """
 
 from __future__ import annotations
@@ -57,11 +57,11 @@ from hutch.toolcalling.compiler import clear_plan_cache, compile_plan
 from hutch.toolcalling.profiles import resolve_profile
 from hutch.tools import build_tools
 from hutch.tools.base import Tool, ToolContext, ToolResult
-from tests.fakes import FakeOllama, FakeOpenAI, agent_script, messages_text, tokens_of
+from tests.fakes import FakeOllama, FakeOpenAI, agent_script
+from tests.test_runtime_builtin import run_it
 
 BIG_BOX = Hardware(gpus=[Gpu("X", "nvidia", 24.0, False, 24.0)], ram_total_gb=64, ram_available_gb=48)
-WINDOW = 4096                                   # bot.num_ctx for the compaction-trigger scenarios
-BIG = ("The scheduled maintenance window is confirmed for the second site. " * 150)
+WINDOW = 16384  # The bounded compaction fixture, including pinned tool/instruction overhead.
 WRITE = {"name": "write_file", "arguments": {"path": "out.md", "content": "hello"}}
 NEEDLE = "deliver the finished report to archive-box-77f3c2 and state all lengths in millimetres"
 
@@ -100,6 +100,7 @@ def _build(store, config, tmp_path, *, tools=("files",), prompt="write a file", 
 
     def emit(ev):
         emitted.append(ev)
+        store.append_event(ev)
 
     gate = ApprovalGate(store, bot, run, PolicyEngine(), emit, poll_seconds=0.05)
     ctx = ToolContext(bot=bot, run=run, store=store, policy=gate.policy, gate=gate, config=config,
@@ -115,159 +116,102 @@ def _runtime(ollama):
     return BuiltinRuntime(hardware=BIG_BOX, provider_factory=factory, sleep=lambda s: None)
 
 
-def _overflow_indexes(ollama, num_ctx: int) -> list[int]:
-    """Recorded requests the fake server would have front-truncated (the compaction trigger)."""
-    return [i for i, chat in enumerate(ollama.of("/api/chat"))
-            if tokens_of(messages_text(chat["body"].get("messages", []))) > num_ctx]
+def _compacting_script(ollama, workspace, *, first_calls=()):
+    """Grow history through real bounded reads, then finish after compaction.
+
+    Summarizer requests have a distinct response, so they cannot consume or
+    accidentally repeat the main agent's next action. A finite terminal response
+    keeps the fixture from turning into an unrelated max-steps failure.
+    """
+    calls = list(first_calls)
+    for index in range(8):
+        name = f"source_{index:02}.txt"
+        (workspace / name).write_text(f"Source {index}: retain evidence and constraints. " * 1000)
+        calls.append({"tool_calls": [{"name": "read_file", "arguments": {"path": name}}]})
+    calls.extend([{"tool_calls": [WRITE]}, {"content": "done after compaction"}])
+    main = agent_script(calls)
+
+    def script(body):
+        if _is_compactor(body):
+            return {"content": "Sources were read. Keep the original request and constraints; finish the report."}
+        return main(body)
+    ollama.script = script
+
+
+def _is_compactor(body):
+    return any("compact part of a conversation" in str(message.get("content", ""))
+               for message in body.get("messages", []) if isinstance(message, dict))
+
+
+def _compacted_main_requests(store, run, ollama):
+    manifests = store.run_compactions(run.id)
+    assert manifests, "the fixture must actually compact, not merely complete a short run"
+    assert all(manifest["status"] == "compacted" for manifest in manifests)
+    assert all(manifest["before_tokens"] > manifest["after_tokens"] > 0 for manifest in manifests)
+    assert all(manifest["summary_digest"] and manifest["reservation_id"] for manifest in manifests)
+    requests = [request["body"] for request in ollama.of("/api/chat")
+                if not _is_compactor(request["body"])]
+    assert any("<compacted_history>" in str(body["messages"]) for body in requests)
+    return requests
 
 
 # ========================================================================= compaction regressions
-# ADR-0017 assigns all three to S6: the bounded, versioned compaction stage with its pinned set
-# ("operator policy, exact constraints, last user request, unexecuted work, pending call/result
-# pairs"), checkpoints, and per-request tool-spec re-derivation. None of that exists today: there
-# is no compaction anywhere (ADR-0017 §2.2), the specs are frozen once per run
-# (src/hutch/runtime/builtin.py:631) and a window overflow aborts or escalates instead of
-# compacting (src/hutch/runtime/builtin.py:835-849 — prompt_truncated -> RunAborted("context")
-# with no escalation configured, the §2.3 gap "overflow aborts/escalates"). Each test therefore
-# drives the real loop into the overflow that must trigger compaction and asserts the behavior the
-# post-compaction requests must have; today it is red at the overflow abort itself, which is the
-# documented gap.
+# Proactive compaction should prevent provider overflow. The persisted manifests,
+# shrinking token counts and subsequent compacted-history requests are the proof;
+# requiring an oversized HTTP request would reward the former truncation defect.
 
 
-@pytest.mark.xfail(strict=True, reason="ADR-0017 S6")
 def test_tool_bindings_survive_compaction(store, config, tmp_path, ollama):
-    """opencode#40901: tool bindings vanished after compaction.
-
-    ADR-0017 §5 S6 fixes this: "tool specs re-derived each request (regression for opencode#40901)"
-    — tool definitions are re-derived from the frozen per-run specs on every request and are never
-    treated as session state that compaction could drop (§3.2). Required behavior: after the
-    overflow that triggers compaction, the run continues (no abort) and every request — including
-    every post-compaction request — still carries the complete tool binding set.
-    """
-    ollama.script = agent_script([
-        {"tool_calls": [WRITE]},      # tools really are bound and used before the overflow
-        {"content": BIG, "tool_calls": [WRITE]},
-        {"content": BIG, "tool_calls": [WRITE]},   # last reply repeats: history grows past the
-    ])                                             # window (a content-only reply would end the run)
-    _, run, ctx, _, tools = _build(store, config, tmp_path, tools=("files",), num_ctx=WINDOW)
-    rt = _runtime(ollama)
-
-    # Today: no compaction stage exists, so this overflow aborts the run
-    # (builtin.py:844-848) instead of compacting and continuing — the documented S0 red.
-    final = rt.execute(run, ctx, tools, lambda: False)
-    assert final, "the run must complete through compaction, not die at the window edge"
-
-    chats = ollama.of("/api/chat")
-    assert _overflow_indexes(ollama, WINDOW), "the scenario must really overflow before compaction"
-    expected = sorted(tools)
-    assert expected, "the bot must have tool bindings to preserve"
-    for chat in chats:
-        sent = sorted(t["function"]["name"] for t in chat["body"].get("tools") or [])
-        assert sent == expected, "every request, including every post-compaction request, " \
-                                 "carries the full tool binding set (opencode#40901)"
+    """S6 / opencode#40901 inspiration: every main request retains authorized tools."""
+    _, run, ctx, _, tools = _build(store, config, tmp_path, num_ctx=WINDOW)
+    _compacting_script(ollama, ctx.workspace)
+    assert run_it(_runtime(ollama), run, ctx, tools) == "done after compaction"
+    requests = _compacted_main_requests(store, run, ollama)
+    assert tools
+    for body in requests:
+        assert sorted(tool["function"]["name"] for tool in body.get("tools") or []) == sorted(tools)
+    assert (ctx.workspace / "out.md").read_text() == "hello", "tools must still execute after compaction"
 
 
-@pytest.mark.xfail(strict=True, reason="ADR-0017 S6")
 def test_last_user_request_survives_compaction_verbatim(store, config, tmp_path, ollama):
-    """claude-code#22376: the latest user constraints were lost/paraphrased during compaction.
-
-    ADR-0017 §5 S6 fixes this: the pinned set is "preserved verbatim (operator policy, exact
-    constraints, last user request, unexecuted work, pending call/result pairs)" (§3.2: profiles
-    "preserve authority and exact meaning"; the user's exact material requirements are pinned
-    fragments no profile may paraphrase or drop). Required behavior: after the overflow that
-    triggers compaction, the last user request reaches every subsequent model call verbatim —
-    never summarized, paraphrased, or truncated away.
-    """
-    ollama.script = agent_script([
-        {"tool_calls": [WRITE]},
-        {"content": BIG, "tool_calls": [WRITE]},
-        {"content": BIG, "tool_calls": [WRITE]},
-    ])
-    _, run, ctx, _, tools = _build(store, config, tmp_path, tools=("files",), num_ctx=WINDOW,
-                                   prompt=f"Prepare the site report. {NEEDLE}")
-    rt = _runtime(ollama)
-
-    # Today: the overflow aborts (builtin.py:844-848); compaction that could lose the needle
-    # does not exist yet — the documented S0 red.
-    final = rt.execute(run, ctx, tools, lambda: False)
-    assert final, "the run must complete through compaction, not die at the window edge"
-
-    chats = ollama.of("/api/chat")
-    overflowed = _overflow_indexes(ollama, WINDOW)
-    assert overflowed, "the scenario must really overflow before compaction"
-    for chat in chats[overflowed[0]:]:
-        users = [m for m in chat["body"]["messages"] if m.get("role") == "user"]
-        assert users, "the post-compaction request must still address the user's request"
-        assert NEEDLE in users[-1]["content"], "the last user request survives compaction " \
-                                               "verbatim, never paraphrased (claude-code#22376)"
+    """S6 / claude-code#22376 inspiration: summarization cannot rewrite constraints."""
+    prompt = f"Prepare the site report. {NEEDLE}"
+    _, run, ctx, _, tools = _build(store, config, tmp_path, num_ctx=WINDOW, prompt=prompt)
+    _compacting_script(ollama, ctx.workspace)
+    assert run_it(_runtime(ollama), run, ctx, tools) == "done after compaction"
+    for body in _compacted_main_requests(store, run, ollama):
+        users = [message for message in body["messages"] if message.get("role") == "user"]
+        assert users and prompt in users[-1]["content"], "retain the exact original request through every main call"
+    assert store.get_run(run.id).prompt == prompt, "canonical evidence is never summarized in place"
 
 
-@pytest.mark.xfail(strict=True, reason="ADR-0017 S6")
 def test_stale_skill_invocations_are_not_restored_as_new_requests(store, config, tmp_path, ollama):
-    """claude-code#40193: completed skill invocations were re-executed after compaction.
-
-    ADR-0017 §5 S6 fixes this: "stale invocations scoped to their turn", and cleared content is
-    "replaced with explicit placeholders" while pending call/result pairs stay pinned; the brief
-    (Appendix A §9) adds "Do not restore completed or obsolete skill invocations as new requests".
-    Required behavior: after the overflow that triggers compaction, an already-executed use_skill
-    invocation is (a) never re-executed by the runtime, and (b) never presented to the model as an
-    unanswered/stale request — every skill call in post-compaction history stays paired with its
-    result or its explicit placeholder.
-    """
-
-    def install_and_trust(name="helper", description="Helps with a thing."):
-        source = tmp_path / "sources" / name
-        source.mkdir(parents=True, exist_ok=True)
-        (source / "SKILL.md").write_text(
-            "---\n"
-            f"name: {name}\n"
-            f"description: {description}\n"
-            "metadata:\n"
-            "  hutch.version: \"1.0\"\n"
-            "---\n\n"
-            "## Steps\n"
-            f"1. Do the {name} thing carefully.\n", encoding="utf-8")
-        registry = sk.SkillRegistry(tmp_path / "state")
-        registry.install_path(source)
-        registry.trust(name)
-        return registry
-
-    registry = install_and_trust()
-    bot, run, ctx, emitted, tools = _build(store, config, tmp_path, tools=("files",),
-                                           skills=["helper"], num_ctx=WINDOW)
+    """S6 / claude-code#40193 inspiration: completed skills are not replayed."""
+    source = tmp_path / "sources" / "helper"
+    source.mkdir(parents=True)
+    (source / "SKILL.md").write_text(
+        "---\nname: helper\ndescription: Helps with a thing.\nmetadata:\n  hutch.version: \"1.0\"\n---\n\n"
+        "## Steps\n1. Review the supplied source carefully.\n", encoding="utf-8")
+    registry = sk.SkillRegistry(config.state_dir)
+    registry.install_path(source)
+    registry.trust("helper")
+    bot, run, ctx, emitted, _ = _build(store, config, tmp_path, skills=["helper"], num_ctx=WINDOW)
     ctx.skills = registry.effective_for_bot(bot)
-    tools = build_tools(bot.tools, ctx)           # use_skill joins the registry with the catalog
+    tools = build_tools(bot.tools, ctx)
     assert "use_skill" in tools
-
-    ollama.script = agent_script([
-        {"tool_calls": [{"name": "use_skill", "arguments": {"name": "helper"}}]},
-        {"content": BIG, "tool_calls": [WRITE]},
-        {"content": BIG, "tool_calls": [WRITE]},
-    ])
-    rt = _runtime(ollama)
-
-    # Today: the overflow aborts (builtin.py:844-848) before any compaction could mishandle the
-    # completed invocation — the documented S0 red.
-    final = rt.execute(run, ctx, tools, lambda: False)
-    assert final, "the run must complete through compaction, not die at the window edge"
-
-    executions = [e for e in emitted if e.type is EventType.tool_result
-                  and e.data.get("tool") == "use_skill" and e.data.get("ok")]
-    assert len(executions) == 1, "the completed skill invocation is never re-executed after " \
-                                 "compaction (claude-code#40193)"
-    chats = ollama.of("/api/chat")
-    overflowed = _overflow_indexes(ollama, WINDOW)
-    assert overflowed, "the scenario must really overflow before compaction"
-    for chat in chats[overflowed[0]:]:
-        messages = chat["body"]["messages"]
-        for i, message in enumerate(messages):
-            for tc in message.get("tool_calls") or []:
-                if tc.get("function", {}).get("name") != "use_skill":
-                    continue
-                paired = any(r.get("role") == "tool" and r.get("tool_call_id") == tc.get("id")
-                             for r in messages[i + 1:])
-                assert paired, "no stale skill invocation is presented unanswered after " \
-                               "compaction; results stay paired or replaced by a placeholder"
+    _compacting_script(ollama, ctx.workspace, first_calls=[{
+        "tool_calls": [{"name": "use_skill", "arguments": {"name": "helper"}}]}])
+    assert run_it(_runtime(ollama), run, ctx, tools) == "done after compaction"
+    executions = [event for event in emitted if event.type is EventType.tool_result
+                  and event.data.get("tool") == "use_skill" and event.data.get("ok")]
+    assert len(executions) == 1, "the completed invocation must not execute twice"
+    for body in _compacted_main_requests(store, run, ollama):
+        messages = body["messages"]
+        for index, message in enumerate(messages):
+            for call in message.get("tool_calls") or []:
+                if call.get("function", {}).get("name") == "use_skill":
+                    assert any(result.get("role") == "tool" and result.get("tool_call_id") == call.get("id")
+                               for result in messages[index + 1:]), "no stale unanswered skill invocation may survive"
 
 
 # ========================================================================= manifest-size regression
