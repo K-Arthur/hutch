@@ -74,3 +74,19 @@ a database containing one: older policy validation does not accept the new appli
 the matching backup/recovery procedure and reconcile any charges incurred after the backup; restoring a
 database must never be mistaken for refunding provider charges. These estimates still require verified price
 bounds and runtime-specific dispatch accounting before the evaluation can claim a bounded live spend.
+
+## Capped OpenRouter request capacity reservation (2026-10-26)
+
+A strict OpenRouter ceiling now reserves full published endpoint input capacity plus the requested output cap,
+rather than relying on Hutch's characters-per-token estimate for input. For each eligible endpoint the input
+bound is the smaller of its known context and explicit prompt limit; unknown context remains ineligible.
+Output is added without subtracting it from the context to conservatively cover combined windows. The largest
+whole-endpoint cost includes all declared tier/cache-write premiums and request fees. Quote records distinguish
+`USD/context-capacity-reserve` from ordinary estimates. Settlement and uncertainty rules are unchanged.
+
+This relies on published endpoint limits/prices and the provider respecting the requested output cap. It does
+not bound a native runtime's hidden internal requests, server-side retries or changed/incorrect provider billing.
+The isolated evaluation must still enforce endpoint privacy/capability/maximum-price routing, phase and total
+budgets, and reconcile responses. [OpenRouter endpoint metadata](https://openrouter.ai/docs/api/api-reference/endpoints/list-all-endpoints-for-a-model)
+and [routing controls](https://openrouter.ai/docs/guides/routing/provider-selection) are the source contracts;
+no provider source code was reused.

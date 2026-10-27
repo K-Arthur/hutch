@@ -151,14 +151,27 @@ class ModelQuote:
     def worst_case(self, prompt_tokens: int, completion_tokens: int, *,
                    cached_tokens: int = 0, cache_write_tokens: int = 0,
                    conservative_tiers: bool = False,
+                   reserve_context_capacity: bool = False,
                    eligible: Optional[Callable[[EndpointQuote], bool]] = None) -> Optional[Decimal]:
         """Max full-call cost across eligible endpoints, rounded up. Mixing rates from different
-        endpoints is not a routable price, so the maximum of each endpoint's whole cost is used."""
+        endpoints is not a routable price, so the maximum of each endpoint's whole cost is used.
+
+        Capped admission can reserve the endpoint's entire published input
+        capacity instead of trusting a tokenizer estimate. Keep the requested
+        output allowance in addition, without subtracting it from the context:
+        this intentionally over-reserves a combined input/output window. An
+        unknown context cannot establish that bound and is excluded.
+        """
         predicate = eligible or (lambda endpoint: endpoint.status == 0)
-        costs = [endpoint.call_cost(prompt_tokens, completion_tokens, cached_tokens=cached_tokens,
-                                    cache_write_tokens=cache_write_tokens,
-                                    conservative_tiers=conservative_tiers)
-                 for endpoint in self.endpoints if predicate(endpoint)]
+        costs = []
+        for endpoint in self.endpoints:
+            if not predicate(endpoint) or (reserve_context_capacity and endpoint.context_length <= 0):
+                continue
+            input_tokens = (min(endpoint.context_length, endpoint.max_prompt_tokens or endpoint.context_length)
+                            if reserve_context_capacity else prompt_tokens)
+            costs.append(endpoint.call_cost(input_tokens, completion_tokens, cached_tokens=cached_tokens,
+                                            cache_write_tokens=cache_write_tokens,
+                                            conservative_tiers=conservative_tiers))
         if not costs:
             return None
         return quantize_up(max(costs))

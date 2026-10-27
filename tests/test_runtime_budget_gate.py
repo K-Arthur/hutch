@@ -274,3 +274,43 @@ def test_strict_openrouter_ceiling_fails_closed_on_stale_quote(store, monkeypatc
     monkeypatch.setattr("hutch.providers.openrouter_pricing.live_pricing", lambda *a, **k: ExpiredService())
     expired_quote = guard.worst_case(make_rung("openrouter/acme/model", "primary"), 1000, 500)
     assert expired_quote.source == "openrouter_unavailable" and expired_quote.usd is None
+
+
+def test_capped_openrouter_reserves_context_capacity_instead_of_optimistic_token_estimate(store, monkeypatch):
+    from datetime import datetime, timedelta, timezone
+    from decimal import Decimal
+    from types import SimpleNamespace
+    from hutch.models import Bot, Run
+    from hutch.providers.openrouter_pricing import EndpointQuote, ModelQuote
+    from hutch.providers.pricing import PriceBook
+    from hutch.runtime.ladder import SpendGuard, make_rung
+    from hutch.store import UsageBudgetRefusal
+
+    bot = store.create_bot(Bot(name='capacity-budget', model='router/acme/model'))
+    run = store.create_run(Run(bot_id=bot.id, prompt='Short estimate, potentially different provider tokenization'))
+    store.set_budget_policy(scope_kind='account', scope_id='capacity-account', reset='lifetime', ceiling_usd=.2)
+    now = datetime.now(timezone.utc)
+    endpoints = (
+        EndpointQuote(name='large', provider_name='large', input_per_million=Decimal('2'),
+                      output_per_million=Decimal('10'), context_length=128000, supports_tools=True),
+        EndpointQuote(name='limited', provider_name='limited', input_per_million=Decimal('20'),
+                      output_per_million=Decimal('10'), context_length=128000, max_prompt_tokens=4000,
+                      supports_tools=True),
+    )
+    quote = ModelQuote(model='acme/model', endpoints=endpoints, fetched_at=now,
+                       expires_at=now + timedelta(minutes=5), snapshot_digest='c' * 64)
+    service = SimpleNamespace(quote=lambda *args, **kwargs: quote)
+    monkeypatch.setattr('hutch.providers.openrouter_pricing.live_pricing', lambda *args, **kwargs: service)
+    connection = SimpleNamespace(template='openrouter', base_url='https://router.example/api/v1',
+                                 account_id='capacity-account')
+    connections = SimpleNamespace(get=lambda name: connection, account_policy=lambda account: (0.0, []))
+    guard = SpendGuard(store, bot, run, PriceBook(), connections)
+    rung = make_rung('router/acme/model', 'primary')
+    reserved = guard.worst_case(rung, 1000, 500)
+    # Each endpoint is bounded separately. Larger context: .256 + .005;
+    # smaller prompt limit at higher rate: .080 + .005. Never mix rates/limits.
+    assert reserved.usd == pytest.approx(.261)
+    assert reserved.billing_unit == 'USD/context-capacity-reserve'
+    with pytest.raises(UsageBudgetRefusal):
+        guard.reserve(rung, 1000, 500)
+    assert not store.unresolved_usage_reservations()

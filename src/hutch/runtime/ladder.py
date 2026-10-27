@@ -117,8 +117,11 @@ def resolve_quote(rung: Rung, prices: PriceBook, connections, est_prompt_tokens:
 
     Resolution order: local -> flat subscription -> fresh live OpenRouter quote -> labeled stale live quote
     -> the reviewed price file (labeled with its verified-on date) -> "no basis". A strict OpenRouter
-    ceiling requires a live quote and fails closed when refresh fails; it never falls through to stale or
-    file pricing. ``usd=None``
+    ceiling requires a live quote and reserves each eligible endpoint's published
+    input capacity plus the requested output, at conservative tier/cache rates.
+    It fails closed when refresh fails, never falling through to stale or file
+    pricing. Capacity reservation bounds tokenizer-estimate error for this one
+    request; it is not a guarantee of external provider billing. ``usd=None``
     means no basis exists; it is never treated as free, and the applicable budget policy decides whether
     that refuses admission or is recorded as unknown.
 
@@ -155,6 +158,7 @@ def resolve_quote(rung: Rung, prices: PriceBook, connections, est_prompt_tokens:
             live = live_quote.worst_case(
                 est_prompt_tokens, max_turn_tokens,
                 conservative_tiers=True,
+                reserve_context_capacity=require_fresh_openrouter,
                 eligible=eligible)
             if live is not None:
                 identities = tuple(endpoint.identity or f"{endpoint.provider_name}:{endpoint.name}"
@@ -163,7 +167,9 @@ def resolve_quote(rung: Rung, prices: PriceBook, connections, est_prompt_tokens:
                                  verified_on=live_quote.fetched_at.isoformat(), stale=live_quote.stale,
                                  endpoints_considered=len(identities), snapshot_digest=live_quote.snapshot_digest,
                                  expires_at=(live_quote.expires_at.isoformat() if live_quote.expires_at else ""),
-                                 endpoint_identities=identities, currency="USD", billing_unit="USD/call-estimate")
+                                 endpoint_identities=identities, currency="USD",
+                                 billing_unit=("USD/context-capacity-reserve" if require_fresh_openrouter
+                                               else "USD/call-estimate"))
             if require_fresh_openrouter:
                 return CallQuote(usd=None, source="openrouter_no_eligible_endpoint", stale=True,
                                  snapshot_digest=live_quote.snapshot_digest,

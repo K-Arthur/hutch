@@ -259,3 +259,19 @@ def test_http_metadata_rejects_compressed_response_before_reading(monkeypatch):
     service = OpenRouterPricing("https://router.example/api/v1")
     with pytest.raises(Exception, match="content encoding"):
         service._http_fetch("acme/model-1")
+
+
+def test_context_capacity_reserve_covers_cache_write_tiers_and_rejects_unknown_capacity():
+    row = endpoint('0.000003', '0.000015', request='0.002', context=128000,
+                   cache_write='0.00000375')
+    row['pricing']['overrides'] = [{'min_prompt_tokens': 200000, 'prompt': '0.000006',
+                                   'completion': '0.0000225', 'input_cache_write_1h': '0.000012'}]
+    quote = parse_endpoints_payload(payload(row), 'acme/model-1', fetched_at=NOW)
+    # Full 128k input at the highest published cache tier, requested 100 output,
+    # and the endpoint's request fee. A 1k estimate must not reduce the hold.
+    assert quote.worst_case(1000, 100, conservative_tiers=True,
+                            reserve_context_capacity=True) == Decimal('1.54025')
+    unknown = parse_endpoints_payload(payload(endpoint('0.000001', '0.000002', context=0)),
+                                      'acme/model-1', fetched_at=NOW)
+    assert unknown.worst_case(1000, 100, reserve_context_capacity=True) is None
+    assert unknown.worst_case(1000, 100) == Decimal('0.0012')

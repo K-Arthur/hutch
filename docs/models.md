@@ -29,8 +29,11 @@ has a custom name. Catalog pricing and context size are reported values,
 not guarantees of upstream availability. Separately, before admission to a paid OpenRouter route, Hutch reads the
 public model-endpoint metadata and uses a five-minute quote; the response is capped at 1 MB, 512 endpoints and 64
 pricing overrides per endpoint, and compressed responses are rejected. Strict USD ceilings refuse when fresh
-metadata or a context/tool-qualified endpoint is unavailable. Strict reservation uses the highest eligible endpoint call estimate,
-including declared higher-price tiers and possible cache-write cost. When no strict ceiling applies, a labeled stale
+metadata or a context/tool-qualified endpoint is unavailable. Strict reservation uses each eligible endpoint's entire
+published input capacity (the smaller of its context and any explicit prompt limit), plus the requested output,
+including declared higher-price tiers and possible cache-write cost; the highest whole-endpoint cost is held.
+This deliberately reserves more than a short prompt estimate and can refuse a request despite its likely low cost.
+Reported usage settles that hold after completion. When no strict ceiling applies, a labeled stale
 quote or reviewed Settings > Prices row may be used. This estimate is not a provider-enforced billing cap. OpenRouter
 requests ask for `usage.include=true` so reported `usage.cost` can be retained when the response includes it. A model
 listing does not establish tool-call compatibility; verify task behavior with a normal governed run.
