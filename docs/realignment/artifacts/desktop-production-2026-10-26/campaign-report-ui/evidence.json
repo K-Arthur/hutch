@@ -19,20 +19,56 @@
     "No live Google Ads connection, external reporting, full performance-marketing acceptance or new paid model qualification",
     "Existing narrow marketing availability table remains verbose; its row layout was preserved"
   ],
-  "source_sha256": {
-    "src/hutch/server/static/app.js": "bfedb5778318316e3fa3cbaf8d482f50b677a86432abf9a8f4babefb0272f6f4",
-    "src/hutch/server/static/campaign-report.js": "34ab1516a5270602df3b217b305df798405c47969aa80aaff99647c182dd0d62",
-    "src/hutch/server/static/index.html": "9575836f2327a6b4321865a610c127e54d6f2ddf4fd6f273c30fe499c6de6a67",
-    "src/hutch/server/static/ui.css": "d44e5d8c2833de458f2860332dac08446c2a57bdbda2f17ae6ab0272a0c1b379",
-    "app/src/input.css": "00d69eaf568571abc5921d98dcfc5aa63bf6817434fa58614e3abc67fd875b39",
-    "src/hutch/server/workflows_api.py": "e1bd6e105c095624b10c27f156cd86c1b69e8a547e543a2fd67b0f79feb08f58",
-    "src/hutch/server/app.py": "d5a6129cd3e7263cb3d273eacd5a6f78868b5cff4e1ff468cd088459e2a72b48",
-    "src/hutch/workflow/campaigns.py": "0cf8f9c172225d4c0624d6261e7a04957df74032cb596d0d89e0916054c203eb",
-    "tests/test_campaign_report_api.py": "87d4b0f21819f1b3fa4c97297752f6e7ec99760bb283305f775ecb2af5a5adbb",
-    "tests/e2e/test_campaign_report.py": "a4407b962aa8a35f10761d14fe50a95c908d2926318f4dd75e70c87cb9ec5d79",
-    "website/index.html": "4d25705dd31a9dc07b3555ecfce3fb0c4708032b02c2f584e3bf523a5078c2d2",
-    "tests/e2e/test_website.py": "e284bfc3274a8559ff75ee873776032174f4a90cc3ae789690da7b66669af8be"
-  },
+  "source_sha256": [
+    {
+      "path": "src/hutch/server/static/app.js",
+      "sha256": "bfedb5778318316e3fa3cbaf8d482f50b677a86432abf9a8f4babefb0272f6f4"
+    },
+    {
+      "path": "src/hutch/server/static/campaign-report.js",
+      "sha256": "34ab1516a5270602df3b217b305df798405c47969aa80aaff99647c182dd0d62"
+    },
+    {
+      "path": "src/hutch/server/static/index.html",
+      "sha256": "9575836f2327a6b4321865a610c127e54d6f2ddf4fd6f273c30fe499c6de6a67"
+    },
+    {
+      "path": "src/hutch/server/static/ui.css",
+      "sha256": "d44e5d8c2833de458f2860332dac08446c2a57bdbda2f17ae6ab0272a0c1b379"
+    },
+    {
+      "path": "app/src/input.css",
+      "sha256": "00d69eaf568571abc5921d98dcfc5aa63bf6817434fa58614e3abc67fd875b39"
+    },
+    {
+      "path": "src/hutch/server/workflows_api.py",
+      "sha256": "e1bd6e105c095624b10c27f156cd86c1b69e8a547e543a2fd67b0f79feb08f58"
+    },
+    {
+      "path": "src/hutch/server/app.py",
+      "sha256": "d5a6129cd3e7263cb3d273eacd5a6f78868b5cff4e1ff468cd088459e2a72b48"
+    },
+    {
+      "path": "src/hutch/workflow/campaigns.py",
+      "sha256": "0cf8f9c172225d4c0624d6261e7a04957df74032cb596d0d89e0916054c203eb"
+    },
+    {
+      "path": "tests/test_campaign_report_api.py",
+      "sha256": "87d4b0f21819f1b3fa4c97297752f6e7ec99760bb283305f775ecb2af5a5adbb"
+    },
+    {
+      "path": "tests/e2e/test_campaign_report.py",
+      "sha256": "a4407b962aa8a35f10761d14fe50a95c908d2926318f4dd75e70c87cb9ec5d79"
+    },
+    {
+      "path": "website/index.html",
+      "sha256": "4d25705dd31a9dc07b3555ecfce3fb0c4708032b02c2f584e3bf523a5078c2d2"
+    },
+    {
+      "path": "tests/e2e/test_website.py",
+      "sha256": "e284bfc3274a8559ff75ee873776032174f4a90cc3ae789690da7b66669af8be"
+    }
+  ],
   "capture_sha256": {
     "text-scale-320.png": "71750e77323360b65b3ce420ecb07eab667cf4d4042077e0e3c8a688244d5196",
     "source-320.png": "fdadb0ddf82836120361284ef40816cd86c0969016546fa91ac9161a06be523b",
@@ -45,5 +81,6 @@
     "preview-1440.png": "9f0cb73b8b9b4b4b24a671e4d85d542cae032e9ceec70ec9f5442e55f532b84f",
     "availability-validation.json": "0b8ca0f958135b11818e2365b44f65363939d34fc81838729acd6dacb7fc9558"
   },
-  "site_crops": "Crops of the actual availability-table desktop/compact-phone captures; pixels retained without restyling."
+  "site_crops": "Crops of the actual availability-table desktop/compact-phone captures; pixels retained without restyling.",
+  "secret_scan_review": "Two generic-api-key matches were source-file SHA-256 evidence fields ending in _api.py, independently matched to actual file bytes. No credentials. Metadata now separates path and sha256 fields; no scanner suppression added."
 }
