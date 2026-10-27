@@ -2423,6 +2423,17 @@ def _migrate_79(db: sqlite3.Connection) -> None:
     _ensure_persona_feedback(db)
 
 
+def _migrate_80(db: sqlite3.Connection) -> None:
+    """Keep existing assistants review-first; new assistants may use hybrid learning."""
+    for row in db.execute('SELECT id, doc FROM bots').fetchall():
+        doc = json.loads(row['doc'])
+        if 'memory_learning' not in doc:
+            doc['memory_learning'] = 'review'
+        doc.setdefault('memory_revision', 0)
+        db.execute('UPDATE bots SET doc = ? WHERE id = ?',
+                   (json.dumps(doc, ensure_ascii=False), row['id']))
+
+
 def _integration_tool_names(db: sqlite3.Connection, bot_id: str) -> list[str]:
     """Return sorted names for grants on enabled, operation-authorized integrations only."""
     rows = db.execute("SELECT g.canonical_name FROM integration_tool_grants g "
@@ -2439,7 +2450,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
                _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53, _migrate_54,
-               _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59, _migrate_60, _migrate_61, _migrate_62, _migrate_63, _migrate_64, _migrate_65, _migrate_66, _migrate_67, _migrate_68, _migrate_69, _migrate_70, _migrate_71, _migrate_72, _migrate_73, _migrate_74, _migrate_75, _migrate_76, _migrate_77, _migrate_78, _migrate_79]
+               _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59, _migrate_60, _migrate_61, _migrate_62, _migrate_63, _migrate_64, _migrate_65, _migrate_66, _migrate_67, _migrate_68, _migrate_69, _migrate_70, _migrate_71, _migrate_72, _migrate_73, _migrate_74, _migrate_75, _migrate_76, _migrate_77, _migrate_78, _migrate_79, _migrate_80]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 EVENT_OUTBOX_SCHEMA_VERSION = 71
 
@@ -3277,7 +3288,9 @@ class Store:
 
     def upsert_bot(self, bot: Bot, *, preserve_schedules: bool = False,
                    primary_schedule_update: Schedule | None | object = _SCHEDULE_UNCHANGED,
-                   require_no_active_runs: bool = False) -> Bot:
+                   require_no_active_runs: bool = False,
+                   memory_update: dict[str, Any] | None = None,
+                   expected_memory_revision: int | None = None) -> Bot:
         cancelled_remote: list[str] = []
         with self._tx() as db:
             if require_no_active_runs:
@@ -3290,6 +3303,23 @@ class Store:
             row = db.execute("SELECT id, doc FROM bots WHERE id = ? OR name = ? LIMIT 1",
                              (bot.id, bot.name)).fetchone()
             previous = Bot.from_store_json(row["doc"]) if row else None
+            if memory_update is not None and not set(memory_update) <= {'memory_enabled', 'memory_learning'}:
+                raise ValueError('unsupported memory settings')
+            if previous is not None:
+                from .learning import MemoryPolicyConflict
+                policy_fields = ('memory_enabled', 'memory_learning')
+                if memory_update is not None:
+                    # API updates merge only explicitly supplied fields inside
+                    # this transaction; unrelated stale forms preserve revocation.
+                    if memory_update and expected_memory_revision != previous.memory_revision:
+                        raise MemoryPolicyConflict()
+                    for field in policy_fields:
+                        setattr(bot, field, memory_update.get(field, getattr(previous, field)))
+                elif (any(getattr(bot, field) != getattr(previous, field) for field in policy_fields)
+                      and bot.memory_revision != previous.memory_revision):
+                    raise MemoryPolicyConflict()
+                changed = any(getattr(bot, field) != getattr(previous, field) for field in policy_fields)
+                bot.memory_revision = previous.memory_revision + int(changed)
             if previous is not None:
                 bot.preserve_unreadable_persona_from(previous)
                 if previous.persona_profile_error:
@@ -5768,6 +5798,12 @@ class Store:
             user_event = Event(run_id=run.id, type=EventType.message,
                                data={"role": "user", "content": prompt})
             events = [user_event]
+            from .learning import retain_explicit_preference
+            learned = retain_explicit_preference(db, run.id, message_id)
+            if learned:
+                events.append(Event(run_id=run.id, type=EventType.log, data={
+                    'kind': 'learning', 'note': 'Saved your explicit formatting preference for this chat.',
+                    'fact_id': learned['id'], 'learning': learned['learning']}))
             if choice_question is not None:
                 events.append(Event(run_id=run.id, type=EventType.choice_answered,
                                     data={"question_id": choice_question_id,
@@ -9525,6 +9561,11 @@ class Store:
         from .fact_memory import page
         with self._lock:
             return page(self._db, bot_id, **options)
+
+    def learning_preferences(self, bot_id: str, run_id: str) -> Optional[dict]:
+        from .learning import reference
+        with self._lock:
+            return reference(self._db, bot_id, run_id)
 
     def fact_memory_export_snapshot(self, bot_id: str, *, max_facts: int, max_shares_per_direction: int,
                                     max_source_bytes: int) -> Optional[dict[str, Any]]:

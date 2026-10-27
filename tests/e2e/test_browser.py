@@ -8252,6 +8252,9 @@ spec:
         page.locator("#setup-page-confirm").click()
         page.get_by_role("heading", name="Choose its apps").wait_for()
         assert page.locator('input[name="setup-tool"][value="read_file"]').is_checked()
+        learning = page.get_by_label("Learning when memory is enabled", exact=True)
+        pw.expect(learning).to_have_value("review")
+        learning.select_option("hybrid")
         page.get_by_text("Add a recurring task (optional)").click()
         assert page.get_by_label("Cron schedule", exact=True).input_value() == "0 9 * * 1"
         assert page.get_by_label("Time zone").input_value() == "America/Vancouver"
@@ -8275,6 +8278,7 @@ spec:
         assert bot is not None and bot.display_name == "Jordan Reed · Release Notes Reviewer"
         assert bot.instructions == "Review release notes and prepare a short summary for the project team."
         assert bot.model == "openai/gpt-4o-mini" and bot.tools == ["read_file"]
+        assert bot.memory_learning == "hybrid" and bot.memory_enabled is False
         assert bot.schedule and bot.schedule.timezone == "America/Vancouver" and bot.schedule.catch_up.value == "skip"
         assert bot.limits.max_steps == 11 and bot.workspace_mode == "managed"
         assert app.state.store.list_runs() == [], "import must not start a Bot run"
@@ -12632,8 +12636,11 @@ def test_scoped_fact_review_revision_conflict_and_memory_off(browser, live, widt
         page.get_by_role('menuitem', name='Assistant settings').click()
         open_assistant_customization(page)
         page.locator('#memory-toggle').wait_for()
-        page.locator('#memory-toggle').click()
-        page.get_by_role('button', name='Enable memory', exact=True).wait_for()
+        with page.expect_response(lambda response: response.request.method == 'PATCH'
+                                  and response.url.endswith('/api/bots/' + bot.name)) as changed_memory:
+            page.locator('#memory-toggle').select_option('off')
+        assert changed_memory.value.status == 200
+        pw.expect(page.locator('#memory-toggle')).to_have_value('off')
         assert not store.get_bot(bot.id).memory_enabled
         page.locator('#memory-archives').click()
         page.locator(f'[data-fact-card="{newer.id}"]').get_by_text('Archived',exact=True).wait_for()

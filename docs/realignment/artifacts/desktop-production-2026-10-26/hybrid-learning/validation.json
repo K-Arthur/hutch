@@ -1,0 +1,65 @@
+{
+  "browser": "153.0.8010.12",
+  "viewports": [
+    [
+      1440,
+      960
+    ],
+    [
+      390,
+      844
+    ],
+    [
+      320,
+      740
+    ]
+  ],
+  "page_errors": [],
+  "computed_styles": {
+    "fontSize": "16px",
+    "buttons": [
+      {
+        "fontSize": "14px",
+        "height": 44
+      },
+      {
+        "fontSize": "14px",
+        "height": 44
+      }
+    ]
+  },
+  "text_spacing_override": "1.5 / 2em / .12em / .16em at 320 CSS px",
+  "browser_zoom_200_percent": "not verified by this headless journey",
+  "scope": "synthetic canonical preference; no provider calls; source retained after undo",
+  "source_sha256": {
+    "src/hutch/learning.py": "3ec8f11d2fdbdc5fcd5ed6f0da28a80f512515a6a574c530f6ba7c56e9b23fa9",
+    "src/hutch/models.py": "e3678dd0053601d6487c40e278ba58a42a0884363219982e20908691a431e4e5",
+    "src/hutch/fact_memory.py": "b058c8fe6ad642cc9552fbe9b15f06c3f1dc76a5c118464647d77d60eb8cf66d",
+    "src/hutch/store.py": "0ea2769e78f52b7f976fd481f53c94f172dae24108c7a2315c782ba5591088e7",
+    "src/hutch/tools/memory.py": "d50cf911b2edaf54d8b1c01b61d9b24bcb9fb8247c89a2ceba1074048a111ce9",
+    "src/hutch/runtime/builtin.py": "3b81f01fbd24fca52c8c59c1a6b21148938e7bea0052fb338eac075b6d2bb1f7",
+    "src/hutch/runtime/opencode.py": "8654e73c604ad3ee1cb8f3e21bac33f2c3ae9830c58749b6c3f4786b60034efd",
+    "src/hutch/server/app.py": "add4c11077630e4b9291ff50d3467e56bf8aadae49e97fcb387583975d194cbb",
+    "src/hutch/server/static/app.js": "39cb8fdef2184c1ef0fea4dc7155b8c2075fcc78440fc7cfad4de0996c0040ad",
+    "app/src/input.css": "155ce926cf4e4ea1f979a302e9cc935f9f0071c27520addcd97cf94cf76379da",
+    "src/hutch/server/static/ui.css": "b53deaaf4fc9b97bd07148618679f35cf57ffb678c15a2f4fd66c6c21a39a43e",
+    "tests/test_learning.py": "e612ac117187e5855959d77f13bd79c75b9ecbc716f9dcf7c48591b9cde1c86b",
+    "tests/e2e/test_learning.py": "4364d02709706ab6a7d84141e4b0b6068d8e86a3bb7006096f1012c4bec03630",
+    "tests/e2e/test_browser.py": "f16661c06ac04565424d1ba3a1d0903d3e82f0cd11a53c6f295ec32cae42061d"
+  },
+  "opened_and_inspected": [
+    "preferences-1440.png",
+    "preferences-390.png",
+    "preferences-320.png",
+    "preferences-text-spacing-320.png",
+    "provenance-320.png",
+    "settings-1440.png",
+    "settings-320.png"
+  ],
+  "review_limitations": [
+    "No live model quality claim",
+    "No 200% browser zoom evidence",
+    "Procedure and nonexecutable skill drafts still pending",
+    "Undo retains original messages, earlier provider input and backups"
+  ]
+}

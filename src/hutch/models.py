@@ -401,6 +401,8 @@ class Bot(BaseModel):
     limits: Limits = Field(default_factory=Limits)
     approval_mode: ApprovalMode = ApprovalMode.ask
     memory_enabled: bool = True
+    memory_learning: Literal['review', 'hybrid'] = 'hybrid'
+    memory_revision: int = Field(default=0, ge=0)
     workspace_mode: Literal["fresh", "managed", "folder"] = "fresh"
     workdir: Optional[str] = None     # an existing user folder; overrides the managed workspace
     local_browser_handoff: bool = False  # show this bot's browser on the Linux desktop for same-session human control
@@ -794,6 +796,14 @@ class ApprovalRequest(BaseModel):
     plan_id: Optional[str] = None     # tagged when the run belongs to a plan (CO-10)
 
 
+class LearningProvenance(BaseModel):
+    contract_version: Literal[1] = 1
+    kind: Literal['format_preference'] = 'format_preference'
+    decision: Literal['automatic_explicit'] = 'automatic_explicit'
+    source_message_id: str
+    source_sha256: str
+
+
 class MemoryItem(BaseModel):
     id: str = ''
     bot_id: str = ''
@@ -809,3 +819,10 @@ class MemoryItem(BaseModel):
     status: Literal['proposed', 'approved', 'archived'] = 'proposed'
     truncated: bool = False
     conversation_title: str = ''
+
+    @computed_field
+    @property
+    def learning(self) -> Optional[LearningProvenance]:
+        from .learning import provenance
+        evidence = provenance(self.source)
+        return LearningProvenance(**evidence) if evidence else None

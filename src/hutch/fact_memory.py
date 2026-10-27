@@ -102,6 +102,16 @@ def propose(store, db, bot_id, key, value, *, run_id='', fence=None, conversatio
         scope_kind = 'conversation' if row['conversation_id'] else 'run'
         scope_id = row['conversation_id'] or run_id
         source = 'bot'
+        from .learning import provenance
+        saved = db.execute('SELECT * FROM memory_facts f WHERE f.bot_id = ? AND f.scope_kind = ? '
+                           'AND f.scope_id = ? AND f.key = ? AND ' + CURRENT,
+                           (bot_id, scope_kind, scope_id, key)).fetchone()
+        if saved and saved['status'] == 'approved' and provenance(saved['source']):
+            if digest({field: saved[field] for field in CONTENT_FIELDS}) != saved['content_hash']:
+                raise FactConflict('saved preference failed its integrity check; preserve it for inspection')
+            if value == saved['value']:
+                return dict(saved)
+            raise FactConflict('this preference came from an explicit user statement; ask the user for a direct change')
     elif conversation_id:
         check_conversation(db, bot_id, conversation_id)
         scope_kind, scope_id = 'conversation', conversation_id
@@ -156,7 +166,8 @@ def page(db, bot_id, *, conversation_id=None, run_id=None, approved_only=False, 
                       'FROM memory_facts f ' + join +
                       ' WHERE ' + ' AND '.join(clauses) + ' ORDER BY ' + order + ' LIMIT ? OFFSET ?',
                       (*args, max(1, min(MAX_RESULTS, limit)), max(0, offset))).fetchall()
-    return [dict(row) for row in rows]
+    from .learning import annotate
+    return [annotate(dict(row)) for row in rows]
 
 
 def incoming_page(db, target_bot_id, *, query='', limit=20):
@@ -206,7 +217,8 @@ def history(db, bot_id, fact_id, *, limit=50, offset=0):
                       '(length(key)>120 OR length(value)>2000) AS truncated FROM memory_facts '
                       'WHERE bot_id = ? AND scope_kind = ? AND scope_id = ? AND key = ? ORDER BY revision DESC LIMIT ? OFFSET ?',
                       (bot_id, fact['scope_kind'], fact['scope_id'], fact['key'], min(100, max(1, limit)), max(0, offset))).fetchall()
-    versions = [dict(row) for row in rows]
+    from .learning import annotate
+    versions = [annotate(dict(row)) for row in rows]
     decisions = []
     for row in rows:
         reviews = db.execute('SELECT fact_id, action, actor, note, created_at, result_json FROM memory_fact_decisions '

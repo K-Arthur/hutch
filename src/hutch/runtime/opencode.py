@@ -225,8 +225,12 @@ class OpenCodeRuntime:
         # shared with Builtin.  Do not page/reconstruct native history here:
         # that used the oldest 60 messages and removed duplicate user text by
         # value, losing corrections and distinct repeated requests.
-        del ctx, new_session
+        del new_session
         selected = []
+        from ..learning import reference_message
+        preference = reference_message(ctx, run)
+        if preference:
+            selected.append(preference)
         for item in run.conversation_context:
             if not isinstance(item, dict) or item.get("role") not in {"user", "assistant"}:
                 continue
@@ -251,7 +255,8 @@ class OpenCodeRuntime:
         workspace = str(ctx.workspace.resolve())
         route_hash = hashlib.sha256(f"{provider_id}\0{model_id}".encode()).hexdigest()
         policy_hash = hashlib.sha256(json.dumps({"bot_id": ctx.bot.id, "agent": agent,
-                                                "runtime_controls": RUNTIME_CONTROL_VERSION}, sort_keys=True,
+                                                "runtime_controls": RUNTIME_CONTROL_VERSION,
+                                                "learning_context": 1}, sort_keys=True,
                                                 separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
         # A native session may contain tool output or old text beyond Hutch's
         # next bounded selection. Until a native replace-context contract is

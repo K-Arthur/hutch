@@ -10,10 +10,18 @@ These settings are available under **Customize how it works → Computer access*
 `memory_enabled: false` omits memory tools from new runtime tool lists and refuses recall/proposal
 through existing tool objects after the persisted setting changes. It does not hide saved facts from
 human management or retract prior provider input. `remember` proposes a reference fact within its
-chat (or isolated attempt); `recall` returns only reviewed facts in that scope plus references explicitly
-shared with this bot's chats. A revision requires a new review. Keys/values are bounded to 120/2,000
+chat (or isolated attempt); `recall` returns only saved facts in that scope plus references explicitly
+shared with this bot's chats. Model-proposed revisions require review. Keys/values are bounded to 120/2,000
 characters. Legacy unscoped facts need an explicit sharing decision. Archive retains versions, earlier
 prompts and backups. Store credentials through configured connections, never reference facts.
+
+New Bots use **Hybrid** learning. Existing Bots migrate to **Review first**, preserving their memory-enabled setting; old imported setup files also stay review-first. Under **Customize how it works → Saved notes → Memory and learning**, choose Off, Review first or Hybrid. Changing this setting grants no tools or service access. Stale memory-setting saves return a conflict instead of restoring an older policy; the API exposes `memory_revision` and accepts `expected_memory_revision` with an explicit memory change.
+
+Hybrid automatically saves only complete, explicit formatting statements in a manual chat: “I prefer concise answers”, “I prefer short answers”, “I prefer detailed answers”, “I prefer bullet points”, “I prefer answers in bullet points”, “I prefer British English”, or “I prefer American English”. Optional “Please”, “Remember that” and a final period are accepted. Quoted statements, task-specific requests, inferred or sensitive facts, automated runs and permission changes do not qualify. This deterministic path makes no extra model calls. Other facts follow the existing review path; executable skills and new authority are never activated by this recognizer.
+
+Each saved preference belongs to that conversation. A visible **Formatting preferences** section offers **Details** (original message identity and automatic decision) and **Undo**. Up to three current, validated preferences become bounded historical reference data in subsequent built-in and OpenCode chat context. They do not override the current request or saved controls, transfer to specialist Bots, or grant permissions. A model cannot shadow an active explicit preference with its own proposal. Repeating the same active preference does not create another revision.
+
+Undo archives the exact saved version; disabling memory stops fresh retrieval. Context already loaded into a run, original messages, prior provider input, history, indexes and backups remain. Review first stops new automatic retention; existing saved preferences remain until undone or memory is disabled. Drafting reusable procedures/skill metadata and permanent scoped deletion are still pending.
 
 Bot settings keep memory management beside the Bot. The owner can review proposals, create immutable
 revisions, archive records, inspect history and manage exact cross-Bot snapshots there. **Download
@@ -85,7 +93,9 @@ response is marked `Cache-Control: no-store`.
 | `schedule` | obj? | null | Compatibility alias for the first item in `schedules`; older `cron`/`schedule_prompt` settings update this task. Omit `schedules` for on-demand bots. |
 | `limits` | obj | see below | runtime limits and usage admission budgets |
 | `approval_mode` | enum | `ask` | `ask` · `auto` |
-| `memory_enabled` | bool | true | allow runtime fact proposal/retrieval tools; facts are never automatically injected |
+| `memory_enabled` | bool | true | enable runtime facts and bounded explicit-format preference context; Off stops fresh retrieval, retaining records |
+| `memory_learning` | enum | `hybrid` for new Bots | `review` or `hybrid`; existing Bots and old imported setup files remain `review` |
+| `memory_revision` | int | 0 | persisted settings revision; use `expected_memory_revision` on API memory updates to refuse stale forms |
 | `workdir` | path? | null | a folder of yours the bot works in, run after run (see below); null = a fresh empty workspace per run |
 | `local_browser_handoff` | bool | false | open this bot's browser as a visible Linux desktop window; a login wait holds one Hutch handoff/profile lease until the user resumes. Requires a live Linux display and Playwright Chromium; does not enable phone control. |
 | `local_dev_origins` | list | `[]` | exact `http://localhost:PORT` / loopback origins the browser may open for local web-app work (at most 8; no LAN or metadata addresses; Hutch's own dashboard is refused). See [computer-use.md](computer-use.md). |

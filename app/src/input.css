@@ -97,6 +97,14 @@
 .connection-reference code { display: block; max-width: 100%; overflow-wrap: anywhere; padding-bottom: 8px; }
 .connections-workspace .service-mark-notion { background: var(--sunken); border-color: var(--line); }
 .connections-workspace .service-mark-notion img { width: 30px; height: 30px; }
+.learning-preferences { margin-block: var(--s-4); }
+.learning-preferences h3 { margin: 0; font-size: var(--fs-base); font-weight: var(--weight-semibold); }
+.learning-preferences > p { margin-block: var(--s-1) var(--s-3); }
+.learning-preferences ul { margin: 0; padding: 0; list-style: none; }
+.learning-preferences li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--s-2); padding-block: var(--s-2); border-top: 1px solid var(--line); }
+.learning-preferences li strong { min-width: 0; font-size: var(--fs-base); font-weight: var(--weight-medium); overflow-wrap: anywhere; }
+.learning-preferences .btn { min-height: 44px; }
+.fact-card .hint { overflow-wrap: anywhere; }
 /* File services share account transport, with separate readable service controls. */
 .connections-workspace .google-file-card { display: grid; gap: var(--s-6); }
 .connections-workspace .google-file-card > .bot-head { margin-bottom: 0; }

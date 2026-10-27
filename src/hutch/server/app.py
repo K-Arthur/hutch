@@ -246,6 +246,7 @@ class BotCreate(BaseModel):
     tools: list[str] = ["shell", "files", "memory"]
     skills: list[str] = Field(default_factory=list, max_length=MAX_SKILLS_PER_BOT)
     memory_enabled: bool = True
+    memory_learning: Literal['review', 'hybrid'] = 'hybrid'
     cron: Optional[str] = None
     timezone: str = "UTC"
     catch_up: CatchUpPolicy = CatchUpPolicy.coalesce
@@ -363,7 +364,8 @@ def _parse_bot_config_yaml(source: str) -> BotCreate:
         raise ValueError("Bot configuration limits contain unsupported fields")
 
     try:
-        body = BotCreate.model_validate(spec)
+        # Older portable configurations predate automatic preference retention.
+        body = BotCreate.model_validate({'memory_learning': 'review', **spec})
     except (TypeError, ValueError) as exc:
         raise ValueError(f"invalid Bot configuration: {exc}") from None
     if body.approval_mode is not ApprovalMode.ask or body.risk_tier is not RiskTier.supervised:
@@ -419,6 +421,8 @@ class BotPatch(BaseModel):
     tools: Optional[list[str]] = None
     skills: Optional[list[str]] = Field(default=None, max_length=MAX_SKILLS_PER_BOT)
     memory_enabled: Optional[bool] = None
+    memory_learning: Optional[Literal['review', 'hybrid']] = None
+    expected_memory_revision: Optional[int] = Field(default=None, ge=0)
     approval_mode: Optional[ApprovalMode] = None
     risk_tier: Optional[RiskTier] = None
     command_rules: Optional[list[CommandRule]] = None
@@ -4435,6 +4439,7 @@ def create_app() -> FastAPI:
             from ..skills import SkillRegistry
             bot.skills = SkillRegistry(config.state_dir).validate_binding(list(body.skills))
         bot.memory_enabled = body.memory_enabled
+        bot.memory_learning = body.memory_learning
         bot.approval_mode = body.approval_mode
         bot.risk_tier = body.risk_tier
         bot.local_browser_handoff = body.local_browser_handoff
@@ -4560,7 +4565,7 @@ def create_app() -> FastAPI:
     @app.post("/api/v1/bot-configs/preview", response_model=BotConfigPreviewResource)
     def preview_bot_config(body: BotCreate, response: Response) -> dict:
         """Validate and render a reviewed setup draft without saving it."""
-        bot_from_create_request(body)
+        resolved_bot = bot_from_create_request(body)
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
         excluded = {
@@ -4568,6 +4573,11 @@ def create_app() -> FastAPI:
             "source_context_message_ids",
         }
         spec = body.model_dump(mode="json", exclude=excluded)
+        # A defaulted draft still needs a portable mapping, not limits: null,
+        # so the file we produce can pass our own bounded import contract.
+        spec['limits'] = resolved_bot.limits.model_dump(mode='json')
+        if spec['workspace_mode'] is None:
+            spec['workspace_mode'] = resolved_bot.workspace_mode
         document = {"apiVersion": "hutch.ai/v1", "kind": "BotConfig", "spec": spec}
         import yaml
         rendered = yaml.safe_dump(document, sort_keys=False, allow_unicode=True, default_flow_style=False)
@@ -4620,6 +4630,12 @@ def create_app() -> FastAPI:
     @app.patch("/api/bots/{ref}")
     def patch_bot(ref: str, body: BotPatch) -> dict:
         bot = bot_or_404(ref)
+        memory_update = {key: getattr(body, key) for key in ('memory_enabled', 'memory_learning')
+                         if getattr(body, key) is not None}
+        if body.expected_memory_revision is not None and not memory_update:
+            raise HTTPException(422, 'a memory revision requires a memory setting change')
+        expected_memory_revision = (body.expected_memory_revision if body.expected_memory_revision is not None
+                                    else bot.memory_revision)
         if store.workspace_coordinator_id() == bot.id and (
             body.sidebar_hidden is True
             or ("roster_section" in body.model_fields_set and bool(body.roster_section))
@@ -4673,6 +4689,7 @@ def create_app() -> FastAPI:
             from ..skills import SkillRegistry
             bot.skills = SkillRegistry(config.state_dir).validate_binding(list(body.skills))
         if body.memory_enabled is not None: bot.memory_enabled = body.memory_enabled
+        if body.memory_learning is not None: bot.memory_learning = body.memory_learning
         if body.approval_mode is not None: bot.approval_mode = body.approval_mode
         if body.risk_tier is not None: bot.risk_tier = body.risk_tier
         if body.local_browser_handoff is not None: bot.local_browser_handoff = body.local_browser_handoff
@@ -4757,12 +4774,17 @@ def create_app() -> FastAPI:
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
         try:
+            from ..learning import MemoryPolicyConflict
             if schedule_update_requested:
                 bot = store.upsert_bot(bot, primary_schedule_update=None if body.clear_cron else bot.schedule,
-                                       require_no_active_runs=changing_runtime)
+                                       require_no_active_runs=changing_runtime, memory_update=memory_update,
+                                       expected_memory_revision=expected_memory_revision)
             else:
                 bot = store.upsert_bot(bot, preserve_schedules=True,
-                                       require_no_active_runs=changing_runtime)
+                                       require_no_active_runs=changing_runtime, memory_update=memory_update,
+                                       expected_memory_revision=expected_memory_revision)
+        except MemoryPolicyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
         except ActiveRunConflict as exc:
             raise HTTPException(409, f"Stop or finish active run {exc.run_id} before changing this bot's runtime") from None
         return bot_view(bot)

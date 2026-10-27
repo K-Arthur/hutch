@@ -4782,12 +4782,13 @@ function restoreFactUi(stream, state) {
 
 function factCardHtml(fact) {
   return `<article class="fact-card" data-fact-card="${esc(fact.id)}">
-    <div class="fact-heading"><strong>${esc(fact.key)}</strong><span class="tag">${fact.status === 'approved' ? 'Reviewed' : fact.status === 'archived' ? 'Archived' : 'Proposed'}</span></div>
+    <div class="fact-heading"><strong>${esc(fact.learning ? 'Formatting preference' : fact.key)}</strong><span class="tag">${fact.status === 'approved' ? fact.learning ? 'Saved automatically' : 'Reviewed' : fact.status === 'archived' ? 'Archived' : 'Proposed'}</span></div>
     <p class="fact-value">${esc(fact.value)}</p>
     <p class="hint">${esc(factScopeLabel(fact))} · revision ${esc(fact.revision)}${fact.truncated ? ' · truncated; revise before use' : ''}</p>
+    ${fact.learning ? `<p class="hint">From your explicit formatting preference in this chat. <a href="#/conversation/${esc(fact.scope_id)}">Open source chat</a> · message <code>${esc(fact.learning.source_message_id)}</code></p>` : ''}
     <div class="btn-row">${fact.status === 'proposed' ? `<button type="button" class="btn primary small" data-fact-review="${esc(fact.id)}">Review fact</button>` : ''}
       ${fact.status !== 'archived' ? `<button type="button" class="btn ghost small" data-fact-edit="${esc(fact.id)}">Revise</button>
-      <button type="button" class="btn ghost small" data-fact-archive="${esc(fact.id)}">Archive fact</button>` : ''}
+      <button type="button" class="btn ghost small" data-fact-archive="${esc(fact.id)}">${fact.learning ? 'Undo saved preference' : 'Archive fact'}</button>` : ''}
       ${fact.status === 'approved' ? `<button type="button" class="btn ghost small" data-fact-share-create="${esc(fact.id)}">Share with a Bot</button>` : ''}
       <button type="button" class="btn ghost small" data-fact-history="${esc(fact.id)}">Fact history</button></div>
   </article>`;
@@ -4820,17 +4821,20 @@ function factShareRecordsHtml(sharePage = {}) {
 function factPanelHtml(facts, error = '', sharePage = {}) {
   if (error) return `<p class="hint" role="status">Could not refresh reference facts: ${esc(error)}. <button class="btn ghost small" type="button" data-retry-facts>Retry facts</button></p>${factShareRecordsHtml(sharePage)}`;
   if (!facts.length && !(sharePage.incoming || []).length && !(sharePage.outgoing || []).length && !sharePage.error) return '';
-  const proposed = facts.filter(f => f.status === 'proposed'), reviewed = facts.filter(f => f.status === 'approved');
+  const proposed = facts.filter(f => f.status === 'proposed');
+  const automatic = facts.filter(f => f.status === 'approved' && f.learning);
+  const reviewed = facts.filter(f => f.status === 'approved' && !f.learning);
   return `<section class="fact-panel" aria-label="Reference facts">
-    <h2>Reference facts</h2><p class="hint">Proposals need review before recall. Reviewed facts may be stale; they grant no tool permission. Memory can be disabled in bot settings.</p>
+    <h2>Reference facts</h2><p class="hint">Model proposals need review. Explicit formatting preferences may be saved automatically when hybrid learning is enabled. Records grant no tool permission; you can undo or disable memory.</p>
+    ${automatic.length ? `<section class="learning-preferences" aria-label="Formatting preferences"><h3>Formatting preferences</h3><p class="hint">Saved automatically from your messages in this chat.</p><ul>${automatic.map(fact => `<li data-fact-card="${esc(fact.id)}"><strong>${esc(fact.value)}</strong><button class="btn ghost small" type="button" data-fact-archive="${esc(fact.id)}">Undo</button><button class="btn ghost small" type="button" data-fact-history="${esc(fact.id)}" aria-label="Details for ${esc(fact.value)}">Details</button></li>`).join('')}</ul></section>` : ''}
     ${proposed.map(factCardHtml).join('')}
-    ${reviewed.length ? `<details><summary>${reviewed.length} reviewed ${reviewed.length === 1 ? 'fact' : 'facts'} in this window</summary>${reviewed.map(factCardHtml).join('')}</details>` : ''}
+    ${reviewed.length ? `<details><summary>${reviewed.length} saved or reviewed ${reviewed.length === 1 ? 'fact' : 'facts'} in this window</summary>${reviewed.map(factCardHtml).join('')}</details>` : ''}
     ${factShareRecordsHtml(sharePage)}
     ${facts.length === 20 ? '<p class="hint">Showing 20 facts. Bot settings provide the full paginated inventory.</p>' : ''}</section>`;
 }
 
 function refreshFactsAfterChange(botName) {
-  if (location.hash.startsWith('#/bot/')) void renderBotDetail(botName);
+  if (location.hash === `#/bot/${encodeURIComponent(botName)}`) void renderBotDetail(botName);
   else scheduleFeedRender();
 }
 
@@ -4930,6 +4934,14 @@ function wireFactControls(facts, botName, sharePage = {incoming:[], outgoing:[]}
   $$('[data-fact-archive]').forEach(button => button.onclick = () => {
     const fact = byId.get(button.dataset.factArchive); if (!fact) return;
     const key = newIdempotencyKey();
+    if (fact.learning) {
+      button.disabled = true;
+      void api(`/v1/bots/${encodeURIComponent(botName)}/facts/${encodeURIComponent(fact.id)}/review`, {
+        method:'POST', headers:{'Idempotency-Key':key}, body:{content_hash:fact.content_hash, action:'archive'}})
+        .then(() => { toast('Preference removed from new retrieval. Earlier conversation text remains.'); refreshFactsAfterChange(botName); })
+        .catch(error => { button.disabled = false; toast(`Could not undo this preference: ${error.message}`, true); });
+      return;
+    }
     openModal({ title:'Archive reference fact', confirmText:'Archive fact', returnFocus:button,
       bodyHtml:`<p>Archive <strong>${esc(fact.key)}</strong>, revision ${esc(fact.revision)} (${esc(factScopeLabel(fact))})?</p>
         <p>It will be excluded from new retrieval. Versions, reviews, previous prompts and backups remain; this is not permanent deletion.</p><p id="fact-archive-error" class="hint" role="status"></p>`,
@@ -4947,10 +4959,10 @@ function wireFactControls(facts, botName, sharePage = {incoming:[], outgoing:[]}
     try {
       const page = await api(`/v1/bots/${encodeURIComponent(botName)}/facts/${encodeURIComponent(fact.id)}/history?limit=20`);
       openModal({title:'Reference fact history', confirmText:'Close', showCancel:false, returnFocus:button,
-        bodyHtml: `<p>Versions and review records are retained. A review records a human decision; it does not prove a fact or authorize an action.</p>
+        bodyHtml: `<p>Versions and decisions are retained. Automatic formatting decisions and human reviews show their actor; neither proves a fact or authorizes an action.</p>
           ${page.facts.map(version => `<article class="fact-card"><strong>Revision ${esc(version.revision)} · ${esc(version.status)}</strong>
-            <p class="fact-value">${esc(version.key)}: ${esc(version.value)}</p><p class="hint">${esc(version.source)} · ${esc(version.updated_at)}${version.truncated ? ' · truncated' : ''}</p>
-            ${page.reviews.filter(review => review.fact_id === version.id || review.result_id === version.id).map(review => `<p class="hint">${esc(review.action)} · ${esc(review.actor)} · ${esc(review.created_at)}${review.note ? ` · ${esc(review.note)}` : ''}</p>`).join('')}</article>`).join('')}
+            <p class="fact-value">${esc(version.learning ? 'Formatting preference' : version.key)}: ${esc(version.value)}</p><p class="hint">${version.learning ? `Saved automatically from message <code>${esc(version.learning.source_message_id)}</code>` : esc(version.source)} · ${esc(version.updated_at)}${version.truncated ? ' · truncated' : ''}</p>
+            ${page.reviews.filter(review => review.fact_id === version.id || review.result_id === version.id).map(review => `<p class="hint">${esc(review.actor === 'automatic-explicit-format/v1' ? 'Automatic formatting decision' : `${review.action} · ${review.actor}`)} · ${esc(review.created_at)}${review.note ? ` · ${esc(review.note)}` : ''}</p>`).join('')}</article>`).join('')}
           ${page.next_offset !== null ? '<p class="hint">Showing the newest 20 revisions. The versioned API provides older pages.</p>' : ''}`});
     } catch(error) { toast(error.message, 'error'); }
     finally { if (button.isConnected) button.disabled = false; }
@@ -8188,8 +8200,13 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
 
           <div class="panel">
             <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("fileText")}</span>Saved notes (${b.memory_count})</div>
-            <p class="hint">${b.memory_enabled ? 'Runtime memory is enabled. Proposals require human review before recall.' : 'Runtime memory is disabled. Saved records remain manageable here.'} Review records are reference data, not tool permission. Never save credentials.</p>
-            <button class="btn ghost small" id="memory-toggle" type="button">${b.memory_enabled ? 'Disable' : 'Enable'} memory</button>
+            <label class="field" for="memory-toggle"><span id="memory-learning-label">Memory and learning</span><select id="memory-toggle" aria-labelledby="memory-learning-label" aria-describedby="memory-learning-help memory-learning-privacy">
+              <option value="off" ${!b.memory_enabled ? 'selected' : ''}>Off</option>
+              <option value="review" ${b.memory_enabled && b.memory_learning !== 'hybrid' ? 'selected' : ''}>Review first</option>
+              <option value="hybrid" ${b.memory_enabled && b.memory_learning === 'hybrid' ? 'selected' : ''}>Hybrid</option>
+            </select></label>
+            <p class="hint" id="memory-learning-help">${!b.memory_enabled ? 'Runtime memory is off. Saved records remain manageable here.' : b.memory_learning === 'hybrid' ? 'Clear statements such as “I prefer concise answers” are saved for that chat, with provenance and undo. Other facts still need review.' : 'New reference facts need your review. Previously saved preferences remain until you undo them or turn memory off.'}</p>
+            <p class="hint" id="memory-learning-privacy">Saved preferences can be included in future requests to this assistant’s model. Undo stops new retrieval; source conversations and backups remain. Learning never activates executable skills or expands access.</p>
             <button class="btn ghost small" id="memory-archives" type="button">${showArchivedFacts ? 'Hide' : 'Show'} archived facts</button>
             <div class="memory-actions"><button class="btn ghost small" id="memory-export" type="button">Download memory JSON</button></div>
             ${factsPage.facts.map(factCardHtml).join('') || `<p class="empty-inline">No active facts in this window.</p>`}
@@ -8221,11 +8238,22 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   window.hutchPersona?.mountBotForm($("#persona-form-slot"), b.name);
   loadBotBudget(b);
   const patch = async (body, msg) => {
+    const requestedHash = location.hash;
+    const requestedGeneration = studioGeneration;
+    let saved;
     try {
-      await api(`/bots/${encodeURIComponent(b.name)}`, { method: "PATCH", body });
-      toast(msg); renderBotDetail(b.name); refreshRoster();
-      return true;
+      saved = await api(`/bots/${encodeURIComponent(b.name)}`, { method: "PATCH", body });
     } catch (err) { toast(`Not saved: ${err.message}`, true); return false; }
+    b.memory_enabled = saved.memory_enabled;
+    b.memory_learning = saved.memory_learning;
+    b.memory_revision = saved.memory_revision;
+    toast(msg);
+    try {
+      if (location.hash === requestedHash && studioGeneration === requestedGeneration
+          && botDetailRenderGeneration === generation) await renderBotDetail(b.name);
+    } catch (err) { toast(`Saved, but settings could not refresh. Reload to see the latest settings: ${err.message}`, true); }
+    void refreshRoster();
+    return true;
   };
   $("#form-identity").addEventListener("submit", ev => {
     ev.preventDefault();
@@ -8612,7 +8640,16 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     patch({ command_rules: [...rules, rule] }, "Rule added.");
   });
   wireFactControls(factsPage.facts, b.name, factSharesPage);
-  $('#memory-toggle').onclick = () => patch({memory_enabled: !b.memory_enabled}, `Memory ${b.memory_enabled ? 'disabled' : 'enabled'}.`);
+  $('#memory-toggle').onchange = async event => {
+    const control = event.currentTarget;
+    const mode = control.value;
+    control.disabled = true;
+    const saved = await patch({memory_enabled: mode !== 'off', memory_learning: mode === 'off' ? b.memory_learning : mode,
+      expected_memory_revision: b.memory_revision},
+      mode === 'off' ? 'Memory disabled.' : mode === 'hybrid' ? 'Hybrid learning enabled.' : 'New facts require review.');
+    if (!saved) control.value = b.memory_enabled ? b.memory_learning : 'off';
+    control.disabled = false;
+  };
   $('#memory-archives').onclick = () => renderBotDetail(name, 0, !showArchivedFacts);
   $('#memory-export').onclick = event => {
     const button = event.currentTarget;
@@ -10783,7 +10820,7 @@ async function renderConnections() {
 
 const SETUP_TOOL_EXPANSIONS = { files: ["read_file", "list_files", "write_file"], memory: ["remember", "recall"],
   grounding: ["live_search", "inspect_media"] };
-const OPENCODE_TOOL_NAMES = new Set(["read_file", "list_files", "write_file", "shell", "web_fetch", "live_search"]);
+const OPENCODE_TOOL_NAMES = new Set(["read_file", "list_files", "write_file", "shell", "web_fetch", "live_search", "remember", "recall"]);
 const BOT_SETUP_TOOLS = [
   ["read_file", "Read workspace files", "Open text files in this bot’s workspace."],
   ["list_files", "List workspace files", "See file names in this bot’s workspace."],
@@ -11203,6 +11240,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     // A duplicate is a safe configuration starting point, not a copy of authority.
     tools: duplicateBot ? new Set() : chosenTemplate ? templateTools(chosenTemplate) : new Set(),
     memory_enabled: false,
+    memory_learning: duplicateBot?.memory_learning || 'hybrid',
     local_browser_handoff: false,
     cron: "", timezone: "UTC", catch_up: "coalesce", schedule_prompt: "",
     limits: { max_steps: 24, timeout_seconds: 900, daily_token_cap: 200000,
@@ -11233,6 +11271,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     draft.model = typeof saved.model === "string" ? saved.model.slice(0, 200) : draft.model;
     draft.inference_mode = ["hybrid", "local", "offline"].includes(saved.inference_mode) ? saved.inference_mode : draft.inference_mode;
     draft.workspace_mode = saved.workspace_mode === "fresh" ? "fresh" : "managed";
+    draft.memory_learning = saved.memory_learning === "hybrid" ? "hybrid" : "review";
     draft.local_browser_handoff = !!saved.local_browser_handoff;
     draft.cron = typeof saved.cron === "string" ? saved.cron.slice(0, 200) : "";
     draft.timezone = typeof saved.timezone === "string" ? saved.timezone.slice(0, 80) : "UTC";
@@ -11494,7 +11533,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     description: draft.description.trim() || draft.purpose.trim().split("\n")[0].slice(0, 240),
     instructions: instructionsForDraft(), model: draft.model.trim(), inference_mode: draft.inference_mode,
     workspace_mode: draft.workspace_mode, tools: [...draft.tools], approval_mode: "ask", risk_tier: "supervised",
-    limits: draft.limits, memory_enabled: draft.memory_enabled,
+    limits: draft.limits, memory_enabled: draft.memory_enabled, memory_learning: draft.memory_learning,
     local_browser_handoff: draft.local_browser_handoff,
     cron: draft.cron.trim() || null, timezone: draft.timezone, catch_up: draft.catch_up,
     schedule_prompt: draft.schedule_prompt.trim(),
@@ -11516,6 +11555,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     draft.workspace_mode = config.workspace_mode || "managed";
     draft.tools = new Set(config.tools || []);
     draft.memory_enabled = !!config.memory_enabled;
+    draft.memory_learning = config.memory_learning || 'review';
     draft.limits = { ...draft.limits, ...(config.limits || {}) };
     draft.local_browser_handoff = !!config.local_browser_handoff;
     draft.cron = config.cron || "";
@@ -11559,7 +11599,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     for (const key of ["name", "display_name", "description", "model", "cron", "timezone", "schedule_prompt"]) {
       const field = $(`#setup-${key}`); if (field) draft[key] = field.value;
     }
-    for (const key of ["inference_mode", "workspace_mode", "catch_up", "preset", "runtime"]) {
+    for (const key of ["inference_mode", "workspace_mode", "catch_up", "preset", "runtime", "memory_learning"]) {
       const field = $(`#setup-${key}`); if (field) draft[key] = field.value;
     }
     const handoff = $("#setup-local-browser-handoff");
@@ -11786,7 +11826,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
         <div><dt>Execution limits</dt><dd>${draft.limits.max_steps} steps · ${draft.limits.timeout_seconds} seconds · ${draft.limits.daily_token_cap.toLocaleString()} estimated tokens per day</dd></div>
         <div><dt>Model limits</dt><dd>${draft.limits.max_turn_tokens ? `${draft.limits.max_turn_tokens.toLocaleString()} tokens per turn` : "Provider default tokens per turn"} · ${draft.limits.max_cost_usd ? `${fmtUsd(draft.limits.max_cost_usd)} estimated per run` : "No per-run estimate limit"} · ${draft.limits.daily_cost_cap_usd ? `${fmtUsd(draft.limits.daily_cost_cap_usd)} estimated per day` : "No daily estimate limit"}</dd></div>
         <div><dt>Recurring task</dt><dd>${draft.cron.trim() ? `${esc(draft.cron.trim())} · ${esc(draft.timezone)} · missed windows: ${draft.catch_up === "skip" ? "skip" : "run once"}${draft.schedule_prompt.trim() ? ` · ${esc(draft.schedule_prompt.trim())}` : ""}` : "None"}</dd></div>
-        <div><dt>Memory</dt><dd>${draft.memory_enabled ? "Enabled for allowed memory tools" : "Disabled"}</dd></div>
+        <div><dt>Memory and learning</dt><dd>${draft.memory_enabled ? draft.memory_learning === 'hybrid' ? "Explicit formatting preferences saved automatically in each chat; other facts require review" : "New reference facts require review" : "Disabled"}</dd></div>
       </dl>
       <details class="setup-schedule setup-yaml" id="setup-yaml-details">
         <summary>View or download YAML</summary>
@@ -11918,11 +11958,18 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       </details>
       <details class="setup-schedule" id="setup-tools-details" ${draft.tools.size ? "open" : ""}>
         <summary>Enable tools (none enabled by default)</summary>
-        ${draft.runtime === "opencode" ? `<p class="hint">OpenCode uses its own tools. File read/write, shell and public-web options below are mapped to its permission profile; memory, browser, computer and delegation are not available in this runtime.</p>` : ""}
+        ${draft.runtime === "opencode" ? `<p class="hint">File, shell, public web and memory selections below use Hutch’s governed bridge on Linux. Every tool still follows Hutch’s policy. Native computer control and unmanaged delegation remain unavailable.</p>` : ""}
         <fieldset class="setup-tool-options" id="setup-tools"><legend>Tools and permissions</legend>
           ${BOT_SETUP_TOOLS.filter(([tool]) => draft.runtime !== "opencode" || OPENCODE_TOOL_NAMES.has(tool)).map(([tool, label, help]) => `<label class="tool-option"><input type="checkbox" name="setup-tool" value="${esc(tool)}" ${draft.tools.has(tool) ? "checked" : ""}>
             <span class="tool-option-copy"><b>${esc(label)}</b><small>${esc(help)}</small></span></label>`).join("")}
         </fieldset>
+        <label class="field" for="setup-memory_learning"><span id="setup-learning-label">Learning when memory is enabled</span>
+          <select id="setup-memory_learning" aria-labelledby="setup-learning-label" aria-describedby="setup-learning-help">
+            <option value="hybrid" ${draft.memory_learning === 'hybrid' ? 'selected' : ''}>Hybrid</option>
+            <option value="review" ${draft.memory_learning !== 'hybrid' ? 'selected' : ''}>Review first</option>
+          </select>
+          <span class="hint" id="setup-learning-help">Hybrid saves explicit formatting preferences in their chat, with provenance and undo. Other facts still need review. Review first saves no preference automatically. Memory stays off until a memory tool is enabled above.</span>
+        </label>
       </details>
       <details class="setup-schedule">
         <summary>Add a recurring task (optional)</summary>
