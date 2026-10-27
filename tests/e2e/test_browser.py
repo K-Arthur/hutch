@@ -12638,7 +12638,7 @@ def test_scoped_fact_review_revision_conflict_and_memory_off(browser, live, widt
         assert page.locator('#chat-prompt').input_value().startswith('Keep this unsent')
         shared = store.fact_page(bot.id, approved_only=True)[0]
         assert shared['scope_kind']=='bot' and shared['value'].startswith('PRIVATE A REVISED')
-        page.locator('#conversation-switcher').select_option(b['id'])
+        switch_conversation(page, b['id'])
         page.locator('.fact-panel details summary').click()
         page.locator(f'[data-fact-card="{shared["id"]}"]').wait_for()
         assert 'PRIVATE A REVISED' in page.locator('#chat-stream').inner_text()
