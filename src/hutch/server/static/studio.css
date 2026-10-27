@@ -1075,6 +1075,8 @@ label.field { align-content: start; }
 /* Chips on the connection pages wrap inside the available width instead of pushing the page sideways at large text. */
 .connections-workspace :is(.connection-detail-heading .service-state, .conn-card .bot-head .tag) { max-width: 100%; white-space: normal; }
 @media (max-width: 640px) { .connection-detail-heading .service-state { max-width: calc(100% - 60px); } }
+/* The channel boundary notes carry no markers, so they start at the same edge as the heading above them. */
+.channel-boundaries { padding-inline-start: 0; }
 
 /* ───────── Model picker: vendor marks, number keys and quick filters ─────────
    A mark is a tile for the model's maker: bundled artwork for OpenAI and Anthropic, a monogram of the model family
