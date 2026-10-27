@@ -5,6 +5,7 @@ import queue
 import subprocess
 import sys
 import threading
+import time
 
 import pytest
 
@@ -73,7 +74,18 @@ def test_kernel_releases_lock_when_the_holder_exits_without_unlocking(tmp_path):
                 locking.flock(stream.fileno(), locking.LOCK_EX | locking.LOCK_NB)
             process.kill()
             process.wait(timeout=5)
-            locking.flock(stream.fileno(), locking.LOCK_EX | locking.LOCK_NB)
+            # Windows documents resource-dependent automatic unlock after a
+            # process exits (LockFileEx remarks). Wait for that kernel cleanup;
+            # never unlink/replace the lock file or treat contention as success.
+            deadline = time.monotonic() + 5
+            while True:
+                try:
+                    locking.flock(stream.fileno(), locking.LOCK_EX | locking.LOCK_NB)
+                    break
+                except BlockingIOError:
+                    if os.name != 'nt' or time.monotonic() >= deadline:
+                        raise
+                    time.sleep(.02)
             locking.flock(stream.fileno(), locking.LOCK_UN)
     finally:
         if process.poll() is None:
