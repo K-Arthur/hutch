@@ -1,0 +1,5 @@
+{
+  "original_sha256": "4871677d9796e450e4ba72738b4901e49e29c2b955c5c420e141bcecaa814032",
+  "snapshot_sha256": "8079b8859e657d6c2279edc8399628c7f959901d703ae641f6d17e08c49ae82a",
+  "only_substitution": "Private local profile path replaced with HUTCH_EVALUATION_STATE environment variable. Snapshot not reexecuted."
+}

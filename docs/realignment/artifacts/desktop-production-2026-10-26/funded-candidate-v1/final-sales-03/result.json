@@ -1,0 +1,95 @@
+{
+  "contract_version": 1,
+  "case": "final-sales-03",
+  "route": "evaluation-router/deepseek/deepseek-v4.1-flash",
+  "scope": "synthetic guide-derived local final repetition; no UI, external-service or whole-workflow acceptance",
+  "permission": "only preauthorized local fixture reads/writes; isolated Bot auto mode",
+  "functional_checks_passed": true,
+  "artifact_quality": "independent review required; functional checks alone are not 85/100 acceptance",
+  "phase": {
+    "contract_version": 1,
+    "phase": "final",
+    "allowance_usd": 5,
+    "start_spent_usd": 0.002729993,
+    "cumulative_ceiling_usd": 5.002729993,
+    "total_evaluation_ceiling_usd": 10,
+    "policy_revision": 3,
+    "no_uncertain_charges_at_start": true,
+    "unused_baseline_allowance_rolled_over": false
+  },
+  "runtime_source_commit": "100a4d3e7ef8a75ac36e566fe074232098b24d4a",
+  "harness_sha256": "4871677d9796e450e4ba72738b4901e49e29c2b955c5c420e141bcecaa814032",
+  "routing_policy": {
+    "allow_fallbacks": false,
+    "order": [
+      "deepinfra/fp8"
+    ],
+    "require_parameters": true,
+    "data_collection": "deny",
+    "zdr": true,
+    "max_price": {
+      "prompt": 0.35,
+      "completion": 0.8,
+      "request": 0
+    }
+  },
+  "qualification_ceiling_usd": 5.002729993,
+  "fixture_sha256": "dc9b4da70aa372b4d9bbc3c49583168db7bbc0879f49a52372b17010f5813ff9",
+  "input_sha256": "f2e67becdecfa8ebbc4494b0378ffd05837c8510acb379f34131dd90eca12d42",
+  "done_write_receipts": 2,
+  "answer": "Done. Read `input.txt` (4 rows: Birch/Ada do-not-contact, Elm/Ben active deal, Fir/Cam existing customer, Cedar/Dee prospect). Wrote `outreach.csv` with exactly one eligible row (id `d`, Cedar/Dee), a draft containing no invented email address, status `draft_needs_approval`; and `founder-summary.md` naming the three suppression reasons (do-not-contact, active deal, existing customer) and stating nothing was sent.",
+  "runtime_elapsed_seconds": 6.06,
+  "run_status": "succeeded",
+  "settled_tokens": 3580,
+  "run_cost_usd": 0.00041943,
+  "account_spent_usd": 0.008428303,
+  "account_held_usd": 0.0,
+  "requests": [
+    {
+      "sequence": 1,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.008008874000000001,
+      "account_held_usd": 0.479232,
+      "credit_verified": true
+    },
+    {
+      "sequence": 2,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.008144254,
+      "account_held_usd": 0.479232,
+      "credit_verified": true
+    },
+    {
+      "sequence": 3,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.00832178,
+      "account_held_usd": 0.479232,
+      "credit_verified": true
+    }
+  ],
+  "usage": [
+    {
+      "prompt_tokens": 823,
+      "completion_tokens": 48,
+      "cost_usd": 0.00013538,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.00013538
+    },
+    {
+      "prompt_tokens": 933,
+      "completion_tokens": 360,
+      "cost_usd": 0.000177526,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.0001775256
+    },
+    {
+      "prompt_tokens": 1309,
+      "completion_tokens": 107,
+      "cost_usd": 0.000106523,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.0001065232
+    }
+  ],
+  "held_requests": [],
+  "event_chain_ok": true
+}

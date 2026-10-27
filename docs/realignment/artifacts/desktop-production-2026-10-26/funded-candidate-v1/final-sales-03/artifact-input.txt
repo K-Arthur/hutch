@@ -1,0 +1,5 @@
+id,company,contact,status,do_not_contact
+a,Birch,Ada,prospect,true
+b,Elm,Ben,active_deal,false
+c,Fir,Cam,customer,false
+d,Cedar,Dee,prospect,false

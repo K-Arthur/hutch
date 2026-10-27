@@ -1,0 +1,109 @@
+{
+  "contract_version": 1,
+  "case": "final-performance-01",
+  "route": "evaluation-router/deepseek/deepseek-v4.1-flash",
+  "scope": "synthetic guide-derived local final repetition; no UI, external-service or whole-workflow acceptance",
+  "permission": "only preauthorized local fixture reads/writes; isolated Bot auto mode",
+  "functional_checks_passed": true,
+  "artifact_quality": "independent review required; functional checks alone are not 85/100 acceptance",
+  "phase": {
+    "contract_version": 1,
+    "phase": "final",
+    "allowance_usd": 5,
+    "start_spent_usd": 0.002729993,
+    "cumulative_ceiling_usd": 5.002729993,
+    "total_evaluation_ceiling_usd": 10,
+    "policy_revision": 3,
+    "no_uncertain_charges_at_start": true,
+    "unused_baseline_allowance_rolled_over": false
+  },
+  "runtime_source_commit": "100a4d3e7ef8a75ac36e566fe074232098b24d4a",
+  "harness_sha256": "4871677d9796e450e4ba72738b4901e49e29c2b955c5c420e141bcecaa814032",
+  "routing_policy": {
+    "allow_fallbacks": false,
+    "order": [
+      "deepinfra/fp8"
+    ],
+    "require_parameters": true,
+    "data_collection": "deny",
+    "zdr": true,
+    "max_price": {
+      "prompt": 0.35,
+      "completion": 0.8,
+      "request": 0
+    }
+  },
+  "qualification_ceiling_usd": 5.002729993,
+  "fixture_sha256": "1761211545c4db28807ba511151aab7234345111e11a91e5dfcc9b7f41a7fa74",
+  "input_sha256": "2dd44b5ff2ad6893a04770aa0471413da571cd6b194a0923e1ea110dd2dc31f7",
+  "done_write_receipts": 3,
+  "answer": "Done.\n\n**Created:**\n- `metrics.csv` \u2014 one row per campaign (Search, Social); CTR/CVR as decimal fractions; values rounded to \u22644 dp; Search CPA 15, Social CPA left empty (undefined, 0 conversions); alerts `over_budget` (Search) and `zero_conversions` (Social).\n- `recommendations.md` \u2014 notes that all metrics come only from `input.txt`, flags that ROAS here excludes margin/full costs and isn't break-even evidence, treats the Social zero-conversion figure as needing a tracking check first, and states explicitly that no spend change may occur without human approval.\n\n**Not done:** no campaigns were changed, paused, or re-budgeted \u2014 both files are drafts and every spend-affecting action is gated on explicit approval.\n\n**Unresolved:** the `daily_budget` field doesn't state whether it covers one day or the whole period, so Search's spend (300) exceeding 250 is recorded as an overage alert, not a proven overspend.",
+  "runtime_elapsed_seconds": 16.611,
+  "run_status": "succeeded",
+  "settled_tokens": 6929,
+  "run_cost_usd": 0.0009776,
+  "account_spent_usd": 0.005592658,
+  "account_held_usd": 0.0,
+  "requests": [
+    {
+      "sequence": 1,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.00461506,
+      "account_held_usd": 0.479232,
+      "credit_verified": true
+    },
+    {
+      "sequence": 2,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.00475156,
+      "account_held_usd": 0.479232,
+      "credit_verified": true
+    },
+    {
+      "sequence": 3,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.005239326,
+      "account_held_usd": 0.479232,
+      "credit_verified": true
+    },
+    {
+      "sequence": 4,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.005471569,
+      "account_held_usd": 0.479232,
+      "credit_verified": true
+    }
+  ],
+  "usage": [
+    {
+      "prompt_tokens": 831,
+      "completion_tokens": 48,
+      "cost_usd": 0.0001365,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.0001365
+    },
+    {
+      "prompt_tokens": 944,
+      "completion_tokens": 1095,
+      "cost_usd": 0.000487766,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.0004877656
+    },
+    {
+      "prompt_tokens": 1685,
+      "completion_tokens": 281,
+      "cost_usd": 0.000232243,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.0002322432
+    },
+    {
+      "prompt_tokens": 1828,
+      "completion_tokens": 217,
+      "cost_usd": 0.000121089,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.0001210888
+    }
+  ],
+  "held_requests": [],
+  "event_chain_ok": true
+}

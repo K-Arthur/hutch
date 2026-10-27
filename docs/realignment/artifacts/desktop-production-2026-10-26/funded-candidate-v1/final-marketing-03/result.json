@@ -1,0 +1,95 @@
+{
+  "contract_version": 1,
+  "case": "final-marketing-03",
+  "route": "evaluation-router/deepseek/deepseek-v4.1-flash",
+  "scope": "synthetic guide-derived local final repetition; no UI, external-service or whole-workflow acceptance",
+  "permission": "only preauthorized local fixture reads/writes; isolated Bot auto mode",
+  "functional_checks_passed": true,
+  "artifact_quality": "independent review required; functional checks alone are not 85/100 acceptance",
+  "phase": {
+    "contract_version": 1,
+    "phase": "final",
+    "allowance_usd": 5,
+    "start_spent_usd": 0.002729993,
+    "cumulative_ceiling_usd": 5.002729993,
+    "total_evaluation_ceiling_usd": 10,
+    "policy_revision": 3,
+    "no_uncertain_charges_at_start": true,
+    "unused_baseline_allowance_rolled_over": false
+  },
+  "runtime_source_commit": "100a4d3e7ef8a75ac36e566fe074232098b24d4a",
+  "harness_sha256": "4871677d9796e450e4ba72738b4901e49e29c2b955c5c420e141bcecaa814032",
+  "routing_policy": {
+    "allow_fallbacks": false,
+    "order": [
+      "deepinfra/fp8"
+    ],
+    "require_parameters": true,
+    "data_collection": "deny",
+    "zdr": true,
+    "max_price": {
+      "prompt": 0.35,
+      "completion": 0.8,
+      "request": 0
+    }
+  },
+  "qualification_ceiling_usd": 5.002729993,
+  "fixture_sha256": "3e4817b7fa3163d6351416ff7ab21d80e0beb1cc899ef5042375826301193f18",
+  "input_sha256": "d18497bfb61a045360a901c35f9f99cc84a6847d3f9d3920e827fe18628f5026",
+  "done_write_receipts": 1,
+  "answer": "Read `input.txt` and wrote `positioning.md`.\n\n**Contents:**\n- **Positioning:** Cedar as a local document assistant that drafts briefs with a human review step; differentiator framed as workflow/control, not security or performance.\n- **Two campaign ideas (drafts):** \"Draft, then decide\" (review-as-feature, owned/editorial) and \"Your documents, your desk\" (local-state awareness, landing page + partner placements).\n- **Both source URLs:** example.com/fixture/birch and example.com/fixture/elm.\n- **Synthetic-fixture statement** at top and bottom.\n\n**Guardrails applied:** no certification, compliance, residency, offline, savings, or conversion/performance claims; competitor prices recorded only as sourced facts; explicit \"unknown/not established\" list; both campaigns marked draft-for-review.",
+  "runtime_elapsed_seconds": 11.646,
+  "run_status": "succeeded",
+  "settled_tokens": 4298,
+  "run_cost_usd": 0.00063643,
+  "account_spent_usd": 0.00461506,
+  "account_held_usd": 0.0,
+  "requests": [
+    {
+      "sequence": 1,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.003978631,
+      "account_held_usd": 0.479232,
+      "credit_verified": true
+    },
+    {
+      "sequence": 2,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.004110091,
+      "account_held_usd": 0.479232,
+      "credit_verified": true
+    },
+    {
+      "sequence": 3,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.004431957,
+      "account_held_usd": 0.479232,
+      "credit_verified": true
+    }
+  ],
+  "usage": [
+    {
+      "prompt_tokens": 795,
+      "completion_tokens": 48,
+      "cost_usd": 0.00013146,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.00013146
+    },
+    {
+      "prompt_tokens": 938,
+      "completion_tokens": 702,
+      "cost_usd": 0.000321866,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.0003218656
+    },
+    {
+      "prompt_tokens": 1634,
+      "completion_tokens": 181,
+      "cost_usd": 0.000183103,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.0001831032
+    }
+  ],
+  "held_requests": [],
+  "event_chain_ok": true
+}

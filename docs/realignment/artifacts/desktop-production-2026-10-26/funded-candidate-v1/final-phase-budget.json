@@ -1,0 +1,11 @@
+{
+  "contract_version": 1,
+  "phase": "final",
+  "allowance_usd": 5,
+  "start_spent_usd": 0.002729993,
+  "cumulative_ceiling_usd": 5.002729993,
+  "total_evaluation_ceiling_usd": 10,
+  "policy_revision": 3,
+  "no_uncertain_charges_at_start": true,
+  "unused_baseline_allowance_rolled_over": false
+}

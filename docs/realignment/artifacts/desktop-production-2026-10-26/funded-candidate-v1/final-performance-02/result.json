@@ -1,0 +1,95 @@
+{
+  "contract_version": 1,
+  "case": "final-performance-02",
+  "route": "evaluation-router/deepseek/deepseek-v4.1-flash",
+  "scope": "synthetic guide-derived local final repetition; no UI, external-service or whole-workflow acceptance",
+  "permission": "only preauthorized local fixture reads/writes; isolated Bot auto mode",
+  "functional_checks_passed": true,
+  "artifact_quality": "independent review required; functional checks alone are not 85/100 acceptance",
+  "phase": {
+    "contract_version": 1,
+    "phase": "final",
+    "allowance_usd": 5,
+    "start_spent_usd": 0.002729993,
+    "cumulative_ceiling_usd": 5.002729993,
+    "total_evaluation_ceiling_usd": 10,
+    "policy_revision": 3,
+    "no_uncertain_charges_at_start": true,
+    "unused_baseline_allowance_rolled_over": false
+  },
+  "runtime_source_commit": "100a4d3e7ef8a75ac36e566fe074232098b24d4a",
+  "harness_sha256": "4871677d9796e450e4ba72738b4901e49e29c2b955c5c420e141bcecaa814032",
+  "routing_policy": {
+    "allow_fallbacks": false,
+    "order": [
+      "deepinfra/fp8"
+    ],
+    "require_parameters": true,
+    "data_collection": "deny",
+    "zdr": true,
+    "max_price": {
+      "prompt": 0.35,
+      "completion": 0.8,
+      "request": 0
+    }
+  },
+  "qualification_ceiling_usd": 5.002729993,
+  "fixture_sha256": "1761211545c4db28807ba511151aab7234345111e11a91e5dfcc9b7f41a7fa74",
+  "input_sha256": "2dd44b5ff2ad6893a04770aa0471413da571cd6b194a0923e1ea110dd2dc31f7",
+  "done_write_receipts": 2,
+  "answer": "Done. Created two files in the workspace, no campaigns changed.\n\n**metrics.csv** (one row per campaign; CTR/CVR as decimal fractions; \u22644 dp; CPA empty where undefined):\n- `Search,0.1,0.02,15,3.3333,over_budget`\n- `Social,0.02,0,,0,zero_conversions`\n\n**recommendations.md** \u2014 restates the source inputs, flags Search's recorded spend (300) exceeding its listed daily_budget (250) as a pacing question, and Social's zero conversions (CPA undefined, not \"cheap\"), with a tracking-verification step before any cut. Every spend/budget/bid proposal is explicitly marked as requiring human approval, and it notes ROAS excludes margin/full costs so it isn't proof of profit or break-even.\n\nBoth files written via `read_file`/`write_file`; no shell commands, no network access.",
+  "runtime_elapsed_seconds": 11.626,
+  "run_status": "succeeded",
+  "settled_tokens": 4683,
+  "run_cost_usd": 0.00076845,
+  "account_spent_usd": 0.006361107,
+  "account_held_usd": 0.0,
+  "requests": [
+    {
+      "sequence": 1,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.005592658,
+      "account_held_usd": 0.479232,
+      "credit_verified": true
+    },
+    {
+      "sequence": 2,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.005732518,
+      "account_held_usd": 0.479232,
+      "credit_verified": true
+    },
+    {
+      "sequence": 3,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.006126624,
+      "account_held_usd": 0.479232,
+      "credit_verified": true
+    }
+  ],
+  "usage": [
+    {
+      "prompt_tokens": 831,
+      "completion_tokens": 56,
+      "cost_usd": 0.00013986,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.00013986
+    },
+    {
+      "prompt_tokens": 944,
+      "completion_tokens": 872,
+      "cost_usd": 0.000394106,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.0003941056
+    },
+    {
+      "prompt_tokens": 1698,
+      "completion_tokens": 282,
+      "cost_usd": 0.000234483,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.0002344832
+    }
+  ],
+  "held_requests": [],
+  "event_chain_ok": true
+}

@@ -1,0 +1,170 @@
+{
+  "contract_version": 1,
+  "source_commit": "100a4d3e7ef8a75ac36e566fe074232098b24d4a",
+  "scope": "Candidate v1 synthetic local repetitions; functional and independent quality outcomes separate",
+  "route": "evaluation-router/deepseek/deepseek-v4.1-flash",
+  "endpoint": "deepinfra/fp8",
+  "account_spent_usd": 0.008428303,
+  "held_usd": 0.0,
+  "official_credit_readback": {
+    "checked": true,
+    "ledger_minus_credit_delta_usd": "1.6000006E-8",
+    "rounding_bound_usd": "5.0E-8",
+    "balances_omitted": true
+  },
+  "cases": [
+    {
+      "case": "final-marketing-01",
+      "requests": 3,
+      "tokens": 3926,
+      "elapsed_seconds": 12.89,
+      "ledger_cost_usd": "0.000523309",
+      "review_dimensions": {
+        "grounding": 3,
+        "coverage": 5,
+        "usefulness": 4,
+        "clarity": 4,
+        "authority": 5
+      },
+      "quality_score": 84,
+      "local_quality_pass": false,
+      "whole_workflow_acceptance": false
+    },
+    {
+      "case": "final-marketing-02",
+      "requests": 3,
+      "tokens": 4579,
+      "elapsed_seconds": 13.675,
+      "ledger_cost_usd": "0.000725329",
+      "review_dimensions": {
+        "grounding": 3,
+        "coverage": 5,
+        "usefulness": 4,
+        "clarity": 4,
+        "authority": 5
+      },
+      "quality_score": 84,
+      "local_quality_pass": false,
+      "whole_workflow_acceptance": false
+    },
+    {
+      "case": "final-marketing-03",
+      "requests": 3,
+      "tokens": 4298,
+      "elapsed_seconds": 11.646,
+      "ledger_cost_usd": "0.000636429",
+      "review_dimensions": {
+        "grounding": 2,
+        "coverage": 5,
+        "usefulness": 3,
+        "clarity": 4,
+        "authority": 4
+      },
+      "quality_score": 72,
+      "local_quality_pass": false,
+      "whole_workflow_acceptance": false
+    },
+    {
+      "case": "final-performance-01",
+      "requests": 4,
+      "tokens": 6929,
+      "elapsed_seconds": 16.611,
+      "ledger_cost_usd": "0.000977598",
+      "review_dimensions": {
+        "grounding": 5,
+        "coverage": 5,
+        "usefulness": 4,
+        "clarity": 4,
+        "authority": 4
+      },
+      "quality_score": 88,
+      "local_quality_pass": true,
+      "whole_workflow_acceptance": false
+    },
+    {
+      "case": "final-performance-02",
+      "requests": 3,
+      "tokens": 4683,
+      "elapsed_seconds": 11.626,
+      "ledger_cost_usd": "0.000768449",
+      "review_dimensions": {
+        "grounding": 5,
+        "coverage": 5,
+        "usefulness": 4,
+        "clarity": 4,
+        "authority": 5
+      },
+      "quality_score": 92,
+      "local_quality_pass": true,
+      "whole_workflow_acceptance": false
+    },
+    {
+      "case": "final-performance-03",
+      "requests": 3,
+      "tokens": 4314,
+      "elapsed_seconds": 12.685,
+      "ledger_cost_usd": "0.000678989",
+      "review_dimensions": {
+        "grounding": 3,
+        "coverage": 5,
+        "usefulness": 3,
+        "clarity": 4,
+        "authority": 5
+      },
+      "quality_score": 80,
+      "local_quality_pass": false,
+      "whole_workflow_acceptance": false
+    },
+    {
+      "case": "final-sales-01",
+      "requests": 3,
+      "tokens": 3799,
+      "elapsed_seconds": 8.832,
+      "ledger_cost_usd": "0.000490969",
+      "review_dimensions": {
+        "grounding": 4,
+        "coverage": 5,
+        "usefulness": 4,
+        "clarity": 4,
+        "authority": 5
+      },
+      "quality_score": 88,
+      "local_quality_pass": true,
+      "whole_workflow_acceptance": false
+    },
+    {
+      "case": "final-sales-02",
+      "requests": 3,
+      "tokens": 3785,
+      "elapsed_seconds": 7.941,
+      "ledger_cost_usd": "0.000477809",
+      "review_dimensions": {
+        "grounding": 4,
+        "coverage": 5,
+        "usefulness": 4,
+        "clarity": 4,
+        "authority": 5
+      },
+      "quality_score": 88,
+      "local_quality_pass": true,
+      "whole_workflow_acceptance": false
+    },
+    {
+      "case": "final-sales-03",
+      "requests": 3,
+      "tokens": 3580,
+      "elapsed_seconds": 6.06,
+      "ledger_cost_usd": "0.000419429",
+      "review_dimensions": {
+        "grounding": 4,
+        "coverage": 5,
+        "usefulness": 4,
+        "clarity": 4,
+        "authority": 5
+      },
+      "quality_score": 88,
+      "local_quality_pass": true,
+      "whole_workflow_acceptance": false
+    }
+  ]
+}
