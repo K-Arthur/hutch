@@ -38,7 +38,13 @@ def test_canonical_bridge_writes_receipts_and_rechecks_tool_revocation(store, co
         receipts = [action for action in store.list_actions(run.id)
                     if action["tool"] == "write_file" and action["status"] == "done"]
         assert len(receipts) == 2
-        store.upsert_bot(bot.model_copy(update={"tools": []}), preserve_schedules=True)
+        # Memory revocation advanced the policy revision above. A separate
+        # tool edit must start from that current policy, not re-enable memory
+        # by replaying the whole stale Bot captured before revocation.
+        current = store.get_bot(bot.id)
+        assert not current.memory_enabled
+        store.upsert_bot(current.model_copy(update={"tools": []}), preserve_schedules=True)
+        assert not store.get_bot(bot.id).memory_enabled
         result = _exchange(bridge, tmp_path, json.dumps({"tool": "write_file",
             "args": {"path": "revoked.txt", "content": "must not exist"}}))
         assert not result["ok"] and "no longer enabled" in result["output"]
