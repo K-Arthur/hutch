@@ -4,6 +4,7 @@ import json
 from playwright.sync_api import expect
 
 from hutch.models import Bot
+from tests.e2e.settings_pane import open_assistant_customization
 from tests.e2e.test_design_system import app_server, browser  # noqa: F401
 from tests.support.artifacts import artifact_path
 
@@ -87,7 +88,7 @@ def test_hybrid_learning_is_visible_scoped_reviewable_and_reversible(browser, ap
             page.get_by_role('button', name='Dismiss notification').first.click()
 
         page.goto(f'{base}/#/bot/{bot.name}')
-        page.locator('#assistant-more-settings > summary').click()
+        open_assistant_customization(page, 'limits')
         policy = page.get_by_label('Memory and learning', exact=True)
         expect(policy).to_have_value('hybrid')
         with page.expect_response(lambda response: response.request.method == 'PATCH'
@@ -124,7 +125,7 @@ def test_learning_settings_recover_errors_and_do_not_replace_a_new_chat(browser,
     held = []
     try:
         page.goto(f'{base}/#/bot/{bot.name}')
-        page.locator('#assistant-more-settings > summary').click()
+        open_assistant_customization(page, 'limits')
         policy = page.get_by_label('Memory and learning', exact=True)
 
         def refuse(route):
@@ -148,7 +149,7 @@ def test_learning_settings_recover_errors_and_do_not_replace_a_new_chat(browser,
         expect(page.get_by_text('Not saved: Memory settings changed. Reload them before saving again.', exact=True)).to_be_visible()
         assert app.state.store.get_bot(bot.id).memory_enabled
         page.reload()
-        page.locator('#assistant-more-settings > summary').click()
+        open_assistant_customization(page, 'limits')
         expect(policy).to_have_value('review')
 
         def hold(route):
@@ -189,7 +190,7 @@ def test_successful_memory_save_is_not_reported_as_unsaved_after_readback_failur
     saved = []
     try:
         page.goto(f'{base}/#/bot/{bot.name}')
-        page.locator('#assistant-more-settings > summary').click()
+        open_assistant_customization(page, 'limits')
 
         def fail_readback(route):
             if route.request.method == 'PATCH':

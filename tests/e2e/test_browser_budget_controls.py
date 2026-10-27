@@ -68,6 +68,7 @@ def test_budget_bands_preflight_and_context_are_usable_at_every_width(browser, l
             assert route_geometry["width"] > 0 and route_geometry["height"] > 0
             page.screenshot(path=str(ARTIFACTS / f"route-settings-{label}.png"), full_page=False,
                             animations="disabled")
+            open_assistant_customization(page, "limits")
             disclosure = page.locator("#assistant-usage-limits")
             disclosure.wait_for(state="attached")
             if not disclosure.evaluate("element => element.open"):

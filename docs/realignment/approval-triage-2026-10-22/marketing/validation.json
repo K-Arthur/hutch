@@ -1,9 +1,9 @@
 {
   "test": "tests/e2e/test_website.py::test_approval_triage_copy_is_truthful_and_responsive",
-  "captured_at": "2026-10-26T16:03:47.169688+00:00",
+  "captured_at": "2026-10-24T17:03:22.442763+00:00",
   "python": "3.13.15",
-  "browser": "153.0.8010.12",
-  "index_sha256": "46517afda36ac299401d7f36788fffddf231bc3281c5819f132f2a04e01ebefe",
+  "browser": "155.0",
+  "index_sha256": "9733c42c38455788ae773c143b97c31786bab58a0fce7e82ee101b73d8cf8fe8",
   "captures": [
     {
       "size": "desktop",
@@ -13,9 +13,9 @@
       ],
       "overflow": 0,
       "screenshot": "approval-control-desktop.png",
-      "screenshot_sha256": "a8b4e34eaf727a7b58d8aa3d36a7d88e49d796ca16e24ba9315d4e0f910d33a7",
+      "screenshot_sha256": "77c1de65146427716d7dedc1544a0560ca76e74a5c6b77b8b5dc537b86dadd57",
       "benefit_screenshot": "approval-benefit-desktop.png",
-      "benefit_sha256": "72d29b68fdc20615d8ed27bc50246d585d89db0d2a8b63d5792ff3c1f9fd544e"
+      "benefit_sha256": "35aff0d6c34be138da2c9fcbdfcd216aa95460e81c812ed8bb10322435c3abc2"
     },
     {
       "size": "tablet",
@@ -25,9 +25,9 @@
       ],
       "overflow": 0,
       "screenshot": "approval-control-tablet.png",
-      "screenshot_sha256": "bab279274049061712ac2b26f91898fd82d57695f91dfa61a5ba603cc7e14d0c",
+      "screenshot_sha256": "371a7b5716d11bff0c9ef9fa20695731b17a651464c41d1c26810c8b9b13fbad",
       "benefit_screenshot": "approval-benefit-tablet.png",
-      "benefit_sha256": "863f92130820208f50d4c10d3868d9e9f2ff863884f3db0a25e7cda339ad2836"
+      "benefit_sha256": "a1d9465b8fbdd9fcbd51fbeb7370248f171bb6fc4983e86a0fd2fb32850a4b3b"
     },
     {
       "size": "phone",
@@ -37,9 +37,9 @@
       ],
       "overflow": 0,
       "screenshot": "approval-control-phone.png",
-      "screenshot_sha256": "b6ab48d9e6f7cf8e6ea970c7cbbecd226cbeef33b33bf1d1ef67c145311936db",
+      "screenshot_sha256": "c04fb5b98f468eb412c96dd6470fbb15fdff5d9bfe33947e0829bb8aab248c98",
       "benefit_screenshot": "approval-benefit-phone.png",
-      "benefit_sha256": "7c171282b9ea1f20d490b56b3127de84e6f2e89d1b1bbe56f0211af89818a3a1"
+      "benefit_sha256": "d90993bf80dab71cd2e61b56eb5a8e88a7555aeb60047100433228b0ad64aa87"
     },
     {
       "size": "narrow",
@@ -49,9 +49,9 @@
       ],
       "overflow": 0,
       "screenshot": "approval-control-narrow.png",
-      "screenshot_sha256": "08358489308ee9b5ddad47f8f18b7b6bdc93444104fb4634d70467b5887420d2",
+      "screenshot_sha256": "b58d2798aa3cac9fc54b2380f5a30bfc48e78bb746cdc26bfb4a244ae122ae1c",
       "benefit_screenshot": "approval-benefit-narrow.png",
-      "benefit_sha256": "fc0c3bd182ba4f61c9ed694055d58ec1b295eb84446f0a4b49ab3b10a6d214c9"
+      "benefit_sha256": "d9fa745bf2e045e27c592bf880cc1b5d580ba080494d43d52f9bfc3e26ed2b00"
     }
   ],
   "text_spacing": {
@@ -61,7 +61,7 @@
     ],
     "overflow": 0,
     "screenshot": "approval-details-text-spacing-320.png",
-    "screenshot_sha256": "52b3542894ae949870896bbac9b32573a9bde34c6c78f9a4bc55229afc5a17b5"
+    "screenshot_sha256": "68aee2005b8471f091e17df47d35ceaa80eeba3e7706ae749e63e2194977422c"
   },
   "zoom_200_effective": {
     "viewport": [
@@ -70,7 +70,7 @@
     ],
     "overflow": 0,
     "screenshot": "approval-details-zoom-200-effective.png",
-    "screenshot_sha256": "695f8bb4799dbf15c1ecc24bb24172ad0d5cd572e8ec7971bc70e21feb427149"
+    "screenshot_sha256": "6b214edf1afc078d0f3cadf449d710c6b6f86d8d377957a0d4b5f6357fb2ce6a"
   },
   "anonymous": true,
   "page_errors": [],
