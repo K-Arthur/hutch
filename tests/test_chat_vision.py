@@ -6,15 +6,17 @@ image-only sends) plus the pure attachment module and the two runtime guards.
 
 Real images throughout: the workspace PNG is Hutch's bundled Google Calendar mark
 and the WebP is a real 1440x1000 first-run capture — not synthetic stubs. The live
-free-model test at the end of this file exercises actual OpenCode inference (free
-tier, zero cost, no provider keys) when the CLI is installed; everything above it
-stays hermetic.
+free-model test at the end of this file attempts actual OpenCode inference on a
+named free route, without provider keys, only with explicit live-test opt-in and
+the CLI installed; everything above it stays hermetic. Trial quota and route
+availability are external acceptance conditions, not regression prerequisites.
 """
 
 from __future__ import annotations
 
 import base64
 import hashlib
+import os
 import shutil
 import time
 from pathlib import Path
@@ -538,15 +540,17 @@ def test_opencode_stages_verified_image_copies_inside_the_run_workspace(config, 
 
 # ------------------------------------------------------- real free models
 
-@pytest.mark.skipif(shutil.which("opencode") is None, reason="the OpenCode CLI is not installed")
+@pytest.mark.skipif(not (os.environ.get('HUTCH_LIVE_OPENCODE') == '1' and shutil.which('opencode')),
+                    reason='explicit external free-tier inference: set HUTCH_LIVE_OPENCODE=1 and install OpenCode')
 def test_real_opencode_free_vision_model_describes_a_real_image(tmp_path, monkeypatch):
     """Live validation against OpenCode's FREE models: no spend, no provider keys.
 
     Proves the whole chain the user asked to see — composer upload, admission,
     the private isolated OpenCode serve, real vision inference on a real PNG —
-    plus the honest runtime refusal on a text-only free model. Skipped when the
-    CLI is absent; free-tier availability can legitimately fail and will report
-    the run's own error.
+    plus the honest runtime refusal on a text-only free model. Requires explicit
+    live-test opt-in as well as the CLI: installing a local CLI must not cause
+    ordinary regression runs to send images to an external service. Free-tier
+    availability can fail and remains a failed live result when opted in.
     """
     monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
     app = create_app()

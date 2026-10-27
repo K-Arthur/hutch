@@ -1,0 +1,19 @@
+{
+  "contract_version": 1,
+  "source_test_tree": "e7256f51",
+  "runtime_source": "immutable source verified through PYTHONPATH",
+  "model": "opencode/opencode/glm-5.3-flash-free",
+  "scenario": "Synthetic bundled calendar icon identification",
+  "credential_import": "none",
+  "run_result": "failed",
+  "provider_error": "Free usage limit reached. Connect a provider or subscribe to OpenCode Go to keep going, or switch models.",
+  "reported_cost_usd": 0,
+  "reported_prompt_tokens": 0,
+  "reported_completion_tokens": 0,
+  "acceptance": "incomplete; no vision quality result; no paid fallback or purchase",
+  "evidence": "read-only run record in task-owned nb-e725 state; full suite result pending",
+  "limits": [
+    "Zero reported usage is not independent provider billing reconciliation",
+    "This is not evidence about the selected Go account entitlement"
+  ]
+}
