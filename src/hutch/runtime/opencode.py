@@ -308,6 +308,7 @@ class OpenCodeRuntime:
         # a bounded continuation allowance (two tool turns plus the answer);
         # further actual usage is still recorded and reconciled separately.
         internal_turns = max(1, min(int(bot.limits.max_steps or 1), 3))
+        account_id, _account_cap, _account_quotas = guard.account_policy(rung)
         refusal = guard.refusal(rung, prompt_tokens, turn_cap * internal_turns)
         if refusal:
             raise RunAborted("cost_cap" if "$" in refusal or "price" in refusal else "token_cap", refusal)
@@ -321,7 +322,7 @@ class OpenCodeRuntime:
             if isinstance(exc, (UsageBudgetRefusal, UsagePauseRequired)):
                 raise RunAborted("token_cap", str(exc)) from exc
             raise
-        return reservation, prompt_tokens
+        return reservation, prompt_tokens, account_id
 
     def _broker_permissions(self, server: OpenCodeServer, session_id: str, ctx: ToolContext, run: Run,
                             handled: set[str]) -> None:
@@ -541,7 +542,7 @@ class OpenCodeRuntime:
             if not prompt.strip() and not image_files:
                 raise RunAborted("empty", "there is no request to send to OpenCode")
 
-            reservation, prompt_tokens = self._reserve(ctx, run, prompt)
+            reservation, prompt_tokens, account_id = self._reserve(ctx, run, prompt)
             before = {str(m.get("id")) for m in server.messages(session_id) if isinstance(m, dict)}
             if stop() or ctx.gate.cancelled():
                 ctx.store.release_usage_reservation(reservation.id, "stopped before OpenCode accepted the prompt",
@@ -656,7 +657,7 @@ class OpenCodeRuntime:
                     finish_step(
                         run, ctx, timer, model=ctx.bot.model, prompt_tokens=input_tokens,
                         completion_tokens=output_tokens, cached_tokens=cached_tokens,
-                        cost_usd=cost if cost is not None else 0.0, account_id="opencode",
+                        cost_usd=cost if cost is not None else 0.0, account_id=account_id,
                         reservation_id=reservation.id if use_reservation else None,
                         cost_source="provider" if cost is not None else "unknown",
                         reported_cost_usd=cost,

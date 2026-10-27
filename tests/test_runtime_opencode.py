@@ -549,3 +549,26 @@ def test_permission_request_preserves_destination_and_exact_resources():
     }
     with pytest.raises(OpenCodeProtocolError):
         parse_permission_request({"id": "per_1", "sessionID": "ses_1", "action": "edit", "resources": [1]})
+
+
+def test_native_usage_keeps_the_reserved_shared_billing_account_for_every_turn(store, config, tmp_path, monkeypatch):
+    from hutch.connections import ConnectionBook
+    from hutch.providers.pricing import PriceBook
+
+    ConnectionBook(config.state_dir).add('openai-api', 'opencode', account_id='evaluation-account')
+    PriceBook(config.state_dir / 'prices.json').set_price('opencode/test/model', 0, 0,
+                                                        source='synthetic known-free fixture')
+    store.set_budget_policy(scope_kind='account', scope_id='evaluation-account', reset='lifetime', ceiling_usd=0)
+    ctx, run, _events, tools = build(store, config, tmp_path, model='opencode/test/model', tools=(),
+        runtime=RuntimeKind.opencode, mode=ApprovalMode.auto,
+        limits=Limits(max_steps=3, timeout_seconds=60, daily_token_cap=200_000))
+    fake = FakeOpenCodeServer()
+    first = completed_assistant('', finish='tool-calls', tokens=(20, 2, 0))
+    first['id'] = 'msg_continuation'
+    fake.assistant = completed_assistant('Shared account retained', tokens=(30, 3, 0))
+    fake.messages = lambda *_args, **_kwargs: [first, fake.assistant] if fake.prompt_called else []
+    monkeypatch.setattr('hutch.runtime.opencode.OpenCodeServer', lambda *args, **kwargs: fake)
+    assert run_it(OpenCodeRuntime(), run, ctx, tools) == 'Shared account retained'
+    assert not store.unresolved_usage_reservations()
+    assert store.account_usage_tokens_since('evaluation-account', 3600) == 55
+    assert store.account_usage_tokens_since('opencode', 3600) == 0
