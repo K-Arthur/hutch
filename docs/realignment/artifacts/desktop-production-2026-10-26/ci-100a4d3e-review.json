@@ -1,0 +1,64 @@
+{
+  "contract_version": 1,
+  "run_id": 40448880224,
+  "source_commit": "100a4d3e7ef8a75ac36e566fe074232098b24d4a",
+  "benchmark_job": "success",
+  "full_ci_pass": false,
+  "python311": {
+    "passed": 4030,
+    "failed": 1,
+    "skipped": 86,
+    "xfailed": 6
+  },
+  "python312": {
+    "passed": 4027,
+    "failed": 4,
+    "teardown_error": 1,
+    "skipped": 86,
+    "xfailed": 6
+  },
+  "python313": {
+    "passed": 4028,
+    "failed": 3,
+    "skipped": 86,
+    "xfailed": 6
+  },
+  "focused_after_corrections": {
+    "catalog": "1 passed in 12.93s",
+    "browser": "2 passed in 13.84s",
+    "procguard_workflow_api": "55 passed in 43.39s"
+  },
+  "requirements_review": "All original safety, current node size/layout, exact catalog identities and system-color assertions retained",
+  "standards_review": "Fixture synchronization and valid persisted run documents; no production changes or marker removals",
+  "publication_scan": {
+    "range": "100a4d3e..5ecc80c4",
+    "gitleaks_version": "8.30.1",
+    "findings": 2,
+    "verified_source_hash_false_positives": 2,
+    "credentials_found": 0,
+    "suppression_added": false,
+    "current_added_content_scan": "zero findings"
+  },
+  "source_sha256": [
+    {
+      "path": "tests/e2e/test_design_system.py",
+      "sha256": "a03a04b93518596f3c47a138635c91ef8b33219a410e89b82f1f6fc3e85d99d6"
+    },
+    {
+      "path": "tests/e2e/test_delegation_clarification.py",
+      "sha256": "785ae572e9a3260ed57bf43ee53d4cb44b1e0100f9789c3a2a61e79e601142fb"
+    },
+    {
+      "path": "tests/e2e/test_workflow_route_card.py",
+      "sha256": "b9ff2e30fc7f1d3d819d695ed089764c752ac02b02d2dfc11fe0e6629295863f"
+    },
+    {
+      "path": "tests/test_procguard.py",
+      "sha256": "db456941182fccc9123a4bbbd1061556cf927136b595489289dbcd265fe29ebf"
+    },
+    {
+      "path": "tests/test_workflow_api.py",
+      "sha256": "77fcd679dda2c0621fa3c2718e9d336448bc86ef2af388cc04d44fd4d9971111"
+    }
+  ]
+}

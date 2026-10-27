@@ -112,7 +112,11 @@ def test_a_whole_process_tree_is_ended_and_verified():
 def test_a_child_that_left_the_group_with_setsid_is_still_found_through_its_parent():
     sh = spawn_sh("setsid sleep 300 & wait")
     try:
-        assert wait_for(lambda: children_of(sh.pid))
+        # Forking makes the child visible before exec/setsid changes its group.
+        # Wait for the condition this cancellation scenario actually requires.
+        assert wait_for(lambda: any(
+            (child := procguard.identity(pid)) is not None and child.pgrp != sh.pid
+            for pid in children_of(sh.pid)))
         escapee = children_of(sh.pid)[0]
         assert procguard.identity(escapee).pgrp != sh.pid          # it really is in another group
         assert procguard.end_groups([sh.pid], term_grace=1, kill_grace=2) == []

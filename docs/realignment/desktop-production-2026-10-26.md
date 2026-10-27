@@ -26,8 +26,9 @@ Audience: individuals and solo professionals. Desktop first, then breadth. Super
 
 As of `967cd5f7` plus the campaign-arithmetic slice: the correctly imported immutable
 `05aa6489` local nonbrowser suite passed **3,672 / 20 skipped / 6 xfailed**, and its
-Ubuntu installed Debian/AppImage webviews passed. Main CI at `100a4d3e` is still
-running; later source changes are not covered by that installed-package result.
+Ubuntu installed Debian/AppImage webviews passed. Main CI at `100a4d3e` completed with failures, detailed below; current fixes
+need a fresh combined CI run. Later source changes are not covered by that
+installed-package result.
 All P1–P13 obligations remain active.
 
 Paid local baselines and both failed candidates are retained. Candidate v1 passed
@@ -676,3 +677,11 @@ Current slice: rebuild Apps & AI as searchable discovery plus focused service se
 - Hook triage: retained the earlier narrow exception for the intentional geometric failed-status X, with no added suppression or other standing detector finding. This slice does not complete P1–P13, qualify the failed model candidates, or establish production readiness.
 
 - Publication scan follow-up: the first UI commit's staged-diff scan returned two generic-api-key findings. The subsequent commit had already run locally because that shell sequence did not stop on the scan's nonzero exit; nothing was pushed. Both findings were source-code SHA-256 strings keyed by filenames ending in `_api.py`, independently verified against current file bytes. The evidence schema now separates each `path` and `sha256`; no scanner suppression was added. Historical scan findings remain classified as two reviewed hash false positives, not secret disclosures.
+
+### Combined hosted CI and synchronization corrections
+
+- Main run `40448880224` at `100a4d3e` completed: Python 3.11 **4030 passed / 1 failed / 86 skipped / 6 xfailed, 2187.95s**; 3.12 **4027 passed / 4 failed / 1 teardown error / 86 skipped / 6 xfailed, 2308.86s**; 3.13 **4028 passed / 3 failed / 86 skipped / 6 xfailed, 2303.84s**. Benchmark job passed. This is not a clean full-source result. Job logs are retained locally under `main-ci-python{311,312,313}-100a4d3e.log`.
+- All versions hit the app catalog's obsolete eleven-card expectation after Telegram added a twelfth card. Updated exact card/category/icon/label inventories and kept image/target/accessibility assertions; also assert Telegram's preview state. Focused complete first-run/catalog journey **1 passed in 12.93s**.
+- The clarification button failure measured `None`, not a sub-44px target. Forced-colors failure measured an empty style on a detached answer, not a non-system color. Their snapshots now query connected current nodes and measure related values in one synchronous DOM read. The actual 44px, composer separation and CanvasText equality checks remain unchanged. Complete two browser journeys **2 passed in 13.84s**.
+- Process fixture saw the forked child before setsid changed its process group. It now waits for the actual escaped-group condition before exercising the same cancellation assertion. Amendment fixture observed question creation before the owner parked, and its raw `{}` run document crashed background parsing. It now waits for real parked state, seeds a typed Run document, isolates the synthetic child from scheduler recovery and cleans up even on assertion failure. The real API must still reject adoption without cancelling the pending question. Focused pair **2 passed in 3.19s**; full procguard/workflow-API neighbor family **55 passed in 43.39s**.
+- Distinct requirements review retained the original authority, cancellation, target and system-color outcomes. Standards review checked source identity, current-node snapshots, real parked-state synchronization and fixture cleanup. No product security control, expected-failure marker or acceptance threshold changed. Fresh combined CI is required before claiming the corrected source passes.

@@ -5,7 +5,7 @@ covered separately in test_runtime_builtin.py and test_workflow_routing.py.
 """
 from __future__ import annotations
 
-from tests.support.browser import wait_for_page
+from tests.support.browser import wait_for_page, wait_for_page_value
 
 import hashlib
 import json
@@ -318,17 +318,20 @@ def test_chat_suggestion_card_reflows_and_requires_review(browser, live_studio):
         forced_style = forced_card.evaluate("""el => { const s=getComputedStyle(el); return {
             color:s.color, backgroundColor:s.backgroundColor, borderColor:s.borderColor,
             forcedColorAdjust:s.forcedColorAdjust}; }""")
-        forced_answer = page.locator(".answer", has_text="Transcript refreshed while review is open.")
-        answer_colors = forced_answer.evaluate("""el => {
+        answer_colors = wait_for_page_value(page, """() => {
+          const el = [...document.querySelectorAll('.answer')].find(node =>
+            node.textContent.includes('Transcript refreshed while review is open.'));
+          const bubble = [...document.querySelectorAll('.msg.you .bubble')].find(node =>
+            node.textContent.includes('Review independent projects and verify the report'));
+          if (!el?.isConnected || !el.getClientRects().length || !bubble?.isConnected) return null;
           const probe = document.createElement('span');
           probe.style.color = 'CanvasText';
           document.body.append(probe);
           const expected = getComputedStyle(probe).color;
           probe.remove();
-          return {actual: getComputedStyle(el).color, expected};
+          return {actual: getComputedStyle(el).color, expected, bubble:getComputedStyle(bubble).color};
         }""")
-        forced_bubble = page.locator(".msg.you .bubble", has_text="Review independent projects and verify the report")
-        bubble_color = forced_bubble.evaluate("el => getComputedStyle(el).color")
+        bubble_color = answer_colors["bubble"]
         assert forced_action and not forced_overflow
         assert forced_action["height"] >= 44
         assert forced_composer and forced_action["y"] + forced_action["height"] <= forced_composer["y"]

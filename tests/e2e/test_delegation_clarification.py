@@ -6,7 +6,7 @@ deterministic and exercises the genuine UI -> API -> storage -> run path.
 """
 from __future__ import annotations
 
-from tests.support.browser import wait_for_page
+from tests.support.browser import wait_for_page, wait_for_page_value
 
 import json
 import threading
@@ -173,9 +173,15 @@ def test_specialist_question_is_answered_from_the_task_card(browser, clarificati
             page.set_viewport_size({"width": width, "height": height})
             question = _scroll_question_into_view(page)
             assert page.evaluate("document.documentElement.scrollWidth - innerWidth") == 0, label
-            send = question.get_by_role("button", name="Send answer")
-            send_bounds = send.bounding_box()
-            composer_bounds = page.locator(".composer").bounding_box()
+            # Read one connected DOM snapshot; a live refresh can detach a
+            # previously resolved ElementHandle between separate measurements.
+            bounds = wait_for_page_value(page, """() => {
+              const send = document.querySelector('[data-workspace-task-question] button[type=submit]');
+              const composer = document.querySelector('.composer');
+              if (!send?.isConnected || !send.getClientRects().length || !composer?.isConnected) return null;
+              return {send:send.getBoundingClientRect().toJSON(), composer:composer.getBoundingClientRect().toJSON()};
+            }""")
+            send_bounds, composer_bounds = bounds["send"], bounds["composer"]
             assert send_bounds and send_bounds["height"] >= 44, f"answer target is too small at {label}"
             assert composer_bounds and send_bounds["y"] + send_bounds["height"] <= composer_bounds["y"], \
                 f"answer target is covered by the composer at {label}"

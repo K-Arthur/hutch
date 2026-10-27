@@ -664,27 +664,28 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
             assert page.get_by_role("heading", name="Your apps").is_visible()
             assert page.get_by_role("heading", name="How Hutch replies").is_visible()
             cards = page.locator(".service-tile")
-            assert cards.count() == 11
+            assert cards.count() == 12
             assert page.locator(".service-tile .service-mark img[src='/static/brands/openai-white-monoblossom.svg']").count() == 1
             assert page.locator(".service-tile .service-mark img").count() == 8
             assert page.locator(".service-tile .service-mark img").evaluate_all(
                 "els => els.every(img => img.complete && img.naturalWidth > 0 && new URL(img.src).origin === location.origin)"
             )
             service_icons = page.locator(".service-tile .service-mark svg")
-            assert service_icons.evaluate_all("els => els.map(el => el.dataset.icon)") == ["monitor", "monitor", "cloud"]
+            assert service_icons.evaluate_all("els => els.map(el => el.dataset.icon)") == ["send", "monitor", "monitor", "cloud"]
             assert service_icons.evaluate_all("els => els.every(el => !el.querySelector('text') && el.getAttribute('stroke') === 'currentColor')")
             assert page.locator(".service-tile .service-mark").evaluate_all(
                 "els => els.map(el => el.dataset.serviceCategory)"
-            ) == ["calendar", "drive", "docs", "sheets", "notion", "gmail", "outlook", "phone", "local", "chatgpt", "hosted"]
+            ) == ["calendar", "drive", "docs", "sheets", "telegram", "notion", "gmail", "outlook", "phone", "local", "chatgpt", "hosted"]
             assert not page.locator("#connection-management").evaluate("el => el.open")
             assert not page.get_by_role("button", name="Add a custom service").is_visible()
             restricted_scope = page.get_by_text("gmail.readonly", exact=True).all()
             assert not any(item.is_visible() for item in restricted_scope), label
             tile_labels = cards.locator("h3").all_text_contents()
-            assert tile_labels == ["Google Calendar", "Google Drive", "Google Docs", "Google Sheets", "Notion", "Gmail", "Microsoft Outlook", "Hutch on your phone", "KDE Connect", "ChatGPT", "AI model providers"]
+            assert tile_labels == ["Google Calendar", "Google Drive", "Google Docs", "Google Sheets", "Telegram", "Notion", "Gmail", "Microsoft Outlook", "Hutch on your phone", "KDE Connect", "ChatGPT", "AI model providers"]
+            expect(page.locator('[data-connection-entry="telegram"] .service-state')).to_have_text("Private text preview")
             icon_widths = page.locator(".service-mark").evaluate_all("els => els.map(el => Math.round(el.getBoundingClientRect().width))")
             expected_mark_width = 44
-            assert icon_widths == [expected_mark_width] * 11, (label, icon_widths)
+            assert icon_widths == [expected_mark_width] * 12, (label, icon_widths)
             if width <= 640:
                 action_heights = cards.locator(".service-tile-action").evaluate_all(
                     "els => els.map(el => Math.round(el.getBoundingClientRect().height))"

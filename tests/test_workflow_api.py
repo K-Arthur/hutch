@@ -1690,7 +1690,7 @@ def test_amendment_adoption_archives_and_cancels_old_question_then_continues(cli
     assert continued["plan"]["nodes"][1]["question"] == "Use the revised method?"
 
 
-def test_amendment_adoption_refuses_active_child_without_cancelling_question(client):
+def test_amendment_adoption_refuses_active_child_without_cancelling_question(client, monkeypatch):
     bot = make_bot(client, name="amendment-active-child-bot")
     ask_plan = {
         "name": "amendment-active-child",
@@ -1708,10 +1708,12 @@ def test_amendment_adoption_refuses_active_child_without_cancelling_question(cli
     detail = None
     while time.monotonic() < deadline:
         detail = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
-        if any(question["status"] == "pending" for question in detail["questions"]):
+        if (any(question["status"] == "pending" for question in detail["questions"])
+                and detail["workflow"]["status"] == "waiting"
+                and (detail.get("attempt") or {}).get("status") == "waiting_workflow"):
             break
         time.sleep(0.1)
-    assert detail is not None
+    assert detail is not None and detail["attempt"]["status"] == "waiting_workflow", detail
     old_question = next(question for question in detail["questions"] if question["status"] == "pending")
     current = detail["workflow"]
     candidate = json.loads(json.dumps(ask_plan))
@@ -1720,46 +1722,55 @@ def test_amendment_adoption_refuses_active_child_without_cancelling_question(cli
     store = client.app.state.store
     fake_child_id = "run_amendment_active_child_fixture"
     fake_task_id = "task_amendment_active_child_fixture"
+    # The admission/quiescence gate is under test, not orphan recovery. The
+    # parent really parked before this synthetic owned child is introduced.
+    monkeypatch.setattr(client.app.state.engine, "tick", lambda: [])
+    from hutch.models import Run, RunStatus
+    fake_child = Run(id=fake_child_id, bot_id=bot["id"], task_id=fake_task_id,
+                     prompt="active child fixture", parent_run_id=current["attempt_run_id"],
+                     kind="step", status=RunStatus.running)
     with store._tx() as db:
         db.execute("""INSERT INTO tasks (id, bot_id, kind, prompt, created_at, done)
                       VALUES (?, ?, 'step', 'active child fixture', ?, 0)""",
                    (fake_task_id, bot["id"], time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())))
         db.execute("""INSERT INTO runs (id, bot_id, task_id, doc, status, created_at,
                                           parent_run_id, kind)
-                      VALUES (?, ?, ?, '{}', 'running', ?, ?, 'step')""",
-                   (fake_child_id, bot["id"], fake_task_id,
+                      VALUES (?, ?, ?, ?, 'running', ?, ?, 'step')""",
+                   (fake_child_id, bot["id"], fake_task_id, fake_child.model_dump_json(),
                     time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), current["attempt_run_id"]))
 
-    preview = client.post(
-        f"/api/v1/workflows/runs/{workflow_id}/amendments/preview",
-        json={"expected_revision_id": current["revision_id"],
-              "expected_generation": current["attempt_run_id"], "plan": candidate},
-    )
-    assert preview.status_code == 200, preview.text
-    assert preview.json()["quiescence"]["attempt_parked"] is True
-    assert preview.json()["quiescence"]["owned_work_quiet"] is False
+    try:
+        preview = client.post(
+            f"/api/v1/workflows/runs/{workflow_id}/amendments/preview",
+            json={"expected_revision_id": current["revision_id"],
+                  "expected_generation": current["attempt_run_id"], "plan": candidate},
+        )
+        assert preview.status_code == 200, preview.text
+        assert preview.json()["quiescence"]["attempt_parked"] is True
+        assert preview.json()["quiescence"]["owned_work_quiet"] is False
 
-    response = client.post(
-        f"/api/v1/workflows/runs/{workflow_id}/amendments/adopt",
-        headers={"Idempotency-Key": "adoption-refuses-live-child"},
-        json={"expected_revision_id": current["revision_id"],
-              "expected_generation": current["attempt_run_id"], "plan": candidate,
-              "cancel_pending_questions": True},
-    )
-    assert response.status_code == 409, response.text
-    assert "unapproved child work or a process is active" in response.json()["detail"]["message"]
-    after = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
-    assert after["workflow"]["revision_id"] == current["revision_id"]
-    assert any(question["id"] == old_question["id"] and question["status"] == "pending"
-               for question in after["questions"])
-    assert client.get(f"/api/v1/workflows/runs/{workflow_id}/amendments").json()["items"] == []
+        response = client.post(
+            f"/api/v1/workflows/runs/{workflow_id}/amendments/adopt",
+            headers={"Idempotency-Key": "adoption-refuses-live-child"},
+            json={"expected_revision_id": current["revision_id"],
+                  "expected_generation": current["attempt_run_id"], "plan": candidate,
+                  "cancel_pending_questions": True},
+        )
+        assert response.status_code == 409, response.text
+        assert "unapproved child work or a process is active" in response.json()["detail"]["message"]
+        after = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+        assert after["workflow"]["revision_id"] == current["revision_id"]
+        assert any(question["id"] == old_question["id"] and question["status"] == "pending"
+                   for question in after["questions"])
+        assert client.get(f"/api/v1/workflows/runs/{workflow_id}/amendments").json()["items"] == []
 
-    with store._tx() as db:
-        db.execute("DELETE FROM runs WHERE id = ?", (fake_child_id,))
-        db.execute("DELETE FROM tasks WHERE id = ?", (fake_task_id,))
-    client.post(f"/api/v1/workflows/runs/{workflow_id}/stop",
-                headers={"Idempotency-Key": "cleanup-amendment-active-child-fixture"},
-                json={"expected_revision_id": current["revision_id"]})
+    finally:
+        with store._tx() as db:
+            db.execute("DELETE FROM runs WHERE id = ?", (fake_child_id,))
+            db.execute("DELETE FROM tasks WHERE id = ?", (fake_task_id,))
+        client.post(f"/api/v1/workflows/runs/{workflow_id}/stop",
+                    headers={"Idempotency-Key": "cleanup-amendment-active-child-fixture"},
+                    json={"expected_revision_id": current["revision_id"]})
 
 
 def test_qualification_routes_are_scoped_and_revocable(client):
