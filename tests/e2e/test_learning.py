@@ -154,13 +154,14 @@ def test_learning_settings_recover_errors_and_do_not_replace_a_new_chat(browser,
         def hold(route):
             if route.request.method == 'PATCH':
                 held.append((route, route.fetch()))
+                page.evaluate('window.learningSaveHeld = true')
             else:
                 route.continue_()
 
         page.route(path, hold)
         policy.select_option('off')
         expect(policy).to_be_disabled()
-        page.wait_for_function('() => true')  # pump the pending request handler
+        page.wait_for_function('() => window.learningSaveHeld === true')
         assert len(held) == 1
         page.evaluate("name => location.hash = '#/chat/' + name", bot.name)
         expect(page.locator('#chat-prompt')).to_be_visible()
@@ -171,9 +172,12 @@ def test_learning_settings_recover_errors_and_do_not_replace_a_new_chat(browser,
         expect(page.locator('#memory-toggle')).to_have_count(0)
         assert app.state.store.get_bot(bot.id).memory_enabled is False
     finally:
-        for route, _ in held:
-            route.abort()
-        context.close()
+        try:
+            page.unroute_all(behavior='wait')
+            for route, _ in held:
+                route.abort()
+        finally:
+            context.close()
 
 
 def test_successful_memory_save_is_not_reported_as_unsaved_after_readback_failure(browser, app_server, monkeypatch):

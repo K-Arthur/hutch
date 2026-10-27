@@ -7131,6 +7131,7 @@ def test_server_page_navigation_uses_accessible_tablet_menu(browser, live, tmp_p
                            for i in range(links.count()))
             else:
                 assert toggle.is_visible()
+                pw.expect(nav).to_have_attribute('aria-hidden', 'true')
                 assert nav.evaluate("el => el.inert")
                 assert nav.get_attribute("aria-hidden") == "true"
                 assert toggle.get_attribute("aria-expanded") == "false"
