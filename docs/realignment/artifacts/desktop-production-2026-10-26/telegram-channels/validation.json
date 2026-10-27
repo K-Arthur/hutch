@@ -1,0 +1,59 @@
+{
+  "scope": "synthetic provider/vault; actual API and Store; no model/service calls",
+  "viewports": [
+    [
+      1440,
+      1000
+    ],
+    [
+      768,
+      1024
+    ],
+    [
+      390,
+      844
+    ],
+    [
+      320,
+      740
+    ]
+  ],
+  "computed_styles": {
+    "inputSize": "16px",
+    "selectSize": "16px",
+    "gap": "24px 16px"
+  },
+  "text_spacing_320": true,
+  "actual_browser_zoom_200": "unverified",
+  "page_errors": [],
+  "source_sha256": {
+    "src/hutch/server/static/channels.js": "bd91ae3df3fa6dd9375e1f2a682dd8ccaef037cb1308a99b5d94014a237b02d5",
+    "src/hutch/server/static/app.js": "9e536b19a675802b6a6980d30eed5e120497fd8b5b65feedad65b2d05f4f9270",
+    "app/src/input.css": "904d891acbae064946301f68ac61d929d8cb4e78f611b73e2a47a00642c5424a",
+    "src/hutch/server/static/ui.css": "d9d1b7dd8f38051334431095caa707bc34f7c39c77be6d4460e5fa40b54a1525"
+  },
+  "checked": [
+    "explicit sender choice",
+    "save paused",
+    "clear token",
+    "start cancel",
+    "start confirm",
+    "pause",
+    "delivery empty",
+    "paused access edit",
+    "disconnect key removal",
+    "storage exclusion",
+    "503 inline error"
+  ],
+  "delivery_review_checks": [
+    "uncertain reply is not resent",
+    "exact pending attempt",
+    "invalid outcome remains open",
+    "independent absence permits retry",
+    "independent presence marks sent",
+    "link to canonical task",
+    "modal focus trap",
+    "focus returns to fresh card control"
+  ],
+  "visual_review": "Opened wide setup, narrow form, text spacing, receiving, disconnected and narrow reconciliation captures. No actual browser 200% zoom or native channel acceptance."
+}

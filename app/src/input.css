@@ -289,3 +289,53 @@
   .tag.danger { color: var(--color-error); border-color: color-mix(in oklch, var(--color-error) 50%, transparent); }
   .tag.info { color: var(--color-secondary); }
 }
+
+/* Channel setup shares connection typography, rhythm and comfortable targets. */
+.channel-panel { display: grid; gap: var(--s-5); }
+.channel-intro { display: grid; gap: 8px; max-width: 68ch; }
+.channel-intro h2 { margin: 0; font-size: 1.125rem; line-height: 1.4; }
+.channel-intro p, .channel-connection p, .channel-setup-body p { margin: 0; line-height: 1.55; }
+.channel-boundaries { display: flex; flex-wrap: wrap; gap: 8px 24px; padding-inline-start: 20px; margin: 0; color: var(--text-2); font-size: .875rem; }
+.channel-panel #channel-status:empty { display: none; }
+.channel-connection { display: grid; gap: 16px; padding-block: 24px; border-block-start: 1px solid var(--line); min-width: 0; }
+.channel-connection header { display: flex; align-items: start; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.channel-connection h3, .channel-sender-picker h3 { margin: 0 0 4px; font-size: 1rem; line-height: 1.45; }
+.channel-connection header p { color: var(--text-2); font-size: .875rem; }
+.channel-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.channel-panel .btn, .channel-panel summary, .channel-sender { min-height: 44px; }
+.channel-panel summary { display: flex; align-items: center; cursor: pointer; font-size: .875rem; font-weight: 650; gap: 8px; }
+.channel-panel summary::before { content: '+'; color: var(--text-2); }
+.channel-panel details[open] > summary::before { content: '−'; }
+.channel-setup-body { display: grid; gap: 24px; padding-block: 12px 0; max-width: 72ch; }
+.channel-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 16px; }
+.channel-form-wide { grid-column: 1 / -1; min-width: 0; }
+.channel-panel .field { display: grid; gap: 8px; min-width: 0; margin: 0; }
+.channel-panel .field > label { font-size: var(--fs-sm); font-weight: 600; line-height: 1.4; }
+.channel-privacy > p { margin-block: 8px 0; max-width: 68ch; }
+.channel-panel input:not([type=checkbox]), .channel-panel select { width: 100%; min-width: 0; min-height: 44px; font-size: 1rem; }
+.channel-sender-picker { display: grid; gap: 12px; }
+.channel-sender-picker > .btn { justify-self: start; }
+#channel-sender-choices { display: grid; gap: 8px; }
+.channel-sender { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--line-strong); border-radius: 8px; cursor: pointer; }
+.channel-sender input { width: 20px; height: 20px; flex: 0 0 auto; }
+.channel-sender span { min-width: 0; overflow-wrap: anywhere; }
+.channel-sender small { display: block; color: var(--text-2); font-size: .75rem; margin-block-start: 4px; }
+.channel-form-wide > .hint { margin-block-start: 8px; }
+.channel-connection details > .hint, .channel-connection details > .btn { margin-block: 12px; }
+.channel-reconnect, .channel-access-form { display: grid; gap: 12px; margin-block: 16px; max-width: 32rem; }
+.channel-reconnect .btn { justify-self: start; }
+.channel-error { color: var(--danger); font-size: .875rem; }
+.channel-delivery { padding-block: 16px; border-block-start: 1px solid var(--line); display: grid; gap: 8px; }
+.channel-delivery .btn { justify-self: start; }
+.channel-preview-note { padding-block-start: 16px; border-block-start: 1px solid var(--line); }
+.channel-preview-note strong { font-size: .875rem; }
+.channel-preview-note p { margin-block: 8px 0; }
+@media (max-width: 620px) {
+  .channel-form { grid-template-columns: minmax(0, 1fr); }
+  .channel-actions { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .channel-actions .btn { white-space: normal; text-align: start; padding-block: 10px; }
+  .channel-boundaries { display: grid; gap: 8px; }
+}
+
+#channel-delivery-outcome { min-height: 44px; font-size: 1rem; }
+#channel-delivery-evidence { min-height: 6rem; font-size: 1rem; }

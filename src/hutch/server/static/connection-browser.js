@@ -6,6 +6,7 @@
     "google-docs": ["connection-google-docs"],
     "google-sheets": ["connection-google-sheets"],
     notion: ["connection-notion"],
+    telegram: ["connection-telegram"],
     gmail: ["connection-gmail"],
     "outlook-calendar": ["connection-outlook-calendar", "connection-outlook-mail"],
     chatgpt: ["connection-chatgpt"],
@@ -44,7 +45,11 @@
       if (state) heading.append(state);
       const steps = root.querySelector(".connection-steps");
       root.querySelector("[data-connection-open='phone-pair']").hidden = selected !== "phone";
-      if (selected === "models" || selected === "chatgpt") {
+      if (selected === "telegram") {
+        steps.children[0].textContent = "Connect a bot";
+        steps.children[1].textContent = "Choose allowed senders";
+        steps.children[2].textContent = "Start receiving and replying";
+      } else if (selected === "models" || selected === "chatgpt") {
         steps.hidden = true;
       } else if (selected === "phone") {
         steps.children[0].textContent = "Pair your phone";

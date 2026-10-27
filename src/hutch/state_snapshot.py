@@ -227,6 +227,7 @@ def quarantine(store, manifest: dict, manifest_hash: str) -> dict:
             ('devices', "SELECT id, label FROM paired_credentials WHERE revoked_at IS NULL"),
             ('standing_permissions', "SELECT bot_id || ':' || sticky_key, 'granted' FROM tool_allows"),
             ('bots', "SELECT id, CASE WHEN json_extract(doc, '$.paused') THEN 'paused' ELSE 'enabled' END FROM bots"),
+            ('channels', "SELECT id, CASE WHEN enabled THEN 'enabled' ELSE 'paused' END FROM channel_connections"),
         )
         for kind, query in specifications:
             # Device labels, permission keys and prompts do not enter the public report.
@@ -272,6 +273,12 @@ def quarantine(store, manifest: dict, manifest_hash: str) -> dict:
         db.execute("DELETE FROM pairing_attempts")
         db.execute("DELETE FROM tool_allows")
         db.execute("UPDATE bots SET doc = json_set(doc, '$.paused', json('true'), '$.remote_start_enabled', json('false'))")
+        # OS vault entries still belong to the source profile. A restored copy
+        # must explicitly reconnect; never delete or borrow the source's secret.
+        db.execute("UPDATE channel_connections SET enabled=0,revision=revision+1,credential_ref='',lease_owner='',lease_until=''")
+        db.execute("UPDATE channel_events SET state='cancelled' WHERE state='pending'")
+        db.execute("UPDATE channel_deliveries SET state='cancelled' WHERE state='pending'")
+        db.execute("UPDATE channel_deliveries SET state='uncertain',error='Source send outcome unknown after restore.' WHERE state='sending'")
         db.execute("UPDATE supervisor_leases SET owner = '', expires_at = NULL, fence = fence + 1")
         db.execute("UPDATE runs SET pgid = 0 WHERE id IN "
                    "(SELECT resource_id FROM state_restore_items WHERE restore_id = ? AND kind = 'runs')", (restore_id,))

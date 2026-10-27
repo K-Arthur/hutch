@@ -142,6 +142,15 @@ REMOTE_ROUTE_CAPABILITIES: dict[tuple[str, str], Optional[str]] = {
     ("GET", "/api/v1/jobs"): None,
     ("GET", "/api/v1/jobs/{job_id}"): None,
     ("POST", "/api/v1/jobs/{job_id}/cancel"): None,
+    ("GET", "/api/v1/channels"): None,
+    ("POST", "/api/v1/channels/telegram"): None,
+    ("POST", "/api/v1/channels/telegram/senders"): None,
+    ("PUT", "/api/v1/channels/{channel_id}/enabled"): None,
+    ("PUT", "/api/v1/channels/{channel_id}/token"): None,
+    ("PUT", "/api/v1/channels/{channel_id}/configuration"): None,
+    ("DELETE", "/api/v1/channels/{channel_id}"): None,
+    ("GET", "/api/v1/channels/{channel_id}/deliveries"): None,
+    ("POST", "/api/v1/channels/{channel_id}/deliveries/{delivery_id}/reconcile"): None,
 
 ("GET", "/api/v1/phone/workflows/runs"): "monitor",
     ("GET", "/api/v1/phone/workflows/runs/{wf_id}"): "monitor",
@@ -2053,6 +2062,8 @@ def create_app() -> FastAPI:
     config = get_config()
     store = Store(config)
     engine = Engine(config, store)
+    from ..channels.service import ChannelService
+    channels = ChannelService(store)
     scheduler = engine.scheduler
     opencode_setup: dict[str, Any] = {"server": None, "lock": threading.Lock()}
 
@@ -2078,9 +2089,11 @@ def create_app() -> FastAPI:
         # The scheduler loop sleeps until the next due run or a bus event (PF-5); no fixed tick.
         store.ensure_listening()
         _thread, stop = engine.start_background()
+        channels.start()
         try:
             yield
         finally:
+            channels.close()
             stop.set()
             store.bus.notify("work", remote=False)
             engine.shutdown()          # let in-flight runs record their outcome before the DB closes
@@ -2093,6 +2106,9 @@ def create_app() -> FastAPI:
     app = FastAPI(title="hutch", version=__version__, docs_url="/api/openapi.json", lifespan=lifespan,
                   dependencies=[Depends(authorize_remote_route)])
     app.state.config, app.state.store, app.state.engine, app.state.scheduler = config, store, engine, scheduler
+    app.state.channels = channels
+    from .channels_api import install_channel_routes
+    install_channel_routes(app,store,engine)
     app.add_middleware(SecurityMiddleware, auth_token=os.environ.get("HUTCH_AUTH_TOKEN") or None,
                        device_auth=store.authenticate_session)
 

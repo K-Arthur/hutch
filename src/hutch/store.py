@@ -2434,6 +2434,11 @@ def _migrate_80(db: sqlite3.Connection) -> None:
                    (json.dumps(doc, ensure_ascii=False), row['id']))
 
 
+def _migrate_81(db: sqlite3.Connection) -> None:
+    from .channels.persistence import migrate
+    migrate(db)
+
+
 def _integration_tool_names(db: sqlite3.Connection, bot_id: str) -> list[str]:
     """Return sorted names for grants on enabled, operation-authorized integrations only."""
     rows = db.execute("SELECT g.canonical_name FROM integration_tool_grants g "
@@ -2450,7 +2455,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
                _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53, _migrate_54,
-               _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59, _migrate_60, _migrate_61, _migrate_62, _migrate_63, _migrate_64, _migrate_65, _migrate_66, _migrate_67, _migrate_68, _migrate_69, _migrate_70, _migrate_71, _migrate_72, _migrate_73, _migrate_74, _migrate_75, _migrate_76, _migrate_77, _migrate_78, _migrate_79, _migrate_80]
+               _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59, _migrate_60, _migrate_61, _migrate_62, _migrate_63, _migrate_64, _migrate_65, _migrate_66, _migrate_67, _migrate_68, _migrate_69, _migrate_70, _migrate_71, _migrate_72, _migrate_73, _migrate_74, _migrate_75, _migrate_76, _migrate_77, _migrate_78, _migrate_79, _migrate_80, _migrate_81]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 EVENT_OUTBOX_SCHEMA_VERSION = 71
 
@@ -2773,8 +2778,11 @@ class Store:
 
     @staticmethod
     def _remote_run_allowed(db: sqlite3.Connection, run: Run) -> bool:
-        """Remote starts need both live credential authority and the current bot opt-in."""
+        """External starts need live channel or paired-device admission authority."""
         origin = run.origin or ""
+        if origin.startswith("channel"):
+            from .channels.persistence import origin_allowed
+            return origin_allowed(db, run)
         if not origin.startswith("remote"):
             return True
         match = re.fullmatch(r"remote:([A-Za-z0-9_-]{4,80})", origin)
@@ -4135,11 +4143,17 @@ class Store:
         with self._tx() as db:
             db.execute("UPDATE schedule_identities SET removed_at = COALESCE(NULLIF(removed_at, ''), ?) WHERE bot_id = ?",
                        (iso(utcnow()), bot.id))
+            # Keep delivery/history evidence, but a removed assistant cannot keep receiving work.
+            db.execute("UPDATE channel_connections SET enabled=0,revision=revision+1 WHERE bot_id=?",(bot.id,))
+            db.execute("UPDATE channel_events SET state='cancelled' WHERE state='pending' AND channel_id IN "
+                       '(SELECT id FROM channel_connections WHERE bot_id=?)',(bot.id,))
+            db.execute("UPDATE channel_deliveries SET state='cancelled' WHERE state='pending' AND event_id IN "
+                       '(SELECT e.id FROM channel_events e JOIN channel_connections c ON c.id=e.channel_id WHERE c.bot_id=?)',(bot.id,))
             db.execute("DELETE FROM bots WHERE id = ?", (bot.id,))
             db.execute("DELETE FROM tool_allows WHERE bot_id = ?", (bot.id,))
             db.execute("DELETE FROM memory WHERE bot_id = ?", (bot.id,))
             db.execute("UPDATE memory_facts SET status = 'archived' WHERE bot_id = ?", (bot.id,))
-        self.bus.notify("work", "bots")
+        self.bus.notify("work", "bots", "channels")
         return True
 
     # --------------------------------------------------------- transactions
@@ -4557,7 +4571,8 @@ class Store:
             if home and not home["archived"]:
                 return str(home["id"]), False
             ordinary = ("SELECT c.id FROM conversations c WHERE c.bot_id = ? AND c.archived = 0 AND c.is_legacy = 0 "
-                        "AND NOT EXISTS (SELECT 1 FROM workspace_tasks t WHERE t.child_conversation_id = c.id) ")
+                        "AND NOT EXISTS (SELECT 1 FROM workspace_tasks t WHERE t.child_conversation_id = c.id) "
+                        "AND NOT EXISTS (SELECT 1 FROM channel_threads ct WHERE ct.conversation_id = c.id) ")
             if preferred_id:
                 candidate = db.execute(ordinary + "AND c.id = ?", (bot_id, preferred_id)).fetchone()
                 if candidate is None:
@@ -6927,10 +6942,13 @@ class Store:
                 return None
             queued = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id=? AND status='pending'", (run_id,)).fetchone()
             if queued is not None and not self._remote_run_allowed(db, self._run(queued)):
+                is_channel = self._run(queued).origin.startswith('channel')
+                reason = 'channel_authority_revoked' if is_channel else 'remote_authority_revoked'
                 self._apply_transition(
-                    db, run_id, RunStatus.stopped, None, "remote_authority_revoked",
+                    db, run_id, RunStatus.stopped, None, reason,
+                    "Channel authorization changed before dispatch." if is_channel else
                     "Phone authorization or the bot's remote-start setting changed before dispatch.",
-                    {"reason": "remote_authority_revoked"}, True, {"owner": "", "pgid": 0})
+                    {"reason": reason}, True, {"owner": "", "pgid": 0})
                 cancelled = True
             else:
                 cancelled = False

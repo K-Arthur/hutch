@@ -1404,6 +1404,7 @@ function serviceMark(kind) {
     local: "monitor",
     drive: "folder",
     phone: "monitor",
+    telegram: "send",
   };
   const glyph = serviceIcons[kind] || "sparkles";
   return `<span class="service-mark service-mark-${esc(kind)}" data-service-category="${esc(kind)}" aria-hidden="true">${icon(glyph, "service-glyph")}</span>`;
@@ -1633,6 +1634,15 @@ function openModal({ title, bodyHtml, onConfirm, onCancel, confirmText = "Confir
     else if (modalReturnFocus?.dataset.workflowSuggestionRun) {
       ($$('[data-workflow-suggestion-run]').find(button =>
         button.dataset.workflowSuggestionRun === modalReturnFocus.dataset.workflowSuggestionRun) || $('#chat-prompt'))?.focus();
+    }
+    else if (modalReturnFocus?.dataset.channelToggle) {
+      ($$('[data-channel-toggle]').find(button =>
+        button.dataset.channelToggle === modalReturnFocus.dataset.channelToggle) || $('#nav-toggle'))?.focus();
+    }
+    else if (modalReturnFocus?.dataset.channelReconcile) {
+      const channelId = modalReturnFocus.closest('[data-channel]')?.dataset.channel;
+      ($$('[data-channel-deliveries]').find(button =>
+        button.dataset.channelDeliveries === channelId) || $('#nav-toggle'))?.focus();
     }
     else if (modalReturnFocus?.isConnected && modalReturnFocus.getClientRects().length) modalReturnFocus.focus();
     else ($('#chat-prompt') || $('#nav-toggle'))?.focus();
@@ -9126,8 +9136,8 @@ async function renderConnections() {
     detail: "Google sign-in is not enabled in this Hutch build.",
   };
   const googleCalendar = data.google_calendar || { configured: false, secret_store_available: false, accounts: [], grants: [] };
-  const [workspaceResult, notionConnectionResult, deviceConnectionResult] = await Promise.allSettled([
-    api("/v1/connections/google-workspace"), api("/v1/connections/notion"), api("/v1/connections/kdeconnect"),
+  const [workspaceResult, notionConnectionResult, deviceConnectionResult, channelConnectionResult] = await Promise.allSettled([
+    api("/v1/connections/google-workspace"), api("/v1/connections/notion"), api("/v1/connections/kdeconnect"), api("/v1/channels"),
   ]);
   const googleWorkspace = workspaceResult.status === "fulfilled" ? workspaceResult.value
     : { configured: false, secret_store_available: false, accounts: [] };
@@ -9137,6 +9147,8 @@ async function renderConnections() {
   const notionError = notionConnectionResult.status === "rejected" ? notionConnectionResult.reason.message : "";
   const deviceConnection = deviceConnectionResult.status === "fulfilled" ? deviceConnectionResult.value : { available: false, grants: [] };
   if (!stillCurrent()) return;
+  const channelConnections = channelConnectionResult.status === "fulfilled" ? channelConnectionResult.value : null;
+  const telegramConnected = channelConnections?.connections.some(connection => connection.has_token);
   const googleMail = data.google_mail || { configured: false, secret_store_available: false, accounts: [], grants: [] };
   const googleMailBots = bots.filter(bot => bot.inference_mode === "local");
   const googleMailSend = data.google_mail_send || { configured: false, secret_store_available: false, accounts: [], grants: [] };
@@ -9410,6 +9422,9 @@ async function renderConnections() {
         workspaceError ? "Could not load" : connected ? "Connected" : googleWorkspace.configured ? "Ready to connect" : "Not enabled in this build",
         connected ? "connected" : "setup", `google-${service.id}`, connected ? "Manage access" : "Connection details");
     }),
+    tile("telegram", "Telegram", "Message an assistant privately, with chosen senders and delivery review.",
+      !channelConnections ? "Could not load" : telegramConnected ? "Connected" : "Private text preview",
+      telegramConnected ? "connected" : "preview", "telegram", telegramConnected ? "Manage Telegram" : "Set up Telegram"),
     tile("notion", "Notion", "Search and read your workspace pages with the assistants you choose.",
       notionError ? "Could not load" : notion.accounts.length ? "Connected" : notion.secret_store_available ? "Ready to connect" : "Secure storage required",
       notion.accounts.length ? "connected" : "setup", "notion", notion.accounts.length ? "Manage access" : "Connect Notion"),
@@ -9502,6 +9517,7 @@ async function renderConnections() {
             </div>
           </div>`).join("")}
       </section>
+      ${window.hutchChannels?.panel() || ""}
       <section class="panel conn-card google-calendar-card" id="connection-google-calendar" aria-labelledby="google-calendar-title">
         <div class="bot-head"><span class="bot-name" id="google-calendar-title">Google Calendar</span>
           <span class="tag">experimental</span><span class="tag">local desktop sign in</span></div>
@@ -9746,6 +9762,7 @@ async function renderConnections() {
   $("#outlook-mail-send-access").open = outlookMailSendAccessOpen;
   $("#google-mail-access").open = googleMailAccessOpen;
   window.hutchConnections?.mount($(".connections-workspace"));
+  void window.hutchChannels?.mount($("#connection-telegram"), { api, bots, esc, openModal, initial: channelConnections });
   $$("[data-connection-open]").forEach(button => button.addEventListener("click", () => {
     const targetKey = button.dataset.connectionOpen;
     if (targetKey === "kdeconnect") {

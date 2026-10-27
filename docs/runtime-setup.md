@@ -1,5 +1,8 @@
 # Runtime prerequisites on a fresh device
 
+For channel setup and current delivery limits, see [Telegram channels](channels.md).
+Connecting a channel does not install a model runtime or expand assistant tools.
+
 Hutch is local-first, but it does not bundle model runtimes or model weights. A device with nothing installed can still use the hosted API-key routes. The full OpenCode assistant and local Ollama routes need their runtime installed first.
 
 ## OpenCode assistant
