@@ -35,7 +35,9 @@ including declared higher-price tiers and possible cache-write cost; the highest
 This deliberately reserves more than a short prompt estimate and can refuse a request despite its likely low cost.
 Reported usage settles that hold after completion. When no strict ceiling applies, a labeled stale
 quote or reviewed Settings > Prices row may be used. This estimate is not a provider-enforced billing cap. OpenRouter
-requests ask for `usage.include=true` so reported `usage.cost` can be retained when the response includes it. A model
+requests ask for `usage.include=true` and retain the reported `usage.cost`. If that route omits a valid
+billed charge, Hutch stops before tools or another model request and keeps the quoted amount held for
+reconciliation. A reported zero is valid; missing, boolean, negative and nonfinite charges are not zero. A model
 listing does not establish tool-call compatibility; verify task behavior with a normal governed run.
 
 OpenAI API and other OpenAI-compatible connections discover model IDs from

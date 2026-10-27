@@ -325,6 +325,8 @@ class Provider(ABC):
     name = "provider"
     #: whether this route accepts image content parts in user messages
     supports_media_input = False
+    #: Missing billed USD on a route that reports it leaves its request uncertain.
+    reports_billed_cost = False
 
     @abstractmethod
     def _complete(self, req: ChatRequest, stream: bool) -> ChatResult:  # pragma: no cover

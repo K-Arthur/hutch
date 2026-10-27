@@ -346,3 +346,55 @@ def test_named_openrouter_route_uses_fresh_quote_without_a_duplicate_manual_pric
     service.quote = lambda *args, **kwargs: None
     assert 'refresh eligible endpoint pricing' in guard.refusal(make_rung(bot.model, 'primary'), 1000, 512)
     assert not store.unresolved_usage_reservations()
+
+
+@pytest.mark.parametrize('reported_cost', [None, True, -1, float('nan'), 0.0, .02])
+def test_openrouter_missing_billed_cost_holds_the_quote_before_tools_and_zero_is_valid(
+        store, config, tmp_path, monkeypatch, oai, reported_cost):
+    from datetime import datetime, timedelta, timezone
+    from decimal import Decimal
+    from types import SimpleNamespace
+    from hutch.connections import ConnectionBook
+    from hutch.providers.openrouter_pricing import EndpointQuote, ModelQuote
+
+    book = ConnectionBook(config.state_dir)
+    book.add('openrouter', 'budget-router', base_url=oai.url + '/v1', account_id='router-account')
+    book.set_key('budget-router', 'synthetic-fixture-credential', prefer_stored=True)
+    now = datetime.now(timezone.utc)
+    quote = ModelQuote(model='acme/current', endpoints=(EndpointQuote(name='vendor', provider_name='vendor',
+        input_per_million=Decimal('2'), output_per_million=Decimal('10'), context_length=128000,
+        supports_tools=True),), fetched_at=now, expires_at=now + timedelta(minutes=5))
+    monkeypatch.setattr('hutch.providers.openrouter_pricing.live_pricing',
+                        lambda *args, **kwargs: SimpleNamespace(quote=lambda *args, **kwargs: quote))
+    store.set_budget_policy(scope_kind='account', scope_id='router-account', reset='lifetime', ceiling_usd=1)
+    ctx, run, _events, tools = build(store, config, tmp_path, model='budget-router/acme/current',
+        mode=ApprovalMode.auto, tools=('files',), limits=Limits(max_steps=4, max_turn_tokens=512))
+    calls = []
+
+    def reply(body):
+        calls.append(body)
+        result = {'prompt_tokens': 100, 'completion_tokens': 20}
+        if len(calls) == 1:
+            result['tool_calls'] = [{'name': 'write_file', 'arguments': {'path': 'result.txt', 'content': 'verified'}}]
+        else:
+            result['content'] = 'Done'
+        if reported_cost is not None:
+            result['cost'] = reported_cost
+        return result
+
+    oai.script = reply
+    import math
+    valid_cost = type(reported_cost) in (int, float) and math.isfinite(reported_cost) and reported_cost >= 0
+    if not valid_cost:
+        with pytest.raises(RunAborted, match='billed cost') as missing:
+            run_it(runtime(), run, ctx, tools)
+        assert missing.value.reason == 'usage_unknown'
+        assert len(calls) == 1 and not (ctx.workspace / 'result.txt').exists()
+        holds = store.unresolved_usage_reservations()
+        assert len(holds) == 1 and holds[0]['status'] == 'uncertain' and holds[0]['reserved_cost_usd'] > 0
+        assert not store.list_actions(run.id)
+    else:
+        assert run_it(runtime(), run, ctx, tools) == 'Done'
+        assert len(calls) == 2 and (ctx.workspace / 'result.txt').read_text() == 'verified'
+        assert not store.unresolved_usage_reservations()
+        assert store.scope_spend(scope_kind='account', scope_id='router-account') == pytest.approx((reported_cost * 2, 0))

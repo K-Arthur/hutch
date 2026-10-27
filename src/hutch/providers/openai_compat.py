@@ -60,6 +60,7 @@ class OpenAICompatProvider(Provider):
         self.base_url = reject_endpoint_credentials(base_url).rstrip("/")
         self._official_openai = is_official_endpoint("openai", self.base_url)
         self._openrouter = provider_name == "openrouter" if openrouter is None else openrouter
+        self.reports_billed_cost = self._openrouter
         self._uses_completion_token_field = self._official_openai or self._openrouter
         self.routing_policy = validate_policy(routing_policy)
         if self.routing_policy and not self._openrouter:
@@ -446,7 +447,7 @@ class OpenAICompatProvider(Provider):
         reason = "length" if finish == "length" else ("tool_calls" if tcs else "stop")
         reported = None
         raw_cost = usage.get("cost")
-        if raw_cost is not None:
+        if raw_cost is not None and not isinstance(raw_cost, bool):
             try:
                 candidate = float(raw_cost)
                 if math.isfinite(candidate) and candidate >= 0:

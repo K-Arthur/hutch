@@ -90,3 +90,15 @@ The isolated evaluation must still enforce endpoint privacy/capability/maximum-p
 budgets, and reconcile responses. [OpenRouter endpoint metadata](https://openrouter.ai/docs/api/api-reference/endpoints/list-all-endpoints-for-a-model)
 and [routing controls](https://openrouter.ai/docs/guides/routing/provider-selection) are the source contracts;
 no provider source code was reused.
+
+
+### Missing reported OpenRouter charge
+
+Providers can declare `reports_billed_cost`; first-party OpenRouter connections do so. A response from such
+a route that lacks a valid billed USD amount cannot be settled as zero or replaced by a less certain alias
+price estimate. The canonical loop and paid summarizer mark the existing reservation uncertain, retain
+observed token counts in a budget event, and stop before dispatching that response's tools or continuing
+model calls. The existing terminal-only reconciliation path remains required. This applies even if a
+policy is removed while the request is in flight. Ordinary token-priced providers retain their existing
+price-based accounting. A provider-reported zero remains distinct from missing; boolean cost values are
+rejected during OpenAI-compatible decoding, consistently with money parsing.

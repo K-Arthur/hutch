@@ -811,6 +811,23 @@ class BuiltinRuntime:
                 self._set_status(ctx, run, RunStatus.running, session.rung.spec)
             self._log(ctx, run, "load", f"reloaded {model} after another model used inference", load_ms=elapsed)
 
+    def _require_billed_cost(self, ctx, run, provider, result, reservation_id):
+        if not getattr(provider, 'reports_billed_cost', False):
+            return
+        try:
+            if parse_usd(result.reported_cost_usd) is not None:
+                return
+        except (TypeError, ValueError):
+            pass
+        ctx.store.mark_usage_uncertain(reservation_id, 'provider response omitted valid billed cost',
+                                       expected_fence=run.fence)
+        self._log(ctx, run, 'budget', 'Provider omitted billed cost; the request remains held for reconciliation.',
+                  ok=False, reservation_id=reservation_id, observed_prompt_tokens=result.prompt_tokens,
+                  observed_completion_tokens=result.completion_tokens)
+        raise RunAborted('usage_unknown', 'The provider response omitted valid billed cost. Its quoted amount remains '
+                         'held; no tool from this response or further model request was started. Reconcile billing '
+                         'before retrying.')
+
     def _attempt(self, ctx, run, session, guard, req, est_prompt, stop, ladder, expected_route):
         # Release admission before handling failures, switching routes, tools or
         # approvals. A waiter has not sent a request and must not reserve usage.
@@ -878,6 +895,7 @@ class BuiltinRuntime:
                 ctx.store.mark_usage_uncertain(reservation.id, f"provider call ended with {type(exc).__name__}",
                                                expected_fence=run.fence)
                 raise
+            self._require_billed_cost(ctx, run, session.provider, result, reservation.id)
             return result, reservation.id, t_call, queue_ms
 
     # ------------------------------------------------- fitting and compaction (LM-3)
@@ -1089,6 +1107,7 @@ class BuiltinRuntime:
             ctx.store.mark_usage_uncertain(reservation.id, f"summarizer ended with {type(exc).__name__}",
                                            expected_fence=run.fence)
             return None
+        self._require_billed_cost(ctx, run, session.provider, result, reservation.id)
         timer.model(time.perf_counter() - started)
         prices = self._prices_for(ctx)
         estimated = prices.cost(rung.provider, rung.model, result.prompt_tokens, result.completion_tokens,
