@@ -288,9 +288,21 @@ class SpendGuard:
         quota = self.quota_refusal(rung, est_prompt_tokens, max_turn_tokens)
         if quota:
             return quota
-        if not self.prices.has_price(rung.provider, rung.model):
+        # A named OpenRouter connection's fresh endpoint quote is a price
+        # basis in its own right. Requiring a second manual alias row here
+        # would reject a call that atomic admission can correctly reserve.
+        router_quote = (self.worst_case(rung, est_prompt_tokens, max_turn_tokens)
+                        if connection is not None and getattr(connection, 'template', '') == 'openrouter'
+                        else None)
+        has_price = (router_quote.usd is not None if router_quote is not None
+                     else self.prices.has_price(rung.provider, rung.model))
+        if not has_price:
             policies = self.policies(rung)
             strict = [p for p in policies.values() if p.ceiling_usd is not None or p.unknown_price == "refuse"]
+            if router_quote is not None and (self.bot.limits.max_cost_usd or self.bot.limits.daily_cost_cap_usd
+                                             or account_cap or strict):
+                return (f"{rung.spec} has no usable OpenRouter price basis for this currency limit; "
+                        "refresh eligible endpoint pricing before retrying. No model call was sent")
             if self.bot.limits.max_cost_usd or self.bot.limits.daily_cost_cap_usd or account_cap:
                 return (f"{rung.spec} has no price in prices.json, so Hutch cannot calculate a currency estimate "
                         "for the configured limit; add a row (or remove the limit) to use it")
@@ -299,7 +311,8 @@ class SpendGuard:
                 return (f"{rung.spec} has no price basis and the USD budget on {scope.scope_kind} "
                         f"'{scope.scope_id}' requires one; add a price row or allow unknown prices there")
             return None
-        worst = self.prices.cost(rung.provider, rung.model, est_prompt_tokens, max_turn_tokens) or 0.0
+        worst = (router_quote.usd if router_quote is not None else
+                 self.prices.cost(rung.provider, rung.model, est_prompt_tokens, max_turn_tokens) or 0.0)
         lim = self.bot.limits
         if lim.max_cost_usd and self.run.cost_usd + worst > lim.max_cost_usd:
             return (f"the next call to {rung.spec} could cost up to ${worst:.4f}; this run has spent "

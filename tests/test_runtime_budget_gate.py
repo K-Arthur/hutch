@@ -314,3 +314,35 @@ def test_capped_openrouter_reserves_context_capacity_instead_of_optimistic_token
     with pytest.raises(UsageBudgetRefusal):
         guard.reserve(rung, 1000, 500)
     assert not store.unresolved_usage_reservations()
+
+
+def test_named_openrouter_route_uses_fresh_quote_without_a_duplicate_manual_price_row(store, monkeypatch):
+    from datetime import datetime, timedelta, timezone
+    from decimal import Decimal
+    from types import SimpleNamespace
+    from hutch.models import Bot, Run
+    from hutch.providers.openrouter_pricing import EndpointQuote, ModelQuote
+    from hutch.providers.pricing import PriceBook
+    from hutch.runtime.ladder import SpendGuard, make_rung
+
+    bot = store.create_bot(Bot(name='named-live-quote', model='research-router/acme/current-model'))
+    run = store.create_run(Run(bot_id=bot.id, prompt='Known fresh quote, no manual prices row'))
+    store.set_budget_policy(scope_kind='account', scope_id='named-account', reset='lifetime', ceiling_usd=1)
+    now = datetime.now(timezone.utc)
+    quote = ModelQuote(model='acme/current-model', endpoints=(EndpointQuote(
+        name='provider', provider_name='provider', input_per_million=Decimal('2'),
+        output_per_million=Decimal('10'), context_length=128000, supports_tools=True),),
+        fetched_at=now, expires_at=now + timedelta(minutes=5))
+    service = SimpleNamespace(quote=lambda *args, **kwargs: quote)
+    monkeypatch.setattr('hutch.providers.openrouter_pricing.live_pricing', lambda *args, **kwargs: service)
+    connection = SimpleNamespace(template='openrouter', base_url='https://router.example/api/v1',
+                                 account_id='named-account', auth_type='api_key',
+                                 quota=SimpleNamespace(tokens=0))
+    connections = SimpleNamespace(get=lambda name: connection, account_policy=lambda account: (0.0, []))
+    prices = PriceBook()
+    assert not prices.has_price('research-router', 'acme/current-model')
+    guard = SpendGuard(store, bot, run, prices, connections)
+    assert guard.refusal(make_rung(bot.model, 'primary'), 1000, 512) is None
+    service.quote = lambda *args, **kwargs: None
+    assert 'refresh eligible endpoint pricing' in guard.refusal(make_rung(bot.model, 'primary'), 1000, 512)
+    assert not store.unresolved_usage_reservations()
