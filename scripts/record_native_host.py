@@ -75,12 +75,12 @@ def main() -> int:
         "machine": platform.machine(),
         "python": platform.python_version(),
         "python_bits": 64 if sys.maxsize > 2**32 else 32,
-        "scope": "kernel locks and skills registry; OS vault on Windows/macOS; Job Object on Windows only",
+        "scope": "kernel locks and skills registry; OS vault on Windows/macOS; Windows Job Object and Unix inherited-group ownership",
         "limitations": [
             "Not an installed desktop-package or GUI result",
             "Windows Server is not Windows 11 acceptance",
             "macOS 15 Intel is not macOS 14 Intel acceptance",
-            "Non-Windows Rust process-guard has no supervision tests yet",
+            "POSIX group cleanup does not contain detached sessions; full worker/IPC ports remain separate gates",
         ],
     }
     target = os.environ.get("HUTCH_NATIVE_TARGET", "")

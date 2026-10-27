@@ -43,6 +43,7 @@ jobs:
           cat .validation/desktop-host.json
           cargo test --locked --manifest-path desktop/Cargo.toml
           cargo clippy --locked --manifest-path desktop/Cargo.toml --all-targets -- -D warnings
+          cargo clean --manifest-path desktop/Cargo.toml --profile dev
           uv run --frozen --no-sync python scripts/build_desktop_backend.py
       - name: Exercise actual frozen backend and owned worker
         env:
