@@ -55,6 +55,9 @@
       if (matchWidth) panel.style.width = `${Math.min(anchor.width, width - inset * 2)}px`;
       panel.style.maxWidth = `${Math.max(0, width - inset * 2)}px`;
       panel.style.maxHeight = `${Math.max(0, height - inset * 2)}px`;
+      // Measure the panel at its natural size. A sheet is capped to stay clear of its trigger, so measuring one that is
+      // already a sheet would read it as shorter, pick anchored, grow, and flip back on the next resize notification.
+      panel.dataset.popupLayout = "anchored";
       const bounds = panel.getBoundingClientRect();
       const below = y + height - anchor.bottom - gap - inset;
       const above = anchor.top - y - gap - inset;
