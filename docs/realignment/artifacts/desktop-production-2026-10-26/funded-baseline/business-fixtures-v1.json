@@ -1,0 +1,17 @@
+{
+  "marketing": {
+    "input": "Synthetic product: Cedar, a local document assistant. Verified features: drafts document briefs; requires review before sharing; local state. Competitor Birch: browser-only, $12/month. Source https://example.com/fixture/birch . Competitor Elm: hosted, $20/month. Source https://example.com/fixture/elm . No evidence that any product is SOC2 certified or has better conversion rates.",
+    "request": "Write positioning.md with a concise positioning recommendation, two distinct campaign ideas, the two source URLs, and a clear statement that these are synthetic fixtures. Keep all campaign work as drafts for review; do not invent certification or performance claims.",
+    "file": "positioning.md"
+  },
+  "performance": {
+    "input": "campaign,impressions,clicks,spend,conversions,revenue,daily_budget\nSearch,10000,1000,300,20,1000,250\nSocial,20000,400,150,0,0,200\n",
+    "request": "Write metrics.csv with exactly one row per campaign and columns campaign,ctr,cvr,cpa,roas,alert. CTR and CVR must be decimal fractions, not percentages. Round numerical metrics to four decimal places or fewer. Leave undefined CPA empty. Flag Search as over_budget, Social as zero_conversions. Then write recommendations.md with recommendations explicitly requiring approval before changing spend. Do not change any campaigns.",
+    "file": "metrics.csv"
+  },
+  "sales": {
+    "input": "id,company,contact,status,do_not_contact\na,Birch,Ada,prospect,true\nb,Elm,Ben,active_deal,false\nc,Fir,Cam,customer,false\nd,Cedar,Dee,prospect,false\n",
+    "request": "Use only eligible prospects: exclude do-not-contact entries, active deals and existing customers. Write outreach.csv with columns id,company,contact,draft,status and exactly one eligible row. Set status to draft_needs_approval. Write founder-summary.md naming the three suppression reasons and stating that nothing was sent. Do not invent contact email addresses or send messages.",
+    "file": "outreach.csv"
+  }
+}

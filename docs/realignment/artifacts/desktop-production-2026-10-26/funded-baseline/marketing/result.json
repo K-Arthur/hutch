@@ -1,0 +1,95 @@
+{
+  "contract_version": 1,
+  "case": "baseline-marketing-01",
+  "route": "evaluation-router/deepseek/deepseek-v4.1-flash",
+  "scope": "synthetic guide-derived local baseline; no UI, external-service or business-quality acceptance",
+  "permission": "only preauthorized local fixture reads/writes; isolated Bot auto mode",
+  "functional_checks_passed": true,
+  "artifact_quality": "independent review required; functional checks alone are not 85/100 acceptance",
+  "phase": {
+    "contract_version": 1,
+    "phase": "baseline",
+    "allowance_usd": 2,
+    "start_spent_usd": 0.000821792,
+    "cumulative_ceiling_usd": 2.000821792,
+    "total_evaluation_ceiling_usd": 10,
+    "policy_revision": 2,
+    "no_uncertain_charges_at_start": true,
+    "unused_qualification_allowance_rolled_over": false
+  },
+  "runtime_source_commit": "05aa6489a61f2c8c34f5b577ae7513f192ca6444",
+  "harness_sha256": "4034bb823d93087411d9e73292e38cdba2cf0a0754ff5a519ccb47e4ef498dd9",
+  "routing_policy": {
+    "allow_fallbacks": false,
+    "order": [
+      "deepinfra/fp8"
+    ],
+    "require_parameters": true,
+    "data_collection": "deny",
+    "zdr": true,
+    "max_price": {
+      "prompt": 0.35,
+      "completion": 0.8,
+      "request": 0
+    }
+  },
+  "qualification_ceiling_usd": 2.000821792,
+  "fixture_sha256": "3e4817b7fa3163d6351416ff7ab21d80e0beb1cc899ef5042375826301193f18",
+  "input_sha256": "d18497bfb61a045360a901c35f9f99cc84a6847d3f9d3920e827fe18628f5026",
+  "done_write_receipts": 1,
+  "answer": "Read `input.txt` and wrote `positioning.md` (draft).\n\nContents: positioning recommendation (local-first, human-review framing built only on the three verified features); two campaign ideas (\"Review before you share\", \"Local state, plain answers\"); both source URLs; explicit synthetic-fixture notice. Deliberately excluded price-advantage, certification (SOC2), and conversion/performance claims, and flagged unknowns (Cedar pricing, ICP, deployment constraints). Everything marked draft for review.",
+  "runtime_elapsed_seconds": 14.043,
+  "run_status": "succeeded",
+  "settled_tokens": 4360,
+  "run_cost_usd": 0.00065715,
+  "account_spent_usd": 0.0014789410000000001,
+  "account_held_usd": 0.0,
+  "requests": [
+    {
+      "sequence": 1,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.000821792,
+      "account_held_usd": 0.479232,
+      "credit_verified": true
+    },
+    {
+      "sequence": 2,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.0009504520000000001,
+      "account_held_usd": 0.479232,
+      "credit_verified": true
+    },
+    {
+      "sequence": 3,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.001320758,
+      "account_held_usd": 0.479232,
+      "credit_verified": true
+    }
+  ],
+  "usage": [
+    {
+      "prompt_tokens": 775,
+      "completion_tokens": 48,
+      "cost_usd": 0.00012866,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.00012866
+    },
+    {
+      "prompt_tokens": 918,
+      "completion_tokens": 824,
+      "cost_usd": 0.000370306,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.0003703056
+    },
+    {
+      "prompt_tokens": 1693,
+      "completion_tokens": 102,
+      "cost_usd": 0.000158183,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.0001581832
+    }
+  ],
+  "held_requests": [],
+  "event_chain_ok": true
+}

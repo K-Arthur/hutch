@@ -1,0 +1,41 @@
+{
+  "contract_version": 1,
+  "scope": "synthetic local baseline; not full workflows or comparative superiority",
+  "runtime_source_commit": "05aa6489a61f2c8c34f5b577ae7513f192ca6444",
+  "pinned_route": "evaluation-router/deepseek/deepseek-v4.1-flash",
+  "pinned_endpoint": "deepinfra/fp8",
+  "account_spent_usd": 0.002729993,
+  "held_usd": 0.0,
+  "independent_official_credit_readback": true,
+  "ledger_minus_credit_delta_usd": "6.000006E-9",
+  "private_account_balances_omitted": true,
+  "cases": [
+    {
+      "case": "marketing",
+      "actual_requests": 3,
+      "functional_checks_passed": true,
+      "latency_seconds": 14.043,
+      "settled_tokens": 4360,
+      "ledger_cost_usd": "0.000657149",
+      "quality": "Material unsupported local-compute, residency and zero-egress implications; fails grounding."
+    },
+    {
+      "case": "performance",
+      "actual_requests": 4,
+      "functional_checks_passed": true,
+      "latency_seconds": 10.111,
+      "settled_tokens": 6107,
+      "ledger_cost_usd": "0.000764563",
+      "quality": "Arithmetic, undefined CPA and approval boundaries checked; reporting period explicitly unknown; full guide workflow not evaluated."
+    },
+    {
+      "case": "sales",
+      "actual_requests": 3,
+      "functional_checks_passed": true,
+      "latency_seconds": 7.244,
+      "settled_tokens": 3763,
+      "ledger_cost_usd": "0.000486489",
+      "quality": "Correct suppressions and one draft; explicitly generic placeholder, no invented emails; full ICP/meetings/tracker workflow not evaluated."
+    }
+  ]
+}

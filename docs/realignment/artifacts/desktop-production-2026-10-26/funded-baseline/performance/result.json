@@ -1,0 +1,109 @@
+{
+  "contract_version": 1,
+  "case": "baseline-performance-01",
+  "route": "evaluation-router/deepseek/deepseek-v4.1-flash",
+  "scope": "synthetic guide-derived local baseline; no UI, external-service or business-quality acceptance",
+  "permission": "only preauthorized local fixture reads/writes; isolated Bot auto mode",
+  "functional_checks_passed": true,
+  "artifact_quality": "independent review required; functional checks alone are not 85/100 acceptance",
+  "phase": {
+    "contract_version": 1,
+    "phase": "baseline",
+    "allowance_usd": 2,
+    "start_spent_usd": 0.000821792,
+    "cumulative_ceiling_usd": 2.000821792,
+    "total_evaluation_ceiling_usd": 10,
+    "policy_revision": 2,
+    "no_uncertain_charges_at_start": true,
+    "unused_qualification_allowance_rolled_over": false
+  },
+  "runtime_source_commit": "05aa6489a61f2c8c34f5b577ae7513f192ca6444",
+  "harness_sha256": "4034bb823d93087411d9e73292e38cdba2cf0a0754ff5a519ccb47e4ef498dd9",
+  "routing_policy": {
+    "allow_fallbacks": false,
+    "order": [
+      "deepinfra/fp8"
+    ],
+    "require_parameters": true,
+    "data_collection": "deny",
+    "zdr": true,
+    "max_price": {
+      "prompt": 0.35,
+      "completion": 0.8,
+      "request": 0
+    }
+  },
+  "qualification_ceiling_usd": 2.000821792,
+  "fixture_sha256": "1761211545c4db28807ba511151aab7234345111e11a91e5dfcc9b7f41a7fa74",
+  "input_sha256": "2dd44b5ff2ad6893a04770aa0471413da571cd6b194a0923e1ea110dd2dc31f7",
+  "done_write_receipts": 3,
+  "answer": "Done.\n\n**Created:**\n- `metrics.csv` \u2014 one row per campaign, columns `campaign,ctr,cvr,cpa,roas,alert`. CTR/CVR as decimal fractions (Search 0.1 / 0.02; Social 0.02 / 0), metrics rounded to \u22644 dp. Search CPA 15; Social CPA left empty (undefined, zero conversions). Alerts: Search `over_budget`, Social `zero_conversions`.\n- `recommendations.md` \u2014 recommendations for both campaigns, all spend actions explicitly gated on prior human approval; no campaigns changed.\n\n**Notes:** Search spend (300) exceeds its stated daily_budget (250). ROAS is not treated as profit evidence (margin/full costs unknown); attribution window and period definition are unverified. No campaign data was modified.",
+  "runtime_elapsed_seconds": 10.111,
+  "run_status": "succeeded",
+  "settled_tokens": 6107,
+  "run_cost_usd": 0.00076456,
+  "account_spent_usd": 0.002243504,
+  "account_held_usd": 0.0,
+  "requests": [
+    {
+      "sequence": 1,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.0014789410000000001,
+      "account_held_usd": 0.479232,
+      "credit_verified": true
+    },
+    {
+      "sequence": 2,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.001612641,
+      "account_held_usd": 0.479232,
+      "credit_verified": true
+    },
+    {
+      "sequence": 3,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.001949767,
+      "account_held_usd": 0.479232,
+      "credit_verified": true
+    },
+    {
+      "sequence": 4,
+      "current_reservation_verified": true,
+      "account_spent_usd": 0.00212433,
+      "account_held_usd": 0.479232,
+      "credit_verified": true
+    }
+  ],
+  "usage": [
+    {
+      "prompt_tokens": 811,
+      "completion_tokens": 48,
+      "cost_usd": 0.0001337,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.0001337
+    },
+    {
+      "prompt_tokens": 924,
+      "completion_tokens": 743,
+      "cost_usd": 0.000337126,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.0003371256
+    },
+    {
+      "prompt_tokens": 1528,
+      "completion_tokens": 196,
+      "cost_usd": 0.000174563,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.0001745632
+    },
+    {
+      "prompt_tokens": 1677,
+      "completion_tokens": 180,
+      "cost_usd": 0.000119174,
+      "cost_source": "provider",
+      "reported_cost_usd": 0.0001191736
+    }
+  ],
+  "held_requests": [],
+  "event_chain_ok": true
+}

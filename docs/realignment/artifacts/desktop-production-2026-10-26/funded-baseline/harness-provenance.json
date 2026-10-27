@@ -1,0 +1,7 @@
+{
+  "original_sha256": "4034bb823d93087411d9e73292e38cdba2cf0a0754ff5a519ccb47e4ef498dd9",
+  "snapshot_sha256": "2520eccb330c2169bdd868f99e509c5e61edf64b54f2133f7f5405c7f82665a3",
+  "only_substitution": "Private profile path replaced with HUTCH_EVALUATION_STATE environment variable.",
+  "scope": "Audit snapshot of the task-owned harness; not a general-purpose product command. Snapshot was not rerun against another account.",
+  "synthetic_fixture_sha256": "c5489144bdfb9bd3180ed54793a899cfaa5c97990bcc095aff973c5690c26d54"
+}
