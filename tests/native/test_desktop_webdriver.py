@@ -49,7 +49,9 @@ def test_installed_desktop_owns_a_private_working_webview(tmp_path):
     session = None
     with log.open('wb') as stream, httpx.Client(base_url=f'http://127.0.0.1:{port}',
                                                timeout=45, trust_env=False) as client:
-        process = subprocess.Popen([driver, '--host', '127.0.0.1', '--port', str(port),
+        # tauri-driver 2.1.0 binds its intermediary to loopback itself; its
+        # --native-host option configures only the underlying WebKit driver.
+        process = subprocess.Popen([driver, '--port', str(port),
             '--native-host', '127.0.0.1', '--native-port', str(native_port)], env=env,
             stdin=subprocess.DEVNULL, stdout=stream, stderr=stream, start_new_session=True)
         owner = procguard.identity(process.pid)
