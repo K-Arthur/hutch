@@ -12,6 +12,8 @@ Session type: Phase 1 audit (read-only recon). Produce RECON.md + FINDINGS.md. N
 Write scope: /home/kevina/CodingProjects/hutch/.pipeline/marketing/2026-10/** only.
 Out of scope: any file under website/, src/, docs/, app/, README.md; other agents' uncommitted work in src/hutch/server/**, app/**, package.json, pyproject.toml, AGENTS.md, CONTRIBUTING.md, .gitignore.
 
+Known context (do not re-ask): the site has NO live domain yet (confirmed by owner 2026-10-28). Every finding and slice must stay domain-independent; live-URL work (sitemap, canonical, GSC, IndexNow, AI-answer baseline) is out of scope until a domain + host exist. GitHub (https://github.com/K-Arthur/hutch) is the only public entity surface today.
+
 What to do:
 - Resolve adapter UNKNOWNs that are resolvable from the repo: SERVE_CMD, E2E/VISUAL/A11Y commands, analytics presence (grep website/site.js + index.html), sitemap absence, docs deploy, design-system entry. Keep A-01..A-06 in DECISION.md updated (resolved or still open).
 - Measure a baseline of the marketing surface: built HTML head inventory (title/description/canonical/OG/robots meta), JSON-LD blocks and whether each field matches visible content, internal links + anchors, asset sizes/weights, robots.txt + sitemap state, llms.txt accuracy vs README/site (confirm blocker B-02 with file:line), GitHub entity links (repo is https://github.com/K-Arthur/hutch — confirm it appears and matches downloads.json).

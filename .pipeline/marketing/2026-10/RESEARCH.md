@@ -236,7 +236,7 @@ Full log: `evidence/research/sources.md`. Decision-critical primary sources (all
 - Lighthouse agentic browsing + Ahrefs llms.txt log study — via SEJ/webfx/SearchScore (2026) — medium `[secondary]`.
 
 ## 10. Open questions / blockers
-1. **Public domain + deploy target** for website/ — unknown; blocks all technical SEO (D-08). Ask human.
+1. **Public domain + deploy target** for website/ — ANSWERED (human, 2026-10-28): no live domain yet; site is pre-launch. D-08 stands: all live-URL technical SEO (sitemap, canonical, GSC, IndexNow) and the AI-answer baseline wait for a domain decision; repo-based consistency/entity work proceeds now. GitHub (github.com/K-Arthur/hutch) is currently the only public entity surface.
 2. AI-answer baseline blocked (no engine access; likely no live site). Prompt set ready (§5).
 3. Training-crawler policy (GPTBot/ClaudeBot/Google-Extended) — human values decision (D-04).
 4. Is the GitHub repo publicly linked from the site? (site says "public MIT-licensed source"; no visible link in the fetched head/nav — Phase 1 check.)

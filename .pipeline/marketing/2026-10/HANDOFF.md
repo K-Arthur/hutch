@@ -32,7 +32,7 @@
 ## Open risks / blockers
 | ID | Risk/blocker | Impact | Owner | Next action | Trigger |
 |---|---|---|---|---|---|
-| B-01 | No public domain / deploy target for website/ | All technical SEO + baseline blocked | human | Answer in Phase 1 kickoff | before Phase 3 slices |
+| B-01 | RESOLVED (human, 2026-10-28): site has NO live domain yet — pre-launch | All live-URL work (sitemap, canonical, GSC, IndexNow, AI-answer baseline) gated until a domain + deploy target exist; repo-based work unaffected | human | Choose domain + host before any technical-SEO slice; keep slices domain-independent until then | Phase 3 slice selection |
 | B-02 | llms.txt contradicts README ("source not public") | AI answers will misstate stage/availability | campaign | Phase 1 finding → first slice | Phase 1 confirms |
 | B-03 | No analytics/Search Console/Bing access known | Measurement week-0 impossible | human | Confirm access or create properties | Phase 1 |
 | B-04 | Training-crawler policy undecided (GPTBot/ClaudeBot/Google-Extended) | Robots.txt slice cannot finalize | human | Decide allow/block preference | Phase 2 sign-off |
@@ -50,7 +50,7 @@
 - Build: npm run build:css:site (only if website CSS sources change); site HTML is hand-written
 - Serve: python -m http.server -d website (verify in Phase 1)
 - Tests: npm run check:agent (repo gate); website has no dedicated tests known
-- Deploy/analytics/consoles: UNKNOWN (B-01, B-03)
+- Deploy/analytics/consoles: no live domain (owner-confirmed 2026-10-28); analytics/console access unknown (B-03)
 - Concurrency: another agent holds uncommitted work in src/hutch/server/**, app/**, package.json, pyproject.toml, AGENTS.md, CONTRIBUTING.md, .gitignore — never touch/stage
 - AI targets: Google AIO/AI Mode, ChatGPT Search, Perplexity, Copilot, Gemini, Claude
 
