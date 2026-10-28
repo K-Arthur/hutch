@@ -1,5 +1,20 @@
 # CHANGES — Hutch — 2026-10-28
 
+## Slice S-b — on-page metadata trim + above-fold trust row (Phase 5 implementation) — 2026-10-28 (session 5)
+Files: website/index.html (3 regions: :7 description, :37 dateModified, :281 trust line) + .pipeline/marketing/2026-10/{00-BRIEF,EVIDENCE,CHANGES,DECISION,CLAIM-REGISTER,HANDOFF,NEXT-PROMPT}.md + evidence/audit/{s_b_focus_capture.py,s-b-audit-stdout.txt,s-b-audit-stderr.txt,shots/*}
+Commits: `seo(slice-s-b): trim meta description + add above-fold trust row` (this commit; website/index.html + .pipeline/marketing/ only)
+What changed (user-visible): (1) meta description 198→157 ch, sentence-complete, "Development preview." kept — SERP/share snippets no longer risk a mid-sentence cut (F-08). (2) New muted line "MIT-licensed · open source · Linux" above the hero CTAs on desktop AND mobile — dev-tool evaluators now see the licence/OSS/platform trust words on the first screen instead of one scroll down (F-12; P2-01 Option A as human-approved Route A). H1 unchanged.
+Claims affected: C-01/C-02/C-03/C-05/C-06 wording re-verified in the new description; C-24 dateModified refreshed 2026-10-26→2026-10-28 (registered trigger fired by visible-copy change); C-02/C-03 gain a hero placement (review-log note). No new claims introduced — trust-row wording is P2-01's approved string verbatim.
+Docs updated: n/a for product docs (no behavior/limit/pricing/licence change; the row restates C-02/C-03 already documented in README:5,20 + LICENSE).
+Gates run (command → result):
+- python length/JSON checks → desc 157 ch, ends "Development preview.", JSON-LD description byte-unchanged, 2 blocks parse ✓
+- `uv run --frozen --no-sync python .pipeline/marketing/2026-10/evidence/audit/audit_site.py` → exit 0; head.description_len=157; ua_parity 6/6 identical (97686 B); FAQ parity 20/20; anchors 10/10; only known domain-gated 404s — EVIDENCE.md AC table
+- `capture_site.py` + new `s_b_focus_capture.py` → shots regenerated at 4 viewports + 2× clips + keyboard focus-ring capture on the hero CTA (P1-06 closed); ALL images read and observations recorded in EVIDENCE.md
+- `npm run check:agent` → FAIL, PRE-EXISTING B-07 (same single violation: tests/test_commit_attribution.py 419 lines from bee491d5, not in this diff; chain stops at context-hygiene). Not campaign-caused; not fixed here.
+Evidence paths: .pipeline/marketing/2026-10/EVIDENCE.md (AC1-9 → evidence + image observations); evidence/audit/s-b-audit-stdout.txt (crawl report; phase-1 baseline crawl-report.json preserved)
+Residual risk: at 320×568 the second stacked CTA sits ~19 px lower (pre-existing small-viewport stacking, styles.css:260-261) — noted, not fixed (out of slice). og:description (:11, 168 ch) left as-is by scope discipline (S-b-04). Repo gate B-07 belongs to another workstream.
+Next slice: S-c social cards — domain-independent part first: og:image asset rendered from existing brand tokens + og:site_name/twitter:* tags minus og:url (needs domain, B-01). Opens with the Phase 3 gate (new static asset, not a layout change — still gated per DECISION.md front-end note).
+
 ## Slice S-a — llms.txt entity-surface repair (Phase 5 implementation) — 2026-10-28 (session 4)
 Files: website/llms.txt (3+/3-) + .pipeline/marketing/2026-10/{00-BRIEF,EVIDENCE,CHANGES,DECISION,CLAIM-REGISTER,HANDOFF,NEXT-PROMPT}.md + evidence/audit/s-a-crawl-{stdout,stderr}.txt
 Commits: `seo(slice-s-a): repair llms.txt availability facts + add GitHub link` (this commit; website/llms.txt + .pipeline/marketing/ only)

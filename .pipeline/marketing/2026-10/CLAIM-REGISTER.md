@@ -54,7 +54,7 @@ Verifier default: campaign (Claude research lead) 2026-10-28, via RECON.md (sess
 | Fact | Source of truth | Render path | Refresh trigger | Current value |
 |---|---|---|---|---|
 | Version | pyproject.toml:3 (HEAD) | index.html:26 + :955 (hand-typed, 2 places — known duplication risk) | any release | 0.1.0 (no release tag; README:16-18) |
-| dateModified | last site content change | index.html:37 (hand-typed) | any visible-copy change | 2026-10-26 |
+| dateModified | last site content change | index.html:37 (hand-typed) | any visible-copy change | 2026-10-28 (refreshed by slice S-b, 2026-10-28) |
 | Platform availability | product reality | index.html:793-812 table (hand-maintained) | executor/platform change | Linux only |
 | Model-route list | runtime config reality | index.html:32, llms.txt:5, README:10-13 (3 hand-typed places) | route add/remove | 8 routes |
 | Image-input limits | product config | index.html:798, 863-864; llms.txt:15 (3 places) | limit change | 4 images / 1.5 MB |
@@ -76,3 +76,4 @@ Verifier default: campaign (Claude research lead) 2026-10-28, via RECON.md (sess
 | 2026-10-28 | Register drafted (C-01..C-26, prohibitions, volatile index, F-01 wording) | campaign | Covers RECON §6 inventory + JSON-LD fields per session-3 brief |
 | 2026-10-28 | Human sign-off on register + F-01 wording | human owner (question tool) | APPROVED; D-01=Option A, D-04=allow-all, B-06=desktop pipeline owns manifest (DECISION.md P2-01..P2-05). S-a unblocked. |
 | 2026-10-28 | Slice S-a applied the approved F-01 wording verbatim; C-15/C-16/C-17 flipped to resolved | campaign (no wording changed vs approved draft) | Evidence: EVIDENCE.md AC table; audit crawl s-a-crawl-stdout.txt; commit `seo(slice-s-a): …`. Scope note: this status flip extends the session's minimum write list — it is the rows' own registered refresh trigger (DECISION.md S-a-01). |
+| 2026-10-28 | Slice S-b: C-24 refresh trigger fired (head description :7 + new hero trust line :281 are visible copy) — dateModified 2026-10-26→2026-10-28; C-02/C-03 gain a hero placement (index.html:281, P2-01 approved wording verbatim); description facts re-verified against C-01/C-02/C-03/C-05/C-06 | campaign (human approved Route A via question tool same day) | Evidence: EVIDENCE.md AC1-7; crawl s-b-audit-stdout.txt (description_len=157, FAQ 20/20); commit `seo(slice-s-b): …`. No new claim rows needed — the trust string is the register's own approved wording. |

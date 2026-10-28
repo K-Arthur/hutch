@@ -1,18 +1,22 @@
-# 00 — CAMPAIGN BRIEF (session 4: slice S-a, Phase 5 implementation)
+# 00 — CAMPAIGN BRIEF (session 5: slice S-b, Phase 5 implementation + Phase 3 gate)
 
 - Product / one-liner: Hutch — local-first, MIT-licensed multi-bot AI assistant platform ("Your bots. Your machine. Your rules."), development preview, Linux-first. GitHub https://github.com/K-Arthur/hutch is the only public entity surface (no live domain, B-01).
-- Repo / branch / commit: /home/kevina/CodingProjects/hutch · main · `02c51ebe` (phase-2 artifacts landed; other agent still dirty in src/hutch/server/**, app/**, package.json, pyproject.toml, AGENTS.md, CONTRIBUTING.md, .gitignore — never staged; .pipeline + website confirmed clean in my scope).
+- Repo / branch /commit: /home/kevina/CodingProjects/hutch · main · `4a307b88` (slice S-a landed; other agent still dirty in src/hutch/server/**, app/**, tests/**, package.json, pyproject.toml, AGENTS.md, CONTRIBUTING.md, .gitignore + untracked .ai/ etc. — never staged; website/ + .pipeline/ confirmed clean in my scope via `git status --porcelain`).
 - Artifact dir: .pipeline/marketing/2026-10/
-- Session type: slice S-a — IMPLEMENTATION (Phase 5) — mandate from NEXT-PROMPT.md (session 3). First slice touching a product file: repair llms.txt availability facts per the human-approved F-01 wording.
+- Session type: slice S-b — IMPLEMENTATION (Phase 5) — mandate from NEXT-PROMPT.md (session 4). MUST OPEN the rendered half with the Phase 3 front-end gate + standing design-workflow research.
 - Today / owner: 2026-10-28 / human owner (Claude research lead).
-- Write scope: website/llms.txt ONLY + .pipeline/marketing/2026-10/{00-BRIEF,CHANGES,EVIDENCE,HANDOFF,NEXT-PROMPT,DECISION,CLAIM-REGISTER}.md (register status flip for C-15..C-17 is the register's own registered refresh trigger; recorded in DECISION.md S-a-01).
-- Explicit non-goals: NO start of S-b (metadata/hero needs Phase 3 front-end gate first); NO paraphrase of approved wording; NO edits to downloads.json (P2-04), robots.txt (D-04), README, index.html, src/**, app/**; NO push/deploy/merge.
+- Write scope: `website/index.html` + `.pipeline/marketing/2026-10/**` ONLY.
+- Explicit non-goals: NO start of S-c (social cards); NO H1 flip (P2-01 Option A keeps "A little help with what's next."); NO edits to llms.txt (approved state), downloads.json (P2-04), robots.txt (D-04), README.md, src/**, app/**, tests/**; NO claims beyond CLAIM-REGISTER; NO push/deploy/merge.
 - Authority: commit locally only; never push/deploy/merge without explicit human instruction (standing, confirmed 2026-10-28).
-- Budget: ~8 files read; short session; diff limited to 1 product file (llms.txt, <10 lines) + pipeline docs.
-- Success criteria (from CONTENT-MAP §2 S-a AC + NEXT-PROMPT acceptance):
-  1. `grep -in "private preview" website/llms.txt` → 0 hits; llms.txt states source public + MIT + GitHub URL (approved wording verbatim).
-  2. Fact parity with README:5,16-22 and index.html:780,793 (C-05, C-11, C-12 spot-check).
-  3. `uv run --frozen --no-sync python .pipeline/marketing/2026-10/evidence/audit/audit_site.py` exit 0 with crawl-report.json `llms_txt.mentions_github=true`.
-  4. Commit touches website/llms.txt + .pipeline/marketing/2026-10/** only; `npm run check:agent` green.
-  5. EVIDENCE.md maps each AC to its evidence; HANDOFF.md points at next slice S-b (opens with Phase 3 front-end gate).
-- Previous handoff: .pipeline/marketing/2026-10/HANDOFF.md (session 3, Phase 2 strategy — complete, committed `02c51ebe`; sign-offs D-01/D-04/P2-04/P2-05 recorded).
+- Budget: ~10 files read; one product file changed (index.html, ~3 small regions); pipeline docs updated; wall time moderate (research step included for Step 2).
+- Two-step slice (per NEXT-PROMPT):
+  1. Step 1 (copy-only): meta description index.html:7 198→≤160 ch, "Development preview." intact, no mid-sentence cut; JSON-LD description (:23) untouched; JSON-LD dateModified (:37) 2026-10-26→2026-10-28 per C-24 trigger.
+  2. Step 2 (rendered): "MIT-licensed · open source · Linux" trust row above the fold (F-12, P2-01 Option A). Gate: five Phase 3 questions answered in DECISION.md; online UI/UX research (>=3 inspected examples, >=2 sources; Figma Community via web since Figma MCP 403); 3-4 route options + recommendation; HUMAN route approval via question tool BEFORE any HTML edit. No approval => ship Step 1 only.
+- Success criteria (from CONTENT-MAP S-b AC + NEXT-PROMPT acceptance):
+  1. Description <=160 ch, "Development preview." intact, no mid-sentence cut; JSON-LD description byte-unchanged.
+  2. dateModified = 2026-10-28 (C-24 refresh executed).
+  3. If Step 2 approved: trust row visible above fold on desktop AND mobile captures; screenshots captured AND inspected (observations recorded in EVIDENCE.md incl. real focus-state capture per P1-06); audit_site.py exit 0 (FAQ parity 20/20, UA parity 6/6).
+  4. `npm run check:agent` run + reported honestly (expected RED for B-07, pre-existing, other workstream — do not fix).
+  5. Commit `seo(slice-s-b): …` locally, containing website/index.html + .pipeline/marketing/2026-10/** only; NOT pushed.
+  6. EVIDENCE.md maps each AC to evidence; CLAIM-REGISTER C-24 row refreshed; HANDOFF.md + NEXT-PROMPT.md point at S-c (domain-independent part: og:image asset).
+- Previous handoff: .pipeline/marketing/2026-10/HANDOFF.md (session 4, slice S-a — complete, commit `4a307b88`).
