@@ -1,12 +1,12 @@
 # Hutch
 
-> Hutch is a local-first, MIT-licensed platform for personal AI assistants that run on your own Linux computer. You choose the models and connected apps; assistants ask for your approval before important actions. It is a private preview: there is no public download yet.
+> Hutch is a local-first, MIT-licensed platform for personal AI assistants that run on your own Linux computer. You choose the models and connected apps; assistants ask for your approval before important actions. The source is public and MIT-licensed on GitHub; there are no packaged desktop installers.
 
 Hutch keeps its control state — conversations, memory, logs, schedules and files — in one local state directory on the machine you control. Model calls go to whichever route you configured: a local runtime (Ollama, llama.cpp, LM Studio) or a hosted provider (OpenAI, Anthropic, OpenRouter, OpenAI-compatible endpoints, or OpenCode). Hosted providers receive the prompts and context Hutch sends them; network tools contact their own destinations.
 
 ## Key facts
 
-- Status: private preview. Source and downloads are not public, and there is no hosted sign-up.
+- Status: development preview. The MIT-licensed source is public on GitHub; there are no packaged desktop installers and no hosted sign-up.
 - Platform: Linux (Python 3.11+). macOS and Windows executors are not implemented.
 - License: MIT. The software is free; hosted model usage is billed by your own provider account.
 - Assistants (called bots in the CLI): each has its own model, tools, schedule, memory and workspace.
@@ -22,4 +22,4 @@ Hutch keeps its control state — conversations, memory, logs, schedules and fil
 - Hutch does not operate models itself; it connects to model routes you configure.
 - Usage estimates are not provider-enforced spending limits.
 
-The product site is a single page; its full support table and FAQ are the canonical public summary of current capabilities.
+- Repository: https://github.com/K-Arthur/hutch — the README and the repository's evidence ledger are the canonical summary of current capabilities.

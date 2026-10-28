@@ -1,58 +1,56 @@
-# HANDOFF — Hutch — 2026-10-28 — session 3 (Phase 2 strategy)
+# HANDOFF — Hutch — 2026-10-28 — session 4 (slice S-a implementation)
 
 ## State
-- Repo/branch/commit: /home/kevina/CodingProjects/hutch · main · `44d66918` at session start (site untouched; this campaign has only .pipeline commits; another commit `bee491d5` predates)
-- Worktree: none (main; strategy-only)
+- Repo/branch/commit: /home/kevina/CodingProjects/hutch · main · `02c51ebe` at session start (this session commits `seo(slice-s-a): …`; the other agent's 78 dirty product files remain untouched/un-staged)
+- Worktree: none (main)
 - Artifact dir: .pipeline/marketing/2026-10/
-- Deployed? live commit: N/A — no public domain (owner-confirmed 2026-10-28, B-01)
+- Deployed? live commit: N/A — no public domain (owner-confirmed 2026-10-28, B-01). The only live public surface is the GitHub repo (README).
+- Campaign phase machine: Phases 0-2 committed; Phase 5 first slice (S-a) DONE this session; Phase 6 evidence in EVIDENCE.md; Phase 7/8 = this handoff.
 
 ## What changed this session
-- No product files edited (strategy phase rule; git status shows only .pipeline changes + the other agent's pre-existing dirty files, untouched).
-- Created: STRATEGY.md (positioning, message hierarchy, D-01 option table, audience/intent map, content plan), CLAIM-REGISTER.md (C-01..C-26 + prohibited claims + volatile-facts index + F-01 wording draft), CONTENT-MAP.md (6 surfaces, ranked slices S-a..S-d with AC/rollback). Updated: 00-BRIEF.md (session-3 scope), DECISION.md (P2-01..P2-06), CHANGES.md, this file, NEXT-PROMPT.md.
+- website/llms.txt: 3 line edits (approved F-01 wording verbatim): :3 availability clause, :9 status line, :25 tail → Repository line (GitHub URL + README/ledger canonical pointer). The S1 contradiction "source is private" is gone; agents reading llms.txt now get the same facts as README:5,16-22 and index.html:780,793.
+- .pipeline/marketing/2026-10/: new EVIDENCE.md (AC→evidence), s-a-crawl-{stdout,stderr}.txt (audit report; phase-1 crawl-report.json baseline preserved); updated 00-BRIEF, CHANGES, DECISION (S-a-01..03), CLAIM-REGISTER (C-15..C-17 resolved + review log), this file, NEXT-PROMPT.
 
 ## Decisions (do not reverse without new evidence)
 | ID | Decision | Reason | Date | Owner |
 |---|---|---|---|---|
-| D-01 | **APPROVED — Option A**: keep warm H1; lift "MIT-licensed · open source · Linux" trust row above fold (slice S-b) | Measured: category words already in title/eyebrow/hero-sub (RECON §9); trust words below fold (F-12) | 2026-10-28 | human ✓ |
-| D-02..D-03 | unchanged (llms.txt = agent affordance; FAQPage parity-clean, zero rich-result expectation) | Phase 0/1, re-affirmed by register | 2026-10-28 | campaign |
-| D-04 | **ANSWERED — allow all crawlers incl. training bots** (status quo); no robots.txt change needed at S-d for this reason | Human values call; revisitable | 2026-10-28 | human ✓ |
-| D-05..D-08 | unchanged (entity source order README→site FAQ→llms.txt; no mention-chasing; GSC+Bing+prompt-set measurement; B-01 domain blocker stands) | — | 2026-10-28 | campaign/human |
-| P2-05 | Claim register C-01..C-26 + prohibitions + F-01 wording APPROVED | Question tool sign-off | 2026-10-28 | human ✓ |
-| P2-04 | **B-06 ANSWERED — desktop release pipeline owns downloads.json**; campaign files requests, never edits | Human owner confirmation | 2026-10-28 | human ✓ |
+| S-a-01 | Repository line replaces the old site-canonical tail (avoids dual canonical-summary pointers); C-15..C-17 register statuses flipped (their own refresh trigger) | Both placements were pre-approved; keeping the old tail would recreate an F-01-style contradiction | 2026-10-28 | campaign |
+| S-a-02 | Repo-gate failures NOT fixed by this campaign (B-07) | Pre-existing, other workstream's files (bee491d5 test file; untracked .ai/ tooling) | 2026-10-28 | campaign |
+| S-a-03 | Visual gate N/A for llms.txt (plain-text machine file) | Pre-authorized in session-3 NEXT-PROMPT | 2026-10-28 | campaign |
+| D-01..D-08, P2-01..P2-06 | unchanged (Option A approved; allow-all crawlers; manifest owned by desktop pipeline; register approved) | see DECISION.md | 2026-10-28 | human/campaign |
 
 ## Evidence map
-- Phase 2 artifacts: STRATEGY.md, CLAIM-REGISTER.md, CONTENT-MAP.md (.pipeline/marketing/2026-10/)
-- Live re-verifications this session: `cat website/llms.txt` (F-01 stale text confirmed present, lines 3/9); `ls docs/marketing-site.md docs/realignment/baseline.md docs/realignment/ledger.md` (all exist — C-26); `git show HEAD:pyproject.toml | grep version` (0.1.0 — C-04); index.html head/hero/#get/FAQ/footer ranges read and cited
-- Phase 1 baseline (unchanged): RECON.md, FINDINGS.md, evidence/audit/{crawl-report.json,shots/}
-- Phase 0 research (unchanged): RESEARCH.md + evidence/research/sources.md
-- AI-answer baseline: still BLOCKED (no live domain). Prompt set v1 in RESEARCH §5 (16 prompts).
+- Slice proof: EVIDENCE.md (AC1-7 table); evidence/audit/s-a-crawl-stdout.txt (mentions_github true, ua_parity 6/6, anchors 10/10, FAQ parity 20/20, only known 404s)
+- Gates: audit_site.py exit 0 · grep "private preview" 0 hits · check:agent FAIL = pre-existing B-07 (tool-contracts PASS, constitution PASS, context-hygiene flags bee491d5 file, agent-map stale on untracked .ai/)
+- Phase 2 (unchanged): STRATEGY.md, CLAIM-REGISTER.md (C-15..C-17 now resolved), CONTENT-MAP.md
+- Phase 1 (unchanged baseline): RECON.md, FINDINGS.md (F-01/F-06 now fixed by S-a; F-02/F-03/F-09/F-11 remain domain-gated), evidence/audit/crawl-report.json
+- Phase 0 (unchanged): RESEARCH.md + evidence/research/sources.md; AI-answer baseline still BLOCKED (B-01), prompt set v1 in RESEARCH §5
 
 ## Open risks / blockers
 | ID | Risk/blocker | Impact | Owner | Next action | Trigger |
 |---|---|---|---|---|---|
-| B-01 | Site has NO live domain — pre-launch (human-confirmed) | All live-URL work gated (sitemap, canonical, GSC, IndexNow, AI-answer baseline, CWV field) | human | Choose domain + host; then slice S-d | whenever ready |
-| B-02 | llms.txt contradiction (F-01) — NOW WITH APPROVED WORDING | AI answers still misstate availability until S-a runs | campaign | Execute slice S-a (next session) | sign-off ✓ done |
-| B-03 | No analytics/GSC/Bing properties | Measurement week-0 impossible | human | Create at domain time | domain chosen |
-| B-06 | RESOLVED: desktop pipeline owns downloads.json | F-07 status-field gap remains but is their call | human/desktop pipeline | File a request when the pipeline's next touch is known | optional |
+| B-01 | No live domain (pre-launch) | sitemap/canonical/GSC/IndexNow/AI baseline/CWV field all parked | human | choose domain + host → slice S-d | whenever ready |
+| B-02 | RESOLVED this session (F-01 llms.txt contradiction fixed, verified) | — | — | — | — |
+| B-03 | No analytics/GSC/Bing properties | week-0 measurement impossible | human | create at domain time | domain chosen |
+| B-07 | Repo gate `npm run check:agent` red on main: tests/test_commit_attribution.py 419 lines (bee491d5) + stale untracked .ai/repo-map.generated.md | every future session's repo gate stays red until fixed; NOT campaign-caused | git-attribution/agent-map workstream | split the test file; regenerate the map (`python scripts/generate_agent_map.py --write`) | their next session |
 
 ## Next slice (one only)
-- **S-a: llms.txt entity-surface repair** — the first IMPLEMENTATION slice (Phase 5 machine). Apply approved wording from CLAIM-REGISTER ("F-01 draft replacement wording"): llms.txt:3, llms.txt:9, add GitHub repository line (F-06). Files touched: `website/llms.txt` ONLY.
-- Write scope: `website/llms.txt` + `.pipeline/marketing/2026-10/**` (CHANGES/EVIDENCE updates). Nothing else. The other agent's dirty files (src/hutch/server/**, app/**, package.json, pyproject.toml, AGENTS.md, CONTRIBUTING.md, .gitignore) remain untouched/un-staged.
-- Acceptance (from CONTENT-MAP §2 S-a): (1) `grep -in "private preview" website/llms.txt` → 0 hits; (2) public + MIT + GitHub URL stated; (3) fact-parity with README:5,16-22 and index.html:780,793 (C-05/C-11/C-12); (4) `uv run --frozen --no-sync python .pipeline/marketing/2026-10/evidence/audit/audit_site.py` exit 0 with llms_txt.mentions_github=true; (5) commit touches website/llms.txt only.
-- Visual gate: NONE needed (plain-text machine file, not rendered). Crawler checks = audit_site.py re-run (multi-UA).
-- Commit: `seo(slice-s-a): repair llms.txt availability facts + add GitHub link` (or `marketing(slice-s-a): ...`) — stage website/llms.txt + .pipeline only. Do not push.
-- Estimated size: 1 short session. After S-a: S-b (metadata trim + trust row per D-01 Option A) — needs Phase 3 front-end gate first.
+- **S-b: on-page metadata trim** (CONTENT-MAP §2, P1) — meta description 198→≤160 ch keeping "Development preview." intact (F-08) AND D-01 Option A trust row ("MIT-licensed · open source · Linux") above the fold (F-12). File: `website/index.html` head + hero block ONLY.
+- **MUST open with the Phase 3 front-end gate** (DECISION.md front-end-necessity section): index.html is a rendered surface, and the user's standing design workflow additionally requires online UI/UX research (≥3 concrete examples from ≥2 sources, Figma Community scouting via web research since the Figma MCP is 403) + 3-4 route options + HUMAN route approval BEFORE implementation. The description-only half is copy work inside existing tokens (no route research needed); the trust-row half is a rendered change (full visual gate + C-24 dateModified trigger + FAQ/schema parity re-check via audit_site.py).
+- Write scope: `website/index.html` + .pipeline/marketing/2026-10/** only. Never stage the other agent's dirty files.
+- Acceptance (from CONTENT-MAP §2 S-b): description ≤160 ch, no mid-sentence cut, "Development preview." intact, JSON-LD description untouched (separate text, index.html:23); if hero changed: visual gate (desktop+mobile+narrow, dark (site is dark-only BY DESIGN, DECISION P1-03), focus states per P1-06), audit_site.py green incl. FAQ parity 20/20, dateModified updated (C-24), screenshots captured and LOOKED AT in evidence/.
+- Commit: `seo(slice-s-b): …` locally; do not push.
 
 ## Environment facts
-- Build: `npm run build:css:site` (NOT needed for S-a — no CSS/HTML change)
-- Serve/crawl: `uv run --frozen --no-sync python .pipeline/marketing/2026-10/evidence/audit/audit_site.py` (self-serves website/ on :8899)
-- Tests: `npm run check:agent` (repo gate; run before reporting complete)
-- Deploy/analytics/consoles: none (B-01, B-03)
-- Concurrency: other agent holds uncommitted work in src/hutch/server/**, app/**, package.json, pyproject.toml, AGENTS.md, CONTRIBUTING.md, .gitignore — never touch/stage; use `git show HEAD:<file>` for committed-state reads
+- Build: `npm run build:css:site` only if site CSS touched (S-b description/trust-row likely needs NO CSS change; if tokens suffice)
+- Serve/crawl: `uv run --frozen --no-sync python .pipeline/marketing/2026-10/evidence/audit/audit_site.py` (self-serves website/ on :8899); screenshots via evidence/audit/capture_site.py
+- Tests: `npm run check:agent` — currently RED for B-07 (pre-existing); report it as such, do not "fix" it in a marketing session
+- Pre-commit hook `.githooks/pre-commit` exists but is NOT active (core.hooksPath unset) — other workstream's; do not enable
+- Concurrency: other agent holds uncommitted work in src/hutch/server/**, app/**, tests/test_workflow_usage_budget.py, package.json, pyproject.toml, AGENTS.md, CONTRIBUTING.md, .gitignore + untracked .ai/, .codex/, .opencode/, .githooks/, docs/agent-workflow.md etc. — never touch/stage; use `git show HEAD:<file>` for committed-state reads
 - AI targets: Google AIO/AI Mode, ChatGPT Search, Perplexity, Copilot, Gemini, Claude
 
 ## Do not do
-- Do not paraphrase the approved F-01 wording — apply it as drafted (minor grammar glue only; any semantic change returns to the register).
-- Do not edit downloads.json (P2-04), robots.txt (D-04 resolved allow-all), README, index.html, or any src/ file in the S-a session.
-- Do not add llms.txt "SEO" language — the file is an agent-navigation affordance only (D-02).
+- Do not edit downloads.json (P2-04), robots.txt (D-04 allow-all resolved), README.md, llms.txt (now approved-state), or any src/ file in the S-b session.
+- Do not flip the H1 (D-01 Option A keeps "A little help with what's next."; only ADD the trust row).
+- Do not add claims beyond the register; prohibited-claims table in CLAIM-REGISTER.md is campaign-wide and has no expiry.
 - Do not push/deploy/merge. Do not claim a gate passed without naming its evidence path.

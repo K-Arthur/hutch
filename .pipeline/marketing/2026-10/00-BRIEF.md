@@ -1,19 +1,18 @@
-# 00 — CAMPAIGN BRIEF (session 3: Phase 2 strategy)
+# 00 — CAMPAIGN BRIEF (session 4: slice S-a, Phase 5 implementation)
 
 - Product / one-liner: Hutch — local-first, MIT-licensed multi-bot AI assistant platform ("Your bots. Your machine. Your rules."), development preview, Linux-first. GitHub https://github.com/K-Arthur/hutch is the only public entity surface (no live domain, B-01).
-- Repo / branch / commit: /home/kevina/CodingProjects/hutch · main · `44d66918` (phase-1 artifacts landed; other agent still dirty in src/hutch/server/**, app/**, package.json, pyproject.toml, AGENTS.md, CONTRIBUTING.md, .gitignore — never staged).
+- Repo / branch / commit: /home/kevina/CodingProjects/hutch · main · `02c51ebe` (phase-2 artifacts landed; other agent still dirty in src/hutch/server/**, app/**, package.json, pyproject.toml, AGENTS.md, CONTRIBUTING.md, .gitignore — never staged; .pipeline + website confirmed clean in my scope).
 - Artifact dir: .pipeline/marketing/2026-10/
-- Session type: strategy (Phase 2) — mandate from NEXT-PROMPT.md (session 2). Output: STRATEGY.md + CLAIM-REGISTER.md + CONTENT-MAP.md, ending in HUMAN sign-off.
+- Session type: slice S-a — IMPLEMENTATION (Phase 5) — mandate from NEXT-PROMPT.md (session 3). First slice touching a product file: repair llms.txt availability facts per the human-approved F-01 wording.
 - Today / owner: 2026-10-28 / human owner (Claude research lead).
-- Audience(s) in scope: developers/technical builders evaluating a self-hosted multi-agent tool; privacy/local-first advocates; operators wanting repeatable scheduled work on their own machine.
-- Surfaces in scope: website/ (read-only this session), README as entity surface, machine files (robots.txt, llms.txt, downloads.json). NO product edits, NO copy shipped to website/ this session.
-- Explicit non-goals: NO implementation (S-a..S-d land after sign-off); NO new pages without unique-value justification; NO sitemap/canonical/domain work (B-01); NO training-crawler robots change without human decision (D-04); NO downloads.json edit (B-06).
-- Authority: commit locally only (.pipeline/marketing/ staging); never push/deploy/merge.
-- Budget: ~15 files read; 1 session wall time; zero product diff.
-- Success criteria (from NEXT-PROMPT acceptance):
-  1. STRATEGY.md follows templates/STRATEGY.md structure; positioning options each reference RECON measurements; human offered 2-3 alternatives with tradeoffs (D-01), not silently picked.
-  2. CLAIM-REGISTER.md covers every public factual claim from RECON §6 + JSON-LD fields (softwareVersion, dateModified, featureList x6, FAQ answers) with evidence pointers that exist; enforces RESEARCH §8 forbidden claims; drafts F-01 llms.txt replacement wording (fix lands in S-a after approval).
-  3. CONTENT-MAP.md lists all 6 current surfaces (/ , robots.txt, llms.txt, downloads.json, THIRD_PARTY_NOTICES.txt, README-as-entity) with intents + gaps + ranked slices S-a..S-d, each with AC + rollback.
-  4. Human decisions surfaced via question tool: D-01 sign-off, D-04 training-crawler policy, B-06 downloads.json owner; recorded in DECISION.md (BLOCKER is a valid outcome).
-  5. Commit `marketing(phase-2): strategy, claim register, content map` staged to .pipeline/marketing/ only, not pushed.
-- Previous handoff: .pipeline/marketing/2026-10/HANDOFF.md (session 2, Phase 1 audit — complete, committed `44d66918`).
+- Write scope: website/llms.txt ONLY + .pipeline/marketing/2026-10/{00-BRIEF,CHANGES,EVIDENCE,HANDOFF,NEXT-PROMPT,DECISION,CLAIM-REGISTER}.md (register status flip for C-15..C-17 is the register's own registered refresh trigger; recorded in DECISION.md S-a-01).
+- Explicit non-goals: NO start of S-b (metadata/hero needs Phase 3 front-end gate first); NO paraphrase of approved wording; NO edits to downloads.json (P2-04), robots.txt (D-04), README, index.html, src/**, app/**; NO push/deploy/merge.
+- Authority: commit locally only; never push/deploy/merge without explicit human instruction (standing, confirmed 2026-10-28).
+- Budget: ~8 files read; short session; diff limited to 1 product file (llms.txt, <10 lines) + pipeline docs.
+- Success criteria (from CONTENT-MAP §2 S-a AC + NEXT-PROMPT acceptance):
+  1. `grep -in "private preview" website/llms.txt` → 0 hits; llms.txt states source public + MIT + GitHub URL (approved wording verbatim).
+  2. Fact parity with README:5,16-22 and index.html:780,793 (C-05, C-11, C-12 spot-check).
+  3. `uv run --frozen --no-sync python .pipeline/marketing/2026-10/evidence/audit/audit_site.py` exit 0 with crawl-report.json `llms_txt.mentions_github=true`.
+  4. Commit touches website/llms.txt + .pipeline/marketing/2026-10/** only; `npm run check:agent` green.
+  5. EVIDENCE.md maps each AC to its evidence; HANDOFF.md points at next slice S-b (opens with Phase 3 front-end gate).
+- Previous handoff: .pipeline/marketing/2026-10/HANDOFF.md (session 3, Phase 2 strategy — complete, committed `02c51ebe`; sign-offs D-01/D-04/P2-04/P2-05 recorded).
