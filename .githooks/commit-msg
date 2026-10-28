@@ -1,0 +1,8 @@
+#!/bin/sh
+# Reject AI attribution trailers/signatures in the candidate commit message.
+# Enable locally with: git config --local core.hooksPath .githooks
+set -eu
+
+message_file=${1:?commit-msg hook requires the message file path}
+repo_root=$(git rev-parse --show-toplevel)
+exec python3 "$repo_root/scripts/check_commit_attribution.py" --message-file "$message_file"

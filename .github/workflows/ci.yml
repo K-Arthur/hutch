@@ -71,3 +71,63 @@ jobs:
       - name: Retain bounded benchmark evidence in logs
         if: always()
         run: python -c "from pathlib import Path; p=Path('benchmarks/results/latest.json'); print(p.read_text()[:100000] if p.is_file() else 'Benchmark did not produce a result; inspect the failed step.')"
+
+  commit-attribution:
+    name: commit attribution policy
+    timeout-minutes: 5
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check new commit messages for AI attribution
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          # The check must only cover commits added by this push or pull
+          # request. Historical commits are preserved as they are.
+          case "$EVENT_NAME" in
+            pull_request)
+              if [ -z "$BASE_REF" ]; then
+                echo "::error::pull_request event is missing github.base_ref."
+                exit 1
+              fi
+              case "$BASE_REF" in
+                *[!A-Za-z0-9._/-]*|-*)
+                  echo "::error::Unsupported base branch name: $BASE_REF"
+                  exit 1
+                  ;;
+              esac
+              git fetch --no-tags origin "refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
+              base_commit="$(git merge-base "origin/$BASE_REF" HEAD)"
+              range="$base_commit..HEAD"
+              ;;
+            push)
+              if [ -z "$BEFORE_SHA" ] || [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+                echo "::notice::Skipping commit attribution check: push has no previous commit to compare."
+                exit 0
+              fi
+              case "$BEFORE_SHA" in
+                *[!0-9a-f]*)
+                  echo "::error::github.event.before is not a commit SHA: $BEFORE_SHA"
+                  exit 1
+                  ;;
+              esac
+              range="$BEFORE_SHA..$HEAD_SHA"
+              ;;
+            *)
+              echo "::notice::Skipping commit attribution check for event: $EVENT_NAME"
+              exit 0
+              ;;
+          esac
+
+          echo "Checking commit messages in $range"
+          python3 scripts/check_commit_attribution.py --range "$range"
+

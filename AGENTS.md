@@ -29,6 +29,22 @@ To reclaim the space, run `python scripts/prune_validation_tmp.py` (dry run, rep
 
 Recent commits use concise imperative summaries (for example, “Add skills API…” or “Fix template identity…”); follow that style and keep each commit focused. PRs should explain the behavior change, link relevant issues or design/ADR documents, and report checks run. Include screenshots for visible UI changes and update user or architecture documentation when behavior or safety boundaries change.
 
+## Commit attribution
+
+Do not add AI tools, assistants, agents, bots or model identities as commit
+author, co-author, committer or generated-by attribution, and do not add
+`Co-authored-by:` trailers for Claude, Devin, Copilot, Codex, ChatGPT, Gemini,
+Cursor, Windsurf, OpenCode or other AI tools, unless the maintainer explicitly
+requests it for a specific commit. Commits keep the configured human Git
+identity. Tool and product references in documentation, code and commit-body
+prose are legitimate and are not attribution.
+
+The rule applies to new commits; preserved published history is not rewritten.
+The managed `commit-msg` hook (`.githooks/commit-msg`, enabled with
+`git config --local core.hooksPath .githooks`) and the CI commit-attribution
+job enforce it for new work; hooks can be bypassed, so CI is the backstop. See
+[docs/commit-attribution-policy.md](docs/commit-attribution-policy.md).
+
 ## Architecture and Safety
 
 Read the relevant documentation in `docs/` and existing ADRs before changing cross-cutting behavior. Preserve Hutch’s local-first, explicit-approval model: do not broaden tools, permissions, provider access, or data sharing as an incidental part of a feature. Update tests and evidence alongside changes to safety or execution boundaries.
