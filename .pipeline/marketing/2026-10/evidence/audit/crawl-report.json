@@ -1,0 +1,278 @@
+{
+  "ua_parity": {
+    "default": {
+      "status": 200,
+      "bytes": 97639,
+      "server": "SimpleHTTP/0.6 Python/3.13.15",
+      "content_type": ""
+    },
+    "Googlebot": {
+      "status": 200,
+      "bytes": 97639,
+      "server": "SimpleHTTP/0.6 Python/3.13.15",
+      "content_type": ""
+    },
+    "Bingbot": {
+      "status": 200,
+      "bytes": 97639,
+      "server": "SimpleHTTP/0.6 Python/3.13.15",
+      "content_type": ""
+    },
+    "OAI-SearchBot": {
+      "status": 200,
+      "bytes": 97639,
+      "server": "SimpleHTTP/0.6 Python/3.13.15",
+      "content_type": ""
+    },
+    "ClaudeBot": {
+      "status": 200,
+      "bytes": 97639,
+      "server": "SimpleHTTP/0.6 Python/3.13.15",
+      "content_type": ""
+    },
+    "PerplexityBot": {
+      "status": 200,
+      "bytes": 97639,
+      "server": "SimpleHTTP/0.6 Python/3.13.15",
+      "content_type": ""
+    }
+  },
+  "fetches": {
+    "THIRD_PARTY_NOTICES.txt": {
+      "status": 200,
+      "bytes": 5765
+    },
+    "assets/agent/f0-p0.webp": {
+      "status": 200,
+      "bytes": 43240
+    },
+    "assets/agent/f0-p1.webp": {
+      "status": 200,
+      "bytes": 42160
+    },
+    "assets/agent/f0-p2.webp": {
+      "status": 200,
+      "bytes": 42574
+    },
+    "assets/agent/f1-p0.webp": {
+      "status": 200,
+      "bytes": 41578
+    },
+    "assets/agent/f1-p1.webp": {
+      "status": 200,
+      "bytes": 43420
+    },
+    "assets/agent/f1-p2.webp": {
+      "status": 200,
+      "bytes": 44346
+    },
+    "assets/agent/f2-p0.webp": {
+      "status": 200,
+      "bytes": 41088
+    },
+    "assets/agent/f2-p1.webp": {
+      "status": 200,
+      "bytes": 41160
+    },
+    "assets/agent/f2-p2.webp": {
+      "status": 200,
+      "bytes": 42162
+    },
+    "assets/agent/f3-p0.webp": {
+      "status": 200,
+      "bytes": 40240
+    },
+    "assets/agent/f3-p1.webp": {
+      "status": 200,
+      "bytes": 40300
+    },
+    "assets/agent/f3-p2.webp": {
+      "status": 200,
+      "bytes": 40336
+    },
+    "assets/agent/f4-p0.webp": {
+      "status": 200,
+      "bytes": 40790
+    },
+    "assets/agent/f4-p1.webp": {
+      "status": 200,
+      "bytes": 41556
+    },
+    "assets/agent/f4-p2.webp": {
+      "status": 200,
+      "bytes": 42712
+    },
+    "assets/agent/f5-p0.webp": {
+      "status": 200,
+      "bytes": 41928
+    },
+    "assets/agent/f5-p1.webp": {
+      "status": 200,
+      "bytes": 42502
+    },
+    "assets/agent/f5-p2.webp": {
+      "status": 200,
+      "bytes": 43274
+    },
+    "assets/agent/f6-p0.webp": {
+      "status": 200,
+      "bytes": 42516
+    },
+    "assets/agent/f6-p1.webp": {
+      "status": 200,
+      "bytes": 42642
+    },
+    "assets/agent/f6-p2.webp": {
+      "status": 200,
+      "bytes": 43684
+    },
+    "assets/captures/response-style-desktop.webp": {
+      "status": 200,
+      "bytes": 11212
+    },
+    "assets/captures/response-style-phone.webp": {
+      "status": 200,
+      "bytes": 11596
+    },
+    "assets/captures/setup-desktop.webp": {
+      "status": 200,
+      "bytes": 39356
+    },
+    "assets/captures/setup-phone.webp": {
+      "status": 200,
+      "bytes": 32126
+    },
+    "assets/hutch-agent.webp": {
+      "status": 200,
+      "bytes": 40300
+    },
+    "llms.txt": {
+      "status": 200,
+      "bytes": 2245
+    },
+    "robots.txt": {
+      "status": 200,
+      "bytes": 181
+    },
+    "security.txt": {
+      "status": 404,
+      "bytes": 0
+    },
+    "site.js": {
+      "status": 200,
+      "bytes": 7287
+    },
+    "sitemap.xml": {
+      "status": 404,
+      "bytes": 0
+    }
+  },
+  "broken": {
+    "security.txt": {
+      "status": 404,
+      "bytes": 0
+    },
+    "sitemap.xml": {
+      "status": 404,
+      "bytes": 0
+    }
+  },
+  "anchors_missing": [],
+  "anchors_total": 10,
+  "head": {
+    "title": "Hutch — local-first AI assistants that run on your machineWhere each part of a hutch run executes",
+    "title_len": 97,
+    "description": "Hutch is a local-first, MIT-licensed platform for personal AI assistants that run on your own Linux computer. You choose the models, and assistants ask before important actions. Development preview.",
+    "description_len": 198,
+    "canonical": false,
+    "robots_meta": null,
+    "og": {
+      "og:title": "Hutch — local-first AI assistants that run on your machine",
+      "og:description": "Personal AI assistants that run on your own computer, with the models you choose and approvals before important actions. Local-first, MIT-licensed, development preview.",
+      "og:type": "website"
+    },
+    "twitter": {},
+    "h1_count": 1,
+    "lang": "en",
+    "stylesheet_links": [
+      "tokens.css?v=294f198a",
+      "app.css?v=77f792b2",
+      "styles.min.css?v=7d183136"
+    ]
+  },
+  "software_app": {
+    "name": "Hutch",
+    "operatingSystem": "Linux",
+    "softwareVersion": "0.1.0",
+    "license": "https://opensource.org/licenses/MIT",
+    "feature_count": 6,
+    "dateModified": "2026-10-26"
+  },
+  "jsonld": [
+    {
+      "ok": true,
+      "type": "SoftwareApplication",
+      "keys": [
+        "@context",
+        "@type",
+        "applicationCategory",
+        "dateModified",
+        "description",
+        "featureList",
+        "isAccessibleForFree",
+        "license",
+        "name",
+        "operatingSystem",
+        "softwareVersion"
+      ]
+    },
+    {
+      "ok": true,
+      "type": "FAQPage",
+      "keys": [
+        "@context",
+        "@type",
+        "mainEntity"
+      ]
+    }
+  ],
+  "faq_parity": {
+    "jsonld_count": 20,
+    "visible_count": 20,
+    "mismatches": []
+  },
+  "downloads_manifest": {
+    "status": 200,
+    "repository": "https://github.com/K-Arthur/hutch",
+    "setup": "https://github.com/K-Arthur/hutch#quickstart",
+    "channel": "preview",
+    "platforms": [
+      {
+        "id": "windows-x64",
+        "artifacts": 0
+      },
+      {
+        "id": "macos-arm64",
+        "artifacts": 0
+      },
+      {
+        "id": "macos-x64",
+        "artifacts": 0
+      },
+      {
+        "id": "ubuntu-x64",
+        "artifacts": 0
+      }
+    ],
+    "github_links_in_html": [
+      "https://github.com/K-Arthur/hutch",
+      "https://github.com/K-Arthur/hutch#quickstart"
+    ]
+  },
+  "llms_txt": {
+    "status": 200,
+    "mentions_github": false,
+    "lines": 26
+  },
+  "robots_txt": "# No Sitemap directive yet: it requires an absolute URL and this site has no\n# public domain chosen. Add \"Sitemap: https://<domain>/sitemap.xml\" when one is.\nUser-agent: *\nAllow: /\n"
+}
