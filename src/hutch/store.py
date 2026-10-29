@@ -6698,7 +6698,7 @@ class Store:
             replay = self._idempotency_replay(db, scope, idem_key, request_hash)
             if replay is not None:
                 row = db.execute("SELECT s.*, e.seq AS source_version FROM conversation_artifact_shares s "
-                                 "JOIN events e ON e.id = s.source_event_id "
+                                 "LEFT JOIN events e ON e.id = s.source_event_id "
                                  "WHERE s.id = ? AND s.target_conversation_id = ?",
                                  (replay["share_id"], target_conversation_id)).fetchone()
                 if row is None:
@@ -6708,8 +6708,11 @@ class Store:
                              (share_id, target_conversation_id)).fetchone()
             if row is None:
                 raise KeyError(share_id)
-            source_conversation_id = db.execute("SELECT conversation_id FROM runs WHERE id = ?",
-                                                (row["source_run_id"],)).fetchone()[0]
+            # A whole-Bot deletion can clear the source ids of revoked history; do not resurrect
+            # the deleted source just to report where the revoke came from.
+            source = db.execute("SELECT conversation_id FROM runs WHERE id = ?",
+                                (row["source_run_id"],)).fetchone()
+            source_conversation_id = source["conversation_id"] if source else ""
             changed = row["revoked_at"] is None
             if changed:
                 db.execute("UPDATE conversation_artifact_shares SET revoked_at = ?, revoked_by = ? WHERE id = ?",
@@ -6718,8 +6721,11 @@ class Store:
                        "VALUES (?, ?, ?, ?, ?)",
                        (scope, idem_key, request_hash, _canonical({"share_id": share_id}), now))
             result = db.execute("SELECT s.*, e.seq AS source_version FROM conversation_artifact_shares s "
-                                "JOIN events e ON e.id = s.source_event_id WHERE s.id = ?", (share_id,)).fetchone()
-        if changed:
+                                "LEFT JOIN events e ON e.id = s.source_event_id WHERE s.id = ?",
+                                (share_id,)).fetchone()
+        if result is None:
+            raise RuntimeError("artifact revoke lost its own history row")
+        if changed and source_conversation_id:
             self.bus.notify("conversations", f"conversation:{target_conversation_id}",
                             f"conversation:{source_conversation_id}")
         return dict(result), changed
