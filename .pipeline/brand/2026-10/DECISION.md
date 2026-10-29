@@ -218,12 +218,20 @@ The register probe then reached UKIPO and WIPO but not USPTO (IP-CLEARANCE secti
   auxiliary 26.1.3), verbatim. No code is asserted to apply to the device and no figurative search was
   run. Reason: closes the "do not cite a code before the edition and definitions are recorded" gap;
   the coding decision stays owed.
+- D38 (HUMAN DECISION, 2026-10-29, America/Vancouver) - Name RETAINED after the confirmed UK class
+  9/42 evidence. Maintainer instruction in session, verbatim: "we are retaining the name". This
+  answers the B10 name question (retain option) and is a decision made under the written risk
+  ownership (D20/D23/D28) with the confirmed evidence in front of the maintainer. It is not a
+  clearance, not a finding that the marks are non-conflicting, and not an authorisation for any asset.
+  Text and specification work may continue; asset production still needs its own explicit dated
+  authorisation; gates 3-4 stay OPEN. Re-confirm the written ownership at each later gate.
 
 ### Run 4 gates
 
 - GATE 2: stays CLOSED as recorded in D19/D20, but the protocol gate 2 class/territory/goods decision
   is now informed by confirmed UK evidence and should be re-taken by the human before any Run 5 asset
-  work. The earlier decision was made while the classes were UNVERIFIED.
+  work. The earlier decision was made while the classes were UNVERIFIED; the name decision under it
+  was re-taken on 2026-10-29 as retain (D38).
 - Plan hard gate G1: the protocol exists, is signed and adopted (D22); creation stays paused and the
   pause is now evidence-backed (D36), not precautionary.
 - Protocol gate 1: executed; the stop condition is now CONFIRMED for the UK (was "observed, classes
@@ -241,6 +249,8 @@ The register probe then reached UKIPO and WIPO but not USPTO (IP-CLEARANCE secti
   after this evidence (D20/D23/D28 were given while classes were unverified), (b) change the name, or
   (c) narrow the offering/goods; counsel only if funded. Not a legal conclusion; no clearance.
   Highest-priority blocker.
+  STATUS 2026-10-29: the name decision is ANSWERED - retain (D38). The remaining part (an explicit
+  asset authorisation) is still outstanding; the class/coverage gaps stay as B7/B8.
 - B7 (UPDATED) - US serials 99695333 and 87196849 remain unretrieved from an official source: TSDR
   renders a search shell, the API now requires an account/API key, and tmsearch query forms return a
   "No results found" artifact. The UK side of B7 is answered (B10). The US class question stays open.

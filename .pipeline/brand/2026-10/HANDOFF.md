@@ -22,6 +22,9 @@ free GETs (U21 checks) and the browser register/Vienna probe; all free, dated 20
    D1-D4 selection aid produced. No asset.
 6. Nothing was cleared. The confirmed UK overlap means all design and creation stay paused until a new
    dated human decision.
+7. Follow-up human decision 2026-10-29 (after this session's Run 4 close-out): the maintainer RETAINS
+   the name (D38), given with the confirmed UK evidence in front of them. This answers the B10 name
+   question, re-confirms the written risk ownership for this stage, and authorises no asset.
 
 ## Artifact state
 
@@ -76,6 +79,7 @@ free GETs (U21 checks) and the browser register/Vienna probe; all free, dated 20
   Hutchison Whampoa Enterprises (Bahamas) Ltd, registered 2003-08-29). Pre-screen facts only, no legal
   conclusion. Action: dated human decision before any asset work (retain under re-confirmed written
   risk / change name / narrow offering); counsel only if funded. Highest priority.
+  STATUS 2026-10-29: name decision answered - retain (D38). Asset authorisation still outstanding.
 - B9 (NEW, owner: human) - Bare-name domains and handles occupied (4/4 domains, npm, YouTube,
   LinkedIn; X indeterminate; PyPI and Bluesky unregistered on 2026-10-28). Action: marketing
   handle/domain strategy decision.
@@ -91,7 +95,8 @@ free GETs (U21 checks) and the browser register/Vienna probe; all free, dated 20
 
 ## Decisions needed from the human before Run 5 can do asset work
 
-1. B10 name decision (retain / change / narrow), dated, in writing.
+1. B10 name decision - DONE 2026-10-29: retain (D38). No further name decision needed unless the
+   maintainer reverses it.
 2. An explicit dated authorisation for asset production (master file, favicon, manifest icons,
    renders, and which surfaces), separate from the name decision.
 3. The direction selection from the CONCEPTS-D3-D4 section 4 rubric, or an instruction to defer it.

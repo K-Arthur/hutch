@@ -386,7 +386,9 @@ Reading of the evidence (not a decision):
 - The confirmed UK class 9/42 overlap (Run 4) raises the name risk for every direction equally, so it
   does not discriminate between D1 and D4. It moves one decision upstream of the direction choice:
   whether the name is retained for the UK/global offering is a human decision (B10) that precedes, and
-  may override, the territory selection.
+  may override, the territory selection. That upstream decision was taken on 2026-10-29: the maintainer
+  retains the name (DECISION D38) after the confirmed UK evidence. It removes the rename branch and
+  leaves the direction selection as the open decision; it authorises no asset.
 - Combination the evidence favours, stated as a recommendation for the human to accept or reject:
   D1 base + D2 lead + D3 as the variant layer, D4 kept as the imagery doctrine with its rights gate
   (C27) still owed. This is a recommendation, not a selection; the Run 5 direction decision is the

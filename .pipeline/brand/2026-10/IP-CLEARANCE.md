@@ -77,6 +77,10 @@ for the maintainer and, if funded, counsel. All design and creation stay paused;
 recorded as blocker B10 in DECISION.md and needs a new dated human decision before any asset work.
 The United States class question stays open (H1a).
 
+Update 2026-10-29: the name decision has been taken - the maintainer retains the name (D38, section
+12). The confirmed facts above are unchanged; retaining the name is a decision under the written risk
+ownership, not a clearance, and it authorises no asset.
+
 ---
 
 ## 1. Method and budget accounting
@@ -594,3 +598,27 @@ Details, verbatim blocks and URLs are in the section 3 addendum and in REGISTER-
 
 State: PRE-SCREEN, NOT CLEARANCE - OPEN for counsel. The confirmed UK overlap is a recorded risk fact,
 not a legal conclusion, and it is not resolved by this document.
+
+---
+
+## 12. Human decision after the Run 4 addendum (2026-10-29)
+
+Maintainer instruction in session, recorded verbatim: "we are retaining the name" (2026-10-29,
+America/Vancouver). Recorded as DECISION.md D38.
+
+What it decides: the retain option of the B10 escalation. The name "Hutch" is retained after the
+confirmed UK class 9/42 evidence, under the written risk ownership recorded at D20/D23/D28.
+
+What it does not decide or change:
+
+- It is not a clearance, a validity or scope opinion, or a finding that the observed marks do not
+  conflict. Section 0 and its addendum stand unchanged.
+- It does not authorise any asset, render, master file or product change. Asset production still needs
+  its own explicit dated instruction naming the surfaces.
+- It does not answer the US class question (H1a), the EUIPO/TMview/CIPO coverage gap, the device
+  coding/figurative search, or counsel/filing gates 3-4 (still OPEN).
+- It does not extend the scope: classes 9 and 42 and the four territories of D13 are unchanged.
+
+Re-confirmation: the written risk ownership is re-confirmed by this decision for this stage and must be
+re-confirmed again at each later gate. The retain decision is dated and written; it is the decision to
+quote when a later run needs the stop condition's "dated written human decision".

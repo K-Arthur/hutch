@@ -31,15 +31,18 @@ Run 4 confirmed that two live UK HUTCH registrations cover Nice classes 9 and 42
 a confirmed core-class overlap on pre-screen evidence. It is not a finding of infringement, but it
 means Run 5 must NOT start by making assets.
 
-Run 5 starts by looking for a new dated human decision on B10: retain the name with the written risk
-re-confirmed after this evidence, change the name, or narrow the offering. If that decision is absent,
-the run's valid output is a recorded blocker plus text/evidence work. A blocker is a valid outcome;
-do not infer approval from a draft, a direction shortlist or an earlier risk acceptance.
+The name decision has been taken: on 2026-10-29 the maintainer retained the name (D38), with the
+confirmed UK evidence in front of them. Run 5 therefore looks for the two remaining inputs: (1) an
+explicit dated authorisation for asset production naming the surfaces, and (2) the direction selection
+from the D1-D4 rubric, or an instruction to defer it. If the asset authorisation is absent, the run's
+valid output is a recorded blocker plus text/evidence work - do not infer approval from a draft, a
+direction shortlist or an earlier risk acceptance.
 
 ## Preconditions (read, do not assume)
 
-1. DECISION.md shows the Run 4 section (D30-D37) and blockers B10, B9, B7, B8. If B10 is missing,
-   re-read Run 4 before doing anything else.
+1. DECISION.md shows the Run 4 section (D30-D38) and blockers B10, B9, B7, B8, with D38 recording the
+   2026-10-29 retain decision. If D38 is missing, re-read Run 4 and this decision before doing
+   anything else.
 2. Read in this order: DECISION.md (Run 4 and B10), IP-CLEARANCE.md (section 0 addendum and sections
    11.3-11.6), CONCEPTS-D3-D4.md (sections 1, 2 and the section 4 selection aid), CONCEPTS-D1-D2.md
    (sections 1-4 and 6), CLEARANCE-PROTOCOL.md (sections 3-5 and 9), PROVENANCE-REGISTER.md, then
@@ -50,12 +53,12 @@ do not infer approval from a draft, a direction shortlist or an earlier risk acc
 
 ## Step list
 
-1. Gate check. Look for three things: (a) a dated B10 decision (retain / change / narrow); (b) an
-   explicit dated authorisation for asset production naming the surfaces; (c) a direction selection
-   from the D1-D4 rubric, or an instruction to defer it. Record all three verbatim in DECISION.md with
-   the date. If (a) is absent: do steps 5-7 only (evidence and close-out); the blocker stays B10.
-2. If "change the name" is decided: do NOT design a new name asset inside this pipeline's existing
-   concept set - D1-D4 were elaborated for the retained name. Record the decision, close the asset
+1. Gate check. (a) is satisfied: D38 (retain, 2026-10-29). Look for (b) an explicit dated authorisation
+   for asset production naming the surfaces and (c) a direction selection from the D1-D4 rubric, or an
+   instruction to defer it. Record (b) and (c) verbatim in DECISION.md with the date. If (b) is
+   absent: do steps 5-7 only (evidence and close-out); no asset.
+2. If a later decision reverses D38 and the name is changed: do NOT design a new name asset inside
+   this pipeline's existing concept set - D1-D4 were elaborated for the retained name. Record the decision, close the asset
    question, and open a rename scope as a new decision item (it needs its own shortlist and its own
    clearance pass). A blocker-shaped handoff is acceptable.
 3. If "retain" is decided AND assets are explicitly authorised: produce the master and variants from
