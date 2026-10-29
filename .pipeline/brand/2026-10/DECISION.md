@@ -347,3 +347,20 @@ The register probe then reached UKIPO and WIPO but not USPTO (IP-CLEARANCE secti
   candidate asset pack was built pipeline-only under D42 (assets/front-candidate/, ASSET-PACKAGE.md)
   because judging the mark on real surfaces is part of the work. Status: candidate, not adopted; the
   human's pick is still the gate, and no site/app/docs/desktop integration is authorised here.
+
+- D51 (HUMAN DECISION, 2026-10-29, verbatim): "these are all horrible clear all the logos expet the
+  wordmark which we have decided and gicve me a prompt to continue with the log designa dn what
+  remained we had to do in this session in another" [sic]. Read and executed as: every mark concept
+  from rounds 1-12 is REJECTED; its renders, scripts and the candidate pack are cleared from the
+  pipeline (files removed; git history keeps the record); the wordmark decision stands (Bricolage
+  Grotesque 800, D42); the mark design continues in a NEW session via NEXT-PROMPT.md (Run 6), which
+  also carries the remaining deliverables this session owed (brand guidelines, press kit, production
+  wordmark, platform icon package, validation matrix, IP updates, handoff). The previous session's
+  hexagon pack is quarantined under assets/_cleared-legacy-hexagon/ and is not to be used.
+  No mark asset exists in the pipeline after this decision. Nothing is clearance; B10 stands.
+
+- D52 (HUMAN INSTRUCTION and clarification, 2026-10-29, verbatim): "you can archive them but they miust
+  not be accepted as candiudates in the next session" [sic]. Executed: the rejected mark work is
+  archived (not deleted) under assets/archive/rejected-marks-2026-10-29/ with a manifest that marks it
+  ARCHIVED, NOT CANDIDATES; the next prompt carries a hard rule that nothing from the archive may be
+  revived or accepted as a candidate. This supersedes the "files removed" wording of D51.

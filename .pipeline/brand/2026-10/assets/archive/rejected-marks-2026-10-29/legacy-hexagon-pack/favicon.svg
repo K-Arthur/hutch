@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none">
+  <!-- Monochrome-first favicon (CONCEPTS-D3-D4 1.4): one ink, scheme switch only, no geometry change. -->
+  <style>
+    :root { color: #09090b; }
+    @media (prefers-color-scheme: dark) { :root { color: #ededf0; } }
+  </style>
+  <path d="M16 2 L28 9 L28 23 L16 30 L4 23 L4 9 Z" stroke="currentColor" stroke-width="3" stroke-linejoin="miter"/>
+  <circle cx="16" cy="16" r="4.5" fill="currentColor"/>
+</svg>

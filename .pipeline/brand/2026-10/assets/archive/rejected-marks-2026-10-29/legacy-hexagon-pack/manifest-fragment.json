@@ -1,0 +1,31 @@
+{
+  "$comment": "PWA manifest fragment for the authorised asset package. NOT the shipped manifest: adopting it is a product change and needs its own commit/approval (D16). Derived from CONCEPTS-D3-D4 1.5.",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-512-monochrome.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "monochrome"
+    }
+  ],
+  "theme_color": "#09090b",
+  "background_color": "#09090b"
+}

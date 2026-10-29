@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" fill="none">
+  <!-- D2 "Local Hub" motif, canonical 3-satellite arrangement (CONCEPTS-D1-D2 6.8):
+       canvas 100x100, hub = master at 32 units centred (50,50), satellites 16-unit box on the
+       hexagon axes at centre-to-centre 26 units, taken in the order top, lower-right, lower-left. -->
+  <g transform="translate(34 34)">
+    <path d="M16 2 L28 9 L28 23 L16 30 L4 23 L4 9 Z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="miter"/>
+    <circle cx="16" cy="16" r="4" fill="currentColor"/>
+  </g>
+  <g transform="translate(42.00 16.00)"><path d="M8 1 L14 4.5 L14 11.5 L8 15 L2 11.5 L2 4.5 Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="miter" fill="none"/></g>
+  <g transform="translate(64.52 55.00)"><path d="M8 1 L14 4.5 L14 11.5 L8 15 L2 11.5 L2 4.5 Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="miter" fill="none"/></g>
+  <g transform="translate(19.48 55.00)"><path d="M8 1 L14 4.5 L14 11.5 L8 15 L2 11.5 L2 4.5 Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="miter" fill="none"/></g>
+</svg>

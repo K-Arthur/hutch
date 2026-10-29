@@ -246,3 +246,30 @@ overshoot, two redrawn size tiers, critique written before the recommendation.
 Candidate pack built for C under D42 (pipeline-only): masters, favicons, apple-touch, PWA any/maskable/
 monochrome, OG, GitHub social, lockups, validation sheet. See ASSET-PACKAGE.md. Status: candidate, not
 adopted; the human pick is the gate.
+
+### 6.8 Verdict (D51): the whole mark search is rejected and cleared
+
+On 2026-10-29 the human rejected every mark concept from rounds 1-12 ("these are all horrible") and
+asked for the logos to be cleared, keeping only the decided wordmark (Bricolage Grotesque 800, D42).
+What was cleared: all mark renders, sheets, scripts and the candidate pack (front-candidate/), plus
+the previous session's hexagon pack (quarantined under assets/_cleared-legacy-hexagon/, not adopted).
+What was kept: the wordmark evidence (fonts/, wordmark-sheet.png), the measured colour system
+(COLOUR-SYSTEM.md, colour-sheet.png), PRINCIPLES.md (the researched method), and this log as the
+record of what was tried and why it failed.
+
+Rejected vocabulary for the next session - do not bring these back:
+
+| Family | Rejected forms |
+|---|---|
+| Outline primitives | hexagon + dot (shipped), arch outline + dots, H-frame, angle brackets + dot, square portal, two-dot arch, threshold arch |
+| Wordmark-derived | Bricolage "h" + dot (precedent found: LogoLounge "Dotting the H", stock h-dot monograms) |
+| Solid fronts | cabinet slab + doorway, rack slot + dot, crowned hutch, plinth, door seam, plinth variants |
+| Character reads | two-resident fronts (Pac-Man-adjacent ghost/mask read), circle + square windows (reads as error) |
+| Shelter family | awning shelter with posts, twin hutches, wide porch |
+| Canopy family | roof cap over arch, canopy + base, deep eaves |
+| Interior typology | rounded-square windows, slot windows, single wide window |
+
+Why they failed, in one line each: none was grounded in the subject's materials before the shape was
+drawn (PRINCIPLES R1), none had a single memorable move (R2), and the simple-geometry vocabulary is
+exactly what stock logo generators and existing companies already use (the human's own words: "far too
+simple ... probably done and currently possibly being used by other existing companies").

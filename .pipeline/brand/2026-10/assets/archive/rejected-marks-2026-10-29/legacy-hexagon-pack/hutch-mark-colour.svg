@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none" role="img" aria-labelledby="t">
+  <title id="t">Hutch</title>
+  <!-- Colour variant of hutch-mark.svg. Emerald 400 #34d399 = website/tokens.json color.semantic.brand
+       (tokens.json:43). Same geometry, no redraw. -->
+  <path d="M16 2 L28 9 L28 23 L16 30 L4 23 L4 9 Z" stroke="#34d399" stroke-width="2.5" stroke-linejoin="miter"/>
+  <circle cx="16" cy="16" r="4" fill="#34d399"/>
+</svg>
