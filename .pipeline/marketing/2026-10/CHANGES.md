@@ -1,5 +1,21 @@
 # CHANGES — Hutch — 2026-10-28
 
+## Slice S-c — og:image asset + social meta tags (Phase 5 implementation) — 2026-10-28 (session 6)
+Files: website/index.html (1 region: 10 new head tags after :12) + NEW website/assets/og-card-1200x630.png + .pipeline/marketing/2026-10/{00-BRIEF,EVIDENCE,CHANGES,DECISION,CLAIM-REGISTER,HANDOFF,NEXT-PROMPT}.md + evidence/audit/{s_c_render_card.py,s-c-audit-stdout.txt,s-c-audit-stderr.txt,shots/s-c-card-preview-{desktop,mobile}.png}
+Commits: `seo(slice-s-c): add og:image asset + social meta tags` (this commit; website/index.html + website/assets/og-card-1200x630.png + .pipeline/marketing/ only)
+What changed (user-visible): shares of the site on X/Slack/Discord/LinkedIn/Slack no longer render as bare text (F-04). New 1200×630 brand card (Route A, human-approved: hexagon mark + "Hutch" + two-tone "Local-first AI assistants / that run on your machine." + muted "MIT-licensed · open source · Linux · Development preview" footer) referenced via og:image/twitter:image; og:site_name, og:image:alt/width/height and twitter:card (summary_large_image)/title/description added. The page itself is visually unchanged (no layout/DOM/CSS edit). og:url NOT added (B-01 domain-gated; relative image URL recorded as the known compromise — DECISION S-c-04).
+Claims affected: NO new claims — every card string is register-approved (og:title wording/C-01, P2-01 trust line verbatim, C-05). C-24 trigger fired (share-surface copy) but same-day ⇒ dateModified stays 2026-10-28 (no edit). Review-log note added to CLAIM-REGISTER.
+Docs updated: n/a for product docs (no behavior/limit/pricing/licence change; card restates facts already public in README:5,16-22 + index.html).
+Gates run (command → result):
+- `file`/`wc -c`/`strings|grep http` on the asset → 1200×630 PNG, 118,901 B (<300 KB), 0 URL strings ✓
+- `uv run --frozen --no-sync python evidence/audit/s_c_render_card.py` → card + 1440/390 unfurl previews rendered from committed Geist woff2 + committed tokens only; ALL 3 images read at full res, observations in EVIDENCE.md
+- `uv run --frozen --no-sync python .pipeline/marketing/2026-10/evidence/audit/audit_site.py` → exit 0, stderr empty; head inventory shows all 8 og + 4 twitter tags; canonical=false; og/twitter:url absent; ua_parity 6/6 identical (98,460 B, +774 = the tags); FAQ parity 20/20; anchors 10/10; JSON-LD 2/2 — EVIDENCE.md AC table
+- live-serve curl of `assets/og-card-1200x630.png?v=b905c417` → 200 image/png ✓
+- `npm run check:agent` → FAIL, PRE-EXISTING B-07 family: context hygiene now names 2 violations — tests/test_commit_attribution.py (419 lines, bee491d5) AND src/hutch/server/static/hutch-composer.css (449 lines, other workstream's in-flight uncommitted file). Neither in this diff. Not campaign-caused; not fixed here.
+Evidence paths: .pipeline/marketing/2026-10/EVIDENCE.md (AC1-9 → evidence + image observations); evidence/audit/s-c-audit-stdout.txt (crawl report; s-b report preserved)
+Residual risk: relative og:image URL — Facebook is strict about absolute URLs; conversion is S-d with the real domain (B-01). check:agent grew a second violation (hutch-composer.css) — still the other workstreams'. Card render is font-limited: future text edits must re-run s_c_render_card.py and bump ?v=.
+Next slice: S-d is domain-gated (B-01). If still unresolved, the next session should be a review/handoff session or the human's domain decision — see NEXT-PROMPT.md.
+
 ## Slice S-b — on-page metadata trim + above-fold trust row (Phase 5 implementation) — 2026-10-28 (session 5)
 Files: website/index.html (3 regions: :7 description, :37 dateModified, :281 trust line) + .pipeline/marketing/2026-10/{00-BRIEF,EVIDENCE,CHANGES,DECISION,CLAIM-REGISTER,HANDOFF,NEXT-PROMPT}.md + evidence/audit/{s_b_focus_capture.py,s-b-audit-stdout.txt,s-b-audit-stderr.txt,shots/*}
 Commits: `seo(slice-s-b): trim meta description + add above-fold trust row` (this commit; website/index.html + .pipeline/marketing/ only)
