@@ -8806,7 +8806,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             <p class="hint" id="memory-learning-help">${!b.memory_enabled ? 'Runtime memory is off. Saved records remain manageable here.' : b.memory_learning === 'hybrid' ? 'Clear statements such as “I prefer concise answers” are saved for that chat, with provenance and undo. Other facts still need review.' : 'New reference facts need your review. Previously saved preferences remain until you undo them or turn memory off.'}</p>
             <p class="hint" id="memory-learning-privacy">Saved preferences can be included in future requests to this assistant’s model. Undo stops new retrieval; source conversations and backups remain. Learning never activates executable skills or expands access.</p>
             <button class="btn ghost small" id="memory-archives" type="button">${showArchivedFacts ? 'Hide' : 'Show'} archived facts</button>
-            <div class="memory-actions"><button class="btn ghost small" id="memory-export" type="button">Download memory JSON</button></div>
+            <div class="memory-actions"><button class="btn ghost small" id="memory-export" type="button">Download memory JSON</button></div><div id="fact-purge-root"></div>
             ${factsPage.facts.map(factCardHtml).join('') || `<p class="empty-inline">No active facts in this window.</p>`}
             ${factShareRecordsHtml(factSharesPage)}
             <div class="btn-row"><button class="btn ghost small" id="facts-previous" type="button" ${factOffset ? '' : 'disabled'}>Previous facts</button>
@@ -9238,7 +9238,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     if (!saved) control.value = b.memory_enabled ? b.memory_learning : 'off';
     control.disabled = false;
   };
-  $('#memory-archives').onclick = () => renderBotDetail(name, 0, !showArchivedFacts);
+  $('#memory-archives').onclick = () => renderBotDetail(name, 0, !showArchivedFacts); window.hutchFactPurge?.mount($('#fact-purge-root'), b.name, factsPage.facts.map(f => f.key), () => renderBotDetail(name, factOffset, showArchivedFacts));
   $('#memory-export').onclick = event => {
     const button = event.currentTarget;
     openModal({

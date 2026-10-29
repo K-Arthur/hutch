@@ -283,3 +283,22 @@ def test_cli_purge_previews_then_erases_after_confirmation(tmp_path, monkeypatch
         assert store.recall_all(bot.id) == []
     finally:
         store.close()
+
+
+def test_purge_ui_markup_and_assets_are_wired(config):
+    """The legacy Bot page and the SPA assets expose the two-step deletion control."""
+    app = create_app()
+    with TestClient(app) as client:
+        bot, _, _ = seed(app.state.store)
+        page = client.get('/bots/' + bot.name)
+        assert page.status_code == 200
+        assert 'data-fact-purge-bot="' + bot.name + '"' in page.text
+        assert 'hutch bot purge' in page.text and '<noscript>' in page.text
+        assert '<script src="/static/fact-purge.js" defer></script>' in page.text
+        script = client.get('/static/fact-purge.js')
+        assert script.status_code == 200
+        assert '/facts/purge-requests' in script.text and 'window.hutchFactPurge' in script.text
+        app_js = client.get('/static/app.js')
+        assert app_js.status_code == 200 and 'fact-purge-root' in app_js.text
+        shell = client.get('/')
+        assert shell.status_code == 200 and '/static/fact-purge.js' in shell.text
