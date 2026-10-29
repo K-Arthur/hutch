@@ -1027,7 +1027,7 @@ def test_dynamic_workflow_marketing_is_truthful_and_responsive(browser, site_url
         assert page.locator("#workflow .workflow-details").count() == 3
 
         page.locator("#get .availability-details > summary").click()
-        workflow_row = page.locator("#get .availability tbody tr").filter(has_text="Workflows")
+        workflow_row = page.locator("#get .availability tbody tr").filter(has_text="Owner-started saved workflows")
         assert workflow_row.count() == 1
         availability = workflow_row.inner_text().lower()
         for phrase in ("owner-started saved workflows", "chat route cards", "auto starts of activated saved methods",
