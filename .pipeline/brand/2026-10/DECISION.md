@@ -174,3 +174,99 @@ drawn or rendered; no identity asset was generated, drawn or rendered at that po
   casing, clear space, 16px and monochrome test plans described, not drawn). No identity asset was
   generated, drawn, rendered or exported.
 
+## Run 4 (2026-10-28 - capability, free checks, D3/D4 text, confirmed UK overlap)
+
+Capability note: the browser step was executed. `uv sync --extra browser` first failed on the read-only
+uv cache (`/home/kevina/.cache/uv` is outside the workspace-write sandbox); it succeeded with
+`UV_CACHE_DIR=/tmp/dsh-uv-cache` and the environment was then restored with `--extra dev --extra
+browser`. Playwright Chromium 153.0.8010.12 was verified headless, both on a static page and on a
+real navigation. A browser is available to later runs; it does not authorise any render by itself.
+The register probe then reached UKIPO and WIPO but not USPTO (IP-CLEARANCE sections 11.3 and 11.4).
+
+### Run 4 decisions (one line each, with reason)
+
+- D30 - Capability step executed under a sandbox workaround: uv cache redirected to /tmp, then
+  `uv sync --extra dev --extra browser` to restore the documented dev environment; Chromium
+  153.0.8010.12 verified. B1 RESOLVED. Reason: D24 approved the install; the failure was environmental
+  (read-only cache), not a dependency gap; no repo file was changed by the sync.
+- D31 - U21 free checks executed per D26: 4 RDAP domains, GitHub user/org/repo and name search, npm,
+  PyPI, and five social surfaces; 23 unauthenticated GETs, all dated 2026-10-28 23:50 PT, no
+  timeouts/403/CAPTCHA except the X login wall (recorded indeterminate). Reason: D26 asked for these
+  checks; they close the domain/GitHub/package/handle rows of B8. Occupancy facts, not clearance.
+- D32 - Run 4 scope held: no asset, render, master file, favicon, manifest icon, product or source
+  change. All deliverables are text and evidence. Reason: run contract; the observed HUTCH overlap was
+  unresolved at the start of the run and is now confirmed (D36).
+- D33 - D3 "Quiet Chrome" and D4 "Character Tiering" elaborated in CONCEPTS-D3-D4.md, with a
+  qualitative D1-D4 selection aid (no scores, no ranking asserted). Reason: D29 shortlist; the human
+  needs an evidence-bound comparison for the Run 5 selection.
+- D34 - D1/D2 refinements applied in CONCEPTS-D1-D2.md section 6: wordmark weight 650 (the 620 renderer
+  and 800 CSS recorded as drift), small master below 20px, lockup number table, exact title strings,
+  three-alias collapse rule, and D2 composition canvas with coordinates. Reason: remove open values so
+  a later asset run does not re-decide design questions.
+- D35 - Register probe executed with the browser (REGISTER-PROBE-RAW.md): UKIPO reached for all three
+  numbers; USPTO unreachable by three routes (TSDR shell, API 401 key notice, tmsearch query artifact);
+  EUIPO eSearch and TMview not attempted (time). Reason: the class check owed under D28/B7 - the UK
+  part is now answered.
+- D36 - ESCALATION: the UKIPO records confirm two live HUTCH registrations covering Nice classes 9
+  AND 42 (UK00003791602, classes 9/35/39/42; UK00902129492, classes 9/35/36/37/38/39/40/41/42). On
+  pre-screen evidence this is a CONFIRMED core-class overlap in a core territory. All design and
+  creation stay paused; no asset work of any kind until a new dated human decision; blocker B10.
+  Reason: protocol section 5 stop condition (HIT in a core class/territory) and the run's stop rules.
+  This is not a finding of infringement, validity or scope.
+- D37 - WIPO Vienna edition and codes recorded: "Tenth Edition", in force 2026-01-01 to 2028-12-31;
+  26.5 OTHER POLYGONS (26.5.1, 26.5.9, auxiliary 26.5.24) and 26.1 CIRCLES, ELLIPSES (26.1.1,
+  auxiliary 26.1.3), verbatim. No code is asserted to apply to the device and no figurative search was
+  run. Reason: closes the "do not cite a code before the edition and definitions are recorded" gap;
+  the coding decision stays owed.
+
+### Run 4 gates
+
+- GATE 2: stays CLOSED as recorded in D19/D20, but the protocol gate 2 class/territory/goods decision
+  is now informed by confirmed UK evidence and should be re-taken by the human before any Run 5 asset
+  work. The earlier decision was made while the classes were UNVERIFIED.
+- Plan hard gate G1: the protocol exists, is signed and adopted (D22); creation stays paused and the
+  pause is now evidence-backed (D36), not precautionary.
+- Protocol gate 1: executed; the stop condition is now CONFIRMED for the UK (was "observed, classes
+  unverified"). It is not passed.
+- Protocol gate 3: OPEN (no funded counsel). Gate 4: OPEN (no filing or watch decision).
+- Run 4 no-asset rule: held - no asset file and no render was produced.
+
+### Run 4 blockers
+
+- B10 (NEW, owner: human) - CONFIRMED UK core-class overlap. Two live HUTCH registrations cover class 9
+  and class 42: UK00003791602 (Hutch Logistics Ltd, filed 2022-05-24, registered 2023-02-10; class 9
+  logistics/supply-chain software) and UK00902129492 (Hutchison Whampoa Enterprises (Bahamas) Ltd,
+  filed 2001-03-12, registered 2003-08-29; broad data/software class 9). Action: a new dated human
+  decision before ANY asset work - (a) retain the name with the written risk ownership re-confirmed
+  after this evidence (D20/D23/D28 were given while classes were unverified), (b) change the name, or
+  (c) narrow the offering/goods; counsel only if funded. Not a legal conclusion; no clearance.
+  Highest-priority blocker.
+- B7 (UPDATED) - US serials 99695333 and 87196849 remain unretrieved from an official source: TSDR
+  renders a search shell, the API now requires an account/API key, and tmsearch query forms return a
+  "No results found" artifact. The UK side of B7 is answered (B10). The US class question stays open.
+- B9 (NEW, owner: human) - Bare-name domain and handle occupancy: hutch.com/.app/.ai/.dev all
+  registered; npm "hutch" registered (unrelated 2013 package); YouTube @hutch and LinkedIn
+  /company/hutch exist; X @hutch indeterminate behind a login wall; PyPI "hutch" and Bluesky
+  hutch.bsky.social unregistered on 2026-10-28. Action: marketing handle/domain strategy decision;
+  risk rated only.
+- B8 (UPDATED) - Coverage: closed for RDAP, GitHub, packages, social handles, Vienna edition/codes and
+  UKIPO. Still owed: EUIPO eSearch, TMview, CIPO, app stores, exact combined-form phrases, and the US
+  serials (B7).
+- B1 - RESOLVED (D30): browser installed and verified.
+- B6 - unchanged: counsel review owed if/when funded; gates 3-4 OPEN. Note: the written risk ownership
+  needs an explicit re-confirmation after B10 (the earlier acceptance was made while classes were
+  unverified).
+- B2 (plan PR #11 review + 8 corrections), B3 (stale phase-1 worktree), B5 (open citations) unchanged.
+
+### Run 4 artifacts
+
+- CONCEPTS-D3-D4.md (NEW): text-only elaboration of D3 and D4, the D1-D4 selection aid, no asset.
+- CONCEPTS-D1-D2.md (UPDATED): section 6 refinements (weight, small-size rule, lockups, titles, aliases,
+  D2 canvas/coordinates) and the B10 note.
+- IP-CLEARANCE.md (UPDATED): section 0 addendum (UK classes confirmed, RACE KINGS correction), section
+  3 addendum (Vienna edition/codes verbatim), section 5 note, section 8 note, and new sections
+  11.1-11.6 (capability, U21 checks, register probe, Vienna, coverage, still owed).
+- U21-FREE-CHECKS-RAW.md (NEW): raw dated free-check log (23 requests).
+- REGISTER-PROBE-RAW.md (NEW): raw dated browser probe (Vienna verbatim, UKIPO records, USPTO failures).
+- No identity asset was generated, drawn, rendered or exported in Run 4. No file outside
+  .pipeline/brand/2026-10/ was written.

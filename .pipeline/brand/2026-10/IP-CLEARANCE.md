@@ -54,6 +54,29 @@ What this stop condition does and does not mean:
 - Consequence: no design talk follows from this record. No asset generation, no lockup work, no
   tagline work, until the human rules on this observed overlap.
 
+### Section 0 addendum - Run 4 confirmed the UK classes (2026-10-28)
+
+The class question section 0 left UNVERIFIED was answered for the United Kingdom on 2026-10-28 by a
+headless-browser read of the UKIPO register (section 11.3; raw log REGISTER-PROBE-RAW.md). The history
+above is kept; this addendum is the current state. Lead re-verification: both records were opened
+directly by the Lead the same day and their status, mark, dates and class lists re-read (the holder
+names below are as read by the probe and were not separately re-verified).
+
+| # | Entry | Confirmation / correction | Source + retrieval date |
+|---|---|---|---|
+| H2a | UK00003791602 HUTCH | CONFIRMED: Registered; classes 9, 35, 39, 42; owner as read: Hutch Logistics Ltd, Chelmsford, UK; filing 2022-05-24; registered 2023-02-10; renewal 2032-05-24. Class 9 wording includes logistics software, business management software, warehouse management software, customer relationship management software, supply chain management software. | https://trademarks.ipo.gov.uk/ipo-tmcase/page/Results/1/UK00003791602 (2026-10-28) |
+| H3a | UK00902129492 HUTCH | CONFIRMED: Registered; classes 9, 35, 36, 37, 38, 39, 40, 41, 42; owner as read: Hutchison Whampoa Enterprises (Bahamas) Limited; filing 2001-03-12; registered 2003-08-29; renewal 2031-03-12. Class 9 wording is broad: electronic and data apparatus, "computer software and programmes". | https://trademarks.ipo.gov.uk/ipo-tmcase/page/Results/1/UK00902129492 (2026-10-28) |
+| H3b | UK00915655715 | CORRECTED: not a HUTCH mark. Trade mark RACE KINGS (expired, classes 9 and 41, owner Hutch Games Ltd). It was listed under H3 in section 0 on aggregator-title evidence and is withdrawn from the HUTCH hit set. | https://trademarks.ipo.gov.uk/ipo-tmcase/page/Results/1/UK00915655715 (2026-10-28) |
+| H1a | USPTO 99695333 and 87196849 | STILL UNVERIFIED: three routes attempted, all unreachable (TSDR hash page renders only the search shell; tsdrapi HTTP 401 API-key notice; tmsearch query-string forms render a "No results found" shell, recorded as a query artifact, not as absence). | section 11.3 (2026-10-28) |
+
+Consequence: on this pre-screen evidence the observed overlap is now a CONFIRMED core-class overlap
+for the United Kingdom: two live HUTCH registrations cover Nice class 9 and class 42 - both core
+classes in a core territory - and the class 9 wordings reach software. This is not a finding of
+infringement, validity, scope, likelihood of confusion or enforceability; those are legal questions
+for the maintainer and, if funded, counsel. All design and creation stay paused; the escalation is
+recorded as blocker B10 in DECISION.md and needs a new dated human decision before any asset work.
+The United States class question stays open (H1a).
+
 ---
 
 ## 1. Method and budget accounting
@@ -198,6 +221,45 @@ the code definitions verbatim in a later run.
 Residual risk rating for the device path: MEDIUM - unassessed figurative overlap; no code, no
 figurative search, no result.
 
+### Section 3 addendum - Run 4 verified the edition and the code definitions (2026-10-28)
+
+Status: the edition and the definitions are now recorded from the official WIPO publication. No code
+is asserted to apply to the HUTCH device; mapping a device to codes is an examiner/classification act.
+Full transcription with URLs: REGISTER-PROBE-RAW.md section 1. Lead re-check: the edition strings were
+re-read directly from https://nivilo.wipo.int/vienna.htm the same day.
+
+- Edition displayed: "Tenth Edition", "In force as from January 1, 2026 to December 31, 2028"
+  (https://nivilo.wipo.int/vienna.htm and https://nivilo.wipo.int/vienna10/index.htm?lang=EN, both
+  HTTP 200, 2026-10-28). The WIPO landing page states "VCL10: files and data (entry into force on
+  1 January 2026)".
+- Polygon group, verbatim from the publication (division 26, category 26 GEOMETRICAL FIGURES AND
+  SOLIDS):
+
+```text
+	26.5	OTHER POLYGONS
+	Note:	Not including elongated polygons (25.3.1).
+	*	26.5.1	One polygon
+	*	26.5.9	Polygons containing one or more circles or ellipses
+	A	26.5.24	Polygons with dark surfaces or parts of surfaces
+```
+
+- Circle group, verbatim from the same frame:
+
+```text
+	26.1	CIRCLES, ELLIPSES
+	*	26.1.1	Circles
+	A	26.1.3	One circle or ellipse
+```
+
+- Reading recorded, not asserted: a pointy-top hexagon outline is a polygon other than a triangle or
+  a quadrilateral, so division 26.5 is the group whose definitions would be compared; "26.5.9
+  Polygons containing one or more circles or ellipses" is the principal-section wording closest to
+  "polygon outline containing a centred dot", and 26.1.1 "Circles" / 26.1.3 "One circle or ellipse"
+  are the circle-group entries. Whether a filing would carry 26.5.1 alone, 26.5.9, 26.1.1, 26.1.3 or a
+  combination is not decided here.
+- No figurative register search was run with these codes in Run 4. The device path remains
+  unassessed; the risk rating is unchanged (MEDIUM, unassessed).
+
 ---
 
 ## 4. Common-law, web, GitHub, handle and domain findings (surface 7)
@@ -262,6 +324,11 @@ been done.
 
 Overall: this pre-screen is OPEN. It contains one stop condition (H1/H2) and no register surface
 was successfully read. Nothing here supports a "no conflict" statement in any territory.
+
+Run 4 update (2026-10-28): the UKIPO surface is now REACHED (section 11.3): two HUTCH registrations
+confirmed at class 9 and class 42. The US surface (USPTO) remains UNREACHABLE; EUIPO, TMview and CIPO
+remain unattempted. The summary rows above are kept as the Run 3 state and are superseded by section
+11.3 where they differ.
 
 ---
 
@@ -332,6 +399,12 @@ Budget was exhausted at 12 external calls. The following were planned by scope a
 - UKIPO journal and international-registration detail for UK00902129492 / UK00915655715.
 - Any paid or account-gated register tool (excluded by budget D15; not attempted).
 
+Run 4 note (2026-10-28): attempted now = RDAP domains (11.2), GitHub and packages (11.2), social
+handles (11.2), WIPO Vienna edition and codes (section 3 addendum, 11.4), UKIPO for the three numbers
+(reached, 11.3), USPTO direct surfaces (attempted, unreachable, 11.3). Still unattempted = EUIPO
+eSearch, TMview, official CIPO, app stores, the exact combined-form phrases. Still owed = the US
+serials from an official source.
+
 ## 9. Evidence index
 
 Every source line above carries URL + retrieval date 2026-10-28. Files and registers referenced:
@@ -356,3 +429,168 @@ accepted risk, not a hold on text/spec design work; it is NOT resolved and NOT c
   next actions (B7, B8); the maintainer accepted doing them later.
 - No clearance, distinctiveness or non-infringement conclusion is drawn by D28; it is a risk
   position, not a legal result.
+
+---
+
+## 11. Run 4 addendum - capability and dated free checks (2026-10-28)
+
+Status: this section adds dated evidence to the Run 3 log. It does not resolve section 0, does not
+re-open the human decision in section 10, and clears nothing. Every row keeps its URL and retrieval
+date. A source that blocked or could not be read is UNREACHABLE, never clear and never NO HIT.
+
+### 11.1 Capability step (D24) - the browser now works
+
+- `uv sync --extra browser` first failed in this session with
+  `error: Could not acquire lock / cause: Could not create temporary file / cause: Read-only file
+  system (os error 30) at path "/home/kevina/.cache/uv/.tmp..."`. Cause: the session sandbox is
+  workspace-write and the uv cache lives outside the workspace. This is an environment limit, not a
+  dependency failure.
+- Retried with `UV_CACHE_DIR=/tmp/dsh-uv-cache uv sync --extra browser`: resolved 105 packages,
+  exit 0. Because a sync without `--extra dev` removed 14 dev packages from `.venv`, the
+  environment was immediately restored with
+  `UV_CACHE_DIR=/tmp/dsh-uv-cache uv sync --extra dev --extra browser` (pytest, hypothesis,
+  pyinstaller and the rest reinstalled; exit 0).
+- Playwright Chromium verified headless: `browser.version = 153.0.8010.12`, UA
+  `HeadlessChrome/153.0.8010.12`, on both a set-content page and a real navigation. Launch command
+  used `.venv/bin/python` directly.
+- Consequence: B1 (no browser) is RESOLVED for this pipeline. Screenshots and renders are now
+  technically possible, but no render is authorised this run (the run contract requires a new dated
+  human decision). Register and platform sites may still CAPTCHA or bot-block; those outcomes are
+  recorded as UNREACHABLE.
+- No login, account creation, CAPTCHA solving or scraping bypass was used at any point.
+
+### 11.2 U21 free checks (D26) - domains, GitHub, packages and handles
+
+Raw unedited log: `U21-FREE-CHECKS-RAW.md` (same directory, written from this run). Method: 23
+single unauthenticated GETs between 2026-10-28T23:49:54-07:00 and 2026-10-28T23:50:47-07:00
+(America/Vancouver); no timeout, no 403, no 999, no CAPTCHA; GitHub unauthenticated rate limit at
+58/60 remaining afterwards; JSON parsed with `.venv/bin/python`. Lead spot-checks on the same date:
+hutch.com RDAP 200 via rdap.org to rdap.verisign.com; https://pypi.org/pypi/hutch/json HTTP 404;
+https://api.github.com/repos/K-Arthur/hutch HTTP 200.
+
+| # | Check | Exact URL (final, after redirects) | HTTP | Retrieved (PT) | Result as observed |
+|---|---|---|---|---|---|
+| U01 | RDAP hutch.com | https://rdap.org/domain/hutch.com -> https://rdap.verisign.com/com/v1/domain/hutch.com | 200 | 2026-10-28 23:50 | registered; registration 1995-03-02, expiration 2027-03-03, last changed 2022-10-12; registrar GoDaddy.com, LLC (IANA 146); status client delete/renew/transfer/update prohibited; NS ns57/ns58.domaincontrol.com |
+| U02 | RDAP hutch.app | https://rdap.org/domain/hutch.app -> https://pubapi.registry.google/rdap/domain/hutch.app | 200 | 2026-10-28 23:50 | registered; registration 2018-05-08, expiration 2027-05-08, last changed 2026-06-22; registrar GoDaddy.com, LLC; NS ns33/ns34.domaincontrol.com |
+| U03 | RDAP hutch.ai | https://rdap.org/domain/hutch.ai -> https://rdap.identitydigital.services/rdap/domain/hutch.ai | 200 | 2026-10-28 23:50 | registered; registration 2022-05-03, expiration 2028-05-03, last changed 2026-10-21, transfer 2026-04-29; registrar GoDaddy.com, LLC; registrant "Registration Private"; NS ns1/ns2.afternic.com |
+| U04 | RDAP hutch.dev | https://rdap.org/domain/hutch.dev -> https://pubapi.registry.google/rdap/domain/hutch.dev | 200 | 2026-10-28 23:50 | registered; registration 2019-03-02, expiration 2027-03-02, last changed 2026-02-20; registrar Squarespace Domains II LLC (IANA 895); NS ns-cloud-a1..a4.googledomains.com |
+| U05 | GitHub user K-Arthur | https://api.github.com/users/K-Arthur | 200 | 2026-10-28 23:50 | exists: login K-Arthur, id 58142087, type User, created 2019-11-24, public_repos 13 |
+| U06 | GitHub org K-Arthur | https://api.github.com/orgs/K-Arthur | 404 | 2026-10-28 23:50 | no organization K-Arthur |
+| U07 | GitHub repo K-Arthur/hutch | https://api.github.com/repos/K-Arthur/hutch | 200 | 2026-10-28 23:50 | exists: public, created 2026-10-07, language Python, 0 stars; matches the local origin |
+| U08 | GitHub user hutch | https://api.github.com/users/hutch | 200 | 2026-10-28 23:50 | exists: id 4345, Bob Hutchison, type User, created 2008-04-02, public_repos 4 |
+| U09 | GitHub org hutch | https://api.github.com/orgs/hutch | 404 | 2026-10-28 23:50 | no organization hutch |
+| U10 | GitHub repo name search | https://api.github.com/search/repositories?q=hutch+in:name&sort=stars&order=desc&per_page=10 | 200 | 2026-10-28 23:50 | total_count 1252, incomplete_results false; top hit ruby-amqp/hutch (876 stars, RabbitMQ message processing); other hits include babelouest/hutch (password locker), ExpeditedProjects/hutchdb (AI-agent database), three Hutch++ numerics repos, two unrelated hutch repos |
+| U11 | npm package hutch | https://registry.npmjs.org/hutch | 200 | 2026-10-28 23:50 | registered: latest 0.0.1, created 2013-01-13, modified 2022-06-18, 1 maintainer, 1 version, description "keep track of all your sites with seaport and http-proxy" |
+| U12 | npm near-name search | https://registry.npmjs.org/-/v1/search?text=hutch&size=5 | 200 | 2026-10-28 23:50 | near names: electrobun 2.0.5 ("lightweight npm bootstrap for Electrobun and Hutch"), hutch 0.0.1, rabbitmq-hutch 2.0.0, amqp-hutch 1.0.20, fredhutch 0.1.0 |
+| U13 | PyPI project hutch | https://pypi.org/pypi/hutch/json | 404 | 2026-10-28 23:50 | not registered: {"message":"Not Found"} |
+| U14 | X @hutch | https://x.com/hutch | 200 | 2026-10-28 23:50 | login wall for anonymous request; HTML title "hutch (@hutch) / X" observed; content not verifiable, not scraped -> UNREACHABLE / INDETERMINATE |
+| U15 | LinkedIn company hutch | https://www.linkedin.com/company/hutch | 200 | 2026-10-28 23:50 | exists (public metadata only): og:title "Hutch \| LinkedIn", og:description "Hutch \| 881 followers on LinkedIn."; rest behind sign-in |
+| U16 | LinkedIn in/hutch | https://www.linkedin.com/in/hutch | 200 | 2026-10-28 23:50 | exists (public metadata only): title "Jimmy Hutcheson - SPIN \| LinkedIn" |
+| U17 | YouTube @hutch | https://www.youtube.com/@hutch | 200 | 2026-10-28 23:50 | exists: title "Hutch - YouTube", channelId UCq54nlcoX-0pLcN5RhxHyug |
+| U18 | YouTube c/hutch | https://www.youtube.com/c/hutch | 200 | 2026-10-28 23:50 | exists: same channel UCq54nlcoX-0pLcN5RhxHyug |
+| U19 | Bluesky resolveHandle | https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=hutch.bsky.social | 400 | 2026-10-28 23:50 | {"error":"InvalidRequest","message":"Unable to resolve handle"} -> handle not registered |
+| U20 | Bluesky profile URL | https://bsky.app/profile/hutch.bsky.social | 200 | 2026-10-28 23:50 | static app shell only, no profile data returned; not evidence of a profile; the API row (U19) is authoritative |
+
+What this changes, and what it does not:
+
+- Domains: all four planned domains are registered (U01-U04). None is observed in the maintainer's
+  name on this evidence; hutch.ai is on afternic nameservers, which is a resale-platform signal only
+  - no price, intent or availability is inferred. Domain strategy (acquire, subdomain, or a different
+  name for marketing) is a human decision outside this log.
+- GitHub: the owner and repository already exist under the maintainer's account (U05, U07), so the
+  GitHub identity is held. The user "hutch" (U08) and 1252 repositories named hutch (U10) are
+  expected for a common English word; nothing here assesses confusion.
+- Packages: the bare npm name is taken by an unrelated 2013 package (U11), so a scoped or different
+  package name would be required if Hutch ever publishes to npm; the bare PyPI name returned 404
+  (U13, observed, not reserved). Both are naming facts, not legal results.
+- Handles: YouTube bare handle, LinkedIn company page and LinkedIn personal path exist; X is
+  indeterminate behind a login wall; Bluesky bare handle is unregistered (U19). "Unregistered on
+  2026-10-28" is the whole claim for PyPI and Bluesky; it is not a reservation and not clearance.
+- Risk rating update (risk rated, not clearance): the bare-name conflict surface is now HIGH-OBSERVED
+  for domains and handles (4/4 domains, 3/4 checked social surfaces occupied, npm occupied; PyPI and
+  Bluesky unregistered on this date). This does not change section 0, does not justify or forbid a
+  name change, and authorises no asset. It is a marketing-decision input.
+- Coverage: these rows close the section 8 items "RDAP domain checks", "GitHub checks" and "Social
+  handle checks" for the specific URLs listed. They do not close app-store checks, the combined-form
+  phrase search, or any register surface.
+
+Still owed after 11.2: the register surfaces (11.3), the Vienna codes (11.4), app stores, exact
+combined-form phrases ("Hutch app", "Hutch AI", "Hutch assistant"), and the trademark class check
+(B7).
+
+### 11.3 Trademark register checks with the browser (2026-10-28)
+
+Method: headless Chromium 153.0.8010.12 via Playwright, pages read as rendered DOM text; no login, no
+account, no CAPTCHA solving, no scraping bypass. Raw log with all verbatim text:
+`REGISTER-PROBE-RAW.md` (same directory). Every row dated 2026-10-28 (America/Vancouver).
+
+| # | Register / target | Exact URL | Outcome | Facts as read |
+|---|---|---|---|---|
+| R01 | USPTO TSDR, serial 99695333 | https://tsdr.uspto.gov/#caseNumber=99695333&caseSearchType=US_APPLICATION&caseType=DEFAULT&searchType=statusSearch | HTTP 200, search shell only after a 5 s wait | no case data (mark, owner, status, classes, dates) rendered. Page carries an availability notice: "October 22 update: To address recent availability issues caused by excessive data mining, we have implemented some technical adjustments...". UNREACHABLE (record not obtained) |
+| R02 | USPTO TSDR API, sn99695333 | https://tsdrapi.uspto.gov/ts/cd/casestatus/sn99695333/info | HTTP 401 | body: "Beginning October 2, you'll need to register for an API key to download bulk data from our TSDR APIs...". No key requested, no account created. UNREACHABLE |
+| R03 | USPTO tmsearch, two query forms | https://tmsearch.uspto.gov/search/search-results?query=99695333 and ...?q=99695333 | HTTP 200, search shell | rendered "No results found"; recorded as an artifact of the query form, NOT as absence of a filing. UNREACHABLE |
+| R04 | UKIPO UK00003791602 | https://trademarks.ipo.gov.uk/ipo-tmcase/page/Results/1/UK00003791602 | HTTP 200, record read | HUTCH; status Registered; classes 9, 35, 39, 42; owner as read: Hutch Logistics Ltd (Chelmsford, UK); filed 24 May 2022; entered in register 10 February 2023; renewal 24 May 2032. Class 9 wording includes "Logistics software; business management software; warehouse management system software; ... customer relationship management software; supply chain management software" |
+| R05 | UKIPO UK00902129492 | https://trademarks.ipo.gov.uk/ipo-tmcase/page/Results/1/UK00902129492 | HTTP 200, record read | HUTCH; status Registered; classes 9, 35, 36, 37, 38, 39, 40, 41, 42; owner as read: Hutchison Whampoa Enterprises (Bahamas) Limited; filed 12 March 2001; entered in register 29 August 2003; renewal 12 March 2031. Class 9 wording is broad ("...data acquisition installations, apparatus and instruments...; computer software and programmes;") |
+| R06 | UKIPO UK00915655715 | https://trademarks.ipo.gov.uk/ipo-tmcase/page/Results/1/UK00915655715 | HTTP 200, record read | NOT a HUTCH mark: trade mark RACE KINGS; status Expired; classes 9, 41; owner Hutch Games Ltd; filed 13 July 2016; entered in register 14 July 2017. Withdrawn from the HUTCH hit set (section 0 addendum H3b) |
+| R07 | UKIPO alternative path | https://trademarks.ipo.gov.uk/ipo-tmtext/page/Results/1/UK00003791602 (and the other two) | HTTP 404 | "Sorry, the page you are looking for cannot be found". The /ipo-tmcase/ path is the working form |
+| R08 | EUIPO eSearch, TMview | https://euipo.europa.eu/eSearch/ ; https://www.tmdn.org/tmview/ | NOT ATTEMPTED | time budget; no outcome either way, not read as reachable or unreachable |
+| R09 | WIPO Vienna | see 11.4 | reached | edition and code definitions recorded |
+
+Lead verification, same date: R04 and R05 were re-opened directly by the Lead in the same Chromium
+build and their status, trade mark, dates and class lists re-read (the class lists 9/35/39/42 and
+9/35/36/37/38/39/40/41/42 were therefore verified twice). The holder names above are single-source
+from the probe and were not separately re-verified. No CAPTCHA was encountered on UKIPO in this run;
+the earlier Run 3 403 was not reproduced.
+
+Finding, risk rated and not clearance: two live UK HUTCH registrations cover Nice class 9 and class
+42. On this pre-screen evidence the overlap is a confirmed core-class overlap in a core territory
+(section 0 addendum). The goods/services are not identical to a local-first assistant platform - one
+is logistics/supply-chain software, the other broad data/telecom apparatus and "computer software and
+programmes" - and whether there is a legal conflict is not assessed here. Escalated as B10 in
+DECISION.md; no asset work until a new dated human decision.
+
+USPTO note: the serials 99695333 and 87196849 remain unretrieved from an official source. The API now
+requires an account/API key; requesting one is a new account and a new decision, outside this run.
+
+### 11.4 WIPO Vienna codes - verified this run
+
+Details, verbatim blocks and URLs are in the section 3 addendum and in REGISTER-PROBE-RAW.md section
+1. Summary:
+
+- Edition: "Tenth Edition", in force from January 1, 2026 to December 31, 2028 (two WIPO pages;
+  Lead re-read the edition string directly on 2026-10-28).
+- Polygon: 26.5 OTHER POLYGONS; 26.5.1 "One polygon"; 26.5.9 "Polygons containing one or more
+  circles or ellipses"; auxiliary 26.5.24 "Polygons with dark surfaces or parts of surfaces".
+- Circle/dot: 26.1 CIRCLES, ELLIPSES; 26.1.1 "Circles"; auxiliary 26.1.3 "One circle or ellipse".
+- No code is asserted to apply to the HUTCH device; no figurative search was run. The Run 3 gap ("do
+  not cite any code before the edition and definitions are recorded") is now closed in the limited
+  sense that the edition and definitions are recorded from the official publication with a dated
+  source. The coding decision and the figurative search stay owed.
+
+### 11.5 Coverage changes vs sections 5 and 8
+
+| Section 8 item | Run 4 status |
+|---|---|
+| RDAP hutch.com and .app/.ai/.dev | ATTEMPTED (11.2) - all four registered |
+| GitHub K-Arthur, org/repo "hutch", npm/PyPI | ATTEMPTED (11.2) - results recorded |
+| Social handles X/LinkedIn/YouTube/Bluesky | ATTEMPTED (11.2) - X indeterminate |
+| WIPO Vienna browser, edition + definitions | ATTEMPTED (11.4) - edition and codes recorded |
+| UKIPO UK00003791602 / UK00902129492 / UK00915655715 | ATTEMPTED (11.3) - reached; two live HUTCH marks at class 9/42 |
+| USPTO direct serials | ATTEMPTED (11.3) - unreachable by three routes |
+| EUIPO eSearch / TMview / CIPO | NOT ATTEMPTED - still owed |
+| App stores | NOT ATTEMPTED - still owed |
+| Exact phrases "Hutch app", "Hutch AI", "Hutch assistant" | NOT ATTEMPTED - still owed |
+
+### 11.6 Still owed after Run 4
+
+1. US serials 99695333 and 87196849 from an official source: TSDR needs an interactive browser session
+   that completes its own search, or an API key (a new account - a new human decision).
+2. EUIPO eSearch, TMview and CIPO searches for HUTCH in classes 9 and 42.
+3. The device coding decision (which Vienna codes apply) and a figurative search on that code set.
+4. App-store checks and the exact combined-form phrase checks.
+5. The class/territory/goods decision (protocol gate 2), now informed by the confirmed UK overlap and
+   escalated as B10; the human decides, counsel only if funded.
+6. A re-check of whether the US HUTCH filings cover classes 9/42 once reachable.
+
+State: PRE-SCREEN, NOT CLEARANCE - OPEN for counsel. The confirmed UK overlap is a recorded risk fact,
+not a legal conclusion, and it is not resolved by this document.
