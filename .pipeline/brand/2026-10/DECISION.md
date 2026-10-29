@@ -329,3 +329,12 @@ The register probe then reached UKIPO and WIPO but not USPTO (IP-CLEARANCE secti
   as archetype inspiration only: no character outline, wavy skirt, eye treatment, palette or asset from
   Pac-Man/Bandai Namco or any existing logo is copied or traced. The geometry stays original 32-grid
   construction; a visual-similarity screen remains owed before any pick is final.
+- D48 (HUMAN FEEDBACK, 2026-10-29, verbatim): "you still keep creating genric designs take your time adn
+  be very atomic and precise with this work" [sic]. Recorded as a working method change: fewer options
+  per round, each drawing specified with exact coordinates/radii/gaps in a construction sheet, and no
+  proposal without its own small-master redraw.
+- D49 (HUMAN DECISION SIGNAL, 2026-10-29, verbatim): "I do like r7-4 but it needs to be differentiated"
+  [sic]. Recorded: R7-4 (solid arch front, two knocked-out circular residents) is the base the human
+  likes; the task is now differentiation of that base, not replacement. Rounds 9-11 explore three
+  differentiators (plinth, canopy, door seam) and an interior typology set (square windows, slot
+  windows, single wide window) against that base.

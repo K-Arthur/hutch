@@ -215,3 +215,17 @@ Colour role logic that came out of this round (recorded in COLOUR-SYSTEM.md):
 
 Carry-forward risk: the flat-front-two-eyes archetype is culturally common (character masks, ghost
 archetypes). D47 records the inspiration boundary; the similarity screen is still owed.
+
+### 6.6 Rounds 8-11 (D48/D49): atomic drawings around the R7-4 base
+
+| Round | What was drawn | Outcome | Evidence |
+|---|---|---|---|
+| 8 | One precise hutch-front direction with separate master (>=32px) and small (16-24px) drawings, dimensioned construction sheet | Proves the atomic method (exact coords/radii/gaps, separate size-tier drawings) but was a replacement direction, not a differentiation of R7-4 | `round8-construction.png`, `round8-applied.png` |
+| 9 | R7-4 + three structural differentiators: D1 plinth, D2 canopy (roof cap), D3 door seam | D1 weak at 16px (base merges); D2 canopy gives the strongest silhouette difference (a projecting roof a mask/ghost cannot have); D3 seam reads as two leaves but vanishes at 16px | `round9-applied.png`, `round9-construction.png` |
+| 10 | Canopy family: D2a (cap h3.4, overhang 2.5), D2b (+base board), D2c (deep eaves 3.2) | D2a cleanest; D2b busy at 16px; D2c strongest roof read but top-heavy | `round10-applied.png`, `round10-construction.png` |
+| 11 | Interior typology on the unchanged R7-4 silhouette: E1 rounded-square windows, E2 vertical slots, E3 slots + base, E4 one wide window | E1 removes the eye/mask read while keeping the twin-window idea; E4 is the most legible at 16px and has no face read; E2/E3 risk a socket/vent read | `round11-applied.png` |
+
+Method note (D48): every drawing in rounds 8-11 is specified as numbers (coordinates, radii, gaps,
+overhang) and every proposed master has a redrawn small master, not a scaled one. Where a sheet shows a
+knockout resident, it is a true hole in the path (fill-rule evenodd), so the mark never depends on a
+second colour.
