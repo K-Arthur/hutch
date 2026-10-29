@@ -4499,3 +4499,101 @@ content copy anywhere, receipt redaction, secure-delete restored); broad focused
 1 skipped in 68.38 s**. Docs wording in bot-config, operations, safety, README and the tests row was
 narrowed from "live database" to "live rows and the search index" and now names filesystem/journal
 copies and backups as outside the guarantee.
+
+
+## Dashboard purge control and whole-Bot permanent-deletion design (2026-10-29, same continuation)
+
+Ownership: Lead session in the shared local `main` checkout, base `e1f80f3e`, with a parked
+dashboard/brand session's uncommitted work still present (69 modified, 84 untracked files at the end).
+None of that work was edited, reformatted, reverted or staged. Because `static/app.js`,
+`static/index.html` and `templates/bot.html` are owned by that parked session, only this session's
+exact lines were staged: each committed version of the three shared files is `HEAD` plus this
+session's hunk, written into the index with `git hash-object`/`git update-index`. A committed clean
+checkout therefore contains the control without the parked session's hunks, and the working tree still
+carries all of the parked session's work as uncommitted changes. `static/app.js` is frozen at 14,532
+lines, so its two integrations are same-line appends (net 0 lines) and the committed file stays exactly
+at the cap.
+
+**Dashboard control (implemented).** `src/hutch/server/static/fact-purge.js` (393 lines, no
+dependencies) exposes `window.hutchFactPurge.mount(root, botName, suggestionKeys, onPurged)` and an
+auto-mount for server-rendered pages. It drives the committed two-step API: step one chooses one saved
+key or all saved facts plus an optional note and renders the preview's exact counts (fact revisions,
+older saved copies, shares sent/received, task brief snapshots, redacted API receipts, total), the
+scope, the localised 10-minute expiry and the API `remaining` list under "Not erased by this control";
+step two requires typing the exact key (or the Bot address for all facts) before `Erase permanently`
+enables, posts the confirmation with a generated `Idempotency-Key`, then shows "Erased N saved copies"
+with the result counts and remaining list, moves focus to the status region, and refreshes saved notes
+after 2.5 s. The token and request id stay in the closure; all API strings reach the DOM through
+`textContent`, never `innerHTML`; failures surface the server detail in one `role="alert"` region
+and re-enable the controls. The SPA Saved-notes pane gets `#fact-purge-root` and the mount call in
+`static/app.js`; the legacy server-rendered Bot page includes `templates/_fact_purge.html` (panel,
+mount point, `<noscript>` CLI fallback, deferred script), and `static/index.html` loads the module.
+Legacy auto-mount fetches the visible keys so one-key purge works there too. The owner-only boundary is
+the server's: paired and remote sessions receive 403 and the control shows that refusal.
+
+**Whole-Bot design (no code).** `docs/operations.md` replaces the "dashboard control is deferred"
+claim with the wired control and adds `## Whole-Bot permanent deletion (design)` (lines 511-666):
+design-only status with today's `store.delete_bot` behaviour (row/tool-allows/legacy-memory deletion,
+schedule-identity mark, channel-connection disable and pending-event/delivery cancellation, fact
+archive; runs, transcripts and workspaces retained), an erase-vs-retain inventory mapped to concrete
+tables and state paths, the preview/confirm protocol (hashed single-use token, typed Bot address,
+owner-only, counts revalidated inside the transaction), the draining fence and stop-and-verify
+in-flight-run rule, one foreign-key-safe `BEGIN IMMEDIATE` transaction with the secure-delete/WAL
+caveat, post-commit cleanup manifest and crash-recovery retry, content-free
+`bot_deletions`/`bot_deletion_items` evidence with immutability rules, proposed typed API/CLI/
+dashboard surfaces, schema v83 through a delegated `bot_deletion_schema.py` module, an acceptance
+checklist, implementation phases, open questions and honest limits. `store.delete_bot` is unchanged.
+
+**Files and size policy.** New: `src/hutch/server/static/fact-purge.js` (393),
+`src/hutch/server/templates/_fact_purge.html` (5), `tests/e2e/test_fact_purge_ui.py` (130).
+Changed: `static/app.js` (two same-line appends; committed file 14,532 lines = frozen cap; worktree
+14,262 with parked hunk), `static/index.html` (+1 script line), `templates/bot.html` (+1 include),
+`tests/test_fact_purge.py` (+19-line markup/static test; 304 lines), `docs/operations.md`
+(+170/-8), `docs/realignment/continuation-B.md` (status, dashboard-control section, remaining list,
+copy-paste prompt) and this ledger. No frozen Python module was extended.
+
+**Commits.** `97d4e428 feat(memory): wire two-step permanent deletion control into the dashboard`
+(the seven implementation/test files), `c62805a1 docs(operations): design governed whole-Bot
+permanent deletion`, and the evidence commit containing this ledger and continuation-B update. Each
+commit was checked with `git show --name-only`; none contains parked-session paths or hunks.
+
+**Verification (exact commands).** The suite uses `.venv/bin/python -m pytest` because this DSH
+sandbox makes the shared `uv` cache read-only (`uv run` cannot lock).
+
+- `node --check src/hutch/server/static/fact-purge.js` - OK.
+- `.venv/bin/python -m pytest -q --no-header --tb=line tests/test_fact_purge.py
+  tests/test_fact_memory.py tests/test_api.py tests/test_migration.py tests/test_cli.py
+  tests/test_dashboard.py tests/test_conversations.py tests/test_delegation.py` - **225 passed,
+  1 skipped in 108.58 s**; the new markup/static-asset test is included and all purge, memory, API,
+  migration, CLI and dashboard coverage stayed green.
+- `.venv/bin/python -m pytest -q --no-header --tb=short tests/e2e/test_fact_purge_ui.py` -
+  **2 passed in 11.11 s** against the installed Playwright Chromium 153.0.8010.12 at 1440x960 desktop
+  and 390x844 touch phone. Each journey seeds an approved fact, opens Bot settings > Limits and memory,
+  previews the one key, checks the exact counts and remaining list, proves Erase permanently stays
+  disabled for a wrong key, types the exact key, erases, checks the success copy and remaining list,
+  waits for the saved-notes refresh, then verifies `store.recall_all(bot.id) == []`. Run receipts
+  (temporary `HUTCH_TEST_ARTIFACTS_DIR`, inspected then discarded): `control_within_viewport: true`,
+  `page_errors: []`, `remaining_items: 5`, confirm height 40 px in both viewports, preview height 44 px
+  in the coarse-pointer phone context, no horizontal overflow. The SPA shell's base `.btn` target is
+  40 px at this base; the repo's 44 px coarse-pointer rule lives in `hutch.css`, which the SPA shell
+  does not load (parked dashboard CSS migration), so the test asserts the surface's 40 px target rather
+  than an unreachable 44 px.
+- `.venv/bin/python scripts/audit_context_hygiene.py` - only the pre-existing, other-session
+  `tests/test_commit_attribution.py` (419 lines) violation; every file in this slice is within
+  budget (new module 393 < 400, app.js exactly at its frozen cap).
+- `.venv/bin/python scripts/audit_tool_contracts.py` - passed (40 tools, canonical schemas
+  certifiable, specs match). `.venv/bin/python scripts/audit_constitution.py` - passed (3 roles,
+  14 rules mapped). `.venv/bin/python scripts/audit_emoji.py` - clean (2,945 files, 10 waivers).
+  `.venv/bin/python scripts/generate_agent_map.py --write` then `--check` - regenerated for the three
+  new tracked files and passed (1,277 tracked files, 119-line map).
+- `git diff --cached --check` before each commit, and `git diff --check` on this session's touched
+  files - clean; repo-wide `git diff --check` still reports only the pre-existing, other-session
+  trailing-blank-line findings.
+
+**Limits.** No live model/provider, OAuth account, physical phone, screen reader or packaged installer
+was exercised; the browser journeys ran against a local uvicorn app on the installed Chromium, not a
+Docker-pinned visual baseline, and their screenshot receipts are temporary. Whole-Bot deletion is a
+design only: no migration, data layer, API, CLI or dashboard code exists for it. The dashboard control
+covers saved reference facts only; chats, transcripts, files, backups and provider copies remain. The
+committed `app.js`/`index.html`/`bot.html` are HEAD plus this session's hunk; the parked session's
+uncommitted redesign still owns those files in the working tree.

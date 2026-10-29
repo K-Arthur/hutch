@@ -1,7 +1,8 @@
 # Continuation: Slice B (governed permanent deletion of reference facts)
 
 Date: 2026-10-29. Base: local `main` at `135d8038` plus plan commit `4a48f003`.
-Status: **implemented and locally verified**; the dashboard control and whole-Bot purge remain.
+Status: **implemented and locally verified**; the dashboard control is wired and verified (2026-10-29
+follow-up) and the whole-Bot purge has a committed design with no code yet.
 
 ## Completed
 
@@ -30,23 +31,49 @@ The review also split the 127-line schema migration and 62-line CLI installer in
 lines and added docstrings to every new source function. The raw database file no longer contains the
 sentinel in the verification scenario, but this is not a disk-shredding guarantee.
 
+## Dashboard control (2026-10-29 follow-up)
+
+The two-step control is wired into the SPA memory settings (Bot settings > **Limits and memory** >
+Saved notes) and into the legacy server-rendered Bot page, consuming the committed preview/confirm API
+and showing the `remaining` list before and after erasure. Implementation: new
+`src/hutch/server/static/fact-purge.js` (393 lines, dependency-free, exposes
+`window.hutchFactPurge.mount`/`autoMount`), two same-line appends in the frozen `static/app.js`
+(kept exactly at the 14,532-line cap, net 0 lines), one script tag in `static/index.html`, a new
+`templates/_fact_purge.html` included from `templates/bot.html`, one markup/static-asset test in
+`tests/test_fact_purge.py`, and a new Playwright journey `tests/e2e/test_fact_purge_ui.py` (desktop
+1440x960 and touch phone 390x844; both pass, no page errors, no horizontal overflow). The owner-only
+boundary is the server's: paired/remote sessions receive 403 and see that refusal. The parked dashboard
+session's uncommitted work was preserved: only this session's hunks were staged (HEAD-based index blobs
+for the three shared files), and those files remain uncommitted in the working tree.
+
+**Whole-Bot design.** `docs/operations.md` now contains `## Whole-Bot permanent deletion (design)`:
+erase/retain inventory mapped to stores and state paths, two-step preview/confirm protocol, draining and
+in-flight-run semantics, transactional erase with the secure-delete/WAL caveat, post-commit cleanup
+manifest and crash recovery, content-free `bot_deletions`/`bot_deletion_items` evidence, proposed
+API/CLI/dashboard surfaces, schema v83 through a delegated `bot_deletion_schema.py`, acceptance
+checklist and honest limits. `store.delete_bot` is unchanged; no whole-Bot erase code exists.
+
 ## Local browser checks
 
 `.venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_bot_memory_export_explains_scope_and_downloads_complete_json tests/e2e/test_browser.py::test_scoped_fact_review_revision_conflict_and_memory_off`
 was run against the installed Chromium revision: **6 passed in 34.95 s** (the two scenarios span
-desktop/tablet/phone viewports), with artifacts under `/tmp/hutch-realign-artifacts`. The memory
-settings UI itself is unchanged by this slice.
+desktop/tablet/phone viewports), with artifacts under `/tmp/hutch-realign-artifacts`; that check
+predates the dashboard control. The control's own Playwright journey (desktop and touch phone) is
+recorded in the dashboard-control section above and in the ledger evidence entry.
 
 ## Remaining (exact paths)
 
-1. Dashboard purge control: the memory settings templates are owned by the parked brand session
-   (`src/hutch/server/templates/bot.html`, `static/app.js`). Add a two-step purge affordance that
-   consumes the new API and shows the `remaining` list; do not edit those files from this session.
-2. Whole-Bot / conversation permanent deletion: `store.delete_bot` still archives facts and keeps
-   runs/events; a separate governed design is needed (`src/hutch/store.py`, `docs/operations.md`).
+1. Done (2026-10-29 follow-up): dashboard two-step purge control wired into the SPA memory settings
+   and the legacy Bot page; see the dashboard-control section above and the ledger entry.
+2. Whole-Bot / conversation permanent deletion: design committed in `docs/operations.md`
+   (`## Whole-Bot permanent deletion (design)`); no code exists yet. `store.delete_bot` still
+   archives facts and keeps runs/events. Implement in the documented phases: schema v83 and evidence
+   tables, data layer, API/CLI, dashboard, then the acceptance checklist.
 3. Optional: exercise `workspace_task_fact_shares` erasure end-to-end through a delegation test (the
    update path is schema-guarded and covered by the migration guard today).
 4. Optional: paginate `GET .../purge-requests` if one Bot accumulates many purges (currently 1-100).
+5. Optional follow-up: replace the delayed (2.5 s) saved-notes refresh after a successful erase with an
+   in-place update if the settings view gains per-panel state.
 
 ## Verification gaps (do not overclaim)
 
@@ -56,12 +83,24 @@ erased content by design; the in-database erasure is verified but not a disk-shr
 only context-hygiene violation in the tree is the pre-existing other-session
 `tests/test_commit_attribution.py` (419 lines).
 
+Dashboard-control verification: two Playwright journeys (1440x960 desktop, 390x844 touch phone) pass
+with no page errors and no horizontal overflow; their screenshots and JSON receipts were inspected
+during the run but are temporary (`HUTCH_TEST_ARTIFACTS_DIR`), not committed visual baselines. The
+40 px SPA `.btn` target in both viewports matches the shell at this base; the repository's 44 px
+coarse-pointer rule lives in `hutch.css`, which the SPA shell does not load (parked dashboard CSS
+migration). No screen reader was used. Whole-Bot deletion remains an unimplemented design.
+
 ## Copy-paste prompt for the next run
 
-> Continue the Hutch completion work from `docs/realignment/continuation-B.md`. The governed permanent
-> deletion feature is implemented in `src/hutch/fact_purge.py`, `src/hutch/fact_purge_schema.py`,
-> `src/hutch/server/facts_api.py` and `src/hutch/cli_facts.py`, with tests in
-> `tests/test_fact_purge.py`. Next: wire the two-step dashboard control in the currently parked
-> dashboard session's templates/JS only after that work is committed, then add the whole-Bot purge
-> design in `docs/operations.md` before code. Run the quiet focused gate and record evidence in
-> `docs/realignment/ledger.md`. Never stage the other session's uncommitted files.
+> Continue the Hutch completion work from `docs/realignment/continuation-B.md`. The governed
+> permanent deletion of saved reference facts is implemented, and its two-step dashboard control is
+> wired and verified (dashboard-control section; feature commit `97d4e428`). Whole-Bot permanent
+> deletion is a committed design only in `docs/operations.md` ("Whole-Bot permanent deletion
+> (design)"). Next: implement that design in the documented phases - schema v83 and content-free
+> evidence tables in a delegated `src/hutch/bot_deletion_schema.py` module, a
+> `src/hutch/bot_deletion.py` command module (preview, drain, confirm, cleanup recovery) with focused
+> store tests, typed API and CLI surfaces, then the dashboard danger-zone control and its Playwright
+> journey - keeping frozen modules shrink-only. Optional: a delegation e2e exercise of
+> `workspace_task_fact_shares` erasure, and pagination for `GET .../purge-requests`. Run the quiet
+> focused gate and record evidence in `docs/realignment/ledger.md`. Never stage another session's
+> uncommitted files; the SPA assets may still be owned by the parked dashboard session.
