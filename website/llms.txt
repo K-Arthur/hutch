@@ -19,7 +19,7 @@ Hutch keeps its control state — conversations, memory, logs, schedules and fil
 
 ## Not claims
 
-- No public install command, package or download exists today.
+- No public install command, package or download exists today; the supported path is a Linux source checkout. Unsigned Ubuntu deb/AppImage builds exist only as local acceptance output and are not published.
 - Hutch does not operate models itself; it connects to model routes you configure.
 - Usage estimates are not provider-enforced spending limits.
 

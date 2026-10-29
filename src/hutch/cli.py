@@ -16,6 +16,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from . import __version__
+from .cli_facts import install_bot_fact_commands
 from .config import get_config
 from .models import (
     ApprovalMode,
@@ -87,6 +88,9 @@ def _require_run(store: Store, run_id: str) -> "Run":
         err.print(f"[red]no such run:[/red] {run_id}")
         raise typer.Exit(code=1)
     return run
+
+
+install_bot_fact_commands(bot_app, _store, _require_bot, err, console)
 
 
 @code_app.command("login")
@@ -1121,20 +1125,6 @@ def bot_resume(name: str = typer.Argument(...)) -> None:
     store = _store(); bot = _require_bot(store, name)
     bot.paused = False; store.upsert_bot(bot, preserve_schedules=True)
     console.print(f"resumed {name}")
-
-
-@bot_app.command("forget")
-def bot_forget(name: str = typer.Argument(...), key: Optional[str] = typer.Option(None, "--key")) -> None:
-    """Archive fact memory (all scopes, or one key); keep history. Revoke sticky allows unless --key."""
-    store = _store(); bot = _require_bot(store, name)
-    if key:
-        store.forget(bot.id, key)
-        console.print(f"archived '{key}' across this bot's scopes; history and backups remain")
-    else:
-        store.archive_all_facts(bot.id)
-        for sticky in store.list_sticky_allows(bot.id):
-            store.revoke_sticky(bot.id, sticky)
-        console.print("fact memory archived and sticky allows revoked; history and backups remain")
 
 
 # --------------------------------------------------------------------- runs

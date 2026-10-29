@@ -21,7 +21,7 @@ Hybrid automatically saves only complete, explicit formatting statements in a ma
 
 Each saved preference belongs to that conversation. A visible **Formatting preferences** section offers **Details** (original message identity and automatic decision) and **Undo**. Up to three current, validated preferences become bounded historical reference data in subsequent built-in and OpenCode chat context. They do not override the current request or saved controls, transfer to specialist Bots, or grant permissions. A model cannot shadow an active explicit preference with its own proposal. Repeating the same active preference does not create another revision.
 
-Undo archives the exact saved version; disabling memory stops fresh retrieval. Context already loaded into a run, original messages, prior provider input, history, indexes and backups remain. Review first stops new automatic retention; existing saved preferences remain until undone or memory is disabled. Drafting reusable procedures/skill metadata and permanent scoped deletion are still pending.
+Undo archives the exact saved version; disabling memory stops fresh retrieval. Context already loaded into a run, original messages, prior provider input, history, indexes and backups remain. Review first stops new automatic retention; existing saved preferences remain until undone or memory is disabled. Drafting reusable procedures/skill metadata remains pending. Permanently erasing saved reference-fact content is a separate governed purge (below); archiving alone never claims to erase it.
 
 Bot settings keep memory management beside the Bot. The owner can review proposals, create immutable
 revisions, archive records, inspect history and manage exact cross-Bot snapshots there. **Download
@@ -29,7 +29,7 @@ memory JSON** exports all fact revisions and scopes, review/archive decisions, a
 share snapshots with current status. It is limited to 10,000 fact revisions, 5,000 shares in each
 direction and 2 MiB of source data. It is unencrypted plaintext; fact values and review notes may contain
 personal or sensitive information. The export excludes conversations, credentials, run events, action receipts, workspace
-files and artifact bytes. Permanent deletion is not implemented; archive retains history and backups.
+files and artifact bytes. Permanently deleting saved reference-fact content is a separate, governed two-step action: `hutch bot purge NAME --key KEY` (or `--all`), or the typed API `POST /api/v1/bots/{ref}/facts/purge-requests` followed by `POST .../{request_id}/confirm`. It archives then erases the saved content from the live database and search index and erases inherited share/task snapshot copies, while keeping content-free tombstone and audit rows. Conversation messages, transcripts, workspace files, provider-side copies and database backups taken before the purge are not erased.
 
 A **bot** is a stored configuration; a **run** is one execution of it. Bots are managed via CLI,
 dashboard, or the REST API, and live in `hutch.db`.

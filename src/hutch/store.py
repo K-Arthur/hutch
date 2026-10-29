@@ -2439,6 +2439,12 @@ def _migrate_81(db: sqlite3.Connection) -> None:
     migrate(db)
 
 
+def _migrate_82(db: sqlite3.Connection) -> None:
+    """Governed permanent deletion for saved reference facts."""
+    from .fact_purge_schema import migrate
+    migrate(db)
+
+
 def _integration_tool_names(db: sqlite3.Connection, bot_id: str) -> list[str]:
     """Return sorted names for grants on enabled, operation-authorized integrations only."""
     rows = db.execute("SELECT g.canonical_name FROM integration_tool_grants g "
@@ -2455,7 +2461,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
                _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53, _migrate_54,
-               _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59, _migrate_60, _migrate_61, _migrate_62, _migrate_63, _migrate_64, _migrate_65, _migrate_66, _migrate_67, _migrate_68, _migrate_69, _migrate_70, _migrate_71, _migrate_72, _migrate_73, _migrate_74, _migrate_75, _migrate_76, _migrate_77, _migrate_78, _migrate_79, _migrate_80, _migrate_81]
+               _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59, _migrate_60, _migrate_61, _migrate_62, _migrate_63, _migrate_64, _migrate_65, _migrate_66, _migrate_67, _migrate_68, _migrate_69, _migrate_70, _migrate_71, _migrate_72, _migrate_73, _migrate_74, _migrate_75, _migrate_76, _migrate_77, _migrate_78, _migrate_79, _migrate_80, _migrate_81, _migrate_82]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 EVENT_OUTBOX_SCHEMA_VERSION = 71
 
@@ -9592,7 +9598,7 @@ class Store:
     def fact_memory_export_snapshot(self, bot_id: str, *, max_facts: int, max_shares_per_direction: int,
                                     max_source_bytes: int) -> Optional[dict[str, Any]]:
         """Read one bounded, consistent Bot memory export without loading unrelated state."""
-        from .fact_memory import CURRENT
+        from .fact_memory import CURRENT, share_record
 
         with self._lock:
             if self._db.in_transaction:
@@ -9613,7 +9619,8 @@ class Store:
                     "length(CAST(key AS BLOB)) + length(CAST(value AS BLOB)) + "
                     "length(CAST(content_hash AS BLOB)) + length(CAST(run_id AS BLOB)) + "
                     "length(CAST(source AS BLOB)) + length(CAST(updated_at AS BLOB)) + "
-                    "length(CAST(status AS BLOB))), 0) FROM memory_facts WHERE bot_id = ?", (bot_id,)
+                    "length(CAST(status AS BLOB))), 0) FROM memory_facts WHERE bot_id = ? "
+                    "AND purged_at = ''", (bot_id,)
                 ).fetchone()
                 share_counts = {}
                 share_bytes = 0
@@ -9654,7 +9661,7 @@ class Store:
                 facts = [dict(row) for row in self._db.execute(
                     "SELECT id, bot_id, scope_kind, scope_id, key, value, revision, content_hash, run_id, "
                     "source, updated_at, status FROM memory_facts WHERE bot_id = ? "
-                    "ORDER BY updated_at, id", (bot_id,)).fetchall()]
+                    "AND purged_at = '' ORDER BY updated_at, id", (bot_id,)).fetchall()]
                 reviews = []
                 for row in self._db.execute(
                         "SELECT d.fact_id, d.action, d.actor, d.note, d.created_at, d.result_json "
@@ -9673,8 +9680,9 @@ class Store:
                         "LEFT JOIN memory_facts f ON f.id = s.source_fact_id "
                         "LEFT JOIN bots source_bot ON source_bot.id = s.source_bot_id "
                         "LEFT JOIN bots target_bot ON target_bot.id = s.target_bot_id "
-                        f"WHERE s.{column} = ? ORDER BY s.created_at, s.id", (bot_id,)).fetchall()
-                    return [self._fact_share_record(self._db, row) for row in rows]
+                        f"WHERE s.{column} = ? AND s.purged_at = '' "
+                        f"ORDER BY s.created_at, s.id", (bot_id,)).fetchall()
+                    return [share_record(self._db, row) for row in rows]
 
                 snapshot = {"bot": metadata, "facts": facts, "reviews": reviews,
                             "shares": {"incoming": shares_for("target_bot_id"),
@@ -9697,52 +9705,12 @@ class Store:
             incoming = incoming_page(self._db, bot_id, query=query, limit=limit)
         return sorted((*own, *incoming), key=lambda fact: (fact['updated_at'], fact['id']), reverse=True)[:limit]
 
-    @staticmethod
-    def _fact_share_record(db: sqlite3.Connection, row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
-        row = dict(row)
-        if 'source_fact_status' in row:
-            fact_status = row['source_fact_status']
-            fact_current = row['source_fact_current']
-            source_doc = row['source_bot_doc']
-            target_doc = row['target_bot_doc']
-        else:
-            from .fact_memory import CURRENT
-            fact = db.execute('SELECT f.status, CASE WHEN ' + CURRENT +
-                              ' THEN 1 ELSE 0 END AS current FROM memory_facts f WHERE f.id = ?',
-                              (row['source_fact_id'],)).fetchone()
-            source = db.execute('SELECT doc FROM bots WHERE id = ?', (row['source_bot_id'],)).fetchone()
-            target = db.execute('SELECT doc FROM bots WHERE id = ?', (row['target_bot_id'],)).fetchone()
-            fact_status = fact['status'] if fact else None
-            fact_current = fact['current'] if fact else None
-            source_doc = source['doc'] if source else None
-            target_doc = target['doc'] if target else None
-        if row['revoked_at']:
-            state = 'revoked'
-        elif fact_status is None:
-            state = 'source_missing'
-        elif fact_status == 'archived':
-            state = 'source_archived'
-        elif not fact_current:
-            state = 'source_revised'
-        elif source_doc is None:
-            state = 'source_bot_removed'
-        elif not Bot.from_store_json(source_doc).memory_enabled:
-            state = 'source_memory_disabled'
-        elif target_doc is None:
-            state = 'recipient_bot_removed'
-        elif not Bot.from_store_json(target_doc).memory_enabled:
-            state = 'recipient_memory_disabled'
-        else:
-            state = 'active'
-        row['state'] = state
-        return row
-
     def create_fact_share_command(self, source_bot_id: str, fact_id: str, target_bot_id: str, *,
                                   idem_key: str, request_hash: str) -> tuple[dict[str, Any], bool]:
         """Share one currently reviewed fact with every chat for one other Bot."""
         if not idem_key or not request_hash:
             raise ValueError('fact sharing requires an idempotency key and request hash')
-        from .fact_memory import CONTENT_FIELDS, CURRENT, digest as fact_digest
+        from .fact_memory import CONTENT_FIELDS, CURRENT, digest as fact_digest, share_record
         scope = f'api:v1:fact-shares:create:{source_bot_id}'
         share_id = 'factshare_' + uuid.uuid4().hex[:20]
         now = iso(utcnow())
@@ -9789,7 +9757,7 @@ class Store:
                         target_bot_id, target_name, fact['key'], fact['value'], fact['revision'],
                         fact['content_hash'], now))
             row = db.execute('SELECT * FROM memory_fact_shares WHERE id = ?', (share_id,)).fetchone()
-            result = self._fact_share_record(db, row)
+            result = share_record(db, row)
             db.execute('INSERT INTO idempotency_keys VALUES (?, ?, ?, ?, ?)',
                        (scope, idem_key, request_hash, json.dumps(result, sort_keys=True), now))
         self.bus.notify('memory', 'bots')
@@ -9798,7 +9766,7 @@ class Store:
     def fact_shares(self, bot_id: str, *, limit: int = 50, offset: int = 0) -> dict[str, Any]:
         if not 1 <= limit <= 100 or offset < 0:
             raise ValueError('share page limit must be 1–100 and offset nonnegative')
-        from .fact_memory import CURRENT
+        from .fact_memory import CURRENT, share_record
 
         def rows_for(participant_column: str) -> list[dict[str, Any]]:
             if participant_column not in {'source_bot_id', 'target_bot_id'}:
@@ -9810,9 +9778,10 @@ class Store:
                 'LEFT JOIN memory_facts f ON f.id = s.source_fact_id '
                 'LEFT JOIN bots source_bot ON source_bot.id = s.source_bot_id '
                 'LEFT JOIN bots target_bot ON target_bot.id = s.target_bot_id '
-                f'WHERE s.{participant_column} = ? ORDER BY s.created_at DESC, s.id LIMIT ? OFFSET ?',
+                f"WHERE s.{participant_column} = ? AND s.purged_at = '' "
+                "ORDER BY s.created_at DESC, s.id LIMIT ? OFFSET ?",
                 (bot_id, limit + 1, offset)).fetchall()
-            return [self._fact_share_record(self._db, row) for row in rows]
+            return [share_record(self._db, row) for row in rows]
         with self._lock:
             incoming = rows_for('target_bot_id')
             outgoing = rows_for('source_bot_id')

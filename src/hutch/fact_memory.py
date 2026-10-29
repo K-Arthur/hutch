@@ -6,13 +6,16 @@ share creates a bot-wide fact. Historic unscoped rows remain reviewable as legac
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import re
+import secrets
 import sqlite3
 import uuid
+from datetime import timedelta
 
 from .lifecycle import LeaseLost, TERMINAL
-from .models import RunStatus, iso, utcnow
+from .models import Bot, RunStatus, iso, utcnow
 
 MAX_KEY = 120
 MAX_VALUE = 2000
@@ -73,9 +76,11 @@ def insert(db, bot_id, scope_kind, scope_id, key, value, run_id='', source='user
     content = dict(bot_id=bot_id, scope_kind=scope_kind, scope_id=scope_id, key=key, value=value,
                    revision=revision, run_id=run_id, source=source)
     fact_id = 'fact_' + uuid.uuid4().hex[:20]
-    db.execute('INSERT INTO memory_facts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    db.execute('INSERT INTO memory_facts (id, bot_id, scope_kind, scope_id, key, value, revision, '
+               "content_hash, run_id, source, updated_at, status) "
+               "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'proposed')",
                (fact_id, bot_id, scope_kind, scope_id, key, value, revision, digest(content),
-                run_id, source, updated_at or iso(utcnow()), 'proposed'))
+                run_id, source, updated_at or iso(utcnow())))
     return dict(db.execute('SELECT * FROM memory_facts WHERE id = ?', (fact_id,)).fetchone())
 
 
@@ -133,7 +138,7 @@ def page(db, bot_id, *, conversation_id=None, run_id=None, approved_only=False, 
          query='', limit=50, offset=0, include_archived=False):
     if len(query) > 256:
         raise ValueError('fact search is limited to 256 characters')
-    clauses, args = ['f.bot_id = ?', CURRENT], [bot_id]
+    clauses, args = ['f.bot_id = ?', CURRENT, "f.purged_at = ''"], [bot_id]
     if not include_archived:
         clauses.append("f.status != 'archived'")
     if not admin:
@@ -209,7 +214,8 @@ def incoming_page(db, target_bot_id, *, query='', limit=20):
 
 
 def history(db, bot_id, fact_id, *, limit=50, offset=0):
-    fact = db.execute('SELECT scope_kind, scope_id, key FROM memory_facts WHERE id = ? AND bot_id = ?', (fact_id, bot_id)).fetchone()
+    fact = db.execute("SELECT scope_kind, scope_id, key FROM memory_facts WHERE id = ? AND bot_id = ? "
+                      "AND purged_at = ''", (fact_id, bot_id)).fetchone()
     if fact is None:
         raise KeyError(fact_id)
     rows = db.execute('SELECT id, bot_id, scope_kind, scope_id, substr(key,1,120) AS key, substr(value,1,2000) AS value, '
@@ -288,7 +294,7 @@ def validate(db):
                           'f.scope_id AS fact_scope_id, f.key AS source_key, f.value AS source_value, '
                           'f.revision AS source_revision, f.content_hash AS source_hash, f.run_id AS source_run_id, '
                           'f.source AS fact_source FROM memory_fact_shares s '
-                          'JOIN memory_facts f ON f.id = s.source_fact_id'):
+                          "JOIN memory_facts f ON f.id = s.source_fact_id WHERE s.purged_at = ''"):
         content = dict(bot_id=row['source_bot_id'], scope_kind=row['source_scope_kind'],
                        scope_id=row['source_scope_id'], key=row['fact_key'], value=row['fact_value'],
                        revision=row['fact_revision'], run_id=row['source_run_id'], source=row['fact_source'])
@@ -297,3 +303,43 @@ def validate(db):
                 or row['source_value'] != row['fact_value'] or row['source_revision'] != row['fact_revision']
                 or row['source_hash'] != row['content_hash'] or digest(content) != row['content_hash']):
             raise ValueError('snapshot shared-fact content or provenance is invalid')
+
+
+def share_record(db, row):
+    row = dict(row)
+    if 'source_fact_status' in row:
+        fact_status = row['source_fact_status']
+        fact_current = row['source_fact_current']
+        source_doc = row['source_bot_doc']
+        target_doc = row['target_bot_doc']
+    else:
+        from .fact_memory import CURRENT
+        fact = db.execute('SELECT f.status, CASE WHEN ' + CURRENT +
+                          ' THEN 1 ELSE 0 END AS current FROM memory_facts f WHERE f.id = ?',
+                          (row['source_fact_id'],)).fetchone()
+        source = db.execute('SELECT doc FROM bots WHERE id = ?', (row['source_bot_id'],)).fetchone()
+        target = db.execute('SELECT doc FROM bots WHERE id = ?', (row['target_bot_id'],)).fetchone()
+        fact_status = fact['status'] if fact else None
+        fact_current = fact['current'] if fact else None
+        source_doc = source['doc'] if source else None
+        target_doc = target['doc'] if target else None
+    if row['revoked_at']:
+        state = 'revoked'
+    elif fact_status is None:
+        state = 'source_missing'
+    elif fact_status == 'archived':
+        state = 'source_archived'
+    elif not fact_current:
+        state = 'source_revised'
+    elif source_doc is None:
+        state = 'source_bot_removed'
+    elif not Bot.from_store_json(source_doc).memory_enabled:
+        state = 'source_memory_disabled'
+    elif target_doc is None:
+        state = 'recipient_bot_removed'
+    elif not Bot.from_store_json(target_doc).memory_enabled:
+        state = 'recipient_memory_disabled'
+    else:
+        state = 'active'
+    row['state'] = state
+    return row

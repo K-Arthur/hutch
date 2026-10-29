@@ -11,7 +11,10 @@ are never indexed as facts, but user/model text can contain private material and
 The Bot settings JSON export includes all saved fact revisions and explicit share snapshots but excludes
 transcripts, credentials, action receipts and workspace files. It is bounded and served with `no-store`,
 but the downloaded file is unencrypted plaintext; fact values and review notes may be sensitive, so the
-owner must review it before sharing. Archive is not permanent deletion.
+owner must review it before sharing. Archive is not permanent deletion: the governed purge
+(`hutch bot purge`, or the two-step fact API) erases saved fact content from the live database and
+search index and inherited share/task-snapshot copies, while keeping content-free audit rows. It cannot
+retract conversation history, prior provider input, workspace files or backups made before the purge.
 
 hutch assumes a **supervising human** is part of the system. It is not a formal security boundary
 against a determined adversary: it is a policy layer that checks what hutch's own tools are asked to
