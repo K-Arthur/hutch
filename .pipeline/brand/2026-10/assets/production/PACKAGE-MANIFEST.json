@@ -1,0 +1,470 @@
+[
+  {
+    "path": "production/PACKAGE-MANIFEST.json",
+    "bytes": 15910,
+    "sha256_prefix": "335294ef6e60351d",
+    "sha256": "335294ef6e60351d8ad02247f6515076dc9357bf25581faff432f79082c43788"
+  },
+  {
+    "path": "production/fonts/OFL-bricolage-grotesque.txt",
+    "bytes": 4403,
+    "sha256_prefix": "4b5a7d8f37f56026",
+    "sha256": "4b5a7d8f37f5602621c8a8d7358a6a2e71317e6c231c661e15aef0275d3e07ba"
+  },
+  {
+    "path": "production/fonts/bricolage-grotesque-latin-800.woff2",
+    "bytes": 47260,
+    "sha256_prefix": "55d3acddbb671850",
+    "sha256": "55d3acddbb67185090064db83950341bda78539dd5fbaab3cbb02c7cfd270b9c"
+  },
+  {
+    "path": "production/fonts/bricolage-grotesque-latin-var.woff2",
+    "bytes": 238808,
+    "sha256_prefix": "ea3a6787d7269320",
+    "sha256": "ea3a6787d7269320a6f973183f8188563ca2f117ddef2fa1ed65023c7039791d"
+  },
+  {
+    "path": "production/icons/apple-touch-icon.png",
+    "bytes": 3978,
+    "sha256_prefix": "2351b1e0a2136a98",
+    "sha256": "2351b1e0a2136a984c26ee3f3ce371c03de6c3610b351274c87de2600fc3b31e"
+  },
+  {
+    "path": "production/icons/favicon-16x16-dark.png",
+    "bytes": 589,
+    "sha256_prefix": "9c953bfd317aa0de",
+    "sha256": "9c953bfd317aa0deeda5832d211bdb21c18ca732790cf2d4afc93345852bbd15"
+  },
+  {
+    "path": "production/icons/favicon-16x16-light.png",
+    "bytes": 528,
+    "sha256_prefix": "cd2051a37e927367",
+    "sha256": "cd2051a37e92736784cb25ba41157cc819cdc632b340c6a14544b45e946f4819"
+  },
+  {
+    "path": "production/icons/favicon-16x16.png",
+    "bytes": 636,
+    "sha256_prefix": "ccfda3afafaeade4",
+    "sha256": "ccfda3afafaeade4db3feb5d2d5967d79a42576f9503d2fa94fed82f2915cfa3"
+  },
+  {
+    "path": "production/icons/favicon-32x32-dark.png",
+    "bytes": 1068,
+    "sha256_prefix": "175b25bdaf3861d8",
+    "sha256": "175b25bdaf3861d84bda0467c7f7a8094199b4fbe98e8f67639c62853262f46e"
+  },
+  {
+    "path": "production/icons/favicon-32x32-light.png",
+    "bytes": 941,
+    "sha256_prefix": "212ba0b11f21e56a",
+    "sha256": "212ba0b11f21e56a44e373186333c2884365a246aae1e331ed1999e21e3b95e4"
+  },
+  {
+    "path": "production/icons/favicon-32x32.png",
+    "bytes": 1124,
+    "sha256_prefix": "2d2d3d2cef7dedcd",
+    "sha256": "2d2d3d2cef7dedcd0137e032f8b0f6f4a5862bf8e8dad300690e17fa17db4ef4"
+  },
+  {
+    "path": "production/icons/favicon-48x48.png",
+    "bytes": 1723,
+    "sha256_prefix": "83cb4000a437cd7b",
+    "sha256": "83cb4000a437cd7bf7bb4f627a0d0a515ffe59ef8d2e4a5df336f6462bbc1539"
+  },
+  {
+    "path": "production/icons/favicon.ico",
+    "bytes": 3537,
+    "sha256_prefix": "9096fd72b957e4b8",
+    "sha256": "9096fd72b957e4b88602619062b1869faaa4139e7bc766858a329abd1b727df5"
+  },
+  {
+    "path": "production/icons/favicon.svg",
+    "bytes": 1054,
+    "sha256_prefix": "cada88ddc415632b",
+    "sha256": "cada88ddc415632b174e187b6f13d68c66b1185fc9dfce95ae86651e13d2ee3a"
+  },
+  {
+    "path": "production/icons/icon-192-maskable.png",
+    "bytes": 4337,
+    "sha256_prefix": "16750592cf77937a",
+    "sha256": "16750592cf77937a8f12889ec20e61f4a5e878549929b137cc3427841c63cfaf"
+  },
+  {
+    "path": "production/icons/icon-192-monochrome.png",
+    "bytes": 4250,
+    "sha256_prefix": "c9e8e5d1d52a534e",
+    "sha256": "c9e8e5d1d52a534e91ce9cf04d76d95902fcc99be7b6711a8987fd012ba7a85b"
+  },
+  {
+    "path": "production/icons/icon-192.png",
+    "bytes": 6408,
+    "sha256_prefix": "b15885c5e60bd3d5",
+    "sha256": "b15885c5e60bd3d5a0dd544b38c739fe953ef7f38569428b13758da390a88fc9"
+  },
+  {
+    "path": "production/icons/icon-512-maskable.png",
+    "bytes": 11880,
+    "sha256_prefix": "2b5735d77d1acd6c",
+    "sha256": "2b5735d77d1acd6cc5e12e5ca13766e2d823b8840f0a46f69f7841fadd4b1d2a"
+  },
+  {
+    "path": "production/icons/icon-512-monochrome.png",
+    "bytes": 12581,
+    "sha256_prefix": "1aba42a1e71cf8c2",
+    "sha256": "1aba42a1e71cf8c20cd1c08e12844a63d5bd08fdd1cd4532e6f3e788ca2acfa3"
+  },
+  {
+    "path": "production/icons/icon-512.png",
+    "bytes": 18232,
+    "sha256_prefix": "ce3da0b9be7a4ee6",
+    "sha256": "ce3da0b9be7a4ee66a168f639cc854d3493cc2f132e43a7c3120756ae5226af5"
+  },
+  {
+    "path": "production/icons/icon-monochrome.svg",
+    "bytes": 958,
+    "sha256_prefix": "76cc426d5d560c69",
+    "sha256": "76cc426d5d560c69be53eaf3392ad2e09f0d692fee8eaad3bafe3f51af963865"
+  },
+  {
+    "path": "production/lockups/hutch-lockup-dark.svg",
+    "bytes": 3514,
+    "sha256_prefix": "4cf5223e4817770b",
+    "sha256": "4cf5223e4817770bb4572428128ea7a32c641aaee150a4a6e2a74643f0f3e08a"
+  },
+  {
+    "path": "production/lockups/hutch-lockup-dark@2x.png",
+    "bytes": 15288,
+    "sha256_prefix": "acfdaa172926a615",
+    "sha256": "acfdaa172926a6155d8219505749b2abaae04164b3bf77c5495e4d7a7612abc0"
+  },
+  {
+    "path": "production/lockups/hutch-lockup-light.svg",
+    "bytes": 3514,
+    "sha256_prefix": "f959386348cd2754",
+    "sha256": "f959386348cd27548e2de7ef1aaa6f42de7951c7f44b5db6f32edf4866df3c24"
+  },
+  {
+    "path": "production/lockups/hutch-lockup-light@2x.png",
+    "bytes": 14673,
+    "sha256_prefix": "48e43d8da5914ab2",
+    "sha256": "48e43d8da5914ab235a75bf0fa65cb930c7d40832e2e7ae39408c53705899bb3"
+  },
+  {
+    "path": "production/lockups/hutch-lockup-mono-dark.svg",
+    "bytes": 3514,
+    "sha256_prefix": "d5305631d7e1a68c",
+    "sha256": "d5305631d7e1a68ca79c4a89823866a9e06ff8416976a413418415423048bdcb"
+  },
+  {
+    "path": "production/lockups/hutch-lockup-mono-dark@2x.png",
+    "bytes": 14661,
+    "sha256_prefix": "4e9482bda4afb285",
+    "sha256": "4e9482bda4afb285c50de6b3e1b21aafb36f830fca3a0a12c08fb9c660e0320d"
+  },
+  {
+    "path": "production/lockups/hutch-lockup-mono-light.svg",
+    "bytes": 3514,
+    "sha256_prefix": "ac0c2bff3549eee1",
+    "sha256": "ac0c2bff3549eee191f4320457589969f2ee3e793516ae07618470094df4c141"
+  },
+  {
+    "path": "production/lockups/hutch-lockup-mono-light@2x.png",
+    "bytes": 14190,
+    "sha256_prefix": "51f9565322f75546",
+    "sha256": "51f9565322f7554670b09f06ac525bde232a3dc1bd9516491c140ac22c6e8005"
+  },
+  {
+    "path": "production/lockups/hutch-wordmark-dark.svg",
+    "bytes": 2568,
+    "sha256_prefix": "5ece7da069814689",
+    "sha256": "5ece7da06981468981fb969b2f45219274e19e632f1af2404064c9a57ba3189f"
+  },
+  {
+    "path": "production/lockups/hutch-wordmark-dark@2x.png",
+    "bytes": 10587,
+    "sha256_prefix": "9d6b364c28b444e0",
+    "sha256": "9d6b364c28b444e05b1ba8b78d454d31107eb183d82fa63b08e5390d2b5a2d81"
+  },
+  {
+    "path": "production/lockups/hutch-wordmark-light.svg",
+    "bytes": 2568,
+    "sha256_prefix": "237ac7e39c41e092",
+    "sha256": "237ac7e39c41e092bfbe8b746fbcd7b8b54d14666ddf2c86ddc43d660808ba1b"
+  },
+  {
+    "path": "production/lockups/hutch-wordmark-light@2x.png",
+    "bytes": 10229,
+    "sha256_prefix": "ad122b52db0fef40",
+    "sha256": "ad122b52db0fef403fbc2ec21f95ecc38a8f9ca97da4ed4149a088c8ea56fbb4"
+  },
+  {
+    "path": "production/lockups/hutch-wordmark-mono-dark.svg",
+    "bytes": 2568,
+    "sha256_prefix": "6690d634acccbc22",
+    "sha256": "6690d634acccbc22c1e17b4c412caa77ecc0b2809ebcfa4018e3bf512d1865af"
+  },
+  {
+    "path": "production/lockups/hutch-wordmark-mono-dark@2x.png",
+    "bytes": 10469,
+    "sha256_prefix": "5311df33b7e963e0",
+    "sha256": "5311df33b7e963e0e985716227b00319f266e6158c213bfa318e9da2137ee13d"
+  },
+  {
+    "path": "production/lockups/hutch-wordmark-mono-light.svg",
+    "bytes": 2568,
+    "sha256_prefix": "14441d0c619e88f4",
+    "sha256": "14441d0c619e88f49c21da45f146c676cbc7130821a907984d5c1d70ffac8de3"
+  },
+  {
+    "path": "production/lockups/hutch-wordmark-mono-light@2x.png",
+    "bytes": 10150,
+    "sha256_prefix": "9167e5830582e73a",
+    "sha256": "9167e5830582e73a8708e302208ad7e3e263d0d59e5778599ad028c3a1bfb7b5"
+  },
+  {
+    "path": "production/site.webmanifest",
+    "bytes": 1064,
+    "sha256_prefix": "187682d3ed35b884",
+    "sha256": "187682d3ed35b8841a0e340e5e78f4cf49cd8ba1bc23a0b6f3cf808b7b82e05f"
+  },
+  {
+    "path": "production/social/github-social-preview-1280x640.png",
+    "bytes": 47004,
+    "sha256_prefix": "5289a49e1c2cfe49",
+    "sha256": "5289a49e1c2cfe49705abac96894a5ac661660fdfecdf1147712ffed248ba41f"
+  },
+  {
+    "path": "production/social/og-card-1200x630.png",
+    "bytes": 46515,
+    "sha256_prefix": "2cf67f59cfd46a79",
+    "sha256": "2cf67f59cfd46a79b6c349f173fc96e8159e505134f68f4db00a7b67e038bc3f"
+  },
+  {
+    "path": "production/svg/hutch-mark-currentcolor.svg",
+    "bytes": 958,
+    "sha256_prefix": "76cc426d5d560c69",
+    "sha256": "76cc426d5d560c69be53eaf3392ad2e09f0d692fee8eaad3bafe3f51af963865"
+  },
+  {
+    "path": "production/svg/hutch-mark-light.svg",
+    "bytes": 953,
+    "sha256_prefix": "c716f49107e73855",
+    "sha256": "c716f49107e73855f44f9ea18e43d0ca343b373c93abe78d180624746854155a"
+  },
+  {
+    "path": "production/svg/hutch-mark-master.svg",
+    "bytes": 953,
+    "sha256_prefix": "3ed493536db8be42",
+    "sha256": "3ed493536db8be42fa940678a27ec978043965919e16c64260e70fa5efeb45ef"
+  },
+  {
+    "path": "production/svg/hutch-mark-mono-dark.svg",
+    "bytes": 953,
+    "sha256_prefix": "3b536b716d9d403e",
+    "sha256": "3b536b716d9d403e34fb491617f448ceb0505252c633a1d34ee9ce74121139e8"
+  },
+  {
+    "path": "production/svg/hutch-mark-mono-light.svg",
+    "bytes": 953,
+    "sha256_prefix": "32b182d17e2b80c3",
+    "sha256": "32b182d17e2b80c3cc98309cade5ad1216c802a8a1766d996de45f41b8121479"
+  },
+  {
+    "path": "production/svg/hutch-mark-small.svg",
+    "bytes": 952,
+    "sha256_prefix": "67d5682e2b38dbf8",
+    "sha256": "67d5682e2b38dbf86a374d2eb9e89531f3552d7fd02e0087ead1cc99ddb38085"
+  },
+  {
+    "path": "production/validation-sheet.png",
+    "bytes": 370437,
+    "sha256_prefix": "0aa61eec9b2de1b5",
+    "sha256": "0aa61eec9b2de1b5e42e2b7f9f3b22f0437b26367bd6bcb2bcb74d3ff1e92c04"
+  },
+  {
+    "path": "press-kit/fonts/OFL-bricolage-grotesque.txt",
+    "bytes": 4403,
+    "sha256_prefix": "4b5a7d8f37f56026",
+    "sha256": "4b5a7d8f37f5602621c8a8d7358a6a2e71317e6c231c661e15aef0275d3e07ba"
+  },
+  {
+    "path": "press-kit/fonts/bricolage-grotesque-latin-800.woff2",
+    "bytes": 47260,
+    "sha256_prefix": "55d3acddbb671850",
+    "sha256": "55d3acddbb67185090064db83950341bda78539dd5fbaab3cbb02c7cfd270b9c"
+  },
+  {
+    "path": "press-kit/fonts/bricolage-grotesque-latin-var.woff2",
+    "bytes": 238808,
+    "sha256_prefix": "ea3a6787d7269320",
+    "sha256": "ea3a6787d7269320a6f973183f8188563ca2f117ddef2fa1ed65023c7039791d"
+  },
+  {
+    "path": "press-kit/png/github-social-preview-1280x640.png",
+    "bytes": 47004,
+    "sha256_prefix": "5289a49e1c2cfe49",
+    "sha256": "5289a49e1c2cfe49705abac96894a5ac661660fdfecdf1147712ffed248ba41f"
+  },
+  {
+    "path": "press-kit/png/hutch-icon-512.png",
+    "bytes": 18232,
+    "sha256_prefix": "ce3da0b9be7a4ee6",
+    "sha256": "ce3da0b9be7a4ee66a168f639cc854d3493cc2f132e43a7c3120756ae5226af5"
+  },
+  {
+    "path": "press-kit/png/hutch-lockup-dark@2x.png",
+    "bytes": 15288,
+    "sha256_prefix": "acfdaa172926a615",
+    "sha256": "acfdaa172926a6155d8219505749b2abaae04164b3bf77c5495e4d7a7612abc0"
+  },
+  {
+    "path": "press-kit/png/hutch-lockup-light@2x.png",
+    "bytes": 14673,
+    "sha256_prefix": "48e43d8da5914ab2",
+    "sha256": "48e43d8da5914ab235a75bf0fa65cb930c7d40832e2e7ae39408c53705899bb3"
+  },
+  {
+    "path": "press-kit/png/hutch-lockup-mono-dark@2x.png",
+    "bytes": 14661,
+    "sha256_prefix": "4e9482bda4afb285",
+    "sha256": "4e9482bda4afb285c50de6b3e1b21aafb36f830fca3a0a12c08fb9c660e0320d"
+  },
+  {
+    "path": "press-kit/png/hutch-lockup-mono-light@2x.png",
+    "bytes": 14190,
+    "sha256_prefix": "51f9565322f75546",
+    "sha256": "51f9565322f7554670b09f06ac525bde232a3dc1bd9516491c140ac22c6e8005"
+  },
+  {
+    "path": "press-kit/png/hutch-mark-emerald-512.png",
+    "bytes": 16149,
+    "sha256_prefix": "3a67f9096eda41f6",
+    "sha256": "3a67f9096eda41f67e50b16d709eadb30e3266c2fe372401a5e077d9f49c34ce"
+  },
+  {
+    "path": "press-kit/png/hutch-mark-mono-dark-512.png",
+    "bytes": 15602,
+    "sha256_prefix": "3e0673a3825a454c",
+    "sha256": "3e0673a3825a454c5afa20ee4f877dd21b905519ccf61876a55a25f458fc3cd0"
+  },
+  {
+    "path": "press-kit/png/hutch-mark-mono-light-512.png",
+    "bytes": 15342,
+    "sha256_prefix": "9a59a02e5779c422",
+    "sha256": "9a59a02e5779c422227fefca20a8476a3770f3df91f292a8ac425cec98dcffb9"
+  },
+  {
+    "path": "press-kit/png/hutch-wordmark-dark@2x.png",
+    "bytes": 10587,
+    "sha256_prefix": "9d6b364c28b444e0",
+    "sha256": "9d6b364c28b444e05b1ba8b78d454d31107eb183d82fa63b08e5390d2b5a2d81"
+  },
+  {
+    "path": "press-kit/png/hutch-wordmark-light@2x.png",
+    "bytes": 10229,
+    "sha256_prefix": "ad122b52db0fef40",
+    "sha256": "ad122b52db0fef403fbc2ec21f95ecc38a8f9ca97da4ed4149a088c8ea56fbb4"
+  },
+  {
+    "path": "press-kit/png/hutch-wordmark-mono-dark@2x.png",
+    "bytes": 10469,
+    "sha256_prefix": "5311df33b7e963e0",
+    "sha256": "5311df33b7e963e0e985716227b00319f266e6158c213bfa318e9da2137ee13d"
+  },
+  {
+    "path": "press-kit/png/hutch-wordmark-mono-light@2x.png",
+    "bytes": 10150,
+    "sha256_prefix": "9167e5830582e73a",
+    "sha256": "9167e5830582e73a8708e302208ad7e3e263d0d59e5778599ad028c3a1bfb7b5"
+  },
+  {
+    "path": "press-kit/png/og-card-1200x630.png",
+    "bytes": 46515,
+    "sha256_prefix": "2cf67f59cfd46a79",
+    "sha256": "2cf67f59cfd46a79b6c349f173fc96e8159e505134f68f4db00a7b67e038bc3f"
+  },
+  {
+    "path": "press-kit/svg/hutch-lockup-dark.svg",
+    "bytes": 3514,
+    "sha256_prefix": "4cf5223e4817770b",
+    "sha256": "4cf5223e4817770bb4572428128ea7a32c641aaee150a4a6e2a74643f0f3e08a"
+  },
+  {
+    "path": "press-kit/svg/hutch-lockup-light.svg",
+    "bytes": 3514,
+    "sha256_prefix": "f959386348cd2754",
+    "sha256": "f959386348cd27548e2de7ef1aaa6f42de7951c7f44b5db6f32edf4866df3c24"
+  },
+  {
+    "path": "press-kit/svg/hutch-lockup-mono-dark.svg",
+    "bytes": 3514,
+    "sha256_prefix": "d5305631d7e1a68c",
+    "sha256": "d5305631d7e1a68ca79c4a89823866a9e06ff8416976a413418415423048bdcb"
+  },
+  {
+    "path": "press-kit/svg/hutch-lockup-mono-light.svg",
+    "bytes": 3514,
+    "sha256_prefix": "ac0c2bff3549eee1",
+    "sha256": "ac0c2bff3549eee191f4320457589969f2ee3e793516ae07618470094df4c141"
+  },
+  {
+    "path": "press-kit/svg/hutch-mark-currentcolor.svg",
+    "bytes": 958,
+    "sha256_prefix": "76cc426d5d560c69",
+    "sha256": "76cc426d5d560c69be53eaf3392ad2e09f0d692fee8eaad3bafe3f51af963865"
+  },
+  {
+    "path": "press-kit/svg/hutch-mark-light.svg",
+    "bytes": 953,
+    "sha256_prefix": "c716f49107e73855",
+    "sha256": "c716f49107e73855f44f9ea18e43d0ca343b373c93abe78d180624746854155a"
+  },
+  {
+    "path": "press-kit/svg/hutch-mark-master.svg",
+    "bytes": 953,
+    "sha256_prefix": "3ed493536db8be42",
+    "sha256": "3ed493536db8be42fa940678a27ec978043965919e16c64260e70fa5efeb45ef"
+  },
+  {
+    "path": "press-kit/svg/hutch-mark-mono-dark.svg",
+    "bytes": 953,
+    "sha256_prefix": "3b536b716d9d403e",
+    "sha256": "3b536b716d9d403e34fb491617f448ceb0505252c633a1d34ee9ce74121139e8"
+  },
+  {
+    "path": "press-kit/svg/hutch-mark-mono-light.svg",
+    "bytes": 953,
+    "sha256_prefix": "32b182d17e2b80c3",
+    "sha256": "32b182d17e2b80c3cc98309cade5ad1216c802a8a1766d996de45f41b8121479"
+  },
+  {
+    "path": "press-kit/svg/hutch-mark-small.svg",
+    "bytes": 952,
+    "sha256_prefix": "67d5682e2b38dbf8",
+    "sha256": "67d5682e2b38dbf86a374d2eb9e89531f3552d7fd02e0087ead1cc99ddb38085"
+  },
+  {
+    "path": "press-kit/svg/hutch-wordmark-dark.svg",
+    "bytes": 2568,
+    "sha256_prefix": "5ece7da069814689",
+    "sha256": "5ece7da06981468981fb969b2f45219274e19e632f1af2404064c9a57ba3189f"
+  },
+  {
+    "path": "press-kit/svg/hutch-wordmark-light.svg",
+    "bytes": 2568,
+    "sha256_prefix": "237ac7e39c41e092",
+    "sha256": "237ac7e39c41e092bfbe8b746fbcd7b8b54d14666ddf2c86ddc43d660808ba1b"
+  },
+  {
+    "path": "press-kit/svg/hutch-wordmark-mono-dark.svg",
+    "bytes": 2568,
+    "sha256_prefix": "6690d634acccbc22",
+    "sha256": "6690d634acccbc22c1e17b4c412caa77ecc0b2809ebcfa4018e3bf512d1865af"
+  },
+  {
+    "path": "press-kit/svg/hutch-wordmark-mono-light.svg",
+    "bytes": 2568,
+    "sha256_prefix": "14441d0c619e88f4",
+    "sha256": "14441d0c619e88f49c21da45f146c676cbc7130821a907984d5c1d70ffac8de3"
+  }
+]

@@ -1,4 +1,4 @@
-# NEXT-PROMPT.md - paste-ready continuation: Run 6 (mark design + the identity deliverables still owed)
+# NEXT-PROMPT.md - paste-ready continuation: Run 7 (product, site, docs & desktop integration of the decided Hutch identity)
 
 ## Session input block
 
@@ -10,96 +10,62 @@ SITE_APP_PATH:        website/ (marketing site), src/hutch/server/ (dashboard)
 DOCS_PATH:            docs/
 NATIVE_TARGETS:       desktop (Tauri) + web
 EXISTING_BRAND_DOCS:  docs/brand-assets.md, docs/design-system.md, DESIGN.md, PRODUCT.md,
-                      website/tokens.json, docs/brand/03-CLEARANCE-PROTOCOL.md
+                      website/tokens.json, docs/brand/03-CLEARANCE-PROTOCOL.md, THIRD_PARTY_NOTICES.txt
 ARTIFACT_DIR:         .pipeline/brand/2026-10
 TODAY:                <YYYY-MM-DD>
-RUN:                  6
-HUMAN_AUTHORITY:      local commits only; never push/deploy/merge without explicit instruction;
-                      no integration into website/, docs/, src/ or desktop/ without its own dated
-                      authorisation
-CONCURRENCY:          write scope .pipeline/brand/** only; never read .worktrees/; stage only files
-                      this session wrote
+RUN:                  7
+HUMAN_AUTHORITY:      REQUIRES EXPLICIT DATED HUMAN AUTHORISATION BEFORE WRITING OUTSIDE .pipeline/brand/**.
+                      Local commits only; never push/deploy/merge without explicit instruction.
+CONCURRENCY:          Respect the 3-File / 1-Seam rule per slice; never read .worktrees/; stage only files
+                      this session wrote; never touch generated CSS directly (rebuild via npm run build:css
+                      only when app/src or website/src changed).
 JURISDICTIONS:        US + EU + UK + Canada; Nice classes 9 and 42 (D13)
 LICENCE_POSTURE:      open source (MIT code, OFL fonts), zero external spend (D15); IP risk owned by
                       the maintainer in writing (D20/D23/D28/D38); no funded counsel
-BUDGET:               <=15 files read per pass; <=20 external fetches; one session
+BUDGET:               <=15 files read per pass; <=20 external fetches; one session per slice
 ```
 
 ## Decided - do not reopen
 
-1. Name RETAINED: "Hutch" (D38, 2026-10-29), decided with the confirmed UK class 9/42 overlap in
-   front of the maintainer. Pre-screen only; nothing is clearance.
-2. Wordmark DECIDED: lowercase "hutch" + emerald period, set in Bricolage Grotesque at weight 800
-   (D42). Geist remains the product UI font. OFL 1.1 from google/fonts; production subset and licence
-   file still owed.
-3. Colour DECIDED (measured): COLOUR-SYSTEM.md. Emerald-400 on ink is the brand signal (10.35:1);
-   emerald-400 on paper fails at 1.65:1, so light surfaces use emerald-700 (4.69:1). brand = success
-   token collision flagged; CVD simulated; print approximations listed.
-4. Mark NOT decided, and no earlier mark work may be reused. On 2026-10-29 the human rejected every
-   concept from rounds 1-12 ("these are all horrible") and required the work archived as NON-candidates
-   (D51, D52). The archive is .pipeline/brand/2026-10/assets/archive/rejected-marks-2026-10-29/
-   (manifest inside). Do not present, revive, rename or lightly modify anything from it; it exists so
-   you do not repeat rejected vocabulary.
+1. Name RETAINED: `"Hutch"` (D38, 2026-10-29), decided with the confirmed UK class 9/42 overlap (`UK00003711474`) in front of the maintainer. Pre-screen only; nothing is clearance.
+2. Wordmark DECIDED: lowercase `"hutch"` + emerald period (`.`), set in `Bricolage Grotesque` weight `800` (`D42`). `Geist` remains the product UI font. Production subset (`bricolage-grotesque-latin-800.woff2`) and verbatim OFL 1.1 licence (`OFL-bricolage-grotesque.txt`) are ready in `.pipeline/brand/2026-10/assets/production/fonts/`.
+3. Colour DECIDED (measured): `COLOUR-SYSTEM.md` (`D43`). `#34d399` (`emerald-400`) on `#0a0a0c` = `10.35:1`; light surfaces use `#047857` (`emerald-700`, `4.69:1` on `#eef2f6`, `5.32:1` on `#f8fafc`).
+4. Mark DECIDED: **Direction B — "Visor Hutch"** (`D54`, picked by the human on `2026-10-29`). Built in two redrawn size tiers (`Master >=32px` and `Small 16–24px`) with full production assets in `.pipeline/brand/2026-10/assets/production/` and press kit in `.pipeline/brand/2026-10/assets/press-kit/`.
+5. Archived Rounds 1–12 marks in `.pipeline/brand/2026-10/assets/archive/rejected-marks-2026-10-29/` remain NON-candidates (`D51`/`D52`) and must never be referenced or used.
 
 ## Read first, in this order
 
-1. .pipeline/brand/2026-10/PRINCIPLES.md - the researched method and the R1-R11 rulebook
-2. CONCEPT-LOG.md sections 6.6-6.8 - what was tried, why it failed, the rejected-vocabulary table
-3. STRATEGY.md sections 6-7 - positioning and the IP pre-screen scope
-4. COLOUR-SYSTEM.md sections 3-5 - findings, proposed system, what is undecided
-5. DECISION.md - D38-D52 and blockers B6-B10
-6. APP-BRAND-AUDIT.md section 6 and ASSET-INVENTORY.md - the real surfaces and what exists today
+1. `.pipeline/brand/2026-10/HANDOFF.md` - Run 6 summary, artifact inventory, and active blockers `B6–B10`
+2. `.pipeline/brand/2026-10/BRAND-GUIDELINES.md` - canonical geometry, size-tier switching (`>=32px` vs `16–24px`), colour tokens, and typography rules
+3. `.pipeline/brand/2026-10/VALIDATION-MATRIX.md` - verified platform asset specs and integration limitations (`L1–L5`)
+4. `.pipeline/brand/2026-10/DECISION.md` - `D38–D56` and blockers `B6–B10`
+5. `.pipeline/brand/2026-10/APP-BRAND-AUDIT.md` and `ASSET-INVENTORY.md` - exact product/site/desktop files to update
 
-## Task A (priority): design the mark from a clean sheet
+## Gate check (mandatory before any edit outside `.pipeline/brand/**`)
 
-Hard requirements:
-- Original by construction: no tracing, no stock, no AI image generation; provenance recorded per asset.
-- Ground the mark in the subject before drawing any shape (PRINCIPLES R1). Subject: a hutch is a timber
-  home for animals; product truth: local-first, multi-bot, governed autonomy, quiet chrome, a builder
-  audience, one machine that holds the colony.
-- Exactly one bold, memorable move (R2). Everything else quiet.
-- Grid discipline and optical corrections documented in a construction sheet (R3-R5): coordinates,
-  radii, gaps, overshoots; designed counterform.
-- Two size tiers, redrawn not scaled: master >=32px and small 16-24px (R6).
-- Test matrix: 16px light/dark and DPR2, 32/48, 512px icon, maskable crop, mono, lockup with the
-  decided wordmark, grayscale print proxy (R7-R9).
-- Present AT MOST TWO directions. For each: a one-page rationale tied to product truth and the surface
-  list (favicon, dashboard header, desktop icon, PWA, Open Graph, README/terminal, press); the
-  construction sheet; the test matrix; a self-critique against R1-R11 written BEFORE the
-  recommendation. Then recommend one and record the human's pick with a date.
-- Do not decide for the human. Do not produce production assets for a mark that has not been picked.
+- Confirm that the user prompt invoking Run 7 includes an **explicit dated authorisation** to integrate the Run 6 brand package into repository surfaces (`website/`, `src/hutch/server/`, `docs/`, `desktop/icons/`, `THIRD_PARTY_NOTICES.txt`), resolving blocker `B6`.
+- If explicit authorisation is missing, ask the user for confirmation and do not modify files outside `.pipeline/brand/2026-10/`.
 
-## Task B: the identity deliverables this run still owes
+## Planned integration slices (respect the 3-File / 1-Seam rule per task slice)
 
-- BRAND-GUIDELINES.md: foundation, mark system (after the pick), wordmark, colour, typography,
-  iconography, motion, applications, accessibility, governance, legal/attribution, assets/downloads,
-  changelog.
-- Press kit and production wordmark: Bricolage subset (woff2) with the OFL text shipped, outlined
-  lockup SVG plus 2x PNGs.
-- Platform icon package for the picked mark: favicon 16/32 + ICO, apple-touch 180, PWA 192/512
-  (any, maskable, monochrome), Open Graph 1200x630, GitHub social 1280x640. Re-verify the per-platform
-  numbers at execution time and record the source URL plus date.
-- Validation matrix across real surfaces and both themes, zoom, CVD and print proxy; open and inspect
-  every image; record limitations honestly.
-- IP-CLEARANCE updates: dated screen rows for the picked shape (exact queries, sources, what was not
-  found), unresolved flags, counsel escalation unchanged. Never claim clearance.
-- HANDOFF.md and NEXT-PROMPT.md (Run 7); one coherent local commit with the docs(brand): prefix.
+### Slice 7A — Licence, Font & Brand Docs Reconciliation (`B9` + `docs/brand-assets.md`)
+- Copy `.pipeline/brand/2026-10/assets/production/fonts/bricolage-grotesque-latin-800.woff2` and `OFL-bricolage-grotesque.txt` into the canonical web/server font directories (`website/assets/fonts/` and `src/hutch/server/static/fonts/`).
+- Reconcile `THIRD_PARTY_NOTICES.txt` (`B9`) so it accurately attributes shipped `Geist`, `Geist Mono`, and `Bricolage Grotesque` (OFL 1.1) and removes stale `Inter` / `JetBrains Mono` references.
+- Update `docs/brand-assets.md` and `docs/design-system.md` to reference the decided `"Visor Hutch"` mark, `"hutch."` wordmark, and `COLOUR-SYSTEM.md` token rules.
+
+### Slice 7B — Marketing Site (`website/`) Brand & Icon Integration
+- Copy the platform icon pack (`favicon.ico`, `favicon.svg`, `favicon-16x16.png`, `favicon-32x32.png`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `icon-192-maskable.png`, `icon-512-maskable.png`, `icon-192-monochrome.png`, `icon-512-monochrome.png`, `site.webmanifest`, `og-card-1200x630.png`) from `.pipeline/brand/2026-10/assets/production/` into `website/` / `website/assets/`.
+- Update `website/index.html`, `website/src/input.css`, and `website/tokens.json` (`B10`: align `#0a0a0c` canvas token, wire `<link rel="icon">`, `<link rel="apple-touch-icon">`, `<link rel="manifest">`, Open Graph `<meta>` tags, and the navbar `"Visor Hutch"` mark + `"hutch."` wordmark lockup).
+- Run `npm run build:css --silent` if `website/src/` changed.
+
+### Slice 7C — Product Dashboard (`src/hutch/server/`) & Tauri Desktop (`desktop/icons/`)
+- Copy the favicons, PWA icons, and SVG mark/lockup into `src/hutch/server/static/` and wire them in `src/hutch/server/templates/` / `src/hutch/server/pages.py` (using `hutch-mark-small-emerald.svg` at `16–24px` and `hutch-mark-master-emerald.svg` at `>=32px`, and reconciling the document title drift logged in `B10`).
+- Generate/update `desktop/icons/` (`32x32.png`, `128x128.png`, `128x128@2x.png`, `icon.icns`, `icon.ico`, `icon.png`) from the picked `"Visor Hutch"` mark and record provenance in `docs/brand-assets.md`.
+- Run focused tests (`npm run test:agent` on any touched server routes/templates) and `npm run check:agent`.
 
 ## Hard rules
 
-- Legal voice: "screened", "found", "not found in the sources searched", "unresolved", "counsel/owner
-  decision required", "not legal advice". Never: safe, cleared, trademarkable, non-infringing.
-- No assets outside .pipeline/brand/**; no product, site, docs or desktop integration; no push.
-- No emoji; do not read .worktrees/; do not stage other workstreams' uncommitted files.
-- Stop rules: missing human pick for the mark, a newly confirmed core-class hit, an unresolved no-ship
-  legal or cultural risk, a capability gap, or conflicting work -> record a blocker in DECISION.md and
-  stop instead of proceeding on inference.
-
-## Success criteria for Run 6
-
-1. At most two mark directions built to PRINCIPLES, with construction sheets and test matrices; the
-   human has picked one (or asked for a specific refinement, recorded).
-2. BRAND-GUIDELINES.md and the press kit exist for the decided elements, and for the mark if picked.
-3. Platform icon package and validation sheet for the picked mark; limitations recorded.
-4. PROVENANCE-REGISTER and IP-CLEARANCE updated with the new assets; nothing claimed as cleared.
-5. HANDOFF + NEXT-PROMPT (Run 7) written; one local commit; no integration, no push.
+- Legal voice: `"screened"`, `"found"`, `"not found in the sources searched"`, `"unresolved"`, `"counsel/owner decision required"`, `"not legal advice"`. Never: `safe`, `cleared`, `trademarkable`, `non-infringing`.
+- Never edit generated CSS (`src/hutch/server/static/ui.css`, `model-switcher.css`, `website/app.css`, `website/styles.min.css`) by hand; edit sources and run `npm run build:css --silent`.
+- No emoji (`uv run --frozen --no-sync python scripts/audit_emoji.py`).
+- Never read `.worktrees/`; never stage other workstreams' uncommitted files; local commit only (no push).

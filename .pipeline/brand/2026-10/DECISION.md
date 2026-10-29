@@ -364,3 +364,53 @@ The register probe then reached UKIPO and WIPO but not USPTO (IP-CLEARANCE secti
   archived (not deleted) under assets/archive/rejected-marks-2026-10-29/ with a manifest that marks it
   ARCHIVED, NOT CANDIDATES; the next prompt carries a hard rule that nothing from the archive may be
   revived or accepted as a candidate. This supersedes the "files removed" wording of D51.
+
+### Run 6 session (2026-10-29, America/Vancouver) - clean-sheet mark pick and full pipeline deliverables
+
+- D53 (HUMAN INSTRUCTION, 2026-10-29, verbatim): "Take inspiration from grokbot, the ghost from pacman
+  and the maining of the word hutch" [sic]. Recorded as the Run 6 clean-sheet synthesis brief: fuse (1)
+  the minimalist mouthless Grokbot character language (already reflected in Hutch's in-app 2D bot
+  avatars `ID_FACES` in `src/hutch/server/static/app.js:1452-1507`: paired `±8°` inward-tilted oval
+  eyes and recessed visor geometry), (2) the iconic domed-to-scalloped-skirt silhouette and directional
+  gaze of the Pac-Man ghost archetype (original 3-post / 2-burrow-arch tangent-continuous waveform on
+  the 32-unit grid; no contour, zig-zag skirt or asset copied from Bandai Namco), and (3) the physical
+  meaning of a hutch (a protective roofed/hooded shelter raised on stile posts with open lower burrows
+  housing the colony).
+- D54 (HUMAN DECISION, 2026-10-29, direction gate via `ask_question`): Presented two clean-sheet
+  directions built to `PRINCIPLES.md` R1–R11 (`MARK-DIRECTIONS-RUN6.md`, construction sheets
+  `run6-direction-a-construction.png` and `run6-direction-b-construction.png`, and comparative surface
+  matrix `run6-test-matrix.png`). The maintainer selected the recommended **Direction B — "Visor Hutch"**
+  (hooded ghost-hutch dome + recessed Grokbot visor loft bay + twin gleaming tilted bot eyes +
+  3-post/2-burrow skirt). This closes the mark selection gate (Run 5 adapter gate `c`).
+- D55 (EXECUTION DECISION, 2026-10-29) - Task B deliverables completed pipeline-only under D42/D54:
+  - Production wordmark font subsets (`bricolage-grotesque-latin-800.woff2` and
+    `bricolage-grotesque-latin-var.woff2`) generated from `BricolageGrotesque-var.ttf` with `fontTools`
+    and shipped alongside the verbatim upstream `OFL-bricolage-grotesque.txt` fetched 2026-10-29.
+  - Pure `<path>`-outlined wordmark SVGs (`hutch-wordmark-{dark,light,mono-dark,mono-light}.svg`) and
+    horizontal lockup SVGs (`hutch-lockup-{dark,light,mono-dark,mono-light}.svg`) plus `@2x` PNGs.
+  - Full platform icon package for "Visor Hutch": `favicon.svg` (`prefers-color-scheme`), `favicon.ico`
+    (`16/32/48` embedded), `favicon-{16x16,32x32,48x48}.png` (+ dark/light transparent variants),
+    `apple-touch-icon.png` (`180x180` opaque `#09090b`), PWA `192/512` (`any`, `maskable` within W3C
+    `40%`-radius safe zone, `monochrome`), `site.webmanifest`, `og-card-1200x630.png`, and
+    `github-social-preview-1280x640.png`.
+  - Standalone press kit (`assets/press-kit/`), validation matrix (`VALIDATION-MATRIX.md`,
+    `assets/production/validation-sheet.png` with every rendered image opened and visually inspected),
+    and complete brand guidelines (`BRAND-GUIDELINES.md`).
+- D56 (IP PRE-SCREEN UPDATE, 2026-10-29) - Web discovery pre-screen and WIPO Vienna Tenth Edition
+  candidate coding recorded for the picked "Visor Hutch" shape in `IP-CLEARANCE.md` Section 13, and
+  asset provenance recorded in `PROVENANCE-REGISTER.md` Appendix C/D. Nothing is claimed as cleared,
+  distinctive or non-infringing; B6, B7, B8, B9 and B10 remain open for owner/counsel decision.
+
+### Run 6 gates and blockers
+
+- Mark selection gate: **CLOSED (2026-10-29)** — Direction B ("Visor Hutch") selected by maintainer (D54).
+- Pipeline deliverables gate: **CLOSED (2026-10-29)** — guidelines, press kit, production wordmark,
+  platform icon package, validation matrix, provenance and IP updates written under
+  `.pipeline/brand/2026-10/`.
+- Product / site / docs / desktop integration gate: **OPEN (Run 7)** — requires its own explicit dated
+  human authorisation before writing to `website/`, `src/hutch/server/`, `docs/`, or `desktop/icons/`.
+- Blockers B6 (counsel review if funded; gates 3–4 OPEN), B7 (US serials 99695333 / 87196849 official
+  class verification), B8 (EUIPO/TMview/CIPO/app stores/combined phrases + figurative register search on
+  the picked mark), B9 (bare-name domain/handle occupancy strategy), and B10 (confirmed UK class 9/42
+  word-mark overlap; name retained under written risk ownership D38) remain active and unchanged in
+  legal posture.

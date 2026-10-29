@@ -622,3 +622,50 @@ What it does not decide or change:
 Re-confirmation: the written risk ownership is re-confirmed by this decision for this stage and must be
 re-confirmed again at each later gate. The retain decision is dated and written; it is the decision to
 quote when a later run needs the stop condition's "dated written human decision".
+
+---
+
+## 13. Run 6 addendum — pre-screen of the picked mark shape ("Visor Hutch", Direction B, 2026-10-29)
+
+Status: **PRE-SCREEN ONLY — NOT CLEARANCE.** This section records the dated web discovery queries,
+cultural/category archetype observations, and WIPO Vienna Classification Tenth Edition candidate codes
+for the clean-sheet Run 6 mark directions (`MARK-DIRECTIONS-RUN6.md`) and specifically for **Direction B
+("Visor Hutch")**, picked by the maintainer on `2026-10-29` (`DECISION.md` D54). Nothing in this section
+establishes that the mark is available, registrable, distinctive, or non-infringing in any territory;
+all figurative register searches remain **unresolved** and require **counsel/owner decision** (`B6`,
+`B8`, `B10`). Not legal advice.
+
+### 13.1 Dated discovery queries for the Run 6 shapes (2026-10-29)
+
+| Call | Date (PT) | Exact Query | Source / Surface | Observation as Read | Outcome (Risk Rated, Not Clearance) |
+|---|---|---|---|---|---|
+| R6-01 | `2026-10-29` | `"grokbot" logo OR icon OR robot OR xAI grok logo` | Web search (`sologo.ai`, `designhill.com`, `nan.xyz`, `reddit.com`) | xAI's official Grok brand mark (Feb 2025–present, by Jon Vio) is an orbital black-hole / accretion-disc monogram `"G"` (preceded by a `/` slash mark). No domed 3-post visor-hutch mark is used as xAI's corporate logo. | **Screened (web discovery); not found in the sources searched** for the specific "Visor Hutch" geometry. |
+| R6-02 | `2026-10-29` | `"grokbot" OR "grok bot" mascot icon character` | Web search (`xplored.design`, `grokbot-icon.com`, `x.ai`) | Describes the minimalist mouthless bubble/capsule bot avatar style with expressive paired oval/dot eye motifs used for agent rosters (also reflected in Hutch's own `src/hutch/server/static/app.js` `ID_FACES`). | **Archetype observation recorded.** The picked mark uses original `32x32` coordinates, a recessed hutch-loft visor cutout, and a 3-post burrow base; no external file or path was copied. |
+| R6-03 | `2026-10-29` | `logo gable roof ghost three legs two eyes OR house character scalloped bottom` | Web search | No commercial logo, software brand, or registered mark combining a pitched gable roof with projecting eaves, tilted oval eyes, and a 3-post/2-arch scalloped base surfaced in the returned results. | **Not found in the sources searched** (Direction A alternative). Weak negative only; not a figurative register search. |
+| R6-04 | `2026-10-29` | `logo domed ghost visor two eyes three legs OR hooded robot visor scalloped skirt` | Web search (`streamlinehq.com` generic icon descriptions) | Generic stock-icon descriptions of rounded sci-fi droids on tripod legs surfaced; no specific software, AI, or technology company logo matching the nested `domed shell -> recessed visor loft -> twin tilted positive oval eyes -> 3-post/2-arch base` geometry was found in the sources searched. | **Not found in the sources searched** as a competing software/AI brand mark; generic sci-fi droid/ghost icon tropes exist in stock libraries. **Unresolved** on trademark registers. |
+| R6-05 | `2026-10-29` | `"Phantom wallet" logo OR "Ghost CMS" logo OR "Discord Clyde" logo shape geometry` | Web search (`phantom.com`, `discord.com`, `designrush.com`) | Category comparison against known tech marks with ghost/bot silhouettes: (a) **Phantom Wallet** uses an asymmetrical side-swept ghost tail with circular eyes and no visor; (b) **Ghost CMS** uses minimal orb/speech-bubble primitives; (c) **Discord Clyde** uses a squircle game-controller body with top antenna bumps and no bottom burrow arches; (d) **Bandai Namco Pac-Man Ghost** uses a 3-wave jagged triangular zig-zag skirt and circular eyes with pupils. | **Screened; unresolved.** Direction B ("Visor Hutch") copies no contour, proportion, eye treatment, or skirt waveform from any of these marks. Likelihood of confusion is a legal question not assessed here; **counsel/owner decision required**. |
+
+### 13.2 WIPO Vienna Classification (Tenth Edition, 2026–2028) candidate coding note for "Visor Hutch"
+
+In Run 4 (`section 3 addendum` and `11.4`), the Tenth Edition (in force `2026-01-01` to `2028-12-31`)
+was verified for the legacy hexagon-and-dot device (`26.5` / `26.1`). Because the maintainer replaced
+the hexagon with **Direction B ("Visor Hutch")** (`D51/D54`), a figurative trademark search by counsel
+would evaluate Vienna divisions covering:
+- **Division 04.05** (*Plants, objects or geometrical figures representing a person or an animal; masks or fantastic/stylized beings*) and/or **Division 07.01** (*Dwellings, buildings, shelters*), alongside
+- **Division 26.01** (`26.1.1` *Circles, ellipses* — for the paired oval eye islands) and **Division 26.04** (`26.4` *Quadrilaterals* with rounded corners — for the recessed visor cutout).
+
+No Vienna code is asserted as definitive here, and **no figurative search has been executed** on
+USPTO, EUIPO eSearch, TMview, UKIPO, CIPO, or WIPO Global Brand Database for the "Visor Hutch" device.
+
+### 13.3 Unresolved flags & counsel escalation (unchanged)
+
+1. **Word mark overlap (B10, confirmed in UK):** Two live UK registrations for `HUTCH` cover Nice
+   classes 9 and 42 (`UK00003791602`, `UK00902129492`; section 11.3). Name retained by maintainer under
+   written risk ownership (`D38`).
+2. **Unreached registers (B7, B8):** US serials `99695333` and `87196849` (classes unverified from
+   official TSDR source), EUIPO eSearch, TMview, CIPO, app stores, and exact combined phrases (`"Hutch app"`,
+   `"Hutch AI"`, `"Hutch assistant"`) remain unretrieved/unexecuted.
+3. **Figurative search owed (B8 / D56):** A figurative search across US/EU/UK/CA registers in Nice
+   classes 9 and 42 for the picked "Visor Hutch" geometry remains **unresolved** and requires
+   **counsel/owner decision** (`B6`).
+4. **Posture:** `PRE-SCREEN, NOT CLEARANCE — OPEN FOR COUNSEL`. Nothing in this pipeline is cleared.

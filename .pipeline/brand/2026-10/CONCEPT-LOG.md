@@ -273,3 +273,26 @@ Why they failed, in one line each: none was grounded in the subject's materials 
 drawn (PRINCIPLES R1), none had a single memorable move (R2), and the simple-geometry vocabulary is
 exactly what stock logo generators and existing companies already use (the human's own words: "far too
 simple ... probably done and currently possibly being used by other existing companies").
+
+### 6.9 Run 6 (2026-10-29): clean-sheet synthesis and human pick of Direction B ("Visor Hutch")
+
+Authority and brief: `DECISION.md` D53–D56 and `MARK-DIRECTIONS-RUN6.md`. In Run 6 the maintainer gave
+an explicit creative triad brief (D53, verbatim: "Take inspiration from grokbot, the ghost from pacman
+and the maining of the word hutch" [sic]). Two clean-sheet directions were constructed on the 32x32
+grid (4-unit module) to `PRINCIPLES.md` R1–R11, each with redrawn Master (`>=32px`) and Small (`16–24px`)
+tiers, construction sheets, and a full surface test matrix:
+
+| Direction | Synthesis & Bold Move (R2) | Outcome | Evidence |
+|---|---|---|---|
+| **Direction A: "Gable Ghost"** | Pitched timber-hutch gable roof with `1.80u` projecting eaves + knocked-out Grokbot inward-tilted (`-8°/+8°`) oval eyes + tangent-continuous 3-post / 2-burrow-arch Pac-Man skirt | High-distinctiveness alternative; retained in `MARK-DIRECTIONS-RUN6.md` | `assets/concepts/sheets/run6-direction-a-construction.png`, `run6-test-matrix.png` |
+| **Direction B: "Visor Hutch"** | Enclosing hooded ghost-hutch dome + recessed upper hutch-loft / Grokbot visor cutout (`x=6.80..25.20, y=8.60..18.40`) housing **two positive-space inward-tilted (`-8°/+8°`) Grokbot eyes** + 3-post / 2-burrow-arch skirt | **SELECTED by human on 2026-10-29 (D54)** | `assets/concepts/sheets/run6-direction-b-construction.png`, `run6-test-matrix.png` |
+
+Why the Run 6 geometry succeeded where Rounds 7–12 failed:
+1. **No gravestone aspect ratio:** Both directions use a `1:1` square optical balance (`24x24` nominal box with `+0.30u..0.35u` optical overshoots) rather than the narrow `20x24` slab of Rounds 7–12.
+2. **Zero center-mouth pareidolia:** By placing a solid `4.40u` timber post at the horizontal center (`x = 16.0, y = 28.30`) flanked by two `5.40u` concave burrow arches, the base reads simultaneously as a Pac-Man ghost skirt and a two-bay hutch foundation—never as a gaping mouth.
+3. **Grokbot / `ID_FACES` continuity:** The paired `±8°` inward-tilted vertical oval eyes with a `+0.30u` upward right-eye gaze match Hutch's in-app 2D bot sigils (`src/hutch/server/static/app.js:1452-1507`), while the recessed visor loft in Direction B bridges the 3D marketing mascot (`website/assets/hutch-agent.webp`).
+
+Following the human's pick of **Direction B ("Visor Hutch")** (D54), the full pipeline-only production
+package, Bricolage Grotesque 800 WOFF2 subset + OFL text, outlined wordmarks/lockups, platform icons,
+social cards, press kit, validation matrix (`VALIDATION-MATRIX.md`), and brand guidelines
+(`BRAND-GUIDELINES.md`) were produced. Nothing here is trademark clearance (`IP-CLEARANCE.md` Section 13).
