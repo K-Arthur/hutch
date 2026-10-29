@@ -158,5 +158,19 @@ is installed (B1 is approved, not executed).
 PROVENANCE-REGISTER.md (18 asset rows, licence-record gaps, carried unknowns), IP-CLEARANCE.md
 (dated 12-call pre-screen log with the stop condition), CLEARANCE-PROTOCOL.md (signed v0.1, adopted
 as docs/brand/03-CLEARANCE-PROTOCOL.md), and this log's D21-D27. No identity asset was generated,
-drawn or rendered; no concept elaboration was produced (stop condition).
+drawn or rendered; no identity asset was generated, drawn or rendered at that point.
+
+### Run 3 continued (maintainer instruction, 2026-10-28)
+
+- D28 - Knockout stop condition overridden by a dated maintainer instruction: proceed under the
+  written risk ownership (D20/D23); the maintainer will check the trademark classes later. The
+  protocol's stop-condition row allows resumption on a dated written human decision; this is that
+  decision. Text/spec design work is unblocked; asset files and renders still need their own
+  decision. The observed overlap is NOT resolved and remains blocker B7.
+- D29 - Secondary territory: both D3 "Quiet Chrome" and D4 "Character Tiering" join the Run 4
+  shortlist (human, ask answer 2026-10-28). Shortlist = D1 + D2 + D3 + D4; D27's deferral is
+  superseded.
+- Artifact added under D28/D29: CONCEPTS-D1-D2.md - text-first elaboration (geometry, lockup,
+  casing, clear space, 16px and monochrome test plans described, not drawn). No identity asset was
+  generated, drawn, rendered or exported.
 

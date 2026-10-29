@@ -342,3 +342,17 @@ retrieved from any register; all per-entry data is from search-result title text
 
 Open state: PRE-SCREEN, NOT CLEARANCE - OPEN for counsel. Stop condition recorded in section 0 and
 reported to the lead on 2026-10-28.
+
+## 10. Human decision after this log (2026-10-28)
+
+Maintainer instruction recorded as D28: proceed under the written risk ownership (D20/D23) and
+check the trademark classes later. The stop condition in section 0 is therefore a recorded and
+accepted risk, not a hold on text/spec design work; it is NOT resolved and NOT cleared.
+
+- Section 0's closing line "no design talk follows from this record" is superseded by that dated
+  human decision (D28). The register evidence itself is unchanged.
+- This log remains PRE-SCREEN, NOT CLEARANCE - OPEN for counsel.
+- The class check and the unreachable-register checks remain owed and are still the highest-value
+  next actions (B7, B8); the maintainer accepted doing them later.
+- No clearance, distinctiveness or non-infringement conclusion is drawn by D28; it is a risk
+  position, not a legal result.
