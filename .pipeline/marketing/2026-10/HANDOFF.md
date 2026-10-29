@@ -1,64 +1,60 @@
-# HANDOFF - Hutch - 2026-10-28 - session 9 (public launch: Pages hosting, public docs, GitHub prerequisites)
+# HANDOFF - Hutch - 2026-10-29 - session 10 (post-launch CI/deploy verification; CI red on record commit, attributed to product workstream)
 
 ## State
-- Repo/branch: /home/kevina/CodingProjects/hutch · main. The GitHub repository is PUBLIC (has been since 2026-10-07).
-- Session start: local main `f6bb3f22`, origin/main `b5fee054`, 38 local commits unpublished.
-- Published this session: `b5fee054..b44e62fd` (40 commits) plus the session-9 fix and record commits. See CHANGES.md session 9 and EVIDENCE-session-9.md for exact hashes and results.
-- Site: LIVE at https://k-arthur.github.io/hutch/ via GitHub Pages (Actions artifact deploy from `website/`).
-- Release: v0.1.0 source tag + GitHub pre-release (no binaries, no hosted sign-up). Tag and release are created right after the record commit is pushed.
-- Campaign phase machine: Phases 0-7 complete (prior sessions); the domain-gated slice S-d is now effectively unblocked by the github.io origin, with a custom domain still deferred. Session 9 is a new public-launch workstream on top of the site campaign.
-- Other workstream: its uncommitted tree (src, app, tests, package files, pyproject, AGENTS.md, .gitignore, untracked .ai/, docs workflow files) remains untouched. Only the two public-wording hunks of CONTRIBUTING.md were staged (index-only).
+- Repo/branch: /home/kevina/CodingProjects/hutch · main. GitHub repository PUBLIC. Local main = origin/main = `577e1154` (session-9 record commit). Nothing new pushed except this session's docs/evidence commit.
+- Site: LIVE at https://k-arthur.github.io/hutch/ — Pages run `40813421201` on the record commit SUCCEEDED; live HTML verified to serve the record commit (canonical, og:url, locator marker, `tokens.css?v=7e5b0d00` byte-matches `git show 577e1154:website/index.html`).
+- Release: v0.1.0 source pre-release live (prerelease=true, 0 assets). Human confirmed it plus pushed main and the github.io host (DECISION R10-01).
+- CI on the record commit: RED. Run `40813421173`: benchmarks/attribution/3.11 green; 3.12 failed 1 test, 3.13 failed 3 different tests — all in product-UI e2e (test_workflow_route_card, test_browser, test_design_system), none traceable to session-9 (EVIDENCE-session-10 AC1a). Recorded, not fixed.
+- Campaign phase machine: Phases 0-7 complete; launch done; this session was verification. Marketing work is in maintenance/measure mode; the open work is owner-gated or belongs to other workstreams.
+- Other workstream: uncommitted tree (src, app, tests, package files, AGENTS.md, .gitignore, CONTRIBUTING.md) still present and untouched; brand PR #11 open (theirs).
 
 ## What changed this session
-- Site: canonical, og:url, absolute og:image and twitter:image, sitemap.xml, robots Sitemap directive, .well-known/security.txt (plus root convenience copy), .nojekyll, JSON-LD url/sameAs/author/screenshot, llms.txt site fact, Pages deploy workflow, 1280x640 GitHub social preview asset.
-- Docs: README rebuilt for discoverability and answer engines; SECURITY rewritten for public private-vulnerability reporting; PRODUCT stale instruction fixed; CONTRIBUTING public wording; CODE_OF_CONDUCT; docs/README; docs/brand-assets identity section; docs/marketing-site claim rules + hosting section; new docs/discoverability runbook.
-- GitHub: 20 topics, new description, Discussions, secret scanning, push protection, private vulnerability reporting, Dependabot security updates, delete-branch-on-merge, auto-merge; issue forms, PR template, CODEOWNERS, CITATION, Dependabot config; "dependencies" label.
-- Site fixes found by the browser gate: removed a sitemap link that broke the asset-hash contract, made the workflow availability locator unique, restamped a stale tokens.css cache key.
+- Nothing on any public surface. Campaign artifacts only: 00-BRIEF (session 10), EVIDENCE-session-10, DECISION R10-01..R10-05, CHANGES entry, this HANDOFF, NEXT-PROMPT, and evidence/ci/run-40813421173/ log excerpts.
+- README badge row deliberately unchanged: the adapter gates the CI badge on a green run, and CI is red (R10-04).
 
 ## Decisions
-See DECISION.md "Session 9 decisions" (R9-01..R9-14). Key ones: repo was already public; owner unavailable, reversible defaults applied; github.io origin chosen; exactly two JSON-LD blocks kept; CONTRIBUTING index-only staging; dependency upgrades out of scope; repository size accepted.
+See DECISION.md "Session 10 decisions" (R10-01..R10-05). Key ones: three defaults confirmed by the human; host stays github.io; CI failures attributed to the product workstream (recorded, not fixed); no CI badge while red; owner-gated steps deferred by the human with exact steps recorded below.
 
 ## Evidence map
-- Session acceptance table: EVIDENCE-session-9.md.
-- Live checks: https://k-arthur.github.io/hutch/ 200; canonical, og:url, absolute og:image present; sitemap.xml, .well-known/security.txt, llms.txt, robots.txt all 200.
-- Site audit: `uv run --frozen --no-sync python .pipeline/marketing/2026-10/evidence/audit/audit_site.py` exit 0, stderr 0 B (canonical true, 9 og, 4 twitter, FAQ 20/20, 6 UAs identical).
-- Website e2e: 42 passed.
-- Secret scan: gitleaks 40 commits + staged blobs, no leaks.
-- Repo gates: hygiene pass, emoji clean, `npm run check:agent` red only for pre-existing B-07.
-- Brand: evidence/brand/README.md (dimensions, bytes, sha256, safe zone, contrast, deterministic command).
-- Release notes: RELEASE-NOTES-v0.1.0.md.
+- Session acceptance table: EVIDENCE-session-10.md.
+- CI: run 40813421173 (jobs.json + both failure excerpts under evidence/ci/run-40813421173/). 3.12: 1 failed/4161 passed; 3.13: 3 failed/4159 passed; 3.11 green.
+- Pages/deploy: run 40813421201 success; live marker checks (canonical, og:url, locator, asset stamp) recorded in EVIDENCE-session-10 AC2.
+- Repo/release/API re-verification: EVIDENCE-session-10 AC3.
+
+## Owner-gated steps (deferred by human 2026-10-29; exact paths)
+1. Social preview: github.com/K-Arthur/hutch → Settings → General → Social preview → Upload an image → website/assets/github-social-preview-1280x640.png (from a local checkout) → Save. No API exists (R9-D3).
+2. Search Console: search.google.com/search-console → Add property → URL prefix `https://k-arthur.github.io/hutch/` → verification method HTML tag (paste the meta tag into website/index.html via a campaign commit, or use domain-verification if preferred) → after verification, Submit sitemap `https://k-arthur.github.io/hutch/sitemap.xml` → record dated observations from the Generative AI performance report (B-03).
+3. Bing Webmaster Tools: bing.com/webmasters → Add property (URL prefix or import from Search Console) → verify → submit sitemap → record observations (B-03).
+4. Dependabot triage: 54 open alerts still (8 critical, 26 high at launch; unchanged 2026-10-29); 10 open update PRs (#1-#10). Dependency work is its own change (R9-D1) — not marketing.
+5. CI badge: once a green CI run exists on main (after the product workstream fixes/red-flakes the e2e failures), add to README badge row: `[![CI](https://github.com/K-Arthur/hutch/actions/workflows/ci.yml/badge.svg)](https://github.com/K-Arthur/hutch/actions/workflows/ci.yml)` and keep the release badge on the v0.1.0 tag. Then it is a straightforward docs commit under standing authority.
 
 ## Open risks / blockers
 | ID | Risk | Impact | Owner | Next action | Trigger |
 |---|---|---|---|---|---|
-| B-07 | `npm run check:agent` red: tests/test_commit_attribution.py 419 lines | Local repo gate stays red; not CI | git-attribution workstream | split the file | their next session |
-| R9-D1 | 54 open Dependabot alerts (8 critical, 26 high) | supply-chain risk on public repo | maintainer | triage critical/high; review queued update PRs | now |
-| R9-D2 | repo about 1.37 GB | clone friction | maintainer | shallow clone documented; history/LFS decision later | before growth |
-| R9-D3 | social preview manual upload | weaker repo unfurls | maintainer | Settings > General > Social preview | now |
-| R9-D4 | github.io origin root not controlled; robots.txt/security.txt advisory only | full crawler policy and RFC 9116 location await custom domain | maintainer | custom-domain migration per docs/discoverability.md | domain chosen |
-| R9-D5 | CI on final pushed commit not yet confirmed | red badge risk | maintainer | watch Actions; fix only session-caused failures | next hour |
-| B-03 | No Search Console/Bing properties | evidence and AI-performance measurement not started | maintainer | create URL-prefix properties, verify HTML, submit sitemap | now |
-| B-06 | downloads.json owned by desktop pipeline (data lists 4 platforms, 0 artifacts) | machine readers can misread availability | desktop workstream | add status fields when that pipeline is next touched | pipeline activity |
-| B-09 | RESOLVED this session: PRODUCT.md stale private-source instruction fixed | none | campaign | - | - |
-| B-10 | RESOLVED for github.io: social image URLs are absolute | none | campaign | replace origin at custom-domain time | domain change |
-| B-11 | RESOLVED for github.io: security.txt served; origin-root placement still caveated | none for now | campaign | custom domain | domain change |
+| R10-D1 | CI red on main's record commit: 4 distinct product e2e failures (3.12: workflow route card forced-colors; 3.13: 2 browser timeouts + 1 design-system assert) | Red Actions tab on a public repo; badge withheld; flakiness possible but the forced-colors/design-system asserts look deterministic (inference) | product/Studio workstream | triage the four tests; re-run CI; then campaign adds the CI badge | their next session |
+| R9-D1 | 54 open Dependabot alerts (8 critical, 26 high) + 10 open update PRs | supply-chain risk on public repo | maintainer | triage critical/high; review queued PRs | now |
+| B-03 | No Search Console/Bing properties | AI-performance and index measurement not started | maintainer | steps 2-3 above | now |
+| R9-D3 | social preview not uploaded | weaker repo unfurls | maintainer | step 1 above | now |
+| R9-D2 | repo about 1.37 GB | clone friction | maintainer | shallow clone documented; history/LFS later | before growth |
+| R9-D4 | github.io origin root not controlled; robots.txt/security.txt advisory only | full crawler policy + RFC 9116 location await custom domain (human chose to stay, 2026-10-29) | maintainer | docs/discoverability.md migration plan | domain chosen |
+| B-06 | downloads.json lists 4 platforms, 0 artifacts, no status field | machine readers can misread availability | desktop workstream | add status fields when that pipeline is touched | pipeline activity |
+| B-07 | local `npm run check:agent` red: tests/test_commit_attribution.py 419 lines | local repo gate red; not CI (CI attribution job green) | git-attribution workstream | split the file | their next session |
 
 ## Next step (one only)
-- Confirm the CI run on the final pushed commit and the first Pages deployment of the record commit; then start the owner-gated discovery steps: upload the social preview, create Search Console/Bing URL-prefix properties and submit the sitemap, and triage the critical/high Dependabot alerts.
+- The product/Studio workstream fixes or stabilizes the four CI-failing e2e tests and pushes; the next marketing session then confirms a green run on main and adds the CI badge (step 5), while the human works the owner-gated steps 1-4.
 
 ## Environment facts
+- CI checks: `gh api repos/K-Arthur/hutch/actions/runs/<id>` and `gh api repos/K-Arthur/hutch/actions/jobs/<id>/logs` (gh authenticated as K-Arthur).
 - Serve/crawl: `uv run --frozen --no-sync python .pipeline/marketing/2026-10/evidence/audit/audit_site.py` (self-serves website/ on :8899).
 - Website e2e: `uv run --frozen --no-sync pytest -q tests/e2e/test_website.py` (42 tests, about 70 s).
-- Social card render: `uv run --frozen --no-sync python .pipeline/marketing/2026-10/evidence/brand/render_github_social_preview.py --thumbnail`.
-- Release notes: `.pipeline/marketing/2026-10/RELEASE-NOTES-v0.1.0.md`.
-- Expected environment quirk: in this sandbox set `UV_CACHE_DIR=/tmp/uv-cache` because the default cache is read-only.
-- Pre-commit hook .githooks/pre-commit exists but is NOT active (core.hooksPath unset, other workstream's file); do not enable.
+- Expected sandbox quirk: set `UV_CACHE_DIR=/tmp/uv-cache` (default cache read-only).
+- Pre-commit hook .githooks/pre-commit exists but is NOT active; do not enable.
 - Other workstream still holds uncommitted work; never stage it.
 
 ## Do not do
-- Do not invent a custom domain or claim a custom domain exists.
-- Do not edit llms.txt claims, downloads.json, or the claim register wording without evidence.
-- Do not add claims beyond the register; no star counts, benchmarks, testimonials, "best", "production-ready", "free forever", absolute privacy claims.
-- Do not push dependency upgrades as part of a marketing change; Dependabot PRs are their own review.
-- Do not force-push or rewrite history.
-- Do not stage the other workstream's files (including their CONTRIBUTING append) to make a commit tidy.
+- Do not add the CI badge before a green CI run on main.
+- Do not fix the product e2e failures from a marketing session; record and route them.
+- Do not invent a custom domain; do not edit llms.txt claims, downloads.json, or claim-register wording without evidence.
+- Do not add claims beyond the register; no superlatives, benchmarks, testimonials, star counts, "production-ready", "free forever", absolute privacy claims.
+- Do not push dependency upgrades as marketing; do not force-push or rewrite history.
+- Do not stage the other workstream's files (including their CONTRIBUTING append and PR #11).

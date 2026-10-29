@@ -103,6 +103,19 @@ Evidence paths: .pipeline/marketing/2026-10/evidence/audit/ (crawl-report.json, 
 Residual risk: axe + screen-reader spot-check + lab CWV not run (no tooling/origin; recorded as limitations in RECON §8/§7); F-07 needs manifest-owner input.
 Next slice: S-a entity-surface repair (llms.txt freshness + GitHub URL), pending Phase 2 claim-register wording OR — per phase machine — Phase 2 strategy first. See NEXT-PROMPT.md.
 
+## Session 10 - post-launch CI/deploy verification + owner-gated steps - 2026-10-29
+Files: .pipeline/marketing/2026-10/{00-BRIEF.md,EVIDENCE-session-10.md,DECISION.md,CHANGES.md,HANDOFF.md,NEXT-PROMPT.md} + evidence/ci/run-40813421173/{jobs.json,3.12-failure-section.txt,3.13-failed-lines.txt}
+Commits: one docs/evidence commit for this session (see git log after push).
+What changed (user-visible): NOTHING on any public surface. README badge row deliberately unchanged (CI red, R10-04). Site, docs, claims untouched.
+Claims affected: none. Claim register unchanged.
+Docs updated: campaign artifacts only (evidence + handoff). docs/discoverability.md unchanged (no host change).
+Gates run (command → result):
+- GitHub API/gh CLI: run 40813421173 conclusion failure (jobs.json); Pages run 40813421201 success; live site + sitemap/llms/security/robots 200; live tokens.css stamp matches record commit; repo settings + v0.1.0 pre-release re-verified.
+- Attribution: `git log --name-only b5fee054..577e1154` — no session-9 commit touches the failing test files or src/hutch/server/static/**.
+Evidence paths: EVIDENCE-session-10.md; evidence/ci/run-40813421173/.
+Residual risk: public CI badge withheld until green; product e2e failures (4 distinct tests across 3.12/3.13) remain open for the product workstream; B-03 (Search Console/Bing) and R9-D1 (54 alerts) untouched owner items.
+Next session: re-check CI on main (new runs from merged work), then the badge; owner steps per HANDOFF.
+
 ## Session summary
 - Slices completed: Phase 1 audit (RECON + FINDINGS + DECISION updates); Phase 2 strategy (STRATEGY + CLAIM-REGISTER + CONTENT-MAP + human sign-off)
 - Slices partially done / reverted: none

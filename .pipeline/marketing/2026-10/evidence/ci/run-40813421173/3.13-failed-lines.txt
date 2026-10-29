@@ -1,0 +1,4 @@
+2026-10-29T04:46:46.6056677Z FAILED tests/e2e/test_browser.py::test_delegated_wait_status_is_responsive_and_reviewable - AssertionError: timed out
+2026-10-29T04:46:46.6058039Z FAILED tests/e2e/test_browser.py::test_paired_phone_keeps_mixed_question_and_approval_pending_in_either_order[decision_order1] - playwright._impl._errors.TimeoutError: Timeout 30000ms exceeded while waiting for event "response"
+2026-10-29T04:46:46.6059353Z FAILED tests/e2e/test_design_system.py::test_assistant_settings_header_groups_secondary_actions - assert False
+2026-10-29T04:46:46.6063858Z 3 failed, 4159 passed, 86 skipped, 3 xfailed in 2381.38s (0:39:41)

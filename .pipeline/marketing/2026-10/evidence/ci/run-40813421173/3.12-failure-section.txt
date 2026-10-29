@@ -1,0 +1,162 @@
+2026-10-29T04:49:31.6959046Z =================================== FAILURES ===================================
+2026-10-29T04:49:31.6959926Z ____________ test_chat_suggestion_card_reflows_and_requires_review _____________
+2026-10-29T04:49:31.6960425Z 
+2026-10-29T04:49:31.6961113Z browser = <Browser type=<BrowserType name=chromium executable_path=/home/runner/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome> version=153.0.8010.12>
+2026-10-29T04:49:31.6963997Z live_studio = ('http://127.0.0.1:39351', <hutch.store.Store object at 0x7f4732e53620>, Bot(id='bot_8d0c02fc070d', name='workflow-rou...', 'revision': 1, 'plan_hash': '7e8a95b6b8035dffcf6dd336e00e2207784f466dd20bc888ab06d2302fb21065'}, 'run_9c873d437db8')
+2026-10-29T04:49:31.6965713Z 
+2026-10-29T04:49:31.6966762Z     def test_chat_suggestion_card_reflows_and_requires_review(browser, live_studio):
+2026-10-29T04:49:31.6967694Z         base, store, bot, conversation, definition, run_id = live_studio
+2026-10-29T04:49:31.6968425Z         EVIDENCE.mkdir(parents=True, exist_ok=True)
+2026-10-29T04:49:31.6969038Z         context = browser.new_context(reduced_motion="reduce")
+2026-10-29T04:49:31.6969604Z         page = context.new_page()
+2026-10-29T04:49:31.6970037Z         errors: list[str] = []
+2026-10-29T04:49:31.6970458Z         failed_requests: list[str] = []
+2026-10-29T04:49:31.6970966Z         external_requests: list[str] = []
+2026-10-29T04:49:31.6971363Z         page.on("pageerror", lambda error: errors.append(str(error)))
+2026-10-29T04:49:31.6971857Z         page.on("requestfailed", lambda request: failed_requests.append(request.url))
+2026-10-29T04:49:31.6972807Z         page.on("request", lambda request: external_requests.append(request.url)
+2026-10-29T04:49:31.6973724Z                 if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+2026-10-29T04:49:31.6974652Z         context.tracing.start(screenshots=True, snapshots=True, sources=False)
+2026-10-29T04:49:31.6975322Z         states = []
+2026-10-29T04:49:31.6975671Z         accessibility_states = []
+2026-10-29T04:49:31.6976073Z         try:
+2026-10-29T04:49:31.6976687Z             sizes = (("desktop", 1440, 960), ("tablet", 768, 1024),
+2026-10-29T04:49:31.6977070Z                      ("phone", 360, 800), ("compact-phone", 320, 740))
+2026-10-29T04:49:31.6977674Z             for label, width, height in sizes:
+2026-10-29T04:49:31.6978273Z                 page.set_viewport_size({"width": width, "height": height})
+2026-10-29T04:49:31.6979037Z                 page.goto(f"{base}/#/chat/{bot.name}", wait_until="domcontentloaded")
+2026-10-29T04:49:31.6979763Z                 card = page.locator(".workflow-recommendation")
+2026-10-29T04:49:31.6980371Z                 card.wait_for(state="visible", timeout=15_000)
+2026-10-29T04:49:31.6981190Z                 assert page.locator("#conversation-switcher").input_value() == conversation["id"]
+2026-10-29T04:49:31.6982169Z                 assert "Suggestion · nothing started" in card.inner_text()
+2026-10-29T04:49:31.6982870Z                 assert "direct checks once" in card.inner_text()
+2026-10-29T04:49:31.6983616Z                 assert card.locator("[data-workflow-suggestion-run]").get_attribute(
+2026-10-29T04:49:31.6984458Z                     "data-workflow-suggestion-run") == definition["definition_id"]
+2026-10-29T04:49:31.6985406Z                 assert card.locator("[data-workflow-suggestion-run]").inner_text() == "Review & run"
+2026-10-29T04:49:31.6986709Z                 card, metrics = stable_workflow_card(page)
+2026-10-29T04:49:31.6987441Z                 assert page.evaluate("Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) <= innerWidth + 1")
+2026-10-29T04:49:31.6988496Z                 box, button, styles = metrics["card"], metrics["action"], metrics["styles"]
+2026-10-29T04:49:31.6989719Z                 panel = page.locator("#workflow-panel").bounding_box()
+2026-10-29T04:49:31.6990517Z                 assert box and button and box["width"] <= width and button["height"] >= 44
+2026-10-29T04:49:31.6991511Z                 page.screenshot(path=str(EVIDENCE / f"suggestion-{label}.png"), animations="disabled")
+2026-10-29T04:49:31.6992308Z                 states.append({"label": label, "viewport": [width, height],
+2026-10-29T04:49:31.6993019Z                                "document_width": page.evaluate("document.documentElement.scrollWidth"),
+2026-10-29T04:49:31.6993848Z                                "card_bounds": box, "button_bounds": button,
+2026-10-29T04:49:31.6994493Z                                "panel_bounds": panel, "computed_style": styles,
+2026-10-29T04:49:31.6995124Z                                "card_text": card.inner_text()})
+2026-10-29T04:49:31.6995608Z     
+2026-10-29T04:49:31.6995931Z                 if label == "desktop":
+2026-10-29T04:49:31.6997138Z                     action = card.locator("[data-workflow-suggestion-run]")
+2026-10-29T04:49:31.6997641Z                     action.focus()
+2026-10-29T04:49:31.6997969Z                     action.press("Enter")
+2026-10-29T04:49:31.6998550Z                     dialog = page.locator('.modal-card[role="dialog"]')
+2026-10-29T04:49:31.6999148Z                     dialog.wait_for(state="visible")
+2026-10-29T04:49:31.6999926Z                     assert "Starting this saved workflow is an explicit action" in dialog.inner_text()
+2026-10-29T04:49:31.7000893Z                     assert dialog.locator("#modal-confirm").inner_text() == "Start workflow"
+2026-10-29T04:49:31.7001956Z                     page.screenshot(path=str(EVIDENCE / "suggestion-review-dialog.png"), animations="disabled")
+2026-10-29T04:49:31.7002727Z                     store.append_event(Event(run_id=run_id, type=EventType.message,
+2026-10-29T04:49:31.7003145Z                                              data={"role": "assistant",
+2026-10-29T04:49:31.7003581Z                                                    "content": "Transcript refreshed while review is open."}))
+2026-10-29T04:49:31.7004275Z                     store.flush_events()
+2026-10-29T04:49:31.7004777Z                     page.evaluate("scheduleFeedRender()")
+2026-10-29T04:49:31.7005454Z                     wait_for_page(page, "feedRefreshPending === true", timeout=5000)
+2026-10-29T04:49:31.7006354Z                     dialog.locator("#modal-cancel").click()
+2026-10-29T04:49:31.7007189Z                     page.get_by_text("Transcript refreshed while review is open.", exact=True).wait_for()
+2026-10-29T04:49:31.7007977Z                     try:
+2026-10-29T04:49:31.7008348Z                         wait_for_page(page,
+2026-10-29T04:49:31.7008761Z                             "document.activeElement?.dataset?.workflowSuggestionRun === "
+2026-10-29T04:49:31.7009405Z                             f"{json.dumps(definition['definition_id'])}", timeout=5000)
+2026-10-29T04:49:31.7010051Z                     except pw.TimeoutError:
+2026-10-29T04:49:31.7010550Z                         state = page.evaluate("""() => ({
+2026-10-29T04:49:31.7011118Z                           active: document.activeElement?.outerHTML,
+2026-10-29T04:49:31.7012002Z                           suggestionButtons: [...document.querySelectorAll('[data-workflow-suggestion-run]')]
+2026-10-29T04:49:31.7013197Z                             .map(button => ({id: button.dataset.workflowSuggestionRun, connected: button.isConnected})),
+2026-10-29T04:49:31.7013931Z                           refreshText: [...document.querySelectorAll('#chat-stream *')]
+2026-10-29T04:49:31.7014855Z                             .some(element => element.childElementCount === 0 && element.textContent.includes('Transcript refreshed')),
+2026-10-29T04:49:31.7015838Z                           feedPending: feedRefreshPending,
+2026-10-29T04:49:31.7016786Z                           modalOpen: Boolean(document.querySelector('#modal-root .modal-card')),
+2026-10-29T04:49:31.7017775Z                         })""")
+2026-10-29T04:49:31.7018500Z                         raise AssertionError(f"focus did not follow refreshed suggestion action: {state}")
+2026-10-29T04:49:31.7019361Z                     assert action.evaluate("el => el === document.activeElement"), "focus should return to the review action"
+2026-10-29T04:49:31.7020056Z     
+2026-10-29T04:49:31.7020564Z             # Exercise WCAG text-spacing overrides on the compact layout rather than
+2026-10-29T04:49:31.7021438Z             # inferring them from the default stylesheet's responsive breakpoints.
+2026-10-29T04:49:31.7022127Z             page.add_style_tag(content="""
+2026-10-29T04:49:31.7022947Z               * { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; }
+2026-10-29T04:49:31.7023845Z               p { margin-block-end: 2em !important; }
+2026-10-29T04:49:31.7024252Z             """)
+2026-10-29T04:49:31.7024710Z             spaced_card = page.locator(".workflow-recommendation")
+2026-10-29T04:49:31.7025647Z             spaced_card.evaluate("el => el.scrollIntoView({block: 'start', behavior: 'instant'})")
+2026-10-29T04:49:31.7026783Z             spaced_bounds = spaced_card.bounding_box()
+2026-10-29T04:49:31.7027521Z             spaced_heading_locator = spaced_card.locator(".workflow-panel-kicker")
+2026-10-29T04:49:31.7028318Z             spaced_heading = spaced_heading_locator.bounding_box()
+2026-10-29T04:49:31.7029064Z             spaced_scroll_bounds = page.locator("#chat-scroll").bounding_box()
+2026-10-29T04:49:31.7029753Z             spaced_heading_hit = spaced_heading_locator.evaluate("""el => {
+2026-10-29T04:49:31.7030161Z               const rect = el.getBoundingClientRect();
+2026-10-29T04:49:31.7030991Z               const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+2026-10-29T04:49:31.7032018Z               return {text: el.innerText, hitTag: hit?.tagName || null,
+2026-10-29T04:49:31.7032687Z                       hitClass: hit?.className?.toString?.() || "",
+2026-10-29T04:49:31.7033332Z                       coveredByOtherElement: !hit || !el.contains(hit)};
+2026-10-29T04:49:31.7033876Z             }""")
+2026-10-29T04:49:31.7034363Z             assert spaced_bounds and spaced_scroll_bounds and spaced_heading
+2026-10-29T04:49:31.7035043Z             assert spaced_bounds["x"] >= 0 and spaced_bounds["x"] + spaced_bounds["width"] <= 321
+2026-10-29T04:49:31.7035536Z             assert spaced_heading["y"] >= spaced_scroll_bounds["y"] \
+2026-10-29T04:49:31.7036788Z                 and spaced_heading["y"] + spaced_heading["height"] <= spaced_scroll_bounds["y"] + spaced_scroll_bounds["height"], \
+2026-10-29T04:49:31.7037904Z                 "the card's route label must remain visible below the fixed workflow panel"
+2026-10-29T04:49:31.7038722Z             assert not spaced_heading_hit["coveredByOtherElement"], \
+2026-10-29T04:49:31.7039541Z                 f"the route label must not be covered by another panel: {spaced_heading_hit}"
+2026-10-29T04:49:31.7040445Z             page.screenshot(path=str(EVIDENCE / "suggestion-text-spacing-card-start-compact-phone.png"),
+2026-10-29T04:49:31.7041057Z                             animations="disabled")
+2026-10-29T04:49:31.7041530Z     
+2026-10-29T04:49:31.7042105Z             spaced_action_locator = spaced_card.locator("[data-workflow-suggestion-run]")
+2026-10-29T04:49:32.7331701Z             spaced_action_locator.focus()
+2026-10-29T04:49:32.7332291Z             spaced_action_locator.scroll_into_view_if_needed()
+2026-10-29T04:49:32.7332934Z             spaced_action = spaced_action_locator.bounding_box()
+2026-10-29T04:49:32.7333644Z             spaced_composer = page.locator(".composer").bounding_box()
+2026-10-29T04:49:32.7334182Z             spaced_action_scroll = page.locator("#chat-scroll").bounding_box()
+2026-10-29T04:49:32.7334672Z             spaced_slot = page.locator("#jump-latest-slot")
+2026-10-29T04:49:32.7335244Z             spaced_slot_bounds = spaced_slot.bounding_box() if spaced_slot.is_visible() else None
+2026-10-29T04:49:32.7336477Z             spaced_jump = page.locator("#jump-latest")
+2026-10-29T04:49:32.7337275Z             spaced_jump_bounds = spaced_jump.bounding_box() if spaced_jump.is_visible() else None
+2026-10-29T04:49:32.7338252Z             spaced_scroll_metrics = page.locator("#chat-scroll").evaluate(
+2026-10-29T04:49:32.7339057Z                 "el => ({scrollHeight:el.scrollHeight, clientHeight:el.clientHeight, scrollTop:el.scrollTop})")
+2026-10-29T04:49:32.7339995Z             spacing_overflow = page.evaluate(
+2026-10-29T04:49:32.7340595Z                 "Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) > innerWidth + 1")
+2026-10-29T04:49:32.7341237Z             assert spaced_action and not spacing_overflow
+2026-10-29T04:49:32.7341604Z             assert spaced_action["height"] >= 44
+2026-10-29T04:49:32.7342144Z             assert spaced_composer and spaced_action["y"] + spaced_action["height"] <= spaced_composer["y"]
+2026-10-29T04:49:32.7343248Z             assert spaced_action_scroll and spaced_action["y"] + spaced_action["height"] <= spaced_action_scroll["y"] + spaced_action_scroll["height"], \
+2026-10-29T04:49:32.7344018Z                 "the focused action must remain fully visible above the chat's fixed controls"
+2026-10-29T04:49:32.7344451Z             if spaced_slot_bounds:
+2026-10-29T04:49:32.7344966Z                 assert spaced_action_scroll and spaced_slot_bounds["y"] >= spaced_action_scroll["y"] + spaced_action_scroll["height"]
+2026-10-29T04:49:32.7345649Z                 assert spaced_slot_bounds["y"] + spaced_slot_bounds["height"] <= spaced_composer["y"]
+2026-10-29T04:49:32.7346662Z             page.screenshot(path=str(EVIDENCE / "suggestion-text-spacing-focus-compact-phone.png"),
+2026-10-29T04:49:32.7347194Z                             animations="disabled")
+2026-10-29T04:49:32.7347633Z             accessibility_states.append({"state": "wcag-text-spacing", "viewport": [320, 740],
+2026-10-29T04:49:32.7348119Z                                          "document_overflow": spacing_overflow,
+2026-10-29T04:49:32.7348507Z                                          "card_start_bounds": spaced_bounds,
+2026-10-29T04:49:32.7348869Z                                          "heading_bounds": spaced_heading,
+2026-10-29T04:49:32.7349231Z                                          "heading_hit_test": spaced_heading_hit,
+2026-10-29T04:49:32.7349599Z                                          "focused_action_bounds": spaced_action,
+2026-10-29T04:49:32.7350837Z                                          "composer_bounds": spaced_composer, "jump_bounds": spaced_jump_bounds,
+2026-10-29T04:49:32.7351772Z                                          "jump_slot_bounds": spaced_slot_bounds,
+2026-10-29T04:49:32.7352276Z                                          "scroll_bounds": spaced_action_scroll, "scroll_metrics": spaced_scroll_metrics,
+2026-10-29T04:49:32.7352776Z                                          "text": spaced_card.inner_text()})
+2026-10-29T04:49:32.7353111Z     
+2026-10-29T04:49:32.7353473Z             # Forced-colors emulation checks that the content and action remain present
+2026-10-29T04:49:32.7354023Z             # when the browser replaces author colors with the user's system palette.
+2026-10-29T04:49:32.7354459Z             page.emulate_media(forced_colors="active")
+2026-10-29T04:49:32.7354871Z             assert page.evaluate("matchMedia('(forced-colors: active)').matches")
+2026-10-29T04:49:32.7355330Z             forced_card = page.locator(".workflow-recommendation")
+2026-10-29T04:49:32.7355818Z             forced_card.evaluate("el => el.scrollIntoView({block: 'start', behavior: 'instant'})")
+2026-10-29T04:49:32.7356621Z             forced_start_bounds = forced_card.bounding_box()
+2026-10-29T04:49:32.7357171Z             forced_heading = forced_card.locator(".workflow-panel-kicker").bounding_box()
+2026-10-29T04:49:32.7357906Z             forced_start_scroll = page.locator("#chat-scroll").bounding_box()
+2026-10-29T04:49:32.7358708Z >           assert forced_start_bounds and forced_heading and forced_start_scroll
+2026-10-29T04:49:32.7375409Z E           AssertionError: assert ({'x': 54, 'y': 195.5, 'width': 250, 'height': 517} and None)
+2026-10-29T04:49:32.7375809Z 
+2026-10-29T04:49:32.7387344Z tests/e2e/test_workflow_route_card.py:294: AssertionError
+2026-10-29T04:49:32.7388038Z =========================== short test summary info ============================
+2026-10-29T04:49:32.7390113Z FAILED tests/e2e/test_workflow_route_card.py::test_chat_suggestion_card_reflows_and_requires_review - AssertionError: assert ({'x': 54, 'y': 195.5, 'width': 250, 'height': 517} and None)
+2026-10-29T04:49:32.7390941Z 1 failed, 4161 passed, 86 skipped, 3 xfailed in 2589.29s (0:43:09)
+2026-10-29T04:49:35.4057287Z ##[error]Process completed with exit code 1.
