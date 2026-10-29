@@ -43,6 +43,7 @@ NAV = [
     ("models", "/models", "Models", "cpu"),
     ("usage", "/usage", "Usage", "chart"),
     ("connections", "/connections", "Apps & AI", "layers"),
+    ("deletion", "/bots/delete", "Delete bot", "trash"),
 ]
 
 
@@ -268,6 +269,12 @@ def register_pages(app: FastAPI) -> None:
     def bot_new(request: Request):
         return RedirectResponse("/#/bots", status_code=302)
 
+    # Registered before /bots/{name} so "delete" is never read as a Bot address.
+    @app.get("/bots/delete", response_class=HTMLResponse, include_in_schema=False)
+    def bot_delete_picker(request: Request):
+        """Pick a Bot for permanent whole-Bot deletion; the row list is server-rendered."""
+        return page(request, "bot_delete_pick.html", nav="deletion", bots=store.list_bots())
+
     @app.post("/bots", include_in_schema=False)
     async def bot_create(request: Request):
         import re
@@ -309,6 +316,11 @@ def register_pages(app: FastAPI) -> None:
                     runs=[rv(r) for r in store.list_runs(bot.id, limit=8)],
                     memory=store.shared_facts(bot.id), allows=store.list_sticky_allows(bot.id),
                     tokens_today=measured_tokens + reserved_tokens, estimate=estimate_run(config, store, bot))
+
+    @app.get("/bots/{name}/delete", response_class=HTMLResponse, include_in_schema=False)
+    def bot_delete_page(request: Request, name: str):
+        """Danger zone for one Bot. Counts, history and confirmation all come from the typed API."""
+        return page(request, "bot_delete.html", nav="deletion", bot=bot_or_404(name))
 
     @app.post("/bots/{name}/run", include_in_schema=False)
     async def bot_run(request: Request, name: str):

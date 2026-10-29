@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Permanently delete a bot{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/bots">Assistants</a></p>
+    <h1>Permanently delete a bot</h1>
+    <p class="sub">Whole-bot deletion erases the bot, its conversations, runs, memory and the files
+      Hutch manages for it. It cannot be undone. Choose one bot to preview exactly what changes.</p>
+  </div>
+</div>
+
+{% if bots %}
+<section class="panel" aria-labelledby="bot-delete-choose">
+  <h2 class="card-title" id="bot-delete-choose">Choose a bot</h2>
+  <p class="hint">The next page lists the exact counts and what remains before anything is erased.</p>
+  <div class="stack">
+    {% for b in bots %}
+    <div class="item" data-bot-delete-choice="{{ b.name }}">
+      <header>
+        <span class="bot-name">{{ icon("bot", 15) }}{{ b.display_name or b.name }}</span>
+        <span class="mono small muted">{{ b.name }}</span>
+      </header>
+      {% if b.description %}<p class="desc">{{ b.description }}</p>{% endif %}
+      <p><a class="btn danger" href="/bots/{{ b.name }}/delete" data-bot-delete-link="{{ b.name }}">{{ icon("trash", 15) }} Permanently delete {{ b.display_name or b.name }}</a></p>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% else %}
+<section class="panel empty">{{ icon("bot", 30) }}<h2>No bots yet</h2>
+  <p>There is nothing to delete. Permanent whole-bot deletion appears here once a bot exists.</p>
+  <p><a class="btn primary" href="/bots/new">{{ icon("plus", 15) }} New bot</a></p>
+</section>
+{% endif %}
+{% endblock %}

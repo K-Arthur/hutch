@@ -1,0 +1,257 @@
+{
+  "captured_at": "2026-10-29T23:44:53.666049+00:00",
+  "command": ".venv/bin/python -m pytest -q --no-header --tb=line tests/e2e/test_bot_deletion_ui.py",
+  "test_file": "tests/e2e/test_bot_deletion_ui.py",
+  "page": "GET /bots/delete and GET /bots/{name}/delete",
+  "browser": {
+    "engine": "chromium",
+    "name": "Chrome for Testing",
+    "version": "153.0.8010.12",
+    "headless": true,
+    "executable_path": "/home/kevina/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell",
+    "build_directory": "chromium_headless_shell-1243",
+    "revision": "1243"
+  },
+  "playwright_version": "1.63.0",
+  "python_version": "3.13.15",
+  "note": "Chromium revision/build derived from the launched Playwright executable, as in docs/realignment/capture_marketing_head.py.",
+  "honest_limits": [
+    "SPA home (/ and /overview) has no danger-zone link in this tree; the shared server-page NAV entry is the discovery surface until the parked session's static/templates commit lands.",
+    "Discovery is verified at 1440px; the shared nav collapses behind #nav-toggle on narrow views.",
+    "History is not reloaded after deletion (GET history 404s once the Bot is gone); the panel says the content-free evidence remains rather than inventing a list."
+  ],
+  "captures": [
+    {
+      "case": "picker-empty",
+      "route_url": "http://127.0.0.1:42871/bots/delete",
+      "viewport": [
+        1440,
+        900
+      ],
+      "path": "docs/realignment/artifacts/completion-2026-10-29/deletion/picker-empty-1440x900.png",
+      "path_bytes": 49014,
+      "horizontal_overflow": 0,
+      "page_error_count": 0,
+      "page_errors": [],
+      "console_error_count": 0,
+      "console_errors": []
+    },
+    {
+      "case": "picker-two-bots",
+      "route_url": "http://127.0.0.1:40201/bots/delete",
+      "viewport": [
+        1440,
+        900
+      ],
+      "path": "docs/realignment/artifacts/completion-2026-10-29/deletion/picker-two-bots-1440x900.png",
+      "path_bytes": 63731,
+      "horizontal_overflow": 0,
+      "page_error_count": 0,
+      "page_errors": [],
+      "console_error_count": 0,
+      "console_errors": []
+    },
+    {
+      "case": "picker-link-danger",
+      "route_url": "http://127.0.0.1:40201/bots/browser-beta/delete",
+      "viewport": [
+        1440,
+        900
+      ],
+      "path": "docs/realignment/artifacts/completion-2026-10-29/deletion/picker-link-danger-1440x900.png",
+      "path_bytes": 61526,
+      "horizontal_overflow": 0,
+      "page_error_count": 0,
+      "page_errors": [],
+      "console_error_count": 0,
+      "console_errors": []
+    },
+    {
+      "case": "nav-discovery",
+      "route_url": "http://127.0.0.1:37343/bots/nav-bot",
+      "viewport": [
+        1440,
+        900
+      ],
+      "path": "docs/realignment/artifacts/completion-2026-10-29/deletion/nav-discovery-1440x900.png",
+      "path_bytes": 86454,
+      "horizontal_overflow": 0,
+      "page_error_count": 0,
+      "page_errors": [],
+      "console_error_count": 0,
+      "console_errors": []
+    },
+    {
+      "case": "wrong-typed-address",
+      "route_url": "http://127.0.0.1:43881/bots/typed-wrong/delete",
+      "viewport": [
+        1440,
+        900
+      ],
+      "path": "docs/realignment/artifacts/completion-2026-10-29/deletion/wrong-typed-address-1440x900.png",
+      "path_bytes": 102482,
+      "horizontal_overflow": 0,
+      "page_error_count": 0,
+      "page_errors": [],
+      "console_error_count": 0,
+      "console_errors": [],
+      "bot_still_present": true
+    },
+    {
+      "case": "deleted-success",
+      "route_url": "http://127.0.0.1:43401/bots/delete-me/delete",
+      "viewport": [
+        1440,
+        900
+      ],
+      "path": "docs/realignment/artifacts/completion-2026-10-29/deletion/deleted-success-1440x900.png",
+      "path_bytes": 89618,
+      "horizontal_overflow": 0,
+      "page_error_count": 0,
+      "page_errors": [],
+      "console_error_count": 0,
+      "console_errors": [],
+      "cleanup_state": "cleaned",
+      "erased_total": 1
+    },
+    {
+      "case": "picker-after-deletion",
+      "route_url": "http://127.0.0.1:43401/bots/delete",
+      "viewport": [
+        1440,
+        900
+      ],
+      "path": "docs/realignment/artifacts/completion-2026-10-29/deletion/picker-after-deletion-1440x900.png",
+      "path_bytes": 52091,
+      "horizontal_overflow": 0,
+      "page_error_count": 0,
+      "page_errors": [],
+      "console_error_count": 0,
+      "console_errors": [],
+      "remaining_bot": "keep-me"
+    },
+    {
+      "case": "injected-error",
+      "route_url": "http://127.0.0.1:34267/bots/error-bot/delete",
+      "viewport": [
+        1440,
+        900
+      ],
+      "path": "docs/realignment/artifacts/completion-2026-10-29/deletion/injected-error-1440x900.png",
+      "path_bytes": 66643,
+      "horizontal_overflow": 0,
+      "page_error_count": 0,
+      "page_errors": [],
+      "console_error_count": 1,
+      "console_errors": [
+        "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+      ],
+      "injected_status": 503
+    },
+    {
+      "case": "retry-recovered",
+      "route_url": "http://127.0.0.1:34267/bots/error-bot/delete",
+      "viewport": [
+        1440,
+        900
+      ],
+      "path": "docs/realignment/artifacts/completion-2026-10-29/deletion/retry-recovered-1440x900.png",
+      "path_bytes": 98564,
+      "horizontal_overflow": 0,
+      "page_error_count": 0,
+      "page_errors": [],
+      "console_error_count": 1,
+      "console_errors": [
+        "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+      ],
+      "retry_preview_calls": 2
+    },
+    {
+      "case": "overflow-desktop",
+      "route_url": "http://127.0.0.1:40219/bots/overflow-desktop/delete",
+      "viewport": [
+        1440,
+        900
+      ],
+      "path": "docs/realignment/artifacts/completion-2026-10-29/deletion/overflow-desktop-1440x900.png",
+      "path_bytes": 99639,
+      "horizontal_overflow": 0,
+      "page_error_count": 0,
+      "page_errors": [],
+      "console_error_count": 0,
+      "console_errors": [],
+      "control_geometry": {
+        "preview": {
+          "height": 40,
+          "width": 167
+        },
+        "confirm": {
+          "height": 40,
+          "width": 219
+        },
+        "input": {
+          "height": 44,
+          "width": 942
+        }
+      }
+    },
+    {
+      "case": "overflow-tablet",
+      "route_url": "http://127.0.0.1:34447/bots/overflow-tablet/delete",
+      "viewport": [
+        900,
+        900
+      ],
+      "path": "docs/realignment/artifacts/completion-2026-10-29/deletion/overflow-tablet-900x900.png",
+      "path_bytes": 85856,
+      "horizontal_overflow": 0,
+      "page_error_count": 0,
+      "page_errors": [],
+      "console_error_count": 0,
+      "console_errors": [],
+      "control_geometry": {
+        "preview": {
+          "height": 40,
+          "width": 167
+        },
+        "confirm": {
+          "height": 40,
+          "width": 219
+        },
+        "input": {
+          "height": 44,
+          "width": 802
+        }
+      }
+    },
+    {
+      "case": "overflow-phone",
+      "route_url": "http://127.0.0.1:35119/bots/overflow-phone/delete",
+      "viewport": [
+        360,
+        800
+      ],
+      "path": "docs/realignment/artifacts/completion-2026-10-29/deletion/overflow-phone-360x800.png",
+      "path_bytes": 50594,
+      "horizontal_overflow": 0,
+      "page_error_count": 0,
+      "page_errors": [],
+      "console_error_count": 0,
+      "console_errors": [],
+      "control_geometry": {
+        "preview": {
+          "height": 44,
+          "width": 167
+        },
+        "confirm": {
+          "height": 44,
+          "width": 219
+        },
+        "input": {
+          "height": 44,
+          "width": 302
+        }
+      }
+    }
+  ]
+}
