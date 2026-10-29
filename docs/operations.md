@@ -494,14 +494,176 @@ pages are zeroed with SQLite secure-delete and the write-ahead log is checkpoint
 Content-free tombstone and review/audit rows remain. It cannot erase conversation messages,
 transcripts, files, filesystem or journal copies outside SQLite, provider-side copies or backups
 taken before the purge.
-The same flow is available as typed API requests (`/api/v1/bots/{ref}/facts/purge-requests` and its
-`/{request_id}/confirm` route); the dashboard control is deferred to the dashboard redesign. To download
-portable memory, open that Bot's settings and choose **Download memory JSON**. The bounded export
-contains all revisions/scopes, review records and explicit incoming/outgoing share snapshots. It is
-unencrypted plaintext; fact values and review notes can contain personal or sensitive information. It excludes conversations,
-credentials, run events, action receipts, workspace files and artifact bytes. A separate all-Bot memory
-page is deferred; direct settings are the owner-facing inventory for each Bot. Deleting a Bot archives
-its facts and leaves a user-owned workspace intact.
+The same flow is available in the dashboard: open the Bot's settings, then **Limits and memory** (the
+saved-notes panel), and use its permanent-delete control. It previews exact counts and the list of what
+remains, then requires typing the exact fact key (or the Bot address for all saved reference facts)
+before erasing; the control covers saved reference facts only. Typed API requests
+(`/api/v1/bots/{ref}/facts/purge-requests` and its `/{request_id}/confirm` route) and `hutch bot purge`
+remain equivalent surfaces. To download portable memory, open that Bot's settings and choose **Download
+memory JSON**. The bounded export contains all revisions/scopes, review records and explicit
+incoming/outgoing share snapshots. It is unencrypted plaintext; fact values and review notes can contain
+personal or sensitive information. It excludes conversations, credentials, run events, action receipts,
+workspace files and artifact bytes. A separate all-Bot memory page is deferred; direct settings are the
+owner-facing inventory for each Bot. Today's assistant-removal action archives its facts and leaves a
+user-owned workspace intact; permanent whole-Bot erasure is only a design (see
+[Whole-Bot permanent deletion (design)](#whole-bot-permanent-deletion-design)).
+
+## Whole-Bot permanent deletion (design)
+
+Status: design only, not implemented. Today `store.delete_bot` deletes the `bots` row, `tool_allows` and legacy
+`memory` rows, marks the Bot's schedule identities removed, disables its channel connections and cancels their
+pending channel events and deliveries, archives `memory_facts`, and keeps runs, events, transcripts, workspaces
+and remaining channel history; the governed fact purge above remains the implemented permanent-deletion
+feature, for saved reference facts only. This section designs the larger step (one Bot plus its conversations,
+runs, memory and managed files) with the two-step, content-free-evidence pattern in `src/hutch/fact_purge.py`
+and `src/hutch/fact_purge_schema.py`; see [completion plan](realignment/completion-plan.md) Slice B and
+[continuation B](realignment/continuation-B.md) remaining item 2.
+
+### Erase and retain inventory
+
+Rows are erased in one SQLite transaction with `PRAGMA secure_delete = ON`; file bytes are removed after
+commit by the cleanup job.
+
+| Stored copy | Disposition |
+| --- | --- |
+| `bots` row and its JSON document (instructions, settings, schedule definitions), `schedule_occurrences`, `schedule_identities` | Erased. Reversible assistant removal reserves schedule IDs (schema v21); permanent deletion drops them. |
+| `memory_facts` revisions, `memory_facts_fts`, legacy `memory` rows; `memory_fact_decisions`, `memory_purge_requests`, `memory_purge_items` | Revisions become content-free tombstones (`purged:<id>` key, empty value, archived, `purged_at`/`purge_id`); search rows deleted; legacy rows erased; review and prior purge evidence retained content-free (ids, actors, timestamps, counts, hashes). |
+| `memory_fact_shares` both directions, `workspace_task_fact_shares` | Snapshot content erased with `purged` markers; a counterpart sees a purged record and never reuses the value. |
+| `conversations`, `messages`, `conversation_fts`, `conversation_runs`, `conversation_questions`, `conversation_artifact_shares`, `conversation_task_state*`, `assistant_home_conversations`, `human_wait_resumes` | Erased; artifact shares in other chats are revoked and shown as revoked. |
+| `runs`, `events`, `run_procs`, `run_compactions`, `transcript_delivery`, `jobs`, `job_steps`, `media_jobs`, `persona_feedback`, `investigations` and `inv_*` rows | Erased after every owned process is verified stopped. |
+| `approvals`; `tool_actions`; `idempotency_keys` | Approvals erased (they can contain raw tool arguments and authority); action receipts retained content-free (id, run id, tool, effect, status, timestamps, result digest, summary redacted); idempotency receipts retained with content-bearing response fields redacted in place, scopes and hashes kept. |
+| `documents`, `document_versions`, `<state>/documents/<document id>/`, `syn_*` rows and `<state>/synthesis/` bytes | Erased for documents and synthesis artifacts produced by the Bot. |
+| `uploads` rows, `<state>/workspaces/<conversation id>/`, run `workspace/` and artifacts under `bots/<name>/runs/<run_id>/` | Erased after commit from recorded ids; a `bots/<name>/` directory is never removed wholesale. |
+| Managed workspace `<state>/workspaces/<bot id>/`, browser profile `<state>/browser-profiles/<bot id>/`, per-run workspaces | Erased; saved browser sign-ins are discarded. A folder-mode `--workdir` is user-owned and never deleted. |
+| `channel_connections`, `channel_threads`, `channel_events`, `channel_deliveries`; `integrations`, `integration_tool_grants`, Google and Outlook grant tables | Connectors stopped, then connection/event/delivery rows erased (event text and deliveries can contain message content); local grants and token references erased; OS secret-service entries cleared best-effort after commit. |
+| `code_handoffs` | Rows erased; `code-worktrees/<handoff id>/` directories retained as user work. |
+| `usage` completed rows; `hutch.db.bak-vN`, `hutch state backup` snapshots, exports, provider-side copies, channel-platform history, filesystem or journal copies | Usage rows retained content-free (tokens, model, cost, timestamps); the backup, export and external copies are retained by design. See the limits below. |
+
+### Two-step preview and confirmation
+
+Step one previews one whole Bot and returns a request id, a single-use token stored only as a SHA-256 hash
+with a 10-minute expiry, exact per-store erase counts, the filesystem inventory as counts rather than paths,
+the list of content that remains, and `confirmation_hint`, the exact Bot address. A new preview supersedes any
+older pending request for that Bot. Step two requires the request id, the token, an `Idempotency-Key` and a
+typed confirmation equal to that address. Token, expiry, typed address and request status are rechecked inside
+the write transaction, so a wrong, stale, expired, reused or superseded confirmation fails closed with 409 and
+changes nothing; a missing idempotency key fails with 428. A rename between steps also fails closed, because
+the typed phrase is the Bot address.
+
+The preview snapshots erase counts, and confirmation recomputes them inside the transaction, aborting with 409
+if any category changed (for example a new message or run arrived) so the operator confirms exactly what was
+previewed. Permission is the local owner: paired-phone sessions are refused with 403 even when they may review
+other surfaces, remote access stays off by default, and the refusal is shown as a refusal. Preview tokens grant
+no authority; confirmation re-derives the principal.
+
+### Transactional and in-flight semantics
+
+Before rows are erased, confirmation starts a committed draining phase: schedules paused, channel connections
+disabled, and the request reaches `draining`. Schema-level guards reject new runs, messages, approvals and fact
+proposals for that Bot while the fence is active, so every process, not only the one serving the request, fails
+closed. Live runs are stopped with the existing cancellation semantics: cancellation is persisted for
+descendants and each process-owning run must be verified gone. Deletion proceeds only when no live run remains
+and no process identity is unresolved; if the deadline passes while a run is genuinely alive, the command
+fails with 409, names the run, erases nothing and leaves the request for a retry. A live process is never
+fenced over.
+
+The irreversible step is one `BEGIN IMMEDIATE` transaction that revalidates everything above, erases rows in
+foreign-key-safe order (dependent rows before referenced rows, evidence written before the `bots` row is
+deleted last), rewrites tombstones and redactions, inserts evidence, and commits. `PRAGMA secure_delete = ON`
+is set for that transaction and restored afterwards; freed pages are zeroed where SQLite can, but no WAL,
+journal or backup guarantee follows. After commit a best-effort `PRAGMA wal_checkpoint(TRUNCATE)` is attempted
+and its failure reported, never hidden. Any error before commit rolls back every row and leaves the filesystem
+untouched; the draining fence remains for retry or is cleared with an honest error.
+
+### Post-commit filesystem cleanup and crash recovery
+
+Before the transaction, confirmation writes a private manifest under
+`<state>/deletions/<request_id>/cleanup.json` (mode 0700, fsynced) containing only cleanup metadata: managed
+paths derived from recorded ids and opaque secret-service handles. Its SHA-256 goes into the evidence row.
+Files are deleted only after commit, from that manifest, depth-first and tolerating missing files; symlinks are
+not followed out of the state directory and a path outside the expected managed shapes is refused. Cleanup then
+removes the manifest directory. The evidence row is also the deletion-job row: it carries `cleanup_state`
+(pending, cleaning, cleaned or needs_attention) and an attempt count, so startup resumes a crash between commit
+and file deletion and a retry is idempotent. A missing or corrupt manifest means `needs_attention`: Hutch says
+the rows are erased and the managed files are not, and never claims the whole operation complete. User-owned
+folder-mode directories, coding worktrees, backups, exports and files outside the state directory are never
+cleanup targets. OS secret-service entries are cleared here too; if the keyring is locked or unavailable the
+state is `needs_attention` and the report says local token references are gone while the OS copy may remain.
+
+### Content-free evidence
+
+`bot_deletions` keeps one row per request: opaque id, Bot id, Bot name hash, actor, request hash, cleared token
+hash after confirmation, status, per-store counts, cleanup state, manifest hash, timestamps and the idempotency
+scope that makes retries replay. `bot_deletion_items` keeps one content-free row per erased row or file: request
+id, store name, opaque row id or its hash, original content SHA-256, timestamp. Neither stores erased text,
+paths, file names, prompts or secrets. Immutability follows the fact-purge pattern: insert guard, an update
+guard allowing only the pending to confirmed/expired outcome and cleanup-state transitions, and a no-delete
+trigger. The rows have no foreign key to `bots`, so evidence survives the Bot row and remains inspectable after
+restart. Hashes let an operator who retained a copy prove a value was erased; they do not recover it.
+
+### Proposed API, CLI and dashboard surfaces (not implemented)
+
+- API: `POST /api/v1/bots/{ref}/deletion-requests` previews and
+  `POST /api/v1/bots/{ref}/deletion-requests/{request_id}/confirm` confirms, both with typed pydantic bodies
+  and responses; confirm requires `Idempotency-Key`. `GET .../deletion-requests?limit=` returns content-free
+  history. Status mapping: 403 paired or remote refusal, 404 unknown Bot or request, 409 stale or changed scope
+  or live runs, 422 invalid input, 428 missing idempotency key. Because confirm resolves the request row before
+  the Bot, an exact retry after the Bot is gone returns the stored result.
+- CLI: today `hutch bot delete NAME` is the reversible removal. A proposed `hutch bot destroy NAME [--yes]`
+  would run the same preview and typed confirmation; `--yes` skips only the prompt, never the preview.
+- Dashboard: a danger-zone control in the Bot settings **Limits and memory** panel with the same two-step
+  preview, remaining list and typed Bot address; paired and remote sessions see the refusal. The existing
+  **Delete assistant** action stays the reversible removal and is not relabeled.
+
+### Migration and implementation plan
+
+Schema v83 (the tree is at v82) would add `bot_deletions`, `bot_deletion_items`, the content-free tombstone
+columns and guarded trigger allowances in a delegated `src/hutch/bot_deletion_schema.py` module wired through
+one `_migrate_83` hook, mirroring `fact_purge_schema.py`. Upgrades keep the normal pre-upgrade backup; no
+existing Bot is changed or implicitly scheduled for deletion; rolling back needs the matching pre-upgrade
+backup. Phases: (1) review this design and settle the open questions; (2) migration and evidence tables with
+migration tests; (3) a `bot_deletion.py` command module for preview, drain, confirm and cleanup recovery with
+focused store tests; (4) typed API routes and the CLI destroy command with contract tests; (5) the dashboard
+two-step control and its browser test; (6) flip this section to implemented, record ledger evidence, and dry-run
+the flow on a disposable state directory. `store.delete_bot` stays unchanged until phase 4 wires the new command.
+
+### Acceptance-test checklist
+
+- Preview counts exactly match the rows and files changed; the response contains no erased content or user paths.
+- After confirmation, searches (`conversation_fts`, `memory_facts_fts`), APIs, exports and conversation listings
+  return nothing for that Bot; a second Bot's rows and shares are untouched.
+- Wrong, stale, expired, reused, superseded, renamed-Bot and changed-count confirmations fail closed and change
+  nothing, including no filesystem changes.
+- A live run blocks confirmation; after verified stop the request completes, and a restart between commit and
+  cleanup resumes cleanup without duplicating evidence or claiming false completion.
+- Exact idempotent retry returns the first result while a different retry conflicts; paired and remote sessions
+  are refused and the local owner can preview and confirm.
+- Managed run directories, conversation workspaces, managed workspace, browser profile, documents and synthesis
+  bytes are removed; a folder-mode workdir, coding worktrees, backups and exports remain.
+- Evidence rows survive restart, stay immutable and content-free; migration from v82 preserves data and passes
+  the guarded-update tests; CLI and API share one command path.
+
+### Open questions
+
+- Should approvals be erased while action receipts are retained content-free, or both erased or retained?
+- Should completed `usage` ledger rows be retained for spending history, or erased with the Bot?
+- What is the drain deadline, and may an operator ever bypass an unresolvable live run? This design says no.
+- Should folder-mode workdir content the Bot wrote be deletable with a separate explicit opt-in, and should
+  `code-worktrees/` be removable? This design says no user-owned directory is touched.
+- Should watched sources or scheduled jobs that reference the Bot keep their bindings, and should a deleted
+  Bot's evidence be reachable from the dashboard or only from the CLI and API?
+
+### Non-goals and honest limits
+
+- This is a design, not behavior. `store.delete_bot` and the dashboard **Delete assistant** action are
+  unchanged today, and the fact purge remains the only implemented permanent deletion.
+- No disk-shredding guarantee. Secure-delete and a WAL checkpoint reduce copies inside the live database, not
+  in WAL history, filesystem journals, copy-on-write snapshots, SSD wear leveling, OS caches, crash dumps or memory.
+- Backups (`hutch.db.bak-vN`), `hutch state backup` snapshots, exports, provider-side prompts and responses,
+  channel-platform history and OAuth grants held at the provider are outside Hutch's reach; revoking a provider
+  grant is a provider action, not part of this command.
+- Files copied outside the state directory, user-owned folder-mode directories and local coding worktrees are not
+  deleted. Deleting an installation or state directory remains an operator filesystem action.
 
 ## Generated documents
 
