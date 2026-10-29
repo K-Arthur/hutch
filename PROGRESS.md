@@ -25,6 +25,8 @@ D unknowns, risks, appendices).
 ## In progress (file:function)
 - None. Phase 0 complete pending maintainer review.
 
+Phase 0 PR: https://github.com/K-Arthur/hutch/pull/11 (branch `brand/plan`).
+
 ## Next
 - Maintainer review of 00-PLAN.md; resolve Phase 2 gate decisions (name, territories, budget,
   counsel, PWA/mobile scope).
