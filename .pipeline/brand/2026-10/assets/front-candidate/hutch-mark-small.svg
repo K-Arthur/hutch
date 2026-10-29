@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-labelledby="t">
+  <title id="t">Hutch</title>
+  <!-- Small master, 16-24px. Candidate "Canopy", redrawn not scaled:
+       cap top x7.5..24.5 at y0, eaves x3..29 at y3.4; front x4.5..27.5, floor y30.5,
+       crown rx11.5 / ry11.75; windows 7.0 squares r1.5 at (11.2,16.4) and (20.8,16.4). -->
+  <path fill="currentColor" d="M7.5 0 H24.5 L29 3.4 H3 Z"/>
+  <path fill-rule="evenodd" fill="currentColor" d="M4.5 30.5 V12 A11.5 11.75 0 0 1 27.5 12 V30.5 Z
+    M9.2 12.9 H13.2 A1.5 1.5 0 0 1 14.7 14.4 V18.4 A1.5 1.5 0 0 1 13.2 19.9 H9.2 A1.5 1.5 0 0 1 7.7 18.4 V14.4 A1.5 1.5 0 0 1 9.2 12.9 Z
+    M18.8 12.9 H22.8 A1.5 1.5 0 0 1 24.3 14.4 V18.4 A1.5 1.5 0 0 1 22.8 19.9 H18.8 A1.5 1.5 0 0 1 17.3 18.4 V14.4 A1.5 1.5 0 0 1 18.8 12.9 Z"/>
+</svg>

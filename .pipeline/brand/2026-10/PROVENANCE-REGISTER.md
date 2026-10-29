@@ -146,3 +146,14 @@ Retention: the unused candidate fonts stay in the pipeline directory as dated ev
 pick is recorded, then are pruned or archived; they must never be bundled into the product or site.
 
 End of appendix. Nothing in this file grants rights, clears an asset, or states a legal conclusion.
+
+## Appendix C - candidate pack (2026-10-29, pipeline-only)
+
+| ID | Asset | Source type | Tool and version | Date | Licence | Status |
+|---|---|---|---|---|---|---|
+| CND-02 | hutch-mark-master.svg, hutch-mark-small.svg, favicon.svg | authored geometry (constructed on the 32-unit grid, no tracing) | hand-authored SVG; Playwright Chromium 153.0.8010.12 for rasters | 2026-10-29 | project-owned under the maintainer's direction, no third-party rights implied | candidate, not adopted |
+| CND-03 | favicon PNGs 16/32 (light+dark), apple-touch 180, PWA 192/512 any+maskable+monochrome, OG 1200x630, GitHub social 1280x640, lockups | rasterised from CND-02 by build_candidate_pack.py | Playwright Chromium 153.0.8010.12 | 2026-10-29 | as CND-02 | candidate, not adopted |
+| FNT-11 | wordmark in lockups/OG | font-derived (Bricolage Grotesque, wght 800) | fontTools instancing; Playwright text rendering | 2026-10-29 | SIL OFL 1.1 (google/fonts) | candidate; production subset + licence file owed |
+
+No third-party imagery, icon library, stock asset or AI image generator was used in this pack. Nothing
+in this appendix grants rights or states a legal conclusion.

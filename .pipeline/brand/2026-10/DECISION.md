@@ -338,3 +338,12 @@ The register probe then reached UKIPO and WIPO but not USPTO (IP-CLEARANCE secti
   likes; the task is now differentiation of that base, not replacement. Rounds 9-11 explore three
   differentiators (plinth, canopy, door seam) and an interior typology set (square windows, slot
   windows, single wide window) against that base.
+
+- D50 (WORKING DECISION, 2026-10-29) - researched principles applied. PRINCIPLES.md records the method
+  taken from the Anthropic "canvas-design" and "frontend-design" skills (fetched 2026-10-29): philosophy
+  first, subject-grounded choices, one bold move, the named AI-default tells, refine-don't-add,
+  construction sheets and redrawn small masters. Round 12 produced three drawings built to that
+  rulebook (A Threshold, B Occupied-vacant, C Canopy); the lead's recommendation is C Canopy. A
+  candidate asset pack was built pipeline-only under D42 (assets/front-candidate/, ASSET-PACKAGE.md)
+  because judging the mark on real surfaces is part of the work. Status: candidate, not adopted; the
+  human's pick is still the gate, and no site/app/docs/desktop integration is authorised here.

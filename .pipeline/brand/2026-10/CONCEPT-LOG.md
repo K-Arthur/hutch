@@ -229,3 +229,20 @@ Method note (D48): every drawing in rounds 8-11 is specified as numbers (coordin
 overhang) and every proposed master has a redrawn small master, not a scaled one. Where a sheet shows a
 knockout resident, it is a true hole in the path (fill-rule evenodd), so the mark never depends on a
 second colour.
+
+### 6.7 Round 12 (D48/D50): rulebook drawings and the candidate pack
+
+Method change: the round was built to PRINCIPLES.md, which is derived from the Anthropic
+"canvas-design" and "frontend-design" skills (fetched 2026-10-29) plus optical-correction practice.
+Subject first (a front elevation of a timber hutch), one bold move per drawing, grid + optical
+overshoot, two redrawn size tiers, critique written before the recommendation.
+
+| Drawing | Bold move | Result |
+|---|---|---|
+| A Threshold | open notch in the floor edge | reads as a doorway; notch survives 16px; without the cap it still leans character-like |
+| B Occupied-vacant | equal-area round + square windows | reads as an error at 16px, not as "one occupied one vacant" - rejected |
+| C Canopy | roofed cap | reads as a built front; cap survives 16px as a band; least face-like of the three - RECOMMENDED |
+
+Candidate pack built for C under D42 (pipeline-only): masters, favicons, apple-touch, PWA any/maskable/
+monochrome, OG, GitHub social, lockups, validation sheet. See ASSET-PACKAGE.md. Status: candidate, not
+adopted; the human pick is the gate.
