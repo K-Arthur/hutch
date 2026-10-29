@@ -8,6 +8,8 @@ Local-first, multi-bot AI assistant that runs on your machine.
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](#setup-details)
 [![Platform: Linux](https://img.shields.io/badge/platform-Linux-lightgrey.svg)](#is-hutch-for-me)
 [![Status: development preview](https://img.shields.io/badge/status-development%20preview-orange.svg)](docs/realignment/ledger.md)
+[![Website: live](https://img.shields.io/badge/website-live-34d399.svg)](https://k-arthur.github.io/hutch/)
+[![Release: v0.1.0 preview](https://img.shields.io/badge/release-v0.1.0%20preview-orange.svg)](https://github.com/K-Arthur/hutch/releases/tag/v0.1.0)
 
 **Development preview.** APIs, storage schema and CLI may change without notice.
 

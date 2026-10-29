@@ -1,5 +1,22 @@
 # CHANGES — Hutch — 2026-10-28
 
+## Session 9 - PUBLIC LAUNCH (GitHub Pages, public-repo docs, community prerequisites) - 2026-10-28
+Files: README.md, SECURITY.md, PRODUCT.md, CONTRIBUTING.md (2 public-wording hunks), CODE_OF_CONDUCT.md (new), docs/README.md (new), docs/brand-assets.md, docs/marketing-site.md, docs/discoverability.md (new), website/index.html, website/robots.txt, website/sitemap.xml (new), website/.nojekyll (new), website/.well-known/security.txt (new), website/security.txt (new), website/llms.txt, website/assets/github-social-preview-1280x640.png (new), .github/ISSUE_TEMPLATE/{bug_report,feature_request,config}.yml (new), .github/pull_request_template.md (new), .github/CODEOWNERS (new), .github/dependabot.yml (new), .github/workflows/pages.yml (new), CITATION.cff (new), tests/e2e/test_website.py (one locator line), .pipeline/marketing/2026-10/** (this record), evidence/brand/** (new render script, evidence, thumbnail).
+Commits: `076563b6 docs(public): reconcile the public repo surface and add GitHub community files`; `b44e62fd seo(site): publish the marketing site on GitHub Pages with canonical metadata`; plus this session's fix and record commits (see HANDOFF for the pushed range).
+What changed (user-visible): the marketing site is now live at https://k-arthur.github.io/hutch/ with canonical, og:url, absolute social image, sitemap, security.txt and a GitHub Pages deploy workflow. The public README is rebuilt for discoverability and answer engines (badges, tagline, screenshot, quickstart, availability table, six common questions, docs map). GitHub gains topics, a keyword-rich description, Discussions, issue forms, PR template, CODEOWNERS, CITATION, Dependabot and security features. The repository's public docs no longer describe a private preview.
+Claims affected: no new product claims. Register additions C-27..C-30 (live Pages URL, v0.1.0 source pre-release, repository metadata, public MIT source). Existing C-01..C-26 wording unchanged.
+Docs updated: README, SECURITY, PRODUCT, CONTRIBUTING, CODE_OF_CONDUCT, docs/README, docs/brand-assets, docs/marketing-site, docs/discoverability.
+Gates run (command -> result):
+- Unauthenticated GitHub API -> 200, visibility public; 20 topics applied; discussions, secret scanning, push protection, private vulnerability reporting, Dependabot security updates, delete-branch-on-merge and auto-merge enabled.
+- gitleaks over the 40 unpublished commits -> no leaks; staged-blob scans -> no leaks; scripts/check_repo_hygiene.py staged check -> passed.
+- `.pipeline/marketing/2026-10/evidence/audit/audit_site.py` -> exit 0, stderr 0 B: canonical true; 9 og keys; 4 twitter keys; sitemap.xml and security.txt 200; six crawler user-agents identical bytes; FAQ parity 20/20; description 157 chars; anchors 10/10.
+- `pytest -q tests/e2e/test_website.py` -> 42 passed, 0 failed (after R9-05/R9-06/R9-07 fixes); structured-data e2e included.
+- `npm run check:agent` -> FAIL, pre-existing B-07 only: tests/test_commit_attribution.py 419 lines. No new violation from this session (test_website.py stayed at its frozen 1449 lines).
+- `scripts/audit_emoji.py` -> clean.
+Evidence paths: .pipeline/marketing/2026-10/EVIDENCE-session-9.md; docs/discoverability.md; .pipeline/marketing/2026-10/evidence/brand/README.md; RELEASE-NOTES-v0.1.0.md.
+Residual risk: 54 open Dependabot alerts (8 critical; top follow-up); social preview upload manual; Search Console and Bing verification owner-gated; origin-root robots.txt and security.txt need a custom domain; CI on the final pushed commit must be watched; repository size stays about 1.37 GB.
+Next: HANDOFF.md + NEXT-PROMPT.md.
+
 ## Session 7 — CAMPAIGN REVIEW (Phase 7, read-only on product) — 2026-10-28
 Files: .pipeline/marketing/2026-10/{00-BRIEF,REVIEW,FINDINGS,EVIDENCE,DECISION,CHANGES,HANDOFF,NEXT-PROMPT}.md + NEW evidence/review/{r7-audit-stdout.txt,r7-audit-stderr.txt}
 Commits: `marketing(review): verify shipped S-a..S-c state, close F-01/F-04/F-06/F-08/F-12 with fresh evidence` (this commit; .pipeline/marketing/ only)
