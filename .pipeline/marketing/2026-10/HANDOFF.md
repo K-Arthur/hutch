@@ -62,3 +62,11 @@ All five closed findings remain closed on the built site with fresh evidence; cl
 - Do not add claims beyond the register; prohibited-claims table in CLAIM-REGISTER.md is campaign-wide and has no expiry (no star counts, no benchmarks, no "best").
 - Do not re-render the card with new text without (a) register-approved wording and (b) bumping the `?v=` in both image tags (index.html:14, :21) to the new sha256[:8].
 - Do not push/deploy/merge. Do not claim a gate passed without naming its evidence path.
+
+## Session note 2026-10-28 (hygiene session, NOT a marketing slice)
+- B-01 still OPEN (human confirmed no domain chosen). No campaign slice ran; S-d remains domain-gated. Protocol followed: did not manufacture a slice.
+- Human then directed a separate repo-hygiene task: remove em dashes across the repo. Executed as safe-docs-prose-only (human-approved scope).
+- Shipped commit `6b6a9703 docs(prose): remove em dashes from product documentation` (17 files, 203 line-for-line punctuation replacements; local only, not pushed).
+- Deliberately EXCLUDED (out of scope, still carry em dashes): test-asserted product strings (marketing <title> C-01, empty-state '—' sentinel tests/native/test_desktop_webdriver.py:151, generated infographic/docgen/tool-status copy), another agent's uncommitted work, and dated evidence/records (docs/realignment, docs/research, docs/qa, docs/adr, CHANGELOG, .pipeline). Residual repo-wide em-dash count ~2515, all in these excluded tiers.
+- Gates: scripts/audit_emoji.py clean; scripts/check_repo_hygiene.py pass; every test-asserted em-dash string verified untouched. NOTE: pre-commit hook did NOT auto-run (core.hooksPath unset) — gates were run manually. gitleaks 8.30.1 was installed to ~/.local/bin at human request but is NOT wired into any hook.
+- README.md was edited here (em-dash prose only) under the human's explicit hygiene instruction; this does NOT lift the "no README edits in a marketing session" rule above.
