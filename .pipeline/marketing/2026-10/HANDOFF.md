@@ -1,4 +1,4 @@
-# HANDOFF — Hutch — 2026-10-28 — session 7 (campaign review, Phase 7)
+# HANDOFF — Hutch — 2026-10-28 — session 8 (blocker re-confirmation + hygiene slice H-2)
 
 ## State
 - Repo/branch/commit: /home/kevina/CodingProjects/hutch · main · `f152b9b6` at session start (this session commits the review artifacts; the other agent's dirty product files remain untouched/un-staged — set includes .gitignore, AGENTS.md, CONTRIBUTING.md, app/**, package*.json, pyproject.toml, src/hutch/server/** (incl. untracked hutch-composer.css, hutch-composer-context.css), tests/** + untracked .ai/, .codex/, .dshignore, .githooks/, docs/*.md …)
@@ -62,6 +62,13 @@ All five closed findings remain closed on the built site with fresh evidence; cl
 - Do not add claims beyond the register; prohibited-claims table in CLAIM-REGISTER.md is campaign-wide and has no expiry (no star counts, no benchmarks, no "best").
 - Do not re-render the card with new text without (a) register-approved wording and (b) bumping the `?v=` in both image tags (index.html:14, :21) to the new sha256[:8].
 - Do not push/deploy/merge. Do not claim a gate passed without naming its evidence path.
+
+## Session note 2026-10-28 (session 8: blocker re-confirmation + hygiene slice H-2)
+- B-01 re-confirmed OPEN by the human this session (asked per NEXT-PROMPT protocol; answer: no domain chosen). No campaign slice ran; S-d remains domain-gated. Protocol followed: did not manufacture a slice.
+- Human then directed a second em-dash hygiene continuation. Shipped commit `a01b41c6 docs(prose): remove em dashes from code comments, docstrings, and dev-tool copy` (127 clean tracked files, +325/-348; local only, not pushed).
+- Scope (all verified safe before editing): Python comments + docstrings, static JS/CSS comments (markdown.js, palette.js; brand-tokens.css via its generator), ui-audit.mjs dev-tool report copy, build_site_tokens.py template + stderr (both generated token surfaces regenerated; `--check` ok), desktop/src/main.rs startup window title (unasserted, product string, changed under explicit human directive), outlook-mail-digest + workspace-summary SKILL.md bodies (no test asserts those phrases).
+- Deliberately EXCLUDED (same tiers as 6b6a9703, plus): runtime product strings (~65 py lines inventoried: CLI copy, error messages, model prompts, LLM tool-description fragments — needs its own human-approved slice before touching), test-asserted fixture strings (tests/support/markdown_check.mjs unicode-survival input asserts the em dash IS the unicode under test), website page copy (campaign claim register + C-24 dateModified govern it; llms.txt do-not-edit stands), dated evidence/records, the other agent's dirty files (95 tracked-modified/untracked paths never staged; re-derive any future sweep from `git status --porcelain` first).
+- Gates (all run manually; pre-commit hook still inactive): `py_compile` 128 touched py files 0 failures; `node --check` on edited JS ok; `scripts/build_site_tokens.py --check` ok (107 tokens, contrast verified); `scripts/audit_emoji.py` clean (2748 files); `scripts/check_repo_hygiene.py` pass; focused `pytest` tests/test_studio_markdown.py + test_site_tokens.py + test_emoji_audit.py = 18 passed; `npm run check:agent` still RED for B-07 ONLY (tests/test_commit_attribution.py 419 lines — other workstream, unchanged, not caused by this diff). Leak scan: 0 em dashes remain in any comment/docstring of touched py files; remaining = deferred literals only.
 
 ## Session note 2026-10-28 (hygiene session, NOT a marketing slice)
 - B-01 still OPEN (human confirmed no domain chosen). No campaign slice ran; S-d remains domain-gated. Protocol followed: did not manufacture a slice.
