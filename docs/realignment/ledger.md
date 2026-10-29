@@ -4403,3 +4403,68 @@ One discarded run exhausted the host's `/tmp` tmpfs and caused unrelated SQLite 
 generated scratch was removed only after preserving the run log and workflow artifacts; the final strict
 run completed with sufficient temporary space. Each full-run coding-repair artifact set is privately
 backed up with SHA-256 manifests and the tracked acceptance files were restored before committing.
+
+## Governed permanent deletion of reference facts; demo-fixture verification (2026-10-29)
+
+Ownership: the Lead session in the shared local `main` checkout, base `135d8038` plus the completion
+plan commit `4a48f003`. The checkout also contained a parked uncommitted brand/UI session (69 modified
+and 83 untracked files); none of those files was edited, staged, reverted or reformatted, and the
+final tree still shows that work as uncommitted.
+
+**Task reconciliation.** The task brief assumed the 2026-10-07 baseline. The repository has already
+closed most of that list: there is no user-facing demo data, the mock runtime is not selectable, and
+scheduler recovery and model-route validation landed earlier. The one current documentation gap small
+enough to finish and verify locally was governed permanent deletion of saved reference facts
+(`docs/bot-config.md`, `docs/operations.md`, `docs/safety.md` and T-DELETE-SEMANTICS still recorded it
+as unimplemented).
+
+**Research and inventory.** `docs/realignment/research-completion.md` (316 lines, 54 cited sources) and
+`docs/realignment/completion-inventory.md` (216 lines) were produced first. Inventory result: 2,097
+demo/fixture/mock/TODO keyword hits classified across `src/` (340), `website/` (11) and `tests/` (1,746)
+- zero user-facing demo values; every test hit is test-only, and `src/` imports no `tests/` module. Two
+residual notes: `/static/redesign-preview.html` is an unlinked, untracked preview harness owned by the
+parked dashboard session, and the usage page's legacy mock label was reworded to "retired mock route".
+
+**Implemented.** Schema v82 adds purged tombstones, guarded content updates, share/task-snapshot
+erasure, immutable `memory_purge_requests`/`memory_purge_items` evidence, and typed API routes.
+`hutch bot purge NAME --key KEY` (or `--all`) previews exact counts plus what remains, then requires a
+typed confirmation; the API exposes `POST /api/v1/bots/{ref}/facts/purge-requests` and
+`POST .../{request_id}/confirm` (Idempotency-Key required, single-use 10-minute token, content-free
+audit listing via `GET .../purge-requests`). Erasure covers fact revisions, the FTS index, legacy
+`memory` rows, outgoing/incoming share snapshots and workspace-task snapshots; conversation messages,
+transcripts, files, provider-side copies and pre-purge backups are explicitly named as remaining. The
+dashboard purge control and whole-Bot purge are deferred (the memory settings templates belong to the
+parked dashboard session).
+
+**Context-hygiene split.** The frozen `store.py`, `app.py` and `cli.py` were not extended: the purge
+data layer is `src/hutch/fact_purge.py`, the schema upgrade is `src/hutch/fact_purge_schema.py`, the
+routes are `src/hutch/server/facts_api.py`, and the CLI commands are `src/hutch/cli_facts.py`; the
+existing `_fact_share_record` helper moved to `fact_memory.share_record`. After the split store.py is
+12,593 lines (was 12,624), cli.py 2,758 (was 2,768), app.py 7,461 (unchanged), and every new module is
+under 400 lines. The local size baseline was lowered for those three paths (shrink-only).
+
+**Verification (exact commands).** The suite uses `.venv/bin/python -m pytest` because this DSH
+sandbox makes the shared `uv` cache read-only (`uv run` fails to lock/write).
+
+- `pytest -q tests/test_fact_purge.py` - **9 passed** (erasure, FTS, share snapshots both directions,
+  all-scope plus legacy rows, audit-hash retention, restart, fail-closed wrong/expired/superseded/
+  reused confirmations, API status codes and idempotent replay, in-memory schema idempotency and
+  guards, CLI two-step).
+- `pytest -q tests/test_fact_memory.py` - **20 passed**.
+- `pytest -q tests/test_api.py` - **49 passed**.
+- `pytest -q tests/test_migration.py tests/test_cli.py tests/test_conversations.py
+  tests/test_delegation.py tests/test_api.py tests/test_fact_memory.py tests/test_fact_purge.py` -
+  **200 passed, 1 skipped in 92.57 s**.
+- `python scripts/audit_context_hygiene.py` - the only violation is the pre-existing, other-session
+  `tests/test_commit_attribution.py` (419 lines); every file in this slice passes.
+- Focused Playwright checks for the unchanged memory settings surface are recorded in
+  `docs/realignment/continuation-B.md`.
+
+**Claim corrections recorded in this slice.** README and `website/llms.txt` now say the unsigned Ubuntu
+deb/AppImage builds were local acceptance output, not published installers; the README memory section
+describes the governed purge instead of claiming permanent deletion is unimplemented.
+
+**Limits.** No live provider, OAuth account, physical phone, screen reader or packaged installer was
+exercised. The purge is key-scoped or all-facts for one Bot; it is not a whole-Bot or conversation
+eraser, it does not erase transcripts/files/backups/provider copies, and the dashboard control is not
+wired. Backups created before a purge keep the old content, as documented.

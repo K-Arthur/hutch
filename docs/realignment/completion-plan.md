@@ -227,3 +227,18 @@ changes are never staged, reverted, or reformatted.
 - Live provider, OAuth, physical-phone or remote-network certification (no credentials/hardware).
 - MCP facade, plan-level grants, vector memory, cross-OS work.
 - Rewriting the dashboard or marketing site outside this session's ownership.
+
+
+## 7. Execution status (2026-10-29, appended after verification)
+
+| Planned item | State | Evidence |
+|---|---|---|
+| Research evidence base | done | `docs/realignment/research-completion.md` (316 lines, 54 cited sources) |
+| Inventory of demo fixtures, TODOs and claims | done | `docs/realignment/completion-inventory.md` (216 lines; 2,097 hits classified; 0 user-facing demo values) |
+| Slice A: demo-fixture-free verification | done | no user-facing demo data; mock runtime unselectable; `src/` imports no `tests/` module; usage label reworded; unlinked preview harness noted as owned elsewhere |
+| Slice B: governed permanent deletion of reference facts | done and locally verified | schema v82 in `fact_purge_schema.py`; data layer `fact_purge.py`; API `server/facts_api.py`; CLI `cli_facts.py`; `tests/test_fact_purge.py`; broad focused group 200 passed / 1 skipped |
+| Slice C: frontend state hardening | blocked, not attempted on owned files | templates/static/e2e owned by the parked dashboard session; gap list in `completion-inventory.md`; next steps in `continuation-C.md` |
+| Slice D: marketing/claim accuracy | partial | README and `website/llms.txt` availability wording corrected; `website/index.html` owned by the parked session and not edited |
+| Slice E: validation and self-review | partial | focused pytest groups, context-hygiene audit (only pre-existing other-session violation), focused Playwright checks; full non-browser suite and Docker-pinned visual baselines not run in this session |
+| Documentation and continuation | done | ledger checkpoint appended; `continuation-B.md` and `continuation-C.md` written |
+| Commits | on local `main` | commit only session-owned/reviewed files; the 153 pre-existing dirty entries from the parked session are never staged |
