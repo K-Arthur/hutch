@@ -4597,3 +4597,117 @@ design only: no migration, data layer, API, CLI or dashboard code exists for it.
 covers saved reference facts only; chats, transcripts, files, backups and provider copies remain. The
 committed `app.js`/`index.html`/`bot.html` are HEAD plus this session's hunk; the parked session's
 uncommitted redesign still owns those files in the working tree.
+
+## Route state boundaries, purge-control verification and committed-HEAD marketing captures (2026-10-29)
+
+Continuation of `docs/realignment/continuation-C.md`. The session precondition ("frontend and marketing
+files were owned by a now-committed dashboard session") was **false**:
+`git status --porcelain -- src/hutch/server/templates src/hutch/server/static website` returned
+**70 dirty entries** (38 modified, 1 deleted, 31 untracked) at HEAD `33b55776`. The dashboard/memory
+session committed only its purge-control slice (`97d4e428`); the parked dashboard form redesign (templates, hand-written
+static JS/CSS, `app/src/`, `tests/e2e/*`, package manifests) and the parked brand/marketing work
+(`website/`, generated CSS, icons, fonts) remain uncommitted. Per `AGENTS.md` and
+`docs/concurrent-agents.md` this session never edited, staged, reverted or reformatted those paths:
+the gate count was 70 before and after. Work was limited to new session-owned files and the committed
+HEAD tree, exercised through a git-archive export at `.worktrees/completion-c-scratch/head`
+(gitignored; no worktree registration).
+
+**Governed fact-purge control: already committed at HEAD, verified (no edit was needed).** Commit
+`97d4e428` wires the two-step control into both surfaces: `src/hutch/server/templates/_fact_purge.html`
+is included from `src/hutch/server/templates/bot.html:64`, `src/hutch/server/static/fact-purge.js`
+calls the typed preview/confirm API (`POST /api/v1/bots/{ref}/facts/purge-requests`, confirm with a
+required `Idempotency-Key`, plus the `GET` request list) backed by pydantic resources in
+`src/hutch/server/facts_api.py`, and `src/hutch/server/static/app.js:9241` mounts the same module in
+the SPA settings pane (script tag `static/index.html:169`). Verified read-only:
+- `.venv/bin/python -m pytest -q --no-header --tb=line tests/test_fact_purge.py` - **11 passed in
+  8.54 s** (main checkout).
+- Clean-HEAD Playwright `tests/e2e/test_fact_purge_ui.py` - **2 passed in 17.67 s** at 1440x960
+  desktop and 390x844 phone on Chromium **153.0.8010.12** / Playwright **1.63.0**, revision **1243**
+  (`chromium-1243`): exact-key gate, wrong key refuses, erase, refresh, `store.recall_all(bot.id) == []`.
+
+**Route state boundaries (new e2e module, this session).** New
+`tests/e2e/test_route_state_boundaries.py` - **400 lines, 11 tests**, no shared template/JS edit.
+Against a real local uvicorn app with an empty store it covers `/bots`, `/usage`, `/models`,
+`/approvals` and `/connections` at **1440x900, 900x900 and 360x800**:
+- empty first-run state and CTA per route (302 to `/#/bots`, `/#/approvals`, `/#/connections`
+  verified; `/usage` and `/models` server-rendered 200); zero horizontal overflow and zero page
+  errors at all 15 route/viewport combinations;
+- SPA route-boundary failure with an intercepted 503: visible "Could not load this view." plus the
+  `Try again` button, retry after unroute recovers; the approvals data-API failure is asserted
+  separately as the drawer's inline error with its own Retry;
+- `/models` server flash error banner `div.flash.error[role=alert]` after an invalid price POST;
+- paired monitor session: 403 "this route is not available to paired phones" for all five owner
+  routes, phone supervision view with `.app-shell` hidden and no review tab, Stop all, purge or
+  device-revoke controls.
+Run (clean HEAD export): `cd .worktrees/completion-c-scratch/head && PYTHONPATH=$PWD/src
+HUTCH_TEST_ARTIFACTS_DIR=<main>/docs/realignment/artifacts .venv/bin/python -m pytest -q --no-header
+--tb=line tests/e2e/test_route_state_boundaries.py` - **11 passed in 44.59 s** (Lead rerun; teammate
+first run 52.33 s), Chromium **153.0.8010.12** / Chromium build dir `chromium-1243` / Playwright
+**1.63.0** / Python 3.13.15. Evidence: `docs/realignment/artifacts/completion-2026-10-29/states/`
+(26 screenshots plus `validation.json`, 1.7 MB; empty/, error/, permission/) with the exact command,
+browser version and revision, executable paths, source SHA-256s, test list, per-viewport overflow and
+the residual gaps below.
+
+**Residual gaps recorded by the new module (not fixed; owned files belong to the parked sessions).**
+1. `form-post-origin-null` - (`src/hutch/server/security.py:314-318,374-377,428-435`,
+   `templates/base.html:34-38`, `templates/models.html:112-124`) plain server-rendered form POSTs are
+   refused in Chromium: with `Referrer-Policy: no-referrer` Chromium submits `Origin: null` and
+   `SecurityMiddleware._same_origin` rejects it even though `Sec-Fetch-Site` is `same-origin`.
+   Independently reproduced against HEAD with a minimal local page, and captured in
+   `states/error/models-form-origin-refused-1440x900.png`; affects `/models` Save price and the
+   topbar Stop all form. The flash-error assertion itself uses the page's browser-context request with
+   the page CSRF token (recorded deviation).
+2. `/usage` has no server-rendered error banner/retry (`pages_usage.py:20-66`,
+   `templates/usage.html:7-77`) and its empty state has no CTA (`usage.html:51`).
+3. `/models` empty state is hint text only (`templates/models.html:25,52-54`).
+4. `/approvals` empty state has no CTA; its data errors are inline in the drawer
+   (`static/app.js:7946-7953,8083-8133`).
+5. `/approvals` retry loses the route: `renderApprovals` rewrites the hash to `#/chat` before load, so
+   the boundary retry reopens the studio (`static/app.js:7888-7897,2287-2313`).
+6. `/bots` empty route collapses to `#/chat` whenever fewer than ten assistants exist, so the fleet
+   empty state/CTA is unreachable (`static/app.js:7291-7294,7342-7347,2388-2390`).
+7. Connections' "No connections configured." state sits behind the AI model providers detail
+   (`static/connection-browser.js:31-32`, `static/app.js:10192-10197`).
+Deviations recorded in `validation.json`: deterministic `/models` empty view via a stub `ModelsView`
+(host runtime probes are non-deterministic), flash error via browser-context request, approvals route
+boundary via the required shell API.
+
+**Committed-HEAD marketing captures (new helper plus evidence).** Because `website/` is dirty,
+`docs/realignment/capture_marketing_head.py` (391 lines, stdlib plus Playwright) exports
+`git archive HEAD -- website` into `.worktrees/completion-c-scratch/marketing-head/`, serves it over
+loopback from an ephemeral port, and never reads the working-tree site. Captured at
+**1440x900 (desktop), 900x900 (tablet), 360x800 (phone)**: 0 horizontal overflow at all widths, no page
+errors, all requests same-origin (12/12/10), HTTP 200, reduced motion, fonts ready. Metadata from the
+served page: title, canonical `https://k-arthur.github.io/hutch/`, absolute `og:image`
+`https://k-arthur.github.io/hutch/assets/og-card-1200x630.png?v=b905c417`; HEAD `website/sitemap.xml`
+and `robots.txt` exist (SHA-256 recorded). **Exact browser:** Chrome for Testing
+**153.0.8010.12**, launched build directory `chromium_headless_shell-1243` (revision **1243**;
+matching full Chromium build `chromium-1243`), Playwright **1.63.0**, Python 3.13.15, HEAD
+`33b557767e0cc63665e0f60306d98cf4ce2e1fbd`. Artifacts (repo-relative):
+`docs/realignment/artifacts/completion-2026-10-29/marketing/desktop.png`,
+`desktop-full.png`, `tablet.png`, `tablet-full.png`, `phone.png`, `phone-full.png` and
+`capture.json` (6 PNGs plus JSON, 4.1 MB). The six PNGs were opened and reviewed individually.
+
+**Quiet pytest gate.** `.venv/bin/python -m pytest -q --no-header --tb=line tests/test_dashboard.py
+tests/test_site_tokens.py` - **31 passed in 26.63 s**. Audits (after staging this session's files):
+`scripts/audit_context_hygiene.py` - only the pre-existing other-session
+`tests/test_commit_attribution.py` (419 lines) violation, the new 400-line module and 391-line helper
+pass; `scripts/audit_tool_contracts.py`, `scripts/audit_constitution.py`,
+`scripts/generate_agent_map.py --write/--check` (119 lines, 1,278 tracked files) and
+`scripts/audit_emoji.py` - passed/clean; `git diff --cached --check` - clean.
+
+**Commits.** `d0af8dfb test(ui): cover route empty, error and permission boundaries` (new module plus
+27 state-evidence files). The capture helper, marketing evidence and this ledger are committed
+together; only files reviewed and authored in this session were staged. The 70 other-session dirty
+entries in templates/static/website were not staged and remain untouched.
+
+**Limits.** The new e2e module was run against committed HEAD (export) only, not the parked
+dashboard's uncommitted redesign; copy/markup changes in that redesign may require updating selectors
+and re-running it. `/models` is deterministic only through the stubbed view; populated states,
+loading/skeleton coverage, screen readers, live providers and physical phones were not exercised. The
+captures are committed HEAD evidence (green pre-brand site); the uncommitted Visor Hutch brand work
+(`website/index.html`, Bricolage font, new favicons/og cards) was neither captured nor reviewed. No
+Docker-pinned baseline exists on this host, so the exact installed Chromium revision 1243 (Chrome for
+Testing 153.0.8010.12) is recorded instead of claiming Docker parity. The origin-null form-POST
+finding is recorded, not fixed; it needs a security/template owner because those surfaces are
+uncommitted.

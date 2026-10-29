@@ -1,0 +1,172 @@
+{
+  "captured_at": "2026-10-29T19:39:07.088889+00:00",
+  "command": ".venv/bin/python docs/realignment/capture_marketing_head.py",
+  "page_url": "http://127.0.0.1:42141/",
+  "source": {
+    "method": "git archive HEAD -- website",
+    "git_head_revision": "33b557767e0cc63665e0f60306d98cf4ce2e1fbd",
+    "served_from": ".worktrees/completion-c-scratch/marketing-head/website",
+    "served_from_scratch": true,
+    "working_tree_used": false,
+    "working_tree_note": "The git working tree is dirty with other sessions' uncommitted work, so the working-tree copy of website/index.html and the rest of website/ was excluded. All served content is committed HEAD content exported with 'git archive HEAD -- website' into .worktrees/completion-c-scratch/marketing-head/website; no working-tree website file was read, modified, staged or reverted.",
+    "working_tree_dirty_website_paths": [
+      "?? website/apple-touch-icon.png",
+      "?? website/assets/fonts/OFL-bricolage-grotesque.txt",
+      "?? website/assets/fonts/bricolage-grotesque-latin-800.woff2",
+      "?? website/favicon-16x16.png",
+      "?? website/favicon-32x32.png",
+      "?? website/favicon-48x48.png",
+      "?? website/favicon.ico",
+      "?? website/favicon.svg",
+      "?? website/icons/",
+      "?? website/site.webmanifest",
+      "M website/THIRD_PARTY_NOTICES.txt",
+      "M website/app.css",
+      "M website/assets/github-social-preview-1280x640.png",
+      "M website/assets/og-card-1200x630.png",
+      "M website/index.html",
+      "M website/src/input.css"
+    ],
+    "font_note": "HEAD commits the Geist variable font (website/assets/fonts/geist-latin-var.woff2); the Bricolage font exists only as untracked working-tree brand work, so no Bricolage file is served or hashed in this record."
+  },
+  "git_head_revision": "33b557767e0cc63665e0f60306d98cf4ce2e1fbd",
+  "browser": {
+    "engine": "chromium",
+    "name": "Chrome for Testing",
+    "version": "153.0.8010.12",
+    "headless": true,
+    "executable_path": "/home/kevina/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell",
+    "build_directory": "chromium_headless_shell-1243",
+    "revision": "1243",
+    "matching_full_chromium_build_directory": "chromium-1243",
+    "playwright_registry_executable_path": "/home/kevina/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome"
+  },
+  "playwright_version": "1.63.0",
+  "python_version": "3.13.15",
+  "reduced_motion": "reduce",
+  "viewports": {
+    "desktop": {
+      "width": 1440,
+      "height": 900
+    },
+    "tablet": {
+      "width": 900,
+      "height": 900
+    },
+    "phone": {
+      "width": 360,
+      "height": 800
+    }
+  },
+  "captures": [
+    {
+      "name": "desktop",
+      "viewport": [
+        1440,
+        900
+      ],
+      "url": "http://127.0.0.1:42141/",
+      "path": "docs/realignment/artifacts/completion-2026-10-29/marketing/desktop.png",
+      "full_page_path": "docs/realignment/artifacts/completion-2026-10-29/marketing/desktop-full.png",
+      "path_bytes": 222300,
+      "full_page_path_bytes": 1318068,
+      "horizontal_overflow": 0,
+      "page_errors": [],
+      "requests_same_origin": true,
+      "request_count": 12
+    },
+    {
+      "name": "tablet",
+      "viewport": [
+        900,
+        900
+      ],
+      "url": "http://127.0.0.1:42141/",
+      "path": "docs/realignment/artifacts/completion-2026-10-29/marketing/tablet.png",
+      "full_page_path": "docs/realignment/artifacts/completion-2026-10-29/marketing/tablet-full.png",
+      "path_bytes": 157600,
+      "full_page_path_bytes": 1317694,
+      "horizontal_overflow": 0,
+      "page_errors": [],
+      "requests_same_origin": true,
+      "request_count": 12
+    },
+    {
+      "name": "phone",
+      "viewport": [
+        360,
+        800
+      ],
+      "url": "http://127.0.0.1:42141/",
+      "path": "docs/realignment/artifacts/completion-2026-10-29/marketing/phone.png",
+      "full_page_path": "docs/realignment/artifacts/completion-2026-10-29/marketing/phone-full.png",
+      "path_bytes": 64502,
+      "full_page_path_bytes": 1144462,
+      "horizontal_overflow": 0,
+      "page_errors": [],
+      "requests_same_origin": true,
+      "request_count": 10
+    }
+  ],
+  "paths": {
+    "desktop": "docs/realignment/artifacts/completion-2026-10-29/marketing/desktop.png",
+    "desktop_full": "docs/realignment/artifacts/completion-2026-10-29/marketing/desktop-full.png",
+    "tablet": "docs/realignment/artifacts/completion-2026-10-29/marketing/tablet.png",
+    "tablet_full": "docs/realignment/artifacts/completion-2026-10-29/marketing/tablet-full.png",
+    "phone": "docs/realignment/artifacts/completion-2026-10-29/marketing/phone.png",
+    "phone_full": "docs/realignment/artifacts/completion-2026-10-29/marketing/phone-full.png"
+  },
+  "horizontal_overflow": {
+    "desktop": 0,
+    "tablet": 0,
+    "phone": 0
+  },
+  "page_errors": {
+    "desktop": [],
+    "tablet": [],
+    "phone": []
+  },
+  "requests_same_origin": {
+    "desktop": true,
+    "tablet": true,
+    "phone": true
+  },
+  "source_sha256": {
+    "website/index.html": "5e30f7394acc137c8749e15032bee1c3d1e7723a72ad5dbc31dde3662491f890",
+    "website/styles.css": "4cc2e6902e21772f6bbff20e0c61da5fe92bfc716ec2349683a3e8eac897777e",
+    "website/styles.min.css": "7d183136f33313dbe3e9ea55564c7c172dd3925e13f80aefa881665685182806",
+    "website/app.css": "77f792b21978c36fd9ef9498763914de57d08c0607efc30b5cc8cb02ce24dba0",
+    "website/tokens.css": "7e5b0d00fb6ed8c46e3e50e6ce8c48a878a31902fb57445f988ff823305c4a86",
+    "website/site.js": "5b30d3f5a02a2d1c5407f89a2ad09c9e9960f31269aba596268d46dfaf41c2d1",
+    "website/assets/fonts/geist-latin-var.woff2": "62cce2065edc12d5069a490f00c00d42c4248e86f117be9afab99b39dd02c7c7",
+    "website/assets/og-card-1200x630.png": "b905c4170ed568b474d90f0b1ef93f0efe15207c6155fbb702b7f46bb366c2a1"
+  },
+  "sitemap_robots": {
+    "website/sitemap.xml": {
+      "path": "website/sitemap.xml",
+      "exists": true,
+      "sha256": "60fa9c200ec9bfee1b554b71d2bee340edef0a3431fc6acc268e21b4234f81f7"
+    },
+    "website/robots.txt": {
+      "path": "website/robots.txt",
+      "exists": true,
+      "sha256": "130d9e5243192137ac8cb784a2bcc837d484776128cfec1fd3c54d46d529c731"
+    }
+  },
+  "metadata": {
+    "source": "document head of the served HEAD page",
+    "title": "Hutch \u2014 local-first AI assistants that run on your machine",
+    "canonical_href": "https://k-arthur.github.io/hutch/",
+    "og_image_content": "https://k-arthur.github.io/hutch/assets/og-card-1200x630.png?v=b905c417",
+    "og_title_content": "Hutch \u2014 local-first AI assistants that run on your machine",
+    "og_image_local_file": "website/assets/og-card-1200x630.png",
+    "checks": {
+      "title_present": true,
+      "canonical_present": true,
+      "canonical_absolute": true,
+      "og_image_present": true,
+      "og_image_absolute": true,
+      "og_title_present": true
+    }
+  }
+}
