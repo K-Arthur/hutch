@@ -16,6 +16,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from . import __version__
+from .cli_bot_deletion import install_bot_destroy_command
 from .cli_facts import install_bot_fact_commands
 from .config import get_config
 from .models import (
@@ -91,6 +92,7 @@ def _require_run(store: Store, run_id: str) -> "Run":
 
 
 install_bot_fact_commands(bot_app, _store, _require_bot, err, console)
+install_bot_destroy_command(bot_app, _store, _require_bot, err, console)
 
 
 @code_app.command("login")

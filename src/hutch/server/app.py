@@ -7445,6 +7445,8 @@ def create_app() -> FastAPI:
     from .skills_api import install_skills_routes
     install_skills_routes(app, store, config)
     from .facts_api import install_fact_purge_routes; install_fact_purge_routes(app, store)
+    from .bot_deletion_api import install_bot_deletion_routes
+    install_bot_deletion_routes(app, store)
     from .pages import register_pages
     register_pages(app)
     from .workflows_api import register_workflow_api
