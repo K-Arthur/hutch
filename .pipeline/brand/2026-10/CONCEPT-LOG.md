@@ -151,3 +151,67 @@ regardless of territory, with PO-3 only as a measured marketing-head variant.
 | Budget / risk | Zero external spend authorised; the human explicitly owns the IP risk in writing for now, no funded counsel (DECISION.md D20). This supersedes the earlier "engage counsel" intent (D14) as the operative posture until counsel is funded. |
 | Selected by / date | human (maintainer), 2026-10-28 |
 | Cleared? | NO - no concept is cleared; plan G1 open (no clearance protocol exists); knockout execution and clearance-protocol sign-off are Run 3's first work; no asset generation before sign-off |
+
+## 6. Run 5 session (2026-10-29) - rounds 1-4, pre-screens, and the narrowed two-up
+
+Authority and brief: DECISION.md Run 5 section (D39-D44). D42 records the human's wordmark pick
+(Bricolage Grotesque 800) and the pipeline-only authorisation for the full asset package. D43 and D44
+record the rejection of the round-1 outline primitives (too simple, collision-prone, no harmony with
+the wordmark) and the instruction to keep N5 in the set, widen it, and narrow on evidence.
+
+### 6.1 Rounds and verdicts
+
+| Round | Options rendered | Human/evidence verdict | Evidence file |
+|---|---|---|---|
+| 1 (outline primitives) | N1 arch+dot, N2 H-frame, N3 brackets+dot, N4 square portal, N5 two-bot front (probe), N6 threshold, C0 hexagon control | REJECTED by human (D43): too simple, likely used by others, no wordmark harmony. N5 retained as a lineage per D44. | `assets/concepts/sheets/contact-sheet.png` |
+| 2 (wordmark) | 9 OFL families incl. Geist control | Bricolage Grotesque 800 selected (D42) | `assets/concepts/sheets/wordmark-sheet.png` |
+| 3 (constructed, harmonised) | WA wordmark-h+dot, WB cabinet, WC rack, WE crowned hutch, controls | Iterate: WA has documented precedent and fails 16px; WE fails 16px; WB/WC advance | `assets/concepts/sheets/round3-sheet.png`, `round3-close.png` |
+| 4 (expanded incl. N5 evolutions) | N5R, P1 two-door, P2 offset residents, P8 stacked pair, WB, WB-S, WC, WA1b | Narrowed to P2 + WB on 16px survival, distinctiveness and story fit | `assets/concepts/sheets/round4-sheet.png` |
+| Final two-up | P2 vs WB with masters + small masters | Awaiting the human pick (not selected as of this record) | `assets/concepts/sheets/final-two-up.png` |
+
+### 6.2 Collision pre-screen executed 2026-10-29 (three queries, [reported] only)
+
+- Query "Arch Linux logo design arch shape symbol": results show an established Arch Linux mark
+  (streamlinehq icon page; Wikimedia Commons file listing). An arch silhouette would collide with a
+  mark this Linux-first audience knows, so the arch family is not used as a lead silhouette.
+  https://www.streamlinehq.com/icons/download/arch-linux--22600,
+  https://commons.wikimedia.org/wiki/File:Arch_Linux_logo_with_light_text.svg
+- Query "logo lowercase letter h with dot inside counter brand": results include LogoLounge
+  "Dotting the H" and a stock "minimalist letter h with dots" monogram template. The h+dot device has
+  documented precedent; WA was downgraded on that basis.
+  https://www.logolounge.com/news/dotting-the-h
+- Query "logo rounded square with arched door cut out company": no direct hit in the returned results.
+  NOT FOUND IS NOT CLEAR: the visual-similarity screen is still owed before any pick is final.
+
+Pre-screen only; no clearance, distinctiveness or non-infringement statement is made (D36/D42).
+
+### 6.3 Small-size doctrine update
+
+Round 1 assumed an outline stroke doctrine (2.5 units, no fill). The solid-form direction that the
+wordmark harmony requires changes this: the symbol is fill-based with knocked-out doorways, and sizes
+of 20px and below use a separate small master (fuller bleed, widened doorway, enlarged dot) rather
+than a heavier stroke. Exact small-master numbers live in `assets/concepts/render_final_two_up.py`
+and are pending the pick.
+
+### 6.4 What this session did not do
+
+No production asset, no master file for adoption, no site/app/docs integration, no clearance. The
+earlier asset package left untracked by the preceding session under `assets/*.svg` is neither adopted
+nor deleted; it is recorded as superseded-in-intent pending the new pick (see DECISION D43/D44).
+
+### 6.5 Rounds 5-7 (same session, after D43-D47)
+
+| Round | Options rendered | Result | Evidence |
+|---|---|---|---|
+| 5 | WB-A/WB-B cabinet refinements; BF-1 awning shelter, BF-2 twin hutches, BF-3 wide porch | Shelter family explored; BF-1 most legible; BF-3 most character-like; kept as evidence | `assets/concepts/sheets/round5-sheet.png` |
+| 6 | N5 evolutions: solid two-tone front, mono knockout, thick outline, doorway variant; WB-A reference | Solid two-tone front (N5e-1) is the strongest two-bot small-size form so far; thick outline reads as structure | `assets/concepts/sheets/round6-sheet.png` |
+| 7 | R7-1 solid front two residents; R7-2 front + doorway; R7-3 plinth; R7-4 mono form; R7-5 WB-A two-tone | R7-2 best combines shelter read (doorway) with the two-resident character; R7-1 character-first; R7-3 plinth reads as object-on-stand and fails at 16px | `assets/concepts/sheets/round7-sheet.png` |
+
+Colour role logic that came out of this round (recorded in COLOUR-SYSTEM.md):
+- The enclosure is the machine: ink-950 on paper, paper on ink - it inherits currentColor and works in
+  mono (knockout residents).
+- The residents are the bots: emerald-400, the only brand colour in the mark (10.35:1 on ink).
+- Mono form: residents become knockouts (background), so the mark never depends on colour alone.
+
+Carry-forward risk: the flat-front-two-eyes archetype is culturally common (character masks, ghost
+archetypes). D47 records the inspiration boundary; the similarity screen is still owed.

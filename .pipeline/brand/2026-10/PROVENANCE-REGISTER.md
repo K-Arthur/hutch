@@ -121,3 +121,28 @@ values below; UNKNOWN means the repo does not state it.
 | CAP-01 | human capture (screenshot) | capture scripts (versions not stated) | 2026-10-26 per doc | not stated | not recorded | capture scripts plus tracked WebP |
 
 End of register. Nothing in this file grants rights, clears an asset, or states a legal conclusion.
+
+## Appendix B - Run 5 selection fonts and concept evidence (2026-10-29)
+
+Selection evidence only. None of these files is shipped, referenced by a product surface, or granted
+any right by this register. All were downloaded from the google/fonts repository on 2026-10-29 and
+each family is published under the SIL Open Font License 1.1 with its own OFL.txt in the same
+directory. The selected family (FNT-SEL-01) must be self-hosted with its licence text and subset at
+production time.
+
+| ID | Family | File | Source URL | Licence | Role | Status |
+|---|---|---|---|---|---|---|
+| FNT-03 | Fraunces | Fraunces-var.ttf | https://raw.githubusercontent.com/google/fonts/main/ofl/fraunces/Fraunces%5BSOFT%2CWONK%2Copsz%2Cwght%5D.ttf | OFL 1.1 | wordmark candidate | selection evidence, not selected |
+| FNT-04 | Bricolage Grotesque | BricolageGrotesque-var.ttf | https://raw.githubusercontent.com/google/fonts/main/ofl/bricolagegrotesque/BricolageGrotesque%5Bopsz%2Cwdth%2Cwght%5D.ttf | OFL 1.1 | wordmark | SELECTED (D42); production copy + licence owed |
+| FNT-05 | Anybody | Anybody-var.ttf | https://raw.githubusercontent.com/google/fonts/main/ofl/anybody/Anybody%5Bwdth%2Cwght%5D.ttf | OFL 1.1 | wordmark candidate | selection evidence, not selected |
+| FNT-06 | Martian Mono | MartianMono-var.ttf | https://raw.githubusercontent.com/google/fonts/main/ofl/martianmono/MartianMono%5Bwdth%2Cwght%5D.ttf | OFL 1.1 | wordmark candidate | selection evidence, not selected |
+| FNT-07 | Gabarito | Gabarito-var.ttf | https://raw.githubusercontent.com/google/fonts/main/ofl/gabarito/Gabarito%5Bwght%5D.ttf | OFL 1.1 | wordmark candidate | selection evidence, not selected |
+| FNT-08 | Schibsted Grotesk | SchibstedGrotesk-var.ttf | https://raw.githubusercontent.com/google/fonts/main/ofl/schibstedgrotesk/SchibstedGrotesk%5Bwght%5D.ttf | OFL 1.1 | wordmark candidate | selection evidence, not selected |
+| FNT-09 | Darker Grotesque | DarkerGrotesque-var.ttf | https://raw.githubusercontent.com/google/fonts/main/ofl/darkergrotesque/DarkerGrotesque%5Bwght%5D.ttf | OFL 1.1 | wordmark candidate | selection evidence, not selected |
+| FNT-10 | Azeret Mono | AzeretMono-var.ttf | https://raw.githubusercontent.com/google/fonts/main/ofl/azeretmono/AzeretMono%5Bwght%5D.ttf | OFL 1.1 | wordmark candidate | selection evidence, not selected |
+| CND-01 | concept renders (rounds 1-4, wordmark sheet, two-up) | PNG/SVG/HTML under assets/concepts/ | n/a | n/a | direction-selection evidence | authored 2026-10-29 by the DSH "lead" session; Playwright Chromium 153.0.8010.12; no third-party imagery; geometry constructed on the 32-unit grid |
+
+Retention: the unused candidate fonts stay in the pipeline directory as dated evidence until the
+pick is recorded, then are pruned or archived; they must never be bundled into the product or site.
+
+End of appendix. Nothing in this file grants rights, clears an asset, or states a legal conclusion.

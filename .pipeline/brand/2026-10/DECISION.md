@@ -280,3 +280,52 @@ The register probe then reached UKIPO and WIPO but not USPTO (IP-CLEARANCE secti
 - REGISTER-PROBE-RAW.md (NEW): raw dated browser probe (Vienna verbatim, UKIPO records, USPTO failures).
 - No identity asset was generated, drawn, rendered or exported in Run 4. No file outside
   .pipeline/brand/2026-10/ was written.
+
+### Run 5 session (2026-10-29, America/Vancouver) - instructions, authorisation, direction state
+
+- D39 (HUMAN INSTRUCTION, 2026-10-29, verbatim): "I need you to brainstorm reseaerch adn create new
+  assets especially those relating to the log which is not unique or representative of the platofrm and
+  repo enough" [sic]. Read as: the human wants researched new assets; the shipped hexagon + centre-dot
+  mark is judged not unique and not representative of the platform/repo. Typos preserved.
+- D40 (HUMAN INSTRUCTION, 2026-10-29, verbatim): "make use of the research done for this and more if
+  necessary of course" and "Use another wordmark that isnht geist and try to avoid wordmarks ai are
+  biased to at all cost but dont let this have you pick bad design options qwhatever is done must be
+  practical" [sic]. Read as: research-grounded process; the wordmark must not be Geist and should avoid
+  faces AI tools default to; practicality outranks novelty.
+- D41 (HUMAN INSTRUCTION, 2026-10-29, verbatim): "please ensure youa re fesignin themes and items that
+  fit the scpe of what hutch is not just designing for the sake of it" [sic]. Read as: every artefact
+  must map to a real Hutch surface or use, no decoration for its own sake.
+- D42 (HUMAN DECISION, 2026-10-29, direction gate via ask_user_question): (c1) mark direction = "Iterate
+  - none of these" (round-1 concepts N1-N6 not selected); (c2) wordmark family = Bricolage Grotesque
+  weight 800 (selected from the wordmark sheet); (c3) asset scope = "Full package, pipeline-only" which
+  IS the explicit dated authorisation for asset production naming the surfaces: master SVGs and variants
+  (mono/reversed/dark/light/small), favicons 16 and 32, apple-touch 180, PWA 192/512 (any, maskable,
+  monochrome), OG/social renders and lockups - all written under .pipeline/brand/2026-10/assets/.
+  Adoption into website/, docs/, src/ or desktop/ is NOT authorised here and stays a later slice.
+  This satisfies the Run 5 adapter gate (b); gate (c) direction selection is still open.
+- D43 (HUMAN FEEDBACK, 2026-10-29, verbatim): "the issues I have with the logo concept is that all you
+  have done are far too simple in the sense that these are logos that have been probably done adn
+  currently possibly being used by other exisiting companies not to mention they need to meld and fit
+  with the now chosen wordmark" [sic]. Recorded as the round-2 brief: constructed/composite marks,
+  collision-conscious screening, visual harmony with Bricolage Grotesque 800. Round-1 outline primitives
+  are rejected as too simple.
+- Unchanged: B10 name-level UK class 9/42 overlap stands (D36/D38); nothing in this run is clearance; a
+  visual-similarity screen for any chosen shape is owed before selection is recorded as final.
+- D44 (HUMAN INSTRUCTION, 2026-10-29, verbatim): "you can build of the previous n5 teo bot front
+  concept as well adn find ways to make it unique but don't hone in on that alone and add it to the
+  revisions you are doing and just increase the options and further narrow down once done" [sic].
+  Read as: keep the N5 lineage in the running as one option among more, widen the option set, then
+  narrow on evidence; do not converge prematurely on N5.
+- D45 (HUMAN CLARIFICATION, 2026-10-29, verbatim): "when I saaid n5 Iw as referring to the
+  /home/kevina/CodingProjects/hutch/.pipeline/brand/2026-10/assets/concepts/sheets/contact-sheet.png"
+  [sic]. Interpretation: "N5" means the round-1 contact sheet's N5 "Two-Bot Front" (arch front with two
+  residents), not the later P-series. The bot-family work therefore evolves that arch/front geometry.
+- D46 (HUMAN INSTRUCTION, 2026-10-29, verbatim): "also why ar you ignoring the color work which is
+  just as important" [sic]. Colour work is treated as a first-class track: measured contrast tables,
+  light-surface ramp, CVD simulation, print approximations, and the two-tone role logic documented in
+  COLOUR-SYSTEM.md with evidence at assets/concepts/sheets/colour-sheet.png.
+- D47 (HUMAN INSPIRATION BRIEF, 2026-10-29, verbatim): "for ther bot family soemthing you can take
+  inspo from is the ghsots from pacmana nd logos that look like shelters/hutches etc" [sic]. Recorded
+  as archetype inspiration only: no character outline, wavy skirt, eye treatment, palette or asset from
+  Pac-Man/Bandai Namco or any existing logo is copied or traced. The geometry stays original 32-grid
+  construction; a visual-similarity screen remains owed before any pick is final.
