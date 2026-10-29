@@ -213,3 +213,38 @@ Every commit stages explicit paths only and is reviewed first.
   get hook lines only; check `git status` before every commit.
 - **Scope creep**: dashboard settings-panel integration, drain phase, keyring clearing and marketing
   refresh are documented follow-ups, not part of this increment.
+
+## 10. Contract clarifications and size-gate note (2026-10-29, before integration)
+
+These clarify, and do not change, sections 4.2-4.4.
+
+1. `requests(store, bot_id, *, limit=20)` returns content-free records with exactly these keys:
+   `request_id, bot_id, status, actor, note, created_at, expires_at, confirmed_at, deleted_at,
+   cleanup_state, counts, result`. No token, no path, no erased text. `result` is `{}` until confirmed.
+2. Preview dict: exactly `request_id, token, expires_at, created_at, bot_id, bot_name, counts,
+   remaining, confirmation_hint`. Result dict: exactly `request_id, status='confirmed', deleted_at,
+   counts, remaining, cleanup_state`. `counts` is `dict[str, int]` including `total`.
+3. `bot_name_hash == hashlib.sha256(bot_name.encode('utf-8')).hexdigest()` for the Bot's address.
+4. Additive helper `request_record(store, request_id) -> dict | None` returns the item-1 record shape
+   for one request id without needing a `bots` row. The API uses it to resolve `bot_id` before a
+   retry (so an exact confirm retry works after the Bot row is gone) and for the replay path.
+5. `confirm` replay order: (a) replay the idempotency receipt for the same scope/key/request hash;
+   if none, (b) load the request row: if already `confirmed`, return its stored result when no
+   idempotency key was supplied, but treat a different idempotency key/request hash as
+   `BotDeletionConflict` (nothing is erased twice); (c) only then require a live `bots` row and
+   validate expiry/token/typed address/counts. This is what makes acceptance 6.5 hold after deletion.
+6. API confirm resolves the request record first: unknown request id -> 404; a confirmed request with
+   the matching idempotency key replays even when the Bot row is gone; any other missing-Bot case ->
+   404. Preview and GET history resolve `{ref}` to a live Bot and 404 when it is gone (history after
+   deletion is reachable by request id replay, not by the deleted name).
+7. CLI uses one idempotency key derived from the request id (`cli:<request_id>`) so a retry is safe;
+   the command layer's replay rules above apply unchanged.
+
+**Size-gate note.** `.file-size-baseline.json`, `scripts/audit_context_hygiene.py` and
+`docs/agent-workflow.md` are untracked files authored by the parked dashboard session; the committed
+repository and committed `package.json` have no size gate and committed `AGENTS.md` does not name
+one. This slice does not modify the parked session's baseline or tooling. The required hook-only wiring
+(`store._migrate_83`, `app.py`/ `cli.py` install hooks, `pages.py` routes) grows those four files by
+a few lines; the parked-session guard may therefore report them, which the final evidence records as a
+known, non-committed tooling waiver rather than a silent change. All feature logic lives in new modules
+that the guard does not freeze.
