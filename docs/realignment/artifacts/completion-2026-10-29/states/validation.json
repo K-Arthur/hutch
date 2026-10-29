@@ -1,0 +1,490 @@
+{
+  "schema": 1,
+  "slice": "completion-plan Slice C: dashboard route state boundaries",
+  "generated_at": "2026-10-29T19:55:25+00:00",
+  "test_file": "tests/e2e/test_route_state_boundaries.py",
+  "clean_export": "/home/kevina/CodingProjects/hutch/.worktrees/completion-c-scratch/head",
+  "git_head": "33b557767e0cc63665e0f60306d98cf4ce2e1fbd",
+  "exact_command": "cd /home/kevina/CodingProjects/hutch/.worktrees/completion-c-scratch/head && PYTHONPATH=$PWD/src HUTCH_TEST_ARTIFACTS_DIR=/home/kevina/CodingProjects/hutch/docs/realignment/artifacts /home/kevina/CodingProjects/hutch/.venv/bin/python -m pytest -q --no-header --tb=line tests/e2e/test_route_state_boundaries.py",
+  "environment": {
+    "python": "3.13.15",
+    "python_executable": "/home/kevina/CodingProjects/hutch/.venv/bin/python",
+    "platform": "Linux-7.2.9-1-cachyos-x86_64-with-glibc2.44",
+    "playwright": "1.63.0",
+    "uvicorn": "0.54.0"
+  },
+  "browser": {
+    "engine": "chromium",
+    "version": "153.0.8010.12",
+    "playwright_chromium_executable_path": "/home/kevina/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome",
+    "chromium_revision_build_dir": "chromium-1243",
+    "headless_shell_path": "/home/kevina/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell",
+    "launch": "tests.support.browser.launch_browser (default headless Chromium)"
+  },
+  "viewports": [
+    "1440x900",
+    "900x900",
+    "360x800"
+  ],
+  "routes": [
+    "/bots",
+    "/usage",
+    "/models",
+    "/approvals",
+    "/connections"
+  ],
+  "empty_states": {
+    "/bots": {
+      "1440x900": {
+        "expected_status": 302,
+        "expected_location": "/#/bots",
+        "final_url": "http://127.0.0.1:41037/#/chat",
+        "empty_copy": "No assistants yet \u2014 create one.",
+        "call_to_action": {
+          "kind": "button",
+          "selector": "#first-run-submit",
+          "text": "Set up my assistant"
+        },
+        "horizontal_overflow_px": 0,
+        "page_errors": [],
+        "screenshot": "completion-2026-10-29/states/empty/bots-1440x900.png"
+      },
+      "900x900": {
+        "expected_status": 302,
+        "expected_location": "/#/bots",
+        "final_url": "http://127.0.0.1:41037/#/chat",
+        "empty_copy": "No assistants yet \u2014 create one.",
+        "call_to_action": {
+          "kind": "button",
+          "selector": "#first-run-submit",
+          "text": "Set up my assistant"
+        },
+        "horizontal_overflow_px": 0,
+        "page_errors": [],
+        "screenshot": "completion-2026-10-29/states/empty/bots-900x900.png"
+      },
+      "360x800": {
+        "expected_status": 302,
+        "expected_location": "/#/bots",
+        "final_url": "http://127.0.0.1:41037/#/chat",
+        "empty_copy": "No assistants yet \u2014 create one.",
+        "call_to_action": {
+          "kind": "button",
+          "selector": "#first-run-submit",
+          "text": "Set up my assistant"
+        },
+        "horizontal_overflow_px": 0,
+        "page_errors": [],
+        "screenshot": "completion-2026-10-29/states/empty/bots-360x800.png"
+      }
+    },
+    "/usage": {
+      "1440x900": {
+        "expected_status": 200,
+        "expected_location": null,
+        "final_url": "http://127.0.0.1:46017/usage",
+        "empty_copy": "No model calls in the last 30 days.",
+        "call_to_action": {
+          "kind": "none",
+          "note": "no first-run call to action"
+        },
+        "horizontal_overflow_px": 0,
+        "page_errors": [],
+        "screenshot": "completion-2026-10-29/states/empty/usage-1440x900.png"
+      },
+      "900x900": {
+        "expected_status": 200,
+        "expected_location": null,
+        "final_url": "http://127.0.0.1:46017/usage",
+        "empty_copy": "No model calls in the last 30 days.",
+        "call_to_action": {
+          "kind": "none",
+          "note": "no first-run call to action"
+        },
+        "horizontal_overflow_px": 0,
+        "page_errors": [],
+        "screenshot": "completion-2026-10-29/states/empty/usage-900x900.png"
+      },
+      "360x800": {
+        "expected_status": 200,
+        "expected_location": null,
+        "final_url": "http://127.0.0.1:46017/usage",
+        "empty_copy": "No model calls in the last 30 days.",
+        "call_to_action": {
+          "kind": "none",
+          "note": "no first-run call to action"
+        },
+        "horizontal_overflow_px": 0,
+        "page_errors": [],
+        "screenshot": "completion-2026-10-29/states/empty/usage-360x800.png"
+      }
+    },
+    "/models": {
+      "1440x900": {
+        "expected_status": 200,
+        "expected_location": null,
+        "final_url": "http://127.0.0.1:43359/models",
+        "empty_copy": "No runtimes detected.",
+        "call_to_action": {
+          "kind": "hint",
+          "text": "Start Ollama to list installed models: ollama serve."
+        },
+        "horizontal_overflow_px": 0,
+        "page_errors": [],
+        "screenshot": "completion-2026-10-29/states/empty/models-1440x900.png"
+      },
+      "900x900": {
+        "expected_status": 200,
+        "expected_location": null,
+        "final_url": "http://127.0.0.1:43359/models",
+        "empty_copy": "No runtimes detected.",
+        "call_to_action": {
+          "kind": "hint",
+          "text": "Start Ollama to list installed models: ollama serve."
+        },
+        "horizontal_overflow_px": 0,
+        "page_errors": [],
+        "screenshot": "completion-2026-10-29/states/empty/models-900x900.png"
+      },
+      "360x800": {
+        "expected_status": 200,
+        "expected_location": null,
+        "final_url": "http://127.0.0.1:43359/models",
+        "empty_copy": "No runtimes detected.",
+        "call_to_action": {
+          "kind": "hint",
+          "text": "Start Ollama to list installed models: ollama serve."
+        },
+        "horizontal_overflow_px": 0,
+        "page_errors": [],
+        "screenshot": "completion-2026-10-29/states/empty/models-360x800.png"
+      }
+    },
+    "/approvals": {
+      "1440x900": {
+        "expected_status": 302,
+        "expected_location": "/#/approvals",
+        "final_url": "http://127.0.0.1:42757/#/chat",
+        "empty_copy": "No pending approvals.",
+        "call_to_action": {
+          "kind": "none",
+          "note": "empty needs-you drawer has no CTA"
+        },
+        "horizontal_overflow_px": 0,
+        "page_errors": [],
+        "screenshot": "completion-2026-10-29/states/empty/approvals-1440x900.png"
+      },
+      "900x900": {
+        "expected_status": 302,
+        "expected_location": "/#/approvals",
+        "final_url": "http://127.0.0.1:42757/#/chat",
+        "empty_copy": "No pending approvals.",
+        "call_to_action": {
+          "kind": "none",
+          "note": "empty needs-you drawer has no CTA"
+        },
+        "horizontal_overflow_px": 0,
+        "page_errors": [],
+        "screenshot": "completion-2026-10-29/states/empty/approvals-900x900.png"
+      },
+      "360x800": {
+        "expected_status": 302,
+        "expected_location": "/#/approvals",
+        "final_url": "http://127.0.0.1:42757/#/chat",
+        "empty_copy": "No pending approvals.",
+        "call_to_action": {
+          "kind": "none",
+          "note": "empty needs-you drawer has no CTA"
+        },
+        "horizontal_overflow_px": 0,
+        "page_errors": [],
+        "screenshot": "completion-2026-10-29/states/empty/approvals-360x800.png"
+      }
+    },
+    "/connections": {
+      "1440x900": {
+        "expected_status": 302,
+        "expected_location": "/#/connections",
+        "final_url": "http://127.0.0.1:45635/#/connections?app=models",
+        "empty_copy": "No connections configured.",
+        "call_to_action": {
+          "kind": "button",
+          "selector": "#btn-add-conn",
+          "text": "Connect a provider"
+        },
+        "horizontal_overflow_px": 0,
+        "page_errors": [],
+        "screenshot": "completion-2026-10-29/states/empty/connections-1440x900.png"
+      },
+      "900x900": {
+        "expected_status": 302,
+        "expected_location": "/#/connections",
+        "final_url": "http://127.0.0.1:45635/#/connections?app=models",
+        "empty_copy": "No connections configured.",
+        "call_to_action": {
+          "kind": "button",
+          "selector": "#btn-add-conn",
+          "text": "Connect a provider"
+        },
+        "horizontal_overflow_px": 0,
+        "page_errors": [],
+        "screenshot": "completion-2026-10-29/states/empty/connections-900x900.png"
+      },
+      "360x800": {
+        "expected_status": 302,
+        "expected_location": "/#/connections",
+        "final_url": "http://127.0.0.1:45635/#/connections?app=models",
+        "empty_copy": "No connections configured.",
+        "call_to_action": {
+          "kind": "button",
+          "selector": "#btn-add-conn",
+          "text": "Connect a provider"
+        },
+        "horizontal_overflow_px": 0,
+        "page_errors": [],
+        "screenshot": "completion-2026-10-29/states/empty/connections-360x800.png"
+      }
+    }
+  },
+  "error_states": {
+    "/bots": {
+      "intercepted_api": "**/api/bots",
+      "injected_status": 503,
+      "visible_error": "Could not load this view.",
+      "retry_button": "Try again",
+      "recovered_marker": "No assistants yet \u2014 create one.",
+      "recovered_url": "http://127.0.0.1:40209/#/chat",
+      "page_errors": [],
+      "failed_screenshot": "completion-2026-10-29/states/error/bots-failed-1440x900.png",
+      "recovered_screenshot": "completion-2026-10-29/states/error/bots-retried-1440x900.png"
+    },
+    "/approvals": {
+      "intercepted_api": "**/api/bots",
+      "injected_status": 503,
+      "visible_error": "Could not load this view.",
+      "retry_button": "Try again",
+      "recovered_marker": "What would you like help with?",
+      "recovered_url": "http://127.0.0.1:45371/#/chat",
+      "page_errors": [],
+      "failed_screenshot": "completion-2026-10-29/states/error/approvals-failed-1440x900.png",
+      "recovered_screenshot": "completion-2026-10-29/states/error/approvals-retried-1440x900.png"
+    },
+    "/connections": {
+      "intercepted_api": "**/api/connections",
+      "injected_status": 503,
+      "visible_error": "Could not load this view.",
+      "retry_button": "Try again",
+      "recovered_marker": "Connect your work",
+      "recovered_url": "http://127.0.0.1:46121/#/connections",
+      "page_errors": [],
+      "failed_screenshot": "completion-2026-10-29/states/error/connections-failed-1440x900.png",
+      "recovered_screenshot": "completion-2026-10-29/states/error/connections-retried-1440x900.png"
+    },
+    "approvals-inline": {
+      "intercepted_api": "**/api/v1/actions/approvals*",
+      "visible_error": "Could not refresh requests: approvals unavailable. No requests are displayed.\n\nRetry",
+      "retry_button": "Retry",
+      "recovered": true,
+      "screenshot": "completion-2026-10-29/states/error/approvals-inline-1440x900.png"
+    },
+    "/models": {
+      "flash_banner": "input must be a number (USD per 1M tokens), got 'not-a-number'",
+      "post_status": 303,
+      "direct_form_submit_refused": "hutch: cross-site request refused (Origin / Sec-Fetch-Site).",
+      "page_errors": [],
+      "flash_screenshot": "completion-2026-10-29/states/error/models-flash-1440x900.png",
+      "origin_refused_screenshot": "completion-2026-10-29/states/error/models-form-origin-refused-1440x900.png"
+    }
+  },
+  "permission": {
+    "owner_route_statuses": {
+      "/bots": 403,
+      "/usage": 403,
+      "/models": 403,
+      "/approvals": 403,
+      "/connections": 403
+    },
+    "capabilities": [
+      "monitor"
+    ],
+    "paired_view": {
+      "final_url": "http://127.0.0.1:33655/",
+      "body_class": "paired-phone",
+      "app_shell_hidden": true,
+      "monitor_only_notice": true,
+      "review_tab": false,
+      "owner_controls_absent": true,
+      "page_errors": []
+    },
+    "screenshots": [
+      "completion-2026-10-29/states/permission/paired-supervision-390x844.png",
+      "completion-2026-10-29/states/permission/paired-run-detail-390x844.png"
+    ]
+  },
+  "tests": [
+    {
+      "nodeid": "tests/e2e/test_route_state_boundaries.py::test_first_run_empty_state_and_cta[bots]",
+      "seconds": 6.51
+    },
+    {
+      "nodeid": "tests/e2e/test_route_state_boundaries.py::test_first_run_empty_state_and_cta[usage]",
+      "seconds": 2.7
+    },
+    {
+      "nodeid": "tests/e2e/test_route_state_boundaries.py::test_first_run_empty_state_and_cta[models]",
+      "seconds": 2.59
+    },
+    {
+      "nodeid": "tests/e2e/test_route_state_boundaries.py::test_first_run_empty_state_and_cta[approvals]",
+      "seconds": 4.76
+    },
+    {
+      "nodeid": "tests/e2e/test_route_state_boundaries.py::test_first_run_empty_state_and_cta[connections]",
+      "seconds": 5.49
+    },
+    {
+      "nodeid": "tests/e2e/test_route_state_boundaries.py::test_spa_route_error_state_and_retry[bots]",
+      "seconds": 3.47
+    },
+    {
+      "nodeid": "tests/e2e/test_route_state_boundaries.py::test_spa_route_error_state_and_retry[approvals]",
+      "seconds": 4.4
+    },
+    {
+      "nodeid": "tests/e2e/test_route_state_boundaries.py::test_spa_route_error_state_and_retry[connections]",
+      "seconds": 2.28
+    },
+    {
+      "nodeid": "tests/e2e/test_route_state_boundaries.py::test_approvals_data_api_error_is_reported_inline",
+      "seconds": 3.65
+    },
+    {
+      "nodeid": "tests/e2e/test_route_state_boundaries.py::test_models_server_flash_error_banner",
+      "seconds": 2.6
+    },
+    {
+      "nodeid": "tests/e2e/test_route_state_boundaries.py::test_paired_monitor_is_denied_owner_routes_and_owner_controls",
+      "seconds": 2.29
+    }
+  ],
+  "source_sha256": {
+    "src/hutch/server/pages.py": "cc9b236e3c81242d9b62729b17e32090dc9d972137189b5e315366e5f5a34c6c",
+    "src/hutch/server/pages_usage.py": "40ad55b45fd994fca5a89a4e2b2b9ed6cc56baf3ad3ba1dbf35192fee86f101e",
+    "src/hutch/server/pages_models.py": "6412cd1d1497704f2f15bb9d62be916d6609b8970ddf52a5e71d5ca047b15aff",
+    "src/hutch/server/templates/usage.html": "7914d5504247860a32d0f2be5d9db2ee4dde09ea6d728ac65dce9906c1dbbfec",
+    "src/hutch/server/templates/models.html": "c333cb5b5ff6248e4b19293406f03ed63e9dec8a962e1ab4789a9333621b9c98",
+    "src/hutch/server/static/app.js": "54e70b3557770fbc3893de322dc64076d00a4f0a9517bea36db727e7aff93e70",
+    "tests/e2e/test_route_state_boundaries.py": "0c7ff24655de4635233118d4f35a1bac46ea66a6f3593fcc70c96ef9fd30cd38"
+  },
+  "residual_gaps": [
+    {
+      "id": "usage-no-error-state",
+      "files": [
+        "src/hutch/server/pages_usage.py:20-66",
+        "src/hutch/server/templates/usage.html:7-77"
+      ],
+      "summary": "/usage has no server-rendered error banner or retry action: usage.html renders only empty/list states and pages_usage.py sets no error context, so failures fall through to the generic error page."
+    },
+    {
+      "id": "usage-empty-no-cta",
+      "files": [
+        "src/hutch/server/templates/usage.html:51"
+      ],
+      "summary": "The /usage empty state ('No model calls in the last 30 days.') has no first-run call to action for connecting a provider or starting work."
+    },
+    {
+      "id": "models-empty-no-cta",
+      "files": [
+        "src/hutch/server/templates/models.html:25",
+        "src/hutch/server/templates/models.html:52-54"
+      ],
+      "summary": "The /models empty state ('No runtimes detected.' plus 'Start Ollama ...') is hint text only; no button-level call to action for the missing runtime."
+    },
+    {
+      "id": "approvals-empty-no-cta",
+      "files": [
+        "src/hutch/server/static/app.js:7946-7953",
+        "src/hutch/server/static/app.js:8083-8133"
+      ],
+      "summary": "The approvals empty state ('No pending approvals.') has no call to action; data-API errors are handled inline by the needs-you drawer with its own Retry button rather than by the route error boundary."
+    },
+    {
+      "id": "approvals-retry-loses-route",
+      "files": [
+        "src/hutch/server/static/app.js:7888-7897",
+        "src/hutch/server/static/app.js:2287-2313"
+      ],
+      "summary": "renderApprovals replaces the hash with #/chat before loading; when the shell then fails, the route error boundary's Try again re-runs the #/chat route, so retry recovers the chat studio rather than the approvals drawer."
+    },
+    {
+      "id": "bots-empty-route-collapses",
+      "files": [
+        "src/hutch/server/static/app.js:7291-7294",
+        "src/hutch/server/static/app.js:7342-7347",
+        "src/hutch/server/static/app.js:2388-2390"
+      ],
+      "summary": "GET /bots redirects to #/bots, but renderBots redirects to #/chat whenever fewer than ten assistants exist, so the fleet empty state and its 'Create your first assistant' button are unreachable on an empty store; the visible copy is the roster's 'No assistants yet \u2014 create one.'"
+    },
+    {
+      "id": "connections-empty-hidden-until-detail",
+      "files": [
+        "src/hutch/server/static/connection-browser.js:31-32",
+        "src/hutch/server/static/app.js:10192-10197"
+      ],
+      "summary": "The 'No connections configured.' state and its 'Connect a provider' button live behind the AI model providers detail: connection-browser.js hides #connection-management in the directory view, and the directory always renders the full connection catalog."
+    },
+    {
+      "id": "form-post-origin-null",
+      "files": [
+        "src/hutch/server/security.py:314-318",
+        "src/hutch/server/security.py:374-377",
+        "src/hutch/server/security.py:428-435",
+        "src/hutch/server/templates/models.html:112-124",
+        "src/hutch/server/templates/base.html:34-38"
+      ],
+      "summary": "Plain server-rendered form POSTs are refused in Chromium: Referrer-Policy no-referrer makes Chromium submit with 'Origin: null', and SecurityMiddleware._same_origin rejects null even though Sec-Fetch-Site is same-origin. The /models flash error is exercised through a browser-context request carrying the page CSRF token, and the refused direct submit is recorded."
+    }
+  ],
+  "deviations": [
+    {
+      "id": "deterministic-models-view",
+      "summary": "The /models empty view is forced with a stub ModelsView (empty runtimes/rows/notes) via monkeypatch of hutch.server.pages_models.build_models_view, because host hardware and runtime probes inject non-deterministic notes and runtime rows."
+    },
+    {
+      "id": "flash-error-via-context-request",
+      "summary": "The /models flash error is produced by a POST through the page's browser-context request with the page CSRF token, because a direct Chromium form submit is refused at HEAD (see residual gap form-post-origin-null)."
+    },
+    {
+      "id": "approvals-route-boundary-via-shell-api",
+      "summary": "The approvals route error boundary is exercised by failing the studio-shell API (GET /api/bots), which the route requires before opening the drawer; the approvals data-API failure path is asserted separately as an inline drawer error."
+    }
+  ],
+  "artifacts": [
+    "completion-2026-10-29/states/empty/approvals-1440x900.png",
+    "completion-2026-10-29/states/empty/approvals-360x800.png",
+    "completion-2026-10-29/states/empty/approvals-900x900.png",
+    "completion-2026-10-29/states/empty/bots-1440x900.png",
+    "completion-2026-10-29/states/empty/bots-360x800.png",
+    "completion-2026-10-29/states/empty/bots-900x900.png",
+    "completion-2026-10-29/states/empty/connections-1440x900.png",
+    "completion-2026-10-29/states/empty/connections-360x800.png",
+    "completion-2026-10-29/states/empty/connections-900x900.png",
+    "completion-2026-10-29/states/empty/models-1440x900.png",
+    "completion-2026-10-29/states/empty/models-360x800.png",
+    "completion-2026-10-29/states/empty/models-900x900.png",
+    "completion-2026-10-29/states/empty/usage-1440x900.png",
+    "completion-2026-10-29/states/empty/usage-360x800.png",
+    "completion-2026-10-29/states/empty/usage-900x900.png",
+    "completion-2026-10-29/states/error/approvals-failed-1440x900.png",
+    "completion-2026-10-29/states/error/approvals-inline-1440x900.png",
+    "completion-2026-10-29/states/error/approvals-retried-1440x900.png",
+    "completion-2026-10-29/states/error/bots-failed-1440x900.png",
+    "completion-2026-10-29/states/error/bots-retried-1440x900.png",
+    "completion-2026-10-29/states/error/connections-failed-1440x900.png",
+    "completion-2026-10-29/states/error/connections-retried-1440x900.png",
+    "completion-2026-10-29/states/error/models-flash-1440x900.png",
+    "completion-2026-10-29/states/error/models-form-origin-refused-1440x900.png",
+    "completion-2026-10-29/states/permission/paired-run-detail-390x844.png",
+    "completion-2026-10-29/states/permission/paired-supervision-390x844.png"
+  ]
+}
