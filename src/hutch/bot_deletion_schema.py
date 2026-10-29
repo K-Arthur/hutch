@@ -260,6 +260,11 @@ def _install_request_table(db: sqlite3.Connection) -> None:
         error TEXT NOT NULL DEFAULT '' CHECK(length(error) <= 2000))""")
     db.execute("CREATE INDEX IF NOT EXISTS idx_bot_deletions_bot "
                "ON bot_deletions(bot_id, created_at DESC)")
+    _install_request_guards(db)
+
+
+def _install_request_guards(db: sqlite3.Connection) -> None:
+    """Install the insert, lifecycle-update and no-delete guards on requests."""
     db.execute("""CREATE TRIGGER bot_deletion_request_insert_guard
         BEFORE INSERT ON bot_deletions
         WHEN NEW.status != 'pending' OR NEW.confirmed_at != '' OR NEW.deleted_at != ''
