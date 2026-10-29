@@ -2,6 +2,8 @@
 
 Phase 6 proof per acceptance criterion. Slice scope: `website/index.html` (10 new head tags after :12), new asset `website/assets/og-card-1200x630.png` (Route A, human-approved DECISION.md S-c-03) + this artifact dir.
 
+> Review appendix (session 7, 2026-10-28): the shipped S-a..S-c state was re-verified read-only on the built site — audit re-run exit 0 (fresh report `evidence/review/r7-audit-stdout.txt`), claim-parity spot-checks, prohibited-claims grep 0 hits, findings verdicts. Full check→output map: `REVIEW.md`.
+
 ## AC → evidence map
 
 | # | Acceptance criterion (CONTENT-MAP §2 S-c / NEXT-PROMPT session 5) | Result | Evidence |

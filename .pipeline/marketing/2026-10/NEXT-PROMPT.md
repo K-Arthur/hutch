@@ -1,31 +1,18 @@
-You are continuing the marketing/discoverability campaign for Hutch (local-first, MIT-licensed multi-bot AI assistant platform, development preview, Linux-first; GitHub https://github.com/K-Arthur/hutch is the only public entity surface — the site has no live domain yet, owner-confirmed 2026-10-28, B-01).
+You are continuing the marketing/discoverability campaign for Hutch (local-first, MIT-licensed multi-bot AI assistant platform, development preview, Linux-first; GitHub https://github.com/K-Arthur/hutch is the only public entity surface — the site has no live domain yet, owner-confirmed 2026-10-28, B-01). The campaign review (Phase 7) is COMPLETE: slices S-a/S-b/S-c all verified closed-with-fresh-evidence, no regressions, no new defects — see .pipeline/marketing/2026-10/REVIEW.md and the "Review verdicts" section in FINDINGS.md.
 
-Read only:
-1. /home/kevina/CodingProjects/hutch/.pipeline/marketing/2026-10/HANDOFF.md (decisions S-a-01..03, S-b-01..06, S-c-01..04; B-07/B-07b repo-gate red is pre-existing/other-workstream; S-d remains domain-gated)
-2. /home/kevina/CodingProjects/hutch/.pipeline/marketing/2026-10/EVIDENCE.md (what each landed slice proved)
-3. /home/kevina/CodingProjects/hutch/.pipeline/marketing/2026-10/CHANGES.md (S-a..S-c entries — the campaign's change log)
-4. /home/kevina/CodingProjects/hutch/.pipeline/marketing/2026-10/CLAIM-REGISTER.md (approved wording + prohibited-claims table — NO star counts, benchmarks, "best", testimonials)
-5. /home/kevina/CodingProjects/hutch/.pipeline/marketing/2026-10/CONTENT-MAP.md §2 (S-d AC — only if the human has since chosen a domain)
+FIRST, ask the human one question: have you chosen a public domain + host for the site? (B-01 — the campaign's single remaining blocker.)
 
-Session type: CAMPAIGN REVIEW (Phase 7) — read-only review of slices S-a..S-c as shipped, NOT an implementation slice. Rationale: S-d is blocked on B-01 (human domain decision) and no other domain-independent slice is planned; a review is the one valuable session available without new inputs.
+If NO domain chosen:
+- There is NO campaign work available. S-d is the only remaining slice and it is domain-gated; every other candidate (sitemap/canonical/og:url/absolute og:image/GSC/IndexNow/AI-answer baseline/CWV field, F-02/F-03/F-07/F-09/F-11) is blocked on the same decision or on another owner (B-03/B-06/B-11). Do not invent a domain, do not manufacture a slice. Record the session and stop.
 
-If instead the human opens this session having CHOSEN a domain + host: skip the review and run slice S-d per CONTENT-MAP §2 + HANDOFF "Next slice" (sitemap.xml + robots Sitemap directive + canonical + og:url + ABSOLUTE og:image/twitter:image (B-10) + GSC/Bing verification + AI-answer baseline with RESEARCH §5 prompt set + CWV lab). Ask for the domain string first; never invent one.
+If the human HAS chosen a domain + host: run slice S-d per .pipeline/marketing/2026-10/CONTENT-MAP.md §2 + HANDOFF "Next step". Read only:
+1. .pipeline/marketing/2026-10/HANDOFF.md (decisions R7-01..05, S-c-01..04, S-b-01..06, S-a-01..03; risks B-01(now resolved)/B-06/B-10/B-11)
+2. .pipeline/marketing/2026-10/CONTENT-MAP.md §2 (S-d AC + rollback)
+3. .pipeline/marketing/2026-10/CLAIM-REGISTER.md (approved wording + prohibited-claims table — NO star counts, benchmarks, "best", testimonials; C-20 robots/C-24 dateModified triggers)
+4. .pipeline/marketing/2026-10/RESEARCH.md §5 (AI-answer baseline prompt set — run it once the site is live)
 
-What to do (review session):
-- Re-verify the shipped state on the BUILT site: run `uv run --frozen --no-sync python .pipeline/marketing/2026-10/evidence/audit/audit_site.py` (expect exit 0, FAQ 20/20, UA 6/6, 8 og + 4 twitter tags, canonical=false); re-run `uv run --frozen --no-sync python .pipeline/marketing/2026-10/evidence/audit/s_c_render_card.py` ONLY if the asset is missing — do not re-render or touch the card otherwise.
-- Adversarially re-check claim parity: every string on the card + in the head meta + in llms.txt must still map to a CLAIM-REGISTER row (spot-check C-01/C-02/C-03/C-05/C-15..C-17). Grep the prohibited list against website/ (expect 0 hits).
-- Review FINDINGS.md: confirm F-01, F-04, F-06, F-08, F-12 are closed with evidence; list which findings remain OPEN and why (expected: F-02/F-03/F-07/F-09/F-10-partial/F-11 — all domain-gated or other-owner).
-- Write scope: .pipeline/marketing/2026-10/** ONLY (a review changes no product file; if the review finds a product defect, record it in FINDINGS.md with severity and stop — fix = next slice with its own gate).
-- `npm run check:agent` — report honestly (expected RED: B-07 tests/test_commit_attribution.py + B-07b hutch-composer.css; do NOT fix other workstreams' files).
-- Commit review artifacts locally if anything under .pipeline changed: `marketing(review): …`. Do not push.
-- Update HANDOFF.md + NEXT-PROMPT.md at the end (next step after review = human domain decision for S-d; there is no further domain-independent slice).
+S-d scope (announced): sitemap.xml (new) + robots.txt Sitemap directive ONLY (D-04 allow-all stands) + canonical link + og:url + og:image/twitter:image rewritten ABSOLUTE https://<domain>/… (B-10) + GSC/Bing verification + IndexNow + deploy-host header checks (Content-Type, caching — python http.server caveats in HANDOFF P1-01) + AI-answer baseline (dated observations only, D-07) + CWV lab. Expect writes: website/index.html head, website/robots.txt, website/sitemap.xml, .pipeline/**. Open question to bring to the human: og:image size strategy (keep 1200×630 static vs 2× retina) — current card is 1× and passes spec.
+Gates: Phase 3 front-end gate (head-meta/config change — likely UI level none/content-in-slot, justify it), audit_site.py exit 0 with canonical now NON-false + sitemap 200, prohibited grep 0 hits, `npm run check:agent` honestly (expected still RED B-07, other workstream), visual gate only if a rendered change ships (head-meta changes: capture anyway to prove the page is unchanged). Commit `seo(slice-s-d): …` locally; do NOT push.
 
-Write scope: .pipeline/marketing/2026-10/** only.
-Out of scope: every product file — website/**, src/**, app/**, tests/**, README.md, llms.txt, downloads.json, robots.txt, docs/** — plus the other agent's uncommitted/untracked files (never stage; use `git show HEAD:<file>` for committed-state reads). No og:url/canonical/sitemap (would need a fake URL — prohibited). No new claims. No push/deploy/merge.
-
-Acceptance (all must be true, with evidence paths):
-- audit re-run exit 0 recorded; claim-parity spot-checks listed with register row IDs; prohibited-claims grep = 0 hits recorded.
-- FINDINGS.md verdict table updated (closed vs open with reasons) — as a review record, not silent edits.
-- EVIDENCE.md gains a short review-appendix section (or a REVIEW.md alongside it) mapping the review checks to their output.
-- git status shows no product file touched; commit (if any) contains .pipeline/marketing/2026-10/** only; not pushed.
-- HANDOFF.md + NEXT-PROMPT.md updated; NEXT-PROMPT points at the human domain decision (S-d) as the only remaining step.
+Write scope: that session's brief will announce it; expect website/** head/robots/sitemap + .pipeline/marketing/2026-10/** only.
+Out of scope: every other product file; the other agent's uncommitted/untracked files (never stage; use `git show HEAD:<file>` for committed-state reads). No new claims. No push/deploy/merge.

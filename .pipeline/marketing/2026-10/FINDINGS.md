@@ -38,3 +38,21 @@ Evidence root: `.pipeline/marketing/2026-10/evidence/audit/` (crawl-report.json 
 - Root cause / seam: pre-launch product state, not a defect — recorded so no one "fixes" it with a fake URL.
 - Proposed slice: S-d — human chooses domain + host; then sitemap.xml + Sitemap directive + canonical land in one technical slice.
 - Confidence / unknowns: high; the only unknown is the human's domain/host choice and whether the host serves proper Content-Type/caching (python http.server does not — deploy-phase verification list in HANDOFF).
+
+## Review verdicts (campaign review, session 7, 2026-10-28)
+
+Recorded as a review record; the baseline table above is intentionally unmodified. Full check→output map in `REVIEW.md`; fresh crawl in `evidence/review/r7-audit-stdout.txt`.
+
+| ID | Verdict | Reason + evidence (session 7) |
+|---|---|---|
+| F-01 | CLOSED (by slice S-a) | llms.txt:3,9 re-read = approved C-16 wording; `private preview` grep over website/ = 0 hits; audit llms_txt 200, mentions_github=true |
+| F-02 | OPEN — blocked-human (B-01) | sitemap.xml 404 + robots.txt without Sitemap directive re-confirmed (r7 audit); domain decision still pending |
+| F-03 | OPEN — blocked-human (B-01) | head.canonical=false re-confirmed (r7 audit); canonical lands with S-d |
+| F-04 | CLOSED (by slice S-c) | r7 audit head: 8 og + 4 twitter tags; canonical=false / og:url absent by design (B-01); og:image `?v=` = asset sha256[:8] verified |
+| F-05 | accepted (D-03), no action | FAQPage parity 20/20 re-confirmed; quarterly changelog check remains the registered trigger |
+| F-06 | CLOSED (by slice S-a) | llms.txt:25 Repository line = C-17 verbatim; mentions_github=true |
+| F-07 | OPEN — needs-human (B-06, P2-04) | downloads.json owned by the desktop release pipeline; campaign never edits; status-field request still unfiled (pipeline touch not yet known) |
+| F-08 | CLOSED (by slice S-b) | description_len=157; index.html:7 ends "Development preview." complete; twitter:description mirrors :7 byte-identical |
+| F-09 | OPEN — needs-human (B-03) | no analytics/GSC/Bing properties; domain-gated; AI-answer baseline still blocked |
+| F-10 | CLOSED-BY-DECISION (D-01 Option A, P2-01) | H1 "A little help with what's next." intentionally kept; the trust-word gap delivered as F-12's fix; residual (category terms not in H1) accepted by the human decision |
+| F-11 | OPEN — deferred (domain + human contact address) | security.txt 404 re-confirmed (r7 audit); needs a contact address = human input at domain time |

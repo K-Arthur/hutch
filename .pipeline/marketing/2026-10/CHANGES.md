@@ -1,5 +1,20 @@
 # CHANGES — Hutch — 2026-10-28
 
+## Session 7 — CAMPAIGN REVIEW (Phase 7, read-only on product) — 2026-10-28
+Files: .pipeline/marketing/2026-10/{00-BRIEF,REVIEW,FINDINGS,EVIDENCE,DECISION,CHANGES,HANDOFF,NEXT-PROMPT}.md + NEW evidence/review/{r7-audit-stdout.txt,r7-audit-stderr.txt}
+Commits: `marketing(review): verify shipped S-a..S-c state, close F-01/F-04/F-06/F-08/F-12 with fresh evidence` (this commit; .pipeline/marketing/ only)
+What changed (user-visible): NOTHING on the product surface (review phase rule; zero product files touched, other agent's dirty tree never staged).
+Claims affected: none published; parity VERIFIED — every card/head-meta/llms.txt string spot-checked against register rows C-01/C-02/C-03/C-05/C-06/C-10..C-13/C-15..C-19/C-24/C-26 (REVIEW.md checks 8-11); prohibited-claims grep = 0 hits.
+Docs updated: n/a (no behavior change)
+Gates run (command → result):
+- `uv run --frozen --no-sync python evidence/audit/audit_site.py` → exit 0, stderr 0 B: canonical=false; 8 og + 4 twitter tags; description_len=157; FAQ parity 20/20; JSON-LD 2/2; anchors 10/10; UA parity 6/6 identical (98,460 B); llms.txt 200 mentions_github=true; only known domain-gated 404s (sitemap.xml, security.txt) — evidence/review/r7-audit-stdout.txt
+- sha256(og-card)[:8] = b905c417 = ?v= in og:image/twitter:image; card re-render SKIPPED per instruction (asset present); card read at full res, strings = register rows only (REVIEW.md check 6-8)
+- prohibited-claims strict grep over website/ → 0 hits; soft terms only in qualified-negative "safe" contexts (C-25 anchor) (REVIEW.md check 11)
+- `npm run check:agent` → FAIL (pre-existing B-07): now ONE violation (tests/test_commit_attribution.py, 419 lines, bee491d5); B-07b no longer named by the gate (other workstream splitting hutch-composer.css — untouched/unverified by campaign)
+Evidence paths: REVIEW.md (check→output map + findings verdicts); evidence/review/r7-audit-{stdout,stderr}.txt; FINDINGS.md "Review verdicts" section
+Residual risk: unchanged from session 6 — B-01 domain gates S-d (sitemap/canonical/og:url/absolute og:image/AI baseline/CWV field); B-03/B-06/B-11 human-owned items open.
+Next slice: NO domain-independent slice exists. Next step = human domain+host decision → slice S-d (CONTENT-MAP §2); see NEXT-PROMPT.md.
+
 ## Slice S-c — og:image asset + social meta tags (Phase 5 implementation) — 2026-10-28 (session 6)
 Files: website/index.html (1 region: 10 new head tags after :12) + NEW website/assets/og-card-1200x630.png + .pipeline/marketing/2026-10/{00-BRIEF,EVIDENCE,CHANGES,DECISION,CLAIM-REGISTER,HANDOFF,NEXT-PROMPT}.md + evidence/audit/{s_c_render_card.py,s-c-audit-stdout.txt,s-c-audit-stderr.txt,shots/s-c-card-preview-{desktop,mobile}.png}
 Commits: `seo(slice-s-c): add og:image asset + social meta tags` (this commit; website/index.html + website/assets/og-card-1200x630.png + .pipeline/marketing/ only)
