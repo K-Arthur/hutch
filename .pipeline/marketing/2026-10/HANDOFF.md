@@ -41,7 +41,7 @@ See DECISION.md "Session 10 decisions" (R10-01..R10-05). Key ones: three default
 | B-07 | local `npm run check:agent` red: tests/test_commit_attribution.py 419 lines | local repo gate red; not CI (CI attribution job green) | git-attribution workstream | split the file | their next session |
 
 ## Next step (one only)
-- The product/Studio workstream fixes or stabilizes the four CI-failing e2e tests and pushes; the next marketing session then confirms a green run on main and adds the CI badge (step 5), while the human works the owner-gated steps 1-4.
+- Check CI run `40837883068` (triggered by this session's record commit `fe263eef`, same product code as `577e1154`): if the four product e2e tests pass, that is dated flakiness evidence for the product workstream; if they fail identically, the failures are deterministic. Either way the product/Studio workstream owns the fix; the campaign adds the CI badge only after a green run on main (step 5), while the human works the owner-gated steps 1-4.
 
 ## Environment facts
 - CI checks: `gh api repos/K-Arthur/hutch/actions/runs/<id>` and `gh api repos/K-Arthur/hutch/actions/jobs/<id>/logs` (gh authenticated as K-Arthur).
