@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use Hutch in research or in a project, please cite it using this metadata."
+title: Hutch
+abstract: "Hutch is a local-first, MIT-licensed platform for personal AI assistants that runs on your own Linux computer. It is a development preview."
+authors:
+  - family-names: Arthur
+    given-names: Kevin
+version: 0.1.0
+date-released: "2026-10-28"
+license: MIT
+repository-code: "https://github.com/K-Arthur/hutch"
+type: software
+keywords:
+  - local-first
+  - AI assistants
+  - agent platform
+  - open source
+  - Linux

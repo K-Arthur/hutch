@@ -1,0 +1,69 @@
+name: Feature request
+description: Suggest a change or addition for Hutch. Hutch is a development preview, so describe the problem before the solution.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Hutch is a development preview. Check the roadmap (https://github.com/K-Arthur/hutch/blob/main/docs/roadmap.md) and the evidence ledger (https://github.com/K-Arthur/hutch/blob/main/docs/realignment/ledger.md) first; planned, experimental, and unavailable work is documented there.
+
+        Changes that broaden tool authority, permissions, provider access, or data sharing need an explicit safety review, so describe any boundary the request touches.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What problem are you hitting, and who hits it? Describe the current behavior and why it is not enough.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-behavior
+    attributes:
+      label: Proposed behavior
+      description: Describe what Hutch should do differently. Name the commands, settings, or dashboard surfaces involved.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe workarounds, designs you rejected, or related tools and why they do not fit.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of Hutch would this change?
+      options:
+        - CLI
+        - Dashboard
+        - Desktop host
+        - Docs and marketing site
+        - Packaging and release
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and boundaries
+      description: Note whether this expands tool authority, approval requirements, provider or network access, data sharing, or the local state surface. Say if the change is read-only or stays local.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you submit
+      options:
+        - label: I searched existing issues, the roadmap, and the evidence ledger for this request.
+          required: true
+        - label: I described the problem and the proposed behavior without claiming that unshipped work already exists.
+          required: true

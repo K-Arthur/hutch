@@ -1,9 +1,10 @@
 # Contributing
 
-Hutch is in private preview: the repository is not public and no package or release is published,
-so there is no external contribution queue today. If you are working in a source checkout, this is
-the short version of how to build, test, and document a change. The full repository guidelines live
-in [AGENTS.md](AGENTS.md).
+Hutch is in development preview. The MIT-licensed source is public on GitHub, but no packaged
+desktop installer or hosted service is published, so there is no support queue, release branch or
+response-time commitment today. If you are working in a source checkout, this is the short version
+of how to build, test, and document a change. The full repository guidelines live in
+[AGENTS.md](AGENTS.md).
 
 ## Setup
 
@@ -61,4 +62,5 @@ uv run pytest -q                   # full suite (what CI runs)
 The checkout often carries in-flight work from other lanes (tracked in
 `docs/realignment/ledger.md`). Inspect `git status` before staging, stage only the files your
 change reviewed, and never discard, reset, clean, or rewrite unrelated work to make a task easier.
-Pushing and publication are not authorized during the private preview.
+Do not force-push or rewrite published history. Coordinate pushes to `main`, releases and
+publication steps with the maintainer; the repository is public and its history is permanent.

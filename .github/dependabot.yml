@@ -1,0 +1,79 @@
+version: 2
+
+# One grouped pull request per ecosystem per week. Dependency updates run
+# against the dependency files committed at these paths.
+updates:
+  # Python dependencies from pyproject.toml, locked in uv.lock.
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    assignees:
+      - K-Arthur
+    labels:
+      - dependencies
+    groups:
+      python-dependencies:
+        patterns:
+          - "*"
+
+  # Build toolchain from package.json, locked in package-lock.json.
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    assignees:
+      - K-Arthur
+    labels:
+      - dependencies
+    groups:
+      npm-dependencies:
+        patterns:
+          - "*"
+
+  # Tauri desktop host crate.
+  - package-ecosystem: cargo
+    directory: "/desktop"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    assignees:
+      - K-Arthur
+    labels:
+      - dependencies
+    groups:
+      cargo-desktop:
+        patterns:
+          - "*"
+
+  # Process guard helper crate.
+  - package-ecosystem: cargo
+    directory: "/desktop/process-guard"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    assignees:
+      - K-Arthur
+    labels:
+      - dependencies
+    groups:
+      cargo-process-guard:
+        patterns:
+          - "*"
+
+  # Pinned versions in .github/workflows.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    assignees:
+      - K-Arthur
+    labels:
+      - dependencies
+    groups:
+      github-actions:
+        patterns:
+          - "*"

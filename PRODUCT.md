@@ -70,7 +70,8 @@ limit.
   vanilla ES + hash-routed SPA at `/`; Jinja2+HTMX server pages for the remainder.
   Restructuring inside those files is allowed; introducing a framework or bundler is not.
 - The marketing site (`website/`) is a separate surface with a shared token source. Its claims
-  must match the actual support matrix and disclose that source and downloads are private.
+  must match the actual support matrix and disclose that the source is public while no packaged
+  downloads or hosted service are available.
 
 ## Brand Commitments
 

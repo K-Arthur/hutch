@@ -37,3 +37,40 @@ requests are made at runtime.
 | Font | Local asset | Source and licence |
 |---|---|---|
 | Geist, Geist Mono | `src/hutch/server/static/fonts/geist-latin-var.woff2`, `geist-mono-latin-var.woff2` and the same pair under `website/assets/fonts/` | Vercel's Geist family (npm package `geist` 1.8.2), SIL Open Font License 1.1, copyright © 2023 Vercel in collaboration with basement.studio. Latin, Latin-1, Latin Extended-A, punctuation, arrows and a few symbols were subset with fontTools `pyftsubset` (variable weight axis and OpenType features kept). The licence text is `OFL-geist.txt` beside each pair. Replaces the earlier Archivo files; no remote font request is made. |
+
+## Hutch identity assets
+
+These are Hutch's own marks, separate from the third-party service artwork above. The notes
+below record their form, colors and usage boundaries; they are not a legal opinion.
+
+| Asset | Form and location |
+|---|---|
+| Logomark | Hexagon outline with a centre dot, drawn as an inline SVG data URI in the `<head>` of `website/index.html` (the favicon). The stroke and centre dot use the emerald brand token `#34d399`. There is no separate image file; copy the SVG source from the page head if a file is needed. |
+| Wordmark | Lowercase `hutch` set in Geist (extrabold, tight tracking) with an emerald period, shown beside the logomark in the site header, mobile drawer and footer. The wordmark is a logo form only; in public prose the product is "Hutch". |
+| Standard lockup | The logomark at 22px beside the wordmark, as used in the site header, mobile drawer and footer. |
+| Social card | `website/assets/og-card-1200x630.png`, 1200 by 630 pixels, referenced as `og:image` and `twitter:image` from `website/index.html`. |
+| GitHub social preview | `website/assets/github-social-preview-1280x640.png`, 1280 by 640 pixels. Upload it manually in the repository's **Settings > General > Social preview**; GitHub does not read the file from the repository automatically. |
+
+### Identity colors
+
+| Token | Value | Role |
+|---|---|---|
+| `ink-950` | `#09090b` | page background and primary dark surface |
+| `paper` | `#ededf0` | primary text on dark surfaces |
+| `emerald` | `#34d399` | brand accent for the logomark, wordmark period, links and primary actions |
+| `muted` | `#8e8e99` | secondary and muted text |
+
+The token source is `website/tokens.json`; [design-system.md](design-system.md) documents the
+shared UI tokens, contrast pairs and component geometry.
+
+### Usage rules
+
+- Use the marks to identify Hutch. Do not imply that Hutch endorses, sponsors or is affiliated
+  with another product, project or person.
+- Do not recolour, stretch, crop or remix third-party service marks. Follow each vendor's
+  guidance linked above, and keep the service name visible beside its mark.
+- Do not present the Hutch logomark or wordmark as a registered trademark. This page is not a
+  legal opinion and grants no trademark rights.
+- The mascot artwork (`website/assets/hutch-agent.webp` and the frame grid under
+  `website/assets/agent/`) is decorative product art, not a logo or application screenshot; see
+  the provenance rules in [marketing-site.md](marketing-site.md).

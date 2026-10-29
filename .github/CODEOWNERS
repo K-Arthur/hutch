@@ -1,0 +1,4 @@
+# Default owner for every path. CODEOWNERS requests a review from the
+# maintainer; it does not replace the contribution rules in AGENTS.md and
+# CONTRIBUTING.md.
+* @K-Arthur

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: "https://github.com/K-Arthur/hutch/security/policy"
+    about: "Read SECURITY.md and report sandbox escapes, approval bypasses, guard issues, and credential handling problems privately. Do not open a public issue."
+  - name: Read the documentation
+    url: "https://github.com/K-Arthur/hutch#documentation"
+    about: "Quickstart, architecture, safety model, operations, and the documentation map."

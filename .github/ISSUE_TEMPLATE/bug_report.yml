@@ -1,0 +1,99 @@
+name: Bug report
+description: Report a reproducible problem in Hutch. Hutch is a development preview, so a report needs exact steps and observed output.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Hutch. This is a development preview, so behavior can change between commits and some areas are documented as experimental or unavailable.
+
+        Do not report security issues in a public issue. Read SECURITY.md (https://github.com/K-Arthur/hutch/blob/main/SECURITY.md) and report privately by email instead. Do not include credentials, .env files, state-directory contents, transcripts, prompts, or other sensitive data in this issue.
+
+  - type: checkboxes
+    id: acknowledgements
+    attributes:
+      label: Before you submit
+      options:
+        - label: This is not a security vulnerability. I have read SECURITY.md and will report sandbox escapes, approval bypasses, guard issues, and credential handling problems privately instead.
+          required: true
+        - label: I searched existing issues and the evidence ledger (docs/realignment/ledger.md) for this behavior.
+          required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Describe the actual behavior. Include the exact error text and the command, dashboard page, or bot run where it appeared.
+      placeholder: "Example: uv run hutch run demo 'sort downloads' stopped with: ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: What you expected to happen
+      description: Describe the behavior you expected instead, and why.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Steps to reproduce
+      description: Give the smallest sequence that reproduces the problem from a clean state or from an existing state directory. Note whether it reproduces every time.
+      placeholder: |
+        1. uv sync --extra dev
+        2. uv run hutch init
+        3. uv run hutch ...
+        4. ...
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Hutch version and commit
+      description: Paste the output of `uv run hutch version` and the current commit from `git rev-parse HEAD`.
+      placeholder: "0.1.0, commit abc1234"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system and desktop session
+      description: Name the Linux distribution and version, the kernel, the desktop environment or window manager, and whether bubblewrap is installed and permitted on this host.
+      placeholder: "Ubuntu 24.04, kernel 6.8, KDE Plasma 6 Wayland, bubblewrap installed and namespaces permitted"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: How are you running Hutch?
+      options:
+        - Source checkout with uv (README quickstart)
+        - Source checkout with the dev and browser extras
+        - Desktop host built from source
+        - Other (describe in the logs field)
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or output (redacted)
+      description: Paste only the lines that show the failure. Remove credentials, tokens, prompts, transcripts, file contents, and personal data first. If the full state directory matters, describe it instead of attaching it.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: safety-impact
+    attributes:
+      label: Safety or data impact
+      description: Does this involve an approval decision, a sandbox or permission boundary, spend accounting, or local data leaving the machine? If you are not sure, say so. Do not test destructive or boundary-crossing behavior on real accounts.
+    validations:
+      required: false

@@ -1,10 +1,11 @@
 # Marketing site claims and evidence
 
-The static site is an alpha preview, not an installation or hosted-service funnel. Its source repository is private and there is
-no public package or release. Anonymous calls to action stay on the page and explain availability; they do not point to an
-inaccessible private repository, copy commands that cannot work anonymously, or contact the Hutch host. Public links are the
-three cited user-report scenarios only. The site loads its CSS, JavaScript, font and images from its own directory and sends no
-analytics request. Motion follows the operating system's reduced-motion setting; the page stores no browser preference.
+The static site is a development preview, not an installation or hosted-service funnel. Its source repository is public on GitHub
+and there are no packaged desktop installers, no public package and no hosted sign-up. Calls to action explain availability; they
+point to the public GitHub repository or stay on the page, and they do not copy commands that cannot work anonymously or contact
+the Hutch host. External links are the GitHub repository only. The site loads its CSS, JavaScript, font and images from its own
+directory and sends no analytics request. Motion follows the operating system's reduced-motion setting; the page stores no browser
+preference.
 
 The history description may state that the application has a title-based Chat
 library for active, archived, and imported conversations across assistants.
@@ -23,8 +24,8 @@ product pillars (local state, model and app choice, and ask-first approvals) and
 within the capability language below; they are not guarantees.
 
 In public prose the product is "Hutch"; the lowercase "hutch." wordmark is a logo form only. The
-single stage term is "private preview" everywhere (footer badge, availability section, metadata);
-"private alpha" is retired. The site says "assistant" for the user-facing entity and notes that
+single stage term is "development preview" everywhere (footer badge, availability section, metadata);
+"private preview" and "private alpha" are retired. The site says "assistant" for the user-facing entity and notes that
 the command-line tools call it a bot; internal docs and the CLI keep "bot".
 
 ## Capability language
@@ -33,7 +34,7 @@ the command-line tools call it a bot; internal docs and the CLI keep "bot".
 |---|---|
 | Supported | Linux execution, local SQLite state, up to 100 named recurring tasks per bot with independent timing/prompts, and fixture-tested lifecycle/control paths. A running local supervisor is needed for schedules; tasks on one bot queue under its single-run rule. Actual runs require a configured model route and a running local service or provider connection. |
 | Experimental | Configured hosted-provider and local-inference routes; OpenCode Go's user-supplied API-key connection; opt-in Sign in with ChatGPT local token-sharing preview (eligibility for Hutch is unconfirmed, no live account verification, and no provider-enforced output limit); reviewed owner-launched OpenCode coding tasks on Linux in pinned worktrees (`hutch code login` connects a provider in a dedicated Hutch-managed profile; model usage and command permissions remain outside Hutch; no Hutch shell sandbox or automatic branch application); one Hutch local caller and up to eight waiters per state directory; host-gated Offline isolation; opt-in same-bot child tasks under Strict Offline with approval on every request; one explicit user-reviewed coordinator handoff with a durable parent status/result and a durable owner-approved specialist roster that starts empty; an optional, user-selected exact specialist response can be attached as untrusted text to a coordinator follow-up; up to eight current reviewed coordinator facts may be selected for one task, with provider-retention limits disclosed; HTTPS-paired dashboard sessions with revocation; local same-session browser handoff on a Linux desktop; HTTP(S)/WebSocket browser egress pinned by a local proxy. Coordinator handoff does not automatically plan more work or transfer files/history/permissions; selected fact snapshots stay with that task and are not added to specialist memory. A specialist's own enabled memory and workspace may still apply. Same-Bot delegation is serial, task-text-only, private-workspace and subject to the two-run default. Provider/model calls, backend provenance, the visible desktop flow, public browser destinations, non-HTTP browser traffic and physical-device/network access were not verified live for this release. |
-| Unavailable | macOS/Windows executor, public source/package, authenticated PTY/physical desktop control, phone browser handoff and Pi as a Hutch-managed Bot runtime. OpenCode is available with an owned private profile; its approved tools run outside the built-in sandbox. |
+| Unavailable | macOS/Windows executor, a public package or installer, authenticated PTY/physical desktop control, phone browser handoff and Pi as a Hutch-managed Bot runtime. OpenCode is available with an owned private profile; its approved tools run outside the built-in sandbox. |
 
 The response-style section may say that a person can choose Direct, Warm or Dry Wit voice; Auto, Brief,
 Standard or Detailed answer depth; and Off, Subtle or Playful humor independently. Humor defaults to off.
@@ -182,7 +183,8 @@ public site.
 
 ## User-report scenarios
 
-The site links to three public issues as acceptance scenarios, not prevalence evidence:
+The claims ledger cites three public issues as acceptance scenarios, not prevalence evidence. The
+public site itself links only to the Hutch repository and does not link these reports:
 
 - [OpenClaw issue 138499](https://github.com/openclaw/openclaw/issues/138499): one report of a timed-out scheduled task remaining marked as running and delaying restart. Hutch keeps cancellation visible until owned execution exits and fences expired ownership before recovery.
 - [Open WebUI issue 30055](https://github.com/open-webui/open-webui/issues/30055): one report that a full-screen mobile call overlay hid an already-delivered approval. Hutch keeps approval state and decisions in the responsive app and fixture-checks phone layouts; this is not physical-device certification.
@@ -220,12 +222,12 @@ Before changing product copy, compare it with `docs/realignment/ledger.md`, `doc
 
 ## Discovery metadata and structured data
 
-- `<title>` and the meta description lead with the category and the word "local-first" and state the private-preview status; they must stay in step with the hero's definitional sub-line.
-- The `SoftwareApplication` JSON-LD block carries name, description, category, operating system, version, MIT license, `isAccessibleForFree`, a feature list and `dateModified`. It has no `url`, `screenshot`, `offers` or publisher while the site has no public domain or public project identity to cite.
+- `<title>` and the meta description lead with the category and the word "local-first" and state the development-preview status; they must stay in step with the hero's definitional sub-line.
+- The `SoftwareApplication` JSON-LD block carries name, description, category, operating system, version, MIT license, `isAccessibleForFree`, a feature list and `dateModified`, plus `url`, `sameAs` (the public repository), `author` (the maintainer) and `screenshot` after the GitHub Pages launch. It deliberately has no `offers` or `publisher`: there is no priced offer and no registered organisation to cite.
 - The `FAQPage` JSON-LD block mirrors the visible FAQ exactly; `test_structured_data_and_discovery_metadata_match_the_page` fails when a question exists in one place and not the other. Generate the schema block from the markup instead of editing it by hand.
 - The FAQ comparison item may name Open WebUI and OpenClaw in prose without linking to them, limited to verifiable architectural differences (where work runs, governance defaults, approval model). It must not claim superiority, benchmarks or community-scale facts.
-- `website/robots.txt` allows all crawlers and deliberately carries no `Sitemap:` line: the directive requires an absolute URL and no public domain has been chosen. `website/llms.txt` restates the core product facts for answer engines inside the same claims envelope as this document.
-- Deferred until a public domain exists: canonical URL, `og:url`, an absolute `og:image`, and `sitemap.xml`.
+- `website/robots.txt` allows all crawlers and carries the absolute Sitemap line for the GitHub Pages origin. Compliant crawlers read robots.txt only at an origin root, which github.io does not expose to this repository; the file becomes authoritative with a custom domain. `website/llms.txt` restates the core product facts for answer engines inside the same claims envelope as this document.
+- Shipped with the GitHub Pages deployment on 2026-10-28: a self-referencing canonical URL, `og:url`, an absolute `og:image` and `twitter:image`, `sitemap.xml`, and `/.well-known/security.txt`. The deployed origin is `https://k-arthur.github.io/hutch/`; see [discoverability.md](discoverability.md) for the host caveats and the custom-domain migration steps.
 
 ## Visual system and assets (Oct 2026 rework)
 
@@ -267,6 +269,16 @@ The marketing surface is Tailwind + DaisyUI layered on the brand token source:
   `tests/test_site_tokens.py` checks that every `var(--token)` in `styles.css` resolves, and
   that the compiled `app.css` is present with the theme and components in place.
 
+## Hosting and deployment
+
+The site is published from `website/` by `.github/workflows/pages.yml` to GitHub Pages at
+`https://k-arthur.github.io/hutch/` with an Actions artifact deploy (the `website/.nojekyll`
+marker is kept for branch-deploy safety). All site links are subpath-relative; a root-absolute
+path would 404 under `/hutch/`. Pages fixes cache headers at about ten minutes and does not
+support custom headers or redirects, so asset references keep the `?v=<hash>` convention.
+Crawler rules, canonical and verification behaviour, the origin-root robots.txt limitation and
+the custom-domain migration checklist are in [discoverability.md](discoverability.md).
+
 ## Reference decisions (supplied design set, Oct 2026)
 
 Adopted: window chrome for product proof (traffic-dot trio, centred monospace title, status chip); the receipts as a real
@@ -294,6 +306,8 @@ theme) governs.
 - Screenshot review at 1440 and 390 (hero, proof chrome, receipts table, workflow, runs + architecture, control, use cases,
   availability, FAQ, CTA), plus pointer-swap verification left/right and a measured check that the hero wordmark fits its
   column (about 18px slack each side).
+
+- `.pipeline/marketing/2026-10/evidence/audit/audit_site.py` on the built site: canonical present, six crawler user-agents return identical bytes, FAQ parity 20/20, both JSON-LD blocks parse, sitemap and security.txt return 200. The e2e structured-data check stays the source of truth for metadata parity.
 
 The files under `docs/realignment/artifacts/marketing-top/` are historical captures, not current design evidence. Their
 `capture.json` records the 2026-10-08 source revision and an HTML hash that no longer matches `website/index.html`; do not use
