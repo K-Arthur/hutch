@@ -40,8 +40,8 @@ fields. Event creation requires a separate sign-in choice and a separate per-Bot
 offered for calendars Google identifies as owned by the account. Google's `calendar.events.owned`
 scope also permits Google-side changes and deletion on all calendars the account owns; Hutch only
 implements guest-free event creation on the selected calendar. Hutch shows the exact title, time,
-description, location, account and calendar in a fresh outward approval—even when that Bot uses auto
-approval—and checks the grant again after the decision. It sends no guest list or invitations and
+description, location, account and calendar in a fresh outward approval (even when that Bot uses auto
+approval), and checks the grant again after the decision. It sends no guest list or invitations and
 offers no edit or delete action. Required event times include an explicit UTC offset and the approval
 displays those exact values. After insertion, Hutch reads the returned event ID back and checks the
 title, time instants, description and location before reporting success; a silently omitted field or
@@ -233,7 +233,7 @@ The owner grants one sending account to one Bot from that section or with the ve
 `/api/v1/connections/outlook-mail-send` API. The screen states the approval and retry limits before
 the grant is saved. Each action is one new plain-text message to at most
 five addresses. Before sending, Hutch asks for a fresh decision on the exact account, recipients,
-subject and body—even when the Bot uses automatic approval. Replies, forwards, attachments, CC and
+subject and body (even when the Bot uses automatic approval). Replies, forwards, attachments, CC and
 BCC are not available. The request goes only to the fixed Microsoft Graph v1.0 `/me/sendMail`
 endpoint, with redirects disabled. Hutch sends once: a timeout, server error, or unexpected response
 is `outcome_unknown`, not a retry instruction. A Graph `202 Accepted` response means Microsoft

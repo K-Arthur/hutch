@@ -13,7 +13,7 @@ uses the Python environment that ran the command and the current Hutch state dir
 access off, and it does not copy shell-only environment variables into the unit. Prefer Hutch's protected key files if a provider
 credential must be available consistently to the user service.
 
-Use `hutch service status` to read the user manager's active state, configured local port, and — with the default `--probe` — an
+Use `hutch service status` to read the user manager's active state, configured local port, and, with the default `--probe`, an
 HTTP readiness handshake. Process state and readiness are reported separately: `active` alone is not workflow readiness, and the
 handshake only passes when `/api/health` answers for this state directory and (when systemd reports one) the unit's main PID.
 `hutch service restart` restarts and re-checks. `journalctl --user -u hutch.service` shows service logs. `hutch service uninstall`
@@ -30,7 +30,7 @@ separately reviewed `hutch serve --allow-remote` setup described below.
 The app's **Runtime** destination (`#/runtime`, under More) is the local owner's one place to see where execution lives: engine
 version/instance/exposure, the managed service's state and readiness, watched-source freshness, multi-step jobs, and queue depth.
 Its controls (set up background work, restart, stop, remove, start at login, pause automation, source pause/check/remove, cancel
-job) require exact confirmations and are local-owner-only — paired phones receive 403 for every one of those routes.
+job) require exact confirmations and are local-owner-only; paired phones receive 403 for every one of those routes.
 
 Watched sources are durable registrations of a folder, a git repository, or an RSS/Atom feed. Checks are deterministic and
 model-free: an unchanged source costs no inference, a change commits its cursor and events in one transaction, and only material

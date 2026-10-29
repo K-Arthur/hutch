@@ -148,13 +148,13 @@ artifact transfer, webhook/push notifications, permanent scoped deletion, and mu
 coordination remain open. A narrow same-bot `delegate_task` preview is available only for supervised
 Strict Offline Linux runs; it does not complete the broader S6 collaboration plan.
 
-## Phase 0 — MVP (shipped, Oct 2026)
+## Phase 0: MVP (shipped, Oct 2026)
 
 - [x] Bot CRUD + starter templates (CLI, dashboard, REST)
 - [x] Built-in agent loop (OpenAI-compatible: OpenAI / Ollama / llama.cpp / LM Studio / custom base URL)
 - [x] Recover legacy Pi/OpenCode bot records by explicitly moving an idle bot to Hutch's built-in executor after its saved Hutch model route validates. This does not copy external credentials. The OpenCode assistant runtime is now separately enabled with an owned private profile; Pi remains disabled.
 - [x] Per-bot Hybrid and Local model routing; known hosted route/fallback switching is blocked in Local mode. Local tools may still use the network.
-- [x] Test-only deterministic scenario fixture — exercises policy and tool plumbing without a model; not packaged or selectable in production
+- [x] Test-only deterministic scenario fixture: exercises policy and tool plumbing without a model; not packaged or selectable in production
 - [x] OpenCode assistant runtime: owned private server, explicit model route, once/reject permission brokering, durable message reconciliation, shared budget reservation and conversation/session mapping. Approved OpenCode tools run outside the built-in sandbox. [ ] Pi remains fail-closed until it can meet the same process, approval and usage boundary.
 - [x] Reviewed, owner-launched OpenCode CLI coding task: durable chat handoff, pinned isolated Git worktree, restrictive task profile, bounded iterations, verified process cleanup; no Hutch-managed runtime, brokered OpenCode approvals or Hutch usage cap
 - [x] Tools: shell (workspace-jailed, minimal env, HOME redirect), files (path jail),
@@ -169,9 +169,9 @@ Strict Offline Linux runs; it does not complete the broader S6 collaboration pla
 - [x] Atomic pre-call reservations for per-bot budgets and configured shared provider accounts; reconcile uncertain charges after checking the provider record. Currency limits remain price/prompt estimates.
 - [x] Append-only transcripts (SQLite + JSONL per run), staleness surfaced in dashboard
 - [x] Dashboard (live transcripts, approvals, meters, stop) + CLI + daemon
-- [x] Test suite covering safety parser, DST math, engine lifecycle, API and CLI — 70 tests at MVP, 3,325 passed alongside 2 known failures in the strict non-browser run of 2026-10-24 (evidence in `docs/realignment/ledger.md`)
+- [x] Test suite covering safety parser, DST math, engine lifecycle, API and CLI: 70 tests at MVP, 3,325 passed alongside 2 known failures in the strict non-browser run of 2026-10-24 (evidence in `docs/realignment/ledger.md`)
 
-## Phase 1 — hardening (next)
+## Phase 1: hardening (next)
 
 - [ ] Container-per-run isolation (podman/docker) as an opt-in sandbox level
 - [ ] Configurable policy packs per bot (site-specific allowlists, egress domains)
@@ -181,20 +181,20 @@ Strict Offline Linux runs; it does not complete the broader S6 collaboration pla
 - [~] Guided new-Bot setup can preview, download, and import a strictly validated versioned YAML draft. Import fills an unsaved draft that still requires full review and explicit creation; importing or snapshotting existing Bot definitions remains open.
 - [ ] Secret per-bot credentials via OS keyring (referenced, never in prompts)
 
-## Phase 2 — capability
+## Phase 2: capability
 
 - [ ] Vector memory (local embeddings, sqlite-vec) with inspectable recall
 - [ ] Webhook/event triggers (file-watch, HTTP inbox) alongside cron
-- [ ] Multi-step workflow templates (chained runs, hand-off artifacts) — *partly superseded*: dynamic workflows landed as saved, validated plans with bounded execution, verification and published artifacts (see `docs/workflows.md`). Existing routines can link to an activated immutable workflow revision and run it on schedule or with owner-triggered Run now; workflow-native triggers and general scheduling remain planned.
+- [ ] Multi-step workflow templates (chained runs, hand-off artifacts), *partly superseded*: dynamic workflows landed as saved, validated plans with bounded execution, verification and published artifacts (see `docs/workflows.md`). Existing routines can link to an activated immutable workflow revision and run it on schedule or with owner-triggered Run now; workflow-native triggers and general scheduling remain planned.
 - [x] OpenCode adapter: owned private server, explicit model route, permission brokering, durable reconciliation and shared usage reservation. [ ] Pi adapter and OS-contained OpenCode tool execution remain open.
 - [~] Bounded same-bot `delegate_task` preview: Strict Offline and process-executor only, always human-approved, private child workspaces, task-text-only context, bounded depth/steps/time and inherited usage reservations. Parallel children, specialist selection, artifact transfer, cross-bot delegation and a plan UI are not implemented; see `realignment/delegation.md`.
 - [~] Browser tool: same-session human handoff is experimental on a local Linux desktop; HTTP(S)/WebSocket DNS-pinned egress has local Chromium fixture coverage. Bounded HTTP handoff is locally verified with a process worker. Live headed challenges, non-HTTP traffic, physical phones and general download formats remain open. Immutable-ID profiles, reviewed workspace text uploads and bounded same-origin HTTP text downloads have real mixed-workflow coverage.
 
-## Phase 3 — scale-out (deliberately far)
+## Phase 3: scale-out (deliberately far)
 
-- [ ] Cross-OS support (macOS, Windows) — GUI automation paths differ per OS
+- [ ] Cross-OS support (macOS, Windows): GUI automation paths differ per OS
 - [ ] Multi-user access to one hutch instance (auth + roles)
-- [~] Optional private phone supervision (passkeys over Tailscale Serve or trusted LAN HTTPS) — opt-in, remote remains disabled by default; live mobile/network validation and any broader relay access remain open
+- [~] Optional private phone supervision (passkeys over Tailscale Serve or trusted LAN HTTPS): opt-in, remote remains disabled by default; live mobile/network validation and any broader relay access remain open
 - [ ] A2A collaboration between bots (scoped, auditable)
 
 ## Current realignment progress

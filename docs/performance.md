@@ -12,7 +12,7 @@ Hutch control-path overhead only; it is not a product model route and does not v
 Reproduce: `python -m benchmarks.run` (print), `--record` (new baseline), `--check` (exit 1 on a
 > 20% regression). Baselines live in `benchmarks/baselines/<name>.json`, keyed by
 `$HUTCH_BENCH_BASELINE` (default `local`) because absolute numbers are machine-specific; CI records
-its own on first run and caches it (`.github/workflows/ci.yml` — written, **not yet exercised on
+its own on first run and caches it (`.github/workflows/ci.yml`: written, **not yet exercised on
 GitHub from the development machine**).
 
 The pytest event-writer throughput floor is a separate, lightweight regression check. Its temporary
@@ -27,7 +27,7 @@ artifacts retain their own roots.
 | Metric | Req | Proposed target | Measured | Notes |
 |---|---|---|---|---|
 | `hutch status` wall time | PF-6 | < 300 ms | **275 ms** | min of 11 cold-process runs |
-| `hutch version` wall time | PF-6 | — | **255 ms** | |
+| `hutch version` wall time | PF-6 | none | **255 ms** | |
 | Event inserts per second | PF-7 | 1,000 sustained | **~52,000** | append + group-commit + flush, 20k events × 3 |
 | Hutch overhead per step | PF-11 | < 50 ms | **0.25 ms** | deterministic test fixture; do not infer production inference or tool latency from this value |
 | Idle daemon resident memory | PF-13 | < 150 MB | **39 MB** | `hutch daemon`, no browser, no model |
@@ -52,8 +52,8 @@ not that Hutch is "fast": a real model call is 1–60 s.
 
 `Engine.run_loop` reads the `work` bus version, ticks, then sleeps for
 `min(next scheduled fire, earliest approval expiry, 5 minutes)` or until `work` moves. Anything that
-changes what the loop should do — a bot created or paused, a run submitted or finished, an approval
-resolved — notifies `work`. Other processes (`hutch approvals approve`, `hutch run`) reach a running
+changes what the loop should do: a bot created or paused, a run submitted or finished, an approval
+resolved, notifies `work`. Other processes (`hutch approvals approve`, `hutch run`) reach a running
 `serve`/`daemon` through a per-process Unix datagram socket (`wake.py`), so cross-process actions are
 immediate, not "within the next tick".
 

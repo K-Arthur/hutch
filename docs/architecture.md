@@ -155,7 +155,7 @@ remain unavailable.
 
 ## Key decisions
 
-### D1 — Own the agent loop; keep ungoverned runtimes disabled
+### D1: Own the agent loop; keep ungoverned runtimes disabled
 
 The original proposal (see `docs/research/orchestrators.md`) put OpenCode at the core. Research
 changed that:
@@ -173,7 +173,7 @@ Legacy `pi` and `opencode` enum values fail closed before process creation. Thei
 Hutch approvals and budgets, so they remain unavailable until sandboxing, permission brokering,
 provider reservations and protocol tests are complete.
 
-### D2 — Bots are configs, runs are executions
+### D2: Bots are configs, runs are executions
 
 A **Bot** is a stored config (model, tools, up to 100 optional recurring tasks, limits). A **Run** is one execution with its
 own workspace directory, transcript, step/token accounting, and terminal status. Tasks are the
@@ -192,11 +192,11 @@ progress beside interactive chat. The dashboard's Schedules overview lists next 
 pause affects future schedule admission only; queued/running work and Bot-specific pause settings
 remain independent.
 
-### D3 — Scheduling correctness is a feature, not a detail
+### D3: Scheduling correctness is a feature, not a detail
 
 All timestamps are ISO-8601 UTC-with-offset. Calendar cron math happens in the task's IANA zone via
 croniter, with a round-trip check that drops DST-gap times (spring-forward) and de-duplicates
-ambiguous times (fall-back) — Vixie-cron semantics. Invalid IANA zones never fall back to UTC;
+ambiguous times (fall-back): Vixie-cron semantics. Invalid IANA zones never fall back to UTC;
 admission is blocked until repaired. Fixed-rate `interval` triggers keep exact second periods
 (65/90 minutes are not hourly cron approximations). After downtime the scheduler finds the *true*
 newest eligible occurrence (not the last element of a capped prefix); coalesced `missed_windows`
@@ -206,31 +206,31 @@ occurrence instant. Catch-up `skip` grace scales with the estimated period. Over
 Schema v21 retains schedule identities after removal. The workspace-wide pause is rechecked in the
 same transaction that claims the occurrence and creates its run.
 
-### D4 — Policy before execution, transcripts regardless of outcome
+### D4: Policy before execution, transcripts regardless of outcome
 
 Every tool call passes the policy engine (see `docs/safety.md`) *before* subprocess/file/network
-execution. Every event — prompts, tool calls, results, approvals, errors — is appended to SQLite
+execution. Every event (prompts, tool calls, results, approvals, errors) is appended to SQLite
 and to `transcript.jsonl` on disk. A run becomes terminal (`succeeded`, `failed`, `stopped`, …) only after execution cleanup is
 verified; otherwise `cancelling` or `recovering` remains visible with a reason. Terminal `exit_reason` values include `completed`,
 `timeout`, `steps_exceeded`, `token_cap`, `approval_expired`, and `error`.
 
-### D5 — Caps are enforced by the engine, not by model behavior
+### D5: Caps are enforced by the engine, not by model behavior
 
-- `max_steps` — agent turns per run
-- `timeout_seconds` — wall clock. `serve`, `daemon`, and `hutch run` execute one owned OS worker process per attempt. Cleanup verifies boot/start identities and keeps a run in `Stopping` or `Cleaning up` until no owned process remains. Admission also treats unreaped `run_procs` as occupying capacity so a peer cannot start while descendants may still act. `HUTCH_EXECUTOR=thread` is for tests and compatibility; a stuck thread is joined before persistence closes, so it cannot be declared terminal while still running.
+- `max_steps`: agent turns per run
+- `timeout_seconds`: wall clock. `serve`, `daemon`, and `hutch run` execute one owned OS worker process per attempt. Cleanup verifies boot/start identities and keeps a run in `Stopping` or `Cleaning up` until no owned process remains. Admission also treats unreaped `run_procs` as occupying capacity so a peer cannot start while descendants may still act. `HUTCH_EXECUTOR=thread` is for tests and compatibility; a stuck thread is joined before persistence closes, so it cannot be declared terminal while still running.
 - Tool capture is bounded before allocation (`MAX_TOOL_OUTPUT`); the model sees a smaller per-tool view (PF-2) with optional artifacts. Unlimited `tool_limits=0` is rejected.
-- `daily_token_cap` — actual response usage plus pre-call prompt/reply estimates and unresolved reservations;
+- `daily_token_cap`: actual response usage plus pre-call prompt/reply estimates and unresolved reservations;
   admission reserves the next estimate atomically across processes. Currency caps also reserve a price-based estimate;
   provider-side billing can differ, so this is not an exact dollar guarantee.
 
-### D6 — Web dashboard and CLI are the same engine
+### D6: Web dashboard and CLI are the same engine
 `hutch serve` runs FastAPI with a background supervisor loop, serving a dependency-free static SPA that polls `/api`. A durable
 SQLite lease elects one scheduler/recovery supervisor across dashboard workers and `hutch daemon`; web workers submit work
 and wait for state changes. The CLI drives the same `Engine`.
 No separate daemon is required for dashboard-driven usage; `hutch daemon` is the headless
 equivalent.
 
-### D7 — A database restore transfers history, not execution authority
+### D7: A database restore transfers history, not execution authority
 
 Schema v14 records offline restore quarantine and process detachment. `hutch state backup`
 creates a private standalone SQLite snapshot and manifest. Restore validates copied bytes and
@@ -240,7 +240,7 @@ standing grants and schedules are revoked/paused; an explicit local operator rev
 new work without resuming old work. Files and credentials require separate preservation.
 See [ADR-0015](adr/0015-held-database-restoration.md) and [Operations](operations.md).
 
-### D7b — Grounding is evidence with roles, not a search wrapper
+### D7b: Grounding is evidence with roles, not a search wrapper
 
 Schema v51 stores investigations, adapter attempts with distinct outcomes, source items with
 revisions, claims, evidence links, media artifacts/observations, answer revisions and versioned
@@ -355,8 +355,8 @@ the prior neutral, lightly playful behavior, and profanity stays off unless some
 careful mirroring. Bounded customization uses 0–100 warmth, directness and formality values; a small
 format choice; and a fixed list of habits to avoid rather than arbitrary prompt text.
 
-Unset fields inherit by precedence — current turn, then conversation, then the owner's saved style
-for the assistant, then its shipped preset, then Hutch's default — and an explicit "Inherited" clears
+Unset fields inherit by precedence: current turn, then conversation, then the owner's saved style
+for the assistant, then its shipped preset, then Hutch's default, and an explicit "Inherited" clears
 a saved value back to that chain. Assistant settings expose preset, depth and humor selectors plus
 bounded optional customization for warmth, directness, formality, profanity, answer format and a fixed
 set of habits to avoid. Per-field help identifies the effective source; revision-guarded saves refuse a
@@ -416,7 +416,7 @@ does not prove provider acceptance. Real model adherence and response quality re
 At run start the engine resolves the layers once and writes a versioned, write-once plan into the
 run; a retried start reuses the recorded plan, and unreadable or newer state fails the run with a
 `persona_unavailable` reason instead of silently restyling it. The built-in runtime renders the plan
-into its system prompt locally — no extra model call is spent on style — and the guidance is
+into its system prompt locally, no extra model call is spent on style, and the guidance is
 subordinate wording: it never overrides safety, permissions, tool rules, the task, explicit operator
 requests or detail needed to act correctly, keeps sensitive topics plain and steady, and lets
 playfulness apply only to turns that are themselves clearly playful, re-decided each turn. The v3
@@ -460,7 +460,7 @@ See [response-style help](response-style.md) for owner-facing scope and privacy 
 
 ## What is deliberately NOT here (yet)
 
-Vector retrieval, webhook triggers, multi-user roles, bounded agent-to-agent collaboration, a cross-run artifact library, authenticated PTY/personal-desktop controls and Windows/macOS support — tracked in `docs/roadmap.md`.
+Vector retrieval, webhook triggers, multi-user roles, bounded agent-to-agent collaboration, a cross-run artifact library, authenticated PTY/personal-desktop controls and Windows/macOS support are tracked in `docs/roadmap.md`.
 Remote phone supervision is optional and remains disabled unless `hutch serve --allow-remote` is explicitly launched. It uses one-use
 enrollment, passkey credentials, bounded sessions, a deny-by-default route inventory and per-Bot local Start opt-in. Direct remote
 access requires a private interface and trusted HTTPS certificate; a proxy requires exact proxy IP and public-host allowlists. The

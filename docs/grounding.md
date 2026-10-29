@@ -10,23 +10,23 @@ streams, media, report), the store tables added by schema v53, the `live_search`
 
 ## What it does
 
-- **Fan-out search (`live_search`)** — bounded parallel retrieval across complementary
+- **Fan-out search (`live_search`)**: bounded parallel retrieval across complementary
   lanes; every adapter reports a distinct outcome (`ok`, `zero_results`, `partial`,
   `disabled`, `unavailable`, `blocked`, `rate_limited`, `timeout`, `error`) with dropped
   out-of-range counts. Partial results ship with a missing-source ledger; "no new evidence
   found in these sources" is never reported as "nothing happened".
-- **Time, honestly** — every timestamp keeps its role (occurrence, announcement,
+- **Time, honestly**: every timestamp keeps its role (occurrence, announcement,
   publication, modification, capture, upload, index/stream observation, retrieval,
   verification), raw text, precision and zone. Unknown time is not UTC and not "now";
   relative phrases ("ten minutes ago") anchor to their own document or request, never to
   the reader. Date-only values are civil-day intervals. Two historical modes stay apart:
   *what evidence was available by T* versus *what we now know about events before T*.
-- **Claims and evidence, not a truth score** — sources bind to claims as
+- **Claims and evidence, not a truth score**: sources bind to claims as
   `supports` / `contradicts` / `context` / `reports_allegation`, with independence
   (`independent`, `same_origin`, `syndicated`, `unknown`). "An account posted X" and "X
   occurred" are separate claims. Ten copies are spread, not corroboration; mirrors,
   reposts and syndicated headlines are grouped into one origin cluster.
-- **Media checks (`inspect_media`)** — bounded fetch or workspace file, SHA-256, safe
+- **Media checks (`inspect_media`)**: bounded fetch or workspace file, SHA-256, safe
   decode (Pillow with a decompression-bomb guard), `ffprobe` metadata, and `ffmpeg` frame
   sampling at claim-relevant moments, detected scene changes (so a brief inserted clip is
   not stepped over by a uniform grid), and clip boundaries. An optional `x,y,w,h` **region**
@@ -35,16 +35,16 @@ streams, media, report), the store tables added by schema v53, the `live_search`
   The exact inspected frame times are recorded, and the intervals and audio that were **not**
   inspected are stated. Frames are attached to the model only when the selected route accepts
   images; what actually reached the model is recorded either way.
-- **Refresh, revisions, corrections** — the Evidence panel has a **Refresh evidence** action
+- **Refresh, revisions, corrections**: the Evidence panel has a **Refresh evidence** action
   that re-runs acquisition for the stored question as a *new* window: attempts, source rows
   (identical identities become new revisions), stream cursors, coverage and a labelled answer
   revision are appended. It makes no model call and adds no new claims, so an earlier
   statement is never rewritten; a second refresh while one is running is refused.
-- **C2PA / Content Credentials** — manifest **presence** is detected in JPEG/PNG; when a
+- **C2PA / Content Credentials**: manifest **presence** is detected in JPEG/PNG; when a
   maintained `c2pa` verifier is installed it is used. `absent` is normal (most media has no
   Content Credentials), `present_unverified` is not a truth claim, and no cryptography is
   hand-rolled. Missing credentials never mean "fake".
-- **Answer revisions** — a later correction or update is a new, labelled revision; earlier
+- **Answer revisions**: a later correction or update is a new, labelled revision; earlier
   statements stay inspectable, and nothing silently moves the original cutoff.
 
 ## Enabling it
@@ -73,13 +73,13 @@ media is refused offline (pass a workspace path instead).
 }
 ```
 
-- `feeds` — first-party RSS/Atom feeds; the publisher's declared dates are kept with their
+- `feeds`: first-party RSS/Atom feeds; the publisher's declared dates are kept with their
   role and method. Defaults are the BBC World feed and HN's front page feed.
-- `searxng_base` — your own SearXNG instance. The adapter mirrors two documented failure
+- `searxng_base`: your own SearXNG instance. The adapter mirrors two documented failure
   classes: out-of-range results under a time filter are dropped locally and counted
   (searxng#3358), and engines lost to a time filter are surfaced as `disabled` with a
   single filterless retry whose results are re-validated locally (searxng#3400).
-- `jetstream_host` — a Jetstream instance for the `stream` lane (a bounded live window of
+- `jetstream_host`: a Jetstream instance for the `stream` lane (a bounded live window of
   the Bluesky post firehose, filtered client-side by the query). Install the optional
   dependency with `pip install 'hutch[jetstream]'`; without it the lane reports
   `unsupported`. A per-investigation cursor is stored and resumed at-least-once; a
@@ -94,15 +94,15 @@ connection. No secrets are placed in prompts, URLs, or reports.
 
 | Lane | State |
 |---|---|
-| RSS/Atom feeds (BBC World, HN front page) | **Verified live** — declared dates parsed and in-frame |
-| GDELT DOC 2.0 (news) | **Verified live earlier today; rate-limited during the later run** — the 429 is reported as `rate_limited`, never as zero results |
-| Hacker News (Algolia) | **Verified live** — story times parsed |
-| Wikimedia EventStreams (events stream) | **Verified live** — 40 events in one bounded read; cursor is the raw `id` array, resumed with `Last-Event-ID` |
-| Bluesky public search | **Implemented, blocked from this network** — HTTP 403 is reported as `blocked` |
-| Bluesky Jetstream (`stream` lane) | **Verified live 2026-10-11** — 227 events scanned / 8 s window with a matching post retained; cursor resumed to a later window (advanced even when the window matched nothing). Requires `hutch[jetstream]`; the first live read also caught a v2 wire-shape change (nested `payload`, ISO times) that the v1-shaped parser silently ignored |
-| SearXNG | **Implemented, needs your instance** — fixture tests cover both failure classes |
+| RSS/Atom feeds (BBC World, HN front page) | **Verified live**: declared dates parsed and in-frame |
+| GDELT DOC 2.0 (news) | **Verified live earlier today; rate-limited during the later run**: the 429 is reported as `rate_limited`, never as zero results |
+| Hacker News (Algolia) | **Verified live**: story times parsed |
+| Wikimedia EventStreams (events stream) | **Verified live**: 40 events in one bounded read; cursor is the raw `id` array, resumed with `Last-Event-ID` |
+| Bluesky public search | **Implemented, blocked from this network**: HTTP 403 is reported as `blocked` |
+| Bluesky Jetstream (`stream` lane) | **Verified live 2026-10-11**: 227 events scanned / 8 s window with a matching post retained; cursor resumed to a later window (advanced even when the window matched nothing). Requires `hutch[jetstream]`; the first live read also caught a v2 wire-shape change (nested `payload`, ISO times) that the v1-shaped parser silently ignored |
+| SearXNG | **Implemented, needs your instance**: fixture tests cover both failure classes |
 | Jetstream cursor/folding contract | **Tested offline** against a local instance: duplicates, `CursorTooOld` gaps, filtered windows, instance-switch rewind |
-| Reverse-image / image fact-check | **Unsupported by design** — sending your media to a public matching service is a separate permission this slice does not hold |
+| Reverse-image / image fact-check | **Unsupported by design**: sending your media to a public matching service is a separate permission this slice does not hold |
 
 ## Budgets
 

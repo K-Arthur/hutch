@@ -19,7 +19,7 @@ The site's first screen must state the category and deployment model in plain wo
 local-first platform for personal AI assistants that run on the reader's own Linux computer. The
 approved hero pattern is a warm headline plus a definitional sub-line; the eyebrow names the
 category ("Local-first AI assistants · run on your own machine"). The three hero promises are the
-product pillars — local state, model and app choice, and ask-first approvals — and each stays
+product pillars (local state, model and app choice, and ask-first approvals) and each stays
 within the capability language below; they are not guarantees.
 
 In public prose the product is "Hutch"; the lowercase "hutch." wordmark is a logo form only. The
@@ -51,7 +51,7 @@ images remain in the conversation workspace, travel with every subsequent messag
 owner removes them, and image-only sends are admitted. A built-in route that cannot receive
 images is refused at admission with a stated reason before any run exists. On the OpenCode
 runtime, images are admitted and verified copies are staged inside the run's own workspace;
-the runtime checks the selected model's declared input modalities before the model runs — a
+the runtime checks the selected model's declared input modalities before the model runs: a
 text-only model aborts with the model named, and an unverifiable model aborts as
 could-not-be-verified. Preflight cost estimates remain text-only and disclose that staged
 images sit outside the estimate; the Vision focus option tunes context handling and does not
@@ -248,7 +248,7 @@ place. Reduced motion, touch, and no-JS visitors get the static centre frame.
 
 The marketing surface is Tailwind + DaisyUI layered on the brand token source:
 
-- `website/src/input.css` — Tailwind v4 entry. DaisyUI v5 loads with an explicit component
+- `website/src/input.css`: Tailwind v4 entry. DaisyUI v5 loads with an explicit component
   include list (`button, badge, card, navbar, footer, table, collapse, alert, link, menu`)
   and a custom `hutch` theme mapped to the current design contract: emerald `#34d399`, 8px
   controls, 12px panels, 100px chips, and one dark theme.
@@ -261,7 +261,7 @@ The marketing surface is Tailwind + DaisyUI layered on the brand token source:
   42,310 bytes, and its served minified output is about 35.6 KiB. The 40 KiB transfer budget
   applies to `styles.min.css`; deployment gzip/Brotli compression is not part of the local
   transfer measurement.
-- `website/styles.css` holds only hutch-specific pieces — hero weave, proof chrome, code
+- `website/styles.css` holds only hutch-specific pieces: hero weave, proof chrome, code
   window, architecture diagram, receipts/availability tables, footer base, motion.
 - `website/tokens.css` remains the generated source of truth for brand/semantic values;
   `tests/test_site_tokens.py` checks that every `var(--token)` in `styles.css` resolves, and

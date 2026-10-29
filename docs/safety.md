@@ -14,7 +14,7 @@ but the downloaded file is unencrypted plaintext; fact values and review notes m
 owner must review it before sharing. Archive is not permanent deletion.
 
 hutch assumes a **supervising human** is part of the system. It is not a formal security boundary
-against a determined adversary — it is a policy layer that checks what hutch's own tools are asked to
+against a determined adversary: it is a policy layer that checks what hutch's own tools are asked to
 do. Each rule below traces to a reported failure class in `research/complaints.md` (individual reports,
 not measured prevalence).
 
@@ -277,7 +277,7 @@ pattern.
 
 Once a browser action crosses its durable effect boundary, an exception from Playwright is treated as ambiguous: the run ends `outcome_unknown`, its action receipt remains unresolved, and Hutch will not retry it automatically. Inspect the destination and reconcile the receipt before trying again.
 
-`goto` uses URL policy. `click` and ordinary `type` always ask because either can send data or buy something; sticky grants and auto mode cannot cover them. Browser `type` values are redacted from durable events and action receipts, and review binds a process-keyed fingerprint, character count, selector/label, page URL and bot profile. Native HTML form submits are identified in the approval with destination, method, submit label and visible field labels. An isolated Chromium execution world computes a digest over the current form state—including values, checkbox/selection state, submitter and its overrides—without exposing values to the page's own JavaScript hooks, Hutch records or the model. Hutch recomputes it after approval and refuses detected changes before clicking. Form submission fails closed when secure browser hashing is unavailable or the bounded review size is exceeded; selected file uploads are refused unless the separate reviewed upload action froze and verified their exact bytes and destination. The keyed target binding includes URL-scoped cookie state without exposing cookies. Managed text transfers have explicit path/MIME/size/deadline/quota checks; ordinary Chromium downloads are disabled (see [computer-use](computer-use.md#profiles-iframe-scope-and-governed-files)). This last check is not an atomic transaction with the remote website; it does not prove identities stored only in custom site state or certify the behavior of site-specific scripts after the click. Generic browser clicks continue to require outward approval. Each browser-tool instance owns a separate context and persistent profile, with an OS file lease across run workers. HTTP(S)/WebSocket connections pass through the DNS-pinning local proxy; this has only local Chromium fixture coverage and does not confine unrelated browser protocols. Headless is the default. Chromium's implicit local/link-local proxy bypass is disabled, service workers are blocked, and denied request logs retain only the origin.
+`goto` uses URL policy. `click` and ordinary `type` always ask because either can send data or buy something; sticky grants and auto mode cannot cover them. Browser `type` values are redacted from durable events and action receipts, and review binds a process-keyed fingerprint, character count, selector/label, page URL and bot profile. Native HTML form submits are identified in the approval with destination, method, submit label and visible field labels. An isolated Chromium execution world computes a digest over the current form state (including values, checkbox/selection state, submitter and its overrides) without exposing values to the page's own JavaScript hooks, Hutch records or the model. Hutch recomputes it after approval and refuses detected changes before clicking. Form submission fails closed when secure browser hashing is unavailable or the bounded review size is exceeded; selected file uploads are refused unless the separate reviewed upload action froze and verified their exact bytes and destination. The keyed target binding includes URL-scoped cookie state without exposing cookies. Managed text transfers have explicit path/MIME/size/deadline/quota checks; ordinary Chromium downloads are disabled (see [computer-use](computer-use.md#profiles-iframe-scope-and-governed-files)). This last check is not an atomic transaction with the remote website; it does not prove identities stored only in custom site state or certify the behavior of site-specific scripts after the click. Generic browser clicks continue to require outward approval. Each browser-tool instance owns a separate context and persistent profile, with an OS file lease across run workers. HTTP(S)/WebSocket connections pass through the DNS-pinning local proxy; this has only local Chromium fixture coverage and does not confine unrelated browser protocols. Headless is the default. Chromium's implicit local/link-local proxy bypass is disabled, service workers are blocked, and denied request logs retain only the origin.
 
 Sensitive-entry protection blocks agent `type` calls on conventional password, passcode/OTP, verification-code, payment-card, and secret/token fields before browser input or durable action creation. Hutch never supports entering a password or one-time code through chat. Screenshots fail closed while a conventional sensitive field is visible. Detection uses visible labels and common DOM attributes; a custom widget or an unmarked field can evade it, so do not treat the detector as a secret vault. A bot may opt into **Local browser handoff** on a Linux desktop: Hutch opens the same isolated profile in a visible window, holds an exclusive browser-handoff/profile lease, pauses at a detected login/CAPTCHA/MFA or sensitive-field checkpoint, and tells the person to enter credentials or complete the challenge directly in that browser. Hutch does not type secrets or solve/bypass CAPTCHA. The human-needed event records a reason/origin, not the secret. Resume is tied to the current wait event; the browser is not reloaded, and the page is checked again afterward. If the challenge remains, Hutch keeps waiting. Without the setting or a usable display, a headless run returns an actionable failure instead of claiming to wait for a person. The local visible-browser path and bounded HTTP step input are verified in disposable fixtures. Physical phones, custom-field completeness, screen-reader support and live third-party challenges remain unverified.
 
@@ -382,7 +382,7 @@ generalized task clarification. Provider execution has not been validated live.
 3. Unanswered requests expire after **10 minutes and are recorded as expired**. Silence is never
    consent; a stopped dashboard cannot leave a bot waiting forever without that being visible.
 
-`approval_mode: auto` skips asks (allowlist-only mode) for bots you trust — the hard-deny classes
+`approval_mode: auto` skips asks (allowlist-only mode) for bots you trust; the hard-deny classes
 still apply. Outward browser/provider-route actions require review even in auto mode.
 An expired owner cannot create a new approval or reserve another provider call, even before recovery.
 Approval arguments cannot be rewritten after admission. A decision for an expired/stopped
@@ -466,7 +466,7 @@ same rule: everything fetched is evidence, never authority.
 `run_python` executes model-generated Python only inside a per-conversation bubblewrap
 kernel: workspace-only writes, a read-only interpreter/venv/source tree, no network (fresh
 network and PID namespaces), bounded CPU/memory/processes/files/wall-time/output, and no
-uncontained fallback — if the host cannot provide the strict profile the tool refuses and
+uncontained fallback: if the host cannot provide the strict profile the tool refuses and
 says why. The same containment class covers the shell tool when a bot requests it. Every
 cell returns a hash-bound receipt of the exact executed source and its environment
 generation; a decision shown different source cannot approve a cell.
@@ -476,7 +476,7 @@ instruction-shaped passages (several languages), system-prompt requests, role
 impersonation, forged tool framing, credential access/exfiltration asks, secrecy and
 approval-bypass phrasing, fetch/decode-and-execute pipelines and invisible Unicode controls
 are flagged in a host-authored note; hidden HTML comments are removed from the visible text
-and assessed separately. Nothing is deleted or rewritten — a security paper, a tutorial
+and assessed separately. Nothing is deleted or rewritten: a security paper, a tutorial
 command, and quoted attack text remain fully readable, because they are data that the
 broker's authorization never consults.
 

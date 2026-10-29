@@ -147,7 +147,7 @@ Hutch is a personal assistant for everyday work. People begin in a conversation,
 turn a request into a specialist when useful, and review important actions in plain
 language. Model, integration, memory, and execution details are available when
 someone wants to adjust them. The design job is **helpful at first glance, dependable
-when it matters** — make the next useful step obvious without hiding what a service
+when it matters**: make the next useful step obvious without hiding what a service
 can access or what the machine has actually confirmed.
 
 **Creative North Star: "A capable companion, with the details in reach."**
@@ -191,13 +191,13 @@ can access or what the machine has actually confirmed.
 **The Measure Rule.** Reading text caps at ~72ch; anything wider is layout debt.
 **The One-Ink Rule.** Emerald fills always carry near-black ink (#052e21); white on
 emerald is forbidden (≈2.5:1).
-**The Amber Rule.** Amber appears only where a person must act now — pending
+**The Amber Rule.** Amber appears only where a person must act now: pending
 approvals, expiring deadlines under two minutes, the attention nav badge. Never as
 decoration, never on "done" or "failed".
 **The Scale Rule.** Every corner radius comes from `rounded.*`, every text size from the type scale and every
 padding or gap from the spacing scale; no ad-hoc values.
 **The Mono Rule.** Mono type is for code, commands, paths, identifiers and values the
-server measured — never for prose, labels, or marketing.
+server measured: never for prose, labels, or marketing.
 **The Edge Rule.** A control that is identified by its boundary (text field, select,
 composer) uses `edge` (≥3:1 on every surface, WCAG 1.4.11). Cards and dividers keep
 the quiet hairline; they are decoration, not identification.
@@ -207,13 +207,13 @@ on Activity. The header repeats none of them.
 
 ## Colors
 
-- **Emerald `#34d399`** (lineage through `#10b981`/`#6ee7b7`) — brand, primary
+- **Emerald `#34d399`** (lineage through `#10b981`/`#6ee7b7`): brand, primary
   buttons, live state, the mascot family. On-fill ink `#052e21` (7.7:1).
-- **Azure `#60a5fa`** — interaction only: focus rings, selection, links. It is never
+- **Azure `#60a5fa`**: interaction only: focus rings, selection, links. It is never
   a brand statement and never a status colour.
-- **Amber `#fbbf24`** — person-needed-now only (The Amber Rule).
-- **Rose `#f87171`** — failure: errors, denied outcomes, destructive actions.
-- **Neutrals** — neutral graphite: ground `#09090b` → panel `#101013` → raised
+- **Amber `#fbbf24`**: person-needed-now only (The Amber Rule).
+- **Rose `#f87171`**: failure: errors, denied outcomes, destructive actions.
+- **Neutrals**: neutral graphite: ground `#09090b` → panel `#101013` → raised
   `#17171b` (sidebar `#070709`, code wells `#060608`), text `#ededf0` / `#a3a3ae` /
   `#8e8e99`, hairlines `rgba(255,255,255,0.07/0.12/0.22)` and the control `edge`
   `rgba(255,255,255,0.38)`. Every text token is ≥5.0:1 on every workspace surface
@@ -248,7 +248,7 @@ on Activity. The header repeats none of them.
   to its icon on a narrow screen. Enforced by
   `tests/e2e/test_type_and_spacing_scale.py`.
 - **Wordmark:** 1.125rem/1 weight 650, tight tracking.
-- **Mono:** commands, paths, code, ids, durations, tokens, budgets — tabular
+- **Mono:** commands, paths, code, ids, durations, tokens, budgets, tabular
   numerals, ligatures disabled. Prose never uses mono (The Mono Rule).
 - **Shared voice:** one family across app, supporting pages and marketing site, so the
   product feels related; hierarchy comes from weight, size and tracking, not from a
@@ -327,49 +327,49 @@ on Activity. The header repeats none of them.
 - `--sh-1` (panels): top hairline + `0 2px 8px rgba(0,0,0,.5)`.
 - `--sh-2` (composer/bubbles): `0 10px 28px rgba(0,0,0,.55)`.
 - `--sh-pop` (modals/popovers): `0 24px 64px rgba(0,0,0,.7)`.
-- Every elevation pairs an offset+blur shadow with a 1px top hairline — a
+- Every elevation pairs an offset+blur shadow with a 1px top hairline: a
   zero-offset coloured halo is decoration and is not used as depth.
 - Elevation is never the only state signal; colour and text carry meaning.
 
 ## Shapes
 
-One rounded scale, applied honestly — this replaced an earlier all-square
+One rounded scale, applied honestly. This replaced an earlier all-square
 language after explicit user direction ("right angles feel too off"). Five steps,
 chosen by the role of the shape and not by taste:
 
-- **`rounded.micro` 4px** — keycaps, inline code and the user bubble's tail corner.
-- **`rounded.control` 8px** — buttons, text fields, selects, icon buttons, filter
+- **`rounded.micro` 4px**: keycaps, inline code and the user bubble's tail corner.
+- **`rounded.control` 8px**: buttons, text fields, selects, icon buttons, filter
   pills, navigation rows up to ~40px, icon tiles, and blocks nested inside a panel
   (tool output, command previews).
-- **`rounded.panel` 12px** — cards, menus, popovers, modals, the command palette,
+- **`rounded.panel` 12px**: cards, menus, popovers, modals, the command palette,
   toasts, table wrappers, code blocks, approval cards, and rows from ~48px (the
   roster, run and chat-library rows).
-- **`rounded.chat` 20px** — conversation bubbles and the composer box.
-- **`rounded.chip` 100px** — status chips, badges, counts, the model pill, round
+- **`rounded.chat` 20px**: conversation bubbles and the composer box.
+- **`rounded.chip` 100px**: status chips, badges, counts, the model pill, round
   header buttons, jump-to-latest, meter tracks. Perfect circles (avatars, status
   dots, spinner) use `50%`.
 - **Nesting steps down, never up.** A shape inside another uses the same step or the
   next one down (chat → panel → control → micro) so inner and outer corners stay
   concentric; a control never has a larger radius than the panel that holds it.
 - Mascot identity shapes (sigils and faces) are artwork and may be any
-  silhouette — they are not containers.
+  silhouette; they are not containers.
 - Enforced by `tests/e2e/test_radius_scale.py`, which fails with the selector of
   any painted corner or stylesheet literal that is off the scale.
 
 ## Components
 
-- **Primary button** — emerald fill, `primary-ink` text, 8px radius, 40px tall;
+- **Primary button**: emerald fill, `primary-ink` text, 8px radius, 40px tall;
   hover lifts to `#6ee7b7`; ghost variant is transparent with a hairline border;
   danger is a rose outline. Icon buttons are 32px squares at the same 8px radius.
-  The composer's send and utility actions follow these exact proportions — the
+  The composer's send and utility actions follow these exact proportions: the
   composer owns no private button shape (user direction, 2026-10-23: the earlier
   circular send/`+` exception was removed as inconsistent with the control scale).
-- **Controls** — routine buttons are at least 40px tall, compact desktop actions
+- **Controls**: routine buttons are at least 40px tall, compact desktop actions
   are 32px with 14px labels, and coarse-pointer actions are 44px; form fields and
   selects are 44px with 16px text so phone browsers do not zoom. Native selects
   open dark surfaces with legible options, and every label, help line, and
   control uses the shared type roles rather than one-off sizes.
-- **Dropdown family** — use shared `controls.css`/`controls.js`, not a local
+- **Dropdown family**: use shared `controls.css`/`controls.js`, not a local
   lookalike. Actions are menus with roving focus; selected values are native
   selects or searchable pickers; panels containing fields use normal form Tab
   order, not menu semantics. Native form selects progressively adopt a styled
@@ -386,14 +386,14 @@ chosen by the role of the shape and not by taste:
   with viewport-aware placement and bounded internal scrolling. An inline
   disclosure, FAQ or navigation list is not an ARIA menu. Research, user approval
   and validation scope: [dropdown standardization](docs/research/dropdown-standardization-2026-10-23.md).
-- **Status chip** — pill, 12px, dot + word always together (`● working`,
+- **Status chip**: pill, 12px, dot + word always together (`● working`,
   `● needs you`, `✕ failed`); colour never carries state alone. Inside a turn header
   it drops the pill and reads as a quiet word with a dot.
-- **Avatar state** — the face is the status: eyes scan while working, look out and
+- **Avatar state**: the face is the status: eyes scan while working, look out and
   widen while waiting for a person, droop when blocked, close when paused. Motion is
   compositor-only, gated on reduced motion and Reduce effects; static states (asleep,
   worried) still read without motion, and a pip carries the state's colour.
-- **App avatar/sigil** — one flat silhouette from a varied, curated set in one of
+- **App avatar/sigil**: one flat silhouette from a varied, curated set in one of
   eight identity colours with two balanced, near-round ink eyes drawn directly
   on the colour. Every silhouette has a face-safe zone that determines the eye
   centers, spacing, proportions, height, and slight inward tilt. Pointed heads
@@ -403,10 +403,10 @@ chosen by the role of the shape and not by taste:
   at creation and in settings. Identity colours are decorative only, never status;
   the separate state pip sits beside it with its word. The marketing site's 3D art
   is a separate, larger brand illustration.
-- **Identity picker** — colour and shape options use 44px touch targets. On phone
+- **Identity picker**: colour and shape options use 44px touch targets. On phone
   widths, each eight-option row becomes a balanced four-by-two grid; the colour
   remains a 26px swatch inside its larger button.
-- **Bot roster** — a row is a 40px avatar, the name on one line, and a one-line status
+- **Bot roster**: a row is a 40px avatar, the name on one line, and a one-line status
   or role, with soft fills for hover and selection (a thin brand marker on the current
   row) instead of outlines. The workspace coordinator is the home card: a 44px avatar in
   a bordered tile at the top of the list. One always-visible, low-emphasis options button
@@ -416,7 +416,7 @@ chosen by the role of the shape and not by taste:
   group in workspaces with ten or more Bots. Once something is pinned, the group
   below it gets its own **All assistants** heading so the gap reads as a division. The roster filter hides
   until a first assistant exists.
-- **Model picker** — a pill beside the composer actions shows the mark and name of the
+- **Model picker**: a pill beside the composer actions shows the mark and name of the
   model in use (brand tint when it is a one-message override). Every model wears a
   **vendor mark**: bundled artwork where a maker's brand rules allow it (OpenAI,
   Anthropic), otherwise a monogram of the model family on a tile whose hue comes from
@@ -433,12 +433,12 @@ chosen by the role of the shape and not by taste:
   on pointer devices, shows a **Recent** group first, offers **All / Ready now / On this
   machine / Hosted** filters, and takes the up and down arrows to move the choice and Enter
   to use it without leaving the search field; each route is one radio, never repeated.
-- **Fleet card** — lead with the assistant's name, readiness, plain-language role,
+- **Fleet card**: lead with the assistant's name, readiness, plain-language role,
   run cadence and action expectation. Keep provider/model identifiers, exact
   schedule, run recency, estimated tokens and memory counts together under one
   **More details** disclosure. Do not repeat machine-oriented telemetry on every
   card by default; pause/resume and settings remain together in the card menu.
-- **Assistant settings** — seven panes behind a section rail: **Profile** (name,
+- **Assistant settings**: seven panes behind a section rail: **Profile** (name,
   look, role), **Behavior** (standing directions, response style, specialists),
   **AI model**, **Tools and access**, **Schedule**, **Safety** (approvals,
   command rules, always-allowed actions) and **Limits and memory**. The rail is an
@@ -451,28 +451,28 @@ chosen by the role of the shape and not by taste:
   and a line saying what it holds, then ordinary panels. The 1040px rail and
   panel-width-responsive fields still apply; range inheritance and its
   slider/value occupy separate rows.
-- **Chat and assistant options** — a popover of four labelled groups, each naming
+- **Chat and assistant options**: a popover of four labelled groups, each naming
   what it acts on: **This chat** (rename, pin, mark unread, section, and under More
   the export, reusable-request and archive actions), **Workflow** (the per-chat
   mode as a labelled row with its explanation), **This assistant** (response
   style, assistant settings) and **Go to** (main chat, conversation history).
   Settings never hide among conversation actions, and a select is never a card
   inside a menu.
-- **Needs-you reminder** — the strip under the header states the count once; its action wears the amber
+- **Needs-you reminder**: the strip under the header states the count once; its action wears the amber
   wash and outline because a person is needed now, not the neutral ghost outline of other secondary actions.
-- **Settings disclosure row** — every collapsible settings row uses the shared
+- **Settings disclosure row**: every collapsible settings row uses the shared
   skeleton: one grid of icon slot, copy, and trailing Show/Hide action, in a
   large panel-level size and a small in-panel size. Borders and fills belong to
   the surface, never the row. Never nest one disclosure inside another: a
   separate connection with its own sign-in is a peer of the access it relates
   to and sits at the same depth. The action word carries state; the chevron is
   decoration.
-- **Template gallery** — keep reusable-helper examples collapsed below the
+- **Template gallery**: keep reusable-helper examples collapsed below the
   direct message path. Label that opening an example enters setup and does not
   start work. Use compact rows with a small, shape-aware 2D assistant identity;
   prioritize everyday jobs with short result names and keep storage IDs such as
   `repo-sweeper` out of visible titles.
-- **First-run request and AI readiness** — a left-aligned hero (mascot beside the
+- **First-run request and AI readiness**: a left-aligned hero (mascot beside the
   eyebrow, headline and one line of copy), the request card (inset field, starter
   chips, primary action with its "Nothing runs until you ask." line), and a rail with
   the AI-service panel and a short "How Hutch works" list whose last row shows the
@@ -487,14 +487,14 @@ chosen by the role of the shape and not by taste:
   successful assistant creation or that explicit action. Announce readiness
   changes in one polite status region without moving focus, and reserve stable
   space so late checks do not push the primary action.
-- **Composer** — 20px rounded box (`rounded.chat`, shared with bubbles) with an `edge`
+- **Composer**: 20px rounded box (`rounded.chat`, shared with bubbles) with an `edge`
   border, 17px textarea in a full-width writing area above a toolbar: 34px `+`
   utility left; skills, model trigger and 38px emerald send (rose outlined stop)
   right. A quiet keyboard hint sits under it on pointer devices. The `+` popover holds only real
   capabilities (suggestions, rehearsal, Enter-behaviour, live budget).
   Attachment chips are 8px rows with real thumbnails; only genuine status
   badges keep the pill radius.
-- **Gate (approval card)** — a bordered card with an amber wash (rose for high risk)
+- **Gate (approval card)**: a bordered card with an amber wash (rose for high risk)
   while pending: kicker + assistant + honest countdown, the plain-language action
   (commands in a mono well), the reason, the **exact content up front** (a file
   write shows its path, "New file / Replaces an existing file" and a clipped preview),
@@ -502,7 +502,7 @@ chosen by the role of the shape and not by taste:
   disclosure, then Allow once (primary), Always allow (only when the server offers
   it) and Deny. There is no single-key approve shortcut: approval is always a focused
   button. Once decided it flattens to one ledger row on the thread.
-- **Thread and steps** — a turn is avatar → spine → steps → answer. A "Worked for 14s ·
+- **Thread and steps**: a turn is avatar → spine → steps → answer. A "Worked for 14s ·
   5 steps" row (elapsed time minus recorded waits for a person, which it names) opens
   the steps; each step is a quiet row (tool icon with a state badge, plain-language
   title, mono subject, exit code, measured duration) that opens into a card showing the
@@ -510,26 +510,26 @@ chosen by the role of the shape and not by taste:
   table, raw JSON on request) and the full output with Copy. Errors and waits carry a
   word, not only a colour. When output was truncated the step carries a `source` flag
   and a source card linking the saved artifact.
-- **Chat bubbles** — your message is a soft 20px bubble (one corner at 4px) on a
+- **Chat bubbles**: your message is a soft 20px bubble (one corner at 4px) on a
   graphite gradient with an inset highlight; very long requests clamp to ~14 lines
   with Show more. Time and the secondary "Make a bot" action share one meta row (the
   action appears on hover/focus, always on touch). The assistant's answer is not a
   bubble: it is Markdown text on the thread, 16px/1.7, ≤70ch.
-- **Answer text** — rendered by the in-house escape-first Markdown subset
+- **Answer text**: rendered by the in-house escape-first Markdown subset
   (`static/markdown.js`): paragraphs, headings (h2–h4 under the page h1), lists,
   tasks, tables, quotes, rules, links (http/https/mailto only; images are never
   fetched) and fenced code with a language label and Copy.
-- **Welcome** — avatar, name and role, "What would you like to work on?", honest
+- **Welcome**: avatar, name and role, "What would you like to work on?", honest
   trust chips (how it asks before acting, which tools it can use) and up to four
   starting points offered only for tools the assistant has. A starting point fills the
   composer; it never sends.
-- **KPI strip** — one bordered row of four measurements, mono, compact.
-- **Header** — one row: avatar (state-bearing), name and role; the conversation picker
+- **KPI strip**: one bordered row of four measurements, mono, compact.
+- **Header**: one row: avatar (state-bearing), name and role; the conversation picker
   as a title chip (a customizable-select `<button><selectedcontent>` so long titles
   truncate), search, a menu, and Review/Stop only while actionable. A quiet "N working"
   link appears only while something runs. Needs-you lives in the reminder strip (in
   flow under the header, never over content) and the nav badge, not in the header.
-- **Activity and task review** — show only sections that contain active work.
+- **Activity and task review**: show only sections that contain active work.
   Use one clear-state with chat/history links when all sections are empty. Keep
   usage, timing, machine references, and transcript checks in optional details;
   do not repeat a run ID in the visible conversation header.
@@ -539,7 +539,7 @@ chosen by the role of the shape and not by taste:
 **Do**
 - Take every radius from `rounded.*`; keep the pill only for chips and round buttons.
 - Pair every icon with a word for state; give every control a visible focus ring.
-- Use mono for code, commands, paths and machine-measured values — not prose.
+- Use mono for code, commands, paths and machine-measured values, not prose.
 - Give every control an accessible name that contains its visible text (WCAG 2.5.3).
 - Show real server state: if the API cannot confirm it, say "unknown".
 - Keep motion short, functional and state-linked; honour reduced motion and the

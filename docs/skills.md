@@ -1,7 +1,7 @@
 # Skills
 
-A **skill** is a reusable instruction package: a directory containing `SKILL.md` — YAML frontmatter
-(`name`, `description`, and optional fields) plus Markdown instructions — following the
+A **skill** is a reusable instruction package: a directory containing `SKILL.md`: YAML frontmatter
+(`name`, `description`, and optional fields) plus Markdown instructions, following the
 [Agent Skills specification](https://agentskills.io/specification). Skills carry *knowledge and
 procedure*, not authority. They cannot add tools, accounts, budgets, or approval overrides; every
 action a skill's text suggests still goes through the Bot's policy, approvals, and sandbox.
@@ -25,27 +25,27 @@ discover/import → validate → review/trust → install/version → assign to 
 → inspect → update/rollback → disable/uninstall
 ```
 
-* **Discover** — Hutch scans deliberately selected locations (below). Discovered packages are
+* **Discover**: Hutch scans deliberately selected locations (below). Discovered packages are
   candidates; they are never loaded automatically. Invalid packages stay visible with the exact
   reason instead of disappearing.
-* **Import** — copy a local folder, or install a bundled sample. Imports are inert until reviewed.
-* **Validate** — the parser is lenient about cosmetics (name/directory mismatch, oversized
+* **Import**: copy a local folder, or install a bundled sample. Imports are inert until reviewed.
+* **Validate**: the parser is lenient about cosmetics (name/directory mismatch, oversized
   description) and strict about identity (no safe `name`, no `description`, unparseable YAML,
   duplicate keys, oversized body). Every finding is a diagnostic with a level.
-* **Review/trust** — the operator sees provenance, license, hash, resources, declared
+* **Review/trust**: the operator sees provenance, license, hash, resources, declared
   prerequisites, the full instructions, and every diagnostic, then trusts that exact hash.
-* **Assign** — a Bot may reference up to 20 installed, trusted skills. The reference is saved in
+* **Assign**: a Bot may reference up to 20 installed, trusted skills. The reference is saved in
   the Bot document; the runtime re-checks trust, enablement, and the package hash at every run
   start.
-* **Activate** — an operator can activate assigned skills for one run from the composer (or
+* **Activate**: an operator can activate assigned skills for one run from the composer (or
   `hutch run --skill`, or the `skills` field of the run API). The model can also load an assigned
   skill on demand with the `use_skill` tool.
-* **Update** — `update` stages a new version from the skill's recorded source. The reviewed
+* **Update**: `update` stages a new version from the skill's recorded source. The reviewed
   version stays active and keeps running until the operator applies the update; the inspector shows
   the staged instructions so "review the update" is literal. Applying re-reads and re-hashes the
   staged bytes and refuses if they changed after staging. `discard` drops the staged version;
   `rollback` restores the previous retained version (the last 3 are kept).
-* **Disable/uninstall** — disabling stops future disclosure and activation immediately, even
+* **Disable/uninstall**: disabling stops future disclosure and activation immediately, even
   though earlier instructions may remain in an old transcript. Uninstalling removes the files;
   Bots that reference it show a visible "not installed" readiness reason rather than failing
   silently.
@@ -53,7 +53,7 @@ discover/import → validate → review/trust → install/version → assign to 
 A package that changes on disk after review is detected by full hash at the enforcement points:
 run start, `use_skill` body/resource loads, trust, recheck, and the inspector (which always reads
 the bytes it shows). The compact library card uses a cheap file-count/size/mtime signature and may
-briefly keep showing the previous state for an edit that preserves all three — the run path still
+briefly keep showing the previous state for an edit that preserves all three: the run path still
 withholds it. A trusted package whose bytes changed is withheld from runs and reported as
 **Changed on disk** until the operator re-reviews it; `recheck` never re-trusts content on its own.
 
@@ -75,12 +75,12 @@ skills are installed there; it is read, never written.
 
 ## What the model sees (progressive disclosure)
 
-1. **Catalog** — assigned, trusted, enabled skills are listed by name and description in the
+1. **Catalog**: assigned, trusted, enabled skills are listed by name and description in the
    system prompt (~50–100 tokens each). Nothing else is loaded.
-2. **Instructions** — a skill's full body is loaded either because the operator activated it for
+2. **Instructions**: a skill's full body is loaded either because the operator activated it for
    the run (frozen into the run's system prompt) or because the model called
    `use_skill(name)` (returned as a tool result with an untrusted-content label and a hash).
-3. **Resources** — bundled files are listed, not read. `use_skill(name, resource="…")` reads one
+3. **Resources**: bundled files are listed, not read. `use_skill(name, resource="…")` reads one
    file, confined to the skill directory, capped at 64 KiB, UTF-8 only, and hash-verified against
    the run's resolved package so a file changed mid-run is never served.
 
@@ -97,8 +97,8 @@ the system prompt states that skills cannot grant tools, accounts, budgets, or a
 
 ## Readiness
 
-`GET /api/v1/bots/{ref}/readiness` (also shown in each Bot's Skills panel) reports separate areas —
-runtime, model, tools, skills, connections — with a status per item. `missing` blocks the
+`GET /api/v1/bots/{ref}/readiness` (also shown in each Bot's Skills panel) reports separate areas:
+runtime, model, tools, skills, connections, with a status per item. `missing` blocks the
 configured workflow; `warning` is a visible, explained capability loss that does not block the
 rest. Readiness never calls a provider.
 

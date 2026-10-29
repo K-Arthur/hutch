@@ -27,7 +27,7 @@ Failure-class motivation for each decision: [research/document-pipeline-failures
 
 | Capability | State | Limit stated to users |
 |---|---|---|
-| Scoped revision of a document hutch generated | implemented — `revise_document` compares-and-swaps on the expected version; the stored source specification grounds edits (2026-10-11) | true scoped edits on the stored typed source; unrelated content preserved byte-for-byte where the format allows |
+| Scoped revision of a document hutch generated | implemented: `revise_document` compares-and-swaps on the expected version; the stored source specification grounds edits (2026-10-11) | true scoped edits on the stored typed source; unrelated content preserved byte-for-byte where the format allows |
 | Revision of an imported arbitrary DOCX/PPTX | unsupported v1 | disclosed as reconstruction, never silently rewritten (E7) |
 | Layout-accurate office preview (DOCX/XLSX/PPTX → page images) | implemented-unverified on this host | requires operator-installed LibreOffice (`soffice`); per-job profile, hard timeout, owned process group (E10); preview is an approximate render either way |
 | PDF-to-editable conversion | unsupported | would be reconstruction; not offered |
@@ -54,10 +54,10 @@ pretending a preview exists.
 
 ## Verification log (updated as evidence lands)
 
-- 2026-10-10 — stack smoke on this host: WeasyPrint→PDF (selectable text), pypdfium2 page render,
+- 2026-10-10: stack smoke on this host: WeasyPrint→PDF (selectable text), pypdfium2 page render,
   pypdf reopen, python-docx roundtrip, XlsxWriter cached formula read back as the true value by
   openpyxl, python-pptx roundtrip. See `uv.lock` pins; evidence rows E15.
-- 2026-10-11 — creation formats verified on this host: 60 generator/validator/store/API tests plus
+- 2026-10-11: creation formats verified on this host: 60 generator/validator/store/API tests plus
   64 pipeline/revision tests green (`tests/test_docgen_*.py`, `tests/test_documents_*.py`); a real
   browser journey downloaded byte-identical files and labelled previews
   (`tests/e2e/test_documents.py`, Chromium 153); the acceptance report (6 pages, headed sections,
@@ -65,10 +65,10 @@ pretending a preview exists.
   missing glyphs or blank pages, and the workbook's SUM formulas were recomputed against the cached
   values at validation time. Evidence: `docs/realignment/artifacts/document-pipeline-2026-10-11/`
   (documents, page renders, three-viewport UI captures with overflow 0, validation.json).
-- 2026-10-11 — completion check found the ZIP bundle generator missing while the matrix
+- 2026-10-11: completion check found the ZIP bundle generator missing while the matrix
   already claimed it; implemented (`docgen/bundle.py`: manifest audit, CRC re-open, path
   safety, 512-entry/64 MB bounds) and gated by `tests/test_docgen_bundle.py`, then an
   end-to-end tool smoke. Logged here because the claim briefly ran ahead of the code.
-- 2026-10-11 — still implemented-unverified on this host: LibreOffice layout rendering for office
+- 2026-10-11: still implemented-unverified on this host: LibreOffice layout rendering for office
   formats (`soffice` absent; the path is skipif-gated in `tests/test_docgen_render.py`), and all
   Word/Excel/PowerPoint desktop-compatibility, physical-phone and screen-reader checks (not exercised).

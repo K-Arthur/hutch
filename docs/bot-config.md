@@ -77,13 +77,13 @@ response is marked `Cache-Control: no-store`.
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
-| `name` | slug | — | lowercase `[a-z0-9-]`, unique; names the workspace dir too |
+| `name` | slug | none | lowercase `[a-z0-9-]`, unique; names the workspace dir too |
 | `description` | str | "" | one-liner shown in dashboards |
 | `instructions` | str | "" | standing system-prompt guidance, prepended every run |
 | `persona_profile_version` | int | current version | version of the saved response-style profile; unversioned legacy profiles are read as version 1, while invalid/future profiles are isolated to that bot |
 | `persona_override` | sparse object | inherited | owner's saved wording preferences for this bot; see [response style](architecture.md#response-style-persona). It never grants tools or changes task, safety, evidence or output requirements |
 | `model` | provider/model | none | choose a configured real route before creating or running a bot |
-| `preset` | task profile? | null | optional configured focus (`router`, `research`, `extraction`, `coding`, `planner`, or `vision`); tunes local context/residency without selecting a model or provider. The vision focus does not enable image input — staged composer attachments do, decided per route at send time and refused with a reason when the route or runtime cannot accept images (see [composer standardization](research/composer-standardization-2026-10-23.md)) |
+| `preset` | task profile? | null | optional configured focus (`router`, `research`, `extraction`, `coding`, `planner`, or `vision`); tunes local context/residency without selecting a model or provider. The vision focus does not enable image input: staged composer attachments do, decided per route at send time and refused with a reason when the route or runtime cannot accept images (see [composer standardization](research/composer-standardization-2026-10-23.md)) |
 | `inference_mode` | enum | `hybrid` | `hybrid` permits local and hosted routes; `local` restricts model routes to classified local providers while tools may still use the network; experimental `offline` requires fresh host-verified Linux network/PID namespaces, loopback model routes through Hutch's private Unix-socket broker, and strict shell containment when shell is enabled. |
 | `base_url` | str? | null | override endpoint for OpenAI-compatible providers |
 | `runtime` | enum | `builtin` | `builtin`; legacy values `mock`, `pi` and `opencode` are retained for migration but fail closed as unsupported |
@@ -151,7 +151,7 @@ Two bots may share a folder; Hutch does not coordinate between them. **Rehearse*
 openai/gpt-4o-mini        OpenAI API (needs OPENAI_API_KEY)
 ollama/llama3.2           local Ollama  (http://localhost:11434/v1)
 lmstudio/qwen2.5-7b       local LM Studio (http://localhost:1234/v1)
-openai-compatible/<name>  any endpoint — set bot.base_url or HUTCH_BASE_URL. Its key is HUTCH_API_KEY (or a connection);
+openai-compatible/<name>  any endpoint: set bot.base_url or HUTCH_BASE_URL. Its key is HUTCH_API_KEY (or a connection);
                            OPENAI_API_KEY is only ever sent to api.openai.com
 ```
 
@@ -263,9 +263,9 @@ hutch bot update local-worker --inference-mode offline --sandbox strict --tools 
   compatibility with existing bots by using their standing `instructions` (or the generic report
   task when instructions are empty).
 - `catch_up`:
-  - `coalesce` *(default)* — if windows were missed (asleep machine, daemon down), run once and
+  - `coalesce` *(default)*: if windows were missed (asleep machine, daemon down), run once and
     tag the run `missed_windows=N`
-- `skip` — only run if the newest window is < 30 min old; otherwise record a visible skip
+- `skip`: only run if the newest window is < 30 min old; otherwise record a visible skip
 
 Manage streams without replacing their siblings:
 
@@ -388,14 +388,14 @@ hutch bot forget data-brief   # archive all facts; revoke sticky allows; history
 
 Available from `hutch bot templates` (`src/hutch/templates.py`); `hutch init` creates no bots:
 
-- **personal-assistant** — everyday requests, plans and review-ready drafts
-- **day-planner** — tasks and constraints → a realistic prioritized plan
-- **inbox-followups** — exported messages → commitments and review-ready reply drafts
-- **research-decisions** — a decision question → a sourced `decision-brief.md`
-- **project-coordinator** — project notes and git history → `project-status.md`
-- **meeting-followthrough** — meeting notes → `actions.md`
-- **document-workbench** — notes and data → a finished DOCX or Markdown document
-- **data-brief** — CSV/Excel → a checkable `data-brief.md`
+- **personal-assistant**: everyday requests, plans and review-ready drafts
+- **day-planner**: tasks and constraints → a realistic prioritized plan
+- **inbox-followups**: exported messages → commitments and review-ready reply drafts
+- **research-decisions**: a decision question → a sourced `decision-brief.md`
+- **project-coordinator**: project notes and git history → `project-status.md`
+- **meeting-followthrough**: meeting notes → `actions.md`
+- **document-workbench**: notes and data → a finished DOCX or Markdown document
+- **data-brief**: CSV/Excel → a checkable `data-brief.md`
 
 See [templates](templates.md) for inputs, outputs and tool boundaries. No template starts with a schedule.
 

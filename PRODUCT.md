@@ -90,9 +90,9 @@ state-linked, and respectful of reduced-motion and forced-colors settings.
 
 - `docs/design-system.md` (token values, complaint traceability), `docs/research/`
   (verified reference map: Grok Bot design article + changelog, Open WebUI #31656 closed,
-  #30055 and #27187 open — focus restoration, hidden pending input, eager history transfer),
+  #30055 and #27187 open: focus restoration, hidden pending input, eager history transfer),
   `docs/performance.md` baselines, Playwright e2e in `tests/e2e/`.
-- Before/after captures in `/tmp/opencode/shots/` — the "after" set was rejected by the
+- Before/after captures in `/tmp/opencode/shots/`: the "after" set was rejected by the
   user as amateurish and ugly. The incumbent skin is anti-reference for this work.
 - No real customer data or live provider keys are used for visual QA. Use the isolated test
   server and clearly labelled synthetic lifecycle fixtures only for states that are difficult

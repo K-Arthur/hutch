@@ -6,9 +6,9 @@ commits can cite them. Evidence for the *why* is in
 [research/offerings-and-failures.md](research/offerings-and-failures.md) and the
 [Grok Bot product review](research/grok-bot-product-review-2026-10-09.md).
 
-**Status key:** `done` — implemented and covered by a test or a recorded measurement ·
-`partial` — implemented with a stated gap · `later` — scheduled after v0.1 per the draft ·
-`planned` — not yet built.
+**Status key:** `done`: implemented and covered by a test or a recorded measurement ·
+`partial`: implemented with a stated gap · `later`: scheduled after v0.1 per the draft ·
+`planned`: not yet built.
 
 > Performance numbers in the draft are *proposed targets*. Measured values live in
 > [performance.md](performance.md) and the committed `benchmarks/baseline.json`.
@@ -53,7 +53,7 @@ The OpenCode coding handoff now includes `hutch code login`, which uses the inst
 | LM-4 | Hardware probe: RAM, GPU memory, Apple Silicon, installed runtimes | MVP | done | `hardware.probe`: RAM, GPU memory, Apple Silicon, installed runtimes |
 | LM-5 | Models page: fits / tight / won't fit + actual context | MVP | done | `/models` page and `hutch models list`; [models.md](models.md) |
 | LM-6 | Models are scheduled resources; batching; cold load is a visible state | MVP | done | `slots.py` (batching, slot gate, fairness, visible wait reason); cold load is the `loading_model` state. Swap latency measurable with `hutch models swap-test`; not yet measured on real models |
-| LM-7 | Task presets: router, research, extraction, coding, planner, vision | MVP | partial | New Bot advanced setup and Bot model settings persist an optional focus; the built-in local runtime uses it for context sizing/residency. `/models` and `hutch models presets` resolve machine-specific candidates. The focus never silently selects a model/provider; the vision focus tunes context only. Chat image input shipped separately (2026-10-23): staged PNG/JPEG/WebP travel with a message on routes that accept images, refused with a reason elsewhere — see [composer standardization](research/composer-standardization-2026-10-23.md). Automatic candidate application and real-model profiling remain open. See `tests/test_api.py::test_task_focus_presets_are_real_bot_settings_with_safe_validation` and responsive creation/settings coverage in `tests/e2e/test_browser.py`. |
+| LM-7 | Task presets: router, research, extraction, coding, planner, vision | MVP | partial | New Bot advanced setup and Bot model settings persist an optional focus; the built-in local runtime uses it for context sizing/residency. `/models` and `hutch models presets` resolve machine-specific candidates. The focus never silently selects a model/provider; the vision focus tunes context only. Chat image input shipped separately (2026-10-23): staged PNG/JPEG/WebP travel with a message on routes that accept images, refused with a reason elsewhere; see [composer standardization](research/composer-standardization-2026-10-23.md). Automatic candidate application and real-model profiling remain open. See `tests/test_api.py::test_task_focus_presets_are_real_bot_settings_with_safe_validation` and responsive creation/settings coverage in `tests/e2e/test_browser.py`. |
 | LM-8 | Different presets for planner/executor/summarizer roles | Later | later | |
 | LM-9 | One-step escalation on malformed calls / loop / overflow, within spend cap | MVP | partial | `runtime/ladder.py`: one-rung escalation uses the price-based estimate admission guard. Provider billing can differ; exact external dollar ceiling is unavailable |
 | LM-10 | Review new hosted billing/destination authority | MVP | done with fixtures | Local or hosted primaries ask before a configured fallback/escalation changes account, destination, protocol or revision. Generic sticky grants cannot bypass this. The primary model selected in chat is explicit for that message; it does not authorize another service. |
@@ -110,23 +110,23 @@ The OpenCode coding handoff now includes `hutch code login`, which uses the inst
 |---|---|---|---|---|---|
 | PF-1 | Byte-identical system prompt + tool list across a run | cached-token share per run | MVP | done | frozen prompt prefix hash recorded on every step (`tests/test_runtime_builtin.py`) |
 | PF-2 | Per-tool output limit and downloadable generated files | configurable per tool | MVP | done | clipped tool output and successful `write_file` contents are immutable run-scoped artifacts with a typed API listing and SHA-256-verified download; each is capped at 4 MB and aggregate snapshots at 16 MB per run, excluding arbitrary shell-created files (`runtime/steps.py`, `/api/v1/tasks/runs/{id}/artifacts`) |
-| PF-3 | Prompt includes only the bot's allowed tools | — | MVP | done | only the bot's allowed tools reach the prompt (`tests/test_runtime_builtin.py`) |
+| PF-3 | Prompt includes only the bot's allowed tools | none | MVP | done | only the bot's allowed tools reach the prompt (`tests/test_runtime_builtin.py`) |
 | PF-4 | Compaction before the context limit | ~75% of context | Later | later | |
 | PF-5 | Scheduler sleeps until next due run or event; no polling | near-zero idle CPU | MVP | done | `engine.run_loop`/`next_wakeup`, `wake.py`; `tests/test_engine_loop.py`; 0.0 s/h idle CPU |
 | PF-6 | Playwright and provider SDKs imported lazily | CLI status < 300 ms | MVP | done | lazy `httpx`/provider imports; `hutch status` 275 ms (was 820 ms for `version`) |
 | PF-7 | SQLite WAL, one writer, batched event inserts, run+seq index | 1,000 events/s | MVP | done | `store.py` writer thread + WAL; ~52k events/s; `tests/test_store_events.py` |
 | PF-8 | Browser launches on first use, closes when idle | idle close 5 min | MVP | planned | |
 | PF-9 | Coalesced live updates, paginated transcripts | usable at 10,000 events | MVP | done | the run page renders the last 200 events and paginates; a 10,000-event run is tested (`tests/test_dashboard.py`) |
-| PF-10 | Small router model stays loaded | — | Later | later | |
+| PF-10 | Small router model stays loaded | none | Later | later | |
 | PF-11 | Per-step timing: model wait, tool time, Hutch overhead | overhead < 50 ms/step | MVP | done | `runtime/steps.py`; source-only test scenario measurement; not production inference latency |
-| PF-12 | Benchmark suite in CI; fails on 20% regression | — | MVP | done | `benchmarks/run.py`, `baselines/local.json`, `.github/workflows/ci.yml` (CI not yet run remotely) |
+| PF-12 | Benchmark suite in CI; fails on 20% regression | none | MVP | done | `benchmarks/run.py`, `baselines/local.json`, `.github/workflows/ci.yml` (CI not yet run remotely) |
 | PF-13 | Idle daemon small | < 150 MB resident | MVP | done | 39 MB daemon / 56 MB serve idle |
 
 ## Build order and gates
 
 | # | Phase | IDs | Gate | Gate status |
 |---|---|---|---|---|
-| 1 | Engine baseline | PF-5, PF-6, PF-7, PF-11, PF-12, PF-13 | tests pass offline; benchmarks record a baseline | **passed** — 101 tests offline; baseline in `benchmarks/baselines/local.json` |
+| 1 | Engine baseline | PF-5, PF-6, PF-7, PF-11, PF-12, PF-13 | tests pass offline; benchmarks record a baseline | **passed**: 101 tests offline; baseline in `benchmarks/baselines/local.json` |
 | 2 | Run view and control | UI-1…6, UI-12, SR-7 | ten concurrent runs stream, connection cut, transcript resumes with no missing events | **passed** - `tests/test_sse_resume.py` (10 runs x 2 real cuts, real sockets) and `tests/e2e` (Chromium, TCP cut, DOM verified) |
 | 3 | Local model layer | LM-1…6, SR-1, SR-14 | self-check passes; swap latency measured for two model pairs | **built and tested; gate not met** - self-check and swap measurement pass against scripted servers (`tests/test_slots.py`, `tests/test_models_layer.py`); no real local models on the dev machine, so swap latency for two real pairs is **not measured** |
 | 4 | Reliability harness | LM-11, LM-13, SR-5 | ≥ 3 models profiled on the dev machine | **harness built and tested; gate not met** - three scripted models (good / needs repair / never calls tools) are ranked correctly in `tests/test_reliability.py`; **no real models were profiled** because the dev machine has ~3 GiB free and no Ollama. Run `hutch models bench <model>` on a real machine to meet it |
@@ -201,10 +201,10 @@ chat, shared memory between bots, a vector database, multi-user accounts, and a 
 
 ## Open questions from the draft
 
-- [ ] Does the current code match the finalized plan's layout? — *Reviewed 2026-10-07: yes, the v0.1 tree matches the plan; differences are listed in [architecture.md](architecture.md).*
-- [x] Main development machine — AMD Ryzen 3 5300U (4C/8T), 22 GiB RAM, integrated Radeon (no ROCm/CUDA), Linux. Sets the CPU-only preset tier.
-- [ ] Embedding model, if any — not needed; no vector memory in scope.
-- [ ] Vision model for the browser tool vs DOM control — DOM control kept; vision preset exists but is optional.
-- [ ] Performance targets realistic? — answered by the recorded baseline in [performance.md](performance.md).
-- [x] Is "Hutch" free on PyPI? — checked during the rename (see [research/naming.md](research/naming.md)).
-- [ ] **Hosted SaaS vs self-hosted** — the product *shape* mirrors Dots / Grok Bot, but this release is self-hosted and single-user per the draft's out-of-scope list. A hosted multi-tenant offering needs accounts, billing, isolation and a different threat model; it is not started.
+- [ ] Does the current code match the finalized plan's layout?: *Reviewed 2026-10-07: yes, the v0.1 tree matches the plan; differences are listed in [architecture.md](architecture.md).*
+- [x] Main development machine: AMD Ryzen 3 5300U (4C/8T), 22 GiB RAM, integrated Radeon (no ROCm/CUDA), Linux. Sets the CPU-only preset tier.
+- [ ] Embedding model, if any: not needed; no vector memory in scope.
+- [ ] Vision model for the browser tool vs DOM control: DOM control kept; vision preset exists but is optional.
+- [ ] Performance targets realistic?: answered by the recorded baseline in [performance.md](performance.md).
+- [x] Is "Hutch" free on PyPI?: checked during the rename (see [research/naming.md](research/naming.md)).
+- [ ] **Hosted SaaS vs self-hosted**: the product *shape* mirrors Dots / Grok Bot, but this release is self-hosted and single-user per the draft's out-of-scope list. A hosted multi-tenant offering needs accounts, billing, isolation and a different threat model; it is not started.

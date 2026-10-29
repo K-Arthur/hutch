@@ -10,7 +10,7 @@ content, and disclosure of local state matter even in a private preview.
 - Include what you did, what happened, what you expected, the host details (OS and sandbox
   primitives such as bubblewrap), and the exact version or commit (`hutch version`).
 - Do **not** attach transcripts, state-directory contents, credentials, snapshots, or other
-  sensitive data to a report — describe them instead.
+  sensitive data to a report; describe them instead.
 - Acknowledgement and assessment are best effort by a solo maintainer during a private preview;
   there is no published response-time commitment.
 
@@ -28,6 +28,6 @@ therefore any commit of `main` in a private source checkout; fixes land on `main
 
 ## Local data
 
-Hutch state — transcripts, memory, workspace files, database snapshots — is unencrypted local
+Hutch state (transcripts, memory, workspace files, database snapshots) is unencrypted local
 data owned by the operator, as stated in the README and docs. Treat it as sensitive when
 diagnosing any issue.

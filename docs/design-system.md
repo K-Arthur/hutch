@@ -60,8 +60,8 @@ values, Arrow keys explore and Enter explicitly accepts. Tab/Escape never
 silently choose a suggestion. A persistent result announcement sits outside the
 listbox; lists render at most 100 matches and state when typing can narrow them.
 Popup and field edges reuse the design system's shared white-alpha hairline
-tokens — `--color-semantic-border-strong` (`rgba(255,255,255,0.14)`) for outer
-edges and `--color-semantic-border` (`0.07`) for internal separators — so dropdowns
+tokens: `--color-semantic-border-strong` (`rgba(255,255,255,0.14)`) for outer
+edges and `--color-semantic-border` (`0.07`) for internal separators, so dropdowns
 match buttons, inputs and cards rather than carrying a one-off outline. Controls
 are identified by fill, azure focus ring and this shared hairline together.
 
@@ -285,7 +285,7 @@ local-host access, or fixture-only states in public flows.
   icon slot, copy, and trailing action, so peer rows keep identical left
   edges, copy sizes, and action placement, and a summary's padding matches the
   panel content it opens. Skins (borders, fills, radius) stay with the
-  surface. Never nest a disclosure inside a disclosure — depth is capped at
+  surface. Never nest a disclosure inside a disclosure: depth is capped at
   two levels (screen → disclosure → flat content), and a separate connection
   with its own sign-in is a peer of the access it relates to, never its child.
   A fallback-less `var()` reference must resolve to a defined token; the
