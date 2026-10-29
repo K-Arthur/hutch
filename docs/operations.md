@@ -488,9 +488,12 @@ previous conversation/tool history. Never store credentials in reference facts.
 Without a key it archives all reference facts and revokes standing tool grants. Archive retains
 history, the search index and backups. `hutch bot purge NAME --key KEY` (or `--all`) is the separate
 permanent step: it previews exact counts and what remains, then requires a typed confirmation before
-archiving and erasing saved content from the live database and search index, plus inherited share and
-task-snapshot copies. It keeps content-free tombstone and review/audit rows, and cannot erase
-conversation messages, transcripts, files, provider-side copies or backups taken before the purge.
+archiving and erasing saved content from live rows and the search index, inherited share and
+task-snapshot copies, and short-lived API idempotency receipts (redacted in place). Freed database
+pages are zeroed with SQLite secure-delete and the write-ahead log is checkpointed where possible.
+Content-free tombstone and review/audit rows remain. It cannot erase conversation messages,
+transcripts, files, filesystem or journal copies outside SQLite, provider-side copies or backups
+taken before the purge.
 The same flow is available as typed API requests (`/api/v1/bots/{ref}/facts/purge-requests` and its
 `/{request_id}/confirm` route); the dashboard control is deferred to the dashboard redesign. To download
 portable memory, open that Bot's settings and choose **Download memory JSON**. The bounded export

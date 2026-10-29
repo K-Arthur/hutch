@@ -52,7 +52,8 @@ def test_purge_erases_content_but_keeps_content_free_audit(store):
     other, _, _ = seed(store, name='purge-other', key='other-key', value='OTHER-SENTINEL')
     preview = fact_purge.preview(store, bot.id, key='favourite-colour', actor='fixture')
     assert preview['counts'] == {'fact_revisions': 1, 'legacy_rows': 0, 'outgoing_shares': 0,
-                                 'incoming_shares': 0, 'task_snapshots': 0, 'total': 1}
+                                 'incoming_shares': 0, 'task_snapshots': 0, 'receipts_redacted': 0,
+                                 'total': 1}
     assert preview['remaining'] and 'backups' in ' '.join(preview['remaining'])
     result = fact_purge.confirm(store, bot.id, preview['request_id'], token=preview['token'],
                                 confirmation='favourite-colour', actor='fixture')
@@ -72,6 +73,7 @@ def test_purge_erases_content_but_keeps_content_free_audit(store):
     assert [(row['table_name'], row['row_id']) for row in items] == [('memory_facts', fact.id)]
     assert items[0]['original_content_hash'] == fact.content_hash
     validate_facts(store._db)
+    assert store._db.execute('PRAGMA secure_delete').fetchone()[0] == 0
 
 
 def test_shared_snapshot_content_erased_in_both_directions(store):
@@ -81,11 +83,43 @@ def test_shared_snapshot_content_erased_in_both_directions(store):
     assert store.fact_shares(target.id)['incoming'][0]['state'] == 'active'
     _, result = erase(store, source, key='favourite-colour')
     assert result['counts']['outgoing_shares'] == 1
+    assert result['counts']['receipts_redacted'] == 1
     assert store.fact_shares(target.id)['incoming'] == []
+    receipts = store._db.execute('SELECT response_json FROM idempotency_keys').fetchall()
+    assert receipts and all('[purged]' in row['response_json'] or 'PRIVATEPURGESENTINEL' not in row['response_json']
+                            for row in receipts)
+    item_tables = {row[0] for row in store._db.execute('SELECT table_name FROM memory_purge_items')}
+    assert {'memory_facts', 'memory_fact_shares', 'idempotency_keys'} <= item_tables
     share_rows = store._db.execute('SELECT fact_key, fact_value, purged_at FROM memory_fact_shares').fetchall()
     assert len(share_rows) == 1 and share_rows[0]['fact_value'] == 'purged' and share_rows[0]['purged_at']
     assert_memory_content_gone(store)
     validate_facts(store._db)
+
+
+def test_purge_leaves_no_live_content_copy(store):
+    bot, conv, _ = seed(store)
+    proposed, _ = store.propose_fact_command(bot.id, key='api-key', value=SENTINEL,
+                                             conversation_id=conv['id'], idem_key='propose-1',
+                                             request_hash='propose-1')
+    store.review_fact(bot.id, proposed.id, content_hash=proposed.content_hash,
+                      action='approve', actor='fixture')
+    target = store.create_bot(Bot(name='purge-recipient'))
+    store.create_fact_share_command(bot.id, proposed.id, target.id, idem_key='share-residue',
+                                    request_hash='share-residue')
+    preview = fact_purge.preview(store, bot.id, all=True, actor='fixture')
+    assert preview['counts']['receipts_redacted'] == 2
+    result = fact_purge.confirm(store, bot.id, preview['request_id'], token=preview['token'],
+                                confirmation=bot.name, actor='fixture')
+    assert result['counts']['receipts_redacted'] == 2
+    tables = [row[0] for row in store._db.execute("SELECT name FROM sqlite_master WHERE type='table'")]
+    for table in tables:
+        columns = [row[1] for row in store._db.execute('PRAGMA table_info(' + table + ')')]
+        if not columns:
+            continue
+        for row in store._db.execute('SELECT * FROM ' + table):
+            blob = json.dumps({column: row[column] for column in columns}, default=str)
+            assert SENTINEL not in blob, table
+    assert store.recall_all(bot.id) == []
 
 
 def test_all_scope_erases_legacy_rows_and_requires_the_bot_address(store):
@@ -219,6 +253,8 @@ def test_purge_schema_migration_is_idempotent_and_guarded():
                    " 'now', 'later', 'pending', '{}')")
         with pytest.raises(sqlite3.IntegrityError, match='evidence'):
             db.execute("DELETE FROM memory_purge_requests WHERE id = 'req_a'")
+        db.execute("INSERT INTO memory_purge_items (request_id, table_name, row_id, "
+                   "original_content_hash, purged_at) VALUES ('req_a', 'idempotency_keys', 'h', '', 'now')")
         db.execute("UPDATE memory_facts SET status = 'archived' WHERE id = 'fact_a'")
         db.execute("UPDATE memory_facts SET key = 'purged:fact_a', value = '', content_hash = 'h',"
                    " purged_at = 'now', purge_id = 'request_a' WHERE id = 'fact_a'")

@@ -4468,3 +4468,34 @@ describes the governed purge instead of claiming permanent deletion is unimpleme
 exercised. The purge is key-scoped or all-facts for one Bot; it is not a whole-Bot or conversation
 eraser, it does not erase transcripts/files/backups/provider copies, and the dashboard control is not
 wired. Backups created before a purge keep the old content, as documented.
+
+
+### Code-review follow-up (2026-10-29, same session)
+
+A post-commit review pass (static function-size/docstring audit, OpenAPI schema inspection, concurrent
+confirm, and a full live-table content scan after a purge) found and fixed three things:
+
+- **Erasure gap.** API idempotency receipts (`idempotency_keys.response_json`) for fact proposals and
+  cross-Bot shares still contained the erased key/value after the purge. Purge now redacts those
+  fields in place, keeps the receipt and its request hash, records each redacted row in
+  `memory_purge_items`, and reports the count as `receipts_redacted` in preview and result counts so
+  the CLI and API name it before confirmation.
+- **Storage-level residue.** SQLite free pages could retain overwritten content. The purge now enables
+  `PRAGMA secure_delete = ON` for its own transaction (restoring the previous value afterwards) and
+  attempts `PRAGMA wal_checkpoint(TRUNCATE)` after commit. In the verification scenario a scan of
+  every live table and a raw scan of the database file after close both report zero occurrences of the
+  erased sentinel. This is still not a disk-shredding guarantee: backups, filesystem or journal copies
+  outside SQLite and provider-side copies are named as remaining in the UI and docs.
+- **Review-policy violations.** `fact_purge_schema.migrate` (127 lines) and the CLI installer (62
+  lines) were split into single-responsibility helpers under 50 lines, and every new source function
+  now has a docstring. The API module states that its small request-identity helpers intentionally
+  mirror the frozen `app.py` closures.
+- **Concurrency and contract.** Two simultaneous confirms of one request are serialized by the store
+  transaction and return the same recorded result without a second erase. OpenAPI exposes all three
+  routes with typed request/response bodies and `additionalProperties: false` on both command bodies.
+
+Verification after the fixes: `tests/test_fact_purge.py` **10 passed** (new coverage: no live-table
+content copy anywhere, receipt redaction, secure-delete restored); broad focused group **201 passed,
+1 skipped in 68.38 s**. Docs wording in bot-config, operations, safety, README and the tests row was
+narrowed from "live database" to "live rows and the search index" and now names filesystem/journal
+copies and backups as outside the guarantee.

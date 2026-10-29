@@ -10,6 +10,7 @@ import hashlib
 import hmac
 import json
 import secrets
+import sqlite3
 import uuid
 from datetime import timedelta
 
@@ -24,7 +25,8 @@ PURGE_REMAINING = (
     'conversation messages, assistant replies and run transcripts that already contain the text',
     'run context snapshots and event histories',
     'files, documents and workspace artefacts',
-    'database backups taken before this purge, and provider-side copies of earlier prompts',
+    'database backups taken before this purge, filesystem or journal copies outside SQLite,'
+    'and provider-side copies of earlier prompts',
     'credential-free review and purge audit rows (hashes, actors, timestamps) that prove the erasure',
 )
 
@@ -46,6 +48,7 @@ def purge_counts(db, bot_id, *, key=None, all=False) -> dict:
     share_args = () if all else (key,)
 
     def one(sql: str, args: tuple = ()) -> int:
+        """Count one bounded predicate without loading rows."""
         return int(db.execute(sql, (bot_id, *args)).fetchone()[0])
 
     counts = {
@@ -60,9 +63,52 @@ def purge_counts(db, bot_id, *, key=None, all=False) -> dict:
         'task_snapshots': one("SELECT COUNT(*) FROM workspace_task_fact_shares t WHERE t.purged_at = ''"
                               " AND t.source_bot_id = ?"
                               + ('' if all else ' AND t.fact_key = ?'), share_args),
+        'receipts_redacted': len(_receipt_rows(db, bot_id, key, all)),
     }
     counts['total'] = sum(counts.values())
     return counts
+
+
+def _receipt_targets(bot_id: str) -> tuple:
+    """API idempotency scopes whose stored replay result embeds fact text."""
+    return (
+        (f'api:v1:facts:propose:{bot_id}', '$.key', ('key', 'value')),
+        (f'api:v1:fact-shares:create:{bot_id}', '$.fact_key', ('fact_key', 'fact_value')),
+    )
+
+
+def _receipt_rows(db, bot_id, key, all_facts) -> list:
+    """Short-lived API receipts that may embed the purged text, with their content fields."""
+    rows = []
+    for scope, match, fields in _receipt_targets(bot_id):
+        sql = 'SELECT scope, key, response_json FROM idempotency_keys WHERE scope = ?'
+        args = (scope,)
+        if not all_facts:
+            sql += f" AND json_extract(response_json, '{match}') = ?"
+            args = (scope, key)
+        rows.extend((row, fields) for row in db.execute(sql, args).fetchall())
+    return rows
+
+
+def _redact_receipts(db, bot_id, key, all_facts) -> list:
+    """Replace embedded fact text in API replay receipts; keep the receipt and its hash."""
+    items = []
+    for row, fields in _receipt_rows(db, bot_id, key, all_facts):
+        original = hashlib.sha256(row['response_json'].encode('utf-8')).hexdigest()
+        try:
+            record = json.loads(row['response_json'])
+        except ValueError:
+            record = {}
+        if not isinstance(record, dict):
+            record = {}
+        for field in fields:
+            if field in record:
+                record[field] = '[purged]'
+        db.execute('UPDATE idempotency_keys SET response_json = ? WHERE scope = ? AND key = ?',
+                   (json.dumps(record, sort_keys=True), row['scope'], row['key']))
+        row_id = hashlib.sha256((row['scope'] + chr(0) + row['key']).encode()).hexdigest()[:32]
+        items.append(('idempotency_keys', row_id, original))
+    return items
 
 
 def issue_purge_request(db, bot_id, *, key=None, all=False, actor='operator', note='') -> dict:
@@ -196,29 +242,41 @@ def confirm_purge(db, bot_id, request_id, *, token, confirmation, actor, bot_add
         raise FactConflict('purge token is invalid; preview the purge again')
     all_facts = row['scope_kind'] == 'all'
     key = None if all_facts else row['scope_key']
-    outgoing, incoming = _erase_share_rows(db, bot_id, key, all_facts, request_id, now)
-    items = _erase_fact_rows(db, bot_id, key, all_facts, request_id, now)
-    items += outgoing + incoming
-    items += _erase_task_snapshots(db, bot_id, key, all_facts, request_id, now)
-    items += _erase_legacy_rows(db, bot_id, key, all_facts, now)
-    db.executemany("INSERT INTO memory_purge_items (request_id, table_name, row_id, "
-                   "original_content_hash, purged_at) VALUES (?, ?, ?, ?, ?)",
-                   [(request_id, table, row_id, original, now)
-                    for table, row_id, original in items])
-    counts = {
-        'fact_revisions': len([item for item in items if item[0] == 'memory_facts']),
-        'legacy_rows': len([item for item in items if item[0] == 'memory']),
-        'outgoing_shares': len(outgoing),
-        'incoming_shares': len(incoming),
-        'task_snapshots': len([item for item in items if item[0] == 'workspace_task_fact_shares']),
-    }
-    counts['total'] = sum(counts.values())
-    result = {'request_id': request_id, 'status': 'confirmed', 'purged_at': now,
-              'counts': counts, 'remaining': list(PURGE_REMAINING)}
-    db.execute("UPDATE memory_purge_requests SET status = 'confirmed', confirmed_at = ?, "
-               "counts_json = ?, result_json = ?, token_hash = '' WHERE id = ?",
-               (now, json.dumps(counts, sort_keys=True), json.dumps(result, sort_keys=True), request_id))
-    return result
+    return _apply_purge(db, bot_id, request_id, key, all_facts, now)
+
+
+def _apply_purge(db, bot_id, request_id, key, all_facts, now) -> dict:
+    """Erase every saved copy and write content-free evidence; secure-delete is enabled around it."""
+    previous_secure_delete = db.execute('PRAGMA secure_delete').fetchone()[0]
+    db.execute('PRAGMA secure_delete = ON')
+    try:
+        outgoing, incoming = _erase_share_rows(db, bot_id, key, all_facts, request_id, now)
+        items = _erase_fact_rows(db, bot_id, key, all_facts, request_id, now)
+        items += outgoing + incoming
+        items += _erase_task_snapshots(db, bot_id, key, all_facts, request_id, now)
+        items += _erase_legacy_rows(db, bot_id, key, all_facts, now)
+        items += _redact_receipts(db, bot_id, key, all_facts)
+        db.executemany("INSERT INTO memory_purge_items (request_id, table_name, row_id, "
+                       "original_content_hash, purged_at) VALUES (?, ?, ?, ?, ?)",
+                       [(request_id, table, row_id, original, now)
+                        for table, row_id, original in items])
+        counts = {
+            'fact_revisions': len([item for item in items if item[0] == 'memory_facts']),
+            'legacy_rows': len([item for item in items if item[0] == 'memory']),
+            'outgoing_shares': len(outgoing),
+            'incoming_shares': len(incoming),
+            'task_snapshots': len([item for item in items if item[0] == 'workspace_task_fact_shares']),
+            'receipts_redacted': len([item for item in items if item[0] == 'idempotency_keys']),
+        }
+        counts['total'] = sum(counts.values())
+        result = {'request_id': request_id, 'status': 'confirmed', 'purged_at': now,
+                  'counts': counts, 'remaining': list(PURGE_REMAINING)}
+        db.execute("UPDATE memory_purge_requests SET status = 'confirmed', confirmed_at = ?, "
+                   "counts_json = ?, result_json = ?, token_hash = '' WHERE id = ?",
+                   (now, json.dumps(counts, sort_keys=True), json.dumps(result, sort_keys=True), request_id))
+        return result
+    finally:
+        db.execute(f'PRAGMA secure_delete = {int(previous_secure_delete)}')
 
 
 def purge_request_page(db, bot_id, *, limit=20):
@@ -267,6 +325,11 @@ def confirm(store, bot_id, request_id, *, token, confirmation, actor='operator',
             db.execute('INSERT INTO idempotency_keys VALUES (?, ?, ?, ?, ?)',
                        (scope, idem_key, request_hash, json.dumps(result, sort_keys=True), iso(utcnow())))
     store.bus.notify('memory')
+    try:
+        with store._lock:
+            store._db.execute('PRAGMA wal_checkpoint(TRUNCATE)')
+    except sqlite3.OperationalError:
+        pass
     return result
 
 

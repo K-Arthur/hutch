@@ -10,14 +10,25 @@ Status: **implemented and locally verified**; the dashboard control and whole-Bo
   and `memory_purge_items` evidence tables - `src/hutch/fact_purge_schema.py`, delegated from the
   frozen migration list by `store._migrate_82`.
 - Data layer: preview/counts, one-time token, typed confirmation, archive-then-erase, FTS and legacy
-  row cleanup, fail-closed expiry/supersession/replay - `src/hutch/fact_purge.py`.
+  row cleanup, API-receipt redaction, SQLite secure-delete plus WAL checkpoint, fail-closed
+  expiry/supersession/replay - `src/hutch/fact_purge.py`.
 - API: `POST /api/v1/bots/{ref}/facts/purge-requests`, `POST .../{request_id}/confirm` (Idempotency-Key
   required), `GET .../purge-requests` - `src/hutch/server/facts_api.py`.
 - CLI: `hutch bot purge NAME --key KEY` / `--all`, two-step preview plus typed confirmation
   (`--yes` skips the prompt, never the preview) - `src/hutch/cli_facts.py`.
-- Tests: `tests/test_fact_purge.py` (9 focused cases); broad focused group **200 passed, 1 skipped**.
+- Tests: `tests/test_fact_purge.py` (10 focused cases); broad focused group **201 passed, 1 skipped**.
 - Docs: bot-config, operations, safety, realignment tests row and README updated; ledger checkpoint
-  appended for 2026-10-29.
+  and code-review follow-up appended for 2026-10-29.
+
+## Post-review hardening (2026-10-29)
+
+A second review pass found that API idempotency receipts still held the purged key/value and that
+SQLite free pages could retain overwritten content. Both are fixed: receipts are redacted in place and
+counted as `receipts_redacted`, the purge enables `PRAGMA secure_delete = ON` for its transaction and
+checkpoints the WAL after commit, and a regression test scans every live table for the erased text.
+The review also split the 127-line schema migration and 62-line CLI installer into helpers under 50
+lines and added docstrings to every new source function. The raw database file no longer contains the
+sentinel in the verification scenario, but this is not a disk-shredding guarantee.
 
 ## Local browser checks
 
@@ -40,8 +51,10 @@ settings UI itself is unchanged by this slice.
 ## Verification gaps (do not overclaim)
 
 No live provider, OAuth account, physical phone, screen reader or packaged installer was exercised.
-Pre-purge database backups keep the erased content by design. The only context-hygiene violation in the
-tree is the pre-existing other-session `tests/test_commit_attribution.py` (419 lines).
+Pre-purge database backups, filesystem/journal copies outside SQLite and provider-side copies keep the
+erased content by design; the in-database erasure is verified but not a disk-shredding guarantee. The
+only context-hygiene violation in the tree is the pre-existing other-session
+`tests/test_commit_attribution.py` (419 lines).
 
 ## Copy-paste prompt for the next run
 

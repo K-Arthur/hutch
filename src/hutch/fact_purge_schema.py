@@ -8,22 +8,32 @@ from __future__ import annotations
 
 import sqlite3
 
+#: Guards this module installs, in every case after dropping any prior copy.
+_TRIGGER_NAMES = (
+    'memory_facts_provenance_immutable',
+    'memory_facts_content_guard',
+    'memory_facts_no_tombstone_insert',
+    'memory_fact_share_update_guard',
+    'workspace_task_fact_share_update_guard',
+    'memory_purge_request_insert_guard',
+    'memory_purge_request_update_guard',
+    'memory_purge_request_no_delete',
+    'memory_purge_item_no_update',
+    'memory_purge_item_no_delete',
+)
 
-def migrate(db: sqlite3.Connection) -> None:
-    """Governed permanent deletion for saved reference facts (schema v83).
 
-    A purged row keeps its identity, scope, revision and review hashes so a
-    reviewer can prove the erasure; its content, its search-index row and the
-    shared snapshot copies are erased. Transcripts, files and backups are out
-    of scope and are named in the confirmation preview instead of being
-    silently claimed.
-    """
-    for trigger in ('memory_facts_provenance_immutable', 'memory_facts_content_guard',
-                    'memory_facts_no_tombstone_insert', 'memory_fact_share_update_guard',
-                    'workspace_task_fact_share_update_guard', 'memory_purge_request_insert_guard',
-                    'memory_purge_request_update_guard', 'memory_purge_request_no_delete',
-                    'memory_purge_item_no_update', 'memory_purge_item_no_delete'):
+def _drop_previous_guards(db: sqlite3.Connection) -> None:
+    """Drop the guards this migration replaces so it is safely re-runnable."""
+    for trigger in _TRIGGER_NAMES:
         db.execute(f'DROP TRIGGER IF EXISTS {trigger}')
+    for legacy in ('memory_facts_immutable', 'memory_fact_share_snapshot_immutable',
+                   'workspace_task_fact_share_immutable'):
+        db.execute(f'DROP TRIGGER IF EXISTS {legacy}')
+
+
+def _ensure_columns(db: sqlite3.Connection) -> None:
+    """Add the tombstone columns once, on a database that predates this feature."""
     for table in ('memory_facts', 'memory_fact_shares', 'workspace_task_fact_shares'):
         columns = {row[1] for row in db.execute(f'PRAGMA table_info({table})')}
         if 'purged_at' not in columns:
@@ -31,7 +41,10 @@ def migrate(db: sqlite3.Connection) -> None:
     columns = {row[1] for row in db.execute('PRAGMA table_info(memory_facts)')}
     if 'purge_id' not in columns:
         db.execute("ALTER TABLE memory_facts ADD COLUMN purge_id TEXT NOT NULL DEFAULT ''")
-    db.execute('DROP TRIGGER IF EXISTS memory_facts_immutable')
+
+
+def _install_fact_guards(db: sqlite3.Connection) -> None:
+    """Allow exactly one purge-shaped content update; keep review and provenance immutable."""
     db.execute("""CREATE TRIGGER memory_facts_provenance_immutable
         BEFORE UPDATE ON memory_facts
         WHEN NEW.id IS NOT OLD.id OR NEW.bot_id IS NOT OLD.bot_id
@@ -52,7 +65,10 @@ def migrate(db: sqlite3.Connection) -> None:
         BEFORE INSERT ON memory_facts
         WHEN NEW.purged_at != '' OR NEW.purge_id != '' OR NEW.key = 'purged:' || NEW.id
         BEGIN SELECT RAISE(ABORT, 'purged fact tombstones are created only by a governed purge'); END""")
-    db.execute('DROP TRIGGER IF EXISTS memory_fact_share_snapshot_immutable')
+
+
+def _install_share_guards(db: sqlite3.Connection) -> None:
+    """Allow one revocation and one purge-shaped update per snapshot; block anything else."""
     db.execute("""CREATE TRIGGER memory_fact_share_update_guard
         BEFORE UPDATE ON memory_fact_shares
         WHEN NEW.id IS NOT OLD.id OR NEW.source_fact_id IS NOT OLD.source_fact_id
@@ -72,7 +88,6 @@ def migrate(db: sqlite3.Connection) -> None:
               AND NOT (OLD.revoked_at IS NULL AND OLD.purged_at = ''
                        AND NEW.revoked_at IS NOT NULL AND NEW.revoked_by != ''))
         BEGIN SELECT RAISE(ABORT, 'fact share snapshots are immutable; revoke once or purge once'); END""")
-    db.execute('DROP TRIGGER IF EXISTS workspace_task_fact_share_immutable')
     db.execute("""CREATE TRIGGER workspace_task_fact_share_update_guard
         BEFORE UPDATE ON workspace_task_fact_shares
         WHEN NOT (OLD.purged_at = '' AND NEW.purged_at != ''
@@ -86,6 +101,10 @@ def migrate(db: sqlite3.Connection) -> None:
                   AND NEW.fact_revision IS OLD.fact_revision
                   AND NEW.created_at IS OLD.created_at)
         BEGIN SELECT RAISE(ABORT, 'task fact share snapshots are immutable; purge erases their content once'); END""")
+
+
+def _install_request_table(db: sqlite3.Connection) -> None:
+    """Create the immutable purge-request row and its token/outcome guards."""
     db.execute("""CREATE TABLE IF NOT EXISTS memory_purge_requests (
         id TEXT PRIMARY KEY,
         bot_id TEXT NOT NULL,
@@ -123,16 +142,43 @@ def migrate(db: sqlite3.Connection) -> None:
     db.execute("""CREATE TRIGGER memory_purge_request_no_delete
         BEFORE DELETE ON memory_purge_requests
         BEGIN SELECT RAISE(ABORT, 'purge requests are retained as deletion evidence'); END""")
+
+
+def _install_item_table(db: sqlite3.Connection) -> None:
+    """Create the per-row, content-free purge evidence and its immutability guards."""
     db.execute("""CREATE TABLE IF NOT EXISTS memory_purge_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         request_id TEXT NOT NULL REFERENCES memory_purge_requests(id) ON DELETE RESTRICT,
         table_name TEXT NOT NULL CHECK(table_name IN
-            ('memory_facts','memory_fact_shares','workspace_task_fact_shares','memory')),
+            ('memory_facts','memory_fact_shares','workspace_task_fact_shares','memory','idempotency_keys')),
         row_id TEXT NOT NULL,
         original_content_hash TEXT NOT NULL DEFAULT '',
         purged_at TEXT NOT NULL)""")
     db.execute("CREATE INDEX IF NOT EXISTS idx_memory_purge_items_request "
                "ON memory_purge_items(request_id, id)")
     for operation in ('update', 'delete'):
-        db.execute(f"CREATE TRIGGER memory_purge_item_no_{operation} BEFORE {operation.upper()} ON memory_purge_items "
+        db.execute(f"CREATE TRIGGER memory_purge_item_no_{operation} BEFORE {operation.upper()} "
+                   "ON memory_purge_items "
                    "BEGIN SELECT RAISE(ABORT, 'purge evidence is immutable'); END")
+
+
+def _install_evidence_tables(db: sqlite3.Connection) -> None:
+    """Create both evidence tables, in foreign-key order."""
+    _install_request_table(db)
+    _install_item_table(db)
+
+
+def migrate(db: sqlite3.Connection) -> None:
+    """Governed permanent deletion for saved reference facts (schema v83).
+
+    A purged row keeps its identity, scope, revision and review hashes so a
+    reviewer can prove the erasure; its content, its search-index row and the
+    shared snapshot copies are erased. Transcripts, files and backups are out
+    of scope and are named in the confirmation preview instead of being
+    silently claimed.
+    """
+    _drop_previous_guards(db)
+    _ensure_columns(db)
+    _install_fact_guards(db)
+    _install_share_guards(db)
+    _install_evidence_tables(db)

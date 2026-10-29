@@ -3,7 +3,9 @@
 Content is erased only after a preview with exact counts and a typed confirmation.
 The module lives outside ``app.py`` so the frozen dashboard module can delegate
 without growing, following the ``install_*_routes`` convention used by the other
-JSON APIs.
+JSON APIs. The small request-identity helpers below intentionally mirror the
+closures in ``app.py``; ``app.py`` is frozen for size and its equivalents are
+covered by the existing API suite, so both spellings are exercised by tests.
 """
 from __future__ import annotations
 
@@ -33,6 +35,7 @@ class FactPurgeCountsResource(BaseModel):
     outgoing_shares: int
     incoming_shares: int
     task_snapshots: int
+    receipts_redacted: int
     total: int
 
 
@@ -79,6 +82,7 @@ class FactPurgeRequestPageResource(BaseModel):
 
 
 def _bot_or_404(store, ref):
+    """Resolve one Bot or fail the request with the dashboard's 404 wording."""
     bot = store.get_bot(ref)
     if not bot:
         raise HTTPException(404, f"no such bot: {ref}")
@@ -86,6 +90,7 @@ def _bot_or_404(store, ref):
 
 
 def _acting_actor(store, request: Request) -> str:
+    """Attribute a destructive command to the paired device when one is present."""
     token = request.cookies.get(DEVICE_COOKIE, "")
     bearer = request.headers.get("authorization", "")
     if bearer.startswith("Bearer "):
@@ -95,6 +100,7 @@ def _acting_actor(store, request: Request) -> str:
 
 
 def _idempotency_key(request: Request) -> str:
+    """Require a bounded command key, isolated per paired credential."""
     key = (request.headers.get("Idempotency-Key") or "").strip()
     if not key:
         raise HTTPException(428, "Idempotency-Key is required for this command")
@@ -107,6 +113,7 @@ def _idempotency_key(request: Request) -> str:
 
 
 def _request_digest(payload: dict) -> str:
+    """Canonical digest used to detect a changed retry of the same command."""
     raw = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
@@ -116,6 +123,7 @@ def install_fact_purge_routes(app, store) -> None:
 
     @app.get('/api/v1/bots/{ref}/facts/purge-requests', response_model=FactPurgeRequestPageResource)
     def list_fact_purge_requests(ref: str, limit: int = 20) -> dict:
+        """Recent purge previews and outcomes for one Bot, without tokens or fact text."""
         bot = _bot_or_404(store, ref)
         if not 1 <= limit <= 100:
             raise HTTPException(422, 'limit must be 1–100')

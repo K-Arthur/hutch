@@ -12,9 +12,11 @@ The Bot settings JSON export includes all saved fact revisions and explicit shar
 transcripts, credentials, action receipts and workspace files. It is bounded and served with `no-store`,
 but the downloaded file is unencrypted plaintext; fact values and review notes may be sensitive, so the
 owner must review it before sharing. Archive is not permanent deletion: the governed purge
-(`hutch bot purge`, or the two-step fact API) erases saved fact content from the live database and
-search index and inherited share/task-snapshot copies, while keeping content-free audit rows. It cannot
-retract conversation history, prior provider input, workspace files or backups made before the purge.
+(`hutch bot purge`, or the two-step fact API) erases saved fact content from live rows and the search
+index, inherited share/task-snapshot copies, and short-lived API idempotency receipts; freed database
+pages are zeroed where SQLite secure-delete is available and the write-ahead log is checkpointed where
+possible, while content-free audit rows remain. It cannot retract conversation history, prior provider
+input, workspace files, filesystem copies outside SQLite or backups made before the purge.
 
 hutch assumes a **supervising human** is part of the system. It is not a formal security boundary
 against a determined adversary: it is a policy layer that checks what hutch's own tools are asked to
