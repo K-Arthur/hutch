@@ -248,3 +248,31 @@ one. This slice does not modify the parked session's baseline or tooling. The re
 a few lines; the parked-session guard may therefore report them, which the final evidence records as a
 known, non-committed tooling waiver rather than a silent change. All feature logic lives in new modules
 that the guard does not freeze.
+
+## 11. Sanctioned v83 schema extension (2026-10-29, found during live-schema erase design)
+
+The frozen 4.1 schema list was extended only where live-schema guards made the documented erase
+inventory impossible, matching the operations design's own phrase "content-free tombstone columns and
+guarded trigger allowances":
+
+1. `conversation_artifact_shares` is rebuilt in place (idempotent detection via
+   `PRAGMA foreign_key_list`): `target_conversation_id` -> CASCADE so a deleted chat's own shares go
+   with it, `source_run_id`/`source_event_id` -> nullable SET NULL so revoked cross-chat history can
+   survive its deleted source. Rows, both original indexes, the source guard, the once-only revoke guard,
+   the cascade-aware no-delete guard and both outbox trigger sets are preserved; explicit deletes while
+   the target conversation exists stay refused.
+2. `tool_actions`, `action_reconciliations` and `memory_fact_decisions` keep their existing
+   immutability but gain exactly one redaction shape each (summary='' + intent_json='{}' +
+   result_json='{}'; evidence='[deleted]'; note=''), and only while the transient
+   `bot_deletion_scope` marker row exists. The marker is written inside the one erase transaction and
+   removed before commit, so every other writer keeps the original immutability.
+3. `conversation_task_state_revisions` no-delete becomes cascade-aware with the same
+   parent-row-gone rule already used by the task-state guards.
+4. The share rebuild's nullable source ids require three narrow defensive reads in
+   `store.revoke_conversation_artifact_share` (replay path, live path and returned row) so a revoked
+   share whose source Bot was deleted returns revoked history instead of raising; Lead patches those
+   after the command layer freezes.
+5. Acceptance tests cover: migration with both share shapes and preserved data; purge-shaped allowances
+   accepted once and every other mutation still refused with the original guard messages; the full
+   focused regression list (api, fact memory, migration, action intents, receipts, persona receipts,
+   workflow receipts, fact purge, deletion).

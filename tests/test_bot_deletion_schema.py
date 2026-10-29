@@ -179,6 +179,10 @@ def test_update_guard_allows_terminal_walk_and_cleanup_transitions():
         refuse(db, "UPDATE bot_deletions SET result_json = '{}' WHERE id = 'del_confirm'", match='immutable')
         refuse(db, "UPDATE bot_deletions SET cleanup_attempts = 1 WHERE id = 'del_confirm'",
                match='immutable')
+        refuse(db, "UPDATE bot_deletions SET cleanup_state = 'pending', cleanup_attempts = 4 "
+                   "WHERE id = 'del_confirm'", match='immutable')
+        refuse(db, "UPDATE bot_deletions SET cleanup_state = 'cleaning', cleanup_attempts = 4 "
+                   "WHERE id = 'del_confirm'", match='immutable')
     finally:
         db.close()
 
@@ -213,3 +217,169 @@ def test_migration_is_re_runnable_and_preserves_existing_evidence(store):
     assert GUARD_TRIGGERS <= schema_names(db, 'trigger')
     refuse(db, "UPDATE bot_deletions SET status = 'superseded' WHERE id = 'del_rerun'", match='immutable')
     refuse(db, 'DELETE FROM bot_deletions', match='retained')
+
+def _install_share_world(db):
+    """A v82-shaped share world: old-shape share table plus the rows it references."""
+    db.execute('CREATE TABLE conversations (id TEXT PRIMARY KEY, bot_id TEXT NOT NULL)')
+    db.execute('CREATE TABLE runs (id TEXT PRIMARY KEY, conversation_id TEXT)')
+    db.execute('CREATE TABLE events (id INTEGER PRIMARY KEY, run_id TEXT NOT NULL)')
+    db.execute('CREATE TABLE conversation_runs (conversation_id TEXT NOT NULL, run_id TEXT NOT NULL, '
+               'attached_at TEXT NOT NULL)')
+    db.execute('CREATE TABLE resource_outbox (id INTEGER PRIMARY KEY AUTOINCREMENT, previous_id INTEGER NOT NULL, '
+               'resource TEXT NOT NULL, resource_id TEXT NOT NULL, operation TEXT NOT NULL, ts TEXT NOT NULL, '
+               'context TEXT NOT NULL)')
+    db.execute('CREATE TABLE resource_outbox_meta (singleton INTEGER PRIMARY KEY, epoch TEXT NOT NULL, '
+               'tail_id INTEGER NOT NULL)')
+    db.execute("INSERT INTO resource_outbox_meta VALUES (1, '0', 0)")
+    db.execute("""CREATE TABLE conversation_artifact_shares (
+        id TEXT PRIMARY KEY,
+        target_conversation_id TEXT NOT NULL REFERENCES conversations(id),
+        source_run_id TEXT NOT NULL REFERENCES runs(id),
+        source_event_id INTEGER NOT NULL REFERENCES events(id),
+        artifact_kind TEXT NOT NULL CHECK(artifact_kind IN ('tool_output','workspace_file')),
+        created_at TEXT NOT NULL,
+        actor TEXT NOT NULL,
+        revoked_at TEXT,
+        revoked_by TEXT NOT NULL DEFAULT '')""")
+    for name, target in (('conv_a', 'bot_a'), ('conv_b', 'bot_b'), ('conv_src', 'bot_a')):
+        db.execute('INSERT INTO conversations VALUES (?, ?)', (name, target))
+    db.execute("INSERT INTO conversation_runs VALUES ('conv_src', 'run_a', 'now')")
+    db.execute("INSERT INTO runs VALUES ('run_a', 'conv_src')")
+    db.execute("INSERT INTO events VALUES (1, 'run_a')")
+    db.commit()
+
+
+def test_artifact_share_rebuild_preserves_history_and_relinks_foreign_keys():
+    db = sqlite3.connect(':memory:')
+    db.row_factory = sqlite3.Row
+    db.execute('PRAGMA foreign_keys=ON')
+    try:
+        _install_share_world(db)
+        db.execute("INSERT INTO conversation_artifact_shares VALUES "
+                   "('share_a', 'conv_a', 'run_a', 1, 'tool_output', 'now', 'operator', NULL, '')")
+        db.execute("INSERT INTO conversation_artifact_shares VALUES "
+                   "('share_b', 'conv_b', 'run_a', 1, 'tool_output', 'now', 'operator', NULL, '')")
+        migrate_deletion_schema(db)
+        actions = {row['table']: row['on_delete']
+                   for row in db.execute('PRAGMA foreign_key_list(conversation_artifact_shares)')}
+        assert actions == {'conversations': 'CASCADE', 'runs': 'SET NULL', 'events': 'SET NULL'}
+        assert {'conversation_artifact_shares_active', 'conversation_artifact_shares_target'} <= schema_names(
+            db, 'index')
+        assert {'conversation_artifact_shares_immutable', 'conversation_artifact_shares_no_delete',
+                'conversation_artifact_shares_source_guard'} <= schema_names(db, 'trigger')
+        assert [row['id'] for row in db.execute('SELECT id FROM conversation_artifact_shares ORDER BY id')] == [
+            'share_a', 'share_b']
+        refuse(db, "DELETE FROM conversation_artifact_shares WHERE id = 'share_a'", match='revoke')
+        db.execute("DELETE FROM conversations WHERE id = 'conv_a'")
+        assert [row['id'] for row in db.execute('SELECT id FROM conversation_artifact_shares')] == ['share_b']
+        db.execute("UPDATE conversation_artifact_shares SET revoked_at = 'now', revoked_by = 'operator' "
+                   "WHERE id = 'share_b'")
+        db.execute("DELETE FROM runs WHERE id = 'run_a'")
+        db.execute('DELETE FROM events WHERE id = 1')
+        share = dict(db.execute('SELECT * FROM conversation_artifact_shares').fetchone())
+        assert share['source_run_id'] is None and share['source_event_id'] is None
+        assert share['revoked_at'] == 'now' and share['target_conversation_id'] == 'conv_b'
+        refuse(db, "UPDATE conversation_artifact_shares SET revoked_by = 'again' WHERE id = 'share_b'",
+               match='immutable')
+        refuse(db, "DELETE FROM conversation_artifact_shares WHERE id = 'share_b'", match='revoke')
+        migrate_deletion_schema(db)
+        assert db.execute('SELECT COUNT(*) FROM conversation_artifact_shares').fetchone()[0] == 1
+    finally:
+        db.close()
+
+
+def _install_receipt_world(db):
+    """Minimal live-shape tables for the receipt redaction allowances."""
+    db.execute("""CREATE TABLE tool_actions (
+        id TEXT PRIMARY KEY, run_id TEXT NOT NULL, tool TEXT NOT NULL, idem_key TEXT NOT NULL,
+        effect TEXT NOT NULL, summary TEXT NOT NULL DEFAULT '', status TEXT NOT NULL,
+        started_at TEXT NOT NULL, finished_at TEXT, result_digest TEXT NOT NULL DEFAULT '',
+        intent_json TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(intent_json)),
+        intent_hash TEXT NOT NULL DEFAULT '', effect_key TEXT NOT NULL DEFAULT '',
+        legacy INTEGER NOT NULL DEFAULT 1 CHECK(legacy IN (0, 1)),
+        workflow_identity TEXT NOT NULL DEFAULT '', workflow_fingerprint TEXT NOT NULL DEFAULT '',
+        result_json TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(result_json)))""")
+    db.execute('CREATE TABLE runs (id TEXT PRIMARY KEY, sealed INTEGER NOT NULL DEFAULT 0)')
+    db.execute("""CREATE TABLE action_reconciliations (
+        action_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, intent_hash TEXT NOT NULL,
+        outcome TEXT NOT NULL CHECK(outcome IN ('confirmed_done', 'confirmed_failed', 'not_applied')),
+        evidence TEXT NOT NULL CHECK(length(evidence) BETWEEN 1 AND 4000),
+        recorded_by TEXT NOT NULL, recorded_at TEXT NOT NULL)""")
+    db.execute("""CREATE TABLE memory_fact_decisions (
+        fact_id TEXT NOT NULL, action TEXT NOT NULL CHECK(action IN ('approve','archive','share')),
+        request_hash TEXT NOT NULL, actor TEXT NOT NULL, note TEXT NOT NULL, created_at TEXT NOT NULL,
+        result_json TEXT NOT NULL CHECK(json_valid(result_json)), PRIMARY KEY(fact_id, action))""")
+    for table in ('tool_actions', 'action_reconciliations'):
+        db.execute(f"CREATE TRIGGER {table}_no_delete BEFORE DELETE ON {table} "
+                   "BEGIN SELECT RAISE(ABORT, 'action history requires an explicit scoped deletion command'); END")
+    db.execute("CREATE TRIGGER memory_decisions_no_delete BEFORE DELETE ON memory_fact_decisions "
+               "BEGIN SELECT RAISE(ABORT, 'fact review is immutable'); END")
+    db.commit()
+
+
+def test_redaction_allowances_accept_only_deletion_shapes():
+    db = sqlite3.connect(':memory:')
+    db.row_factory = sqlite3.Row
+    try:
+        _install_receipt_world(db)
+        migrate_deletion_schema(db)
+        assert 'bot_deletion_scope' in schema_names(db, 'table')
+        db.execute("INSERT INTO runs VALUES ('run_a', 1)")
+        db.execute("INSERT INTO tool_actions (id, run_id, tool, idem_key, effect, summary, status, started_at, "
+                   "finished_at, result_digest, intent_json, intent_hash, result_json) VALUES "
+                   "('act_a', 'run_a', 'shell', 'idem', 'write', 'ran a private command', 'done', 'now', 'now', "
+                   "'digest', '{\"schema\": 1, \"arguments\": {\"cmd\": \"secret\"}}', 'hash', "
+                   "'{\"stdout\": \"secret\"}')")
+        refuse(db, "UPDATE tool_actions SET summary = '', intent_json = '{}' WHERE id = 'act_a'",
+               match='immutable')
+        db.execute("INSERT INTO bot_deletion_scope VALUES (1, 'req_a', 'now')")
+        db.execute("UPDATE tool_actions SET summary = '', intent_json = '{}', result_json = '{}' "
+                   "WHERE id = 'act_a'")
+        row = dict(db.execute('SELECT * FROM tool_actions').fetchone())
+        assert (row['summary'], row['intent_json'], row['result_json']) == ('', '{}', '{}')
+        refuse(db, "UPDATE tool_actions SET summary = 'exfiltrated' WHERE id = 'act_a'", match='immutable')
+        refuse(db, "UPDATE tool_actions SET intent_json = '{\"arguments\": {\"cmd\": \"new\"}}' "
+                   "WHERE id = 'act_a'", match='immutable')
+        refuse(db, "UPDATE tool_actions SET result_json = '{\"stdout\": \"new\"}' WHERE id = 'act_a'",
+               match='sealed')
+        refuse(db, "UPDATE tool_actions SET run_id = 'run_b' WHERE id = 'act_a'", match='immutable')
+        refuse(db, 'DELETE FROM tool_actions', match='explicit scoped deletion')
+        db.execute("INSERT INTO action_reconciliations VALUES "
+                   "('act_a', 'run_a', 'hash', 'confirmed_done', 'opaque evidence', 'operator', 'now')")
+        db.execute("UPDATE action_reconciliations SET evidence = '[deleted]' WHERE action_id = 'act_a'")
+        refuse(db, "UPDATE action_reconciliations SET evidence = 'changed' WHERE action_id = 'act_a'",
+               match='immutable')
+        refuse(db, "UPDATE action_reconciliations SET run_id = 'run_b' WHERE action_id = 'act_a'",
+               match='immutable')
+        refuse(db, 'DELETE FROM action_reconciliations', match='explicit scoped deletion')
+        db.execute("INSERT INTO memory_fact_decisions VALUES "
+                   "('fact_a', 'approve', 'hash', 'operator', 'a private note', 'now', '{}')")
+        db.execute("UPDATE memory_fact_decisions SET note = '' WHERE fact_id = 'fact_a'")
+        assert db.execute('SELECT note FROM memory_fact_decisions').fetchone()[0] == ''
+        refuse(db, "UPDATE memory_fact_decisions SET note = 'changed' WHERE fact_id = 'fact_a'", match='immutable')
+        refuse(db, "UPDATE memory_fact_decisions SET actor = 'intruder' WHERE fact_id = 'fact_a'",
+               match='immutable')
+        refuse(db, 'DELETE FROM memory_fact_decisions', match='immutable')
+    finally:
+        db.close()
+
+def test_task_state_revision_guard_allows_only_parent_cascade():
+    db = sqlite3.connect(':memory:')
+    db.row_factory = sqlite3.Row
+    db.execute('PRAGMA foreign_keys=ON')
+    try:
+        db.execute('CREATE TABLE conversations (id TEXT PRIMARY KEY)')
+        db.execute('CREATE TABLE conversation_task_state_revisions (conversation_id TEXT NOT NULL '
+                   'REFERENCES conversations(id) ON DELETE CASCADE, revision INTEGER NOT NULL, '
+                   'PRIMARY KEY(conversation_id, revision))')
+        db.execute("CREATE TRIGGER conversation_task_state_revisions_no_delete BEFORE DELETE ON "
+                   "conversation_task_state_revisions BEGIN SELECT RAISE(ABORT, 'task-state revisions are retained'); END")
+        db.execute("INSERT INTO conversations VALUES ('conv_a')")
+        db.execute("INSERT INTO conversation_task_state_revisions VALUES ('conv_a', 1)")
+        migrate_deletion_schema(db)
+        refuse(db, "DELETE FROM conversation_task_state_revisions WHERE conversation_id = 'conv_a'",
+               match='retained')
+        db.execute("DELETE FROM conversations WHERE id = 'conv_a'")
+        assert db.execute('SELECT COUNT(*) FROM conversation_task_state_revisions').fetchone()[0] == 0
+    finally:
+        db.close()
