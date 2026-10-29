@@ -28,7 +28,7 @@ Turn a working folder into a short, accurate digest a person can act on. This sk
 
 - **Folder**: one line with the path and total file count.
 - **Contents**: 3–8 bullets grouped by kind, each naming concrete files.
-- **Notable**: anything surprising — very large files, duplicates, files that look misplaced, or
+- **Notable**: anything surprising, very large files, duplicates, files that look misplaced, or
   dates that are clearly stale.
 - **Not read**: list files you deliberately skipped and why.
 

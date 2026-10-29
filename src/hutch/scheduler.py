@@ -77,7 +77,7 @@ class Scheduler:
 
     @staticmethod
     def _zone(scheduled: Bot | Schedule) -> ZoneInfo:
-        """Resolve the schedule zone. Raises InvalidScheduleZone — never falls back to UTC."""
+        """Resolve the schedule zone. Raises InvalidScheduleZone; never falls back to UTC."""
         schedule = scheduled.schedule if isinstance(scheduled, Bot) else scheduled
         name = schedule.timezone if schedule else "UTC"
         return Scheduler.resolve_zone(name)
@@ -500,7 +500,7 @@ class Scheduler:
 
     def _note_skipped(self, bot: Bot, n_windows: int, schedule: Schedule | None = None,
                       *, uncertain: bool = False, reason: str = "catch_up_skip") -> None:
-        """Silent non-runs are the #1 scheduler complaint — record skips visibly."""
+        """Silent non-runs are the #1 scheduler complaint, record skips visibly."""
         import json
         schedule = schedule or bot.schedule
         self.store.kv_set(

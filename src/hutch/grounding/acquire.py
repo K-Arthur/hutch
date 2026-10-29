@@ -17,7 +17,7 @@ Design rules (mission sections 4-5):
 Adapters shipped here: GDELT DOC 2.0 (verified live), RSS/Atom feeds (verified live),
 Hacker News Algolia (verified live), SearXNG JSON (needs a configured instance), and
 Bluesky public search (implemented; the public host is currently blocked from this
-network — the adapter says so honestly). Streams live in ``streams.py``.
+network, the adapter says so honestly). Streams live in ``streams.py``.
 """
 
 from __future__ import annotations
@@ -74,7 +74,7 @@ class GroundingConfig:
     language: str = ""
     max_feed_age_hours: float = 168.0
     #: per-adapter resume cursors supplied by the caller (usually loaded from the store);
-    #: never invented here — an absent cursor means "start at the live tip"
+    #: never invented here, an absent cursor means "start at the live tip"
     stream_cursors: dict[str, dict] = field(default_factory=dict)
 
     @classmethod
@@ -263,7 +263,7 @@ def _strip_html(text: str) -> str:
 def search_gdelt(query: str, cutoff: EvidenceCutoff, budget: AcquireBudget, clock: Clock,
                  cfg: GroundingConfig, stop: Callable[[], bool], *, adapter: str = "gdelt",
                  lane: str = "news") -> tuple[list[FoundSource], AdapterOutcome]:
-    """GDELT DOC 2.0 article list — verified reachable 2026-10-11; ``seendate`` is tagged as
+    """GDELT DOC 2.0 article list, verified reachable 2026-10-11; ``seendate`` is tagged as
     an index observation, and every returned article is bounds-checked locally."""
     started = time.monotonic()
     outcome = AdapterOutcome(adapter=adapter, lane=lane, query=query, state="error", freshness="polled")
@@ -435,7 +435,7 @@ def search_feeds(query: str, cutoff: EvidenceCutoff, budget: AcquireBudget, cloc
 def search_hn(query: str, cutoff: EvidenceCutoff, budget: AcquireBudget, clock: Clock,
               cfg: GroundingConfig, stop: Callable[[], bool], *, adapter: str = "hn",
               lane: str = "discussion") -> tuple[list[FoundSource], AdapterOutcome]:
-    """Hacker News (Algolia) story search — public, no account; snapshots, not a stream."""
+    """Hacker News (Algolia) story search, public, no account; snapshots, not a stream."""
     started = time.monotonic()
     outcome = AdapterOutcome(adapter=adapter, lane=lane, query=query, state="error", freshness="snapshot")
     since = int((cutoff.effective - timedelta(hours=cutoff.horizon_hours or 168)).timestamp())
@@ -671,7 +671,7 @@ def search_jetstream_stream(query: str, cutoff: EvidenceCutoff, budget: AcquireB
 
     The server has no keyword search; this observes the live post firehose for a *bounded*
     window, keeps posts whose text matches the query terms, and reports exactly what was
-    scanned. A window with no matches is ``zero_results`` with the window stated — never a
+    scanned. A window with no matches is ``zero_results`` with the window stated, never a
     claim that nobody posted. A stored cursor (per investigation) resumes at-least-once;
     ``CursorTooOld`` becomes an explicit gap, not a silent skip.
     """

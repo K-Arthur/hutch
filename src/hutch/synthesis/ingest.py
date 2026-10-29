@@ -7,11 +7,11 @@ Two ingest paths feed the synthesis manifest:
   quoted posts by others, and engagement order never become the argument; duplicates are
   recorded, not repeated; corrections are marked, not rewritten; inaccessible posts become
   typed gaps and the coverage statement says exactly how many posts were accessible
-  ("18 of 20 accessible") — missing text is never invented.
+  ("18 of 20 accessible"), missing text is never invented.
 
 * :func:`ingest_paper` extracts the structure of a technical paper: page text within
   bounds, numbered sections, caption candidates for figures/tables, equation candidates,
-  footnote candidates, and an honest coverage record — encrypted files are refused,
+  footnote candidates, and an honest coverage record, encrypted files are refused,
   image-only (scanned) pages are reported instead of silently producing an empty summary,
   and multi-column/reading-order suspicion is disclosed. Extraction is structural:
   candidates are labeled as candidates until a verification step confirms them.
@@ -171,7 +171,7 @@ def ingest_thread(
     missing_post_ids: list[str] = []
     notes: list[str] = []
 
-    # children index by reply_to — including posts we could not read, so a deleted post
+    # children index by reply_to, including posts we could not read, so a deleted post
     # in the middle of a chain does not orphan everything after it.
     children: dict[str, list[ThreadPost]] = {}
     for p in post_list:

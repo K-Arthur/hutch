@@ -3,11 +3,11 @@
 Everything a person needs to read the system's state at a glance lives here, free of web
 dependencies so it is unit-testable:
 
-* ``explain_run``   — UI-6: every waiting state names its **cause** and a **fix**. No bare spinners.
-* ``explain_outcome`` — the same for finished runs that did not succeed.
-* ``stale_info``    — UI-1: a scheduled bot whose last success is older than its schedule implies.
-* ``home_state``    — UI-1: *Needs you* / *Running now* / *Stale*.
-* ``run_meters``    — UI-4: steps, elapsed time, spend, tokens and context against their caps.
+* ``explain_run`` (UI-6): every waiting state names its **cause** and a **fix**. No bare spinners.
+* ``explain_outcome``: the same for finished runs that did not succeed.
+* ``stale_info`` (UI-1): a scheduled bot whose last success is older than its schedule implies.
+* ``home_state`` (UI-1): *Needs you* / *Running now* / *Stale*.
+* ``run_meters`` (UI-4): steps, elapsed time, spend, tokens and context against their caps.
 
 The research behind the shapes (n8n "active but silently failing", Grok Bot "no context meter",
 Dots/Grok "opaque waits") is in docs/research/offerings-and-failures.md.

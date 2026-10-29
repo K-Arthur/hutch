@@ -1,4 +1,4 @@
-"""Browser tool — optional Playwright automation with per-bot profiles.
+"""Browser tool: optional Playwright automation with per-bot profiles.
 
 What it guarantees (see docs/computer-use.md):
 - Session expiry: each bot gets a PERSISTENT browser profile, so logins survive across runs instead of being re-harvested

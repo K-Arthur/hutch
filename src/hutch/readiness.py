@@ -1,14 +1,13 @@
 """Execution readiness for one Bot: why a workflow can or cannot run right now.
 
-Readiness is deliberately not one boolean. Each area reports its own state —
-
+Readiness is deliberately not one boolean. Each area reports its own state,
 * ``runtime``     the selected runtime is supported and installed
 * ``model``       a usable, configured model route for this Bot
 * ``tools``       every enabled tool exists, is supported by the runtime, and offline mode's removed tools are shown
 * ``skills``      each bound skill is installed, reviewed, enabled, compatible, and has the tools and connections it declares
 * ``connections`` required accounts are granted for the tools and skills this Bot actually uses
 
-— and the frontend renders the same structure the API returns, so what a person sees is what the
+The frontend renders the same structure the API returns, so what a person sees is what the
 backend enforces. ``missing`` marks something that blocks the configured workflow; ``warning``
 marks a visible, explained capability loss that does not block the rest of the Bot. Nothing here
 calls a provider or spends money: these are local configuration and local-state checks.
@@ -27,7 +26,7 @@ from .tools import expand_tools
 
 
 def _grant(store, bot: Bot, service: str) -> bool:
-    """The reviewed grant row (and any explicit consent field) exists — catalog-derived."""
+    """The reviewed grant row (and any explicit consent field) exists, catalog-derived."""
     return connection_service_granted(store, bot, service)
 
 

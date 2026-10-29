@@ -25,7 +25,7 @@ implemented rather than only in ``docs/safety.md``:
 * Everything a cell may produce is hard-bounded here: stdout/stderr tails,
   ``result_repr``, table previews, produced-file listings. A cell that
   exceeds its output budget is terminated and reported honestly with status
-  ``'timeout'`` — never truncated silently.
+  ``'timeout'``, never truncated silently.
 
 Stdlib only: the data path (csv/json/statistics-class work) works with no
 third-party packages installed in the child; ``pandas``/``matplotlib`` are
@@ -144,7 +144,7 @@ def redact_path(path: str, workspace: Path | str) -> str:
 def redacted_traceback(exc: BaseException, workspace: Path | str) -> list[str]:
     """Traceback frames as strings, with out-of-workspace paths redacted.
 
-    Local variables are NEVER included — an error receipt must not become a
+    Local variables are NEVER included, an error receipt must not become a
     side channel onto the cell's memory. The final exception line is the last
     frame; everything above it is the frame list.
     """
@@ -162,7 +162,7 @@ def redacted_traceback(exc: BaseException, workspace: Path | str) -> list[str]:
 
 
 def _scalar_ok(value: Any) -> bool:
-    """True for None/bool/int/finite-float/str — the only table cells."""
+    """True for None/bool/int/finite-float/str, the only table cells."""
     if value is None or isinstance(value, (bool, str, int)):
         return True
     if isinstance(value, float):
@@ -286,7 +286,7 @@ def produced_files_between(before: dict[str, tuple[int, int, int]],
     """Hash what a cell newly created or changed, bounded and honest.
 
     Only regular files directly under the workspace count. Files over
-    :data:`FILE_HASH_MAX_BYTES` are excluded (never partially hashed — a
+    :data:`FILE_HASH_MAX_BYTES` are excluded (never partially hashed, a
     prefix hash presented as a file digest would be a lie). Newest first,
     capped at :data:`MAX_PRODUCED_FILES`.
     """
@@ -320,7 +320,7 @@ def fabricate_receipt(*, ordinal: int, generation: int, started_at: str, finishe
 
     The parent does not know what the cell printed or returned before it
     died, so the counters are zero and the loss is stated in the receipt's
-    ``note`` — never silently claimed. Used for ``timeout`` (terminated past
+    ``note``, never silently claimed. Used for ``timeout`` (terminated past
     every deadline), ``interrupt_unconfirmed`` (no ack to the SIGINT) and
     ``error`` (the kernel died mid-execution).
     """

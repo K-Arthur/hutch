@@ -1,8 +1,8 @@
 """Live, read-only smoke checks against real public endpoints.
 
 Skipped unless ``HUTCH_LIVE_TEST=1``: the offline suite must remain deterministic. These
-checks prove the shipped acquisition paths work against the actual services — GDELT,
-a public RSS feed, Hacker News Algolia, and the Wikimedia SSE stream — and they assert
+checks prove the shipped acquisition paths work against the actual services, GDELT,
+a public RSS feed, Hacker News Algolia, and the Wikimedia SSE stream, and they assert
 structural honesty (state vocabulary, parsed timestamps in frame, cursor shape), never
 that today's news is non-empty.
 """

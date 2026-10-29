@@ -148,7 +148,7 @@ def test_runaway_cell_that_ignores_sigint_is_terminated_with_a_truthful_timeout(
 
 def test_kernel_watchdog_terminates_deadline_breach_with_tails(tmp_path):
     """In-child deadline (the normal path): the CHILD reports the timeout, so
-    the tails survive — this is the parent-watchdog case's honest sibling."""
+    the tails survive. This is the parent-watchdog case's honest sibling."""
     kernel = bare_kernel(tmp_path)
     response = run_exec(kernel,
                         "lines = []\n"

@@ -2446,7 +2446,7 @@ def approvals_deny(approval_id: str = typer.Argument(...)) -> None:
 def daemon() -> None:
     """Run the scheduler + dispatcher loop (foreground; Ctrl-C to stop).
 
-    The loop sleeps until the next scheduled run or an incoming event — no polling interval.
+    The loop sleeps until the next scheduled run or an incoming event, no polling interval.
     """
     from .engine import Engine
     config = get_config()

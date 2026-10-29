@@ -6,7 +6,7 @@ the UI, and a later correction all read the same evidence rows.
 
 ``live_search`` returns a compact citation brief with stable [S#] handles. ``inspect_media``
 acquires one artifact, inspects it locally, stores derivatives, and hands frames to the
-runtime through ``ToolResult.data["media_attachments"]`` — the runtime decides whether the
+runtime through ``ToolResult.data["media_attachments"]``, the runtime decides whether the
 selected model route can receive them and records what actually reached the model.
 """
 

@@ -4,7 +4,7 @@ A MediaBackend is hutch's adapter to ONE external media service. The protocol is
 deliberately small: capabilities, submit, poll, fetch, cancel. Every adapter in
 this package is honest about its verification status:
 
-    **protocol-verified, live-unverified** — the adapter's request/response
+    **protocol-verified, live-unverified**: the adapter's request/response
     handling is exercised against in-process fakes (``openai`` with a fake
     transport, ``httpx.MockTransport``), so the protocol usage is tested; no LIVE
     provider account was exercised, so real-world drift (endpoints, auth, payload
@@ -13,7 +13,7 @@ this package is honest about its verification status:
 
 Billing rule (see ``docs/research/outputs-failures-2026-10-10.md`` A.2): submit()
 is the only method that can create a billable upstream job, and it is called
-exactly once per media job row — idempotency is enforced one layer up in
+exactly once per media job row, idempotency is enforced one layer up in
 ``media.jobs.MediaJobService``, and there is deliberately no generic retry that
 could double-spend.
 """
@@ -53,12 +53,11 @@ class MediaBackend(Protocol):
         ...
 
     def fetch(self, job: dict[str, Any]) -> bytes:
-        """Download the finished bytes. Expiring URLs are consumed HERE and now —
-        the service stores only the fetched bytes, never a URL."""
+        """Download the finished bytes. Expiring URLs are consumed HERE and now,        the service stores only the fetched bytes, never a URL."""
         ...
 
     def cancel(self, job: dict[str, Any]) -> dict[str, Any] | None:
         """Request cancellation. Returns a confirmation dict when the backend
-        ACKNOWLEDGED the cancel, or None when it did not — the service turns
+        ACKNOWLEDGED the cancel, or None when it did not; the service turns
         None into the honest ``cancel_unconfirmed`` state, never 'cancelled'."""
         ...

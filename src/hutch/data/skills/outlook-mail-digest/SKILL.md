@@ -16,7 +16,7 @@ skill reads; it cannot send, delete or move anything.
 ## Prerequisites
 
 The Bot must have an Outlook Mail connection granted by the operator. If `outlook_mail_search`
-is unavailable, say exactly which connection and grant is missing and stop — do not attempt to
+is unavailable, say exactly which connection and grant is missing and stop; do not attempt to
 reach the mailbox any other way.
 
 ## Steps
@@ -32,8 +32,8 @@ reach the mailbox any other way.
 ## Output format
 
 - **Inbox, last check**: one line with the query and how many messages were returned.
-- **Needs a reply**: sender — subject — why (one short clause).
-- **FYI**: sender — subject.
+- **Needs a reply**: sender, subject, why (one short clause).
+- **FYI**: sender, subject.
 - **Noise**: a count with one example, not a full list.
 - **Not covered**: state plainly that only previews were read and older mail was not searched.
 

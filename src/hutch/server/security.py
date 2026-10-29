@@ -2,13 +2,13 @@
 
 Threats this closes (research §3, docs/research/offerings-and-failures.md):
 
-* **Cross-site request forgery** — any page the user visits can POST to http://127.0.0.1:8787.
+* **Cross-site request forgery**: any page the user visits can POST to http://127.0.0.1:8787.
   A body-less ``POST /approvals/<id>/approve`` is all it takes (serialwarden #56, GAIA #3365).
   → every unsafe request must be same-origin (``Origin`` / ``Sec-Fetch-Site``), and HTML form posts
   must also carry the per-session CSRF token (double-submit cookie).
-* **DNS rebinding** — an attacker hostname re-resolves to 127.0.0.1, making the attacker's page
+* **DNS rebinding**: an attacker hostname re-resolves to 127.0.0.1, making the attacker's page
   *same-origin* with the dashboard. → the ``Host`` header must be loopback or explicitly allowed.
-* **Exposure** — an unauthenticated dashboard on a network interface exposes bot data and execution.
+* **Exposure**: an unauthenticated dashboard on a network interface exposes bot data and execution.
   → loopback remains the default; remote mode requires an explicit private bind or trusted HTTPS proxy,
   exact Host/origin configuration, and a database-backed passkey session. The local owner bearer token
   is never accepted remotely, and phone pairing never issues a reusable dashboard token.

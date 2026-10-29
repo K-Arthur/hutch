@@ -5,7 +5,7 @@ Two paths produce a :class:`~hutch.synthesis.model.Script`:
 * :func:`parse_authored_script` accepts a model-authored JSON payload and *refuses* it
   unless every claim id exists, every spoken number traces to a manifest quantity, no
   non-vocal stage direction sits in the transcript, and the two-host shape holds. A
-  rejected draft lists its problems so the caller can re-prompt once — bounded, never a
+  rejected draft lists its problems so the caller can re-prompt once, bounded, never a
   silent repair.
 * :func:`deterministic_draft` builds a plainly-labeled script without any model. It only
   sequences real manifest content (coverage, claims verbatim, caveats, contradictions),

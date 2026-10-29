@@ -4,7 +4,7 @@ Content is placed in runs at build time and never reassigned afterwards: assigni
 ``paragraph.text``/``cell.text`` replaces a paragraph's runs and destroys run-level
 formatting (python-docx#1251, failure class E7), so this module has no text assignment
 anywhere. Base style fonts are authored directly and the theme indirection attributes
-are removed — ``font.name`` alone leaves ``asciiTheme``/``hAnsiTheme`` standing and
+are removed, ``font.name`` alone leaves ``asciiTheme``/``hAnsiTheme`` standing and
 OOXML lets a theme attribute supersede the explicit font (python-docx#1089), so output
 would otherwise silently depend on the theme of whatever application opened the file.
 
@@ -58,7 +58,7 @@ _THEME_FONT_ATTRS = (qn("w:asciiTheme"), qn("w:hAnsiTheme"), qn("w:eastAsiaTheme
 
 
 def _text_field(value: Any, what: str) -> str:
-    """Every string slot of the spec: typed, bounded, and XML-safe — no coercion."""
+    """Every string slot of the spec: typed, bounded, and XML-safe, no coercion."""
     if not isinstance(value, str):
         raise DocumentGenerationError(f"{what} must be a string")
     if len(value) > MAX_TEXT_CHARS:
@@ -78,7 +78,7 @@ def _author_base_fonts(document: DocumentObject) -> None:
     """Direct-author ``BASE_FONT`` on Normal and the heading styles, theme attrs removed.
 
     ``font.name`` writes ``w:ascii``/``w:hAnsi`` but leaves the ``*Theme`` attributes in
-    place, and OOXML lets those win (python-docx#1089) — deleting them makes the explicit
+    place, and OOXML lets those win (python-docx#1089), deleting them makes the explicit
     font authoritative for western, east-asian, and complex-script runs alike.
     """
     for style_name in ("Normal", "Heading 1", "Heading 2", "Heading 3", "Heading 4"):

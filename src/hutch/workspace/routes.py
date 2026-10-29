@@ -4,7 +4,7 @@ A factory, not a mount: ``build_workspace_router(store, manager_factory)``
 returns an :class:`~fastapi.APIRouter` the integrator includes on the app
 (the way ``server/app.py`` mounts the remote sub-application with
 ``dependencies=[Depends(authorize_remote_route)]``). The route bodies are
-plain closures over ``store`` — the same style as the document routes — so
+plain closures over ``store`` (the same style as the document routes) so
 auth stays the app's single decision point: these paths are NOT in
 ``REMOTE_ROUTE_CAPABILITIES``, which keeps them local-owner-only until the
 integrator deliberately adds them.
@@ -29,10 +29,10 @@ ManagerFactory = Callable[[str], WorkspaceManager]
 
 
 def build_workspace_router(store: Store, manager_factory: ManagerFactory) -> APIRouter:
-    """``GET  /api/v1/conversations/{id}/workspace/session`` — status, generation,
+    """``GET  /api/v1/conversations/{id}/workspace/session``: status, generation,
     environment fingerprint (manager state plus the durable store row).
 
-    ``POST /api/v1/conversations/{id}/workspace/reset`` — mirrors the
+    ``POST /api/v1/conversations/{id}/workspace/reset``: mirrors the
     reset_workspace tool: verified teardown, generation bump, stale marker.
     """
 

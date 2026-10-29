@@ -6,8 +6,8 @@ characters (arrows, geometric shapes, dingbats, technical symbols) in UI
 surface files, where inline SVG icons are the only permitted iconography.
 
 Two passes per line:
-  1. EMOJI  — pictographic emoji and emoji presentation selectors, all files
-  2. ICON   — icon-like text chars and HTML pictographic entities, UI files
+  1. EMOJI: pictographic emoji and emoji presentation selectors, all files
+  2. ICON: icon-like text chars and HTML pictographic entities, UI files
 
 UI surface files (anything under src/hutch/server/static/ or website/) are
 held to both passes. Other tracked sources are held to pass 1 only, so
@@ -42,8 +42,7 @@ ROOT = Path(__file__).resolve().parent.parent
 # High planes (Supplemental Symbols & Pictographs, Emoticons, Transport,
 # CJK extras, EnclosedAlphanumericSupplement), the emoji presentation
 # selector, and stray pictographs outside those planes. Deliberately NOT
-# banned as "emoji": (c) (r) (tm) and plain-text dingbats in documentation —
-# pass 2 is what holds the UI to SVG-only iconography.
+# banned as "emoji": (c) (r) (tm) and plain-text dingbats in documentation,# pass 2 is what holds the UI to SVG-only iconography.
 EMOJI_CODEPOINTS: frozenset[int] = frozenset(
     [0x20E3, 0xFE0F, 0x1F004, 0x1F0CF, 0x1F18E, 0x1F191, 0x1F19A]
     + list(range(0x1F0E0, 0x1F0FF + 1))

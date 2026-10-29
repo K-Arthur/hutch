@@ -9,23 +9,23 @@ An unexpected pass still fails that gate until the owning implementation lands.
 Failure mode -> slice mapping (each test cites its ADR text in place):
 
 1. Tool bindings survive compaction            opencode#40901  -> S6 ("tool specs re-derived each
-    request (regression for opencode#40901)" — ADR-0017 §5 S6; §10 row "Long-session continuity ...
+    request (regression for opencode#40901)", ADR-0017 §5 S6; §10 row "Long-session continuity ...
     (S0 regressions land here)")
 2. Last user request retained verbatim         claude-code#22376 -> S6 (pinned set "preserved verbatim
     (operator policy, exact constraints, last user request, unexecuted work, pending call/result
-    pairs)" — ADR-0017 §5 S6; §3.2)
+    pairs)", ADR-0017 §5 S6; §3.2)
 3. Stale skill invocations not re-executed     claude-code#40193 -> S6 ("stale invocations scoped to
-    their turn" — ADR-0017 §5 S6; brief §9 "Do not restore completed or obsolete skill invocations
+    their turn", ADR-0017 §5 S6; brief §9 "Do not restore completed or obsolete skill invocations
     as new requests", Appendix A)
 4. Tool-catalog/manifest context size bounded  opencode#35376  -> S5 (the composer's fragment registry
     with per-fragment token budgets over the tool_definitions fragment, budget.py serialized-request
-    accounting — ADR-0017 §3.2, §5 S5; §9 "Catalog exposure" targets (a)-(c) anchored on #35376)
+    accounting, ADR-0017 §3.2, §5 S5; §9 "Catalog exposure" targets (a)-(c) anchored on #35376)
 5. Auth recovery re-reads persisted state      notebooklm-py#2161 -> S7 ("auth loss mid-upload ...
-    reconcile, never assume" — ADR-0017 §5 S7; §10 row "Authentication boundaries: ... refresh race
+    reconcile, never assume", ADR-0017 §5 S7; §10 row "Authentication boundaries: ... refresh race
     guarded by generation/CAS on persisted state (#2161 lesson)")
 6. No success without a live probe/read-back   false-sync / false-generation -> S7 ("verify via
-    sources.get metadata read-back; batchDelete returns {} even for missing names — verify by
-    re-get" — ADR-0017 §5 S7; §4.3 "A provider job id or URL is never reported as a completed
+    sources.get metadata read-back; batchDelete returns {} even for missing names, verify by
+    re-get", ADR-0017 §5 S7; §4.3 "A provider job id or URL is never reported as a completed
     artifact"; §11 "Nothing is declared successful from ... passing mocks alone". The media mirror
     of the same guard is S8; S7 lands first and this skeleton pins the shared receipt-level rule.)
 
@@ -218,8 +218,7 @@ def test_stale_skill_invocations_are_not_restored_as_new_requests(store, config,
 # ADR-0017 assigns this to S5: the composer's fragment registry prices the tool_definitions
 # fragment and budget-parameterized profiles bound it (§3.2 modules fragments.py/profiles.py/
 # budget.py), with §9 "Catalog exposure" naming the three targets: "(a) per-server schema byte cap
-# on tools/list retention; (b) per-turn visible integration tools cap; (c) tool-search threshold —
-# anchor: Claude docs recommend lazy exposure past ~20 tools". Nothing bounds the catalog today:
+# on tools/list retention; (b) per-turn visible integration tools cap; (c) tool-search threshold,# anchor: Claude docs recommend lazy exposure past ~20 tools". Nothing bounds the catalog today:
 # the real compiler emits a full OpenAI schema for every catalog entry
 # (src/hutch/toolcalling/compiler.py:110-111, native branch), the loop freezes and sends all of
 # them every turn (builtin.py:631, 708), and the estimator only counts the result
@@ -231,7 +230,7 @@ def test_integration_catalog_context_stays_bounded():
     """opencode#35376: ~290 connected tools cost 40-70k tokens of upfront catalog context.
 
     ADR-0017 §5 S5 fixes this via the composer's bounded tool_definitions fragment and §9's
-    exposure targets. Required behavior: at the anchor's scale (290 tools — 10 real native tools
+    exposure targets. Required behavior: at the anchor's scale (290 tools, 10 real native tools
     from the merged tree plus integration-scale entries), the per-turn visible tool set and the
     serialized catalog's token cost stay bounded instead of growing with the connected catalog.
     The bounds below are the ADR's §9 anchors, not measured targets: S5/S10 own establishing the
@@ -285,7 +284,7 @@ def test_integration_catalog_context_stays_bounded():
     plan = compile_plan(tools=catalog, profile=profile, strategy="native")
     visible = list(plan.wire_tools)
 
-    # (c) per-turn visible tools cap — anchor ~20 past which lazy exposure is recommended (§9).
+    # (c) per-turn visible tools cap, anchor ~20 past which lazy exposure is recommended (§9).
     assert len(visible) <= 20, f"{len(visible)} tools are offered to the model in one turn; the " \
                                "catalog must be bounded (manifest-first / progressive exposure)"
     # (a)+(b) the serialized catalog's context cost stays a bounded fragment, not 40-70k tokens.
@@ -312,7 +311,7 @@ def test_auth_recovery_rereads_persisted_connection_state(store, config, tmp_pat
     loop, no empty-success); refresh race guarded by generation/CAS on persisted state (#2161
     lesson)". Required behavior: (a) recovery re-reads the persisted credential instead of
     replaying the stale session, and (b) every persisted rotation bumps a generation marker on the
-    persisted connection row so a refresh race is CAS-guarded and recovery is bounded — never an
+    persisted connection row so a refresh race is CAS-guarded and recovery is bounded, never an
     endless loop.
     """
     monkeypatch.delenv("CUSTOM_API_KEY", raising=False)   # the persisted key file is authoritative
@@ -347,7 +346,7 @@ def test_auth_recovery_rereads_persisted_connection_state(store, config, tmp_pat
     oai.require_key = "key-v2"
     book.set_key("acme", "key-v2")
 
-    # (a) re-read of persisted state — this half holds today via the per-acquisition credential
+    # (a) re-read of persisted state, this half holds today via the per-acquisition credential
     # fingerprint (builtin.py:245-251) and is recorded as a surprise, not faked into a failure.
     assert acquire_and_call() == "ok", "recovery must re-read the persisted credential"
     sent = oai.of("/v1/chat/completions")
@@ -356,7 +355,7 @@ def test_auth_recovery_rereads_persisted_connection_state(store, config, tmp_pat
     # (b) the missing half (today's red): the persisted connection row carries no generation/CAS
     # marker, so a refresh race has nothing to CAS against and recovery cannot be bounded by
     # state. ADR-0017 §10 requires the guard on persisted state; `auth_generation` is the
-    # skeleton's pin for it — S7 renames the assertion if the landed schema chooses another name.
+    # skeleton's pin for it, S7 renames the assertion if the landed schema chooses another name.
     row = json.loads(book.path.read_text())["connections"]["acme"]
     assert isinstance(row.get("auth_generation"), int), "each persisted rotation must bump a " \
         "generation marker on the persisted connection row (generation/CAS guard, #2161 lesson)"
@@ -370,13 +369,13 @@ def test_external_success_requires_read_back_evidence(store, config, tmp_path):
     """False-sync/false-generation guard: no success is reported without a live probe/read-back.
 
     ADR-0017 §5 S7 fixes this for sync: the non-destructive workflow ends in "verify via
-    sources.get metadata read-back (batchDelete returns {} even for missing names — verify by
+    sources.get metadata read-back (batchDelete returns {} even for missing names, verify by
     re-get)", the brief (Appendix A §6) adds "Do not mark a source synced merely because bytes were
     accepted", §4.3 adds "A provider job id or URL is never reported as a completed artifact", and
     §11 bars declaring success "from tool discovery, valid JSON, ... a connected badge, ... or
     passing mocks alone". (S8 mirrors the same guard for media generation.) Required behavior: an
     outward, billable external operation must not be sealed as a plain "done" receipt from its
-    self-report alone — the receipt must carry read-back verification evidence of the remote state.
+    self-report alone, the receipt must carry read-back verification evidence of the remote state.
     """
     bot = Bot(name="s0-sync", model="mock/demo", tools=[], selfcheck=False)
     store.create_bot(bot)
@@ -403,7 +402,7 @@ def test_external_success_requires_read_back_evidence(store, config, tmp_path):
         def run(self, args, ctx):
             if ctx.begin_effect() is not None:
                 return ToolResult(ok=False, output="the action could not be recorded")
-            # The upstream accepted the bytes and returned a job id — but nothing has read the
+            # The upstream accepted the bytes and returned a job id, but nothing has read the
             # remote state back. Ingestion may still be pending or failed upstream.
             return ToolResult(ok=True, output=f"accepted by notebook {args['notebook']} "
                                               "(job nb-job-0001)")

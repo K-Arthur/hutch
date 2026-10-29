@@ -2,10 +2,10 @@
 
 Two layers:
 
-* ``Bus`` — in-process, versioned topics on one Condition. A waiter records the
+* ``Bus``: in-process, versioned topics on one Condition. A waiter records the
   version it has seen, does its work, and then sleeps until the version moves or
   a timeout fires. Reading the version *before* working closes the lost-wakeup race.
-* ``WakeHub`` — cross-process nudges over per-process Unix datagram sockets, so
+* ``WakeHub``: cross-process nudges over per-process Unix datagram sockets, so
   ``hutch approvals approve`` in one terminal wakes a run waiting in ``hutch serve``
   in another. Several listeners can coexist (``serve`` + ``daemon``); a FIFO could
   not do that because readers would compete for each message.

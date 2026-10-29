@@ -70,7 +70,7 @@ class CoverageGap(BaseModel):
 
 
 class SourceCoverage(BaseModel):
-    """What was actually accessible — not what the source claims to contain."""
+    """What was actually accessible, not what the source claims to contain."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -216,7 +216,7 @@ class Quantity(BaseModel):
     value: float
     unit: str
     change_kind: ChangeKind = "level"
-    qualifier: str = ""  # "about", "at least", "up to" — as reported
+    qualifier: str = ""  # "about", "at least", "up to", as reported
     as_reported: str  # the exact source wording; required so no number is invented
     span_ids: list[str] = Field(default_factory=list)
 
@@ -610,8 +610,7 @@ def diff_claims(old: "SynthesisManifest", new: "SynthesisManifest") -> list[Clai
 def changed_claims_for_sources(manifest: "SynthesisManifest", source_ids: set[str]) -> set[str]:
     """Claims whose evidence lives in any of ``source_ids``.
 
-    When a source revision changes, every claim resting on its spans becomes suspect —
-    including corroboration spans, which are evidence too.
+    When a source revision changes, every claim resting on its spans becomes suspect,    including corroboration spans, which are evidence too.
     """
     hit: set[str] = set()
     span_to_source = {s.id: s.source_id for s in manifest.spans}

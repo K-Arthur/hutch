@@ -2,11 +2,11 @@
 
 Run as ``python -m hutch.workspace.kernel --workspace DIR --generation N``
 inside the bubblewrap strict profile (see ``manager.kernel_argv`` for the
-argv and the environment allowlist — ``HUTCH_KERNEL=1`` marks this process).
+argv and the environment allowlist, ``HUTCH_KERNEL=1`` marks this process).
 It speaks the JSON-line protocol v1 from :mod:`hutch.workspace.protocol`:
 
 * one persistent namespace per process; each ``exec`` compiles the submitted
-  code with ``compile()`` and runs it in that namespace's dict — in-memory
+  code with ``compile()`` and runs it in that namespace's dict, in-memory
   state survives across cells *within* one environment generation and is gone
   the moment the process ends, which is exactly what the generation number in
   every receipt makes detectable (never silently lost);
@@ -16,12 +16,11 @@ It speaks the JSON-line protocol v1 from :mod:`hutch.workspace.protocol`:
 * a trailing expression becomes ``result_repr``; a dict/list of scalars
   additionally becomes a bounded table payload preview; a trailing
   ``matplotlib.figure.Figure`` is rendered to a PNG in the workspace only if
-  matplotlib is importable (detected extra, never required — stdlib-first);
+  matplotlib is importable (detected extra, never required, stdlib-first);
 * ``emit_block(kind, payload, text_fallback="")`` is injected into the
   namespace and validates payloads against the output-block payload models
   in-child when ``hutch.outputblocks`` is importable (the read-only venv
-  makes it importable); invalid emissions degrade to a visible text block —
-  a diagnostic is never swallowed (outputs-failures A.4);
+  makes it importable); invalid emissions degrade to a visible text block,  a diagnostic is never swallowed (outputs-failures A.4);
 * ``inspect_csv(path)`` is injected and is the same bounded CSV disclosure the
   upload report route serves (``hutch.workspace.csvprobe``), so the model's
   in-kernel view of a uploaded file cannot disagree with the UI's;
@@ -35,7 +34,7 @@ It speaks the JSON-line protocol v1 from :mod:`hutch.workspace.protocol`:
   honestly: status ``'timeout'``, bounded tails preserved. External
   interrupts (SIGINT from the parent, or an ``interrupt`` protocol message)
   are confirmed by a receipt with status ``'interrupted'``; the parent marks
-  ``'interrupt_unconfirmed'`` when no ack arrives — this child never lets
+  ``'interrupt_unconfirmed'`` when no ack arrives, this child never lets
   silence stand for success.
 
 Interruption mechanics, stated plainly: the cell runs in the main thread; a
@@ -46,8 +45,7 @@ their flag, raising into the cell. An opt-in cooperative line-event tracer
 unavailable) additionally makes flag-only interruption stop pure-Python
 spin loops. Submitted-cell frames include opcode events: Python 3.11 may
 otherwise emit no further line event for a one-line spin. This optional
-diagnostic path is off in normal workers. A single C-level call that never returns cannot be interrupted —
-the parent's watchdog then terminates the process and reports an honest
+diagnostic path is off in normal workers. A single C-level call that never returns cannot be interrupted,the parent's watchdog then terminates the process and reports an honest
 fabricated receipt whose counters admit the output was lost.
 """
 
@@ -82,7 +80,7 @@ def _utc_now_iso() -> str:
 
 class _BudgetExceeded(KeyboardInterrupt):
     """Raised in the cell when its output budget is spent (reported as
-    status 'timeout' — the ask pins that mapping — with tails preserved)."""
+    status 'timeout' , the ask pins that mapping, with tails preserved)."""
 
 
 class _DeadlineBreached(KeyboardInterrupt):
@@ -228,7 +226,7 @@ class Kernel:
         the payload was accepted.
 
         The payload is validated against the same output-block models the
-        parent applies (when ``hutch.outputblocks`` is importable — it is,
+        parent applies (when ``hutch.outputblocks`` is importable, it is,
         via the read-only venv binding). A rejected payload degrades to a
         visible text block carrying the validation error: the diagnostic is
         data, never a console line (outputs-failures A.4).
@@ -552,7 +550,7 @@ class Kernel:
             return f"<unrepresentable {type(value).__name__}: {type(exc).__name__}>"
 
     def _maybe_render_figure(self, value: Any) -> None:
-        """A trailing matplotlib Figure becomes a PNG in the workspace — ONLY
+        """A trailing matplotlib Figure becomes a PNG in the workspace, ONLY
         when matplotlib is importable (a detected extra, never required; the
         stdlib data path works with nothing installed). The PNG is picked up
         by the produced-files scan like any other file the cell wrote."""

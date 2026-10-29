@@ -1,4 +1,4 @@
-/* hutch — safe Markdown for assistant answers.
+/* hutch: safe Markdown for assistant answers.
 
    Contract (tests/e2e/test_studio_markdown.py + tests/test_studio_markdown.mjs):
    · Escape-first: every character of the input is HTML-escaped before any markup is
@@ -48,7 +48,7 @@
 
     s = esc(s);
 
-    // links: [label](url "title") — label is processed for emphasis, url validated
+    // links: [label](url "title"), label is processed for emphasis, url validated
     s = s.replace(/!?\[([^\]\n]{1,300})\]\(([^()\s]{1,2000}(?:\([^()\s]*\)[^()\s]*)*)(?:\s+&quot;[^\n]*?&quot;)?\)/g,
       (match, label, url) => {
         const image = match.startsWith("!");

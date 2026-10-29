@@ -19,11 +19,11 @@ Design constraints this module owns:
   (``<state>/workspaces/<conversation_id>/``, the same directory the contained
   Python kernel reads), named ``<upl_id>-<safe name>`` so the model can refer to
   the exact file it sees in ``list_files``;
-* bytes are hashed while streaming and re-verified at serve time — a tampered
+* bytes are hashed while streaming and re-verified at serve time, a tampered
   file is an honest 410, never served;
 * accepted kinds are delimited/tabular text, Markdown/JSON text, and PNG/JPEG/
-  WebP images (magic-byte sniffed). Anything else — including binary dressed in
-  a text extension — is refused with an honest 415, never guessed at;
+  WebP images (magic-byte sniffed). Anything else, including binary dressed in
+  a text extension, is refused with an honest 415, never guessed at;
 * ``DELETE`` moves the row to the ``deleted`` state; the bytes stay on disk
   (bounded by the per-conversation upload cap) so a delete is reversible bookkeeping,
   not a destructive unlink.

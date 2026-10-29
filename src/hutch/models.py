@@ -1,6 +1,6 @@
 """Data model: bots, tasks, runs, events, approvals, memory.
 
-Timestamps are ISO-8601 UTC strings with explicit offset — naive local times
+Timestamps are ISO-8601 UTC strings with explicit offset, naive local times
 are the root cause of the DST double-fire / missed-fire bugs documented in
 docs/research/complaints.md, so we never store them.
 """

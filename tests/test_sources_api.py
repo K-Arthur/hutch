@@ -80,7 +80,7 @@ def test_source_api_check_now_schedules_without_blocking_the_request(tmp_path, m
 
         from hutch.models import iso, utcnow
         # The background supervisor may hold a short claim lease on the source, so the
-        # next check is at most one claim window away — never scheduled further out.
+        # next check is at most one claim window away, never scheduled further out.
         assert after["next_check_at"] <= iso(utcnow() + timedelta(seconds=125))
         assert after["enabled"] is True
         assert before["revision"] == after["revision"], "scheduling a check is not a registration edit"

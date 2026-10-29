@@ -2,13 +2,13 @@
 
 The rules this module enforces (mission sections 7):
 
-* **A timestamp is (raw text, role, method, precision, zone) — not a float.** Parsing
+* **A timestamp is (raw text, role, method, precision, zone), not a float.** Parsing
   keeps the raw string; the parsed instant is a convenience with recorded uncertainty.
 * **Unknown is not UTC and not now.** A date without an offset, a date without a year,
   or a `-0000` RFC-822 zone stay marked unknown/uncertain.
 * **Every relative phrase is anchored to its own speaker/document.** "Ten minutes ago"
   in the user's request is anchored to the request clock; the same phrase inside a
-  three-month-old quote is anchored to that document's timestamp — that is why
+  three-month-old quote is anchored to that document's timestamp, that is why
   ``parse_relative`` takes an explicit ``reference``.
 * **Roles never collapse.** Run/transcript time is not the event time; GDELT's
   ``seendate`` is an index observation; EXIF is a capture clue, not proof of when an
@@ -263,7 +263,7 @@ def parse_rfc822(raw: str, *, role: str = TimestampRole.publication.value,
 
 def parse_gdelt(raw: str, *, role: str = TimestampRole.index.value,
                 clock: Optional[Clock] = None) -> Optional[TimestampValue]:
-    """GDELT ``YYYYMMDDTHHMMSSZ`` — an index/crawl observation of the article, not the
+    """GDELT ``YYYYMMDDTHHMMSSZ``: an index/crawl observation of the article, not the
     publisher's own declared publication time."""
     m = _GDELT_RE.match((raw or "").strip())
     if not m:
@@ -276,7 +276,7 @@ def parse_gdelt(raw: str, *, role: str = TimestampRole.index.value,
 
 def parse_epoch(value: Any, *, unit: str, role: str = TimestampRole.upload.value,
                 method: str = "epoch", clock: Optional[Clock] = None) -> Optional[TimestampValue]:
-    """Unix epoch seconds/milliseconds/microseconds — the unit must be stated, never guessed
+    """Unix epoch seconds/milliseconds/microseconds, the unit must be stated, never guessed
     from magnitude alone (Jetstream's v1/v2 cursor split shows what guessing does)."""
     scale = {"seconds": 1, "milliseconds": 1_000, "microseconds": 1_000_000}.get(unit)
     if scale is None:
@@ -327,7 +327,7 @@ def parse_slash_date(raw: str, *, role: str, default_order: Optional[str] = None
 
 def parse_month_day(raw: str, *, reference: datetime, role: str = TimestampRole.publication.value,
                     default_tz: Optional[str] = None, clock: Optional[Clock] = None) -> Optional[TimestampValue]:
-    """``Oct 8`` / ``October 8, 2026`` / ``Oct 8 17:30`` — a missing year anchors to the
+    """``Oct 8`` / ``October 8, 2026`` / ``Oct 8 17:30``: a missing year anchors to the
     reference's year, rolling back one year when that would land in the future."""
     m = _MONTH_DAY_RE.match((raw or "").strip())
     if not m:
@@ -364,7 +364,7 @@ def parse_relative(text: str, *, reference: datetime, role: str = TimestampRole.
                    clock: Optional[Clock] = None) -> Optional[TimestampValue]:
     """Resolve one bounded English relative phrase (``ten minutes ago``, ``3 days ago``).
 
-    The ONLY correct reference is the speaker's own document/request instant — never the
+    The ONLY correct reference is the speaker's own document/request instant, never the
     reader's now. The result is marked uncertain because "ago" is approximate by nature.
     """
     m = _REL_RE.search(text or "")

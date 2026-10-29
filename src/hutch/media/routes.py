@@ -7,7 +7,7 @@
 
 Serving re-verifies the stored bytes against the version manifest (size +
 SHA-256) before anyone sees them: a missing version is an honest 404, corrupted
-bytes an honest 410 Gone — never unverified content, never a plausible guess.
+bytes an honest 410 Gone, never unverified content, never a plausible guess.
 
 Authorization follows the document routes' pattern (``server/app.py``): routes
 carry NO per-route dependency; the app-level ``dependencies=[Depends(authorize_remote_route)]``

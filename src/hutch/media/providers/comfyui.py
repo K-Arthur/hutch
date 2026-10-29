@@ -1,13 +1,13 @@
 """ComfyUI adapter (httpx): prompt submit → history polling → /view fetch.
 
 **Protocol-verified, live-unverified.** Tests drive this adapter against
-``httpx.MockTransport`` — no network. The endpoint paths follow ComfyUI's public
+``httpx.MockTransport``: no network. The endpoint paths follow ComfyUI's public
 HTTP API (``POST /prompt``, ``GET /history/{id}``, ``GET /view``,
 ``POST /interrupt``, ``POST /queue``); a live server may still differ, and any
 such drift fails loudly into the job ledger, never into fabricated media.
 
 The caller supplies the ComfyUI workflow graph itself (API-format JSON) in
-``req["workflow"]`` — hutch does not synthesize node graphs, so what gets billed
+``req["workflow"]``: hutch does not synthesize node graphs, so what gets billed
 is exactly what the caller asked for.
 """
 
@@ -128,7 +128,7 @@ class ComfyUIBackend:
 
     def cancel(self, job: dict[str, Any]) -> Optional[dict[str, Any]]:
         """Best-effort cancel: /interrupt for the running item, /queue delete for
-        a queued one. Returns a confirmation ONLY on an explicit 2xx — otherwise
+        a queued one. Returns a confirmation ONLY on an explicit 2xx; otherwise
         None, which the job service turns into honest ``cancel_unconfirmed``."""
         prompt_id = str(job.get("upstream_job_id") or "")
         try:

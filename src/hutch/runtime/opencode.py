@@ -427,7 +427,7 @@ class OpenCodeRuntime:
         directories are denied by the agent's permissions), so verified bytes are
         copied to ``<workspace>/hutch-attachments/<upload id>-<name>`` and passed
         as file references. Any unreadable, tampered or oversized image aborts
-        before the prompt — a message never goes out missing an image the
+        before the prompt, a message never goes out missing an image the
         composer still shows.
         """
         from ..providers.attachments import ImageAttachmentError, read_image_upload

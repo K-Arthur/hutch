@@ -1,4 +1,4 @@
-"""Web fetch tool — read-only HTTP GET with SSRF guards and evidence metadata.
+"""Web fetch tool: read-only HTTP GET with SSRF guards and evidence metadata.
 
 Beyond the original behavior (public http(s) targets only, pinned validated addresses,
 redirect re-checks, hard size clips) this preserves what the grounding layer needs from a

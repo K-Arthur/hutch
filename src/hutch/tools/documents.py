@@ -1,4 +1,4 @@
-"""Document tools — create validated, durably stored documents from typed content.
+"""Document tools: create validated, durably stored documents from typed content.
 
 The model drafts a structured content specification; deterministic renderers produce the
 bytes, validators gate them, and the storage layer commits an immutable version. The
@@ -83,7 +83,7 @@ def _render_pdf_preview(doc_id: str, version_row: dict[str, Any], *,
 
     The version directory is derived from the storage path the store committed (its parts
     minus the file name, under ``documents_dir``). Success records ``rendered_pages`` on
-    ``preview_data``; any failure — ``RenderError`` or an unexpected renderer crash —
+    ``preview_data``; any failure (``RenderError`` or an unexpected renderer crash)
     downgrades ``preview_mode`` to ``download_only`` with a ``preview_render_failed``
     finding appended to the stored findings. The document itself stays valid and
     downloadable: generation and storage are never failed by preview rendering. Returns a

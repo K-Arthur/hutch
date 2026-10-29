@@ -488,8 +488,7 @@ def test_live_free_model_calls_the_run_bound_memory_bridge(store, config, tmp_pa
     the workspace, not in any prompt. The model can only mention the launch
     month by calling `recall` through the run-bound bridge (read-only: it
     records a canonical tool-call event, not an effect receipt), and its
-    `remember` call must land as an unreviewed proposal with a done receipt —
-    never as recallable memory before a human reviews it.
+    `remember` call must land as an unreviewed proposal with a done receipt,    never as recallable memory before a human reviews it.
     """
     import time
     from hutch.models import ApprovalMode, EventType, Limits, RuntimeKind

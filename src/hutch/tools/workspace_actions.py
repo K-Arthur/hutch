@@ -1,6 +1,6 @@
 """Workspace action tools: propose an inspectable plan, then execute it under review.
 
-``plan_workspace_action`` is free — it persists a plan and returns the exact review payload
+``plan_workspace_action`` is free; it persists a plan and returns the exact review payload
 (targets, effects, authorities, binding hash). ``run_workspace_plan`` is the outward action:
 it always asks for approval (never a sticky allowance), refuses a hash that no longer
 matches the plan's content, executes through the durable effect ledger, and reports partial

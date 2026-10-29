@@ -1,7 +1,7 @@
 """A compromised planner still meets the broker, not the boundary (mission §8, §12).
 
 Deterministic "malicious planner" fixture: the scripted actions below are what
-a fully prompt-injected model would propose — secret reads, exfiltration,
+a fully prompt-injected model would propose, secret reads, exfiltration,
 writes outside the workspace, invented tools, and Python with containment
 unavailable. None of them involve the model at all; the point is that
 authorization lives at the tool/broker boundary, so the outcome is identical

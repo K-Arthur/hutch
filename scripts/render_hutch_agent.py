@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Render the hutch hero agent — a 3D derivative of the user-supplied FF avatar.
+"""Render the hutch hero agent, a 3D derivative of the user-supplied FF avatar.
 
-Real Blender render (bpy wheel, isolated venv — NOT a project dependency):
+Real Blender render (bpy wheel, isolated venv, NOT a project dependency):
     uv venv ~/.cache/bpyenv/venv --python 3.11
     uv pip install bpy --python ~/.cache/bpyenv/venv/bin/python
 

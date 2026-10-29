@@ -1,7 +1,7 @@
 """Emoji-ban audit gate.
 
 Runs scripts/audit_emoji.py over the repository, so the default `pytest`
-invocation fails on emoji or icon-character regressions — no separate tool
+invocation fails on emoji or icon-character regressions, no separate tool
 invocation to forget (the varve approach required remembering a recipe).
 Also unit-tests the matcher itself on synthetic lines, without needing
 banned characters in this file.

@@ -3,8 +3,7 @@
 The acceptance property under test is preservation: a security paper quoting
 an attack phrase, a tutorial with a real install command, and a benign page
 mentioning "system prompt" must stay fully readable and analyzable, while the
-host annotation discloses what was flagged. Nothing here is a safety proof —
-authorization still lives at the broker — but the annotation must be accurate,
+host annotation discloses what was flagged. Nothing here is a safety proof;authorization still lives at the broker, but the annotation must be accurate,
 bounded, and free of silent edits.
 """
 

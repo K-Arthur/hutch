@@ -1,6 +1,6 @@
 """Agent Skills: the lifecycle for reusable instruction packages.
 
-A skill is a directory containing ``SKILL.md`` — YAML frontmatter (``name``, ``description`` and
+A skill is a directory containing ``SKILL.md``: YAML frontmatter (``name``, ``description`` and
 optional fields) plus Markdown instructions, following the Agent Skills specification
 (https://agentskills.io/specification). This module owns the whole lifecycle the product exposes:
 
@@ -179,7 +179,7 @@ def default_roots(workspace: Optional[str] = None) -> list[SkillRoot]:
     """The deliberately selected discovery locations, highest precedence first.
 
     Project skills (relative to a Bot's folder workspace) shadow user skills, which shadow the
-    samples shipped with Hutch. Only these locations are scanned — never arbitrary home paths.
+    samples shipped with Hutch. Only these locations are scanned, never arbitrary home paths.
     """
     roots: list[SkillRoot] = []
     if workspace:
@@ -276,7 +276,7 @@ def _scan_yaml_events(text: str) -> Optional[str]:
     """Pre-construction guard: reject aliases and oversized node graphs.
 
     PyYAML resolves anchors into shared objects, and rendering a shared graph through ``str()`` can
-    explode exponentially — a ~1 KB alias bomb caused a MemoryError through discovery alone. The
+    explode exponentially: a ~1 KB alias bomb caused a MemoryError through discovery alone. The
     event stream is safe to scan without constructing anything.
     """
     try:

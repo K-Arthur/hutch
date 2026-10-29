@@ -56,7 +56,7 @@ def spawn_interactive(command: list[str], *, cwd: Path | None = None,
     # The interactive CLI must see normal terminal signal semantics even when Hutch was
     # launched by a parent that ignores SIGINT (nohup, a background shell, or a test
     # runner): dispositions are inherited across fork/exec, and CPython keeps an inherited
-    # SIG_IGN instead of installing its KeyboardInterrupt handler — so ^C would silently
+    # SIG_IGN instead of installing its KeyboardInterrupt handler, so ^C would silently
     # never reach the handed-off process. Reset to default for the child only.
     previous_sigint = signal.getsignal(signal.SIGINT)
     signal.signal(signal.SIGINT, signal.SIG_DFL)

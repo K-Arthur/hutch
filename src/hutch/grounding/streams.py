@@ -3,18 +3,18 @@
 Two real, documented stream shapes are encoded here, because both teach a lesson that a
 single integer cursor would erase (mission sections 6 and 13):
 
-* **Jetstream** — cursors are *instance-local* sequence numbers (inclusive, monotonic,
+* **Jetstream**: cursors are *instance-local* sequence numbers (inclusive, monotonic,
   possibly non-contiguous after a rebuild). The same ``?cursor=`` parameter also accepts
   v1-style unix-microsecond timestamps, told apart **by magnitude** (>= 1e15 is a
   timestamp). A client that compares the two namespaces silently drops every event
-  (issue #349) — so this module never compares across kinds or instances, and migrating
+  (issue #349), so this module never compares across kinds or instances, and migrating
   between them is an explicit, recorded operation with a rewind margin.
-* **Wikimedia EventStreams** — SSE ``id`` is a JSON array of topic/partition/(offset or
+* **Wikimedia EventStreams**: SSE ``id`` is a JSON array of topic/partition/(offset or
   timestamp); offsets are per-Kafka-cluster and timestamps are the multi-DC-stable resume
   unit. The connection is closed server-side after ~15 minutes, canary events appear at
   least hourly (broken-vs-quiet), and there is no server-side filtering.
 
-A live heartbeat proves connectivity — not correct filtering and not complete delivery.
+A live heartbeat proves connectivity, not correct filtering and not complete delivery.
 ``LivenessState`` therefore separates: connected, last event, last canary, coverage gap.
 """
 
@@ -48,7 +48,7 @@ class CursorKind(str, Enum):
 
 
 class CursorMismatch(ValueError):
-    """A cursor was compared or resumed against the wrong kind/instance — never silent."""
+    """A cursor was compared or resumed against the wrong kind/instance, never silent."""
 
 
 @dataclass
@@ -339,7 +339,7 @@ def read_wikimedia_stream(*, pump: StreamPump, stream_key: str = "recentchange",
     """Bounded live read of one Wikimedia EventStreams topic with verbatim resume.
 
     Returns a diagnostics report; the caller decides whether to continue watching. The read
-    is explicitly bounded (events and seconds) — a one-time query never becomes persistent
+    is explicitly bounded (events and seconds), a one-time query never becomes persistent
     monitoring, and a cancelled investigation's cursor is not resumed by anything else.
     """
     import httpx  # noqa: F401 - present wherever the app's HTTP stack is
@@ -441,8 +441,8 @@ class JetstreamEvent:
 def parse_jetstream_event(raw: str) -> Optional[JetstreamEvent]:
     """Parse one Jetstream websocket message in either documented wire shape.
 
-    * **v1** — flat: ``{did, seq, time_us, kind, commit: {operation, collection, rkey, record}}``
-    * **v2** — nested: ``{$type: "message", payload: {$type: ".../commit", did, seq, time,
+    * **v1** (flat): ``{did, seq, time_us, kind, commit: {operation, collection, rkey, record}}``
+    * **v2** (nested): ``{$type: "message", payload: {$type: ".../commit", did, seq, time,
       witnessedAt, collection, rkey, operation, record}}`` with ISO-8601 times (observed on the
       live instance 2026-10-11; the initial v1-shaped parser silently treated those frames as
       unknown fields, which the live smoke test caught).
@@ -519,7 +519,7 @@ def jetstream_readiness() -> tuple[str, str]:
     """Whether the live Jetstream reader can run here, honestly.
 
     The reader needs the optional ``websockets`` dependency (``hutch`` extra ``jetstream``).
-    Without it the tool reports ``unsupported`` — never a fake connection. Host reachability
+    Without it the tool reports ``unsupported``, never a fake connection. Host reachability
     is a *runtime* question answered per connection, not a readiness claim.
     """
     try:
@@ -594,7 +594,7 @@ def read_jetstream_stream(*, pump: StreamPump, host: str = JETSTREAM_DEFAULT_HOS
     * The cursor is an **instance-local sequence number**; the value is inclusive on replay
       (events with ``seq >= cursor``), so a resume re-receives at least its last event and
       this reader dedupes by seq. Timestamp cursors are accepted by the server but are a
-      different namespace — they are never compared with seqs here.
+      different namespace, they are never compared with seqs here.
     * Delivery is at-least-once, and seqs may have registered gaps after a rebuild; a
       sequence jump is tolerated, a malformed value is not invented.
     * Below the lookback floor the server answers ``CursorTooOld``: this reader records a

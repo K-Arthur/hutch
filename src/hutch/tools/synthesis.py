@@ -2,7 +2,7 @@
 
 The model proposes; Hutch validates and persists. ``register_manifest`` accepts claims only
 if every span resolves to a registered source revision, every quantity carries its exact
-reported text, and corroboration spans come from independent origins — then a corrected
+reported text, and corroboration spans come from independent origins, then a corrected
 revision marks the outputs that depended on changed claims stale. ``render_audio_overview``
 is metered generation: it is an outward action (no sticky allowance), runs through the
 durable effect ledger per segment, and refuses cleanly when no provider key is configured.
@@ -59,7 +59,7 @@ def tts_engines(config) -> list:
     """Available speech engines, discovered from the environment.
 
     Keys are only ever sent to each provider's official host by the engine constructors.
-    No key means no engine — Hutch never substitutes a synthetic voice and calls it real.
+    No key means no engine, Hutch never substitutes a synthetic voice and calls it real.
     """
     engines: list = []
     gemini_key = (os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or "").strip()

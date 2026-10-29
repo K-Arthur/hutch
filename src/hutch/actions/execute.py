@@ -4,11 +4,10 @@
 
 * The approval must match the plan's *current* ``approval_scope_hash``; anything else is
   refused before the first effect.
-* Steps run in dependency order. A failed, denied or uncertain step skips its dependents —
-  a Docs brief that was never created cannot be shared.
+* Steps run in dependency order. A failed, denied or uncertain step skips its dependents,  a Docs brief that was never created cannot be shared.
 * Every journaled step begins a durable effect row keyed by the step's idempotency key
   *before* the executor runs. A key already ``succeeded`` is reused (no duplicate remote
-  write); ``uncertain`` is never retried automatically — it stays visible until the
+  write); ``uncertain`` is never retried automatically, it stays visible until the
   caller reconciles.
 * A definite failure may be retried explicitly: the engine flips the failed effect to
   prepared and runs only the steps that are not already succeeded. Successful effects are

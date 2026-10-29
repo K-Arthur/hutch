@@ -1,4 +1,4 @@
-"""Computer tool — operate native desktop applications in an isolated, disposable desktop session.
+"""Computer tool: operate native desktop applications in an isolated, disposable desktop session.
 
 Environment mode: ``isolated`` only. Hutch starts its own compositor (display, input, session bus) for the run, launches
 applications the bot is allowed to use, observes the screen as bounded frames and acts through validated pointer/keyboard

@@ -1,7 +1,7 @@
 """Result-byte validation for media: magic-byte sniffing, dimensions, SVG sanitizing,
 JPEG EXIF scrubbing.
 
-The bytes a backend returns are THE TRUTH about what was produced — never the
+The bytes a backend returns are THE TRUTH about what was produced, never the
 prompt, never the requested format, never a URL's content-type. Everything here
 operates on raw bytes:
 
@@ -319,7 +319,7 @@ def sanitize_svg(data: bytes) -> tuple[bytes, list[str]]:
 # ---------------------------------------------------------------- JPEG EXIF scrub
 
 _EXIF_KEEP_TAGS = frozenset({
-    0x0112,  # Orientation — kept so images still display upright
+    0x0112,  # Orientation, kept so images still display upright
     0x011A,  # XResolution
     0x011B,  # YResolution
     0x0128,  # ResolutionUnit
@@ -452,7 +452,7 @@ def scrub_jpeg(data: bytes) -> tuple[bytes, list[str]]:
             else:
                 findings.append(f"metadata segment FF{marker:02X} was dropped")
         else:
-            out += data[i:i + 2 + seglen]   # DQT/SOF/DHT/DRI/... — the image itself, kept verbatim
+            out += data[i:i + 2 + seglen]   # DQT/SOF/DHT/DRI/..., the image itself, kept verbatim
         i += 2 + seglen
     else:
         raise MediaValidationError("corrupt JPEG: stream ends without EOI/SOS")
@@ -471,8 +471,7 @@ def validate_media(data: bytes, *, expected_format: Optional[str] = None,
     """Validate result bytes end to end: sniff the real format, cross-check it
     against any declared expectation, sanitize/scrub, extract dimensions.
 
-    Raises :class:`MediaValidationError` with a precise reason on any mismatch —
-    the caller never receives bytes nobody inspected.
+    Raises :class:`MediaValidationError` with a precise reason on any mismatch,    the caller never receives bytes nobody inspected.
     """
     if not isinstance(data, (bytes, bytearray)) or not data:
         raise MediaValidationError("media bytes are empty")

@@ -6,22 +6,22 @@ skip them. The transport (OAuth + HTTP) plugs in later; nothing here performs I/
 
 Rules encoded here (each has a test, sources in the lane ledger):
 
-* Docs — text updates carry an explicit ``tabId``; a request without a resolved tab is
+* Docs: text updates carry an explicit ``tabId``; a request without a resolved tab is
   refused rather than defaulting to "the first tab". Scoped updates carry
   ``writeControl.requiredRevisionId`` when the caller has a revision, so a lost human edit
   produces a conflict instead of a silent overwrite. Whole-document replacement is not
   offered. Insert-inline-image refuses a private URI unless the caller explicitly attests
   the URI is public.
-* Sheets — appends use ``RAW`` by default (untrusted literal values never become
+* Sheets: appends use ``RAW`` by default (untrusted literal values never become
   formulas); ``USER_ENTERED`` is only reachable for values the caller explicitly marks as
   trusted formulas. Column kinds coerce deterministically: text keeps leading zeros,
   numbers are refused when they would lose precision (> 2**53), blanks stay blank and are
   never turned into zeros, dates stay literal ISO strings. The target sheet is resolved
   by title **and** verified against the expected sheetId. Header-only reads are bounded.
-* Drive — created files get their IDs from ``files.generateIds`` so a lost response can be
+* Drive: created files get their IDs from ``files.generateIds`` so a lost response can be
   reconciled by a later ``files.get`` on the same ID; destinations are explicit folder IDs
   (never name lookups); sharing is a separate request this module does not build.
-* Calendar — timed events need an IANA timezone (or explicit offset), all-day events use
+* Calendar: timed events need an IANA timezone (or explicit offset), all-day events use
   date fields with the documented exclusive end, reminder overrides are relative offsets
   in a documented range, ``sendUpdates`` is always explicit, and a caller-supplied event
   ID is derived deterministically so create-recovery can look the event up.
@@ -107,7 +107,7 @@ def walk_tabs(document: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def resolve_tab(document: dict[str, Any], *, tab_id: str = "", title: str = "") -> str:
-    """Resolve an explicit tab id — never a silent first-tab default.
+    """Resolve an explicit tab id, never a silent first-tab default.
 
     Documents fetched with ``includeTabsContent=true`` put content under ``tabs``; a
     legacy body is only acceptable when the document truly has one tab.
@@ -161,7 +161,7 @@ def docs_replace_text_requests(find: str, replace: str, *, tab_id: str, match_ca
     """A scoped literal replace in one tab.
 
     ``ReplaceAllTextRequest`` defaults to **all** tabs, so the tab IDs list is always
-    populated explicitly — a correction must not silently edit other tabs.
+    populated explicitly, a correction must not silently edit other tabs.
     """
     if not find:
         raise WorkspaceRequestError("nothing to replace")
@@ -367,7 +367,7 @@ def sheets_create_payload(title: str, sheet_titles: list[str]) -> dict[str, Any]
 
 def sheets_resolve_sheet(spreadsheet: dict[str, Any], *, title: str = "",
                          sheet_id: Optional[int] = None) -> dict[str, Any]:
-    """Resolve the exact sheet by id when given, else by unique title — verified not guessed."""
+    """Resolve the exact sheet by id when given, else by unique title, verified not guessed."""
     sheets = [s.get("properties", {}) for s in spreadsheet.get("sheets") or []]
     if sheet_id is not None:
         for props in sheets:
@@ -604,8 +604,7 @@ def calendar_timed_event(*, summary: str, start: str, end: str, timezone: str,
         except ValueError as exc:
             raise WorkspaceRequestError(f"{label} is not ISO 8601: {value!r}") from exc
         if parsed.tzinfo is None:
-            # A wall-clock time without an offset is interpreted in the event timezone —
-            # acceptable, but the zone must exist (checked above).
+            # A wall-clock time without an offset is interpreted in the event timezone,            # acceptable, but the zone must exist (checked above).
             pass
     event: dict[str, Any] = {
         "summary": summary[:1000],

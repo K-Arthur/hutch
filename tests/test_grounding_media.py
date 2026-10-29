@@ -86,7 +86,7 @@ def test_video_frames_are_sampled_at_boundaries_and_claim_times(tmp_path):
 @pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg not installed")
 def test_hard_cut_is_sampled_even_when_it_misses_the_uniform_grid(tmp_path):
     """The grid at 25/50/75% of a 2 s clip is 500/1000/1500 ms; a cut at 1300 ms is 200 ms
-    from the nearest grid point — scene detection must catch it anyway."""
+    from the nearest grid point, scene detection must catch it anyway."""
     import subprocess
     video = tmp_path / "cut.mp4"
     subprocess.run([

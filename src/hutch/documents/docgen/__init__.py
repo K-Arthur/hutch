@@ -3,7 +3,7 @@
 The model drafts structured content; these modules render it. Nothing here executes
 content, fetches network resources, or trusts model-authored paths. A format module
 registers itself with ``@register("fmt")``; ``generate`` dispatches and never falls back
-to a weaker format silently — an unsupported format is an error, not a disguised text file.
+to a weaker format silently, an unsupported format is an error, not a disguised text file.
 
 Generation and validation are one gate: ``generate`` returns bytes only after the
 format's own parse-back checks pass, and every result carries the validation state and

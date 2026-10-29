@@ -264,7 +264,7 @@ def test_the_egress_probe_uses_an_interpreter_inside_its_own_mounts():
     """The Strict Offline probe mounts only the system tree.
 
     ``shutil.which("python3")`` finds a venv shim when Hutch runs from its venv,
-    whose target is not mounted — the probe then failed for an interpreter-path
+    whose target is not mounted, the probe then failed for an interpreter-path
     reason and Strict Offline reported unavailable. The probe must choose an
     interpreter that exists inside the mounts it creates.
     """

@@ -4,8 +4,7 @@ User-attached images are **message content**, not computer observations, so the
 existing ``observation_to_hosted`` gate keeps its scope; the runtime still records
 what actually reached the model, per Hutch's honest-outcome rules.
 
-Every check in this module touches only local workspace paths and in-memory rows —
-never HTTP — so admission can run all of it without a network request. Model-level
+Every check in this module touches only local workspace paths and in-memory rows,never HTTP, so admission can run all of it without a network request. Model-level
 vision checks that would need a live ``/api/show`` (Ollama) are deferred to the
 runtime by passing ``verify_model=False`` at admission.
 
@@ -61,7 +60,7 @@ def human_size(size: int) -> str:
 
 
 def image_limit_label() -> str:
-    """The send-side image limit in decimal MB — file sizes shown on chips stay
+    """The send-side image limit in decimal MB, file sizes shown on chips stay
     binary (existing behaviour), but limits read like the intake's “25 MB”."""
     return f"{MAX_IMAGE_BYTES / 1_000_000:.1f} MB"
 
@@ -132,7 +131,7 @@ def read_image_upload(state_dir: Any, conversation_id: str, row: dict) -> tuple[
 
     The stored name is found by its unique ``upl_<hex>`` prefix, so this never
     re-implements the intake's filename sanitisation. The recorded SHA-256 is
-    re-verified before the bytes are used — a tampered file is a refusal, never
+    re-verified before the bytes are used, a tampered file is a refusal, never
     a silently altered attachment.
     """
     upload_id = str(row.get("id") or "")

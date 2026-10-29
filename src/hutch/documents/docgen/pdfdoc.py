@@ -1,7 +1,7 @@
 """PDF generator: typed block specification → hutch-authored HTML → WeasyPrint.
 
-Blocks share the vocabulary and shape rules of :mod:`.docxgen` — one content key per
-block, string-only text, table header and rows, ``align`` on ``p`` only — so one
+Blocks share the vocabulary and shape rules of :mod:`.docxgen`, one content key per
+block, string-only text, table header and rows, ``align`` on ``p`` only, so one
 specification renders to either format. The HTML comes only from this module's fixed
 template filled with validated, escaped block content: a specification can never inject
 markup (``html.escape`` at every insertion point), and WeasyPrint's resource fetcher is
@@ -10,7 +10,7 @@ paths, nor touch the network, nor pull ``data:`` payloads (vendor security guida
 untrusted HTML; evidence rows E9, E11). Wide tables cannot clip: the print stylesheet
 pins ``table-layout: fixed`` with break-anywhere wrapping, so cell text wraps and
 survives as selectable text (WeasyPrint#2417 class). Generation is one gate: the bytes
-are re-opened with pypdf — an independent reader — and the page count, metadata title,
+are re-opened with pypdf (an independent reader) and the page count, metadata title,
 first-page title and last content unit must be present as selectable text before
 anything is returned. Layout runs in-process here; the bounded subprocess that keeps
 large renders off the host's memory is the pipeline's concern.
@@ -52,7 +52,7 @@ _FONT_STACK = '"Liberation Sans", "DejaVu Sans", sans-serif'
 
 #: print stylesheet owned by this module: A4 page with a running page-number footer,
 #: the probed font stack, heading hierarchy and blockquote styling, and the wide-table
-#: defense — fixed layout plus break-anywhere wrapping so long cells wrap, never clip
+#: defense, fixed layout plus break-anywhere wrapping so long cells wrap, never clip
 _CSS = f"""
 @page {{
   size: A4;
@@ -165,7 +165,7 @@ def _esc(text: str) -> str:
 
 
 def _text_field(value: Any, what: str) -> str:
-    """Every string slot of the spec: typed, bounded, control-char free — no coercion."""
+    """Every string slot of the spec: typed, bounded, control-char free, no coercion."""
     if not isinstance(value, str):
         raise DocumentGenerationError(f"{what} must be a string")
     if len(value) > MAX_TEXT_CHARS:

@@ -323,8 +323,8 @@ def _mounted_interpreter() -> str:
 
     ``shutil.which("python3")`` finds the venv shim when Hutch runs from its
     own venv, but the probe mounts only the system tree; the shim's target is
-    not there, so the probe would fail — and Strict Offline would report
-    unavailable — for an interpreter-path reason unrelated to egress. Prefer
+    not there, so the probe would fail, and Strict Offline would report
+    unavailable, for an interpreter-path reason unrelated to egress. Prefer
     an interpreter under ``/usr``, which the probe always mounts.
     """
     candidates = (Path("/usr/bin/python3"), Path("/usr/local/bin/python3"),

@@ -8,8 +8,7 @@ The storage layer is SQLite, but the *state machine* lives here:
   a result is retried only under its own policy, and only when it recorded no
   external effect.
 * Run-backed steps reconcile from the run's terminal state and receipts: a
-  possible external effect becomes ``unknown`` and blocks the job for review —
-  it is never replayed automatically.
+  possible external effect becomes ``unknown`` and blocks the job for review,  it is never replayed automatically.
 * Handler steps run on a small worker pool with their own internal bounds; only
   the supervisor loop applies results and writes the database. Handlers must be
   idempotent and effect-free: a handler that dies mid-run leaves no result, is

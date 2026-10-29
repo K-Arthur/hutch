@@ -1,4 +1,4 @@
-"""Deterministic render engines — the VERIFIED path for diagrams and animations.
+"""Deterministic render engines, the VERIFIED path for diagrams and animations.
 
 Everything here is a pure function of its input: identical input produces
 byte-identical output (pinned by tests), no clock, no randomness, no network.
@@ -9,7 +9,7 @@ breaks them deterministically (first-encountered back edge, in the caller's own
 node/edge order) and says so in the SVG.
 
 Video assembly (``.webm``) is capability-detected: it happens ONLY when
-``shutil.which('ffmpeg')`` is truthy, and is refused honestly otherwise — an
+``shutil.which('ffmpeg')`` is truthy, and is refused honestly otherwise, an
 animation stays SVG (SMIL) rather than being silently degraded or faked.
 """
 
@@ -303,8 +303,7 @@ def _edge_anchor(laid: _LaidOut, node_id: str, direction: str, start: bool) -> t
 def render_flowchart(payload: dict[str, Any]) -> str:
     """Render a validated flowchart payload dict into a deterministic SVG string.
 
-    Raises :class:`GraphInvalid` (with ``.source`` attached) for invalid graphs —
-    duplicate node ids, dangling edges, bounds violations. Cycles are valid and
+    Raises :class:`GraphInvalid` (with ``.source`` attached) for invalid graphs,    duplicate node ids, dangling edges, bounds violations. Cycles are valid and
     are broken for layering only; every break is noted in the SVG output.
     """
     clean = validate_flowchart(payload)
@@ -535,7 +534,7 @@ def ffmpeg_available() -> bool:
 
 
 def assemble_webm(frame_pngs: list[bytes], *, fps: float = 1.0) -> bytes:
-    """Assemble PNG frames into a .webm via ffmpeg — ONLY when ffmpeg is installed.
+    """Assemble PNG frames into a .webm via ffmpeg, ONLY when ffmpeg is installed.
 
     This is capability-detected on purpose: without ffmpeg the honest answer is
     :class:`WebMUnavailable` (the caller stays with the SVG animation), never a

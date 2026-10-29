@@ -5,7 +5,7 @@ run is admitted, attachment references recorded on the run, prompt-optional
 image-only sends) plus the pure attachment module and the two runtime guards.
 
 Real images throughout: the workspace PNG is Hutch's bundled Google Calendar mark
-and the WebP is a real 1440x1000 first-run capture — not synthetic stubs. The live
+and the WebP is a real 1440x1000 first-run capture, not synthetic stubs. The live
 free-model test at the end of this file attempts actual OpenCode inference on a
 named free route, without provider keys, only with explicit live-test opt-in and
 the CLI installed; everything above it stays hermetic. Trial quota and route
@@ -545,9 +545,8 @@ def test_opencode_stages_verified_image_copies_inside_the_run_workspace(config, 
 def test_real_opencode_free_vision_model_describes_a_real_image(tmp_path, monkeypatch):
     """Live validation against OpenCode's FREE models: no spend, no provider keys.
 
-    Proves the whole chain the user asked to see — composer upload, admission,
-    the private isolated OpenCode serve, real vision inference on a real PNG —
-    plus the honest runtime refusal on a text-only free model. Requires explicit
+    Proves the whole chain the user asked to see, composer upload, admission,
+    the private isolated OpenCode serve, real vision inference on a real PNG, plus the honest runtime refusal on a text-only free model. Requires explicit
     live-test opt-in as well as the CLI: installing a local CLI must not cause
     ordinary regression runs to send images to an external service. Free-tier
     availability can fail and remains a failed live result when opted in.

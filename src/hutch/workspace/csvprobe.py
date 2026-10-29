@@ -1,11 +1,11 @@
-"""Bounded, honest CSV/TSV inspection — what a person would want to know before
+"""Bounded, honest CSV/TSV inspection: what a person would want to know before
 trusting a file, computed from the bytes without executing anything.
 
 ``probe_csv_path`` answers the questions the typed-outputs plan (S2) demands be
 disclosed rather than silently decided: encoding and BOM, delimiter, whether a
 header row is present (a heuristic, labeled as such), duplicate column names,
 rows whose field count disagrees with the file's own majority (malformed rows,
-with the first few line numbers — never silently dropped), empty/null-token
+with the first few line numbers, never silently dropped), empty/null-token
 tallies per column, columns that look like leading-zero identifiers or
 timezone-bearing timestamps, and records that contain quoted newlines (why
 "line count" and "record count" disagree). Everything is computed from a
@@ -149,7 +149,7 @@ def probe_csv_text(text: str, *, max_rows: int = MAX_ROWS_SCANNED) -> dict[str, 
     except csv.Error:
         parser_note = "CSV parser stopped at a field that exceeds Python's configured field-size limit"
     # Malformed rows are decided against the file's own majority width, computed
-    # after the scan — an online "majority" would mislabel rows while the scan
+    # after the scan, an online "majority" would mislabel rows while the scan
     # is still undecided (a 4-wide row early in a 3-wide file looks fine).
     counts: dict[int, int] = {}
     for width in widths:
@@ -199,7 +199,7 @@ def probe_csv_text(text: str, *, max_rows: int = MAX_ROWS_SCANNED) -> dict[str, 
 def probe_csv_path(path: Path | str, *, sample_bytes: int = SAMPLE_BYTES) -> dict[str, Any]:
     """Probe a file on disk from a bounded byte sample. Returns the disclosure
     dict for delimited text; other uploads (JSON/Markdown/plain text) are the
-    route's business — this function is for tabular text."""
+    route's business, this function is for tabular text."""
     source = Path(path)
     sample_bytes = max(0, min(int(sample_bytes), SAMPLE_BYTES))
     with source.open("rb") as stream:

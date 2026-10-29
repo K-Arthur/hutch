@@ -1,5 +1,5 @@
 """Real-browser journey for the grounded-evidence panel: entry link, scoped label,
-source independence, frame delivery from the API, and revisions — the parts unit tests
+source independence, frame delivery from the API, and revisions, the parts unit tests
 cannot see. Skipped automatically when no Playwright browser is installed.
 """
 

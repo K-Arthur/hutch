@@ -4,7 +4,7 @@ Every format is written with an explicit encoding and re-parsed before it may be
 promoted, so the stored bytes are provably what the specification meant (failure class
 E12: implicit typing and charset sniffing). CSV is UTF-8 with a BOM because that is what
 Excel autodetects correctly, uses CRLF rows, and neutralizes cells that spreadsheet
-applications would evaluate as formulas by prefixing them with an apostrophe — the
+applications would evaluate as formulas by prefixing them with an apostrophe, the
 guard is disclosed in the format docs rather than silent, and leading ``-`` is left
 alone so legitimate negative numbers survive.
 """

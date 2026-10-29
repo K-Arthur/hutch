@@ -3,8 +3,7 @@
 A bundle is a set of text entries plus optional base64-carried binary assets, wrapped
 with an auto-generated ``manifest.json`` recording each entry's size and SHA-256. Paths
 are validated as safe relative POSIX paths (no absolute paths, no ``..``, no duplicate
-names), and the entry count and total uncompressed size are capped at write time —
-the same bounds the operations docs publish. Validation re-opens the finished archive
+names), and the entry count and total uncompressed size are capped at write time,the same bounds the operations docs publish. Validation re-opens the finished archive
 with :mod:`zipfile` (CRC test included) and audits it against the manifest, so a bundle
 that reaches storage is provably complete and uncorrupted (failure classes E14/E5).
 """

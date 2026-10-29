@@ -1,7 +1,7 @@
 """Upload intake: bounded files into a conversation's workspace, disclosed CSVs.
 
-Covers the S2 slice end to end at the route level — the composer UI's journey is
-pinned by the browser suite — plus the bounded CSV probe that both the report
+Covers the S2 slice end to end at the route level, the composer UI's journey is
+pinned by the browser suite, plus the bounded CSV probe that both the report
 route and the workspace kernel's ``inspect_csv`` helper share. Honesty rules
 under test: nothing binary passes as text, nothing oversized passes, a tampered
 file is a 410 rather than a plausible substitute, malformed CSV rows are

@@ -147,7 +147,7 @@ def test_shell_ask_creates_approval_and_sticky_skips(store, config, tmp_path):
     t = threading.Thread(target=auto_approver); t.start()
     res = tools["shell"].run({"command": "rm -rf build/"}, ctx)
     t.join(timeout=5)
-    assert res.ok or "exit" in res.output  # rm of missing dir may exit non-zero — the point is it RAN
+    assert res.ok or "exit" in res.output  # rm of missing dir may exit non-zero; the point is it RAN
 
     # second identical call: sticky allow means no new approval
     res2 = tools["shell"].run({"command": "rm -rf build/"}, ctx)

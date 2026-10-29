@@ -2,7 +2,7 @@
 
 The workspace kernel is the one place Hutch executes model-generated code, so
 its containment is verified here with REAL bubblewrap processes against owned
-sentinels — never inferred from the launch arguments alone. Each test asserts
+sentinels, never inferred from the launch arguments alone. Each test asserts
 the exact allowed and denied effects:
 
 * host sentinels (fake credentials, the real state directory, the store
@@ -11,7 +11,7 @@ the exact allowed and denied effects:
 * writes land only in the workspace; a private ``/tmp`` write never appears on
   the host; ``/etc`` and the interpreter tree are read-only;
 * the PID namespace sees only the sandbox (pid 1 = bwrap, pid 2 = the kernel);
-* a detached, setsid'd descendant dies with the session — the "double-forked
+* a detached, setsid'd descendant dies with the session, the "double-forked
   child outlives the run" failure class;
 * with containment off/unavailable the manager refuses before any spawn;
 * the effective backend identity and argv are the strict profile, recorded.

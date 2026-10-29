@@ -209,7 +209,7 @@ def origin_clusters(items: Sequence[DedupItem], *, headline_share_min: int = 3,
       1. same platform object id -> ``mirror`` (the same object retrieved twice)
       2. same origin (account/DID) + near-duplicate text -> ``repost``
       3. >= ``headline_share_min`` distinct registrable domains share one normalized
-         headline -> ``syndication`` (one origin, N copies) — counted as ONE origin
+         headline -> ``syndication`` (one origin, N copies), counted as ONE origin
       4. everything else -> its own ``origin`` cluster
     """
     items = list(items[:max_items])
@@ -302,7 +302,7 @@ def independence_for(items: Sequence[DedupItem], *, same_origin_kinds=("mirror",
     Items in the same non-origin cluster are ``same_origin``; ``origin`` clusters that
     share a domain with another cluster are still independent (one outlet can publish
     several distinct reports), but the caller must not count the same outlet's copies
-    twice — the queen rule stays: distinct origin clusters, not distinct URLs.
+    twice, the queen rule stays: distinct origin clusters, not distinct URLs.
     """
     clusters = origin_clusters(items)
     result: dict[str, str] = {}
@@ -317,7 +317,7 @@ def independence_for(items: Sequence[DedupItem], *, same_origin_kinds=("mirror",
 class NoiseSignal:
     reason: str
     evidence: str
-    action: str = "group"          # "group" | "downrank" — never "block"
+    action: str = "group"          # "group" | "downrank", never "block"
 
     def to_json(self) -> dict[str, str]:
         return {"reason": self.reason, "evidence": self.evidence, "action": self.action}

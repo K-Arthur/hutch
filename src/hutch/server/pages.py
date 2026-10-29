@@ -2,7 +2,7 @@
 
 Every action is a plain ``<form method="post">`` that works without JavaScript and redirects back;
 HTMX only upgrades a few of them to in-place swaps (approvals, load-earlier, live partials). That keeps
-"stop" and "approve" boring and reliable — the two buttons that must never silently fail.
+"stop" and "approve" boring and reliable, the two buttons that must never silently fail.
 """
 
 from __future__ import annotations

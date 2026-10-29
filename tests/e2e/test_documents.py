@@ -1,5 +1,5 @@
 """Real-browser journey for committed documents: the Files card, a structure preview,
-the SHA-256-verified download, and version history — the parts unit tests cannot see.
+the SHA-256-verified download, and version history, the parts unit tests cannot see.
 
 Skipped automatically when no Playwright browser is installed.
 """

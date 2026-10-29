@@ -5,7 +5,7 @@ A *step* is one model turn plus the tools it triggered. Wall time includes:
 * ``model_ms``    waiting on the model (network + inference)
 * ``tool_ms``     inside tools (subprocess, file IO, network)
 * ``queue_ms``    local-inference admission waits, excluded from Hutch overhead
-* ``overhead_ms`` everything else: Hutch's own cost — policy checks, approval bookkeeping,
+* ``overhead_ms`` everything else: Hutch's own cost, policy checks, approval bookkeeping,
                   event emission, accounting. The draft targets < 50 ms per step.
 
 Each step lands in the transcript as a ``step`` event, so the numbers are inspectable per run

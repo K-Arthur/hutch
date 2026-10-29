@@ -10,12 +10,12 @@ withheld list existed in two shapes). This module is the single source for all o
                                        _CONNECTION_TOOLS/_CONNECTION_READERS tables)
 * the capability-snapshot enumeration  (was: engine.capability_snapshot's inline expand/filter/sort)
 
-Two rules keep this honest. First, the registry itself — name → class, groups, expansion — stays
+Two rules keep this honest. First, the registry itself (name → class, groups, expansion) stays
 in ``hutch.tools``: the catalog derives FROM it and never redefines it, so there is no second
 registry and no second enforcement path (binding constraint 2). Second, every consumer
 (build_tools, readiness, the engine snapshot) reads its enumeration from here, so a new native
 tool or a changed withholding rule is written once. (The fourth UI enumeration, ``TOOL_SETTINGS``
-in app.js, is display-only and is frontend work — slice S9, not this one.)
+in app.js, is display-only and is frontend work, slice S9, not this one.)
 
 The module imports nothing from ``hutch.tools`` at import time (function-level imports only), so
 ``hutch.tools`` may import this module freely.
@@ -48,7 +48,7 @@ OFFLINE_WITHHELD_TOOLS = frozenset({
 #: The narrower set the capability snapshot withholds for offline Bots. This is deliberately NOT
 #: ``OFFLINE_WITHHELD_TOOLS``: the snapshot records declared routing policy (and delegation
 #: narrows further at ``_delegated_bot``), while ``build_tools`` enforces the full list. Changing
-#: this set would change persisted snapshots — it is pinned byte-stable under snapshot_version 1.
+#: this set would change persisted snapshots, it is pinned byte-stable under snapshot_version 1.
 SNAPSHOT_OFFLINE_WITHHELD_TOOLS = frozenset({"web_fetch", BROWSER_TOOL_NAME})
 
 
@@ -56,7 +56,7 @@ SNAPSHOT_OFFLINE_WITHHELD_TOOLS = frozenset({"web_fetch", BROWSER_TOOL_NAME})
 class ConnectionToolSpec:
     """One grant-gated external-account tool (the calendar/mail family).
 
-    A grant is a reviewed store row bound to one Bot — never an allowlist string. The grant binds
+    A grant is a reviewed store row bound to one Bot, never an allowlist string. The grant binds
     the account at construction, so model arguments can never choose a credential (§4.4).
     """
 
@@ -206,8 +206,8 @@ def offline_withheld(enabled: list[str]) -> list[str]:
 def snapshot_tool_names(bot_tools: list[str], *, offline: bool, tool_access: str = "bot") -> list[str]:
     """The tool-name list a capability snapshot records (the engine's enumeration, derived once).
 
-    Reproduces the v1 behavior exactly — group expansion, the narrower offline withholding set,
-    sorted output — because persisted snapshots are pinned byte-stable under ``snapshot_version: 1``
+    Reproduces the v1 behavior exactly, group expansion, the narrower offline withholding set,
+    sorted output, because persisted snapshots are pinned byte-stable under ``snapshot_version: 1``
     and the delegation admission gate hard-rejects any other version (engine._delegated_bot).
     """
     from ..tools import expand_tools

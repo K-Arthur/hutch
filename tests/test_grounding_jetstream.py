@@ -1,7 +1,7 @@
 """Jetstream live reader: bounded reads, at-least-once dedup, explicit cursor recovery.
 
 A real local websocket server (the same ``websockets`` dependency the reader wants) plays
-documented frames, a duplicate, and a ``CursorTooOld`` handshake rejection — no network.
+documented frames, a duplicate, and a ``CursorTooOld`` handshake rejection, no network.
 """
 
 from __future__ import annotations
@@ -122,7 +122,7 @@ def test_term_filter_keeps_only_matching_frames_but_counts_traffic(monkeypatch):
                                        sink=lambda e: seen.append(e.seq), clock=CLOCK)
         assert pump.liveness.events == 1 and seen == [2]
         assert report["scanned"] == 3, "traffic is counted even when filtered out"
-        # the read position advances even when nothing matched — resume must not restart blind
+        # the read position advances even when nothing matched, resume must not restart blind
         assert pump.cursor is not None and pump.cursor.value == 3
     finally:
         instance.close()

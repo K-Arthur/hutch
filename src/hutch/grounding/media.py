@@ -1,4 +1,4 @@
-"""Bounded media acquisition, sampling, and provenance — evidence, never a verdict.
+"""Bounded media acquisition, sampling, and provenance: evidence, never a verdict.
 
 What this module will and will not do (mission sections 9-10):
 
@@ -215,7 +215,7 @@ def _sample_frame(source: Path, at_ms: int, out_path: Path,
 def parse_region(text: str, width: int, height: int) -> Optional[tuple[int, int, int, int]]:
     """Parse an ``x,y,w,h`` pixel region against the artifact's real dimensions.
 
-    Out-of-bounds regions are refused with the actual dimensions in the message — never
+    Out-of-bounds regions are refused with the actual dimensions in the message, never
     silently clamped, because a clamped crop would misrepresent what was inspected.
     """
     value = (text or "").strip()
@@ -304,7 +304,7 @@ def inspect_media(source: str, *, store_dir: Path, media_id: str, clock: Clock,
     ``region`` is an optional ``x,y,w,h`` pixel rectangle of a specific claim-relevant area
     (a sign, a plate, a receipt total). The crop is taken from the original coordinates,
     the attachment contains *only* that region, and the mapping back to original pixels is
-    recorded — anything outside the region is explicitly not inspected.
+    recorded, anything outside the region is explicitly not inspected.
     """
     claim_times_ms = claim_times_ms or []
     bundle_dir = store_dir / media_id

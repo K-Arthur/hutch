@@ -210,8 +210,8 @@ def readiness_probe(port: int, *, state_dir: Path | str | None = None,
     """One handshake against `http://127.0.0.1:<port>/api/health`.
 
     Readiness means: an HTTP 200 JSON body with ``status: ok``, not in restore
-    hold, the same state-directory fingerprint (when one is given), and — when
-    systemd reports a main PID — that exact process. Anything else is reported
+    hold, the same state-directory fingerprint (when one is given), and (when
+    systemd reports a main PID) that exact process. Anything else is reported
     with the reason and never treated as ready.
     """
     if not isinstance(port, int) or isinstance(port, bool) or not 1 <= port <= 65535:

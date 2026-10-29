@@ -94,7 +94,7 @@ def test_dst_spring_forward_fires_once(store):
 
 
 def test_dst_fall_back_fires_once(store):
-    """US DST ends 2026-11-01: 1:30 occurs twice — croniter must yield one window."""
+    """US DST ends 2026-11-01: 1:30 occurs twice; croniter must yield one window."""
     bot = store.create_bot(scheduled_bot(cron="30 1 * * *", tz="America/New_York"))
     s = Scheduler(store)
     after = datetime(2026, 11, 1, 9, 0, tzinfo=timezone.utc)
@@ -209,7 +209,7 @@ def test_vancouver_2026_no_fallback(store):
     bot = store.create_bot(scheduled_bot(cron="0 9 * * *", tz="America/Vancouver",
                                         created="2026-10-01T00:00:00+00:00"))
     s = Scheduler(store)
-    # Morning of Nov 2 2026 local — still -07, not -08.
+    # Morning of Nov 2 2026 local, still -07, not -08.
     after_nov1 = datetime(2026, 11, 2, 16, 0, tzinfo=timezone.utc)  # 09:00 Pacific if -07
     nxt = s.next_fire(bot, datetime(2026, 11, 1, 20, 0, tzinfo=timezone.utc))
     assert nxt is not None

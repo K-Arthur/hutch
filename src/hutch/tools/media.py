@@ -1,19 +1,19 @@
-"""Media tools — deterministic diagram/animation rendering and provider media.
+"""Media tools: deterministic diagram/animation rendering and provider media.
 
 Two tools, two trust stories:
 
-* ``render_diagram`` — the VERIFIED path. A pure deterministic renderer produces
+* ``render_diagram``: the VERIFIED path. A pure deterministic renderer produces
   an SVG flowchart from typed nodes/edges; the bytes are validated, stored in the
   media store, and presented as a ``media`` block alongside the ``flowchart``
   block. ``effect()`` is ``""`` (nothing leaves the machine and nothing is
   billable; the durable artifact is the block data itself, like a saved artifact).
   An invalid graph NEVER loses the source: the rejection text carries the
   problems and the caller's structure (open-webui #14541).
-* ``create_media`` — provider path for image/video is OUTWARD and billable:
+* ``create_media``: provider path for image/video is OUTWARD and billable:
   ``effect()`` is ``"web"``, the approval decision is ask-by-default with
   ``outward=True`` (sticky grants never cover it, SR-4), ``ctx.begin_effect()``
   brackets the billable call, and the output reports that hutch cannot know the
-  cost. If no backend is configured/capable the tool says so honestly — it NEVER
+  cost. If no backend is configured/capable the tool says so honestly, it NEVER
   substitutes stock assets or fabricates previews. The ``animation`` kind is
   deterministic (same engine as render_diagram, no approval, no billing).
 """
@@ -48,7 +48,7 @@ _CREATE_MEDIA_DECISION = Decision(
 
 def _default_backends() -> dict[str, MediaBackend]:
     """Discover configured backends from the environment. An adapter without its
-    credentials simply does not exist here — tools then report honest absence."""
+    credentials simply does not exist here, tools then report honest absence."""
     global _MEDIA_BACKENDS
     if _MEDIA_BACKENDS is None:
         from ..media.providers.comfyui import ComfyUIBackend

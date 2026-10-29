@@ -1,14 +1,14 @@
 """PPTX deck generator: explicit textboxes, probed-font text fitting, geometric gate.
 
-python-pptx cannot know whether text overflows a slide — autofit is renderer metadata,
-not layout (python-pptx#973, closed "nothing to be done") — so
+python-pptx cannot know whether text overflows a slide, autofit is renderer metadata,
+not layout (python-pptx#973, closed "nothing to be done"), so
 ``MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE`` is never written. Instead every text frame is fitted
 with ``fit_text(font_file=<probed TTF>)`` so real font metrics bake explicit run sizes
 into the stored bytes; when no probed font exists (or fitting is impossible, e.g. a word
 too wide to wrap at any size, which crashes ``TextFitter._break_line``) conservative
 fixed sizes are applied and the degradation is disclosed as a finding. The saved deck is
 re-opened before it may be promoted to assert the slide count, every slide title, and
-that every shape lies inside the 16:9 sheet — the overflow check the library lacks.
+that every shape lies inside the 16:9 sheet, the overflow check the library lacks.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ MAX_TITLE_CHARS = 200
 #: disclosed, never truncated
 LONG_BULLET_CHARS = 200
 
-#: probed real TTFs, first existing wins — fit_text must compute from true metrics
+#: probed real TTFs, first existing wins, fit_text must compute from true metrics
 _FONT_CANDIDATES: tuple[tuple[str, str], ...] = (
     ("/usr/share/fonts/liberation/LiberationSans-Regular.ttf", "Liberation Sans"),
     ("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", "Liberation Sans"),
@@ -78,7 +78,7 @@ _TITLE_LAYOUT_INDEX = 0
 _HANGING_INDENT_EMU = 228600  # 0.25"
 
 #: python-pptx's text setters split ``\n`` across paragraphs and mangle ``\r``/``\t``
-#: into escaped forms, and OOXML cannot represent C0 controls at all — spec text is
+#: into escaped forms, and OOXML cannot represent C0 controls at all, spec text is
 #: therefore single-line, or (notes only) ``\n``-separated
 _FORBIDDEN_LINE_CHARS = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\r\t]")
 _FORBIDDEN_NOTES_CHARS = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\t]")
@@ -188,7 +188,7 @@ def _fit_frame(text_frame: Any, what: str, *, font: tuple[str, str] | None, max_
     """Bake run sizes from true font metrics; never defer sizing to a renderer (E8).
 
     ``fit_text`` computes with the probed TTF and writes explicit sizes, so the stored
-    bytes already fit — no viewer is trusted to shrink anything. When fitting is
+    bytes already fit, no viewer is trusted to shrink anything. When fitting is
     impossible (no probed font, or an unbreakable word wider than the frame at any size,
     which raises from ``TextFitter._break_line``) conservative fixed sizes are applied
     and the degradation is disclosed.

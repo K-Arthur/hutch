@@ -1,4 +1,4 @@
-"""File tools — read/list/write strictly inside the run workspace (path jail)."""
+"""File tools: read/list/write strictly inside the run workspace (path jail)."""
 
 from __future__ import annotations
 

@@ -1,7 +1,7 @@
 """Agent Skills management API + the shared readiness resolver endpoint.
 
 All routes here inherit the app-level remote authorization, so paired phones are refused by the
-default-deny inventory — skills are owner configuration, like connections and schedules.
+default-deny inventory, skills are owner configuration, like connections and schedules.
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 """Adversarial acceptance scenarios over the evidence layer, frozen clocks, no network.
 
 Each test pins one failure mode from the mission table and asserts the *distinction* the
-product must preserve — not just that something was returned.
+product must preserve, not just that something was returned.
 """
 
 from __future__ import annotations

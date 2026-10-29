@@ -47,7 +47,7 @@ def test_app_mounts_media_and_workspace_routers(tmp_path, monkeypatch):
     monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
     app = create_app()
     # Included routers are wrapped (``_IncludedRouter``) in this FastAPI version, so the
-    # schema — which resolves nested routes — is the honest inventory.
+    # schema (which resolves nested routes) is the honest inventory.
     paths = app.openapi().get("paths", {})
     assert "/api/v1/media/{media_id}/versions/{version}/content" in paths
     assert "/api/v1/media/{media_id}/versions/{version}/poster" in paths

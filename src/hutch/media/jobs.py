@@ -20,7 +20,7 @@ service status                             store representation
 ``cancel_unconfirmed`` is a REAL, reportable state, never silently rewritten to
 ``cancelled``: the backend did not confirm the cancellation, so the upstream job
 may still be running and billing. The store row is marked ``failed`` (of the five
-enumerated store states it is the only honest terminal choice — the job did not
+enumerated store states it is the only honest terminal choice, the job did not
 succeed and was not confirmed cancelled) and the error/cost note carry the truth;
 :func:`MediaJobService.service_status` restores the precise state for callers.
 
@@ -30,12 +30,12 @@ Billing discipline (failure class A.2 in ``docs/research/outputs-failures-2026-1
   with the same idempotency key and the same canonical request returns the
   EXISTING job without touching the backend. The same key with a different
   request is refused loudly. There is deliberately NO generic retry anywhere in
-  this module — a crashed submit leaves a row that reconciliation describes
+  this module, a crashed submit leaves a row that reconciliation describes
   honestly instead of replaying the spend.
 * ``record_upstream_job`` happens IMMEDIATELY after backend accept, so a crash
   later still leaves enough evidence to reconcile against the upstream job.
 * ``finalize()`` consumes expiring result URLs immediately and stores only the
-  validated BYTES — never the URL.
+  validated BYTES, never the URL.
 """
 
 from __future__ import annotations
@@ -60,7 +60,7 @@ _CANCEL_UNCONFIRMED_PREFIX = "cancel_unconfirmed:"
 _ORPHAN_SUBMITTING_PREFIX = "orphaned_submitting:"
 _ORPHAN_RUNNING_PREFIX = "orphaned_running:"
 
-#: which sniffed formats are coherent with which requested kind — a backend that
+#: which sniffed formats are coherent with which requested kind, a backend that
 #: delivers the wrong kind of bytes gets a loud mismatch, not an incoherent block
 _KIND_FORMATS = {
     "image": frozenset({"png", "jpeg", "webp", "svg+xml"}),
@@ -139,7 +139,7 @@ class MediaJobService:
     def backend_for(self, kind: str, backend_hint: Optional[str] = None) -> MediaBackend:
         """Pick a capable backend. A hint names a specific backend; without one the
         alphabetically-first capable backend wins (deterministic). None capable →
-        :class:`MediaUnavailableError` — honest absence, never a substitute."""
+        :class:`MediaUnavailableError`, honest absence, never a substitute."""
         if kind not in MEDIA_KINDS:
             raise MediaJobError(f"unknown media kind {kind!r}; known: {', '.join(MEDIA_KINDS)}")
         if backend_hint:
@@ -239,7 +239,7 @@ class MediaJobService:
 
     def poll(self, job_id: str, backend: Optional[MediaBackend] = None) -> dict[str, Any]:
         """One observation of an in-flight job; terminal upstream states are
-        recorded honestly. Success alone does NOT finalize — the bytes are only
+        recorded honestly. Success alone does NOT finalize, the bytes are only
         fetched in :meth:`finalize`."""
         row = self.store.get_media_job(job_id)
         if row is None:
@@ -325,7 +325,7 @@ class MediaJobService:
         """Fetch the finished bytes, validate them, store them, and close the job
         with the media-block payload as its ``result``.
 
-        The fetch happens HERE and now — expiring URLs are consumed immediately
+        The fetch happens HERE and now, expiring URLs are consumed immediately
         and only the validated bytes are stored, never the URL. The commit
         protocol's SQLite step is this service's own transaction: the store row
         transitions to ``succeeded`` carrying the payload.
@@ -433,7 +433,7 @@ class MediaJobService:
         """Run deterministic media (no backend, no approval, no billing): create the
         ledger row, call ``produce()`` for (bytes, meta), validate, store, and mark
         the row ``succeeded`` carrying the payload. On failure the row is marked
-        ``failed`` with the renderer's error — the source stays with the caller.
+        ``failed`` with the renderer's error, the source stays with the caller.
 
         ``meta`` keys: ``format`` (required), ``alt_text`` (required), plus optional
         ``width``/``height``/``duration_seconds``. A retried call with the same key
@@ -509,14 +509,14 @@ class MediaJobService:
 
         * backend reachable + upstream id → one poll: record the observed terminal
           state. An upstream SUCCESS is recorded as ``succeeded`` with
-          ``result.bytes == "not_fetched"`` — the work happened and may be billed,
+          ``result.bytes == "not_fetched"``: the work happened and may be billed,
           and the record says the bytes were never stored.
         * backend unreachable / no upstream id → the row is marked ``failed`` with
           an ``orphaned_submitting:``/``orphaned_running:`` error and a cost note
           telling the reader to check the backend before re-submitting.
 
         Jobs this live instance is currently driving (``self._active``) are never
-        touched. There is no re-submission here — that would double-spend.
+        touched. There is no re-submission here, that would double-spend.
         """
         registry = dict(backends) if backends is not None else dict(self.backends)
         summary: dict[str, Any] = {"examined": 0, "marked_orphaned": 0, "resolved": 0,

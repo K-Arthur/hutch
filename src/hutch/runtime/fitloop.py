@@ -16,7 +16,7 @@ loses its instructions, its constraints and the user's corrections. Three rules 
    attempt must remove at least ``MIN_REDUCTION`` of the estimated tokens and differ from the previous
    attempt's input; the system unit and the most recent exchange are kept byte-identical. When meaning
    cannot be preserved within the destination, the result is ``wont_fit``/``compact_failed`` and the
-   caller blocks with the canonical history untouched — never a silent truncation.
+   caller blocks with the canonical history untouched, never a silent truncation.
 
 The summary is *derived, potentially lossy reference material*, framed as such in the synthetic block;
 it is not new operator instruction and must not be trusted as verified fact.

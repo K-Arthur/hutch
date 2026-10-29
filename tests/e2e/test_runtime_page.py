@@ -2,7 +2,7 @@
 
 Uses the shared e2e fixtures' pattern: a real uvicorn server on an isolated
 state directory and a real browser. The service controls are only opened to the
-confirm dialog and cancelled — a test must never install a unit on the host.
+confirm dialog and cancelled, a test must never install a unit on the host.
 """
 from __future__ import annotations
 

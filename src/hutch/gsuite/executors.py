@@ -5,8 +5,7 @@ translates each result into an :class:`~hutch.actions.execute.ExecutorResult`: t
 ``verification`` list decides success (a write that landed but read back wrong is a
 failure with its remote id preserved).
 
-Executors are keyed by ``(kind, service)`` where a kind covers several services —
-``cloud_create`` exists for docs, sheets and drive.
+Executors are keyed by ``(kind, service)`` where a kind covers several services,``cloud_create`` exists for docs, sheets and drive.
 """
 
 from __future__ import annotations

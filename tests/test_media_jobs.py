@@ -1,6 +1,6 @@
 """MediaJobService: the honest state machine. State transitions, idempotent
 submit (no double billing), immediate upstream-id recording, cancel_unconfirmed,
-startup reconcile, and the deterministic record_local path — against a fake
+startup reconcile, and the deterministic record_local path, against a fake
 backend, an in-process protocol stand-in. Also pins the two tools' contracts."""
 
 from __future__ import annotations
@@ -122,7 +122,7 @@ def test_duplicate_key_same_request_returns_the_existing_job_without_rebilling(s
                            prompt="same", idempotency_key=KEY, backend_hint="fake")
     service.poll(first["id"], backend)
     assert service.store.get_media_job(first["id"])["status"] == "failed"
-    # The retried submit returns the existing job — the backend is NOT called again.
+    # The retried submit returns the existing job, the backend is NOT called again.
     again = service.submit(run_id=RUN, conversation_id=CONV, kind="image",
                            prompt="same", idempotency_key=KEY, backend_hint="fake")
     assert again["id"] == first["id"]

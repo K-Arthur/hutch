@@ -1,7 +1,7 @@
 """Skills in the execution path: prompt disclosure, activation, tool routing and fail-closed revocation.
 
 These run the real Engine/Store/ToolContext path with a recording runtime, so what is asserted is
-the effective configuration a run actually receives — not a lint on the config object.
+the effective configuration a run actually receives, not a lint on the config object.
 """
 
 from __future__ import annotations
@@ -293,7 +293,7 @@ def test_capability_snapshot_carries_skill_bindings_and_delegation_uses_the_snap
     assert snapshot["skills"] == ["helper"]
     child = Engine._delegated_bot(bot, snapshot)
     assert child.skills == ["helper"]
-    # A snapshot recorded before skills existed reconstructs with no skills — it can never gain the
+    # A snapshot recorded before skills existed reconstructs with no skills; it can never gain the
     # current Bot's newer bindings through delegation.
     without = {key: value for key, value in snapshot.items() if key != "skills"}
     newer = bot.model_copy(update={"skills": ["helper", "extra"]})

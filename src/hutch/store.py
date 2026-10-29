@@ -1798,7 +1798,7 @@ def _ensure_grounding_schema(db: sqlite3.Connection) -> None:
     Main's v51 pending-question guards, v52 event sources and v53 jobs were developed
     concurrently with this branch's grounding evidence tables. A database stamped by either
     lineage may be missing one half; this pass guarantees the grounding schema exists and
-    re-applies the guards — both are ``CREATE ... IF NOT EXISTS`` statements, so the pass is
+    re-applies the guards, both are ``CREATE ... IF NOT EXISTS`` statements, so the pass is
     safe on every database and every upgrade path ends complete.
     """
     _create_grounding_schema(db)
@@ -6875,7 +6875,7 @@ class Store:
         now = now or utcnow()
         stamp, expires = iso(now), iso(now + timedelta(seconds=lease_seconds))
         # Capacity includes: live statuses, leased pending (starting), and any run that still
-        # has unreaped recorded processes — even if its status already became terminal. A timed-out
+        # has unreaped recorded processes, even if its status already became terminal. A timed-out
         # wrapper must not free a slot while owned descendants can still act.
         def _occupying(alias: str, live_values: tuple[str, ...] = _LIVE_VALUES) -> str:
             status_marks = ",".join("?" for _ in live_values)
@@ -8964,7 +8964,7 @@ class Store:
         return [self._event(r) for r in reversed(rows)]
 
     def tail_events(self, run_id: str, limit: int = 200) -> list[Event]:
-        """The newest ``limit`` events, oldest first — the default run-page window (PF-9)."""
+        """The newest ``limit`` events, oldest first: the default run-page window (PF-9)."""
         return self.events_before(run_id, before_seq=2**62, limit=limit)
 
     def artifact_events(self, run_id: str, *, limit: int = 51, offset: int = 0) -> list[Event]:

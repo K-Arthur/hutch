@@ -88,5 +88,5 @@ def test_active_run_for_bot_does_not_scan_all_live_runs(store: Store):
     store._db = counter
     counter.n = 0
     store.active_run_for_bot(bots[0].id)
-    # One filtered SELECT — not one full active_runs materialization reused poorly.
+    # One filtered SELECT, not one full active_runs materialization reused poorly.
     assert counter.n == 1

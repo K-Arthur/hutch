@@ -1,4 +1,4 @@
-"""Tool registry — maps bot tool allowlists to tool instances."""
+"""Tool registry: maps bot tool allowlists to tool instances."""
 
 from __future__ import annotations
 

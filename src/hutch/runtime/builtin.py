@@ -397,7 +397,7 @@ class BuiltinRuntime:
     def _verify_chat_images(self, ctx: ToolContext, run: Run, session: Session) -> None:
         """Authoritative capability gate: the route that came online must accept images.
 
-        Mirrors the inspect_media rule — capability is the provider's own signal, and
+        Mirrors the inspect_media rule; capability is the provider's own signal, and
         the recorded transmission count says what actually reached this request.
         """
         from ..providers.attachments import image_route_refusal
@@ -1310,7 +1310,7 @@ class BuiltinRuntime:
             it as untrusted data, and the block is never parsed for calls.
 
             Media attachments (frames prepared by ``inspect_media``) travel as a separate
-            user message with OpenAI-style content parts — only when the active route says
+            user message with OpenAI-style content parts, only when the active route says
             it accepts image input. What actually reached the model is recorded either way.
             """
             if envelope_mode:

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * ui-audit.mjs — measurement-based UI audit (companion to FRONTEND_PIPELINE_PROMPT.md)
+ * ui-audit.mjs: measurement-based UI audit (companion to FRONTEND_PIPELINE_PROMPT.md)
  *
  * Why this exists: vision models are unreliable at spotting fine-grained layout defects
  * (overlap, clipping, text overflow). This script MEASURES the rendered DOM instead and
@@ -157,7 +157,7 @@ function inPageAudit(opts) {
     if ((clipsX && ox > o.tol + 1) || (clipsY && oy > o.tol + 2)) {
       const intentional = cs.textOverflow === 'ellipsis' || cs.webkitLineClamp !== 'none' && cs.webkitLineClamp !== '';
       push({ check: 'text-clipped', severity: intentional ? 'info' : 'high',
-        msg: intentional ? 'Text truncated (ellipsis/line-clamp) — ensure full text is reachable (tooltip, expand, title)' : 'Text cut off by overflow clipping',
+        msg: intentional ? 'Text truncated (ellipsis/line-clamp), ensure full text is reachable (tooltip, expand, title)' : 'Text cut off by overflow clipping',
         sel: cssPath(e), text: label(e), hiddenPx: { x: Math.max(0, ox), y: Math.max(0, oy) }, rect: R(e.getBoundingClientRect()) });
       continue;
     }
@@ -201,7 +201,7 @@ function inPageAudit(opts) {
       const stack = document.elementsFromPoint(cx, cy);
       const ia = stack.findIndex((s) => s === A.e || A.e.contains(s)), ib = stack.findIndex((s) => s === B.e || B.e.contains(s));
       const onTop = ia === -1 && ib === -1 ? null : (ib === -1 || (ia !== -1 && ia < ib)) ? 'a' : 'b';
-      push({ check: 'collision', severity: 'medium', msg: 'Visible content overlaps other content (confirm on screenshot — may be intentional layering)',
+      push({ check: 'collision', severity: 'medium', msg: 'Visible content overlaps other content (confirm on screenshot; may be intentional layering)',
         a: { sel: cssPath(A.e), text: label(A.e) }, b: { sel: cssPath(B.e), text: label(B.e) }, overlap: R(i), onTop });
     }
   }
@@ -223,7 +223,7 @@ function inPageAudit(opts) {
       blocked++; by = hit;
     }
     if (pts.length && blocked >= Math.ceil(pts.length / 2))
-      push({ check: 'occluded-control', severity: 'high', msg: `Control is covered — ${blocked}/${pts.length} sample points hit another element`, sel: cssPath(e), text: label(e), coveredBy: cssPath(by), rect: R(r) });
+      push({ check: 'occluded-control', severity: 'high', msg: `Control is covered, ${blocked}/${pts.length} sample points hit another element`, sel: cssPath(e), text: label(e), coveredBy: cssPath(by), rect: R(r) });
     else if (blocked) push({ check: 'occluded-control', severity: 'low', msg: `Control partly covered (${blocked}/${pts.length} points)`, sel: cssPath(e), text: label(e), coveredBy: cssPath(by), rect: R(r) });
     // visual overlap by fixed/sticky layers, even with pointer-events:none
     for (const L of layers) {
@@ -278,7 +278,7 @@ function inPageAudit(opts) {
   }
   for (const e of all.filter((x) => x.matches('input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]),select,textarea'))) {
     const fs = parseFloat(getComputedStyle(e).fontSize);
-    if (fs < 16) { push({ check: 'input-zoom-ios', severity: 'info', msg: `Form field font-size ${fs}px < 16px: iOS Safari zooms on focus. Fix with 16px text — never by disabling zoom`, sel: cssPath(e) }); break; }
+    if (fs < 16) { push({ check: 'input-zoom-ios', severity: 'info', msg: `Form field font-size ${fs}px < 16px: iOS Safari zooms on focus. Fix with 16px text; never by disabling zoom`, sel: cssPath(e) }); break; }
   }
   return { viewport: { w: vw, h: vh }, scroll: { x: scrollX, y: scrollY }, docHeight: de.scrollHeight, findings: out };
 }
@@ -344,7 +344,7 @@ async function shotOf(page, idx) {
 // Stress modes ---------------------------------------------------------------
 const STRESS = {
   none: null,
-  // WCAG 1.4.12 Text Spacing override — content must not be clipped/overlapped
+  // WCAG 1.4.12 Text Spacing override: content must not be clipped/overlapped
   textspacing: `*{line-height:1.5!important;letter-spacing:.12em!important;word-spacing:.16em!important}p{margin-bottom:2em!important}`,
   rtl: 'rtl',
   pseudo: 'pseudo', // ~40% longer, accented strings (simulates German/Finnish expansion + diacritics)
@@ -423,21 +423,21 @@ async function auditOne(browser, url, cfg, w, scheme, stress) {
         if (un !== null && !prev.skipVis) {
           const unShot = prev.shot ? await shotOf(page, prev.idx) : null;
           const samePixels = prev.shot && unShot && prev.shot.equals(unShot);
-          if (samePixels) findings.push({ check: 'focus-invisible', severity: 'high', msg: 'Focused and unfocused renderings are pixel-identical — no visible focus indicator (WCAG 2.4.7)', sel: prev.id, text: prev.text });
-          else if (!prev.shot && un === prev.style) findings.push({ check: 'focus-invisible', severity: 'medium', msg: 'No computed-style change on focus (pixel check unavailable — confirm visually)', sel: prev.id, text: prev.text });
+          if (samePixels) findings.push({ check: 'focus-invisible', severity: 'high', msg: 'Focused and unfocused renderings are pixel-identical, no visible focus indicator (WCAG 2.4.7)', sel: prev.id, text: prev.text });
+          else if (!prev.shot && un === prev.style) findings.push({ check: 'focus-invisible', severity: 'medium', msg: 'No computed-style change on focus (pixel check unavailable; confirm visually)', sel: prev.id, text: prev.text });
         }
       }
       if (p.clippedBy && p.scrollable) findings.push({ check: 'focus-obscured', severity: 'medium', msg: `Focused element is scrolled out of view inside scroll container ${p.clippedBy} and the browser did not reveal it`, sel: p.id, text: p.text, rect: p.rect });
-      else if (p.clippedBy) findings.push({ check: 'focus-obscured', severity: 'high', msg: `Focusable element is invisible — clipped away by a collapsed/off-canvas container (${p.clippedBy}). Remove it from the tab order while hidden (inert / display:none / visibility:hidden)`, sel: p.id, text: p.text, rect: p.rect });
+      else if (p.clippedBy) findings.push({ check: 'focus-obscured', severity: 'high', msg: `Focusable element is invisible, clipped away by a collapsed/off-canvas container (${p.clippedBy}). Remove it from the tab order while hidden (inert / display:none / visibility:hidden)`, sel: p.id, text: p.text, rect: p.rect });
       else if (p.hiddenFrac >= 0.99) findings.push({ check: 'focus-obscured', severity: 'high', msg: 'Focused element is entirely hidden (WCAG 2.4.11 fail)', sel: p.id, text: p.text, coveredBy: p.coveredBy, rect: p.rect });
-      else if (p.hiddenFrac >= 0.3) findings.push({ check: 'focus-obscured', severity: 'medium', msg: `Focused element ${Math.round(p.hiddenFrac * 100)}% hidden (WCAG 2.4.12 AAA; usually caused by sticky header/footer — use scroll-padding)`, sel: p.id, text: p.text, coveredBy: p.coveredBy, rect: p.rect });
+      else if (p.hiddenFrac >= 0.3) findings.push({ check: 'focus-obscured', severity: 'medium', msg: `Focused element ${Math.round(p.hiddenFrac * 100)}% hidden (WCAG 2.4.12 AAA; usually caused by sticky header/footer; use scroll-padding)`, sel: p.id, text: p.text, coveredBy: p.coveredBy, rect: p.rect });
       p.skipVis = !!p.clippedBy || p.hiddenFrac >= 0.99; // already reported as obscured; pixels would be meaningless
       p.shot = p.skipVis ? null : await shotOf(page, p.idx);
       seq.push(p);
       // trap heuristic: last 12 focus stops cycle among <= 3 distinct elements
       if (seq.length >= 12) {
         const last = new Set(seq.slice(-12).map((x) => x.id + x.rect.x + x.rect.y));
-        if (last.size <= 3) { findings.push({ check: 'focus-trap', severity: 'high', msg: 'Tab key cycles among ≤3 elements — possible keyboard trap (OK only inside an open modal with an Escape/close path)', items: [...last] }); break; }
+        if (last.size <= 3) { findings.push({ check: 'focus-trap', severity: 'high', msg: 'Tab key cycles among ≤3 elements; possible keyboard trap (OK only inside an open modal with an Escape/close path)', items: [...last] }); break; }
       }
     }
   }
@@ -467,7 +467,7 @@ function dedupe(fs) {
 
 function summarize(results, cfg, axeAvailable) {
   const lines = [`# UI audit summary`, ``, `Generated ${new Date().toISOString()} · widths ${cfg.widths.join(', ')} · schemes ${cfg.schemes.join(', ')} · stress ${cfg.stress.join(', ')}`, ``];
-  if (!axeAvailable) lines.push(`> axe-core not installed — contrast/ARIA/name checks NOT run. \`npm i -D axe-core\` and re-run.`, ``);
+  if (!axeAvailable) lines.push(`> axe-core not installed; contrast/ARIA/name checks NOT run. \`npm i -D axe-core\` and re-run.`, ``);
   lines.push(`> Every row is a candidate. Confirm each against its screenshot before acting; intentional layering exists.`, ``);
   const byCheck = {};
   for (const r of results) for (const f of r.findings || []) (byCheck[f.check] ||= []).push({ ...f, ctx: `${r.w}px/${r.scheme}/${r.stress}` });
@@ -478,14 +478,14 @@ function summarize(results, cfg, axeAvailable) {
     lines.push(`| ${k} | ${c('high')} | ${c('medium')} | ${c('low')} | ${c('info')} |`);
   }
   for (const r of results) {
-    lines.push(``, `## ${r.url} — ${r.w}px · ${r.scheme} · ${r.stress}`);
+    lines.push(``, `## ${r.url}: ${r.w}px · ${r.scheme} · ${r.stress}`);
     if (r.error) { lines.push(`ERROR: ${r.error}`); continue; }
     lines.push(`Screenshot: \`${r.screenshot}\` · CLS ${r.cls?.toFixed(3)}`);
     const fs = [...r.findings].sort((a, b) => order[a.severity] - order[b.severity]).slice(0, 60);
     for (const f of fs) {
       const where = f.sel ? ` \`${f.sel}\`` : f.a ? ` \`${f.a.sel}\` ↔ \`${f.b.sel}\`` : '';
       const extra = f.coveredBy ? ` (covered by \`${f.coveredBy}\`)` : f.layer ? ` (layer \`${f.layer}\`)` : f.items ? ` → ${f.items.slice(0, 4).map((i) => '`' + (i.sel || i) + '`').join(', ')}` : '';
-      lines.push(`- **${f.severity}** ${f.check}:${where} — ${f.msg}${f.text ? ` “${f.text}”` : ''}${extra}`);
+      lines.push(`- **${f.severity}** ${f.check}:${where}, ${f.msg}${f.text ? ` “${f.text}”` : ''}${extra}`);
     }
     if (r.findings.length > 60) lines.push(`- … ${r.findings.length - 60} more in results.json`);
   }
@@ -554,8 +554,8 @@ async function main() {
     const all = results.flatMap((r) => r.findings || []);
     const falsePos = all.filter((f) => JSON.stringify(f).includes('goodlink') || JSON.stringify(f).includes('cleanp'));
     const ok = !missing.length && !falsePos.length;
-    console.log(missing.length ? `SELFTEST FAIL — checks that did not fire: ${missing.join(', ')}` : `positive controls: all ${want.length} checks fired`);
-    console.log(falsePos.length ? `SELFTEST FAIL — false positives on clean controls: ${falsePos.map((f) => f.check).join(', ')}` : 'negative controls: no false positives on known-good elements');
+    console.log(missing.length ? `SELFTEST FAIL: checks that did not fire: ${missing.join(', ')}` : `positive controls: all ${want.length} checks fired`);
+    console.log(falsePos.length ? `SELFTEST FAIL: false positives on clean controls: ${falsePos.map((f) => f.check).join(', ')}` : 'negative controls: no false positives on known-good elements');
     console.log(ok ? 'SELFTEST PASS' : 'SELFTEST FAIL');
     process.exit(ok ? 0 : 1);
   }

@@ -6,7 +6,7 @@ per-run event ``seq`` and the source of truth is the database, not a ring buffer
 
 * each message carries ``id: <last seq>``; browsers echo it as ``Last-Event-ID`` on reconnect;
 * the server replays everything with ``seq > cursor`` straight from SQLite, so any gap, of any length,
-  is filled exactly once — including after a server restart;
+  is filled exactly once, including after a server restart;
 * bursts are coalesced (a short wait, then one message of up to 200 events) so a chatty run does
   not become one network message per event.
 

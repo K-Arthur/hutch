@@ -7,7 +7,7 @@ Design against the verified provider facts (R3/R4, 2026-10-11):
   with a capability error instead of silently degrading.
 * Unary requests return WAV; streaming returns headerless 16-bit PCM. This module asks
   for ``AUDIO_L16`` so segments concatenate as raw frames, and always wraps stored
-  segments in a real WAV container — complete encoded files are never treated as samples.
+  segments in a real WAV container, complete encoded files are never treated as samples.
 * ``text`` is strictly verbatim; delivery lives in ``style`` and R3 whitelisted vocal
   tags. Stage directions in text are refused before a request is made.
 * Providers are only called with a key explicitly bound to that provider's official host

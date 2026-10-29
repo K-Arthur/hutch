@@ -12,7 +12,7 @@ Commit protocol: stage the bytes and fsync them → write the journal → promot
 SQLite row (the caller's transaction) → clear the journal. A crash between promotion and
 the row insert leaves a version that no query can reach, so reconciliation deletes it:
 versions without rows are invisible and deleting them loses nothing. A row whose bytes
-went missing is handled at serve time — the recorded size and SHA-256 are re-checked and
+went missing is handled at serve time, the recorded size and SHA-256 are re-checked and
 the request fails honestly instead of serving unverified bytes.
 
 Every path component is created without following symlinks (``O_NOFOLLOW`` +

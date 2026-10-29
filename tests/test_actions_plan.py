@@ -272,7 +272,7 @@ def test_executor_verification_failure_preserves_remote_id(store):
     effect = store.find_synthesis_effect(step.idempotency_key)
     assert effect["status"] == "failed" and effect["remote_id"] == "doc_123"
     assert effect["result_json"]["verification"] == ["expected text not found in tab"]
-    # a dependent of the failed step would be skipped — verify with a plan that has one
+    # a dependent of the failed step would be skipped; verify with a plan that has one
     assert result.steps[2].status == "succeeded"
 
 

@@ -1,4 +1,4 @@
-/* hutch — command palette (Cmd+K / Ctrl+K).
+/* hutch: command palette (Cmd+K / Ctrl+K).
 
    One keyboard-first way to jump to an assistant, a recent conversation, a page or an
    action. A native modal <dialog> owns the focus trap and Escape; the input is an ARIA

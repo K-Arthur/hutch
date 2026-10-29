@@ -9,7 +9,7 @@ previews; it never blocks download or validation.
 
 PDF page previews take the other path: ``render_pdf_pages`` rasterizes an
 already-validated, already-committed pdf in-process with pypdfium2 (also treated as
-optional — absence degrades the preview, never the document), writing bounded-size
+optional, absence degrades the preview, never the document), writing bounded-size
 ``preview-NNN.png`` assets into the immutable version directory.
 """
 
@@ -24,7 +24,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-#: formats LibreOffice can lay out for us (input) — pdf is rendered by pypdfium2 instead
+#: formats LibreOffice can lay out for us (input), pdf is rendered by pypdfium2 instead
 LAYOUT_RENDER_FORMATS = frozenset({"docx", "xlsx", "pptx"})
 #: formats whose preview without a renderer is the extracted content itself
 #: (office structure previews come from the generator libraries; layout pages need soffice)
@@ -113,7 +113,7 @@ def render_pdf_pages(data: bytes, version_dir: Path, *,
     Each page becomes ``preview-NNN.png`` (1-based, the names ``DocumentStorage.
     read_preview_png`` serves) at a scale bounded so neither side exceeds ``max_px``
     pixels, chmod ``0400`` like the version bytes they decorate. Returns the number of
-    pages actually rendered; any failure raises ``RenderError`` — the committed document
+    pages actually rendered; any failure raises ``RenderError``, the committed document
     itself is never at stake.
     """
     if not isinstance(data, (bytes, bytearray)) or not data:

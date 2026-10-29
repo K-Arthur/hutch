@@ -74,7 +74,7 @@ def test_studio_stylesheet_references_only_defined_tokens():
     """Studio equivalent of the stylesheet token guard.
 
     A fallback-less var(--x) that resolves nowhere does not fall back to an
-    earlier rule — it computes to the property's initial (or inherited) value,
+    earlier rule, it computes to the property's initial (or inherited) value,
     so a renamed radius or surface token silently squares corners and clears
     backgrounds. Every fallback-less reference in the app-authored sheets must
     resolve to a definition in the Studio sheets, an @property declaration in

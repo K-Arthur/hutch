@@ -1,4 +1,4 @@
-"""Provider adapters — protocol verification against in-process fakes only.
+"""Provider adapters, protocol verification against in-process fakes only.
 
 NO NETWORK: the OpenAI adapter runs through the SDK with a fake httpx transport,
 the ComfyUI adapter through ``httpx.MockTransport``. What is verified here is the

@@ -11,12 +11,12 @@ Layout under ``<state>/media``::
 Commit protocol (mirrors ``documents/storage.py``): stage the bytes and fsync them →
 write the journal → promote with ``os.replace`` into a fresh per-version directory
 (manifest first, then content) → fsync both directories → insert the SQLite row (the
-CALLER's transaction — this module returns paths and hashes and never opens the
+CALLER's transaction, this module returns paths and hashes and never opens the
 database) → clear the journal. A crash between promotion and the row insert leaves a
 version that no query can reach, so reconciliation deletes it. Schema v54 has no
 media-versions table, so every promoted version carries its own ``manifest.json``
 (mime, sha256, size, kind, dimensions...) and serving re-verifies size + SHA-256
-against it before anyone sees bytes — a row whose bytes went missing fails honestly
+against it before anyone sees bytes, a row whose bytes went missing fails honestly
 instead of serving unverified content.
 
 Every path component is created without following symlinks (``O_NOFOLLOW`` +
@@ -232,7 +232,7 @@ class MediaStorage:
                poster: Optional[StagedMedia] = None) -> str:
         """Promote staged bytes to an immutable version and record it via ``insert_row``.
 
-        ``insert_row`` must persist the identity row (its own transaction — for the
+        ``insert_row`` must persist the identity row (its own transaction, for the
         v54 schema that is a ``media_jobs`` transition carrying the payload). If it
         raises, the promotion is rolled back so nothing unverifiable remains.
         ``poster`` optionally promotes a second staged asset (from the SAME staging

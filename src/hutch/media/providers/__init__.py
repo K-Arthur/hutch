@@ -1,4 +1,4 @@
-"""Media provider adapters — protocol-verified, live-unverified (see ``base.py``)."""
+"""Media provider adapters, protocol-verified, live-unverified (see ``base.py``)."""
 
 from .base import VERIFICATION_TAG, MediaBackend
 from .comfyui import ComfyUIBackend, ComfyUIError

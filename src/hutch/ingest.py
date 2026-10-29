@@ -138,8 +138,7 @@ def strip_html_comments(html: str) -> tuple[str, str, int, bool]:
 
     Comments are not visible to a human reader of the page, but a model fed
     extracted text would read them verbatim. They are removed from the visible
-    payload and handed back separately so they can be assessed and disclosed —
-    never silently trusted and never silently dropped without a trace.
+    payload and handed back separately so they can be assessed and disclosed,    never silently trusted and never silently dropped without a trace.
     """
     hidden_parts: list[str] = []
     count = 0

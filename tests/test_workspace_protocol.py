@@ -4,7 +4,7 @@ Covers the pieces the contract and the failure research pin down: receipts
 bound to the EXACT submitted code, bounded stdout/stderr/result_repr, redacted
 tracebacks with no locals, table auto-preview bounds, emit_block validation,
 the produced-files convention, and honest interruption/timeout statuses. No
-real bubblewrap is needed here — the kernel is driven directly.
+real bubblewrap is needed here, the kernel is driven directly.
 """
 
 from __future__ import annotations

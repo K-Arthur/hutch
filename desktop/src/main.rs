@@ -277,7 +277,7 @@ fn main() {
                             &state.initial_navigation,
                         ) {
                             if window.navigate(target).is_err() {
-                                let _ = window.set_title("Hutch — startup needs attention");
+                                let _ = window.set_title("Hutch: startup needs attention");
                             }
                         }
                     })
@@ -361,7 +361,7 @@ fn main() {
                         let _ = window.eval(format!(
                             "document.getElementById('startup-status').textContent = {message};"
                         ));
-                        let _ = window.set_title("Hutch — startup needs attention");
+                        let _ = window.set_title("Hutch: startup needs attention");
                     }
                 }
             });

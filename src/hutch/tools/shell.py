@@ -1,4 +1,4 @@
-"""Shell tool — jailed to the run workspace, policy-gated, output-clipped.
+"""Shell tool: jailed to the run workspace, policy-gated, output-clipped.
 
 The subprocess runs with HOME pointed at the run directory so accidental
 ~/.ssh or ~/.aws access from inside a bot lands on an empty home, not the

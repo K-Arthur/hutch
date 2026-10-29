@@ -24,7 +24,7 @@ No token, key or bearer exists anywhere: any credential stored inside the
 OpenCode environment would be readable by its OS-authority native tools.
 A process inside the run's own OpenCode tree can reach the socket, but such a
 call gains nothing beyond the run's admitted, currently enabled memory tools
-for its own conversation — every authority field is re-derived server-side.
+for its own conversation, every authority field is re-derived server-side.
 
 The socket uses the Linux abstract namespace (leading NUL), which avoids the
 108-byte filesystem ``sun_path`` limit for long isolated test directories.

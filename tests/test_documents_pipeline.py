@@ -301,7 +301,7 @@ def test_document_preview_text_and_readiness(api_client, seeded_document):
     assert readiness.status_code == 200
     formats = {f["format"]: f for f in readiness.json()["formats"]}
     assert formats["csv"]["available"] is True and formats["csv"]["preview_mode"] == "structure"
-    # readiness lists only genuinely supported formats — absent formats are absent, never disguised
+    # readiness lists only genuinely supported formats; absent formats are absent, never disguised
     for fmt in formats.values():
         assert fmt["preview_mode"] in ("pages", "structure", "download_only")
 

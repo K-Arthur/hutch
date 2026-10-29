@@ -1,7 +1,7 @@
 """OpenAI Images adapter (``openai`` package, images.generate / images.edit).
 
 **Protocol-verified, live-unverified.** Tests drive this adapter through the
-OpenAI SDK with an injected fake ``httpx`` transport — no network. The first live
+OpenAI SDK with an injected fake ``httpx`` transport, no network. The first live
 call against a real account may still surface drift (model names, size strings,
 response shapes); every such failure is raised loudly and lands in the job ledger
 as ``failed`` with the backend's own error, never as fabricated media.
@@ -17,7 +17,7 @@ call as accept+work in one step:
 * If the process died between submit and fetch, the bytes are gone. Honest
   handling lives in ``media.jobs.reconcile``: the job is marked with an error
   that says the work may have been billed and the result was never fetched.
-  There is deliberately NO silent re-generation — that would pay twice.
+  There is deliberately NO silent re-generation, that would pay twice.
 """
 
 from __future__ import annotations
@@ -124,7 +124,7 @@ class OpenAIImagesBackend:
             return image_bytes
         if url:
             # Consume the expiring URL exactly once; the URL itself is NEVER the
-            # stored result — only the bytes are.
+            # stored result, only the bytes are.
             import httpx
             response = httpx.get(url, timeout=60.0,
                                  headers={"User-Agent": "hutch/0.1 media"})
@@ -172,7 +172,7 @@ class OpenAIImagesBackend:
 
     @classmethod
     def from_env(cls) -> Optional["OpenAIImagesBackend"]:
-        """Build from OPENAI_API_KEY; None when unset — an adapter without a key
+        """Build from OPENAI_API_KEY; None when unset; an adapter without a key
         must simply not exist, not fail later mid-job."""
         import os
         key = os.environ.get("OPENAI_API_KEY")

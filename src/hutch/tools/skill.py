@@ -1,6 +1,6 @@
 """use_skill: model-driven activation of a skill the operator already bound to this Bot.
 
-The tool can only load skills from the run's resolved catalog — the engine resolved it at start
+The tool can only load skills from the run's resolved catalog; the engine resolved it at start
 from trusted, enabled bindings whose required tools this Bot enables. It cannot grant authority:
 its result is instruction text wrapped with an untrusted-data label, and any action the text
 suggests still goes through the ordinary policy, approval and sandbox path.

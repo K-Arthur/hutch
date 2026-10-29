@@ -1,7 +1,7 @@
 """Human-in-the-loop approval flow.
 
 A tool that wants to perform an "ask" action creates an ApprovalRequest in the
-store and waits — on the wake bus, not a poll loop — until a human resolves it
+store and waits (on the wake bus, not a poll loop) until a human resolves it
 from the dashboard or CLI, or until its deadline passes, in which case the
 answer is DENY. Fail-closed is the point: silence never becomes consent (the
 "agent emailed real lawyers" class of incident).
@@ -9,7 +9,7 @@ answer is DENY. Fail-closed is the point: silence never becomes consent (the
 The request carries everything a person needs to decide well (UI-5): the
 command split into parsed segments, the rule that fired, the risk class, and the
 deadline (shown as a countdown). Actions that send something *outward* (SR-4)
-always ask — sticky allows and auto mode do not apply to them.
+always ask, sticky allows and auto mode do not apply to them.
 """
 
 from __future__ import annotations

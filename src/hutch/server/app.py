@@ -4,7 +4,7 @@
   streamed over SSE with ``Last-Event-ID`` resume.
 * everything else: server-rendered pages (Jinja2 + HTMX, no build step) from ``pages.py``.
 
-A background thread runs the engine's scheduler loop, which sleeps until work exists (PF-5) — so
+A background thread runs the engine's scheduler loop, which sleeps until work exists (PF-5), so
 `hutch serve` alone runs the whole platform. See ``security.py`` for the CSRF / DNS-rebinding defences.
 """
 
@@ -2421,7 +2421,7 @@ def create_app() -> FastAPI:
     # Local-owner only: this route is deliberately absent from
     # REMOTE_ROUTE_CAPABILITIES, so paired phones receive 403 from
     # authorize_remote_route. It reports where the engine runs, whether the
-    # managed service is really ready, and what is waiting — never secrets or
+    # managed service is really ready, and what is waiting, never secrets or
     # file contents.
 
     _runtime_service_cache: dict[str, Any] = {"at": 0.0, "value": None}
@@ -3723,7 +3723,7 @@ def create_app() -> FastAPI:
         # setup or request-specific checks so a stale/unavailable route cannot
         # obscure the operator review that is currently required.
         store.assert_execution_ready()
-        # Image attachments: cheap, local, request-specific checks first — nothing
+        # Image attachments: cheap, local, request-specific checks first, nothing
         # leaves this process here, and a refused message never admits a run.
         image_attachments: list[dict] = []
         if body.image_attachment_ids:
@@ -6069,7 +6069,7 @@ def create_app() -> FastAPI:
     @app.get("/api/approvals/{approval_id}")
     @app.get("/api/v1/actions/approvals/{approval_id}")
     def get_approval(approval_id: str) -> dict:
-        """One approval in any state — the reconciliation endpoint after a 409/404.
+        """One approval in any state, the reconciliation endpoint after a 409/404.
 
         Approvals are atomically resolved: two devices racing to answer the same card
         must be able to learn who won rather than silently disagreeing.

@@ -2,7 +2,7 @@
 
 These tests never require LibreOffice: the pdf preview path is fully in-process. The one
 soffice-dependent function, ``soffice_pages_for``, is covered only by a minimal smoke
-that skips when no soffice/libreoffice binary exists — its absence must degrade the
+that skips when no soffice/libreoffice binary exists, its absence must degrade the
 pipeline, not the suite.
 """
 

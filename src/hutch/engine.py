@@ -1145,7 +1145,7 @@ class Engine:
                 result["aborted"] = exc
             except LeaseLost as exc:       # recovery took this run away from us: stop touching it
                 result["lost"] = exc
-            except Exception as exc:  # engine/runtime bug — keep the run, lose nothing
+            except Exception as exc:  # engine/runtime bug, keep the run, lose nothing
                 result["crashed"] = exc
                 result["traceback"] = traceback.format_exc(limit=6)
             finally:
@@ -1826,7 +1826,7 @@ def _ollama_loaded() -> set[str]:
 
 
 def bot_prompt_for_schedule(bot: Bot, schedule=None) -> str:
-    """Prompt used for scheduled runs — stable and self-describing."""
+    """Prompt used for scheduled runs, stable and self-describing."""
     when = utcnow().strftime("%Y-%m-%d %H:%M UTC")
     schedule = schedule or bot.schedule
     task = schedule.prompt.strip() if schedule else ""

@@ -2,7 +2,7 @@
 
 python-docx and python-pptx write archive entries stamped with the local clock at
 two-second resolution, so two generations of the *same* specification can differ across a
-second boundary — under load, the documents slice's own reproducibility test caught
+second boundary, under load, the documents slice's own reproducibility test caught
 exactly that. Hutch promises byte-identical output for identical specs (hashes are
 recorded for every version), so the archive is repacked here with fixed timestamps while
 preserving entry order and content. The libraries already produce deterministic part

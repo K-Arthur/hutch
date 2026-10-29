@@ -30,7 +30,7 @@ ASSESSMENT_LABELS = (
     "materially_altered",             # the artifact was altered relative to a locatable source artifact (with evidence)
     "mixed_or_disputed",              # credible evidence on both sides / sources disagree on specifics
     "insufficient_evidence",          # nothing decisive found; the useful outcome is the gap list
-    "unknown",                        # the check could not run (unsupported/unavailable) — stated plainly
+    "unknown",                        # the check could not run (unsupported/unavailable), stated plainly
 )
 
 RELATIONS = ("supports", "contradicts", "context", "reports_allegation")

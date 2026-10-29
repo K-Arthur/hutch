@@ -854,8 +854,7 @@ def test_v51_pending_specialist_questions_are_not_attachable_results():
     """Schema v51 keeps a waiting question out of the accepted-result record, in the database.
 
     In the final merged history these guards are ``_migrate_51`` (the runtime slice's numbering);
-    ``_migrate_54`` re-applies them idempotently so databases stamped by the grounding branch —
-    which never saw them — end complete.
+    ``_migrate_54`` re-applies them idempotently so databases stamped by the grounding branch,    which never saw them, end complete.
     """
     from hutch.store import _migrate_51_pending_question_guards
 

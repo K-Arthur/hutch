@@ -1,10 +1,10 @@
-"""run_python / reset_workspace — the contained persistent Python workspace.
+"""run_python / reset_workspace: the contained persistent Python workspace.
 
 Follows ``tools/shell.py``'s policy sequence (policy check -> approval gate ->
 begin_effect -> run -> receipt) with one deliberate difference, stated in the
 module docstring of ``hutch.workspace.manager``: there is NO uncontained mode.
 The shell can run with containment off when a bot owner chooses it; Python
-cells cannot — a persistent interpreter that remembered state between cells
+cells cannot, a persistent interpreter that remembered state between cells
 would be exactly the trust boundary the strict profile exists to draw. When
 strict containment is off or unavailable the tools refuse, fail-closed.
 
@@ -12,13 +12,13 @@ Approval semantics mirror the shell's sticky pattern: ask-by-default with
 sticky keys (``python:exec`` / ``workspace:reset``), so a standing "always
 allow" covers later calls; the tier translates the ask the same way
 ``PolicyEngine._tier`` does for shell commands (readonly denies, trusted
-allows). Bot shell rules are not matched against Python source — a glob
+allows). Bot shell rules are not matched against Python source, a glob
 written for command segments says nothing about a cell.
 
 The model sees a bounded textual summary only; everything rich travels as
 typed blocks on ``ToolResult.data["blocks"]``: one hash-bound ``code_receipt``
 (the EXACT submitted code plus execution evidence) plus any blocks the cell
-emitted. Validation of those blocks happens once, in ``call_tool`` — the same
+emitted. Validation of those blocks happens once, in ``call_tool``, the same
 as every other tool; this module never bypasses it.
 """
 
@@ -34,8 +34,7 @@ from ..workspace.manager import WorkspaceManager, manager_for_conversation
 from .base import Tool, ToolContext, ToolResult, _schema, clip, rehearsed
 
 #: protocol receipt status -> code_receipt execution status (the block
-#: contract's vocabulary; a confirmed interrupt is reported as 'cancelled' —
-#: the execution did not finish, and 'interrupted' is not a contract status).
+#: contract's vocabulary; a confirmed interrupt is reported as 'cancelled',#: the execution did not finish, and 'interrupted' is not a contract status).
 EXECUTION_STATUS = {
     "ok": "ok",
     "error": "error",

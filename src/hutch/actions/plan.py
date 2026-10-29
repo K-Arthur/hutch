@@ -1,7 +1,7 @@
 """Inspectable action plans: what will happen, to what, under whose authority.
 
 A request like "make me a brief for Thursday's meeting and put the table in the shared
-folder" becomes an :class:`ActionPlan` — an ordered list of typed steps with explicit
+folder" becomes an :class:`ActionPlan`, an ordered list of typed steps with explicit
 targets. The plan is the unit a person reviews: :func:`plan_review` renders it, and
 :func:`approval_scope_hash` binds the review to the exact content of every step. Changing
 a step's inputs, target or idempotency key changes the hash, so a stale approval cannot
@@ -9,9 +9,9 @@ authorize a different write.
 
 Authorities are classified per step, not per plan:
 
-* ``none``      reads and local drafts — no external effect.
+* ``none``      reads and local drafts, no external effect.
 * ``review``    metered generation and cloud writes covered by the plan's one review.
-* ``separate``  sharing and notifications — these never ride a bundle review.
+* ``separate``  sharing and notifications, these never ride a bundle review.
 
 The engine (``execute``) is a separate module; this module performs no I/O.
 """
@@ -218,7 +218,7 @@ def build_plan(intent: str, step_specs: list[dict[str, Any]], *,
     """Validate a step list into a plan: kinds, targets, dependencies, idempotency keys.
 
     ``{"$remote_id": "<step id>"}`` references inside inputs create a dependency on that
-    step automatically — the review approves the reference, execution resolves the id.
+    step automatically, the review approves the reference, execution resolves the id.
 
     Raises ``ValueError`` for anything that would make execution ambiguous (unknown
     dependency, dependency cycle, duplicate step ids).

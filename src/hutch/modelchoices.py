@@ -40,7 +40,7 @@ _cache: OrderedDict[str, tuple[float, Any]] = OrderedDict()
 #: (connection, endpoint, key hash, model id) -> OpenRouter's ADVERTISED context_length (S1's only
 #: hosted
 #: window data; "advertised, unverified"). Recorded when a model-menu catalog refresh actually
-#: fetched the row — the run path only reads this cache and never fetches the catalog itself, so
+#: fetched the row, the run path only reads this cache and never fetches the catalog itself, so
 #: a hosted run still makes no request beyond its own model call
 #: (the discipline pinned at tests/test_model_switcher.py:184).
 _advertised_context: dict[tuple[str, str, str, str], int] = {}

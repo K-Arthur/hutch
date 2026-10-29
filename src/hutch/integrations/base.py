@@ -3,8 +3,8 @@
 Identities are stable and separate from display labels: an ``Integration`` is named by a slug
 plus the revision hash of its reviewed manifest, and its tools are named
 ``mcp__<integration>__<tool>`` (the collision map itself is slice S3). The five consent states are
-independent gates — install/config, reachability, authentication, capability discovery, and
-per-operation authorization — and connection identity or discovery visibility is never
+independent gates, install/config, reachability, authentication, capability discovery, and
+per-operation authorization, and connection identity or discovery visibility is never
 authorization (§7): a higher state never implies the ones below it.
 
 This module is contracts only: no I/O, no transport, no MCP. ``integrations/catalog.py`` derives
@@ -78,7 +78,7 @@ class Integration:
 
     ``revision`` is the hash of the reviewed manifest the operator consented to; a material change
     produces a new revision, which invalidates prior approvals (§4.4). ``credential_id`` references
-    the existing key storage pattern (env var or 0600 file) — a secret itself is never stored here.
+    the existing key storage pattern (env var or 0600 file), a secret itself is never stored here.
     """
 
     integration_id: str
@@ -102,8 +102,7 @@ class Integration:
 @dataclass(frozen=True)
 class IntegrationToolGrant:
     """One per-bot tool visibility grant (§4.1): ``(integration_id, server_tool_name)`` → canonical
-    name, bound to exactly one Bot. Grant rows are reviewed store rows, not allowlist strings —
-    the pattern the grant-gated calendar tools established. ``schema_revision`` is the sha256 of
+    name, bound to exactly one Bot. Grant rows are reviewed store rows, not allowlist strings,    the pattern the grant-gated calendar tools established. ``schema_revision`` is the sha256 of
     the ``tools/list`` result that produced the spec, re-checked before each protected call (§4.4).
     """
 

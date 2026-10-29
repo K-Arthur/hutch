@@ -2,7 +2,7 @@
 
 The pump is deliberately tiny and lives on the supervisor loop:
 
-* checks run on a small worker pool, never on the control loop — a slow feed
+* checks run on a small worker pool, never on the control loop, a slow feed
   or a stalled network share cannot delay scheduling, approvals, or Stop;
 * every check is claimed optimistically in the registry, so a second process
   (or a restarted one) cannot run the same check twice;

@@ -1,35 +1,34 @@
 """WorkspaceManager: one contained kernel process per conversation.
 
-Containment substrate (extends the story in ``docs/safety.md``'s shell row —
-this module is where it is implemented for Python):
+Containment substrate (extends the story in ``docs/safety.md``'s shell row,this module is where it is implemented for Python):
 
-* ``kernel_argv`` reuses :mod:`hutch.sandbox`'s strict profile — bubblewrap
+* ``kernel_argv`` reuses :mod:`hutch.sandbox`'s strict profile, bubblewrap
   with ``--unshare-all`` (no network: a new empty network namespace, loopback
   down), a filesystem of read-only ``/usr`` + venv + hutch source and ONLY
   the conversation's workspace writable, a fresh ``/proc``, private ``/tmp``,
   then systemd-run's user scope for cgroup memory/task caps and prlimit for
-  CPU/address-space/file limits — exactly the shell tool's tail.
+  CPU/address-space/file limits, exactly the shell tool's tail.
 * The environment is a fixed allowlist: shell.py's ``PATH``/``HOME``/``LANG``/
-  ``TERM`` pattern plus exactly the entries this child needs — ``TMPDIR``
+  ``TERM`` pattern plus exactly the entries this child needs, ``TMPDIR``
   (as ``shell_argv`` also sets), ``PYTHONPATH``/``PYTHONUNBUFFERED`` (the
   offline worker's pattern, so the kernel can import hutch and the venv's
   packages from read-only mounts), ``HUTCH_KERNEL=1`` (the containment
   marker) and ``HUTCH_WORKSPACE_GENERATION`` (so receipts carry the
   generation they ran in). Nothing ambient crosses: ``--clearenv``.
 * Fail-closed: when strict containment is unavailable on this host there is
-  NO execution and NO uncontained fallback — the same refusal
+  NO execution and NO uncontained fallback, the same refusal
   ``tools/shell.py`` gives, surfaced as :class:`ContainmentUnavailable`.
 * Every spawn is registered in the run's :class:`~hutch.tools.base.ProcRegistry`,
   so run teardown ends the kernel tree (verified teardown: ``survivors`` is
-  measured, not assumed). A child that dies anyway — mid-cell or between
-  runs — is reported honestly: status ``'lost'``, the store row moves to
+  measured, not assumed). A child that dies anyway, mid-cell or between
+  runs, is reported honestly: status ``'lost'``, the store row moves to
   ``'expired'``, and the next execution starts a NEW generation rather than
   pretending the old in-memory state survived.
 * One exec at a time per conversation. A concurrent caller gets ``'busy'``
   immediately; nothing is queued behind a runaway cell.
 * ``interrupt()`` sends SIGINT and waits a bounded three seconds for the
   protocol ack. No ack means the receipt is marked ``'interrupt_unconfirmed'``
-  — never a silent claim that a cell stopped — and a reset is offered.
+  (never a silent claim that a cell stopped) and a reset is offered.
 * ``restart()`` terminates the child via ``ProcRegistry.terminate`` (verified
   teardown), transitions the store row to ``'terminated'`` under optimistic
   concurrency, upserts the next generation, and hands back a stale marker so
@@ -63,7 +62,7 @@ from .protocol import (
     PARENT_RESPONSE_MARGIN_SECONDS,
 )
 
-#: What a spawn returns: ``(proc, env_fingerprint)`` — the proc must already
+#: What a spawn returns: ``(proc, env_fingerprint)``; the proc must already
 #: have sent its ``hello`` line (the default contained spawner waits for it,
 #: bounded, and fails closed if it never arrives).
 SpawnFn = Callable[[Path, int], "tuple[subprocess.Popen, dict[str, Any]]"]
@@ -71,7 +70,7 @@ SpawnFn = Callable[[Path, int], "tuple[subprocess.Popen, dict[str, Any]]"]
 
 class ContainmentUnavailable(RuntimeError):
     """Strict containment is unavailable: the workspace refuses to run
-    (fail-closed, mirroring the shell tool's refusal — never unsandboxed)."""
+    (fail-closed, mirroring the shell tool's refusal, never unsandboxed)."""
 
 
 def workspace_dir_for(state_dir: Path | str, conversation_id: str) -> Path:
@@ -88,7 +87,7 @@ def kernel_env(workspace: Path, generation: int) -> dict[str, str]:
     """The fixed environment allowlist passed through ``--clearenv``.
 
     The four variables shell.py allowlists, plus exactly the entries this
-    child needs — every one named, nothing ambient (provider keys, proxies,
+    child needs, every one named, nothing ambient (provider keys, proxies,
     XDG data, user service buses never cross the boundary).
     """
     source_root = Path(__file__).resolve().parents[2]   # .../src (this file is src/hutch/workspace/manager.py)
@@ -160,7 +159,7 @@ def kernel_argv(workspace: Path, generation: int) -> list[str]:
                 argv.append(value)
                 made_dirs.add(value)
 
-    source_root = Path(__file__).resolve().parents[2]   # .../src — bound read-only so `import hutch` works
+    source_root = Path(__file__).resolve().parents[2]   # .../src, bound read-only so `import hutch` works
     prefix = Path(sys.prefix).resolve()
     base_prefix = Path(sys.base_prefix)
     if prefix.exists() and not prefix.is_relative_to(Path("/usr")):
@@ -197,7 +196,7 @@ def kernel_argv(workspace: Path, generation: int) -> list[str]:
 def _contained_spawn(workspace: Path, generation: int) -> tuple[subprocess.Popen, dict[str, Any]]:
     """The default spawner: build the strict argv, start the child in its own
     session, and wait (bounded) for the protocol hello. No hello means no
-    session — the failure is loud, never a half-open channel."""
+    session, the failure is loud, never a half-open channel."""
     argv = kernel_argv(workspace, generation)
     try:
         proc = subprocess.Popen(
@@ -480,7 +479,7 @@ class WorkspaceManager:
     def interrupt(self) -> dict[str, Any]:
         """SIGINT the in-flight cell; wait a bounded three seconds for the
         protocol ack. Without an ack the receipt is marked
-        ``interrupt_unconfirmed`` — never a silent claim of success."""
+        ``interrupt_unconfirmed``, never a silent claim of success."""
         with self._lock:
             inflight, proc = self._inflight, self._proc
         if inflight is None or proc is None:
@@ -501,7 +500,7 @@ class WorkspaceManager:
         """Run one cell. Returns a protocol-response dict whose ``status`` is
         one of: ``ok`` (receipt carries the cell outcome), ``busy`` (another
         cell is running; nothing queued), ``error`` (the request could not
-        run — e.g. containment unavailable), ``timeout`` (terminated past
+        run, e.g. containment unavailable), ``timeout`` (terminated past
         every deadline), ``interrupt_unconfirmed`` (SIGINT not acknowledged),
         or ``lost`` (the kernel died mid-execution)."""
         request_id = protocol.new_request_id()
