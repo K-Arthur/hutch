@@ -1,4 +1,9 @@
-# No Sitemap directive yet: it requires an absolute URL and this site has no
-# public domain chosen. Add "Sitemap: https://<domain>/sitemap.xml" when one is.
+# GitHub Pages serves this project site under /hutch/. Compliant crawlers read
+# robots.txt only at the origin root (https://k-arthur.github.io/robots.txt),
+# which this repository cannot control. This file records the policy and takes
+# effect at the origin root when a custom domain is added. All crawlers and
+# answer engines are allowed; there is no training-crawler restriction.
 User-agent: *
 Allow: /
+
+Sitemap: https://k-arthur.github.io/hutch/sitemap.xml

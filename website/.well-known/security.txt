@@ -1,0 +1,5 @@
+Contact: mailto:hello@kevinarthur.design
+Expires: 2027-10-28T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://k-arthur.github.io/hutch/.well-known/security.txt
+Policy: https://github.com/K-Arthur/hutch/blob/main/SECURITY.md

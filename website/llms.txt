@@ -6,6 +6,7 @@ Hutch keeps its control state — conversations, memory, logs, schedules and fil
 
 ## Key facts
 
+- Site: https://k-arthur.github.io/hutch/ (single static page, GitHub Pages).
 - Status: development preview. The MIT-licensed source is public on GitHub; there are no packaged desktop installers and no hosted sign-up.
 - Platform: Linux (Python 3.11+). macOS and Windows executors are not implemented.
 - License: MIT. The software is free; hosted model usage is billed by your own provider account.
