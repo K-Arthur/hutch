@@ -1,72 +1,76 @@
-# HANDOFF.md - session end, Run 2
+# HANDOFF.md - session end, Run 3
 
-Run: 2 - Project: Hutch - Date: 2026-10-28 (America/Vancouver) - Session: DSH "lead"
-Commit: one coherent unit, `docs(brand):` prefix, local only (this file and NEXT-PROMPT.md
-included; hash in git log).
-Authority used: local commits only; nothing pushed, deployed or merged; .worktrees/ never read; no
-file outside .pipeline/brand/2026-10/ created or modified; zero external fetches; no asset or code
-generation.
+Run: 3 - Project: Hutch - Date: 2026-10-28 (America/Vancouver) - Session: DSH "lead"
+Commit: one local commit, docs(brand): prefix (hash in git log).
+Authority used: local commits only; nothing pushed, deployed or merged. The only docs/brand/**
+write was the protocol adoption that the maintainer explicitly assigned this run (D22). .worktrees/
+never read. No identity asset was generated, drawn or rendered. 12 external calls, all free and
+dated (knockout pre-screen); no other teammate or the lead fetched anything.
 
-## Artifact state (Run 1 committed at 40b35322/6a744aaf; Run 2 in this commit)
+## Artifact state
 
-| Artifact | Status | Review note |
+| Artifact | Status | Note |
 |---|---|---|
-| 00-BRIEF.md | complete (Run 1) | unchanged this run |
-| DECISION.md | updated | Run 1 D01-D08 + Run 2 D09-D20; Gate 1 signed off, Gate 2 closed; B4 resolved, B6 added |
-| RESEARCH.md / APP-BRAND-AUDIT.md / ASSET-INVENTORY.md / FINDINGS.md | complete (Run 1) | cited, not modified |
-| STRATEGY.md | NEW, complete | product truth T1-T15 -> audiences A1-A4 -> surfaces -> PO-1..3; IP pre-screen scope section 7 (OPEN) |
-| CONCEPT-LOG.md | NEW, complete | D1-D4 directions traced to fact/audience/surface; 8 rejections one line each; selection record filled from gate answers |
-| HANDOFF.md, NEXT-PROMPT.md | rewritten for Run 3 | this pair |
-| CLEARANCE-PROTOCOL.md, IP-CLEARANCE.md, PROVENANCE-REGISTER.md | NOT WRITTEN | Run 3 |
-| Concept renders / guidelines / provenance-backed assets | NOT WRITTEN | Run 3 only after G1 sign-off; renders need B1 |
+| 00-BRIEF.md, RESEARCH.md, APP-BRAND-AUDIT.md, ASSET-INVENTORY.md, FINDINGS.md, STRATEGY.md, CONCEPT-LOG.md | complete (Runs 1-2) | not modified this run |
+| DECISION.md | updated | Run 3 capability note, D21-D27, gate state, blockers B7/B8 |
+| PROVENANCE-REGISTER.md | NEW, complete | 18 asset rows with file:line/commit evidence; licence-record gaps; carried unknowns U07/C27/C19/C01; no legal conclusions |
+| IP-CLEARANCE.md | NEW, complete | dated 12-call knockout pre-screen; STOP CONDITION in section 0; every register outcome recorded (unreachable, not clear); Vienna and domain/handle checks carried as unattempted |
+| CLEARANCE-PROTOCOL.md | SIGNED v0.1 | sign-off block complete (Kevin Arthur, 2026-10-28); adoption path A; gates 2-4 and counsel review stay OPEN; gate 1 stop condition not cleared |
+| docs/brand/03-CLEARANCE-PROTOCOL.md | NEW, adopted | same text as the signed .pipeline draft; plan G1's named file now exists |
+| Concept elaboration (D1+D2) / renders / asset files | NOT PRODUCED | stop condition bars design talk; B1 approved but not executed |
+| HANDOFF.md, NEXT-PROMPT.md | rewritten for Run 4 | this pair |
 
 ## Gate state leaving this run
 
-- GATE 1: SIGNED OFF 2026-10-28 (DECISION D09).
-- GATE 2 (Run 2 exit): CLOSED 2026-10-28 - direction selected (D19: D1 "Centre Dot" base + D2
-  "Local Hub" lead territory), IP pre-screen scoped and budget/risk accepted (D20: scope OPEN for
-  counsel, zero spend, IP risk owned by the maintainer in writing for now, no funded counsel).
-- Plan hard gate G1: OPEN - no clearance protocol exists. Run 3 ordering is fixed by this:
-  protocol draft -> human sign-off -> only then any asset generation (including a faithful master
-  extracted from the shipped hexagon path). Knockout SEARCH (not creation) may run immediately.
+- GATE 2: CLOSED (D19/D20, unchanged).
+- Plan hard gate G1: protocol exists, signed and adopted (D22). Asset generation is still blocked by
+  the gate 1 stop condition (D21) - a signed protocol does not clear an observed overlap.
+- Protocol gate 1: executed, OPEN, stop condition recorded. Gate 2: maintainer-decided under D20.
+  Gate 3: OPEN (no counsel). Gate 4: OPEN (no filing/watch decision).
+- Stop condition: HUTCH entries observed in the US and UK, Nice classes UNVERIFIED. No clearance,
+  distinctiveness or non-infringement claim is made anywhere.
 
 ## What the next session inherits
 
-- Run 2 was strategy only: STRATEGY.md (product truth, audiences, surfaces, positioning PO-1..3,
-  IP pre-screen scope) and CONCEPT-LOG.md (four named directions, eight rejected options). No
-  identity implementation, no renders, no legal conclusions anywhere.
-- Decisions now binding: keep name "Hutch" (D10), tagline verbatim (D11), tokens.json is the
-  governing neutral ramp (D12), territories US/EU/UK/CA and Nice 9/42 for knockout scope (D13),
-  budget zero external spend (D15), PWA manifest + icons in scope (D16), C23 proxies accepted (D17).
-- Strategy citations use the FINDINGS section 2 corrections whenever plan section A is referenced
-  (eight plan rows refuted - base.html 10 stylesheets, Studio 15, tokens 28/12/7, JSON-LD screenshot
-  property exists, --fs-* lives in style.css, brand alias is marketing-only, mascot rules exist,
-  social renderer exists).
-- Capability facts unchanged unless re-probed: NO browser/screenshot capability (B1 never approved);
-  read_image works; web fetch works but was not used this run; asking the human works (one 120 s
-  timeout, retry succeeded).
-- The Phase 0 plan (brand/plan, PR #11) still needs its 8 corrections folded in (B2) - Run 2 did not
-  touch it; the two programs stay reconciled through DECISION.md.
+- Read first: DECISION.md (D19-D27, B7, B8), IP-CLEARANCE.md section 0, CLEARANCE-PROTOCOL.md
+  (sections 3-5 and 9), PROVENANCE-REGISTER.md, then STRATEGY.md section 7 and CONCEPT-LOG.md D1/D2.
+- Run 4 order is fixed: resolve or narrow the stop condition before any design talk. The highest-
+  value step is a dated class check of US serials 99695333 and 87196849 and UK numbers UK00003791602,
+  UK00902129492 and UK00915655715, recording holder, status, Nice classes, goods/services and dates.
+- If any core entry covers class 9 or 42: stop, escalate, no design. Options are written risk
+  acceptance, narrowing the goods/services description, or reconsidering the name - a human decision.
+- If the check clears the name (or the overlap is non-core): only then start text-first concept
+  elaboration for D1 "Centre Dot" + D2 "Local Hub" (specs, geometry and lockup rules, 16px and
+  monochrome test plans - described, not drawn). Asset generation still needs its own decision.
+- B1 is APPROVED (D24): Run 4 runs uv sync --extra browser and verifies it. A working browser may also
+  let the session read the JS-only register pages directly, but CAPTCHAs may still block - record as
+  unreachable, never as clear.
+- U21 (D26): Run 4 runs the free RDAP domain checks and the GitHub / npm / PyPI / social-handle checks.
+- Vienna design codes are unverified; do not cite any code until the current edition and definitions
+  are recorded.
+- Decisions now binding: keep name "Hutch" (D10), tagline verbatim (D11), website/tokens.json governs
+  the neutral ramp (D12), US/EU/UK/CA and Nice 9/42 for the knockout scope (D13), zero external spend
+  (D15), PWA in scope (D16), C23 proxies accepted (D17), written IP risk ownership (D20/D23), mascot
+  marketing-only until terms documented (D25).
 
 ## Blockers (owner -> next action)
 
-- B1 - No visual/screenshot capability. Owner: human. Action: approve `uv sync --extra browser` (or
-  name an existing capture harness) before any run claims rendered evidence; Run 3 concepts stay
-  text-first without it, Run 4's visual gate cannot run at all.
-- B2 - Phase 0 plan PR #11 pending review + 8 refutations (FINDINGS 2). Owner: human/plan owner.
-- B3 - Stale brand/phase-1 worktree evidence uncommitted and unreadable here. Owner: human.
-- B5 - Open citations: Anthropic press-kit URL, X/Facebook card dimensions (U17), and 6
-  shell-rendered citations needing a rendering-browser re-check. Owner: session/human.
-- B6 (new) - IP risk posture: owned by the maintainer in writing, no funded counsel (D20), while
-  D14's "engage counsel" intent stays unfunded (D15). Owner: human. Action: at each later gate,
-  re-confirm the written ownership or fund counsel; G1 protocol sign-off is owed regardless before
-  any asset generation.
+- B7 (NEW) - Knockout stop condition: US and UK HUTCH marks observed; classes and holders unverified
+  because the registers are bot-blocked. Owner: human. Action: dated manual browser lookup (free) and
+  record; then decide under D21. Blocks all design/creation.
+- B8 (NEW) - Register coverage gaps: USPTO direct, EUIPO, TMview, WIPO GBD and CIPO unreachable or
+  unattempted; Vienna codes unverified; domains, handles and app stores unattempted. Owner:
+  human/session. Action: complete with a working browser and free checks in Run 4.
+- B1 - approved but not executed: uv sync --extra browser still has to run and be verified (D24).
+- B6 - written IP risk ownership re-confirmed (D23); counsel review owed if/when funded. Gates 3-4
+  stay OPEN.
+- B2 (plan PR #11 review + 8 corrections), B3 (stale phase-1 worktree), B5 (open citations) unchanged.
+- B4 resolved in Run 2.
 
 ## Deliberately deferred
 
-- All asset generation, renders, guidelines, press kit, trademark policy (Runs 3-4, gated on G1).
-- Source fixes found in Run 1 (docs/design-system.md conflicts, THIRD_PARTY_NOTICES font list,
-  stale 2026-10-10 research doc) - documented, not fixed.
-- Domain/handle state (U21/C15) - the Run 3 common-law search may surface conflicts for the human.
-- Adoption of pipeline artifacts into docs/brand/** - requires an explicit docs/brand assignment
-  from the human; write scope stays .pipeline/brand/** otherwise.
+- Text-first concept elaboration for D1+D2 and any asset work (stop condition; no design talk).
+- Renders and visual evidence (B1 approved, not installed; no concept exists to render).
+- Secondary territory choice between D3 and D4 (carried to Run 4).
+- Drafting of a brand-use/trademark policy (plan Phase 7), full-name trademark policy, and press kit.
+- The manual class check itself (human browser action) - the run could not do it read-only.

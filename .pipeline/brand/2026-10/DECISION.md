@@ -98,3 +98,65 @@ allows.
   shell-rendered citations needing a rendering-browser re-check. Unchanged from Run 1.
 - B1 (no browser), B2 (plan PR #11 review + 8 corrections), B3 (stale phase-1 worktree) all
   unchanged from Run 1.
+
+## Run 3 (2026-10-28 - IP pre-screen, clearance protocol, provenance)
+
+Capability note: three bounded teammates (provenance, knockout, protocol) ran in parallel with
+disjoint single-file write scopes; the lead reviewed every artifact before use. External calls: 12
+(knockout only; all free, dated 2026-10-28). The first human ask (7 questions) timed out at 600 s
+with no answer; a compact 2-question retry was answered, then a 3-question follow-up. Web search /
+fetch work, but all five trademark register surfaces are bot-blocked or JavaScript-only; no browser
+is installed (B1 is approved, not executed).
+
+### Run 3 decisions (one line each, with reason)
+
+- D21 - Knockout stop condition: keep D20 written risk ownership; all design/creation stays paused;
+  proceed only after a manual browser class check of the observed HUTCH records (human, ask answer
+  2026-10-28). Reason: HUTCH entries observed in the US and UK with Nice classes UNVERIFIED; the
+  plan's program-level risk table requires a Phase 2/3 pause and no asset spend.
+- D22 - Plan G1 clearance protocol SIGNED OFF (v0.1) and adopted by Option A: the maintainer
+  explicitly assigned docs/brand/** write scope, so docs/brand/03-CLEARANCE-PROTOCOL.md now exists
+  locally with the same text as the .pipeline draft (human, ask answer 2026-10-28).
+- D23 - B6 re-confirmed: the maintainer keeps the written IP risk ownership for now, with no funded
+  counsel; protocol gates 3 (counsel full search) and 4 (filing/watch) stay OPEN (recorded from the
+  D21 instruction and restated per the run contract).
+- D24 - B1 browser fix APPROVED: uv sync --extra browser authorised. Not executed this run; Run 4
+  executes and verifies it as its first capability step.
+- D25 - C27 mascot: keep it marketing-only; no expanded use until licence, copyright holder and
+  usage rules are documented (human, ask answer 2026-10-28).
+- D26 - U21/C15: Run 4 runs the free RDAP domain checks and the GitHub / npm / PyPI / social-handle
+  checks (human, ask answer 2026-10-28).
+- D27 - Secondary territory (D3 "Quiet Chrome" / D4 "Character Tiering") DEFERRED: no text-first
+  concept elaboration was produced this run because the stop condition bars design talk; the Run 4
+  shortlist question carries forward, not decided.
+
+### Run 3 gates
+
+- GATE 2: stays CLOSED (D19/D20).
+- Plan hard gate G1: the protocol EXISTS, is SIGNED and is ADOPTED (D22) - but the gate 1 stop
+  condition is unresolved, so asset generation remains blocked by D21. Status: protocol satisfied,
+  creation still paused.
+- Gate 1 of the protocol (knockout pre-screen): executed and OPEN - stop condition recorded, not
+  passed. Gate 2 of the protocol: decided by the maintainer under D20 (scope fixed by D13). Gate 3:
+  OPEN (no counsel). Gate 4: OPEN (no filing or watch decision).
+
+### Run 3 blockers
+
+- B7 (NEW, owner: human) - Knockout stop condition: HUTCH US serials 99695333 and 87196849, UK
+  UK00003791602 (aggregator title LIVE/Registered) plus UK00902129492 and UK00915655715; classes,
+  holders and goods/services are UNVERIFIED because every register surface is bot-blocked. Highest-
+  value next step: a free manual browser lookup with a dated record. Blocks all design/creation.
+- B8 (NEW, owner: human/session) - Register coverage gaps: USPTO direct, EUIPO, TMview, WIPO Global
+  Brand Database and CIPO were unreachable or unattempted; Vienna design codes are unverified (no
+  code may be cited until checked); domains, handles and app stores were unattempted.
+- B1 - APPROVED but NOT EXECUTED (D24): uv sync --extra browser still has to run and be verified.
+- B6 - re-confirmed written ownership (D23); counsel review is still owed if/when funded.
+- B2, B3, B5 unchanged from Run 2.
+
+### Run 3 artifacts
+
+PROVENANCE-REGISTER.md (18 asset rows, licence-record gaps, carried unknowns), IP-CLEARANCE.md
+(dated 12-call pre-screen log with the stop condition), CLEARANCE-PROTOCOL.md (signed v0.1, adopted
+as docs/brand/03-CLEARANCE-PROTOCOL.md), and this log's D21-D27. No identity asset was generated,
+drawn or rendered; no concept elaboration was produced (stop condition).
+

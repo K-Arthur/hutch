@@ -1,4 +1,4 @@
-# NEXT-PROMPT.md - paste-ready continuation: Run 3
+# NEXT-PROMPT.md - paste-ready continuation: Run 4
 
 ## Session input block
 
@@ -8,71 +8,75 @@ REPO_ROOT:            /home/kevina/CodingProjects/hutch
 SITE_APP_PATH:        website/ (marketing), src/hutch/server/ (dashboard)
 DOCS_PATH:            docs/
 NATIVE_TARGETS:       desktop (Tauri) + web
-EXISTING_BRAND_DOCS:  docs/brand-assets.md, docs/design-system.md, DESIGN.md, PRODUCT.md, docs/marketing-site.md
+EXISTING_BRAND_DOCS:  docs/brand-assets.md, docs/design-system.md, DESIGN.md, PRODUCT.md,
+                      docs/marketing-site.md, docs/brand/03-CLEARANCE-PROTOCOL.md
 ARTIFACT_DIR:         .pipeline/brand/2026-10
 TODAY:                <YYYY-MM-DD>
-RUN:                  3
+RUN:                  4
 HUMAN_AUTHORITY:      local commits only; never push/deploy/merge without explicit instruction
-CONCURRENCY:          write scope .pipeline/brand/** only (docs/brand/** only if explicitly assigned);
+CONCURRENCY:          write scope .pipeline/brand/** only; docs/brand/** needs a fresh explicit
+                      assignment (the Run 3 assignment covered only the protocol adoption);
                       never read .worktrees/; stage only files this session wrote and reviewed
 JURISDICTIONS:        CONFIRMED 2026-10-28 (D13): US + EU + UK + Canada; Nice classes 9 and 42 only
-                      (35/41 only if those services are ever offered)
 LICENCE_POSTURE:      open source (MIT code, OFL fonts, vendor marks per docs/brand-assets.md);
-                      budget CONFIRMED 2026-10-28 (D15/D20): zero external spend for now; IP risk
-                      owned by the maintainer IN WRITING for now; no funded counsel until re-decided
+                      zero external spend (D15); IP risk owned by the maintainer in writing (D20/D23);
+                      no funded counsel until re-decided
 BUDGET:               <=15 files read per pass; <=~30 min wall; <=15 external fetches
 ```
 
-## Run 3 = IP PRE-SCREEN + CLEARANCE PROTOCOL + PROVENANCE (plan gate G1 close-out);
-## conditional text-first concept elaboration for the selected direction
+## Run 4 = resolve the knockout stop condition first, then (only if clean) text-first concept
+## elaboration for D1+D2; write a dated class-verification record either way
 
 Preconditions (read, do not assume):
-1. Gate 2 confirmed closed: DECISION.md shows D19 (direction = D1 "Centre Dot" base + D2 "Local
-   Hub" lead territory) and D20 (pre-screen scope accepted, budget/risk accepted, written risk
-   ownership). If either is absent, stay in Run 2.
-2. Read in this order: 00-BRIEF.md, DECISION.md (D01-D20, gates, B6), FINDINGS.md, STRATEGY.md
-   (especially section 7 IP pre-screen scope), CONCEPT-LOG.md (selection record), then plan sections
-   C04/C15/C27/C29, R.3 and the Phase 2/3 exit criteria via
-   `git show brand/plan:docs/brand/00-PLAN.md`. Cite plan section A only with the FINDINGS section 2
-   corrections (eight rows refuted).
-3. ORDER IS MANDATORY: (a) PROVENANCE-REGISTER and knockout SEARCH are unblocked work; (b) the
-   clearance protocol draft must exist and be SIGNED OFF by the human before ANY mark, name or
-   tagline asset is generated - including a faithful master file extracted from the shipped
-   hexagon path (plan G1, B6). Search is not creation; creation waits.
+1. DECISION.md shows D21 (creation paused until manual class check), D22 (protocol signed and
+   adopted), D23 (written risk ownership), D24 (browser approved), D25 (mascot marketing-only) and
+   B7/B8 (the stop condition and the coverage gaps). If any is absent, re-read Run 3 first.
+2. Read in this order: DECISION.md, IP-CLEARANCE.md (section 0 and section 8), CLEARANCE-PROTOCOL.md
+   (sections 3-5 and 9), PROVENANCE-REGISTER.md, then STRATEGY.md 7 and CONCEPT-LOG.md D1/D2.
+3. Order is mandatory: (a) class check first; (b) if any observed HUTCH entry covers Nice 9 or 42 in
+   the US, EU, UK or Canada, stop - escalate, no design talk, no asset work; (c) only if the name is
+   clear of core-class overlap (or the human accepts a documented, dated risk position) may concept
+   elaboration start, and even then text and specs only.
 
-Rules for this run:
-- No clearance/distinctiveness/non-infringement claims (non-negotiable 5). Knockout results are
-  labelled "pre-screen, not clearance"; every hit, miss and unreachable register is recorded with
-  date + exact query; a bot-blocked register is "unreachable", never "clear". A knockout HIT is a
-  stop condition: escalate to the human, no further design talk (plan program-level risk table).
-- No identity implementation beyond text, no asset generation before protocol sign-off, no renders
-  (capability B1 was never approved - text-first), no public files (non-negotiable 3).
-- The protocol draft lands in .pipeline/brand/2026-10/CLEARANCE-PROTOCOL.md. Plan G1 literally names
-  docs/brand/03-CLEARANCE-PROTOCOL.md: collect a human decision this run - either explicitly assign
-  docs/brand/** write scope for the adoption, or record that the signed .pipeline draft is the
-  protocol of record for this pipeline. Never write docs/brand/** without that assignment.
-- Search surfaces per plan C04/R.3: USPTO, EUIPO eSearch/TMview, UKIPO, CIPO, WIPO Global Brand
-  Database for "Hutch" (+ observed wordmark forms) in classes 9/42; WIPO Vienna design codes for
-  the hexagon + centre-dot device; common-law/handle/domain conflict check (C15). Free registers
-  only - budget is zero (D15). No external fetch budget overrun (<=15).
-- Evidence convention: URL + retrieval date per source (plan Appendix A); no emoji; plan G6
-  vocabulary ("cleared to the extent documented", "risk rated").
+## Step list
 
-Human decisions to collect in this run (record every answer in DECISION.md with date):
-- Clearance-protocol SIGN-OFF (this is plan gate G1; without it Run 4 cannot generate assets).
-- G1 adoption path: assign docs/brand/** or make the .pipeline draft the protocol of record.
-- B6 re-confirmation: fund counsel for the full search, or keep the written risk ownership (D20).
-- B1: approve the browser fix (`uv sync --extra browser`) or name a capture harness - without it
-  no run can produce rendered concept evidence and Run 4's visual gate stays blocked.
-- C27: position on mascot licence/provenance if the register still cannot state terms.
-- U21/C15: any domain/handle conflicts the common-law search surfaces.
-- Secondary territory: after text elaboration, confirm whether D3 "Quiet Chrome" or D4 "Character
-  Tiering" joins the Run 4 shortlist (D1+D2 already selected).
+1. Capability step (first): run `uv sync --extra browser` (approved, D24) and verify the Playwright
+   Chromium revision works. If it fails, record the exact error as blocker B1 and fall back to a
+   human-supplied capture harness.
+2. Class verification (highest value): open the register pages in the browser - USPTO serials
+   99695333 and 87196849; UKIPO UK00003791602, UK00902129492, UK00915655715; plus EUIPO, TMview,
+   WIPO Global Brand Database and CIPO for "Hutch" in classes 9 and 42. Record for each: holder,
+   status, Nice classes, goods/services wording, filing/priority dates, URL and retrieval date. Add
+   dated rows to IP-CLEARANCE.md; never record an unreachable page as clear. If CAPTCHA still blocks,
+   record "unreachable - human browser pass required" and ask the human to do it.
+3. Stop-condition decision: if a core-class overlap is confirmed, or remains unverifiable, ask the
+   human in plain language what to do (pause, fund counsel, narrow goods/services, or reconsider the
+   name) and record the answer in DECISION.md. No concept files in that case.
+4. U21 (D26): run the free RDAP checks (hutch.com, .app, .ai, .dev) and the GitHub / npm / PyPI /
+   social-handle checks; record observed conflicts with dates.
+5. Vienna codes: open the WIPO Vienna browser, record the edition number, the codes for a polygon
+   outline and a centred dot, and their verbatim definitions. Do not cite codes before this.
+6. Conditional (only after step 3 clears): text-first concept elaboration for D1 "Centre Dot" +
+   D2 "Local Hub" - written specs only: master geometry rules (32-unit grid, hexagon path, centre-dot
+   radius, stroke width), lockup architecture and casing rule, clear space and minimum sizes, a 16px
+   legibility test plan and a monochrome/forced-colours test plan, described not drawn. No assets, no
+   renders. Confirm whether D3 "Quiet Chrome" or D4 "Character Tiering" joins the shortlist.
+7. Close-out: update DECISION.md; rewrite HANDOFF.md and NEXT-PROMPT.md (Run 5); commit one coherent
+   unit, docs(brand): prefix, local only.
 
-Deliverables: PROVENANCE-REGISTER.md, IP-CLEARANCE.md (dated knockout log, status OPEN/pre-screen),
-CLEARANCE-PROTOCOL.md (draft for sign-off); CONDITIONAL after G1 sign-off: text-first concept
-elaboration for D1+D2 (specs, geometry/lockup rules, 16px and monochrome test plans described, not
-drawn); DECISION.md updated; HANDOFF.md + NEXT-PROMPT.md (Run 4) at session end (no exceptions).
-Commit style: docs(brand): ... , local only, one coherent unit.
-Stop rules: missing sign-off, a knockout hit, missing human decision, or capability gap -> blocker
-in DECISION.md; a blocker is a valid outcome.
+## Rules for this run
+
+- No clearance, distinctiveness or non-infringement claims. Results are "pre-screen, not clearance"
+  and "risk rated"; "cleared to the extent documented" only for what is actually documented.
+- A confirmed core-class hit is a stop condition: escalate, no design talk.
+- No asset generation in this run. Text-first only. No renders unless the human asks for them after
+  the class check clears and G1's design gate is opened by a dated decision.
+- Evidence convention: URL + retrieval date per source; every hit, miss and unreachable recorded
+  with the exact query. A bot-blocked register is "unreachable", never "clear".
+- No emoji. No docs/brand/** writes without a fresh assignment. Never read .worktrees/.
+- Stop rules: missing sign-off, a confirmed hit, missing human decision, or capability gap -> blocker
+  in DECISION.md; a blocker is a valid outcome.
+
+Deliverables: updated IP-CLEARANCE.md with the dated class-verification rows; updated DECISION.md
+(D28+, blockers); conditional CONCEPTS-D1-D2.md (text specs only); updated HANDOFF.md and
+NEXT-PROMPT.md (Run 5). If a core-class overlap is confirmed: no concept file, a blocker instead.
