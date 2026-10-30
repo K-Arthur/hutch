@@ -145,7 +145,7 @@ Path: `docs/onboarding/evidence/slice-01/` (execution directive; pointer copy un
 - [x] Duplicate submit is replayed; stale revision/requirements and damaged records have distinct explicit states and recovery actions; no silent overwrite and no false success; reset is refused while a current request is saved.
 - [x] CSRF missing = 403; paired-phone route capability = None; no secrets in the record/page.
 - [x] `/onboarding` is additive: `/`, the pinned first-run e2e suites, and existing server pages are unchanged and green.
-- [x] `python3 scripts/audit_context_hygiene.py` shows no new violations from this feature (only the recorded pre-existing/later-concurrent other-session findings); the frozen files (`models.py`, `pages.py`, `store.py`, `connections.py`, `security.py`, the pinned e2e file) did not grow; `app.py` grew only by the two registration lines.
+- [x] `python3 scripts/audit_context_hygiene.py` shows no new violations from this feature (final output is the exact CP0 baseline: six pre-existing other-session findings); the frozen files (`models.py`, `pages.py`, `store.py`, `connections.py`, `security.py`, the pinned e2e file) did not grow; `app.py` grew only by the two registration lines.
 - [x] Evidence bundle APPROVED for every required state/viewport (63 rows); docs updated; reviewer sign-off recorded in section 15.
 
 ## 13. Rollback plan
@@ -211,7 +211,7 @@ Independent-review findings and resolutions:
 | P2: installer was a 71-line function mixing wiring and handlers | Refactored to module-level `_render`, `_forbidden`, `_fields_for_page`, `_page_response`, `_request_response`, `_unsaved_response`, `_reset_response`; `install_onboarding_routes` is now wiring only. |
 | P2: resume announcement/focus was untested and a pre-populated live region is not reliably announced | Resume now starts as an empty hidden live region filled once after load (noscript copy keeps it readable); the e2e lane asserts the one announcement and that the error summary owns focus on the invalid path. |
 | P2: evidence-path drift between brief/task-plan/review-checklist and the delivered bundle | All CP1 references point at `docs/onboarding/evidence/slice-01/`; a pointer copy is kept under `artifacts/slice-01/` for the CP wording. |
-| NOTE: audit baseline drift vs the CP0 snapshot | Disclosed: CP0 recorded 6 violations; concurrent other-session work added `tests/test_connections.py` growth (and pages.py drift) during this slice. No slice-01 file appears; the baseline delta is recorded in task-plan 5.1/9b rather than silently re-baselined. |
+| NOTE: audit baseline drift observed during the run | At final CP1 verification `python3 scripts/audit_context_hygiene.py` reports exactly the six CP0-baseline findings and no slice-01 file; an intermediate run during the slice showed concurrent other-session drift (`tests/test_connections.py`, `pages.py`) that later reverted. The final exact output is recorded in task-plan section 9b; nothing was silently re-baselined. |
 
 Deviations from the planning brief:
 

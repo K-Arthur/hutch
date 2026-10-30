@@ -166,7 +166,7 @@ Before CP1 may start: slice-01 and slice-02 briefs approved; the context-hygiene
 
 ### CP1 - Slice 01 accepted (foundation: dedicated route + server-owned resume)
 
-Status: PASS, 2026-10-29. Evidence: `tests/test_onboarding_state.py` + `tests/test_onboarding_page.py` = 56 passed; live Chromium capture test = 1 passed writing 63 PNG rows (every required state at 320/375/768/1440 plus forced colours, reduced motion, 200 percent text scale, keyboard focus, light-preference and non-Latin rows); `docs/onboarding/evidence/slice-01/validation.json` = 63 APPROVED / 0 NEEDS WORK (every image opened; pointer copy in `artifacts/slice-01/`); an independent fresh-context review returned NEEDS WORK on the evidence trail/five code details and every finding is resolved in the slice brief section 15 (state-gated reset, installer split, resume announcement, path normalisation, exact audit attribution); `python3 scripts/audit_context_hygiene.py` shows no onboarding file in the violation list (only the six CP0-baseline findings plus one concurrent other-session `tests/test_connections.py` growth - see section 9b for the exact delta); `app.py` grew by exactly the two registration lines; `models.py`, `pages.py`, `store.py`, `security.py`, `connections.py` and the pinned e2e file were not touched; reviewer sign-off in the slice brief. Deviations recorded in the slice brief: the evidence directory is `docs/onboarding/evidence/slice-01/` (the execution directive for this run) instead of `artifacts/slice-01/` with a pointer copy kept; a `tests/conftest.py` `client` fixture anchor in the planning draft does not exist, so tests construct `TestClient(create_app())` directly like existing page tests; the page ships its own field partial/styles because the shared form macro tier is another session's uncommitted work; the page opts into a same-origin referrer to work around the pre-existing `Origin: null` plain-form-POST boundary.
+Status: PASS, 2026-10-29. Evidence: `tests/test_onboarding_state.py` + `tests/test_onboarding_page.py` = 56 passed; live Chromium capture test = 1 passed writing 63 PNG rows (every required state at 320/375/768/1440 plus forced colours, reduced motion, 200 percent text scale, keyboard focus, light-preference and non-Latin rows); `docs/onboarding/evidence/slice-01/validation.json` = 63 APPROVED / 0 NEEDS WORK (every image opened; pointer copy in `artifacts/slice-01/`); an independent fresh-context review returned NEEDS WORK on the evidence trail/five code details and every finding is resolved in the slice brief section 15 (state-gated reset, installer split, resume announcement, path normalisation, exact audit attribution); `python3 scripts/audit_context_hygiene.py` at final CP1 verification reports exactly the six CP0-baseline findings with no onboarding file in the violation list (an intermediate run during the slice showed concurrent other-session drift that later reverted - see section 9b for the exact delta); `app.py` grew by exactly the two registration lines; `models.py`, `pages.py`, `store.py`, `security.py`, `connections.py` and the pinned e2e file were not touched; reviewer sign-off in the slice brief. Deviations recorded in the slice brief: the evidence directory is `docs/onboarding/evidence/slice-01/` (the execution directive for this run) instead of `artifacts/slice-01/` with a pointer copy kept; a `tests/conftest.py` `client` fixture anchor in the planning draft does not exist, so tests construct `TestClient(create_app())` directly like existing page tests; the page ships its own field partial/styles because the shared form macro tier is another session's uncommitted work; the page opts into a same-origin referrer to work around the pre-existing `Origin: null` plain-form-POST boundary.
 
 Passes when: `GET /onboarding` renders a chrome-less, accessible first step at 320/375/768/1440; the request is saved server-side and survives a process restart and a second tab; a stale `requirements_version` produces an explicit stale-resume state instead of a false resume; duplicate form submits replay rather than duplicate; missing/invalid CSRF returns 403; a paired-phone session cannot read or mutate the setup record; `/` and all three pinned first-run e2e tests are unchanged and green.
 
@@ -258,38 +258,3 @@ Implementation may start only when CP0 passes. At minimum:
 1. This plan and the other planning artifacts (edge-case-matrix.md, marketing-changes.md, review-checklist.md, slices/slice-01.md, slices/slice-02.md) exist under `docs/onboarding/` and are linked from this file.
 2. `docs/onboarding/slices/slice-01.md` and `slice-02.md` each contain exact @file/function anchors, a front-end/back-end boundary per step, an API/form contract, edge cases in scope, visual-validation evidence required, and a rollback plan.
 3. The edge-case matrix names every required category and does not collapse provider-unavailable, permission-denied, offline, or stale-resume into a generic error.
-4. The marketing change inventory reconciles every requested category (signup fields, CTA copy, trust microcopy, pricing/plan wording, welcome/confirmation banner, free-forever/no-card) with the site's real state and gives owners and acceptance criteria.
-5. No production code, generated CSS, or marketing source file has been modified by the planning phase.
-
-## 9. Planning review record (CP0 evidence)
-
-## 9b. Slice-01 implementation review record (CP1 evidence)
-
-Independent implementation review: 2026-10-29, fresh-context read-only reviewer
-(no edits, no git writes; inspected the code, contract, brief, matrix, task-plan
-budget rules and evidence bundle; ran the focused fast lane). Verdict NEEDS WORK
--> PASS after the finding-to-resolution table below (also recorded in
-[slice-01.md](slices/slice-01.md#15-acceptance-record-cp1)).
-
-| Review finding | Resolution |
-|---|---|
-| P1: CP1 named a `validation.json` and acceptance record that did not exist | Both written and committed; 63 opened-image rows, all APPROVED; acceptance record section 15. |
-| P1: required state/width pairs were missing from the capture matrix | Live lane extended to 63 rows covering the full required matrix; every image re-opened after the final capture. |
-| P2: contract table contradicted the shipped primary action for damaged/newer states | `setup-record.md` now records safe dashboard primary + destructive reset secondary. |
-| P2: reset accepted a CSRF-valid POST from any state | Server-side gate returns 409 `setup.reset_blocked` for a current saved request; tests cover refused and allowed cases. |
-| P2: installer was a 71-line orchestration/render/handler mix | Split into module-level render/forbidden/field-builder/handler functions; installer is wiring only. |
-| P2: resume announcement/focus untested and a pre-populated live region is unreliable | Resume now announces once through a JS-filled live region (noscript fallback); e2e asserts focus ownership and the single announcement. |
-| P2: evidence-path drift | All CP1 references normalised to `evidence/slice-01/`; pointer copy kept under `artifacts/slice-01/`. |
-| NOTE: audit baseline drift (6 recorded at CP0, 7 now) | Exact attribution: the six CP0 baseline findings are unchanged; concurrent other-session work added `tests/test_connections.py` (645 -> 661 lines) and nudged `pages.py` (743 -> 745). No slice-01 file appears; the baseline was not silently rewritten. |
-
-Verified clean by the reviewer: `onboarding.py` pure and 241 lines; store 74;
-API refactored and CSRF/owner-only; no provider/network import; text autoescaped;
-`Cache-Control: no-store`; all three routes recorded with a `None` paired-phone
-capability; `base.html` blocks default-true; 63 captures show zero automated
-violations; light-preference rows hash-identical to dark; emoji audit clean;
-focused fast lane green at the time of review (the refreshed lane is 56 passed).
-
-Reviewer sign-off: CP1 PASS after the resolutions above. Slice 02 is the next
-implementation slice; the slice-02 brief was refreshed and the
-[continuation prompt](continuation-prompt-02.md) is ready. Slice-03/04 briefs
-remain owed before CP2 can pass.
