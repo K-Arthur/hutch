@@ -122,14 +122,17 @@ above remains the authoritative claim because it controls load drift at sample l
   `npm run check:agent` script set exists only in the parked session's uncommitted
   package.json, so it is not runnable from a clean HEAD worktree; that is an environment
   limitation, not a check claimed as passing.
-- Benchmark gate: `python -m benchmarks.run --check` passed every metric except
-  `events_per_sec` (1,998 ev/s vs committed baseline 3,607 ev/s, -45%) under severe host
-  contention. An interleaved A/B of the same in-process writer on a pristine HEAD export vs this
-  change measured 916 vs 824 ev/s median (-10%, inside the alternating noise) while both trees
-  were equally starved; this change touches no store or event code, so the failure is attributable
-  to host contention against a machine-specific committed baseline, not to this increment. The
-  documented 1,000 ev/s floor also missed under contention on both trees. The gate should be
-  re-run on a quiet host before anyone treats that metric as a release signal.
+- Benchmark gate: `python -m benchmarks.run --check`. The first run failed only on
+  `events_per_sec` (1,998 ev/s vs committed baseline 3,607 ev/s) while the host was at load
+  7.5-8.6 with other agents; an interleaved A/B of the untouched in-process writer on a pristine
+  HEAD export vs this change measured 916 vs 824 ev/s median (-10%, inside the alternating
+  noise) while both trees were equally starved, so the failure was not caused by this change.
+  A clean rerun at load 2.9 then passed every metric (`no regression beyond 20%`, exit 0):
+  `events_per_sec` 5,382 ev/s p50 (baseline 3,607, 1,000 floor), `cli_version_ms` 467 ms p50
+  (baseline 1,138), `cli_status_ms` 448 ms p50 (baseline 1,417; the 300 ms proposed target is a goal,
+  not a gate, and was not met on this loaded host), `step_overhead_ms` 0.5 ms, idle RSS/CPU within
+  target. Both runs are recorded; the pass is the honest gate result and the first run documents
+  why the gate is host-load sensitive.
 
 ## Honest limits
 
