@@ -24,7 +24,7 @@ def ollama(monkeypatch):
     server.close()
 
 
-def _active_workflow(store, *, name: str, max_calls: int, max_tokens: int):
+def _active_workflow(store, *, name: str, max_calls: int, max_tokens: int, max_usd=None):
     bot = make_bot(store, name=name, model="ollama/tiny:1b", tools=[], selfcheck=False)
     plan = {
         "name": name,
@@ -33,6 +33,8 @@ def _active_workflow(store, *, name: str, max_calls: int, max_tokens: int):
                    "max_wall_seconds": 120},
         "nodes": [{"kind": "transform", "id": "done", "op": "constant", "args": {"value": True}}],
     }
+    if max_usd is not None:
+        plan['budget']['max_cost_usd'] = max_usd
     submission = wfsubmit.submit_workflow(store, bot=bot, plan=plan)
     owner = f"usage-owner-{name}"
     run = store.claim_run(submission.attempt_run_id, owner, 120)
@@ -52,6 +54,91 @@ def _reserve(store, bot, run, tokens: int) -> str:
                               account_id="local-test", model="tiny:1b",
                               reserved_tokens=tokens, reserved_cost_usd=0,
                               expected_fence=run.fence)
+
+
+def _reserve_currency(store, bot, run, cost, account='fixture-account'):
+    from hutch.store import CallQuote
+    return store.admit_and_reserve(
+        run_id=run.id, bot_id=bot.id, provider='fixture-provider', account_id=account,
+        model='fixture-model', reserved_tokens=1,
+        quote=CallQuote(usd=cost, source='caller' if cost is not None else 'unknown'),
+        expected_fence=run.fence).id
+
+
+def test_workflow_currency_ceiling_includes_uncertain_and_settled_requests(store):
+    bot, run, workflow = _active_workflow(store, name='currency-held', max_calls=10,
+                                         max_tokens=100, max_usd=.05)
+    first = _reserve_currency(store, bot, run, .03, 'account-a')
+    assert store.start_usage_request(first, expected_fence=run.fence)
+    store.mark_usage_uncertain(first, 'fixture response lost', expected_fence=run.fence)
+    second = _reserve_currency(store, bot, run, .02, 'account-b')
+    assert store.start_usage_request(second, expected_fence=run.fence)
+    store.add_usage(run.id, bot.id, 'fixture-provider', 'fixture-model', 1, 0, cost_usd=.01,
+                    reservation_id=second, expected_fence=run.fence)
+    view = wstore.workflow_run(store, workflow['id'])
+    assert view['ledger']['model_cost_usd'] == .01
+    assert view['ledger']['model_held_usd'] == .03
+    with pytest.raises(UsageBudgetRefusal, match='max_cost_usd'):
+        _reserve_currency(store, bot, run, .011, 'account-c')
+    assert _reserve_currency(store, bot, run, .01, 'account-c')
+
+
+def test_workflow_currency_reservation_releases_only_before_dispatch(store):
+    bot, run, workflow = _active_workflow(store, name='currency-release', max_calls=10,
+                                         max_tokens=100, max_usd=.05)
+    first = _reserve_currency(store, bot, run, .04)
+    assert wstore.workflow_run(store, workflow['id'])['ledger']['model_held_usd'] == .04
+    with pytest.raises(UsageBudgetRefusal, match='max_cost_usd'):
+        _reserve_currency(store, bot, run, .02)
+    store.release_usage_reservation(first, 'cancelled before dispatch', expected_fence=run.fence)
+    assert _reserve_currency(store, bot, run, .05)
+
+
+@pytest.mark.parametrize('cap', [0, .05])
+def test_workflow_currency_ceiling_rejects_unknown_price_including_free_only(store, cap):
+    from hutch.store import UsageQuoteUnavailable
+    bot, run, _ = _active_workflow(store, name='currency-unknown', max_calls=10,
+                                   max_tokens=100, max_usd=cap)
+    with pytest.raises(UsageQuoteUnavailable, match='workflow'):
+        _reserve_currency(store, bot, run, None)
+    if cap == 0:
+        with pytest.raises(UsageBudgetRefusal, match='max_cost_usd'):
+            _reserve_currency(store, bot, run, .0000000001)
+        assert _reserve_currency(store, bot, run, 0)
+
+
+def test_workflow_currency_ceiling_is_atomic_across_accounts_and_store_handles(store, config):
+    import threading
+    from hutch.store import Store
+    bot, run, _ = _active_workflow(store, name='currency-parallel', max_calls=10,
+                                   max_tokens=100, max_usd=.05)
+    barrier=threading.Barrier(2)
+    outcomes=[]
+    def reserve(account):
+        other=Store(config)
+        try:
+            barrier.wait(timeout=5)
+            try:
+                _reserve_currency(other, bot, run, .04, account)
+                outcomes.append('reserved')
+            except UsageBudgetRefusal:
+                outcomes.append('refused')
+        finally:other.close()
+    threads=[threading.Thread(target=reserve,args=(account,)) for account in ('account-a','account-b')]
+    for thread in threads:thread.start()
+    for thread in threads:thread.join(timeout=10)
+    assert all(not thread.is_alive() for thread in threads)
+    assert sorted(outcomes)==['refused','reserved']
+
+
+def test_legacy_plan_identity_is_unchanged_when_currency_ceiling_is_absent():
+    from hutch.workflow.compile import compile_plan
+    raw={'name':'legacy-currency-identity','nodes':[{
+        'kind':'transform','id':'done','op':'constant','args':{'value':True}}]}
+    compiled=compile_plan(raw)
+    canonical=compiled.plan.model_dump(by_alias=True,exclude_none=True,mode='json')
+    assert 'max_cost_usd' not in canonical['budget']
+    assert compile_plan(canonical).plan_hash == compiled.plan_hash
 
 
 def test_retries_and_uncertain_requests_charge_the_same_root_budget(store):

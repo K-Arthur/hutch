@@ -177,7 +177,7 @@ def _gate_auto(store: Any, bot: Bot, *, compiled: CompiledPlan, definition: Any,
     from . import routing
 
     allowed, why = routing.check_auto(bot=bot, definition=definition,
-                                      budget=compiled.plan.budget.model_dump(mode="json"),
+                                      budget=compiled.plan.budget.model_dump(mode="json", exclude_none=True),
                                       plan_name=plan_name)
     if not allowed:
         raise PlanNotSubmittable(f"an automatic start was refused: {why}")
@@ -227,7 +227,7 @@ def step_budget(compiled: CompiledPlan) -> dict[str, Any]:
     Kept in one place so the interpreter, the step contract and every submission agree on
     what a model step may spend.
     """
-    return {**compiled.plan.budget.model_dump(mode="json"),
+    return {**compiled.plan.budget.model_dump(mode="json", exclude_none=True),
             "max_steps_per_node": STEP_MAX_STEPS, "max_step_seconds": STEP_MAX_SECONDS}
 
 

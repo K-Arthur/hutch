@@ -31,6 +31,7 @@ CEILINGS = {
     "max_nodes": 2_000,
     "max_model_calls": 500,
     "max_tokens": 1_000_000,
+    "max_cost_usd": 10_000.0,
     "max_wall_seconds": 86_400,
     "max_fanout": 100,
     "max_repairs": 5,
@@ -212,6 +213,9 @@ class Budget(_Strict):
     max_nodes: int = Field(default=40, ge=1, le=CEILINGS["max_nodes"])
     max_model_calls: int = Field(default=12, ge=0, le=CEILINGS["max_model_calls"])
     max_tokens: int = Field(default=64_000, ge=0, le=CEILINGS["max_tokens"])
+    #: Estimated USD ceiling across the whole workflow tree (settled plus held). Absent means no currency
+    #: ceiling; 0 means free-only. Provider billing stays authoritative.
+    max_cost_usd: Optional[float] = Field(default=None, ge=0, le=CEILINGS["max_cost_usd"], allow_inf_nan=False)
     max_wall_seconds: int = Field(default=900, ge=5, le=CEILINGS["max_wall_seconds"])
     max_fanout: int = Field(default=8, ge=1, le=CEILINGS["max_fanout"])
     max_repairs: int = Field(default=2, ge=0, le=CEILINGS["max_repairs"])

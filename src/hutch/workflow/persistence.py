@@ -32,6 +32,7 @@ from typing import Any, Iterable, Optional
 
 from ..lifecycle import IllegalTransition, LeaseLost, TERMINAL
 from ..models import Bot, Run, RunStatus, Task, iso, new_id, utcnow
+from . import budget_rules
 
 #: Node instance states.
 NODE_STATES = ("pending", "running", "waiting", "succeeded", "failed", "skipped", "cancelled")
@@ -762,12 +763,8 @@ def adopt_workflow_amendment(store: Any, *, wf_id: str, expected_revision_id: st
 
         # The preview has already refused wider ceilings; min() keeps the root ledger's
         # remaining allowances bounded even if a future caller bypasses that check.
-        effective_budget = dict(budget)
         prior_budget = json.loads(str(row["budget_json"] or "{}"))
-        for key in ("max_nodes", "max_model_calls", "max_tokens", "max_wall_seconds",
-                    "max_fanout", "max_repairs", "max_steps_per_node", "max_step_seconds"):
-            if isinstance(prior_budget.get(key), int) and isinstance(effective_budget.get(key), int):
-                effective_budget[key] = min(int(prior_budget[key]), int(effective_budget[key]))
+        effective_budget = budget_rules.bound_budget(prior_budget, budget)
         cur = db.execute(
             """UPDATE workflow_runs SET revision_id = ?, plan_hash = ?, inputs_json = ?, budget_json = ?,
                       status = 'waiting', reason = ?, result_json = '{}', pause_requested = 0,

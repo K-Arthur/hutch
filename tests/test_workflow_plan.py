@@ -148,6 +148,7 @@ def test_default_workflow_bounds_match_the_initial_chat_limits():
     ]}).plan
     assert plan.budget.model_dump() == {
         "max_nodes": 40, "max_model_calls": 12, "max_tokens": 64_000,
+        "max_cost_usd": None,  # no currency ceiling unless the plan sets one
         "max_wall_seconds": 900, "max_fanout": 8, "max_repairs": 2,
     }
     assert plan.envelope.max_parallel_steps == 2

@@ -35,6 +35,7 @@ from typing import Any, Callable, Optional
 
 from .config import hutchConfig, get_config
 from . import action_receipts, bot_deletion_schema, durable_changes, fact_purge_schema
+from .workflow import usage_budget as workflow_usage_budget
 from .money import format_usd
 from .lifecycle import TERMINAL, IllegalTransition, LeaseLost, allowed
 from .models import (
@@ -10047,22 +10048,7 @@ class Store:
     @staticmethod
     def _workflow_usage_totals(db: sqlite3.Connection, workflow_id: str, *, held: bool) -> tuple[int, int]:
         """Return request and token commitments (or started usage) for the whole workflow tree."""
-        if held:
-            request_condition = "request_started_at IS NOT NULL OR status IN ('reserved','uncertain','settled')"
-            token_condition = "status IN ('reserved','uncertain') OR request_started_at IS NOT NULL"
-        else:
-            request_condition = "request_started_at IS NOT NULL"
-            token_condition = "request_started_at IS NOT NULL"
-        row = db.execute(
-            f"""SELECT COUNT(*) AS calls,
-                       COALESCE(SUM(CASE
-                         WHEN status = 'settled' AND actual_prompt_tokens IS NOT NULL
-                              AND actual_completion_tokens IS NOT NULL
-                           THEN actual_prompt_tokens + actual_completion_tokens
-                         WHEN {token_condition} THEN reserved_tokens ELSE 0 END), 0) AS tokens
-                FROM usage_reservations WHERE workflow_run_id = ? AND ({request_condition})""",
-            (workflow_id,)).fetchone()
-        return int(row["calls"] or 0), int(row["tokens"] or 0)
+        return workflow_usage_budget.usage_totals(db, workflow_id, held=held)
 
     @staticmethod
     def _sync_workflow_usage_ledger(db: sqlite3.Connection, workflow_id: str) -> None:
@@ -10078,6 +10064,7 @@ class Store:
         calls, tokens = Store._workflow_usage_totals(db, workflow_id, held=False)
         ledger["model_calls"] = calls
         ledger["model_tokens"] = tokens
+        ledger.update(workflow_usage_budget.ledger_cost_fields(db, workflow_id))
         db.execute("UPDATE workflow_runs SET ledger_json = ?, updated_at = ? WHERE id = ?",
                    (json.dumps(ledger, sort_keys=True, ensure_ascii=False), iso(utcnow()), workflow_id))
 
@@ -10207,18 +10194,7 @@ class Store:
                         f"${tree_total:.4f} is spent or reserved")
 
             if workflow_scope is not None:
-                used_calls, used_tokens = self._workflow_usage_totals(
-                    db, workflow_scope["id"], held=True)
-                call_limit = int(workflow_scope["budget"].get("max_model_calls", 12))
-                token_limit = int(workflow_scope["budget"].get("max_tokens", 64_000))
-                if used_calls + 1 > call_limit:
-                    raise UsageBudgetRefusal(
-                        f"the workflow's max_model_calls budget is exhausted ({call_limit} actual requests; "
-                        f"{used_calls} used or reserved)")
-                if used_tokens + reserved_tokens > token_limit:
-                    raise UsageBudgetRefusal(
-                        f"the next model request could pass the workflow's max_tokens budget "
-                        f"({used_tokens:,} used or reserved + {reserved_tokens:,} estimated; limit {token_limit:,})")
+                workflow_usage_budget.enforce(db, workflow_scope, reserved_tokens=reserved_tokens, quote_usd=quote.usd)
 
             bot_ledger_spent, bot_ledger_tokens = totals(
                 "SELECT SUM(cost_usd) AS cost, SUM(prompt_tokens + completion_tokens) AS tokens FROM usage "
@@ -10293,6 +10269,8 @@ class Store:
                         json.dumps(list(quote.endpoint_identities[:128]), ensure_ascii=False, separators=(",", ":")),
                         str(quote.currency)[:8], str(quote.billing_unit)[:32], request_hash,
                         workflow_scope["id"] if workflow_scope else ""))
+            if workflow_scope is not None:
+                self._sync_workflow_usage_ledger(db, workflow_scope["id"])
         self.bus.notify("usage")
         return Reservation(reservation_id, tuple(warnings))
 

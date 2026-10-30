@@ -10,6 +10,7 @@ import hashlib
 import json
 from typing import Any
 
+from . import budget_rules
 from . import persistence as wstore
 from . import qualify
 from .compile import CompiledNode, compile_plan
@@ -516,22 +517,11 @@ def preview(store: Any, *, workflow_run_id: str, plan: dict[str, Any],
     attempt_quiescence["drainable_active_nodes"] = drainable
     attempt_quiescence["drained_active_nodes"] = drained
     budgets = {}
-    new_budget = candidate.plan.budget.model_dump(mode="json")
-    for key, proposed in new_budget.items():
-        current_limit = old_budget.get(key)
-        if isinstance(current_limit, int) and isinstance(proposed, int):
-            ledger_key = {"max_nodes": "nodes", "max_model_calls": "model_calls",
-                          "max_tokens": "model_tokens", "max_repairs": "repairs"}.get(key)
-            used = int((workflow.get("ledger") or {}).get(ledger_key, 0) or 0) if ledger_key else None
-            budgets[key] = {"current": current_limit, "proposed": proposed,
-                            "effective_if_adopted": min(current_limit, proposed),
-                            **({"used": used, "remaining_now": max(0, min(current_limit, proposed) - used)}
-                               if used is not None else {})}
-            if proposed > current_limit:
-                blocked_reasons.append(f"the amendment cannot increase the root {key} allowance")
-        else:
-            budgets[key] = {"current": current_limit, "proposed": proposed,
-                            "effective_if_adopted": proposed}
+    for key, proposed in budget_rules.proposed_budget(candidate.plan.budget, old_budget).items():
+        budgets[key], reason = budget_rules.amendment_entry(
+            key, old_budget.get(key), proposed, workflow.get("ledger") or {})
+        if reason:
+            blocked_reasons.append(reason)
 
     return {
         "workflow_run_id": workflow_run_id,
