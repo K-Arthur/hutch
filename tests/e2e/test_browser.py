@@ -9225,7 +9225,7 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
                 display_name="Quarterly Cross-functional Project Research and Reporting Assistant " + str(index),
                 description="Supports a shared team workflow.", model="mock/demo", tools=[]))
         page.goto(f"{base}/#/bots")
-        page.get_by_role("heading", name="Manage assistants").wait_for()
+        page.get_by_role("heading", name="Assistants", exact=True).first.wait_for()
         card = page.locator('[data-fleet-bot="occupied-name"]')
         assert card.locator(".bot-name").inner_text() == expected_person
         assert card.locator(".bot-desc").inner_text() == expected_role
@@ -11085,7 +11085,7 @@ def test_fleet_appears_at_ten_bots_with_search_and_state_filters(browser, live):
     page.reload()
     page.locator("#chat-prompt").wait_for()
     page.locator("#monitor-nav > summary").click()
-    page.get_by_role("link", name="Manage assistants", exact=True).click()
+    page.get_by_role("link", name="Assistants", exact=True).click()
     page.locator("#fleet-search").wait_for()
     assert page.locator("#fleet-count").inner_text() == "10 of 10 assistants"
     page.locator("#fleet-state").select_option("paused")

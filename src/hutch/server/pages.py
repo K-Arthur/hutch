@@ -171,7 +171,7 @@ def register_pages(app: FastAPI) -> None:
 
     @app.get("/overview", response_class=HTMLResponse, include_in_schema=False)
     def overview(request: Request):
-        return RedirectResponse("/#/overview", status_code=302)
+        return RedirectResponse("/#/activity", status_code=302)
 
     @app.get("/_home", response_class=HTMLResponse, include_in_schema=False)
     def home_partial(request: Request):
@@ -403,7 +403,7 @@ def register_pages(app: FastAPI) -> None:
                    next_offset=offset + RUNS_PAGE, query=query)
         if request.query_params.get("fragment"):
             return fragment(request, "_runs_table.html", **ctx)
-        return RedirectResponse("/#/runs", status_code=302)
+        return RedirectResponse("/#/activity/history", status_code=302)
 
     @app.get("/runs/{run_id}", response_class=HTMLResponse, include_in_schema=False)
     def run_page(request: Request, run_id: str):

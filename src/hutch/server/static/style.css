@@ -277,11 +277,9 @@ a:hover { text-decoration: underline; }
 /* nav icons: drawn glyphs per item (kept monochrome until active) */
 .nav-ico { width: 16px; height: 16px; display: inline-block; flex: none; }
 .ws-nav a[data-nav="chat"]      .nav-ico { background: currentColor; -webkit-mask: var(--i-chat) center/contain no-repeat; mask: var(--i-chat) center/contain no-repeat; }
-.ws-nav a[data-nav="chats"]     .nav-ico { background: currentColor; -webkit-mask: var(--i-clock) center/contain no-repeat; mask: var(--i-clock) center/contain no-repeat; }
 .ws-foot-link[data-nav="settings"] svg { color: currentColor; }
-.ws-nav a[data-nav="overview"]  .nav-ico { background: currentColor; -webkit-mask: var(--i-dash) center/contain no-repeat; mask: var(--i-dash) center/contain no-repeat; }
+.ws-nav a[data-nav="activity"]  .nav-ico { background: currentColor; -webkit-mask: var(--i-clock) center/contain no-repeat; mask: var(--i-clock) center/contain no-repeat; }
 .ws-nav a[data-nav="schedules"] .nav-ico { background: currentColor; -webkit-mask: var(--i-calendar) center/contain no-repeat; mask: var(--i-calendar) center/contain no-repeat; }
-.ws-nav a[data-nav="runs"]      .nav-ico { background: currentColor; -webkit-mask: var(--i-list) center/contain no-repeat; mask: var(--i-list) center/contain no-repeat; }
 .ws-nav a[data-nav="approvals"] .nav-ico { background: currentColor; -webkit-mask: var(--i-shield) center/contain no-repeat; mask: var(--i-shield) center/contain no-repeat; }
 .ws-nav a[data-nav="bots"]     .nav-ico { background: currentColor; -webkit-mask: var(--i-assistants) center/contain no-repeat; mask: var(--i-assistants) center/contain no-repeat; }
 :root {

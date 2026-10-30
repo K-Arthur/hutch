@@ -1883,19 +1883,19 @@ const routes = [
   [/^#\/assistant\/new$/, renderAssistantSetupPage, "bots"],
   [/^#\/chat(?:\/([\w-]+))?$/, m => renderChatStudio(m ? m[1] : null), "chat"],
   [/^#\/conversation\/([\w-]+)$/, m => openConversation(m[1]), "chat"],
-  [/^#\/chats$/, renderChatLibrary, "chats"],
+  [/^#\/activity\/conversations$/, renderChatLibrary, "activity"],
   [/^#\/settings$/, renderWorkspaceSettings, "settings"],
-  [/^#\/overview$/, renderOverview, "overview"],
+  [/^#\/activity$/, renderOverview, "activity"],
   [/^#\/schedules$/, renderSchedules, "schedules"],
   [/^#\/runtime$/, renderRuntime, "runtime"],
   [/^#\/bots$/, renderBots, "bots"],
-  [/^#\/runs(?:\?(.*))?$/, m => renderRuns(m ? m[1] : ""), "runs"],
+  [/^#\/activity\/history(?:\?(.*))?$/, m => renderRuns(m ? m[1] : ""), "activity"],
   [/^#\/skills$/, () => window.hutchSkills.renderSkillsPage(), "skills"],
   [/^#\/tasks$/, () => window.hutchTasks.renderTasksPage(), "tasks"],
   [/^#\/approvals$/, renderApprovals, "chat"],
   [/^#\/connections(?:\?.*)?$/, renderConnections, "connections"],
   [/^#\/bot\/([\w-]+)$/, m => renderBotDetail(decodeURIComponent(m[1])), "chat"],
-  [/^#\/run\/([\w-]+)(?:\?(.*))?$/, m => renderRunDetail(m[1], new URLSearchParams(m ? m[2] || "" : "")), "runs"],
+  [/^#\/run\/([\w-]+)(?:\?(.*))?$/, m => renderRunDetail(m[1], new URLSearchParams(m ? m[2] || "" : "")), "activity"],
 ];
 
 async function openConversation(id) {
@@ -2061,8 +2061,8 @@ async function renderChatLibrary() {
   if (generation !== studioGeneration) return;
   botsCache = bots;
   renderRoster();
-  setTopContext(`<div class="ctx-id"><div class="ctx-heading"><h1>Chat library</h1><span class="ctx-subtitle">Find active, archived, and imported conversations</span></div></div>`);
-  view.innerHTML = `<div class="page-scroll"><div class="container chat-library-page">
+  setTopContext(hutchActivity.header("conversations"));
+  view.innerHTML = `<div class="page-scroll"><div class="container chat-library-page">${hutchActivity.tabs("conversations")}
     <p class="page-subtitle">Browse conversation titles across your assistants. Message search remains in Chats.</p>
     <form class="panel hutch-form hutch-cols-2 chat-library-filters" id="chat-library-filters" role="search">
       <div class="hutch-field hutch-wide"><label class="hutch-label" for="chat-library-query">Find by chat title</label><input class="hutch-input" id="chat-library-query" type="search" maxlength="256" autocomplete="off" placeholder="For example, project notes"></div>
@@ -2168,7 +2168,7 @@ function routeTitle(hash) {
 }
 
 async function route(announce = false) {
-  const hash = location.hash || "#/chat";
+  const hash = hutchActivity.canonicalize(location.hash || "#/chat");
   if (assistantSetupPage?.element.isConnected && hash !== "#/assistant/new") {
     assistantSetupPage.snapshot();
     assistantSetupPage.persist();
@@ -2197,7 +2197,7 @@ async function route(announce = false) {
         if (isActive) a.setAttribute("aria-current", "page");
         else a.removeAttribute("aria-current");
       });
-      if (["chats", "overview", "schedules", "runs", "bots", "runtime", "skills"].includes(nav)) {
+      if (["activity", "schedules", "bots", "runtime", "skills"].includes(nav)) {
         $("#monitor-nav").open = true;
       }
       document.title = hutchTitle.pageTitle(routeTitle(hash));
@@ -2735,7 +2735,7 @@ function renderWorkflow(stats) {
   // Approvals that need a person have their own surfaces (the reminder, the Needs you
   // badge and the request itself), so the header states only what is running.
   const detail = [r && `${r} working`, w && `${w} waiting`, q && `${q} queued`, p && `${p} need${p === 1 ? "s" : ""} you`].filter(Boolean).join(" · ");
-  el.innerHTML = r ? `<a class="w working" href="#/overview" title="${esc(detail)}" aria-label="${esc(detail)}. Open activity."><span class="wdot" aria-hidden="true"></span>${r} working</a>` : "";
+  el.innerHTML = r ? `<a class="w working" href="#/activity" title="${esc(detail)}" aria-label="${esc(detail)}. Open activity."><span class="wdot" aria-hidden="true"></span>${r} working</a>` : "";
   el.hidden = !r;
 }
 
@@ -3498,7 +3498,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
           <div class="conversation-action-group" role="group" aria-labelledby="conversation-group-go">
             <div class="conversation-action-label" id="conversation-group-go">Go to</div>
           ${!directChat ? `<a class="conversation-action-item" href="#/chat/${esc(bot.name)}">${icon("chat")} Return to main chat</a>` : ""}
-          <a class="conversation-action-item" href="#/chats">${icon("clock")} Conversation history</a>
+          <a class="conversation-action-item" href="#/activity/conversations">${icon("clock")} Conversations</a>
           </div>
         </div>
       </details>
@@ -6990,7 +6990,7 @@ async function renderOverview(preservePosition = false) {
   if ((location.hash || "#/chat") !== renderedHash) return;
   const s = o.stats || {};
   const fmt = (n) => Number(n || 0).toLocaleString();
-  setTopContext(`<div class="ctx-id"><h1>Activity</h1></div>`);
+  setTopContext(hutchActivity.header("now"));
   const row = (r) => `
     <a class="ov-row" href="#/run/${esc(r.id)}">
       <span class="ov-row-main"><b>${esc(botDisplayName(r.bot_display_name || r.bot_name))}</b>${statusChip(r.status)}</span>
@@ -7047,12 +7047,12 @@ async function renderOverview(preservePosition = false) {
       </div>
       <div class="ov-all-clear-actions">
         <a class="btn primary" href="#/chat">Start a chat</a>
-        <a class="btn ghost" href="#/runs">View past work</a>
+        <a class="btn ghost" href="#/activity/history">View history</a>
       </div>
     </section>`;
   const recent = recentRuns.filter(run => run.terminal).slice(0, 3);
   view.innerHTML = `
-    <div class="page-scroll"><div class="container activity-page">
+    <div class="page-scroll"><div class="container activity-page">${hutchActivity.tabs("now")}
       ${activity}
       <div class="ov-stats ov-summary-stats">
         <div class="kpi"><span class="kpi-label">Assistants</span><span class="kpi-val">${fmt(s.bots)}</span></div>
@@ -7331,7 +7331,7 @@ async function renderBots() {
     return;
   }
   renderRoster();
-  setTopContext(`<div class="ctx-id"><h1>Manage assistants</h1></div>
+  setTopContext(`<div class="ctx-id"><h1>Assistants</h1></div>
     <div class="ctx-actions"><button class="btn primary small" id="btn-new-bot-top" aria-label="New assistant" title="New assistant">${icon("plus")}<span class="fleet-create-full-label">New assistant</span><span class="fleet-create-compact-label" aria-hidden="true">New</span></button></div>`);
   view.innerHTML = `
     <div class="page-scroll"><div class="container">
@@ -7616,9 +7616,9 @@ async function renderRuns(query = "") {
     shown: RUNS_PAGE_SIZE,
     offset: 0, hasMore: false, loading: false, error: "", loaded: false,
   };
-  setTopContext(`<div class="ctx-id"><h1>Past work</h1></div>`);
+  setTopContext(hutchActivity.header("history"));
   view.innerHTML = `
-    <div class="page-scroll"><div class="container">
+    <div class="page-scroll"><div class="container">${hutchActivity.tabs("history")}
       <p class="runs-intro">See what your assistants have done. Open any task to review the full conversation and decisions.</p>
       <div class="runs-filter-bar">
         <label class="visually-hidden" for="run-search">Find a task or assistant</label>
@@ -7634,11 +7634,11 @@ async function renderRuns(query = "") {
     </div></div>`;
 
   const syncHash = () => {
-    if (!location.hash.startsWith("#/runs")) return;
+    if (!location.hash.startsWith("#/activity/history")) return;
     const p = new URLSearchParams();
     if (runsState.status !== "all") p.set("status", runsState.status);
     if (runsState.q) p.set("q", runsState.q);
-    history.replaceState(null, "", `#/runs${p.toString() ? `?${p}` : ""}`);
+    history.replaceState(null, "", `#/activity/history${p.toString() ? `?${p}` : ""}`);
   };
 
   const renderRows = () => {
@@ -7735,7 +7735,7 @@ async function renderRuns(query = "") {
     renderRows();
     try {
       const page = await api(`/runs?${request}`);
-      if (generation !== runsRequestGeneration || !location.hash.startsWith("#/runs")) return;
+      if (generation !== runsRequestGeneration || !location.hash.startsWith("#/activity/history")) return;
       const nextPage = page.slice(0, RUNS_API_PAGE_SIZE);
       runsState.all = reset ? nextPage : [...runsState.all, ...nextPage];
       runsState.offset += nextPage.length;
@@ -8497,7 +8497,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
                   <button class="btn ghost small" type="button" id="btn-clear-workspace-coordinator">Clear selection</button></div>`
               : `<button class="btn ghost small" type="button" id="btn-set-workspace-coordinator">Make this the main assistant</button>`}
           </section>` : ""}
-<p><a href="#/runs?q=${encodeURIComponent(b.name)}">See this assistant’s work history</a></p>
+<p><a href="#/activity/history?q=${encodeURIComponent(b.name)}">See this assistant’s history</a></p>
         </section>
         <section class="settings-pane" role="tabpanel" id="settings-pane-behavior" aria-labelledby="settings-tab-behavior" data-settings-pane="behavior" ${settingsSection === "behavior" ? "" : "hidden"}>
           <header class="settings-pane-head"><h2>Behavior</h2><p>How it talks and what it follows.</p></header>
@@ -9229,7 +9229,7 @@ async function renderRunDetail(runId, params = new URLSearchParams()) {
       <div class="ctx-meta">${statusChip(r.status, r.status_label)}</div></div>
     <div class="ctx-actions">
       ${ACTIVE.has(r.status) ? `<button class="btn danger small" id="stop-this-run" ${r.status === "cancelling" ? "disabled" : ""}>${icon("stop")} ${r.status === "cancelling" ? "Stopping" : "Stop"}</button>` : ""}
-      <a class="btn ghost small" href="#/runs">${icon("arrowLeft")} All runs</a>
+      <a class="btn ghost small" href="#/activity/history">${icon("arrowLeft")} History</a>
     </div>`);
   const steps = (r.events || []).filter(e => e.type === "step").map(e => e.data);
   // Refreshes can replace this view while a run is settling. Preserve an
@@ -12822,7 +12822,7 @@ function refreshChangedResources(resources) {
       if (needsYouDialog.open) void refreshApprovals();
     }
     if (changed.has("state")) void pollHealth();
-    if ((location.hash || "#/chat") === "#/overview"
+    if ((location.hash || "#/chat") === "#/activity"
         && ["bots", "runs", "approvals", "actions", "state", "usage"].some(r => changed.has(r))) {
       void renderOverview(true);
     }

@@ -1491,7 +1491,7 @@ def test_chat_library_recovers_history_beyond_quick_switcher_and_workspace_setti
         assert page.locator("#conversation-switcher option").count() == 101
 
         page.goto(f"{app_url}/#/chats")
-        page.locator("#app-top-context h1", has_text="Chat library").wait_for(timeout=15_000)
+        page.locator("#app-top-context h1", has_text="Activity").wait_for(timeout=15_000)
         expect(page.locator(".chat-library-row")).to_have_count(50)
         page.locator("#chat-library-query").fill("recovery target")
         page.get_by_role("button", name="Find chats").click()
@@ -1679,7 +1679,7 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                         ) <= 3, (viewport_name, title_box, create_box)
                         assert create_button.get_attribute("aria-label") == "New assistant"
                         assert create_box["width"] >= 44
-                        assert page.locator("#app-top-context h1").inner_text() == "Manage assistants"
+                        assert page.locator("#app-top-context h1").inner_text() == "Assistants"
                         assert page.locator("#app-top-context h1").evaluate("el => el.scrollWidth <= el.clientWidth")
                         if viewport_name == "phone":
                             assert create_button.inner_text().strip() == "New"
@@ -1748,7 +1748,7 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                     assert page.locator(".ov-all-clear").is_visible()
                     assert page.locator(".ov-col").count() == 0
                     assert page.get_by_role("link", name="Start a chat").is_visible()
-                    assert page.get_by_role("link", name="View past work").is_visible()
+                    assert page.get_by_role("link", name="View history").is_visible()
                     assert page.locator(".ov-recent .ov-row-prompt").inner_text() == "Review the recent workspace activity."
                     usage_details.locator("summary").click()
                     usage_text = usage_details.inner_text().lower()

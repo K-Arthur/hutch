@@ -15,15 +15,13 @@ PRIMARY = (
 )
 
 MORE = (
-    ("chats", "/#/chats", "Conversation history", "clock"),
-    ("overview", "/#/overview", "Activity", "home"),
+    ("activity", "/#/activity", "Activity", "clock"),
     ("schedules", "/#/schedules", "Scheduled work", "calendar"),
-    ("runs", "/#/runs", "Work history", "list"),
-    ("runtime", "/#/runtime", "Runtime", "terminal"),
     ("skills", "/#/skills", "Skills", "file"),
     ("models", "/models", "Models", "cpu"),
     ("usage", "/usage", "Usage", "chart"),
-    ("bots", "/#/bots", "Manage assistants", "bot"),
+    ("runtime", "/#/runtime", "Runtime", "terminal"),
+    ("bots", "/#/bots", "Assistants", "bot"),
 )
 
 FOOT = (

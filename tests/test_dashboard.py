@@ -58,6 +58,11 @@ def test_retired_pages_redirect_to_the_studio(client):
         assert client.get(path).status_code == 200, path
 
 
+def test_retired_history_pages_land_on_the_merged_activity_views(client):
+    assert client.get("/overview", follow_redirects=False).headers["location"] == "/#/activity"
+    assert client.get("/runs", follow_redirects=False).headers["location"] == "/#/activity/history"
+
+
 def test_connections_url_opens_the_current_apps_and_ai_screen(client):
     response = client.get("/connections", follow_redirects=False)
     assert response.status_code == 302

@@ -181,6 +181,35 @@ def _href_for(key: str) -> str:
     return _nav_item(key)[0]
 
 
+def test_history_is_one_destination_and_the_assistants_row_has_one_label():
+    """Conversation history, Activity and Work history are merged (spine, decision 1)."""
+    labels = [label for group in (PRIMARY, MORE, FOOT) for _key, _href, label, _icon in group]
+    assert labels.count("Activity") == 1
+    for retired in ("Conversation history", "Work history", "Manage assistants"):
+        assert retired not in labels, retired
+    assert "Assistants" in labels
+    keys = [key for group in (PRIMARY, MORE, FOOT) for key, _href, _label, _icon in group]
+    assert "activity" in keys
+    for retired_key in ("chats", "overview", "runs"):
+        assert retired_key not in keys, retired_key
+    # The loop orders the destinations: result and repeat first, then configuration.
+    more = [key for key, _href, _label, _icon in MORE]
+    assert more[:2] == ["activity", "schedules"]
+    assert more[-1] == "bots"
+
+
+def test_command_palette_destinations_are_the_nav_labels():
+    """The palette's "Go to" entries are the sidebar's destinations, named the same way."""
+    text = (ROOT / "src" / "hutch" / "server" / "static" / "palette.js").read_text(encoding="utf-8")
+    labels = set(re.findall(r'nav\("([^"]+)"', text))
+    labels |= set(re.findall(r'kind: "Go to", label: "([^"]+)"', text))
+    shortcuts = {label for label in labels if label.startswith("Activity: ")}
+    destinations = labels - shortcuts
+    expected = {label for group in (PRIMARY, MORE, FOOT) for _key, _href, label, _icon in group}
+    assert destinations == expected, (sorted(destinations - expected), sorted(expected - destinations))
+    assert shortcuts == {"Activity: History", "Activity: Conversations"}
+
+
 def test_nested_and_destructive_routes_map_to_a_primary_destination():
     assert normalize("deletion") == "bots"
     assert normalize("bots") == "bots"

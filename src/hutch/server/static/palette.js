@@ -79,18 +79,20 @@
     function staticEntries() {
       const nav = (label, hash, icon, keywords = "") => ({ kind: "Go to", label, icon, keywords, run: () => { location.hash = hash; } });
       const go = [
-        nav("Chats", "#/chat", "chat", "conversations home"),
-        nav("Chat library", "#/chats", "inbox", "history archive search"),
+        nav("Chat", "#/chat", "chat", "conversations home"),
+        nav("Tasks", "#/tasks", "checklist", "delegated specialists assignments"),
         { kind: "Go to", label: "Needs you", icon: "shield", keywords: "approvals permissions requests review", run: () => ctx.openNeedsYou() },
-        nav("Activity", "#/overview", "chart", "dashboard overview"),
+        nav("Activity", "#/activity", "clock", "now running work history runs past conversations"),
+        nav("Activity: History", "#/activity/history", "clock", "runs past results"),
+        nav("Activity: Conversations", "#/activity/conversations", "inbox", "chats archive search library"),
         nav("Scheduled work", "#/schedules", "calendar", "routines cron"),
-        nav("Work history", "#/runs", "clock", "runs past tasks"),
-        nav("Runtime", "#/runtime", "terminal", "background sources"),
         nav("Skills", "#/skills", "sparkles", "abilities"),
-        nav("Apps & AI", "#/connections", "layers", "connections models providers accounts"),
-        nav("Settings", "#/settings", "sliders", "preferences workspace appearance"),
         { kind: "Go to", label: "Models", icon: "gear", keywords: "model routes", run: () => { location.href = "/models"; } },
         { kind: "Go to", label: "Usage", icon: "chart", keywords: "tokens cost spending", run: () => { location.href = "/usage"; } },
+        nav("Runtime", "#/runtime", "terminal", "background sources"),
+        nav("Assistants", "#/bots", "users", "manage fleet roster helpers bots"),
+        nav("Apps & AI", "#/connections", "layers", "connections models providers accounts"),
+        nav("Settings", "#/settings", "sliders", "preferences workspace appearance"),
       ];
       const actions = [
         ...(ctx.hasModelPicker?.() ? [{ kind: "Action", label: "Choose a model", icon: "zap", keywords: "model switch change ai route provider", run: () => ctx.openModelPicker() }] : []),

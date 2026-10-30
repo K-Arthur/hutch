@@ -1,0 +1,14 @@
+/* Activity views: Now, History, Conversations. Same segmented look as the run filters. */
+.activity-tabs { display: flex; width: fit-content; max-width: 100%; margin-bottom: var(--s-3); border: 1px solid var(--line-strong); background: var(--panel); border-radius: var(--r-ctl); overflow: hidden; }
+.activity-tabs a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 var(--s-3); border-left: 1px solid var(--line); color: var(--text-2); font: 600 var(--fs-sm)/1 var(--sans); text-decoration: none; white-space: nowrap; }
+.activity-tabs a:first-child { border-left: 0; }
+.activity-tabs a:hover { color: var(--text); background: rgba(255, 255, 255, 0.04); }
+.activity-tabs a[aria-current="page"] { color: var(--brand-ink); background: var(--brand); }
+.activity-tabs a:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+@media (max-width: 480px) {
+  .activity-tabs { width: 100%; }
+  .activity-tabs a { flex: 1 1 0; padding: 0 var(--s-2); }
+}
+@media (forced-colors: active) {
+  .activity-tabs a[aria-current="page"] { forced-color-adjust: none; color: HighlightText; background: Highlight; }
+}

@@ -22,8 +22,9 @@ TITLE = re.compile(r"^[^—]+ — Hutch$")
 
 # hash -> sidebar key whose label is the expected view name
 DESTINATIONS = {
-    "#/chat": "chat", "#/tasks": "tasks", "#/chats": "chats", "#/overview": "overview",
-    "#/schedules": "schedules", "#/runs": "runs", "#/runtime": "runtime", "#/skills": "skills",
+    "#/chat": "chat", "#/tasks": "tasks", "#/activity": "activity", "#/activity/history": "activity",
+    "#/activity/conversations": "activity", "#/overview": "activity", "#/runs": "activity", "#/chats": "activity",
+    "#/schedules": "schedules", "#/runtime": "runtime", "#/skills": "skills",
     "#/bots": "bots", "#/connections": "connections", "#/settings": "settings",
 }
 

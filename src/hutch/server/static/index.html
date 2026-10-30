@@ -25,6 +25,7 @@
   <link rel="stylesheet" href="/static/widgets.css">
   <link rel="stylesheet" href="/static/controls.css">
   <link rel="stylesheet" href="/static/studio.css">
+  <link rel="stylesheet" href="/static/activity.css">
   <!-- The form system loads last so it supersedes the older field rules in
        style.css and studio.css without editing either file's layout rules. -->
   <link rel="stylesheet" href="/static/hutch-forms.css">
@@ -82,15 +83,13 @@
         <button type="button" id="needs-you-open"><span class="nav-ico" aria-hidden="true"></span><span>Needs you</span><span id="approval-badge" class="badge hidden">0</span></button>
         <details id="monitor-nav">
           <summary><span class="nav-ico" aria-hidden="true"></span><span>More</span></summary>
-          <a href="#/chats" data-nav="chats"><span class="nav-ico" aria-hidden="true"></span>Conversation history</a>
-          <a href="#/overview" data-nav="overview"><span class="nav-ico" aria-hidden="true"></span>Activity</a>
+          <a href="#/activity" data-nav="activity"><span class="nav-ico" aria-hidden="true"></span>Activity</a>
           <a href="#/schedules" data-nav="schedules"><span class="nav-ico" aria-hidden="true"></span>Scheduled work</a>
-          <a href="#/runs" data-nav="runs"><span class="nav-ico" aria-hidden="true"></span>Work history</a>
-          <a href="#/runtime" data-nav="runtime"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="m8 9 3 3-3 3m5 0h3"/></svg>Runtime</a>
           <a href="#/skills" data-nav="skills"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3h11l5 5v13H4zM14 3v6h6M8 13h8m-8 4h5"/></svg>Skills</a>
           <a href="/models" data-nav="models"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4m6-4v4M9 18v4m6-4v4M2 9h4m-4 6h4m12-6h4m-4 6h4"/></svg>Models</a>
           <a href="/usage" data-nav="usage"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10m6 10V4m6 16v-7m5 7H2"/></svg>Usage</a>
-          <a href="#/bots" data-nav="bots" id="fleet-nav" hidden><span class="nav-ico" aria-hidden="true"></span>Manage assistants</a>
+          <a href="#/runtime" data-nav="runtime"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="m8 9 3 3-3 3m5 0h3"/></svg>Runtime</a>
+          <a href="#/bots" data-nav="bots" id="fleet-nav" hidden><span class="nav-ico" aria-hidden="true"></span>Assistants</a>
         </details>
       </nav>
 
@@ -203,6 +202,7 @@
   <script src="/static/campaign-report.js"></script>
   <script src="/static/app-modal-focus.js"></script>
   <script src="/static/page-title.js"></script>
+  <script src="/static/activity.js"></script>
   <script src="/static/app.js"></script>
   <script src="/static/responsive.js"></script>
   <script src="/static/fact-purge.js"></script>

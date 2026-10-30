@@ -70,7 +70,8 @@ checked), **not run**, **open**.
 | P0 full non-browser suite green at a clean clone | see ledger | | recorded in `ledger.md` after the final run |
 | P1 product spine (`product-spine.md`): definition, loop, canonical terms, navigation, contradiction list | verified | `2fedfc4f` | 36 contradictions in 9 groups (D, T, N, C, X, V, M, G, S), each with file and line and a phase or a keep-reason; line numbers re-read from the tree; two claims corrected after a wider search (C2 scope of "Stop all", X4 dead-template evidence). G1 (chat hides approval mode and spend) rests on source search, not a capture: decided by the P2 capture |
 | P2.1 one title format `<View> — Hutch` (server pages, SPA first paint and every route; the SPA title is read from the sidebar label, `ROUTE_TITLES` removed) | verified | `0eacc863` | `tests/test_page_titles.py` 10 passed (red first), `tests/e2e/test_page_titles.py` 12 passed, nav consistency and dashboard tests 41 passed; `app.js` 14,353 -> 14,349 lines (new logic in `page-title.js`) |
-| P2 remaining: Activity merge, server shell parity, vocabulary, dead code, capture | open | | see the plan in the next section |
+| P2.2 Activity merge: one destination, views Now / History / Conversations (`activity.js`, `activity.css`); `#/overview`, `#/chats`, `#/runs[?q]` redirect in place; `/overview`, `/runs` redirect to the canonical hashes; palette equals the sidebar labels; "Manage assistants" -> "Assistants" | verified | this commit | `tests/e2e/test_activity_destination.py` 16 passed, `test_page_titles.py` 12, `test_studio_palette.py` 4, unit nav/dashboard/titles 44; red first for the nav and palette guards; screenshots of all three views at 1440 and 360 viewed (0 overflow, 0 console errors): the merge reads better than four overlapping rows, so decision 1 stands; `app.js` 14,349 lines (not grown) |
+| P2 remaining: server shell parity, vocabulary, dead code, final capture | open | | next section |
 | P3 start states and first success | not started | | S2, `hutch doctor` and service offer in first run |
 | P4 UI promises versus backend sweep | partly done | `06887b15` `696b9f37` | see the table below |
 | P5 README, site and docs truth | not started | | |
@@ -92,18 +93,26 @@ checked), **not run**, **open**.
 | `agent-connections` themes (skill ZIP import, versioned effective configuration, persisted assistant identity, others) | product decision; tag `archive/agent-connections-2026-10-11` |
 | No screen-reader or axe-core pass; no live-model first-task run | not run |
 
+## Known failing at the pre-change baseline
+
+Run on commit `3bcbe454` in a throwaway worktree (imports confirmed to come from the worktree), so these are not regressions
+from P2. They belong to P3 (start states):
+
+- `tests/e2e/test_route_state_boundaries.py::test_first_run_empty_state_and_cta[models]` and `::test_models_server_flash_error_banner`:
+  the stub `ModelsView` has no `hw`, so `models.html:40` raises `Undefined.__round__` and `/models` returns 500.
+- `::test_spa_route_error_state_and_retry[bots]`: after retry the route ends on `#/chat` with a retry button still present
+  (the module's own residual gap `bots-empty-route-collapses`).
+- `tests/e2e/test_wcag_measured_audit.py::test_skills_header_and_import_row_are_aligned`: field 44 px vs button 40 px.
+
 ## Next
 
-Run stopped on a usage limit during P2.2 (Activity merge). Done and committed: P1 (`2fedfc4f`), P2.1 (`0eacc863`).
-P3-P6 not started. Another `claude` session (and Codex/OpenCode workers) was active in this checkout during the run,
-contrary to the prompt's premise; it committed `245a2631`, `ef8573f8`, `99880c70`. Stage by explicit path and
-recheck `git status` before every commit.
+Done and committed: P1 (`2fedfc4f`), P2.1 (`0eacc863`), P2.2 (see log). P3-P6 not started. Another `claude` session (and
+Codex/OpenCode workers) is active in this checkout, contrary to the prompt's premise; it committed `245a2631`, `ef8573f8`,
+`99880c70`. Stage by explicit path and recheck `git status` before every commit.
 
-P2.2a is saved, not applied: `~/hutch-wip-2026-10-30/p2-2a-activity-merge-partial.patch` (nav.py, index.html sidebar rows,
-style.css icon rule, new nav test) plus `test_activity_destination.py` (e2e, written, not yet run green). The tree was
-restored to HEAD so `main` stays consistent. Remaining for P2.2a: new `static/activity.js` (tab strip, `canonicalHash`
-redirects for `#/overview`, `#/chats`, `#/runs`), `activity.css`, `app.js` routes plus the three renderer headers and
-hash guards (`syncHash`, line ~7641/7742, live refresh ~12829), keep `app.js` at or below 14,353 lines. Then P2.2b
-(palette, `pages.py` redirects, label updates in e2e), P2.3 server shell parity (roster, brand label, footer path,
-global stop, N6 rule), P2.4 vocabulary guard, P2.5 dead code (X1-X5), P2.6 capture at 1440/900/360 which also decides
-whether the merge stays. Then P3-P6 as in the prompt.
+Open follow-ups noted while viewing the Activity captures: copy still says "tasks" and "past work" (vocabulary slice); the
+History status filter and the tab strip share one green fill, so two similar controls stack at phone width (consider a quieter
+active state for the tabs); `#fleet-nav` stays hidden below ten assistants in the SPA but always shows on server pages (N6).
+
+Remaining in P2: P2.3 server shell parity (roster, brand label C3, footer path C4, header context C5, global stop C2, N6 rule),
+P2.4 vocabulary guard (V1, V2), P2.5 dead code (X1-X5), P2.6 final capture at 1440/900/360 on a fresh state. Then P3-P6.

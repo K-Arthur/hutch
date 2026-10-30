@@ -106,7 +106,7 @@ def test_route_change_updates_title_and_rescues_orphaned_focus(audit_browser, au
         wait_live(page, base)
         page.evaluate("() => { location.hash = '#/runs'; }")
         page.locator("#run-search").wait_for()
-        assert "Work history" in page.title()
+        assert page.title() == "Activity \u2014 Hutch"
         # focus an element inside #view, then navigate away: the swap orphans it,
         # so the router must anchor focus on the new view's heading.
         page.locator("#run-search").focus()
@@ -129,7 +129,7 @@ def test_fragment_hash_never_redirects_to_chat(audit_browser, audit_live):
         page.evaluate("() => { location.hash = '#view'; }")
         page.wait_for_timeout(250)
         assert page.evaluate("location.hash") == "#view"
-        assert page.evaluate("document.title").startswith("hutch")
+        assert page.evaluate("document.title") == "Chat \u2014 Hutch"
     finally:
         page.close()
 
