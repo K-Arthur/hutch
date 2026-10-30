@@ -5,6 +5,13 @@ Connecting a channel does not install a model runtime or expand assistant tools.
 
 Hutch is local-first, but it does not bundle model runtimes or model weights. A device with nothing installed can still use the hosted API-key routes. The full OpenCode assistant and local Ollama routes need their runtime installed first.
 
+First run starts at `/onboarding` with a written request before any runtime choice.
+The request is stored only in this machine's Hutch data directory
+(`onboarding:setup:v1`) and survives a refresh, a second tab, or a restart; nothing
+is sent anywhere until you continue to an AI service. See
+[onboarding setup record](onboarding/setup-record.md) for the stored fields, the
+resume/stale-expired states, and the local reset command.
+
 ## OpenCode assistant
 
 - **Version:** Hutch requires **OpenCode V2**. It uses the V2 HTTP API (`/api/session`, `/api/model`, `/api/integration`). A V1 CLI is rejected before a private server starts.

@@ -1,0 +1,389 @@
+/* Onboarding request step (slice 01): one chrome-less, focused setup surface.
+ *
+ * Linked only from templates/onboarding.html through base.html's head block,
+ * after every shared server-page stylesheet, so all rules below are page-local.
+ * Hutch ships one fixed dark theme: no light variant and no toggle to style.
+ * Colour, type, space and radius values come from the token tier in
+ * brand-tokens.css / hutch.css; nothing here invents a raw colour.
+ *
+ * States (canonical data-onboarding-state tokens on .onboarding):
+ *   setup.empty_no_route, input.invalid      form + focused error summary
+ *   setup.draft.saved, setup.resume.current  saved request + one primary action
+ *   setup.resume.stale                       kept/re-check banner or reset form
+ *   setup.resume.expired                     saved request + re-save action
+ *   setup.conflict                           warning banner quoting both versions
+ *   setup.damaged, auth.csrf_rejected        explicit recovery only
+ * The one action per state stays in normal document flow (never a fixed
+ * footer). Request text is user content: it wraps, it is never clipped.
+ */
+
+:root {
+  /* The Measure Rule: one readable column. 40rem = 640px (~62ch at 17px). */
+  --onboarding-measure: 40rem;
+}
+
+/* ------------------------------------------------------------------ frame */
+/* A chrome-less route: no topbar, no nav, no footer. The base flash region
+   sits above <main>, so give it the same measure to keep one visual column. */
+.flash { max-width: var(--onboarding-measure); }
+
+.onboarding {
+  width: 100%;
+  max-width: var(--onboarding-measure);
+  margin-inline: auto;
+  /* Generous top air on tall screens; the container's own 24px pad remains. */
+  padding-block: clamp(var(--space-4, 16px), 6vh, var(--space-16, 64px)) var(--space-8, 32px);
+  min-width: 0;
+  /* Inherited: every user string (CJK, RTL, a long URL) wraps at 320px. */
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+
+/* --------------------------------------------------------------- header */
+.onboarding-kicker {
+  margin: 0 0 var(--space-3, 12px);
+  color: var(--faint);
+  font-size: var(--text-size-xs, 13px);
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+}
+.onboarding-title {
+  margin: 0 0 var(--space-3, 12px);
+  font-size: var(--text-size-xl, 1.5rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+.onboarding-lede {
+  max-width: var(--size-measure, 62ch);
+  margin: 0 0 var(--space-6, 24px);
+  color: var(--dim);
+  font-size: var(--text-size-base, 17px);
+  line-height: var(--text-lh-body, 1.65);
+}
+/* Polite resume announcement: neutral surface, one accent rail, readable text
+   - the words carry the meaning, never the colour. */
+.onboarding-status {
+  max-width: var(--size-measure, 62ch);
+  margin: 0 0 var(--space-6, 24px);
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  border-inline-start: 2px solid var(--accent);
+  border-radius: var(--r-sm);
+  background: var(--bg-subtle);
+  color: var(--text);
+  font-size: var(--text-size-sm, 15px);
+  line-height: 1.6;
+}
+.onboarding-meta {
+  max-width: var(--size-measure, 62ch);
+  margin: var(--space-4, 16px) 0 var(--space-5, 20px);
+  color: var(--faint);
+  font-size: var(--text-size-xs, 13px);
+  line-height: 1.55;
+}
+
+/* ------------------------------------------------------- request display */
+.onboarding-request {
+  margin: 0 0 var(--space-6, 24px);
+  padding: var(--space-4, 16px);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--bg-subtle);
+}
+.onboarding-request-heading {
+  margin: 0 0 var(--space-2, 8px);
+  color: var(--dim);
+  font-family: var(--sans);
+  font-size: var(--text-size-xs, 13px);
+  font-weight: 600;
+  line-height: 1.4;
+}
+/* pre-wrap keeps the writer's line breaks; the inherited anywhere-wrap stops
+   one unbroken token from widening the page. No max-height, no clamp: a long
+   saved request is shown in full. */
+.onboarding-request-text {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-size-base, 17px);
+  line-height: var(--text-lh-body, 1.65);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  /* Let each block choose its own direction: a saved RTL request still reads
+     right-to-left even though the page shell is LTR. */
+  unicode-bidi: plaintext;
+}
+
+/* --------------------------------------------------------------- actions */
+.onboarding-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  margin: var(--space-6, 24px) 0 0;
+}
+/* Quiet links never compete with the primary action: own line under the
+   button row, underline-identifiable rather than colour-only. */
+.onboarding-quiet-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  color: var(--dim);
+  font-size: var(--text-size-sm, 15px);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.onboarding-actions > .onboarding-quiet-link { flex-basis: 100%; }
+.onboarding-quiet-link:hover { color: var(--text); text-decoration: underline; }
+.onboarding .btn { max-width: 100%; white-space: normal; line-height: 1.35; }
+
+/* ------------------------------------------------------------ the form */
+/* Layout only: onboarding-form.css owns the field, label, help and error look.
+   This file adds the page stack, the busy state and the action row. */
+.onboarding-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+  margin: 0;
+  min-width: 0;
+}
+/* The reset action has no actions row: keep the button at its intrinsic width
+   instead of stretching it across the column. */
+.onboarding-reset-form { margin: var(--space-5, 20px) 0 0; align-items: flex-start; }
+.onboarding-reset-copy {
+  max-width: var(--size-measure, 62ch);
+  margin: 0;
+  color: var(--faint);
+  font-size: var(--text-size-sm, 15px);
+  line-height: 1.6;
+}
+/* The template ships the saving line hidden; onboarding.js unhides it on
+   submit. No display value is set, so the [hidden] attribute keeps working. */
+.onboarding-saving {
+  margin: 0;
+  color: var(--dim);
+  font-size: var(--text-size-sm, 15px);
+  font-weight: 500;
+  line-height: 1.5;
+}
+/* Busy submit: still legible, obviously in progress, not clickable twice. The
+   state is set by onboarding.js; without JavaScript the plain POST covers it. */
+.onboarding-form [data-submit]:disabled { opacity: 0.72; cursor: progress; }
+.onboarding-form[aria-busy="true"] { cursor: progress; }
+
+/* --------------------------------------------------------- error summary */
+/* Server-rendered before the form, role="alert", tabindex="-1". A 2px danger
+   boundary plus a text title and an underlined link mean the state never
+   depends on colour alone. Programmatic focus gets the shared focus ring even
+   where the browser would not match :focus-visible after a scripted focus(). */
+.onboarding-error-summary {
+  margin: 0 0 var(--space-6, 24px);
+  padding: var(--space-4, 16px) var(--space-5, 20px);
+  border: 2px solid var(--red);
+  border-radius: var(--r);
+  background: var(--panel);
+  color: var(--text);
+}
+.onboarding-error-summary:focus,
+.onboarding-error-summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.onboarding-error-title {
+  margin: 0 0 var(--space-2, 8px);
+  color: var(--red);
+  font-family: var(--sans);
+  font-size: var(--text-size-base, 17px);
+  font-weight: 650;
+  line-height: 1.4;
+}
+.onboarding-error-body { margin: 0; }
+.onboarding-error-body a {
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--red);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+/* --------------------------------------------------------------- banners */
+/* Neutral card with one warning rail, matching the server pages' banner rule;
+   the words inside ("Kept" / "Needs re-checking") carry the state. */
+.onboarding-banner {
+  margin: var(--space-6, 24px) 0;
+  padding: var(--space-4, 16px) var(--space-5, 20px);
+  border: 1px solid var(--border-strong);
+  border-inline-start: 2px solid var(--border-emphasis);
+  border-radius: var(--r);
+  background: var(--panel);
+}
+/* The warning rail is the state marker; the copy inside names the state. */
+.onboarding-banner-warning { border-inline-start-color: var(--amber); }
+.onboarding-banner-title {
+  margin: 0 0 var(--space-2, 8px);
+  color: var(--text);
+  font-size: var(--text-size-xs, 13px);
+  font-weight: 650;
+  line-height: 1.4;
+}
+.onboarding-banner-title:not(:first-child) { margin-block-start: var(--space-4, 16px); }
+.onboarding-banner p {
+  max-width: var(--size-measure, 62ch);
+  margin: 0 0 var(--space-2, 8px);
+  color: var(--dim);
+  font-size: var(--text-size-sm, 15px);
+  line-height: 1.6;
+}
+/* Quoted user text keeps the request's readable treatment and adds a hairline
+   so the two versions in the conflict state are textually separable. The
+   compound rule restores the request type scale over .onboarding-banner p. */
+.onboarding-quote {
+  padding-inline-start: var(--space-3, 12px);
+  border-inline-start: 2px solid var(--border-strong);
+}
+.onboarding-banner .onboarding-quote {
+  margin-block: 0;
+  color: var(--text);
+  font-size: var(--text-size-base, 17px);
+  line-height: var(--text-lh-body, 1.65);
+}
+.onboarding-banner > :last-child { margin-block-end: 0; }
+.onboarding-list {
+  margin: 0;
+  padding-inline-start: var(--space-5, 20px);
+  color: var(--dim);
+  font-size: var(--text-size-sm, 15px);
+  line-height: 1.6;
+}
+.onboarding-list li { margin-block: var(--space-1, 4px); }
+/* Conflict: the banner is the page's whole explanation and leads the content. */
+.onboarding[data-onboarding-state="setup.conflict"] .onboarding-banner {
+  margin-block-start: var(--space-2, 8px);
+}
+
+/* ------------------------------------------------------------ quiet note */
+.onboarding-note {
+  max-width: var(--size-measure, 62ch);
+  margin: var(--space-6, 24px) 0 0;
+  padding-block-start: var(--space-4, 16px);
+  border-block-start: 1px solid var(--border);
+  color: var(--faint);
+  font-size: var(--text-size-sm, 15px);
+  line-height: 1.6;
+}
+
+/* ---------------------------------------------------- reset disclosure */
+.onboarding-alternative {
+  margin: var(--space-8, 32px) 0 0;
+  padding-block-start: var(--space-4, 16px);
+  border-block-start: 1px solid var(--border);
+  color: var(--dim);
+}
+.onboarding-alternative > summary {
+  min-height: var(--size-target, 44px);
+  padding-block: var(--space-2, 8px);
+  color: var(--dim);
+  font-size: var(--text-size-sm, 15px);
+  font-weight: 600;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.onboarding-alternative > summary:hover,
+.onboarding-alternative[open] > summary { color: var(--text); }
+.onboarding-alternative-copy {
+  max-width: var(--size-measure, 62ch);
+  margin: var(--space-2, 8px) 0 var(--space-4, 16px);
+  color: var(--faint);
+  font-size: var(--text-size-sm, 15px);
+  line-height: 1.6;
+}
+.onboarding-alternative form { margin: 0; }
+
+/* The shared skip link hides itself at a fixed -60px offset, which leaves a
+   sliver visible above the page once text is scaled to 200 percent. This
+   stylesheet is loaded only on this route, so push it fully off-canvas here
+   and restore the focused position. */
+.skip { top: -10rem; }
+.skip:focus { top: 6px; }
+
+/* ----------------------------------------------------------- responsive */
+/* <=560px: one action per row, full-width buttons, quiet link below. */
+@media (max-width: 560px) {
+  .onboarding-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2, 8px);
+  }
+  .onboarding-actions .btn,
+  .onboarding-form-actions .btn,
+  .onboarding-alternative .btn { width: 100%; }
+  .onboarding-actions > .onboarding-quiet-link {
+    align-self: flex-start;
+    margin-block-start: var(--space-2, 8px);
+  }
+  .onboarding-reset-form { align-items: stretch; }
+  .onboarding-request,
+  .onboarding-banner,
+  .onboarding-error-summary { padding-inline: var(--space-4, 16px); }
+}
+
+/* Touch comfort: primary actions and quiet links reach the documented 44px
+   floor on coarse pointers, and at phone widths even with a fine pointer. */
+@media (pointer: coarse), (max-width: 720px) {
+  .onboarding .btn,
+  .onboarding-quiet-link { min-height: var(--size-target, 44px); }
+}
+
+/* ------------------------------------------------------ reduced motion */
+/* This page adds no movement; the only inherited transitions are colour
+   fades on buttons and links. Remove them when the owner asks for less. */
+@media (prefers-reduced-motion: reduce) {
+  .onboarding .btn,
+  .onboarding-quiet-link,
+  .onboarding-alternative > summary { transition: none; }
+}
+
+/* ------------------------------------------------------- forced colours */
+/* System colours replace the palette, so keep every boundary and state marker
+   as a border or outline: cards stay visible, warning and error states stay
+   distinguishable, and focus stays on the Highlight colour. */
+@media (forced-colors: active) {
+  /* System colours replace the palette: paint the page with Canvas/CanvasText
+     so every state keeps readable contrast, including the error summary. */
+  body { background: Canvas; color: CanvasText; }
+  .onboarding { color: CanvasText; }
+  .onboarding-title,
+  .onboarding-lede,
+  .onboarding-meta,
+  .onboarding-status,
+  .onboarding-request,
+  .onboarding-banner,
+  .onboarding-note,
+  .onboarding-alternative,
+  .onboarding-alternative-copy,
+  .onboarding-reset-copy { color: CanvasText; }
+  .onboarding-error-summary { background: Canvas; }
+  .onboarding-request,
+  .onboarding-banner,
+  .onboarding-status,
+  .onboarding-error-summary,
+  .onboarding-alternative { border-color: CanvasText; }
+  .onboarding-quote { border-inline-start-color: CanvasText; }
+  .onboarding-error-title { color: CanvasText; }
+  .onboarding-error-body a { color: CanvasText; text-decoration-color: CanvasText; }
+  .onboarding-kicker,
+  .onboarding-meta,
+  .onboarding-saving,
+  .onboarding-note { color: CanvasText; }
+  .onboarding .btn:focus-visible,
+  .onboarding-quiet-link:focus-visible,
+  .onboarding-alternative > summary:focus-visible,
+  .onboarding-error-summary:focus,
+  .onboarding-error-summary:focus-visible { outline-color: Highlight; }
+  .onboarding-form [data-submit]:disabled,
+  .onboarding .btn:disabled {
+    opacity: 1;
+    color: GrayText;
+    border-color: GrayText;
+    background: Canvas;
+  }
+}

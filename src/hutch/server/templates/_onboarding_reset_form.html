@@ -1,0 +1,6 @@
+<form class="onboarding-form onboarding-reset-form" method="post" action="/onboarding/reset" data-onboarding-form>
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <p class="onboarding-reset-copy">Starting over replaces the saved setup with a blank request. Nothing else on this machine is changed.</p>
+  <p class="onboarding-saving" role="status" aria-live="polite" data-saving-status hidden>Saving...</p>
+  <button class="btn danger" type="submit" data-submit>Start over</button>
+</form>

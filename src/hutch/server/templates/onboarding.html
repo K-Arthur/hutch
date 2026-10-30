@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}Your first request{% endblock %}
+
+{% block head %}
+{# The response-level Referrer-Policy: no-referrer makes current Chromium and
+   Firefox submit this page's plain forms with `Origin: null`, which the
+   server's same-origin guard refuses (a pre-existing boundary, see
+   docs/onboarding/setup-record.md). A same-origin referrer is visible only to
+   this same-origin server, so this page opts back in to keep its forms usable. #}
+<meta name="referrer" content="same-origin">
+<link rel="stylesheet" href="/static/onboarding-form.css">
+<link rel="stylesheet" href="/static/onboarding.css">
+<script src="/static/onboarding.js" defer></script>
+{% endblock %}
+
+{% block content %}
+<section class="onboarding" aria-labelledby="onboarding-title"
+         data-onboarding-state="{{ state }}"
+         data-onboarding-mode="{{ 'edit' if editing else 'view' }}">
+  <p class="onboarding-kicker">First run <span aria-hidden="true">&middot;</span> Step {{ step_index }} of {{ step_total }}: {{ step_label }}</p>
+
+  {% if (state == "setup.draft.saved" or state == "setup.resume.current") and not editing %}
+  <h1 id="onboarding-title" class="onboarding-title">Your request is saved</h1>
+  <p class="onboarding-lede">Hutch has your request on this machine. Next, choose the AI service that will answer it.</p>
+  {% if resume_message %}
+  {# The polite region is populated after load so screen readers announce the resumed step once; without JavaScript the same sentence is visible statically. #}
+  <p class="onboarding-status" role="status" aria-live="polite" data-resume-message data-resume-text="{{ resume_message }}" hidden></p>
+  <noscript><p class="onboarding-status">{{ resume_message }}</p></noscript>
+  {% endif %}
+  {% include "_onboarding_request_text.html" %}
+  <p class="onboarding-meta">{% if saved_at_local %}Saved on this machine at {{ saved_at_local }}. {% endif %}Saved is not connected: Hutch has not contacted an AI service yet.</p>
+  <div class="onboarding-actions">
+    {# TEMPORARY: slice 02 replaces this bridge with /onboarding/ai-service. #}
+    <a class="btn primary" href="{{ continue_target }}" data-primary>Continue to AI service</a>
+    <a class="btn ghost" href="/onboarding?edit=1">Edit request</a>
+    <a class="onboarding-quiet-link" href="/">Back to the dashboard</a>
+  </div>
+
+  {% elif editing %}
+  <h1 id="onboarding-title" class="onboarding-title">Edit your request</h1>
+  <p class="onboarding-lede">Change what your assistant should answer. Saving replaces the stored request immediately.</p>
+  {% if error_summary %}
+  <div class="onboarding-error-summary" role="alert" tabindex="-1" data-error-summary>
+    <h2 class="onboarding-error-title">{{ error_summary }}</h2>
+    <p class="onboarding-error-body"><a href="#request">{{ field_error }}</a></p>
+  </div>
+  {% endif %}
+  {% set submit_label = "Save changes" %}
+  {% set cancel_href = "/onboarding" %}
+  {% set cancel_label = "Cancel" %}
+  {% include "_onboarding_request_form.html" %}
+
+  {% elif state == "setup.empty_no_route" or state == "input.invalid" %}
+  <h1 id="onboarding-title" class="onboarding-title">What should your assistant do first?</h1>
+  <p class="onboarding-lede">Write the request you want your assistant to answer. Hutch saves it on this machine, so it is still here after a refresh, a second tab, or a restart. Hutch is already installed here; the next step is choosing an AI service.</p>
+  {% if error_summary %}
+  <div class="onboarding-error-summary" role="alert" tabindex="-1" data-error-summary>
+    <h2 class="onboarding-error-title">{{ error_summary }}</h2>
+    <p class="onboarding-error-body"><a href="#request">{{ field_error }}</a></p>
+  </div>
+  {% endif %}
+  {% set submit_label = "Save and continue" %}
+  {% set cancel_href = "/" %}
+  {% set cancel_label = "Back to the dashboard" %}
+  {% include "_onboarding_request_form.html" %}
+  <p class="onboarding-note">You need one AI service before your first request. That choice comes next and uses the existing Apps &amp; AI setup.</p>
+
+  {% elif state == "setup.resume.expired" %}
+  <h1 id="onboarding-title" class="onboarding-title">This setup was saved a while ago</h1>
+  <p class="onboarding-lede">Your request is still here, but Hutch only keeps a setup current for a limited time. Continue to refresh it, or start over with a blank request.</p>
+  {% include "_onboarding_request_text.html" %}
+  <p class="onboarding-meta">{% if saved_at_local %}Saved on this machine at {{ saved_at_local }}. {% endif %}Refreshing keeps the request above and updates the date.</p>
+  <form class="onboarding-form" method="post" action="/onboarding/request" data-onboarding-form>
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="revision" value="{{ revision }}">
+    <input type="hidden" name="request" value="{{ request_text }}">
+    <p class="onboarding-saving" role="status" aria-live="polite" data-saving-status hidden>Saving...</p>
+    <div class="onboarding-form-actions">
+      <button class="btn primary" type="submit" data-submit>Continue and refresh this setup</button>
+      <a class="btn ghost" href="/">Back to the dashboard</a>
+    </div>
+  </form>
+  {% include "_onboarding_start_over.html" %}
+
+  {% elif state == "setup.resume.stale" and newer_version %}
+  <h1 id="onboarding-title" class="onboarding-title">This setup was saved by a newer Hutch version</h1>
+  <p class="onboarding-lede">The setup record on this machine was written by a newer version of Hutch. This version will not overwrite it, so updating Hutch is the safest path. You can also start over here; your saved request is shown below.</p>
+  {% include "_onboarding_request_text.html" %}
+  <div class="onboarding-actions">
+    <a class="btn primary" href="/" data-primary>Back to the dashboard</a>
+  </div>
+  {% include "_onboarding_reset_form.html" %}
+
+  {% elif state == "setup.resume.stale" %}
+  <h1 id="onboarding-title" class="onboarding-title">Setup has changed since you started</h1>
+  <p class="onboarding-lede">Your saved request is still here. Confirm it against the current setup before continuing.</p>
+  <div class="onboarding-banner onboarding-banner-warning">
+    <p class="onboarding-banner-title">Kept</p>
+    <p>Your written request, shown below.</p>
+    <p class="onboarding-banner-title">Needs re-checking</p>
+    <ul class="onboarding-list">
+      {% for reason in stale_reasons %}<li>{{ reason }}.</li>{% endfor %}
+    </ul>
+  </div>
+  {% include "_onboarding_request_text.html" %}
+  <form class="onboarding-form" method="post" action="/onboarding/request" data-onboarding-form>
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="revision" value="{{ revision }}">
+    <input type="hidden" name="request" value="{{ request_text }}">
+    <p class="onboarding-saving" role="status" aria-live="polite" data-saving-status hidden>Saving...</p>
+    <div class="onboarding-form-actions">
+      <button class="btn primary" type="submit" data-submit>Use my request and continue</button>
+      <a class="btn ghost" href="/">Back to the dashboard</a>
+    </div>
+  </form>
+  {% include "_onboarding_start_over.html" %}
+
+  {% elif state == "setup.reset_blocked" %}
+  <h1 id="onboarding-title" class="onboarding-title">Your saved setup is still current</h1>
+  <p class="onboarding-lede">Hutch did not replace it. Starting over is only offered when the saved setup cannot be used; your request is shown below.</p>
+  {% if request_text %}
+  {% include "_onboarding_request_text.html" %}
+  {% endif %}
+  <div class="onboarding-actions">
+    <a class="btn primary" href="/onboarding" data-primary>Back to the saved setup</a>
+  </div>
+
+  {% elif state == "setup.damaged" %}
+  <h1 id="onboarding-title" class="onboarding-title">The saved setup on this machine is unreadable</h1>
+  <p class="onboarding-lede">Hutch could not read the setup record in this machine's data directory. No request text was recovered, and Hutch will not invent one. Starting over writes a fresh request step and leaves the rest of your data alone.</p>
+  <div class="onboarding-actions">
+    <a class="btn primary" href="/" data-primary>Back to the dashboard</a>
+  </div>
+  {% include "_onboarding_reset_form.html" %}
+
+  {% elif state == "setup.conflict" %}
+  <h1 id="onboarding-title" class="onboarding-title">This setup changed in another window</h1>
+  <div class="onboarding-banner onboarding-banner-warning" role="alert">
+    <p class="onboarding-banner-title">Newer saved request (kept)</p>
+    <p class="onboarding-request-text onboarding-quote">{{ conflict_saved_text }}</p>
+    <p class="onboarding-banner-title">Your text from this page (not saved)</p>
+    <p class="onboarding-request-text onboarding-quote">{{ request_text }}</p>
+  </div>
+  <p class="onboarding-lede">Hutch kept the newer request and did not overwrite it. Review the latest saved setup, then edit from there if you still want to change it.</p>
+  <div class="onboarding-actions">
+    <a class="btn primary" href="/onboarding" data-primary>Review latest saved setup</a>
+    <a class="onboarding-quiet-link" href="/">Back to the dashboard</a>
+  </div>
+
+  {% elif state == "auth.csrf_rejected" %}
+  <h1 id="onboarding-title" class="onboarding-title">This page is not available from this session</h1>
+  <p class="onboarding-lede">The form was submitted without a valid session token, so Hutch did not save it. Reload the page to get a fresh form. Nothing has been changed.</p>
+  {% if request_text %}
+  {% include "_onboarding_request_text.html" %}
+  {% endif %}
+  <div class="onboarding-actions">
+    <a class="btn primary" href="/onboarding" data-primary>Reload the page</a>
+    <a class="onboarding-quiet-link" href="/">Back to the dashboard</a>
+  </div>
+
+  {% else %}
+  <h1 id="onboarding-title" class="onboarding-title">This setup screen is not available</h1>
+  <p class="onboarding-lede">Hutch could not match this setup step to a known state, so it did not display or change anything. Return to the dashboard, or start over with a fresh request step.</p>
+  <div class="onboarding-actions">
+    <a class="btn primary" href="/" data-primary>Back to the dashboard</a>
+  </div>
+  {% include "_onboarding_reset_form.html" %}
+
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,8 @@
+<details class="onboarding-alternative">
+  <summary>Start over instead</summary>
+  <p class="onboarding-alternative-copy">This replaces the saved setup with a blank one. The request shown above will not be kept.</p>
+  <form method="post" action="/onboarding/reset" data-onboarding-form>
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="btn danger small" type="submit" data-submit>Start over</button>
+  </form>
+</details>
