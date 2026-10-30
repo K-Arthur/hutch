@@ -4711,3 +4711,104 @@ Docker-pinned baseline exists on this host, so the exact installed Chromium revi
 Testing 153.0.8010.12) is recorded instead of claiming Docker parity. The origin-null form-POST
 finding is recorded, not fixed; it needs a security/template owner because those surfaces are
 uncommitted.
+
+
+## Whole-Bot permanent deletion implemented (2026-10-29, same continuation)
+
+Scope: implement the committed whole-Bot deletion design end to end instead of another design-only
+increment, and finish the verification/documentation the parked dashboard session does not own. The
+parked session's uncommitted files were never edited, staged, reverted or reformatted.
+
+Commits on local `main` (oldest first): `f0551b8b` plan, `32affb3c` response contract, `df98bd8d`
+schema v83 evidence, `8a13ed36` guarded trigger allowances, `f4441382` revoked-share read paths,
+`f231959b` command layer, `39013c69` typed API + CLI, `5da965cf` dashboard page + browser
+evidence, `2a89909a` documentation/continuation, plus this ledger commit.
+
+Delivered: `src/hutch/bot_deletion_schema.py` (v83 evidence tables plus narrowly gated guarded
+allowances: a conversation_artifact_shares rebuild so revoked cross-chat history outlives its deleted
+source while the target chat still cascades, one redaction shape each for action receipts,
+reconciliations and fact-review notes behind a transient deletion marker, cascade-aware task-state
+guards); `src/hutch/bot_deletion.py` (preview, idempotent confirm, requests, request_record,
+recover_cleanup; one BEGIN IMMEDIATE transaction, count-snapshot revalidation, hashed one-time token,
+typed address, live-run cancel-then-conflict, FK-safe ordered erase, receipt redaction, secure_delete +
+WAL checkpoint, private fsynced cleanup manifest, symlink-safe post-commit deletion, honest
+`needs_attention` and retrying recovery); `src/hutch/server/bot_deletion_api.py`;
+`src/hutch/cli_bot_deletion.py`; the dashboard `/bots/delete` picker and `/bots/<name>/delete`
+danger zone with dependency-free `static/bot-deletion.js`; docs (operations implemented section,
+bot-config, safety, test matrix, README, website/llms.txt); `docs/realignment/continuation-E.md`.
+Tests: `tests/test_bot_deletion_schema.py` (10), `tests/test_bot_deletion.py` (12),
+`tests/test_bot_deletion_api.py` (11), `tests/test_bot_deletion_artifact_shares.py` (1),
+`tests/e2e/test_bot_deletion_ui.py` (9), `docs/realignment/verify_bot_deletion.py` (52 checks).
+
+**Focused gates.** Frozen-core Lead gate: `.venv/bin/python -m pytest -q --no-header --tb=line
+tests/test_api.py tests/test_fact_memory.py tests/test_migration.py tests/test_bot_deletion_schema.py
+tests/test_action_intents.py tests/test_receipts.py tests/test_persona_adapter_receipts.py
+tests/test_workflow_effect_receipts.py tests/test_fact_purge.py tests/test_bot_deletion.py
+tests/test_bot_deletion_artifact_shares.py tests/test_bot_deletion_api.py` -> **187 passed in 84.60s**.
+Post-freeze surfaces (deletion-surfaces): `tests/test_bot_deletion_api.py` **11 passed**,
+`tests/test_cli.py` **16 passed**, `tests/test_api.py` **49 passed**. Migration/guard subset
+`tests/test_bot_deletion_schema.py tests/test_migration.py` **51 passed**.
+
+**Real-world exercise.** `.venv/bin/python docs/realignment/verify_bot_deletion.py` -> **PASS 52
+checks** (two Bots with conversations, runs, events, stored messages, memory facts, managed run/
+workspace/browser-profile files; wrong token and wrong typed address fail closed; a live run blocks
+preview; one Bot is deleted while the second is unchanged; managed files removed while user-owned and
+code-worktree paths survive; FTS and fact rows content-free; evidence content-free; exact post-deletion
+retry replays; a different retry conflicts; expiry, superseded and prior-preview evidence covered by
+unit tests). Receipt JSON is printed by the script under the OS temp area; the script itself is the
+committed artifact.
+
+**Dashboard browser evidence.** Frozen-core `.venv/bin/python -m pytest -q --no-header --tb=line
+tests/e2e/test_bot_deletion_ui.py` -> **9 passed in 31.73s** against commit `f231959b` (module hash
+`8ec70baf...`). 12 reviewed captures in
+`docs/realignment/artifacts/completion-2026-10-29/deletion/` (1440x900, 900x900, 360x800): page-error
+count 0 and horizontal overflow 0 in every capture; only the two designed injected-503 console lines;
+phone preview/confirm/input targets 44 px; empty, wrong-address, injected-error+retry, success and
+post-deletion picker states verified; success now reports `cleanup_state: cleaned`. `capture.json`
+sha256 `6df40f910e3bd9b36e8b957ea4a68b438850156dad902546d16244e13ed55c17`; Chromium headless shell
+revision **1243** (Chrome for Testing 153.0.8010.12), Playwright 1.63.0, Python 3.13.15.
+
+**Full non-browser suite.** Because this host has no pytest-xdist and a single-process run exceeded
+the useful session budget, the committed HEAD (`2a89909a`) was exported to
+`.dsh/long-horizon/hutch-completion/artifacts/head-export` and its 234 non-e2e test files were run as
+six disjoint partitions under one job (all six ran to completion; no file skipped). Aggregate:
+**3765 passed, 55 skipped, 3 xfailed, 10 failed**. The 10 failures were outside every deletion module;
+a serial rerun of exactly those 10 node ids produced **7 passed** (parallel-run interference in
+OpenCode CLI/server, procguard and timer/perf tests) and 3 persistent failures
+(`tests/test_outputs_store.py` downgrade/v51 upgrade: `no such table: memory_fact_shares`, and
+`tests/test_procguard.py::test_group_inspection_checks_the_saved_session_identity`). The same three
+tests fail identically on the pre-run committed HEAD `cb8ca349` export (checked), so they are
+pre-existing: two from the earlier v82 fact-purge migration interacting with the outputs downgrade
+helper, one from the sandboxed process session/pgrp environment. No new failure is attributable to
+this slice.
+
+**Audits.** `scripts/audit_emoji.py` clean (2,966 files, 10 waivers); `scripts/audit_tool_contracts.py`
+passed (40 tools); `scripts/audit_constitution.py` passed (3 roles, 14 rules); compileall and
+`node --check` clean; `git diff --check` clean for authored files. The parked session's untracked
+`scripts/audit_context_hygiene.py` reports its known waivers: new modules over 400 lines
+(`src/hutch/bot_deletion.py` 1067, `tests/test_bot_deletion.py` 771) and the required hook growth in
+frozen `store.py`/`app.py`/`cli.py`/`pages.py`, plus pre-existing parked-session entries. That
+baseline and tooling are untracked, not committed repo policy, and were deliberately not modified.
+
+**Review findings fixed during the run.** Returned cleanup_state was stale ("pending") while the row
+had finished cleaning (now the live outcome is returned without mutating the immutable result_json;
+history overlays it); the expired-status transition was rolled back by the conflict exception (now
+committed in its own transaction); unexpected cleanup failures were swallowed (now marked
+needs_attention and resumable); budget policies/pauses are now erased at bot/run/conversation scope,
+while kv schedule markers and the global documentation index are documented as retained content-free;
+the share rebuild's nullable source ids required three defensive reads in
+`store.revoke_conversation_artifact_share` (patched, with a revocation-after-deletion regression test).
+
+**Limits.** No live provider, engine worker or real in-flight process drain was exercised; the
+deletion proof is state-layer plus the real browser UI. In this increment a live run blocks
+confirmation (cancellation is requested and the operator retries) rather than a background drain phase;
+OS secret-service entries are not cleared; no disk-shredding guarantee; backups, exports,
+provider-side copies, channel-platform history and user-owned folder-mode worktrees remain. The
+settings-panel placement of the control and the SPA-home discovery link are blocked by the parked
+dashboard session's uncommitted templates/static; discovery is the shared server-page NAV verified in
+the journey. No screen reader or axe-core pass was run on the new page.
+
+**Concurrent tree.** During the run another session began editing the shared working tree (notably
+`src/hutch/server/app.py`). Those changes are uncommitted and were not staged, reverted or validated by
+this task; the full-suite and verifier evidence above was taken from the clean committed HEAD export,
+not that dirty tree. The parked session's ~70 pre-existing entries remain untouched.
