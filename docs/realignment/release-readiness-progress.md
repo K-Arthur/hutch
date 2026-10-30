@@ -68,8 +68,9 @@ checked), **not run**, **open**.
 | P0 workflow currency ceiling (`budget.max_cost_usd`) | verified | `696b9f37` | 36 budget tests pass; ceiling cannot be raised or removed by amendment; frozen files below caps |
 | P0 no preview or fixture file under `static/` | verified | this commit | `tests/test_static_has_no_demo_surfaces.py` fails on the old harness filename |
 | P0 full non-browser suite green at a clean clone | see ledger | | recorded in `ledger.md` after the final run |
-| P1 product spine (`product-spine.md`): definition, loop, canonical terms, navigation, contradiction list | verified | see git log | 36 contradictions in 9 groups (D, T, N, C, X, V, M, G, S), each with file and line and a phase or a keep-reason; line numbers re-read from the tree; two claims corrected after a wider search (C2 scope of "Stop all", X4 dead-template evidence). G1 (chat hides approval mode and spend) rests on source search, not a capture: decided by the P2 capture |
-| P2 navigation and shell (merge, titles, one chrome) | not started | | |
+| P1 product spine (`product-spine.md`): definition, loop, canonical terms, navigation, contradiction list | verified | `2fedfc4f` | 36 contradictions in 9 groups (D, T, N, C, X, V, M, G, S), each with file and line and a phase or a keep-reason; line numbers re-read from the tree; two claims corrected after a wider search (C2 scope of "Stop all", X4 dead-template evidence). G1 (chat hides approval mode and spend) rests on source search, not a capture: decided by the P2 capture |
+| P2.1 one title format `<View> — Hutch` (server pages, SPA first paint and every route; the SPA title is read from the sidebar label, `ROUTE_TITLES` removed) | verified | this commit | `tests/test_page_titles.py` 10 passed (red first), `tests/e2e/test_page_titles.py` 12 passed, nav consistency and dashboard tests 41 passed; `app.js` 14,353 -> 14,349 lines (new logic in `page-title.js`) |
+| P2 remaining: Activity merge, server shell parity, vocabulary, dead code, capture | open | | see the plan in the next section |
 | P3 start states and first success | not started | | S2, `hutch doctor` and service offer in first run |
 | P4 UI promises versus backend sweep | partly done | `06887b15` `696b9f37` | see the table below |
 | P5 README, site and docs truth | not started | | |

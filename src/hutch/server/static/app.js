@@ -2157,19 +2157,14 @@ function isConversationView(hash = location.hash || "#/chat") {
   return /^#\/chat(?:\/|$)/.test(hash) || /^#\/conversation\/[\w-]+$/.test(hash);
 }
 
-const ROUTE_TITLES = { chat: "Chat", overview: "Activity", schedules: "Scheduled work",
-  runtime: "Runtime", runs: "Work history", bots: "Assistants", connections: "Apps & AI",
-  approvals: "Needs you", chats: "Conversation history", settings: "Settings" };
-
 function routeTitle(hash) {
   if (hash.startsWith("#/conversation/")) return "Conversation";
   if (hash.startsWith("#/approvals")) return "Needs you";
   const bot = hash.match(/^#\/(?:chat|bot)\/([^/?]+)/);
-  if (bot) return decodeURIComponent(bot[1]);
+  if (bot) return botHeading(decodeURIComponent(bot[1]));
   const run = hash.match(/^#\/run\/([^/?]+)/);
   if (run) return `Run ${run[1].slice(4, 16)}`;
-  const nav = routes.find(([re]) => re.test(hash))?.[2];
-  return ROUTE_TITLES[nav] || "hutch";
+  return hutchTitle.navLabel(routes.find(([re]) => re.test(hash))?.[2]);
 }
 
 async function route(announce = false) {
@@ -2205,10 +2200,11 @@ async function route(announce = false) {
       if (["chats", "overview", "schedules", "runs", "bots", "runtime", "skills"].includes(nav)) {
         $("#monitor-nav").open = true;
       }
+      document.title = hutchTitle.pageTitle(routeTitle(hash));
       try { await handler(m); }
       catch (err) { view.innerHTML = errorState(err); }
+      document.title = hutchTitle.pageTitle(routeTitle(hash)); // the roster may now name the assistant
       if (announce) {
-        document.title = `hutch — ${routeTitle(hash)}`;
         /* Replacing #view orphans keyboard focus to body; handlers that place
            focus deliberately keep it. Only rescue the orphaned case. */
         if (!document.activeElement || document.activeElement === document.body) {
