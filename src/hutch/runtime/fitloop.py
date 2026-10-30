@@ -30,6 +30,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
+from ..token_cache import MessageTokenCache
 from ..context import estimate_tokens
 
 MAX_COMPACT_ATTEMPTS = 2
@@ -87,12 +88,26 @@ class FitResult:
         return self.status == "compacted"
 
 
+_MESSAGE_TOKENS = MessageTokenCache()
+
+
 def _message_tokens(message: dict[str, Any]) -> int:
-    text = str(message.get("content") or "")
-    tokens = estimate_tokens(text) + 6
-    for call in message.get("tool_calls") or []:
-        tokens += estimate_tokens(json.dumps(call, separators=(",", ":")))
-    return tokens
+    """Per-message estimate, memoized on the identity of the values it reads."""
+    content = message.get("content")
+    calls = message.get("tool_calls")
+
+    def compute() -> int:
+        tokens = estimate_tokens(str(content or "")) + 6
+        for call in calls or []:
+            tokens += estimate_tokens(json.dumps(call, separators=(",", ":")))
+        return tokens
+
+    return _MESSAGE_TOKENS.get(message, content, calls, compute)
+
+
+def clear_token_caches() -> None:
+    """Drop cached estimates; for tests and after an intentional transcript rewrite."""
+    _MESSAGE_TOKENS.clear()
 
 
 def count_tokens(messages: list[dict[str, Any]], tool_tokens: int = 0) -> int:
