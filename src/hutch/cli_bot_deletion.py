@@ -9,8 +9,6 @@ from __future__ import annotations
 
 import typer
 
-from . import bot_deletion
-
 
 def install_bot_destroy_command(bot_app, store_factory, require_bot, err, console) -> None:
     """Attach the governed permanent-deletion command to the existing bot group."""
@@ -47,6 +45,7 @@ def _install_destroy(bot_app, store_factory, require_bot, err, console) -> None:
 
 def _recover(store, err) -> None:
     """Resume a committed deletion whose filesystem cleanup was interrupted."""
+    from . import bot_deletion
     try:
         bot_deletion.recover_cleanup(store)
     except Exception as exc:
@@ -56,6 +55,7 @@ def _recover(store, err) -> None:
 
 def _preview(store, bot, err) -> dict:
     """Issue the preview or exit with the refusal reason; nothing is erased yet."""
+    from . import bot_deletion
     try:
         return bot_deletion.preview(store, bot.id, actor='cli')
     except (KeyError, ValueError) as exc:
@@ -87,6 +87,7 @@ def _typed_confirmation(expected: str, err) -> bool:
 
 def _confirm(store, bot, preview, err) -> dict:
     """Apply the previewed deletion through the shared command layer or exit nonzero."""
+    from . import bot_deletion
     try:
         return bot_deletion.confirm(store, bot.id, preview['request_id'],
                                     token=preview['token'], confirmation=bot.name,

@@ -115,9 +115,9 @@ so an accepted append survives a restart. The documented 1,000 events/s sustaine
 more than 5x headroom; the crash-recovery contract was not weakened for throughput.
 
 Deferred with measurements (not abandoned): lazy CLI imports (`hutch.tools` costs ~294 ms
-cumulative import even for `hutch version`), and the dashboard's per-batch refetch + full
-`innerHTML` rebuild (largest user-visible opportunity; blocked by another session's uncommitted
-UI files). A Rust XLSX-write prototype measured ~109 -> ~24 ms on the write stage but was deferred
+cumulative import even for `hutch version`; landed on 2026-10-30, see below), and the dashboard's
+per-batch refetch + full `innerHTML` rebuild (largest user-visible opportunity; landed on
+2026-10-29, see below). A Rust XLSX-write prototype measured ~109 -> ~24 ms on the write stage but was deferred
 in that release because it could not be shipped without packaging changes; see ADR-0024 and the
 2026-10-29 section below, where it was subsequently built as an optional accelerator.
 ## 2026-10-29 dashboard live updates and optional native XLSX writer
@@ -142,3 +142,20 @@ Two measured follow-ups from the earlier performance programme, with full record
   than a stable >=20% p95 replacement. Build:
   `python scripts/build_native_docgen.py --check`; disable with `HUTCH_DISABLE_NATIVE_DOCGEN=1`.
   No mandatory Rust dependency or manifest change.
+## 2026-10-30 CLI cold start
+
+Measured continuation of the deferred CLI item above: the tool registry imported every tool family
+at import time, so `hutch version` paid a tool-catalog import bucket that was the largest share of
+import self time in every trace (44.6-56.2% across 5 independent traces; representative trace
+500.6 ms of 890.2 ms total, models ~23%). Tool classes now
+resolve on first use behind a read-only mapping, and `hutch bot destroy` imports its command layer
+on use.
+
+Paired A/B (interleaved samples, pristine HEAD 4c53c814 export vs the change, one driver/session,
+host load 6.8-7.5): `hutch version` median **609 -> 331 ms (-45.7%, p95 854 -> 415 ms)**, `--help`
+**864 -> 575 ms (-33.4%)**, `status` **1083 -> 600 ms (-44.6%)**, `bot list` **958 -> 584 ms
+(-39.1%)**; stdout byte-identical, benchmark gate `--check` PASS. The remaining floor is
+`hutch.models`/pydantic, Typer/Rich and the command table; a Rust entry-point rewrite was evaluated
+and rejected (no bar-clearing kernel; ADR-0024, [research/cli-startup-2026-10-30.md](research/cli-startup-2026-10-30.md)).
+Full record: [perf/cli-startup-2026-10-30.md](perf/cli-startup-2026-10-30.md). Reproduce:
+`python -m benchmarks.cli_startup_ab --before <export>/src --after src`.
