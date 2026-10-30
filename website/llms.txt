@@ -15,6 +15,7 @@ Hutch keeps its control state — conversations, memory, logs, schedules and fil
 - Spend controls: estimated budgets, usage reservations and per-bot ceilings; provider billing stays authoritative.
 - Chat input: text plus PNG/JPEG/WebP image attachments (up to 4 per message, 1.5 MB each); built-in runtimes need a vision-capable model route, and the OpenCode runtime checks the selected model's declared image support.
 - Schedules: IANA-timezone recurring tasks that catch up after sleep while the local service is running; nothing runs while the machine is off.
+- Deletion: a governed two-step permanent deletion for one whole Bot (`hutch bot destroy`, the typed deletion API or the dashboard danger zone), with content-free evidence; backups, exports, provider-side copies and folder-mode workdirs are not erased.
 - Evidence: what works, what is experimental and what is unavailable is documented in the repository (docs/realignment/baseline.md and docs/marketing-site.md).
 
 ## Not claims

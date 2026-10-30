@@ -104,3 +104,28 @@ migration). No screen reader was used. Whole-Bot deletion remains an unimplement
 > `workspace_task_fact_shares` erasure, and pagination for `GET .../purge-requests`. Run the quiet
 > focused gate and record evidence in `docs/realignment/ledger.md`. Never stage another session's
 > uncommitted files; the SPA assets may still be owned by the parked dashboard session.
+
+## Update (2026-10-29, run 3): whole-Bot deletion implemented
+
+The design in `docs/operations.md` is now implemented, committed and locally exercised. The copy-paste
+prompt above is superseded by `docs/realignment/continuation-E.md`.
+
+Commits on local `main` (oldest first): `f0551b8b` plan, `32affb3c` response contract, `df98bd8d`
+schema v83 evidence, `8a13ed36` guarded trigger allowances, `f4441382` revoked-share read paths,
+`f231959b` command layer, plus the API/CLI, dashboard and docs commits recorded in the ledger entry
+"Whole-Bot permanent deletion implemented (2026-10-29)".
+
+Delivered: `src/hutch/bot_deletion_schema.py` (v83 evidence plus limited guarded redaction
+allowances), `src/hutch/bot_deletion.py` (preview, confirm, requests, request_record,
+recover_cleanup), `src/hutch/server/bot_deletion_api.py`, `src/hutch/cli_bot_deletion.py`, the
+dashboard `/bots/delete` picker and `/bots/<name>/delete` danger zone with a dependency-free
+`static/bot-deletion.js`, and tests: `tests/test_bot_deletion_schema.py`,
+`tests/test_bot_deletion.py`, `tests/test_bot_deletion_api.py`,
+`tests/test_bot_deletion_artifact_shares.py`, `tests/e2e/test_bot_deletion_ui.py` and
+`docs/realignment/verify_bot_deletion.py` (52-check two-Bot real-world run).
+
+Still open (deliberately not claimed): a background drain phase that waits for verified process exit
+(confirmation currently requests cancellation and fails closed); OS secret-service entry clearing;
+placing the control inside the Bot settings panel (parked templates); API deletion history by a deleted
+name (request-id replay is the supported path); pagination for purge-request history; an end-to-end
+delegation exercise of `workspace_task_fact_shares` erasure.

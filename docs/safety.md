@@ -17,6 +17,13 @@ index, inherited share/task-snapshot copies, and short-lived API idempotency rec
 pages are zeroed where SQLite secure-delete is available and the write-ahead log is checkpointed where
 possible, while content-free audit rows remain. It cannot retract conversation history, prior provider
 input, workspace files, filesystem copies outside SQLite or backups made before the purge.
+Whole-Bot permanent deletion (`hutch bot destroy`, the typed deletion API, or the dashboard danger
+zone) follows the same two-step, fail-closed rule at Bot scope: it requires a preview and the exact
+typed Bot address, refuses while a run is live instead of killing it, refuses paired-phone sessions
+and fails closed on wrong, expired, reused or changed-scope confirmations, erases Bot records and
+managed files in one transaction, and retains content-free deletion evidence. It cannot retract
+backups, exports, provider-side copies, channel-platform history, folder-mode workdirs or coding
+worktrees.
 
 hutch assumes a **supervising human** is part of the system. It is not a formal security boundary
 against a determined adversary: it is a policy layer that checks what hutch's own tools are asked to
