@@ -1,6 +1,6 @@
 # Responsive Adaptation - State
 
-Last updated: 2026-10-29T18:03:00-07:00 | Last commit: bb01f24d (baseline evidence)
+Last updated: 2026-10-29T18:07:00-07:00 | Last commit: 9f74a378 (task 01 source)
 Goal id: goal-28c56178-ce15-4d56-b317-b0f275ff75cb (revision 1) | Branch: main
 Validation runner: scripts/validate_responsive.py (single source: scripts/responsive/config.py)
 Evidence: docs/responsive/screenshots/<label>/{summary.json,assertions.txt,*.png}
@@ -13,8 +13,8 @@ Evidence: docs/responsive/screenshots/<label>/{summary.json,assertions.txt,*.png
 | P0 | online research report | done | 3215d755 | - |
 | P0.5 | scored inventory | done | e4dfe6ce | - |
 | P1 | responsive audit | done | e4dfe6ce | - |
-| 01 | viewport and safe-area contract | not-started | - | add viewport-fit cover to server/marketing shells + new responsive.css |
-| 02 | server navigation model | not-started | - | depends 01; fix <=1400 JS-dependent overlay |
+| 01 | viewport and safe-area contract | done | 9f74a378 | evidence: docs/responsive/screenshots/9f74a378 |
+| 02 | server navigation model | not-started | - | fix <=1400 JS-dependent overlay; align with 1024/1180/1366 devices |
 | 03 | dynamic viewport and keyboard | not-started | - | depends 01; svh/dvh + visualViewport publisher |
 | 04 | stylesheet structure and sticky offsets | not-started | - | close style.css:2713 media block + topbar height variable |
 | 05 | touch-target floor | not-started | - | depends 01; 24px AA floor, 44px coarse floor |
@@ -63,6 +63,11 @@ where possible.
 
     # gate: after the fixes, warnings for 24px targets and states become failures
     .venv/bin/python scripts/validate_responsive.py --label final --fail-on all
+
+## Evidence index
+
+- baseline-2a89909a: pre-change baseline (commit bb01f24d)
+- 9f74a378: task 01 viewport and safe-area contract (commit to follow with evidence)
 
 ## Handoff
 

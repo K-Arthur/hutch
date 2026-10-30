@@ -63,3 +63,12 @@ responsive CSS files are new and stage normally.
 
 Two meta edits, two new stylesheets with a first rule set, three one-line links
 and one harness check: comfortably one session.
+## Outcome
+
+- Status: done, commit 9f74a378.
+- Evidence: docs/responsive/screenshots/9f74a378/ (130 measurements, 0 failures;
+  review.md records the desktop comparison and the run-to-run dynamic-content
+  caveat).
+- Harness command: .venv/bin/python scripts/validate_responsive.py --label 9f74a378
+- Rollback: revert 9f74a378 (source) and its evidence commit; the new sheets and
+  meta attributes disappear together. No generated CSS or state involved.
