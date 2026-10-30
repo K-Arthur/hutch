@@ -59,8 +59,9 @@ EXCLUDED_DIR_NAMES = frozenset({
     "test-results", ".venv-build",
 })
 
-#: Root-level output/report trees that are not source.
-EXCLUDED_ROOT_DIRS = frozenset({"build", "dist", "var", "reports", "coverage", "htmlcov"})
+#: Root-level output/report trees that are not source, plus ``.ai`` (agent guidance, which the
+#: fixed ENTRY_POINTS table below lists instead of a file count for the directory).
+EXCLUDED_ROOT_DIRS = frozenset({"build", "dist", "var", "reports", "coverage", "htmlcov", ".ai"})
 
 #: (path, what it is for) - fixed, so adding a doc does not require map churn.
 ENTRY_POINTS = (
