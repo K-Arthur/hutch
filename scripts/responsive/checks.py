@@ -165,9 +165,41 @@ VIEWPORT_JS = r"""() => {
 }"""
 
 
+NAV_JS = r"""() => {
+  const nav = document.getElementById("primary-nav");
+  const toggle = document.getElementById("nav-toggle");
+  if (!nav) return {present: false};
+  const cs = getComputedStyle(nav);
+  const rect = nav.getBoundingClientRect();
+  const links = Array.from(nav.querySelectorAll("a")).filter(function (link) {
+    const box = link.getBoundingClientRect();
+    const style = getComputedStyle(link);
+    return box.width > 0 && box.height > 0 && style.display !== "none"
+      && style.visibility !== "hidden";
+  });
+  const toggleStyle = toggle ? getComputedStyle(toggle) : null;
+  return {
+    present: true,
+    nav_visible: rect.width > 0 && rect.height > 0 && cs.visibility !== "hidden"
+      && parseFloat(cs.opacity) > 0.5 && cs.pointerEvents !== "none",
+    nav_display: cs.display,
+    nav_scroll_overflow: Math.max(0, nav.scrollWidth - nav.clientWidth),
+    visible_links: links.length,
+    total_links: nav.querySelectorAll("a").length,
+    toggle_display: toggleStyle ? toggleStyle.display : null,
+    toggle_expanded: toggle ? toggle.getAttribute("aria-expanded") : null
+  };
+}"""
+
+
 def measure_viewport(page) -> dict:
     """The viewport contract declared by the document head."""
     return page.evaluate(VIEWPORT_JS)
+
+
+def measure_nav(page) -> dict:
+    """The server-page navigation model: visible nav, overflow and toggle state."""
+    return page.evaluate(NAV_JS)
 
 
 def measure_overflow(page) -> dict:

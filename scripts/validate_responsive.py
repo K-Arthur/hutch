@@ -33,8 +33,10 @@ def _parse_args(argv):
                         help="evidence directory name; defaults to the current commit")
     parser.add_argument("--out", default="",
                         help="evidence directory; defaults to docs/responsive/screenshots/<label>")
-    parser.add_argument("--fail-on", default="overflow,errors,external,ready,state,meta",
+    parser.add_argument("--fail-on", default="overflow,errors,external,ready,state,meta,nav",
                         help="comma-separated check kinds that fail the run (or all/none)")
+    parser.add_argument("--no-js", action="store_true",
+                        help="measure the JavaScript-disabled state of server pages and the site")
     parser.add_argument("--quick", action="store_true",
                         help="three surfaces x three viewports, no screenshots or state captures")
     parser.add_argument("--no-screenshots", action="store_true")

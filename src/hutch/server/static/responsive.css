@@ -57,3 +57,18 @@
   padding-left: calc(24px + var(--safe-left));
   padding-right: calc(24px + var(--safe-right));
 }
+
+/* Server-page navigation model (task 02). Nine destinations need about 1055px at
+   full padding. The overlay now engages only at <=1024px; from 1025px the
+   horizontal nav must fit, so the decorative leading icons are hidden (labels and
+   the approval badge stay) and the side padding tightens. */
+@media (min-width: 1025px) and (max-width: 1439px) {
+  #primary-nav a svg,
+  #primary-nav a .ico { display: none; }
+  #primary-nav a { padding-inline: 10px; }
+}
+
+/* Touch devices need a comfortable menu target; the base control is 38px. */
+@media (pointer: coarse) {
+  .nav-toggle { width: 44px; height: 44px; }
+}

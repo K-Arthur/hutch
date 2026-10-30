@@ -76,6 +76,7 @@ def _measure_surface(page, surface, viewport, options, output_dir, observer, nav
         ready_error = str(error)[:400]
     page.wait_for_timeout(options.settle_ms)
     viewport_contract = checks.measure_viewport(page)
+    nav = checks.measure_nav(page) if surface.kind == "pages" else None
     overflow = checks.measure_overflow(page)
     targets = (checks.measure_targets(page, config.MIN_TARGET_PX, config.COMFORT_TARGET_PX)
                if viewport.touch else None)
@@ -90,6 +91,8 @@ def _measure_surface(page, surface, viewport, options, output_dir, observer, nav
         "ready": ready,
         "ready_error": ready_error,
         "viewport_contract": viewport_contract,
+        "js_enabled": not getattr(options, "no_js", False),
+        "nav": nav,
         "overflow_px": overflow["overflow_px"],
         "overflow_offenders": overflow["offenders"],
         "external_requests": list(observer.external),
@@ -141,6 +144,21 @@ def _classify(record, failures, warnings, fail_on):
         warnings.append({"kind": "touch44", **where,
                          "detail": "%d target(s) below %dpx" % (
                              targets["under_comfort_count"], config.COMFORT_TARGET_PX)})
+    nav = record.get("nav") or {}
+    if nav.get("present"):
+        wide = record["width"] > 1024
+        if wide and not nav.get("nav_visible"):
+            failures.append({"kind": "nav", **where,
+                             "detail": "horizontal nav is not visible above 1024px"})
+        if wide and nav.get("toggle_display") not in (None, "none"):
+            failures.append({"kind": "nav", **where,
+                             "detail": "compact menu toggle is visible above 1024px"})
+        if not record.get("js_enabled", True) and not nav.get("nav_visible"):
+            failures.append({"kind": "nav", **where,
+                             "detail": "no-JS reader cannot see the primary nav"})
+        if not record.get("js_enabled", True) and nav.get("visible_links", 0) < nav.get("total_links", 0):
+            failures.append({"kind": "nav", **where,
+                             "detail": "no-JS nav links are clipped or hidden"})
     contrast = record.get("contrast") or {}
     if contrast.get("violation_count"):
         entry = {"kind": "contrast", **where,
@@ -201,19 +219,21 @@ def _capture_states(browser, app_url, options) -> tuple[list[dict], list[dict]]:
     finally:
         context.close()
 
-    context, page = new_page(375, 812, True)
-    try:
-        page.goto(app_url + "/models", wait_until="domcontentloaded", timeout=options.timeout_ms)
-        page.locator("main").first.wait_for(state="visible", timeout=options.timeout_ms)
-        page.wait_for_timeout(options.settle_ms)
-        page.click("#nav-toggle")
-        page.locator("#primary-nav").first.wait_for(state="visible", timeout=options.timeout_ms)
-        grab(page, "pages-nav-open-375")
-    except Exception as error:
-        failures.append({"kind": "state", "surface": "pages-models", "viewport": "phone-375",
-                         "detail": "server nav did not open: %s" % str(error)[:200]})
-    finally:
-        context.close()
+    for name, width, height in (("pages-nav-open-375", 375, 812),
+                                ("pages-nav-open-1024", 1024, 768)):
+        context, page = new_page(width, height, True)
+        try:
+            page.goto(app_url + "/models", wait_until="domcontentloaded", timeout=options.timeout_ms)
+            page.locator("main").first.wait_for(state="visible", timeout=options.timeout_ms)
+            page.wait_for_timeout(options.settle_ms)
+            page.click("#nav-toggle")
+            page.locator("#primary-nav").first.wait_for(state="visible", timeout=options.timeout_ms)
+            grab(page, name)
+        except Exception as error:
+            failures.append({"kind": "state", "surface": "pages-models", "viewport": name,
+                             "detail": "server nav did not open: %s" % str(error)[:200]})
+        finally:
+            context.close()
 
     for name, width, height, touch in (("spa-focus-1366", 1366, 1024, False),
                                        ("spa-focus-375", 375, 812, True)):
@@ -238,6 +258,10 @@ def run(app_url: str, site_url: str, options, output_dir: Path) -> dict:
     options.site_url = site_url
     fail_on = {kind.strip() for kind in options.fail_on.split(",") if kind.strip()}
     surfaces = _selected_surfaces(options)
+    if getattr(options, "no_js", False):
+        # The SPA is JavaScript-rendered; only the server-rendered shells and the
+        # static site have a meaningful no-JS state.
+        surfaces = [surface for surface in surfaces if surface.kind in {"pages", "site"}]
     viewports = _selected_viewports(options)
     results: list[dict] = []
     failures: list[dict] = []
@@ -246,11 +270,14 @@ def run(app_url: str, site_url: str, options, output_dir: Path) -> dict:
     with sync_playwright() as playwright:
         browser = harness.launch_browser(playwright, headed=options.headed)
         try:
+            scripting = not getattr(options, "no_js", False)
             contexts = {
                 "fine": browser.new_context(viewport={"width": 1440, "height": 960},
-                                            reduced_motion="reduce"),
+                                            reduced_motion="reduce",
+                                            java_script_enabled=scripting),
                 "coarse": browser.new_context(viewport={"width": 390, "height": 844},
-                                              has_touch=True, reduced_motion="reduce"),
+                                              has_touch=True, reduced_motion="reduce",
+                                              java_script_enabled=scripting),
             }
             pages = {}
             observers = {}
@@ -277,7 +304,8 @@ def run(app_url: str, site_url: str, options, output_dir: Path) -> dict:
                     print("[%6.1fs] %-18s %-22s overflow=%3dpx ready=%s" % (
                         time.monotonic() - started, surface.label, viewport.label,
                         record["overflow_px"], record["ready"]), flush=True)
-            states, state_failures = ([], []) if options.quick else _capture_states(
+            skip_states = options.quick or getattr(options, "no_js", False)
+            states, state_failures = ([], []) if skip_states else _capture_states(
                 browser, app_url, options)
             failures.extend(state_failures)
         finally:

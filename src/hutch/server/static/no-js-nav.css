@@ -1,0 +1,36 @@
+/* Fallback for readers without JavaScript.
+ *
+ * hutch.js opens the compact primary-nav overlay, so with scripting disabled the
+ * overlay can never open and navigation would be unreachable below 1025px. This
+ * sheet is linked only inside <noscript>: it hides the inert toggle and lets the
+ * nav wrap into rows under the topbar instead.
+ */
+@media (max-width: 1024px) {
+  .nav-toggle { display: none; }
+  .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+  #primary-nav {
+    position: static;
+    inset: auto;
+    transform: none;
+    opacity: 1;
+    pointer-events: auto;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    flex-basis: 100%;
+    gap: 2px;
+    padding: 0;
+    background: none;
+    border: none;
+    overflow: visible;
+    height: auto;
+  }
+  #primary-nav a {
+    font-size: var(--fs-sm);
+    font-weight: 550;
+    padding: 8px 12px;
+    border-bottom: 0;
+    border-radius: var(--r-sm);
+  }
+}

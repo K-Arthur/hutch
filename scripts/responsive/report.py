@@ -10,7 +10,7 @@ from pathlib import Path
 from responsive import config
 
 ALL_FAILURE_KINDS = ("overflow", "errors", "external", "ready", "state", "meta",
-                     "touch24", "contrast")
+                     "nav", "touch24", "contrast")
 
 
 def utcnow_iso() -> str:
@@ -70,6 +70,9 @@ def _assertion_lines(summary: dict, fail_on: str) -> list[str]:
     ready = sum(1 for record in results if not record["ready"])
     errors = sum(1 for record in results if record["page_errors"])
     external = sum(1 for record in results if record["external_requests"])
+    nav_records = [record for record in results if record.get("nav")]
+    nav_overflow = sum(1 for record in nav_records
+                       if record["nav"].get("nav_scroll_overflow", 0) > 0)
     contract = [record for record in results if record.get("viewport_contract")]
     contract_bad = sum(1 for record in contract
                        if not (record["viewport_contract"].get("present")
@@ -96,6 +99,8 @@ def _assertion_lines(summary: dict, fail_on: str) -> list[str]:
         "  non-local requests:  %d/%d pairs made one" % (external, len(results)),
         "  viewport contract:   %d/%d pairs missing width=device-width or viewport-fit=cover" % (
             contract_bad, len(contract)),
+        "  server nav model:    %d pairs measured, %d with horizontal nav overflow" % (
+            len(nav_records), nav_overflow),
         "  touch targets < %dpx: %d/%d coarse-pointer pairs" % (
             config.MIN_TARGET_PX, touch_min, len(touch_records)),
         "  touch targets < %dpx: %d/%d coarse-pointer pairs (comfort warning)" % (
