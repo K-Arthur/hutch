@@ -120,6 +120,30 @@ def run(quick: bool, state) -> list[dict]:
                   "better": "lower",
                   "note": f"full SSE frame / per-event model_dump_json join; frame median {sse_median:.2f} ms"})
 
+    from hutch.server.sse import global_events_message
+
+    cursor = events[-1].id if events[-1].id is not None else EVENTS  # benchmark events have no DB id
+    legacy_global = sse_message("events", {"events": [event.model_dump() for event in events], "cursor": cursor}, cursor)
+    framed_global = global_events_message(events, cursor)
+    legacy_value = json.loads(legacy_global.decode("utf-8").split("data: ", 1)[1])
+    framed_value = json.loads(framed_global.decode("utf-8").split("data: ", 1)[1])
+    if legacy_value != framed_value:
+        raise RuntimeError("byte-framed global SSE payload differs from the legacy shape")
+    global_samples = [_time_once(lambda: global_events_message(events, cursor)) for _ in range(n)]
+    legacy_samples = [_time_once(lambda: sse_message(
+        "events", {"events": [event.model_dump() for event in events], "cursor": cursor}, cursor)) for _ in range(n)]
+    global_median = statistics.median(global_samples)
+    legacy_median = statistics.median(legacy_samples)
+    cases.append({"name": "events.global_sse_frame_200_ms", "unit": "ms", "samples": global_samples,
+                  "better": "lower",
+                  "note": f"production global stream frame: {len(framed_global):,} B, model_dump_json bytes-join",
+                  "detail": {"payload_bytes": len(framed_global)}})
+    cases.append({"name": "events.global_sse_vs_legacy_ratio", "unit": "x",
+                  "samples": [new / old if old else 0.0 for new, old in zip(global_samples, legacy_samples)],
+                  "better": "lower",
+                  "note": f"new / legacy global frame; medians {global_median:.3f} / {legacy_median:.3f} ms"})
+
+
     cases.append({"name": "events.dump_json_vs_plus_dumps_ratio", "unit": "x",
                   "samples": ratios, "better": "lower",
                   "note": "dump_json joined time / dump+json.dumps time (<1 = faster)",
