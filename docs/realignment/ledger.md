@@ -4773,8 +4773,9 @@ the useful session budget, the committed HEAD (`2a89909a`) was exported to
 `.dsh/long-horizon/hutch-completion/artifacts/head-export` and its 234 non-e2e test files were run as
 six disjoint partitions under one job (all six ran to completion; no file skipped). Aggregate:
 **3765 passed, 55 skipped, 3 xfailed, 10 failed**. The 10 failures were outside every deletion module;
-a serial rerun of exactly those 10 node ids produced **7 passed** (parallel-run interference in
-OpenCode CLI/server, procguard and timer/perf tests) and 3 persistent failures
+a serial rerun of exactly those 10 node ids produced **7 passed** (most consistent with
+parallel-run interference in OpenCode CLI/server, procguard and timer/perf tests; the label is an
+inference, not proven) and 3 persistent failures
 (`tests/test_outputs_store.py` downgrade/v51 upgrade: `no such table: memory_fact_shares`, and
 `tests/test_procguard.py::test_group_inspection_checks_the_saved_session_identity`). The same three
 tests fail identically on the pre-run committed HEAD `cb8ca349` export (checked), so they are
