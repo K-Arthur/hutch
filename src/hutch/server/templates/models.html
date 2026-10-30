@@ -15,7 +15,7 @@
   </div>
   <div class="card-actions">
     <a href="#add-model" class="btn small primary">{{ icon("plus", 14) }}<span>Add model route</span></a>
-    <a href="/connections" class="btn small ghost">{{ icon("layers", 14) }}<span>Manage connections</span></a>
+    <a href="/#/connections" class="btn small ghost">{{ icon("layers", 14) }}<span>Manage connections</span></a>
   </div>
 </div>
 
@@ -178,7 +178,7 @@
     <p class="muted">Hutch needs at least one model route to power your bots. Start local Ollama, connect a provider, or add a custom model route below.</p>
     <div class="card-actions">
       <a href="#add-model" class="btn small primary">{{ icon("plus", 14) }} Add model</a>
-      <a href="/connections" class="btn small ghost">{{ icon("layers", 14) }} Connect a provider</a>
+      <a href="/#/connections" class="btn small ghost">{{ icon("layers", 14) }} Connect a provider</a>
     </div>
   </div>
   {% endif %}
@@ -377,7 +377,7 @@
     <p class="muted">A model entry is a route Hutch can send work to: a local model served by Ollama on this machine, or a hosted model from a provider connection.</p>
     <p class="muted small">{% if v.ollama_up %}Ollama is running but has no models yet. Pick one under Suggested below.{% else %}Ollama is not running. Start it with <span class="mono">ollama serve</span>, then pull a model.{% endif %}</p>
     <div class="card-actions">
-      <a href="/connections" class="btn small primary">{{ icon("layers", 14) }} Connect a provider</a>
+      <a href="/#/connections" class="btn small primary">{{ icon("layers", 14) }} Connect a provider</a>
       {% if v.suggestions %}
       <a href="#suggested" class="btn small ghost">{{ icon("download", 14) }} View suggested models</a>
       {% endif %}

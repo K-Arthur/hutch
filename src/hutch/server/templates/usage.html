@@ -21,7 +21,7 @@
       <h2 id="caps-h" class="card-title">Today against each bot's usage budgets</h2>
   {% if caps %}<div class="table-wrap" role="region" tabindex="0" aria-label="Usage budgets table"><table class="models-table usage-cap-table">
     <thead><tr><th>Bot</th><th>Tokens today</th><th>Spend today</th></tr></thead><tbody>
-    {% for c in caps %}<tr><td data-label="Bot"><a href="/bots/{{ c.name }}">{{ c.name }}</a></td>
+    {% for c in caps %}<tr><td data-label="Bot"><a href="/#/bot/{{ c.name }}">{{ c.name }}</a></td>
       <td data-label="Tokens today">{% if c.token_cap %}<div class="bar" role="progressbar" aria-label="Measured and reserved tokens today by {{ c.name }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ c.token_pct | round(0) | int }}"><i style="width: {{ c.token_pct }}%"></i></div>{% endif %}
         <span class="small">{{ c.tokens | tokens }} measured + {{ c.tokens_held | tokens }} held{% if c.token_cap %} of {{ c.token_cap | tokens }}{% else %} (no cap){% endif %}</span></td>
       <td data-label="Spend today">{% if c.cost_cap %}<div class="bar" role="progressbar" aria-label="Measured and reserved currency today by {{ c.name }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ c.cost_pct | round(0) | int }}"><i style="width: {{ c.cost_pct }}%"></i></div>{% endif %}

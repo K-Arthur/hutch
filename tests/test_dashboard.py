@@ -89,10 +89,6 @@ def test_unknown_page_is_a_helpful_404_not_a_stack_trace(client):
     assert r.status_code == 404 and "No bot named" in r.text
 
 
-def test_legacy_spa_stays_reachable(client):
-    assert client.get("/legacy/").status_code == 200
-
-
 def test_home_is_the_chat_studio(client):
     """The app opens into the chat interface (Grok-bot style), not the triage dashboard."""
     html = client.get("/").text

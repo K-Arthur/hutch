@@ -158,15 +158,6 @@ def register_pages(app: FastAPI) -> None:
         return page(request, "error.html", status_code=exc.status_code,
                     status=exc.status_code, message=message)
 
-    # ------------------------------------------------------------------ legacy SPA
-
-    @app.get("/legacy", response_class=HTMLResponse, include_in_schema=False)
-    @app.get("/legacy/", response_class=HTMLResponse, include_in_schema=False)
-    def legacy_spa():
-        """The v0.1 single-page dashboard, kept reachable (read-only) while the server-rendered pages
-        replace it at `/`. Delete `static/app.js|index.html|style.css` once nothing needs them."""
-        return FileResponse(Path(__file__).parent / "static" / "index.html")
-
     # ------------------------------------------------------------------ home
 
     def home_ctx():
@@ -174,8 +165,7 @@ def register_pages(app: FastAPI) -> None:
 
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     def studio_home():
-        """The chat interface is the home (Grok-bot style): open the app and talk to a bot.
-        The triage dashboard lives at /overview; /legacy serves the same studio app."""
+        """The app is the chat studio: open it and talk to an assistant. Activity lives at /#/activity."""
         return FileResponse(Path(__file__).parent / "static" / "index.html")
 
     @app.get("/overview", response_class=HTMLResponse, include_in_schema=False)
@@ -229,24 +219,6 @@ def register_pages(app: FastAPI) -> None:
 
     @app.get("/bots", response_class=HTMLResponse, include_in_schema=False)
     def bots_page(request: Request):
-        # Legacy HTML route redirects immediately; keep the body cheap and bounded.
-        views_ = []
-        agg = store.roster_aggregates()
-        for b in store.list_bots():
-            nxt = scheduler.next_fire(b)
-            last = agg["last_success"].get(b.id)
-            active = agg["active"].get(b.id)
-            budget = agg["budgets"].get(b.id, (0, 0, 0.0, 0.0))
-            d = b.model_dump()
-            d.update(
-                next_run_local=nxt.astimezone().strftime("%a %d %b %H:%M") if nxt else None,
-                last_success=(last.finished_at or last.created_at) if last else None,
-                active_run_id=active.id if active else None,
-                tokens_today=budget[0] + budget[1],
-                memory_count=agg["facts"].get(b.id, 0))
-            d["schedule"] = b.schedule
-            d["approval_mode"] = b.approval_mode
-            views_.append(_Obj(d))
         return RedirectResponse("/#/bots", status_code=302)
 
     @app.get("/bots/new", response_class=HTMLResponse, include_in_schema=False)
