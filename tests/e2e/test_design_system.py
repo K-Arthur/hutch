@@ -848,7 +848,7 @@ def test_first_run_draft_and_ai_readiness_survive_connections_and_failures(brows
         page.get_by_role("button", name="Set up my assistant").click()
         page.get_by_role("heading", name="Create from this request").wait_for()
         assert page.locator("#setup-purpose").input_value() == request_text
-        assert page.locator("#setup-page-confirm").inner_text() == "Create bot"
+        assert page.locator("#setup-page-confirm").inner_text() == "Create assistant"
         assert page.evaluate("location.hash") == "#/assistant/new"
         assert page.locator('[role="dialog"]').count() == 0
         assert "Uses the selected AI service" in page.locator(".setup-quick-summary").inner_text()
@@ -961,7 +961,7 @@ def test_first_run_readiness_distinguishes_saved_route_and_partial_states(browse
         page.locator("#setup-customize").click()
         page.locator("#setup-model").wait_for()
         assert page.locator("#setup-model").input_value() == "openai/saved-route"
-        assert "Workspace default for new Bots: openai/saved-route" in page.locator("#setup-model-hint").inner_text()
+        assert "Workspace default for new assistants: openai/saved-route" in page.locator("#setup-model-hint").inner_text()
         page.get_by_role("link", name="Save draft and leave", exact=True).click()
 
         state["defaults"] = ""

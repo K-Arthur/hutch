@@ -36,7 +36,7 @@ def register_usage_page(app: FastAPI, page: Callable) -> None:
         by_bot = []
         for r in store.usage_by("bot", days):
             b = bots.get(r["key"])
-            by_bot.append({**r, "name": b.name if b else "(deleted bot)"})
+            by_bot.append({**r, "name": b.name if b else "(deleted assistant)"})
         caps = []
         for b in sorted(bots.values(), key=lambda x: x.name):
             lim = b.limits

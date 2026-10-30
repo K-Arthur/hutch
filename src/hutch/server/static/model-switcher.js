@@ -72,8 +72,8 @@
     const recentKey = `hutch.model.recent.${bot.id}`;
     const recent = () => { try { return JSON.parse(store.get(recentKey) || "[]").filter(spec => typeof spec === "string").slice(0, 8); } catch { return []; } };
     const remember = spec => { if (find(spec)) store.set(recentKey, JSON.stringify([spec, ...recent().filter(item => item !== spec)].slice(0, 8))); };
-    let data = { default: bot.model, models: [{ spec: bot.model, label: shortName(bot.model), group: "This bot",
-                                                  state: "ready", default: true, note: "this bot's own model" }] };
+    let data = { default: bot.model, models: [{ spec: bot.model, label: shortName(bot.model), group: "This assistant",
+                                                  state: "ready", default: true, note: "this assistant's own model" }] };
     let selected = store.get(key) || "";
     let refreshRevision = 0;
 
@@ -105,11 +105,11 @@
       label.textContent = m ? m.label : shortName(spec);
       slot.querySelector(".ms-route-icon").innerHTML = markHtml(spec, m ? m.hosted : null);
       btn.classList.toggle("is-custom", custom);
-      btn.title = custom ? `One-message override: ${spec}. The Bot default stays ${data.default}; this override clears after the next message is accepted.`
-                         : `Model: ${spec} (this Bot's default). Choose another route for one message or save it as the Bot default.`;
+      btn.title = custom ? `One-message override: ${spec}. The assistant default stays ${data.default}; this override clears after the next message is accepted.`
+                         : `Model: ${spec} (this assistant's default). Choose another route for one message or save it as the assistant default.`;
       btn.setAttribute("aria-label", custom
-        ? `Model: ${m ? m.label : shortName(spec)}. One-message override for this conversation; Bot default is ${shortName(data.default)}. Change model.`
-        : `Model: ${m ? m.label : shortName(spec)}. Bot default. Change model.`);
+        ? `Model: ${m ? m.label : shortName(spec)}. One-message override for this conversation; assistant default is ${shortName(data.default)}. Change model.`
+        : `Model: ${m ? m.label : shortName(spec)}. Assistant default. Change model.`);
     }
 
     // The one place a chosen route is applied, for the menu and the dialog alike.
@@ -119,7 +119,7 @@
       if (selected) remember(spec);
       paintButton();
       announceSelection();
-      if (selected) toast(`${shortName(spec)} is selected for the next message in this conversation. Bot default stays ${shortName(data.default)}.`);
+      if (selected) toast(`${shortName(spec)} is selected for the next message in this conversation. Assistant default stays ${shortName(data.default)}.`);
     }
 
     function choose(spec) {
@@ -140,8 +140,8 @@
       data.default = spec;
       data.models = data.models.map(m => ({ ...m, default: m.spec === spec }));
       if (!data.models.some(m => m.spec === spec)) {
-        data.models.unshift({ spec, label: shortName(spec), group: "This bot", state: "ready",
-                              default: true, note: "this bot's own model" });
+        data.models.unshift({ spec, label: shortName(spec), group: "This assistant", state: "ready",
+                              default: true, note: "this assistant's own model" });
       }
       bot.model = spec;
     }
@@ -163,7 +163,7 @@
         toast(`Saved ${shortName(saved.model)} as ${bot.name}'s default. Future and scheduled runs will use it.`);
       } catch (err) {
         button.disabled = false;
-        toast(`Could not save this Bot's model default: ${err.message}`, true);
+        toast(`Could not save this assistant's model default: ${err.message}`, true);
       }
     }
 
@@ -208,7 +208,7 @@
            <span class="ms-item-end"><kbd class="ms-key ms-key-slash" aria-hidden="true">/</kbd></span></button>
          ${active() !== data.default ? `<div class="ms-sep" role="separator"></div>
           <button type="button" class="ms-item ms-save-default" role="menuitem" tabindex="-1" data-save-default>
-           <span class="ms-item-main"><span class="ms-item-name">Save as Bot default</span>
+           <span class="ms-item-main"><span class="ms-item-name">Save as assistant default</span>
              <span class="ms-item-note">${escHtml(shortName(active()))}; future chats and scheduled runs use this route.</span></span></button>` : ""}`;
       // Number keys go to usable routes only, and a route keeps its key while the menu is open: the catalog refresh that
       // follows opening re-renders the rows, and a digit must still mean the row the reader saw.
@@ -333,7 +333,7 @@
           <details class="ms-advanced"><summary>Enter a model ID</summary>
           <label class="ms-other">Another model <span class="muted">(provider/model, on one of your connections)</span>
             <input type="text" class="ms-custom mono" aria-describedby="ms-custom-egress-note" placeholder="opencode-go/glm-5.3" autocomplete="off" spellcheck="false">
-            <span id="ms-custom-egress-note" class="muted">An openai-compatible route uses its configured endpoint and may send this chat off this machine. Confirm the provider endpoint for this Bot or Hutch installation before selecting it.</span></label></details>
+            <span id="ms-custom-egress-note" class="muted">An openai-compatible route uses its configured endpoint and may send this chat off this machine. Confirm the provider endpoint for this assistant or Hutch installation before selecting it.</span></label></details>
           <p class="ms-foot"><a href="/models">Hardware fit, task presets and prices</a> &middot;
             <a href="/connections">Connections</a></p>
         </div>`;
@@ -392,7 +392,7 @@
           if (!group) groups.push(group = { name: model.group, list: [] });
           group.list.push(model);
         }
-        const rank = { "Recent": -1, "This bot": 0, "On this machine": 1, "Hosted": 2 };
+        const rank = { "Recent": -1, "This assistant": 0, "On this machine": 1, "Hosted": 2 };
         groups.sort((a, b) => (rank[a.name] ?? 3) - (rank[b.name] ?? 3));
         groupList.innerHTML = groups.map(group =>
           `<section class="ms-group"><h3>${escHtml(group.name)}</h3>${group.list.map(row).join("")}</section>`).join("") +

@@ -1,7 +1,7 @@
 {%- from "_approval_card.html" import approval_card with context -%}
 {%- from "_icons.html" import icon -%}
 {% for a, bot_name in items %}{{ approval_card(a, bot_name, "/approvals") }}{% else %}
-<div class="empty panel">{{ icon("check", 28) }}<p>No pending approvals.</p><p class="hint">When a bot wants to do something that needs your say-so, it appears here and on Home.</p></div>
+<div class="empty panel">{{ icon("check", 28) }}<p>No pending approvals.</p><p class="hint">When an assistant wants to do something that needs your say-so, it appears here and in Needs you.</p></div>
 {% endfor %}
 {% if recent %}
 <h2 class="section">Recently decided</h2>

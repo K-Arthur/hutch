@@ -91,7 +91,7 @@
   <header class="conn-head">
     <div>
       <h2 id="cfg-models-h" class="card-title">{{ icon("cpu", 18) }} Configured model routes</h2>
-      <p class="hint">Active models available to bots on this machine. Set defaults, verify provider connectivity, and inspect bot routing.</p>
+      <p class="hint">Active models available to assistants on this machine. Set defaults, verify provider connectivity, and inspect assistant routing.</p>
     </div>
   </header>
 
@@ -139,7 +139,7 @@
               {% endfor %}
               </div>
             {% else %}
-              <span class="muted small">no bots assigned</span>
+              <span class="muted small">no assistants assigned</span>
             {% endif %}
           </td>
           <td data-label="Actions">
@@ -175,7 +175,7 @@
   <div class="empty">
     {{ icon("cpu", 32) }}
     <p><strong>No model routes configured</strong></p>
-    <p class="muted">Hutch needs at least one model route to power your bots. Start local Ollama, connect a provider, or add a custom model route below.</p>
+    <p class="muted">Hutch needs at least one model route to power your assistants. Start local Ollama, connect a provider, or add a custom model route below.</p>
     <div class="card-actions">
       <a href="#add-model" class="btn small primary">{{ icon("plus", 14) }} Add model</a>
       <a href="/#/connections" class="btn small ghost">{{ icon("layers", 14) }} Connect a provider</a>
@@ -227,21 +227,21 @@
       </fieldset>
 
       <fieldset class="hutch-fieldset hutch-boxed">
-        <legend class="hutch-legend">4. Defaults and Bot Assignment</legend>
+        <legend class="hutch-legend">4. Defaults and Assistant Assignment</legend>
         <div class="hutch-cols-2">
           <div class="hutch-field">
             {{ checkbox("set_default", "Set as default model for new bots", help="Will be chosen when a bot has no specific model assigned.") }}
           </div>
           {% if v.available_bots %}
           <div class="hutch-field">
-            <label class="hutch-label" for="add-bot-id">Assign to Bot <span class="hutch-optional">(optional)</span></label>
+            <label class="hutch-label" for="add-bot-id">Assign to Assistant <span class="hutch-optional">(optional)</span></label>
             <select class="hutch-select" id="add-bot-id" name="bot_id">
               <option value="">Do not assign yet</option>
               {% for bid, btitle in v.available_bots %}
               <option value="{{ bid }}">{{ btitle }} ({{ bid }})</option>
               {% endfor %}
             </select>
-            <p class="hutch-help" id="add-bot-id-help">Immediately set this model for the selected bot.</p>
+            <p class="hutch-help" id="add-bot-id-help">Immediately set this model for the selected assistant.</p>
           </div>
           {% endif %}
         </div>
@@ -282,7 +282,7 @@
             <span class="muted">Used by: </span>
             {% for b in h.used_by %}<a class="tag" href="/bots/{{ b }}">{{ b }}</a> {% endfor %}
           {% elif h.kind != "local-runtime" %}
-            <span class="muted">no bot uses it</span>
+            <span class="muted">no assistant uses it</span>
           {% endif %}
         </div>
       </div>
@@ -352,7 +352,7 @@
             {% for b in r.bots %}
               <a class="tag" href="/bots/{{ b }}">{{ b }}</a>
             {% else %}
-              <span class="muted small">no bot</span>
+              <span class="muted small">no assistant</span>
             {% endfor %}
           </td>
           <td>
@@ -369,7 +369,7 @@
       </tbody>
     </table>
   </div>
-  <p class="hint">"Gets" is the context a bot really receives, never more than fits in memory: Hutch always sets it explicitly, because a runtime's silent default (4,096 tokens on some) is how long prompts lose their instructions.</p>
+  <p class="hint">"Gets" is the context an assistant really receives, never more than fits in memory: Hutch always sets it explicitly, because a runtime's silent default (4,096 tokens on some) is how long prompts lose their instructions.</p>
   {% else %}
   <div class="empty">
     {{ icon("cpu", 32) }}
@@ -484,7 +484,7 @@
     </ul>
   {% else %}
     <div class="swap-callout">
-      <p class="muted" style="margin: 0;">Not measured yet. Alternating bots between two local models can cost seconds to minutes per switch on modest hardware. Measure a pair when the machine is idle: <span class="mono">hutch models swap-test &lt;model-a&gt; &lt;model-b&gt;</span>. It unloads and reloads both, so it is a command and not a button.</p>
+      <p class="muted" style="margin: 0;">Not measured yet. Alternating assistants between two local models can cost seconds to minutes per switch on modest hardware. Measure a pair when the machine is idle: <span class="mono">hutch models swap-test &lt;model-a&gt; &lt;model-b&gt;</span>. It unloads and reloads both, so it is a command and not a button.</p>
     </div>
   {% endif %}
 </section>

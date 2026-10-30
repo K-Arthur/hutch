@@ -373,7 +373,7 @@ async function showConversationArtifactShare(article, item, currentId) {
         if (conversation.id === currentId) continue;
         const option = document.createElement("option");
         option.value = conversation.id;
-        option.textContent = `${conversation.title || "New conversation"} · ${botNames.get(conversation.bot_id) || "Bot"}`;
+        option.textContent = `${conversation.title || "New conversation"} · ${botNames.get(conversation.bot_id) || "Assistant"}`;
         select.appendChild(option);
       }
       offset += page.length;
@@ -1222,22 +1222,22 @@ if (chatgptResult || notionResult || googleWorkspaceResult || googleCalendarResu
     ? googleMailSendResult === "connected" ? "Gmail send-only account connected. Grant one assistant permission to prepare messages; each send still needs your approval."
       : detail || "Gmail send-only sign-in did not complete. Start again from Connections."
     : outlookMailSendResult
-    ? outlookMailSendResult === "connected" ? "Outlook Mail sending account connected. Grant one Bot sending access from Connections."
+    ? outlookMailSendResult === "connected" ? "Outlook Mail sending account connected. Grant one assistant sending access from Connections."
       : detail || "Outlook Mail sign-in did not complete. Start again from Connections."
     : outlookMailResult
-    ? outlookMailResult === "connected" ? "Outlook Mail account connected. Grant one Bot read access from Connections."
+    ? outlookMailResult === "connected" ? "Outlook Mail account connected. Grant one assistant read access from Connections."
       : detail || "Outlook Mail sign-in did not complete. Start again from Connections."
     : googleMailResult
-    ? googleMailResult === "connected" ? "Gmail account connected. Grant one Local-inference Bot search access from Connections."
+    ? googleMailResult === "connected" ? "Gmail account connected. Grant one Local-inference assistant search access from Connections."
       : detail || "Gmail sign-in did not complete. Start again from Connections."
     : outlookCalendarWriteResult
     ? outlookCalendarWriteResult === "connected" ? "Outlook event-creation account connected. Choose one calendar and grant one assistant permission to create events after your approval."
       : detail || "Outlook event-creation sign-in did not complete. Start again from Connections."
     : outlookCalendarResult
-    ? outlookCalendarResult === "connected" ? "Outlook Calendar account connected. Choose a calendar and grant one Bot read access from Connections."
+    ? outlookCalendarResult === "connected" ? "Outlook Calendar account connected. Choose a calendar and grant one assistant read access from Connections."
       : detail || "Outlook Calendar sign-in did not complete. Start again from Connections."
     : googleCalendarResult
-    ? googleCalendarResult === "connected" ? "Google Calendar account connected. Choose a calendar and grant one Bot read access from Connections."
+    ? googleCalendarResult === "connected" ? "Google Calendar account connected. Choose a calendar and grant one assistant read access from Connections."
       : detail || "Google Calendar sign-in did not complete. Start again from Connections."
     : chatgptResult === "connected" ? "ChatGPT plan route connected."
     : chatgptResult === "identity-only" ? "ChatGPT signed in, but plan use was not granted. Reauthorize to use it for models."
@@ -1684,8 +1684,8 @@ function editBotRosterSection(bot, trigger) {
   closeRosterActionMenu(false);
   openModal({
     title: existing ? "Move to a section" : "New section",
-    bodyHtml: `<p>Keep related Bots together in the sidebar. Reusing a section name groups them together.</p>
-      <div class="hutch-field"><label class="hutch-label" for="roster-section-name">Section name<input class="hutch-input" id="roster-section-name" type="text" maxlength="40" autocomplete="off" value="${esc(existing)}" placeholder="For example, Client work"><p class="hutch-help">Leave the name empty to return this Bot to All bots. This changes organization only.</p><p id="roster-section-error" class="hutch-error" role="status" aria-live="polite" hidden></p></div>`,
+    bodyHtml: `<p>Keep related assistants together in the sidebar. Reusing a section name groups them together.</p>
+      <div class="hutch-field"><label class="hutch-label" for="roster-section-name">Section name<input class="hutch-input" id="roster-section-name" type="text" maxlength="40" autocomplete="off" value="${esc(existing)}" placeholder="For example, Client work"><p class="hutch-help">Leave the name empty to return this assistant to All assistants. This changes organization only.</p><p id="roster-section-error" class="hutch-error" role="status" aria-live="polite" hidden></p></div>`,
     confirmText: "Save section",
     returnFocus: trigger,
     onConfirm: async () => {
@@ -1704,7 +1704,7 @@ function editBotRosterSection(bot, trigger) {
         });
         botsCache = botsCache.map(item => item.id === saved.id ? { ...item, ...saved } : item);
         renderRoster();
-        announce(section ? `${saved.display_name || saved.name} moved to ${section}.` : `${saved.display_name || saved.name} moved to All bots.`);
+        announce(section ? `${saved.display_name || saved.name} moved to ${section}.` : `${saved.display_name || saved.name} moved to All assistants.`);
         return true;
       } catch (error) {
         confirm.disabled = false;
@@ -1745,7 +1745,7 @@ async function prepareBotTemplateDownload(bot, trigger) {
       title: "Share as template",
       bodyHtml: `<p>Review this setup, then download a YAML file you can share yourself. <b>Nothing is uploaded.</b></p>
         <p class="hint">Provider URLs, local folders, schedules, memory values, and chat history are excluded. A folder-based assistant becomes a managed workspace in the template. Instructions and enabled tools are included, so check them for private details before sharing.</p>
-        <pre class="setup-yaml-preview bot-template-preview" id="bot-template-preview" tabindex="0" aria-label="Reviewable Bot setup template">${esc(preview.yaml)}</pre>`,
+        <pre class="setup-yaml-preview bot-template-preview" id="bot-template-preview" tabindex="0" aria-label="Reviewable assistant setup template">${esc(preview.yaml)}</pre>`,
       confirmText: "Download template",
       wide: true,
       returnFocus: trigger,
@@ -1809,7 +1809,7 @@ function openRosterActionMenu(trigger) {
       if (saved.sidebar_hidden) {
         $("#roster-hidden-details summary")?.focus({ preventScroll: true });
         announce(`${saved.display_name || saved.name} hidden from the roster. Runs and schedules continue.`);
-        toast("Hidden from the roster. This does not pause the Bot or its schedules.");
+        toast("Hidden from the roster. This does not pause the assistant or its schedules.");
       } else {
         $$("#roster-list [data-bot-options]").find(button => button.dataset.botOptions === name)?.focus({ preventScroll: true });
         announce(`${saved.display_name || saved.name} shown in the roster.`);
@@ -1845,14 +1845,14 @@ function openRosterActionMenu(trigger) {
 }
 
 function botDisplayName(ref) {
-  if (ref && typeof ref === "object") return ref.display_name || ref.bot_display_name || ref.name || "Bot";
-  return botsCache.find(bot => bot.name === ref || bot.id === ref)?.display_name || ref || "Bot";
+  if (ref && typeof ref === "object") return ref.display_name || ref.bot_display_name || ref.name || "Assistant";
+  return botsCache.find(bot => bot.name === ref || bot.id === ref)?.display_name || ref || "Assistant";
 }
 
 function botIdentityParts(ref) {
   const bot = ref && typeof ref === "object" ? ref
     : botsCache.find(item => item.name === ref || item.id === ref);
-  const fullName = bot?.display_name || bot?.bot_display_name || bot?.name || ref || "Bot";
+  const fullName = bot?.display_name || bot?.bot_display_name || bot?.name || ref || "Assistant";
   const parts = String(fullName).split(" · ");
   return parts.length > 1
     ? { name: parts.slice(0, -1).join(" · "), role: parts.at(-1) || bot?.description || "" }
@@ -1966,8 +1966,8 @@ function openConversationSearch(trigger) {
         <div class="hutch-field message-search-query"><label class="hutch-label" for="message-search-query">Search messages</label>
           <input class="hutch-input" id="message-search-query" type="search" maxlength="256" autocomplete="off" spellcheck="false" enterkeyhint="search"
             aria-describedby="message-search-scope" placeholder="Search words or a phrase" /></div>
-        <div class="hutch-field message-search-bot-filter"><label class="hutch-label" for="message-search-bot">Bot</label>
-          <select class="hutch-select" id="message-search-bot"><option value="">All Bots</option>${botOptions}</select></div>
+        <div class="hutch-field message-search-bot-filter"><label class="hutch-label" for="message-search-bot">Assistant</label>
+          <select class="hutch-select" id="message-search-bot"><option value="">All assistants</option>${botOptions}</select></div>
       </div>
       <p class="hutch-help message-search-scope" id="message-search-scope">Search covers active chats. Archived and imported history stays out of results.</p>
       <p class="message-search-status" id="message-search-status" role="status" aria-live="polite">Type at least two characters to search.</p>
@@ -2301,7 +2301,7 @@ function renderRoster() {
     const rows = allMatching.filter(b => b.id !== coordinator?.id).sort(byDisplayName);
     const rowHtml = b => rosterRowHtml(b, currentStudioBot);
     const markup = `${coordinatorMatch ? `<div class="roster-section roster-coordinator">${rosterRowHtml(coordinatorMatch, currentStudioBot)}</div>` : ""}
-      ${rows.length ? `<section class="roster-section" aria-label="Bot search results"><h3 class="roster-section-title">Search results</h3>${rows.map(rowHtml).join("")}</section>`
+      ${rows.length ? `<section class="roster-section" aria-label="Assistant search results"><h3 class="roster-section-title">Search results</h3>${rows.map(rowHtml).join("")}</section>`
       : `<div class="roster-empty">No assistant matches.</div>`}`;
     if (!replaceRosterMarkup(list, markup)) { updateRosterCurrentItem(); return; }
     wireRosterRows(list);
@@ -2341,7 +2341,7 @@ function renderRoster() {
   for (const [key, group] of [...bySection.entries()].sort((a, b) => a[1].label.localeCompare(b[1].label))) {
     const open = !!store$.get(`hutch:roster-section:${key}`, false) || group.bots.some(b => spotlight.has(b));
     sections.push(`<details class="roster-section roster-idle-details roster-custom-details" data-roster-section="${esc(group.label)}" ${open ? "open" : ""}>
-      <summary aria-label="${esc(group.label)}, ${group.bots.length} Bots">${esc(group.label)} <span class="roster-count">${group.bots.length}</span></summary>
+      <summary aria-label="${esc(group.label)}, ${group.bots.length} assistants">${esc(group.label)} <span class="roster-count">${group.bots.length}</span></summary>
       <div class="roster-section roster-idle-list">${group.bots.map(rowHtml).join("")}</div></details>`);
   }
   if (remaining.length) {
@@ -2367,7 +2367,7 @@ function renderRoster() {
   if (hiddenIdle.length) {
     const open = !!store$.get("hutch:roster-hidden-open", false);
     sections.push(`<details class="roster-section roster-idle-details roster-hidden-details" id="roster-hidden-details" ${open ? "open" : ""}>
-      <summary aria-controls="roster-hidden-bots">Hidden bots <span class="roster-count">${hiddenIdle.length}</span></summary>
+      <summary aria-controls="roster-hidden-bots">Hidden assistants <span class="roster-count">${hiddenIdle.length}</span></summary>
       <p class="roster-hidden-note">Hiding changes the roster only. Its runs and schedules continue.</p>
       <div class="roster-section roster-idle-list" id="roster-hidden-bots">${hiddenIdle.map(rowHtml).join("")}</div>
     </details>`);
@@ -3550,10 +3550,10 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
                   <div class="cmenu-sep"></div>
                   <label class="cmenu-role-field" for="chat-task-role">Task role for the next message
                     <select class="hutch-select" id="chat-task-role" aria-describedby="chat-task-role-help">
-                      <option value="">Default · Bot model</option>
+                      <option value="">Default · assistant model</option>
                       ${TASK_ROLE_OPTIONS.map(([role, label]) => {
                         const route = detail.task_routes?.[role];
-                        return `<option value="${role}">${label}${route ? ` · ${esc(route)}` : " · Bot model"}</option>`;
+                        return `<option value="${role}">${label}${route ? ` · ${esc(route)}` : " · assistant model"}</option>`;
                       }).join("")}
                     </select>
                     <span class="cmenu-sub" id="chat-task-role-help">One message only. A configured task route is explicit; automatic classification is not enabled.</span>
@@ -3840,9 +3840,9 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
     const label = TASK_ROLE_OPTIONS.find(([role]) => role === selectedTaskRole)?.[1] || selectedTaskRole;
     const assigned = detail.task_routes?.[selectedTaskRole] || "";
     const override = switcher?.selected() || "";
-    const route = override || assigned || detail.model || "Bot default";
+    const route = override || assigned || detail.model || "Assistant default";
     taskRoleFlag.hidden = false;
-    taskRoleFlag.textContent = `Next message · ${label} via ${route}${override ? " (one-message model choice takes precedence)" : assigned ? " (configured role route)" : " (Bot default)"}`;
+    taskRoleFlag.textContent = `Next message · ${label} via ${route}${override ? " (one-message model choice takes precedence)" : assigned ? " (configured role route)" : " (Assistant default)"}`;
   };
   taskRoleSelect?.addEventListener("change", () => {
     selectedTaskRole = taskRoleSelect.value;
@@ -3926,7 +3926,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
       if (generation !== studioGeneration || composerConversationId !== currentConversationId
           || selectionRequest !== replySelectionGeneration) return;
       if (message.role !== "assistant" || message.conversation_id !== composerConversationId) {
-        throw new Error("That Bot message is no longer available in this conversation.");
+        throw new Error("That assistant message is no longer available in this conversation.");
       }
       setReply(message);
       txt.focus({ preventScroll: true });
@@ -4138,7 +4138,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
         if (generation === studioGeneration && composerConversationId === currentConversationId
             && !selectedReply && storageGet(replyStorageKey) === rememberedReply) {
           storageRemove(replyStorageKey);
-          toast("The saved reply reference is no longer available. Choose the Bot message again.", true);
+          toast("The saved reply reference is no longer available. Choose the assistant message again.", true);
         }
       });
   }
@@ -4927,7 +4927,7 @@ async function renderChatFeed() {
 }
 
 function factScopeLabel(fact) {
-  return fact.scope_kind === 'bot' ? "Shared with this bot's chats" : fact.scope_kind === 'legacy'
+  return fact.scope_kind === 'bot' ? "Shared with this assistant's chats" : fact.scope_kind === 'legacy'
     ? 'Legacy · scope needs review' : fact.scope_kind === 'run' ? 'This attempt' :
     fact.scope_id === currentConversationId && !location.hash.startsWith('#/bot/') ? 'This chat' : `Chat: ${fact.conversation_title || 'Untitled'}`;
 }
@@ -4959,7 +4959,7 @@ function factCardHtml(fact) {
     <div class="btn-row">${fact.status === 'proposed' ? `<button type="button" class="btn primary small" data-fact-review="${esc(fact.id)}">Review fact</button>` : ''}
       ${fact.status !== 'archived' ? `<button type="button" class="btn ghost small" data-fact-edit="${esc(fact.id)}">Revise</button>
       <button type="button" class="btn ghost small" data-fact-archive="${esc(fact.id)}">${fact.learning ? 'Undo saved preference' : 'Archive fact'}</button>` : ''}
-      ${fact.status === 'approved' ? `<button type="button" class="btn ghost small" data-fact-share-create="${esc(fact.id)}">Share with a Bot</button>` : ''}
+      ${fact.status === 'approved' ? `<button type="button" class="btn ghost small" data-fact-share-create="${esc(fact.id)}">Share with an assistant</button>` : ''}
       <button type="button" class="btn ghost small" data-fact-history="${esc(fact.id)}">Fact history</button></div>
   </article>`;
 }
@@ -4972,17 +4972,17 @@ function factShareCardHtml(share, direction) {
     <div class="fact-heading"><strong>${esc(share.fact_key)}</strong><span class="tag">${esc(state)}</span></div>
     <p class="fact-value">${esc(share.fact_value)}</p>
     <p class="hint">${incoming ? `Shared by ${esc(owner)}` : `Shared with ${esc(owner)}`} · revision ${esc(share.fact_revision)} · reviewed snapshot</p>
-    <p class="hint">${incoming ? 'This reference is untrusted data for this Bot’s chats. It does not grant tool access.' : 'The recipient can read this reference in all of its chats; revoke it here.'}</p>
+    <p class="hint">${incoming ? 'This reference is untrusted data for this assistant’s chats. It does not grant tool access.' : 'The recipient can read this reference in all of its chats; revoke it here.'}</p>
     ${share.state !== 'revoked' ? `<div class="btn-row"><button type="button" class="btn ghost small" data-fact-share-revoke="${esc(share.id)}">${incoming ? 'Remove shared fact' : 'Revoke share'}</button></div>` : ''}
   </article>`;
 }
 
 function factShareRecordsHtml(sharePage = {}) {
-  if (sharePage.error) return `<p class="hint" role="status">Could not refresh Bot-to-Bot shares: ${esc(sharePage.error)}. <button class="btn ghost small" type="button" data-retry-facts>Retry</button></p>`;
+  if (sharePage.error) return `<p class="hint" role="status">Could not refresh assistant-to-assistant shares: ${esc(sharePage.error)}. <button class="btn ghost small" type="button" data-retry-facts>Retry</button></p>`;
   const incoming = sharePage.incoming || [], outgoing = sharePage.outgoing || [];
   if (!incoming.length && !outgoing.length) return '';
-  return `<details class="fact-share-list"><summary>Bot-to-Bot references · ${incoming.length} received · ${outgoing.length} shared</summary>
-    <p class="hint">Only exact, reviewed snapshots appear here. Either Bot can revoke a grant; revisions do not silently update the snapshot.</p>
+  return `<details class="fact-share-list"><summary>Assistant-to-assistant references · ${incoming.length} received · ${outgoing.length} shared</summary>
+    <p class="hint">Only exact, reviewed snapshots appear here. Either assistant can revoke a grant; revisions do not silently update the snapshot.</p>
     ${incoming.map(item => factShareCardHtml(item, 'incoming')).join('')}
     ${outgoing.map(item => factShareCardHtml(item, 'outgoing')).join('')}
     ${(incoming.length === 20 || outgoing.length === 20) ? '<p class="hint">Showing the latest 20 grants for each direction.</p>' : ''}</details>`;
@@ -5000,7 +5000,7 @@ function factPanelHtml(facts, error = '', sharePage = {}) {
     ${proposed.map(factCardHtml).join('')}
     ${reviewed.length ? `<details><summary>${reviewed.length} saved or reviewed ${reviewed.length === 1 ? 'fact' : 'facts'} in this window</summary>${reviewed.map(factCardHtml).join('')}</details>` : ''}
     ${factShareRecordsHtml(sharePage)}
-    ${facts.length === 20 ? '<p class="hint">Showing 20 facts. Bot settings provide the full paginated inventory.</p>' : ''}</section>`;
+    ${facts.length === 20 ? '<p class="hint">Showing 20 facts. Assistant settings provide the full paginated inventory.</p>' : ''}</section>`;
 }
 
 function refreshFactsAfterChange(botName) {
@@ -5020,16 +5020,16 @@ function wireFactControls(facts, botName, sharePage = {incoming:[], outgoing:[]}
       choices = freshBots.filter(bot => bot.id !== fact.bot_id && bot.name !== botName && bot.memory_enabled !== false);
     } catch (error) {
       button.disabled = false;
-      toast(`Could not load Bots to share with: ${error.message}`, true);
+      toast(`Could not load assistants to share with: ${error.message}`, true);
       return;
     }
     button.disabled = false;
-    if (!choices.length) { toast('Create another Bot with memory enabled before sharing this fact.', true); return; }
+    if (!choices.length) { toast('Create another assistant with memory enabled before sharing this fact.', true); return; }
     const key = newIdempotencyKey();
-    openModal({ title: 'Share this reference with a Bot', confirmText: 'Share reviewed fact', returnFocus: button,
+    openModal({ title: 'Share this reference with an assistant', confirmText: 'Share reviewed fact', returnFocus: button,
       bodyHtml: `<p><strong>${esc(fact.key)}</strong></p><p class="fact-value">${esc(fact.value)}</p>
-        <div class="hutch-field"><label class="hutch-label" for="fact-share-target">Recipient Bot</label><select class="hutch-select" id="fact-share-target" required>${choices.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}${bot.is_workspace_coordinator ? ' · Coordinator' : ''}</option>`).join('')}</select></div>
-        <p class="fact-share-disclosure">This sends this exact reviewed snapshot to the selected Bot’s chats. That Bot can read it as untrusted reference data; it grants no tool permission. Either Bot can revoke it, and a newer revision requires a new review and share.</p>
+        <div class="hutch-field"><label class="hutch-label" for="fact-share-target">Recipient assistant</label><select class="hutch-select" id="fact-share-target" required>${choices.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}${bot.is_workspace_coordinator ? ' · Coordinator' : ''}</option>`).join('')}</select></div>
+        <p class="fact-share-disclosure">This sends this exact reviewed snapshot to the selected assistant’s chats. That assistant can read it as untrusted reference data; it grants no tool permission. Either assistant can revoke it, and a newer revision requires a new review and share.</p>
         <p id="fact-share-create-error" role="status" class="hutch-error" hidden></p>`,
       onConfirm: async () => {
         const target = $('#fact-share-target').value;
@@ -5066,7 +5066,7 @@ function wireFactControls(facts, botName, sharePage = {incoming:[], outgoing:[]}
       bodyHtml: `<p>This records your review of revision ${esc(fact.revision)}. It is not proof of truth or permission to act.</p>
         <strong>${esc(fact.key)}</strong><p class="fact-value">${esc(fact.value)}</p>
         <p class="hint">${esc(factScopeLabel(fact))} · proposed ${esc(fact.updated_at)}</p>
-        ${fact.scope_kind !== 'bot' ? `<label class="fact-share"><input id="fact-share" type="checkbox">Share this exact fact with all chats for this bot</label>` : ''}
+        ${fact.scope_kind !== 'bot' ? `<label class="fact-share"><input id="fact-share" type="checkbox">Share this exact fact with all chats for this assistant</label>` : ''}
         ${fact.scope_kind === 'legacy' ? '<p class="hint">Its original chat is unknown. Explicit sharing is required; otherwise archive it or propose a scoped revision.</p>' : ''}
         <p id="fact-review-error" role="status" class="hutch-error" hidden></p>`,
       onConfirm: async () => {
@@ -5088,7 +5088,7 @@ function wireFactControls(facts, botName, sharePage = {incoming:[], outgoing:[]}
       bodyHtml: `<p>Saving creates an unreviewed proposal. Existing versions and reviews stay in history.</p>
         <div class="hutch-field"><label class="hutch-label" for="fact-key">Key</label><input class="hutch-input" id="fact-key" maxlength="120" value="${esc(fact.key)}"></div>
         <div class="hutch-field"><label class="hutch-label" for="fact-value">Reference value</label><textarea class="hutch-textarea" id="fact-value" maxlength="2000">${esc(fact.value)}</textarea></div>
-        <p class="hint">${['legacy','run'].includes(fact.scope_kind) ? "This creates a new proposal for all this bot's chats, requiring explicit review before recall. The original remains separately reviewable." : esc(factScopeLabel(fact))} Never save credentials here.</p>
+        <p class="hint">${['legacy','run'].includes(fact.scope_kind) ? "This creates a new proposal for all this assistant's chats, requiring explicit review before recall. The original remains separately reviewable." : esc(factScopeLabel(fact))} Never save credentials here.</p>
         <p id="fact-edit-error" class="hutch-error" role="status" hidden></p>`,
       onConfirm: async () => {
         const body = {key: $('#fact-key').value, value: $('#fact-value').value,
@@ -5143,7 +5143,7 @@ function announceRunLifecycle(runs) {
     const prev = seenRunStatus.get(r.id);
     if (prev === r.status) continue;
     if (r.status === "waiting_approval" && prev !== undefined) {
-      announce(`${botDisplayName(r.bot_display_name || r.bot_name || "Your bot")} needs your approval before continuing.`);
+      announce(`${botDisplayName(r.bot_display_name || r.bot_name || "Your assistant")} needs your approval before continuing.`);
     } else if (prev !== undefined && ACTIVE.has(prev) && !ACTIVE.has(r.status)) {
       announce(`Run ${r.status_label || statusInfo[r.status]?.label || "status unavailable"}.`);
     }
@@ -5408,7 +5408,7 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHan
   const userMessage = messages?.find(m => m.role === "user" && m.run_id === runId);
   const botMessage = messages?.filter(m => m.role === "assistant" && m.run_id === runId).at(-1);
   const botName = botDisplayName(run.bot_display_name || run.bot_name || currentStudioBot);
-  const replyExcerpt = userMessage?.reply_to_excerpt || "Referenced Bot message";
+  const replyExcerpt = userMessage?.reply_to_excerpt || "Referenced assistant message";
   const replyPreview = userMessage?.reply_to_message_id ? `<aside class="reply-reference-quote">
     <span>Reply to ${esc(botName)}’s message</span><blockquote>${esc(replyExcerpt.slice(0, 240))}${replyExcerpt.length > 240 ? "…" : ""}</blockquote>
   </aside>` : "";
@@ -5457,7 +5457,7 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHan
         <span class="answer-feedback-note" role="status" aria-live="polite">${feedbackPending ? "Saving locally…" : feedbackRating ? "Feedback saved locally; never changes saved response style." : "Local only; never changes saved response style."}</span>
       </div>` : "";
   const createBotAction = userMessage ? `<button class="btn ghost small hutch-msg__action" type="button"
-      data-create-bot-from-request="${esc(userMessage.id)}" aria-label="Make a bot from this request">Make a bot</button>` : "";
+      data-create-bot-from-request="${esc(userMessage.id)}" aria-label="Make an assistant from this request">Make an assistant</button>` : "";
   // A very long request is clamped (the full text stays in the DOM and in the transcript).
   const longRequest = run.prompt.length > 600 || run.prompt.split("\n").length > 9;
   const coordinator = botsCache.find(bot => bot.name === currentStudioBot);
@@ -5465,7 +5465,7 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHan
     && userMessage && botMessage && !waitingForChoice
     ? `<button class="btn ghost small" type="button" data-prepare-bot-task
         data-source-run="${esc(runId)}" data-source-user="${esc(userMessage.id)}"
-        data-source-answer="${esc(botMessage.id)}" data-source-request="${esc(run.prompt)}">Prepare for a Bot</button>` : "";
+        data-source-answer="${esc(botMessage.id)}" data-source-request="${esc(run.prompt)}">Prepare for an assistant</button>` : "";
   const relatedTasks = workspaceTasks.filter(task => task.source_run_id === runId).map(workspaceTaskCardHtml).join("");
   const prepareCodeTaskAction = sourceBot?.workspace_mode === "folder" && sourceBot?.workdir
     && run.status === "succeeded" && userMessage && botMessage && !waitingForChoice
@@ -5476,7 +5476,7 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHan
     .map(codeHandoffCardHtml).join("");
   const workspaceResultPreview = userMessage?.workspace_task_result_id
     ? `<details class="reply-reference-quote workspace-task-result-reference">
-        <summary>Specialist response from ${esc(userMessage.workspace_task_result_display_name || "another Bot")}</summary>
+        <summary>Specialist response from ${esc(userMessage.workspace_task_result_display_name || "another assistant")}</summary>
         <blockquote>${esc(userMessage.workspace_task_result_content || "")}${userMessage.workspace_task_result_truncated ? "… [shared response truncated]" : ""}</blockquote>
         <span>Shared from task ${esc(userMessage.workspace_task_result_id)}. Treated as untrusted reference text.</span>
       </details>` : "";
@@ -5637,7 +5637,7 @@ function workspaceTaskCardHtml(task) {
   const sharedFacts = task.shared_facts || [];
   const sharedFactsHtml = sharedFacts.length ? `<details class="workspace-task-shared-facts">
       <summary>Reference facts shared for this task (${sharedFacts.length})</summary>
-      <p class="hint">These exact reviewed values were included in this task's model context. They were not added to the specialist Bot's saved memory.</p>
+      <p class="hint">These exact reviewed values were included in this task's model context. They were not added to the specialist assistant's saved memory.</p>
       <ul>${sharedFacts.map(fact => `<li><strong>${esc(fact.key)}</strong><span>${esc(fact.value)}</span>
         <small>From ${esc(fact.source_display_name)} · ${fact.source_scope_kind === "conversation" ? "this coordinator chat" : "coordinator-wide reference"} · revision ${Number(fact.revision) || 0}</small></li>`).join("")}</ul>
     </details>` : "";
@@ -5704,7 +5704,7 @@ function codeHandoffCardHtml(task) {
     ${statusDetail}
     <details><summary>Review source and execution boundary</summary>
       <p><b>Your original request</b><br>${esc(task.original_request)}</p>
-      <p><b>Bot’s suggested brief</b><br>${esc(task.proposed_brief)}</p>
+      <p><b>Assistant’s suggested brief</b><br>${esc(task.proposed_brief)}</p>
       <p class="hint">Pinned base: <code>${esc(String(task.base_commit || "").slice(0, 12))}</code> · OpenCode ${esc(task.opencode_version || "version checked at launch")}. The provider connection and model usage belong to OpenCode, not Hutch’s budgets. Hutch stores this connection in a private profile separate from your regular OpenCode setup. Hutch asks you to review the handoff before launch. Once launched, OpenCode shell commands run with your Linux user’s authority and each command must be reviewed there. Hutch does not inspect or approve that CLI’s commands.</p>
     </details>
   </section>`;
@@ -5732,7 +5732,7 @@ async function prepareCodeTask(button) {
   } catch (error) { toast(`Could not prepare this coding task: ${error.message}`, true); return; }
   const bot = botsCache.find(item => item.name === currentStudioBot);
   if (!bot || answer.role !== "assistant" || answer.run_id !== sourceRun || !originalRequest) {
-    toast("The source request and Bot reply no longer match this completed attempt.", true); return;
+    toast("The source request and assistant reply no longer match this completed attempt.", true); return;
   }
   const projectName = bot.workdir.split(/[\\/]/).filter(Boolean).pop() || "Configured project folder";
   openModal({
@@ -5865,7 +5865,7 @@ function workspaceTaskFormHtml(originalRequest, targets, draftContent, factChoic
     </div>
     <fieldset id="workspace-task-second-fields" class="workspace-task-second-fieldset" hidden>
       <legend>Second specialist assignment</legend>
-      <div class="hutch-field"><label class="hutch-label" for="workspace-task-target-2">Second specialist Bot</label>
+      <div class="hutch-field"><label class="hutch-label" for="workspace-task-target-2">Second specialist assistant</label>
         <select class="hutch-select" id="workspace-task-target-2"></select></div>
       <div class="hutch-field"><label class="hutch-label" for="workspace-task-model-2">Model override (optional)</label>
         <input class="hutch-input" id="workspace-task-model-2" type="text" placeholder="Leave blank to use specialist default model"></div>
@@ -5878,7 +5878,7 @@ function workspaceTaskFormHtml(originalRequest, targets, draftContent, factChoic
 
   return `<p>The coordinator draft can be assigned to one or two specialists. Check the request, deliverables and limits before dispatch.</p>
     <blockquote class="workspace-task-source"><b>Original request</b><br>${esc(originalRequest)}</blockquote>
-    <div class="hutch-field"><label class="hutch-label" for="workspace-task-target">Assigned specialist Bot</label>
+    <div class="hutch-field"><label class="hutch-label" for="workspace-task-target">Assigned specialist assistant</label>
       <select class="hutch-select" id="workspace-task-target">${targets.map(bot => `<option value="${esc(bot.id)}">${esc(botDisplayName(bot))}</option>`).join("")}</select></div>
     <div class="hutch-field"><label class="hutch-label" for="workspace-task-model">Model override (optional)</label>
       <input class="hutch-input" id="workspace-task-model" type="text" placeholder="Leave blank to use specialist default model"></div>
@@ -5903,7 +5903,7 @@ function buildWorkspaceTaskPayload(ctx, targets, facts) {
   const brief = [goal, deliverable ? `Expected deliverable:\n${deliverable}` : ""].filter(Boolean).join("\n\n");
   const assumptions = $("#workspace-task-assumptions").value.trim();
   const modelOverride = $("#workspace-task-model")?.value.trim() || null;
-  if (!target || !brief) return { error: "Choose a Bot and review a non-empty task brief." };
+  if (!target || !brief) return { error: "Choose an assistant and review a non-empty task brief." };
   if (brief.length > 20000) return { error: "Shorten the goal; brief is limited to 20,000 characters." };
 
   const additionalAssignments = [];
@@ -6030,8 +6030,8 @@ async function prepareWorkspaceTask(button) {
   const coordinator = bots.find(bot => bot.name === currentStudioBot);
   const approvedIds = new Set(specialistRoster.specialist_bot_ids || []);
   const targets = bots.filter(bot => approvedIds.has(bot.id));
-  if (!coordinator?.is_workspace_coordinator) { toast("Select this Bot as the workspace coordinator before assigning tasks.", "error"); return; }
-  if (!targets.length) { toast("No specialists are approved yet. Add a Bot to the roster in workspace coordinator settings.", "error"); return; }
+  if (!coordinator?.is_workspace_coordinator) { toast("Select this assistant as the workspace coordinator before assigning tasks.", "error"); return; }
+  if (!targets.length) { toast("No specialists are approved yet. Add an assistant to the roster in workspace coordinator settings.", "error"); return; }
   if (!originalRequest || sourceAnswerMessage.role !== "assistant" || sourceAnswerMessage.run_id !== sourceRun) {
     toast("The coordinator messages no longer match this completed attempt.", "error"); return;
   }
@@ -6755,7 +6755,7 @@ function approvalCardHtml(a, { botName = "", resolved = "", inChat = false } = {
           : ""}
       <div class="approval-buttons" data-approval="${esc(id)}">
         <button class="btn primary small" data-approve="1" aria-describedby="approval-action-${esc(id)} approval-id-${esc(id)}">Allow once</button>
-        ${canAlways ? `<button class="btn ghost small" data-approve="always" aria-describedby="approval-action-${esc(id)} approval-id-${esc(id)}">Always allow for this bot</button>` : ""}
+        ${canAlways ? `<button class="btn ghost small" data-approve="always" aria-describedby="approval-action-${esc(id)} approval-id-${esc(id)}">Always allow for this assistant</button>` : ""}
         <button class="btn danger small gate-deny" data-approve="0" aria-describedby="approval-action-${esc(id)} approval-id-${esc(id)}">Deny</button>
         ${runId && !inChat ? `<a class="btn ghost small gate-open" href="${esc(contextHref)}">${a.conversation_id ? "Open conversation" : "Open run"}</a>` : ""}
       </div>
@@ -6838,7 +6838,7 @@ async function resolveApproval(id, choice, card) {
     await api(`/v1/actions/approvals/${encodeURIComponent(id)}/${approve ? "approve" : "deny"}`, {
       method: "POST", headers: { "Idempotency-Key": key }, body,
     });
-    toast(approve ? (always ? "Allowed — remembered for this bot" : "Allowed once") : "Denied");
+    toast(approve ? (always ? "Allowed — remembered for this assistant" : "Allowed once") : "Denied");
     replaceApprovalCard(card, approvalResolvedHtml({ approval_id: id, action }, approve ? "approved" : "denied", "", inChat));
     scheduleFeedRender();
   } catch (err) {
@@ -6883,8 +6883,8 @@ function choiceCardHtml(e, state, conversationId) {
   const inConversation = isConversationView() && currentConversationId === conversationId;
   const canAnswer = inConversation && !selectedConversation?.archived && !!activeChoiceSubmitHandler;
   if (!canAnswer) {
-    return `<section class="choice-card" aria-label="Bot question">
-      <div class="choice-card-head"><span class="choice-kicker">Bot question</span><span class="choice-state">Waiting for you</span></div>
+    return `<section class="choice-card" aria-label="Assistant question">
+      <div class="choice-card-head"><span class="choice-kicker">Assistant question</span><span class="choice-state">Waiting for you</span></div>
       <p class="choice-question">${esc(data.question || "")}</p>
       ${selectedConversation?.archived && inConversation
         ? '<p class="hint">Restore this conversation to answer.</p>'
@@ -6899,7 +6899,7 @@ function choiceCardHtml(e, state, conversationId) {
       <span>${esc(option.label)}</span>
     </label>`).join("");
   return `<form class="choice-card hutch-form" data-choice-form data-choice-question="${esc(questionId)}" data-choice-run="${esc(runId)}">
-    <div class="choice-card-head"><span class="choice-kicker">Bot question</span><span class="choice-state">${multi ? "Choose any that fit" : "Choose one"}</span></div>
+    <div class="choice-card-head"><span class="choice-kicker">Assistant question</span><span class="choice-state">${multi ? "Choose any that fit" : "Choose one"}</span></div>
     <fieldset class="hutch-fieldset hutch-choice-list"><legend class="hutch-legend">${esc(data.question || "")}</legend>${controls}</fieldset>
     <p class="choice-error" data-choice-error role="status" aria-live="polite"></p>
     <div class="hutch-actions"><button class="btn primary choice-submit" type="submit">Send answer</button></div>
@@ -8196,10 +8196,10 @@ const TOOL_SETTINGS = [
   ["web_fetch", "Fetch public pages", "Read public HTTP(S) pages through Hutch’s checked request path."],
   ["live_search", "Search live sources", "Fan out across public feeds, news, and discussion with explicit time bounds; sources, outcomes, and limits are stored as evidence."],
   ["inspect_media", "Inspect images and video", "Store and hash media, sample claim-relevant frames, and state what was not inspected. No authenticity verdict."],
-  ["browser", "Use a browser", "Control this bot’s isolated browser profile."],
+  ["browser", "Use a browser", "Control this assistant’s isolated browser profile."],
   ["computer", "Use isolated desktop apps", "Experimental Linux Wayland support. Choose allowed apps under Computer access."],
   ["remember", "Propose reference facts", "Suggest facts for human review before they can be recalled."],
-  ["recall", "Recall reviewed facts", "Search reviewed facts available to this bot and chat."],
+  ["recall", "Recall reviewed facts", "Search reviewed facts available to this assistant and chat."],
   ["delegate_task", "Delegate a bounded task", "Strict Offline only. Each request asks for approval and uses another run slot; the child receives only its task text."],
 ];
 
@@ -8276,7 +8276,7 @@ function scheduleEditorHtml(schedule, index, status = null, workflowDefinitions 
         <div class="hutch-field"><label class="hutch-label" for="schedule-timezone-${index}">Timezone</label><input class="hutch-input" type="text" id="schedule-timezone-${index}" name="timezone" value="${esc(schedule.timezone || "UTC")}" required></div>
         <div class="hutch-field"><label class="hutch-label" for="schedule-catch-up-${index}">Missed run policy</label><select class="hutch-select" id="schedule-catch-up-${index}" name="catch_up"><option value="coalesce" ${schedule.catch_up === "coalesce" ? "selected" : ""}>Run once and report missed windows</option><option value="skip" ${schedule.catch_up === "skip" ? "selected" : ""}>Skip if the last window was missed</option></select></div>
       </div>
-      <div class="hutch-field"><label class="hutch-label" for="schedule-prompt-${index}">Task prompt</label><textarea class="hutch-textarea" id="schedule-prompt-${index}" name="schedule_prompt" rows="2" maxlength="4000" aria-describedby="schedule-prompt-help-${index}">${esc(schedule.prompt || "")}</textarea><span class="hutch-help" id="schedule-prompt-help-${index}">Leave blank to use this bot’s standing instructions. This prompt is ignored when a saved workflow is linked.</span></div>
+      <div class="hutch-field"><label class="hutch-label" for="schedule-prompt-${index}">Task prompt</label><textarea class="hutch-textarea" id="schedule-prompt-${index}" name="schedule_prompt" rows="2" maxlength="4000" aria-describedby="schedule-prompt-help-${index}">${esc(schedule.prompt || "")}</textarea><span class="hutch-help" id="schedule-prompt-help-${index}">Leave blank to use this assistant’s standing instructions. This prompt is ignored when a saved workflow is linked.</span></div>
       <div class="hutch-field"><label class="hutch-label" for="schedule-workflow-${index}">Run a saved workflow</label><select class="hutch-select" id="schedule-workflow-${index}" name="workflow_definition_id" data-schedule-workflow-definition><option value="" ${schedule.workflow_definition_id ? "" : "selected"}>Run the routine prompt</option>${workflowOptions}${missingLinkedOption}</select><span class="hutch-help">Connecting here is a separate owner action. Only activated saved methods are offered; the routine stores an exact revision and checked inputs.</span></div>
       <p class="hint" data-workflow-revision-summary ${schedule.workflow_definition_id ? "" : "hidden"}>${schedule.workflow_definition_id
         ? `Pinned revision ${esc(currentRevisionId)} of ${esc(linkedWorkflowName)}.` : ""}</p>
@@ -8434,24 +8434,24 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
           <section class="panel" id="workspace-specialist-roster" aria-labelledby="workspace-specialist-roster-title">
             <details class="workspace-specialist-settings summary-row-sm summary-row-3col" id="workspace-specialist-settings" ${specialistRosterError ? "open" : ""}>
               <summary class="workspace-specialist-summary">
-                <span class="summary-row-copy workspace-specialist-copy" id="workspace-specialist-roster-title"><strong>Approved specialist Bots</strong></span>
+                <span class="summary-row-copy workspace-specialist-copy" id="workspace-specialist-roster-title"><strong>Approved specialist assistants</strong></span>
                 <span class="workspace-specialist-count" id="workspace-specialist-roster-count">${specialistRosterError ? "Unavailable" : `${specialistRoster?.specialist_bot_ids.length || 0} approved`}</span>
                 <span class="summary-row-action workspace-specialist-action"><span class="when-closed">Manage</span><span class="when-open">Close</span>${icon("down")}</span>
               </summary>
               <div class="workspace-specialist-content">
-                <p class="hint">Only Bots you approve here can receive new tasks from the coordinator. This changes future assignments; it does not stop existing work or remove its history.</p>
+                <p class="hint">Only assistants you approve here can receive new tasks from the coordinator. This changes future assignments; it does not stop existing work or remove its history.</p>
             ${specialistRosterError
               ? `<p class="error" role="alert">The roster could not be loaded: ${esc(specialistRosterError)}. Reload this page before changing it.</p>`
               : specialistRoster?.bots.length
-                ? `${specialistRoster.bots.length > 8 ? `<div class="hutch-field"><label class="hutch-label" for="workspace-specialist-filter">Filter specialist Bots</label><input class="hutch-input" type="search" id="workspace-specialist-filter" aria-controls="workspace-specialist-options" placeholder="Name or address" enterkeyhint="search"></div><p id="workspace-specialist-filter-status" class="hint" role="status">${specialistRoster.bots.length} Bots available.</p>` : ""}
+                ? `${specialistRoster.bots.length > 8 ? `<div class="hutch-field"><label class="hutch-label" for="workspace-specialist-filter">Filter specialist assistants</label><input class="hutch-input" type="search" id="workspace-specialist-filter" aria-controls="workspace-specialist-options" placeholder="Name or address" enterkeyhint="search"></div><p id="workspace-specialist-filter-status" class="hint" role="status">${specialistRoster.bots.length} assistants available.</p>` : ""}
                   <fieldset class="hutch-fieldset workspace-specialist-list" id="workspace-specialist-options">
-                    <legend class="hutch-sr">Bots the coordinator may assign new tasks to</legend>
+                    <legend class="hutch-sr">Assistants the coordinator may assign new tasks to</legend>
                     ${specialistRoster.bots.map(bot => `<label class="hutch-choice workspace-task-fact-choice" data-workspace-specialist-choice>
                       <input type="checkbox" data-workspace-specialist="${esc(bot.id)}" ${specialistRoster.specialist_bot_ids.includes(bot.id) ? "checked" : ""}>
                       <span><strong>${esc(bot.display_name || bot.name)}</strong><span>@${esc(bot.name)}</span></span>
                     </label>`).join("")}
                   </fieldset>`
-                : `<p class="hint">No other Bots are available yet. Create a Bot first, then add it here.</p>`}
+                : `<p class="hint">No other assistants are available yet. Create an assistant first, then add it here.</p>`}
             <div class="hutch-actions"><button class="btn primary small" type="button" id="btn-save-workspace-specialists" ${specialistRosterError ? "disabled" : ""}>Save specialist roster</button></div>
             <p class="hint" id="workspace-specialist-roster-status" aria-live="polite"></p>
               </div>
@@ -8520,7 +8520,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             </div>
             ${runtimeUnavailable ? `<div class="runtime-recovery" id="runtime-recovery" role="status">
               <p><strong>${esc(runtimeName)} execution is unavailable in Hutch.</strong> Hutch will not launch this external runtime.</p>
-              <p class="hint">Switching uses this bot’s Hutch model route, tools, approvals and budget controls. Hutch never imports private sign-in files or credentials from another application.</p>
+              <p class="hint">Switching uses this assistant’s Hutch model route, tools, approvals and budget controls. Hutch never imports private sign-in files or credentials from another application.</p>
               <div class="hutch-actions"><button class="btn primary small" type="button" id="btn-runtime-to-builtin" ${runtimeSwitchBlocked ? "disabled" : ""}>Use Hutch’s built-in runtime</button>${runtimeSwitchBlocked ? `<span class="hint">${esc(runtimeSwitchBlocked)}</span>` : ""}</div>
             </div>` : ""}
             <div class="hutch-field"><label class="hutch-label" for="assistant-inference-mode"><span id="inference-mode-label">Model routing</span></label><select class="hutch-select" id="assistant-inference-mode" name="inference_mode" aria-labelledby="inference-mode-label" aria-describedby="inference-mode-help"><option value="hybrid" ${(b.inference_mode || "hybrid") === "hybrid" ? "selected" : ""}>Hybrid · local and hosted routes</option><option value="local" ${b.inference_mode === "local" ? "selected" : ""}>Local model routes only</option><option value="offline" ${b.inference_mode === "offline" ? "selected" : ""} ${offlineDisabled}>${offlineLabel}</option></select><span class="hutch-help" id="inference-mode-help">${esc(offlineReason)}</span></div>
@@ -8536,7 +8536,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             </div>
             <section class="task-routing-settings" aria-labelledby="task-routing-title">
               <div class="panel-title" id="task-routing-title">Manual task-role routes</div>
-              <p class="hint">Choose a role for one chat message to use its exact route. Blank roles use the Bot model. Fallbacks still handle availability; escalation still handles repeated quality failures. Automatic classification is not enabled.</p>
+              <p class="hint">Choose a role for one chat message to use its exact route. Blank roles use the assistant model. Fallbacks still handle availability; escalation still handles repeated quality failures. Automatic classification is not enabled.</p>
               <div class="hutch-form hutch-cols-2">
                 ${TASK_ROLE_OPTIONS.map(([role, label]) => `<div class="hutch-field"><label class="hutch-label" for="task-route-${role}">${label}</label><input class="hutch-input" type="text" id="task-route-${role}" data-task-route="${role}" value="${esc(b.task_routes?.[role] || "")}" placeholder="provider/model" autocomplete="off" spellcheck="false"></div>`).join("")}
               </div>
@@ -8547,7 +8547,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
           </form>
           ${(b.chatgpt_background || []).length ? `<section class="panel" aria-labelledby="background-plan-consent-title">
             <div class="panel-title" id="background-plan-consent-title">ChatGPT plan for unattended runs</div>
-            <p class="hint">Scheduled tasks and coordinator-assigned specialist tasks can run while you are away. Hutch requires a separate, explicit permission for each ChatGPT account used by this Bot. It covers only this Bot’s current model, fallback and escalation routes. Changing those routes or disconnecting the account removes the permission.</p>
+            <p class="hint">Scheduled tasks and coordinator-assigned specialist tasks can run while you are away. Hutch requires a separate, explicit permission for each ChatGPT account used by this assistant. It covers only this assistant’s current model, fallback and escalation routes. Changing those routes or disconnecting the account removes the permission.</p>
             <div class="settings-list">${b.chatgpt_background.map(route => `
               <div class="meta-row background-consent-row">
                 <span><b>${esc(route.title)}</b><br><span class="hint">${route.state === "allowed" ? "Allowed for this route" : route.state === "sign_in_required" ? "Sign in again before enabling" : "Permission required"}</span></span>
@@ -8600,7 +8600,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
               ${schedules.length ? schedules.map((scheduled, index) =>
                 scheduleEditorHtml(scheduled, index, scheduleStatus.get(scheduled.id),
                   workflowDefinitions, workflowDefinitionsError)).join("")
-                : `<div class="empty-state schedule-empty"><p>No recurring tasks yet.</p><p class="hint">Add one when this bot should work on a regular schedule.</p></div>`}
+                : `<div class="empty-state schedule-empty"><p>No recurring tasks yet.</p><p class="hint">Add one when this assistant should work on a regular schedule.</p></div>`}
             </div>
           </section>
         </section>
@@ -8619,7 +8619,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
                 <option value="managed" ${b.workspace_mode === "managed" ? "selected" : ""}>Hutch-managed</option>
                 <option value="folder" ${b.workspace_mode === "folder" ? "selected" : ""}>Existing folder</option>
               </select>
-              <span class="hutch-help" id="workspace-mode-help">Fresh starts each run in a new folder. Managed reuses one private folder for this bot’s runs and chats. Folder uses the existing path below. Changing modes never moves or deletes files; deleting a bot keeps its managed folder.</span>
+              <span class="hutch-help" id="workspace-mode-help">Fresh starts each run in a new folder. Managed reuses one private folder for this assistant’s runs and chats. Folder uses the existing path below. Changing modes never moves or deletes files; deleting an assistant keeps its managed folder.</span>
             </div>
             <div class="hutch-field workspace-folder-field" id="workspace-folder-field" ${b.workspace_mode === "folder" ? "" : "hidden"}>
               <label class="hutch-label" for="assistant-workdir"><span id="workdir-folder-label">Existing folder</span></label>
@@ -8634,7 +8634,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
               </select>
               <span class="hutch-help" id="browser-handoff-help">${esc(handoffReason)}</span>
             </div>
-            <div class="hutch-actions"><button class="btn primary small" type="submit">Save policy</button><button class="btn ${b.paused ? "primary" : "ghost"} small" type="button" data-action="toggle-pause" data-bot="${esc(b.name)}" data-paused="${b.paused}">${b.paused ? "Resume bot" : "Pause bot"}</button></div>
+            <div class="hutch-actions"><button class="btn primary small" type="submit">Save policy</button><button class="btn ${b.paused ? "primary" : "ghost"} small" type="button" data-action="toggle-pause" data-bot="${esc(b.name)}" data-paused="${b.paused}">${b.paused ? "Resume assistant" : "Pause assistant"}</button></div>
           </form>
           <div class="panel">
             <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("sliders")}</span>Extra command rules</div>
@@ -8744,8 +8744,8 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   $("#btn-set-workspace-coordinator")?.addEventListener("click", () => {
     const current = botsCache.find(bot => bot.is_workspace_coordinator);
     const replacement = current && current.id !== b.id
-      ? `<p>This replaces <b>${esc(current.display_name || current.name)}</b> as the workspace coordinator. It does not change either Bot’s permissions or settings.</p>`
-      : `<p>This makes <b>${esc(b.display_name || b.name)}</b> the main workspace conversation. It does not change the Bot’s permissions or settings.</p>`;
+      ? `<p>This replaces <b>${esc(current.display_name || current.name)}</b> as the workspace coordinator. It does not change either assistant’s permissions or settings.</p>`
+      : `<p>This makes <b>${esc(b.display_name || b.name)}</b> the main workspace conversation. It does not change the assistant’s permissions or settings.</p>`;
     openModal({ title: "Make this your main assistant?", bodyHtml: `${replacement}<p>If this assistant is currently approved to receive assigned work, it will be removed from that list. The previous main assistant will not be added automatically. You can still open a conversation with every assistant from the roster.</p>`,
       confirmText: "Make main assistant", returnFocus: $("#btn-set-workspace-coordinator"),
       onConfirm: async () => {
@@ -8786,7 +8786,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
       shown += Number(matches);
     }
     const status = $("#workspace-specialist-filter-status");
-    if (status) status.textContent = `${shown} of ${choices.length} Bots shown.`;
+    if (status) status.textContent = `${shown} of ${choices.length} assistants shown.`;
   });
   $("#btn-clear-workspace-coordinator")?.addEventListener("click", () => {
     openModal({ title: "Remove the main assistant?", bodyHtml: `<p>${esc(b.display_name || b.name)} will remain an assistant and its conversations will stay available. You can choose another main assistant later.</p>`,
@@ -8890,7 +8890,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     if (button.dataset.consentState === "allowed") {
       openModal({
         title: "Revoke ChatGPT background use?",
-        bodyHtml: `<p>Scheduled and coordinator-assigned specialist runs for <b>${esc(b.display_name || b.name)}</b> will stop using this ChatGPT account after any current request finishes. Messages you start remain governed by this Bot’s model and provider settings.</p>`,
+        bodyHtml: `<p>Scheduled and coordinator-assigned specialist runs for <b>${esc(b.display_name || b.name)}</b> will stop using this ChatGPT account after any current request finishes. Messages you start remain governed by this assistant’s model and provider settings.</p>`,
         confirmText: "Revoke permission", confirmClass: "danger", returnFocus: button,
         onConfirm: async () => {
           try {
@@ -8906,7 +8906,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     const route = (b.chatgpt_background || []).find(item => item.provider === provider);
     openModal({
       title: "Allow scheduled ChatGPT plan use?",
-      bodyHtml: `<p>Allow <b>${esc(route?.title || "this ChatGPT account")}</b> to serve this Bot’s scheduled tasks and coordinator-assigned specialist tasks when you are not in the conversation?</p><p>Hutch will use the plan only for this Bot and its current model, fallback and escalation routes. The permission is stored on this Hutch machine, is tied to this account, and stops matching if its route changes. You can revoke it here at any time. OpenAI’s preview eligibility and usage limits still apply.</p>`,
+      bodyHtml: `<p>Allow <b>${esc(route?.title || "this ChatGPT account")}</b> to serve this assistant’s scheduled tasks and coordinator-assigned specialist tasks when you are not in the conversation?</p><p>Hutch will use the plan only for this assistant and its current model, fallback and escalation routes. The permission is stored on this Hutch machine, is tied to this account, and stops matching if its route changes. You can revoke it here at any time. OpenAI’s preview eligibility and usage limits still apply.</p>`,
       confirmText: "Allow background use", returnFocus: button,
       onConfirm: async () => {
         try {
@@ -8965,7 +8965,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
         <div class="hutch-field"><label class="hutch-label" for="modal-schedule-overlap">If already busy</label><select class="hutch-select" id="modal-schedule-overlap" name="overlap"><option value="queue">Queue</option><option value="skip">Skip</option><option value="buffer_one">Keep one waiting</option></select></div>
       </div>
       <div class="hutch-field"><label class="hutch-label" for="modal-schedule-catch-up">Missed run policy</label><select class="hutch-select" id="modal-schedule-catch-up" name="catch_up"><option value="coalesce">Run once and report missed windows</option><option value="skip">Skip if the last window was missed</option></select></div>
-      <div class="hutch-field"><label class="hutch-label" for="modal-schedule-prompt">Task prompt</label><textarea class="hutch-textarea" id="modal-schedule-prompt" name="prompt" rows="3" maxlength="4000"></textarea><span class="hutch-help">Leave blank to use this bot’s standing instructions. Uncheck Enable to save a draft.</span></div>
+      <div class="hutch-field"><label class="hutch-label" for="modal-schedule-prompt">Task prompt</label><textarea class="hutch-textarea" id="modal-schedule-prompt" name="prompt" rows="3" maxlength="4000"></textarea><span class="hutch-help">Leave blank to use this assistant’s standing instructions. Uncheck Enable to save a draft.</span></div>
     </form>`;
     openModal({ title: "Add a recurring task", bodyHtml: form, confirmText: "Add task", returnFocus: $("#btn-add-schedule"),
       onConfirm: async () => {
@@ -9128,8 +9128,8 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   $('#memory-export').onclick = event => {
     const button = event.currentTarget;
     openModal({
-      title: 'Export Bot memory', confirmText: 'Download JSON', returnFocus: button,
-      bodyHtml: `<p>Archived fact versions and review history are included with saved provenance and incoming or outgoing Bot shares.</p>
+      title: 'Export assistant memory', confirmText: 'Download JSON', returnFocus: button,
+      bodyHtml: `<p>Archived fact versions and review history are included with saved provenance and incoming or outgoing assistant shares.</p>
         <p>Excluded: conversation transcripts, credentials, action receipts, and workspace files.</p>
         <p class="hint">This downloads unencrypted plaintext and may include personal or sensitive fact values and review notes. Review the file before sharing it. Never save passwords or credentials in memory. Export is limited to 10,000 fact revisions, 5,000 shares per direction, and 2 MiB of source data.</p>
         <p id="memory-export-error" class="hint" role="status"></p>`,
@@ -9183,7 +9183,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     $(".assistant-settings-menu").open = false;
     if (!(await confirmDialog({
       title: "Delete assistant",
-      body: `Delete <b>${esc(b.name)}</b>? Its workspace, memory, and transcripts stay on disk, but the bot and its schedule are removed.`,
+      body: `Delete <b>${esc(b.name)}</b>? Its workspace, memory, and transcripts stay on disk, but the assistant and its schedule are removed.`,
       confirmText: "Delete assistant", danger: true,
     }))) return;
     await api(`/bots/${encodeURIComponent(b.name)}`, { method: "DELETE" });
@@ -9456,8 +9456,8 @@ async function renderConnections() {
   catch { /* Provider and device controls remain usable if the Bot list is unavailable. */ }
   const botLabels = new Map(bots.map(bot => [bot.id, bot.display_name || bot.name]));
   const grantedBotLabel = grant => grant
-    ? (botLabels.get(grant.bot_id) || grant.bot_display_name || grant.bot_name || "this Bot")
-    : "this Bot";
+    ? (botLabels.get(grant.bot_id) || grant.bot_display_name || grant.bot_name || "this assistant")
+    : "this assistant";
   let devices = [];
   let devicesError = "";
   try { devices = await api("/v1/devices"); }
@@ -9507,16 +9507,16 @@ async function renderConnections() {
     const grants = (googleCalendar.grants || []).filter(grant => grant.account_id === account.id);
     const grantRows = grants.length ? grants.map(grant => `
       <div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">${grant.allow_event_creation ? "Can read and create events on" : "Can read"} ${esc(grant.calendar_name)} · ${esc(account.label)}${grant.allow_event_creation ? " · every creation needs approval" : ""}</p></div>
-        <button class="btn ghost small" type="button" data-google-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")
-      : '<p class="hint">No Bot has access to this account.</p>';
+        <button class="btn ghost small" type="button" data-google-calendar-ungrant="${esc(grant.bot_id)}">Revoke assistant access</button></div>`).join("")
+      : '<p class="hint">No assistant has access to this account.</p>';
     return `<article class="google-calendar-account" data-google-calendar-account="${esc(account.id)}">
       <div class="device-row"><div><strong>${esc(account.label)}</strong> <span class="chip ok">connected</span>
         <p class="hint">${account.can_create_events ? "Calendar read and event-creation scope" : "Read-only calendar-list and event scopes"} · connected ${esc(new Date(account.created_at).toLocaleDateString())}</p></div>
         <button class="btn danger small" type="button" data-google-calendar-disconnect="${esc(account.id)}">Disconnect</button>
       </div>
-      <div class="google-calendar-grants" aria-label="Bots with calendar access">${grantRows}</div>
+      <div class="google-calendar-grants" aria-label="Assistants with calendar access">${grantRows}</div>
       <div class="google-calendar-grant-form" data-google-calendar-grant-form="${esc(account.id)}">
-        <div class="hutch-field"><label class="hutch-label" for="google-calendar-grant-bot-${esc(account.id)}">Grant one calendar to a Bot</label><select class="hutch-select" id="google-calendar-grant-bot-${esc(account.id)}" data-google-calendar-bot ${bots.length ? "" : "disabled"} aria-label="Bot for Google Calendar access">${bots.length ? bots.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}</option>`).join("") : '<option value="">Create a Bot first</option>'}</select></div>
+        <div class="hutch-field"><label class="hutch-label" for="google-calendar-grant-bot-${esc(account.id)}">Grant one calendar to an assistant</label><select class="hutch-select" id="google-calendar-grant-bot-${esc(account.id)}" data-google-calendar-bot ${bots.length ? "" : "disabled"} aria-label="Assistant for Google Calendar access">${bots.length ? bots.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}</option>`).join("") : '<option value="">Create an assistant first</option>'}</select></div>
         <button class="btn ghost small" type="button" data-google-calendar-load-calendars="${esc(account.id)}" ${bots.length ? "" : "disabled"}>Load calendars</button>
         <div class="hutch-field" hidden data-google-calendar-calendar-field><label class="hutch-label" for="google-calendar-grant-calendar-${esc(account.id)}">Calendar</label><select class="hutch-select" id="google-calendar-grant-calendar-${esc(account.id)}" data-google-calendar-calendar aria-label="Calendar to grant" disabled><option value="">Choose a calendar…</option></select></div>
         ${account.can_create_events ? `<label class="hutch-check background-consent-row calendar-create-consent">
@@ -9534,18 +9534,18 @@ async function renderConnections() {
     const grants = (googleMail.grants || []).filter(grant => grant.account_id === account.id);
     const grantRows = grants.length ? grants.map(grant => `
       <div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Can search sender, subject, date and short previews · ${esc(account.label)}</p></div>
-        <button class="btn ghost small" type="button" data-google-mail-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")
-      : '<p class="hint">No Bot has access to this account.</p>';
+        <button class="btn ghost small" type="button" data-google-mail-ungrant="${esc(grant.bot_id)}">Revoke assistant access</button></div>`).join("")
+      : '<p class="hint">No assistant has access to this account.</p>';
     return `<article class="google-calendar-account" data-google-mail-account="${esc(account.id)}">
       <div class="device-row"><div><strong>${esc(account.label)}</strong> <span class="chip ok">connected</span>
         <p class="hint">Restricted <code>gmail.readonly</code> access · connected ${esc(new Date(account.created_at).toLocaleDateString())}</p></div>
         <button class="btn danger small" type="button" data-google-mail-disconnect="${esc(account.id)}">Disconnect</button>
       </div>
-      <div class="google-calendar-grants" aria-label="Bots with Gmail access">${grantRows}</div>
+      <div class="google-calendar-grants" aria-label="Assistants with Gmail access">${grantRows}</div>
       <div class="google-calendar-grant-form" data-google-mail-grant-form="${esc(account.id)}">
-        <div class="hutch-field"><label class="hutch-label" for="google-mail-grant-bot-${esc(account.id)}">Grant this mailbox to one Local-inference Bot</label><select class="hutch-select" id="google-mail-grant-bot-${esc(account.id)}" data-google-mail-bot ${googleMailBots.length ? "" : "disabled"} aria-label="Local-inference Bot for Gmail access">${googleMailBots.length ? googleMailBots.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}</option>`).join("") : '<option value="">Create or switch a Bot to Local inference</option>'}</select></div>
+        <div class="hutch-field"><label class="hutch-label" for="google-mail-grant-bot-${esc(account.id)}">Grant this mailbox to one Local-inference assistant</label><select class="hutch-select" id="google-mail-grant-bot-${esc(account.id)}" data-google-mail-bot ${googleMailBots.length ? "" : "disabled"} aria-label="Local-inference assistant for Gmail access">${googleMailBots.length ? googleMailBots.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}</option>`).join("") : '<option value="">Create or switch an assistant to Local inference</option>'}</select></div>
         <button class="btn primary small" type="button" data-google-mail-grant="${esc(account.id)}" ${googleMailBots.length ? "" : "disabled"}>Grant search access</button>
-        <p class="hint">Before saving, Hutch verifies that the built-in Bot's primary, fallback and escalation models all use loopback endpoints. Hosted fallback and remote custom endpoints are refused.</p>
+        <p class="hint">Before saving, Hutch verifies that the built-in assistant's primary, fallback and escalation models all use loopback endpoints. Hosted fallback and remote custom endpoints are refused.</p>
         <p class="hint" role="status" aria-live="polite" data-google-mail-status></p>
       </div>
     </article>`;
@@ -9577,16 +9577,16 @@ async function renderConnections() {
     const grants = (outlookCalendar.grants || []).filter(grant => grant.account_id === account.id);
     const grantRows = grants.length ? grants.map(grant => `
       <div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Can read ${esc(grant.calendar_name)} · ${esc(account.label)}</p></div>
-        <button class="btn ghost small" type="button" data-outlook-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")
-      : '<p class="hint">No Bot has access to this account.</p>';
+        <button class="btn ghost small" type="button" data-outlook-calendar-ungrant="${esc(grant.bot_id)}">Revoke assistant access</button></div>`).join("")
+      : '<p class="hint">No assistant has access to this account.</p>';
     return `<article class="google-calendar-account" data-outlook-calendar-account="${esc(account.id)}">
       <div class="device-row"><div><strong>${esc(account.label)}</strong> <span class="chip ok">connected</span>
         <p class="hint">Delegated Calendars.ReadBasic · connected ${esc(new Date(account.created_at).toLocaleDateString())}</p></div>
         <button class="btn danger small" type="button" data-outlook-calendar-disconnect="${esc(account.id)}">Disconnect</button>
       </div>
-      <div class="google-calendar-grants" aria-label="Bots with Outlook Calendar access">${grantRows}</div>
+      <div class="google-calendar-grants" aria-label="Assistants with Outlook Calendar access">${grantRows}</div>
       <div class="google-calendar-grant-form" data-outlook-calendar-grant-form="${esc(account.id)}">
-        <div class="hutch-field"><label class="hutch-label" for="outlook-calendar-grant-bot-${esc(account.id)}">Grant one calendar to a Bot</label><select class="hutch-select" id="outlook-calendar-grant-bot-${esc(account.id)}" data-outlook-calendar-bot ${bots.length ? "" : "disabled"} aria-label="Bot for Outlook Calendar access">${bots.length ? bots.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}</option>`).join("") : '<option value="">Create a Bot first</option>'}</select></div>
+        <div class="hutch-field"><label class="hutch-label" for="outlook-calendar-grant-bot-${esc(account.id)}">Grant one calendar to an assistant</label><select class="hutch-select" id="outlook-calendar-grant-bot-${esc(account.id)}" data-outlook-calendar-bot ${bots.length ? "" : "disabled"} aria-label="Assistant for Outlook Calendar access">${bots.length ? bots.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}</option>`).join("") : '<option value="">Create an assistant first</option>'}</select></div>
         <button class="btn ghost small" type="button" data-outlook-calendar-load-calendars="${esc(account.id)}" ${bots.length ? "" : "disabled"}>Load calendars</button>
         <div class="hutch-field" hidden data-outlook-calendar-calendar-field><label class="hutch-label" for="outlook-calendar-grant-calendar-${esc(account.id)}">Calendar</label><select class="hutch-select" id="outlook-calendar-grant-calendar-${esc(account.id)}" data-outlook-calendar-calendar aria-label="Outlook calendar to grant" disabled><option value="">Choose a calendar…</option></select></div>
         <button class="btn primary small" type="button" data-outlook-calendar-grant="${esc(account.id)}" disabled>Grant read access</button>
@@ -9623,16 +9623,16 @@ async function renderConnections() {
     const grants = (outlookMail.grants || []).filter(grant => grant.account_id === account.id);
     const grantRows = grants.length ? grants.map(grant => `
       <div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Can search message previews · ${esc(account.label)}</p></div>
-        <button class="btn ghost small" type="button" data-outlook-mail-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")
-      : '<p class="hint">No Bot has access to this account.</p>';
+        <button class="btn ghost small" type="button" data-outlook-mail-ungrant="${esc(grant.bot_id)}">Revoke assistant access</button></div>`).join("")
+      : '<p class="hint">No assistant has access to this account.</p>';
     return `<article class="google-calendar-account" data-outlook-mail-account="${esc(account.id)}">
       <div class="device-row"><div><strong>${esc(account.label)}</strong> <span class="chip ok">connected</span>
         <p class="hint">Delegated Mail.Read · connected ${esc(new Date(account.created_at).toLocaleDateString())}</p></div>
         <button class="btn danger small" type="button" data-outlook-mail-disconnect="${esc(account.id)}">Disconnect</button>
       </div>
-      <div class="google-calendar-grants" aria-label="Bots with Outlook Mail access">${grantRows}</div>
+      <div class="google-calendar-grants" aria-label="Assistants with Outlook Mail access">${grantRows}</div>
       <div class="google-calendar-grant-form" data-outlook-mail-grant-form="${esc(account.id)}">
-        <div class="hutch-field"><label class="hutch-label" for="outlook-mail-grant-bot-${esc(account.id)}">Grant this mailbox to one Bot</label><select class="hutch-select" id="outlook-mail-grant-bot-${esc(account.id)}" data-outlook-mail-bot ${bots.length ? "" : "disabled"} aria-label="Bot for Outlook Mail access">${bots.length ? bots.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}</option>`).join("") : '<option value="">Create a Bot first</option>'}</select></div>
+        <div class="hutch-field"><label class="hutch-label" for="outlook-mail-grant-bot-${esc(account.id)}">Grant this mailbox to one assistant</label><select class="hutch-select" id="outlook-mail-grant-bot-${esc(account.id)}" data-outlook-mail-bot ${bots.length ? "" : "disabled"} aria-label="Assistant for Outlook Mail access">${bots.length ? bots.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}</option>`).join("") : '<option value="">Create an assistant first</option>'}</select></div>
         <button class="btn primary small" type="button" data-outlook-mail-grant="${esc(account.id)}" ${bots.length ? "" : "disabled"}>Grant read access</button>
         <p class="hint" role="status" aria-live="polite" data-outlook-mail-status></p>
       </div>
@@ -9645,15 +9645,15 @@ async function renderConnections() {
     const grantRows = grants.length ? grants.map(grant => `
       <div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Can prepare one plain-text email · ${esc(account.label)} · every send needs your exact approval</p></div>
         <button class="btn ghost small" type="button" data-outlook-mail-send-ungrant="${esc(grant.bot_id)}">Revoke send access</button></div>`).join("")
-      : '<p class="hint">No Bot can prepare email from this account.</p>';
+      : '<p class="hint">No assistant can prepare email from this account.</p>';
     return `<article class="google-calendar-account outlook-mail-send-account" data-outlook-mail-send-account="${esc(account.id)}">
       <div class="device-row"><div><strong>${esc(account.label)}</strong> <span class="chip ok">connected</span>
         <p class="hint">Delegated Mail.Send only · connected ${esc(new Date(account.created_at).toLocaleDateString())}</p></div>
         <button class="btn danger small" type="button" data-outlook-mail-send-disconnect="${esc(account.id)}">Disconnect sending account</button>
       </div>
-      <div class="outlook-mail-send-grants" aria-label="Bots with Outlook Mail sending access">${grantRows}</div>
+      <div class="outlook-mail-send-grants" aria-label="Assistants with Outlook Mail sending access">${grantRows}</div>
       <div class="google-calendar-grant-form outlook-mail-send-grant-form" data-outlook-mail-send-grant-form="${esc(account.id)}">
-        <div class="hutch-field"><label class="hutch-label" for="outlook-mail-send-grant-bot-${esc(account.id)}">Give one Bot permission to prepare email</label><select class="hutch-select" id="outlook-mail-send-grant-bot-${esc(account.id)}" data-outlook-mail-send-bot ${bots.length ? "" : "disabled"} aria-label="Bot for Outlook Mail sending access">${bots.length ? bots.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}</option>`).join("") : '<option value="">Create a Bot first</option>'}</select></div>
+        <div class="hutch-field"><label class="hutch-label" for="outlook-mail-send-grant-bot-${esc(account.id)}">Give one assistant permission to prepare email</label><select class="hutch-select" id="outlook-mail-send-grant-bot-${esc(account.id)}" data-outlook-mail-send-bot ${bots.length ? "" : "disabled"} aria-label="Assistant for Outlook Mail sending access">${bots.length ? bots.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}</option>`).join("") : '<option value="">Create an assistant first</option>'}</select></div>
         <button class="btn primary small" type="button" data-outlook-mail-send-grant="${esc(account.id)}" ${bots.length ? "" : "disabled"}>Grant send access</button>
         <p class="hint" role="status" aria-live="polite" data-outlook-mail-send-status></p>
       </div>
@@ -9823,7 +9823,7 @@ async function renderConnections() {
       <section class="panel conn-card google-calendar-card" id="connection-google-calendar" aria-labelledby="google-calendar-title">
         <div class="bot-head"><span class="bot-name" id="google-calendar-title">Google Calendar</span>
           <span class="tag">experimental</span><span class="tag">local desktop sign in</span></div>
-        <p class="hint">Connect with Google's official installed-app flow. By default, Hutch reads event titles, times and locations from one calendar you grant to one Bot. You can separately request event-creation access; Hutch shows each guest-free event in chat and waits for your exact approval before creating it.</p>
+        <p class="hint">Connect with Google's official installed-app flow. By default, Hutch reads event titles, times and locations from one calendar you grant to one assistant. You can separately request event-creation access; Hutch shows each guest-free event in chat and waits for your exact approval before creating it.</p>
         <p class="hint"><strong>Google permission:</strong> event creation requires a broader account-level scope that can change or delete events on calendars you own. Google desktop OAuth cannot add that scope later, so it needs a separate sign-in. Hutch exposes only guest-free event creation on the one calendar you choose; it offers no event edits, deletes or invitations. Public OAuth verification and live account tests remain incomplete.</p>
         <details class="google-oauth-setup summary-row-sm" id="google-oauth-setup" ${googleOAuthSetupOpen ? "open" : ""}>
           <summary><span class="summary-row-copy"><strong>Developer settings for Google</strong></span><span class="chip ${googleOAuthClient.configured ? "ok" : "warn"}">${googleOAuthClient.configured ? "client ready" : "setup needed"}</span></summary>
@@ -9851,7 +9851,7 @@ async function renderConnections() {
           <p class="hint" id="google-calendar-label-help">This label stays on this Hutch. A write-enabled sign-in is a separate account record; previous read-only accounts remain unchanged. Sign-in starts here and finishes in your system browser at <code>127.0.0.1</code>.</p>
         </div>
         ${googleCalendarAccountsHtml || '<p class="hint">No Google Calendar accounts connected.</p>'}
-        ${orphanCalendarGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanCalendarGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-google-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
+        ${orphanCalendarGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved assistant grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanCalendarGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-google-calendar-ungrant="${esc(grant.bot_id)}">Revoke assistant access</button></div>`).join("")}</div>` : ""}
       </section>
       <section class="panel conn-card" id="connection-notion" aria-labelledby="notion-title">
         <div class="bot-head"><span class="bot-name" id="notion-title">Notion</span><span class="tag">experimental · read access</span></div>
@@ -9881,7 +9881,7 @@ async function renderConnections() {
             <p class="hint" id="google-mail-label-help">Sign in from this Hutch host at <code>127.0.0.1</code>. A project in Testing is limited to 100 listed users, and test-user refresh tokens expire after seven days. Google's restricted-scope review rules still apply.</p>
           </div>` : ''}
           ${googleMailAccountsHtml || '<p class="hint">No Gmail accounts connected.</p>'}
-          ${orphanGoogleMailGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A Bot grant refers to a disconnected Gmail account. Revoke it before reconnecting.</p>${orphanGoogleMailGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Gmail search access</p></div><button class="btn ghost small" data-google-mail-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ''}
+          ${orphanGoogleMailGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">An assistant grant refers to a disconnected Gmail account. Revoke it before reconnecting.</p>${orphanGoogleMailGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Gmail search access</p></div><button class="btn ghost small" data-google-mail-ungrant="${esc(grant.bot_id)}">Revoke assistant access</button></div>`).join("")}</div>` : ''}
           </div>
         </details>
         <details class="outlook-calendar-details outlook-mail-send-details summary-row-sm" id="google-mail-send-access" ${googleMailSendAccessOpen ? "open" : ""}>
@@ -9906,7 +9906,7 @@ async function renderConnections() {
         <div class="bot-head"><span class="bot-name" id="outlook-calendar-title">Outlook Calendar</span>
           <span class="tag">experimental</span><span class="tag">read, with optional event creation</span></div>
         <p class="hint">Connect a Microsoft account to let an assistant check one selected calendar. The default sign-in uses delegated <code>Calendars.ReadBasic</code>; event bodies, attachments and extensions are not available. Event creation is a separate optional sign-in and requires your approval each time.</p>
-        <p class="hint"><strong>Permission boundary:</strong> Microsoft consent applies to the signed-in account. Hutch enforces each Bot's selected-calendar grant locally, and calendar text stays untrusted. Disconnect clears Hutch's refresh credential and Bot grants; Microsoft consent must be revoked separately in your account or organisation settings.</p>
+        <p class="hint"><strong>Permission boundary:</strong> Microsoft consent applies to the signed-in account. Hutch enforces each assistant's selected-calendar grant locally, and calendar text stays untrusted. Disconnect clears Hutch's refresh credential and assistant grants; Microsoft consent must be revoked separately in your account or organisation settings.</p>
         <details class="outlook-calendar-details summary-row-sm" id="outlook-calendar-access">
           <summary><span class="summary-row-copy"><strong>Manage Outlook Calendar access</strong></span><span class="summary-row-action"><span class="when-closed">Show</span><span class="when-open">Hide</span>${icon("down")}</span></summary>
           <div class="outlook-calendar-details-body">
@@ -9918,7 +9918,7 @@ async function renderConnections() {
             <p class="hint" id="outlook-calendar-label-help">Choose your signed-in Microsoft account in the browser and approve calendar access. Then choose one calendar and which assistant can use it.</p>
           </div>
           ${outlookCalendarAccountsHtml || '<p class="hint">No Outlook Calendar accounts connected.</p>'}
-          ${orphanOutlookGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanOutlookGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-outlook-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
+          ${orphanOutlookGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved assistant grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanOutlookGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-outlook-calendar-ungrant="${esc(grant.bot_id)}">Revoke assistant access</button></div>`).join("")}</div>` : ""}
           </div>
         </details>
         <details class="outlook-calendar-details outlook-mail-send-details summary-row-sm" id="outlook-calendar-write-access" ${outlookCalendarWriteAccessOpen ? "open" : ""}>
@@ -9941,8 +9941,8 @@ async function renderConnections() {
       <section class="panel conn-card outlook-calendar-card outlook-mail-card" id="connection-outlook-mail" aria-labelledby="outlook-mail-title">
         <div class="bot-head"><span class="bot-name" id="outlook-mail-title">Outlook Mail</span>
           <span class="tag">experimental</span><span class="tag">separate read and send access</span></div>
-        <p class="hint">Search across a connected mailbox, including Deleted Items and Clutter. Hutch returns sender, subject, received time and a short, untrusted preview for up to 10 matches. Grant one mailbox to a Bot from here.</p>
-        <p class="hint"><strong>Permission boundary:</strong> Microsoft's delegated <code>Mail.Read</code> consent applies to the signed-in account; Hutch enables search only for a Bot you grant. Reading and sending use separate account sign-ins and separate Bot grants. Mail previews are sent to that Bot's selected model and kept in its run history. Local disconnect clears Hutch's credential and grants; provider consent must be revoked separately.</p>
+        <p class="hint">Search across a connected mailbox, including Deleted Items and Clutter. Hutch returns sender, subject, received time and a short, untrusted preview for up to 10 matches. Grant one mailbox to an assistant from here.</p>
+        <p class="hint"><strong>Permission boundary:</strong> Microsoft's delegated <code>Mail.Read</code> consent applies to the signed-in account; Hutch enables search only for an assistant you grant. Reading and sending use separate account sign-ins and separate assistant grants. Mail previews are sent to that assistant's selected model and kept in its run history. Local disconnect clears Hutch's credential and grants; provider consent must be revoked separately.</p>
         ${!outlookMail.configured ? '<p class="hint" role="status">Microsoft sign-in is not enabled in this build. Hutch’s publisher must supply its app registration.</p>' : ''}
         ${outlookMail.configured && !outlookMail.secret_store_available ? '<p class="hint" role="alert">Your operating system’s secure credential store is unavailable. Unlock it before connecting an account. On Linux, install <code>secret-tool</code> if needed. Hutch never stores refresh tokens in SQLite or browser storage.</p>' : ''}
         <details class="outlook-calendar-details summary-row-sm" id="outlook-mail-access">
@@ -9954,13 +9954,13 @@ async function renderConnections() {
             <p class="hint" id="outlook-mail-label-help">Choose your Microsoft account in the browser and approve email access. Mail and calendar access are separate choices.</p>
           </div>
           ${outlookMailAccountsHtml || '<p class="hint">No Outlook Mail accounts connected.</p>'}
-          ${orphanOutlookMailGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanOutlookMailGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Outlook Mail access</p></div><button class="btn ghost small" data-outlook-mail-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
+          ${orphanOutlookMailGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved assistant grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanOutlookMailGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Outlook Mail access</p></div><button class="btn ghost small" data-outlook-mail-ungrant="${esc(grant.bot_id)}">Revoke assistant access</button></div>`).join("")}</div>` : ""}
           </div>
         </details>
         <details class="outlook-calendar-details outlook-mail-send-details summary-row-sm" id="outlook-mail-send-access" ${outlookMailSendAccessOpen ? "open" : ""}>
           <summary><span class="summary-row-copy"><strong>Set up optional email sending</strong><small>A separate Microsoft sign-in for <code>Mail.Send</code></small></span><span class="summary-row-action"><span class="when-closed">Show</span><span class="when-open">Hide</span>${icon("down")}</span></summary>
           <div class="outlook-calendar-details-body">
-          <p class="hint">This uses a separate Microsoft sign-in for <code>Mail.Send</code>. Reading access does not include sending, and sending access does not include reading. Grant it only to a Bot that should prepare outgoing mail.</p>
+          <p class="hint">This uses a separate Microsoft sign-in for <code>Mail.Send</code>. Reading access does not include sending, and sending access does not include reading. Grant it only to an assistant that should prepare outgoing mail.</p>
           <div class="outlook-mail-send-safety"><strong>Every send requires your exact approval.</strong><p class="hint">Hutch can prepare one new plain-text email to at most five recipients. No replies, forwards, attachments, CC or BCC. Hutch sends once and does not retry an uncertain result; Microsoft acceptance does not confirm delivery.</p></div>
           <div class="google-calendar-connect outlook-calendar-connect">
             <details class="connection-nickname"><summary>Nickname (optional)</summary><div class="hutch-field"><label class="hutch-label" for="outlook-mail-send-label">Sending account label</label><input class="hutch-input" id="outlook-mail-send-label" type="text" maxlength="80" autocomplete="off" placeholder="Work sender" aria-describedby="outlook-mail-send-label-help"></div></details>
@@ -10031,7 +10031,7 @@ async function renderConnections() {
       <section class="panel conn-card model-capability-card" aria-labelledby="model-capabilities-title">
         <div class="bot-head"><span class="bot-name" id="model-capabilities-title">Model tool-call observations</span>
           <span class="tag">observed evidence</span></div>
-        <p class="hint">Hutch records a tool-call observation only after a normal, owned Bot run receives a declared tool call with valid arguments and its usage reservation is settled or retained for reconciliation. Each record applies to that exact connection, account, model and route revision. It is evidence from one past response, not a guarantee about the next run.</p>
+        <p class="hint">Hutch records a tool-call observation only after a normal, owned assistant run receives a declared tool call with valid arguments and its usage reservation is settled or retained for reconciliation. Each record applies to that exact connection, account, model and route revision. It is evidence from one past response, not a guarantee about the next run.</p>
         <div id="model-capability-results"><p class="hint" role="status">Loading model tool-call observations…</p></div>
       </section>
         </div>
@@ -10419,10 +10419,10 @@ async function renderConnections() {
       const status = $("[data-google-calendar-status]", form);
       const existing = (googleCalendar.grants || []).find(grant => grant.bot_id === bot);
       const grantChange = allowEventCreation
-        ? `This enables that Bot to create guest-free events on one calendar. Each event still needs exact approval; event edits, deletion and invitations remain unavailable. Google's account-level scope can also change or delete events on every calendar you own.`
-        : "The Bot will have read-only access to the selected calendar.";
+        ? `This enables that assistant to create guest-free events on one calendar. Each event still needs exact approval; event edits, deletion and invitations remain unavailable. Google's account-level scope can also change or delete events on every calendar you own.`
+        : "The assistant will have read-only access to the selected calendar.";
       if (existing && !(await confirmDialog({ title: "Replace calendar access", body: `<b>${esc(grantedBotLabel(existing))}</b> already has access to <b>${esc(existing.calendar_name)}</b>. Replace it with access to <b>${esc(calendarName)}</b>? ${esc(grantChange)}`, confirmText: allowEventCreation ? "Review and replace" : "Replace grant" }))) return;
-      const selectedBotName = bots.find(candidate => candidate.id === bot)?.display_name || bots.find(candidate => candidate.id === bot)?.name || "this Bot";
+      const selectedBotName = bots.find(candidate => candidate.id === bot)?.display_name || bots.find(candidate => candidate.id === bot)?.name || "this assistant";
       if (!existing && allowEventCreation && !(await confirmDialog({ title: "Grant event creation", body: `<b>${esc(selectedBotName)}</b> can create events on <b>${esc(calendarName)}</b> after your approval of each exact event. Google’s account-level scope also permits changing and deleting events on calendars you own; Hutch itself offers creation only.`, confirmText: "Grant after review" }))) return;
       button.disabled = true;
       status.textContent = "Verifying the selected calendar with Google…";
@@ -10438,11 +10438,11 @@ async function renderConnections() {
   $$('[data-google-calendar-ungrant]').forEach(button => {
     button.addEventListener("click", async () => {
       const grant = (googleCalendar.grants || []).find(row => row.bot_id === button.dataset.googleCalendarUngrant);
-      if (!(await confirmDialog({ title: "Revoke Bot calendar access", body: `Stop <b>${esc(grantedBotLabel(grant))}</b> from ${grant?.allow_event_creation ? "reading and creating events on" : "reading"} the granted Google Calendar?`, confirmText: "Revoke access" }))) return;
+      if (!(await confirmDialog({ title: "Revoke assistant calendar access", body: `Stop <b>${esc(grantedBotLabel(grant))}</b> from ${grant?.allow_event_creation ? "reading and creating events on" : "reading"} the granted Google Calendar?`, confirmText: "Revoke access" }))) return;
       button.disabled = true;
       try {
         await api(`/v1/connections/google-calendar/grants/${encodeURIComponent(button.dataset.googleCalendarUngrant)}`, { method: "DELETE" });
-        toast("Bot calendar access revoked.");
+        toast("Assistant calendar access revoked.");
         await renderConnections();
       } catch (err) { button.disabled = false; toast(err.message, true); }
     });
@@ -10504,7 +10504,7 @@ async function renderConnections() {
         confirmText: "Replace grant",
       }))) return;
       button.disabled = true;
-      status.textContent = "Saving this Bot's local-only Gmail grant…";
+      status.textContent = "Saving this assistant's local-only Gmail grant…";
       try {
         const result = await api("/v1/connections/google-mail/grants", { method: "POST", body: {
           bot, account_id: button.dataset.googleMailGrant } });
@@ -10516,13 +10516,13 @@ async function renderConnections() {
   $$('[data-google-mail-ungrant]').forEach(button => {
     button.addEventListener("click", async () => {
       const grant = (googleMail.grants || []).find(row => row.bot_id === button.dataset.googleMailUngrant);
-      if (!(await confirmDialog({ title: "Revoke Bot Gmail access",
+      if (!(await confirmDialog({ title: "Revoke assistant Gmail access",
         body: `Stop <b>${esc(grantedBotLabel(grant))}</b> from searching the granted Gmail mailbox?`,
         confirmText: "Revoke access" }))) return;
       button.disabled = true;
       try {
         await api(`/v1/connections/google-mail/grants/${encodeURIComponent(button.dataset.googleMailUngrant)}`, { method: "DELETE" });
-        toast("Bot Gmail access revoked.");
+        toast("Assistant Gmail access revoked.");
         await renderConnections();
       } catch (err) { button.disabled = false; toast(err.message, true); }
     });
@@ -10720,13 +10720,13 @@ async function renderConnections() {
   $$('[data-outlook-calendar-ungrant]').forEach(button => {
     button.addEventListener("click", async () => {
       const grant = (outlookCalendar.grants || []).find(row => row.bot_id === button.dataset.outlookCalendarUngrant);
-      if (!(await confirmDialog({ title: "Revoke Bot calendar access",
+      if (!(await confirmDialog({ title: "Revoke assistant calendar access",
         body: `Stop <b>${esc(grantedBotLabel(grant))}</b> from reading the granted Outlook Calendar?`,
         confirmText: "Revoke access" }))) return;
       button.disabled = true;
       try {
         await api(`/v1/connections/outlook-calendar/grants/${encodeURIComponent(button.dataset.outlookCalendarUngrant)}`, { method: "DELETE" });
-        toast("Bot Outlook Calendar access revoked.");
+        toast("Assistant Outlook Calendar access revoked.");
         await renderConnections();
       } catch (err) { button.disabled = false; toast(err.message, true); }
     });
@@ -10931,7 +10931,7 @@ async function renderConnections() {
         confirmText: "Replace grant",
       }))) return;
       button.disabled = true;
-      status.textContent = "Saving this Bot's send grant…";
+      status.textContent = "Saving this assistant's send grant…";
       try {
         const result = await api("/v1/connections/outlook-mail-send/grants", { method: "POST", body: { bot, account_id: accountId } });
         toast(result.detail);
@@ -10949,7 +10949,7 @@ async function renderConnections() {
       button.disabled = true;
       try {
         await api(`/v1/connections/outlook-mail-send/grants/${encodeURIComponent(botRef)}`, { method: "DELETE" });
-        toast("Bot Outlook Mail send access revoked.");
+        toast("Assistant Outlook Mail send access revoked.");
         await renderConnections();
       } catch (err) { button.disabled = false; toast(err.message, true); }
     });
@@ -10984,7 +10984,7 @@ async function renderConnections() {
         confirmText: "Replace grant",
       }))) return;
       button.disabled = true;
-      status.textContent = "Saving this Bot's Outlook Mail grant…";
+      status.textContent = "Saving this assistant's Outlook Mail grant…";
       try {
         const result = await api("/v1/connections/outlook-mail/grants", { method: "POST", body: {
           bot, account_id: button.dataset.outlookMailGrant } });
@@ -10996,13 +10996,13 @@ async function renderConnections() {
   $$('[data-outlook-mail-ungrant]').forEach(button => {
     button.addEventListener("click", async () => {
       const grant = (outlookMail.grants || []).find(row => row.bot_id === button.dataset.outlookMailUngrant);
-      if (!(await confirmDialog({ title: "Revoke Bot Outlook Mail access",
+      if (!(await confirmDialog({ title: "Revoke assistant Outlook Mail access",
         body: `Stop <b>${esc(grantedBotLabel(grant))}</b> from searching the granted Outlook mailbox?`,
         confirmText: "Revoke access" }))) return;
       button.disabled = true;
       try {
         await api(`/v1/connections/outlook-mail/grants/${encodeURIComponent(button.dataset.outlookMailUngrant)}`, { method: "DELETE" });
-        toast("Bot Outlook Mail access revoked.");
+        toast("Assistant Outlook Mail access revoked.");
         await renderConnections();
       } catch (err) { button.disabled = false; toast(err.message, true); }
     });
@@ -11282,16 +11282,16 @@ const SETUP_TOOL_EXPANSIONS = { files: ["read_file", "list_files", "write_file"]
   grounding: ["live_search", "inspect_media"] };
 const OPENCODE_TOOL_NAMES = new Set(["read_file", "list_files", "write_file", "shell", "web_fetch", "live_search", "remember", "recall"]);
 const BOT_SETUP_TOOLS = [
-  ["read_file", "Read workspace files", "Open text files in this bot’s workspace."],
-  ["list_files", "List workspace files", "See file names in this bot’s workspace."],
+  ["read_file", "Read workspace files", "Open text files in this assistant’s workspace."],
+  ["list_files", "List workspace files", "See file names in this assistant’s workspace."],
   ["write_file", "Write workspace files", "Create or replace workspace files; policy still applies."],
   ["shell", "Run shell commands", "Run commands within Hutch’s configured shell boundary."],
   ["web_fetch", "Fetch public pages", "Read public pages through Hutch’s checked network path."],
   ["live_search", "Search live sources", "Fan out across public feeds, news, and discussion with explicit time bounds; every result keeps its source and limits."],
   ["inspect_media", "Inspect images and video", "Store and hash media, sample claim-relevant frames, and state what was not inspected. No authenticity verdict."],
-  ["browser", "Use an isolated browser", "Control this bot’s private browser profile."],
+  ["browser", "Use an isolated browser", "Control this assistant’s private browser profile."],
   ["remember", "Propose reference facts", "Suggest facts for review before they can be recalled."],
-  ["recall", "Recall reviewed facts", "Search facts approved for this bot and conversation."],
+  ["recall", "Recall reviewed facts", "Search facts approved for this assistant and conversation."],
   ["delegate_task", "Delegate a bounded task", "Request a separately approved child task."],
 ];
 
@@ -11613,7 +11613,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
   catch (err) {
     if (generation !== assistantSetupGeneration || location.hash !== requestedFrom) return;
     if (requestedFrom === "#/assistant/new") view.innerHTML = errorState(err);
-    else toast(`Bot setup is unavailable: ${err.message}`, true);
+    else toast(`Assistant setup is unavailable: ${err.message}`, true);
     return;
   }
   let taskPresets = [];
@@ -11935,7 +11935,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     draft.purposeRefinementStatus = fresh
       ? draft.purposeClarificationQuestion
         ? "Answer this one detail to continue; nothing has been saved or created."
-        : "Draft ready. Review it before applying; no Bot configuration has changed."
+        : "Draft ready. Review it before applying; no assistant configuration has changed."
       : "The request or selected context changed. Start a fresh check before using this response.";
     const status = $("#setup-purpose-draft-status");
     if (status) status.textContent = draft.purposeRefinementStatus;
@@ -11968,7 +11968,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     const assumptions = suggestion.assumptions?.length
       ? `<div id="setup-purpose-draft-assumptions"><b>Assumptions to review</b><ul>${suggestion.assumptions.map(item => `<li>${esc(item)}</li>`).join("")}</ul></div>` : "";
     return `<section class="setup-purpose-draft" id="setup-purpose-draft-review" tabindex="-1" aria-labelledby="setup-purpose-draft-title">
-      <h4 id="setup-purpose-draft-title">Proposed Bot instructions</h4>
+      <h4 id="setup-purpose-draft-title">Proposed assistant instructions</h4>
       <p class="hint">Review and edit this draft. Your original request stays linked. No settings or permissions change until you confirm.</p>
       <div class="hutch-field"><label class="hutch-label" for="setup-purpose-draft-text">Standing instructions</label><textarea class="hutch-textarea" id="setup-purpose-draft-text" rows="7" maxlength="20000">${esc(suggestion.content)}</textarea></div>
       ${assumptions}
@@ -12029,8 +12029,8 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     const addressInUse = occupiedAddresses.has(draft.name);
     draft.yamlImportExpanded = true;
     draft.yamlImportStatus = addressInUse
-      ? "YAML validated. This Bot address is already in use; change it in Review or change the address before creating. Nothing has been saved."
-      : "YAML validated and copied into this unsaved draft. Review each step; no Bot or run has been created.";
+      ? "YAML validated. This assistant address is already in use; change it in Review or change the address before creating. Nothing has been saved."
+      : "YAML validated and copied into this unsaved draft. Review each step; no assistant or run has been created.";
   };
   const refreshContextCount = () => {
     const node = $("#setup-context-count");
@@ -12230,7 +12230,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       } else {
         draft.purposeClarificationQuestion = null;
         draft.purposeRefinement = {content: parsed.instructions, assumptions: parsed.assumptions, sourceFingerprint};
-        draft.purposeRefinementStatus = "Draft ready. Review it before applying; no Bot configuration has changed.";
+        draft.purposeRefinementStatus = "Draft ready. Review it before applying; no assistant configuration has changed.";
       }
       markPurposeDraftFreshness();
       persistPurposeSetupDraft();
@@ -12256,22 +12256,22 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     const sourceReview = draft.useConversationSource && conversationSource
       ? `<div><dt>Request source</dt><dd>${esc(conversationSource.source_bot_name)} · ${esc(conversationSource.conversation_title)} · message ${conversationSource.sequence}
           <details class="setup-source-details"><summary>View original message</summary><blockquote class="setup-source-quote">${esc(conversationSource.original_request)}</blockquote></details></dd></div>`
-      : `<div><dt>Request source</dt><dd>Written for this Bot draft</dd></div>`;
+      : `<div><dt>Request source</dt><dd>Written for this assistant draft</dd></div>`;
     const contextReview = selectedContext.length ? `<div><dt>Earlier chat context</dt><dd>
-        <p class="hint">Selected text becomes part of the saved Bot instructions and may be sent to its model on future runs.</p>
+        <p class="hint">Selected text becomes part of the saved assistant instructions and may be sent to its model on future runs.</p>
         ${selectedContext.map(message => `<details class="setup-source-details"><summary>User message ${message.seq} · ${esc(conversationSource.conversation_title)}</summary><blockquote class="setup-source-quote">${esc(message.content)}</blockquote></details>`).join("")}
       </dd></div>`
       : conversationSource ? `<div><dt>Earlier chat context</dt><dd>None selected</dd></div>` : "";
     return `<div class="setup-review">
-      <p class="setup-assistant">Here’s the setup you chose. Creating it saves the bot only; it will not start a run.</p>
+      <p class="setup-assistant">Here’s the setup you chose. Creating it saves the assistant only; it will not start a run.</p>
       <dl class="setup-review-list">
         <div><dt>Display name</dt><dd>${esc(draft.display_name)}</dd></div>
         <div><dt>Short note</dt><dd>${esc(draft.description.trim() || "None")}</dd></div>
-        <div><dt>Bot address</dt><dd>${esc(draft.name)}</dd></div>
+        <div><dt>Assistant address</dt><dd>${esc(draft.name)}</dd></div>
         <div><dt>Purpose</dt><dd>${esc(draft.purpose)}</dd></div>
         ${sourceReview}
         ${contextReview}
-        <div><dt>Starting point</dt><dd>${duplicateBot ? `Setup based on ${esc(duplicateBot.display_name || duplicateBot.name)}` : esc(template?.tagline || "Blank bot")}</dd></div>
+        <div><dt>Starting point</dt><dd>${duplicateBot ? `Setup based on ${esc(duplicateBot.display_name || duplicateBot.name)}` : esc(template?.tagline || "Blank assistant")}</dd></div>
         <div><dt>Runtime</dt><dd>${draft.runtime === "opencode" ? "OpenCode assistant" : "Hutch built-in"}</dd></div>
         <div><dt>Model route</dt><dd>${esc(draft.model)}</dd></div>
         <div><dt>Task focus</dt><dd>${esc(taskFocus?.title || "Standard context policy")}</dd></div>
@@ -12287,13 +12287,13 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       </dl>
       <details class="setup-schedule setup-yaml" id="setup-yaml-details">
         <summary>View or download YAML</summary>
-        <p class="hint">The file contains these saved instructions and Bot settings. It never includes provider credentials, chat-source links, custom endpoint URLs, or local folder paths. If your instructions contain private context, that text will be in the file. Previewing does not create or change a Bot.</p>
+        <p class="hint">The file contains these saved instructions and assistant settings. It never includes provider credentials, chat-source links, custom endpoint URLs, or local folder paths. If your instructions contain private context, that text will be in the file. Previewing does not create or change an assistant.</p>
         <div class="setup-yaml-actions">
           <button type="button" class="btn small" id="setup-yaml-build">Build YAML preview</button>
           <button type="button" class="btn ghost small" id="setup-yaml-download" disabled>Download YAML</button>
         </div>
         <p class="hint" id="setup-yaml-status" role="status" aria-live="polite"></p>
-        <pre class="setup-yaml-preview" id="setup-yaml-preview" tabindex="0" aria-label="YAML Bot configuration preview" hidden></pre>
+        <pre class="setup-yaml-preview" id="setup-yaml-preview" tabindex="0" aria-label="YAML assistant configuration preview" hidden></pre>
       </details>
       <p class="hint">Token and currency limits use estimates, not guaranteed provider billing caps. The purpose, selected context and selected configuration are saved; they do not add tools or access. Passwords and one-time codes must be entered directly by you in the visible browser, never in chat.</p>
     </div>`;
@@ -12305,19 +12305,19 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     if (step === 0) content = `<div class="setup-conversation${draft.forceAdvanced ? "" : " setup-quick"}">
       ${duplicateBot ? `<p class="hint setup-duplicate-note">Starting from <b>${esc(duplicateBot.display_name || duplicateBot.name)}</b>. Instructions, model route, inference mode, workspace type and limits are copied. Tools, connected accounts, schedules, memory values, custom provider URLs, local folders, browser handoff and chat history are not copied. Review the new setup before saving.</p>` : ""}
       ${conversationSource ? `<label class="setup-context-source"><input id="setup-use-source" type="checkbox" ${draft.useConversationSource ? "checked" : ""}>
-        <span><b>Use this request as the Bot’s instructions</b><small>From ${esc(conversationSource.source_bot_name)} · ${esc(conversationSource.conversation_title)} · message ${conversationSource.sequence}.</small><small class="setup-request-preview">${esc(truncate(conversationSource.original_request.replace(/\s+/g, " ").trim(), 220))}</small></span></label>
-        ${draft.forceAdvanced ? `<p class="setup-assistant">Only this request and earlier user messages you select are included in this Bot draft. Assistant replies and other chats stay private; selected text cannot change tools, accounts or permissions.</p>` : ""}`
+        <span><b>Use this request as the assistant’s instructions</b><small>From ${esc(conversationSource.source_bot_name)} · ${esc(conversationSource.conversation_title)} · message ${conversationSource.sequence}.</small><small class="setup-request-preview">${esc(truncate(conversationSource.original_request.replace(/\s+/g, " ").trim(), 220))}</small></span></label>
+        ${draft.forceAdvanced ? `<p class="setup-assistant">Only this request and earlier user messages you select are included in this assistant draft. Assistant replies and other chats stay private; selected text cannot change tools, accounts or permissions.</p>` : ""}`
         : ""}
       ${draft.forceAdvanced ? `<details class="setup-schedule setup-yaml-import" id="setup-yaml-import-details" ${draft.yamlImportExpanded ? "open" : ""}>
         <summary>Load a saved YAML setup</summary>
-        <p class="hint">A validated file fills this unsaved draft. Review the name, model, tools, schedule, limits and permissions across all steps; only the separate <b>Create bot</b> action saves it.</p>
+        <p class="hint">A validated file fills this unsaved draft. Review the name, model, tools, schedule, limits and permissions across all steps; only the separate <b>Create assistant</b> action saves it.</p>
         <button type="button" class="btn small" id="setup-yaml-import-button">Choose YAML file</button>
         <input id="setup-yaml-file" type="file" accept=".yaml,.yml,application/yaml,text/yaml" hidden>
         <p class="hint" id="setup-yaml-import-status" role="status" aria-live="polite">${esc(draft.yamlImportStatus || "")}</p>
       </details>` : ""}
       ${(draft.forceAdvanced && conversationSource?.context_candidates || []).length ? `<details class="setup-schedule" id="setup-context-picker" ${draft.selectedContextMessageIds.size ? "open" : ""}>
         <summary>Add earlier user messages (optional)</summary>
-        <p class="hint">Choose only messages that should become background in this Bot’s saved instructions. No assistant replies or other chats are included. Avoid passwords, codes and unrelated private details.</p>
+        <p class="hint">Choose only messages that should become background in this assistant’s saved instructions. No assistant replies or other chats are included. Avoid passwords, codes and unrelated private details.</p>
         <p class="hint" id="setup-context-count" role="status" aria-live="polite"></p>
         <div class="setup-context-choices">${conversationSource.context_candidates.map(message => {
           const preview = message.content.length > 220 ? `${message.content.slice(0, 220)}…` : message.content;
@@ -12330,13 +12330,13 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       </details>` : ""}
       ${conversationSource && draft.useConversationSource && !draft.forceAdvanced ? `<details class="setup-schedule setup-purpose-editor" id="setup-purpose-editor">
         <summary>Edit these instructions (optional)</summary>
-        <div class="hutch-field"><label class="hutch-label" for="setup-purpose"><span id="setup-purpose-label">Bot instructions</span></label><textarea class="hutch-textarea" id="setup-purpose" rows="4" maxlength="20000" required aria-labelledby="setup-purpose-label" aria-describedby="setup-purpose-hint">${esc(draft.purpose)}</textarea><span class="hutch-help" id="setup-purpose-hint">By default, Hutch uses your selected request. Editing it is optional; no tools or account access are inferred.</span></div>
+        <div class="hutch-field"><label class="hutch-label" for="setup-purpose"><span id="setup-purpose-label">Assistant instructions</span></label><textarea class="hutch-textarea" id="setup-purpose" rows="4" maxlength="20000" required aria-labelledby="setup-purpose-label" aria-describedby="setup-purpose-hint">${esc(draft.purpose)}</textarea><span class="hutch-help" id="setup-purpose-hint">By default, Hutch uses your selected request. Editing it is optional; no tools or account access are inferred.</span></div>
       </details>` : `<div class="hutch-field"><label class="hutch-label" for="setup-purpose"><span id="setup-purpose-label">${prefillPurpose.trim() ? "Your starting request" : conversationSource ? "What should this assistant keep doing?" : "What would you like this assistant to handle?"}</span></label><textarea class="hutch-textarea" id="setup-purpose" rows="${draft.forceAdvanced ? 5 : 3}" maxlength="20000" placeholder="For example: review release notes and prepare a short summary of changes that affect our project." required aria-labelledby="setup-purpose-label" aria-describedby="setup-purpose-hint">${esc(draft.purpose)}</textarea><span class="hutch-help" id="setup-purpose-hint">${prefillPurpose.trim() ? "We carried this over from your first message. You can edit it, but you do not need to repeat it." : "This becomes the assistant’s starting instructions. Hutch does not add tools or account access."}</span></div>`}
         ${conversationSource?.source_bot_is_coordinator && conversationSource.source_bot_runtime === "builtin" && conversationSource.source_bot_model ? `<details class="setup-schedule setup-refine-details" id="setup-refine-details" ${draft.purposeClarificationQuestion || draft.purposeRefinement || draft.purposeDraftPending || draft.purposeRefinementStatus ? "open" : ""}>
           <summary>Check for missing details (optional)</summary>
           <div class="setup-refine-action">
             <button type="button" class="btn small" id="setup-refine-purpose" ${draft.purposeClarificationQuestion || draft.purposeRefinement ? "hidden" : ""}>${draft.purposeDraftPending ? "Resume clarification" : "Check for missing details"}</button>
-            <p class="hint">${esc(conversationSource.source_bot_display_name)} uses this request and any earlier user messages you chose. It asks one question at a time only when an important work detail is missing, then offers an editable instruction draft. Up to five follow-ups. You can also skip this and create the Bot from your request as-is.</p>
+            <p class="hint">${esc(conversationSource.source_bot_display_name)} uses this request and any earlier user messages you chose. It asks one question at a time only when an important work detail is missing, then offers an editable instruction draft. Up to five follow-ups. You can also skip this and create the assistant from your request as-is.</p>
             <p class="hint">This uses ${esc(conversationSource.source_bot_model)} without tools or permission changes. The unsent answer and draft are kept in this browser so you can resume after reopening setup. Normal usage limits apply.</p>
             <p class="hint" role="status" aria-live="polite" id="setup-purpose-draft-status">${esc(draft.purposeRefinementStatus)}</p>
             ${purposeRefinementHtml()}
@@ -12365,24 +12365,24 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       const options = readyRoutes.map(route => `<option value="${esc(route.spec)}" label="${esc(`${route.group}: ${route.note || route.label}`)}"></option>`).join("");
       const opencode = draft.runtime === "opencode";
       content = `<div class="setup-conversation hutch-form">
-        <p class="setup-assistant">${draft.model ? "Review the configured route below." : opencode ? "OpenCode needs a connected provider account and one of its models." : "Choose a configured model route. Safe defaults fill the other setup choices."} It becomes the Bot’s saved default; creating the Bot does not start a run.</p>
+        <p class="setup-assistant">${draft.model ? "Review the configured route below." : opencode ? "OpenCode needs a connected provider account and one of its models." : "Choose a configured model route. Safe defaults fill the other setup choices."} It becomes the assistant’s saved default; creating the assistant does not start a run.</p>
         <div class="hutch-field"><label class="hutch-label" for="setup-runtime"><span id="setup-runtime-label">Assistant runtime</span></label><select class="hutch-select" id="setup-runtime" aria-labelledby="setup-runtime-label" aria-describedby="setup-runtime-hint"><option value="opencode" ${opencode ? "selected" : ""}>OpenCode assistant — governed tools, provider sign-in or API key</option><option value="builtin" ${opencode ? "" : "selected"}>Hutch built-in — direct provider chat</option></select><span class="hutch-help" id="setup-runtime-hint">OpenCode is the full assistant runtime. The built-in runtime is a lighter chat path with Hutch's own agent loop.</span></div>
         ${opencode ? `<div class="setup-open-code" role="group" aria-label="OpenCode connection">
           <button class="btn ghost small" type="button" id="setup-connect-opencode">Connect OpenCode provider</button>
           <p class="hint">Hutch uses a private OpenCode profile. It never reads your personal OpenCode session. Tools and approvals remain governed by Hutch.</p>
         </div>` : ""}
-        <div class="hutch-field"><label class="hutch-label" for="setup-model"><span id="setup-model-label">Model route</span></label><input class="hutch-input" id="setup-model" list="setup-model-routes" maxlength="240" autocomplete="off" placeholder="${opencode ? "opencode/provider/model" : "Choose or enter provider/model"}" value="${esc(draft.model)}" required aria-labelledby="setup-model-label" aria-describedby="setup-model-hint"><datalist id="setup-model-routes">${options}</datalist><span class="hutch-help"><span id="setup-model-hint">${opencode ? (readyRoutes.length ? `${readyRoutes.length} OpenCode model route${readyRoutes.length === 1 ? "" : "s"} found in the private profile.` : "No OpenCode models are available yet. Connect a provider account, then reopen this step.") : `${modelSuggestionSource === "chat" ? `Suggested from ${esc(conversationSource.source_bot_name)}’s current route and routing mode: ${esc(conversationSource.model_suggestion)}.` : modelSuggestionSource === "duplicate" ? `Copied from ${esc(duplicateBot?.display_name || duplicateBot?.name)}; confirm it is configured in Connections.` : modelSuggestionSource === "workspace" ? `Workspace default for new Bots: ${esc(workspaceDefaults.model)}.` : modelSuggestionSource === "first_run" ? `Chosen from the AI service checked on the welcome screen: ${esc(modelSuggestion)}.` : modelSuggestionSource === "import" ? `Imported route: ${esc(modelSuggestion)}. Confirm it is configured in Connections.` : "No workspace or chat model route is configured yet."} ${readyRoutes.length ? `${readyRoutes.length} ready route${readyRoutes.length === 1 ? "" : "s"} shown as suggestions.` : "No ready routes were found. Configure a provider or local model in Connections."} Hosted routes send prompts to that provider; local routes use this machine.`}</span> ${opencode ? "" : `<a href="/#/connections" target="_blank" rel="noopener">Open Connections in another tab</a>.`}</span></div>
+        <div class="hutch-field"><label class="hutch-label" for="setup-model"><span id="setup-model-label">Model route</span></label><input class="hutch-input" id="setup-model" list="setup-model-routes" maxlength="240" autocomplete="off" placeholder="${opencode ? "opencode/provider/model" : "Choose or enter provider/model"}" value="${esc(draft.model)}" required aria-labelledby="setup-model-label" aria-describedby="setup-model-hint"><datalist id="setup-model-routes">${options}</datalist><span class="hutch-help"><span id="setup-model-hint">${opencode ? (readyRoutes.length ? `${readyRoutes.length} OpenCode model route${readyRoutes.length === 1 ? "" : "s"} found in the private profile.` : "No OpenCode models are available yet. Connect a provider account, then reopen this step.") : `${modelSuggestionSource === "chat" ? `Suggested from ${esc(conversationSource.source_bot_name)}’s current route and routing mode: ${esc(conversationSource.model_suggestion)}.` : modelSuggestionSource === "duplicate" ? `Copied from ${esc(duplicateBot?.display_name || duplicateBot?.name)}; confirm it is configured in Connections.` : modelSuggestionSource === "workspace" ? `Workspace default for new assistants: ${esc(workspaceDefaults.model)}.` : modelSuggestionSource === "first_run" ? `Chosen from the AI service checked on the welcome screen: ${esc(modelSuggestion)}.` : modelSuggestionSource === "import" ? `Imported route: ${esc(modelSuggestion)}. Confirm it is configured in Connections.` : "No workspace or chat model route is configured yet."} ${readyRoutes.length ? `${readyRoutes.length} ready route${readyRoutes.length === 1 ? "" : "s"} shown as suggestions.` : "No ready routes were found. Configure a provider or local model in Connections."} Hosted routes send prompts to that provider; local routes use this machine.`}</span> ${opencode ? "" : `<a href="/#/connections" target="_blank" rel="noopener">Open Connections in another tab</a>.`}</span></div>
         <div class="hutch-field"><label class="hutch-label" for="setup-inference_mode"><span id="setup-inference-mode-label">Inference mode</span></label><select class="hutch-select" id="setup-inference_mode" aria-labelledby="setup-inference-mode-label" aria-describedby="setup-inference-mode-hint"><option value="hybrid" ${draft.inference_mode === "hybrid" ? "selected" : ""}>Hybrid — local or hosted</option><option value="local" ${draft.inference_mode === "local" ? "selected" : ""}>Local — this machine</option><option value="offline" ${draft.inference_mode === "offline" ? "selected" : ""}>Strict offline</option></select><span class="hutch-help" id="setup-inference-mode-hint">Strict offline requires a verified local route.</span></div>
         <div class="hutch-field"><label class="hutch-label" for="setup-workspace_mode"><span id="setup-workspace-mode-label">Workspace</span></label><select class="hutch-select" id="setup-workspace_mode" aria-labelledby="setup-workspace-mode-label" aria-describedby="setup-workspace-mode-hint"><option value="fresh" ${draft.workspace_mode === "fresh" ? "selected" : ""}>Fresh — new folder each run</option><option value="managed" ${draft.workspace_mode === "managed" ? "selected" : ""}>Managed — reuse one folder</option></select><span class="hutch-help" id="setup-workspace-mode-hint">Fresh starts clean each run. Managed keeps one private folder for this assistant’s runs and chats.</span></div>
       </div>`;
     }
     if (step === 2) content = `<div class="setup-conversation hutch-form">
-      <p class="setup-assistant">Bots start with no tools unless a starter is selected. Choose only abilities this Bot needs; actions that require approval stay ask-first.</p>
+      <p class="setup-assistant">Assistants start with no tools unless a starter is selected. Choose only abilities this assistant needs; actions that require approval stay ask-first.</p>
       <details class="setup-schedule" ${draft.template ? "open" : ""}>
         <summary>Choose a starting point</summary>
         <fieldset class="hutch-fieldset hutch-boxed setup-template-options"><legend class="hutch-legend hutch-sr">Starting point</legend>
           <label class="hutch-choice"><input type="radio" name="setup-template" value="" ${draft.template ? "" : "checked"}>
-            <span><b>Blank bot</b><small>No tools enabled by default.</small></span></label>
+            <span><b>Blank assistant</b><small>No tools enabled by default.</small></span></label>
           ${templates.map(template => `<label class="hutch-choice"><input type="radio" name="setup-template" value="${esc(template.name)}" ${draft.template === template.name ? "checked" : ""}>
             <span><b>${esc(template.tagline || template.name)}</b><small>${esc(template.description || template.safety || "Starter configuration")}</small></span></label>`).join("")}
         </fieldset>
@@ -12426,7 +12426,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       <details class="setup-schedule">
         <summary>Human browser handoff (optional)</summary>
         <div class="hutch-form">
-          <div class="hutch-field"><label class="hutch-check" for="setup-local-browser-handoff"><input type="checkbox" id="setup-local-browser-handoff" ${draft.local_browser_handoff ? "checked" : ""} ${browserHandoffReady ? "" : "disabled"}><span class="tool-option-copy"><b>Let me take over this bot’s browser</b><small>Pause for login, CAPTCHA, 2FA and sensitive form fields. Hutch will not solve challenges or type passwords.</small></span></label><p class="hutch-help">${esc(browserHandoffHelp)}</p></div>
+          <div class="hutch-field"><label class="hutch-check" for="setup-local-browser-handoff"><input type="checkbox" id="setup-local-browser-handoff" ${draft.local_browser_handoff ? "checked" : ""} ${browserHandoffReady ? "" : "disabled"}><span class="tool-option-copy"><b>Let me take over this assistant’s browser</b><small>Pause for login, CAPTCHA, 2FA and sensitive form fields. Hutch will not solve challenges or type passwords.</small></span></label><p class="hutch-help">${esc(browserHandoffHelp)}</p></div>
         </div>
       </details>
     </div>`;
@@ -12447,7 +12447,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     body.disabled = creating;
     $("#setup-discard-actions", root).disabled = creating;
     confirm.textContent = creating ? "Creating assistant…" : step === 3 || (step === 0 && !draft.forceAdvanced && !!draft.model.trim())
-      ? "Create bot" : step === 0 && !draft.forceAdvanced ? "Choose a model" : "Continue";
+      ? "Create assistant" : step === 0 && !draft.forceAdvanced ? "Choose a model" : "Continue";
     confirm.disabled = creating;
     let configurationYaml = "";
     $("#setup-yaml-build")?.addEventListener("click", async event => {
@@ -12463,7 +12463,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
         configurationYaml = result.yaml;
         if (preview) { preview.textContent = configurationYaml; preview.hidden = false; }
         if (download) download.disabled = false;
-        if (status) status.textContent = "YAML preview ready. No Bot was created or changed.";
+        if (status) status.textContent = "YAML preview ready. No assistant was created or changed.";
       } catch (error) {
         configurationYaml = "";
         if (status) status.textContent = `Could not build the preview: ${error.message}`;
@@ -12578,7 +12578,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       }
       draft.purpose = suggestion;
       draft.purposeRefinement = null;
-      draft.purposeRefinementStatus = "Draft applied to the purpose field. Review it and the remaining Bot settings before creating.";
+      draft.purposeRefinementStatus = "Draft applied to the purpose field. Review it and the remaining assistant settings before creating.";
       refreshSuggestedIdentity();
       persistPurposeSetupDraft();
       void renderStep().then(() => $("#setup-purpose")?.focus());
@@ -12664,14 +12664,14 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
   const submitSetup = async () => {
       snapshotFields();
       setError("");
-      if (draft.step === 0 && !draft.purpose.trim()) { setError("Describe what this bot should handle."); $("#setup-purpose")?.focus(); return false; }
+      if (draft.step === 0 && !draft.purpose.trim()) { setError("Describe what this assistant should handle."); $("#setup-purpose")?.focus(); return false; }
       if (draft.step === 0 && Array.from(instructionsForDraft()).length > 20_000) {
-        setError("Shorten the purpose or select fewer messages; saved Bot instructions are limited to 20,000 characters.");
+        setError("Shorten the purpose or select fewer messages; saved assistant instructions are limited to 20,000 characters.");
         $("#setup-purpose")?.focus(); return false;
       }
       if (draft.step === 0) {
-        if (!draft.display_name.trim()) { setError("Add a display name for this Bot."); $("#setup-display_name")?.focus(); return false; }
-        if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(draft.name.trim())) { setError("Use 2–41 lowercase letters, numbers, and dashes for the Bot address."); $("#setup-name")?.focus(); return false; }
+        if (!draft.display_name.trim()) { setError("Add a display name for this assistant."); $("#setup-display_name")?.focus(); return false; }
+        if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(draft.name.trim())) { setError("Use 2–41 lowercase letters, numbers, and dashes for the assistant address."); $("#setup-name")?.focus(); return false; }
       }
       if (draft.step === 1 && !draft.model.trim()) { setError("Choose or enter a configured model route."); $("#setup-model")?.focus(); return false; }
       if (draft.step === 2 && draft.schedule_prompt.trim() && !draft.cron.trim()) { setError("Add a cron schedule before setting its task prompt."); $("#setup-cron")?.focus(); return false; }
@@ -12707,7 +12707,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
         firstRunSelection = null;
         if (purposeSetupStorageKey) storageRemove(purposeSetupStorageKey);
         if (assistantSetupPage?.element === element) assistantSetupPage = null;
-        toast(`Bot “${bot.display_name || draft.display_name}” created. It has not started a run.`);
+        toast(`Assistant “${bot.display_name || draft.display_name}” created. It has not started a run.`);
         if (location.hash === "#/assistant/new" && generation === assistantSetupGeneration) {
           location.hash = `#/chat/${encodeURIComponent(bot.name)}`;
         }
@@ -13120,11 +13120,11 @@ function phoneRender() {
     const running = runs.filter(run => active.has(run.status));
     const candidates = canStart ? bots.filter(bot => bot.remote_start_enabled) : [];
     const startUnavailable = canStart
-      ? `No Bot is enabled for phone starts. A local owner can enable one with <code>hutch bot update NAME --remote-start</code>.`
+      ? `No assistant is enabled for phone starts. A local owner can enable one with <code>hutch bot update NAME --remote-start</code>.`
       : `This paired session is ${canReview ? "monitor and review" : "monitor"} only. Starting work is unavailable.`;
     body = `<section class="phone-summary"><div><strong>${running.length}</strong><span>in progress</span></div><div><strong>${approvals.length + workflowQuestions.length}</strong><span>need review</span></div><div><strong>${workflows.length}</strong><span>workflows</span></div></section>
-      <section><h2 class="phone-section-title">Bots</h2>${bots.length ? `<div class="phone-list">${bots.map(bot => `<article class="phone-card"><div class="phone-card-head"><strong>${esc(bot.display_name || bot.name)}</strong><span class="phone-status ${bot.paused ? "needs" : ""}">${bot.paused ? "Paused" : esc(bot.active_run_status_label || "Ready")}</span></div><p class="phone-sub">${esc(bot.description || "")}</p>${bot.paused ? `<span class="phone-sub">Scheduled tasks are paused</span>` : ""}${canStart && bot.remote_start_enabled ? `<span class="phone-sub">Phone starts enabled by the local owner</span>` : canReview ? `<span class="phone-sub">Monitor and review only</span>` : `<span class="phone-sub">Monitor only</span>`}</article>`).join("")}</div>` : `<p class="phone-empty">No Bots are configured.</p>`}</section>
-      <section><h2 class="phone-section-title">Start work</h2>${candidates.length ? `<form class="phone-card hutch-form phone-start-form" id="phone-start-form"><div class="hutch-composer"><div class="hutch-composer__target"><span class="hutch-composer__target-dot" aria-hidden="true"></span><label class="hutch-composer__target-label" for="phone-start-bot">To</label><select class="hutch-select hutch-composer__target-select" id="phone-start-bot" name="bot" required>${candidates.map(bot => `<option value="${esc(bot.name)}">${esc(bot.display_name || bot.name)}${bot.paused ? " · scheduled tasks paused" : ""}</option>`).join("")}</select></div><div class="hutch-composer__body"><label class="visually-hidden" for="phone-start-prompt">What should this Bot do?</label><textarea class="hutch-composer__textarea" id="phone-start-prompt" name="prompt" rows="4" maxlength="20000" required placeholder="Describe the task"></textarea></div><div class="hutch-composer__actions"><div class="hutch-composer__trailing"><button class="hutch-button hutch-button--primary hutch-composer__send" type="submit" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Start work</button></div></div></div><div class="hutch-composer__foot"><p class="phone-sub">Uses the Bot’s locally configured model, tools, workspace and approval policy. Starting work here creates an on-demand run; pausing a Bot only pauses its scheduled tasks.</p></div></form>` : `<p class="phone-empty">${startUnavailable}</p>`}</section>
+      <section><h2 class="phone-section-title">Assistants</h2>${bots.length ? `<div class="phone-list">${bots.map(bot => `<article class="phone-card"><div class="phone-card-head"><strong>${esc(bot.display_name || bot.name)}</strong><span class="phone-status ${bot.paused ? "needs" : ""}">${bot.paused ? "Paused" : esc(bot.active_run_status_label || "Ready")}</span></div><p class="phone-sub">${esc(bot.description || "")}</p>${bot.paused ? `<span class="phone-sub">Scheduled tasks are paused</span>` : ""}${canStart && bot.remote_start_enabled ? `<span class="phone-sub">Phone starts enabled by the local owner</span>` : canReview ? `<span class="phone-sub">Monitor and review only</span>` : `<span class="phone-sub">Monitor only</span>`}</article>`).join("")}</div>` : `<p class="phone-empty">No assistants are configured.</p>`}</section>
+      <section><h2 class="phone-section-title">Start work</h2>${candidates.length ? `<form class="phone-card hutch-form phone-start-form" id="phone-start-form"><div class="hutch-composer"><div class="hutch-composer__target"><span class="hutch-composer__target-dot" aria-hidden="true"></span><label class="hutch-composer__target-label" for="phone-start-bot">To</label><select class="hutch-select hutch-composer__target-select" id="phone-start-bot" name="bot" required>${candidates.map(bot => `<option value="${esc(bot.name)}">${esc(bot.display_name || bot.name)}${bot.paused ? " · scheduled tasks paused" : ""}</option>`).join("")}</select></div><div class="hutch-composer__body"><label class="visually-hidden" for="phone-start-prompt">What should this assistant do?</label><textarea class="hutch-composer__textarea" id="phone-start-prompt" name="prompt" rows="4" maxlength="20000" required placeholder="Describe the task"></textarea></div><div class="hutch-composer__actions"><div class="hutch-composer__trailing"><button class="hutch-button hutch-button--primary hutch-composer__send" type="submit" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Start work</button></div></div></div><div class="hutch-composer__foot"><p class="phone-sub">Uses the assistant’s locally configured model, tools, workspace and approval policy. Starting work here creates an on-demand run; pausing an assistant only pauses its scheduled tasks.</p></div></form>` : `<p class="phone-empty">${startUnavailable}</p>`}</section>
       <section><h2 class="phone-section-title">Recent runs</h2>${runs.slice(0, 8).map(run => `<button class="phone-card phone-run-card" type="button" data-phone-run="${esc(run.id)}"><span class="phone-card-head"><span class="phone-status ${run.needs_person ? "needs" : ""}">${esc(run.status_label || run.status)}</span><span>${esc(run.bot_display_name || run.bot_name || "Bot")}</span></span><strong>${esc(run.prompt || (run.image_attachment_count ? `${run.image_attachment_count} image${run.image_attachment_count === 1 ? "" : "s"} attached` : "Run"))}</strong></button>`).join("") || `<p class="phone-empty">No runs to show yet.</p>`}</section>`;
   }
 
@@ -13287,7 +13287,7 @@ function phoneHandleSubmit(event) {
   const bot = phoneModel.bots.find(item => item.name === data.get("bot"));
   const prompt = String(data.get("prompt") || "").trim();
   if (!bot?.remote_start_enabled || !prompt) {
-    phoneModel.notice = "Choose an enabled Bot and enter a task. The local owner controls each Bot’s remote-start setting.";
+    phoneModel.notice = "Choose an enabled assistant and enter a task. The local owner controls each assistant’s remote-start setting.";
     phoneRender();
     return;
   }

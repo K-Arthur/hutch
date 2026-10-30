@@ -46,7 +46,7 @@
       const steps = root.querySelector(".connection-steps");
       root.querySelector("[data-connection-open='phone-pair']").hidden = selected !== "phone";
       if (selected === "telegram") {
-        steps.children[0].textContent = "Connect a bot";
+        steps.children[0].textContent = "Connect a Telegram bot";
         steps.children[1].textContent = "Choose allowed senders";
         steps.children[2].textContent = "Start receiving and replying";
       } else if (selected === "models" || selected === "chatgpt") {

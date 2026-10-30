@@ -118,7 +118,7 @@ def register_pages(app: FastAPI) -> None:
     def bot_or_404(name: str) -> Bot:
         bot = store.get_bot(name)
         if bot is None:
-            raise HTTPException(404, f"No bot named '{name}'.")
+            raise HTTPException(404, f"No assistant named '{name}'.")
         return bot
 
     def run_or_404(run_id: str):
@@ -239,7 +239,7 @@ def register_pages(app: FastAPI) -> None:
         if not re.match(r"^[a-z0-9][a-z0-9-]{1,40}$", name):
             return go("/bots/new", error="Name must be a lowercase slug: a-z, 0-9 and hyphens, 2-41 characters.")
         if store.get_bot(name):
-            return go("/bots/new", error=f"A bot named '{name}' already exists.")
+            return go("/bots/new", error=f"An assistant named '{name}' already exists.")
         template = form.get("template")
         if template and template not in TEMPLATES:
             return go("/bots/new", error=f"Unknown template '{template}'.")

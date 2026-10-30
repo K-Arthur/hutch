@@ -197,9 +197,9 @@ def test_picker_empty_state_when_no_bots(browser, live, evidence):
     try:
         response = page.goto(base + "/bots/delete", wait_until="networkidle")
         assert response is not None and response.status == 200
-        page.get_by_role("heading", name="No bots yet").wait_for(timeout=10_000)
+        page.get_by_role("heading", name="No assistants yet").wait_for(timeout=10_000)
         assert page.locator("[data-bot-delete-choice]").count() == 0
-        assert page.get_by_role("link", name="New bot").get_attribute("href") == "/bots/new"
+        assert page.locator("main").get_by_role("link", name="New assistant").get_attribute("href") == "/#/assistant/new"
         capture(evidence, "picker-empty", page)
         assert log["page_errors"] == []
     finally:
@@ -249,7 +249,7 @@ def test_assistant_danger_zone_links_to_the_deletion_picker(browser, live, evide
         capture(evidence, "danger-zone-picker-link", page)
         link.click()
         page.wait_for_url("**/bots/delete", timeout=10_000)
-        page.get_by_role("heading", name="Permanently delete a bot").wait_for(timeout=10_000)
+        page.get_by_role("heading", name="Permanently delete an assistant").wait_for(timeout=10_000)
         rows = page.locator("[data-bot-delete-choice]")
         assert rows.count() == 1 and "nav-bot" in rows.nth(0).inner_text()
         assert log["page_errors"] == []
@@ -273,7 +273,7 @@ def test_wrong_typed_address_shows_an_error_and_erases_nothing(browser, live, ev
         error = page.locator("#bot-deletion-error")
         error.wait_for(state="visible", timeout=5_000)
         assert error.get_attribute("aria-live") == "assertive"
-        assert "does not match the bot address" in error.inner_text()
+        assert "does not match the assistant address" in error.inner_text()
         assert page.evaluate("document.activeElement && document.activeElement.id === 'bot-deletion-error'")
         assert not any(entry["url"].endswith("/confirm") for entry in log["api_requests"])
         assert store.get_bot("typed-wrong") is not None and store.get_bot(bot.id) is not None

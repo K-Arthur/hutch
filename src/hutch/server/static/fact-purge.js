@@ -151,7 +151,7 @@
     allRadio.value = 'all';
     allRadio.setAttribute('data-fact-purge-scope', 'all');
     var allChoice = node('label', 'inline');
-    allChoice.append(allRadio, document.createTextNode(' All saved facts for this Bot'));
+    allChoice.append(allRadio, document.createTextNode(' All saved facts for this assistant'));
     fieldset.append(keyChoice, allChoice);
 
     var keyLabel = node('label', 'field');
@@ -198,9 +198,9 @@
     function syncScope() {
       keySelect.disabled = allRadio.checked || !keys.length;
       if (!keys.length) {
-        keyHint.textContent = 'No saved keys are visible here. Preview all saved facts for this Bot, or erase one key from Saved notes or the CLI (bot purge --key).';
+        keyHint.textContent = 'No saved keys are visible here. Preview all saved facts for this assistant, or erase one key from Saved notes or the CLI (bot purge --key).';
       } else if (allRadio.checked) {
-        keyHint.textContent = 'Every saved fact for this Bot will be previewed.';
+        keyHint.textContent = 'Every saved fact for this assistant will be previewed.';
       } else {
         keyHint.textContent = 'Only the selected saved key will be previewed.';
       }
@@ -240,7 +240,7 @@
       var expectedCode = node('code', 'mono', expected);
       expectedCode.setAttribute('data-fact-purge-expected', '');
       labelText.append(expectedCode, document.createTextNode(data.scope_kind === 'all'
-        ? " (this Bot's address) exactly to enable Erase permanently."
+        ? " (this assistant's address) exactly to enable Erase permanently."
         : ' exactly to enable Erase permanently.'));
       confirmLabel.append(labelText);
       var confirmation = document.createElement('input');

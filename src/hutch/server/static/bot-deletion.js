@@ -231,7 +231,7 @@
             els.success.classList.remove("hidden");
             els.history.textContent = "";
             els.history.appendChild(make("li", "muted",
-                "This bot is deleted. Its content-free deletion record remains in Hutch's evidence."));
+                "This assistant is deleted. Its content-free deletion record remains in Hutch's evidence."));
             setStatus("");
             focusNode(els.success);
         }
@@ -265,7 +265,7 @@
                 .catch(function (error) {
                     els.history.textContent = "";
                     var message = error.status === 404
-                        ? "This bot no longer exists, so its deletion history is not listed here."
+                        ? "This assistant no longer exists, so its deletion history is not listed here."
                         : "Could not load deletion history.";
                     els.history.appendChild(make("li", "muted", message));
                 });
@@ -296,14 +296,14 @@
             var typed = els.confirmation.value;
             if (typed !== state.address) {
                 syncConfirm();
-                showError("That does not match the bot address. Type " + state.address + " exactly.", null);
+                showError("That does not match the assistant address. Type " + state.address + " exactly.", null);
                 return;
             }
             clearError();
             if (!state.confirmKey) state.confirmKey = idempotencyKey();
             var requestId = String(state.preview.request_id || "");
             var url = deletionUrl(apiName) + "/" + encodeURIComponent(requestId) + "/confirm";
-            setBusy(true, "Deleting the bot. Do not close this page.");
+            setBusy(true, "Deleting the assistant. Do not close this page.");
             request(url, {
                 method: "POST",
                 headers: {
@@ -343,7 +343,7 @@
             if (event.key !== "Enter") return;
             event.preventDefault();
             if (els.confirm.disabled) {
-                showError("That does not match the bot address. Type " + state.address + " exactly.", null);
+                showError("That does not match the assistant address. Type " + state.address + " exactly.", null);
                 return;
             }
             confirmDeletion();

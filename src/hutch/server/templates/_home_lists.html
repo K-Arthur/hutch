@@ -4,7 +4,7 @@
 {%- from "_wait.html" import wait_banner -%}
 
 <div class="statline">
-  <span><strong>{{ home.stats.bots }}</strong> bot{{ '' if home.stats.bots == 1 else 's' }}{% if home.stats.paused %} ({{ home.stats.paused }} paused){% endif %}</span>
+  <span><strong>{{ home.stats.bots }}</strong> assistant{{ '' if home.stats.bots == 1 else 's' }}{% if home.stats.paused %} ({{ home.stats.paused }} paused){% endif %}</span>
   <span><strong>{{ home.stats.runs_today }}</strong> run{{ '' if home.stats.runs_today == 1 else 's' }} today</span>
   <span><strong>{{ home.stats.tokens_today | tokens }}</strong> tokens</span>
   <span><strong>{{ home.stats.spend_today | money }}</strong> spent</span>
@@ -46,7 +46,7 @@
   <section class="col quiet" aria-labelledby="h-run">
     <h2 id="h-run">{{ icon("play", 18) }} Running now <span class="count">{{ home.running | length }}</span></h2>
     {% if not home.running %}
-      <div class="empty">{{ icon("bot", 26) }}<p>Nothing is running.</p><p class="hint">Start a bot from its page, or let a schedule fire.</p></div>
+      <div class="empty">{{ icon("bot", 26) }}<p>Nothing is running.</p><p class="hint">Start an assistant from its page, or let a schedule fire.</p></div>
     {% endif %}
     {% for run, bot_name, w in home.running %}
     <article class="row">
@@ -71,7 +71,7 @@
   <section class="col quiet" aria-labelledby="h-stale">
     <h2 id="h-stale">{{ icon("clock", 18) }} Stale <span class="count {{ 'warn' if home.stale else '' }}">{{ home.stale | length }}</span></h2>
     {% if not home.stale %}
-      <div class="empty">{{ icon("check", 26) }}<p>Every scheduled bot is up to date.</p><p class="hint">A bot lands here when its last success is older than its schedule implies.</p></div>
+      <div class="empty">{{ icon("check", 26) }}<p>Every scheduled assistant is up to date.</p><p class="hint">An assistant lands here when its last success is older than its schedule implies.</p></div>
     {% endif %}
     {% for s in home.stale %}
     <article class="row">

@@ -79,7 +79,7 @@ def test_setup_inline_validation_and_create_clear_only_the_completed_draft(brows
     try:
         before = len(app.state.store.list_bots())
         page.locator("#setup-page-confirm").click()
-        expect(page.locator("#bot-setup-error")).to_have_text("Describe what this bot should handle.")
+        expect(page.locator("#bot-setup-error")).to_have_text("Describe what this assistant should handle.")
         expect(page.locator("#setup-purpose")).to_be_focused()
         page.locator("#setup-purpose").fill("Summarize the notes I provide.")
         with page.expect_response(lambda response: response.url.endswith("/api/v1/bots")
@@ -163,7 +163,7 @@ def test_failed_replacement_loading_leaves_the_original_draft_editable(browser, 
             status=503, json={"detail": "Setup examples are temporarily unavailable"}))
         page.locator("#tpl-grid .tpl-card").first.click()
         page.locator("#modal-confirm").click()
-        expect(page.locator(".toast").filter(has_text="Bot setup is unavailable")).to_be_visible()
+        expect(page.locator(".toast").filter(has_text="Assistant setup is unavailable")).to_be_visible()
         page.locator("#nav-toggle").click()
         page.locator("#topbar-new-bot").click()
         expect(page.locator("#setup-purpose")).to_have_value(purpose)

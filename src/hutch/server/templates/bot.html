@@ -7,14 +7,14 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <p class="crumb"><a href="/bots">Bots</a></p>
+    <p class="crumb"><a href="/bots">Assistants</a></p>
     <h1>{{ icon("bot", 24) }} {{ bot.display_name }}</h1>
     <p class="sub">{{ bot.description or "No description." }}</p>
     <div class="tags"><span class="tag">{{ bot.model }}</span><span class="tag">{{ bot.runtime.value }}</span>
       <span class="tag">{{ bot.schedule.cron ~ " (" ~ bot.schedule.timezone ~ ")" if bot.schedule else "on demand" }}</span>
       <span class="tag">approvals: {{ bot.approval_mode.value }}</span>
-      {% if bot.workdir %}<span class="tag" title="The folder this bot works in">folder: {{ bot.workdir }}</span>{% endif %}
-      <span class="tag {{ 'ok' if bot.risk_tier.value == 'readonly' else 'warn' if bot.risk_tier.value == 'trusted' else '' }}" title="What this bot may do without asking">tier: {{ bot.risk_tier.value }}{% if bot.command_rules %} + {{ bot.command_rules | length }} rule{{ '' if bot.command_rules | length == 1 else 's' }}{% endif %}</span>
+      {% if bot.workdir %}<span class="tag" title="The folder this assistant works in">folder: {{ bot.workdir }}</span>{% endif %}
+      <span class="tag {{ 'ok' if bot.risk_tier.value == 'readonly' else 'warn' if bot.risk_tier.value == 'trusted' else '' }}" title="What this assistant may do without asking">tier: {{ bot.risk_tier.value }}{% if bot.command_rules %} + {{ bot.command_rules | length }} rule{{ '' if bot.command_rules | length == 1 else 's' }}{% endif %}</span>
       {% if bot.paused %}<span class="chip st-paused">paused</span>{% endif %}</div>
   </div>
   <div class="actions">
@@ -43,7 +43,7 @@
     ) }}
     <div class="hutch-composer__foot">
       <p class="hutch-help estimate" id="estimate">{{ icon("chart", 13) }} <strong>{{ estimate.spec }}:</strong> {{ estimate.summary }}</p>
-      <p class="hutch-help">Limits for this bot: {{ bot.limits.max_steps }} steps and {{ bot.limits.timeout_seconds }}s wall clock. Token budget today: {{ (tokens_today - estimate.reserved_tokens_today) | tokens }} measured + {{ estimate.reserved_tokens_today | tokens }} held estimate of {{ bot.limits.daily_token_cap | tokens }}.</p>
+      <p class="hutch-help">Limits for this assistant: {{ bot.limits.max_steps }} steps and {{ bot.limits.timeout_seconds }}s wall clock. Token budget today: {{ (tokens_today - estimate.reserved_tokens_today) | tokens }} measured + {{ estimate.reserved_tokens_today | tokens }} held estimate of {{ bot.limits.daily_token_cap | tokens }}.</p>
     </div>
   </form>
 </section>
@@ -83,7 +83,7 @@
     <div class="hutch-field">
       <label class="hutch-label" for="display_name"><span id="display-name-label">Display name</span> <span class="hutch-req" aria-hidden="true">*</span></label>
       <input class="hutch-input" type="text" id="display_name" name="display_name" value="{{ bot.display_name }}" maxlength="80" required aria-labelledby="display-name-label" aria-describedby="display-name-hint">
-      <p class="hutch-help" id="display-name-hint">Shown in chats and lists. Existing links keep the same Bot address.</p>
+      <p class="hutch-help" id="display-name-hint">Shown in chats and lists. Existing links keep the same assistant address.</p>
     </div>
     {{ text_input("description", "Description", value=bot.description) }}
     <div class="hutch-field">
@@ -100,7 +100,7 @@
         <option value="fresh" {{ 'selected' if not bot.workdir and bot.workspace_mode == 'fresh' }}>Fresh each run</option>
         <option value="managed" {{ 'selected' if not bot.workdir and bot.workspace_mode == 'managed' }}>Hutch-managed</option>
         <option value="folder" {{ 'selected' if bot.workdir }}>Existing folder</option></select>
-      <p class="hutch-help" id="workspace-mode-hint">Fresh starts with a clean folder. Managed shares one private folder across this bot's runs and chats; deleting the bot keeps its files. Changing modes does not move or delete files.</p>
+      <p class="hutch-help" id="workspace-mode-hint">Fresh starts with a clean folder. Managed shares one private folder across this assistant's runs and chats; deleting the assistant keeps its files. Changing modes does not move or delete files.</p>
     </div>
     <div class="hutch-field browser-handoff-field">
       <label class="hutch-label" for="local_browser_handoff"><span id="browser-handoff-label">Local browser handoff</span></label>
@@ -131,7 +131,7 @@
     {{ textarea("instructions", "Instructions", value=bot.instructions, rows=6) }}
     {% call form_actions() %}<button class="btn primary">Save</button>{% endcall %}
   </form>
-  <details class="danger-zone"><summary>Delete this bot</summary>
+  <details class="danger-zone"><summary>Delete this assistant</summary>
     {{ confirm_form("delete-bot-form", "delete-bot-confirm", "/bots/" ~ bot.name ~ "/delete",
         "Delete this assistant?",
         "Its memory and always-allowed actions go too; run history stays on disk.",

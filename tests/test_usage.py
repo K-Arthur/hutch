@@ -137,7 +137,7 @@ def seed(c):
 def test_usage_page_totals_tables_and_caps(client):
     a, b = seed(client)
     t = client.get("/usage").text
-    for needle in ("Where tokens and money went", "By day", "By model", "By bot", "Today against each bot", "researcher",
+    for needle in ("Where tokens and money went", "By day", "By model", "By assistant", "Today against each assistant", "researcher",
                    "anthropic/claude-opus-5-5", "ollama/qwen3:4b", "free (local)", "$2.75",
                    "$2.75 measured + $0 held estimate of $5.00 estimate limit"):
         assert needle in t, needle

@@ -5,7 +5,7 @@
 {% block title %}Apps & AI{% endblock %}
 {% block content %}
 <div class="page-head"><div><h1>Connections</h1>
-  <p class="sub">Hosted endpoints and subscription plans, each with its own key. Use one in a bot as <span class="mono">&lt;name&gt;/&lt;model&gt;</span>, for example <span class="mono">opencode-go/glm-5.3</span>.</p></div></div>
+  <p class="sub">Hosted endpoints and subscription plans, each with its own key. Use one in an assistant as <span class="mono">&lt;name&gt;/&lt;model&gt;</span>, for example <span class="mono">opencode-go/glm-5.3</span>.</p></div></div>
 
 <div class="banner wait">{{ icon("lock", 18) }}<div class="banner-body">
   <p><strong>Keys stay on this machine.</strong> A key is read from an environment variable, or from a file in Hutch's state directory (mode 0600). It is never stored in the database, shown on a page, put in a transcript, or returned by the API.</p>
@@ -118,7 +118,7 @@
     {% if c.terms.url %}<p class="hint"><a href="{{ c.terms.url }}" rel="noopener noreferrer" target="_blank">Read the vendor's terms</a></p>{% endif %}
     {% if v.ack in ('required', 'stale') %}
     <form method="post" action="/connections/{{ c.name }}/ack" class="hutch-form hutch-inline"><input type="hidden" name="csrf" value="{{ csrf }}">
-      <label class="hutch-check"><input type="checkbox" name="agree" value="1"><span class="hutch-option-text"><span>I have read this and take responsibility for how my bots use this plan.</span></span></label>
+      <label class="hutch-check"><input type="checkbox" name="agree" value="1"><span class="hutch-option-text"><span>I have read this and take responsibility for how my assistants use this plan.</span></span></label>
       <button class="btn primary small">Acknowledge</button></form>
     {% endif %}
   </div>

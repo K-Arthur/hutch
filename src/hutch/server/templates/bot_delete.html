@@ -4,10 +4,10 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <p class="crumb"><a href="/bots/delete">{{ icon("arrow-left", 13) }} Permanently delete a bot</a></p>
+    <p class="crumb"><a href="/bots/delete">{{ icon("arrow-left", 13) }} Permanently delete an assistant</a></p>
     <h1>Permanently delete {{ bot.display_name or bot.name }}</h1>
-    <p class="sub">This erases the bot and the conversations, runs, memory and managed files that belong
-      to it. It cannot be undone. Nothing is removed until you preview the exact counts and type the bot
+    <p class="sub">This erases the assistant and the conversations, runs, memory and managed files that belong
+      to it. It cannot be undone. Nothing is removed until you preview the exact counts and type the assistant
       address.</p>
   </div>
 </div>
@@ -15,7 +15,7 @@
 <div id="bot-deletion" data-bot-deletion data-bot-name="{{ bot.name }}" data-bot-id="{{ bot.id }}">
   <section class="panel" aria-labelledby="bot-deletion-danger">
     <h2 class="card-title" id="bot-deletion-danger">Danger zone</h2>
-    <p class="small">The bot address is <code class="mono" data-bot-delete-address>{{ bot.name }}</code>.
+    <p class="small">The assistant address is <code class="mono" data-bot-delete-address>{{ bot.name }}</code>.
       A preview always comes first and never changes anything.</p>
 
     <div id="bot-deletion-status" class="small muted" role="status" aria-live="polite"></div>
@@ -39,7 +39,7 @@
       <ul class="plain" data-bot-delete-remaining></ul>
 
       <div class="hutch-field">
-        <label class="hutch-label" for="bot-deletion-confirmation">Type the bot address
+        <label class="hutch-label" for="bot-deletion-confirmation">Type the assistant address
           <code class="mono" data-bot-delete-address>{{ bot.name }}</code> to confirm</label>
         <input class="hutch-input" id="bot-deletion-confirmation" name="confirmation" type="text"
                autocomplete="off" autocapitalize="none" spellcheck="false"
@@ -48,13 +48,13 @@
           text matches the address exactly. Press Enter to try when it matches.</p>
       </div>
 
-      <p><button class="btn danger" type="button" data-bot-delete-confirm disabled>Permanently delete this bot</button></p>
+      <p><button class="btn danger" type="button" data-bot-delete-confirm disabled>Permanently delete this assistant</button></p>
     </div>
 
     <div id="bot-deletion-success" class="banner hidden" role="status" tabindex="-1" data-bot-delete-success>
       {{ icon("check", 16) }}
       <div class="banner-body">
-        <h3>Bot deleted</h3>
+        <h3>Assistant deleted</h3>
         <p data-bot-delete-outcome></p>
         <p class="small muted">Cleanup state: <code class="mono" data-bot-delete-cleanup-state></code></p>
         <ul class="plain" data-bot-delete-success-remaining></ul>
@@ -64,7 +64,7 @@
 
   <section class="panel" aria-labelledby="bot-deletion-history-title">
     <h2 class="card-title" id="bot-deletion-history-title">Deletion history</h2>
-    <p class="hint">Content-free records of previews and deletions for this bot.</p>
+    <p class="hint">Content-free records of previews and deletions for this assistant.</p>
     <ul class="plain" id="bot-deletion-history" aria-live="polite" data-bot-delete-history>
       <li class="muted">No deletion requests yet</li>
     </ul>

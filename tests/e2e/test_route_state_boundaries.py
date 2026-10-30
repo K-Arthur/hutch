@@ -107,7 +107,7 @@ def _check_empty(page, slug: str):
     if slug == "usage":
         copy = page.get_by_text("No model calls in the last 30 days.", exact=True)
         copy.wait_for(state="visible", timeout=20000)
-        page.get_by_text("No bots yet.", exact=True).wait_for(state="visible", timeout=20000)
+        page.get_by_text("No assistants yet.", exact=True).wait_for(state="visible", timeout=20000)
         return copy.inner_text().strip(), {"kind": "none", "note": "no first-run call to action"}
     if slug == "models":
         page.get_by_text("No runtimes detected.", exact=True).wait_for(state="visible", timeout=20000)

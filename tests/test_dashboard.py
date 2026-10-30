@@ -86,7 +86,7 @@ def test_overview_api_has_the_three_questions(client):
 
 def test_unknown_page_is_a_helpful_404_not_a_stack_trace(client):
     r = client.get("/bots/nope", headers={"accept": "text/html"})
-    assert r.status_code == 404 and "No bot named" in r.text
+    assert r.status_code == 404 and "No assistant named" in r.text
 
 
 def test_home_is_the_chat_studio(client):
@@ -118,7 +118,7 @@ def test_approval_card_shows_segments_rule_choices_and_countdown(client):
     assert "Parsed into 2 segments" in html
     assert "git status" in html and "rm -rf build/" in html
     assert "ask:rm" in html                                   # the rule that fired
-    for label in ("Allow once", "Always for this bot", "Deny"):
+    for label in ("Allow once", "Always for this assistant", "Deny"):
         assert label in html
     assert "data-countdown-to" in html and "denies in" in html
 

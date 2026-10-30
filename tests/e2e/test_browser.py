@@ -2569,7 +2569,7 @@ def test_chatgpt_background_permission_is_explicit_responsive_and_reversible(bro
         trigger.click()
         dialog = page.get_by_role("dialog", name="Allow scheduled ChatGPT plan use?")
         assert "Fixture account" in dialog.inner_text()
-        assert "only for this Bot" in dialog.inner_text()
+        assert "only for this assistant" in dialog.inner_text()
         page.screenshot(path=str(output / "permission-review-phone.png"), animations="disabled")
         page.locator("#modal-confirm").focus()
         page.keyboard.press("Tab")
@@ -4308,7 +4308,7 @@ def test_google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone(browser
             assert overflow <= 1, (label, overflow)
             captures.append({"size": label, "viewport": [width, height], "scenes": ["overview", "granted account"],
                              "horizontal_overflow": overflow})
-        assert page.get_by_role("button", name="Revoke Bot access").bounding_box()["height"] >= 44
+        assert page.get_by_role("button", name="Revoke assistant access").bounding_box()["height"] >= 44
         page.locator(".connection-nickname:has(#google-calendar-label) > summary").click()
         page.locator("#google-calendar-label").fill("Work")
         page.get_by_role("button", name="Connect Google Calendar").click()
@@ -4473,7 +4473,7 @@ def test_google_calendar_event_creation_scope_is_explicit_and_owner_only(browser
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert overflow <= 1, (label, overflow)
             if width <= 390:
-                assert account.get_by_role("button", name="Revoke Bot access").bounding_box()["height"] >= 44
+                assert account.get_by_role("button", name="Revoke assistant access").bounding_box()["height"] >= 44
             captures.append({"size": label, "viewport": [width, height], "scene": "owned calendar event-creation grant",
                              "horizontal_overflow": overflow})
 
@@ -5115,7 +5115,7 @@ def test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewport
             assert overflow <= 1, (label, overflow)
             captures.append({"size": label, "viewport": [width, height], "scenes": ["connection disclosure", "granted account"],
                              "horizontal_overflow": overflow})
-        assert page.get_by_role("button", name="Revoke Bot access").bounding_box()["height"] >= 44
+        assert page.get_by_role("button", name="Revoke assistant access").bounding_box()["height"] >= 44
         assert not errors, errors
         assert not external, external
         (out / "validation.json").write_text(json.dumps({
@@ -5359,7 +5359,7 @@ def test_outlook_mail_grant_and_consent_boundary_fit_all_viewports(browser, live
         card = page.locator(".outlook-mail-card")
         card.wait_for()
         assert "Mail.Read" in card.inner_text()
-        assert "Reading and sending use separate account sign-ins and separate Bot grants" in card.inner_text()
+        assert "Reading and sending use separate account sign-ins and separate assistant grants" in card.inner_text()
         assert "provider consent must be revoked separately" in card.inner_text()
         assert "including Deleted Items and Clutter" in card.inner_text()
         page.locator("#outlook-mail-access > summary").click()
@@ -5400,7 +5400,7 @@ def test_outlook_mail_grant_and_consent_boundary_fit_all_viewports(browser, live
         assert "Mail Assistant" in disconnect_dialog.inner_text()
         assert "mail-assistant" not in disconnect_dialog.inner_text()
         disconnect_dialog.get_by_role("button", name="Cancel").click()
-        page.get_by_text("Mail previews are sent to that Bot's selected model", exact=False).wait_for()
+        page.get_by_text("Mail previews are sent to that assistant's selected model", exact=False).wait_for()
         while page.locator(".toast").count():
             page.locator(".toast-close").first.click()
 
@@ -5424,7 +5424,7 @@ def test_outlook_mail_grant_and_consent_boundary_fit_all_viewports(browser, live
             assert overflow <= 1, (label, overflow)
             captures.append({"size": label, "viewport": [width, height], "scenes": ["permission disclosure", "granted account"],
                              "horizontal_overflow": overflow})
-        assert page.get_by_role("button", name="Revoke Bot access").bounding_box()["height"] >= 44
+        assert page.get_by_role("button", name="Revoke assistant access").bounding_box()["height"] >= 44
         assert not errors, errors
         assert not external, external
         (output / "validation.json").write_text(json.dumps({
@@ -5564,7 +5564,7 @@ def test_outlook_mail_send_access_is_separate_and_responsive(browser, live, monk
         account.get_by_role("button", name="Revoke send access").click()
         page.get_by_role("dialog", name="Revoke Outlook Mail sending access").get_by_role(
             "button", name="Revoke access").click()
-        page.get_by_text("No Bot can prepare email from this account.").wait_for()
+        page.get_by_text("No assistant can prepare email from this account.").wait_for()
         account.get_by_role("button", name="Disconnect sending account").click()
         dialog = page.get_by_role("dialog", name="Disconnect Outlook Mail sending")
         assert "Microsoft consent is not revoked by Hutch" in dialog.inner_text()
@@ -7122,8 +7122,8 @@ def test_server_page_navigation_uses_the_shared_sidebar(browser, live, tmp_path)
     nav = page.locator("#primary-nav")
     toggle = page.locator("#nav-toggle")
     expected_links = {
-        "/#/chat", "/#/tasks", "/#/approvals", "/#/chats", "/#/overview", "/#/schedules",
-        "/#/runs", "/#/runtime", "/#/skills", "/models", "/usage", "/#/bots"}
+        "/#/chat", "/#/tasks", "/#/approvals", "/#/activity", "/#/schedules",
+        "/#/skills", "/models", "/usage", "/#/runtime"}   # no "/#/bots": the manager is offered from ten assistants
     try:
         for label, width, height in (("desktop", 1440, 960), ("narrow-desktop", 1366, 900),
                                      ("tablet", 900, 1024), ("phone", 390, 844),
@@ -7132,7 +7132,7 @@ def test_server_page_navigation_uses_the_shared_sidebar(browser, live, tmp_path)
             header = page.evaluate("() => document.querySelector('.app-top').getBoundingClientRect().height")
             assert header == 56, (label, header)      # stable height on every route/viewport
             links = nav.locator("a")
-            assert links.count() == 12
+            assert links.count() == 9
             assert {links.nth(i).get_attribute("href") for i in range(links.count())} == expected_links
             if width > 900:
                 assert rail.is_visible() and not rail.evaluate("el => el.inert")
@@ -7193,7 +7193,7 @@ def test_server_page_navigation_uses_the_shared_sidebar(browser, live, tmp_path)
                 nojs.goto(base + path, wait_until="domcontentloaded")
                 visible = nojs.evaluate("() => [...document.querySelectorAll('#primary-nav a')]"
                                         ".filter(a => { const r = a.getBoundingClientRect(); return r.width && r.height; }).length")
-                assert visible == 12, (path, visible)
+                assert visible == 9, (path, visible)   # Assistants is offered from ten assistants
                 assert nojs.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, path
             assert not nojs.locator("#nav-toggle").is_visible()
         finally:
@@ -7903,7 +7903,7 @@ def test_quick_bot_creation_uses_the_workspace_default_without_starting_work(bro
         assert "checks with you before important actions" in quick_summary
         assert "openai/gpt-4o-mini" not in quick_summary
         assert "hybrid" not in quick_summary.lower()
-        assert page.locator("#setup-page-confirm").inner_text() == "Create bot"
+        assert page.locator("#setup-page-confirm").inner_text() == "Create assistant"
         assert page.locator("#setup-customize").is_visible()
         assert app.state.store.list_bots() == [] and app.state.store.list_runs() == []
         captures = []
@@ -8350,7 +8350,7 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
         roster_summary.focus()
         page.keyboard.press("Enter")
         assert roster_details.get_attribute("open") is not None
-        roster_filter = page.get_by_label("Filter specialist Bots")
+        roster_filter = page.get_by_label("Filter specialist assistants")
         assert roster_filter.is_visible()
         roster_filter.fill("Release Notes")
         visible_choices = page.locator("[data-workspace-specialist-choice]:visible")
@@ -9369,7 +9369,7 @@ def test_bot_creation_reuses_only_the_selected_chat_messages_and_keeps_provenanc
         context_review = page.locator(".setup-review-list > div").filter(has_text="Earlier chat context")
         context_review.locator("details summary").click()
         assert page.get_by_text(context_request, exact=True).is_visible()
-        assert "saved bot instructions" in page.locator(".setup-review-list").inner_text().lower()
+        assert "saved assistant instructions" in page.locator(".setup-review-list").inner_text().lower()
         page.set_viewport_size({"width": 390, "height": 844})
         context_review.scroll_into_view_if_needed()
         context_box = context_review.bounding_box()
@@ -9470,7 +9470,7 @@ def test_user_can_start_bot_setup_from_the_exact_chat_request(browser, live, mon
         page.goto(f"{base}/#/chat/{bot.name}")
         action = page.locator('[data-create-bot-from-request="selected-request-message"]')
         action.wait_for(state="visible")
-        assert action.get_attribute("aria-label") == "Make a bot from this request"   # contains its visible text (WCAG 2.5.3)
+        assert action.get_attribute("aria-label") == "Make an assistant from this request"   # contains its visible text (WCAG 2.5.3)
         action_target = action.bounding_box()
         assert action_target and action_target["height"] >= 32
         # Keep focusing and dispatching Enter on the same live element. The
@@ -9481,11 +9481,11 @@ def test_user_can_start_bot_setup_from_the_exact_chat_request(browser, live, mon
         assert page.locator("#setup-use-source").is_checked()
         assert page.locator("#setup-purpose").input_value() == selected_request
         assert not page.locator("#setup-purpose").is_visible(), "the selected request is already the instruction; editing stays optional"
-        assert "Use this request as the Bot’s instructions" in page.locator(".setup-context-source").inner_text()
+        assert "Use this request as the assistant’s instructions" in page.locator(".setup-context-source").inner_text()
         assert "no need to enter it again" in page.locator(".bot-setup").inner_text().lower()
         assert page.locator("#setup-display_name").input_value()
         assert page.locator(".setup-quick-summary").is_visible()
-        assert page.locator("#setup-page-confirm").inner_text() == "Create bot"
+        assert page.locator("#setup-page-confirm").inner_text() == "Create assistant"
         assert page.locator('[data-setup-context-message="later-request-message"]').count() == 0
         assert later_request not in page.locator(".bot-setup").inner_text()
         assert "message 1" in page.locator(".bot-setup").inner_text()
@@ -9612,7 +9612,7 @@ def test_coordinator_can_refine_a_bot_purpose_without_changing_its_source_or_aut
     try:
         page.goto(f"{base}/#/chat/{coordinator.name}")
         page.locator("#chat-prompt").wait_for()
-        assert "Make a bot" in page.locator("[data-create-bot-from-request='purpose-source-message']").inner_text()
+        assert "Make an assistant" in page.locator("[data-create-bot-from-request='purpose-source-message']").inner_text()
         page.locator('[data-create-bot-from-request="purpose-source-message"]').click()
         original = "Prepare a weekly project status report for leadership."
         purpose = page.locator("#setup-purpose")
@@ -9885,7 +9885,7 @@ def test_workspace_model_default_seeds_new_bot_setup(browser, live, monkeypatch)
         page.locator("#setup-customize").click()
         page.get_by_role("heading", name="Choose what powers it").wait_for()
         assert page.get_by_label("Model route", exact=True).input_value() == "openai/gpt-4o-mini"
-        assert "Workspace default for new Bots" in page.locator(".setup-conversation").inner_text()
+        assert "Workspace default for new assistants" in page.locator(".setup-conversation").inner_text()
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             _check_setup_page(page)
@@ -9939,7 +9939,7 @@ def test_multiple_scheduled_tasks_can_be_managed_from_bot_settings(browser, live
         page.locator("#form-schedule").wait_for()
         prompt = page.locator('#form-schedule [name="schedule_prompt"]')
         assert prompt.input_value() == "Review release notes and report important changes."
-        assert page.get_by_text("Leave blank to use this bot’s standing instructions.", exact=False).is_visible()
+        assert page.get_by_text("Leave blank to use this assistant’s standing instructions.", exact=False).is_visible()
 
         bot = app.state.store.get_bot("scheduled-research")
         primary_id = bot.schedule.id
@@ -10450,7 +10450,7 @@ def test_model_switcher_can_explicitly_save_the_selected_route_as_bot_default(br
         button.click()
         save = page.locator("[data-save-default]")
         save.wait_for()
-        assert "Save as Bot default" in save.inner_text()
+        assert "Save as assistant default" in save.inner_text()
         assert "scheduled runs" in save.inner_text()
         captures = []
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
@@ -12710,7 +12710,7 @@ def test_explicit_cross_bot_fact_share_is_reviewable_revocable_and_responsive(br
         trigger = page.locator(f'[data-fact-share-create="{fact.id}"]')
         trigger.wait_for()
         trigger.focus(); page.keyboard.press('Enter')
-        dialog = page.get_by_role('dialog', name='Share this reference with a Bot')
+        dialog = page.get_by_role('dialog', name='Share this reference with an assistant')
         dialog.wait_for()
         assert 'Use the vendor security guide.' in dialog.inner_text()
         assert 'untrusted reference data' in dialog.inner_text()
@@ -12726,7 +12726,7 @@ def test_explicit_cross_bot_fact_share_is_reviewable_revocable_and_responsive(br
         wait_for_page(page, 'document.activeElement?.dataset.factShareCreate !== undefined')
         trigger = page.locator(f'[data-fact-share-create="{fact.id}"]')
         trigger.click()
-        page.get_by_role('dialog', name='Share this reference with a Bot').locator('#fact-share-target').select_option(label='Brief Writer')
+        page.get_by_role('dialog', name='Share this reference with an assistant').locator('#fact-share-target').select_option(label='Brief Writer')
         with page.expect_response(lambda response: response.request.method == 'POST' and response.url.endswith('/shares')) as created:
             page.locator('#modal-confirm').click()
         assert created.value.status == 201, created.value.text()
@@ -12829,7 +12829,7 @@ def test_bot_memory_export_explains_scope_and_downloads_complete_json(browser, l
         download_button.wait_for()
         page.locator('#memory-toggle').wait_for()
         download_button.click()
-        dialog = page.get_by_role('dialog', name='Export Bot memory')
+        dialog = page.get_by_role('dialog', name='Export assistant memory')
         dialog.get_by_text('unencrypted plaintext', exact=False).wait_for()
         dialog.get_by_text('Archived fact versions and review history', exact=False).wait_for()
         dialog.get_by_text('conversation transcripts, credentials, action receipts, and workspace files', exact=False).wait_for()

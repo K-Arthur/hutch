@@ -112,7 +112,7 @@ def register_model_pages(app: FastAPI, page: Callable, go: Callable, read_form: 
         if not ok:
             return go("/models", error=f"Could not set {model} as the default: {detail}")
         set_workspace_default(model)
-        return go("/models", notice=f"Set {model} as the default for new bots.")
+        return go("/models", notice=f"Set {model} as the default for new assistants.")
 
     @app.post("/models/test", include_in_schema=False)
     async def model_test(request: Request):
