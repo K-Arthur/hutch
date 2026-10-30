@@ -69,7 +69,7 @@ checked), **not run**, **open**.
 | P0 no preview or fixture file under `static/` | verified | this commit | `tests/test_static_has_no_demo_surfaces.py` fails on the old harness filename |
 | P0 full non-browser suite green at a clean clone | see ledger | | recorded in `ledger.md` after the final run |
 | P1 product spine (`product-spine.md`): definition, loop, canonical terms, navigation, contradiction list | verified | `2fedfc4f` | 36 contradictions in 9 groups (D, T, N, C, X, V, M, G, S), each with file and line and a phase or a keep-reason; line numbers re-read from the tree; two claims corrected after a wider search (C2 scope of "Stop all", X4 dead-template evidence). G1 (chat hides approval mode and spend) rests on source search, not a capture: decided by the P2 capture |
-| P2.1 one title format `<View> — Hutch` (server pages, SPA first paint and every route; the SPA title is read from the sidebar label, `ROUTE_TITLES` removed) | verified | this commit | `tests/test_page_titles.py` 10 passed (red first), `tests/e2e/test_page_titles.py` 12 passed, nav consistency and dashboard tests 41 passed; `app.js` 14,353 -> 14,349 lines (new logic in `page-title.js`) |
+| P2.1 one title format `<View> — Hutch` (server pages, SPA first paint and every route; the SPA title is read from the sidebar label, `ROUTE_TITLES` removed) | verified | `0eacc863` | `tests/test_page_titles.py` 10 passed (red first), `tests/e2e/test_page_titles.py` 12 passed, nav consistency and dashboard tests 41 passed; `app.js` 14,353 -> 14,349 lines (new logic in `page-title.js`) |
 | P2 remaining: Activity merge, server shell parity, vocabulary, dead code, capture | open | | see the plan in the next section |
 | P3 start states and first success | not started | | S2, `hutch doctor` and service offer in first run |
 | P4 UI promises versus backend sweep | partly done | `06887b15` `696b9f37` | see the table below |
@@ -94,5 +94,16 @@ checked), **not run**, **open**.
 
 ## Next
 
-Start at P1: write `docs/realignment/product-spine.md` from `PRODUCT.md`, the README and `DESIGN.md`, list
-every contradicting surface with file and line, then P2.
+Run stopped on a usage limit during P2.2 (Activity merge). Done and committed: P1 (`2fedfc4f`), P2.1 (`0eacc863`).
+P3-P6 not started. Another `claude` session (and Codex/OpenCode workers) was active in this checkout during the run,
+contrary to the prompt's premise; it committed `245a2631`, `ef8573f8`, `99880c70`. Stage by explicit path and
+recheck `git status` before every commit.
+
+P2.2a is saved, not applied: `~/hutch-wip-2026-10-30/p2-2a-activity-merge-partial.patch` (nav.py, index.html sidebar rows,
+style.css icon rule, new nav test) plus `test_activity_destination.py` (e2e, written, not yet run green). The tree was
+restored to HEAD so `main` stays consistent. Remaining for P2.2a: new `static/activity.js` (tab strip, `canonicalHash`
+redirects for `#/overview`, `#/chats`, `#/runs`), `activity.css`, `app.js` routes plus the three renderer headers and
+hash guards (`syncHash`, line ~7641/7742, live refresh ~12829), keep `app.js` at or below 14,353 lines. Then P2.2b
+(palette, `pages.py` redirects, label updates in e2e), P2.3 server shell parity (roster, brand label, footer path,
+global stop, N6 rule), P2.4 vocabulary guard, P2.5 dead code (X1-X5), P2.6 capture at 1440/900/360 which also decides
+whether the merge stays. Then P3-P6 as in the prompt.
