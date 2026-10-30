@@ -145,8 +145,9 @@ Two measured follow-ups from the earlier performance programme, with full record
 ## 2026-10-30 CLI cold start
 
 Measured continuation of the deferred CLI item above: the tool registry imported every tool family
-at import time, so `hutch version` paid ~308 ms of exclusive import work it never used (41.2% of
-import self time, independent -X importtime attribution; models were 33.1%). Tool classes now
+at import time, so `hutch version` paid a tool-catalog import bucket that was the largest share of
+import self time in every trace (44.6-56.2% across 5 independent traces; representative trace
+500.6 ms of 890.2 ms total, models ~23%). Tool classes now
 resolve on first use behind a read-only mapping, and `hutch bot destroy` imports its command layer
 on use.
 
@@ -158,4 +159,3 @@ host load 6.8-7.5): `hutch version` median **609 -> 331 ms (-45.7%, p95 854 -> 4
 and rejected (no bar-clearing kernel; ADR-0024, [research/cli-startup-2026-10-30.md](research/cli-startup-2026-10-30.md)).
 Full record: [perf/cli-startup-2026-10-30.md](perf/cli-startup-2026-10-30.md). Reproduce:
 `python -m benchmarks.cli_startup_ab --before <export>/src --after src`.
-

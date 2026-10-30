@@ -10,19 +10,24 @@ Every shell invocation starts a fresh Python process. At HEAD 4c53c814, importin
 `hutch.cli` eagerly imported the whole tool registry, so a quick command such as `hutch version`
 paid for tool families it never uses.
 
-Independent attribution (startup-profiler agent, pristine HEAD export, CPython -X importtime,
-median-total representative run of 5, 11 wall-clock samples):
+Independent attribution (startup-profiler agent, pristine HEAD export, CPython -X importtime).
+The representative trace is the run whose total import self time is the median of 5 traces;
+the bracketed range is the per-run share variability across those traces:
 
-| Subtree | Exclusive import self time | Share of import self time |
-|---|---:|---:|
-| `hutch.tools` | 307.8 ms | 41.2% |
-| `hutch.models` | 247.4 ms | 33.1% |
-| `hutch.cli_bot_deletion` | 6.5 ms | 0.9% |
-| everything else (stdlib, typer/rich, pydantic, cli body) | 184.6 ms | 24.7% |
+| Subtree | Exclusive import self time (representative trace) | Share | Share across 5 traces |
+|---|---:|---:|---:|
+| `hutch.tools` | 500.6 ms | 56.2% | 44.6-56.2% (median 46.2%) |
+| `hutch.models` | 204.4 ms | 23.0% | 22-33% |
+| `hutch.cli_bot_deletion` | 6.7 ms | 0.75% | 0.70-1.10% |
+| everything else (stdlib, typer/rich, pydantic, cli body) | 178.5 ms | 20.1% | remainder |
+
+The ranking is robust: `hutch.tools` is the largest import bucket in every trace (212 of 528
+import rows), and independent re-measurement during verification found 47.4-54.3% on a fresh
+export. Individual shares move with the trace and absolute microseconds move with host load, so
+quote the rank and the range rather than a single percentage.
 
 Baseline wall time (head export, 11 fresh-process samples, loaded shared host): `version` median
-857 ms / p95 1114 ms, `status` 951 / 1137 ms, `--help` 867 / 1137 ms. The share numbers are the
-reliable part; absolute milliseconds move with host load.
+857 ms / p95 1114 ms, `status` 951 / 1137 ms, `--help` 867 / 1137 ms.
 
 Before the change, importing `hutch.tools` ran ~212 import-time module loads including
 `hutch.synthesis` (and its model/tts/infographic dependencies), `hutch.media` (and
@@ -33,8 +38,8 @@ None are needed to print a version string or resolve an approval.
 
 | ID | Candidate | Measured or bounded cost | Alternative / plan | Decision |
 |---|---|---|---|---|
-| A | Lazy tool catalog (import tool classes on first use) | 307.8 ms exclusive self time (41% of import); every quick command pays it | Static spec table + first-use `importlib` resolver behind a read-only `Mapping`; deterministic `sys.modules` regression tests instead of timing gates | ADOPT |
-| B | Defer the bot-deletion command-layer import | 6.5 ms exclusive (its 254 ms inclusive is `hutch.models`, imported by `cli.py` anyway) | Move `from . import bot_deletion` into the three command helpers | ADOPT (small, removes a needless eager dependency) |
+| A | Lazy tool catalog (import tool classes on first use) | 500.6 ms exclusive self time in the representative trace (44.6-56.2% share); every quick command pays it | Static spec table + first-use `importlib` resolver behind a read-only `Mapping`; deterministic `sys.modules` regression tests instead of timing gates | ADOPT |
+| B | Defer the bot-deletion command-layer import | 6.7 ms exclusive (0.75%); its inclusive share is nearly all `hutch.models`, imported by `cli.py` anyway | Move `from . import bot_deletion` into the three command helpers | ADOPT (small, removes a needless eager dependency) |
 | C | Defer `hutch.models` / import commands lazily per Typer command | 247 ms inclusive (33%); models is imported by `cli.py` top level and used by most commands | Would require splitting the 2,758-line frozen `cli.py` and moving pydantic models to function scope; high regression risk for ~150-200 ms | DEFER (measured; needs its own frozen-file-safe split) |
 | D | Lazy `hutch serve` application imports | serve startup to first HTTP response was 3.07 s in the real-world smoke; `server/app.py` is a 7,461-line frozen file owned by a parked session | Route-level lazy imports inside app.py; cannot be reviewed/merged in this window | DEFER (blocked by parked-file ownership, not by measurements) |
 | E | Rust CLI or native import accelerator | A Rust binary would cut process start to single-digit ms (research: the local `uv --version` measured 8.6 ms median) | ADR-0024/P11 authorises kernel replacement after equivalent tests, not an entry-point rewrite; it is explicitly out of scope; no credible native accelerator exists for third-party imports; lazy imports recover most of the avoidable cost for a fraction of the risk | REJECT (documented in [research/cli-startup-2026-10-30.md](../research/cli-startup-2026-10-30.md)) |
