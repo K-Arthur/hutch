@@ -815,8 +815,8 @@ def test_first_run_draft_and_ai_readiness_survive_connections_and_failures(brows
         # The primary action must not be blocked by the required request field
         # when AI setup is the next step.
         page.locator("#first-run-submit").click()
-        page.get_by_role("heading", name="Apps & AI").wait_for()
-        assert page.evaluate("location.hash") == "#/connections"
+        page.get_by_role("heading", name="What should your assistant do first?").wait_for()
+        assert page.url.endswith("/onboarding")
         page.go_back(wait_until="domcontentloaded")
         request.wait_for()
         expect(status).to_have_text("Choose AI")
@@ -826,8 +826,8 @@ def test_first_run_draft_and_ai_readiness_survive_connections_and_failures(brows
         page.screenshot(path=str(out / "first-run-setup-phone.png"), animations="disabled")
 
         page.locator("#first-run-submit").click()
-        page.get_by_role("heading", name="Apps & AI").wait_for()
-        assert json.loads(page.evaluate("sessionStorage.getItem('hutch-first-run-request')"))["request"] == request_text
+        page.get_by_role("heading", name="What should your assistant do first?").wait_for()
+        expect(page.locator("#request")).to_have_value(request_text)
 
         state["ready"] = True
         page.go_back(wait_until="domcontentloaded")
@@ -994,8 +994,8 @@ def test_first_run_readiness_distinguishes_saved_route_and_partial_states(browse
         request.fill("Partial check request")
         page.screenshot(path=str(out / "first-run-partial-phone.png"), animations="disabled")
         page.locator("#first-run-submit").click()
-        page.get_by_role("heading", name="Apps & AI").wait_for()
-        assert json.loads(page.evaluate("sessionStorage.getItem('hutch-first-run-request')"))["request"] == "Partial check request"
+        page.get_by_role("heading", name="What should your assistant do first?").wait_for()
+        expect(page.locator("#request")).to_have_value("Partial check request")
         assert not errors, errors
         assert not external_requests, external_requests
         (out / "validation-saved-route-partial.json").write_text(json.dumps({

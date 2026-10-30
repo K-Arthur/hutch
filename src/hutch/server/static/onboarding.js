@@ -27,6 +27,10 @@
   const ERROR_SUMMARY = "[data-error-summary]";
   const STEP_HEADING = "[data-focus-heading]";
   const SAVING_TEXT = "Saving...";
+  const DRAFT_KEY = "hutch-first-run-request";
+  const DRAFT_TARGET = "[data-draft-target]";
+  const DRAFT_NOTE = "[data-draft-note]";
+  const DRAFT_MAX = 20000;
 
   function markBusy(form) {
     form.setAttribute("aria-busy", "true");
@@ -74,6 +78,24 @@
     document.querySelectorAll(FORM).forEach(clearBusy);
   });
 
+  /* Slice-02 handoff: the empty chat keeps its first request in sessionStorage.
+     The textarea is marked data-draft-target only when the server has no saved
+     request, so this is a cache read for the empty state only. The normal form
+     POST is still the only save; the server never trusts this value. */
+  function restoreDraft() {
+    const field = document.querySelector(DRAFT_TARGET);
+    const note = document.querySelector(DRAFT_NOTE);
+    if (!(field instanceof HTMLTextAreaElement) || field.value) return;
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || "null");
+      const text = saved?.version === 1 && typeof saved.request === "string"
+        ? saved.request.slice(0, DRAFT_MAX) : "";
+      if (!text.trim()) return;
+      field.value = text;
+      if (note instanceof HTMLElement) note.hidden = false;
+    } catch { /* the tab draft is optional */ }
+  }
+
   /* On a step arrival the page focuses the new step heading so a screen reader
      announces the step change; an error summary always wins over the heading,
      and the request step (no data-focus-heading) keeps its slice-01 behaviour. */
@@ -86,6 +108,7 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => {
+    restoreDraft();
     focusArrival();
     announceResume();
   });

@@ -34,8 +34,8 @@ from .onboarding_pagekit import (
 )
 from .security import check_csrf
 
-# TEMPORARY: slice 02's chooser replaces this bridge in the handoff step.
-CONTINUE_TARGET = "/#/connections"
+# The chooser is the next step; slices 04-06 add the real connection steps after it.
+CONTINUE_TARGET = "/onboarding/ai-service"
 
 STATE_EMPTY = "setup.empty_no_route"
 STATE_SAVED = "setup.draft.saved"
@@ -78,6 +78,7 @@ def _view_fields(view: ResumeView, state: str) -> dict:
         "step_index": view.step_index,
         "step_total": view.required_total,
         "step_label": "your request",
+        "continue_target": CONTINUE_TARGET,
     }
 
 

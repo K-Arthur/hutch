@@ -3409,7 +3409,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
             || !submit?.isConnected) return;
         if (!firstRunSelection && ["setup", "error"].includes(firstRunReadinessState)) {
           saveFirstRunDraft(request?.value || "");
-          location.hash = "#/connections";
+          window.location.assign("/onboarding");
           return;
         }
         const text = request?.value.trim() || "";

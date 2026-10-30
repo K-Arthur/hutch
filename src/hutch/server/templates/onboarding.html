@@ -31,7 +31,6 @@
   {% include "_onboarding_request_text.html" %}
   <p class="onboarding-meta">{% if saved_at_local %}Saved on this machine at {{ saved_at_local }}. {% endif %}Saved is not connected: Hutch has not contacted an AI service yet.</p>
   <div class="onboarding-actions">
-    {# TEMPORARY: slice 02 replaces this bridge with /onboarding/ai-service. #}
     <a class="btn primary" href="{{ continue_target }}" data-primary>Continue to AI service</a>
     <a class="btn ghost" href="/onboarding?edit=1">Edit request</a>
     <a class="onboarding-quiet-link" href="/">Back to the dashboard</a>
