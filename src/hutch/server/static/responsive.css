@@ -120,6 +120,32 @@
   .modal-card.modal-tall { max-height: min(100dvh, var(--vvh, 100dvh)); }
 }
 
+/* Device bands (task 07). The sidebar had two owners: style.css keeps 272px at
+   901-1000px while app/src/input.css (compiled into ui.css) raises it to 304px
+   from 1001px, producing a 32px jump with no layout reason. Rail mode now uses
+   the newer 304px value from 901px upward. Below 901px the drawer mode and the
+   64px icon rail keep their existing widths. */
+@media (min-width: 901px) {
+  .app-shell:not(.collapsed) {
+    grid-template-columns: 304px minmax(0, 1fr);
+  }
+}
+
+/* 13-inch/tablet landscape header density: keep identity and actions on one row
+   where the viewport is wide but short, so the transcript keeps usable height.
+   Portrait and desktop are untouched. */
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 950px) {
+  .app-top {
+    flex-wrap: nowrap;
+    min-height: 48px;
+    padding: 4px 12px;
+  }
+  .app-top-context { flex-wrap: nowrap; height: auto; row-gap: 0; padding-block: 0; }
+  .ctx-id { width: auto; flex: 1 1 auto; }
+  .ctx-actions { width: auto; flex: none; }
+  .attention-bar { min-height: 40px; }
+}
+
 /* Safe-area chrome (task 06). All three shells declare viewport-fit=cover (task
    01); these rules keep the fixed edges clear of a cutout or the home indicator.
    env() is 0px off-device, so desktop rectangles are unchanged. */

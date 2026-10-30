@@ -283,6 +283,32 @@ def _capture_states(browser, app_url, options) -> tuple[list[dict], list[dict]]:
     finally:
         context.close()
 
+    rail_widths = {}
+    for width, height, touch in ((960, 720, True), (1024, 768, True),
+                                 (1180, 820, False), (1366, 1024, True)):
+        context, page = new_page(width, height, touch)
+        try:
+            open_studio(page)
+            measurement = page.evaluate("""() => {
+              const rail = document.querySelector(".workspace");
+              const shell = document.querySelector(".app-shell");
+              return {rail: Math.round(rail.getBoundingClientRect().width),
+                      collapsed: shell.classList.contains("collapsed")};
+            }""")
+            rail_widths[width] = measurement
+        except Exception as error:
+            failures.append({"kind": "styles", "surface": "spa-studio",
+                             "viewport": "rail-%d" % width,
+                             "detail": "rail measurement failed: %s" % str(error)[:200]})
+        finally:
+            context.close()
+    states.append({"name": "rail-widths", "measurement": rail_widths})
+    rail_values = {entry.get("rail") for entry in rail_widths.values() if entry}
+    if len(rail_values) > 1:
+        failures.append({"kind": "styles", "surface": "spa-studio",
+                         "viewport": "rail-widths",
+                         "detail": "rail width differs across 960/1024/1180/1366: %s" % rail_widths})
+
     for name, width, height in (("needs-you-390", 390, 844),
                                 ("needs-you-landscape-844", 844, 390)):
         context, page = new_page(width, height, True)
