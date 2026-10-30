@@ -82,6 +82,12 @@ exclude = [
     "/desktop/gen",
     "/benchmarks/results",
     "/docs/**/artifacts/**/*.zip",
+    # Evidence screenshots and recordings (about 275 MB) are not source or test input.
+    "/docs/**/*.png",
+    "/docs/**/*.webp",
+    "/docs/**/*.jpg",
+    "/docs/**/*.webm",
+    "/docs/**/*.mp4",
 ]
 
 [tool.hatch.build.targets.sdist]
