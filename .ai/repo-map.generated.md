@@ -6,7 +6,7 @@ no source line counts, no unstaged or ignored files. Ordinary source edits do
 not change it; stage file additions or removals, then regenerate. Do not edit
 this file by hand.
 
-Tracked files in scope: 2271.
+Tracked files in scope: 2097.
 
 ## Top-level layout
 
@@ -16,23 +16,22 @@ Tracked files in scope: 2271.
 | `.githooks/` | 2 |
 | `.github/` | 10 |
 | `.impeccable/` | 4 |
-| `.pipeline/` | 278 |
 | `.zcode/` | 6 |
 | `app/` | 2 |
 | `benchmarks/` | 28 |
-| `desktop/` | 20 |
-| `docs/` | 1078 |
+| `desktop/` | 23 |
+| `docs/` | 1097 |
 | `native/` | 9 |
-| `scripts/` | 34 |
-| `src/` | 390 |
-| `tests/` | 338 |
-| `website/` | 49 |
+| `scripts/` | 35 |
+| `src/` | 447 |
+| `tests/` | 346 |
+| `website/` | 65 |
 
 ## Python package: src/hutch/
 
 | Path | Tracked files |
 | --- | ---: |
-| `(root files)` | 79 |
+| `(root files)` | 81 |
 | `actions/` | 3 |
 | `channels/` | 4 |
 | `computer/` | 13 |
@@ -45,20 +44,21 @@ Tracked files in scope: 2271.
 | `platforms/` | 4 |
 | `providers/` | 13 |
 | `runtime/` | 15 |
-| `server/` | 136 |
+| `server/` | 183 |
 | `sources/` | 4 |
 | `synthesis/` | 7 |
 | `toolcalling/` | 10 |
 | `tools/` | 30 |
-| `workflow/` | 14 |
+| `web/` | 6 |
+| `workflow/` | 16 |
 | `workspace/` | 6 |
 
 ## Tests: tests/
 
 | Path | Tracked files |
 | --- | ---: |
-| `(root files)` | 252 |
-| `e2e/` | 55 |
+| `(root files)` | 256 |
+| `e2e/` | 59 |
 | `fixtures/` | 16 |
 | `native/` | 1 |
 | `support/` | 14 |
@@ -68,14 +68,15 @@ Tracked files in scope: 2271.
 | Path | Tracked files |
 | --- | ---: |
 | `desktop/(root files)` | 8 |
-| `desktop/icons/` | 4 |
+| `desktop/icons/` | 7 |
 | `desktop/process-guard/` | 5 |
 | `desktop/src/` | 1 |
 | `desktop/web/` | 2 |
 | `app/src/(root files)` | 2 |
-| `website/(root files)` | 16 |
+| `website/(root files)` | 23 |
 | `website/.well-known/` | 1 |
-| `website/assets/` | 31 |
+| `website/assets/` | 33 |
+| `website/icons/` | 7 |
 | `website/src/` | 1 |
 
 ## Rust crates
@@ -115,6 +116,5 @@ Tracked files in scope: 2271.
 
 ```bash
 python scripts/generate_agent_map.py --write   # stage additions/removals first
-python scripts/generate_agent_map.py --check   # drift check (default)
-npm run audit:agent-map                        # the same check through npm
+python scripts/generate_agent_map.py --check   # drift check (default); also npm run audit:agent-map
 ```

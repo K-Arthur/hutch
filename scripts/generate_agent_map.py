@@ -59,9 +59,11 @@ EXCLUDED_DIR_NAMES = frozenset({
     "test-results", ".venv-build",
 })
 
-#: Root-level output/report trees that are not source, plus ``.ai`` (agent guidance, which the
-#: fixed ENTRY_POINTS table below lists instead of a file count for the directory).
-EXCLUDED_ROOT_DIRS = frozenset({"build", "dist", "var", "reports", "coverage", "htmlcov", ".ai"})
+#: Root-level output/report trees that are not source, plus ``.ai`` (agent guidance, which the fixed
+#: ENTRY_POINTS table below lists instead of a file count for the directory), ``.pipeline`` (dated
+#: program records) and ``research_notes`` (research write-ups). None of them is project structure.
+EXCLUDED_ROOT_DIRS = frozenset({"build", "dist", "var", "reports", "coverage", "htmlcov", ".ai",
+                                ".pipeline", "research_notes"})
 
 #: (path, what it is for) - fixed, so adding a doc does not require map churn.
 ENTRY_POINTS = (
@@ -226,8 +228,7 @@ def render(root: Path = ROOT) -> str:
         "",
         "```bash",
         "python scripts/generate_agent_map.py --write   # stage additions/removals first",
-        "python scripts/generate_agent_map.py --check   # drift check (default)",
-        "npm run audit:agent-map                        # the same check through npm",
+        "python scripts/generate_agent_map.py --check   # drift check (default); also npm run audit:agent-map",
         "```",
     ])
     if len(lines) > MAX_LINES:
